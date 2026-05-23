@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
+  ScrollView,
   Animated,
   Dimensions,
   PanResponder,
@@ -13,15 +14,21 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataChip } from './MetadataChip';
 import { ProductShelf, type Product } from './ProductShelf';
+import { SecondhandShelf } from './SecondhandShelf';
+import { SneakerMatchCard } from './SneakerMatchCard';
+import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import {
   COLORS,
   LAYOUT,
   MOTION,
   RADIUS,
+  SHADOWS,
   SPACING,
   TYPOGRAPHY,
   card,
 } from '../constants/theme';
+import type { VintedSecondhandSearchResponse } from '../types/scan';
+import type { SneakerReference } from '../services/sneakers/types';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y     = SCREEN_HEIGHT * 0.36;
@@ -31,15 +38,35 @@ export interface AnalysisCardProps {
   result:    string;
   metadata:  { category: string; color: string; silhouette: string };
   products?: Product[];
+  secondhand?: VintedSecondhandSearchResponse | null;
+  sneakerReference?: SneakerReference[] | null;
+  scanImageUri?: string | null;
+  scanSourceId?: string | null;
+  scanSourceType?: 'live_scan' | 'style_library_scan';
   onDismiss: () => void;
+  onAddToDressingRoom?: () => void;
 }
 
 function sanitizeText(value?: string) {
   return value?.trim() || EMPTY_VALUE;
 }
 
-export function AnalysisCard({ result, metadata, products = [], onDismiss }: AnalysisCardProps) {
+export function AnalysisCard({
+  result,
+  metadata,
+  products = [],
+  secondhand,
+  sneakerReference,
+  scanImageUri,
+  scanSourceId,
+  scanSourceType = 'live_scan',
+  onDismiss,
+  onAddToDressingRoom,
+}: AnalysisCardProps) {
   const insets = useSafeAreaInsets();
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
+  const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const translateY    = useRef(new Animated.Value(FROM_Y)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
   const chip1Opacity  = useRef(new Animated.Value(0)).current;
@@ -67,7 +94,7 @@ export function AnalysisCard({ result, metadata, products = [], onDismiss }: Ana
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder:  (_, gesture) => gesture.dy > SPACING.md,
       onPanResponderRelease:        (_, gesture) => {
         if (gesture.vy > 0.3 || gesture.dy > 80) runExit();
@@ -137,7 +164,11 @@ export function AnalysisCard({ result, metadata, products = [], onDismiss }: Ana
           <View style={styles.glow} pointerEvents="none" />
 
           <View style={styles.card}>
-            <View style={styles.cardInner}>
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.cardInner}
+            >
               {/* Drag handle */}
               <View style={styles.grip} />
 
@@ -165,17 +196,38 @@ export function AnalysisCard({ result, metadata, products = [], onDismiss }: Ana
                 </Animated.View>
               </View>
 
+              {scanImageUri && onAddToDressingRoom ? (
+                <TouchableOpacity
+                  style={styles.scanRoomCta}
+                  onPress={onAddToDressingRoom}
+                  activeOpacity={0.86}
+                  accessibilityLabel="Add Scan to Dressing Room"
+                >
+                  <Text style={styles.scanRoomCtaText}>Add Scan to Dressing Room</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {/* Sneaker enrichment card — renders only when enrichment resolves */}
+              {sneakerReference && sneakerReference.length > 0 ? (
+                <SneakerMatchCard matches={sneakerReference} />
+              ) : null}
+
               {/* Products or empty state */}
-              {products.length > 0
-                ? <ProductShelf products={products} />
-                : <Text style={styles.noMatchNote}>No close catalog matches found.</Text>
-              }
+              {priceDiscoveryEnabled ? (
+                products.length > 0
+                  ? <ProductShelf products={products} />
+                  : <Text style={styles.noMatchNote}>No close catalog matches found.</Text>
+              ) : null}
+
+              {resaleValuationEnabled && secondhand?.enabled && secondhand.items.length > 0 ? (
+                <SecondhandShelf items={secondhand.items} />
+              ) : null}
 
               {/* Primary CTA */}
               <TouchableOpacity style={styles.cta} onPress={runExit} activeOpacity={0.86}>
                 <Text style={styles.ctaText}>Scan Again</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </Animated.View>
       </View>
@@ -186,18 +238,14 @@ export function AnalysisCard({ result, metadata, products = [], onDismiss }: Ana
 const styles = StyleSheet.create({
   backdrop: {
     flex:               1,
-    backgroundColor:    COLORS.backdrop,
+    backgroundColor:    'rgba(9, 9, 11, 0.44)',
     justifyContent:     'flex-end',
     paddingHorizontal:  SPACING.xl,
   },
   cardWrap: {
     borderRadius:  card.borderRadius,
     overflow:      'visible',
-    shadowColor:   card.shadowColor,
-    shadowOpacity: card.shadowOpacity,
-    shadowRadius:  card.shadowRadius,
-    shadowOffset:  card.shadowOffset,
-    elevation:     12,
+    ...SHADOWS.editorialRaised,
   },
   glow: {
     ...StyleSheet.absoluteFillObject,
@@ -206,18 +254,19 @@ const styles = StyleSheet.create({
     left:   SPACING.xl,
     right:  SPACING.xl,
     borderRadius:    card.borderRadius,
-    backgroundColor: COLORS.accentGlow,
-    opacity:         0.28,
+    backgroundColor: COLORS.goldMuted,
+    opacity:         0.16,
   },
   card: {
     borderRadius:     card.borderRadius,
-    borderWidth:      card.borderWidth,
-    borderColor:      COLORS.cardBorder,
+    borderWidth:      StyleSheet.hairlineWidth,
+    borderColor:      COLORS.borderHairline,
     overflow:         'hidden',
-    backgroundColor:  COLORS.cardBg,
+    backgroundColor:  COLORS.surfaceCard,
+    maxHeight:        SCREEN_HEIGHT * 0.86,
   },
   cardInner: {
-    backgroundColor:   COLORS.cardBg,
+    backgroundColor:   COLORS.surfaceCard,
     paddingHorizontal: card.paddingHorizontal,
     paddingVertical:   card.paddingVertical,
   },
@@ -226,21 +275,24 @@ const styles = StyleSheet.create({
     width:           card.gripWidth,
     height:          card.gripHeight,
     borderRadius:    RADIUS.pill,
-    backgroundColor: COLORS.accentSoft,
+    backgroundColor: COLORS.surfaceMuted,
     marginBottom:    SPACING.lg,
   },
   categoryLabel: {
     ...TYPOGRAPHY.categoryLabel,
+    color: COLORS.goldPressed,
     textTransform: 'uppercase',
     marginBottom:  SPACING.xs,
   },
   headline: {
     ...TYPOGRAPHY.headline,
     marginTop: SPACING.xs,
+    color: COLORS.editorialTextPrimary,
   },
   body: {
     ...TYPOGRAPHY.body,
     marginTop: SPACING.lg,
+    color: COLORS.editorialTextSecondary,
   },
   chipRow: {
     flexDirection: 'row',
@@ -251,17 +303,33 @@ const styles = StyleSheet.create({
   noMatchNote: {
     fontSize:      12,
     fontWeight:    '400' as const,
-    color:         COLORS.textTertiary,
+    color:         COLORS.editorialTextMuted,
     textAlign:     'center' as const,
     marginTop:     SPACING.xl,
     letterSpacing: 0.6,
     fontStyle:     'italic' as const,
   },
+  scanRoomCta: {
+    width: '100%',
+    minHeight: 46,
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceRaised,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+  },
+  scanRoomCtaText: {
+    ...TYPOGRAPHY.cta,
+    color: COLORS.editorialTextPrimary,
+    textAlign: 'center',
+  },
   cta: {
     width:          '100%',
     minHeight:      card.ctaMinHeight,
     borderRadius:   RADIUS.pill,
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.gold,
     justifyContent: 'center',
     alignItems:     'center',
     marginTop:      SPACING.xl,

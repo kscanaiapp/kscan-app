@@ -17,6 +17,19 @@
 // than timing out first and showing a generic network error.
 const ANALYZE_TIMEOUT_MS = 25000;
 const HOSTED_BETA_BASE_URL = 'https://kscan-app-1.onrender.com';
+let analyzeRequestSequence = 0;
+
+function createAnalyzeRequestId() {
+  analyzeRequestSequence += 1;
+  return `analyze-${Date.now()}-${analyzeRequestSequence}`;
+}
+
+function logAnalyzeDiag(payload) {
+  console.log(`[KSCAN_DIAG_ANALYZE] ${JSON.stringify({
+    ...payload,
+    timestamp: Date.now(),
+  })}`);
+}
 
 function userSafeError(message, userMessage) {
   const error = new Error(message);
@@ -111,18 +124,46 @@ function deduplicateProducts(products) {
 export async function analyzeImage(base64) {
   if (__DEV__) console.log('[DEBUG] analyzeImage called payloadLen=' + (base64?.length ?? 0));
 
+  const requestStartedAt = Date.now();
+  const endpoint = `${BASE_URL}/api/analyze`;
+  const requestBody = JSON.stringify({ image: base64 });
+  const requestId = createAnalyzeRequestId();
+  logAnalyzeDiag({
+    event: 'request_prepared',
+    requestId,
+    endpoint,
+    imageValueLength: typeof base64 === 'string' ? base64.length : 0,
+    bodyBytes: requestBody.length,
+    hasExpectedDataUriPrefix:
+      typeof base64 === 'string' && base64.startsWith('data:image/jpeg;base64,'),
+  });
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
 
   try {
     if (__DEV__) console.log('[DEBUG] FETCH_START url=' + BASE_URL + '/api/analyze');
-    const response = await fetch(`${BASE_URL}/api/analyze`, {
+    logAnalyzeDiag({
+      event: 'request_start',
+      requestId,
+      endpoint,
+      bodyBytes: requestBody.length,
+      elapsedMs: Date.now() - requestStartedAt,
+    });
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64 }),
+      body: requestBody,
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+    logAnalyzeDiag({
+      event: 'request_response',
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      status: response.status,
+      ok: response.ok,
+    });
     if (__DEV__) console.log('[DEBUG] FETCH_DONE status=' + response.status);
 
     // Guard: try parsing JSON; surface a clean error if the server sent garbage
@@ -152,6 +193,13 @@ export async function analyzeImage(base64) {
       );
     }
 
+    logAnalyzeDiag({
+      event: 'request_success',
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      status: response.status,
+    });
+
     // Non-fashion: return a distinct result type so the UI can show a tailored message
     if (data.type === 'non-fashion') {
       return {
@@ -179,6 +227,13 @@ export async function analyzeImage(base64) {
     };
   } catch (err) {
     clearTimeout(timeoutId);
+    logAnalyzeDiag({
+      event: 'request_error',
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      errorName: err?.name ?? null,
+      errorMessage: err?.message ?? null,
+    });
     if (err.name === 'AbortError') {
       throw userSafeError(
         'Analysis timed out.',
