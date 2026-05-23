@@ -23,7 +23,7 @@ import {
 } from '../services/supabasePrivacy';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
-import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { COLORS, LAYOUT, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { submitAccountDeletionRequest } from '../services/accountDeletion';
 import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
@@ -54,9 +54,9 @@ const SYNC_STATUS_LABELS: Record<string, string> = {
 
 const SYNC_STATUS_COLORS: Record<string, string> = {
   synced: COLORS.success,
-  syncing: '#00FFFF',
-  'local-only': COLORS.textTertiary,
-  error: COLORS.errorSoft,
+  syncing: COLORS.goldPressed,
+  'local-only': COLORS.editorialTextMuted,
+  error: COLORS.error,
 };
 
 export default function PrivacyScreen() {
@@ -110,7 +110,7 @@ export default function PrivacyScreen() {
   const syncChip = useMemo(() => {
     if (mode === 'booting') return null;
     const label = SYNC_STATUS_LABELS[syncStatus] ?? syncStatus;
-    const color = SYNC_STATUS_COLORS[syncStatus] ?? COLORS.textTertiary;
+    const color = SYNC_STATUS_COLORS[syncStatus] ?? COLORS.editorialTextMuted;
     return (
       <View style={[styles.syncChip, { borderColor: `${color}55` }]}>
         {syncStatus === 'syncing' ? (
@@ -206,7 +206,7 @@ export default function PrivacyScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Modal
         transparent
         visible={deletionConfirmVisible}
@@ -265,7 +265,7 @@ export default function PrivacyScreen() {
 
         {loading ? (
           <View style={styles.loadingPanel}>
-            <ActivityIndicator size="large" color="#00FFFF" />
+            <ActivityIndicator size="large" color={COLORS.goldPressed} />
             <Text style={styles.loadingCaption}>Loading your preferences…</Text>
           </View>
         ) : (
@@ -374,7 +374,7 @@ export default function PrivacyScreen() {
                   value={correctionText}
                   onChangeText={setCorrectionText}
                   placeholder="Describe a correction request"
-                  placeholderTextColor={COLORS.textTertiary}
+                  placeholderTextColor={COLORS.editorialTextMuted}
                   multiline
                   style={styles.input}
                 />
@@ -394,7 +394,7 @@ export default function PrivacyScreen() {
                 onPress={handleDeletion}
               >
                 {deletionSubmitting ? (
-                  <ActivityIndicator size="small" color={COLORS.errorSoft} />
+                  <ActivityIndicator size="small" color={COLORS.error} />
                 ) : (
                   <Text style={styles.dangerButtonText}>
                     {deletionPending ? 'Deletion Request Pending' : 'Delete Account'}
@@ -412,7 +412,7 @@ export default function PrivacyScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.canvasWarm,
   },
   header: {
     flexDirection: 'row',
@@ -420,14 +420,14 @@ const styles = StyleSheet.create({
     paddingTop: LAYOUT.safeTop,
     paddingHorizontal: LAYOUT.screenPadding,
     paddingBottom: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.borderHairline,
   },
   backButton: {
     width: 56,
   },
   backText: {
-    color: '#00FFFF',
+    color: COLORS.goldPressed,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -441,11 +441,12 @@ const styles = StyleSheet.create({
   brand: {
     ...TYPOGRAPHY.brand,
     fontSize: 16,
+    color: COLORS.editorialTextPrimary,
   },
   screenTitle: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
-    color: '#00FFFF',
+    color: COLORS.goldPressed,
   },
   content: {
     padding: LAYOUT.screenPadding,
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...TYPOGRAPHY.caption,
-    color: '#00FFFF',
+    color: COLORS.goldPressed,
   },
   heroRow: {
     flexDirection: 'row',
@@ -470,6 +471,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.headline,
     fontSize: 28,
     flex: 1,
+    color: COLORS.editorialTextPrimary,
   },
   syncChip: {
     flexDirection: 'row',
@@ -479,7 +481,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.surfaceSoft,
+    backgroundColor: COLORS.surfaceRaised,
   },
   syncSpinner: {
     width: 12,
@@ -493,6 +495,7 @@ const styles = StyleSheet.create({
   },
   body: {
     ...TYPOGRAPHY.body,
+    color: COLORS.editorialTextSecondary,
   },
   loadingPanel: {
     minHeight: 240,
@@ -502,19 +505,20 @@ const styles = StyleSheet.create({
   },
   loadingCaption: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
+    color: COLORS.editorialTextMuted,
   },
   message: {
     ...TYPOGRAPHY.bodyStrong,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
-    color: COLORS.textPrimary,
+    color: COLORS.editorialTextPrimary,
+    ...SHADOWS.editorialSmall,
   },
   errorBanner: {
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 107, 107, 0.45)',
     borderRadius: RADIUS.md,
     backgroundColor: 'rgba(255, 107, 107, 0.08)',
@@ -523,46 +527,50 @@ const styles = StyleSheet.create({
   },
   errorBannerTitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.errorSoft,
+    color: COLORS.error,
   },
   errorBannerBody: {
     ...TYPOGRAPHY.body,
+    color: COLORS.editorialTextSecondary,
     fontSize: 13,
     lineHeight: 20,
   },
   signInNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#00FFFF',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(0, 255, 255, 0.08)',
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
     gap: SPACING.sm,
+    ...SHADOWS.editorialSmall,
   },
   signInNoticeText: {
     flex: 1,
     gap: SPACING.sm,
   },
   signInArrow: {
-    color: '#00FFFF',
+    color: COLORS.goldPressed,
     fontSize: 22,
     fontWeight: '300',
   },
   notice: {
-    borderWidth: 1,
-    borderColor: '#00FFFF',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(0, 255, 255, 0.08)',
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
     gap: SPACING.sm,
+    ...SHADOWS.editorialSmall,
   },
   noticeTitle: {
     ...TYPOGRAPHY.caption,
-    color: '#00FFFF',
+    color: COLORS.goldPressed,
   },
   noticeBody: {
     ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.editorialTextPrimary,
   },
   accountRow: {
     flexDirection: 'row',
@@ -573,7 +581,7 @@ const styles = StyleSheet.create({
   accountEmail: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: COLORS.editorialTextSecondary,
     flex: 1,
     marginRight: SPACING.md,
   },
@@ -581,50 +589,54 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.md,
     borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
   },
   signOutText: {
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.4,
-    color: COLORS.textTertiary,
+    color: COLORS.editorialTextSecondary,
     textTransform: 'uppercase',
   },
   sectionCard: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
     gap: SPACING.md,
+    ...SHADOWS.editorialRaised,
   },
   sectionTitle: {
     ...TYPOGRAPHY.title,
     fontSize: 18,
-    color: COLORS.textPrimary,
+    color: COLORS.editorialTextPrimary,
   },
   sectionSubtitle: {
     ...TYPOGRAPHY.body,
     fontSize: 12,
     lineHeight: 18,
-    color: COLORS.textSecondary,
+    color: COLORS.editorialTextSecondary,
     marginBottom: SPACING.xs,
   },
   infoPanel: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceCard,
     gap: SPACING.md,
+    ...SHADOWS.editorialSmall,
   },
   panelTitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textPrimary,
+    color: COLORS.goldPressed,
   },
   panelBody: {
     ...TYPOGRAPHY.body,
+    color: COLORS.editorialTextSecondary,
     fontSize: 13,
     lineHeight: 20,
   },
@@ -635,22 +647,22 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     fontSize: 12,
     lineHeight: 18,
-    color: COLORS.textTertiary,
+    color: COLORS.editorialTextMuted,
     marginBottom: SPACING.sm,
   },
   secondaryButton: {
     minHeight: 50,
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
-    backgroundColor: COLORS.surfaceSoft,
+    backgroundColor: COLORS.surfaceCard,
   },
   secondaryButtonText: {
     ...TYPOGRAPHY.cta,
-    color: COLORS.textSecondary,
+    color: COLORS.editorialTextSecondary,
     fontSize: 12,
   },
   correctionBox: {
@@ -659,11 +671,11 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 96,
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     padding: SPACING.lg,
-    color: COLORS.textPrimary,
-    backgroundColor: COLORS.surface,
+    color: COLORS.editorialTextPrimary,
+    backgroundColor: COLORS.surfaceCard,
     textAlignVertical: 'top',
   },
   dangerButton: {
@@ -678,7 +690,7 @@ const styles = StyleSheet.create({
   },
   dangerButtonText: {
     ...TYPOGRAPHY.cta,
-    color: COLORS.errorSoft,
+    color: COLORS.error,
     fontSize: 12,
   },
   modalScrim: {
@@ -690,19 +702,22 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.xl,
     gap: SPACING.lg,
+    ...SHADOWS.editorialRaised,
   },
   modalTitle: {
     ...TYPOGRAPHY.title,
     fontSize: 20,
+    color: COLORS.editorialTextPrimary,
   },
   modalBody: {
     ...TYPOGRAPHY.body,
+    color: COLORS.editorialTextSecondary,
     fontSize: 13,
     lineHeight: 20,
   },
@@ -714,21 +729,21 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSecondaryText: {
     ...TYPOGRAPHY.cta,
-    color: COLORS.textSecondary,
+    color: COLORS.editorialTextMuted,
     fontSize: 12,
   },
   modalDangerButton: {
     flex: 1,
     minHeight: 48,
     borderRadius: RADIUS.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 107, 107, 0.48)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -736,7 +751,7 @@ const styles = StyleSheet.create({
   },
   modalDangerText: {
     ...TYPOGRAPHY.cta,
-    color: COLORS.errorSoft,
+    color: COLORS.error,
     fontSize: 12,
   },
 });

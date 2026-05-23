@@ -29,7 +29,7 @@ export function PrivacyToggle({ title, body, value, disabled, busy, onChange }: 
       </View>
       {busy ? (
         <View style={styles.busySlot}>
-          <ActivityIndicator size="small" color="#00FFFF" />
+          <ActivityIndicator size="small" color={COLORS.goldPressed} />
         </View>
       ) : (
         <View style={[styles.track, value && styles.trackActive, locked && styles.trackDisabled]}>
@@ -44,16 +44,16 @@ const styles = StyleSheet.create({
   row: {
     minHeight: 96,
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceRaised,
     padding: SPACING.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.lg,
   },
   rowActive: {
-    borderColor: '#00FFFF',
+    borderColor: COLORS.goldMuted,
   },
   rowDisabled: {
     opacity: 0.66,
@@ -64,10 +64,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...TYPOGRAPHY.title,
-    color: COLORS.textPrimary,
+    color: COLORS.editorialTextPrimary,
   },
   body: {
     ...TYPOGRAPHY.body,
+    color: COLORS.editorialTextSecondary,
     fontSize: 13,
     lineHeight: 20,
   },
@@ -75,18 +76,18 @@ const styles = StyleSheet.create({
     width: 52,
     height: 30,
     borderRadius: 15,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.bgElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderSubtle,
+    backgroundColor: COLORS.surfaceMuted,
     padding: 3,
     justifyContent: 'center',
   },
   trackActive: {
-    borderColor: '#00FFFF',
-    backgroundColor: 'rgba(0, 255, 255, 0.16)',
+    borderColor: COLORS.goldMuted,
+    backgroundColor: COLORS.goldMuted,
   },
   trackDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surfaceMuted,
   },
   busySlot: {
     width: 52,
@@ -98,10 +99,10 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: COLORS.textTertiary,
+    backgroundColor: COLORS.editorialTextMuted,
   },
   thumbActive: {
     transform: [{ translateX: 20 }],
-    backgroundColor: '#00FFFF',
+    backgroundColor: COLORS.surfaceCard,
   },
 });
