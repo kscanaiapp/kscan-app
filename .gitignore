@@ -20,3 +20,13 @@ API Keys.docx
 *keys*.docx
 
 *.secret.*
+
+# Local App Store / reviewer artifacts
+store.config.json
+apple-audit-assets/
+
+# Apple private keys / signing material
+*.p8
+
+# Physical device debug logs
+physical-*

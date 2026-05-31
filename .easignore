@@ -46,3 +46,10 @@ supabase/.temp/
 # Local audit/docs not needed for app build
 KScan_Website_Audit_*.md
 AGENTS.md
+
+# Local App Store / reviewer artifacts
+store.config.json
+apple-audit-assets/
+
+# Apple private keys / signing material
+*.p8
