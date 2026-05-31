@@ -7,6 +7,10 @@ import {
 import { searchSneakers, shouldEnrichSneakers } from '../services/sneakers/index';
 import { compressForUpload } from '../services/imageUtils';
 import {
+  getPrivacySanitizerStatus,
+  sanitizeImageBeforeUpload,
+} from '../services/privacyImageSanitizer';
+import {
   errorPulse,
   softImpact,
   successPulse,
@@ -168,8 +172,21 @@ export function useKScan() {
         const compressed = await compressForUpload(photo.uri);
         if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
 
+        const sanitized = await sanitizeImageBeforeUpload(compressed);
+        if (__DEV__) {
+          const sanitizerStatus = getPrivacySanitizerStatus();
+          console.warn(
+            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
+            sanitizerStatus.mode +
+            ' faceDetectionAvailable=' +
+            sanitizerStatus.faceDetectionAvailable +
+            ' faceBlurApplied=' +
+            sanitizerStatus.faceBlurApplied
+          );
+        }
+
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
-        const data = await analyzeImage(compressed);
+        const data = await analyzeImage(sanitized);
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
 
         // Enforce minimum HUD display time so PerceptionLayer completes its entry
@@ -234,7 +251,7 @@ export function useKScan() {
           errorPulse();
           setError(
             err?.userMessage ||
-            'Connection issue — Tap to retry'
+            'We couldn’t complete the scan. Please check your connection and try again.'
           );
           setStatus('error');
         }

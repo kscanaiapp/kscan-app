@@ -3,25 +3,29 @@
  *
  * Storage layout (all paths under FileSystem.documentDirectory/kscan_library/):
  *   kscan_library/kscan_library.json  — JSON array of SavedScan objects, newest first
+ *   kscan_library/images/<id>.jpg      — persistent scan image for explicit room upload
  *   kscan_library/thumbnails/<id>.jpg — persistent 160px-wide JPEG thumbnails
  *
  * All functions are safe to call in fire-and-forget fashion; they never throw.
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
 const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
+const IMAGES_DIR   = LIB_DIR + 'images/';
 const THUMBS_DIR   = LIB_DIR + 'thumbnails/';
 const MAX_SCANS     = 25;
 const THUMB_WIDTH   = 160; // px — small square-ish card thumbnail
+const IMAGE_WIDTH   = 1440; // px — room-upload friendly, still compact
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 async function ensureDirs() {
   try {
-    // intermediates: true creates LIB_DIR and THUMBS_DIR in one call
+    // intermediates: true creates LIB_DIR and child dirs in one call
+    await FileSystem.makeDirectoryAsync(IMAGES_DIR, { intermediates: true });
     await FileSystem.makeDirectoryAsync(THUMBS_DIR, { intermediates: true });
   } catch { /* non-fatal — directory may already exist */ }
 }
@@ -50,6 +54,22 @@ async function generateThumbnail(photoUri, id) {
     return destPath;
   } catch {
     return null; // thumbnail failure is non-fatal
+  }
+}
+
+async function persistScanImage(photoUri, id) {
+  try {
+    await ensureDirs();
+    const result = await ImageManipulator.manipulateAsync(
+      photoUri,
+      [{ resize: { width: IMAGE_WIDTH } }],
+      { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    const destPath = IMAGES_DIR + id + '.jpg';
+    await FileSystem.moveAsync({ from: result.uri, to: destPath });
+    return destPath;
+  } catch {
+    return null;
   }
 }
 
@@ -82,6 +102,8 @@ export async function saveScan({ photoUri, analysis }) {
   try {
     const id = 'scan_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
 
+    // Local image persistence is best-effort; existing library behavior remains local.
+    const imageUri = await persistScanImage(photoUri, id);
     // Thumbnail generation is best-effort; missing thumbnail shows placeholder
     const thumbnailUri = await generateThumbnail(photoUri, id);
 
@@ -89,6 +111,7 @@ export async function saveScan({ photoUri, analysis }) {
     const scan = {
       id,
       createdAt: new Date().toISOString(),
+      imageUri,               // null if persistence failed; legacy scans may not have it
       thumbnailUri,          // null if generation failed
       attributes: {
         category:          analysis.metadata?.category   ?? '',
@@ -116,6 +139,13 @@ export async function saveScan({ photoUri, analysis }) {
             FileSystem.deleteAsync(s.thumbnailUri, { idempotent: true }).catch(() => null)
           )
       );
+      await Promise.all(
+        evicted
+          .filter(s => s.imageUri)
+          .map(s =>
+            FileSystem.deleteAsync(s.imageUri, { idempotent: true }).catch(() => null)
+          )
+      );
     }
 
     await persistLibrary(updated);
@@ -134,6 +164,9 @@ export async function deleteScan(id) {
     const target  = library.find(s => s.id === id);
     if (target?.thumbnailUri) {
       await FileSystem.deleteAsync(target.thumbnailUri, { idempotent: true }).catch(() => null);
+    }
+    if (target?.imageUri) {
+      await FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => null);
     }
     await persistLibrary(library.filter(s => s.id !== id));
     return true;

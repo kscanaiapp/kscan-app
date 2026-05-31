@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Pressable,
   SafeAreaView,
@@ -217,7 +218,7 @@ export default function PrivacyScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Request account deletion?</Text>
             <Text style={styles.modalBody}>
-              Your account will be marked pending deletion while K Scan AI processes required retention, security, and legal checks.
+              Your deletion request will be processed within 30 days. We will delete your account and associated app data, except information we are legally required to retain.
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -401,6 +402,20 @@ export default function PrivacyScreen() {
                   </Text>
                 )}
               </Pressable>
+
+              <View style={styles.legalFooter}>
+                <Pressable onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}>
+                  <Text style={styles.legalFooterLink}>Privacy Policy</Text>
+                </Pressable>
+                <Text style={styles.legalFooterSep}>·</Text>
+                <Pressable onPress={() => void Linking.openURL('https://kscan.app/legal/terms')}>
+                  <Text style={styles.legalFooterLink}>Terms</Text>
+                </Pressable>
+                <Text style={styles.legalFooterSep}>·</Text>
+                <Pressable onPress={() => void Linking.openURL('https://kscan.app/support')}>
+                  <Text style={styles.legalFooterLink}>Support</Text>
+                </Pressable>
+              </View>
             </View>
           </>
         )}
@@ -753,5 +768,22 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.cta,
     color: COLORS.error,
     fontSize: 12,
+  },
+  legalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  legalFooterLink: {
+    fontSize: 11,
+    color: COLORS.editorialTextMuted,
+    textDecorationLine: 'underline',
+  },
+  legalFooterSep: {
+    fontSize: 11,
+    color: COLORS.editorialTextMuted,
   },
 });

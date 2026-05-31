@@ -12,10 +12,10 @@
  *   Hosted beta backend:    EXPO_PUBLIC_API_URL=https://kscan-app-1.onrender.com
  */
 
-// 25 seconds — must exceed the server's 15-second AI timeout plus network
+// 45 seconds — must exceed the server's 15-second AI timeout plus network
 // round-trip, so the client waits for the server's own error response rather
 // than timing out first and showing a generic network error.
-const ANALYZE_TIMEOUT_MS = 25000;
+const ANALYZE_TIMEOUT_MS = 45000;
 const HOSTED_BETA_BASE_URL = 'https://kscan-app-1.onrender.com';
 let analyzeRequestSequence = 0;
 
@@ -25,10 +25,12 @@ function createAnalyzeRequestId() {
 }
 
 function logAnalyzeDiag(payload) {
-  console.log(`[KSCAN_DIAG_ANALYZE] ${JSON.stringify({
-    ...payload,
-    timestamp: Date.now(),
-  })}`);
+  if (__DEV__) {
+    console.log(`[KSCAN_DIAG_ANALYZE] ${JSON.stringify({
+      ...payload,
+      timestamp: Date.now(),
+    })}`);
+  }
 }
 
 function userSafeError(message, userMessage) {
@@ -237,14 +239,14 @@ export async function analyzeImage(base64) {
     if (err.name === 'AbortError') {
       throw userSafeError(
         'Analysis timed out.',
-        'Preparing K-SCAN Engine... Tap to retry'
+        'Analysis is taking longer than expected. Please try again in a moment.'
       );
     }
     // Network / connection failure (fetch throws TypeError for unreachable hosts)
     if (err instanceof TypeError) {
       throw userSafeError(
         'Network request failed.',
-        'Connection issue — Tap to retry'
+        'We couldn’t complete the scan. Please check your connection and try again.'
       );
     }
     throw err;

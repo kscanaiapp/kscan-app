@@ -17,10 +17,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "K Scan uses your camera to photograph your outfit for style analysis."
+          "cameraPermission": "K Scan uses your camera to photograph your outfit for style analysis.",
+          "microphonePermission": false
         }
       ],
-      "expo-router"
+      "expo-router",
+      "expo-apple-authentication",
+      "expo-font"
     ],
     "android": {
       "package": "com.kscanai.app",
@@ -44,14 +47,21 @@
               "scheme": "kscan"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
     "ios": {
       "bundleIdentifier": "com.kscanai.app",
+      "buildNumber": "2",
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis."
+        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "extra": {

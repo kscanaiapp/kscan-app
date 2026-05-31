@@ -14,19 +14,22 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { AnalysisCard } from '../components/AnalysisCard';
+import { AddScanToDressingRoomModal } from '../components/AddScanToDressingRoomModal';
 import { useLibrary } from '../hooks/useLibrary';
+import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import {
   COLORS,
   LAYOUT,
   LOADING,
   RADIUS,
+  SHADOWS,
   SPACING,
   TYPOGRAPHY,
 } from '../constants/theme';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_GAP  = SPACING.sm;
+const CARD_GAP  = SPACING.md;
 const H_PAD     = LAYOUT.screenPadding;
 const CARD_W    = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
 const THUMB_H   = CARD_W; // square thumbnail
@@ -44,6 +47,7 @@ interface ScanAttributes {
 interface SavedScan {
   id:           string;
   createdAt:    string;
+  imageUri?:     string | null;
   thumbnailUri: string | null;
   attributes:   ScanAttributes;
   result:       string;
@@ -124,14 +128,20 @@ function ScanCard({ scan, onPress, onDelete }: ScanCardProps) {
 export default function LibraryScreen() {
   const router = useRouter();
   const { scans, loading, remove } = useLibrary();
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
   const [selectedScan, setSelectedScan] = useState<SavedScan | null>(null);
+  const [dressingRoomModalVisible, setDressingRoomModalVisible] = useState(false);
 
   const handleOpenScan = (scan: SavedScan) => setSelectedScan(scan);
-  const handleCloseScan = () => setSelectedScan(null);
+  const handleCloseScan = () => {
+    setSelectedScan(null);
+    setDressingRoomModalVisible(false);
+  };
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <SafeAreaView style={styles.header}>
         <TouchableOpacity
@@ -183,14 +193,41 @@ export default function LibraryScreen() {
         <AnalysisCard
           result={selectedScan.result}
           metadata={{
-            category:  selectedScan.attributes.category,
-            color:     selectedScan.attributes.color_palette,
+            category:   selectedScan.attributes.category,
+            color:      selectedScan.attributes.color_palette,
             silhouette: selectedScan.attributes.silhouette,
           }}
           products={selectedScan.products as any}
+          scanImageUri={(selectedScan as any).imageUri ?? null}
+          scanSourceId={selectedScan.id}
+          scanSourceType="style_library_scan"
           onDismiss={handleCloseScan}
+          onAddToDressingRoom={
+            dressingRoomsEnabled && (selectedScan as any).imageUri
+              ? () => setDressingRoomModalVisible(true)
+              : undefined
+          }
         />
       )}
+
+      {/* Top-level modal — never nested inside AnalysisCard's Modal */}
+      {dressingRoomsEnabled && selectedScan && (selectedScan as any).imageUri ? (
+        <AddScanToDressingRoomModal
+          visible={dressingRoomModalVisible}
+          localImageUri={(selectedScan as any).imageUri}
+          scan={{
+            sourceType: 'style_library_scan',
+            sourceId:   selectedScan.id,
+            result:     selectedScan.result,
+            metadata: {
+              category:   selectedScan.attributes.category,
+              color:      selectedScan.attributes.color_palette,
+              silhouette: selectedScan.attributes.silhouette,
+            },
+          }}
+          onClose={() => setDressingRoomModalVisible(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -199,7 +236,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.canvasWarm,
   },
   // ── Header ─────────────────────────────────────────────────────────────────
   header: {
@@ -208,8 +245,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: H_PAD,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.borderHairline,
+    backgroundColor: COLORS.canvasWarm,
   },
   backBtn: {
     width: 36,
@@ -227,12 +265,12 @@ const styles = StyleSheet.create({
   brandTitle: {
     ...TYPOGRAPHY.brand,
     fontSize: 16,
-    color: COLORS.textPrimary,
+    color: COLORS.editorialTextPrimary,
   },
   screenTitle: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
-    color: COLORS.accent,
+    color: COLORS.goldPressed,
   },
   headerRight: {
     width: 36, // mirrors backBtn for centering
@@ -251,39 +289,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gridRow: {
-    gap: CARD_GAP,
-    marginBottom: CARD_GAP,
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   // ── Scan card ──────────────────────────────────────────────────────────────
   card: {
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
     overflow: 'hidden',
+    ...SHADOWS.editorialSmall,
   },
   thumb: {
     // width/height set inline from CARD_W
   },
   thumbPlaceholder: {
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.surfaceMuted,
   },
   cardInfo: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical:   SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.md,
     gap: SPACING.xxs,
   },
   cardCategory: {
     fontSize:      12,
     fontWeight:    '600' as const,
     letterSpacing: 1.8,
-    color:         COLORS.accent,
+    color:         COLORS.editorialTextPrimary,
     textTransform: 'uppercase' as const,
   },
   cardDate: {
     fontSize:      11,
     fontWeight:    '400' as const,
-    color:         COLORS.textTertiary,
+    color:         COLORS.editorialTextMuted,
     letterSpacing: 0.6,
   },
   deleteBtn: {
@@ -293,15 +332,15 @@ const styles = StyleSheet.create({
     width:           22,
     height:          22,
     borderRadius:    11,
-    backgroundColor: 'rgba(4, 6, 10, 0.82)',
-    borderWidth:     1,
-    borderColor:     COLORS.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+    borderWidth:     StyleSheet.hairlineWidth,
+    borderColor:     COLORS.borderHairline,
     alignItems:      'center',
     justifyContent:  'center',
   },
   deleteBtnText: {
     fontSize:   14,
-    color:      COLORS.textSecondary,
+    color:      COLORS.editorialTextSecondary,
     lineHeight: 16,
   },
   // ── Empty state ────────────────────────────────────────────────────────────
@@ -310,16 +349,22 @@ const styles = StyleSheet.create({
     justifyContent:    'center',
     paddingHorizontal: H_PAD,
     gap:               SPACING.md,
+    borderRadius:      RADIUS.lg,
+    borderWidth:       StyleSheet.hairlineWidth,
+    borderColor:       COLORS.borderHairline,
+    backgroundColor:   COLORS.surfaceCard,
+    paddingVertical:   SPACING.xxl,
+    ...SHADOWS.editorialSmall,
   },
   emptyTitle: {
     ...TYPOGRAPHY.bodyStrong,
-    color:      COLORS.textSecondary,
+    color:      COLORS.editorialTextPrimary,
     textAlign:  'center',
     letterSpacing: 0.4,
   },
   emptyBody: {
     ...TYPOGRAPHY.caption,
-    color:      COLORS.textTertiary,
+    color:      COLORS.editorialTextMuted,
     textAlign:  'center',
   },
   // ── Loading ────────────────────────────────────────────────────────────────
@@ -327,5 +372,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COLORS.canvasWarm,
   },
 });

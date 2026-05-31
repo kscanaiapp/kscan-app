@@ -136,10 +136,15 @@ function ActionButton({ label, onPress, variant = 'primary', disabled = false })
 
 function ProcessingPanel() {
   const [showSpinner, setShowSpinner] = useState(false);
+  const [showLongWait, setShowLongWait] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSpinner(true), 200);
-    return () => clearTimeout(timer);
+    const spinnerTimer = setTimeout(() => setShowSpinner(true), 200);
+    const longWaitTimer = setTimeout(() => setShowLongWait(true), 10000);
+    return () => {
+      clearTimeout(spinnerTimer);
+      clearTimeout(longWaitTimer);
+    };
   }, []);
 
   return (
@@ -153,7 +158,9 @@ function ProcessingPanel() {
       </View>
       <Text style={styles.processingText}>SCANNING STYLE</Text>
       <Text style={styles.processingCaption}>
-        IDENTIFYING SILHOUETTE
+        {showLongWait
+          ? 'Waking up the K Scan engine. This can take a moment on the first scan.'
+          : 'IDENTIFYING SILHOUETTE'}
       </Text>
     </View>
   );

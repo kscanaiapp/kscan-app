@@ -7,6 +7,13 @@ export const COLORS = {
   surface:       'rgba(20, 24, 32, 0.86)',      // card/glass surface
   surfaceStrong: 'rgba(26, 31, 46, 0.92)',      // elevated glass
   surfaceSoft:   'rgba(255, 255, 255, 0.06)',   // very subtle tint
+  canvasWarm:    '#F6F4F1',
+  surfaceCard:   '#FFFFFF',
+  surfaceRaised: '#FAF8F5',
+  surfaceMuted:  '#F2F0ED',
+  obsidian:      '#09090B',
+  graphite:      '#121212',
+  graphiteRaised:'#1A1A1C',
 
   // ── Absolute ─────────────────────────────────────────────────────────────────
   white: '#FFFFFF',
@@ -17,11 +24,19 @@ export const COLORS = {
   textSecondary: '#8C93A3',   // muted chrome
   textTertiary:  '#6B7280',   // deep muted
   textInverse:   '#090B10',   // dark text on gold/light surfaces
+  editorialTextPrimary:   '#171717',
+  editorialTextSecondary: '#575757',
+  editorialTextMuted:     '#8A8A8A',
+  chrome:                 '#F5F3EF',
+  chromeMuted:            'rgba(245, 243, 239, 0.72)',
 
   // ── Accent — Champagne Gold ───────────────────────────────────────────────────
   accent:     '#D6B36A',                        // champagne gold
   accentSoft: 'rgba(214, 179, 106, 0.12)',
   accentGlow: 'rgba(214, 179, 106, 0.22)',
+  gold:       '#C7A86B',
+  goldPressed:'#B6924E',
+  goldMuted:  'rgba(199, 168, 107, 0.50)',
 
   // ── AR signals ───────────────────────────────────────────────────────────────
   arPurple: '#8B5CF6',
@@ -31,19 +46,25 @@ export const COLORS = {
   border:       '#2A2F3A',                      // chrome
   borderStrong: 'rgba(214, 179, 106, 0.35)',    // gold highlight
   chipBorder:   '#2A2F3A',                      // chrome chip border
+  borderHairline: 'rgba(0, 0, 0, 0.06)',
+  borderSubtle:   'rgba(0, 0, 0, 0.10)',
+  darkOverlayBorder: 'rgba(255, 255, 255, 0.16)',
+  hudLine: 'rgba(255, 255, 255, 0.72)',
 
   // ── Cards ────────────────────────────────────────────────────────────────────
   cardBg:     'rgba(20, 24, 32, 0.86)',
   cardBorder: '#2A2F3A',
+  lightCardBg: '#FFFFFF',
+  lightCardBorder: 'rgba(0, 0, 0, 0.06)',
 
   // ── Utility ──────────────────────────────────────────────────────────────────
   backdrop: 'rgba(4, 6, 10, 0.78)',
   overlay:  'rgba(0, 0, 0, 0.30)',
 
   // ── Status ───────────────────────────────────────────────────────────────────
-  error:     '#FF6B6B',
+  error:     '#B65454',
   errorSoft: '#FFAAAA',
-  success:   '#56D364',
+  success:   '#3C7D4A',
   warning:   '#F4D27A',
 };
 
@@ -66,6 +87,30 @@ export const RADIUS = {
   lg:   24,
   xl:   28,
   pill: 999,
+};
+
+export const SHADOWS = {
+  editorialSmall: {
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  editorialRaised: {
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 24,
+    elevation: 6,
+  },
+  darkFloat: {
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.32,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 24,
+    elevation: 8,
+  },
 };
 
 export const TYPOGRAPHY = {
@@ -192,7 +237,7 @@ export const viewfinder = {
   scanningLineHeight: 1.5,
   scanningLineOffset: 90,
   scanTravelDistance: 280,
-  scanningLineColor:  COLORS.accent,
+  scanningLineColor:  COLORS.gold,
   frameGlow:          COLORS.accentGlow,
 };
 
@@ -200,7 +245,7 @@ export const BUTTONS = {
   minWidth:          196,
   height:            54,
   horizontalPadding: SPACING.xl,
-  primaryBackground: COLORS.accent,
+  primaryBackground: COLORS.gold,
   primaryText:       COLORS.textInverse,
   secondaryBorder:   COLORS.border,
   secondaryText:     COLORS.textSecondary,

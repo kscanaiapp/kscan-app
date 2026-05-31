@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { CAPTURE_BUTTON, COLORS, MOTION } from '../constants/theme';
+import { CAPTURE_BUTTON, COLORS, MOTION, SHADOWS } from '../constants/theme';
 
 interface ScanButtonProps {
   onPress:   () => void;
@@ -61,14 +61,16 @@ const styles = StyleSheet.create({
     height:         CAPTURE_BUTTON.outerSize,
     borderRadius:   CAPTURE_BUTTON.outerSize / 2,
     borderWidth:    CAPTURE_BUTTON.borderWidth,
-    borderColor:    COLORS.accent,           // champagne gold ring
+    borderColor:    COLORS.gold,
     alignItems:     'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(9, 9, 11, 0.42)',
+    ...SHADOWS.darkFloat,
   },
   inner: {
     width:         CAPTURE_BUTTON.innerSize,
     height:        CAPTURE_BUTTON.innerSize,
     borderRadius:  CAPTURE_BUTTON.innerSize / 2,
-    backgroundColor: COLORS.textPrimary,     // chrome-white shutter dot
+    backgroundColor: COLORS.gold,
   },
 });

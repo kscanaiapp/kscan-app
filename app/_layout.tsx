@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
+import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -65,7 +66,9 @@ export default function Layout() {
   return (
     <AuthSessionProvider>
       <PrivacyPreferencesProvider>
-        <AuthGate />
+        <FeatureFreezeProvider>
+          <AuthGate />
+        </FeatureFreezeProvider>
       </PrivacyPreferencesProvider>
     </AuthSessionProvider>
   );

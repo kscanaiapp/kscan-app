@@ -26,61 +26,6 @@ import { useDressingRooms } from '../../hooks/useStyleObjects';
 import { createDressingRoom } from '../../services/styleObjects';
 import type { DressingRoom } from '../../types/styleObjects';
 
-type TeaserCardConfig = {
-  title: string;
-  subtitle: string;
-  body: string;
-  capabilities: readonly string[];
-  footer?: string;
-};
-
-const CIRCULAR_CLOSET_CONFIG: TeaserCardConfig = {
-  title: 'CIRCULAR CLOSET',
-  subtitle: 'Secondhand-first styling intelligence',
-  body: 'Build an outfit and K Scan will surface standout secondhand alternatives alongside new retail options — helping every look move closer to smarter, lower-impact discovery.',
-  capabilities: [
-    'Secondhand match suggestions',
-    'Lower-impact shopping signals',
-    'Resale value insights for closet items',
-  ],
-  footer: 'Designed for the next phase of Dressing Rooms.',
-};
-
-const STYLECHAT_CONFIG: TeaserCardConfig = {
-  title: 'STYLECHAT',
-  subtitle: 'Conversational styling that learns your taste',
-  body: 'Talk through outfits, occasions, and preferences with a stylist layer designed to become more personal over time — remembering the signals that shape your wardrobe decisions.',
-  capabilities: [
-    'Preference-aware outfit guidance',
-    'Event-based styling conversations',
-    'Personalized wardrobe memory',
-  ],
-  footer: 'Designed for the next phase of Dressing Rooms.',
-};
-
-const WEB_LENS_CONFIG: TeaserCardConfig = {
-  title: 'K SCAN WEB LENS',
-  subtitle: 'Web-first visual search and instant try-on',
-  body: 'Upload a look from anywhere and move from inspiration to discovery in seconds — with a browser-first scan experience designed for desktop, mobile, and future avatar-led try-on.',
-  capabilities: [
-    'Browser-based image upload',
-    'Cross-device visual search',
-    'Avatar-ready try-on pathway',
-  ],
-  footer: 'Designed for the next phase of K Scan discovery.',
-};
-
-const OUTFIT_REMIX_CONFIG: TeaserCardConfig = {
-  title: 'OUTFIT REMIX',
-  subtitle: 'Recreate inspiration from your own closet',
-  body: 'Bring a favorite look into your wardrobe world. K Scan will help reinterpret inspiration using pieces you already own — with smart substitutions, layering ideas, and remix guidance when there is no exact match.',
-  capabilities: [
-    'Closet-first look recreation',
-    'Smart substitution and layering ideas',
-    'Generative remix pathways',
-  ],
-  footer: 'Designed for the next phase of Dressing Rooms.',
-};
 
 function RoomCard({ room }: { room: DressingRoom }) {
   const cover = room.coverImageUrl || room.coverFallbackUrl;
@@ -164,27 +109,6 @@ function CreateRoomModal({
   );
 }
 
-function TeaserCard({ config }: { config: TeaserCardConfig }) {
-  return (
-    <View style={ccStyles.card}>
-      <View style={ccStyles.statusBadge}>
-        <Text style={ccStyles.statusLabel}>COMING SOON</Text>
-      </View>
-      <Text style={ccStyles.title}>{config.title}</Text>
-      <Text style={ccStyles.subtitle}>{config.subtitle}</Text>
-      <Text style={ccStyles.body}>{config.body}</Text>
-      <View style={ccStyles.capabilities}>
-        {config.capabilities.map((item) => (
-          <View key={item} style={ccStyles.capabilityRow}>
-            <View style={ccStyles.capabilityDot} />
-            <Text style={ccStyles.capabilityText}>{item}</Text>
-          </View>
-        ))}
-      </View>
-      {config.footer ? <Text style={ccStyles.footer}>{config.footer}</Text> : null}
-    </View>
-  );
-}
 
 function DressingRoomsContent() {
   const { rooms, loading, error, reload } = useDressingRooms();
@@ -210,12 +134,7 @@ function DressingRoomsContent() {
               {rooms.map((room) => <RoomCard key={room.id} room={room} />)}
             </View>
           )}
-          <View style={ccStyles.roadmapSection}>
-            <TeaserCard config={CIRCULAR_CLOSET_CONFIG} />
-            <TeaserCard config={STYLECHAT_CONFIG} />
-            <TeaserCard config={WEB_LENS_CONFIG} />
-            <TeaserCard config={OUTFIT_REMIX_CONFIG} />
-          </View>
+
         </ScrollView>
       )}
       <CreateRoomModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
@@ -303,80 +222,5 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginTop: SPACING.md,
     textAlign: 'center',
-  },
-});
-
-const ccStyles = StyleSheet.create({
-  roadmapSection: {
-    marginTop: SPACING.xxxl,
-    gap: SPACING.xl,
-  },
-  card: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
-    padding: SPACING.xl,
-    gap: SPACING.md,
-    ...SHADOWS.editorialSmall,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  statusLabel: {
-    fontSize: 9,
-    fontWeight: '600' as const,
-    letterSpacing: 2.2,
-    color: COLORS.editorialTextMuted,
-    textTransform: 'uppercase' as const,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    letterSpacing: 3.5,
-    color: COLORS.editorialTextPrimary,
-    textTransform: 'uppercase' as const,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.subtitle,
-    color: COLORS.goldPressed,
-    fontSize: 11,
-  },
-  body: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  capabilities: {
-    gap: SPACING.sm,
-    marginTop: SPACING.xs,
-  },
-  capabilityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  capabilityDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.gold,
-  },
-  capabilityText: {
-    ...TYPOGRAPHY.bodyStrong,
-    fontSize: 13,
-    color: COLORS.editorialTextSecondary,
-  },
-  footer: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
-    fontSize: 10,
   },
 });

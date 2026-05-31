@@ -27,3 +27,22 @@ coverage/
 
 .env
 .env.*
+
+# Local QA / debug artifacts
+physical-*.txt
+physical-*.log
+qa-*.xml
+qa-*.err
+qa-*.log
+qa-*.txt
+qa/
+qa/**
+*.tmp
+
+# Local tool/workspace metadata
+.cursor/
+supabase/.temp/
+
+# Local audit/docs not needed for app build
+KScan_Website_Audit_*.md
+AGENTS.md

@@ -25,10 +25,12 @@ import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/th
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import {
+  createOrGetRoomShare,
   createLookFromDressingRoomItems,
   deleteDressingRoom,
   getDressingRoomDetail,
   removeDressingRoomItem,
+  revokeRoomShare,
   updateDressingRoom,
 } from '../../services/styleObjects';
 import type { DressingRoom, DressingRoomItem } from '../../types/styleObjects';
@@ -163,6 +165,8 @@ function DressingRoomDetailContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [revokingShare, setRevokingShare] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const [creatingLook, setCreatingLook] = useState(false);
@@ -198,8 +202,6 @@ function DressingRoomDetailContent() {
     room?.userId &&
     room.userId === user.id,
   );
-  const shareUrl = room ? `${KSCAN_PUBLIC_BASE_URL}/rooms/${encodeURIComponent(room.id)}` : null;
-
   const toggleItem = (itemId: string) => {
     setSelectedIds((current) => (
       current.includes(itemId)
@@ -252,13 +254,45 @@ function DressingRoomDetailContent() {
   };
 
   const handleShareRoom = async () => {
-    if (!shareUrl) return;
+    if (!room || sharing) return;
     setShareError(null);
+    setSharing(true);
     try {
+      const shareToken = await createOrGetRoomShare(room.id);
+      const shareUrl = `${KSCAN_PUBLIC_BASE_URL}/rooms/${encodeURIComponent(shareToken)}`;
       await Share.share(buildRoomSharePayload(shareUrl));
-    } catch {
-      setShareError('Could not open sharing. Please try again.');
+    } catch (err: any) {
+      setShareError(err?.message || 'Could not open sharing. Please try again.');
+    } finally {
+      setSharing(false);
     }
+  };
+
+  const handleRevokeShare = () => {
+    if (!room || revokingShare) return;
+    Alert.alert(
+      'Disable shared link?',
+      'Anyone with the current shared room link will no longer be able to view this room preview.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disable Link',
+          style: 'destructive',
+          onPress: async () => {
+            setShareError(null);
+            setRevokingShare(true);
+            try {
+              const revoked = await revokeRoomShare(room.id);
+              setShareError(revoked ? 'Shared link disabled.' : 'No active shared link to disable.');
+            } catch (err: any) {
+              setShareError(err?.message || 'Could not disable shared link.');
+            } finally {
+              setRevokingShare(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const blocking = loading || !!error;
@@ -276,10 +310,17 @@ function DressingRoomDetailContent() {
           {canShareRoom ? (
             <>
               <PrimaryButton
-                label="SHARE ROOM"
+                label={sharing ? 'PREPARING LINK' : 'SHARE ROOM'}
                 onPress={handleShareRoom}
                 variant="secondary"
+                disabled={sharing}
                 testID="share-room-button"
+              />
+              <PrimaryButton
+                label={revokingShare ? 'DISABLING LINK' : 'DISABLE SHARED LINK'}
+                onPress={handleRevokeShare}
+                variant="secondary"
+                disabled={revokingShare}
               />
               {shareError ? <Text style={styles.shareError}>{shareError}</Text> : null}
             </>
