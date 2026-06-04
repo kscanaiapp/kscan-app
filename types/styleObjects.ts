@@ -5,6 +5,7 @@ export type DressingRoom = {
   userId: string;
   title: string;
   description?: string | null;
+  roomNote?: string | null;
   coverImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;

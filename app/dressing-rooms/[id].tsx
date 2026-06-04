@@ -7,6 +7,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -31,7 +32,10 @@ import {
   getDressingRoomDetail,
   removeDressingRoomItem,
   revokeRoomShare,
+  ROOM_NOTE_MAX_LENGTH,
+  normalizeRoomNoteValue,
   updateDressingRoom,
+  updateDressingRoomNote,
 } from '../../services/styleObjects';
 import type { DressingRoom, DressingRoomItem } from '../../types/styleObjects';
 
@@ -53,6 +57,10 @@ const buildRoomSharePayload = (shareUrl: string) => {
     message,
   };
 };
+
+function getRoomNoteDraft(note?: string | null) {
+  return note ?? '';
+}
 
 function EditRoomModal({
   room,
@@ -171,6 +179,11 @@ function DressingRoomDetailContent() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const [creatingLook, setCreatingLook] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [noteMessage, setNoteMessage] = useState<string | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
 
   const reload = useCallback(async () => {
     if (!roomId) return;
@@ -180,6 +193,7 @@ function DressingRoomDetailContent() {
       const detail = await getDressingRoomDetail(roomId);
       setRoom(detail.room);
       setItems(detail.items);
+      setNoteDraft(getRoomNoteDraft(detail.room.roomNote));
       setSelectedIds((current) => current.filter((itemId) => detail.items.some((item) => item.id === itemId)));
       setShareError(null);
       setShareMessage(null);
@@ -196,6 +210,12 @@ function DressingRoomDetailContent() {
 
   const selectedCount = selectedIds.length;
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const normalizedOriginalNote = normalizeRoomNoteValue(room?.roomNote ?? null);
+  const normalizedDraftNote = normalizeRoomNoteValue(noteDraft);
+  const noteLength = noteDraft.trim().length;
+  const noteTooLong = noteLength > ROOM_NOTE_MAX_LENGTH;
+  const noteChanged = normalizedDraftNote !== normalizedOriginalNote;
+  const disableNoteSave = savingNote || noteTooLong || !noteChanged;
   const { isFeatureEnabled } = useFeatureFreeze();
   const canShareRoom = Boolean(
     isFeatureEnabled('shareRooms') &&
@@ -272,6 +292,37 @@ function DressingRoomDetailContent() {
     }
   };
 
+  const handleStartEditingNote = () => {
+    setNoteDraft(getRoomNoteDraft(room?.roomNote));
+    setNoteError(null);
+    setNoteMessage(null);
+    setEditingNote(true);
+  };
+
+  const handleCancelNoteEdit = () => {
+    setNoteDraft(getRoomNoteDraft(room?.roomNote));
+    setNoteError(null);
+    setEditingNote(false);
+  };
+
+  const handleSaveNote = async () => {
+    if (!room || disableNoteSave) return;
+    setSavingNote(true);
+    setNoteError(null);
+    setNoteMessage(null);
+    try {
+      const savedNote = await updateDressingRoomNote(room.id, noteDraft);
+      setRoom((current) => (current ? { ...current, roomNote: savedNote } : current));
+      setNoteDraft(getRoomNoteDraft(savedNote));
+      setNoteMessage(savedNote ? 'Room note saved.' : 'Room note cleared.');
+      setEditingNote(false);
+    } catch (err: any) {
+      setNoteError(err?.message || 'Could not save note.');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const handleRevokeShare = () => {
     if (!room || revokingShare) return;
     Alert.alert(
@@ -311,6 +362,52 @@ function DressingRoomDetailContent() {
       ) : (
         <ScrollView contentContainerStyle={styleObjectStyles.content}>
           {room?.description ? <Text style={styles.description}>{room.description}</Text> : null}
+          <View style={styles.noteSection}>
+            <Text style={styles.noteLabel}>ROOM NOTE</Text>
+            {editingNote ? (
+              <>
+                <TextInput
+                  value={noteDraft}
+                  onChangeText={setNoteDraft}
+                  placeholder="Add a note..."
+                  placeholderTextColor={COLORS.editorialTextMuted}
+                  multiline
+                  textAlignVertical="top"
+                  style={styles.noteInput}
+                />
+                <Text style={[styles.noteCount, noteTooLong ? styles.noteCountError : null]}>
+                  {noteLength}/{ROOM_NOTE_MAX_LENGTH}
+                </Text>
+                {noteError ? <Text style={styles.noteError}>{noteError}</Text> : null}
+                {noteMessage ? <Text style={styles.noteMessage}>{noteMessage}</Text> : null}
+                <PrimaryButton
+                  label={savingNote ? 'SAVING NOTE' : 'SAVE NOTE'}
+                  onPress={handleSaveNote}
+                  disabled={disableNoteSave}
+                />
+                <PrimaryButton
+                  label="CANCEL"
+                  onPress={handleCancelNoteEdit}
+                  variant="secondary"
+                  disabled={savingNote}
+                />
+              </>
+            ) : (
+              <>
+                <View style={styles.noteCard}>
+                  <Text style={room?.roomNote ? styles.noteText : styles.notePlaceholder}>
+                    {room?.roomNote || 'Add a note...'}
+                  </Text>
+                </View>
+                {noteMessage ? <Text style={styles.noteMessage}>{noteMessage}</Text> : null}
+                <PrimaryButton
+                  label={room?.roomNote ? 'EDIT NOTE' : 'ADD NOTE'}
+                  onPress={handleStartEditingNote}
+                  variant="secondary"
+                />
+              </>
+            )}
+          </View>
           <PrimaryButton label="Edit Room" onPress={() => setEditing(true)} variant="secondary" />
           {canShareRoom ? (
             <>
@@ -385,6 +482,65 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     color: COLORS.editorialTextSecondary,
     marginBottom: SPACING.sm,
+  },
+  noteSection: {
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  noteLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+    letterSpacing: 2.2,
+    marginBottom: SPACING.sm,
+  },
+  noteCard: {
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
+    padding: SPACING.lg,
+    ...SHADOWS.editorialSmall,
+  },
+  noteText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.editorialTextPrimary,
+    lineHeight: 22,
+  },
+  notePlaceholder: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.editorialTextMuted,
+    lineHeight: 22,
+  },
+  noteInput: {
+    minHeight: 120,
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceRaised,
+    color: COLORS.editorialTextPrimary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  noteCount: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.editorialTextMuted,
+    textAlign: 'right',
+    marginTop: SPACING.xs,
+  },
+  noteCountError: {
+    color: COLORS.error,
+  },
+  noteError: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.error,
+    marginTop: SPACING.sm,
+  },
+  noteMessage: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.editorialTextSecondary,
+    marginTop: SPACING.sm,
   },
   items: {
     marginTop: SPACING.lg,

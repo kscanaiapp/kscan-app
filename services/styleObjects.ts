@@ -14,6 +14,7 @@ import type {
 
 export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
+export const ROOM_NOTE_MAX_LENGTH = 500;
 const SIGNED_IMAGE_URL_TTL_SECONDS = 60 * 60;
 
 export class UnsupportedStyleObjectItemError extends Error {
@@ -41,6 +42,19 @@ function isLocalImageUri(value?: string | null) {
 function cleanText(value?: string | null) {
   const text = String(value ?? '').trim();
   return text.length > 0 ? text : null;
+}
+
+export function normalizeRoomNoteValue(value?: string | null) {
+  const note = String(value ?? '').trim();
+  return note.length > 0 ? note : null;
+}
+
+function validateRoomNoteValue(value?: string | null) {
+  const note = normalizeRoomNoteValue(value);
+  if (note && note.length > ROOM_NOTE_MAX_LENGTH) {
+    throw new Error(`Room note must be ${ROOM_NOTE_MAX_LENGTH} characters or fewer.`);
+  }
+  return note;
 }
 
 function parsePrice(price?: string | null): { amount: string | null; currency: string | null } {
@@ -205,6 +219,7 @@ function mapDressingRoom(row: any): DressingRoom {
     userId: row.user_id,
     title: row.title,
     description: row.description,
+    roomNote: row.room_note,
     coverImageUrl: row.cover_image_url,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -351,6 +366,30 @@ export async function updateDressingRoom(
     .single();
   if (error) throw safeError(error, 'Unable to update Dressing Room.');
   return mapDressingRoom(data);
+}
+
+export async function updateDressingRoomNote(
+  roomId: string,
+  note: string | null,
+): Promise<string | null> {
+  const normalizedNote = validateRoomNoteValue(note);
+
+  const { data, error } = await supabase
+    .from('dressing_rooms')
+    .update({ room_note: normalizedNote })
+    .eq('id', roomId)
+    .select('room_note')
+    .single();
+
+  if (error) {
+    const message = String(error.message || '');
+    if (message.includes('500 characters or fewer')) {
+      throw new Error(`Room note must be ${ROOM_NOTE_MAX_LENGTH} characters or fewer.`);
+    }
+    throw new Error('Could not save note.');
+  }
+
+  return normalizeRoomNoteValue(data?.room_note);
 }
 
 export async function deleteDressingRoom(roomId: string): Promise<void> {

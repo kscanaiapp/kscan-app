@@ -43,6 +43,7 @@ type ApiItem = {
 type ApiPreview = {
   token: string;
   title: string;
+  note: string | null;
   itemCount: number;
   sharedAt: string | null;
   coverImageUrl: string | null;
@@ -56,7 +57,7 @@ type ApiPreview = {
 type FetchState =
   | { phase: 'loading' }
   | { phase: 'available'; preview: ApiPreview }
-  | { phase: 'empty' }
+  | { phase: 'empty'; preview: ApiPreview }
   | { phase: 'unavailable' }
   | { phase: 'malformed' }
   | { phase: 'rate_limited' }
@@ -87,7 +88,7 @@ async function fetchRoomPreview(token: string): Promise<FetchState> {
 
     const preview = json.preview;
     if (preview.itemCount === 0 && preview.items.length === 0) {
-      return { phase: 'empty', preview } as unknown as FetchState;
+      return { phase: 'empty', preview };
     }
 
     return { phase: 'available', preview };
@@ -164,6 +165,14 @@ function CoverCard({ uri }: { uri: string }) {
           <Text style={styles.imageFallbackText}>Preview unavailable</Text>
         </View>
       )}
+    </View>
+  );
+}
+
+function RoomNote({ note }: { note: string }) {
+  return (
+    <View style={styles.noteCard}>
+      <Text style={styles.noteText}>{note}</Text>
     </View>
   );
 }
@@ -402,7 +411,7 @@ export default function SharedRoomScreen() {
         );
 
       case 'empty': {
-        const emptyPreview = (state as unknown as { phase: 'empty'; preview: ApiPreview }).preview;
+        const { preview: emptyPreview } = state;
         return (
           <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -417,6 +426,7 @@ export default function SharedRoomScreen() {
             <Text style={styles.roomTitle}>
               {emptyPreview?.title ?? 'Shared Dressing Room'}
             </Text>
+            {emptyPreview.note ? <RoomNote note={emptyPreview.note} /> : null}
             <MetaRow itemCount={0} sharedAt={emptyPreview?.sharedAt ?? null} />
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>This shared room does not have any visible items.</Text>
@@ -439,6 +449,7 @@ export default function SharedRoomScreen() {
             }
           >
             <Text style={styles.roomTitle}>{preview.title}</Text>
+            {preview.note ? <RoomNote note={preview.note} /> : null}
             <MetaRow itemCount={preview.itemCount} sharedAt={preview.sharedAt} />
 
             {preview.coverImageUrl ? (
@@ -557,6 +568,20 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: SPACING.sm,
     marginBottom: SPACING.xl,
+  },
+  noteCard: {
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.white,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.editorialSmall,
+  },
+  noteText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: COLORS.editorialTextSecondary,
   },
   metaChip: {
     borderRadius: RADIUS.pill,
