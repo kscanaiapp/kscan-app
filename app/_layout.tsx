@@ -8,6 +8,31 @@ import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContex
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
+import ErrorBoundary from '../src/components/ErrorBoundary';
+import { logError } from '../src/utils/errorLogger';
+
+type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
+
+type GlobalWithErrorUtils = typeof globalThis & {
+  __KSCAN_ERROR_UTILS_ATTACHED__?: boolean;
+  ErrorUtils?: {
+    getGlobalHandler: () => GlobalErrorHandler;
+    setGlobalHandler: (handler: GlobalErrorHandler) => void;
+  };
+};
+
+const rnGlobal = globalThis as GlobalWithErrorUtils;
+
+if (rnGlobal.ErrorUtils && !rnGlobal.__KSCAN_ERROR_UTILS_ATTACHED__) {
+  const defaultHandler = rnGlobal.ErrorUtils.getGlobalHandler();
+
+  rnGlobal.ErrorUtils.setGlobalHandler((error, isFatal) => {
+    logError('Unhandled JavaScript exception', error, { isFatal });
+    defaultHandler(error, isFatal);
+  });
+
+  rnGlobal.__KSCAN_ERROR_UTILS_ATTACHED__ = true;
+}
 
 function AuthGate() {
   const pathname = usePathname();
@@ -64,13 +89,15 @@ function AuthGate() {
 
 export default function Layout() {
   return (
-    <AuthSessionProvider>
-      <PrivacyPreferencesProvider>
-        <FeatureFreezeProvider>
-          <AuthGate />
-        </FeatureFreezeProvider>
-      </PrivacyPreferencesProvider>
-    </AuthSessionProvider>
+    <ErrorBoundary>
+      <AuthSessionProvider>
+        <PrivacyPreferencesProvider>
+          <FeatureFreezeProvider>
+            <AuthGate />
+          </FeatureFreezeProvider>
+        </PrivacyPreferencesProvider>
+      </AuthSessionProvider>
+    </ErrorBoundary>
   );
 }
 
