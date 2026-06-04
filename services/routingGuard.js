@@ -12,7 +12,11 @@ function normalizePathname(pathname) {
 }
 
 function isPublicRoute(pathname) {
-  return PUBLIC_ROUTES.has(normalizePathname(pathname));
+  const normalized = normalizePathname(pathname);
+  if (PUBLIC_ROUTES.has(normalized)) return true;
+  // Shared room views are unauthenticated — token is validated server-side.
+  if (/^\/rooms\/[A-Za-z0-9_-]+$/.test(normalized)) return true;
+  return false;
 }
 
 function isAuthEntryRoute(pathname) {

@@ -3,11 +3,14 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export default function Home() {
   const { isAuthenticated, signOut } = useAuthSession();
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const [signingOut, setSigningOut] = useState(false);
+  const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -74,6 +77,27 @@ export default function Home() {
           <Text style={styles.secondaryButtonText}>PRIVACY CONTROL</Text>
         </Pressable>
       </View>
+
+      {dressingRoomsEnabled ? (
+        <View style={styles.roomsCard}>
+          <Text style={styles.roomsLabel}>DRESSING ROOM</Text>
+          <Text style={styles.roomsTitle}>Saved scans, room boards, and share flow.</Text>
+          <Text style={styles.roomsBody}>
+            Review saved scans, organize looks, and share room boards.
+          </Text>
+
+          <Pressable
+            testID="open-dressing-room-button"
+            style={({ pressed }) => [
+              styles.roomsButton,
+              pressed ? styles.roomsButtonPressed : null,
+            ]}
+            onPress={() => router.push('/dressing-rooms')}
+          >
+            <Text style={styles.roomsButtonText}>OPEN DRESSING ROOM</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.recentCard}>
         <Text style={styles.recentLabel}>CURRENT FOCUS</Text>
@@ -241,6 +265,54 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceRaised,
     padding: SPACING.lg,
     ...SHADOWS.editorialSmall,
+  },
+  roomsCard: {
+    marginTop: SPACING.lg,
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceRaised,
+    padding: SPACING.lg,
+    ...SHADOWS.editorialSmall,
+  },
+  roomsLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+    letterSpacing: 2.2,
+    marginBottom: SPACING.xs,
+  },
+  roomsTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.editorialTextPrimary,
+    lineHeight: 22,
+  },
+  roomsBody: {
+    marginTop: SPACING.xs,
+    fontSize: 13,
+    lineHeight: 20,
+    color: COLORS.editorialTextSecondary,
+  },
+  roomsButton: {
+    marginTop: SPACING.md,
+    minHeight: 44,
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  roomsButtonPressed: {
+    backgroundColor: COLORS.surfaceRaised,
+  },
+  roomsButtonText: {
+    color: COLORS.editorialTextPrimary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   recentLabel: {
     ...TYPOGRAPHY.caption,

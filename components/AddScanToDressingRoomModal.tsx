@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
@@ -38,6 +39,7 @@ export function AddScanToDressingRoomModal({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [newRoomTitle, setNewRoomTitle] = useState('');
+  const [savedRoomId, setSavedRoomId] = useState<string | null>(null);
 
   // Only fetch rooms when the modal opens — never on background screen focus.
   const reload = useCallback(async () => {
@@ -56,6 +58,7 @@ export function AddScanToDressingRoomModal({
     if (visible) {
       setMessage(null);
       setNewRoomTitle('');
+      setSavedRoomId(null);
       void reload();
     }
   }, [visible, reload]);
@@ -80,8 +83,8 @@ export function AddScanToDressingRoomModal({
         userId: user?.id,
         scan: buildScan(),
       });
-      setMessage(`Saved to ${roomTitle}.`);
-      setTimeout(onClose, 900);
+      setSavedRoomId(roomId);
+      setMessage(`Added to ${roomTitle}.`);
     } catch (err: any) {
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
@@ -105,8 +108,8 @@ export function AddScanToDressingRoomModal({
         scan: buildScan(),
       });
       await reload();
-      setMessage(`Saved to ${room.title}.`);
-      setTimeout(onClose, 900);
+      setSavedRoomId(room.id);
+      setMessage(`Added to ${room.title}.`);
     } catch (err: any) {
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
@@ -114,7 +117,13 @@ export function AddScanToDressingRoomModal({
     }
   };
 
+  const handleViewDressingRoom = () => {
+    onClose();
+    router.push('/dressing-rooms');
+  };
+
   const missingImage = !localImageUri;
+  const successState = !!savedRoomId;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -125,6 +134,21 @@ export function AddScanToDressingRoomModal({
 
           {missingImage ? (
             <Text style={styles.message}>No local scan image is available.</Text>
+          ) : successState ? (
+            <>
+              <Text style={styles.successTitle}>Added to Dressing Room</Text>
+              {message ? <Text style={styles.message}>{message}</Text> : null}
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handleViewDressingRoom}
+                accessibilityLabel="View Dressing Room"
+              >
+                <Text style={styles.primaryText}>VIEW DRESSING ROOM</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
+                <Text style={styles.secondaryText}>CONTINUE SCANNING</Text>
+              </TouchableOpacity>
+            </>
           ) : loading ? (
             <ActivityIndicator color={COLORS.goldPressed} />
           ) : error ? (
@@ -175,10 +199,14 @@ export function AddScanToDressingRoomModal({
             </>
           )}
 
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-          <TouchableOpacity style={styles.secondaryButton} onPress={onClose} disabled={saving}>
-            <Text style={styles.secondaryText}>CLOSE</Text>
-          </TouchableOpacity>
+          {!successState ? (
+            <>
+              {message ? <Text style={styles.message}>{message}</Text> : null}
+              <TouchableOpacity style={styles.secondaryButton} onPress={onClose} disabled={saving}>
+                <Text style={styles.secondaryText}>CLOSE</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -204,6 +232,12 @@ const styles = StyleSheet.create({
   title: {
     ...TYPOGRAPHY.title,
     color: COLORS.editorialTextPrimary,
+  },
+  successTitle: {
+    ...TYPOGRAPHY.title,
+    color: COLORS.editorialTextPrimary,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
   },
   subtitle: {
     ...TYPOGRAPHY.body,

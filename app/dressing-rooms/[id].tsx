@@ -165,6 +165,7 @@ function DressingRoomDetailContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [revokingShare, setRevokingShare] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -181,6 +182,7 @@ function DressingRoomDetailContent() {
       setItems(detail.items);
       setSelectedIds((current) => current.filter((itemId) => detail.items.some((item) => item.id === itemId)));
       setShareError(null);
+      setShareMessage(null);
     } catch (err: any) {
       setError(err?.message || 'Unable to load Dressing Room.');
     } finally {
@@ -256,11 +258,13 @@ function DressingRoomDetailContent() {
   const handleShareRoom = async () => {
     if (!room || sharing) return;
     setShareError(null);
+    setShareMessage(null);
     setSharing(true);
     try {
       const shareToken = await createOrGetRoomShare(room.id);
       const shareUrl = `${KSCAN_PUBLIC_BASE_URL}/rooms/${encodeURIComponent(shareToken)}`;
       await Share.share(buildRoomSharePayload(shareUrl));
+      setShareMessage('Room link ready to share.');
     } catch (err: any) {
       setShareError(err?.message || 'Could not open sharing. Please try again.');
     } finally {
@@ -280,10 +284,11 @@ function DressingRoomDetailContent() {
           style: 'destructive',
           onPress: async () => {
             setShareError(null);
+            setShareMessage(null);
             setRevokingShare(true);
             try {
               const revoked = await revokeRoomShare(room.id);
-              setShareError(revoked ? 'Shared link disabled.' : 'No active shared link to disable.');
+              setShareMessage(revoked ? 'Shared link disabled.' : 'No active shared link to disable.');
             } catch (err: any) {
               setShareError(err?.message || 'Could not disable shared link.');
             } finally {
@@ -323,6 +328,7 @@ function DressingRoomDetailContent() {
                 disabled={revokingShare}
               />
               {shareError ? <Text style={styles.shareError}>{shareError}</Text> : null}
+              {shareMessage ? <Text style={styles.shareMessage}>{shareMessage}</Text> : null}
             </>
           ) : null}
           <PrimaryButton
@@ -415,6 +421,12 @@ const styles = StyleSheet.create({
   shareError: {
     ...TYPOGRAPHY.bodyStrong,
     color: COLORS.error,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+  },
+  shareMessage: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.editorialTextSecondary,
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
