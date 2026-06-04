@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { SafeAreaView, ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthSession } from '../contexts/AuthSessionContext';
@@ -7,10 +7,14 @@ import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export default function Home() {
-  const { isAuthenticated, signOut } = useAuthSession();
+  const { isAuthenticated, signOut, user, loading } = useAuthSession();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const [signingOut, setSigningOut] = useState(false);
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
+
+  const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
+  const profileName =
+    (meta?.full_name ?? meta?.name ?? meta?.display_name ?? meta?.username ?? '').trim() || null;
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -24,8 +28,9 @@ export default function Home() {
   };
 
   return (
-    <View testID="router-home-screen" style={styles.container}>
+    <SafeAreaView testID="router-home-screen" style={styles.safeArea}>
       <StatusBar style="dark" />
+
       {isAuthenticated ? (
         <Pressable
           testID="home-logout-button"
@@ -41,84 +46,103 @@ export default function Home() {
         </Pressable>
       ) : null}
 
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>SCAN-TO-CLOSET BETA</Text>
-        <Text style={styles.title}>K SCAN AI</Text>
-        <Text style={styles.subtitle}>See it. Say it. Get it. Shop in seconds.</Text>
-      </View>
-
-      <View style={styles.scanCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardKicker}>STYLE-PARSE ENGINE</Text>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>READY</Text>
-          </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
+          <Text style={styles.eyebrow}>SCAN-TO-CLOSET BETA</Text>
+          <Text style={styles.title}>K SCAN AI</Text>
+          {!loading && (
+            <Text
+              style={styles.greeting}
+              accessibilityLabel={`Welcome, ${profileName ?? 'K Scanner'}`}
+            >
+              {`Welcome, ${profileName ?? 'K Scanner'}`}
+            </Text>
+          )}
+          <Text style={styles.subtitle}>See it. Say it. Get it. Shop in seconds.</Text>
         </View>
 
-        <Text style={styles.cardTitle}>Build your closet from the camera.</Text>
-        <Text style={styles.cardBody}>
-          Scan garments, review attributes, save the look, and keep your library commerce-ready.
-        </Text>
+        <View style={styles.scanCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardKicker}>STYLE-PARSE ENGINE</Text>
+            <View style={styles.statusPill}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>READY</Text>
+            </View>
+          </View>
 
-        <Pressable
-          testID="start-scan-button"
-          style={({ pressed }) => [styles.button, pressed ? styles.buttonPressed : null]}
-          onPress={() => router.push('/scan')}
-        >
-          <Text style={styles.buttonText}>START SCAN</Text>
-        </Pressable>
-
-        <Pressable
-          testID="privacy-button"
-          style={({ pressed }) => [styles.secondaryButton, pressed ? styles.secondaryPressed : null]}
-          onPress={() => router.push('/privacy')}
-        >
-          <Text style={styles.secondaryButtonText}>PRIVACY CONTROL</Text>
-        </Pressable>
-      </View>
-
-      {dressingRoomsEnabled ? (
-        <View style={styles.roomsCard}>
-          <Text style={styles.roomsLabel}>DRESSING ROOM</Text>
-          <Text style={styles.roomsTitle}>Saved scans, room boards, and share flow.</Text>
-          <Text style={styles.roomsBody}>
-            Review saved scans, organize looks, and share room boards.
+          <Text style={styles.cardTitle}>Build your closet from the camera.</Text>
+          <Text style={styles.cardBody}>
+            Scan garments, review attributes, save the look, and keep your library commerce-ready.
           </Text>
 
           <Pressable
-            testID="open-dressing-room-button"
-            style={({ pressed }) => [
-              styles.roomsButton,
-              pressed ? styles.roomsButtonPressed : null,
-            ]}
-            onPress={() => router.push('/dressing-rooms')}
+            testID="start-scan-button"
+            style={({ pressed }) => [styles.button, pressed ? styles.buttonPressed : null]}
+            onPress={() => router.push('/scan')}
           >
-            <Text style={styles.roomsButtonText}>OPEN DRESSING ROOM</Text>
+            <Text style={styles.buttonText}>START SCAN</Text>
+          </Pressable>
+
+          <Pressable
+            testID="privacy-button"
+            style={({ pressed }) => [styles.secondaryButton, pressed ? styles.secondaryPressed : null]}
+            onPress={() => router.push('/privacy')}
+          >
+            <Text style={styles.secondaryButtonText}>PRIVACY CONTROL</Text>
           </Pressable>
         </View>
-      ) : null}
 
-      <View style={styles.recentCard}>
-        <Text style={styles.recentLabel}>CURRENT FOCUS</Text>
-        <Text style={styles.recentTitle}>Scan-to-Closet</Text>
-        <Text style={styles.recentBody}>Camera, AI tags, manual edits, and saved library flow.</Text>
-      </View>
+        {dressingRoomsEnabled ? (
+          <View style={styles.roomsCard}>
+            <Text style={styles.roomsLabel}>DRESSING ROOM</Text>
+            <Text style={styles.roomsTitle}>Saved scans, room boards, and share flow.</Text>
+            <Text style={styles.roomsBody}>
+              Review saved scans, organize looks, and share room boards.
+            </Text>
 
-    </View>
+            <Pressable
+              testID="open-dressing-room-button"
+              style={({ pressed }) => [
+                styles.roomsButton,
+                pressed ? styles.roomsButtonPressed : null,
+              ]}
+              onPress={() => router.push('/dressing-rooms')}
+            >
+              <Text style={styles.roomsButtonText}>OPEN DRESSING ROOM</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View style={styles.recentCard}>
+          <Text style={styles.recentLabel}>CURRENT FOCUS</Text>
+          <Text style={styles.recentTitle}>Scan-to-Closet</Text>
+          <Text style={styles.recentBody}>Camera, AI tags, manual edits, and saved library flow.</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  safeArea: {
+    flex: 1,
     backgroundColor: COLORS.canvasWarm,
-    justifyContent: 'center',
-    padding: SPACING.xl,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: 80,
+    paddingBottom: 60,
   },
   logoutButton: {
     position: 'absolute',
-    top: 58,
+    top: 16,
     right: 24,
     zIndex: 5,
     borderWidth: StyleSheet.hairlineWidth,
@@ -150,13 +174,20 @@ const styles = StyleSheet.create({
     color: COLORS.goldPressed,
     marginBottom: SPACING.sm,
   },
-  title: { 
+  title: {
     color: COLORS.editorialTextPrimary,
-    fontSize: 34, 
+    fontSize: 34,
     fontWeight: '900',
     letterSpacing: 2.4,
   },
-  subtitle: { 
+  greeting: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: COLORS.editorialTextMuted,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  subtitle: {
     color: COLORS.editorialTextSecondary,
     marginTop: 10,
     fontSize: 15,
