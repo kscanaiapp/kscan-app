@@ -1,6 +1,31 @@
 # Google Play Store Listing — K Scan AI
 
-_Last updated: 2026-06-04. Update this file with every release._
+_Last updated: 2026-06-04. Production AAB build completed 2026-06-04. Update this file with every release._
+
+---
+
+## 0. Android Production Build Status
+
+| Field | Value |
+|---|---|
+| Production Android AAB build completed | **Yes** |
+| Build date | 2026-06-04 |
+| Build profile | `production` |
+| Artifact type | Android App Bundle (.aab) |
+| EAS build URL | https://expo.dev/accounts/ams2dad/projects/kscan/builds/c9b9a218-6c11-4548-83b0-b8376dc55aa1 |
+| Artifact download URL | https://expo.dev/artifacts/eas/qULQj9kjkP1YGMUWXZbAAD.aab |
+| Branch | `fix/play-store-blockers` |
+| Commit | `d479d10` |
+| Credential | Uses current default EAS Android production keystore — Build Credentials loFzVVCde6. No secrets stored here. |
+| Submission occurred | No |
+
+**Remaining blockers before Play upload:**
+- [ ] Public deletion URL `https://kscan.app/legal/delete-account` not yet live — create in website repo
+- [ ] Reviewer test account not yet created — add credentials to §8 and Play Console app access notes
+- [ ] Google Play listing assets not yet complete (feature graphic 1024×500, phone screenshots)
+- [ ] Play Console Data Safety form not yet completed — use §12 as source of truth
+- [ ] Physical Android smoke test on real device still required
+- [ ] AAB must be uploaded to Play internal testing manually via Play Console
 
 ---
 
@@ -186,8 +211,8 @@ Dressing Room share links are **user-initiated** and produce a **public-by-token
 - [ ] Public deletion URL `https://kscan.app/legal/delete-account` does not yet exist. Website repo must create it before Play submission (see handoff in section 11).
 - [ ] Reviewer credentials (test account) must be created and added to this file before submission.
 - [ ] Privacy Policy at `https://kscan.app/legal/privacy` must be live and publicly accessible.
-- [ ] Release signing credentials must be generated and uploaded to EAS via `eas credentials` before the first production build.
-- [ ] Release build has no signed APK/AAB until EAS credentials are configured (`eas credentials --platform android`).
+- [x] Release signing credentials configured in EAS (Build Credentials loFzVVCde6).
+- [x] Production AAB built successfully via `eas build --platform android --profile production` on 2026-06-04.
 - [ ] No automated test suite for the full Android build path; manual smoke test on a physical device required before closed testing.
 - [ ] `android:allowBackup="false"` is set. Document this for users who expect device backup to preserve app state.
 
@@ -201,7 +226,8 @@ Dressing Room share links are **user-initiated** and produce a **public-by-token
 - [x] Release build type no longer references debug keystore
 - [x] `eas.json` production profile targets `app-bundle`
 - [x] `.gitignore` excludes keystore/jks files
-- [ ] EAS credentials (`eas credentials --platform android`) — must run before first AAB build
+- [x] EAS credentials configured — Build Credentials loFzVVCde6 (default)
+- [x] Production AAB built and available — build c9b9a218 / 2026-06-04
 - [ ] Test account created for reviewer notes
 - [ ] `https://kscan.app/legal/delete-account` created and live
 - [ ] Privacy Policy live at `https://kscan.app/legal/privacy`
@@ -222,7 +248,7 @@ All Internal Testing items above, plus:
 1. Public deletion URL is live and Google Play account deletion form has been completed with the URL.
 2. Privacy Policy URL is live.
 3. Reviewer test account credentials are added here and entered in Play Console.
-4. EAS production build (`eas build --platform android --profile production`) succeeds with managed credentials.
+4. ~~EAS production build succeeds with managed credentials~~ — **Done** (build c9b9a218, 2026-06-04).
 5. AAB upload and internal test track install verified on at least one real Android device.
 6. Data Safety form in Play Console is completed and matches this document.
 7. Content rating IARC questionnaire is completed.
