@@ -53,6 +53,16 @@ const publicRoomScreen = fs.readFileSync(
   'utf8',
 );
 
+const itemReactions = fs.readFileSync(
+  path.join(__dirname, '..', 'components', 'dressing-rooms', 'ItemReactions.tsx'),
+  'utf8',
+);
+
+const thumbsDownReactionMigration = fs.readFileSync(
+  path.join(__dirname, '..', 'supabase', 'migrations', '202606060001_replace_fire_with_thumbs_down_reaction.sql'),
+  'utf8',
+);
+
 test('persistent style object migration creates required tables', () => {
   for (const table of ['dressing_rooms', 'dressing_room_items', 'looks', 'look_items']) {
     assert.match(migration, new RegExp(`create table if not exists public\\.${table}`));
@@ -141,14 +151,27 @@ test('item reactions migration protects raw rows and exposes counts through RPC'
 });
 
 test('item reaction types and helpers are defined in app code', () => {
-  assert.match(types, /DRESSING_ROOM_REACTION_TYPES = \['like', 'love', 'favorite', 'looking'\] as const/);
+  assert.match(types, /DRESSING_ROOM_REACTION_TYPES = \['like', 'love', 'favorite', 'looking', 'thumbs_down'\] as const/);
+  assert.match(types, /ACTIVE_DRESSING_ROOM_REACTION_TYPES = \['like', 'love', 'looking', 'thumbs_down'\] as const/);
   assert.match(types, /export type DressingRoomReactionType = typeof DRESSING_ROOM_REACTION_TYPES\[number\]/);
+  assert.match(types, /export type ActiveDressingRoomReactionType = typeof ACTIVE_DRESSING_ROOM_REACTION_TYPES\[number\]/);
+  assert.match(types, /isActiveDressingRoomReactionType/);
+  assert.match(itemReactions, /thumbs_down: \{ emoji: '👎', label: 'Not it' \}/);
+  assert.doesNotMatch(itemReactions, /emoji: '🔥'/);
   assert.match(types, /export interface ItemReactionCount/);
   assert.match(service, /getItemReactionCounts/);
   assert.match(service, /getMyItemReaction/);
   assert.match(service, /setItemReaction/);
   assert.match(service, /removeItemReaction/);
   assert.match(service, /Unable to save reaction\. Please try again\./);
+});
+
+test('thumbs-down reaction migration preserves legacy favorite rows while hiding fire from active counts', () => {
+  assert.match(thumbsDownReactionMigration, /drop constraint if exists dressing_room_item_reactions_reaction_type_check/);
+  assert.match(thumbsDownReactionMigration, /reaction_type in \('like', 'love', 'favorite', 'looking', 'thumbs_down'\)/);
+  assert.match(thumbsDownReactionMigration, /create or replace function public\.get_item_reaction_counts/);
+  assert.match(thumbsDownReactionMigration, /\(values \('like'\), \('love'\), \('looking'\), \('thumbs_down'\)\)/);
+  assert.doesNotMatch(thumbsDownReactionMigration, /\(values \('like'\), \('love'\), \('favorite'\), \('looking'\)\)/);
 });
 
 test('public room preview payload exposes dressing room item ids for read-only counts', () => {
@@ -160,4 +183,16 @@ test('public room preview payload exposes dressing room item ids for read-only c
   assert.doesNotMatch(publicRoomScreen, /getMyItemReaction/);
   assert.doesNotMatch(publicRoomScreen, /setItemReaction/);
   assert.doesNotMatch(publicRoomScreen, /removeItemReaction/);
+});
+
+test('dressing room title is validated with 60-character max and newline normalization', () => {
+  assert.match(service, /ROOM_TITLE_MAX_LENGTH = 60/);
+  assert.match(service, /Dressing Room title must be/);
+  assert.match(service, /normalizeRoomTitleValue/);
+  assert.match(service, /replace\(\/\[\\r\\n\]/);
+});
+
+test('public shared room screen displays room title with fallback', () => {
+  assert.match(publicRoomScreen, /preview\.title/);
+  assert.match(publicRoomScreen, /Shared Dressing Room/);
 });

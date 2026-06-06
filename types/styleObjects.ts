@@ -1,8 +1,16 @@
 export type SnapshotPayload = Record<string, unknown>;
 
-export const DRESSING_ROOM_REACTION_TYPES = ['like', 'love', 'favorite', 'looking'] as const;
+export const DRESSING_ROOM_REACTION_TYPES = ['like', 'love', 'favorite', 'looking', 'thumbs_down'] as const;
+export const ACTIVE_DRESSING_ROOM_REACTION_TYPES = ['like', 'love', 'looking', 'thumbs_down'] as const;
 
 export type DressingRoomReactionType = typeof DRESSING_ROOM_REACTION_TYPES[number];
+export type ActiveDressingRoomReactionType = typeof ACTIVE_DRESSING_ROOM_REACTION_TYPES[number];
+
+export function isActiveDressingRoomReactionType(
+  reactionType: DressingRoomReactionType | string,
+): reactionType is ActiveDressingRoomReactionType {
+  return (ACTIVE_DRESSING_ROOM_REACTION_TYPES as readonly string[]).includes(reactionType);
+}
 
 export interface ItemReactionCount {
   item_id: string;

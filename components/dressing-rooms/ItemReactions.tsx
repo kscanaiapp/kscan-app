@@ -2,20 +2,21 @@ import React, { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import {
-  DRESSING_ROOM_REACTION_TYPES,
+  ACTIVE_DRESSING_ROOM_REACTION_TYPES,
+  type ActiveDressingRoomReactionType,
   type DressingRoomReactionType,
 } from '../../types/styleObjects';
 
-export type ReactionCountsForItem = Record<DressingRoomReactionType, number>;
+export type ReactionCountsForItem = Record<ActiveDressingRoomReactionType, number>;
 
 const REACTION_META: Record<
-  DressingRoomReactionType,
+  ActiveDressingRoomReactionType,
   { emoji: string; label: string }
 > = {
   love: { emoji: '❤️', label: 'love' },
   like: { emoji: '👍', label: 'like' },
   looking: { emoji: '👀', label: 'looking' },
-  favorite: { emoji: '🔥', label: 'favorite' },
+  thumbs_down: { emoji: '👎', label: 'Not it' },
 };
 
 type ItemReactionsProps = {
@@ -37,7 +38,7 @@ function ItemReactionsComponent({
 }: ItemReactionsProps) {
   const reactions = useMemo(
     () =>
-      DRESSING_ROOM_REACTION_TYPES.map((reactionType) => ({
+      ACTIVE_DRESSING_ROOM_REACTION_TYPES.map((reactionType) => ({
         reactionType,
         count: counts[reactionType] ?? 0,
         ...REACTION_META[reactionType],

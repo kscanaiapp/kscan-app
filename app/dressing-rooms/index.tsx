@@ -23,7 +23,7 @@ import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/th
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useDressingRooms } from '../../hooks/useStyleObjects';
-import { createDressingRoom } from '../../services/styleObjects';
+import { createDressingRoom, ROOM_TITLE_MAX_LENGTH } from '../../services/styleObjects';
 import type { DressingRoom } from '../../types/styleObjects';
 
 
@@ -92,7 +92,7 @@ function CreateRoomModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>New Dressing Room</Text>
-          <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Vacation Capsule" />
+          <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Vacation Capsule" maxLength={ROOM_TITLE_MAX_LENGTH} />
           <TextField
             label="Description"
             value={description}

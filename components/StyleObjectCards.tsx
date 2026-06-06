@@ -127,12 +127,14 @@ export function TextField({
   onChangeText,
   placeholder,
   multiline,
+  maxLength,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder?: string;
   multiline?: boolean;
+  maxLength?: number;
 }) {
   return (
     <View style={styles.field}>
@@ -144,6 +146,7 @@ export function TextField({
         placeholderTextColor={COLORS.editorialTextMuted}
         style={[styles.input, multiline ? styles.textArea : null]}
         multiline={multiline}
+        maxLength={maxLength}
       />
     </View>
   );

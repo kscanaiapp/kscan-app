@@ -36,13 +36,14 @@ import {
   removeItemReaction,
   revokeRoomShare,
   ROOM_NOTE_MAX_LENGTH,
+  ROOM_TITLE_MAX_LENGTH,
   setItemReaction,
   normalizeRoomNoteValue,
   updateDressingRoom,
   updateDressingRoomNote,
 } from '../../services/styleObjects';
 import {
-  DRESSING_ROOM_REACTION_TYPES,
+  isActiveDressingRoomReactionType,
   type DressingRoomReactionType,
   type DressingRoom,
   type DressingRoomItem,
@@ -58,7 +59,7 @@ const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
   love: 0,
   like: 0,
   looking: 0,
-  favorite: 0,
+  thumbs_down: 0,
 };
 
 const buildRoomSharePayload = (shareUrl: string) => {
@@ -99,7 +100,7 @@ function buildReactionCountsByItem(itemIds: string[], rows: ItemReactionCount[])
   rows.forEach((row) => {
     const itemId = String(row.item_id || '').trim();
     if (!itemId || !base[itemId]) return;
-    if (!DRESSING_ROOM_REACTION_TYPES.includes(row.reaction_type)) return;
+    if (!isActiveDressingRoomReactionType(row.reaction_type)) return;
     base[itemId][row.reaction_type] = Number.isFinite(row.count) ? row.count : 0;
   });
   return base;
@@ -147,7 +148,7 @@ function EditRoomModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>Edit Dressing Room</Text>
-          <TextField label="Title" value={title} onChangeText={setTitle} />
+          <TextField label="Title" value={title} onChangeText={setTitle} maxLength={ROOM_TITLE_MAX_LENGTH} />
           <TextField label="Description" value={description} onChangeText={setDescription} multiline />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <PrimaryButton label={saving ? 'Saving' : 'Save Changes'} onPress={handleSave} disabled={!title.trim() || saving} />
@@ -522,7 +523,7 @@ function DressingRoomDetailContent() {
   return (
     <View style={styleObjectStyles.screen}>
       <StatusBar style="dark" />
-      <Header title={room?.title || 'Dressing Room'} eyebrow="Room Detail" onBack={() => router.back()} />
+      <Header title={room?.title || 'Untitled Room'} eyebrow="Room Detail" onBack={() => router.back()} />
       {blocking ? (
         <LoadingOrError loading={loading} error={error} onRetry={reload} />
       ) : (

@@ -23,7 +23,10 @@ import {
 } from '../../../constants/theme';
 import { getItemReactionCounts } from '../../../services/styleObjects';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
-import type { ItemReactionCount } from '../../../types/styleObjects';
+import {
+  isActiveDressingRoomReactionType,
+  type ItemReactionCount,
+} from '../../../types/styleObjects';
 
 // ─── Feature flag ────────────────────────────────────────────────────────────
 // Set to false to disable without removing the route. Shows a browser fallback.
@@ -72,7 +75,7 @@ const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
   love: 0,
   like: 0,
   looking: 0,
-  favorite: 0,
+  thumbs_down: 0,
 };
 
 type ReactionCountsByItem = Record<string, ReactionCountsForItem>;
@@ -86,6 +89,7 @@ function buildReactionCountsByItem(itemIds: string[], rows: ItemReactionCount[])
   rows.forEach((row) => {
     const itemId = String(row.item_id || '').trim();
     if (!itemId || !base[itemId]) return;
+    if (!isActiveDressingRoomReactionType(row.reaction_type)) return;
     base[itemId][row.reaction_type] = Number.isFinite(row.count) ? row.count : 0;
   });
   return base;
@@ -537,7 +541,7 @@ export default function SharedRoomScreen() {
               />
             }
           >
-            <Text style={styles.roomTitle}>{preview.title}</Text>
+            <Text style={styles.roomTitle}>{preview.title || 'Shared Dressing Room'}</Text>
             {preview.note ? <RoomNote note={preview.note} /> : null}
             <MetaRow itemCount={preview.itemCount} sharedAt={preview.sharedAt} />
 

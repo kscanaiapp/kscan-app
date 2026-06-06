@@ -17,6 +17,7 @@ import type {
 export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 export const ROOM_NOTE_MAX_LENGTH = 500;
+export const ROOM_TITLE_MAX_LENGTH = 60;
 const SIGNED_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const REACTION_BATCH_SIZE = 100;
 const REACTION_LOAD_ERROR = 'Unable to load reactions.';
@@ -73,6 +74,15 @@ function validateRoomNoteValue(value?: string | null) {
     throw new Error(`Room note must be ${ROOM_NOTE_MAX_LENGTH} characters or fewer.`);
   }
   return note;
+}
+
+function normalizeRoomTitleValue(value?: string | null): string {
+  const title = String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+  if (!title) throw new Error('Dressing Room title is required.');
+  if (title.length > ROOM_TITLE_MAX_LENGTH) {
+    throw new Error(`Dressing Room title must be ${ROOM_TITLE_MAX_LENGTH} characters or fewer.`);
+  }
+  return title;
 }
 
 function parsePrice(price?: string | null): { amount: string | null; currency: string | null } {
@@ -353,8 +363,7 @@ export async function createDressingRoom(input: {
   description?: string | null;
 }): Promise<DressingRoom> {
   const userId = requireAuthUserId(input.userId);
-  const title = cleanText(input.title);
-  if (!title) throw new Error('Dressing Room title is required.');
+  const title = normalizeRoomTitleValue(input.title);
 
   const { data, error } = await supabase
     .from('dressing_rooms')
@@ -373,8 +382,7 @@ export async function updateDressingRoom(
   roomId: string,
   input: { title: string; description?: string | null },
 ): Promise<DressingRoom> {
-  const title = cleanText(input.title);
-  if (!title) throw new Error('Dressing Room title is required.');
+  const title = normalizeRoomTitleValue(input.title);
 
   const { data, error } = await supabase
     .from('dressing_rooms')
