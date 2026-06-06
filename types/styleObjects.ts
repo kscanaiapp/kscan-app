@@ -1,5 +1,15 @@
 export type SnapshotPayload = Record<string, unknown>;
 
+export const DRESSING_ROOM_REACTION_TYPES = ['like', 'love', 'favorite', 'looking'] as const;
+
+export type DressingRoomReactionType = typeof DRESSING_ROOM_REACTION_TYPES[number];
+
+export interface ItemReactionCount {
+  item_id: string;
+  reaction_type: DressingRoomReactionType;
+  count: number;
+}
+
 export type DressingRoom = {
   id: string;
   userId: string;

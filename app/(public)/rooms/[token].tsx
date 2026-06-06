@@ -21,6 +21,9 @@ import {
   SPACING,
   TYPOGRAPHY,
 } from '../../../constants/theme';
+import { getItemReactionCounts } from '../../../services/styleObjects';
+import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
+import type { ItemReactionCount } from '../../../types/styleObjects';
 
 // ─── Feature flag ────────────────────────────────────────────────────────────
 // Set to false to disable without removing the route. Shows a browser fallback.
@@ -32,6 +35,7 @@ const FETCH_TIMEOUT_MS = 10_000;
 const BG_REFETCH_THRESHOLD_MS = 5 * 60 * 1000;
 
 type ApiItem = {
+  // ApiItem.id === public.dressing_room_items.id
   id: string | null;
   imageUrl: string | null;
   category: string | null;
@@ -63,6 +67,29 @@ type FetchState =
   | { phase: 'rate_limited' }
   | { phase: 'network_error' }
   | { phase: 'timeout' };
+
+const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
+  love: 0,
+  like: 0,
+  looking: 0,
+  favorite: 0,
+};
+
+type ReactionCountsByItem = Record<string, ReactionCountsForItem>;
+
+function createEmptyReactionCounts() {
+  return { ...EMPTY_REACTION_COUNTS };
+}
+
+function buildReactionCountsByItem(itemIds: string[], rows: ItemReactionCount[]): ReactionCountsByItem {
+  const base = Object.fromEntries(itemIds.map((itemId) => [itemId, createEmptyReactionCounts()])) as ReactionCountsByItem;
+  rows.forEach((row) => {
+    const itemId = String(row.item_id || '').trim();
+    if (!itemId || !base[itemId]) return;
+    base[itemId][row.reaction_type] = Number.isFinite(row.count) ? row.count : 0;
+  });
+  return base;
+}
 
 async function fetchRoomPreview(token: string): Promise<FetchState> {
   const controller = new AbortController();
@@ -177,7 +204,15 @@ function RoomNote({ note }: { note: string }) {
   );
 }
 
-function ItemCard({ item, index }: { item: ApiItem; index: number }) {
+function ItemCard({
+  item,
+  index,
+  counts,
+}: {
+  item: ApiItem;
+  index: number;
+  counts: ReactionCountsForItem;
+}) {
   const [errored, setErrored] = useState(false);
   const label = item.title || item.category || `Item ${index + 1}`;
   const chips = [item.category, item.color, item.silhouette].filter(Boolean) as string[];
@@ -210,6 +245,16 @@ function ItemCard({ item, index }: { item: ApiItem; index: number }) {
           </View>
         ) : null}
       </View>
+      {item.id ? (
+        <View style={styles.itemReactions}>
+          <ItemReactions
+            itemId={item.id}
+            counts={counts}
+            selectedReaction={null}
+            disabled
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -248,6 +293,7 @@ export default function SharedRoomScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
+  const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
   const analyticsGuard = useRef(false);
   const lastFetchedAt = useRef<number | null>(null);
 
@@ -307,6 +353,49 @@ export default function SharedRoomScreen() {
     await load(true);
     setRefreshing(false);
   }, [load]);
+
+  useEffect(() => {
+    if (state.phase !== 'available') {
+      if (state.phase !== 'empty') {
+        setReactionCounts({});
+      }
+      return;
+    }
+
+    const itemIds = [
+      ...new Set(
+        state.preview.items
+          .map((item) => String(item.id || '').trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    if (itemIds.length === 0) {
+      setReactionCounts({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadReactionCounts = async () => {
+      try {
+        const counts = await getItemReactionCounts(itemIds);
+        if (!cancelled) {
+          setReactionCounts(buildReactionCountsByItem(itemIds, counts));
+        }
+      } catch {
+        if (!cancelled) {
+          setReactionCounts(buildReactionCountsByItem(itemIds, []));
+        }
+      }
+    };
+
+    void loadReactionCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
 
   // ── Feature flag fallback ──────────────────────────────────────────────────
   if (!ENABLE_IN_APP_SHARED_ROOMS) {
@@ -464,7 +553,11 @@ export default function SharedRoomScreen() {
                     style={styles.itemGridCell}
                     onPress={() => {}}
                   >
-                    <ItemCard item={item} index={index} />
+                    <ItemCard
+                      item={item}
+                      index={index}
+                      counts={item.id ? (reactionCounts[item.id] ?? createEmptyReactionCounts()) : createEmptyReactionCounts()}
+                    />
                   </Pressable>
                 ))}
               </View>
@@ -649,6 +742,10 @@ const styles = StyleSheet.create({
   itemBody: {
     padding: SPACING.md,
     gap: SPACING.xs,
+  },
+  itemReactions: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.borderHairline,
   },
   itemLabel: {
     fontSize: 13,

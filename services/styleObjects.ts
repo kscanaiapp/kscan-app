@@ -4,6 +4,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import type {
   DressingRoom,
   DressingRoomItem,
+  DressingRoomReactionType,
+  ItemReactionCount,
   Look,
   LookDetail,
   LookItem,
@@ -16,6 +18,9 @@ export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 export const ROOM_NOTE_MAX_LENGTH = 500;
 const SIGNED_IMAGE_URL_TTL_SECONDS = 60 * 60;
+const REACTION_BATCH_SIZE = 100;
+const REACTION_LOAD_ERROR = 'Unable to load reactions.';
+const REACTION_SAVE_ERROR = 'Unable to save reaction. Please try again.';
 
 export class UnsupportedStyleObjectItemError extends Error {
   constructor(message = "This item can't be added to a Dressing Room yet.") {
@@ -42,6 +47,19 @@ function isLocalImageUri(value?: string | null) {
 function cleanText(value?: string | null) {
   const text = String(value ?? '').trim();
   return text.length > 0 ? text : null;
+}
+
+function chunkItems<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function getCurrentSessionUserId() {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id ?? null;
 }
 
 export function normalizeRoomNoteValue(value?: string | null) {
@@ -545,6 +563,113 @@ export async function addScanImageToDressingRoom(input: {
 export async function removeDressingRoomItem(itemId: string): Promise<void> {
   const { error } = await supabase.from('dressing_room_items').delete().eq('id', itemId);
   if (error) throw safeError(error, 'Unable to remove item.');
+}
+
+export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReactionCount[]> {
+  const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
+  if (normalizedItemIds.length === 0) return [];
+
+  try {
+    const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
+    const results = await Promise.all(
+      batches.map(async (batch) => {
+        const { data, error } = await supabase.rpc('get_item_reaction_counts', {
+          p_item_ids: batch,
+        });
+        if (error) throw error;
+        return (data ?? []) as ItemReactionCount[];
+      }),
+    );
+    return results.flat();
+  } catch {
+    throw new Error(REACTION_LOAD_ERROR);
+  }
+}
+
+export async function getMyItemReaction(
+  itemIds: string[],
+): Promise<Record<string, DressingRoomReactionType | null>> {
+  const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
+  const emptyMap = Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])) as Record<
+    string,
+    DressingRoomReactionType | null
+  >;
+
+  if (normalizedItemIds.length === 0) return {};
+
+  const currentUserId = await getCurrentSessionUserId();
+  if (!currentUserId) return emptyMap;
+
+  try {
+    const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
+    const results = await Promise.all(
+      batches.map(async (batch) => {
+        const { data, error } = await supabase
+          .from('dressing_room_item_reactions')
+          .select('item_id,reaction_type')
+          .eq('user_id', currentUserId)
+          .in('item_id', batch);
+        if (error) throw error;
+        return data ?? [];
+      }),
+    );
+
+    const reactionMap = { ...emptyMap };
+    results.flat().forEach((row: any) => {
+      const itemId = String(row.item_id || '').trim();
+      if (!itemId) return;
+      reactionMap[itemId] = row.reaction_type as DressingRoomReactionType;
+    });
+    return reactionMap;
+  } catch {
+    throw new Error(REACTION_LOAD_ERROR);
+  }
+}
+
+export async function setItemReaction(
+  itemId: string,
+  reactionType: DressingRoomReactionType,
+): Promise<void> {
+  const normalizedItemId = String(itemId || '').trim();
+  const currentUserId = requireAuthUserId(await getCurrentSessionUserId());
+
+  if (!normalizedItemId) {
+    throw new Error(REACTION_SAVE_ERROR);
+  }
+
+  const { error } = await supabase
+    .from('dressing_room_item_reactions')
+    .upsert(
+      {
+        item_id: normalizedItemId,
+        user_id: currentUserId,
+        reaction_type: reactionType,
+      },
+      { onConflict: 'item_id,user_id' },
+    );
+
+  if (error) {
+    throw new Error(REACTION_SAVE_ERROR);
+  }
+}
+
+export async function removeItemReaction(itemId: string): Promise<void> {
+  const normalizedItemId = String(itemId || '').trim();
+  const currentUserId = requireAuthUserId(await getCurrentSessionUserId());
+
+  if (!normalizedItemId) {
+    throw new Error(REACTION_SAVE_ERROR);
+  }
+
+  const { error } = await supabase
+    .from('dressing_room_item_reactions')
+    .delete()
+    .eq('item_id', normalizedItemId)
+    .eq('user_id', currentUserId);
+
+  if (error) {
+    throw new Error(REACTION_SAVE_ERROR);
+  }
 }
 
 export async function listLooks(): Promise<Look[]> {

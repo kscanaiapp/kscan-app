@@ -154,11 +154,13 @@ export function ItemTile({
   selected,
   onPress,
   onRemove,
+  footer,
 }: {
   item: DressingRoomItem | LookItem;
   selected?: boolean;
   onPress?: () => void;
   onRemove?: () => void;
+  footer?: React.ReactNode;
 }) {
   const versionOk = canRenderSnapshotVersion(item.snapshotVersion);
   const content = (
@@ -176,6 +178,7 @@ export function ItemTile({
           {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}
         </Text>
       </View>
+      {footer ? <View style={styles.itemFooter}>{footer}</View> : null}
       {selected ? <Text style={styles.selectedMark}>SELECTED</Text> : null}
       {onRemove ? (
         <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
@@ -362,6 +365,10 @@ const styles = StyleSheet.create({
   itemBody: {
     padding: SPACING.md,
     gap: SPACING.xs,
+  },
+  itemFooter: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.borderHairline,
   },
   itemBrand: {
     ...TYPOGRAPHY.caption,

@@ -13,8 +13,23 @@ const storageMigration = fs.readFileSync(
   'utf8',
 );
 
+const reactionsMigration = fs.readFileSync(
+  path.join(__dirname, '..', 'supabase', 'migrations', '202606050001_dressing_room_item_reactions.sql'),
+  'utf8',
+);
+
+const publicPreviewItemIdMigration = fs.readFileSync(
+  path.join(__dirname, '..', 'supabase', 'migrations', '202606050002_public_room_preview_item_ids.sql'),
+  'utf8',
+);
+
 const service = fs.readFileSync(
   path.join(__dirname, '..', 'services', 'styleObjects.ts'),
+  'utf8',
+);
+
+const types = fs.readFileSync(
+  path.join(__dirname, '..', 'types', 'styleObjects.ts'),
   'utf8',
 );
 
@@ -30,6 +45,11 @@ const addScanModal = fs.readFileSync(
 
 const analysisCard = fs.readFileSync(
   path.join(__dirname, '..', 'components', 'AnalysisCard.tsx'),
+  'utf8',
+);
+
+const publicRoomScreen = fs.readFileSync(
+  path.join(__dirname, '..', 'app', '(public)', 'rooms', '[token].tsx'),
   'utf8',
 );
 
@@ -105,4 +125,39 @@ test('scan-image save flow uploads on explicit modal action', () => {
   assert.match(addScanModal, /Add Scan to Dressing Room/);
   assert.match(addScanModal, /CREATE \+ SAVE SCAN/);
   assert.match(analysisCard, /scanImageUri/);
+});
+
+test('item reactions migration protects raw rows and exposes counts through RPC', () => {
+  assert.match(reactionsMigration, /create table if not exists public\.dressing_room_item_reactions/);
+  assert.match(reactionsMigration, /references public\.dressing_room_items\(id\) on delete cascade/);
+  assert.match(reactionsMigration, /references auth\.users\(id\) on delete cascade/);
+  assert.match(reactionsMigration, /constraint dressing_room_item_reactions_item_user_key unique \(item_id, user_id\)/);
+  assert.match(reactionsMigration, /alter table public\.dressing_room_item_reactions enable row level security/);
+  assert.match(reactionsMigration, /create policy "Users can select own dressing room item reactions"/);
+  assert.match(reactionsMigration, /using \(user_id = auth\.uid\(\)\)/);
+  assert.match(reactionsMigration, /create or replace function public\.get_item_reaction_counts\(p_item_ids uuid\[\]\)/);
+  assert.match(reactionsMigration, /security definer/);
+  assert.match(reactionsMigration, /grant execute on function public\.get_item_reaction_counts\(uuid\[\]\) to anon, authenticated/);
+});
+
+test('item reaction types and helpers are defined in app code', () => {
+  assert.match(types, /DRESSING_ROOM_REACTION_TYPES = \['like', 'love', 'favorite', 'looking'\] as const/);
+  assert.match(types, /export type DressingRoomReactionType = typeof DRESSING_ROOM_REACTION_TYPES\[number\]/);
+  assert.match(types, /export interface ItemReactionCount/);
+  assert.match(service, /getItemReactionCounts/);
+  assert.match(service, /getMyItemReaction/);
+  assert.match(service, /setItemReaction/);
+  assert.match(service, /removeItemReaction/);
+  assert.match(service, /Unable to save reaction\. Please try again\./);
+});
+
+test('public room preview payload exposes dressing room item ids for read-only counts', () => {
+  assert.match(publicPreviewItemIdMigration, /create or replace function public\.get_public_room_preview/);
+  assert.match(publicPreviewItemIdMigration, /'id', dri\.id/);
+  assert.match(publicRoomScreen, /ApiItem\.id === public\.dressing_room_items\.id/);
+  assert.match(publicRoomScreen, /getItemReactionCounts/);
+  assert.match(publicRoomScreen, /<ItemReactions/);
+  assert.doesNotMatch(publicRoomScreen, /getMyItemReaction/);
+  assert.doesNotMatch(publicRoomScreen, /setItemReaction/);
+  assert.doesNotMatch(publicRoomScreen, /removeItemReaction/);
 });

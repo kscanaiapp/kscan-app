@@ -29,17 +29,37 @@ import {
   createOrGetRoomShare,
   createLookFromDressingRoomItems,
   deleteDressingRoom,
+  getItemReactionCounts,
+  getMyItemReaction,
   getDressingRoomDetail,
   removeDressingRoomItem,
+  removeItemReaction,
   revokeRoomShare,
   ROOM_NOTE_MAX_LENGTH,
+  setItemReaction,
   normalizeRoomNoteValue,
   updateDressingRoom,
   updateDressingRoomNote,
 } from '../../services/styleObjects';
-import type { DressingRoom, DressingRoomItem } from '../../types/styleObjects';
+import {
+  DRESSING_ROOM_REACTION_TYPES,
+  type DressingRoomReactionType,
+  type DressingRoom,
+  type DressingRoomItem,
+  type ItemReactionCount,
+} from '../../types/styleObjects';
+import {
+  ItemReactions,
+  type ReactionCountsForItem,
+} from '../../components/dressing-rooms/ItemReactions';
 
 const KSCAN_PUBLIC_BASE_URL = 'https://kscan.app';
+const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
+  love: 0,
+  like: 0,
+  looking: 0,
+  favorite: 0,
+};
 
 const buildRoomSharePayload = (shareUrl: string) => {
   const message = `Join my K Scan Dressing Room: ${shareUrl}`;
@@ -60,6 +80,29 @@ const buildRoomSharePayload = (shareUrl: string) => {
 
 function getRoomNoteDraft(note?: string | null) {
   return note ?? '';
+}
+
+type ReactionCountsByItem = Record<string, ReactionCountsForItem>;
+type SelectedReactionsByItem = Record<string, DressingRoomReactionType | null>;
+
+function createEmptyReactionCounts() {
+  return { ...EMPTY_REACTION_COUNTS };
+}
+
+function normalizeReactionItemId(itemId?: string | null) {
+  const normalizedItemId = String(itemId || '').trim();
+  return normalizedItemId.length > 0 ? normalizedItemId : null;
+}
+
+function buildReactionCountsByItem(itemIds: string[], rows: ItemReactionCount[]): ReactionCountsByItem {
+  const base = Object.fromEntries(itemIds.map((itemId) => [itemId, createEmptyReactionCounts()])) as ReactionCountsByItem;
+  rows.forEach((row) => {
+    const itemId = String(row.item_id || '').trim();
+    if (!itemId || !base[itemId]) return;
+    if (!DRESSING_ROOM_REACTION_TYPES.includes(row.reaction_type)) return;
+    base[itemId][row.reaction_type] = Number.isFinite(row.count) ? row.count : 0;
+  });
+  return base;
 }
 
 function EditRoomModal({
@@ -184,6 +227,9 @@ function DressingRoomDetailContent() {
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteMessage, setNoteMessage] = useState<string | null>(null);
   const [savingNote, setSavingNote] = useState(false);
+  const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
+  const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
+  const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!roomId) return;
@@ -207,6 +253,71 @@ function DressingRoomDetailContent() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  const reactionItemIds = useMemo(
+    () => Array.from(new Set(items.map((item) => normalizeReactionItemId(item.id)).filter(Boolean))) as string[],
+    [items],
+  );
+
+  useEffect(() => {
+    if (reactionItemIds.length === 0) {
+      setReactionCounts({});
+      setSelectedReactions({});
+      return;
+    }
+
+    setReactionCounts((current) => ({
+      ...buildReactionCountsByItem(reactionItemIds, []),
+      ...current,
+    }));
+    setSelectedReactions((current) => ({
+      ...Object.fromEntries(reactionItemIds.map((itemId) => [itemId, null])),
+      ...current,
+    }));
+
+    let cancelled = false;
+
+    const loadReactions = async () => {
+      try {
+        const counts = await getItemReactionCounts(reactionItemIds);
+        if (!cancelled) {
+          setReactionCounts(buildReactionCountsByItem(reactionItemIds, counts));
+        }
+      } catch {
+        if (!cancelled) {
+          setReactionCounts(buildReactionCountsByItem(reactionItemIds, []));
+        }
+      }
+
+      if (!isAuthenticated) {
+        if (!cancelled) {
+          setSelectedReactions(
+            Object.fromEntries(reactionItemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
+          );
+        }
+        return;
+      }
+
+      try {
+        const mine = await getMyItemReaction(reactionItemIds);
+        if (!cancelled) {
+          setSelectedReactions(mine);
+        }
+      } catch {
+        if (!cancelled) {
+          setSelectedReactions(
+            Object.fromEntries(reactionItemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
+          );
+        }
+      }
+    };
+
+    void loadReactions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, reactionItemIds]);
 
   const selectedCount = selectedIds.length;
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -351,6 +462,61 @@ function DressingRoomDetailContent() {
     );
   };
 
+  const refreshItemReactions = useCallback(async (itemIds: string[]) => {
+    const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
+    if (normalizedItemIds.length === 0) return;
+
+    try {
+      const counts = await getItemReactionCounts(normalizedItemIds);
+      setReactionCounts((current) => ({
+        ...current,
+        ...buildReactionCountsByItem(normalizedItemIds, counts),
+      }));
+    } catch {
+      setReactionCounts((current) => ({
+        ...current,
+        ...buildReactionCountsByItem(normalizedItemIds, []),
+      }));
+    }
+
+    if (!isAuthenticated) {
+      setSelectedReactions((current) => ({
+        ...current,
+        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
+      }));
+      return;
+    }
+
+    try {
+      const mine = await getMyItemReaction(normalizedItemIds);
+      setSelectedReactions((current) => ({ ...current, ...mine }));
+    } catch {
+      setSelectedReactions((current) => ({
+        ...current,
+        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
+      }));
+    }
+  }, [isAuthenticated]);
+
+  const handleReact = useCallback(async (itemId: string, reactionType: DressingRoomReactionType) => {
+    if (!isAuthenticated || mutatingReactionItemId === itemId) return;
+
+    const currentReaction = selectedReactions[itemId] ?? null;
+    setMutatingReactionItemId(itemId);
+    try {
+      if (currentReaction === reactionType) {
+        await removeItemReaction(itemId);
+      } else {
+        await setItemReaction(itemId, reactionType);
+      }
+      await refreshItemReactions([itemId]);
+    } catch {
+      Alert.alert('Unable to save reaction.', 'Please try again.');
+    } finally {
+      setMutatingReactionItemId((current) => (current === itemId ? null : current));
+    }
+  }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, selectedReactions]);
+
   const blocking = loading || !!error;
 
   return (
@@ -440,15 +606,29 @@ function DressingRoomDetailContent() {
             />
           ) : (
             <View style={styles.items}>
-              {items.map((item) => (
-                <ItemTile
-                  key={item.id}
-                  item={item}
-                  selected={selectedSet.has(item.id)}
-                  onPress={() => toggleItem(item.id)}
-                  onRemove={() => handleRemoveItem(item.id)}
-                />
-              ))}
+              {items.map((item) => {
+                const reactionItemId = normalizeReactionItemId(item.id);
+
+                return (
+                  <ItemTile
+                    key={item.id}
+                    item={item}
+                    selected={selectedSet.has(item.id)}
+                    onPress={() => toggleItem(item.id)}
+                    onRemove={() => handleRemoveItem(item.id)}
+                    footer={reactionItemId ? (
+                      <ItemReactions
+                        itemId={reactionItemId}
+                        counts={reactionCounts[reactionItemId] ?? createEmptyReactionCounts()}
+                        selectedReaction={selectedReactions[reactionItemId] ?? null}
+                        disabled={!isAuthenticated}
+                        isMutating={mutatingReactionItemId === reactionItemId}
+                        onReact={handleReact}
+                      />
+                    ) : null}
+                  />
+                );
+              })}
             </View>
           )}
           <PrimaryButton label="Delete Room" onPress={handleDeleteRoom} variant="danger" />
