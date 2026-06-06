@@ -3,18 +3,15 @@ import { SafeAreaView, ScrollView, View, Text, Pressable, StyleSheet } from 'rea
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthSession } from '../contexts/AuthSessionContext';
-import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export default function Home() {
   const { isAuthenticated, signOut, user, loading } = useAuthSession();
-  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const [signingOut, setSigningOut] = useState(false);
-  const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
   const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
   const profileName =
-    (meta?.full_name ?? meta?.name ?? meta?.display_name ?? meta?.username ?? '').trim() || null;
+    (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -30,97 +27,90 @@ export default function Home() {
   return (
     <SafeAreaView testID="router-home-screen" style={styles.safeArea}>
       <StatusBar style="dark" />
-
-      {isAuthenticated ? (
-        <Pressable
-          testID="home-logout-button"
-          style={({ pressed }) => [
-            styles.logoutButton,
-            pressed ? styles.utilityPressed : null,
-            signingOut ? styles.utilityDisabled : null,
-          ]}
-          onPress={handleSignOut}
-          disabled={signingOut}
-        >
-          <Text style={styles.logoutText}>{signingOut ? 'LOGGING OUT' : 'LOG OUT'}</Text>
-        </Pressable>
-      ) : null}
-
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* 1–3. Brand, tagline, greeting */}
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>SCAN-TO-CLOSET BETA</Text>
           <Text style={styles.title}>K SCAN AI</Text>
-          {!loading && (
+          <Text style={styles.tagline}>See it. Scan it.{'\n'}Style it.</Text>
+          {!loading ? (
             <Text
               style={styles.greeting}
               accessibilityLabel={`Welcome, ${profileName ?? 'K Scanner'}`}
             >
               {`Welcome, ${profileName ?? 'K Scanner'}`}
             </Text>
-          )}
-          <Text style={styles.subtitle}>See it. Say it. Get it. Shop in seconds.</Text>
+          ) : null}
         </View>
 
-        <View style={styles.scanCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardKicker}>STYLE-PARSE ENGINE</Text>
-            <View style={styles.statusPill}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>READY</Text>
+        {/* 4. SCAN NOW — full-width gold CTA */}
+        <Pressable
+          testID="start-scan-button"
+          style={({ pressed }) => [styles.scanNowCard, pressed ? styles.scanNowPressed : null]}
+          onPress={() => router.push('/scan')}
+          accessibilityLabel="Scan Now"
+          accessibilityRole="button"
+        >
+          <Text style={styles.scanNowText}>SCAN NOW</Text>
+        </Pressable>
+
+        {/* 5. Resume placeholder — hidden for Beta 4.2 */}
+
+        {/* 6. Dressing Rooms */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardLabel}>DRESSING ROOMS</Text>
+            <View style={styles.betaBadge}>
+              <Text style={styles.betaBadgeText}>BETA</Text>
             </View>
           </View>
-
-          <Text style={styles.cardTitle}>Build your closet from the camera.</Text>
-          <Text style={styles.cardBody}>
-            Scan garments, review attributes, save the look, and keep your library commerce-ready.
-          </Text>
-
+          <Text style={styles.cardBody}>Build and share style boards.</Text>
           <Pressable
-            testID="start-scan-button"
-            style={({ pressed }) => [styles.button, pressed ? styles.buttonPressed : null]}
-            onPress={() => router.push('/scan')}
+            testID="open-dressing-room-button"
+            style={({ pressed }) => [styles.cardButton, pressed ? styles.cardButtonPressed : null]}
+            onPress={() => router.push('/dressing-rooms')}
           >
-            <Text style={styles.buttonText}>START SCAN</Text>
-          </Pressable>
-
-          <Pressable
-            testID="privacy-button"
-            style={({ pressed }) => [styles.secondaryButton, pressed ? styles.secondaryPressed : null]}
-            onPress={() => router.push('/privacy')}
-          >
-            <Text style={styles.secondaryButtonText}>PRIVACY CONTROL</Text>
+            <Text style={styles.cardButtonText}>OPEN ROOMS</Text>
           </Pressable>
         </View>
 
-        {dressingRoomsEnabled ? (
-          <View style={styles.roomsCard}>
-            <Text style={styles.roomsLabel}>DRESSING ROOM</Text>
-            <Text style={styles.roomsTitle}>Saved scans, room boards, and share flow.</Text>
-            <Text style={styles.roomsBody}>
-              Review saved scans, organize looks, and share room boards.
-            </Text>
+        {/* 7. Style Library */}
+        <View style={[styles.card, styles.cardMuted]}>
+          <Text style={styles.cardLabel}>STYLE LIBRARY</Text>
+          <Text style={styles.cardBody}>Saved scans and inspiration.</Text>
+          <Pressable
+            testID="open-library-button"
+            style={({ pressed }) => [styles.cardButton, pressed ? styles.cardButtonPressed : null]}
+            onPress={() => router.push('/library')}
+          >
+            <Text style={styles.cardButtonText}>OPEN LIBRARY</Text>
+          </Pressable>
+        </View>
 
+        {/* 8. Privacy / Log Out */}
+        <View style={styles.footerLinks}>
+          <Pressable
+            testID="privacy-button"
+            style={({ pressed }) => [styles.footerLink, pressed ? styles.footerLinkPressed : null]}
+            onPress={() => router.push('/privacy')}
+          >
+            <Text style={styles.footerLinkText}>Privacy</Text>
+          </Pressable>
+          {isAuthenticated ? (
             <Pressable
-              testID="open-dressing-room-button"
-              style={({ pressed }) => [
-                styles.roomsButton,
-                pressed ? styles.roomsButtonPressed : null,
-              ]}
-              onPress={() => router.push('/dressing-rooms')}
+              testID="home-logout-button"
+              style={({ pressed }) => [styles.footerLink, pressed ? styles.footerLinkPressed : null]}
+              onPress={handleSignOut}
+              disabled={signingOut}
             >
-              <Text style={styles.roomsButtonText}>OPEN DRESSING ROOM</Text>
+              <Text style={[styles.footerLinkText, signingOut ? styles.footerLinkDisabled : null]}>
+                {signingOut ? 'Logging Out…' : 'Log Out'}
+              </Text>
             </Pressable>
-          </View>
-        ) : null}
-
-        <View style={styles.recentCard}>
-          <Text style={styles.recentLabel}>CURRENT FOCUS</Text>
-          <Text style={styles.recentTitle}>Scan-to-Closet</Text>
-          <Text style={styles.recentBody}>Camera, AI tags, manual edits, and saved library flow.</Text>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -137,42 +127,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SPACING.xl,
-    paddingTop: 80,
+    paddingTop: 56,
     paddingBottom: 60,
   },
-  logoutButton: {
-    position: 'absolute',
-    top: 58,
-    right: 24,
-    zIndex: 5,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderSubtle,
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.86)',
-  },
-  utilityPressed: {
-    borderColor: COLORS.goldMuted,
-    backgroundColor: COLORS.surfaceRaised,
-  },
-  utilityDisabled: {
-    opacity: 0.58,
-  },
-  logoutText: {
-    color: COLORS.editorialTextSecondary,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-  },
+
+  // ── Hero ──────────────────────────────────────────────────────────────────
   hero: {
     marginBottom: SPACING.xl,
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
-    marginBottom: SPACING.sm,
   },
   title: {
     color: COLORS.editorialTextPrimary,
@@ -180,185 +141,131 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2.4,
   },
+  tagline: {
+    color: COLORS.editorialTextSecondary,
+    marginTop: 10,
+    fontSize: 22,
+    fontWeight: '300',
+    lineHeight: 30,
+    letterSpacing: 0.2,
+  },
   greeting: {
     fontSize: 15,
     fontWeight: '400',
     color: COLORS.editorialTextMuted,
-    marginTop: 6,
-    marginBottom: 2,
+    marginTop: 12,
   },
-  subtitle: {
-    color: COLORS.editorialTextSecondary,
-    marginTop: 10,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  scanCard: {
+
+  // ── SCAN NOW ──────────────────────────────────────────────────────────────
+  scanNowCard: {
     borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
-    padding: SPACING.xl,
-    ...SHADOWS.editorialRaised,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  cardKicker: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
-    flex: 1,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.success,
-  },
-  statusText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextSecondary,
-    fontSize: 10,
-    letterSpacing: 1.4,
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    lineHeight: 28,
-    color: COLORS.editorialTextPrimary,
-  },
-  cardBody: {
-    marginTop: SPACING.sm,
-    fontSize: 14,
-    lineHeight: 22,
-    color: COLORS.editorialTextSecondary,
-  },
-  button: {
-    marginTop: SPACING.xl,
-    borderRadius: 999,
-    minHeight: 54,
+    minHeight: 72,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
     backgroundColor: COLORS.gold,
+    ...SHADOWS.editorialRaised,
+    marginBottom: SPACING.lg,
   },
-  buttonPressed: {
+  scanNowPressed: {
     backgroundColor: COLORS.goldPressed,
   },
-  buttonText: {
+  scanNowText: {
     color: COLORS.textInverse,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 2,
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 3,
     textTransform: 'uppercase',
   },
-  secondaryButton: {
-    marginTop: SPACING.md,
+
+  // ── Cards ─────────────────────────────────────────────────────────────────
+  card: {
+    borderRadius: RADIUS.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderSubtle,
-    borderRadius: 999,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
+    borderColor: COLORS.borderHairline,
     backgroundColor: COLORS.surfaceCard,
-  },
-  secondaryPressed: {
-    backgroundColor: COLORS.surfaceRaised,
-  },
-  secondaryButtonText: {
-    color: COLORS.editorialTextSecondary,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  recentCard: {
-    marginTop: SPACING.lg,
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
     padding: SPACING.lg,
+    marginBottom: SPACING.lg,
     ...SHADOWS.editorialSmall,
   },
-  roomsCard: {
-    marginTop: SPACING.lg,
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
+  cardMuted: {
     backgroundColor: COLORS.surfaceRaised,
-    padding: SPACING.lg,
-    ...SHADOWS.editorialSmall,
   },
-  roomsLabel: {
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  cardLabel: {
     ...TYPOGRAPHY.caption,
     color: COLORS.goldPressed,
     letterSpacing: 2.2,
-    marginBottom: SPACING.xs,
   },
-  roomsTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.editorialTextPrimary,
-    lineHeight: 22,
+  betaBadge: {
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.goldMuted,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
   },
-  roomsBody: {
-    marginTop: SPACING.xs,
-    fontSize: 13,
-    lineHeight: 20,
+  betaBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: COLORS.goldPressed,
+  },
+  cardBody: {
+    fontSize: 14,
+    lineHeight: 21,
     color: COLORS.editorialTextSecondary,
+    marginBottom: SPACING.md,
   },
-  roomsButton: {
-    marginTop: SPACING.md,
+  cardButton: {
     minHeight: 44,
     borderRadius: RADIUS.pill,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    backgroundColor: COLORS.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
   },
-  roomsButtonPressed: {
-    backgroundColor: COLORS.surfaceRaised,
+  cardButtonPressed: {
+    backgroundColor: COLORS.borderSubtle,
   },
-  roomsButtonText: {
+  cardButtonText: {
     color: COLORS.editorialTextPrimary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  recentLabel: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
-    marginBottom: SPACING.xs,
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.xl,
+    paddingTop: SPACING.lg,
   },
-  recentTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.editorialTextPrimary,
+  footerLink: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  recentBody: {
-    marginTop: SPACING.xs,
+  footerLinkPressed: {
+    opacity: 0.6,
+  },
+  footerLinkText: {
+    color: COLORS.editorialTextMuted,
     fontSize: 13,
-    lineHeight: 19,
-    color: COLORS.editorialTextSecondary,
+    fontWeight: '500',
+  },
+  footerLinkDisabled: {
+    opacity: 0.5,
   },
 });
