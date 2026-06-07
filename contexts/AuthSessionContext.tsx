@@ -10,6 +10,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
+import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -45,11 +46,11 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     let mounted = true;
 
-    // Boot: resolve current persisted session before rendering children
     supabase.auth.getSession().then(async ({ data }) => {
       const bootSession = data.session ?? null;
       const usableSession = isSessionUsable(bootSession) ? bootSession : null;
       if (bootSession && !usableSession) {
+        invalidateAllMemoryCache();
         await supabase.auth.signOut();
       }
       if (!mounted) return;
@@ -57,12 +58,15 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       const usableSession = isSessionUsable(newSession) ? newSession : null;
       if (event === 'TOKEN_REFRESHED') {
         setIsRefreshing(false);
+      } else {
+        invalidateAllMemoryCache();
       }
-      // Keep session in sync for all state transitions
       setSession(usableSession);
     });
 
@@ -91,6 +95,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signOut = useCallback(async () => {
+    invalidateAllMemoryCache();
     setSession(null);
     await supabase.auth.signOut();
   }, []);
