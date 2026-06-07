@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Dimensions,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -8,11 +10,14 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
+import { InspirationUploadModal } from '../../components/InspirationUploadModal';
 import {
   EmptyState,
   Header,
@@ -32,7 +37,9 @@ import {
   getItemReactionCounts,
   getMyItemReaction,
   getDressingRoomDetail,
+  listDressingRoomInspirationItems,
   removeDressingRoomItem,
+  removeInspirationFromDressingRoom,
   removeItemReaction,
   revokeRoomShare,
   ROOM_NOTE_MAX_LENGTH,
@@ -47,12 +54,16 @@ import {
   type DressingRoomReactionType,
   type DressingRoom,
   type DressingRoomItem,
+  type InspirationItem,
   type ItemReactionCount,
 } from '../../types/styleObjects';
 import {
   ItemReactions,
   type ReactionCountsForItem,
 } from '../../components/dressing-rooms/ItemReactions';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
 
 const KSCAN_PUBLIC_BASE_URL = 'https://kscan.app';
 const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
@@ -232,6 +243,23 @@ function DressingRoomDetailContent() {
   const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
   const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
 
+  const [inspirations, setInspirations] = useState<InspirationItem[]>([]);
+  const [inspirationLoading, setInspirationLoading] = useState(false);
+  const [selectedInspirationUri, setSelectedInspirationUri] = useState<string | null>(null);
+  const [showInspirationModal, setShowInspirationModal] = useState(false);
+
+  const loadInspirations = useCallback(async () => {
+    if (!roomId) return;
+    setInspirationLoading(true);
+    try {
+      setInspirations(await listDressingRoomInspirationItems(roomId));
+    } catch {
+      // Non-blocking — inspiration load failure does not block room usage.
+    } finally {
+      setInspirationLoading(false);
+    }
+  }, [roomId]);
+
   const reload = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
@@ -253,7 +281,8 @@ function DressingRoomDetailContent() {
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+    void loadInspirations();
+  }, [reload, loadInspirations]);
 
   const reactionItemIds = useMemo(
     () => Array.from(new Set(items.map((item) => normalizeReactionItemId(item.id)).filter(Boolean))) as string[],
@@ -518,6 +547,56 @@ function DressingRoomDetailContent() {
     }
   }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, selectedReactions]);
 
+  const handleUploadInspiration = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Photo Access Required', 'Allow K Scan to access your photo library in Settings to upload inspiration.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+      allowsEditing: false,
+      allowsMultipleSelection: false,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setSelectedInspirationUri(result.assets[0].uri);
+      setShowInspirationModal(true);
+    }
+  };
+
+  const handleInspirationSuccess = (item: InspirationItem) => {
+    setInspirations((current) => [item, ...current]);
+  };
+
+  const handleCloseInspirationModal = () => {
+    setShowInspirationModal(false);
+    setSelectedInspirationUri(null);
+  };
+
+  const handleRemoveInspiration = async (inspirationId: string) => {
+    if (!roomId) return;
+    Alert.alert(
+      'Remove from Room?',
+      'The image will remain in your Style Library.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeInspirationFromDressingRoom(roomId, inspirationId);
+              setInspirations((current) => current.filter((item) => item.id !== inspirationId));
+            } catch (err: any) {
+              Alert.alert('Could not remove', err?.message || 'Try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const blocking = loading || !!error;
 
   return (
@@ -632,6 +711,45 @@ function DressingRoomDetailContent() {
               })}
             </View>
           )}
+
+          {/* ── Room Inspiration ─────────────────────────────────────────── */}
+          <View style={styles.inspirationSection}>
+            <View style={styles.inspirationHeader}>
+              <Text style={styles.inspirationLabel}>ROOM INSPIRATION</Text>
+              {isAuthenticated ? (
+                <TouchableOpacity
+                  style={styles.uploadBtn}
+                  onPress={handleUploadInspiration}
+                  testID="upload-room-inspiration-button"
+                >
+                  <Text style={styles.uploadBtnText}>UPLOAD</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {inspirationLoading ? null : inspirations.length === 0 ? (
+              <Text style={styles.inspirationEmpty}>
+                Upload screenshots and outfit references for this room.
+              </Text>
+            ) : (
+              <View>
+                {inspirations.reduce<[InspirationItem, InspirationItem | null][]>((pairs, item, i) => {
+                  if (i % 2 === 0) pairs.push([item, inspirations[i + 1] ?? null]);
+                  return pairs;
+                }, []).map(([a, b]) => (
+                  <View key={a.id} style={styles.inspirationRow}>
+                    <RoomInspirationCard item={a} onRemove={handleRemoveInspiration} />
+                    {b ? (
+                      <RoomInspirationCard item={b} onRemove={handleRemoveInspiration} />
+                    ) : (
+                      <View style={{ width: INSPIRATION_CARD_W }} />
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
           <PrimaryButton label="Delete Room" onPress={handleDeleteRoom} variant="danger" />
         </ScrollView>
       )}
@@ -642,9 +760,95 @@ function DressingRoomDetailContent() {
         onClose={() => setCreatingLook(false)}
         onCreate={handleCreateLook}
       />
+      <InspirationUploadModal
+        visible={showInspirationModal}
+        selectedUri={selectedInspirationUri}
+        roomId={roomId}
+        onClose={handleCloseInspirationModal}
+        onSuccess={handleInspirationSuccess}
+      />
     </View>
   );
 }
+
+function RoomInspirationCard({
+  item,
+  onRemove,
+}: {
+  item: InspirationItem;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <View style={inspirationCardStyles.card}>
+      {item.imageUrl ? (
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={[inspirationCardStyles.thumb, { width: INSPIRATION_CARD_W, height: INSPIRATION_CARD_W }]}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[inspirationCardStyles.thumb, inspirationCardStyles.thumbPlaceholder, { width: INSPIRATION_CARD_W, height: INSPIRATION_CARD_W }]} />
+      )}
+      {item.note ? (
+        <View style={inspirationCardStyles.noteWrap}>
+          <Text style={inspirationCardStyles.noteText} numberOfLines={2}>{item.note}</Text>
+        </View>
+      ) : null}
+      <TouchableOpacity
+        style={inspirationCardStyles.removeBtn}
+        onPress={() => onRemove(item.id)}
+        hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+      >
+        <Text style={inspirationCardStyles.removeBtnText}>×</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const inspirationCardStyles = StyleSheet.create({
+  card: {
+    width: INSPIRATION_CARD_W,
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
+    overflow: 'hidden',
+    ...SHADOWS.editorialSmall,
+  },
+  thumb: {
+    // width/height set inline
+  },
+  thumbPlaceholder: {
+    backgroundColor: COLORS.surfaceMuted,
+  },
+  noteWrap: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  noteText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.editorialTextSecondary,
+    lineHeight: 16,
+  },
+  removeBtn: {
+    position: 'absolute',
+    top: SPACING.xs,
+    right: SPACING.xs,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBtnText: {
+    fontSize: 14,
+    color: COLORS.editorialTextSecondary,
+    lineHeight: 16,
+  },
+});
 
 export default function DressingRoomDetailScreen() {
   const { isFeatureEnabled, isLoading } = useFeatureFreeze();
@@ -725,6 +929,51 @@ const styles = StyleSheet.create({
   },
   items: {
     marginTop: SPACING.lg,
+  },
+  inspirationSection: {
+    marginTop: SPACING.xxl,
+    marginBottom: SPACING.md,
+  },
+  inspirationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  inspirationLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+    letterSpacing: 2.2,
+  },
+  uploadBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.gold,
+    backgroundColor: COLORS.surfaceCard,
+  },
+  uploadBtnText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+    letterSpacing: 1.4,
+  },
+  inspirationEmpty: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.editorialTextMuted,
+    textAlign: 'center',
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
+    paddingHorizontal: SPACING.md,
+    ...SHADOWS.editorialSmall,
+  },
+  inspirationRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   modalBackdrop: {
     flex: 1,

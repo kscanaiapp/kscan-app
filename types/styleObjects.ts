@@ -117,6 +117,33 @@ export type ScanImageSnapshotSource = {
   } | null;
 };
 
+export type InspirationItem = {
+  id: string;
+  userId: string;
+  storageBucket: string;
+  storagePath: string;
+  source: 'upload';
+  originalFilename?: string | null;
+  contentType?: string | null;
+  fileSizeBytes?: number | null;
+  width?: number | null;
+  height?: number | null;
+  note?: string | null;
+  imageUrl?: string | null;
+  createdAt: string;
+  deletedAt?: string | null;
+};
+
+export type DressingRoomInspirationLink = {
+  id: string;
+  roomId: string;
+  inspirationId: string;
+  userId: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  inspiration?: InspirationItem | null;
+};
+
 export type RoomDetail = {
   room: DressingRoom;
   items: DressingRoomItem[];

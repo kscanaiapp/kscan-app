@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,25 @@ import {
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 
 import { AnalysisCard } from '../components/AnalysisCard';
 import { AddScanToDressingRoomModal } from '../components/AddScanToDressingRoomModal';
+import { InspirationUploadModal } from '../components/InspirationUploadModal';
 import { useLibrary } from '../hooks/useLibrary';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
+import { useAuthSession } from '../contexts/AuthSessionContext';
+import {
+  deleteInspirationItem,
+  listInspirationItems,
+} from '../services/styleObjects';
+import type { InspirationItem } from '../types/styleObjects';
 import {
   COLORS,
   LAYOUT,
@@ -72,12 +82,32 @@ function formatDate(iso: string): string {
   }
 }
 
+async function requestPhotoLibraryPermission(): Promise<boolean> {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status === 'granted') return true;
+  Alert.alert(
+    'Photo Access Required',
+    'Allow K Scan to access your photo library in Settings to upload inspiration.',
+    [{ text: 'OK' }],
+  );
+  return false;
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
-function EmptyState() {
+function ScanEmptyState() {
   return (
     <View style={styles.emptyWrap}>
-      <Text style={styles.emptyTitle}>Your Style Library is empty.</Text>
+      <Text style={styles.emptyTitle}>No scans yet.</Text>
       <Text style={styles.emptyBody}>Scan your first look.</Text>
+    </View>
+  );
+}
+
+function InspirationEmptyState() {
+  return (
+    <View style={styles.emptyWrap}>
+      <Text style={styles.emptyTitle}>No inspiration uploads yet.</Text>
+      <Text style={styles.emptyBody}>Tap Upload to save screenshots and outfit references.</Text>
     </View>
   );
 }
@@ -124,20 +154,141 @@ function ScanCard({ scan, onPress, onDelete }: ScanCardProps) {
   );
 }
 
+interface InspirationCardProps {
+  item: InspirationItem;
+  onDelete: (id: string) => void;
+}
+
+function InspirationCard({ item, onDelete }: InspirationCardProps) {
+  return (
+    <View style={[styles.card, { width: CARD_W }]}>
+      {item.imageUrl ? (
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={[styles.thumb, { width: CARD_W, height: THUMB_H }]}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.thumb, styles.thumbPlaceholder, { width: CARD_W, height: THUMB_H }]}>
+          <Text style={styles.thumbPlaceholderText}>Loading...</Text>
+        </View>
+      )}
+
+      <View style={styles.cardInfo}>
+        <View style={styles.inspirationBadgeRow}>
+          <View style={styles.inspirationBadge}>
+            <Text style={styles.inspirationBadgeText}>UPLOAD</Text>
+          </View>
+        </View>
+        {item.note ? (
+          <Text style={styles.cardNote} numberOfLines={2}>{item.note}</Text>
+        ) : null}
+        <Text style={styles.cardDate}>{formatDate(item.createdAt)}</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={() => onDelete(item.id)}
+        hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+      >
+        <Text style={styles.deleteBtnText}>×</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function LibraryScreen() {
   const router = useRouter();
   const { scans, loading, remove } = useLibrary();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const { isAuthenticated, user } = useAuthSession();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
+
   const [selectedScan, setSelectedScan] = useState<SavedScan | null>(null);
   const [dressingRoomModalVisible, setDressingRoomModalVisible] = useState(false);
+
+  const [inspirations, setInspirations] = useState<InspirationItem[]>([]);
+  const [inspirationLoading, setInspirationLoading] = useState(false);
+  const [inspirationError, setInspirationError] = useState<string | null>(null);
+  const [selectedInspirationUri, setSelectedInspirationUri] = useState<string | null>(null);
+  const [showInspirationModal, setShowInspirationModal] = useState(false);
+
+  const loadInspirations = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setInspirationLoading(true);
+    setInspirationError(null);
+    try {
+      setInspirations(await listInspirationItems());
+    } catch (err: any) {
+      setInspirationError(err?.message || 'Unable to load inspiration uploads.');
+    } finally {
+      setInspirationLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    void loadInspirations();
+  }, [loadInspirations]);
 
   const handleOpenScan = (scan: SavedScan) => setSelectedScan(scan);
   const handleCloseScan = () => {
     setSelectedScan(null);
     setDressingRoomModalVisible(false);
   };
+
+  const handleUploadInspiration = async () => {
+    const granted = await requestPhotoLibraryPermission();
+    if (!granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+      allowsEditing: false,
+      allowsMultipleSelection: false,
+    });
+
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setSelectedInspirationUri(result.assets[0].uri);
+      setShowInspirationModal(true);
+    }
+  };
+
+  const handleInspirationSuccess = (item: InspirationItem) => {
+    setInspirations((current) => [item, ...current]);
+  };
+
+  const handleCloseInspirationModal = () => {
+    setShowInspirationModal(false);
+    setSelectedInspirationUri(null);
+  };
+
+  const handleDeleteInspiration = async (id: string) => {
+    Alert.alert(
+      'Delete Inspiration?',
+      'This will remove the image from your Style Library and any Dressing Rooms it was added to.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteInspirationItem(id);
+              setInspirations((current) => current.filter((item) => item.id !== id));
+            } catch (err: any) {
+              Alert.alert('Could not delete', err?.message || 'Try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const inspirationGrid = inspirations.reduce<[InspirationItem, InspirationItem | null][]>((pairs, item, i) => {
+    if (i % 2 === 0) pairs.push([item, inspirations[i + 1] ?? null]);
+    return pairs;
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -157,36 +308,85 @@ export default function LibraryScreen() {
           <Text style={styles.screenTitle}>STYLE LIBRARY</Text>
         </View>
 
-        {/* Spacer mirrors backBtn width for visual centering */}
         <View style={styles.headerRight} />
       </SafeAreaView>
 
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size={LOADING.indicatorSize} color={COLORS.accent} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Scans section ─────────────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionLabel}>SCANS</Text>
         </View>
-      ) : (
-        <FlatList<SavedScan>
-          data={scans}
-          numColumns={2}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <ScanCard
-              scan={item}
-              onPress={handleOpenScan}
-              onDelete={remove}
-            />
-          )}
-          style={styles.list}
-          columnWrapperStyle={styles.gridRow}
-          contentContainerStyle={[
-            styles.listContent,
-            scans.length === 0 && styles.listContentEmpty,
-          ]}
-          ListEmptyComponent={<EmptyState />}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size={LOADING.indicatorSize} color={COLORS.accent} />
+          </View>
+        ) : scans.length === 0 ? (
+          <ScanEmptyState />
+        ) : (
+          <View>
+            {scans.reduce<[SavedScan, SavedScan | null][]>((pairs, scan, i) => {
+              if (i % 2 === 0) pairs.push([scan, scans[i + 1] ?? null]);
+              return pairs;
+            }, []).map(([a, b]) => (
+              <View key={a.id} style={styles.gridRow}>
+                <ScanCard scan={a} onPress={handleOpenScan} onDelete={remove} />
+                {b ? <ScanCard scan={b} onPress={handleOpenScan} onDelete={remove} /> : <View style={{ width: CARD_W }} />}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ── Inspiration section ────────────────────────────────────────── */}
+        <View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+          <Text style={styles.sectionLabel}>INSPIRATION</Text>
+          {isAuthenticated ? (
+            <TouchableOpacity
+              style={styles.uploadBtn}
+              onPress={handleUploadInspiration}
+              testID="upload-inspiration-button"
+            >
+              <Text style={styles.uploadBtnText}>UPLOAD</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {!isAuthenticated ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyBody}>Sign in to upload inspiration.</Text>
+          </View>
+        ) : inspirationLoading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size={LOADING.indicatorSize} color={COLORS.accent} />
+          </View>
+        ) : inspirationError ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyBody}>{inspirationError}</Text>
+            <TouchableOpacity onPress={loadInspirations} style={styles.retryBtn}>
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : inspirations.length === 0 ? (
+          <InspirationEmptyState />
+        ) : (
+          <View>
+            {inspirationGrid.map(([a, b]) => (
+              <View key={a.id} style={styles.gridRow}>
+                <InspirationCard item={a} onDelete={handleDeleteInspiration} />
+                {b ? (
+                  <InspirationCard item={b} onDelete={handleDeleteInspiration} />
+                ) : (
+                  <View style={{ width: CARD_W }} />
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       {/* Reopen saved scan — no backend call, no useKScan involvement */}
       {selectedScan && (
@@ -228,6 +428,13 @@ export default function LibraryScreen() {
           onClose={() => setDressingRoomModalVisible(false)}
         />
       ) : null}
+
+      <InspirationUploadModal
+        visible={showInspirationModal}
+        selectedUri={selectedInspirationUri}
+        onClose={handleCloseInspirationModal}
+        onSuccess={handleInspirationSuccess}
+      />
     </View>
   );
 }
@@ -273,22 +480,48 @@ const styles = StyleSheet.create({
     color: COLORS.goldPressed,
   },
   headerRight: {
-    width: 36, // mirrors backBtn for centering
+    width: 36,
   },
-  // ── List ───────────────────────────────────────────────────────────────────
-  list: {
+  // ── Scroll ─────────────────────────────────────────────────────────────────
+  scrollView: {
     flex: 1,
   },
-  listContent: {
+  scrollContent: {
     paddingHorizontal: H_PAD,
     paddingTop: SPACING.xl,
     paddingBottom: 80,
   },
-  listContentEmpty: {
-    flexGrow: 1,
-    justifyContent: 'center',
+  // ── Section headers ────────────────────────────────────────────────────────
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
   },
+  sectionHeaderSpaced: {
+    marginTop: SPACING.xxl,
+  },
+  sectionLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+    letterSpacing: 2.2,
+  },
+  uploadBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.gold,
+    backgroundColor: COLORS.surfaceCard,
+  },
+  uploadBtnText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+    letterSpacing: 1.4,
+  },
+  // ── Grid ───────────────────────────────────────────────────────────────────
   gridRow: {
+    flexDirection: 'row',
     gap: SPACING.md,
     marginBottom: SPACING.md,
   },
@@ -306,6 +539,12 @@ const styles = StyleSheet.create({
   },
   thumbPlaceholder: {
     backgroundColor: COLORS.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbPlaceholderText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.editorialTextMuted,
   },
   cardInfo: {
     paddingHorizontal: SPACING.md,
@@ -318,6 +557,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
     color:         COLORS.editorialTextPrimary,
     textTransform: 'uppercase' as const,
+  },
+  cardNote: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.editorialTextSecondary,
+    lineHeight: 16,
   },
   cardDate: {
     fontSize:      11,
@@ -343,7 +587,25 @@ const styles = StyleSheet.create({
     color:      COLORS.editorialTextSecondary,
     lineHeight: 16,
   },
-  // ── Empty state ────────────────────────────────────────────────────────────
+  // ── Inspiration badge ──────────────────────────────────────────────────────
+  inspirationBadgeRow: {
+    flexDirection: 'row',
+    marginBottom: SPACING.xxs,
+  },
+  inspirationBadge: {
+    backgroundColor: COLORS.accentSoft,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+  },
+  inspirationBadgeText: {
+    fontSize:      9,
+    fontWeight:    '700' as const,
+    letterSpacing: 1.4,
+    color:         COLORS.goldPressed,
+    textTransform: 'uppercase' as const,
+  },
+  // ── Empty / loading ────────────────────────────────────────────────────────
   emptyWrap: {
     alignItems:        'center',
     justifyContent:    'center',
@@ -367,11 +629,18 @@ const styles = StyleSheet.create({
     color:      COLORS.editorialTextMuted,
     textAlign:  'center',
   },
-  // ── Loading ────────────────────────────────────────────────────────────────
   loadingWrap: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: SPACING.xl,
     backgroundColor: COLORS.canvasWarm,
+  },
+  retryBtn: {
+    marginTop: SPACING.sm,
+  },
+  retryBtnText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+    letterSpacing: 1.2,
   },
 });
