@@ -81,6 +81,12 @@ function sanitizeResponse(raw: string): string {
   return text.trim();
 }
 
+function buildGeminiUrl(modelName: string, geminiKey: string): string {
+  const url = new URL(`${GEMINI_API_BASE}/${modelName}:generateContent`);
+  url.searchParams.set('key', geminiKey);
+  return url.toString();
+}
+
 // Builds a compact memory text under MAX_MEMORY_CHARS from raw signal data.
 function buildMemoryText(
   brands: string[],
@@ -143,12 +149,19 @@ Deno.serve(async (req) => {
 
   // ── 2. Parse and validate request body ──────────────────────────────────────
 
-  let body: { sessionId?: unknown; message?: unknown } = {};
+  let body: {
+    sessionId?: unknown;
+    message?: unknown;
+  } = {};
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
   }
+
+  const aiEnabled = Deno.env.get('STYLECHAT_AI_ENABLED');
+  const geminiKey = Deno.env.get('GEMINI_API_KEY');
+  const modelName = Deno.env.get('STYLECHAT_GEMINI_MODEL') || DEFAULT_MODEL;
 
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const message   = typeof body.message   === 'string' ? body.message.trim()   : '';
@@ -164,7 +177,6 @@ Deno.serve(async (req) => {
 
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
 
-  const aiEnabled = Deno.env.get('STYLECHAT_AI_ENABLED');
   if (aiEnabled === 'false') {
     console.log('[stylechat-generate] kill switch active — returning fallback');
     return json({
@@ -179,13 +191,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  const geminiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiKey) {
     console.error('[stylechat-generate] GEMINI_API_KEY not configured');
     return json({ error: 'AI provider not configured' }, 500);
   }
-
-  const modelName = Deno.env.get('STYLECHAT_GEMINI_MODEL') || DEFAULT_MODEL;
 
   // ── 4. Verify session ownership ──────────────────────────────────────────────
   // Belt-and-suspenders: RLS also enforces this, but we confirm before quota spend.
@@ -200,6 +209,7 @@ Deno.serve(async (req) => {
   if (sessionError || !sessionRow) {
     return json({ error: 'Session not found' }, 404);
   }
+
 
   // ── 5. Atomic daily quota reservation ────────────────────────────────────────
   // This is the authority check. If the RPC returns limit_reached=true, we abort
@@ -384,7 +394,7 @@ Deno.serve(async (req) => {
 
   // ── 8. Call Gemini ────────────────────────────────────────────────────────────
 
-  const geminiUrl    = `${GEMINI_API_BASE}/${modelName}:generateContent?key=${geminiKey}`;
+  const geminiUrl    = buildGeminiUrl(modelName, geminiKey);
   const controller   = new AbortController();
   const geminiTimer  = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
@@ -399,13 +409,23 @@ Deno.serve(async (req) => {
       signal: controller.signal,
     });
 
+    const raw = await geminiRes.text().catch(() => '');
+
     if (!geminiRes.ok) {
-      const errText = await geminiRes.text().catch(() => '');
-      console.warn('[stylechat-generate] Gemini error status=%d body=%s', geminiRes.status, errText.slice(0, 200));
+      console.warn('[stylechat-generate] Gemini error status=%d body=%s', geminiRes.status, raw.slice(0, 200));
       throw new Error(`Gemini returned ${geminiRes.status}`);
     }
 
-    const geminiData = await geminiRes.json();
+    let geminiData: {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+    };
+    try {
+      geminiData = JSON.parse(raw);
+    } catch {
+      console.warn('[stylechat-generate] Gemini parse failure body=%s', raw.slice(0, 200));
+      throw new Error('Gemini returned non-JSON');
+    }
 
     // Extract text from first candidate.
     const candidateText: string =

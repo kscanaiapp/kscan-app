@@ -6,11 +6,16 @@ import {
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../../constants/theme';
-import { StyleChatHeader } from '../../components/style-chat/StyleChatHeader';
+import {
+  StyleChatHeader,
+  useStyleChatHomeBackHandler,
+} from '../../components/style-chat/StyleChatHeader';
 import { StyleChatSessionList } from '../../components/style-chat/StyleChatSessionList';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 
 export default function StyleChatIndexScreen() {
+  useStyleChatHomeBackHandler();
+
   const { sessions, loading, error, createSession } = useStyleChatSessions();
 
   const handleNewSession = async () => {

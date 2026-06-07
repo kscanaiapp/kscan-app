@@ -14,13 +14,18 @@ import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
-import { StyleChatHeader } from '../../components/style-chat/StyleChatHeader';
+import {
+  StyleChatHeader,
+  useStyleChatHomeBackHandler,
+} from '../../components/style-chat/StyleChatHeader';
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { useStyleChat } from '../../hooks/useStyleChat';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 
 export default function StyleChatSessionScreen() {
+  useStyleChatHomeBackHandler();
+
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const {
     session,
