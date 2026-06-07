@@ -67,17 +67,20 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : null;
 
+  const isLimitNotice = error === STYLE_CHAT_COPY.systemLimitNotice;
   const ErrorBanner = error ? (
     <View testID="style-chat-error-state" style={styles.errorBanner}>
       <Text style={styles.errorText}>{error}</Text>
-      <Pressable
-        onPress={() => { clearError(); retryLastMessage(); }}
-        style={styles.retryLink}
-        accessibilityRole="button"
-        accessibilityLabel="Retry"
-      >
-        <Text style={styles.retryLinkText}>RETRY</Text>
-      </Pressable>
+      {!isLimitNotice ? (
+        <Pressable
+          onPress={() => { clearError(); retryLastMessage(); }}
+          style={styles.retryLink}
+          accessibilityRole="button"
+          accessibilityLabel="Retry"
+        >
+          <Text style={styles.retryLinkText}>RETRY</Text>
+        </Pressable>
+      ) : null}
     </View>
   ) : null;
 

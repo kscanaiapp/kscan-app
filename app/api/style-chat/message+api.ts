@@ -1,5 +1,7 @@
-// POST /api/style-chat/message — mock stub (no live LLM, no auth enforcement)
-// Not production-safe. Auth must be added before enabling real LLM integration.
+// POST /api/style-chat/message — DEPRECATED mock stub. Not called by the mobile app.
+// As of v0.4, live AI goes through the stylechat-generate Supabase Edge Function.
+// This file is retained for reference; do not use it for real AI calls.
+// It has no auth enforcement and must not be wired to a live LLM.
 
 interface MessageRequestBody {
   sessionId?: unknown;

@@ -1,5 +1,6 @@
-// POST /api/style-chat/session — mock stub (no live LLM, no auth enforcement)
-// Not production-safe. Auth must be added before enabling real LLM integration.
+// POST /api/style-chat/session — DEPRECATED mock stub. Not called by the mobile app.
+// As of v0.4, session creation goes through styleChatRepository → Supabase directly.
+// This file is retained for reference; do not wire it to production session logic.
 
 const ALLOWED_MODES = new Set([
   'general', 'outfit_advice', 'scan_refinement',

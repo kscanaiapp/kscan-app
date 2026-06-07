@@ -231,3 +231,18 @@ export async function incrementStyleChatUsage(): Promise<UsageRecord> {
     messagesLimit: row?.messages_limit ?? 50,
   };
 }
+
+// ── Daily usage (v0.4 beta cap) ───────────────────────────────────────────────
+// Reads today's usage from style_chat_daily_usage via the server RPC.
+// The Edge Function is the authority for enforcement; this is display-only.
+
+export async function readStyleChatDailyUsage(): Promise<UsageRecord> {
+  const { data, error } = await supabase.rpc('get_stylechat_daily_usage');
+  if (error) throw new Error(error.message);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    messagesUsed: row?.messages_used ?? 0,
+    messagesLimit: row?.messages_limit ?? 25,
+  };
+}

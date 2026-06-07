@@ -1,18 +1,17 @@
 import { useState, useCallback, useEffect } from 'react';
-import { MockStyleChatProvider } from '../services/style-chat/MockStyleChatProvider';
-import { buildStyleChatContext } from '../services/style-chat/buildStyleChatContext';
+import { EdgeStyleChatProvider } from '../services/style-chat/providers/edgeStyleChatProvider';
 import {
   getStyleChatSession,
   listStyleChatMessages,
   saveStyleChatMessage,
-  readStyleChatUsage,
-  incrementStyleChatUsage,
+  readStyleChatDailyUsage,
 } from '../services/style-chat/styleChatRepository';
 import type { StyleChatMessage, StyleChatSession } from '../services/style-chat/types';
-import { STYLE_CHAT_COPY, STYLE_CHAT_MONTHLY_MESSAGE_LIMIT } from '../constants/styleChat';
+import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 
-// Swap MockStyleChatProvider for a real provider without touching this hook.
-const provider = new MockStyleChatProvider();
+// v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
+// MockStyleChatProvider remains available in edgeStyleChatProvider's fallback chain.
+const provider = new EdgeStyleChatProvider();
 
 export interface UseStyleChatReturn {
   session: StyleChatSession | null;
@@ -37,9 +36,9 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
-  const [messagesLimit] = useState(STYLE_CHAT_MONTHLY_MESSAGE_LIMIT);
+  const [messagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
 
-  // Load session and messages on mount
+  // Load session, messages, and today's daily usage on mount.
   useEffect(() => {
     let cancelled = false;
 
@@ -67,18 +66,18 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
       }
     }
 
-    async function loadUsage() {
+    async function loadDailyUsage() {
       try {
-        const usage = await readStyleChatUsage();
+        const usage = await readStyleChatDailyUsage();
         if (!cancelled) setMessagesUsed(usage.messagesUsed);
       } catch {
-        // Non-fatal: fall back to 0; usage limit still enforced server-side via RPC
+        // Non-fatal: daily usage display falls back to 0; server enforces the cap.
       }
     }
 
     void loadSession();
     void loadMessages();
-    void loadUsage();
+    void loadDailyUsage();
 
     return () => {
       cancelled = true;
@@ -91,9 +90,8 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-
       if (messagesUsed >= messagesLimit) {
-        setError(STYLE_CHAT_COPY.errorUsageLimit);
+        setError(STYLE_CHAT_COPY.systemLimitNotice);
         return;
       }
 
@@ -118,7 +116,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
       setError(null);
 
       try {
-        // 2. Persist user message; replace optimistic entry with real row
+        // 2. Persist user message; replace optimistic entry with real row.
         const savedUser = await saveStyleChatMessage({
           sessionId,
           sender: 'user',
@@ -128,44 +126,68 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
           prev.map(m => (m.id === optimisticUser.id ? savedUser : m)),
         );
 
-        // 3. Generate mock reply
-        const result = await provider.generateReply({
-          sessionId,
-          message: trimmed,
-          context: await buildStyleChatContext(),
-        });
+        // 3. Call the secure Edge Function proxy. Server enforces quota, assembles
+        //    context, calls Gemini, and returns a typed result.
+        const result = await provider.generateReply({ sessionId, message: trimmed });
 
-        // 4. Optimistic assistant bubble
+        if (result.status === 'limit_reached') {
+          // Show a system notice in the UI. Do not persist as an assistant message.
+          setError(STYLE_CHAT_COPY.systemLimitNotice);
+          setMessagesUsed(result.usage.messagesUsed);
+          return;
+        }
+
+        if (result.status === 'error') {
+          // Persist a safe fallback assistant row so the conversation remains coherent
+          // on reload, then surface the content to the user.
+          const fallbackMsg = await saveStyleChatMessage({
+            sessionId,
+            sender: 'assistant',
+            content: result.message.content,
+            provider: result.message.model || 'fallback',
+            model: result.message.model || undefined,
+          });
+          setMessages(prev => [...prev, fallbackMsg]);
+          // Update usage if the server returned a count.
+          if (result.usage.messagesUsed > 0) setMessagesUsed(result.usage.messagesUsed);
+          return;
+        }
+
+        // 4. success — optimistic assistant bubble, then persist.
         const optimisticAssistant: StyleChatMessage = {
-          ...result.message,
           id: `optimistic-assistant-${Date.now()}`,
           sessionId,
+          sender: result.message.sender,
+          content: result.message.content,
+          referencedScanIds: [],
+          referencedSavedItemIds: [],
+          referencedDressingRoomIds: [],
+          referencedCatalogItems: [],
+          uiBlocks: [],
+          provider: 'gemini',
+          model: result.message.model || undefined,
+          tokenEstimate: result.message.tokenEstimate,
+          createdAt: new Date().toISOString(),
         };
         setMessages(prev => [...prev, optimisticAssistant]);
 
-        // 5. Persist assistant message; replace optimistic entry
+        // 5. Persist assistant message; replace optimistic entry.
         const savedAssistant = await saveStyleChatMessage({
           sessionId,
           sender: 'assistant',
           content: result.message.content,
-          uiBlocks: result.message.uiBlocks,
-          provider: result.message.provider,
-          model: result.message.model,
+          provider: 'gemini',
+          model: result.message.model || undefined,
         });
         setMessages(prev =>
           prev.map(m => (m.id === optimisticAssistant.id ? savedAssistant : m)),
         );
 
-        // 6. Atomic server-side usage increment via RPC
-        try {
-          const usage = await incrementStyleChatUsage();
-          setMessagesUsed(usage.messagesUsed);
-        } catch {
-          // Non-fatal: best-effort local increment as fallback
-          setMessagesUsed(prev => prev + 1);
-        }
+        // 6. Update displayed daily usage from server response.
+        setMessagesUsed(result.usage.messagesUsed);
+
       } catch (err: unknown) {
-        // Remove optimistic entries on failure so retry is clean
+        // Remove optimistic entries on failure so retry is clean.
         setMessages(prev =>
           prev.filter(m => !m.id.startsWith('optimistic-')),
         );
@@ -178,8 +200,6 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   );
 
   const retryLastMessage = useCallback(() => {
-    // Find the last user message that is NOT already persisted (optimistic cleanup),
-    // or just re-send the last visible user message
     const lastUser = [...messages].reverse().find(m => m.sender === 'user');
     if (lastUser) {
       setMessages(prev => prev.filter(m => m.id !== lastUser.id));
