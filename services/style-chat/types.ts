@@ -61,6 +61,26 @@ export interface StyleChatContext {
       max?: number;
     };
   };
+  memoryContext?: {
+    confidenceScore: number;
+    implementedSignals: string[];
+    missingSignals: string[];
+    sourceCounts: {
+      memoryEvents: number;
+      scans?: number;
+      savedItems?: number;
+      dressingRoomSignals?: number;
+    };
+    favoriteColors: Array<{ value: string; count: number; confidence: number }>;
+    favoriteBrands: Array<{ value: string; count: number; confidence: number }>;
+    favoriteCategories: Array<{ value: string; count: number; confidence: number }>;
+    budgetRange: {
+      min?: number;
+      max?: number;
+      average?: number;
+      confidence: number;
+    } | null;
+  };
 }
 
 export interface StyleChatInput {

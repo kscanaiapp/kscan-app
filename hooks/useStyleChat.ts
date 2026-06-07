@@ -132,7 +132,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         const result = await provider.generateReply({
           sessionId,
           message: trimmed,
-          context: buildStyleChatContext(),
+          context: await buildStyleChatContext(),
         });
 
         // 4. Optimistic assistant bubble
