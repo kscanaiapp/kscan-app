@@ -2,7 +2,7 @@
 
 Branch: `feature/stylechat-v0.3.1`  
 Base: `feature/stylechat-v0.3` @ `19f0c7e feat(stylechat): add deterministic style memory foundation`  
-Status: hardening pass applied to the v0.3 memory foundation; no live LLM; no historical backfill; two-user RLS runtime validation still outstanding
+Status: hardening pass complete; two-user RLS runtime validation passed 2026-06-07; safe to merge
 
 ---
 
@@ -150,7 +150,67 @@ Confirmed:
 - `ON CONFLICT (user_id, event_type, source, signal_key, signal_date)` matches the unique index columns
 - the write path is atomic
 
-No SQL migration was needed in v0.3.1.
+v0.3.2 fix applied: `ON CONFLICT` clause in `upsert_style_memory_event` was missing `WHERE signal_key IS NOT NULL`, which prevented PostgreSQL from matching the partial unique index. Migration `202606070004_fix_upsert_style_memory_event_on_conflict.sql` corrects this. All other RPC safety properties remain unchanged.
+
+---
+
+## Two-User RLS Runtime Validation
+
+**Date:** 2026-06-07  
+**Branch:** `feature/stylechat-v0.3.2-rls-validation`  
+**Dev project ref:** `yzqjvdfgefveprobvvyw` (K Scan Privacy Controls)  
+**Script:** `qa/stylechat-rls-validation.local.mjs` (untracked, not committed)
+
+### Test accounts
+
+Two dedicated dev-only test accounts were created in the dev project, confirmed, and deleted after validation. Emails used the `.invalid` reserved TLD (`rls-test-a@dev.kscan.invalid`, `rls-test-b@dev.kscan.invalid`). No production data was touched.
+
+### Client isolation
+
+Two completely distinct `@supabase/supabase-js` client instances were used — `supabaseUserA` and `supabaseUserB` — each authenticated independently with `persistSession: false` and `autoRefreshToken: false`. Session state was never swapped within a single client.
+
+### Tables tested
+
+`style_chat_sessions`, `style_chat_messages`, `style_memory_events`, `style_chat_usage`
+
+### Operations tested
+
+| Test | Result |
+|---|---|
+| User A reads own sessions, messages, memory events, usage | PASS |
+| User B reads own sessions, messages, memory events | PASS |
+| User B direct lookup of User A session by ID | PASS — empty (RLS blocked) |
+| User B full table scan `style_chat_sessions` — User A rows | PASS — zero |
+| User B full table scan `style_chat_messages` — User A rows | PASS — zero |
+| User B full table scan `style_memory_events` — User A rows | PASS — zero |
+| User B full table scan `style_chat_usage` — User A rows | PASS — zero |
+| User B UPDATE User A session title | PASS — no rows mutated |
+| User B DELETE User A messages | PASS — no rows deleted |
+| Anon SELECT all four tables | PASS — zero rows each |
+| Anon call to `upsert_style_memory_event` | PASS — rejected |
+| `upsert_style_memory_event` (User B) — row `user_id` = User B | PASS |
+| User A cannot read User B RPC-created event | PASS |
+| Spoof: `user_id = User A` injected into JSONB payload | PASS — row belongs to User B; `auth.uid()` was used |
+| Dressing room items scoped to own rooms | PASS |
+| Real-time subscriptions | N/A — not used for these tables |
+
+### Bug found and fixed during validation
+
+`upsert_style_memory_event` used `ON CONFLICT (user_id, event_type, source, signal_key, signal_date)` without the `WHERE signal_key IS NOT NULL` predicate required to match the partial unique index. The RPC failed at runtime with "no unique or exclusion constraint matching ON CONFLICT specification."
+
+Fix: migration `202606070004_fix_upsert_style_memory_event_on_conflict.sql` adds the predicate. Applied to dev. All 37 validation checks passed after the fix.
+
+### Anon access result
+
+Zero rows returned from all four tables for unauthenticated client. RPC call rejected.
+
+### Cleanup
+
+All test sessions and messages deleted by their owning client. Three `style_memory_events` rows (no client DELETE policy) deleted via service-role SQL after validation. Test user accounts deleted. No leftover data.
+
+### Result
+
+**PASS — 37 checks passed, 0 blockers, 0 failures.**
 
 ---
 
