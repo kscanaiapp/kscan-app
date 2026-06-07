@@ -90,7 +90,26 @@ export default function Home() {
           </Pressable>
         </View>
 
-        {/* 8. Privacy / Log Out */}
+        {/* 8. StyleChat — premium intelligence layer */}
+        <Pressable
+          testID="style-chat-entry-card"
+          style={({ pressed }) => [styles.styleChatCard, pressed ? styles.styleChatCardPressed : null]}
+          onPress={() => router.push('/style-chat')}
+          accessibilityLabel="Ask StyleChat"
+          accessibilityRole="button"
+        >
+          <View style={styles.styleChatInner}>
+            <View style={styles.styleChatTextBlock}>
+              <Text style={styles.styleChatLabel}>ASK STYLECHAT</Text>
+              <Text style={styles.styleChatBody}>
+                Style a scan, compare looks, or choose from a Dressing Room.
+              </Text>
+            </View>
+            <View style={styles.styleChatDot} />
+          </View>
+        </Pressable>
+
+        {/* 9. Privacy / Log Out */}
         <View style={styles.footerLinks}>
           <Pressable
             testID="privacy-button"
@@ -241,6 +260,48 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+
+  // ── StyleChat ─────────────────────────────────────────────────────────────
+  styleChatCard: {
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(214, 179, 106, 0.28)',
+    backgroundColor: 'rgba(9, 9, 11, 0.96)',
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.darkFloat,
+  },
+  styleChatCardPressed: {
+    backgroundColor: '#111114',
+    borderColor: COLORS.borderStrong,
+  },
+  styleChatInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  styleChatTextBlock: {
+    flex: 1,
+    marginRight: SPACING.md,
+  },
+  styleChatLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.accent,
+    letterSpacing: 2.2,
+    marginBottom: 6,
+  },
+  styleChatBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: COLORS.textSecondary,
+  },
+  styleChatDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
+    opacity: 0.8,
   },
 
   // ── Footer ────────────────────────────────────────────────────────────────
