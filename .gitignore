@@ -36,3 +36,30 @@ android/local.properties
 
 # Physical device debug logs
 physical-*
+
+# local/editor
+.cursor/
+.claude/
+supabase/.temp/
+
+# QA logs and generated files
+qa-*.log
+qa-*.err.log
+qa-*.out.log
+qa-*.xml
+qa-*.png
+qa/screenshots/
+qa/**/screenshots/
+*.log
+
+# local test payloads
+kickscrew-test.json
+nike-shoe-test*.json
+product-search-test.json
+product-search-response.json
+
+# secrets
+.env
+.env.local
+.env.*
+API Keys.docx
