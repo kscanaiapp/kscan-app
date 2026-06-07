@@ -5,6 +5,8 @@ import type {
   DressingRoom,
   DressingRoomItem,
   DressingRoomReactionType,
+  DressingRoomInspirationLink,
+  InspirationItem,
   ItemReactionCount,
   Look,
   LookDetail,
@@ -18,6 +20,7 @@ export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 export const ROOM_NOTE_MAX_LENGTH = 500;
 export const ROOM_TITLE_MAX_LENGTH = 60;
+export const INSPIRATION_NOTE_MAX_LENGTH = 200;
 const SIGNED_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const REACTION_BATCH_SIZE = 100;
 const REACTION_LOAD_ERROR = 'Unable to load reactions.';
@@ -792,3 +795,235 @@ export async function deleteLook(lookId: string): Promise<void> {
 export function canRenderSnapshotVersion(version?: number | null) {
   return version === SNAPSHOT_VERSION;
 }
+
+// ── Inspiration Uploads ────────────────────────────────────────────────────────
+
+function createInspirationStoragePath(userId: string) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${userId}/inspirations/${suffix}.jpg`;
+}
+
+export function normalizeInspirationNote(value?: string | null): string | null {
+  const note = String(value ?? '').trim();
+  if (!note) return null;
+  if (note.length > INSPIRATION_NOTE_MAX_LENGTH) {
+    throw new Error(`Note must be ${INSPIRATION_NOTE_MAX_LENGTH} characters or fewer.`);
+  }
+  return note;
+}
+
+function mapInspirationItem(row: any): InspirationItem {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    storageBucket: row.storage_bucket,
+    storagePath: row.storage_path,
+    source: row.source,
+    originalFilename: row.original_filename ?? null,
+    contentType: row.content_type ?? null,
+    fileSizeBytes: row.file_size_bytes ?? null,
+    width: row.width ?? null,
+    height: row.height ?? null,
+    note: row.note ?? null,
+    imageUrl: null,
+    createdAt: row.created_at,
+    deletedAt: row.deleted_at ?? null,
+  };
+}
+
+async function resolveSignedUrlsForInspirationItems(items: InspirationItem[]): Promise<InspirationItem[]> {
+  return Promise.all(
+    items.map(async (item) => {
+      const signedUrl = await createSignedStorageUrl(item.storageBucket, item.storagePath);
+      return signedUrl ? { ...item, imageUrl: signedUrl } : item;
+    }),
+  );
+}
+
+async function compressAndUploadInspirationImage(input: {
+  userId: string;
+  localUri: string;
+  storagePath: string;
+}): Promise<{ width: number | null; height: number | null }> {
+  const prepared = await ImageManipulator.manipulateAsync(
+    input.localUri,
+    [{ resize: { width: 2048 } }],
+    { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+  );
+
+  if (!prepared.base64) {
+    throw new Error('Could not prepare image for upload.');
+  }
+
+  const body = base64ToArrayBuffer(prepared.base64);
+  const { error } = await supabase.storage
+    .from(STYLE_LIBRARY_IMAGES_BUCKET)
+    .upload(input.storagePath, body, {
+      contentType: 'image/jpeg',
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(error.message || 'Could not upload image.');
+  }
+
+  return { width: prepared.width ?? null, height: prepared.height ?? null };
+}
+
+export async function uploadAndSaveInspiration(input: {
+  userId?: string | null;
+  localUri: string;
+  note?: string | null;
+}): Promise<InspirationItem> {
+  const userId = requireAuthUserId(input.userId);
+  const note = normalizeInspirationNote(input.note);
+  const storagePath = createInspirationStoragePath(userId);
+
+  const { width, height } = await compressAndUploadInspirationImage({
+    userId,
+    localUri: input.localUri,
+    storagePath,
+  });
+
+  const { data, error: dbError } = await supabase
+    .from('inspiration_items')
+    .insert({
+      user_id: userId,
+      storage_bucket: STYLE_LIBRARY_IMAGES_BUCKET,
+      storage_path: storagePath,
+      source: 'upload',
+      content_type: 'image/jpeg',
+      width,
+      height,
+      note,
+    })
+    .select('*')
+    .single();
+
+  if (dbError) {
+    await supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]).catch(() => {});
+    throw new Error(dbError.message || 'Could not save inspiration.');
+  }
+
+  const item = mapInspirationItem(data);
+  const [resolved] = await resolveSignedUrlsForInspirationItems([item]);
+  return resolved;
+}
+
+export async function uploadAndSaveInspirationToDressingRoom(input: {
+  userId?: string | null;
+  roomId: string;
+  localUri: string;
+  note?: string | null;
+}): Promise<InspirationItem> {
+  const userId = requireAuthUserId(input.userId);
+  const note = normalizeInspirationNote(input.note);
+
+  const { data: roomRow } = await supabase
+    .from('dressing_rooms')
+    .select('id')
+    .eq('id', input.roomId)
+    .single();
+
+  if (!roomRow) {
+    throw new Error('Dressing Room not found or access denied.');
+  }
+
+  const storagePath = createInspirationStoragePath(userId);
+  const { width, height } = await compressAndUploadInspirationImage({
+    userId,
+    localUri: input.localUri,
+    storagePath,
+  });
+
+  const { data: inspirationRow, error: insertError } = await supabase
+    .from('inspiration_items')
+    .insert({
+      user_id: userId,
+      storage_bucket: STYLE_LIBRARY_IMAGES_BUCKET,
+      storage_path: storagePath,
+      source: 'upload',
+      content_type: 'image/jpeg',
+      width,
+      height,
+      note,
+    })
+    .select('*')
+    .single();
+
+  if (insertError) {
+    await supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]).catch(() => {});
+    throw new Error(insertError.message || 'Could not save inspiration.');
+  }
+
+  const { error: linkError } = await supabase
+    .from('dressing_room_inspiration_items')
+    .insert({
+      room_id: input.roomId,
+      inspiration_id: inspirationRow.id,
+      user_id: userId,
+    });
+
+  if (linkError) {
+    try {
+      await supabase
+        .from('inspiration_items')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', inspirationRow.id);
+    } catch {}
+    await supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]).catch(() => {});
+    throw new Error(linkError.message || 'Could not attach inspiration to Dressing Room.');
+  }
+
+  const item = mapInspirationItem(inspirationRow);
+  const [resolved] = await resolveSignedUrlsForInspirationItems([item]);
+  return resolved;
+}
+
+export async function listInspirationItems(): Promise<InspirationItem[]> {
+  const { data, error } = await supabase
+    .from('inspiration_items')
+    .select('*')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+  if (error) throw safeError(error, 'Unable to load inspiration uploads.');
+
+  const items = (data ?? []).map(mapInspirationItem);
+  return resolveSignedUrlsForInspirationItems(items);
+}
+
+export async function listDressingRoomInspirationItems(roomId: string): Promise<InspirationItem[]> {
+  const { data, error } = await supabase
+    .from('dressing_room_inspiration_items')
+    .select('*, inspiration_items(*)')
+    .eq('room_id', roomId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+  if (error) throw safeError(error, 'Unable to load room inspiration.');
+
+  const items = (data ?? [])
+    .filter((row: any) => row.inspiration_items && !row.inspiration_items.deleted_at)
+    .map((row: any) => mapInspirationItem(row.inspiration_items));
+  return resolveSignedUrlsForInspirationItems(items);
+}
+
+export async function deleteInspirationItem(inspirationId: string): Promise<void> {
+  const { error } = await supabase
+    .from('inspiration_items')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', inspirationId);
+  if (error) throw safeError(error, 'Unable to delete inspiration.');
+}
+
+export async function removeInspirationFromDressingRoom(roomId: string, inspirationId: string): Promise<void> {
+  const { error } = await supabase
+    .from('dressing_room_inspiration_items')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('room_id', roomId)
+    .eq('inspiration_id', inspirationId);
+  if (error) throw safeError(error, 'Unable to remove inspiration from room.');
+}
+
+// Satisfies DressingRoomInspirationLink type reference without unused-import error
+export type { DressingRoomInspirationLink };

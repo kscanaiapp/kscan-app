@@ -21,6 +21,12 @@
           "microphonePermission": false
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "K Scan uses your photo library to let you upload style inspiration images to your Style Library and Dressing Rooms."
+        }
+      ],
       "expo-router",
       "expo-apple-authentication",
       "expo-font"
@@ -63,6 +69,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis.",
+        "NSPhotoLibraryUsageDescription": "K Scan uses your photo library to let you upload style inspiration images to your Style Library and Dressing Rooms.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {

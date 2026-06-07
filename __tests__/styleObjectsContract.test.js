@@ -3,6 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const inspirationMigration = fs.readFileSync(
+  path.join(__dirname, '..', 'supabase', 'migrations', '20260607222310_inspiration_uploads.sql'),
+  'utf8',
+);
+
 const migration = fs.readFileSync(
   path.join(__dirname, '..', 'supabase', 'migrations', '202605200001_persistent_style_objects.sql'),
   'utf8',
@@ -183,6 +188,72 @@ test('public room preview payload exposes dressing room item ids for read-only c
   assert.doesNotMatch(publicRoomScreen, /getMyItemReaction/);
   assert.doesNotMatch(publicRoomScreen, /setItemReaction/);
   assert.doesNotMatch(publicRoomScreen, /removeItemReaction/);
+});
+
+test('inspiration_items migration creates tables with RLS and soft-delete support', () => {
+  assert.match(inspirationMigration, /create table if not exists public\.inspiration_items/);
+  assert.match(inspirationMigration, /create table if not exists public\.dressing_room_inspiration_items/);
+  assert.match(inspirationMigration, /alter table public\.inspiration_items enable row level security/);
+  assert.match(inspirationMigration, /alter table public\.dressing_room_inspiration_items enable row level security/);
+  assert.match(inspirationMigration, /deleted_at timestamptz null/);
+  assert.match(inspirationMigration, /source text not null default 'upload' check \(source in \('upload'\)\)/);
+  assert.match(inspirationMigration, /note text null check \(note is null or length\(trim\(note\)\) <= 200\)/);
+  assert.match(inspirationMigration, /file_size_bytes integer null check \(file_size_bytes is null or file_size_bytes <= 10485760\)/);
+});
+
+test('inspiration_items RLS enforces user-scoped access and rejects anon', () => {
+  assert.match(inspirationMigration, /user_id = auth\.uid\(\) and deleted_at is null/);
+  assert.doesNotMatch(inspirationMigration, /to anon/);
+});
+
+test('dressing_room_inspiration_items link table enforces room ownership', () => {
+  assert.match(inspirationMigration, /from public\.dressing_rooms dr/);
+  assert.match(inspirationMigration, /dr\.user_id = auth\.uid\(\)/);
+  assert.match(inspirationMigration, /unique\(room_id, inspiration_id\)/);
+  assert.match(inspirationMigration, /references public\.dressing_rooms\(id\) on delete cascade/);
+  assert.match(inspirationMigration, /references public\.inspiration_items\(id\) on delete cascade/);
+});
+
+test('inspiration service functions enforce soft-delete and note length', () => {
+  assert.match(service, /INSPIRATION_NOTE_MAX_LENGTH = 200/);
+  assert.match(service, /normalizeInspirationNote/);
+  assert.match(service, /Note must be.*characters or fewer/);
+  assert.match(service, /uploadAndSaveInspiration/);
+  assert.match(service, /uploadAndSaveInspirationToDressingRoom/);
+  assert.match(service, /listInspirationItems/);
+  assert.match(service, /listDressingRoomInspirationItems/);
+  assert.match(service, /deleteInspirationItem/);
+  assert.match(service, /removeInspirationFromDressingRoom/);
+  assert.match(service, /deleted_at.*new Date\(\)\.toISOString\(\)/);
+});
+
+test('inspiration upload service validates auth and uses private storage bucket', () => {
+  assert.match(service, /requireAuthUserId/);
+  assert.match(service, /STYLE_LIBRARY_IMAGES_BUCKET/);
+  assert.match(service, /\/inspirations\//);
+  assert.match(service, /image\/jpeg/);
+});
+
+test('inspiration upload service performs cleanup on DB failure', () => {
+  assert.match(service, /supabase\.storage\.from\(STYLE_LIBRARY_IMAGES_BUCKET\)\.remove\(\[storagePath\]\)/);
+});
+
+test('inspiration upload does not store signed URLs in the database', () => {
+  assert.match(service, /imageUrl: null/);
+  assert.match(service, /resolveSignedUrlsForInspirationItems/);
+});
+
+test('public room preview screen does not expose inspiration uploads', () => {
+  assert.doesNotMatch(publicRoomScreen, /inspiration_items/);
+  assert.doesNotMatch(publicRoomScreen, /listDressingRoomInspirationItems/);
+  assert.doesNotMatch(publicRoomScreen, /InspirationUploadModal/);
+});
+
+test('app.json declares photo library permission for expo-image-picker', () => {
+  const appJson = fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8');
+  assert.match(appJson, /expo-image-picker/);
+  assert.match(appJson, /NSPhotoLibraryUsageDescription/);
+  assert.match(appJson, /style inspiration images/);
 });
 
 test('dressing room title is validated with 60-character max and newline normalization', () => {
