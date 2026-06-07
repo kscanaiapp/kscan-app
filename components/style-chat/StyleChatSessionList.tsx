@@ -1,23 +1,35 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 interface StyleChatSessionListProps {
   sessions: StyleChatSession[];
+  loading: boolean;
+  error: string | null;
   onNewSession: () => void;
   onSelectSession?: (session: StyleChatSession) => void;
 }
 
 export function StyleChatSessionList({
   sessions,
+  loading,
+  error,
   onNewSession,
   onSelectSession,
 }: StyleChatSessionListProps) {
   return (
     <View testID="style-chat-session-list" style={styles.container}>
-      {sessions.length === 0 ? (
-        <View testID="style-chat-empty-state" style={styles.emptyState}>
+      {loading ? (
+        <View style={styles.centred}>
+          <ActivityIndicator size="small" color={COLORS.accent} />
+        </View>
+      ) : error ? (
+        <View style={styles.centred}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : sessions.length === 0 ? (
+        <View testID="style-chat-empty-state" style={styles.centred}>
           <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptySessionList}</Text>
         </View>
       ) : (
@@ -26,6 +38,8 @@ export function StyleChatSessionList({
             key={session.id}
             style={({ pressed }) => [styles.sessionRow, pressed ? styles.sessionRowPressed : null]}
             onPress={() => onSelectSession?.(session)}
+            accessibilityRole="button"
+            accessibilityLabel={session.title}
           >
             <Text style={styles.sessionTitle}>{session.title}</Text>
             <Text style={styles.sessionMode}>{session.mode.replace(/_/g, ' ').toUpperCase()}</Text>
@@ -39,6 +53,7 @@ export function StyleChatSessionList({
         onPress={onNewSession}
         accessibilityLabel="New StyleChat session"
         accessibilityRole="button"
+        disabled={loading}
       >
         <Text style={styles.newBtnText}>{STYLE_CHAT_COPY.newSessionCta}</Text>
       </Pressable>
@@ -51,17 +66,25 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.xl,
   },
-  emptyState: {
+  centred: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.xxl,
+    minHeight: 160,
   },
   emptyText: {
     ...TYPOGRAPHY.body,
     textAlign: 'center',
     color: COLORS.textSecondary,
     lineHeight: 24,
+  },
+  errorText: {
+    ...TYPOGRAPHY.body,
+    textAlign: 'center',
+    color: COLORS.errorSoft,
+    fontSize: 13,
+    lineHeight: 21,
   },
   sessionRow: {
     padding: SPACING.lg,

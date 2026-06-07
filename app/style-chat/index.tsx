@@ -1,9 +1,6 @@
-import { useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
-  View,
-  Text,
   StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -11,25 +8,19 @@ import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../../constants/theme';
 import { StyleChatHeader } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatSessionList } from '../../components/style-chat/StyleChatSessionList';
-import type { StyleChatSession } from '../../services/style-chat/types';
+import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 
 export default function StyleChatIndexScreen() {
-  const [sessions, setSessions] = useState<StyleChatSession[]>([]);
+  const { sessions, loading, error, createSession } = useStyleChatSessions();
 
-  const handleNewSession = () => {
-    const newSession: StyleChatSession = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      title: 'New Styling Session',
-      mode: 'general',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setSessions(prev => [newSession, ...prev]);
-    router.push(`/style-chat/${newSession.id}`);
-  };
-
-  const handleSelectSession = (session: StyleChatSession) => {
-    router.push(`/style-chat/${session.id}`);
+  const handleNewSession = async () => {
+    try {
+      const session = await createSession();
+      router.push(`/style-chat/${session.id}`);
+    } catch {
+      // createSession throws on auth failure; the session list will show an
+      // error on reload, and the user can sign in from the main flow
+    }
   };
 
   return (
@@ -43,8 +34,10 @@ export default function StyleChatIndexScreen() {
       >
         <StyleChatSessionList
           sessions={sessions}
-          onNewSession={handleNewSession}
-          onSelectSession={handleSelectSession}
+          loading={loading}
+          error={error}
+          onNewSession={() => { void handleNewSession(); }}
+          onSelectSession={session => router.push(`/style-chat/${session.id}`)}
         />
       </ScrollView>
     </SafeAreaView>

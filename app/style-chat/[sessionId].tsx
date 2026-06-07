@@ -22,23 +22,40 @@ import type { StyleChatMessage } from '../../services/style-chat/types';
 
 export default function StyleChatSessionScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const { messages, isSending, error, sendMessage, retryLastMessage, clearError } =
-    useStyleChat();
+  const {
+    session,
+    messages,
+    loadingSession,
+    loadingMessages,
+    isSending,
+    error,
+    canSend,
+    sendMessage,
+    retryLastMessage,
+    clearError,
+  } = useStyleChat(sessionId ?? '');
+
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom when messages arrive or update
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     }
   }, [messages.length]);
 
+  const isLoading = loadingSession || loadingMessages;
+
   const renderMessage = ({ item }: { item: StyleChatMessage }) => (
     <StyleChatBubble message={item} />
   );
 
-  const ListEmpty = (
-    <View testID="style-chat-empty-state" style={styles.emptyState}>
+  const ListEmpty = isLoading ? (
+    <View style={styles.centred}>
+      <ActivityIndicator size="small" color={COLORS.accent} />
+    </View>
+  ) : (
+    <View testID="style-chat-empty-state" style={styles.centred}>
       <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptyChat}</Text>
     </View>
   );
@@ -53,7 +70,12 @@ export default function StyleChatSessionScreen() {
   const ErrorBanner = error ? (
     <View testID="style-chat-error-state" style={styles.errorBanner}>
       <Text style={styles.errorText}>{error}</Text>
-      <Pressable onPress={() => { clearError(); retryLastMessage(); }} style={styles.retryLink}>
+      <Pressable
+        onPress={() => { clearError(); retryLastMessage(); }}
+        style={styles.retryLink}
+        accessibilityRole="button"
+        accessibilityLabel="Retry"
+      >
         <Text style={styles.retryLinkText}>RETRY</Text>
       </Pressable>
     </View>
@@ -64,8 +86,8 @@ export default function StyleChatSessionScreen() {
       <StatusBar style="light" />
       <StyleChatHeader showBadge={false} />
       <View style={styles.sessionMeta}>
-        <Text style={styles.sessionId} numberOfLines={1}>
-          SESSION · {sessionId?.slice(-8).toUpperCase()}
+        <Text style={styles.sessionLabel} numberOfLines={1}>
+          {session?.title ?? 'SESSION'} · {sessionId?.slice(-8).toUpperCase()}
         </Text>
       </View>
       <KeyboardAvoidingView
@@ -80,11 +102,13 @@ export default function StyleChatSessionScreen() {
           renderItem={renderMessage}
           ListEmptyComponent={ListEmpty}
           ListFooterComponent={ThinkingIndicator}
-          contentContainerStyle={messages.length === 0 ? styles.listContentEmpty : styles.listContent}
+          contentContainerStyle={
+            messages.length === 0 ? styles.listContentEmpty : styles.listContent
+          }
           showsVerticalScrollIndicator={false}
         />
         {ErrorBanner}
-        <StyleChatInput onSend={sendMessage} disabled={isSending} />
+        <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -104,7 +128,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  sessionId: {
+  sessionLabel: {
     ...TYPOGRAPHY.chipLabel,
     color: COLORS.textTertiary,
     fontSize: 9,
@@ -116,9 +140,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  emptyState: {
+  centred: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: SPACING.xxl,
+    minHeight: 120,
   },
   emptyText: {
     ...TYPOGRAPHY.body,
@@ -159,6 +186,8 @@ const styles = StyleSheet.create({
   },
   retryLink: {
     marginLeft: SPACING.sm,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   retryLinkText: {
     ...TYPOGRAPHY.chipLabel,

@@ -2,7 +2,8 @@
 
 Branch: `feature/stylechat-v0.1`  
 Base commit: `e58b11e fix(android): bump versionCode for Play upload`  
-Status: mock-only skeleton, no live LLM, migration not applied
+Status: mock-only skeleton, no live LLM, migration not applied  
+**Superseded by:** see `docs/stylechat-v0.2.md` — sessions/messages are now persisted, migration applied, usage RPC wired
 
 ---
 
