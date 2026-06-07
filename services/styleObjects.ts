@@ -334,7 +334,7 @@ export async function listDressingRooms(): Promise<DressingRoom[]> {
     .from('dressing_room_items')
     .select('id,dressing_room_id,image_url,storage_bucket,storage_path,sort_order,created_at')
     .in('dressing_room_id', roomIds)
-    .order('sort_order', { ascending: true });
+    .order('created_at', { ascending: false });
 
   const byRoom = new Map<string, { count: number; cover: string | null }>();
   const coverRows = await resolveSignedImageUrlsForItems((items ?? []).map((item: any) => ({

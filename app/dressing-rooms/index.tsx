@@ -28,17 +28,29 @@ import type { DressingRoom } from '../../types/styleObjects';
 
 
 function RoomCard({ room }: { room: DressingRoom }) {
-  const cover = room.coverImageUrl || room.coverFallbackUrl;
+  const [imageFailed, setImageFailed] = useState(false);
+  const coverUri = !imageFailed ? (room.coverImageUrl || room.coverFallbackUrl) : null;
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={() => router.push(`/dressing-rooms/${room.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`${room.title}, ${room.itemCount ?? 0} items`}
       activeOpacity={0.84}
     >
-      {cover ? (
-        <Image source={{ uri: cover }} style={styles.cover} resizeMode="cover" />
+      {coverUri ? (
+        <Image
+          source={{ uri: coverUri }}
+          style={styles.cover}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+          accessibilityLabel={`${room.title} cover image`}
+        />
       ) : (
-        <View style={[styles.cover, styles.coverFallback]}>
+        <View
+          style={[styles.cover, styles.coverFallback]}
+          accessibilityLabel="Empty dressing room"
+        >
           <Text style={styles.coverFallbackText}>ROOM</Text>
         </View>
       )}
@@ -169,7 +181,7 @@ const styles = StyleSheet.create({
   },
   cover: {
     width: '100%',
-    aspectRatio: 1.8,
+    aspectRatio: 4 / 5,
     backgroundColor: COLORS.surfaceMuted,
   },
   coverFallback: {
