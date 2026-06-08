@@ -48,19 +48,29 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
           onPress={navigateStyleChatHome}
           style={({ pressed }) => [styles.homeButton, pressed ? styles.homeButtonPressed : null]}
         >
-          <Text style={styles.homeButtonText}>HOME</Text>
+          <Text style={styles.homeButtonText} maxFontSizeMultiplier={1.2}>HOME</Text>
         </Pressable>
 
         <View style={styles.titleWrap}>
-          <Text style={styles.title}>{STYLE_CHAT_COPY.header}</Text>
-          <Text style={styles.subtitle}>{STYLE_CHAT_COPY.subtitle}</Text>
+          <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            {STYLE_CHAT_COPY.header}
+          </Text>
         </View>
 
         <View style={styles.rightSpacer} />
       </View>
+
+      <View style={styles.subtitleRow}>
+        <Text style={styles.subtitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          {STYLE_CHAT_COPY.subtitle}
+        </Text>
+      </View>
+
       {showBadge ? (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{STYLE_CHAT_COPY.premiumBadge}</Text>
+          <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>
+            {STYLE_CHAT_COPY.premiumBadge}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -99,7 +109,7 @@ const styles = StyleSheet.create({
   titleWrap: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 64,
+    minWidth: 0,
   },
   rightSpacer: {
     width: 88,
@@ -107,13 +117,19 @@ const styles = StyleSheet.create({
   title: {
     ...TYPOGRAPHY.brand,
     fontSize: 18,
-    letterSpacing: 5,
+    letterSpacing: 3,
+  },
+  subtitleRow: {
+    width: '100%',
+    paddingHorizontal: SPACING.xl,
+    marginTop: SPACING.xs,
+    alignItems: 'center',
   },
   subtitle: {
     ...TYPOGRAPHY.caption,
     letterSpacing: 2,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    textAlign: 'center',
   },
   badge: {
     marginTop: SPACING.sm,
