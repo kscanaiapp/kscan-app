@@ -83,14 +83,16 @@ export function InspirationUploadModal({
   if (!selectedUri) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {
+        if (!uploading) onClose();
+      }}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Text style={styles.title}>
             {roomId ? 'Add to Room Inspiration' : 'Add to Style Library'}
           </Text>
           <Text style={styles.subtitle}>
-            Private upload. Avoid uploading images with faces until privacy filtering is added.
+            Your uploads are private and only visible to you.
           </Text>
 
           {done ? (
@@ -137,7 +139,7 @@ export function InspirationUploadModal({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.secondaryButton}
+                style={[styles.secondaryButton, uploading && styles.disabled]}
                 onPress={onClose}
                 disabled={uploading}
               >

@@ -966,13 +966,14 @@ export async function uploadAndSaveInspirationToDressingRoom(input: {
     });
 
   if (linkError) {
-    try {
-      await supabase
+    await Promise.allSettled([
+      supabase
         .from('inspiration_items')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', inspirationRow.id);
-    } catch {}
-    await supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]).catch(() => {});
+        .eq('id', inspirationRow.id),
+      supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]),
+    ]);
+
     throw new Error(linkError.message || 'Could not attach inspiration to Dressing Room.');
   }
 

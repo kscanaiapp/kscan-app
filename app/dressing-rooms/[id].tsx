@@ -727,7 +727,16 @@ function DressingRoomDetailContent() {
               ) : null}
             </View>
 
-            {inspirationLoading ? null : inspirations.length === 0 ? (
+            {inspirationLoading ? (
+              <>
+                {[0, 1, 2].map((row) => (
+                  <View key={`inspiration-skeleton-row-${row}`} style={styles.inspirationRow}>
+                    <View style={styles.inspirationSkeletonTile} />
+                    <View style={styles.inspirationSkeletonTile} />
+                  </View>
+                ))}
+              </>
+            ) : inspirations.length === 0 ? (
               <Text style={styles.inspirationEmpty}>
                 Upload screenshots and outfit references for this room.
               </Text>
@@ -974,6 +983,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SPACING.md,
     marginBottom: SPACING.md,
+  },
+  inspirationSkeletonTile: {
+    width: INSPIRATION_CARD_W,
+    height: INSPIRATION_CARD_W,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceMuted,
+    opacity: 0.55,
   },
   modalBackdrop: {
     flex: 1,
