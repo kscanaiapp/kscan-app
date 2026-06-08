@@ -122,6 +122,7 @@ export function InspirationUploadModal({
               />
               <Text style={[styles.noteCount, noteTooLong ? styles.noteCountError : null]}>
                 {noteLength}/{INSPIRATION_NOTE_MAX_LENGTH}
+                {noteTooLong ? ` · max ${INSPIRATION_NOTE_MAX_LENGTH}` : ''}
               </Text>
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
