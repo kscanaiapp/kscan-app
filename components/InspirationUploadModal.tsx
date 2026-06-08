@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Modal,
   StyleSheet,
@@ -133,7 +132,9 @@ export function InspirationUploadModal({
                 disabled={uploading || noteTooLong}
               >
                 {uploading ? (
-                  <ActivityIndicator color={COLORS.textInverse} />
+                  <Text style={styles.primaryText}>
+                    {roomId ? 'SAVING ROOM' : 'SAVING LIBRARY'}
+                  </Text>
                 ) : (
                   <Text style={styles.primaryText}>UPLOAD</Text>
                 )}
