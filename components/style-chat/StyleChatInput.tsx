@@ -33,6 +33,7 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         onSubmitEditing={handleSend}
         blurOnSubmit={false}
         editable={!disabled}
+        textAlignVertical="top"
       />
       <Pressable
         testID="style-chat-send-button"

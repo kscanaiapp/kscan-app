@@ -100,7 +100,7 @@ export default function StyleChatSessionScreen() {
       </View>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
         <FlatList
@@ -114,6 +114,7 @@ export default function StyleChatSessionScreen() {
             messages.length === 0 ? styles.listContentEmpty : styles.listContent
           }
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         />
         {ErrorBanner}
         <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
