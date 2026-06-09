@@ -3,22 +3,6 @@ import { supabase } from './supabaseClient';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// DEV-ONLY: A short-lived access token for internal testing without a real sign-in flow.
-// Real account persistence always uses the Supabase Auth session token.
-// If a real session exists, it takes precedence over this value.
-const _devTokenOverride = process.env.EXPO_PUBLIC_SUPABASE_ACCESS_TOKEN;
-
-/**
- * @deprecated The app now uses the Supabase Auth session token automatically.
- * Calling this function has no effect in production.
- */
-export function setPrivacyAccessToken(_token) {
-  console.warn(
-    '[KScan] setPrivacyAccessToken() is deprecated. ' +
-    'The app now uses the Supabase Auth session token automatically.'
-  );
-}
-
 /** True when Supabase URL + anon key are configured (project is reachable). */
 export function isSupabaseProjectConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
@@ -37,11 +21,6 @@ async function resolveAccessToken() {
   const { data } = await supabase.auth.getSession();
   if (data.session?.access_token) {
     return data.session.access_token;
-  }
-  // Dev-only fallback: short-lived token pasted during internal testing.
-  if (_devTokenOverride) {
-    console.warn('[KScan] DEV TOKEN IN USE — not a real session. Do not use in production.');
-    return _devTokenOverride;
   }
   return null;
 }
