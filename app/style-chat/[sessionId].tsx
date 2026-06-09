@@ -26,7 +26,8 @@ import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepos
 import type { StyleChatMessage } from '../../services/style-chat/types';
 
 export default function StyleChatSessionScreen() {
-  useStyleChatHomeBackHandler();
+  const isDeleteDialogOpenRef = useRef(false);
+  useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const {
@@ -53,15 +54,18 @@ export default function StyleChatSessionScreen() {
   }, [messages.length]);
 
   const handleDeleteSession = () => {
+    const clearDialog = () => { isDeleteDialogOpenRef.current = false; };
+    isDeleteDialogOpenRef.current = true;
     Alert.alert(
       'Delete this StyleChat conversation?',
       'This will remove the conversation and its messages. This cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel', onPress: clearDialog },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            clearDialog();
             if (!sessionId) return;
             setIsDeleting(true);
             try {
@@ -77,6 +81,7 @@ export default function StyleChatSessionScreen() {
           },
         },
       ],
+      { cancelable: true, onDismiss: clearDialog },
     );
   };
 
@@ -149,7 +154,7 @@ export default function StyleChatSessionScreen() {
       </View>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         <FlatList
@@ -194,6 +199,7 @@ const styles = StyleSheet.create({
     color: COLORS.textTertiary,
     fontSize: 9,
     flex: 1,
+    paddingRight: SPACING.sm,
   },
   sessionDeleteBtn: {
     minHeight: 28,

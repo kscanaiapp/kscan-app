@@ -80,7 +80,6 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   centred: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.xxl,

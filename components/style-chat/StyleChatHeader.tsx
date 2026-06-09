@@ -14,10 +14,11 @@ export function navigateStyleChatHome() {
   router.dismissTo('/');
 }
 
-export function useStyleChatHomeBackHandler() {
+export function useStyleChatHomeBackHandler(bypassRef?: { current: boolean }) {
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (bypassRef?.current) return false;
         navigateStyleChatHome();
         return true;
       });
@@ -25,7 +26,7 @@ export function useStyleChatHomeBackHandler() {
       return () => {
         subscription.remove();
       };
-    }, [])
+    }, [bypassRef])
   );
 }
 

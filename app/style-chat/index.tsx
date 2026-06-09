@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -16,7 +17,8 @@ import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 export default function StyleChatIndexScreen() {
-  useStyleChatHomeBackHandler();
+  const isDeleteDialogOpenRef = useRef(false);
+  useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessions, loading, error, createSession, deleteSession } = useStyleChatSessions();
 
@@ -31,15 +33,18 @@ export default function StyleChatIndexScreen() {
   };
 
   const handleDeleteSession = (session: StyleChatSession) => {
+    const clearDialog = () => { isDeleteDialogOpenRef.current = false; };
+    isDeleteDialogOpenRef.current = true;
     Alert.alert(
       'Delete this StyleChat conversation?',
       'This will remove the conversation and its messages. This cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel', onPress: clearDialog },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            clearDialog();
             try {
               await deleteSession(session.id);
             } catch (err: unknown) {
@@ -51,6 +56,7 @@ export default function StyleChatIndexScreen() {
           },
         },
       ],
+      { cancelable: true, onDismiss: clearDialog },
     );
   };
 
