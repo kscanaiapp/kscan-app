@@ -1,5 +1,6 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import {
+  Alert,
   SafeAreaView,
   View,
   Text,
@@ -10,7 +11,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
@@ -21,6 +22,7 @@ import {
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { useStyleChat } from '../../hooks/useStyleChat';
+import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 
 export default function StyleChatSessionScreen() {
@@ -40,6 +42,7 @@ export default function StyleChatSessionScreen() {
     clearError,
   } = useStyleChat(sessionId ?? '');
 
+  const [isDeleting, setIsDeleting] = useState(false);
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
 
   // Scroll to bottom when messages arrive or update
@@ -48,6 +51,34 @@ export default function StyleChatSessionScreen() {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     }
   }, [messages.length]);
+
+  const handleDeleteSession = () => {
+    Alert.alert(
+      'Delete this StyleChat conversation?',
+      'This will remove the conversation and its messages. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!sessionId) return;
+            setIsDeleting(true);
+            try {
+              await deleteStyleChatSession(sessionId);
+              router.replace('/style-chat');
+            } catch (err: unknown) {
+              setIsDeleting(false);
+              Alert.alert(
+                'Could not delete conversation',
+                (err as Error)?.message || 'Please try again.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const isLoading = loadingSession || loadingMessages;
 
@@ -97,6 +128,24 @@ export default function StyleChatSessionScreen() {
         <Text style={styles.sessionLabel} numberOfLines={1}>
           {session?.title ?? 'SESSION'} · {sessionId?.slice(-8).toUpperCase()}
         </Text>
+        <Pressable
+          testID="style-chat-delete-button"
+          style={({ pressed }) => [
+            styles.sessionDeleteBtn,
+            pressed && !isDeleting ? styles.sessionDeleteBtnPressed : null,
+          ]}
+          onPress={handleDeleteSession}
+          disabled={isDeleting}
+          accessibilityRole="button"
+          accessibilityLabel="Delete this conversation"
+          hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
+        >
+          {isDeleting ? (
+            <ActivityIndicator size="small" color={COLORS.error} />
+          ) : (
+            <Text style={styles.sessionDeleteText} testID="style-chat-delete-confirm">DELETE</Text>
+          )}
+        </Pressable>
       </View>
       <KeyboardAvoidingView
         style={styles.flex}
@@ -132,6 +181,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sessionMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.xs,
     borderBottomWidth: 1,
@@ -141,6 +193,22 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.chipLabel,
     color: COLORS.textTertiary,
     fontSize: 9,
+    flex: 1,
+  },
+  sessionDeleteBtn: {
+    minHeight: 28,
+    minWidth: 52,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  sessionDeleteBtnPressed: {
+    opacity: 0.6,
+  },
+  sessionDeleteText: {
+    ...TYPOGRAPHY.chipLabel,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: COLORS.error,
   },
   listContent: {
     paddingVertical: SPACING.lg,

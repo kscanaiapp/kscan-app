@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import type { StyleChatSession, StyleChatMode } from '../services/style-chat/types';
 import {
   createStyleChatSession,
+  deleteStyleChatSession,
   listStyleChatSessions,
 } from '../services/style-chat/styleChatRepository';
 
@@ -39,5 +40,10 @@ export function useStyleChatSessions() {
     [],
   );
 
-  return { sessions, loading, error, reload, createSession };
+  const deleteSession = useCallback(async (sessionId: string): Promise<void> => {
+    await deleteStyleChatSession(sessionId);
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+  }, []);
+
+  return { sessions, loading, error, reload, createSession, deleteSession };
 }

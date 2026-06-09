@@ -232,6 +232,18 @@ export async function incrementStyleChatUsage(): Promise<UsageRecord> {
   };
 }
 
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+export async function deleteStyleChatSession(sessionId: string): Promise<void> {
+  const userId = await requireUserId();
+  const { error } = await supabase
+    .from('style_chat_sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+
 // ── Daily usage (v0.4 beta cap) ───────────────────────────────────────────────
 // Reads today's usage from style_chat_daily_usage via the server RPC.
 // The Edge Function is the authority for enforcement; this is display-only.

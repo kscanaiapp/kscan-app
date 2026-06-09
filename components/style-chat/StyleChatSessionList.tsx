@@ -9,6 +9,7 @@ interface StyleChatSessionListProps {
   error: string | null;
   onNewSession: () => void;
   onSelectSession?: (session: StyleChatSession) => void;
+  onDeleteSession?: (session: StyleChatSession) => void;
 }
 
 export function StyleChatSessionList({
@@ -17,6 +18,7 @@ export function StyleChatSessionList({
   error,
   onNewSession,
   onSelectSession,
+  onDeleteSession,
 }: StyleChatSessionListProps) {
   return (
     <View testID="style-chat-session-list" style={styles.container}>
@@ -34,16 +36,27 @@ export function StyleChatSessionList({
         </View>
       ) : (
         sessions.map(session => (
-          <Pressable
-            key={session.id}
-            style={({ pressed }) => [styles.sessionRow, pressed ? styles.sessionRowPressed : null]}
-            onPress={() => onSelectSession?.(session)}
-            accessibilityRole="button"
-            accessibilityLabel={session.title}
-          >
-            <Text style={styles.sessionTitle}>{session.title}</Text>
-            <Text style={styles.sessionMode}>{session.mode.replace(/_/g, ' ').toUpperCase()}</Text>
-          </Pressable>
+          <View key={session.id} style={styles.sessionRowContainer}>
+            <Pressable
+              style={({ pressed }) => [styles.sessionRowContent, pressed ? styles.sessionRowPressed : null]}
+              onPress={() => onSelectSession?.(session)}
+              accessibilityRole="button"
+              accessibilityLabel={session.title}
+            >
+              <Text style={styles.sessionTitle}>{session.title}</Text>
+              <Text style={styles.sessionMode}>{session.mode.replace(/_/g, ' ').toUpperCase()}</Text>
+            </Pressable>
+            <Pressable
+              testID="style-chat-delete-button"
+              style={({ pressed }) => [styles.deleteBtn, pressed ? styles.deleteBtnPressed : null]}
+              onPress={() => onDeleteSession?.(session)}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${session.title}`}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.deleteBtnText}>✕</Text>
+            </Pressable>
+          </View>
         ))
       )}
 
@@ -86,13 +99,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 21,
   },
-  sessionRow: {
+  sessionRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  sessionRowContent: {
+    flex: 1,
     padding: SPACING.lg,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
-    marginBottom: SPACING.sm,
   },
   sessionRowPressed: {
     backgroundColor: COLORS.surfaceStrong,
@@ -105,6 +123,25 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.chipLabel,
     color: COLORS.accent,
     marginTop: 4,
+  },
+  deleteBtn: {
+    marginLeft: SPACING.sm,
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(182, 84, 84, 0.08)',
+  },
+  deleteBtnPressed: {
+    backgroundColor: 'rgba(182, 84, 84, 0.22)',
+  },
+  deleteBtnText: {
+    fontSize: 13,
+    color: COLORS.errorSoft,
+    fontWeight: '600' as const,
   },
   newBtn: {
     height: 52,
