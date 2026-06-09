@@ -130,6 +130,12 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         //    context, calls Gemini, and returns a typed result.
         const result = await provider.generateReply({ sessionId, message: trimmed });
 
+        if (result.status === 'burst_limit') {
+          // Burst limit: transient per-minute cap. Do not persist, do not update daily usage.
+          setError(STYLE_CHAT_COPY.burstLimitNotice);
+          return;
+        }
+
         if (result.status === 'limit_reached') {
           // Show a system notice in the UI. Do not persist as an assistant message.
           setError(STYLE_CHAT_COPY.systemLimitNotice);

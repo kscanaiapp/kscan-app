@@ -211,6 +211,64 @@ Deno.serve(async (req) => {
   }
 
 
+  // ── 4b. Per-minute burst limit ────────────────────────────────────────────────
+  // Checked before daily quota so burst-limited requests do not consume daily quota.
+  // Limit: STYLECHAT_BURST_LIMIT_PER_MINUTE env var, defaulting to 4.
+  // Window: fixed 1-minute bucket (date_trunc('minute', now())).
+  // Boundary note: a user can send limit requests at the end of one window and
+  // limit more at the start of the next; this is acceptable for beta.
+
+  const burstLimitPerMinute = (() => {
+    const raw = Deno.env.get('STYLECHAT_BURST_LIMIT_PER_MINUTE');
+    const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 60) : 4;
+  })();
+
+  const { data: burstData, error: burstError } = await userClient
+    .rpc('check_and_increment_stylechat_burst', { p_limit: burstLimitPerMinute });
+
+  if (burstError) {
+    console.error('[stylechat-generate] burst RPC error:', burstError.message);
+    return json({ error: 'Usage check failed' }, 500);
+  }
+
+  const burstRow = Array.isArray(burstData) ? burstData[0] : burstData;
+
+  if (!burstRow?.allowed) {
+    const retryAfter = (burstRow?.retry_after_seconds ?? 60) as number;
+    const burstResetAt = (burstRow?.reset_at ?? null) as string | null;
+    console.log(
+      '[stylechat-generate] burst_limit uid=%s retryAfterSeconds=%d',
+      userId.slice(0, 8),
+      retryAfter,
+    );
+    return new Response(
+      JSON.stringify({
+        status: 'burst_limit',
+        message: {
+          sender:        'assistant',
+          content:       'StyleChat is receiving messages too quickly. Please wait a moment and try again.',
+          model:         '',
+          tokenEstimate: 0,
+        },
+        usage: {
+          messagesUsed:  0,
+          messagesLimit: DAILY_LIMIT,
+          resetAt:       burstResetAt,
+        },
+      }),
+      {
+        status: 429,
+        headers: {
+          ...CORS_HEADERS,
+          'Content-Type':  'application/json',
+          'Retry-After':   String(retryAfter),
+          'Cache-Control': 'no-store, private',
+        },
+      },
+    );
+  }
+
   // ── 5. Atomic daily quota reservation ────────────────────────────────────────
   // This is the authority check. If the RPC returns limit_reached=true, we abort
   // before making any Gemini call.

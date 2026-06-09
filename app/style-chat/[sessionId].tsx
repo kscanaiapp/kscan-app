@@ -108,7 +108,8 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : null;
 
-  const isLimitNotice = error === STYLE_CHAT_COPY.systemLimitNotice;
+  const isLimitNotice = error === STYLE_CHAT_COPY.systemLimitNotice
+    || error === STYLE_CHAT_COPY.burstLimitNotice;
   const ErrorBanner = error ? (
     <View testID="style-chat-error-state" style={styles.errorBanner}>
       <Text style={styles.errorText}>{error}</Text>

@@ -17,7 +17,7 @@ const TIMEOUT_MS   = 16_000;
 
 // ── Response contract ─────────────────────────────────────────────────────────
 
-export type EdgeChatStatus = 'success' | 'limit_reached' | 'error';
+export type EdgeChatStatus = 'success' | 'limit_reached' | 'burst_limit' | 'error';
 
 export interface EdgeChatMessage {
   sender: 'assistant' | 'system';
@@ -71,7 +71,32 @@ export class EdgeStyleChatProvider {
       });
 
       if (error) {
-        if (__DEV__) console.warn('[EdgeStyleChatProvider] invoke error:', error.message);
+        // The Supabase functions-js SDK wraps non-2xx responses as FunctionsHttpError
+        // with the raw (unconsumed) Response in error.context. Attempt to parse a
+        // structured burst_limit body from a 429 before falling back to generic error.
+        const ctx = (error as Record<string, unknown>).context;
+        if (ctx != null && typeof (ctx as Response).json === 'function') {
+          try {
+            const body = await (ctx as Response).json() as Record<string, unknown>;
+            if (body?.status === 'burst_limit') {
+              const msgContent = (body.message as Record<string, unknown> | undefined)?.content;
+              return {
+                status: 'burst_limit',
+                message: {
+                  sender: 'assistant',
+                  content: typeof msgContent === 'string' ? msgContent
+                    : 'StyleChat is receiving messages too quickly. Please wait a moment and try again.',
+                  model: '',
+                  tokenEstimate: 0,
+                },
+                usage: { messagesUsed: 0, messagesLimit: 25 },
+              };
+            }
+          } catch {
+            // fall through to generic fallback
+          }
+        }
+        if (__DEV__) console.warn('[EdgeStyleChatProvider] invoke error:', (error as Error).message);
         return fallbackResult();
       }
 

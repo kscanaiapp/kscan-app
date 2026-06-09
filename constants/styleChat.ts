@@ -19,6 +19,8 @@ export const STYLE_CHAT_COPY = {
     "You've reached today's StyleChat beta limit. Come back tomorrow for more styling help.",
   systemLimitNotice:
     "You've reached today's StyleChat beta limit. Come back tomorrow for more styling help.",
+  burstLimitNotice:
+    'StyleChat is receiving messages too quickly. Please wait a moment and try again.',
   homeEntryLabel: 'ASK STYLECHAT',
   homeEntrySubtitle:
     'Style a scan, compare looks, or choose from a Dressing Room.',
