@@ -66,6 +66,7 @@
     "ios": {
       "bundleIdentifier": "com.kscanai.app",
       "buildNumber": "2",
+      "deploymentTarget": "16.0",
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "infoPlist": {
