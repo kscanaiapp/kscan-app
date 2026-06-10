@@ -2,6 +2,7 @@
   "expo": {
     "name": "K Scan",
     "slug": "kscan",
+    "owner": "ams2dad",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "scheme": "kscan",
@@ -17,7 +18,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "K Scan uses your camera to photograph your outfit for style analysis."
+          "cameraPermission": "K Scan uses your camera to photograph your outfit for style analysis.",
+          "microphonePermission": false
         }
       ],
       "expo-router"
@@ -50,8 +52,24 @@
     },
     "ios": {
       "bundleIdentifier": "com.kscanai.app",
+      "buildNumber": "3",
+      "supportsTablet": false,
+      "deploymentTarget": "16.0",
       "infoPlist": {
-        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis."
+        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+          }
+        ]
       }
     },
     "extra": {
