@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   Modal,
   Pressable,
   SafeAreaView,
@@ -80,6 +81,10 @@ export default function PrivacyScreen() {
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
   const [deletionConfirmVisible, setDeletionConfirmVisible] = useState(false);
+  const [deletionSuccess, setDeletionSuccess] = useState<
+    'submitted' | 'already_requested' | null
+  >(null);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
 
@@ -141,36 +146,57 @@ export default function PrivacyScreen() {
 
   const handleDeletion = () => {
     if (deletionPending) {
-      setMessage('Deletion request already pending. You have been signed out.');
+      setDeletionSuccess((current) => current ?? 'submitted');
       return;
     }
+    setDeletionError(null);
     setDeletionConfirmVisible(true);
   };
 
   const confirmDeletion = async () => {
     setDeletionConfirmVisible(false);
+    setDeletionError(null);
     setDeletionSubmitting(true);
     try {
       const result = await submitAccountDeletionRequest(supabase, session);
+      // Surface a persistent, in-screen confirmation. Both a fresh submission
+      // and a duplicate (`already_requested`) mean a request is on file, so
+      // both resolve to a success "request received" state — never an error.
+      Keyboard.dismiss();
       setDeletionPending(true);
-      setMessage(
-        result.status === 'already_requested'
-          ? 'Request already pending. You have been signed out.'
-          : 'Deletion request submitted. You have been signed out.',
+      setDeletionSuccess(
+        result.status === 'already_requested' ? 'already_requested' : 'submitted',
       );
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to request deletion.');
+      setMessage(null);
+    } catch {
+      // Never surface raw backend responses or stack traces to the user.
+      setDeletionError(
+        "We couldn't submit your deletion request. Please try again or contact support.",
+      );
+    } finally {
       setDeletionSubmitting(false);
-      return;
     }
+  };
 
+  // Persistent confirmation next actions. Sign-out + redirect are deferred to an
+  // explicit user choice so the confirmation stays visible and reviewer-safe.
+  const handleReturnToPrivacy = () => {
+    setDeletionSuccess(null);
+  };
+
+  const handleBackToHome = () => {
+    setDeletionSuccess(null);
+    router.replace('/');
+  };
+
+  const handleSignOutAfterDeletion = async () => {
     try {
       await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY);
       await signOut();
     } catch {
       await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY).catch(() => undefined);
     } finally {
-      setDeletionSubmitting(false);
+      setDeletionSuccess(null);
       router.replace('/auth');
     }
   };
@@ -252,6 +278,50 @@ export default function PrivacyScreen() {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {deletionSuccess ? (
+          <View
+            style={styles.successPanel}
+            accessible
+            accessibilityLabel="Account deletion request confirmation"
+          >
+            <Text style={styles.successEyebrow}>REQUEST RECEIVED</Text>
+            <Text style={styles.successTitle}>Deletion request received</Text>
+            <Text style={styles.successBody}>
+              Your account deletion request has been submitted. During beta, requests are
+              processed manually and are typically completed within 30 days.
+            </Text>
+            <View style={styles.successActions}>
+              <Pressable
+                testID="deletion-success-return-button"
+                style={styles.successSecondaryButton}
+                onPress={handleReturnToPrivacy}
+                accessibilityRole="button"
+                accessibilityLabel="Return to Privacy"
+              >
+                <Text style={styles.successSecondaryText}>Return to Privacy</Text>
+              </Pressable>
+              <Pressable
+                testID="deletion-success-home-button"
+                style={styles.successSecondaryButton}
+                onPress={handleBackToHome}
+                accessibilityRole="button"
+                accessibilityLabel="Back to Home"
+              >
+                <Text style={styles.successSecondaryText}>Back to Home</Text>
+              </Pressable>
+              <Pressable
+                testID="deletion-success-signout-button"
+                style={styles.successPrimaryButton}
+                onPress={handleSignOutAfterDeletion}
+                accessibilityRole="button"
+                accessibilityLabel="Sign out"
+              >
+                <Text style={styles.successPrimaryText}>Sign Out</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+        <>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>DATA MANAGEMENT</Text>
           <View style={styles.heroRow}>
@@ -387,11 +457,19 @@ export default function PrivacyScreen() {
                 </Pressable>
               </View>
 
+              {deletionError ? (
+                <View style={styles.deletionErrorPanel} accessible accessibilityLiveRegion="polite">
+                  <Text style={styles.deletionErrorText}>{deletionError}</Text>
+                </View>
+              ) : null}
+
               <Pressable
                 testID="privacy-delete-account-button"
                 disabled={!isAuthenticated || saving || deletionSubmitting || deletionPending}
                 style={styles.dangerButton}
                 onPress={handleDeletion}
+                accessibilityRole="button"
+                accessibilityLabel="Delete Account button"
               >
                 {deletionSubmitting ? (
                   <ActivityIndicator size="small" color={COLORS.errorSoft} />
@@ -403,6 +481,8 @@ export default function PrivacyScreen() {
               </Pressable>
             </View>
           </>
+        )}
+        </>
         )}
       </ScrollView>
     </View>
@@ -680,6 +760,75 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.cta,
     color: COLORS.errorSoft,
     fontSize: 12,
+  },
+  successPanel: {
+    borderWidth: 1,
+    borderColor: `${COLORS.success}66`,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    padding: SPACING.xl,
+    gap: SPACING.md,
+  },
+  successEyebrow: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.success,
+  },
+  successTitle: {
+    ...TYPOGRAPHY.headline,
+    fontSize: 24,
+  },
+  successBody: {
+    ...TYPOGRAPHY.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: COLORS.textSecondary,
+  },
+  successActions: {
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  successPrimaryButton: {
+    minHeight: 50,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.success}88`,
+    backgroundColor: `${COLORS.success}1A`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  successPrimaryText: {
+    ...TYPOGRAPHY.cta,
+    color: COLORS.success,
+    fontSize: 12,
+  },
+  successSecondaryButton: {
+    minHeight: 50,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  successSecondaryText: {
+    ...TYPOGRAPHY.cta,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+  },
+  deletionErrorPanel: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.45)',
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    padding: SPACING.lg,
+  },
+  deletionErrorText: {
+    ...TYPOGRAPHY.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: COLORS.errorSoft,
   },
   modalScrim: {
     flex: 1,
