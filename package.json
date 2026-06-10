@@ -16,7 +16,10 @@
     "android:device": "expo run:android --device",
     "ios": "expo run:ios",
     "qa:fixtures": "node scripts/qa-fixtures.js",
-    "qa:convergence": "node scripts/qa-convergence.js"
+    "qa:convergence": "node scripts/qa-convergence.js",
+    "test:bridge": "node --test __tests__/bridgePayloadValidation.test.js __tests__/bridgeCaptureQueue.test.js __tests__/bridgeService.test.js __tests__/bridgeAdapters.test.js",
+    "bridge:server": "node scripts/bridge-dev-server.js",
+    "bridge:client": "node scripts/simulate-glasses-client.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -49,6 +52,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "ws": "^8.21.0"
   }
 }
