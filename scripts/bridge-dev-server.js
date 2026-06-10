@@ -17,6 +17,14 @@
  *   dat-blocked      -> reply with capture.error DAT_NOT_CONFIGURED
  *   invalid-payload  -> reply with a deliberately invalid payload so the
  *                       app's INVALID_CAPTURE_RESPONSE path can be tested
+ *   relay            -> forward bridge messages between connected clients.
+ *                       capture.request from one client is broadcast to all
+ *                       other connected clients (e.g. simulate-mobile-client
+ *                       or the mobile bridge alpha). The first matching
+ *                       capture.success/capture.error is forwarded back to
+ *                       the original requester. If no peer is connected, the
+ *                       requester gets capture.error BRIDGE_UNAVAILABLE; if no
+ *                       peer responds in time, CAPTURE_TIMEOUT.
  *
  * Logging policy: message type, requestId, status, and error codes only.
  * Never logs base64 (full or partial), byte lengths, dimensions, EXIF, or
@@ -28,7 +36,8 @@ const { WebSocketServer } = require('ws');
 
 const PORT = Number(process.env.BRIDGE_DEV_PORT || 8787);
 const MODE = process.env.BRIDGE_DEV_MODE || 'success';
-const VALID_MODES = ['success', 'dat-blocked', 'invalid-payload'];
+const VALID_MODES = ['success', 'dat-blocked', 'invalid-payload', 'relay'];
+const RELAY_TIMEOUT_MS = Number(process.env.BRIDGE_RELAY_TIMEOUT_MS || 10000);
 
 // Same deterministic 1x1 JPEG fixture as services/bridge/devCaptureProvider.ts.
 const TINY_JPEG_DATA_URL =
@@ -75,12 +84,107 @@ function buildResponse(requestId) {
 
 const server = new WebSocketServer({ port: PORT });
 
+// Relay-mode state. Tracks connected peers and in-flight relayed requests so
+// a response can be routed back to the original requester by requestId.
+const relayClients = new Set();
+const relayPending = new Map(); // requestId -> { requester, timer }
+
+function errorMessage(requestId, code, message) {
+  return {
+    type: 'capture.error',
+    requestId,
+    code,
+    message,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function clearRelay(requestId) {
+  const entry = relayPending.get(requestId);
+  if (entry && entry.timer) clearTimeout(entry.timer);
+  relayPending.delete(requestId);
+}
+
+function handleRelayMessage(socket, message, type, requestId) {
+  if (type === 'capture.request') {
+    const peers = [...relayClients].filter((c) => c !== socket);
+    if (peers.length === 0) {
+      socket.send(JSON.stringify(
+        errorMessage(requestId, 'BRIDGE_UNAVAILABLE', 'No bridge peer connected.')
+      ));
+      console.log(`[bridge-dev-server] relay no-peer requestId=${requestId} code=BRIDGE_UNAVAILABLE`);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      clearRelay(requestId);
+      try {
+        socket.send(JSON.stringify(
+          errorMessage(requestId, 'CAPTURE_TIMEOUT', 'No peer responded in time.')
+        ));
+      } catch {
+        // requester may have disconnected
+      }
+      console.log(`[bridge-dev-server] relay timeout requestId=${requestId} code=CAPTURE_TIMEOUT`);
+    }, RELAY_TIMEOUT_MS);
+
+    relayPending.set(requestId, { requester: socket, timer });
+
+    const raw = JSON.stringify(message);
+    for (const peer of peers) {
+      peer.send(raw);
+    }
+    console.log(`[bridge-dev-server] relay forward requestId=${requestId} peers=${peers.length}`);
+    return;
+  }
+
+  if (type === 'capture.success' || type === 'capture.error') {
+    const entry = relayPending.get(requestId);
+    if (!entry) {
+      // Either a late/duplicate response (first already won) or unknown id.
+      console.log(`[bridge-dev-server] relay drop-late type=${type} requestId=${requestId}`);
+      return;
+    }
+    // First matching response wins.
+    clearRelay(requestId);
+    try {
+      entry.requester.send(JSON.stringify(message));
+    } catch {
+      // requester gone; nothing to forward
+    }
+    const codeNote = type === 'capture.error' ? ` code=${message.code}` : '';
+    console.log(`[bridge-dev-server] relay deliver type=${type} requestId=${requestId}${codeNote}`);
+    return;
+  }
+
+  console.log(`[bridge-dev-server] relay ignored type=${type}`);
+}
+
+function handleSelfContainedMessage(socket, message, type, requestId) {
+  if (type === 'capture.request') {
+    const response = buildResponse(requestId);
+    socket.send(JSON.stringify(response));
+    const codeNote = response.type === 'capture.error' ? ` code=${response.code}` : '';
+    console.log(`[bridge-dev-server] sent type=${response.type} requestId=${requestId}${codeNote}`);
+    return;
+  }
+
+  if (type === 'capture.success' || type === 'capture.error') {
+    const codeNote = type === 'capture.error' ? ` code=${message.code}` : '';
+    console.log(`[bridge-dev-server] noted app response type=${type} requestId=${requestId}${codeNote}`);
+    return;
+  }
+
+  console.log(`[bridge-dev-server] ignored unsupported type=${type}`);
+}
+
 server.on('listening', () => {
   console.log(`[bridge-dev-server] listening on ws://localhost:${PORT} mode=${MODE}`);
 });
 
 server.on('connection', (socket) => {
-  console.log('[bridge-dev-server] client connected');
+  if (MODE === 'relay') relayClients.add(socket);
+  console.log(`[bridge-dev-server] client connected (peers=${relayClients.size})`);
 
   socket.on('message', (data) => {
     let message;
@@ -95,25 +199,21 @@ server.on('connection', (socket) => {
     const requestId = typeof message?.requestId === 'string' ? message.requestId : 'unknown';
     console.log(`[bridge-dev-server] recv type=${type} requestId=${requestId}`);
 
-    if (type === 'capture.request') {
-      const response = buildResponse(requestId);
-      socket.send(JSON.stringify(response));
-      const codeNote = response.type === 'capture.error' ? ` code=${response.code}` : '';
-      console.log(`[bridge-dev-server] sent type=${response.type} requestId=${requestId}${codeNote}`);
-      return;
+    if (MODE === 'relay') {
+      handleRelayMessage(socket, message, type, requestId);
+    } else {
+      handleSelfContainedMessage(socket, message, type, requestId);
     }
-
-    if (type === 'capture.success' || type === 'capture.error') {
-      // App replied to a glasses-originated request; just acknowledge in logs.
-      const codeNote = type === 'capture.error' ? ` code=${message.code}` : '';
-      console.log(`[bridge-dev-server] noted app response type=${type} requestId=${requestId}${codeNote}`);
-      return;
-    }
-
-    console.log(`[bridge-dev-server] ignored unsupported type=${type}`);
   });
 
   socket.on('close', () => {
+    if (MODE === 'relay') {
+      relayClients.delete(socket);
+      // Fail any in-flight requests this socket originated.
+      for (const [requestId, entry] of [...relayPending.entries()]) {
+        if (entry.requester === socket) clearRelay(requestId);
+      }
+    }
     console.log('[bridge-dev-server] client disconnected');
   });
 });

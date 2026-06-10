@@ -19,7 +19,8 @@
     "qa:convergence": "node scripts/qa-convergence.js",
     "test:bridge": "node --test __tests__/bridgePayloadValidation.test.js __tests__/bridgeCaptureQueue.test.js __tests__/bridgeService.test.js __tests__/bridgeAdapters.test.js",
     "bridge:server": "node scripts/bridge-dev-server.js",
-    "bridge:client": "node scripts/simulate-glasses-client.js"
+    "bridge:client": "node scripts/simulate-glasses-client.js",
+    "bridge:mobile": "node scripts/simulate-mobile-client.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

@@ -162,6 +162,43 @@ Both are Node-only tools under `scripts/` and use the `ws` devDependency
 never upload, and never write image data to disk. Logs are restricted to
 message type, requestId, status, and error code.
 
+### Relay mode (Phase 17)
+
+`BRIDGE_DEV_MODE=relay` turns the dev server into a message **relay** so the
+glasses web app (Phase 17 mobile bridge client) and a mobile peer can talk
+end-to-end without glasses hardware:
+
+```bash
+# Terminal A — relay server
+$env:BRIDGE_DEV_MODE="relay"; npm run bridge:server   # PowerShell
+# BRIDGE_DEV_MODE=relay npm run bridge:server          # bash
+
+# Terminal B — mobile peer (responds with the safe dev JPEG fixture)
+npm run bridge:mobile
+```
+
+Relay behavior:
+
+- Tracks the set of connected clients.
+- On `capture.request`, broadcasts to all **non-sender** peers.
+- The **first** matching `capture.success` / `capture.error` is forwarded back
+  to the original requester; later duplicates are dropped (safe log only).
+- If no non-sender peer is connected → immediate `capture.error`
+  `BRIDGE_UNAVAILABLE`.
+- If no peer responds within `BRIDGE_RELAY_TIMEOUT_MS` (default 10s) →
+  `capture.error` `CAPTURE_TIMEOUT`.
+- If the requester disconnects, its in-flight relayed requests are cleared.
+- Logs only type / requestId / status / code — never payloads.
+
+`scripts/simulate-mobile-client.js` (`npm run bridge:mobile`) is the mobile
+peer: it connects to the relay, waits for `capture.request`, and replies
+`capture.success` with the **same** deterministic 1×1 JPEG dev fixture used by
+`devCaptureProvider.ts` (no new fixture is created). It never logs payloads,
+never uploads, and never writes image data to disk.
+
+The other modes (`success`, `dat-blocked`, `invalid-payload`) remain
+self-contained as before.
+
 ## Debug screen usage & production gating
 
 Route: `/debug/bridge` (Expo Router). It shows bridge state, active transport,
