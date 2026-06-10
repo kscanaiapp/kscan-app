@@ -11,27 +11,34 @@ async function getPendingDeletionRequest(supabase, userId) {
   return Array.isArray(data) ? data[0] ?? null : null;
 }
 
-async function submitAccountDeletionRequest(supabase, session) {
-  const userId = session?.user?.id;
-  if (!userId) throw new Error('No authenticated session. Sign in to request deletion.');
+async function submitAccountDeletionRequest(supabase, _session) {
+  const { data, error } = await supabase.functions.invoke('handle-user-deletion', {
+    body: {},
+  });
 
-  const pending = await getPendingDeletionRequest(supabase, userId);
-  if (pending) {
-    return { status: 'already_requested', request: pending };
+  if (error) {
+    throw new Error(error.message || 'Unable to submit deletion request.');
   }
 
-  const { data, error } = await supabase
-    .from('deletion_requests')
-    .insert({
-      user_id: userId,
-      status: 'pending',
-      request_source: 'mobile_app',
-    })
-    .select('id,status,requested_at')
-    .single();
+  if (!data) {
+    throw new Error('Unexpected empty response from deletion service.');
+  }
 
-  if (error) throw error;
-  return { status: 'submitted', request: data };
+  if (data.status === 'already_requested') {
+    return {
+      status: 'already_requested',
+      request: { requested_at: data.requested_at },
+    };
+  }
+
+  return {
+    status: 'submitted',
+    request: {
+      id: data.request_id,
+      status: 'pending',
+      requested_at: data.requested_at,
+    },
+  };
 }
 
 module.exports = {

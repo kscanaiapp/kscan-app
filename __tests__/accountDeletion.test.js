@@ -6,8 +6,7 @@ const {
   submitAccountDeletionRequest,
 } = require('../services/accountDeletion');
 
-function createSupabaseMock({ existing = [], insertError = null } = {}) {
-  const calls = { insert: [] };
+function createSelectMock({ existing = [] } = {}) {
   const selectBuilder = {
     select: () => selectBuilder,
     eq: () => selectBuilder,
@@ -15,64 +14,65 @@ function createSupabaseMock({ existing = [], insertError = null } = {}) {
     order: () => selectBuilder,
     limit: async () => ({ data: existing, error: null }),
   };
-  const insertBuilder = {
-    select: () => insertBuilder,
-    single: async () => ({
-      data: { id: 'request-1', status: 'pending' },
-      error: insertError,
-    }),
-  };
-
   return {
-    calls,
-    client: {
-      from: () => ({
-        ...selectBuilder,
-        insert: (payload) => {
-          calls.insert.push(payload);
-          return insertBuilder;
-        },
+    functions: { invoke: async () => ({ data: null, error: null }) },
+    from: () => selectBuilder,
+  };
+}
+
+function createInvokeMock({ fnData = null, fnError = null } = {}) {
+  return {
+    functions: {
+      invoke: async (_name, _opts) => ({
+        data: fnError ? null : fnData,
+        error: fnError ? { message: fnError } : null,
       }),
     },
   };
 }
 
 test('getPendingDeletionRequest returns existing pending request', async () => {
-  const { client } = createSupabaseMock({
-    existing: [{ id: 'request-1', status: 'pending' }],
-  });
-
+  const client = createSelectMock({ existing: [{ id: 'request-1', status: 'pending' }] });
   const pending = await getPendingDeletionRequest(client, 'user-1');
   assert.equal(pending.id, 'request-1');
 });
 
-test('submitAccountDeletionRequest guards duplicate pending requests', async () => {
-  const { client, calls } = createSupabaseMock({
-    existing: [{ id: 'request-1', status: 'pending' }],
+test('submitAccountDeletionRequest returns already_requested when edge function reports duplicate', async () => {
+  const client = createInvokeMock({
+    fnData: { status: 'already_requested', requested_at: '2026-06-09T00:00:00Z' },
   });
 
-  const result = await submitAccountDeletionRequest(client, { user: { id: 'user-1' } });
+  const result = await submitAccountDeletionRequest(client, null);
   assert.equal(result.status, 'already_requested');
-  assert.equal(calls.insert.length, 0);
+  assert.ok(result.request.requested_at);
 });
 
-test('submitAccountDeletionRequest inserts own user_id when no pending request exists', async () => {
-  const { client, calls } = createSupabaseMock();
-
-  const result = await submitAccountDeletionRequest(client, { user: { id: 'user-1' } });
-  assert.equal(result.status, 'submitted');
-  assert.deepEqual(calls.insert[0], {
-    user_id: 'user-1',
-    status: 'pending',
-    request_source: 'mobile_app',
+test('submitAccountDeletionRequest returns submitted and normalizes edge function pending response', async () => {
+  const client = createInvokeMock({
+    fnData: { status: 'pending', request_id: 'req-abc', requested_at: '2026-06-09T00:00:00Z' },
   });
+
+  const result = await submitAccountDeletionRequest(client, null);
+  assert.equal(result.status, 'submitted');
+  assert.equal(result.request.id, 'req-abc');
+  assert.equal(result.request.status, 'pending');
+  assert.ok(result.request.requested_at);
 });
 
-test('submitAccountDeletionRequest surfaces insert errors for UI fallback sign-out', async () => {
-  const { client } = createSupabaseMock({ insertError: new Error('insert failed') });
+test('submitAccountDeletionRequest throws when edge function invocation returns an error', async () => {
+  const client = createInvokeMock({ fnError: 'Authentication required' });
 
   await assert.rejects(
-    () => submitAccountDeletionRequest(client, { user: { id: 'user-1' } }),
-    /insert failed/,
+    () => submitAccountDeletionRequest(client, null),
+    /Authentication required/,
+  );
+});
+
+test('submitAccountDeletionRequest throws on unexpected empty response', async () => {
+  const client = createInvokeMock({ fnData: null, fnError: null });
+
+  await assert.rejects(
+    () => submitAccountDeletionRequest(client, null),
+    /Unexpected empty response/,
   );
 });
