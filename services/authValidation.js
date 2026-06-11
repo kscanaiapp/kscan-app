@@ -84,7 +84,9 @@ function mapAuthError(msg, mode) {
     return 'Network error. Check your connection and try again.';
   }
 
-  return msg || 'Something went wrong. Try again.';
+  return mode === 'sign-in'
+    ? 'Sign-in failed. Please check your email and password and try again.'
+    : "We couldn't create your account right now. Please try again.";
 }
 
 module.exports = { validateAuthInput, mapAuthError };

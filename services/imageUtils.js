@@ -2,6 +2,7 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 
 function logCompressDiag(payload) {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return;
   console.log(`[KSCAN_DIAG_COMPRESS] ${JSON.stringify({
     ...payload,
     timestamp: Date.now(),

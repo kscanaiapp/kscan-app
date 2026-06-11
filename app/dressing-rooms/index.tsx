@@ -26,6 +26,9 @@ import { useDressingRooms } from '../../hooks/useStyleObjects';
 import { createDressingRoom, ROOM_TITLE_MAX_LENGTH } from '../../services/styleObjects';
 import type { DressingRoom } from '../../types/styleObjects';
 
+const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
+const DRESSING_ROOM_LOAD_ERROR = "We couldn't load your Dressing Rooms. Please refresh and try again.";
+const ACCESSIBLE_GOLD_TEXT = '#72521E';
 
 function RoomCard({ room }: { room: DressingRoom }) {
   const cover = room.coverImageUrl || room.coverFallbackUrl;
@@ -81,7 +84,8 @@ function CreateRoomModal({
       onCreated();
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Unable to create Dressing Room.');
+      console.error('Create dressing room failed', err);
+      setError(DRESSING_ROOM_SAVE_ERROR);
     } finally {
       setSaving(false);
     }
@@ -114,13 +118,14 @@ function DressingRoomsContent() {
   const { rooms, loading, error, reload } = useDressingRooms();
   const [creating, setCreating] = useState(false);
   const blocking = loading || !!error;
+  const friendlyError = error ? DRESSING_ROOM_LOAD_ERROR : null;
 
   return (
     <View style={styleObjectStyles.screen}>
       <StatusBar style="dark" />
       <Header title="Dressing Rooms" eyebrow="Persistent Boards" onBack={() => router.back()} />
       {blocking ? (
-        <LoadingOrError loading={loading} error={error} onRetry={reload} />
+        <LoadingOrError loading={loading} error={friendlyError} onRetry={reload} />
       ) : (
         <ScrollView contentContainerStyle={styleObjectStyles.content}>
           <PrimaryButton label="New Dressing Room" onPress={() => setCreating(true)} />
@@ -178,7 +183,7 @@ const styles = StyleSheet.create({
   },
   coverFallbackText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
   },
   cardBody: {
     padding: SPACING.lg,
@@ -195,7 +200,7 @@ const styles = StyleSheet.create({
   },
   cardMeta: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     marginTop: SPACING.xs,
   },
   modalBackdrop: {

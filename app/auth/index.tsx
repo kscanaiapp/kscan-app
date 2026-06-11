@@ -5,7 +5,6 @@ import {
   Linking,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
@@ -40,6 +40,7 @@ function createRawNonce(length = 32) {
 
 export default function AuthScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signIn, signUp, isAuthenticated } = useAuthSession();
 
   const [mode, setMode] = useState<AuthMode>('sign-in');
@@ -270,7 +271,7 @@ export default function AuthScreen() {
     return (
       <View style={styles.root}>
         <StatusBar style="light" />
-        <SafeAreaView style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backText}>Cancel</Text>
           </Pressable>
@@ -279,7 +280,7 @@ export default function AuthScreen() {
             <Text style={styles.screenTitle}>ACCOUNT ACCESS</Text>
           </View>
           <View style={styles.headerRight} />
-        </SafeAreaView>
+        </View>
 
         <KeyboardAvoidingView
           style={styles.body}
@@ -311,7 +312,7 @@ export default function AuthScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <SafeAreaView style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()} disabled={busy}>
           <Text style={[styles.backText, busy && styles.disabled]}>Cancel</Text>
         </Pressable>
@@ -320,7 +321,7 @@ export default function AuthScreen() {
           <Text style={styles.screenTitle}>{screenTitle}</Text>
         </View>
         <View style={styles.headerRight} />
-      </SafeAreaView>
+      </View>
 
       <KeyboardAvoidingView
         style={styles.body}
@@ -414,7 +415,7 @@ export default function AuthScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor={COLORS.textTertiary}
+              placeholderTextColor={COLORS.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -431,7 +432,7 @@ export default function AuthScreen() {
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              placeholderTextColor={COLORS.textTertiary}
+              placeholderTextColor={COLORS.textSecondary}
               secureTextEntry
               autoCapitalize="none"
               autoComplete={mode === 'sign-in' ? 'password' : 'new-password'}
@@ -450,7 +451,7 @@ export default function AuthScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="••••••••"
-                placeholderTextColor={COLORS.textTertiary}
+                placeholderTextColor={COLORS.textSecondary}
                 secureTextEntry
                 autoCapitalize="none"
                 autoComplete="new-password"
@@ -505,7 +506,7 @@ export default function AuthScreen() {
         </Pressable>
 
         <Text style={styles.footNote}>
-          Privacy preferences are protected by row-level security. Your choices are visible only to your account.
+          Your choices are private to your account.
         </Text>
         <View style={styles.legalLinks}>
           <Pressable onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}>
@@ -533,7 +534,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: LAYOUT.safeTop,
     paddingHorizontal: LAYOUT.screenPadding,
     paddingBottom: SPACING.lg,
     borderBottomWidth: 1,
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     width: 56,
   },
   backText: {
-    color: '#00FFFF',
+    color: COLORS.accent,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
-    color: '#00FFFF',
+    color: COLORS.accent,
   },
   body: {
     flex: 1,
@@ -594,15 +594,15 @@ const styles = StyleSheet.create({
   },
   tabText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
   },
   tabTextActive: {
-    color: '#00FFFF',
+    color: COLORS.accent,
   },
   tabIndicator: {
     height: 2,
     width: 28,
-    backgroundColor: '#00FFFF',
+    backgroundColor: COLORS.accent,
     borderRadius: 1,
   },
   tabIndicatorInvisible: {
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
   },
   input: {
     height: 50,
@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
     fontSize: 10,
   },
   secondaryLinkRow: {
@@ -746,11 +746,11 @@ const styles = StyleSheet.create({
   secondaryLink: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
     textAlign: 'center',
   },
   secondaryLinkAction: {
-    color: '#00FFFF',
+    color: COLORS.accent,
     fontWeight: '600',
   },
   forgotPasswordButton: {
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     fontSize: 12,
     lineHeight: 18,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     paddingHorizontal: SPACING.lg,
   },
@@ -776,11 +776,11 @@ const styles = StyleSheet.create({
   },
   legalLinkText: {
     fontSize: 11,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
     textDecorationLine: 'underline',
   },
   legalLinkSep: {
     fontSize: 11,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
   },
 });

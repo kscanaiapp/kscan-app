@@ -66,6 +66,10 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
 
 const KSCAN_PUBLIC_BASE_URL = 'https://kscan.app';
+const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
+const DRESSING_ROOM_LOAD_ERROR = "We couldn't load this room. Please refresh and try again.";
+const DRESSING_ROOM_SHARE_ERROR = "We couldn't update sharing right now. Please try again.";
+const ACCESSIBLE_GOLD_TEXT = '#72521E';
 const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
   love: 0,
   like: 0,
@@ -148,7 +152,8 @@ function EditRoomModal({
       onSaved();
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Unable to update Dressing Room.');
+      console.error('Update dressing room failed', err);
+      setError(DRESSING_ROOM_SAVE_ERROR);
     } finally {
       setSaving(false);
     }
@@ -196,7 +201,8 @@ function CreateLookModal({
       setDescription('');
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Unable to create Look.');
+      console.error('Create look from dressing room failed', err);
+      setError(DRESSING_ROOM_SAVE_ERROR);
     } finally {
       setSaving(false);
     }
@@ -273,7 +279,8 @@ function DressingRoomDetailContent() {
       setShareError(null);
       setShareMessage(null);
     } catch (err: any) {
-      setError(err?.message || 'Unable to load Dressing Room.');
+      console.error('Load dressing room failed', err);
+      setError(DRESSING_ROOM_LOAD_ERROR);
     } finally {
       setLoading(false);
     }
@@ -378,7 +385,8 @@ function DressingRoomDetailContent() {
       await removeDressingRoomItem(itemId);
       await reload();
     } catch (err: any) {
-      Alert.alert('Could not remove item', err?.message || 'Try again.');
+      console.error('Remove dressing room item failed', err);
+      Alert.alert('Could not remove item', DRESSING_ROOM_SAVE_ERROR);
     }
   };
 
@@ -397,7 +405,8 @@ function DressingRoomDetailContent() {
               await deleteDressingRoom(room.id);
               router.replace('/dressing-rooms');
             } catch (err: any) {
-              Alert.alert('Could not delete room', err?.message || 'Try again.');
+              console.error('Delete dressing room failed', err);
+              Alert.alert('Could not delete room', DRESSING_ROOM_SAVE_ERROR);
             }
           },
         },
@@ -427,7 +436,8 @@ function DressingRoomDetailContent() {
       await Share.share(buildRoomSharePayload(shareUrl));
       setShareMessage('Room link ready to share.');
     } catch (err: any) {
-      setShareError(err?.message || 'Could not open sharing. Please try again.');
+      console.error('Share dressing room failed', err);
+      setShareError(DRESSING_ROOM_SHARE_ERROR);
     } finally {
       setSharing(false);
     }
@@ -458,7 +468,8 @@ function DressingRoomDetailContent() {
       setNoteMessage(savedNote ? 'Room note saved.' : 'Room note cleared.');
       setEditingNote(false);
     } catch (err: any) {
-      setNoteError(err?.message || 'Could not save note.');
+      console.error('Save dressing room note failed', err);
+      setNoteError(DRESSING_ROOM_SAVE_ERROR);
     } finally {
       setSavingNote(false);
     }
@@ -482,7 +493,8 @@ function DressingRoomDetailContent() {
               const revoked = await revokeRoomShare(room.id);
               setShareMessage(revoked ? 'Shared link disabled.' : 'No active shared link to disable.');
             } catch (err: any) {
-              setShareError(err?.message || 'Could not disable shared link.');
+              console.error('Revoke dressing room share failed', err);
+              setShareError(DRESSING_ROOM_SHARE_ERROR);
             } finally {
               setRevokingShare(false);
             }
@@ -589,7 +601,8 @@ function DressingRoomDetailContent() {
               await removeInspirationFromDressingRoom(roomId, inspirationId);
               setInspirations((current) => current.filter((item) => item.id !== inspirationId));
             } catch (err: any) {
-              Alert.alert('Could not remove', err?.message || 'Try again.');
+              console.error('Remove dressing room inspiration failed', err);
+              Alert.alert('Could not remove', DRESSING_ROOM_SAVE_ERROR);
             }
           },
         },
@@ -616,7 +629,7 @@ function DressingRoomDetailContent() {
                   value={noteDraft}
                   onChangeText={setNoteDraft}
                   placeholder="Add a note..."
-                  placeholderTextColor={COLORS.editorialTextMuted}
+                  placeholderTextColor={COLORS.editorialTextSecondary}
                   multiline
                   textAlignVertical="top"
                   style={styles.noteInput}
@@ -883,7 +896,7 @@ const styles = StyleSheet.create({
   },
   noteLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     letterSpacing: 2.2,
     marginBottom: SPACING.sm,
   },
@@ -902,7 +915,7 @@ const styles = StyleSheet.create({
   },
   notePlaceholder: {
     ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     lineHeight: 22,
   },
   noteInput: {
@@ -919,7 +932,7 @@ const styles = StyleSheet.create({
   },
   noteCount: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     textAlign: 'right',
     marginTop: SPACING.xs,
   },
@@ -951,7 +964,7 @@ const styles = StyleSheet.create({
   },
   inspirationLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     letterSpacing: 2.2,
   },
   uploadBtn: {
@@ -964,12 +977,12 @@ const styles = StyleSheet.create({
   },
   uploadBtnText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     letterSpacing: 1.4,
   },
   inspirationEmpty: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     textAlign: 'center',
     paddingVertical: SPACING.lg,
     borderRadius: RADIUS.md,
@@ -1011,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   modalNote: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     marginTop: SPACING.xs,
   },
   error: {

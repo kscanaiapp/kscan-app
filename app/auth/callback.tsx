@@ -21,6 +21,10 @@ import {
 
 type CallbackState = 'loading' | 'error';
 
+const AUTH_CALLBACK_FAILED_MESSAGE = 'Sign-in failed. Please try again or use email sign-in.';
+const AUTH_SESSION_FAILED_MESSAGE =
+  "Sign-in completed, but we couldn't start your session. Please try again.";
+
 export default function AuthCallbackScreen() {
   const router = useRouter();
   const warmUrl = Linking.useURL();
@@ -37,7 +41,8 @@ export default function AuthCallbackScreen() {
       const parsed = parseAuthCallbackUrl(url);
       try {
         if (parsed.error) {
-          setMessage(parsed.error);
+          console.error('Auth callback returned an error', parsed.error);
+          setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
           setState('error');
           return;
         }
@@ -45,7 +50,8 @@ export default function AuthCallbackScreen() {
         if (parsed.code) {
           const { error } = await supabase.auth.exchangeCodeForSession(parsed.code);
           if (error) {
-            setMessage(error.message || 'This sign-in link could not be used.');
+            console.error('Auth callback code exchange failed', error);
+            setMessage(AUTH_SESSION_FAILED_MESSAGE);
             setState('error');
             return;
           }
@@ -59,7 +65,8 @@ export default function AuthCallbackScreen() {
             type: parsed.type,
           } as any);
           if (error) {
-            setMessage(error.message || 'This sign-in link could not be verified.');
+            console.error('Auth callback OTP verification failed', error);
+            setMessage(AUTH_SESSION_FAILED_MESSAGE);
             setState('error');
             return;
           }
@@ -68,7 +75,7 @@ export default function AuthCallbackScreen() {
         }
 
         if (!parsed.hasSessionTokens) {
-          setMessage('This sign-in link is missing its secure session tokens.');
+          setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
           setState('error');
           return;
         }
@@ -79,14 +86,16 @@ export default function AuthCallbackScreen() {
         });
 
         if (error) {
-          setMessage(error.message || 'This sign-in link could not be used.');
+          console.error('Auth callback session start failed', error);
+          setMessage(AUTH_SESSION_FAILED_MESSAGE);
           setState('error');
           return;
         }
         router.replace(getAuthCallbackRedirect(parsed));
         return;
-      } catch {
-        setMessage('This sign-in link could not be completed.');
+      } catch (error) {
+        console.error('Auth callback failed unexpectedly', error);
+        setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
         setState('error');
       }
     },
@@ -114,7 +123,7 @@ export default function AuthCallbackScreen() {
           router.replace('/');
           return;
         }
-        setMessage('This sign-in link could not be read. Request a fresh link and try again.');
+        setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
         setState('error');
       });
     }, 10000);
@@ -139,7 +148,7 @@ export default function AuthCallbackScreen() {
       <View style={styles.body}>
         {state === 'loading' ? (
           <View testID="auth-callback-loading" style={styles.card}>
-            <ActivityIndicator size="large" color="#00FFFF" />
+            <ActivityIndicator size="large" color={COLORS.accent} />
             <Text style={styles.cardTitle}>Opening Account</Text>
             <Text style={styles.cardBody}>{message}</Text>
           </View>
@@ -147,10 +156,10 @@ export default function AuthCallbackScreen() {
           <View testID="auth-callback-error" style={styles.card}>
             <Text style={styles.cardTitle}>Link Could Not Be Used</Text>
             <Text style={styles.cardBody}>
-              {message} Request a fresh link or open the app manually.
+              {message} Return to sign in when you are ready.
             </Text>
             <Pressable style={styles.primaryButton} onPress={openAuth}>
-              <Text style={styles.primaryButtonText}>OPEN APP MANUALLY</Text>
+              <Text style={styles.primaryButtonText}>RETURN TO SIGN IN</Text>
             </Pressable>
           </View>
         )}
@@ -187,7 +196,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
-    color: '#00FFFF',
+    color: COLORS.accent,
   },
   body: {
     flex: 1,

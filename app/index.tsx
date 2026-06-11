@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { SafeAreaView, ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+
+const ACCESSIBLE_GOLD_TEXT = '#72521E';
 
 export default function Home() {
   const { isAuthenticated, signOut, user, loading } = useAuthSession();
@@ -171,7 +174,7 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 15,
     fontWeight: '400',
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     marginTop: 12,
   },
 
@@ -218,7 +221,7 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     letterSpacing: 2.2,
   },
   betaBadge: {
@@ -229,11 +232,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   betaBadgeText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
   },
   cardBody: {
     fontSize: 14,
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   footerLinkText: {
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     fontSize: 13,
     fontWeight: '500',
   },

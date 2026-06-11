@@ -22,6 +22,7 @@ import {
 const MIN_ANALYSIS_MS = 600;
 
 function logAnalyzeDiag(payload) {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return;
   console.log(`[KSCAN_DIAG_ANALYZE] ${JSON.stringify({
     ...payload,
     timestamp: Date.now(),
@@ -294,7 +295,7 @@ export function useKScan() {
         return;
       }
 
-      console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
+      if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
       setPhoto({ uri, qaFixtureName: fixtureName });
       setError(null);

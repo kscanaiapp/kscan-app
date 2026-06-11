@@ -5,7 +5,6 @@ import {
   Linking,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrivacyToggle } from '../components/PrivacyToggle';
 import { canToggleSaleSharing } from '../services/privacyPolicy';
@@ -35,16 +35,18 @@ const PRIVACY_COPY = {
   saleLocal:
     'This preference is saved on this device only. Sign in to save it to your account across devices.',
   sensitiveRemote:
-    'Limit sensitive processing where applicable. Operational diagnostics and security events may still be processed where permitted.',
+    'Limit sensitive processing where applicable. Security and reliability events may still be processed where permitted.',
   sensitiveLocal:
-    'Saved on this device until your account is connected. Operational diagnostics may still run where permitted.',
+    'Saved on this device until your account is connected. Security and reliability checks may still run where permitted.',
   aggregate:
     'Aggregated or deidentified trend reports are managed separately from transfers of user-linked personal information.',
   scans:
-    'Raw scan storage must follow the production storage map. Derived fashion metadata may be reviewed for export when linked to your account.',
+    'Your saved scan information follows K Scan privacy settings. Account-linked scan details may be included when you request an export.',
   minor:
     'Sale or sharing of personal information is disabled for users under 16 unless legally valid authorization is obtained.',
 };
+
+const ACCESSIBLE_GOLD_TEXT = '#72521E';
 
 const SYNC_STATUS_LABELS: Record<string, string> = {
   synced: 'Saved to Account',
@@ -55,13 +57,14 @@ const SYNC_STATUS_LABELS: Record<string, string> = {
 
 const SYNC_STATUS_COLORS: Record<string, string> = {
   synced: COLORS.success,
-  syncing: COLORS.goldPressed,
-  'local-only': COLORS.editorialTextMuted,
+  syncing: ACCESSIBLE_GOLD_TEXT,
+  'local-only': COLORS.editorialTextSecondary,
   error: COLORS.error,
 };
 
 export default function PrivacyScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isAuthenticated, session, user, signOut, isRefreshing } = useAuthSession();
   const {
     mode,
@@ -111,7 +114,7 @@ export default function PrivacyScreen() {
   const syncChip = useMemo(() => {
     if (mode === 'booting') return null;
     const label = SYNC_STATUS_LABELS[syncStatus] ?? syncStatus;
-    const color = SYNC_STATUS_COLORS[syncStatus] ?? COLORS.editorialTextMuted;
+    const color = SYNC_STATUS_COLORS[syncStatus] ?? COLORS.editorialTextSecondary;
     return (
       <View style={[styles.syncChip, { borderColor: `${color}55` }]}>
         {syncStatus === 'syncing' ? (
@@ -160,7 +163,8 @@ export default function PrivacyScreen() {
           : 'Deletion request submitted. You have been signed out.',
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to request deletion.');
+      console.error('Account deletion request failed', error);
+      setMessage("We couldn't submit your request right now. Please try again later.");
       setDeletionSubmitting(false);
       return;
     }
@@ -179,11 +183,10 @@ export default function PrivacyScreen() {
   const handleExport = async () => {
     try {
       await requestDataExport();
-      setMessage(
-        'Data export request submitted (if your Edge Function is deployed and reachable).',
-      );
+      setMessage('This request is securely submitted to K Scan for review.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to request export.');
+      console.error('Data export request failed', error);
+      setMessage("We couldn't submit your request right now. Please try again later.");
     }
   };
 
@@ -195,11 +198,10 @@ export default function PrivacyScreen() {
     try {
       await requestCorrection({ user_description: correctionText.trim() });
       setCorrectionText('');
-      setMessage(
-        'Correction request submitted (if your Edge Function is deployed and reachable).',
-      );
+      setMessage('This request is securely submitted to K Scan for review.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to request correction.');
+      console.error('Correction request failed', error);
+      setMessage("We couldn't submit your request right now. Please try again later.");
     }
   };
 
@@ -241,7 +243,7 @@ export default function PrivacyScreen() {
           </View>
         </View>
       </Modal>
-      <SafeAreaView style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>Back</Text>
         </Pressable>
@@ -250,7 +252,7 @@ export default function PrivacyScreen() {
           <Text style={styles.screenTitle}>PRIVACY CONTROL</Text>
         </View>
         <View style={styles.headerRight} />
-      </SafeAreaView>
+      </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
@@ -319,9 +321,8 @@ export default function PrivacyScreen() {
                 onChange={(value) => {
                   setMessage(null);
                   void persistPreference({ opt_out_of_sale: value }).catch((error) => {
-                    setMessage(
-                      error instanceof Error ? error.message : 'Unable to update preference.',
-                    );
+                    console.error('Privacy preference update failed', error);
+                    setMessage("We couldn't save that preference. Please try again.");
                   });
                 }}
               />
@@ -335,9 +336,8 @@ export default function PrivacyScreen() {
                 onChange={(value) => {
                   setMessage(null);
                   void persistPreference({ limit_sensitive_processing: value }).catch((error) => {
-                    setMessage(
-                      error instanceof Error ? error.message : 'Unable to update preference.',
-                    );
+                    console.error('Privacy preference update failed', error);
+                    setMessage("We couldn't save that preference. Please try again.");
                   });
                 }}
               />
@@ -358,7 +358,7 @@ export default function PrivacyScreen() {
             <View style={styles.actions}>
               {!remoteActionsEnabled ? (
                 <Text style={styles.edgeHint}>
-                  Data export, correction, and deletion requests require an authenticated session and deployed Edge Functions. Sign in and connect your account to enable these actions.
+                  Data export, correction, and deletion requests require a connected account. Sign in to enable these actions.
                 </Text>
               ) : null}
 
@@ -375,7 +375,7 @@ export default function PrivacyScreen() {
                   value={correctionText}
                   onChangeText={setCorrectionText}
                   placeholder="Describe a correction request"
-                  placeholderTextColor={COLORS.editorialTextMuted}
+                  placeholderTextColor={COLORS.editorialTextSecondary}
                   multiline
                   style={styles.input}
                 />
@@ -432,7 +432,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: LAYOUT.safeTop,
     paddingHorizontal: LAYOUT.screenPadding,
     paddingBottom: SPACING.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -442,7 +441,7 @@ const styles = StyleSheet.create({
     width: 56,
   },
   backText: {
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -461,7 +460,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
   },
   content: {
     padding: LAYOUT.screenPadding,
@@ -474,7 +473,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
   },
   heroRow: {
     flexDirection: 'row',
@@ -520,7 +519,7 @@ const styles = StyleSheet.create({
   },
   loadingCaption: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
   },
   message: {
     ...TYPOGRAPHY.bodyStrong,
@@ -566,7 +565,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   signInArrow: {
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
     fontSize: 22,
     fontWeight: '300',
   },
@@ -581,7 +580,7 @@ const styles = StyleSheet.create({
   },
   noticeTitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
   },
   noticeBody: {
     ...TYPOGRAPHY.bodyStrong,
@@ -647,7 +646,7 @@ const styles = StyleSheet.create({
   },
   panelTitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    color: ACCESSIBLE_GOLD_TEXT,
   },
   panelBody: {
     ...TYPOGRAPHY.body,
@@ -662,7 +661,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     fontSize: 12,
     lineHeight: 18,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     marginBottom: SPACING.sm,
   },
   secondaryButton: {
@@ -751,7 +750,7 @@ const styles = StyleSheet.create({
   },
   modalSecondaryText: {
     ...TYPOGRAPHY.cta,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     fontSize: 12,
   },
   modalDangerButton: {
@@ -779,11 +778,11 @@ const styles = StyleSheet.create({
   },
   legalFooterLink: {
     fontSize: 11,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
     textDecorationLine: 'underline',
   },
   legalFooterSep: {
     fontSize: 11,
-    color: COLORS.editorialTextMuted,
+    color: COLORS.editorialTextSecondary,
   },
 });

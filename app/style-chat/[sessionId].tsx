@@ -25,6 +25,29 @@ import { useStyleChat } from '../../hooks/useStyleChat';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 
+function getFriendlyStyleChatError(message?: string | null) {
+  if (!message) return null;
+  if (message === STYLE_CHAT_COPY.systemLimitNotice) return message;
+  if (message === STYLE_CHAT_COPY.burstLimitNotice) {
+    return "You've sent several messages quickly. Please wait a moment before sending another.";
+  }
+
+  const lower = message.toLowerCase();
+  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('abort')) {
+    return 'This is taking longer than usual. Please wait or try again.';
+  }
+  if (lower.includes('rate') || lower.includes('limit') || lower.includes('too many')) {
+    return "You've sent several messages quickly. Please wait a moment before sending another.";
+  }
+  if (lower.includes('network') || lower.includes('fetch') || lower.includes('connect')) {
+    return "We couldn't connect. Please check your internet and try again.";
+  }
+  if (lower.includes('provider') || lower.includes('model') || lower.includes('generate')) {
+    return "We couldn't generate a response right now. Please try again later.";
+  }
+  return "We couldn't update this chat right now. Please try again.";
+}
+
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
@@ -72,10 +95,11 @@ export default function StyleChatSessionScreen() {
               await deleteStyleChatSession(sessionId);
               router.replace('/style-chat');
             } catch (err: unknown) {
+              console.error('Delete StyleChat session failed', err);
               setIsDeleting(false);
               Alert.alert(
                 'Could not delete conversation',
-                (err as Error)?.message || 'Please try again.',
+                "We couldn't update this chat right now. Please try again.",
               );
             }
           },
@@ -110,9 +134,10 @@ export default function StyleChatSessionScreen() {
 
   const isLimitNotice = error === STYLE_CHAT_COPY.systemLimitNotice
     || error === STYLE_CHAT_COPY.burstLimitNotice;
+  const friendlyError = getFriendlyStyleChatError(error);
   const ErrorBanner = error ? (
     <View testID="style-chat-error-state" style={styles.errorBanner}>
-      <Text style={styles.errorText}>{error}</Text>
+      <Text style={styles.errorText}>{friendlyError}</Text>
       {!isLimitNotice ? (
         <Pressable
           onPress={() => { clearError(); retryLastMessage(); }}
@@ -197,8 +222,8 @@ const styles = StyleSheet.create({
   },
   sessionLabel: {
     ...TYPOGRAPHY.chipLabel,
-    color: COLORS.textTertiary,
-    fontSize: 9,
+    color: COLORS.textSecondary,
+    fontSize: 11,
     flex: 1,
     paddingRight: SPACING.sm,
   },
@@ -213,7 +238,7 @@ const styles = StyleSheet.create({
   },
   sessionDeleteText: {
     ...TYPOGRAPHY.chipLabel,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 2,
     color: COLORS.error,
   },
