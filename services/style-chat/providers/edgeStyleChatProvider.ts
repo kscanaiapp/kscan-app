@@ -11,9 +11,10 @@
 import { supabase } from '../../supabaseClient';
 
 const EDGE_FN      = 'stylechat-generate';
-// 16s: Edge Function runs Gemini at 12s + ~2-3s for auth/quota/context queries.
-// Client must wait longer than the total server execution budget.
-const TIMEOUT_MS   = 16_000;
+// 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
+// before Gemini starts. Client must wait longer than the worst-case server budget
+// so it does not abort while the backend is still succeeding.
+const TIMEOUT_MS   = 20_000;
 
 // ── Response contract ─────────────────────────────────────────────────────────
 
