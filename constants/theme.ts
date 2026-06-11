@@ -26,7 +26,7 @@ export const COLORS = {
   textInverse:   '#090B10',   // dark text on gold/light surfaces
   editorialTextPrimary:   '#171717',
   editorialTextSecondary: '#575757',
-  editorialTextMuted:     '#8A8A8A',
+  editorialTextMuted:     '#6A6A6A',
   chrome:                 '#F5F3EF',
   chromeMuted:            'rgba(245, 243, 239, 0.72)',
 
@@ -35,7 +35,7 @@ export const COLORS = {
   accentSoft: 'rgba(214, 179, 106, 0.12)',
   accentGlow: 'rgba(214, 179, 106, 0.22)',
   gold:       '#C7A86B',
-  goldPressed:'#B6924E',
+  goldPressed:'#8B6F2E',
   goldMuted:  'rgba(199, 168, 107, 0.50)',
 
   // ── AR signals ───────────────────────────────────────────────────────────────
