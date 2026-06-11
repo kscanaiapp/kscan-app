@@ -84,8 +84,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         user_id: user.id,
         status: 'pending',
-        request_source: 'app',
-        internal_notes: 'User-initiated deletion request from K Scan AI mobile app.',
+        request_source: 'mobile_app',
+        notes: 'User-initiated deletion request from K Scan AI mobile app.',
       }),
     });
 
