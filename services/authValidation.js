@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * @typedef {'sign-in' | 'create-account'} AuthMode
+ * @typedef {'sign-in' | 'create-account' | 'reset' | 'update-password'} AuthMode
  * @typedef {{ valid: boolean, error: string | null }} ValidationResult
  */
 
@@ -84,9 +84,19 @@ function mapAuthError(msg, mode) {
     return 'Network error. Check your connection and try again.';
   }
 
-  return mode === 'sign-in'
-    ? 'Sign-in failed. Please check your email and password and try again.'
-    : "We couldn't create your account right now. Please try again.";
+  if (mode === 'sign-in') {
+    return 'Sign-in failed. Please check your email and password and try again.';
+  }
+  if (mode === 'create-account') {
+    return "We couldn't create your account right now. Please try again.";
+  }
+  if (mode === 'reset') {
+    return "We couldn't send the reset link right now. Please try again.";
+  }
+  if (mode === 'update-password') {
+    return "We couldn't update your password right now. Please try again.";
+  }
+  return 'Something went wrong. Please try again.';
 }
 
 module.exports = { validateAuthInput, mapAuthError };

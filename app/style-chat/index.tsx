@@ -47,10 +47,10 @@ export default function StyleChatIndexScreen() {
             clearDialog();
             try {
               await deleteSession(session.id);
-            } catch (err: unknown) {
+            } catch {
               Alert.alert(
                 'Could not delete conversation',
-                (err as Error)?.message || 'Please try again.',
+                "We couldn't delete the conversation right now. Please try again.",
               );
             }
           },

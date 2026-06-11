@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
+import { mapAuthError } from '../../services/authValidation';
 import { supabase } from '../../services/supabaseClient';
 
 export default function ResetPasswordScreen() {
@@ -40,7 +41,7 @@ export default function ResetPasswordScreen() {
     setBusy(false);
 
     if (resetError) {
-      setError(resetError.message || 'Unable to send reset link.');
+      setError(mapAuthError(resetError.message, 'reset'));
       return;
     }
     setMessage('Password reset link sent. Open it on this device to continue.');
@@ -120,12 +121,12 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   backButton: { width: 56 },
-  backText: { color: '#00FFFF', fontSize: 13, fontWeight: '700' },
+  backText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerRight: { width: 56 },
   brand: { ...TYPOGRAPHY.brand, fontSize: 16 },
-  screenTitle: { ...TYPOGRAPHY.caption, marginTop: SPACING.xs, color: '#00FFFF' },
+  screenTitle: { ...TYPOGRAPHY.caption, marginTop: SPACING.xs, color: COLORS.accent },
   body: { flex: 1, padding: LAYOUT.screenPadding, justifyContent: 'center' },
   card: {
     borderWidth: 1,

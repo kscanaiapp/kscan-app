@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { supabase } from '../../services/supabaseClient';
 import { validateNewPassword, verifySessionAfterPasswordUpdate } from '../../services/passwordReset';
+import { mapAuthError } from '../../services/authValidation';
 
 export default function UpdatePasswordScreen() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function UpdatePasswordScreen() {
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
       setBusy(false);
-      setError(updateError.message || 'Unable to update password.');
+      setError(mapAuthError(updateError.message, 'update-password'));
       return;
     }
 
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   headerSide: { width: 56 },
   headerCenter: { flex: 1, alignItems: 'center' },
   brand: { ...TYPOGRAPHY.brand, fontSize: 16 },
-  screenTitle: { ...TYPOGRAPHY.caption, marginTop: SPACING.xs, color: '#00FFFF' },
+  screenTitle: { ...TYPOGRAPHY.caption, marginTop: SPACING.xs, color: COLORS.accent },
   body: { flex: 1, padding: LAYOUT.screenPadding, justifyContent: 'center' },
   card: {
     borderWidth: 1,
