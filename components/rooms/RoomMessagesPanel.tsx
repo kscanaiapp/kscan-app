@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -56,6 +56,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const sendInFlightRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!roomId) return;
@@ -82,7 +83,8 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const canSend = !sending && draftLength > 0 && !draftTooLong;
 
   const handleSend = async () => {
-    if (!canSend) return;
+    if (!canSend || sendInFlightRef.current) return;
+    sendInFlightRef.current = true;
     setSending(true);
     setSendError(null);
     try {
@@ -92,6 +94,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     } catch (err: any) {
       setSendError(typeof err?.message === 'string' ? err.message : ROOM_MESSAGE_SEND_ERROR);
     } finally {
+      sendInFlightRef.current = false;
       setSending(false);
     }
   };
