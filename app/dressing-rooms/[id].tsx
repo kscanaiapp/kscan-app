@@ -3,6 +3,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -61,6 +62,7 @@ import {
   ItemReactions,
   type ReactionCountsForItem,
 } from '../../components/dressing-rooms/ItemReactions';
+import { RoomMessagesPanel } from '../../components/rooms/RoomMessagesPanel';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
@@ -619,7 +621,15 @@ function DressingRoomDetailContent() {
       {blocking ? (
         <LoadingOrError loading={loading} error={error} onRetry={reload} />
       ) : (
-        <ScrollView contentContainerStyle={styleObjectStyles.content}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          contentContainerStyle={styleObjectStyles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           {room?.description ? <Text style={styles.description}>{room.description}</Text> : null}
           <View style={styles.noteSection}>
             <Text style={styles.noteLabel}>ROOM NOTE</Text>
@@ -772,8 +782,12 @@ function DressingRoomDetailContent() {
             )}
           </View>
 
+          {/* ── Room Messages (private, authenticated only — never on public preview) ── */}
+          {isAuthenticated ? <RoomMessagesPanel roomId={roomId} /> : null}
+
           <PrimaryButton label="Delete Room" onPress={handleDeleteRoom} variant="danger" />
         </ScrollView>
+        </KeyboardAvoidingView>
       )}
       <EditRoomModal room={room} visible={editing} onClose={() => setEditing(false)} onSaved={reload} />
       <CreateLookModal
@@ -885,6 +899,9 @@ export default function DressingRoomDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   description: {
     ...TYPOGRAPHY.body,
     color: COLORS.editorialTextSecondary,
