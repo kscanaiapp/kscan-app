@@ -470,7 +470,11 @@ Deno.serve(async (req) => {
     const raw = await geminiRes.text().catch(() => '');
 
     if (!geminiRes.ok) {
-      console.warn('[stylechat-generate] Gemini error status=%d body=%s', geminiRes.status, raw.slice(0, 200));
+      console.warn(
+        '[stylechat-generate] Gemini error status=%d bodyChars=%d',
+        geminiRes.status,
+        raw.length,
+      );
       throw new Error(`Gemini returned ${geminiRes.status}`);
     }
 
@@ -481,7 +485,7 @@ Deno.serve(async (req) => {
     try {
       geminiData = JSON.parse(raw);
     } catch {
-      console.warn('[stylechat-generate] Gemini parse failure body=%s', raw.slice(0, 200));
+      console.warn('[stylechat-generate] Gemini parse failure bodyChars=%d', raw.length);
       throw new Error('Gemini returned non-JSON');
     }
 
