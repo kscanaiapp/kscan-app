@@ -8,7 +8,7 @@
 - Package: `com.kscanai.app`
 - VersionName: `1.0.0`
 - VersionCode: `5`
-- Branch / commit: `release/android-1.0.0` at `3f79470463611e89f17f76251fb71f65c9f49cb3`
+- Branch / Prompt 11A baseline commit: `release/android-1.0.0` at `3797b8bf5fd31506b14b41b0e5f5256eec10c00a`
 - Track readiness: draft only, not submitted
 - Production build profile: app-bundle, `distribution: store` (`eas.json`)
 - Source evidence: prior QA files from Prompts 3-8, Prompt 10 provider/data-safety audit, plus read-only config/manifest/package/code scans performed in this pass.
@@ -49,7 +49,19 @@
 - KicksCrew/RapidAPI is conditional on KicksCrew product URL enrichment. Product-search/deals, try-on, and Nike RapidAPI paths exist but no active release caller was verified for the latter three; keep them inactive or review provider terms before enabling.
 - No advertising/tracking SDKs, `AD_ID` permission, or Advertising ID code were found in repo evidence. Owner must still confirm no off-repo analytics, affiliate attribution, targeted advertising, or commercial tracking arrangement exists.
 - Backend/Edge/Supabase logs require owner review for production debug flags, partial identifiers, search-query logging in conditional functions, IP/session metadata, retention, and DPA status.
-- Target audience remains P0 owner/legal review: repo evidence says the app is not designed for children under 13, but Gemini API terms require review before selecting any under-18 Play audience while AI flows are active.
+- Target audience owner decision is now locked for the first Android release: select 18+ only in Google Play. Do not select 13-15 or 16-17. Do not participate in Families / Designed for Children for this release. This resolves the Gemini under-18 API-client compatibility blocker, but not Gemini unpaid-tier data-use risk, OpenRouter ZDR uncertainty, or Supabase logging/DPA uncertainty.
+
+### Prompt 11A AI Provider + 18+ Target Audience Decision Addendum
+
+- Cross-reference: `qa/google-play-ai-provider-decision-brief-2026-06-12.md`.
+- Target Audience Decision: First Android release is intended for users 18 and older only.
+- Google Play target age groups should select 18+ only.
+- Do not select 13-15 or 16-17 for this release.
+- This 18+ posture is selected to align StyleChat/Gemini-powered functionality with Gemini API age requirements without adding age-gating in the first release.
+- AI Provider Decision Status: PASS WITH NOTES pending Gemini tier/DPA/logging confirmation, OpenRouter production/ZDR confirmation, and Supabase AI logging confirmation.
+- Gemini Current Tier: Owner reports current Gemini usage is unpaid. Internal testing may proceed only with unpaid-tier risk documented. Final Play Console submission requires either paid-tier confirmation or conservative unpaid-tier disclosure.
+- Do not mark this Data Safety draft final from Prompt 11A evidence alone.
+- Do not claim `Gemini paid tier confirmed`, `OpenRouter ZDR active`, `no training`, `no retention`, `P0 unblocked`, or `Ready for Play Console Data Safety submission` until the relevant provider/account facts or conservative owner/legal disclosure decision are documented.
 
 ## Executive Summary
 
@@ -200,14 +212,14 @@ Worst-case/conservative draft: assume sharing may be required until provider ter
 | Confirm whether Gemini/AI provider processing is service-provider processing or Data Safety sharing | Backend/legal | P0 | Drives "shared?" answer for StyleChat text and image uploads. |
 | Confirm image-processing provider retention/security review behavior | Backend/legal | P0 | Includes Gemini image retention settings. |
 | Confirm production OpenRouter env and provider posture | Backend/legal | P0 | `server.js` has conditional OpenRouter image-analysis path; prove disabled or complete provider review. |
-| Confirm Gemini API age/client eligibility against Play target audience | Product/legal/backend | P0 | Gemini API terms require review before selecting any under-18 audience while AI features are active. |
+| Confirm Play Console target audience selects 18+ only | Product/legal/backend | P0 | Owner decision locks first Android release to 18+ only; operator must enter 18+ only and avoid 13-15/16-17/Families selections. |
 | Confirm whether backend/Supabase logs use IP for approximate location, regional routing, security analytics, diagnostics, or rate limiting | Backend | P0 | Determines approximate-location disclosure. |
 | Confirm Supabase Realtime websocket logging and IP retention behavior | Backend | P0/P1 | Realtime metadata/IP handling. |
 | Confirm Advertising ID / AAID is not collected | Mobile/release | P0 | Scans show no AAID; owner sign-off needed. |
 | Confirm third-party shopping/search provider terms and forwarded context | Backend/legal | P0/P1 | Vinted, KicksCrew (RapidAPI), Nike, product-deals, try-on edge functions. |
 | Confirm deployed `search-vinted-secondhand` implementation/source-of-truth | Backend/legal | P0 | Client path is active; tracked release files do not prove deployed provider, retention, DPA, or logs. |
-| Confirm app is not designed for children under 13 (COPPA / Play target audience) | Product/legal | P0 | App handles `under_13`/`age_13_to_15` age groups for privacy defaults; clarify intended audience vs. child-directed status. |
-| Confirm exact target audience selection: 13+, 16+, or other | Product/legal | P0 | Note: privacy logic references under-16 sale/sharing defaults. |
+| Confirm app is not directed to children or minors for first Android release | Product/legal | P0 | App handles `under_13`/`age_13_to_15` age groups for privacy defaults; this privacy logic is not release target-audience marketing. |
+| Confirm final screenshots/assets avoid youth-directed contexts | Product/design/legal | P0 | Use adult models or no people; avoid school, classroom, teen-bedroom, youth-sports, child, or family-directed visual context. |
 | Confirm exact retention period language | Legal/operations | P0 | Align with 30-day operational path. |
 | Confirm deletion processor operational SLA | Backend/operations | P0 | Manual service-role script today. |
 | Confirm Supabase Storage cleanup timeline | Backend | P0/P1 | Storage object removal not implemented in processor. |

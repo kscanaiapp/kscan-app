@@ -48,6 +48,14 @@ Screenshot creation is deferred to the operator/designer. This packet does not g
 - Privacy screen.
 - Pending-deletion banner, if using a disposable account.
 
+### Screenshot / Visual Target-Audience Guidance
+
+- Screenshots and visual assets should use adult models or no people.
+- Avoid school, classroom, teen-bedroom, youth-sports, or child/family-directed visual contexts.
+- Avoid copy that suggests teen, student, child, family, all-ages, 13+, or 16+ use.
+- 18+ target audience does not imply mature content; it reflects provider-policy and commerce/privacy scoping.
+- Users should upload clothing-focused images; do not show surveillance, facial recognition, biometric identification, or identifying-people use cases.
+
 ## Graphic Assets
 
 - [ ] App icon.
@@ -83,14 +91,20 @@ Do not claim a final content rating from this packet.
 ### Target Audience Draft Notes
 
 ```text
-Intended audience: users interested in fashion, clothing inspiration, wardrobe organization, and style discovery.
+Intended audience: users 18 and older interested in fashion, clothing inspiration, wardrobe organization, and style discovery.
 ```
 
 ```text
-Not designed for children under 13.
+K Scan AI is not directed to children or minors.
 ```
 
-If the operator chooses a higher minimum age because of AI/chat interactions, document that as an owner decision in Play Console notes.
+```text
+Google Play target age groups: select 18+ only. Do not select 13-15 or 16-17 for this first Android release. Do not participate in Families / Designed for Children.
+```
+
+```text
+The 18+ posture is selected to align StyleChat/Gemini-powered functionality with Gemini API age requirements without adding age-gating in the first release. It does not mean the app contains mature content.
+```
 
 ### Ads Declaration Draft Notes
 

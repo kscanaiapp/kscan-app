@@ -35,6 +35,12 @@ Do not submit a deletion request using the primary demo account if that account 
 StyleChat uses standard anti-abuse usage limits to protect service reliability. If rapid repeated requests are sent, the reviewer may see a friendly limit message. This is expected behavior and not an app crash.
 ```
 
+## Target Audience Reviewer Note
+
+```text
+K Scan is intended for users 18 and older for this first Android release. The app is not directed to children or minors and is not participating in Google Play Families / Designed for Children. The 18+ posture reflects AI-provider, commerce, and privacy scoping; it does not mean the app contains mature content.
+```
+
 ## Account Deletion Reviewer Note
 
 ```text
@@ -50,7 +56,7 @@ K Scan is intended for clothing-focused images. Users should avoid uploading fac
 ## AI / StyleChat Reviewer Note
 
 ```text
-StyleChat is private to the authenticated user and uses usage limits to protect service reliability. The app does not expose provider API keys in the mobile client.
+StyleChat is intended for adult users, is private to the authenticated user, and uses usage limits to protect service reliability. The app does not expose provider API keys in the mobile client.
 ```
 
 ## Dressing Rooms Reviewer Note

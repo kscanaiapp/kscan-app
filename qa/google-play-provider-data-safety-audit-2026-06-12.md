@@ -405,6 +405,21 @@ Recommended conservative conclusion:
 - Do not finalize a 13+ or 16+ Play target audience while Gemini is active until legal/provider review confirms the Gemini API age/client eligibility posture.
 - If legal/product selects an adult-only audience, align store listing, privacy copy, and any age-gate/account behavior accordingly.
 
+### Prompt 11A Follow-Up: Owner 18+ Decision Lock
+
+Prompt 11A received a new owner decision after this Prompt 10 audit: the first Android release target audience is 18+ only.
+
+Decision impact:
+
+- The Gemini under-18 API-client compatibility blocker is resolved for the first Android release if Play Console selects 18+ only and the app/store assets are not directed to children or minors.
+- Do not select 13-15 or 16-17 for this Android release.
+- Do not participate in Google Play Families / Designed for Children for this Android release.
+- This target-audience decision does not resolve Gemini unpaid-tier data-use/training/human-review risk.
+- This target-audience decision does not resolve OpenRouter production/ZDR uncertainty.
+- This target-audience decision does not resolve Supabase logging/DPA/retention uncertainty.
+
+Updated cross-reference: `qa/google-play-ai-provider-decision-brief-2026-06-12.md`.
+
 ## 7. Data Safety Implications
 
 Likely or conditional collection/processing based on repo evidence:

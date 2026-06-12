@@ -22,6 +22,8 @@ All options below are ASCII-only and under 80 characters / 80 bytes.
 
 K Scan helps you capture clothing inspiration, organize style ideas, and explore fashion with AI-assisted tools.
 
+K Scan is intended for users 18 and older. It is not directed to children or minors; this adult-only release posture reflects AI-provider, commerce, and privacy scoping and does not mean the app contains mature content.
+
 Use K Scan to scan clothing-focused images, save style inspiration, and keep outfit ideas organized. StyleChat helps you think through looks, color pairings, and styling questions. Dressing Rooms let you group saved items and inspiration into private spaces, with optional token-based previews when you choose to share.
 
 K Scan is designed for fashion and clothing inspiration. Please upload clothing-focused images only and avoid faces, bystanders, sensitive personal information, or images you do not have permission to use.
@@ -50,6 +52,8 @@ If Play Console treats this as a first public listing and "What's new" is option
 - On-device-only, no-cloud, and zero-knowledge claims are not used.
 - Automatic face or bystander blur behavior is not claimed.
 - Retailer partnership, guaranteed shopping, and checkout claims are not used.
+- Teen, student, child, family, all-ages, 13+, and 16+ target-audience claims are not used.
+- Gemini paid-tier, no-training, no-retention, and OpenRouter ZDR claims are not used.
 - Exact commit hashes and internal release-hardening details are intentionally excluded from user-facing Play copy.
 
 ## Release Decision
