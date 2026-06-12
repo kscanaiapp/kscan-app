@@ -2,16 +2,17 @@
 
 Last updated: 2026-06-12
 
+> Release-scope warning: This runbook contains Apple/App Store preparation notes from an earlier candidate and must not be reused as Google Play/Data Safety source-of-truth. The Android RC on `release/android-1.0.0` includes StyleChat, Dressing Rooms, Google OAuth, Apple OAuth, and account deletion lifecycle work. Use the current QA release notes instead.
+
 ## Current Release Scope
 
-- Mobile candidate: `feature/beta-account-lifecycle`
+- Mobile candidate: earlier Apple candidate; not the current Android RC source of truth
 - App version: `1.0.0`
 - iOS bundle ID: `com.kscanai.app`
 - iOS build number in repo: `1`
 - EAS project: `@ams2dad/kscan`
-- Authentication: email/password only
-- Included app surface: camera scan, scan result, local saved scan library, privacy controls, data export/correction request entry points, and in-app account deletion
-- Not included: Sign in with Apple, Google Sign-In, StyleChat, Dressing Rooms, Share by Link, photo library import, microphone, location, tracking, push notifications, ads, subscriptions, or in-app purchases
+- Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
+- Still not included for this release: microphone, location, tracking, push notifications, ads, subscriptions, or in-app purchases.
 
 ## Local Submission Readiness
 

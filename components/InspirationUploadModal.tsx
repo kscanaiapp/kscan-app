@@ -91,7 +91,7 @@ export function InspirationUploadModal({
             {roomId ? 'Add to Room Inspiration' : 'Add to Style Library'}
           </Text>
           <Text style={styles.subtitle}>
-            Your uploads are private and only visible to you.
+            Upload clothing-focused images only. Avoid faces, bystanders, or sensitive information.
           </Text>
 
           {done ? (

@@ -237,7 +237,7 @@ export default function PrivacyScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Request account deletion?</Text>
             <Text style={styles.modalBody}>
-              Your deletion request will be processed within 30 days. We will delete your account and associated app data, except information we are legally required to retain.
+              Your deletion request will be reviewed and processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -297,7 +297,7 @@ export default function PrivacyScreen() {
               <View testID="privacy-pending-deletion-banner" style={styles.pendingDeletionBanner}>
                 <Text style={styles.pendingDeletionTitle}>ACCOUNT DELETION PENDING</Text>
                 <Text style={styles.pendingDeletionBody}>
-                  This account is limited to privacy and account-management actions while the deletion request is processed. Scan and library access are paused.
+                  Your account deletion request is pending processing. For privacy and safety, app access is limited while the request is processed. You can sign out at any time.
                 </Text>
               </View>
             ) : null}

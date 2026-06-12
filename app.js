@@ -429,6 +429,9 @@ export default function App() {
           <SafeAreaView style={styles.topBar}>
             {renderBrandTitle()}
             <Text style={styles.caption}>Capture your silhouette</Text>
+            <Text style={styles.scanSafetyText}>
+              Clothing-focused images only. Avoid faces, bystanders, or sensitive info.
+            </Text>
             <View testID="scan-home-signal" style={styles.scanSignalBadge}>
               <Text style={styles.scanSignalText}>Scan Ready</Text>
             </View>
@@ -710,6 +713,18 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     color: COLORS.chromeMuted,
     textShadowColor: 'rgba(0, 0, 0, 0.42)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  scanSafetyText: {
+    ...TYPOGRAPHY.caption,
+    marginTop: SPACING.xs,
+    maxWidth: 260,
+    color: COLORS.chromeMuted,
+    fontSize: 10,
+    lineHeight: 15,
+    letterSpacing: 0.8,
+    textShadowColor: 'rgba(0, 0, 0, 0.48)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },

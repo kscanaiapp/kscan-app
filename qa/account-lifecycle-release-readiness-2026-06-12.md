@@ -96,7 +96,7 @@ Deletion coverage: UNVERIFIED / FOLLOW-UP REQUIRED for storage objects, local fi
 - Do not claim complete deletion for Supabase Storage until object cleanup is implemented and tested.
 - Do not claim local device files are server-deleted; local saved scans remain device-local and are removed by in-app deletion or uninstall.
 - Do not claim StyleChat burst usage has complete account-deletion coverage until the table has a cascade FK or explicit processor cleanup.
-- Stale doc alignment note: `docs/apple-app-store-submission-runbook.md` still says StyleChat, Dressing Rooms, Sign in with Apple, and Google Sign-In are "not included"; that statement is stale for this RC and should not be reused for Google Play/Data Safety language.
+- Stale doc alignment note: a later public-copy pass added a warning to `docs/apple-app-store-submission-runbook.md` and corrected its earlier StyleChat, Dressing Rooms, Sign in with Apple, and Google Sign-In "not included" statement. Do not reuse older Apple-specific sections as Google Play/Data Safety source-of-truth.
 - Data Safety finalization remains deferred.
 - Website repo untouched.
 

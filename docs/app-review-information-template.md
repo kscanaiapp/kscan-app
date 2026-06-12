@@ -2,6 +2,8 @@
 
 Last updated: 2026-06-12
 
+> Release-scope warning: This template contains Apple/App Store review notes from an earlier candidate and must not be reused as Google Play/Data Safety source-of-truth. The Android RC on `release/android-1.0.0` includes StyleChat, Dressing Rooms, Google OAuth, Apple OAuth, and account deletion lifecycle work. Use the current QA release notes instead.
+
 Use this template when filling App Store Connect App Review Information. Do not commit real reviewer passwords or Apple account secrets to this repository.
 
 ## Contact Information
@@ -22,7 +24,7 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ## Review Notes
 
 ```text
-This release uses email/password authentication only. Sign in with Apple, Google Sign-In, subscriptions, in-app purchases, ads, tracking, push notifications, location, microphone, and photo library import are not part of this build.
+The current Android RC includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not part of this build.
 
 To review the app:
 1. Sign in with the reviewer email/password above.
@@ -31,7 +33,7 @@ To review the app:
 4. Save a result to the local library, then delete it from the library.
 5. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.
 
-Users can request account deletion in the app from Privacy > Delete Account. The request is recorded server-side, the account is marked pending deletion, and pending-deletion accounts are blocked from normal app use. K Scan processes deletion requests manually using a service-role Supabase operator script and completes eligible requests within 30 days.
+Users can request account deletion in the app from Privacy > Delete Account. Once a request is submitted, the app marks the account as pending deletion, limits normal app access, and provides a clear sign-out path. Requests are processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.
 ```
 
 ## Pre-Submission Checks

@@ -130,7 +130,9 @@ export function AddScanToDressingRoomModal({
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Text style={styles.title}>Add Scan to Dressing Room</Text>
-          <Text style={styles.subtitle}>Save this captured inspiration image privately.</Text>
+          <Text style={styles.subtitle}>
+            Save this clothing-focused image to a Dressing Room. Avoid faces, bystanders, or sensitive information.
+          </Text>
 
           {missingImage ? (
             <Text style={styles.message}>No local scan image is available.</Text>
