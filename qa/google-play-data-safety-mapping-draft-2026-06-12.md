@@ -8,10 +8,10 @@
 - Package: `com.kscanai.app`
 - VersionName: `1.0.0`
 - VersionCode: `5`
-- Branch / commit: `release/android-1.0.0` at `4bd04f9385e174c941b014945bbf88d2ad02d53b`
+- Branch / commit: `release/android-1.0.0` at `3f79470463611e89f17f76251fb71f65c9f49cb3`
 - Track readiness: draft only, not submitted
 - Production build profile: app-bundle, `distribution: store` (`eas.json`)
-- Source evidence: prior QA files from Prompts 3-8, plus read-only config/manifest/package/code scans performed in this pass.
+- Source evidence: prior QA files from Prompts 3-8, Prompt 10 provider/data-safety audit, plus read-only config/manifest/package/code scans performed in this pass.
 
 ### Evidence Files Reviewed
 
@@ -38,6 +38,18 @@
 - Backend shopping/search Edge Functions invoked from client services: `nike-shoe-details`, `search-vinted-secondhand`, `kickscrew` (RapidAPI), product-search/deals, try-on. These can forward style/scan/search context to third-party shopping/search providers via the backend.
 - Cloud image storage: Supabase Storage `style-library-images` bucket, `{userId}/...` paths (`services/styleObjects.ts`).
 - Secrets boundary scan: no hardcoded provider keys, service-role tokens, or admin credentials found in the mobile client. The only provider-key reference is `process.env.GEMINI_API_KEY` inside a server API route.
+
+### Prompt 10 Provider/Data Safety Audit Addendum
+
+- Cross-reference: `qa/google-play-provider-data-safety-audit-2026-06-12.md`.
+- Hosted image analysis uses `server.js` and sends base64 clothing image content plus prompt/instruction text to Google Gemini. Final Data Safety sharing/service-provider classification is blocked on Gemini account tier, DPA, retention, training/data-use settings, and abuse-monitoring/log review.
+- `server.js` also contains a conditional OpenRouter image-analysis path gated by `USE_OPENROUTER=true` and `OPENROUTER_API_KEY`. If enabled, it sends the image as a base64 data URI in an `image_url` field. Production env must prove this path is disabled or complete provider review.
+- StyleChat sends user chat text, bounded recent message history, and compact style context/memory to Gemini through `stylechat-generate`; no StyleChat image/base64 payload was found. Provider retention/training and Edge log retention remain P0 owner/provider blockers.
+- Secondhand search is active at the client level through `search-vinted-secondhand`, but the tracked release source-of-truth for the deployed Edge Function/provider is unresolved in this pass. Do not assume Vinted/Apify/provider retention or service-provider status without owner confirmation.
+- KicksCrew/RapidAPI is conditional on KicksCrew product URL enrichment. Product-search/deals, try-on, and Nike RapidAPI paths exist but no active release caller was verified for the latter three; keep them inactive or review provider terms before enabling.
+- No advertising/tracking SDKs, `AD_ID` permission, or Advertising ID code were found in repo evidence. Owner must still confirm no off-repo analytics, affiliate attribution, targeted advertising, or commercial tracking arrangement exists.
+- Backend/Edge/Supabase logs require owner review for production debug flags, partial identifiers, search-query logging in conditional functions, IP/session metadata, retention, and DPA status.
+- Target audience remains P0 owner/legal review: repo evidence says the app is not designed for children under 13, but Gemini API terms require review before selecting any under-18 Play audience while AI flows are active.
 
 ## Executive Summary
 
@@ -187,10 +199,13 @@ Worst-case/conservative draft: assume sharing may be required until provider ter
 | Confirm final AI provider retention/training/data-use terms | Backend/legal | P0 | Gemini is the verified image-analysis provider; StyleChat AI provider terms unverified. |
 | Confirm whether Gemini/AI provider processing is service-provider processing or Data Safety sharing | Backend/legal | P0 | Drives "shared?" answer for StyleChat text and image uploads. |
 | Confirm image-processing provider retention/security review behavior | Backend/legal | P0 | Includes Gemini image retention settings. |
+| Confirm production OpenRouter env and provider posture | Backend/legal | P0 | `server.js` has conditional OpenRouter image-analysis path; prove disabled or complete provider review. |
+| Confirm Gemini API age/client eligibility against Play target audience | Product/legal/backend | P0 | Gemini API terms require review before selecting any under-18 audience while AI features are active. |
 | Confirm whether backend/Supabase logs use IP for approximate location, regional routing, security analytics, diagnostics, or rate limiting | Backend | P0 | Determines approximate-location disclosure. |
 | Confirm Supabase Realtime websocket logging and IP retention behavior | Backend | P0/P1 | Realtime metadata/IP handling. |
 | Confirm Advertising ID / AAID is not collected | Mobile/release | P0 | Scans show no AAID; owner sign-off needed. |
 | Confirm third-party shopping/search provider terms and forwarded context | Backend/legal | P0/P1 | Vinted, KicksCrew (RapidAPI), Nike, product-deals, try-on edge functions. |
+| Confirm deployed `search-vinted-secondhand` implementation/source-of-truth | Backend/legal | P0 | Client path is active; tracked release files do not prove deployed provider, retention, DPA, or logs. |
 | Confirm app is not designed for children under 13 (COPPA / Play target audience) | Product/legal | P0 | App handles `under_13`/`age_13_to_15` age groups for privacy defaults; clarify intended audience vs. child-directed status. |
 | Confirm exact target audience selection: 13+, 16+, or other | Product/legal | P0 | Note: privacy logic references under-16 sale/sharing defaults. |
 | Confirm exact retention period language | Legal/operations | P0 | Align with 30-day operational path. |
