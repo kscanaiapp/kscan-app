@@ -65,8 +65,18 @@ StyleChat is intended for adult users, is private to the authenticated user, and
 Dressing Rooms are private by default. Users can choose to share token-based previews.
 ```
 
+## AI Processing Reviewer Note
+
+```text
+K Scan uses third-party AI services to analyze clothing-focused images and to power StyleChat.
+Images may be processed by an external AI provider to return fashion attributes; the app does not
+expose provider API keys in the mobile client and does not perform facial recognition, biometric
+identification, or person identification. See Data Safety for the corresponding disclosures.
+```
+
 ## Known Non-Blocking Release Notes
 
+- Final Data Safety answers: see `qa/google-play-data-safety-final-answers-2026-06-12.md` (Prompt 12 — PASS WITH NOTES, Prompt 13 READY).
 - Data Safety finalization is still pending owner review.
 - Complete automated deletion is not claimed.
 - Supabase Storage cleanup and StyleChat burst usage cleanup are tracked follow-ups.

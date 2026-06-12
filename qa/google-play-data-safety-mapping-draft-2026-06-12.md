@@ -72,6 +72,11 @@
 - Supabase: `stylechat-generate` function logging is metadata-only (no raw messages/emails/full IDs/images); classified `SERVICE PROVIDER — LOGGING/RETENTION CONFIRMATION REQUIRED` pending DPA completion, platform/Edge invocation-log retention, and production `NODE_ENV=production` + debug flags off. No third-party-sharing classification on infrastructure grounds alone.
 - This draft remains NOT final. The conservative answer for the image track until the owner picks an OpenRouter gate is third-party AI processing.
 
+### Prompt 12 Final Answer Packet Pointer
+
+- The canonical, Play Console-ready answers now live in `qa/google-play-data-safety-final-answers-2026-06-12.md` (Prompt 12). That packet selects **OpenRouter Gate C (conservative)**: clothing **images are declared shared** with a third-party AI processing/routing provider; StyleChat text is service-provider (paid Gemini); Supabase is service-provider; Advertising ID and location are not collected. Use the final answer packet — not this draft — to enter Play Console values.
+- Prompt 12 status: **PASS WITH NOTES**; Prompt 13: **READY**. Remaining provider/dashboard items are P1 (conservative disclosure already covers submission). See also `qa/google-play-submission-readiness-lock-2026-06-12.md`.
+
 ## Executive Summary
 
 This draft maps the release candidate's known data collection, sharing, security, and deletion behavior for Google Play Data Safety preparation. It should be reviewed by the owner before entering final answers in Play Console.
@@ -256,6 +261,6 @@ Worst-case/conservative draft: assume sharing may be required until provider ter
 
 ## Draft Status
 
-DATA SAFETY MAPPING STATUS: PASS WITH NOTES - SAFE TO PROCEED, BUT OWNER/PROVIDER REVIEW REQUIRED BEFORE FINAL PLAY CONSOLE ENTRY
+DATA SAFETY MAPPING STATUS: PASS WITH NOTES - SAFE TO PROCEED. SUPERSEDED FOR FINAL ANSWERS BY `qa/google-play-data-safety-final-answers-2026-06-12.md` (Prompt 12).
 
-This draft does not authorize AAB generation, EAS Build, EAS Submit, Play submission, or final Data Safety submission.
+This draft does not authorize AAB generation, EAS Build, EAS Submit, Play submission, or final Data Safety submission. Final Play Console answers come from the Prompt 12 final answer packet.

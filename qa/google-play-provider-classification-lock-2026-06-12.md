@@ -279,3 +279,11 @@ Provider classification: **LOCKED** for every AI/infrastructure flow, each with 
 **Google Submission v2 Prompt 11B Status: PASS WITH NOTES.**
 
 **Prompt 12 Readiness: NOT READY** — pending the §11 P0 owner/provider/legal confirmations (or explicit conservative-disclosure acceptances). No further engineering investigation required.
+
+---
+
+### Prompt 12 Update (2026-06-12)
+
+Prompt 12 resolved the §12 readiness gate by selecting **explicit conservative disclosure** rather than waiting on every dashboard fact: **OpenRouter Gate C** (images declared shared with a third-party AI provider), paid-Gemini service-provider framing for StyleChat text, and Supabase service-provider. The live Privacy Policy (`https://kscan.app/legal/privacy`) was verified to disclose third-party AI processing of images/messages, so no Data Safety↔policy contradiction remains. The §11 P0 items are now reclassified as **P1 confirmations/optimizations** (conservative disclosure covers submission).
+
+Final answers: `qa/google-play-data-safety-final-answers-2026-06-12.md`. Go/no-go: `qa/google-play-submission-readiness-lock-2026-06-12.md`. **Prompt 12: PASS WITH NOTES · Prompt 13: READY.**
