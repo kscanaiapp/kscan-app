@@ -56,6 +56,50 @@ async function rest(path: string, init: RequestInit = {}) {
   });
 }
 
+const deletionRequestNote = 'User-initiated deletion request from K Scan AI mobile app.';
+
+function isMissingColumn(detail: string, column: string) {
+  return detail.includes('PGRST204') && detail.includes(`'${column}' column`);
+}
+
+async function insertDeletionRequest(userId: string) {
+  const requestSources = ['mobile_app', 'app'];
+  const noteVariants = [
+    { label: 'notes', body: { notes: deletionRequestNote } },
+    { label: 'internal_notes', body: { internal_notes: deletionRequestNote } },
+    { label: 'no note field', body: {} },
+  ];
+
+  // The intended release schema uses mobile_app + notes. Some beta-linked
+  // projects still expose app/internal_notes, so try legacy-safe fallbacks
+  // without changing schema or blocking request intake.
+  for (const requestSource of requestSources) {
+    for (const noteVariant of noteVariants) {
+      const response = await rest('deletion_requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: userId,
+          status: 'pending',
+          request_source: requestSource,
+          ...noteVariant.body,
+        }),
+      });
+
+      if (response.ok) return response;
+
+      const detail = await response.text();
+      if (noteVariant.label !== 'no note field' && isMissingColumn(detail, noteVariant.label)) {
+        console.warn(`deletion_requests.${noteVariant.label} unavailable; retrying intake`);
+        continue;
+      }
+
+      console.error(`Deletion request insert failed for ${requestSource}/${noteVariant.label}`, detail);
+    }
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -79,19 +123,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const insertResponse = await rest('deletion_requests', {
-      method: 'POST',
-      body: JSON.stringify({
-        user_id: user.id,
-        status: 'pending',
-        request_source: 'mobile_app',
-        notes: 'User-initiated deletion request from K Scan AI mobile app.',
-      }),
-    });
+    const insertResponse = await insertDeletionRequest(user.id);
 
-    if (!insertResponse.ok) {
-      const detail = await insertResponse.text();
-      return json({ error: 'Unable to create deletion request', detail }, 500);
+    if (!insertResponse) {
+      return json({ error: 'Unable to create deletion request' }, 500);
     }
 
     const [deletionRequest] = await insertResponse.json();

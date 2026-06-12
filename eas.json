@@ -11,7 +11,9 @@
         "applicationArchivePath": "android/app/build/outputs/apk/release/app-release.apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://kscan-app.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yzqjvdfgefveprobvvyw.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6cWp2ZGZnZWZ2ZXByb2J2dnl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjA3MzUsImV4cCI6MjA5NDI5NjczNX0.G2KhgpTyccVauWdRpC67v3bOxXhygnDb_MROnr6MwWE"
       }
     },
     "development": {
@@ -19,6 +21,20 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yzqjvdfgefveprobvvyw.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6cWp2ZGZnZWZ2ZXByb2J2dnl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjA3MzUsImV4cCI6MjA5NDI5NjczNX0.G2KhgpTyccVauWdRpC67v3bOxXhygnDb_MROnr6MwWE"
       }
     }
   },

@@ -39,19 +39,21 @@ const styles = StyleSheet.create({
     paddingVertical:   chip.paddingVertical,
     borderRadius:      chip.borderRadius,
     // Chrome left accent + standard border on remaining sides
-    borderWidth:       chip.borderWidth,
-    borderColor:       chip.borderColor,
+    borderWidth:       StyleSheet.hairlineWidth,
+    borderColor:       COLORS.borderHairline,
     borderLeftWidth:   2,
-    borderLeftColor:   COLORS.accent,
-    backgroundColor:   chip.backgroundColor,
+    borderLeftColor:   COLORS.gold,
+    backgroundColor:   COLORS.surfaceRaised,
     justifyContent:    'center',
   },
   label: {
     ...TYPOGRAPHY.chipLabel,
     marginBottom: chip.labelMarginBottom,
+    color: COLORS.editorialTextMuted,
   },
   value: {
     ...TYPOGRAPHY.chipValue,
+    color: COLORS.editorialTextPrimary,
     paddingRight: SPACING.xs,
   },
 });

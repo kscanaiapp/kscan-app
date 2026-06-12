@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,16 +12,35 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
+import * as WebBrowser from 'expo-web-browser';
 
-import { useAuthSession } from '../contexts/AuthSessionContext';
-import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../constants/theme';
-import { validateAuthInput, mapAuthError } from '../services/authValidation';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { validateAuthInput, mapAuthError } from '../../services/authValidation';
+import { AUTH_CALLBACK_URL } from '../../services/authConfig';
+import { supabase } from '../../services/supabaseClient';
+import {
+  getAuthCallbackRedirect,
+  parseAuthCallbackUrl,
+} from '../../services/authDeepLink';
+
+WebBrowser.maybeCompleteAuthSession();
 
 type AuthMode = 'sign-in' | 'create-account';
-type AuthStep = 'idle' | 'submitting' | 'confirm-email';
+type AuthStep = 'idle' | 'submitting' | 'google-oauth' | 'apple-oauth' | 'confirm-email';
+
+function createRawNonce(length = 32) {
+  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+  const randomBytes = Crypto.getRandomBytes(length);
+  return Array.from(randomBytes, (byte) => charset[byte % charset.length]).join('');
+}
 
 export default function AuthScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signIn, signUp, isAuthenticated } = useAuthSession();
 
   const [mode, setMode] = useState<AuthMode>('sign-in');
@@ -30,19 +49,31 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [step, setStep] = useState<AuthStep>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
 
   // Navigate away when a session appears (sign-in or immediate signup without email confirmation)
   useEffect(() => {
     if (isAuthenticated) {
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/');
-      }
+      router.replace('/');
     }
   }, [isAuthenticated, router]);
 
-  const busy = step === 'submitting';
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+
+    let mounted = true;
+    void AppleAuthentication.isAvailableAsync().then((available) => {
+      if (mounted) setAppleAuthAvailable(available);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const busy = step === 'submitting' || step === 'google-oauth' || step === 'apple-oauth';
+  const googleBusy = step === 'google-oauth';
+  const appleBusy = step === 'apple-oauth';
 
   const switchMode = (newMode: AuthMode) => {
     if (newMode === mode) return;
@@ -80,6 +111,151 @@ export default function AuthScreen() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setStep('google-oauth');
+
+    try {
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: AUTH_CALLBACK_URL,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (oauthError) {
+        throw oauthError;
+      }
+
+      if (!data.url) {
+        throw new Error('Missing Google sign-in URL.');
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, AUTH_CALLBACK_URL);
+
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        setError('Sign-in cancelled.');
+        setStep('idle');
+        return;
+      }
+
+      if (result.type !== 'success' || !result.url) {
+        setError('We could not complete Google sign-in. Please try again.');
+        setStep('idle');
+        return;
+      }
+
+      const parsed = parseAuthCallbackUrl(result.url);
+
+      if (parsed.error) {
+        const lowerError = String(parsed.error).toLowerCase();
+        setError(
+          lowerError.includes('access_denied')
+            ? 'Google sign-in was denied.'
+            : 'We could not complete Google sign-in. Please try again.',
+        );
+        setStep('idle');
+        return;
+      }
+
+      if (parsed.code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(parsed.code);
+        if (error) {
+          setError('We could not complete Google sign-in. Please try again.');
+          setStep('idle');
+          return;
+        }
+        router.replace(getAuthCallbackRedirect(parsed));
+        return;
+      }
+
+      if (parsed.hasSessionTokens) {
+        const { error } = await supabase.auth.setSession({
+          access_token: parsed.accessToken,
+          refresh_token: parsed.refreshToken,
+        });
+        if (error) {
+          setError('We could not complete Google sign-in. Please try again.');
+          setStep('idle');
+          return;
+        }
+        router.replace(getAuthCallbackRedirect(parsed));
+        return;
+      }
+
+      setError('We could not complete Google sign-in. Please try again.');
+      setStep('idle');
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : '';
+      setError(
+        raw.toLowerCase().includes('network')
+          ? 'Network error. Please try again.'
+          : 'We could not launch Google sign-in. Please try again.',
+      );
+      setStep('idle');
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (Platform.OS !== 'ios') {
+      setError('Apple sign-in is available on iOS devices.');
+      return;
+    }
+
+    setError(null);
+    setStep('apple-oauth');
+
+    try {
+      const rawNonce = createRawNonce();
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce,
+      );
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+
+      if (!credential.identityToken) {
+        setError('We could not complete Apple sign-in. Please try again.');
+        setStep('idle');
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+        nonce: rawNonce,
+      });
+
+      if (signInError) {
+        setError('We could not complete Apple sign-in. Please try again.');
+        setStep('idle');
+        return;
+      }
+
+      router.replace('/');
+    } catch (err) {
+      const code = typeof err === 'object' && err && 'code' in err ? String(err.code) : '';
+      const message = err instanceof Error ? err.message : '';
+      const lowerMessage = message.toLowerCase();
+
+      if (code === 'ERR_REQUEST_CANCELED') {
+        setError('Sign-in cancelled.');
+      } else if (lowerMessage.includes('network')) {
+        setError('Network error. Please try again.');
+      } else {
+        setError('We could not complete Apple sign-in. Please try again.');
+      }
+      setStep('idle');
+    }
+  };
+
   // Invoked from the confirmation panel: return to sign-in mode
   const handleBackToSignIn = () => {
     setMode('sign-in');
@@ -95,7 +271,7 @@ export default function AuthScreen() {
     return (
       <View style={styles.root}>
         <StatusBar style="light" />
-        <SafeAreaView style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backText}>Cancel</Text>
           </Pressable>
@@ -104,7 +280,7 @@ export default function AuthScreen() {
             <Text style={styles.screenTitle}>ACCOUNT ACCESS</Text>
           </View>
           <View style={styles.headerRight} />
-        </SafeAreaView>
+        </View>
 
         <KeyboardAvoidingView
           style={styles.body}
@@ -115,7 +291,7 @@ export default function AuthScreen() {
             <Text style={styles.cardBody}>
               We sent a confirmation link to{' '}
               <Text style={styles.emailHighlight}>{email.trim()}</Text>. Open the link to verify
-              your account, then sign in below.
+              your account and K Scan will sign you in automatically.
             </Text>
             <Pressable style={styles.primaryButton} onPress={handleBackToSignIn}>
               <Text style={styles.primaryButtonText}>SIGN IN</Text>
@@ -136,7 +312,7 @@ export default function AuthScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <SafeAreaView style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()} disabled={busy}>
           <Text style={[styles.backText, busy && styles.disabled]}>Cancel</Text>
         </Pressable>
@@ -145,7 +321,7 @@ export default function AuthScreen() {
           <Text style={styles.screenTitle}>{screenTitle}</Text>
         </View>
         <View style={styles.headerRight} />
-      </SafeAreaView>
+      </View>
 
       <KeyboardAvoidingView
         style={styles.body}
@@ -184,6 +360,48 @@ export default function AuthScreen() {
               : 'Create an account to sync your privacy preferences and manage your K Scan data.'}
           </Text>
 
+          <Pressable
+            testID="auth-google-button"
+            style={[styles.googleButton, busy && styles.googleButtonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={busy}
+          >
+            {googleBusy ? (
+              <ActivityIndicator size="small" color={COLORS.textPrimary} />
+            ) : (
+              <>
+                <View style={styles.googleIcon}>
+                  <Text style={styles.googleIconText}>G</Text>
+                </View>
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </>
+            )}
+          </Pressable>
+
+          {appleAuthAvailable ? (
+            <Pressable
+              testID="auth-apple-button"
+              style={[styles.appleButton, busy && styles.appleButtonDisabled]}
+              onPress={handleAppleSignIn}
+              disabled={busy}
+            >
+              {appleBusy ? (
+                <ActivityIndicator size="small" color={COLORS.black} />
+              ) : (
+                <>
+                  <Text style={styles.appleIconText}>Apple</Text>
+                  <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{error}</Text>
@@ -197,7 +415,7 @@ export default function AuthScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor={COLORS.textTertiary}
+              placeholderTextColor={COLORS.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -214,7 +432,7 @@ export default function AuthScreen() {
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              placeholderTextColor={COLORS.textTertiary}
+              placeholderTextColor={COLORS.textSecondary}
               secureTextEntry
               autoCapitalize="none"
               autoComplete={mode === 'sign-in' ? 'password' : 'new-password'}
@@ -233,7 +451,7 @@ export default function AuthScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="••••••••"
-                placeholderTextColor={COLORS.textTertiary}
+                placeholderTextColor={COLORS.textSecondary}
                 secureTextEntry
                 autoCapitalize="none"
                 autoComplete="new-password"
@@ -259,6 +477,19 @@ export default function AuthScreen() {
               </Text>
             )}
           </Pressable>
+
+          {mode === 'sign-in' ? (
+            <Pressable
+              testID="auth-forgot-password-button"
+              onPress={() => router.push('/auth/reset')}
+              disabled={busy}
+              style={styles.forgotPasswordButton}
+            >
+              <Text style={[styles.secondaryLinkAction, busy && styles.disabled]}>
+                Forgot password?
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <Pressable
@@ -275,8 +506,21 @@ export default function AuthScreen() {
         </Pressable>
 
         <Text style={styles.footNote}>
-          Privacy preferences are protected by row-level security. Your choices are visible only to your account.
+          Your choices are private to your account.
         </Text>
+        <View style={styles.legalLinks}>
+          <Pressable onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}>
+            <Text style={styles.legalLinkText}>Privacy Policy</Text>
+          </Pressable>
+          <Text style={styles.legalLinkSep}>·</Text>
+          <Pressable onPress={() => void Linking.openURL('https://kscan.app/legal/terms')}>
+            <Text style={styles.legalLinkText}>Terms</Text>
+          </Pressable>
+          <Text style={styles.legalLinkSep}>·</Text>
+          <Pressable onPress={() => void Linking.openURL('https://kscan.app/support')}>
+            <Text style={styles.legalLinkText}>Support</Text>
+          </Pressable>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -290,7 +534,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: LAYOUT.safeTop,
     paddingHorizontal: LAYOUT.screenPadding,
     paddingBottom: SPACING.lg,
     borderBottomWidth: 1,
@@ -300,7 +543,7 @@ const styles = StyleSheet.create({
     width: 56,
   },
   backText: {
-    color: '#00FFFF',
+    color: COLORS.accent,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -321,7 +564,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
-    color: '#00FFFF',
+    color: COLORS.accent,
   },
   body: {
     flex: 1,
@@ -351,15 +594,15 @@ const styles = StyleSheet.create({
   },
   tabText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
   },
   tabTextActive: {
-    color: '#00FFFF',
+    color: COLORS.accent,
   },
   tabIndicator: {
     height: 2,
     width: 28,
-    backgroundColor: '#00FFFF',
+    backgroundColor: COLORS.accent,
     borderRadius: 1,
   },
   tabIndicatorInvisible: {
@@ -396,7 +639,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
   },
   input: {
     height: 50,
@@ -427,6 +670,75 @@ const styles = StyleSheet.create({
     color: COLORS.textInverse,
     fontSize: 13,
   },
+  googleButton: {
+    minHeight: 52,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+    backgroundColor: COLORS.bgElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.textPrimary,
+  },
+  googleIconText: {
+    color: '#4285F4',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  googleButtonText: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.textPrimary,
+    fontSize: 14,
+  },
+  appleButton: {
+    minHeight: 52,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  appleButtonDisabled: {
+    opacity: 0.6,
+  },
+  appleIconText: {
+    color: COLORS.black,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  appleButtonText: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.black,
+    fontSize: 14,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dividerText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontSize: 10,
+  },
   secondaryLinkRow: {
     alignItems: 'center',
     paddingVertical: SPACING.xs,
@@ -434,19 +746,41 @@ const styles = StyleSheet.create({
   secondaryLink: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
     textAlign: 'center',
   },
   secondaryLinkAction: {
-    color: '#00FFFF',
+    color: COLORS.accent,
     fontWeight: '600',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'center',
+    paddingVertical: SPACING.xs,
   },
   footNote: {
     ...TYPOGRAPHY.body,
     fontSize: 12,
     lineHeight: 18,
-    color: COLORS.textTertiary,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     paddingHorizontal: SPACING.lg,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    paddingTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+  },
+  legalLinkText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  legalLinkSep: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
   },
 });

@@ -1,6 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { analyzeImage } from '../services/api';
+import {
+  buildSecondhandSearchRequest,
+  searchVintedSecondhand,
+} from '../services/secondhand';
+import { searchSneakers, shouldEnrichSneakers } from '../services/sneakers/index';
 import { compressForUpload } from '../services/imageUtils';
+import {
+  getPrivacySanitizerStatus,
+  sanitizeImageBeforeUpload,
+} from '../services/privacyImageSanitizer';
 import {
   errorPulse,
   softImpact,
@@ -11,6 +20,14 @@ import {
 // Minimum time to stay in 'processing' so the PerceptionLayer HUD has time to
 // complete its entry animation (~730ms) before the result card appears.
 const MIN_ANALYSIS_MS = 600;
+
+function logAnalyzeDiag(payload) {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+  console.log(`[KSCAN_DIAG_ANALYZE] ${JSON.stringify({
+    ...payload,
+    timestamp: Date.now(),
+  })}`);
+}
 
 const VALID_TRANSITIONS = {
   idle: ['capturing'],
@@ -50,6 +67,7 @@ export function useKScan() {
   // duplicate captures or duplicate API calls.
   const captureInProgressRef = useRef(false);
   const analysisInProgressRef = useRef(false);
+  const secondhandRequestRef = useRef(0);
 
   useEffect(() => {
     isMounted.current = true;
@@ -92,16 +110,48 @@ export function useKScan() {
     async () => {
       if (__DEV__) console.log('[DEBUG] ANALYZE_TAP status=' + status);
 
-      if (analysisInProgressRef.current || status !== 'preview') {
+      if (analysisInProgressRef.current) {
+        logAnalyzeDiag({
+          event: 'duplicate_analyze_blocked',
+          source: 'runAnalysis',
+          reason: 'analysis_in_flight',
+          status,
+        });
         warnInvalidTransition(status, 'processing');
         return;
       }
-      if (!photo?.uri) return;
+
+      if (status !== 'preview') {
+        logAnalyzeDiag({
+          event: 'analyze_trigger_rejected',
+          source: 'runAnalysis',
+          reason: 'invalid_status',
+          status,
+        });
+        warnInvalidTransition(status, 'processing');
+        return;
+      }
+      if (!photo?.uri) {
+        logAnalyzeDiag({
+          event: 'analyze_trigger_rejected',
+          source: 'runAnalysis',
+          reason: 'missing_photo_uri',
+          status,
+        });
+        return;
+      }
 
       analysisInProgressRef.current = true;
+      logAnalyzeDiag({
+        event: 'analyze_trigger_accepted',
+        source: 'runAnalysis',
+        status,
+      });
       setStatus('processing');
       setError(null);
       setAnalysis(null);
+      secondhandRequestRef.current += 1;
+      const secondhandRequestId = secondhandRequestRef.current;
 
       if (__DEV__) console.log('[DEBUG] SET_PROCESSING');
 
@@ -123,8 +173,21 @@ export function useKScan() {
         const compressed = await compressForUpload(photo.uri);
         if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
 
+        const sanitized = await sanitizeImageBeforeUpload(compressed);
+        if (__DEV__) {
+          const sanitizerStatus = getPrivacySanitizerStatus();
+          console.warn(
+            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
+            sanitizerStatus.mode +
+            ' faceDetectionAvailable=' +
+            sanitizerStatus.faceDetectionAvailable +
+            ' faceBlurApplied=' +
+            sanitizerStatus.faceBlurApplied
+          );
+        }
+
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
-        const data = await analyzeImage(compressed);
+        const data = await analyzeImage(sanitized);
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
 
         // Enforce minimum HUD display time so PerceptionLayer completes its entry
@@ -152,13 +215,44 @@ export function useKScan() {
         setNonFashionMessage(null);
         if (__DEV__) console.log('[DEBUG] SET_RESULT status=result');
         setStatus('result');
+
+        const secondhandRequest = buildSecondhandSearchRequest(data);
+        if (secondhandRequest) {
+          searchVintedSecondhand(secondhandRequest).then((secondhand) => {
+            if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+            if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
+            setAnalysis((current) => {
+              if (!current || current.type === 'non-fashion') return current;
+              return { ...current, secondhand };
+            });
+          });
+        }
+
+        // Sneaker enrichment — async, never blocks the result card.
+        const sneakerInput = {
+          rawText:            data.result,
+          category:           data.metadata?.category,
+          categoryConfidence: data.metadata?.categoryConfidence,
+          brand:              data.metadata?.brand,
+          model:              data.metadata?.silhouette,
+        };
+        if (shouldEnrichSneakers(sneakerInput)) {
+          searchSneakers(sneakerInput).then((sneakerReference) => {
+            if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+            if (!sneakerReference || sneakerReference.length === 0) return;
+            setAnalysis((current) => {
+              if (!current || current.type === 'non-fashion') return current;
+              return { ...current, sneakerReference };
+            });
+          });
+        }
       } catch (err) {
         if (__DEV__) console.error('[DEBUG] ANALYZE_ERROR', err?.message);
         if (isMounted.current) {
           errorPulse();
           setError(
             err?.userMessage ||
-            'Connection issue — Tap to retry'
+            'We couldn’t complete the scan. Please check your connection and try again.'
           );
           setStatus('error');
         }
@@ -182,6 +276,7 @@ export function useKScan() {
     setAnalysis(null);
     setError(null);
     setNonFashionMessage(null);
+    secondhandRequestRef.current += 1;
     setStatus('idle');
   }, [status, photo]);
 
@@ -200,12 +295,13 @@ export function useKScan() {
         return;
       }
 
-      console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
+      if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
       setPhoto({ uri, qaFixtureName: fixtureName });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
+      secondhandRequestRef.current += 1;
       requestAnimationFrame(() => {
         if (isMounted.current) setStatus('preview');
       });
@@ -223,6 +319,7 @@ export function useKScan() {
     setPhoto(null);
     setError(null);
     setNonFashionMessage(null);
+    secondhandRequestRef.current += 1;
     setStatus('idle');
   }, [status]);
 
@@ -236,10 +333,12 @@ export function useKScan() {
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
+      secondhandRequestRef.current += 1;
       setStatus('preview');
     } else {
       setError(null);
       setNonFashionMessage(null);
+      secondhandRequestRef.current += 1;
       setStatus('idle');
     }
   }, [status, photo]);

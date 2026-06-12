@@ -7,13 +7,26 @@ import {
   StyleSheet,
   Linking,
   Animated,
+  Modal,
+  ActivityIndicator,
+  TextInput,
   type ImageStyle,
 } from 'react-native';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { selectionTick } from '../services/haptics';
+import { useAuthSession } from '../contexts/AuthSessionContext';
+import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
+import { useDressingRooms } from '../hooks/useStyleObjects';
+import {
+  addProductToDressingRoom,
+  createDressingRoom,
+  isRemoteImageUrl,
+  UnsupportedStyleObjectItemError,
+} from '../services/styleObjects';
 
 export interface Product {
   id?:         string;
+  title?:      string;
   name?:       string;
   retailer?:   string;
   price?:      string;
@@ -42,6 +55,14 @@ const PLACEHOLDER_CATEGORIES = new Set([
 function normalizeImageCategory(category: string | null | undefined) {
   const normalized = String(category || '').toLowerCase().trim();
   return PLACEHOLDER_CATEGORIES.has(normalized) ? normalized : 'accessories';
+}
+
+function getProductTitle(product: Product | null | undefined) {
+  return String(product?.title || product?.name || '').trim();
+}
+
+export function canAddProductToDressingRoom(product: Product | null | undefined) {
+  return getProductTitle(product).length > 0 && isRemoteImageUrl(product?.imageUrl);
 }
 
 function ProductImagePlaceholder({ category }: { category: string }) {
@@ -153,6 +174,9 @@ function CatalogProductImage({
 export function ProductShelf({ products }: ProductShelfProps) {
   const [linkErrorVisible, setLinkErrorVisible] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
   if (!products || products.length === 0) return null;
 
@@ -181,6 +205,8 @@ export function ProductShelf({ products }: ProductShelfProps) {
           const purchaseUrl = p.affiliateUrl || p.productUrl || p.purchaseUrl || null;
           const hasLink = !!purchaseUrl;
           const productKey = p.id ?? String(i);
+          const productTitle = getProductTitle(p) || 'Unknown Product';
+          const canSaveToRoom = canAddProductToDressingRoom(p);
           const imageCategory = normalizeImageCategory(p.imageCategory);
           const showImage = !!p.imageUrl && !failedImages[productKey];
           if (typeof __DEV__ !== 'undefined' && __DEV__ && !showImage) {
@@ -194,24 +220,29 @@ export function ProductShelf({ products }: ProductShelfProps) {
             );
           }
           return (
-            <TouchableOpacity
+            <View
               key={productKey}
               style={[styles.card, !hasLink && styles.cardNoLink]}
-              onPress={() => handleLinkPress(purchaseUrl)}
-              activeOpacity={hasLink ? 0.78 : 1}
             >
-              {showImage ? (
-                <CatalogProductImage
-                  uri={p.imageUrl}
-                  productKey={productKey}
-                  imageCategory={imageCategory}
-                  onError={() => setFailedImages((current) => ({ ...current, [productKey]: true }))}
-                />
-              ) : (
-                <View style={[styles.image, styles.imagePlaceholder]}>
-                  <ProductImagePlaceholder category={imageCategory} />
-                </View>
-              )}
+              <TouchableOpacity
+                onPress={() => handleLinkPress(purchaseUrl)}
+                activeOpacity={hasLink ? 0.78 : 1}
+                disabled={!hasLink}
+                accessibilityLabel={hasLink ? `Open ${productTitle}` : productTitle}
+              >
+                {showImage ? (
+                  <CatalogProductImage
+                    uri={p.imageUrl}
+                    productKey={productKey}
+                    imageCategory={imageCategory}
+                    onError={() => setFailedImages((current) => ({ ...current, [productKey]: true }))}
+                  />
+                ) : (
+                  <View style={[styles.image, styles.imagePlaceholder]}>
+                    <ProductImagePlaceholder category={imageCategory} />
+                  </View>
+                )}
+              </TouchableOpacity>
 
               <View style={styles.cardBody}>
                 {p.retailer ? (
@@ -220,13 +251,34 @@ export function ProductShelf({ products }: ProductShelfProps) {
                   </Text>
                 ) : null}
                 <Text style={styles.name} numberOfLines={2}>
-                  {p.name || 'Unknown Product'}
+                  {productTitle}
                 </Text>
                 <Text style={styles.price}>{p.price || '—'}</Text>
+                {dressingRoomsEnabled ? (
+                  <TouchableOpacity
+                    testID="add-to-dressing-room-button"
+                    accessibilityRole="button"
+                    accessibilityLabel="Add to Dressing Room"
+                    style={[
+                      styles.addToRoomButton,
+                      !canSaveToRoom ? styles.addToRoomButtonDisabled : null,
+                    ]}
+                    onPress={() => {
+                      selectionTick();
+                      setSelectedProduct(p);
+                    }}
+                    activeOpacity={0.82}
+                  >
+                    <Text style={styles.addToRoomText}>
+                      {canSaveToRoom ? 'Add to Dressing Room' : "Can't Save Yet"}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {hasLink && <View style={styles.linkDot} />}
-            </TouchableOpacity>
+
+            </View>
           );
         })}
       </ScrollView>
@@ -234,7 +286,149 @@ export function ProductShelf({ products }: ProductShelfProps) {
       {linkErrorVisible && (
         <Text style={styles.linkError}>LINK UNAVAILABLE</Text>
       )}
+
+      {dressingRoomsEnabled ? (
+        <AddToRoomModal
+          product={selectedProduct}
+          visible={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      ) : null}
     </View>
+  );
+}
+
+function AddToRoomModal({
+  product,
+  visible,
+  onClose,
+}: {
+  product: Product | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const { user } = useAuthSession();
+  const { rooms, loading, error, reload } = useDressingRooms();
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [newRoomTitle, setNewRoomTitle] = useState('');
+
+  const handleAdd = async (roomId: string) => {
+    if (!product || saving) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await addProductToDressingRoom(roomId, product);
+      const roomName = rooms.find((room) => room.id === roomId)?.title || 'Dressing Room';
+      setMessage(`Saved to ${roomName}.`);
+      setTimeout(onClose, 900);
+    } catch (err: any) {
+      setMessage(
+        err instanceof UnsupportedStyleObjectItemError
+          ? "This catalog item can't be added to a Dressing Room yet."
+          : err?.message || 'Unable to add item.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateAndAdd = async () => {
+    if (!newRoomTitle.trim() || !product || saving) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const room = await createDressingRoom({
+        userId: user?.id,
+        title: newRoomTitle,
+        description: null,
+      });
+      await addProductToDressingRoom(room.id, product);
+      setNewRoomTitle('');
+      setMessage(`Saved to ${room.title}.`);
+      await reload();
+      setTimeout(onClose, 900);
+    } catch (err: any) {
+      setMessage(err?.message || 'Unable to create Dressing Room.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const unsupported = product ? !canAddProductToDressingRoom(product) : false;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Add to Dressing Room</Text>
+          <Text style={styles.modalItemName} numberOfLines={2}>
+            {getProductTitle(product) || 'Catalog item'}
+          </Text>
+
+          {unsupported ? (
+            <Text style={styles.modalMessage}>This item can't be saved to a Dressing Room yet.</Text>
+          ) : loading ? (
+            <ActivityIndicator color={COLORS.accent} />
+          ) : error ? (
+            <Text style={styles.modalMessage}>{error}</Text>
+          ) : (
+            <>
+              <ScrollView style={styles.roomList} contentContainerStyle={styles.roomListContent}>
+                {rooms.length === 0 ? (
+                  <Text style={styles.modalMessage}>Create your first Dressing Room.</Text>
+                ) : (
+                  rooms.map((room) => (
+                    <TouchableOpacity
+                      key={room.id}
+                      style={styles.roomChoice}
+                      onPress={() => handleAdd(room.id)}
+                      disabled={saving}
+                    >
+                      <Text style={styles.roomChoiceTitle}>{room.title}</Text>
+                      <Text style={styles.roomChoiceMeta}>{room.itemCount ?? 0} ITEMS</Text>
+                      {saving ? <ActivityIndicator color={COLORS.accent} /> : null}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+
+              <View style={styles.quickCreate}>
+                <Text style={styles.quickCreateLabel}>NEW ROOM</Text>
+                <TextInput
+                  value={newRoomTitle}
+                  onChangeText={setNewRoomTitle}
+                  placeholder="Vacation Capsule"
+                  placeholderTextColor={COLORS.editorialTextMuted}
+                  style={styles.quickCreateInput}
+                />
+              </View>
+            </>
+          )}
+
+          {!unsupported ? (
+            <View style={styles.newRoomControls}>
+              <TouchableOpacity
+                style={[styles.modalPrimaryButton, (!newRoomTitle.trim() || saving) && styles.modalButtonDisabled]}
+                onPress={handleCreateAndAdd}
+                disabled={!newRoomTitle.trim() || saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color={COLORS.textInverse} />
+                ) : (
+                  <Text style={styles.modalPrimaryText}>CREATE + ADD</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {message ? <Text style={styles.modalMessage}>{message}</Text> : null}
+          <TouchableOpacity style={styles.modalSecondaryButton} onPress={onClose} disabled={saving}>
+            <Text style={styles.modalSecondaryText}>CLOSE</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -250,12 +444,12 @@ const styles = StyleSheet.create({
   },
   label: {
     ...TYPOGRAPHY.sectionLabel,
-    color: COLORS.textTertiary,
+    color: COLORS.editorialTextMuted,
   },
   labelLine: {
     flex:            1,
     height:          1,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.borderHairline,
     opacity:         0.5,
   },
   scrollContent: {
@@ -265,13 +459,14 @@ const styles = StyleSheet.create({
   card: {
     width:           CARD_WIDTH,
     borderRadius:    RADIUS.md,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderWidth:     StyleSheet.hairlineWidth,
+    borderColor:     COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
     overflow:        'hidden',
+    ...SHADOWS.editorialSmall,
   },
   cardNoLink: {
-    opacity: 0.6,
+    opacity: 1,
   },
   image: {
     width:  IMAGE_SIZE,
@@ -285,14 +480,14 @@ const styles = StyleSheet.create({
     left: 0,
   },
   imagePlaceholder: {
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.surfaceMuted,
     alignItems:      'center',
     justifyContent:  'center',
   },
   imageSkeleton: {
-    backgroundColor: COLORS.bgElevated,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surfaceMuted,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.borderHairline,
   },
   placeholderMark: {
     width:          72,
@@ -306,7 +501,7 @@ const styles = StyleSheet.create({
   },
   placeholderGoldStroke: {
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: COLORS.gold,
   },
   placeholderCyanStroke: {
     borderWidth: 1,
@@ -479,19 +674,19 @@ const styles = StyleSheet.create({
     fontSize:      9,
     fontWeight:    '600' as const,
     letterSpacing: 1.8,
-    color:         COLORS.textTertiary,
+    color:         COLORS.editorialTextMuted,
     textTransform: 'uppercase' as const,
   },
   name: {
     fontSize:   12,
     fontWeight: '500' as const,
-    color:      COLORS.textPrimary,
+    color:      COLORS.editorialTextPrimary,
     lineHeight: 17,
   },
   price: {
     fontSize:   13,
     fontWeight: '600' as const,
-    color:      COLORS.accent,
+    color:      COLORS.goldPressed,
     marginTop:  SPACING.xxs,
   },
   linkDot: {
@@ -501,7 +696,7 @@ const styles = StyleSheet.create({
     width:           6,
     height:          6,
     borderRadius:    3,
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.gold,
     opacity:         0.7,
   },
   linkError: {
@@ -509,5 +704,129 @@ const styles = StyleSheet.create({
     color:     COLORS.errorSoft,
     textAlign: 'center',
     marginTop: SPACING.sm,
+  },
+  addToRoomButton: {
+    minHeight: 34,
+    borderRadius: RADIUS.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceRaised,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.sm,
+  },
+  addToRoomButtonDisabled: {
+    opacity: 0.58,
+  },
+  addToRoomText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.editorialTextPrimary,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: COLORS.backdrop,
+    padding: SPACING.xl,
+  },
+  modalCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
+    padding: SPACING.xl,
+    maxHeight: '82%',
+  },
+  modalTitle: {
+    ...TYPOGRAPHY.title,
+    color: COLORS.editorialTextPrimary,
+  },
+  modalItemName: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.editorialTextSecondary,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
+  },
+  roomList: {
+    maxHeight: 260,
+  },
+  roomListContent: {
+    gap: SPACING.sm,
+  },
+  roomChoice: {
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceRaised,
+    padding: SPACING.md,
+    gap: SPACING.xs,
+  },
+  roomChoiceTitle: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.editorialTextPrimary,
+  },
+  roomChoiceMeta: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.goldPressed,
+  },
+  quickCreate: {
+    marginTop: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  quickCreateLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.editorialTextMuted,
+  },
+  quickCreateInput: {
+    minHeight: 48,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceRaised,
+    color: COLORS.editorialTextPrimary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: 14,
+  },
+  newRoomControls: {
+    marginTop: SPACING.md,
+  },
+  modalPrimaryButton: {
+    minHeight: 48,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  modalPrimaryText: {
+    ...TYPOGRAPHY.cta,
+    color: COLORS.textInverse,
+  },
+  modalSecondaryButton: {
+    minHeight: 44,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.md,
+  },
+  modalSecondaryText: {
+    ...TYPOGRAPHY.cta,
+    color: COLORS.editorialTextSecondary,
+  },
+  modalButtonDisabled: {
+    opacity: 0.48,
+  },
+  modalMessage: {
+    ...TYPOGRAPHY.bodyStrong,
+    color: COLORS.editorialTextSecondary,
+    textAlign: 'center',
+    marginTop: SPACING.md,
   },
 });

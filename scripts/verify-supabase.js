@@ -11,6 +11,8 @@
  */
 
 require('dotenv').config();
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   classifyRestV1RootResponse,
@@ -30,6 +32,31 @@ const OPTIONAL_VARS = [
 
 function normalizeBaseUrl(url) {
   return String(url || '').replace(/\/+$/, '');
+}
+
+function extractProjectRefFromUrl(url) {
+  const match = String(url || '').match(/^https:\/\/([a-z0-9-]+)\.supabase\.co$/i);
+  return match ? match[1] : null;
+}
+
+function readLinkedProjectRef() {
+  try {
+    const tempDir = path.join(__dirname, '..', 'supabase', '.temp');
+    const explicitRefPath = path.join(tempDir, 'project-ref');
+    if (fs.existsSync(explicitRefPath)) {
+      return fs.readFileSync(explicitRefPath, 'utf8').trim() || null;
+    }
+
+    const linkedProjectPath = path.join(tempDir, 'linked-project.json');
+    if (fs.existsSync(linkedProjectPath)) {
+      const parsed = JSON.parse(fs.readFileSync(linkedProjectPath, 'utf8'));
+      return typeof parsed?.ref === 'string' ? parsed.ref.trim() || null : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 console.log('\n── K Scan AI — Supabase verification ───────────────────────────────────\n');
@@ -70,6 +97,25 @@ gate.push({ code: 'PASS', msg: 'Required EXPO_PUBLIC_SUPABASE_* env vars present
 
 const url = normalizeBaseUrl(process.env.EXPO_PUBLIC_SUPABASE_URL);
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const envProjectRef = extractProjectRefFromUrl(url);
+const linkedProjectRef = readLinkedProjectRef();
+
+console.log('\n── Project targeting ─────────────────────────────────────────────\n');
+if (envProjectRef) {
+  console.log(`  Runtime Supabase project ref: ${envProjectRef}`);
+}
+if (linkedProjectRef) {
+  console.log(`  Local CLI linked project ref: ${linkedProjectRef}`);
+}
+if (envProjectRef && linkedProjectRef && envProjectRef !== linkedProjectRef) {
+  const mismatchMessage =
+    `CLI link mismatch: app runtime uses ${envProjectRef}, but supabase/.temp is linked to ${linkedProjectRef}. ` +
+    'Migration list / db push may be targeting the wrong project.';
+  console.error(`  ✗ BLOCKER: ${mismatchMessage}`);
+  gate.push({ code: 'BLOCKER', msg: mismatchMessage });
+} else if (envProjectRef && linkedProjectRef) {
+  gate.push({ code: 'PASS', msg: `CLI link matches runtime project ref ${envProjectRef}` });
+}
 
 console.log('\n── Reachability (Auth API) ─────────────────────────────────────────────\n');
 
@@ -264,6 +310,12 @@ function pushGateFromLevel(level, msg, { elevateInfoToPass = false } = {}) {
       required: false,
       migration: '202605130004_privacy_requests_extensible.sql',
     },
+    {
+      label: 'public.dressing_room_item_reactions',
+      path: '/rest/v1/dressing_room_item_reactions?select=item_id,reaction_type&limit=1',
+      required: true,
+      migration: '202606050001_dressing_room_item_reactions.sql',
+    },
   ];
 
   for (const probe of schemaProbes) {
@@ -289,6 +341,46 @@ function pushGateFromLevel(level, msg, { elevateInfoToPass = false } = {}) {
         console.warn(`  ⚠ ${msg}`);
       }
     }
+  }
+
+  console.log('\n── Reaction RPC parity ───────────────────────────────────────────\n');
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/get_item_reaction_counts`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        p_item_ids: ['00000000-0000-0000-0000-000000000000'],
+      }),
+    });
+    const body = await res.text();
+    console.log(`  public.get_item_reaction_counts(uuid[]) → HTTP ${res.status}`);
+    if (body && res.status !== 200) {
+      console.log(`      body preview: ${body.slice(0, 200).replace(/\s+/g, ' ')}`);
+    }
+    if (res.status >= 200 && res.status < 300) {
+      gate.push({ code: 'PASS', msg: 'Reaction count RPC is deployed and callable via PostgREST.' });
+    } else if (res.status === 404) {
+      gate.push({
+        code: 'BLOCKER',
+        msg: 'Reaction count RPC is missing from the runtime project. Apply 202606050001 and 202606060001 to the actual app project.',
+      });
+    } else {
+      gate.push({
+        code: 'WARN',
+        msg: `Reaction count RPC returned HTTP ${res.status}. Inspect response body and runtime project schema.`,
+      });
+    }
+  } catch (err) {
+    gate.push({
+      code: 'BLOCKER',
+      msg: `Reaction count RPC probe failed: ${err.message}`,
+    });
+    console.error(`  ✗ BLOCKER: Reaction count RPC probe failed: ${err.message}`);
   }
 
   console.log('\n── Edge Function deployment probes ────────────────────────────────────\n');

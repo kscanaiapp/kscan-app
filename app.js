@@ -22,8 +22,10 @@ import { useKScan } from './hooks/useKScan';
 import { saveScan } from './services/library';
 import { getApiBaseUrl } from './services/api';
 import { AnalysisCard } from './components/AnalysisCard';
+import { AddScanToDressingRoomModal } from './components/AddScanToDressingRoomModal';
 import { PerceptionLayer } from './components/PerceptionLayer';
 import { ScanButton } from './components/ScanButton';
+import { useFeatureFreeze } from './hooks/useFeatureFreeze';
 import {
   APP_BUILD_LABEL,
   DEV_FALLBACK_STATUS,
@@ -36,6 +38,7 @@ import {
   LAYOUT,
   LOADING,
   RADIUS,
+  SHADOWS,
   SPACING,
   TOAST,
   TYPOGRAPHY,
@@ -133,10 +136,15 @@ function ActionButton({ label, onPress, variant = 'primary', disabled = false })
 
 function ProcessingPanel() {
   const [showSpinner, setShowSpinner] = useState(false);
+  const [showLongWait, setShowLongWait] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSpinner(true), 200);
-    return () => clearTimeout(timer);
+    const spinnerTimer = setTimeout(() => setShowSpinner(true), 200);
+    const longWaitTimer = setTimeout(() => setShowLongWait(true), 10000);
+    return () => {
+      clearTimeout(spinnerTimer);
+      clearTimeout(longWaitTimer);
+    };
   }, []);
 
   return (
@@ -148,9 +156,11 @@ function ProcessingPanel() {
           <View style={styles.processingIndicatorHalo} />
         )}
       </View>
-      <Text style={styles.processingText}>Analyzing your look</Text>
+      <Text style={styles.processingText}>SCANNING STYLE</Text>
       <Text style={styles.processingCaption}>
-        Preparing K-SCAN Engine and refining your styling read.
+        {showLongWait
+          ? 'Waking up the K Scan engine. This can take a moment on the first scan.'
+          : 'IDENTIFYING SILHOUETTE'}
       </Text>
     </View>
   );
@@ -191,6 +201,8 @@ export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
   const {
     status,
@@ -265,6 +277,7 @@ export default function App() {
   // Reset to false when a new analysis starts (status → processing).
   const hasSavedRef = useRef(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
 
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
   // running. The AnalysisCard is held back until perceiving becomes false.
@@ -426,9 +439,20 @@ export default function App() {
               testID="library-button"
               style={styles.libraryButton}
               onPress={() => router.push('/library')}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               <Text style={styles.libraryButtonText}>LIBRARY</Text>
+            </TouchableOpacity>
+          )}
+
+          {status === 'idle' && dressingRoomsEnabled && (
+            <TouchableOpacity
+              testID="dressing-rooms-camera-button"
+              style={styles.roomsButton}
+              onPress={() => router.push('/dressing-rooms')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.libraryButtonText}>ROOMS</Text>
             </TouchableOpacity>
           )}
 
@@ -437,7 +461,7 @@ export default function App() {
               testID="qa-toggle-button"
               style={styles.qaToggleButton}
               onPress={() => setQaPanelVisible((visible) => !visible)}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               <Text style={styles.qaToggleButtonText}>QA</Text>
             </TouchableOpacity>
@@ -503,6 +527,13 @@ export default function App() {
     if (status === 'preview') {
       return (
         <View style={styles.actionsContainer}>
+          {photo?.uri && dressingRoomsEnabled ? (
+            <ActionButton
+              label="Add Scan to Dressing Room"
+              onPress={() => setScanRoomModalVisible(true)}
+              variant="secondary"
+            />
+          ) : null}
           <ActionButton label="Analyze Style" onPress={runAnalysis} />
           <ActionButton label="Retake" onPress={retake} variant="secondary" />
         </View>
@@ -527,6 +558,13 @@ export default function App() {
                 "Point K-SCAN at apparel, footwear, or accessories and scan again."}
             </Text>
           </View>
+          {photo?.uri && dressingRoomsEnabled ? (
+            <ActionButton
+              label="Add Scan to Dressing Room"
+              onPress={() => setScanRoomModalVisible(true)}
+              variant="secondary"
+            />
+          ) : null}
           <ActionButton label="Scan Again" onPress={dismissResult} />
         </View>
       );
@@ -536,6 +574,13 @@ export default function App() {
       return (
         <View style={styles.actionsContainer}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {photo?.uri && dressingRoomsEnabled ? (
+            <ActionButton
+              label="Add Scan to Dressing Room"
+              onPress={() => setScanRoomModalVisible(true)}
+              variant="secondary"
+            />
+          ) : null}
           <ActionButton label="Try Again" onPress={retry} variant="secondary" />
           <ActionButton label="Retake Photo" onPress={retake} variant="tertiary" />
         </View>
@@ -621,9 +666,29 @@ export default function App() {
           result={analysis?.result ?? ''}
           metadata={analysis?.metadata ?? EMPTY_METADATA}
           products={analysis?.products ?? []}
+          secondhand={analysis?.secondhand ?? null}
+          sneakerReference={analysis?.sneakerReference ?? null}
+          scanImageUri={photo?.uri ?? null}
+          scanSourceId={photo?.qaFixtureName ?? null}
+          scanSourceType="live_scan"
           onDismiss={dismissResult}
+          onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
         />
       )}
+
+      {dressingRoomsEnabled ? (
+        <AddScanToDressingRoomModal
+          visible={scanRoomModalVisible}
+          localImageUri={photo?.uri ?? null}
+          scan={{
+            sourceType: 'live_scan',
+            sourceId: photo?.qaFixtureName ?? null,
+            result: analysis?.result ?? null,
+            metadata: analysis?.metadata ?? null,
+          }}
+          onClose={() => setScanRoomModalVisible(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -631,7 +696,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.obsidian,
   },
   brandTitle: {
     ...TYPOGRAPHY.brand,
@@ -643,6 +708,10 @@ const styles = StyleSheet.create({
   caption: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.sm,
+    color: COLORS.chromeMuted,
+    textShadowColor: 'rgba(0, 0, 0, 0.42)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   scanSignalBadge: {
     alignSelf: 'flex-start',
@@ -650,11 +719,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.accent,
+    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
   },
   scanSignalText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.textInverse,
+    ...TYPOGRAPHY.caption,
+    color: COLORS.chrome,
+    fontSize: 10,
+    letterSpacing: 1.5,
   },
   infoText: {
     ...TYPOGRAPHY.body,
@@ -727,7 +800,7 @@ const styles = StyleSheet.create({
   },
   cameraScreen: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.obsidian,
   },
   camera: {
     flex: 1,
@@ -737,6 +810,8 @@ const styles = StyleSheet.create({
   },
   cameraOverlay: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    elevation: 10,
   },
   topBar: {
     position: 'absolute',
@@ -769,15 +844,15 @@ const styles = StyleSheet.create({
     backgroundColor: viewfinder.scanningLineColor,
     borderRadius: viewfinder.scanningLineHeight / 2,
     shadowColor: viewfinder.frameGlow,
-    shadowOpacity: 0.8,
-    shadowRadius: 14,
+    shadowOpacity: 0.42,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
   },
   corner: {
     position: 'absolute',
     width: viewfinder.cornerArmLength,
     height: viewfinder.cornerArmLength,
-    borderColor: COLORS.accent,
+    borderColor: COLORS.hudLine,
   },
   topLeft: {
     top: 0,
@@ -808,16 +883,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 20,
+    elevation: 20,
     paddingBottom: LAYOUT.cameraFooterPaddingBottom,
     paddingTop: LAYOUT.cameraFooterPaddingTop,
     alignItems: 'center',
-    backgroundColor: COLORS.overlay,
+    backgroundColor: 'rgba(9, 9, 11, 0.42)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.darkOverlayBorder,
   },
   privacyFooter: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: LAYOUT.cameraFooterPaddingBottom + 112,
+    zIndex: 21,
+    elevation: 21,
     alignItems: 'center',
     paddingVertical: SPACING.sm,
   },
@@ -825,8 +906,11 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     letterSpacing: 1.2,
-    color: COLORS.textTertiary,
-    opacity: 0.72,
+    color: COLORS.chromeMuted,
+    opacity: 0.86,
+    textShadowColor: 'rgba(0, 0, 0, 0.48)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
     textTransform: 'uppercase',
   },
   previewScreen: {
@@ -873,9 +957,9 @@ const styles = StyleSheet.create({
   processingPanel: {
     minHeight: LAYOUT.actionsMinHeight - SPACING.lg,
     borderRadius: LOADING.panelRadius,
-    backgroundColor: LOADING.panelBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.graphiteRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
     padding: LOADING.panelPadding,
     justifyContent: 'center',
     alignItems: 'center',
@@ -896,9 +980,9 @@ const styles = StyleSheet.create({
   },
   nonFashionPanel: {
     borderRadius: LOADING.panelRadius,
-    backgroundColor: LOADING.panelBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.graphiteRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
     padding: LOADING.panelPadding,
     gap: SPACING.sm,
   },
@@ -963,8 +1047,8 @@ const styles = StyleSheet.create({
     left: LAYOUT.screenPadding,
     right: LAYOUT.screenPadding,
     backgroundColor: TOAST.backgroundColor,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
     borderRadius: TOAST.borderRadius,
     paddingVertical: TOAST.paddingVertical,
     paddingHorizontal: TOAST.paddingHorizontal,
@@ -982,8 +1066,8 @@ const styles = StyleSheet.create({
     left: LAYOUT.screenPadding,
     right: LAYOUT.screenPadding,
     backgroundColor: TOAST.backgroundColor,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
     borderRadius: TOAST.borderRadius,
     paddingVertical: TOAST.paddingVertical,
     paddingHorizontal: TOAST.paddingHorizontal,
@@ -1007,29 +1091,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(12, 15, 21, 0.88)',
-    borderWidth: 1,
-    borderColor: COLORS.borderStrong,
+    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
+    ...SHADOWS.darkFloat,
   },
   libraryButtonText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.accent,
+    color: COLORS.chrome,
   },
   qaToggleButton: {
     position: 'absolute',
-    top: LAYOUT.safeTop + SPACING.xl + 48,
+    top: LAYOUT.safeTop + SPACING.xl + 92,
     right: LAYOUT.screenPadding,
     zIndex: 30,
     elevation: 30,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(12, 15, 21, 0.88)',
-    borderWidth: 1,
-    borderColor: COLORS.borderStrong,
+    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
   },
   qaToggleButtonText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.accent,
+    color: COLORS.chrome,
+  },
+  roomsButton: {
+    position: 'absolute',
+    top: LAYOUT.safeTop + SPACING.lg + 44,
+    right: LAYOUT.screenPadding,
+    zIndex: 30,
+    elevation: 30,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
+    ...SHADOWS.darkFloat,
   },
 });

@@ -106,6 +106,9 @@ env:
 - assertVisible:
     id: "auth-mode-create-account"
 
+- assertVisible:
+    id: "auth-forgot-password-button"
+
 - takeScreenshot: maestro/screenshots/test5-03-auth-screen
 
 # ════════════════════════════════════════════════════════════════════════════
