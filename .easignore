@@ -35,6 +35,7 @@ qa-*.xml
 qa-*.err
 qa-*.log
 qa-*.txt
+kscan-*.xml
 qa/
 qa/**
 *.tmp
@@ -42,10 +43,15 @@ qa/**
 # Local tool/workspace metadata
 .cursor/
 supabase/.temp/
+supabase/.branches/
 
 # Local audit/docs not needed for app build
 KScan_Website_Audit_*.md
+release-candidate-audit-*.md
+kscan-presubmission-audit.md
 AGENTS.md
+deletion-fix.patch
+kscan-google-glasses/
 
 # Local App Store / reviewer artifacts
 store.config.json
