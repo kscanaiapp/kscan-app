@@ -317,7 +317,11 @@ export default function PrivacyScreen() {
             {isAuthenticated && user ? (
               <View style={styles.accountRow}>
                 <Text style={styles.accountEmail} numberOfLines={1}>{user.email}</Text>
-                <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+                <Pressable
+                  testID="pending-deletion-sign-out-button"
+                  style={styles.signOutButton}
+                  onPress={handleSignOut}
+                >
                   <Text style={styles.signOutText}>Sign Out</Text>
                 </Pressable>
               </View>
