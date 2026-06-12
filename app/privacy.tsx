@@ -153,25 +153,32 @@ export default function PrivacyScreen() {
     try {
       const result = await submitAccountDeletionRequest(supabase, session);
       setDeletionPending(true);
-      setMessage(
+      const confirmationMessage =
         result.status === 'already_requested'
           ? 'Request already pending. You have been signed out.'
-          : 'Deletion request submitted. You have been signed out.',
-      );
+          : 'Deletion request submitted. You have been signed out.';
+      setMessage(confirmationMessage);
+
+      Alert.alert('Account deletion request', confirmationMessage, [
+        {
+          text: 'OK',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY);
+              await signOut();
+            } catch {
+              await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY).catch(() => undefined);
+            } finally {
+              setDeletionSubmitting(false);
+              router.replace('/auth');
+            }
+          },
+        },
+      ], { cancelable: false });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to request deletion.');
       setDeletionSubmitting(false);
       return;
-    }
-
-    try {
-      await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY);
-      await signOut();
-    } catch {
-      await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY).catch(() => undefined);
-    } finally {
-      setDeletionSubmitting(false);
-      router.replace('/auth');
     }
   };
 
