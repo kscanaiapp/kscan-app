@@ -21,6 +21,8 @@ export function StyleChatUiBlockView({ block }: Props) {
 
 const styles = StyleSheet.create({
   container: {
+    minWidth: 0,
+    flexShrink: 1,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.borderStrong,
@@ -32,10 +34,14 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.sectionLabel,
     color: COLORS.accent,
     marginBottom: 4,
+    flexShrink: 1,
+    minWidth: 0,
   },
   body: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
     color: COLORS.textSecondary,
+    flexShrink: 1,
+    minWidth: 0,
   },
 });

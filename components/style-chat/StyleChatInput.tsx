@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, TextInput, Pressable, Text, StyleSheet } from 'react-native';
+import { View, TextInput, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 
 interface StyleChatInputProps {
@@ -9,6 +10,13 @@ interface StyleChatInputProps {
 
 export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps) {
   const [text, setText] = useState('');
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isLandscape = width > height;
+  const safeContainerPadding = {
+    paddingLeft: Math.max(SPACING.xl, insets.left),
+    paddingRight: Math.max(SPACING.xl, insets.right),
+  };
 
   const canSubmit = text.trim().length > 0 && !disabled;
 
@@ -19,10 +27,10 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, safeContainerPadding]}>
       <TextInput
         testID="style-chat-input"
-        style={styles.input}
+        style={[styles.input, isLandscape ? styles.inputLandscape : null]}
         value={text}
         onChangeText={setText}
         placeholder="Ask your AI stylist…"
@@ -59,6 +67,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    minWidth: 0,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderTopWidth: 1,
@@ -68,6 +77,8 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     minHeight: 44,
     maxHeight: 110,
     borderRadius: RADIUS.sm,
@@ -80,8 +91,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  inputLandscape: {
+    maxHeight: 84,
+  },
   sendBtn: {
     height: 44,
+    minWidth: 64,
+    flexShrink: 0,
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.sm,
     justifyContent: 'center',

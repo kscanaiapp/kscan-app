@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
@@ -11,11 +12,16 @@ interface StyleChatBubbleProps {
 
 export function StyleChatBubble({ message, onRetry, isError }: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
+  const insets = useSafeAreaInsets();
+  const safeRowPadding = insets.left || insets.right ? {
+    paddingLeft: Math.max(SPACING.xl, insets.left),
+    paddingRight: Math.max(SPACING.xl, insets.right),
+  } : null;
 
   return (
     <View
       testID={isUser ? 'style-chat-message-user' : 'style-chat-message-assistant'}
-      style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}
+      style={[styles.row, safeRowPadding, isUser ? styles.rowUser : styles.rowAssistant]}
     >
       {!isUser ? (
         <View style={styles.avatarDot} />
@@ -45,6 +51,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    width: '100%',
+    minWidth: 0,
     marginVertical: SPACING.xs,
     paddingHorizontal: SPACING.xl,
   },
@@ -61,9 +69,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
     marginRight: SPACING.sm,
     marginBottom: 8,
+    flexShrink: 0,
   },
   bubble: {
-    maxWidth: '80%',
+    maxWidth: '84%',
+    flexShrink: 1,
+    minWidth: 0,
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
@@ -83,15 +94,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.chrome,
     lineHeight: 22,
+    flexShrink: 1,
+    minWidth: 0,
   },
   textAssistant: {
     ...TYPOGRAPHY.body,
     fontSize: 14,
     color: COLORS.textPrimary,
     lineHeight: 22,
+    flexShrink: 1,
+    minWidth: 0,
   },
   uiBlocks: {
     marginTop: SPACING.sm,
+    minWidth: 0,
   },
   retryBtn: {
     marginTop: SPACING.sm,

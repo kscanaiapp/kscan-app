@@ -1,4 +1,5 @@
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import type { StyleChatSession } from '../../services/style-chat/types';
@@ -20,8 +21,14 @@ export function StyleChatSessionList({
   onSelectSession,
   onDeleteSession,
 }: StyleChatSessionListProps) {
+  const insets = useSafeAreaInsets();
+  const safeContainerPadding = {
+    paddingLeft: Math.max(SPACING.xl, insets.left),
+    paddingRight: Math.max(SPACING.xl, insets.right),
+  };
+
   return (
-    <View testID="style-chat-session-list" style={styles.container}>
+    <View testID="style-chat-session-list" style={[styles.container, safeContainerPadding]}>
       {loading ? (
         <View style={styles.centred}>
           <ActivityIndicator size="small" color={COLORS.accent} />
@@ -43,8 +50,8 @@ export function StyleChatSessionList({
               accessibilityRole="button"
               accessibilityLabel={session.title}
             >
-              <Text style={styles.sessionTitle}>{session.title}</Text>
-              <Text style={styles.sessionMode}>{session.mode.replace(/_/g, ' ').toUpperCase()}</Text>
+              <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
+              <Text style={styles.sessionMode} numberOfLines={1}>{session.mode.replace(/_/g, ' ').toUpperCase()}</Text>
             </Pressable>
             <Pressable
               testID="style-chat-delete-button"
@@ -101,10 +108,13 @@ const styles = StyleSheet.create({
   sessionRowContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 0,
     marginBottom: SPACING.sm,
   },
   sessionRowContent: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     padding: SPACING.lg,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
@@ -117,16 +127,21 @@ const styles = StyleSheet.create({
   sessionTitle: {
     ...TYPOGRAPHY.bodyStrong,
     color: COLORS.textPrimary,
+    flexShrink: 1,
+    minWidth: 0,
   },
   sessionMode: {
     ...TYPOGRAPHY.chipLabel,
     color: COLORS.accent,
     marginTop: 4,
+    flexShrink: 1,
+    minWidth: 0,
   },
   deleteBtn: {
     marginLeft: SPACING.sm,
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
+    flexShrink: 0,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.error,

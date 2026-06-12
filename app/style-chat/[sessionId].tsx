@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
@@ -68,6 +70,13 @@ export default function StyleChatSessionScreen() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const horizontalSafePadding = {
+    paddingLeft: Math.max(SPACING.xl, insets.left),
+    paddingRight: Math.max(SPACING.xl, insets.right),
+  };
 
   // Scroll to bottom when messages arrive or update
   useEffect(() => {
@@ -155,7 +164,7 @@ export default function StyleChatSessionScreen() {
     <SafeAreaView testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="light" />
       <StyleChatHeader showBadge={false} />
-      <View style={styles.sessionMeta}>
+      <View style={[styles.sessionMeta, horizontalSafePadding]}>
         <Text style={styles.sessionLabel} numberOfLines={1}>
           {session?.title ?? 'SESSION'} · {sessionId?.slice(-8).toUpperCase()}
         </Text>
@@ -190,9 +199,11 @@ export default function StyleChatSessionScreen() {
           renderItem={renderMessage}
           ListEmptyComponent={ListEmpty}
           ListFooterComponent={ThinkingIndicator}
-          contentContainerStyle={
-            messages.length === 0 ? styles.listContentEmpty : styles.listContent
-          }
+          style={[styles.messageList, isLandscape ? styles.messageListLandscape : null]}
+          contentContainerStyle={[
+            messages.length === 0 ? styles.listContentEmpty : styles.listContent,
+            isLandscape ? styles.listContentLandscape : null,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
@@ -210,6 +221,7 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+    minHeight: 0,
   },
   sessionMeta: {
     flexDirection: 'row',
@@ -225,11 +237,14 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 11,
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     paddingRight: SPACING.sm,
   },
   sessionDeleteBtn: {
-    minHeight: 28,
-    minWidth: 52,
+    minHeight: 44,
+    minWidth: 64,
+    flexShrink: 0,
     justifyContent: 'center',
     alignItems: 'flex-end',
   },
@@ -243,11 +258,25 @@ const styles = StyleSheet.create({
     color: COLORS.error,
   },
   listContent: {
-    paddingVertical: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xl,
+  },
+  messageList: {
+    flex: 1,
+    minHeight: 0,
+  },
+  messageListLandscape: {
+    minHeight: 80,
+  },
+  listContentLandscape: {
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.lg,
   },
   listContentEmpty: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xl,
   },
   centred: {
     flex: 1,
