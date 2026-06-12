@@ -2,6 +2,8 @@
 
 > Decision-lock brief for Google Submission v2 Prompt 11A. This is not final Play Console Data Safety text and does not mark the Data Safety form ready for submission.
 
+> **Prompt 11B Update (supersedes the "unpaid" current-tier statements below):** The owner now reports the production Gemini path was upgraded to a paid / prepaid tier. This brief's "current tier: unpaid" lines (§2, §6, §8) are the historical Prompt 11A record and are retained for traceability; they are no longer the latest owner position. The locked classification — paid-tier Gemini as service-provider CONDITIONAL pending dashboard confirmation, OpenRouter as likely-active third-party AI processing with no ZDR in code, and Supabase as service-provider pending DPA/log confirmation — lives in `qa/google-play-provider-classification-lock-2026-06-12.md`. Do not claim the paid Gemini production key/billing is verified, that OpenRouter ZDR is active, or that Supabase logs are clean, from repo evidence.
+
 ## 1. Baseline Verification
 
 - Branch verified: `release/android-1.0.0`.

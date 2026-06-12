@@ -63,6 +63,15 @@
 - Do not mark this Data Safety draft final from Prompt 11A evidence alone.
 - Do not claim `Gemini paid tier confirmed`, `OpenRouter ZDR active`, `no training`, `no retention`, `P0 unblocked`, or `Ready for Play Console Data Safety submission` until the relevant provider/account facts or conservative owner/legal disclosure decision are documented.
 
+### Prompt 11B Provider Classification Lock Addendum
+
+- Cross-reference: `qa/google-play-provider-classification-lock-2026-06-12.md` (full provider classification matrix and Prompt 12 decision).
+- Gemini tier update: the owner now reports the production Gemini path was upgraded to a paid / prepaid tier (this supersedes the earlier "unpaid" statement above as the current owner position). Paid-tier Gemini supports a service-provider/processor classification (no product-improvement; processed under Google's processor DPA per official terms). This is classified `PAID TIER — SERVICE-PROVIDER CLASSIFICATION CONDITIONAL — OWNER/DASHBOARD CONFIRMATION REQUIRED`: it is NOT verified from repo evidence which billing project the production `GEMINI_API_KEY` belongs to. Do not claim the paid production key/billing is verified until Cloud Billing/dashboard confirmation.
+- Image-analysis provider interaction (important): a single `GEMINI_API_KEY` serves both StyleChat (text) and Gemini image analysis. Image analysis routes to Gemini ONLY when `USE_OPENROUTER=false`. `server.js` uses `USE_OPENROUTER` as a PRIMARY provider switch (not a post-failure fallback), and `.env.example` ships `USE_OPENROUTER=true` with `OPENROUTER_MODEL=meta-llama/llama-4-scout`. Therefore a paid Gemini key does NOT improve the image-analysis Data Safety posture if OpenRouter is the active image path.
+- OpenRouter (no ZDR in code): the OpenRouter request sends the raw base64 clothing image as an `image_url` data URI with NO `provider` routing object and NO ZDR parameter anywhere in the repo. OpenRouter's own default is no-retention, but downstream routed providers are uncontrolled, so zero data retention cannot be claimed. Treat OpenRouter as ACTIVE third-party AI processing for Data Safety unless production env proves `USE_OPENROUTER=false`. Owner must pick: (A) confirm `USE_OPENROUTER=false`, (B) verified ZDR + restricted provider routing, or (C) explicit conservative third-party-AI disclosure.
+- Supabase: `stylechat-generate` function logging is metadata-only (no raw messages/emails/full IDs/images); classified `SERVICE PROVIDER — LOGGING/RETENTION CONFIRMATION REQUIRED` pending DPA completion, platform/Edge invocation-log retention, and production `NODE_ENV=production` + debug flags off. No third-party-sharing classification on infrastructure grounds alone.
+- This draft remains NOT final. The conservative answer for the image track until the owner picks an OpenRouter gate is third-party AI processing.
+
 ## Executive Summary
 
 This draft maps the release candidate's known data collection, sharing, security, and deletion behavior for Google Play Data Safety preparation. It should be reviewed by the owner before entering final answers in Play Console.
