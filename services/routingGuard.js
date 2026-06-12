@@ -5,6 +5,8 @@ const PUBLIC_ROUTES = new Set([
   '/auth/update-password',
 ]);
 
+const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy']);
+
 function normalizePathname(pathname) {
   if (!pathname || pathname === '') return '/';
   const path = String(pathname).split('?')[0].split('#')[0] || '/';
@@ -23,6 +25,10 @@ function isAuthCallbackUrl(url) {
   return /(^|\/)auth\/callback($|[?#/])/.test(String(url || ''));
 }
 
+function isLimitedAccountRoute(pathname) {
+  return LIMITED_ACCOUNT_ROUTES.has(normalizePathname(pathname));
+}
+
 function isSessionUsable(session, nowSeconds = Math.floor(Date.now() / 1000)) {
   if (!session) return false;
   if (typeof session.expires_at === 'number' && session.expires_at <= nowSeconds) {
@@ -31,7 +37,12 @@ function isSessionUsable(session, nowSeconds = Math.floor(Date.now() / 1000)) {
   return true;
 }
 
-function getRoutingGuardState({ pathname, loading, session, nowSeconds }) {
+function hasPendingDeletionProfile(profile) {
+  if (!profile || typeof profile !== 'object') return false;
+  return profile.account_status === 'pending_deletion' || Boolean(profile.account_locked_at);
+}
+
+function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile, profileLoading }) {
   const normalizedPathname = normalizePathname(pathname);
   const hasUsableSession = isSessionUsable(session, nowSeconds);
 
@@ -46,6 +57,17 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds }) {
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/auth' };
   }
 
+  if (profileLoading) {
+    return { action: 'loading', pathname: normalizedPathname, redirectTo: null };
+  }
+
+  if (hasPendingDeletionProfile(profile)) {
+    if (isLimitedAccountRoute(normalizedPathname)) {
+      return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
+    }
+    return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/privacy' };
+  }
+
   if (isAuthEntryRoute(normalizedPathname)) {
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/' };
   }
@@ -54,9 +76,12 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds }) {
 }
 
 module.exports = {
+  LIMITED_ACCOUNT_ROUTES,
   PUBLIC_ROUTES,
   getRoutingGuardState,
+  hasPendingDeletionProfile,
   isAuthCallbackUrl,
+  isLimitedAccountRoute,
   isPublicRoute,
   isSessionUsable,
   normalizePathname,

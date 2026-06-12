@@ -11,6 +11,8 @@ const {
 const NOW = 1000;
 const validSession = { access_token: 'access-token', expires_at: NOW + 3600 };
 const expiredSession = { access_token: 'access-token', expires_at: NOW - 1 };
+const pendingProfile = { account_status: 'pending_deletion', age_group: 'unknown' };
+const lockedProfile = { account_status: 'active', age_group: 'unknown', account_locked_at: '2026-06-12T12:00:00Z' };
 
 test('launch without an active session redirects to /auth', () => {
   const state = getRoutingGuardState({ pathname: '/', loading: false, session: null, nowSeconds: NOW });
@@ -114,4 +116,53 @@ test('expired sessions are treated as signed out', () => {
   });
   assert.equal(state.action, 'redirect');
   assert.equal(state.redirectTo, '/auth');
+});
+
+test('authenticated pending-deletion accounts are limited to privacy controls', () => {
+  for (const pathname of ['/', '/scan', '/library', '/auth']) {
+    const state = getRoutingGuardState({
+      pathname,
+      loading: false,
+      session: validSession,
+      profile: pendingProfile,
+      nowSeconds: NOW,
+    });
+    assert.equal(state.action, 'redirect', pathname);
+    assert.equal(state.redirectTo, '/privacy', pathname);
+  }
+
+  const privacyState = getRoutingGuardState({
+    pathname: '/privacy',
+    loading: false,
+    session: validSession,
+    profile: pendingProfile,
+    nowSeconds: NOW,
+  });
+  assert.equal(privacyState.action, 'allow');
+});
+
+test('account lock timestamp also limits authenticated app entry', () => {
+  const state = getRoutingGuardState({
+    pathname: '/scan',
+    loading: false,
+    session: validSession,
+    profile: lockedProfile,
+    nowSeconds: NOW,
+  });
+
+  assert.equal(state.action, 'redirect');
+  assert.equal(state.redirectTo, '/privacy');
+});
+
+test('authenticated app entry waits for profile status before allowing protected routes', () => {
+  const state = getRoutingGuardState({
+    pathname: '/scan',
+    loading: false,
+    session: validSession,
+    profileLoading: true,
+    nowSeconds: NOW,
+  });
+
+  assert.equal(state.action, 'loading');
+  assert.equal(state.redirectTo, null);
 });

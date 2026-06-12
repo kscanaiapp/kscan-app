@@ -27,6 +27,7 @@ import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../constants/theme'
 import { submitAccountDeletionRequest } from '../services/accountDeletion';
 import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
+import { hasPendingDeletionProfile } from '../services/routingGuard';
 
 const PRIVACY_COPY = {
   saleRemote:
@@ -71,6 +72,7 @@ export default function PrivacyScreen() {
     remoteFetchError,
     preferenceSource,
     normalized,
+    profile,
     saving,
     persistPreference,
   } = usePrivacyPreferences();
@@ -82,6 +84,7 @@ export default function PrivacyScreen() {
   const [deletionConfirmVisible, setDeletionConfirmVisible] = useState(false);
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
+  const accountDeletionPending = hasPendingDeletionProfile(profile);
 
   const remoteActionsEnabled =
     isAuthenticated && preferenceSource === 'remote' && !remoteFetchFailed;
@@ -140,7 +143,7 @@ export default function PrivacyScreen() {
   };
 
   const handleDeletion = () => {
-    if (deletionPending) {
+    if (deletionPending || accountDeletionPending) {
       setMessage('Deletion request already pending. You have been signed out.');
       return;
     }
@@ -280,6 +283,15 @@ export default function PrivacyScreen() {
             {message ? <Text style={styles.message}>{message}</Text> : null}
             {loadFailureBanner}
 
+            {accountDeletionPending ? (
+              <View testID="privacy-pending-deletion-banner" style={styles.pendingDeletionBanner}>
+                <Text style={styles.pendingDeletionTitle}>ACCOUNT DELETION PENDING</Text>
+                <Text style={styles.pendingDeletionBody}>
+                  This account is limited to privacy and account-management actions while the deletion request is processed. Scan and library access are paused.
+                </Text>
+              </View>
+            ) : null}
+
             {showSignInCta ? (
               <Pressable testID="privacy-auth-cta" style={styles.signInNotice} onPress={() => router.push('/auth')}>
                 <View style={styles.signInNoticeText}>
@@ -396,7 +408,7 @@ export default function PrivacyScreen() {
 
               <Pressable
                 testID="privacy-delete-account-button"
-                disabled={!isAuthenticated || saving || deletionSubmitting || deletionPending}
+                disabled={!isAuthenticated || saving || deletionSubmitting || deletionPending || accountDeletionPending}
                 style={styles.dangerButton}
                 onPress={handleDeletion}
               >
@@ -404,7 +416,7 @@ export default function PrivacyScreen() {
                   <ActivityIndicator size="small" color={COLORS.errorSoft} />
                 ) : (
                   <Text style={styles.dangerButtonText}>
-                    {deletionPending ? 'Deletion Request Pending' : 'Delete Account'}
+                    {deletionPending || accountDeletionPending ? 'Deletion Request Pending' : 'Delete Account'}
                   </Text>
                 )}
               </Pressable>
@@ -533,6 +545,23 @@ const styles = StyleSheet.create({
     color: COLORS.errorSoft,
   },
   errorBannerBody: {
+    ...TYPOGRAPHY.body,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  pendingDeletionBanner: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.48)',
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  pendingDeletionTitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.errorSoft,
+  },
+  pendingDeletionBody: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
     lineHeight: 20,

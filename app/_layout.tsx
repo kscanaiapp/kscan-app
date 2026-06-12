@@ -5,12 +5,14 @@ import * as Linking from 'expo-linking';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 
 function AuthGate() {
   const pathname = usePathname();
   const { loading, session } = useAuthSession();
+  const { bootStatus, profile } = usePrivacyPreferences();
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
 
@@ -36,6 +38,8 @@ function AuthGate() {
     pathname,
     loading: loading || !initialUrlChecked,
     session,
+    profile,
+    profileLoading: Boolean(session && bootStatus !== 'ready'),
     nowSeconds: undefined,
   });
 
