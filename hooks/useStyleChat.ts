@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { EdgeStyleChatProvider } from '../services/style-chat/providers/edgeStyleChatProvider';
 import {
   getStyleChatSession,
@@ -12,6 +12,14 @@ import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/st
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
 // MockStyleChatProvider remains available in edgeStyleChatProvider's fallback chain.
 const provider = new EdgeStyleChatProvider();
+
+function getSafeErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error && err.message.trim().length > 0 ? err.message : fallback;
+}
+
+function getSafeCount(value: number | undefined, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : fallback;
+}
 
 export interface UseStyleChatReturn {
   session: StyleChatSession | null;
@@ -34,9 +42,10 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
-  const [messagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
+  const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
 
   // Load session, messages, and today's daily usage on mount.
   useEffect(() => {
@@ -48,7 +57,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         const s = await getStyleChatSession(sessionId);
         if (!cancelled) setSession(s);
       } catch (err: unknown) {
-        if (!cancelled) setError((err as Error)?.message || 'Unable to load session.');
+        if (!cancelled) setError(getSafeErrorMessage(err, 'Unable to load session.'));
       } finally {
         if (!cancelled) setLoadingSession(false);
       }
@@ -60,7 +69,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         const msgs = await listStyleChatMessages(sessionId);
         if (!cancelled) setMessages(msgs);
       } catch (err: unknown) {
-        if (!cancelled) setError((err as Error)?.message || 'Unable to load messages.');
+        if (!cancelled) setError(getSafeErrorMessage(err, 'Unable to load messages.'));
       } finally {
         if (!cancelled) setLoadingMessages(false);
       }
@@ -69,7 +78,10 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
     async function loadDailyUsage() {
       try {
         const usage = await readStyleChatDailyUsage();
-        if (!cancelled) setMessagesUsed(usage.messagesUsed);
+        if (!cancelled) {
+          setMessagesUsed(getSafeCount(usage.messagesUsed, 0));
+          setMessagesLimit(getSafeCount(usage.messagesLimit, STYLE_CHAT_DAILY_MESSAGE_LIMIT));
+        }
       } catch {
         // Non-fatal: daily usage display falls back to 0; server enforces the cap.
       }
@@ -84,16 +96,22 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
     };
   }, [sessionId]);
 
-  const canSend = messagesUsed < messagesLimit && !isSending;
+  const canSend = Boolean(sessionId) && messagesUsed < messagesLimit && !isSending;
 
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+      if (!sessionId) {
+        setError(STYLE_CHAT_COPY.errorGeneric);
+        return;
+      }
+      if (isSendingRef.current) return;
       if (messagesUsed >= messagesLimit) {
         setError(STYLE_CHAT_COPY.systemLimitNotice);
         return;
       }
+      isSendingRef.current = true;
 
       // 1. Optimistic user bubble
       const optimisticUser: StyleChatMessage = {
@@ -139,7 +157,8 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         if (result.status === 'limit_reached') {
           // Show a system notice in the UI. Do not persist as an assistant message.
           setError(STYLE_CHAT_COPY.systemLimitNotice);
-          setMessagesUsed(result.usage.messagesUsed);
+          setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed));
+          setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
           return;
         }
 
@@ -149,22 +168,26 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
           const fallbackMsg = await saveStyleChatMessage({
             sessionId,
             sender: 'assistant',
-            content: result.message.content,
+            content: result.message.content.trim() || STYLE_CHAT_COPY.errorGeneric,
             provider: result.message.model || 'fallback',
             model: result.message.model || undefined,
           });
           setMessages(prev => [...prev, fallbackMsg]);
           // Update usage if the server returned a count.
-          if (result.usage.messagesUsed > 0) setMessagesUsed(result.usage.messagesUsed);
+          if (result.usage.messagesUsed > 0) {
+            setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed));
+            setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
+          }
           return;
         }
 
         // 4. success — optimistic assistant bubble, then persist.
+        const assistantContent = result.message.content.trim() || STYLE_CHAT_COPY.errorGeneric;
         const optimisticAssistant: StyleChatMessage = {
           id: `optimistic-assistant-${Date.now()}`,
           sessionId,
           sender: result.message.sender,
-          content: result.message.content,
+          content: assistantContent,
           referencedScanIds: [],
           referencedSavedItemIds: [],
           referencedDressingRoomIds: [],
@@ -181,7 +204,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         const savedAssistant = await saveStyleChatMessage({
           sessionId,
           sender: 'assistant',
-          content: result.message.content,
+          content: assistantContent,
           provider: 'gemini',
           model: result.message.model || undefined,
         });
@@ -190,15 +213,17 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         );
 
         // 6. Update displayed daily usage from server response.
-        setMessagesUsed(result.usage.messagesUsed);
+        setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed + 1));
+        setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
 
       } catch (err: unknown) {
         // Remove optimistic entries on failure so retry is clean.
         setMessages(prev =>
           prev.filter(m => !m.id.startsWith('optimistic-')),
         );
-        setError((err as Error)?.message || STYLE_CHAT_COPY.errorGeneric);
+        setError(getSafeErrorMessage(err, STYLE_CHAT_COPY.errorGeneric));
       } finally {
+        isSendingRef.current = false;
         setIsSending(false);
       }
     },

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -21,14 +21,19 @@ export default function StyleChatIndexScreen() {
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessions, loading, error, createSession, deleteSession } = useStyleChatSessions();
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleNewSession = async () => {
+    if (isCreating) return;
+    setIsCreating(true);
     try {
       const session = await createSession();
       router.push(`/style-chat/${session.id}`);
     } catch {
       // createSession throws on auth failure; the session list will show an
       // error on reload, and the user can sign in from the main flow
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -76,6 +81,7 @@ export default function StyleChatIndexScreen() {
           onNewSession={() => { void handleNewSession(); }}
           onSelectSession={session => router.push(`/style-chat/${session.id}`)}
           onDeleteSession={handleDeleteSession}
+          newSessionDisabled={isCreating}
         />
       </ScrollView>
     </SafeAreaView>

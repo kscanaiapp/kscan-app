@@ -9,6 +9,7 @@
 // All context assembly, quota enforcement, and Gemini calls happen server-side.
 
 import { supabase } from '../../supabaseClient';
+import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
 
 const EDGE_FN      = 'stylechat-generate';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
@@ -41,17 +42,94 @@ export interface EdgeChatResult {
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
 
+const DEFAULT_USAGE: EdgeChatUsage = {
+  messagesUsed: 0,
+  messagesLimit: STYLE_CHAT_DAILY_MESSAGE_LIMIT,
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeStatus(status: unknown): EdgeChatStatus | null {
+  return status === 'success'
+    || status === 'limit_reached'
+    || status === 'burst_limit'
+    || status === 'error'
+    ? status
+    : null;
+}
+
+function normalizeUsage(value: unknown): EdgeChatUsage {
+  if (!isRecord(value)) return DEFAULT_USAGE;
+
+  const messagesUsed = typeof value.messagesUsed === 'number' && Number.isFinite(value.messagesUsed)
+    ? Math.max(0, value.messagesUsed)
+    : DEFAULT_USAGE.messagesUsed;
+  const messagesLimit = typeof value.messagesLimit === 'number' && Number.isFinite(value.messagesLimit)
+    ? Math.max(0, value.messagesLimit)
+    : DEFAULT_USAGE.messagesLimit;
+
+  return {
+    messagesUsed,
+    messagesLimit,
+    resetAt: typeof value.resetAt === 'string' ? value.resetAt : undefined,
+  };
+}
+
+function normalizeMessage(value: unknown, fallbackContent: string): EdgeChatMessage {
+  const raw = isRecord(value) ? value : {};
+  const content = typeof raw.content === 'string' && raw.content.trim().length > 0
+    ? raw.content
+    : fallbackContent;
+
+  return {
+    sender: raw.sender === 'system' ? 'system' : 'assistant',
+    content,
+    model: typeof raw.model === 'string' ? raw.model : '',
+    tokenEstimate: typeof raw.tokenEstimate === 'number' && Number.isFinite(raw.tokenEstimate)
+      ? raw.tokenEstimate
+      : 0,
+  };
+}
+
 function fallbackResult(overrides?: Partial<EdgeChatMessage>): EdgeChatResult {
   return {
     status: 'error',
     message: {
       sender: 'assistant',
-      content: "I'm having trouble generating styling advice right now. Please try again shortly.",
+      content: STYLE_CHAT_COPY.errorGeneric,
       model: 'fallback',
       tokenEstimate: 0,
       ...overrides,
     },
-    usage: { messagesUsed: 0, messagesLimit: 25 },
+    usage: DEFAULT_USAGE,
+  };
+}
+
+function limitResult(message: string, usage: unknown): EdgeChatResult {
+  return {
+    status: 'limit_reached',
+    message: {
+      sender: 'assistant',
+      content: message,
+      model: '',
+      tokenEstimate: 0,
+    },
+    usage: normalizeUsage(usage),
+  };
+}
+
+function burstLimitResult(message: string, usage: unknown): EdgeChatResult {
+  return {
+    status: 'burst_limit',
+    message: {
+      sender: 'assistant',
+      content: message,
+      model: '',
+      tokenEstimate: 0,
+    },
+    usage: normalizeUsage(usage),
   };
 }
 
@@ -78,20 +156,17 @@ export class EdgeStyleChatProvider {
         const ctx = (error as Record<string, unknown>).context;
         if (ctx != null && typeof (ctx as Response).json === 'function') {
           try {
-            const body = await (ctx as Response).json() as Record<string, unknown>;
-            if (body?.status === 'burst_limit') {
-              const msgContent = (body.message as Record<string, unknown> | undefined)?.content;
-              return {
-                status: 'burst_limit',
-                message: {
-                  sender: 'assistant',
-                  content: typeof msgContent === 'string' ? msgContent
-                    : 'StyleChat is receiving messages too quickly. Please wait a moment and try again.',
-                  model: '',
-                  tokenEstimate: 0,
-                },
-                usage: { messagesUsed: 0, messagesLimit: 25 },
-              };
+            const body = await (ctx as Response).json() as unknown;
+            if (isRecord(body)) {
+              const status = normalizeStatus(body.status);
+              const bodyMessage = isRecord(body.message) ? body.message : {};
+              const bodyContent = typeof bodyMessage.content === 'string' ? bodyMessage.content : '';
+              if (status === 'burst_limit') {
+                return burstLimitResult(bodyContent || STYLE_CHAT_COPY.burstLimitNotice, body.usage);
+              }
+              if (status === 'limit_reached') {
+                return limitResult(bodyContent || STYLE_CHAT_COPY.systemLimitNotice, body.usage);
+              }
             }
           } catch {
             // fall through to generic fallback
@@ -106,20 +181,40 @@ export class EdgeStyleChatProvider {
         return fallbackResult();
       }
 
+      const status = normalizeStatus(data.status);
+      if (!status) {
+        if (__DEV__) console.warn('[EdgeStyleChatProvider] unexpected response status:', data.status);
+        return fallbackResult();
+      }
+
+      if (status === 'burst_limit') {
+        return burstLimitResult(
+          typeof data.message?.content === 'string' ? data.message.content : STYLE_CHAT_COPY.burstLimitNotice,
+          data.usage,
+        );
+      }
+
+      if (status === 'limit_reached') {
+        return limitResult(
+          typeof data.message?.content === 'string' ? data.message.content : STYLE_CHAT_COPY.systemLimitNotice,
+          data.usage,
+        );
+      }
+
+      if (status === 'error') {
+        return fallbackResult();
+      }
+
+      if (typeof data.message?.content !== 'string' || data.message.content.trim().length === 0) {
+        return fallbackResult();
+      }
+      const message = normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric);
+
       // Validate and pass through the typed response.
       return {
-        status: data.status as EdgeChatStatus,
-        message: {
-          sender: data.message?.sender === 'system' ? 'system' : 'assistant',
-          content: typeof data.message?.content === 'string' ? data.message.content : '',
-          model: typeof data.message?.model === 'string' ? data.message.model : '',
-          tokenEstimate: typeof data.message?.tokenEstimate === 'number' ? data.message.tokenEstimate : 0,
-        },
-        usage: {
-          messagesUsed: data.usage?.messagesUsed ?? 0,
-          messagesLimit: data.usage?.messagesLimit ?? 25,
-          resetAt: data.usage?.resetAt,
-        },
+        status,
+        message,
+        usage: normalizeUsage(data.usage),
       };
 
     } catch (err: unknown) {

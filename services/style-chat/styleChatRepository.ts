@@ -47,31 +47,69 @@ interface MessageRow {
 
 // ── Row → domain mappers ──────────────────────────────────────────────────────
 
+function isStyleChatMode(value: string): value is StyleChatMode {
+  return value === 'general'
+    || value === 'outfit_advice'
+    || value === 'scan_refinement'
+    || value === 'shopping_help'
+    || value === 'dressing_room'
+    || value === 'closet_planning'
+    || value === 'budget_finder';
+}
+
+function getString(value: unknown, fallback = '') {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function getUiBlocks(value: unknown): StyleChatUiBlock[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is StyleChatUiBlock => item != null && typeof item === 'object')
+    : [];
+}
+
 function toSession(row: SessionRow): StyleChatSession {
+  const title = getString(row.title).trim() || 'New Styling Session';
+  const mode = getString(row.mode);
+  const createdAt = getString(row.created_at) || new Date().toISOString();
+  const updatedAt = getString(row.updated_at) || createdAt;
+
   return {
-    id: row.id,
-    title: row.title,
-    mode: row.mode as StyleChatMode,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: getString(row.id),
+    title,
+    mode: isStyleChatMode(mode) ? mode : 'general',
+    createdAt,
+    updatedAt,
   };
 }
 
 function toMessage(row: MessageRow): StyleChatMessage {
+  const sender = row.sender === 'user' || row.sender === 'assistant' || row.sender === 'system'
+    ? row.sender
+    : 'assistant';
+  const createdAt = getString(row.created_at) || new Date().toISOString();
+
   return {
-    id: row.id,
-    sessionId: row.session_id,
-    sender: row.sender as StyleChatMessage['sender'],
-    content: row.content,
-    referencedScanIds: row.referenced_scan_ids ?? [],
-    referencedSavedItemIds: row.referenced_saved_item_ids ?? [],
-    referencedDressingRoomIds: row.referenced_dressing_room_ids ?? [],
-    referencedCatalogItems: row.referenced_catalog_items ?? [],
-    uiBlocks: Array.isArray(row.ui_blocks) ? row.ui_blocks : [],
-    provider: row.provider ?? 'mock',
-    model: row.model ?? undefined,
-    tokenEstimate: row.token_estimate ?? 0,
-    createdAt: row.created_at,
+    id: getString(row.id),
+    sessionId: getString(row.session_id),
+    sender,
+    content: getString(row.content),
+    referencedScanIds: getStringArray(row.referenced_scan_ids),
+    referencedSavedItemIds: getStringArray(row.referenced_saved_item_ids),
+    referencedDressingRoomIds: getStringArray(row.referenced_dressing_room_ids),
+    referencedCatalogItems: getStringArray(row.referenced_catalog_items),
+    uiBlocks: getUiBlocks(row.ui_blocks),
+    provider: getString(row.provider, 'mock') || 'mock',
+    model: row.model ? getString(row.model) : undefined,
+    tokenEstimate: typeof row.token_estimate === 'number' && Number.isFinite(row.token_estimate)
+      ? row.token_estimate
+      : 0,
+    createdAt,
   };
 }
 
@@ -87,7 +125,7 @@ export async function listStyleChatSessions(): Promise<StyleChatSession[]> {
     .order('updated_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data as SessionRow[]).map(toSession);
+  return (Array.isArray(data) ? data as SessionRow[] : []).map(toSession);
 }
 
 export async function createStyleChatSession(input: {
@@ -148,7 +186,7 @@ export async function listStyleChatMessages(sessionId: string): Promise<StyleCha
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(error.message);
-  return (data as MessageRow[]).map(toMessage);
+  return (Array.isArray(data) ? data as MessageRow[] : []).map(toMessage);
 }
 
 export async function saveStyleChatMessage(input: {
@@ -171,7 +209,7 @@ export async function saveStyleChatMessage(input: {
       session_id: input.sessionId,
       user_id: userId,
       sender: input.sender,
-      content: input.content,
+      content: input.content.trim(),
       ui_blocks: input.uiBlocks ?? [],
       provider: input.provider ?? 'mock',
       model: input.model ?? null,
@@ -227,8 +265,8 @@ export async function incrementStyleChatUsage(): Promise<UsageRecord> {
   // rpc returns an array of rows from the RETURNS TABLE
   const row = Array.isArray(data) ? data[0] : data;
   return {
-    messagesUsed: row?.messages_used ?? 1,
-    messagesLimit: row?.messages_limit ?? 50,
+    messagesUsed: typeof row?.messages_used === 'number' ? row.messages_used : 1,
+    messagesLimit: typeof row?.messages_limit === 'number' ? row.messages_limit : 50,
   };
 }
 
@@ -254,7 +292,7 @@ export async function readStyleChatDailyUsage(): Promise<UsageRecord> {
 
   const row = Array.isArray(data) ? data[0] : data;
   return {
-    messagesUsed: row?.messages_used ?? 0,
-    messagesLimit: row?.messages_limit ?? 25,
+    messagesUsed: typeof row?.messages_used === 'number' ? row.messages_used : 0,
+    messagesLimit: typeof row?.messages_limit === 'number' ? row.messages_limit : 25,
   };
 }

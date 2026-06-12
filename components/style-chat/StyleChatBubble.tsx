@@ -12,6 +12,8 @@ interface StyleChatBubbleProps {
 
 export function StyleChatBubble({ message, onRetry, isError }: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
+  const content = typeof message.content === 'string' ? message.content : '';
+  const uiBlocks = Array.isArray(message.uiBlocks) ? message.uiBlocks : [];
   const insets = useSafeAreaInsets();
   const safeRowPadding = insets.left || insets.right ? {
     paddingLeft: Math.max(SPACING.xl, insets.left),
@@ -28,11 +30,11 @@ export function StyleChatBubble({ message, onRetry, isError }: StyleChatBubblePr
       ) : null}
       <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
         <Text style={isUser ? styles.textUser : styles.textAssistant}>
-          {message.content}
+          {content}
         </Text>
-        {!isUser && message.uiBlocks.length > 0 ? (
+        {!isUser && uiBlocks.length > 0 ? (
           <View style={styles.uiBlocks}>
-            {message.uiBlocks.map((block, i) => (
+            {uiBlocks.map((block, i) => (
               <StyleChatUiBlockView key={i} block={block} />
             ))}
           </View>

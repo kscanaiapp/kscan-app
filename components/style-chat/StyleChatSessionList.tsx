@@ -11,6 +11,7 @@ interface StyleChatSessionListProps {
   onNewSession: () => void;
   onSelectSession?: (session: StyleChatSession) => void;
   onDeleteSession?: (session: StyleChatSession) => void;
+  newSessionDisabled?: boolean;
 }
 
 export function StyleChatSessionList({
@@ -20,8 +21,10 @@ export function StyleChatSessionList({
   onNewSession,
   onSelectSession,
   onDeleteSession,
+  newSessionDisabled = false,
 }: StyleChatSessionListProps) {
   const insets = useSafeAreaInsets();
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
   const safeContainerPadding = {
     paddingLeft: Math.max(SPACING.xl, insets.left),
     paddingRight: Math.max(SPACING.xl, insets.right),
@@ -37,45 +40,60 @@ export function StyleChatSessionList({
         <View style={styles.centred}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
-      ) : sessions.length === 0 ? (
+      ) : safeSessions.length === 0 ? (
         <View testID="style-chat-empty-state" style={styles.centred}>
           <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptySessionList}</Text>
         </View>
       ) : (
-        sessions.map(session => (
-          <View key={session.id} style={styles.sessionRowContainer}>
-            <Pressable
-              style={({ pressed }) => [styles.sessionRowContent, pressed ? styles.sessionRowPressed : null]}
-              onPress={() => onSelectSession?.(session)}
-              accessibilityRole="button"
-              accessibilityLabel={session.title}
-            >
-              <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
-              <Text style={styles.sessionMode} numberOfLines={1}>{session.mode.replace(/_/g, ' ').toUpperCase()}</Text>
-            </Pressable>
-            <Pressable
-              testID="style-chat-delete-button"
-              style={({ pressed }) => [styles.deleteBtn, pressed ? styles.deleteBtnPressed : null]}
-              onPress={() => onDeleteSession?.(session)}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete ${session.title}`}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.deleteBtnText}>✕</Text>
-            </Pressable>
-          </View>
-        ))
+        safeSessions.map(session => {
+          const title = typeof session.title === 'string' && session.title.trim()
+            ? session.title
+            : 'New Styling Session';
+          const mode = typeof session.mode === 'string'
+            ? session.mode.replace(/_/g, ' ').toUpperCase()
+            : 'GENERAL';
+
+          return (
+            <View key={session.id} style={styles.sessionRowContainer}>
+              <Pressable
+                style={({ pressed }) => [styles.sessionRowContent, pressed ? styles.sessionRowPressed : null]}
+                onPress={() => onSelectSession?.(session)}
+                accessibilityRole="button"
+                accessibilityLabel={title}
+              >
+                <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
+                <Text style={styles.sessionMode} numberOfLines={1}>{mode}</Text>
+              </Pressable>
+              <Pressable
+                testID="style-chat-delete-button"
+                style={({ pressed }) => [styles.deleteBtn, pressed ? styles.deleteBtnPressed : null]}
+                onPress={() => onDeleteSession?.(session)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${title}`}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.deleteBtnText}>✕</Text>
+              </Pressable>
+            </View>
+          );
+        })
       )}
 
       <Pressable
         testID="style-chat-new-session-button"
-        style={({ pressed }) => [styles.newBtn, pressed ? styles.newBtnPressed : null]}
+        style={({ pressed }) => [
+          styles.newBtn,
+          loading || newSessionDisabled ? styles.newBtnDisabled : null,
+          pressed && !loading && !newSessionDisabled ? styles.newBtnPressed : null,
+        ]}
         onPress={onNewSession}
         accessibilityLabel="New StyleChat session"
         accessibilityRole="button"
-        disabled={loading}
+        disabled={loading || newSessionDisabled}
       >
-        <Text style={styles.newBtnText}>{STYLE_CHAT_COPY.newSessionCta}</Text>
+        <Text style={[styles.newBtnText, loading || newSessionDisabled ? styles.newBtnTextDisabled : null]}>
+          {STYLE_CHAT_COPY.newSessionCta}
+        </Text>
       </Pressable>
     </View>
   );
@@ -170,10 +188,16 @@ const styles = StyleSheet.create({
   newBtnPressed: {
     backgroundColor: 'rgba(45, 31, 94, 0.6)',
   },
+  newBtnDisabled: {
+    opacity: 0.6,
+  },
   newBtnText: {
     ...TYPOGRAPHY.cta,
     fontSize: 13,
     letterSpacing: 3,
     color: COLORS.chrome,
+  },
+  newBtnTextDisabled: {
+    color: COLORS.textTertiary,
   },
 });

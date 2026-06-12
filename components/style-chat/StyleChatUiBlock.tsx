@@ -7,13 +7,16 @@ interface Props {
 }
 
 export function StyleChatUiBlockView({ block }: Props) {
+  const title = typeof block.title === 'string' ? block.title : '';
+  const body = typeof block.body === 'string' ? block.body : '';
+
   return (
     <View style={styles.container}>
-      {block.title ? (
-        <Text style={styles.title}>{block.title}</Text>
+      {title ? (
+        <Text style={styles.title}>{title}</Text>
       ) : null}
-      {block.body ? (
-        <Text style={styles.body}>{block.body}</Text>
+      {body ? (
+        <Text style={styles.body}>{body}</Text>
       ) : null}
     </View>
   );
