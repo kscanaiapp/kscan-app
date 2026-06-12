@@ -6,6 +6,7 @@ import { AuthSessionProvider } from '../contexts/AuthSessionContext';
 import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
@@ -37,6 +38,7 @@ if (rnGlobal.ErrorUtils && !rnGlobal.__KSCAN_ERROR_UTILS_ATTACHED__) {
 function AuthGate() {
   const pathname = usePathname();
   const { loading, session } = useAuthSession();
+  const { bootStatus, profile } = usePrivacyPreferences();
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
 
@@ -62,6 +64,8 @@ function AuthGate() {
     pathname,
     loading: loading || !initialUrlChecked,
     session,
+    profile,
+    profileLoading: Boolean(session && bootStatus !== 'ready'),
     nowSeconds: undefined,
   });
 

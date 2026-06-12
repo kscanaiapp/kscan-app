@@ -1,0 +1,58 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "version": "1.0.0",
+    "copyright": "2026 K Scan AI",
+    "categories": [
+      "SHOPPING",
+      "LIFESTYLE"
+    ],
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "kidsAgeBand": null,
+      "ageRatingOverride": "NONE",
+      "koreaAgeRatingOverride": "NONE"
+    },
+    "info": {
+      "en-US": {
+        "title": "K Scan",
+        "subtitle": "AI fashion discovery",
+        "description": "K Scan helps you turn a camera scan of a look or clothing item into AI-assisted fashion analysis and retailer-neutral discovery results.\n\nUse the camera to capture an outfit, review style signals such as garment type, color, silhouette, texture, and styling context, then save scans locally on your device for later reference.\n\nThis release focuses on the core mobile experience: email/password account access, camera-based scan analysis, local saved scans, privacy controls, data export and correction request entry points, and in-app account deletion.\n\nK Scan is not a retailer or marketplace, does not authenticate products, and does not guarantee product availability, pricing, or exact matches.",
+        "keywords": [
+          "fashion",
+          "style",
+          "outfits",
+          "shopping",
+          "visual search",
+          "closet",
+          "clothing",
+          "scan",
+          "AI"
+        ],
+        "releaseNotes": "Initial iOS release with camera-based fashion scan analysis, local saved scans, privacy controls, and account deletion request support.",
+        "promoText": "Scan a look and turn fashion inspiration into AI-assisted discovery.",
+        "marketingUrl": "https://kscan.app/",
+        "supportUrl": "https://kscan.app/support",
+        "privacyPolicyUrl": "https://kscan.app/legal/privacy",
+        "privacyChoicesUrl": "https://kscan.app/privacy"
+      }
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": false
+    }
+  }
+}

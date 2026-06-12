@@ -23,7 +23,11 @@ import {
 } from '../services/supabasePrivacy';
 import { useAuthSession } from './AuthSessionContext';
 
-const DEFAULT_PROFILE = { age_group: 'unknown', account_status: 'active' as const };
+const DEFAULT_PROFILE = {
+  age_group: 'unknown',
+  account_status: 'active' as const,
+  account_locked_at: null as string | null,
+};
 
 type BootStatus = 'loading' | 'ready';
 
@@ -54,7 +58,7 @@ export interface PrivacyPreferencesContextValue {
   remoteFetchError: string | null;
   preferenceSource: PrivacyPreferenceSource;
   normalized: ReturnType<typeof normalizePrivacySettings>;
-  profile: { age_group: string; account_status?: string };
+  profile: { age_group: string; account_status?: string; account_locked_at?: string | null };
   saving: boolean;
   refresh: () => Promise<void>;
   persistPreference: (patch: {
@@ -89,7 +93,11 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
 
   const [bootStatus, setBootStatus] = useState<BootStatus>('loading');
   const [remoteRow, setRemoteRow] = useState<Record<string, unknown> | null>(null);
-  const [profile, setProfile] = useState<{ age_group: string; account_status?: string }>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState<{
+    age_group: string;
+    account_status?: string;
+    account_locked_at?: string | null;
+  }>(DEFAULT_PROFILE);
   const [localPrefs, setLocalPrefs] = useState({ opt_out_of_sale: false, limit_sensitive_processing: false });
   const [remoteFetchFailed, setRemoteFetchFailed] = useState(false);
   const [remoteFetchError, setRemoteFetchError] = useState<string | null>(null);
@@ -187,6 +195,7 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
         setProfile({
           age_group: String((profileRow as { age_group?: string }).age_group || 'unknown'),
           account_status: (profileRow as { account_status?: string }).account_status,
+          account_locked_at: (profileRow as { account_locked_at?: string | null }).account_locked_at ?? null,
         });
         setSyncStatus('synced');
       } catch (error) {

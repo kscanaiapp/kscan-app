@@ -16,7 +16,10 @@
     "android:device": "expo run:android --device",
     "ios": "expo run:ios",
     "qa:fixtures": "node scripts/qa-fixtures.js",
-    "qa:convergence": "node scripts/qa-convergence.js"
+    "qa:convergence": "node scripts/qa-convergence.js",
+    "privacy:process-deletion": "node scripts/process-deletion-request.js",
+    "verify:apple-readiness": "node scripts/verify-apple-readiness.js",
+    "verify:apple-submission": "node scripts/verify-apple-submission.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
