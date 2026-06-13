@@ -1,0 +1,17 @@
+{
+  "name": "@kscan/google-glasses-bridge",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "description": "Phone-side bridge for K Scan Google / Android XR smart glasses",
+  "main": "dist/KScanGoogleGlassesBridge.js",
+  "types": "dist/KScanGoogleGlassesBridge.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.4.5"
+  }
+}

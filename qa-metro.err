@@ -1,0 +1,21 @@
+C:\Users\jsmit\KScan\node_modules\expo\node_modules\@expo\cli\build\src\utils\errors.js:130
+    throw error;
+    ^
+
+Error: ENOENT: no such file or directory, watch 'C:\Users\jsmit\KScan\android\app\build\intermediates\cxx\RelWithDebInfo\1e6es5v5\obj\armeabi-v7a'
+    at FSWatcher.<computed> (node:internal/fs/watchers:316:19)
+    at Object.watch (node:fs:2537:36)
+    at FallbackWatcher._watchdir (C:\Users\jsmit\KScan\node_modules\@expo\metro\node_modules\metro-file-map\src\watchers\FallbackWatcher.js:119:33)
+    at C:\Users\jsmit\KScan\node_modules\@expo\metro\node_modules\metro-file-map\src\watchers\FallbackWatcher.js:219:22
+    at Walker.<anonymous> (C:\Users\jsmit\KScan\node_modules\@expo\metro\node_modules\metro-file-map\src\watchers\FallbackWatcher.js:358:5)
+    at Walker.emit (node:events:508:28)
+    at C:\Users\jsmit\KScan\node_modules\walker\lib\walker.js:69:16
+    at FSReqCallback.oncomplete (node:fs:185:23) {
+  errno: -4058,
+  syscall: 'watch',
+  code: 'ENOENT',
+  path: 'C:\\Users\\jsmit\\KScan\\android\\app\\build\\intermediates\\cxx\\RelWithDebInfo\\1e6es5v5\\obj\\armeabi-v7a',
+  filename: 'C:\\Users\\jsmit\\KScan\\android\\app\\build\\intermediates\\cxx\\RelWithDebInfo\\1e6es5v5\\obj\\armeabi-v7a'
+}
+
+Node.js v24.14.0

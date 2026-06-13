@@ -1,0 +1,7 @@
+appId: host.exp.exponent
+---
+- tapOn:
+    id: "style-chat-input"
+- inputText: "Help me style dark denim with white sneakers."
+- tapOn:
+    id: "style-chat-send-button"

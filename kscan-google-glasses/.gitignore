@@ -1,0 +1,44 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.keystore
+*.jks
+
+# Android / Gradle
+local.properties
+.gradle/
+**/build/
+**/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node / TypeScript
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Logs and temp
+*.log
+logs/
+tmp/
+temp/
+.DS_Store
+Thumbs.db
+
+# Generated artifacts
+shared/*.generated.*
+android-xr/app/build/

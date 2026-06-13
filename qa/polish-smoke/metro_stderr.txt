@@ -1,0 +1,12 @@
+PluginError: Failed to resolve plugin for module "expo-image-picker" relative to "C:\Users\jsmit\KScan". Do you have node modules installed?
+PluginError: Failed to resolve plugin for module "expo-image-picker" relative to "C:\Users\jsmit\KScan". Do you have node modules installed?
+    at resolvePluginForModule (C:\Users\jsmit\KScan\node_modules\@expo\config-plugins\build\utils\plugin-resolver.js:96:9)
+    at resolveConfigPluginFunctionWithInfo (C:\Users\jsmit\KScan\node_modules\@expo\config-plugins\build\utils\plugin-resolver.js:145:7)
+    at resolveConfigPluginFunction (C:\Users\jsmit\KScan\node_modules\@expo\config-plugins\build\utils\plugin-resolver.js:136:7)
+    at withStaticPlugin (C:\Users\jsmit\KScan\node_modules\@expo\config-plugins\build\plugins\withStaticPlugin.js:85:70)
+    at C:\Users\jsmit\KScan\node_modules\@expo\config-plugins\build\plugins\withPlugins.js:30:84
+    at Array.reduce (<anonymous>)
+    at withPlugins (C:\Users\jsmit\KScan\node_modules\@expo\config-plugins\build\plugins\withPlugins.js:30:18)
+    at withConfigPlugins (C:\Users\jsmit\KScan\node_modules\@expo\config\build\plugins\withConfigPlugins.js:35:47)
+    at fillAndReturnConfig (C:\Users\jsmit\KScan\node_modules\@expo\config\build\Config.js:236:78)
+    at getConfig (C:\Users\jsmit\KScan\node_modules\@expo\config\build\Config.js:293:10)
