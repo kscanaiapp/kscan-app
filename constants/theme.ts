@@ -2,15 +2,18 @@ import { Platform } from 'react-native';
 
 export const COLORS = {
   // ── Backgrounds ──────────────────────────────────────────────────────────────
-  bg:            '#0C0F15',                     // Obsidian
-  bgElevated:    '#131720',                     // lifted obsidian
+  bg:            '#FAF7FF',
+  bgElevated:    '#FBF8FF',
   surface:       'rgba(20, 24, 32, 0.86)',      // card/glass surface
   surfaceStrong: 'rgba(26, 31, 46, 0.92)',      // elevated glass
   surfaceSoft:   'rgba(255, 255, 255, 0.06)',   // very subtle tint
-  canvasWarm:    '#F6F4F1',
+  canvas:        '#FAF7FF',
+  canvasLavender:'#F7F0FF',
+  canvasWarm:    '#FAF7FF',
   surfaceCard:   '#FFFFFF',
-  surfaceRaised: '#FAF8F5',
-  surfaceMuted:  '#F2F0ED',
+  surfaceRaised: '#FBF8FF',
+  surfaceMuted:  '#F1EAFE',
+  lavenderSurface: '#F1EAFE',
   obsidian:      '#09090B',
   graphite:      '#121212',
   graphiteRaised:'#1A1A1C',
@@ -20,40 +23,59 @@ export const COLORS = {
   black: '#000000',
 
   // ── Text ─────────────────────────────────────────────────────────────────────
-  textPrimary:   '#E5E7EB',   // soft chrome white
-  textSecondary: '#8C93A3',   // muted chrome
-  textTertiary:  '#6B7280',   // deep muted
-  textInverse:   '#090B10',   // dark text on gold/light surfaces
-  editorialTextPrimary:   '#171717',
-  editorialTextSecondary: '#575757',
-  editorialTextMuted:     '#6A6A6A',
-  chrome:                 '#F5F3EF',
-  chromeMuted:            'rgba(245, 243, 239, 0.72)',
+  textPrimary:   '#241433',
+  textSecondary: '#6B5A78',
+  textTertiary:  '#8B7A99',
+  textMuted:     '#8B7A99',
+  textInverse:   '#FFFFFF',
+  editorialTextPrimary:   '#241433',
+  editorialTextSecondary: '#6B5A78',
+  editorialTextMuted:     '#8B7A99',
+  chrome:                 '#EDE9FE',
+  chromeMuted:            '#B8A8D9',
+  chromeMist:             '#EEF7FA',
+  chromeLine:             '#E7DDF5',
 
-  // ── Accent — Champagne Gold ───────────────────────────────────────────────────
-  accent:     '#D6B36A',                        // champagne gold
-  accentSoft: 'rgba(214, 179, 106, 0.12)',
-  accentGlow: 'rgba(214, 179, 106, 0.22)',
-  gold:       '#C7A86B',
-  goldPressed:'#8B6F2E',
-  goldMuted:  'rgba(199, 168, 107, 0.50)',
+  // ── Accent — Purple identity + premium gold ──────────────────────────────────
+  purpleDeep:    '#5B21B6',
+  purpleCore:    '#6D28D9',
+  purplePrimary: '#7C3AED',
+  purpleSoft:    '#A78BFA',
+  purpleGlow:    '#C084FC',
+  purpleMist:    '#F5F0FF',
+  accent:        '#7C3AED',
+  accentSoft:    '#F5F0FF',
+  accentGlow:    '#C084FC',
+  champagneGold: '#F4C76B',
+  softGold:      '#FFF4D6',
+  gold:          '#F4C76B',
+  goldPressed:   '#9A6A1F',
+  goldMuted:     '#FFF4D6',
+  goldText:      '#76531C',
 
   // ── AR signals ───────────────────────────────────────────────────────────────
-  arPurple: '#8B5CF6',
+  arPurple: '#7C3AED',
   arBlue:   '#3B82F6',
+  electricCyan:   '#22D3EE',
+  electricBlue:   '#38BDF8',
+  electricViolet: '#C084FC',
+  scanCyan:       '#22D3EE',
+  scanAccent:     '#22D3EE',
+  activeVision:   '#22D3EE',
 
   // ── Chrome borders ────────────────────────────────────────────────────────────
-  border:       '#2A2F3A',                      // chrome
-  borderStrong: 'rgba(214, 179, 106, 0.35)',    // gold highlight
+  border:       '#E7DDF5',
+  borderStrong: '#A78BFA',
   chipBorder:   '#2A2F3A',                      // chrome chip border
-  borderHairline: 'rgba(0, 0, 0, 0.06)',
-  borderSubtle:   'rgba(0, 0, 0, 0.10)',
-  darkOverlayBorder: 'rgba(255, 255, 255, 0.16)',
+  borderHairline: '#E7DDF5',
+  borderSubtle:   '#D8C7F7',
+  darkOverlay: 'rgba(9, 9, 11, 0.72)',
+  darkOverlayBorder: 'rgba(167, 139, 250, 0.35)',
   hudLine: 'rgba(255, 255, 255, 0.72)',
 
   // ── Cards ────────────────────────────────────────────────────────────────────
   cardBg:     'rgba(20, 24, 32, 0.86)',
-  cardBorder: '#2A2F3A',
+  cardBorder: '#E7DDF5',
   lightCardBg: '#FFFFFF',
   lightCardBorder: 'rgba(0, 0, 0, 0.06)',
 
