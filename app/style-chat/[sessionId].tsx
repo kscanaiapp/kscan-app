@@ -229,8 +229,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.darkOverlayBorder,
   },
   sessionLabel: {
     ...TYPOGRAPHY.chipLabel,
@@ -312,9 +312,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.error,
-    backgroundColor: 'rgba(182, 84, 84, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 170, 170, 0.42)',
+    backgroundColor: 'rgba(182, 84, 84, 0.08)',
   },
   errorText: {
     ...TYPOGRAPHY.body,
