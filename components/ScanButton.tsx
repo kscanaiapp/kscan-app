@@ -61,16 +61,19 @@ const styles = StyleSheet.create({
     height:         CAPTURE_BUTTON.outerSize,
     borderRadius:   CAPTURE_BUTTON.outerSize / 2,
     borderWidth:    CAPTURE_BUTTON.borderWidth,
-    borderColor:    COLORS.gold,
+    borderColor:    COLORS.scanCyan,
     alignItems:     'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(9, 9, 11, 0.42)',
+    backgroundColor: COLORS.obsidianSoft,
     ...SHADOWS.darkFloat,
   },
   inner: {
     width:         CAPTURE_BUTTON.innerSize,
     height:        CAPTURE_BUTTON.innerSize,
     borderRadius:  CAPTURE_BUTTON.innerSize / 2,
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.accent,
+    // Plum rim keeps the darker aubergine fill legible against obsidian HUD
+    borderWidth:   StyleSheet.hairlineWidth,
+    borderColor:   COLORS.purpleSoft,
   },
 });

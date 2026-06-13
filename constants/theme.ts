@@ -2,70 +2,95 @@ import { Platform } from 'react-native';
 
 export const COLORS = {
   // ── Backgrounds ──────────────────────────────────────────────────────────────
-  bg:            '#0C0F15',                     // Obsidian
-  bgElevated:    '#131720',                     // lifted obsidian
-  surface:       'rgba(20, 24, 32, 0.86)',      // card/glass surface
-  surfaceStrong: 'rgba(26, 31, 46, 0.92)',      // elevated glass
-  surfaceSoft:   'rgba(255, 255, 255, 0.06)',   // very subtle tint
-  canvasWarm:    '#F6F4F1',
+  bg:            '#F7F3EC',
+  bgElevated:    '#FAF7F1',
+  surface:       'rgba(18, 16, 26, 0.88)',      // dark glass surface
+  surfaceStrong: 'rgba(33, 29, 44, 0.94)',      // elevated dark glass
+  surfaceSoft:   'rgba(247, 243, 236, 0.08)',   // subtle pearl tint
+  canvas:        '#FAF8F5',                     // luminous alabaster; bright luxury pearl, minimal warm undertone
+  canvasLavender:'#E8E1EC',
+  canvasWarm:    '#FFFDF9',                     // pristine bleached silk; clean reflective content backing
   surfaceCard:   '#FFFFFF',
-  surfaceRaised: '#FAF8F5',
-  surfaceMuted:  '#F2F0ED',
-  obsidian:      '#09090B',
-  graphite:      '#121212',
-  graphiteRaised:'#1A1A1C',
+  surfaceRaised: '#FCFAF6',                     // elevated pearl island surface
+  surfaceMuted:  '#F0ECE6',                     // technical smoke; crisp inset fields
+  lavenderSurface: '#E8E1EC',
+  obsidian:      '#09070D',
+  obsidianSoft:  '#12101A',
+  graphite:      '#1A1722',
+  graphiteRaised:'#211D2C',
+  graphiteLine:  '#342D42',
 
   // ── Absolute ─────────────────────────────────────────────────────────────────
   white: '#FFFFFF',
   black: '#000000',
 
   // ── Text ─────────────────────────────────────────────────────────────────────
-  textPrimary:   '#E5E7EB',   // soft chrome white
-  textSecondary: '#8C93A3',   // muted chrome
-  textTertiary:  '#6B7280',   // deep muted
-  textInverse:   '#090B10',   // dark text on gold/light surfaces
-  editorialTextPrimary:   '#171717',
-  editorialTextSecondary: '#575757',
-  editorialTextMuted:     '#6A6A6A',
-  chrome:                 '#F5F3EF',
-  chromeMuted:            'rgba(245, 243, 239, 0.72)',
+  textPrimary:   '#15120F',
+  textSecondary: '#514A43',
+  textTertiary:  '#81776D',
+  textMuted:     '#81776D',
+  textInverse:   '#FFFDF9',                     // light text aligned to pristine pearl
+  editorialTextPrimary:   '#15120F',
+  editorialTextSecondary: '#514A43',
+  editorialTextMuted:     '#81776D',
+  chrome:                 '#D8D0C7',
+  chromeMuted:            '#8A8178',
+  chromeMist:             '#D8D0C7',
+  chromeLine:             '#B8AFA5',
+  chromeDark:             '#5E5650',
 
-  // ── Accent — Champagne Gold ───────────────────────────────────────────────────
-  accent:     '#D6B36A',                        // champagne gold
-  accentSoft: 'rgba(214, 179, 106, 0.12)',
-  accentGlow: 'rgba(214, 179, 106, 0.22)',
-  gold:       '#C7A86B',
-  goldPressed:'#8B6F2E',
-  goldMuted:  'rgba(199, 168, 107, 0.50)',
+  // ── Accent — Purple identity + premium gold ──────────────────────────────────
+  purpleDeep:    '#26041D',                     // deep aubergine shadow base
+  purpleCore:    '#5A1A3E',
+  purplePrimary: '#52103E',                     // active/pressed plum
+  purpleSoft:    '#6E1F55',                     // restrained rim/highlight plum
+  purpleGlow:    '#8A4D73',
+  purpleMist:    '#EEE4EC',
+  accent:        '#3F0B2F',                     // liquid aubergine; dark blackberry-ink plum
+  accentSoft:    '#EEE4EC',
+  accentGlow:    '#7A3A68',
+  champagneGold: '#C6A15B',
+  softGold:      '#E7D4A8',
+  gold:          '#C6A15B',
+  goldPressed:   '#7A5624',
+  goldMuted:     '#E7D4A8',
+  goldText:      '#7A5624',
 
   // ── AR signals ───────────────────────────────────────────────────────────────
-  arPurple: '#8B5CF6',
-  arBlue:   '#3B82F6',
+  arPurple: '#6A214F',
+  arBlue:   '#0D9FB3',
+  electricCyan:   '#22D3EE',
+  electricBlue:   '#0D9FB3',
+  electricViolet: '#7A3A68',
+  scanCyan:       '#0D9FB3',
+  scanAccent:     '#0D9FB3',
+  activeVision:   '#67E8F9',
 
   // ── Chrome borders ────────────────────────────────────────────────────────────
-  border:       '#2A2F3A',                      // chrome
-  borderStrong: 'rgba(214, 179, 106, 0.35)',    // gold highlight
-  chipBorder:   '#2A2F3A',                      // chrome chip border
-  borderHairline: 'rgba(0, 0, 0, 0.06)',
-  borderSubtle:   'rgba(0, 0, 0, 0.10)',
-  darkOverlayBorder: 'rgba(255, 255, 255, 0.16)',
-  hudLine: 'rgba(255, 255, 255, 0.72)',
+  border:       '#D8D0C7',
+  borderStrong: '#8A8178',
+  chipBorder:   '#342D42',                      // chrome chip border
+  borderHairline: '#D8D0C7',
+  borderSubtle:   '#B8AFA5',
+  darkOverlay: 'rgba(9, 7, 13, 0.72)',
+  darkOverlayBorder: 'rgba(216, 208, 199, 0.28)',
+  hudLine: 'rgba(247, 243, 236, 0.72)',
 
   // ── Cards ────────────────────────────────────────────────────────────────────
-  cardBg:     'rgba(20, 24, 32, 0.86)',
-  cardBorder: '#2A2F3A',
+  cardBg:     'rgba(18, 16, 26, 0.88)',
+  cardBorder: '#D8D0C7',
   lightCardBg: '#FFFFFF',
-  lightCardBorder: 'rgba(0, 0, 0, 0.06)',
+  lightCardBorder: 'rgba(21, 18, 15, 0.08)',
 
   // ── Utility ──────────────────────────────────────────────────────────────────
-  backdrop: 'rgba(4, 6, 10, 0.78)',
-  overlay:  'rgba(0, 0, 0, 0.30)',
+  backdrop: 'rgba(9, 7, 13, 0.78)',
+  overlay:  'rgba(9, 7, 13, 0.30)',
 
   // ── Status ───────────────────────────────────────────────────────────────────
-  error:     '#B65454',
-  errorSoft: '#FFAAAA',
-  success:   '#3C7D4A',
-  warning:   '#F4D27A',
+  error:     '#823038',
+  errorSoft: '#F1E6E7',
+  success:   '#6F8F73',
+  warning:   '#C6A15B',
 };
 
 export const colors = COLORS;
@@ -237,15 +262,15 @@ export const viewfinder = {
   scanningLineHeight: 1.5,
   scanningLineOffset: 90,
   scanTravelDistance: 280,
-  scanningLineColor:  COLORS.gold,
-  frameGlow:          COLORS.accentGlow,
+  scanningLineColor:  COLORS.scanCyan,
+  frameGlow:          COLORS.activeVision,
 };
 
 export const BUTTONS = {
   minWidth:          196,
   height:            54,
   horizontalPadding: SPACING.xl,
-  primaryBackground: COLORS.gold,
+  primaryBackground: COLORS.accent,
   primaryText:       COLORS.textInverse,
   secondaryBorder:   COLORS.border,
   secondaryText:     COLORS.textSecondary,

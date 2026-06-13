@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 
-const ACCESSIBLE_GOLD_TEXT = '#72521E';
+const ACCESSIBLE_GOLD_TEXT = COLORS.goldText;
 
 export default function Home() {
   const { isAuthenticated, signOut, user, loading } = useAuthSession();
@@ -49,7 +49,7 @@ export default function Home() {
           ) : null}
         </View>
 
-        {/* 4. SCAN NOW — full-width gold CTA */}
+        {/* 4. SCAN NOW — full-width primary CTA */}
         <Pressable
           testID="start-scan-button"
           style={({ pressed }) => [styles.scanNowCard, pressed ? styles.scanNowPressed : null]}
@@ -142,12 +142,14 @@ export default function Home() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.canvasWarm,
+    backgroundColor: COLORS.canvas,
   },
   scroll: {
     flex: 1,
+    backgroundColor: COLORS.canvas,
   },
   scrollContent: {
+    backgroundColor: COLORS.canvas,
     paddingHorizontal: SPACING.xl,
     paddingTop: 56,
     paddingBottom: 60,
@@ -158,7 +160,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   title: {
-    color: COLORS.editorialTextPrimary,
+    color: COLORS.purpleDeep,
     fontSize: 34,
     fontWeight: '900',
     letterSpacing: 2.4,
@@ -185,12 +187,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.accent,
+    // Lacquered aubergine: plum rim + lighter top edge sheen + plum-tinted shadow halo
+    borderWidth: 1,
+    borderColor: COLORS.purpleSoft,
+    borderTopColor: COLORS.purpleGlow,
     ...SHADOWS.editorialRaised,
+    shadowColor: COLORS.purpleDeep,
+    shadowOpacity: 0.26,
+    shadowRadius: 18,
+    elevation: 8,
     marginBottom: SPACING.lg,
   },
   scanNowPressed: {
-    backgroundColor: COLORS.goldPressed,
+    backgroundColor: COLORS.purpleDeep,
   },
   scanNowText: {
     color: COLORS.textInverse,
@@ -204,7 +214,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: RADIUS.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
+    borderColor: COLORS.chromeLine,
     backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -221,7 +231,7 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     ...TYPOGRAPHY.caption,
-    color: ACCESSIBLE_GOLD_TEXT,
+    color: COLORS.accent,
     letterSpacing: 2.2,
   },
   betaBadge: {
@@ -248,14 +258,14 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: RADIUS.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
+    borderColor: COLORS.chromeLine,
     backgroundColor: COLORS.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
   },
   cardButtonPressed: {
-    backgroundColor: COLORS.borderSubtle,
+    backgroundColor: COLORS.surfaceMuted,
   },
   cardButtonText: {
     color: COLORS.editorialTextPrimary,
@@ -269,14 +279,14 @@ const styles = StyleSheet.create({
   styleChatCard: {
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(214, 179, 106, 0.28)',
-    backgroundColor: 'rgba(9, 9, 11, 0.96)',
+    borderColor: COLORS.chromeLine,
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
-    ...SHADOWS.darkFloat,
+    ...SHADOWS.editorialSmall,
   },
   styleChatCardPressed: {
-    backgroundColor: '#111114',
+    backgroundColor: COLORS.surfaceMuted,
     borderColor: COLORS.borderStrong,
   },
   styleChatInner: {
@@ -297,7 +307,7 @@ const styles = StyleSheet.create({
   styleChatBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: COLORS.textSecondary,
+    color: COLORS.editorialTextSecondary,
   },
   styleChatDot: {
     width: 8,
