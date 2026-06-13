@@ -135,10 +135,10 @@ Payment/IAP reference scan on 2026-06-12:
 - No tracking/ad SDKs were detected in prior package scans.
 - Deletion request path exists.
 - Complete automated deletion is not claimed.
-- Provider retention/terms still require final owner verification.
-- Data Safety form remains deferred.
+- Final Play Console Data Safety answers are canonical in `qa/google-play-data-safety-final-answers-2026-06-12.md`.
+- Provider retention/terms still require P1 owner/provider confirmation; conservative disclosure covers Play Console entry readiness.
 
-Do not fill the final Play Console Data Safety answers from this packet without owner review.
+Do not fill the Play Console Data Safety form from this asset checklist. Use the final answer packet and `qa/google-play-console-entry-checklist-2026-06-12.md`.
 
 ## Final Checks Before Upload
 
@@ -148,10 +148,10 @@ Do not fill the final Play Console Data Safety answers from this packet without 
 - [x] Package/applicationId `com.kscanai.app` confirmed.
 - [x] Production EAS profile remains store distribution with `app-bundle`.
 - [x] AAB not yet built in this prompt.
-- [x] Data Safety final not yet submitted.
+- [x] Data Safety final answer packet ready; Play Console form not yet submitted.
 - [x] Physical-device smoke not yet complete.
 - [x] Runtime smoke and AAB/internal-track validation remain deferred.
-- [ ] Website copy alignment should receive final owner review before Data Safety finalization because storage cleanup remains a deletion follow-up.
+- [ ] Website/legal source should receive final owner review before owner go/no-go because storage cleanup remains a deletion follow-up.
 
 ## Release Decision
 

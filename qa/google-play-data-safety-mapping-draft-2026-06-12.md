@@ -1,6 +1,8 @@
 # Google Play Data Safety Mapping Draft - 2026-06-12
 
-> Draft only. Not a finalized Play Console Data Safety submission. Owner review is required before any value here is entered into Play Console.
+> Historical mapping draft. This document is superseded for Play Console entry by
+> `qa/google-play-data-safety-final-answers-2026-06-12.md` and the Prompt 13
+> operator checklist. Do not enter Play Console values from this draft.
 
 ## Scope
 
@@ -9,7 +11,7 @@
 - VersionName: `1.0.0`
 - VersionCode: `5`
 - Branch / Prompt 11A baseline commit: `release/android-1.0.0` at `3797b8bf5fd31506b14b41b0e5f5256eec10c00a`
-- Track readiness: draft only, not submitted
+- Track readiness: historical mapping draft; Prompt 12 final packet is canonical; Play Console not submitted
 - Production build profile: app-bundle, `distribution: store` (`eas.json`)
 - Source evidence: prior QA files from Prompts 3-8, Prompt 10 provider/data-safety audit, plus read-only config/manifest/package/code scans performed in this pass.
 
@@ -70,7 +72,7 @@
 - Image-analysis provider interaction (important): a single `GEMINI_API_KEY` serves both StyleChat (text) and Gemini image analysis. Image analysis routes to Gemini ONLY when `USE_OPENROUTER=false`. `server.js` uses `USE_OPENROUTER` as a PRIMARY provider switch (not a post-failure fallback), and `.env.example` ships `USE_OPENROUTER=true` with `OPENROUTER_MODEL=meta-llama/llama-4-scout`. Therefore a paid Gemini key does NOT improve the image-analysis Data Safety posture if OpenRouter is the active image path.
 - OpenRouter (no ZDR in code): the OpenRouter request sends the raw base64 clothing image as an `image_url` data URI with NO `provider` routing object and NO ZDR parameter anywhere in the repo. OpenRouter's own default is no-retention, but downstream routed providers are uncontrolled, so zero data retention cannot be claimed. Treat OpenRouter as ACTIVE third-party AI processing for Data Safety unless production env proves `USE_OPENROUTER=false`. Owner must pick: (A) confirm `USE_OPENROUTER=false`, (B) verified ZDR + restricted provider routing, or (C) explicit conservative third-party-AI disclosure.
 - Supabase: `stylechat-generate` function logging is metadata-only (no raw messages/emails/full IDs/images); classified `SERVICE PROVIDER — LOGGING/RETENTION CONFIRMATION REQUIRED` pending DPA completion, platform/Edge invocation-log retention, and production `NODE_ENV=production` + debug flags off. No third-party-sharing classification on infrastructure grounds alone.
-- This draft remains NOT final. The conservative answer for the image track until the owner picks an OpenRouter gate is third-party AI processing.
+- This historical mapping draft is not the Play Console entry source. Prompt 12 selected OpenRouter Gate C conservative disclosure, so the image track is disclosed as third-party AI processing unless future owner/provider evidence supports a narrower posture.
 
 ### Prompt 12 Final Answer Packet Pointer
 
@@ -79,7 +81,7 @@
 
 ## Executive Summary
 
-This draft maps the release candidate's known data collection, sharing, security, and deletion behavior for Google Play Data Safety preparation. It should be reviewed by the owner before entering final answers in Play Console.
+This historical draft maps the release candidate's known data collection, sharing, security, and deletion behavior for Google Play Data Safety preparation. Final Play Console entry should use `qa/google-play-data-safety-final-answers-2026-06-12.md`, not this draft.
 
 ## Data Collection Matrix
 

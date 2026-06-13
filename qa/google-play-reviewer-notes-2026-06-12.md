@@ -77,7 +77,7 @@ identification, or person identification. See Data Safety for the corresponding 
 ## Known Non-Blocking Release Notes
 
 - Final Data Safety answers: see `qa/google-play-data-safety-final-answers-2026-06-12.md` (Prompt 12 — PASS WITH NOTES, Prompt 13 READY).
-- Data Safety finalization is still pending owner review.
+- Data Safety final packet is canonical for Play Console entry; Play Console entry/submission remain owner actions.
 - Complete automated deletion is not claimed.
 - Supabase Storage cleanup and StyleChat burst usage cleanup are tracked follow-ups.
 - Runtime smoke and AAB/internal-track validation are deferred to the final packaging phase.
