@@ -142,12 +142,14 @@ export default function Home() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.canvasWarm,
+    backgroundColor: COLORS.canvas,
   },
   scroll: {
     flex: 1,
+    backgroundColor: COLORS.canvas,
   },
   scrollContent: {
+    backgroundColor: COLORS.canvas,
     paddingHorizontal: SPACING.xl,
     paddingTop: 56,
     paddingBottom: 60,
@@ -186,7 +188,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
     backgroundColor: COLORS.accent,
+    // Lacquered aubergine: plum rim + lighter top edge sheen + plum-tinted shadow halo
+    borderWidth: 1,
+    borderColor: COLORS.purpleSoft,
+    borderTopColor: COLORS.purpleGlow,
     ...SHADOWS.editorialRaised,
+    shadowColor: COLORS.purpleDeep,
+    shadowOpacity: 0.26,
+    shadowRadius: 18,
+    elevation: 8,
     marginBottom: SPACING.lg,
   },
   scanNowPressed: {
@@ -204,7 +214,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: RADIUS.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
+    borderColor: COLORS.chromeLine,
     backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -248,14 +258,14 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: RADIUS.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
+    borderColor: COLORS.chromeLine,
     backgroundColor: COLORS.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
   },
   cardButtonPressed: {
-    backgroundColor: COLORS.borderSubtle,
+    backgroundColor: COLORS.surfaceMuted,
   },
   cardButtonText: {
     color: COLORS.editorialTextPrimary,

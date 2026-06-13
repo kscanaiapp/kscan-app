@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     borderColor:    COLORS.scanCyan,
     alignItems:     'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.darkOverlay,
+    backgroundColor: COLORS.obsidianSoft,
     ...SHADOWS.darkFloat,
   },
   inner: {
@@ -72,5 +72,8 @@ const styles = StyleSheet.create({
     height:        CAPTURE_BUTTON.innerSize,
     borderRadius:  CAPTURE_BUTTON.innerSize / 2,
     backgroundColor: COLORS.accent,
+    // Plum rim keeps the darker aubergine fill legible against obsidian HUD
+    borderWidth:   StyleSheet.hairlineWidth,
+    borderColor:   COLORS.purpleSoft,
   },
 });

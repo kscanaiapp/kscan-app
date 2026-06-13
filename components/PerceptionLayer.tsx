@@ -7,8 +7,8 @@ const STAGGER  = 80;
 const HOLD     = 300;
 const FADE_OUT = 180;
 
-// Chrome label / electric value for the scan recognition overlay.
-const LABEL_COLOR = COLORS.chromeMuted;
+// Chrome label / active value for the scan recognition overlay.
+const LABEL_COLOR = COLORS.chromeMist;
 const VALUE_COLOR = COLORS.activeVision;
 
 interface Metadata {

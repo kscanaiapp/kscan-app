@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     ...TYPOGRAPHY.brand,
-    color: COLORS.accent,
+    color: COLORS.textInverse,
     textShadowColor: COLORS.darkOverlay,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -711,11 +711,12 @@ const styles = StyleSheet.create({
   subtitle: {
     ...TYPOGRAPHY.subtitle,
     marginTop: SPACING.xs,
+    color: COLORS.chromeMist,
   },
   caption: {
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.sm,
-    color: COLORS.chromeMuted,
+    color: COLORS.chromeMist,
     textShadowColor: 'rgba(0, 0, 0, 0.42)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -724,7 +725,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
     maxWidth: 260,
-    color: COLORS.chromeMuted,
+    color: COLORS.chromeMist,
     fontSize: 10,
     lineHeight: 15,
     letterSpacing: 0.8,
@@ -750,22 +751,25 @@ const styles = StyleSheet.create({
   },
   infoText: {
     ...TYPOGRAPHY.body,
+    color: COLORS.chromeMist,
     textAlign: 'center',
     marginTop: SPACING.lg,
   },
   processingText: {
     ...TYPOGRAPHY.title,
+    color: COLORS.textInverse,
     textAlign: 'center',
     marginTop: SPACING.md,
   },
   processingCaption: {
     ...TYPOGRAPHY.body,
+    color: COLORS.chromeMist,
     textAlign: 'center',
     marginTop: SPACING.sm,
   },
   errorText: {
     ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.errorSoft,
+    color: COLORS.error,
     textAlign: 'center',
     marginBottom: SPACING.md,
     paddingHorizontal: SPACING.md,
@@ -806,7 +810,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   tertiaryButtonText: {
-    color: BUTTONS.tertiaryText,
+    color: COLORS.chromeMist,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -907,7 +911,7 @@ const styles = StyleSheet.create({
     paddingBottom: LAYOUT.cameraFooterPaddingBottom,
     paddingTop: LAYOUT.cameraFooterPaddingTop,
     alignItems: 'center',
-    backgroundColor: 'rgba(9, 9, 11, 0.42)',
+    backgroundColor: COLORS.darkOverlay,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.darkOverlayBorder,
   },
@@ -925,7 +929,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     letterSpacing: 1.2,
-    color: COLORS.chromeMuted,
+    color: COLORS.chromeMist,
     opacity: 0.86,
     textShadowColor: 'rgba(0, 0, 0, 0.48)',
     textShadowOffset: { width: 0, height: 1 },
@@ -934,14 +938,15 @@ const styles = StyleSheet.create({
   },
   previewScreen: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.obsidian,
   },
   previewHeader: {
     paddingHorizontal: LAYOUT.screenPadding,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.darkOverlayBorder,
+    backgroundColor: COLORS.obsidian,
     marginBottom: SPACING.sm,
   },
   previewContainer: {
@@ -961,7 +966,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: LAYOUT.previewHeight,
     borderRadius: LAYOUT.previewRadius,
-    backgroundColor: COLORS.bgElevated,
+    backgroundColor: COLORS.graphiteRaised,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: LAYOUT.screenPadding,
@@ -978,7 +983,7 @@ const styles = StyleSheet.create({
     borderRadius: LOADING.panelRadius,
     backgroundColor: COLORS.graphiteRaised,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.darkOverlayBorder,
+    borderColor: COLORS.graphiteLine,
     padding: LOADING.panelPadding,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1001,7 +1006,7 @@ const styles = StyleSheet.create({
     borderRadius: LOADING.panelRadius,
     backgroundColor: COLORS.graphiteRaised,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.darkOverlayBorder,
+    borderColor: COLORS.graphiteLine,
     padding: LOADING.panelPadding,
     gap: SPACING.sm,
   },
@@ -1013,7 +1018,7 @@ const styles = StyleSheet.create({
   },
   nonFashionBody: {
     ...TYPOGRAPHY.body,
-    color: COLORS.textSecondary,
+    color: COLORS.chromeMist,
     textAlign: 'center',
   },
   qaPanel: {
@@ -1025,8 +1030,8 @@ const styles = StyleSheet.create({
     elevation: 80,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.borderStrong,
-    backgroundColor: 'rgba(12, 15, 21, 0.96)',
+    borderColor: COLORS.graphiteLine,
+    backgroundColor: COLORS.obsidianSoft,
     padding: SPACING.md,
   },
   qaTitle: {
@@ -1036,7 +1041,7 @@ const styles = StyleSheet.create({
   },
   qaText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
+    color: COLORS.chromeMist,
     marginBottom: 2,
   },
   qaFixtureGrid: {
@@ -1048,8 +1053,8 @@ const styles = StyleSheet.create({
   qaFixtureButton: {
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderColor: COLORS.graphiteLine,
+    backgroundColor: COLORS.graphiteRaised,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
   },
@@ -1058,7 +1063,7 @@ const styles = StyleSheet.create({
   },
   qaFixtureText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textPrimary,
+    color: COLORS.textInverse,
   },
   errorToast: {
     position: 'absolute',
@@ -1117,7 +1122,7 @@ const styles = StyleSheet.create({
   },
   libraryButtonText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.chrome,
+    color: COLORS.textInverse,
   },
   qaToggleButton: {
     position: 'absolute',
@@ -1134,7 +1139,7 @@ const styles = StyleSheet.create({
   },
   qaToggleButtonText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.chrome,
+    color: COLORS.textInverse,
   },
   roomsButton: {
     position: 'absolute',
