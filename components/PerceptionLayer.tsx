@@ -1,14 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
+import { COLORS } from '../constants/theme';
 
 const SNAP     = 90;
 const STAGGER  = 80;
 const HOLD     = 300;
 const FADE_OUT = 180;
 
-// Chrome slate label / champagne gold value — matches Obsidian & Chrome identity
-const LABEL_COLOR = '#5A6372';
-const VALUE_COLOR = '#D6B36A';
+// Chrome label / electric value for the scan recognition overlay.
+const LABEL_COLOR = COLORS.chromeMuted;
+const VALUE_COLOR = COLORS.activeVision;
 
 interface Metadata {
   category?:  string;
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex:          50,
     elevation:       50,
-    backgroundColor: 'rgba(4, 6, 10, 0.92)',
+    backgroundColor: COLORS.darkOverlay,
     justifyContent:  'center',
     alignItems:      'center',
   },

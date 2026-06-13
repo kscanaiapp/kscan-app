@@ -151,7 +151,7 @@ function ProcessingPanel() {
     <View style={styles.processingPanel}>
       <View style={styles.processingIndicatorSlot}>
         {showSpinner ? (
-          <ActivityIndicator size={LOADING.indicatorSize} color={COLORS.accent} />
+          <ActivityIndicator size={LOADING.indicatorSize} color={COLORS.activeVision} />
         ) : (
           <View style={styles.processingIndicatorHalo} />
         )}
@@ -477,7 +477,7 @@ export default function App() {
               <ActivityIndicator
                 testID="capturing-indicator"
                 size="small"
-                color={COLORS.accent}
+                color={COLORS.scanCyan}
               />
             ) : (
               <ScanButton
@@ -703,6 +703,10 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     ...TYPOGRAPHY.brand,
+    color: COLORS.accent,
+    textShadowColor: COLORS.darkOverlay,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   subtitle: {
     ...TYPOGRAPHY.subtitle,
@@ -734,13 +738,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    backgroundColor: COLORS.darkOverlay,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.darkOverlayBorder,
   },
   scanSignalText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.chrome,
+    color: COLORS.activeVision,
     fontSize: 10,
     letterSpacing: 1.5,
   },
@@ -785,13 +789,13 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.cta,
   },
   primaryButton: {
-    backgroundColor: BUTTONS.primaryBackground,
+    backgroundColor: COLORS.accent,
   },
   primaryButtonText: {
     color: BUTTONS.primaryText,
   },
   secondaryButton: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
     borderColor: BUTTONS.secondaryBorder,
   },
@@ -856,9 +860,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: viewfinder.scanningLineHeight,
-    backgroundColor: viewfinder.scanningLineColor,
+    backgroundColor: COLORS.scanCyan,
     borderRadius: viewfinder.scanningLineHeight / 2,
-    shadowColor: viewfinder.frameGlow,
+    shadowColor: COLORS.activeVision,
     shadowOpacity: 0.42,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -990,8 +994,8 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 1,
-    borderColor: COLORS.borderStrong,
-    backgroundColor: COLORS.accentSoft,
+    borderColor: COLORS.scanCyan,
+    backgroundColor: COLORS.darkOverlay,
   },
   nonFashionPanel: {
     borderRadius: LOADING.panelRadius,
@@ -1003,7 +1007,7 @@ const styles = StyleSheet.create({
   },
   nonFashionTitle: {
     ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.accent,
+    color: COLORS.scanCyan,
     textAlign: 'center',
     letterSpacing: 1.6,
   },
@@ -1027,7 +1031,7 @@ const styles = StyleSheet.create({
   },
   qaTitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.accent,
+    color: COLORS.scanCyan,
     marginBottom: SPACING.xs,
   },
   qaText: {
@@ -1106,7 +1110,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    backgroundColor: COLORS.darkOverlay,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.darkOverlayBorder,
     ...SHADOWS.darkFloat,
@@ -1124,7 +1128,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    backgroundColor: COLORS.darkOverlay,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.darkOverlayBorder,
   },
@@ -1141,7 +1145,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(18, 18, 18, 0.72)',
+    backgroundColor: COLORS.darkOverlay,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.darkOverlayBorder,
     ...SHADOWS.darkFloat,

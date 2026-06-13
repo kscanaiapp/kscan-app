@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 
-const ACCESSIBLE_GOLD_TEXT = '#72521E';
+const ACCESSIBLE_GOLD_TEXT = COLORS.goldText;
 
 export default function Home() {
   const { isAuthenticated, signOut, user, loading } = useAuthSession();
@@ -49,7 +49,7 @@ export default function Home() {
           ) : null}
         </View>
 
-        {/* 4. SCAN NOW — full-width gold CTA */}
+        {/* 4. SCAN NOW — full-width primary CTA */}
         <Pressable
           testID="start-scan-button"
           style={({ pressed }) => [styles.scanNowCard, pressed ? styles.scanNowPressed : null]}
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   title: {
-    color: COLORS.editorialTextPrimary,
+    color: COLORS.purpleDeep,
     fontSize: 34,
     fontWeight: '900',
     letterSpacing: 2.4,
@@ -185,12 +185,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.accent,
     ...SHADOWS.editorialRaised,
     marginBottom: SPACING.lg,
   },
   scanNowPressed: {
-    backgroundColor: COLORS.goldPressed,
+    backgroundColor: COLORS.purpleDeep,
   },
   scanNowText: {
     color: COLORS.textInverse,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     ...TYPOGRAPHY.caption,
-    color: ACCESSIBLE_GOLD_TEXT,
+    color: COLORS.accent,
     letterSpacing: 2.2,
   },
   betaBadge: {
@@ -269,14 +269,14 @@ const styles = StyleSheet.create({
   styleChatCard: {
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(214, 179, 106, 0.28)',
-    backgroundColor: 'rgba(9, 9, 11, 0.96)',
+    borderColor: COLORS.chromeLine,
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
-    ...SHADOWS.darkFloat,
+    ...SHADOWS.editorialSmall,
   },
   styleChatCardPressed: {
-    backgroundColor: '#111114',
+    backgroundColor: COLORS.surfaceMuted,
     borderColor: COLORS.borderStrong,
   },
   styleChatInner: {
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   styleChatBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: COLORS.textSecondary,
+    color: COLORS.editorialTextSecondary,
   },
   styleChatDot: {
     width: 8,

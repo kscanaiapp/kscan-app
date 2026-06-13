@@ -267,7 +267,7 @@ export const BUTTONS = {
   minWidth:          196,
   height:            54,
   horizontalPadding: SPACING.xl,
-  primaryBackground: COLORS.gold,
+  primaryBackground: COLORS.accent,
   primaryText:       COLORS.textInverse,
   secondaryBorder:   COLORS.border,
   secondaryText:     COLORS.textSecondary,
