@@ -15,6 +15,38 @@ node_modules
 
 API Keys.docx
 
+# K Scan QA/runtime/build artifacts
+qa/*.png
+qa/*.jpg
+qa/*.jpeg
+qa/*.webp
+qa/*.xml
+qa/*.log
+qa/*.zip
+qa/*.aab
+qa/*.apk
+qa/**/*.png
+qa/**/*.jpg
+qa/**/*.jpeg
+qa/**/*.webp
+qa/**/*.xml
+qa/**/*.log
+qa/**/*.zip
+qa/**/*.aab
+qa/**/*.apk
+qa/**/aab-unpacked/
+qa/**/ui-dumps/
+
+# Local release-candidate runtime/build artifacts
+qa/v5-release-candidate/
+
+# Supabase local CLI state
+supabase/.branches/
+
+# Local root audit scratch files
+# Anchored to repo root by leading slash
+/release-candidate-audit-*.md
+
 *Keys*.docx
 
 *keys*.docx
