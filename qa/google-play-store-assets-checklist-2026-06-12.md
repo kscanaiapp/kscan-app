@@ -149,8 +149,8 @@ Do not fill the Play Console Data Safety form from this asset checklist. Use the
 - [x] Production EAS profile remains store distribution with `app-bundle`.
 - [x] AAB not yet built in this prompt.
 - [x] Data Safety final answer packet ready; Play Console form not yet submitted.
-- [x] Physical-device smoke not yet complete.
-- [x] Runtime smoke and AAB/internal-track validation remain deferred.
+- [x] Physical-device smoke COMPLETE — see `qa/final-release-smoke-2026-06-14.md` (Samsung SM-S936U, Android 16, PASS WITH NOTES, 2026-06-14). ~~Physical-device smoke not yet complete.~~
+- [x] Runtime smoke COMPLETE (physical device, 2026-06-14). AAB build and internal-track upload remain owner actions. ~~Runtime smoke and AAB/internal-track validation remain deferred.~~
 - [ ] Website/legal source should receive final owner review before owner go/no-go because storage cleanup remains a deletion follow-up.
 
 ## Release Decision

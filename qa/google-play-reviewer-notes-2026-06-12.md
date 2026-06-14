@@ -80,7 +80,7 @@ identification, or person identification. See Data Safety for the corresponding 
 - Data Safety final packet is canonical for Play Console entry; Play Console entry/submission remain owner actions.
 - Complete automated deletion is not claimed.
 - Supabase Storage cleanup and StyleChat burst usage cleanup are tracked follow-ups.
-- Runtime smoke and AAB/internal-track validation are deferred to the final packaging phase.
+- Runtime smoke COMPLETE — physical device (Samsung SM-S936U, Android 16), PASS WITH NOTES, 2026-06-14. See `qa/final-release-smoke-2026-06-14.md`. AAB build and internal-track upload remain owner actions. ~~Runtime smoke and AAB/internal-track validation are deferred to the final packaging phase.~~
 
 ## Release Decision
 
