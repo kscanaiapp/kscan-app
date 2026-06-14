@@ -270,13 +270,13 @@ export default function AuthScreen() {
   if (step === 'confirm-email') {
     return (
       <View style={styles.root}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backText}>Cancel</Text>
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.brand}>K-SCAN</Text>
+            <Text style={styles.brand}>K Scan AI</Text>
             <Text style={styles.screenTitle}>ACCOUNT ACCESS</Text>
           </View>
           <View style={styles.headerRight} />
@@ -311,13 +311,13 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()} disabled={busy}>
           <Text style={[styles.backText, busy && styles.disabled]}>Cancel</Text>
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.brand}>K-SCAN</Text>
+          <Text style={styles.brand}>K Scan AI</Text>
           <Text style={styles.screenTitle}>{screenTitle}</Text>
         </View>
         <View style={styles.headerRight} />
@@ -560,6 +560,9 @@ const styles = StyleSheet.create({
   brand: {
     ...TYPOGRAPHY.brand,
     fontSize: 16,
+    letterSpacing: 3.2,
+    textTransform: 'none',
+    color: COLORS.accent,
   },
   screenTitle: {
     ...TYPOGRAPHY.caption,
@@ -573,10 +576,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.goldMuted,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.xl,
     gap: SPACING.lg,
   },
@@ -657,10 +660,18 @@ const styles = StyleSheet.create({
   primaryButton: {
     height: 52,
     borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.gold,
+    borderTopColor: COLORS.softGold,
+    borderRightColor: COLORS.goldMuted,
     backgroundColor: COLORS.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.sm,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   primaryButtonBusy: {
     opacity: 0.7,

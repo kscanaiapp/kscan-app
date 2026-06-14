@@ -24,31 +24,9 @@ import {
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { useStyleChat } from '../../hooks/useStyleChat';
+import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import type { StyleChatMessage } from '../../services/style-chat/types';
-
-function getFriendlyStyleChatError(message?: string | null) {
-  if (!message) return null;
-  if (message === STYLE_CHAT_COPY.systemLimitNotice) return message;
-  if (message === STYLE_CHAT_COPY.burstLimitNotice) {
-    return "You've sent several messages quickly. Please wait a moment before sending another.";
-  }
-
-  const lower = message.toLowerCase();
-  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('abort')) {
-    return 'This is taking longer than usual. Please wait or try again.';
-  }
-  if (lower.includes('rate') || lower.includes('limit') || lower.includes('too many')) {
-    return "You've sent several messages quickly. Please wait a moment before sending another.";
-  }
-  if (lower.includes('network') || lower.includes('fetch') || lower.includes('connect')) {
-    return "We couldn't connect. Please check your internet and try again.";
-  }
-  if (lower.includes('provider') || lower.includes('model') || lower.includes('generate')) {
-    return "We couldn't generate a response right now. Please try again later.";
-  }
-  return "We couldn't update this chat right now. Please try again.";
-}
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -162,7 +140,7 @@ export default function StyleChatSessionScreen() {
 
   return (
     <SafeAreaView testID="style-chat-screen" style={styles.safe}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <StyleChatHeader showBadge={false} />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
         <Text style={styles.sessionLabel} numberOfLines={1}>
@@ -217,7 +195,7 @@ export default function StyleChatSessionScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.chatScreenBg,
   },
   flex: {
     flex: 1,
@@ -230,7 +208,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.darkOverlayBorder,
+    borderBottomColor: COLORS.chatHairline,
   },
   sessionLabel: {
     ...TYPOGRAPHY.chipLabel,
@@ -264,6 +242,7 @@ const styles = StyleSheet.create({
   messageList: {
     flex: 1,
     minHeight: 0,
+    backgroundColor: COLORS.chatPanelBg,
   },
   messageListLandscape: {
     minHeight: 80,
@@ -313,13 +292,13 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 170, 170, 0.42)',
-    backgroundColor: 'rgba(182, 84, 84, 0.08)',
+    borderColor: 'rgba(130, 48, 56, 0.28)',
+    backgroundColor: 'rgba(130, 48, 56, 0.07)',
   },
   errorText: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
-    color: COLORS.errorSoft,
+    color: COLORS.error,
     flex: 1,
   },
   retryLink: {

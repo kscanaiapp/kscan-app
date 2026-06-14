@@ -6,16 +6,13 @@ import {
   saveStyleChatMessage,
   readStyleChatDailyUsage,
 } from '../services/style-chat/styleChatRepository';
+import { getFriendlyStyleChatError } from '../services/style-chat/styleChatErrors';
 import type { StyleChatMessage, StyleChatSession } from '../services/style-chat/types';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
 // MockStyleChatProvider remains available in edgeStyleChatProvider's fallback chain.
 const provider = new EdgeStyleChatProvider();
-
-function getSafeErrorMessage(err: unknown, fallback: string) {
-  return err instanceof Error && err.message.trim().length > 0 ? err.message : fallback;
-}
 
 function getSafeCount(value: number | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : fallback;
@@ -57,7 +54,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         const s = await getStyleChatSession(sessionId);
         if (!cancelled) setSession(s);
       } catch (err: unknown) {
-        if (!cancelled) setError(getSafeErrorMessage(err, 'Unable to load session.'));
+        if (!cancelled) setError(getFriendlyStyleChatError(err));
       } finally {
         if (!cancelled) setLoadingSession(false);
       }
@@ -69,7 +66,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         const msgs = await listStyleChatMessages(sessionId);
         if (!cancelled) setMessages(msgs);
       } catch (err: unknown) {
-        if (!cancelled) setError(getSafeErrorMessage(err, 'Unable to load messages.'));
+        if (!cancelled) setError(getFriendlyStyleChatError(err));
       } finally {
         if (!cancelled) setLoadingMessages(false);
       }
@@ -207,6 +204,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
           content: assistantContent,
           provider: 'gemini',
           model: result.message.model || undefined,
+          tokenEstimate: result.message.tokenEstimate,
         });
         setMessages(prev =>
           prev.map(m => (m.id === optimisticAssistant.id ? savedAssistant : m)),
@@ -221,7 +219,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         setMessages(prev =>
           prev.filter(m => !m.id.startsWith('optimistic-')),
         );
-        setError(getSafeErrorMessage(err, STYLE_CHAT_COPY.errorGeneric));
+        setError(getFriendlyStyleChatError(err));
       } finally {
         isSendingRef.current = false;
         setIsSending(false);

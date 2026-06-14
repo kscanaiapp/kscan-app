@@ -196,6 +196,7 @@ export async function saveStyleChatMessage(input: {
   uiBlocks?: StyleChatUiBlock[];
   provider?: string;
   model?: string;
+  tokenEstimate?: number;
   referencedScanIds?: string[];
   referencedSavedItemIds?: string[];
   referencedDressingRoomIds?: string[];
@@ -213,6 +214,10 @@ export async function saveStyleChatMessage(input: {
       ui_blocks: input.uiBlocks ?? [],
       provider: input.provider ?? 'mock',
       model: input.model ?? null,
+      token_estimate:
+        typeof input.tokenEstimate === 'number' && input.tokenEstimate > 0
+          ? input.tokenEstimate
+          : 0,
       referenced_scan_ids: input.referencedScanIds ?? [],
       referenced_saved_item_ids: input.referencedSavedItemIds ?? [],
       referenced_dressing_room_ids: input.referencedDressingRoomIds ?? [],
