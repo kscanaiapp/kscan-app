@@ -204,6 +204,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
           content: assistantContent,
           provider: 'gemini',
           model: result.message.model || undefined,
+          tokenEstimate: result.message.tokenEstimate,
         });
         setMessages(prev =>
           prev.map(m => (m.id === optimisticAssistant.id ? savedAssistant : m)),
