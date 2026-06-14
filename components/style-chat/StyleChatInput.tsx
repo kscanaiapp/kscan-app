@@ -37,6 +37,8 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         onChangeText={setText}
         placeholder="Ask your AI stylist…"
         placeholderTextColor={COLORS.textTertiary}
+        selectionColor={COLORS.chatCursorAccent}
+        cursorColor={COLORS.chatCursorAccent}
         multiline
         maxLength={1000}
         returnKeyType="send"
@@ -73,8 +75,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.darkOverlayBorder,
-    backgroundColor: 'rgba(12, 15, 21, 0.96)',
+    borderTopColor: COLORS.chatHairline,
+    backgroundColor: COLORS.chatScreenBg,
     gap: SPACING.sm,
   },
   input: {
@@ -84,9 +86,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
     maxHeight: 110,
     borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.darkOverlayBorder,
-    backgroundColor: 'rgba(20, 24, 32, 0.62)',
+    borderWidth: 1,
+    borderColor: COLORS.chatHairline,
+    backgroundColor: COLORS.chatComposerInputBg,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     color: COLORS.textPrimary,
@@ -107,21 +109,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sendBtnActive: {
-    backgroundColor: 'rgba(214, 179, 106, 0.16)',
-    borderColor: 'rgba(214, 179, 106, 0.46)',
+    backgroundColor: COLORS.chatSendBg,
+    borderColor: COLORS.champagneGold,
+    borderTopColor: COLORS.chatGlossTop,
   },
   sendBtnInactive: {
-    backgroundColor: 'transparent',
-    borderColor: COLORS.darkOverlayBorder,
+    backgroundColor: COLORS.chatPressTint,
+    borderColor: COLORS.chatHairline,
   },
   sendBtnPressed: {
-    backgroundColor: 'rgba(214, 179, 106, 0.24)',
-    borderColor: 'rgba(214, 179, 106, 0.58)',
+    backgroundColor: COLORS.chatSendPressed,
+    borderColor: COLORS.champagneGold,
   },
   sendText: {
     ...TYPOGRAPHY.cta,
     fontSize: 12,
-    color: COLORS.chrome,
+    color: COLORS.textInverse,
   },
   sendTextDisabled: {
     color: COLORS.textTertiary,

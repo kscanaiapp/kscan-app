@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: SPACING.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.darkOverlayBorder,
-    backgroundColor: COLORS.bg,
+    borderBottomColor: COLORS.chatHairline,
+    backgroundColor: COLORS.chatScreenBg,
     zIndex: 10,
     elevation: 4,
   },
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   homeButtonText: {
     ...TYPOGRAPHY.chipLabel,
-    color: COLORS.chrome,
+    color: COLORS.textSecondary,
     letterSpacing: 3,
   },
   titleWrap: {
@@ -138,13 +138,13 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 3,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(214, 179, 106, 0.24)',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: COLORS.chatHairline,
+    backgroundColor: 'rgba(198, 161, 91, 0.10)',
   },
   badgeText: {
     fontSize: 9,
     fontWeight: '600' as const,
     letterSpacing: 2.2,
-    color: COLORS.chromeMuted,
+    color: COLORS.goldText,
   },
 });

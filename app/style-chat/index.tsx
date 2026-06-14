@@ -67,7 +67,7 @@ export default function StyleChatIndexScreen() {
 
   return (
     <SafeAreaView testID="style-chat-screen" style={styles.safe}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <StyleChatHeader />
       <ScrollView
         style={styles.scroll}
@@ -91,10 +91,11 @@ export default function StyleChatIndexScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.chatScreenBg,
   },
   scroll: {
     flex: 1,
+    backgroundColor: COLORS.chatPanelBg,
   },
   scrollContent: {
     flexGrow: 1,

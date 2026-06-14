@@ -140,7 +140,7 @@ export default function StyleChatSessionScreen() {
 
   return (
     <SafeAreaView testID="style-chat-screen" style={styles.safe}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <StyleChatHeader showBadge={false} />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
         <Text style={styles.sessionLabel} numberOfLines={1}>
@@ -195,7 +195,7 @@ export default function StyleChatSessionScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.chatScreenBg,
   },
   flex: {
     flex: 1,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.darkOverlayBorder,
+    borderBottomColor: COLORS.chatHairline,
   },
   sessionLabel: {
     ...TYPOGRAPHY.chipLabel,
@@ -242,6 +242,7 @@ const styles = StyleSheet.create({
   messageList: {
     flex: 1,
     minHeight: 0,
+    backgroundColor: COLORS.chatPanelBg,
   },
   messageListLandscape: {
     minHeight: 80,
@@ -291,13 +292,13 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 170, 170, 0.42)',
-    backgroundColor: 'rgba(182, 84, 84, 0.08)',
+    borderColor: 'rgba(130, 48, 56, 0.28)',
+    backgroundColor: 'rgba(130, 48, 56, 0.07)',
   },
   errorText: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
-    color: COLORS.errorSoft,
+    color: COLORS.error,
     flex: 1,
   },
   retryLink: {
