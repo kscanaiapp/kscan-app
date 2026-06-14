@@ -24,31 +24,9 @@ import {
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { useStyleChat } from '../../hooks/useStyleChat';
+import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import type { StyleChatMessage } from '../../services/style-chat/types';
-
-function getFriendlyStyleChatError(message?: string | null) {
-  if (!message) return null;
-  if (message === STYLE_CHAT_COPY.systemLimitNotice) return message;
-  if (message === STYLE_CHAT_COPY.burstLimitNotice) {
-    return "You've sent several messages quickly. Please wait a moment before sending another.";
-  }
-
-  const lower = message.toLowerCase();
-  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('abort')) {
-    return 'This is taking longer than usual. Please wait or try again.';
-  }
-  if (lower.includes('rate') || lower.includes('limit') || lower.includes('too many')) {
-    return "You've sent several messages quickly. Please wait a moment before sending another.";
-  }
-  if (lower.includes('network') || lower.includes('fetch') || lower.includes('connect')) {
-    return "We couldn't connect. Please check your internet and try again.";
-  }
-  if (lower.includes('provider') || lower.includes('model') || lower.includes('generate')) {
-    return "We couldn't generate a response right now. Please try again later.";
-  }
-  return "We couldn't update this chat right now. Please try again.";
-}
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);

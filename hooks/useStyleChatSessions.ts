@@ -6,6 +6,7 @@ import {
   deleteStyleChatSession,
   listStyleChatSessions,
 } from '../services/style-chat/styleChatRepository';
+import { getFriendlyStyleChatError } from '../services/style-chat/styleChatErrors';
 
 // Mirrors useDressingRooms from hooks/useStyleObjects.ts
 export function useStyleChatSessions() {
@@ -19,7 +20,7 @@ export function useStyleChatSessions() {
     try {
       setSessions(await listStyleChatSessions());
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Unable to load StyleChat sessions.');
+      setError(getFriendlyStyleChatError(err));
     } finally {
       setLoading(false);
     }

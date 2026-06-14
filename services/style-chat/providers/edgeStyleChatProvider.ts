@@ -10,6 +10,7 @@
 
 import { supabase } from '../../supabaseClient';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
+import { getFriendlyStyleChatError } from '../styleChatErrors';
 
 const EDGE_FN      = 'stylechat-generate';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
@@ -167,13 +168,16 @@ export class EdgeStyleChatProvider {
               if (status === 'limit_reached') {
                 return limitResult(bodyContent || STYLE_CHAT_COPY.systemLimitNotice, body.usage);
               }
+              if (status === 'error') {
+                return fallbackResult(normalizeMessage(bodyMessage, STYLE_CHAT_COPY.errorGeneric));
+              }
             }
           } catch {
             // fall through to generic fallback
           }
         }
         if (__DEV__) console.warn('[EdgeStyleChatProvider] invoke error:', (error as Error).message);
-        return fallbackResult();
+        return fallbackResult({ content: getFriendlyStyleChatError(error) });
       }
 
       if (!data || typeof data.status !== 'string') {
@@ -202,7 +206,7 @@ export class EdgeStyleChatProvider {
       }
 
       if (status === 'error') {
-        return fallbackResult();
+        return fallbackResult(normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric));
       }
 
       if (typeof data.message?.content !== 'string' || data.message.content.trim().length === 0) {
@@ -222,7 +226,7 @@ export class EdgeStyleChatProvider {
       if (__DEV__) {
         console.warn('[EdgeStyleChatProvider]', isAbort ? 'request timed out' : (err as Error)?.message);
       }
-      return fallbackResult();
+      return fallbackResult({ content: getFriendlyStyleChatError(err) });
     } finally {
       clearTimeout(timeoutId);
     }

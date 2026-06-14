@@ -13,9 +13,11 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isLandscape = width > height;
+  const composerBottomPadding = (insets.bottom > 0 ? insets.bottom : 12) + 8;
   const safeContainerPadding = {
     paddingLeft: Math.max(SPACING.xl, insets.left),
     paddingRight: Math.max(SPACING.xl, insets.right),
+    paddingBottom: composerBottomPadding,
   };
 
   const canSubmit = text.trim().length > 0 && !disabled;
