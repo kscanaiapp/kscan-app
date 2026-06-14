@@ -36,7 +36,7 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         value={text}
         onChangeText={setText}
         placeholder="Ask your AI stylist…"
-        placeholderTextColor={COLORS.textTertiary}
+        placeholderTextColor={COLORS.textSecondary}
         selectionColor={COLORS.chatCursorAccent}
         cursorColor={COLORS.chatCursorAccent}
         multiline
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.chatGlossTop,
   },
   sendBtnInactive: {
-    backgroundColor: COLORS.chatPressTint,
+    backgroundColor: 'rgba(116, 36, 94, 0.18)',
     borderColor: COLORS.chatHairline,
   },
   sendBtnPressed: {

@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../../constants/theme';

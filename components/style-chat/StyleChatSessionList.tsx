@@ -190,7 +190,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.chatSendPressed,
   },
   newBtnDisabled: {
-    opacity: 0.6,
+    backgroundColor: 'rgba(116, 36, 94, 0.18)',
+    borderColor: COLORS.champagneGold,
+    borderTopColor: COLORS.champagneGold,
   },
   newBtnText: {
     ...TYPOGRAPHY.cta,
@@ -199,6 +201,6 @@ const styles = StyleSheet.create({
     color: COLORS.textInverse,
   },
   newBtnTextDisabled: {
-    color: 'rgba(255, 253, 249, 0.6)',
+    color: COLORS.accent,
   },
 });

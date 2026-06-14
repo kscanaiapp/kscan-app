@@ -95,16 +95,16 @@ export const COLORS = {
   // ── StyleChat V6.3 — bright pearl surfaces / gloss plum actions (screen-scoped) ─
   // Added (not mutating shared tokens): StyleChat surfaces were dark-on-dark.
   chatScreenBg:        '#FFFDF9',                 // luminous warm pearl screen/window + bottom chin
-  chatPanelBg:         '#FFFCF7',                 // message list + session panel backing
+  chatPanelBg:         '#FFFDF9',                 // message list + session panel backing
   chatSessionCardBg:   '#FFFFFF',                 // session card (paired with champagne edge)
   chatComposerInputBg: '#FFFFFF',                 // input field (paired with champagne edge)
   chatAssistantBubble: '#FFFFFF',                 // assistant bubble (paired with champagne edge)
-  chatHairline:        '#D8C8AE',                 // warm champagne edge for white-on-pearl definition
+  chatHairline:        '#B8A878',                 // warm champagne edge for white-on-pearl definition
   chatErrorText:       '#6B1F55',                 // readable plum for error/system text on pearl
   chatSendBg:          '#74245E',                 // brighter V6.3 plum CTA fill (ivory text)
   chatSendPressed:     '#6E1F55',                 // pressed plum (= purpleSoft tone)
   chatUserBubble:      '#7B2A66',                 // brighter plum user bubble (ivory text)
-  chatGlossTop:        'rgba(255, 255, 255, 0.16)', // top sheen on plum CTAs / bubbles
+  chatGlossTop:        'rgba(255, 255, 255, 0.30)', // top sheen on plum CTAs / bubbles
   chatPressTint:       'rgba(116, 36, 94, 0.10)',   // faint plum press / inactive tint on pearl
   chatCursorAccent:    '#0D9FB3',                 // = scanCyan; cursor/focus micro-accent only
 };
