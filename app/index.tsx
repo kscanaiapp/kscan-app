@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,23 +62,25 @@ export default function Home() {
 
         {/* 5. Resume placeholder — hidden for Beta 4.2 */}
 
-        {/* 6. Dressing Rooms */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardLabel}>DRESSING ROOMS</Text>
-            <View style={styles.betaBadge}>
-              <Text style={styles.betaBadgeText}>BETA</Text>
+        {/* 6. Dressing Rooms — not included in iOS RC */}
+        {Platform.OS !== 'ios' && (
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardLabel}>DRESSING ROOMS</Text>
+              <View style={styles.betaBadge}>
+                <Text style={styles.betaBadgeText}>BETA</Text>
+              </View>
             </View>
+            <Text style={styles.cardBody}>Build and share style boards.</Text>
+            <Pressable
+              testID="open-dressing-room-button"
+              style={({ pressed }) => [styles.cardButton, pressed ? styles.cardButtonPressed : null]}
+              onPress={() => router.push('/dressing-rooms')}
+            >
+              <Text style={styles.cardButtonText}>OPEN ROOMS</Text>
+            </Pressable>
           </View>
-          <Text style={styles.cardBody}>Build and share style boards.</Text>
-          <Pressable
-            testID="open-dressing-room-button"
-            style={({ pressed }) => [styles.cardButton, pressed ? styles.cardButtonPressed : null]}
-            onPress={() => router.push('/dressing-rooms')}
-          >
-            <Text style={styles.cardButtonText}>OPEN ROOMS</Text>
-          </Pressable>
-        </View>
+        )}
 
         {/* 7. Style Library */}
         <View style={[styles.card, styles.cardMuted]}>
@@ -93,24 +95,26 @@ export default function Home() {
           </Pressable>
         </View>
 
-        {/* 8. StyleChat — premium intelligence layer */}
-        <Pressable
-          testID="style-chat-entry-card"
-          style={({ pressed }) => [styles.styleChatCard, pressed ? styles.styleChatCardPressed : null]}
-          onPress={() => router.push('/style-chat')}
-          accessibilityLabel="Ask StyleChat"
-          accessibilityRole="button"
-        >
-          <View style={styles.styleChatInner}>
-            <View style={styles.styleChatTextBlock}>
-              <Text style={styles.styleChatLabel}>ASK STYLECHAT</Text>
-              <Text style={styles.styleChatBody}>
-                Style a scan, compare looks, or choose from a Dressing Room.
-              </Text>
+        {/* 8. StyleChat — not included in iOS RC */}
+        {Platform.OS !== 'ios' && (
+          <Pressable
+            testID="style-chat-entry-card"
+            style={({ pressed }) => [styles.styleChatCard, pressed ? styles.styleChatCardPressed : null]}
+            onPress={() => router.push('/style-chat')}
+            accessibilityLabel="Ask StyleChat"
+            accessibilityRole="button"
+          >
+            <View style={styles.styleChatInner}>
+              <View style={styles.styleChatTextBlock}>
+                <Text style={styles.styleChatLabel}>ASK STYLECHAT</Text>
+                <Text style={styles.styleChatBody}>
+                  Style a scan, compare looks, or choose from a Dressing Room.
+                </Text>
+              </View>
+              <View style={styles.styleChatDot} />
             </View>
-            <View style={styles.styleChatDot} />
-          </View>
-        </Pressable>
+          </Pressable>
+        )}
 
         {/* 9. Privacy / Log Out */}
         <View style={styles.footerLinks}>

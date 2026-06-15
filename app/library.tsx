@@ -11,6 +11,7 @@ import {
   Alert,
   Dimensions,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -238,6 +239,10 @@ export default function LibraryScreen() {
   };
 
   const handleUploadInspiration = async () => {
+    if (Platform.OS === 'ios') {
+      Alert.alert('Camera scanning only', 'This iOS release uses the camera scan flow. Photo library import is not part of this build.');
+      return;
+    }
     const granted = await requestPhotoLibraryPermission();
     if (!granted) return;
 
@@ -344,7 +349,7 @@ export default function LibraryScreen() {
         {/* ── Inspiration section ────────────────────────────────────────── */}
         <View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
           <Text style={styles.sectionLabel}>INSPIRATION</Text>
-          {isAuthenticated ? (
+          {isAuthenticated && Platform.OS !== 'ios' ? (
             <TouchableOpacity
               style={styles.uploadBtn}
               onPress={handleUploadInspiration}

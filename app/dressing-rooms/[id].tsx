@@ -562,6 +562,10 @@ function DressingRoomDetailContent() {
   }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, selectedReactions]);
 
   const handleUploadInspiration = async () => {
+    if (Platform.OS === 'ios') {
+      Alert.alert('Camera scanning only', 'This iOS release uses the camera scan flow. Photo library import is not part of this build.');
+      return;
+    }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Photo Access Required', 'Allow K Scan to access your photo library in Settings to upload inspiration.');

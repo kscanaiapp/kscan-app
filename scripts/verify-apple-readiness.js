@@ -70,7 +70,7 @@ function verify() {
 
   check(result, appJson.version === '1.0.0', 'Expo marketing version is 1.0.0');
   check(result, ios.bundleIdentifier === 'com.kscanai.app', 'iOS bundle ID is com.kscanai.app');
-  check(result, ios.buildNumber === '1', 'iOS build number is 1');
+  check(result, ios.buildNumber === '2', 'iOS build number is 2');
   check(result, ios.supportsTablet === false, 'iPad support is disabled for this iPhone-only submission');
   check(result, ios.config?.usesNonExemptEncryption === false, 'Non-exempt encryption flag is false');
   check(
@@ -128,7 +128,8 @@ function verify() {
   check(result, apple.advisory?.kidsAgeBand === null, 'App is not configured as Made for Kids');
   check(result, apple.advisory?.ageRatingOverride === 'NONE', 'No unsupported age-rating override is encoded');
 
-  check(result, !hasDependency(packageJson, 'expo-apple-authentication'), 'No Apple social login dependency');
+  const iosPlugins = (appJson.plugins ?? []).map((p) => (Array.isArray(p) ? p[0] : p));
+  check(result, !iosPlugins.includes('expo-apple-authentication') && ios.usesAppleSignIn !== true, 'No Apple sign-in plugin or entitlement declared');
   check(result, !hasDependency(packageJson, 'expo-media-library'), 'No media library dependency');
   check(result, !hasDependency(packageJson, 'expo-ads-admob'), 'No ads dependency');
   check(result, !hasDependency(packageJson, 'expo-tracking-transparency'), 'No App Tracking Transparency dependency');
