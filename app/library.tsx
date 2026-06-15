@@ -204,7 +204,10 @@ export default function LibraryScreen() {
   const { scans, loading, remove } = useLibrary();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { isAuthenticated, user } = useAuthSession();
-  const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
+  // Dressing Rooms are excluded from the iOS release, so the "Add to Dressing
+  // Room" affordance must never wire up there even if the freeze flag is off.
+  const dressingRoomsEnabled =
+    Platform.OS !== 'ios' && !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
   const [selectedScan, setSelectedScan] = useState<SavedScan | null>(null);
   const [dressingRoomModalVisible, setDressingRoomModalVisible] = useState(false);
@@ -216,7 +219,9 @@ export default function LibraryScreen() {
   const [showInspirationModal, setShowInspirationModal] = useState(false);
 
   const loadInspirations = useCallback(async () => {
-    if (!isAuthenticated) return;
+    // Inspiration uploads rely on photo-library import, which is not part of the
+    // iOS release. Skip the fetch entirely so iOS triggers no backend call.
+    if (!isAuthenticated || Platform.OS === 'ios') return;
     setInspirationLoading(true);
     setInspirationError(null);
     try {
@@ -346,51 +351,55 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {/* ── Inspiration section ────────────────────────────────────────── */}
-        <View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
-          <Text style={styles.sectionLabel}>INSPIRATION</Text>
-          {isAuthenticated && Platform.OS !== 'ios' ? (
-            <TouchableOpacity
-              style={styles.uploadBtn}
-              onPress={handleUploadInspiration}
-              testID="upload-inspiration-button"
-            >
-              <Text style={styles.uploadBtnText}>UPLOAD</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        {/* ── Inspiration section — excluded on iOS (photo-library import) ─── */}
+        {Platform.OS !== 'ios' ? (
+          <>
+            <View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+              <Text style={styles.sectionLabel}>INSPIRATION</Text>
+              {isAuthenticated ? (
+                <TouchableOpacity
+                  style={styles.uploadBtn}
+                  onPress={handleUploadInspiration}
+                  testID="upload-inspiration-button"
+                >
+                  <Text style={styles.uploadBtnText}>UPLOAD</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
 
-        {!isAuthenticated ? (
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyBody}>Sign in to upload inspiration.</Text>
-          </View>
-        ) : inspirationLoading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size={LOADING.indicatorSize} color={COLORS.accent} />
-          </View>
-        ) : inspirationError ? (
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyBody}>{inspirationError}</Text>
-            <TouchableOpacity onPress={loadInspirations} style={styles.retryBtn}>
-              <Text style={styles.retryBtnText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : inspirations.length === 0 ? (
-          <InspirationEmptyState />
-        ) : (
-          <View>
-            {inspirationGrid.map(([a, b]) => (
-              <View key={a.id} style={styles.gridRow}>
-                <InspirationCard item={a} onDelete={handleDeleteInspiration} />
-                {b ? (
-                  <InspirationCard item={b} onDelete={handleDeleteInspiration} />
-                ) : (
-                  <View style={{ width: CARD_W }} />
-                )}
+            {!isAuthenticated ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyBody}>Sign in to upload inspiration.</Text>
               </View>
-            ))}
-          </View>
-        )}
+            ) : inspirationLoading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator size={LOADING.indicatorSize} color={COLORS.accent} />
+              </View>
+            ) : inspirationError ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyBody}>{inspirationError}</Text>
+                <TouchableOpacity onPress={loadInspirations} style={styles.retryBtn}>
+                  <Text style={styles.retryBtnText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : inspirations.length === 0 ? (
+              <InspirationEmptyState />
+            ) : (
+              <View>
+                {inspirationGrid.map(([a, b]) => (
+                  <View key={a.id} style={styles.gridRow}>
+                    <InspirationCard item={a} onDelete={handleDeleteInspiration} />
+                    {b ? (
+                      <InspirationCard item={b} onDelete={handleDeleteInspiration} />
+                    ) : (
+                      <View style={{ width: CARD_W }} />
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        ) : null}
       </ScrollView>
 
       {/* Reopen saved scan — no backend call, no useKScan involvement */}

@@ -95,6 +95,16 @@ export default function Home() {
           </Pressable>
         </View>
 
+        {/* 8a. iOS scope guidance — keeps the focused iOS surface purposeful */}
+        {Platform.OS === 'ios' && (
+          <View style={[styles.card, styles.guidanceCard]}>
+            <Text style={styles.cardLabel}>HOW K SCAN WORKS</Text>
+            <Text style={styles.guidanceBody}>
+              Scan a fashion item with your camera, review the style breakdown, and save it to your library.
+            </Text>
+          </View>
+        )}
+
         {/* 8. StyleChat — not included in iOS RC */}
         {Platform.OS !== 'ios' && (
           <Pressable
@@ -226,6 +236,15 @@ const styles = StyleSheet.create({
   },
   cardMuted: {
     backgroundColor: COLORS.surfaceRaised,
+  },
+  guidanceCard: {
+    backgroundColor: COLORS.surfaceRaised,
+  },
+  guidanceBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: COLORS.editorialTextSecondary,
+    marginTop: SPACING.xs,
   },
   cardHeaderRow: {
     flexDirection: 'row',

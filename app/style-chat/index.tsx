@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
 } from 'react-native';
@@ -8,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../../constants/theme';
+import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
 import {
   StyleChatHeader,
   useStyleChatHomeBackHandler,
@@ -17,6 +19,12 @@ import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 export default function StyleChatIndexScreen() {
+  // StyleChat is not part of the iOS release. Guard the route so a deep link
+  // surfaces a calm placeholder instead of the feature or its backend calls.
+  if (Platform.OS === 'ios') {
+    return <SafeUnavailableScreen />;
+  }
+
   const isDeleteDialogOpenRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 

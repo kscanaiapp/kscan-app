@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
+import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
 import {
   EmptyState,
   Header,
@@ -81,6 +83,10 @@ function LooksContent() {
 }
 
 export default function LooksScreen() {
+  // Looks (Outfit Remix composition surface) are not part of the iOS release.
+  if (Platform.OS === 'ios') {
+    return <SafeUnavailableScreen />;
+  }
   const { isFeatureEnabled, isLoading } = useFeatureFreeze();
   if (isLoading) {
     return <FeatureFreezeFallback cta="closet" loading />;

@@ -18,6 +18,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
+import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
 import { InspirationUploadModal } from '../../components/InspirationUploadModal';
 import {
   EmptyState,
@@ -891,6 +892,11 @@ const inspirationCardStyles = StyleSheet.create({
 });
 
 export default function DressingRoomDetailScreen() {
+  // Dressing Rooms are not part of the iOS release. Guard the route so a deep
+  // link surfaces a calm placeholder instead of the feature or its backend calls.
+  if (Platform.OS === 'ios') {
+    return <SafeUnavailableScreen />;
+  }
   const { isFeatureEnabled, isLoading } = useFeatureFreeze();
   if (isLoading) {
     return <FeatureFreezeFallback cta="closet" loading />;

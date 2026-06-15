@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   Linking,
+  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import SafeUnavailableScreen from '../../../components/SafeUnavailableScreen';
 import {
   COLORS,
   LAYOUT,
@@ -294,6 +296,11 @@ function CenteredMessage({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function SharedRoomScreen() {
+  // Shared rooms (Share by Link) are not part of the iOS release. Guard the
+  // route so a shared deep link surfaces a calm placeholder and never fetches.
+  if (Platform.OS === 'ios') {
+    return <SafeUnavailableScreen />;
+  }
   const { token } = useLocalSearchParams<{ token: string }>();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);

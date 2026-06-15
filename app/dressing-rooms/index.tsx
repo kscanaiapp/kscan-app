@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import {
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
+import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
 import {
   EmptyState,
   Header,
@@ -148,6 +150,11 @@ function DressingRoomsContent() {
 }
 
 export default function DressingRoomsScreen() {
+  // Dressing Rooms are not part of the iOS release. Guard the route so a deep
+  // link surfaces a calm placeholder instead of the feature or its backend calls.
+  if (Platform.OS === 'ios') {
+    return <SafeUnavailableScreen />;
+  }
   const { isFeatureEnabled, isLoading } = useFeatureFreeze();
   if (isLoading) {
     return <FeatureFreezeFallback cta="closet" loading />;
