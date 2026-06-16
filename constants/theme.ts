@@ -376,6 +376,7 @@ export const LUXURY = {
 
     // Brushed gold / camel accents
     gold:          COLORS.gold,
+    goldText:      COLORS.goldText,
     goldBrushed:   '#B08D4B',
     goldLight:     COLORS.softGold,
     goldChampagne: '#D4B87A',

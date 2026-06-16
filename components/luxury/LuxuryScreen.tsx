@@ -28,6 +28,8 @@ export interface LuxuryScreenProps {
   contentContainerStyle?: ViewStyle;
   /** Accessibility label for the screen landmark. */
   accessibilityLabel?: string;
+  /** Test ID for E2E / smoke tests. */
+  testID?: string;
 }
 
 /**
@@ -47,11 +49,13 @@ export function LuxuryScreen({
   style,
   contentContainerStyle,
   accessibilityLabel,
+  testID,
 }: LuxuryScreenProps) {
   const insets = useSafeAreaInsets();
 
   const content = (
     <View
+      testID={testID}
       style={[
         styles.root,
         { backgroundColor },

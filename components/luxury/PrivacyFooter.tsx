@@ -16,6 +16,10 @@ export interface PrivacyFooterProps {
   onDataPress?: () => void;
   /** Additional trust copy to show above the links. */
   trustCopy?: string;
+  /** Test ID for the Privacy Policy link. */
+  privacyTestID?: string;
+  /** Test ID for the Data & Deletion link. */
+  dataTestID?: string;
   /** Override root style. */
   style?: ViewStyle;
   /** Override trust text style. */
@@ -38,6 +42,8 @@ export function PrivacyFooter({
   onPrivacyPress,
   onDataPress,
   trustCopy,
+  privacyTestID,
+  dataTestID,
   style,
   trustStyle,
   linkStyle,
@@ -51,6 +57,7 @@ export function PrivacyFooter({
       <View style={styles.links}>
         {onPrivacyPress && (
           <Pressable
+            testID={privacyTestID}
             onPress={onPrivacyPress}
             accessibilityRole="link"
             accessibilityLabel="Privacy Policy"
@@ -65,6 +72,7 @@ export function PrivacyFooter({
 
         {onDataPress && (
           <Pressable
+            testID={dataTestID}
             onPress={onDataPress}
             accessibilityRole="link"
             accessibilityLabel="Data and deletion requests"
