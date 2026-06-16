@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { StyleChatUiBlock } from '../../services/style-chat/types';
 
 interface Props {
@@ -26,24 +26,25 @@ const styles = StyleSheet.create({
   container: {
     minWidth: 0,
     flexShrink: 1,
-    borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.chatHairline,
-    backgroundColor: COLORS.chatPanelBg,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.cream,
     padding: SPACING.sm,
     marginTop: SPACING.xs,
   },
   title: {
-    ...TYPOGRAPHY.sectionLabel,
-    color: COLORS.accent,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
     marginBottom: 4,
     flexShrink: 1,
     minWidth: 0,
+    fontWeight: '600',
   },
   body: {
-    ...TYPOGRAPHY.body,
+    ...LUXURY.typography.body,
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: LUXURY.colors.graphite,
     flexShrink: 1,
     minWidth: 0,
   },

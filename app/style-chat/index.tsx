@@ -4,15 +4,12 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS } from '../../constants/theme';
-import {
-  StyleChatHeader,
-  useStyleChatHomeBackHandler,
-} from '../../components/style-chat/StyleChatHeader';
+import { StyleChatHeader, useStyleChatHomeBackHandler } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatSessionList } from '../../components/style-chat/StyleChatSessionList';
+import { LuxuryScreen } from '../../components/luxury';
+import { LUXURY } from '../../constants/theme';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
@@ -66,13 +63,20 @@ export default function StyleChatIndexScreen() {
   };
 
   return (
-    <SafeAreaView testID="style-chat-screen" style={styles.safe}>
+    <LuxuryScreen
+      testID="style-chat-screen"
+      scrollable={false}
+      safeArea={false}
+      backgroundColor={LUXURY.colors.ivory}
+      accessibilityLabel="StyleChat sessions"
+    >
       <StatusBar style="dark" />
       <StyleChatHeader />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <StyleChatSessionList
           sessions={sessions}
@@ -84,18 +88,14 @@ export default function StyleChatIndexScreen() {
           newSessionDisabled={isCreating}
         />
       </ScrollView>
-    </SafeAreaView>
+    </LuxuryScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.chatScreenBg,
-  },
   scroll: {
     flex: 1,
-    backgroundColor: COLORS.chatPanelBg,
+    backgroundColor: LUXURY.colors.ivory,
   },
   scrollContent: {
     flexGrow: 1,

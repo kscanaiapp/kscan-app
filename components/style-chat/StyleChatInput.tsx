@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, TextInput, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 
 interface StyleChatInputProps {
   onSend: (text: string) => void;
@@ -36,9 +36,9 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         value={text}
         onChangeText={setText}
         placeholder="Ask your AI stylist…"
-        placeholderTextColor={COLORS.textSecondary}
-        selectionColor={COLORS.chatCursorAccent}
-        cursorColor={COLORS.chatCursorAccent}
+        placeholderTextColor={LUXURY.colors.stone}
+        selectionColor={LUXURY.colors.gold}
+        cursorColor={LUXURY.colors.gold}
         multiline
         maxLength={1000}
         returnKeyType="send"
@@ -46,6 +46,8 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         blurOnSubmit={false}
         editable={!disabled}
         textAlignVertical="top"
+        accessibilityLabel="Message composer"
+        accessibilityHint="Type a styling question for the AI"
       />
       <Pressable
         testID="style-chat-send-button"
@@ -57,10 +59,12 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         onPress={handleSend}
         disabled={!canSubmit}
         accessibilityLabel="Send message"
+        accessibilityHint="Send your styling question"
         accessibilityRole="button"
+        accessibilityState={{ disabled: !canSubmit, busy: disabled }}
       >
         <Text style={[styles.sendText, !canSubmit ? styles.sendTextDisabled : null]}>
-          SEND
+          Send
         </Text>
       </Pressable>
     </View>
@@ -74,24 +78,25 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.chatHairline,
-    backgroundColor: COLORS.chatScreenBg,
+    borderTopWidth: 1,
+    borderTopColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.ivory,
     gap: SPACING.sm,
   },
   input: {
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
-    minHeight: 44,
+    minHeight: 48,
     maxHeight: 110,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: COLORS.chatHairline,
-    backgroundColor: COLORS.chatComposerInputBg,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
-    color: COLORS.textPrimary,
+    paddingTop: SPACING.sm + 2,
+    color: LUXURY.colors.ink,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -99,34 +104,33 @@ const styles = StyleSheet.create({
     maxHeight: 84,
   },
   sendBtn: {
-    height: 44,
-    minWidth: 64,
+    height: 48,
+    minWidth: 72,
     flexShrink: 0,
     paddingHorizontal: SPACING.lg,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.pill,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
   },
   sendBtnActive: {
-    backgroundColor: COLORS.chatSendBg,
-    borderColor: COLORS.champagneGold,
-    borderTopColor: COLORS.chatGlossTop,
+    backgroundColor: LUXURY.colors.plum,
+    borderColor: LUXURY.colors.plumSoft,
+    ...LUXURY.cards.product.shadow,
   },
   sendBtnInactive: {
-    backgroundColor: 'rgba(116, 36, 94, 0.18)',
-    borderColor: COLORS.chatHairline,
+    backgroundColor: LUXURY.colors.plumMuted,
+    borderColor: LUXURY.colors.border,
   },
   sendBtnPressed: {
-    backgroundColor: COLORS.chatSendPressed,
-    borderColor: COLORS.champagneGold,
+    backgroundColor: LUXURY.colors.plumCore,
   },
   sendText: {
-    ...TYPOGRAPHY.cta,
+    ...LUXURY.typography.cta,
     fontSize: 12,
-    color: COLORS.textInverse,
+    color: LUXURY.colors.inverse,
   },
   sendTextDisabled: {
-    color: COLORS.textTertiary,
+    color: LUXURY.colors.stone,
   },
 });

@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import {
   StyleChatHeader,
@@ -104,17 +104,19 @@ export default function StyleChatSessionScreen() {
 
   const ListEmpty = isLoading ? (
     <View style={styles.centred}>
-      <ActivityIndicator size="small" color={COLORS.accent} />
+      <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+      <Text style={styles.statusText}>Loading conversation…</Text>
     </View>
   ) : (
     <View testID="style-chat-empty-state" style={styles.centred}>
+      <Text style={styles.emptyTitle}>New styling session</Text>
       <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptyChat}</Text>
     </View>
   );
 
   const ThinkingIndicator = isSending ? (
     <View testID="style-chat-thinking-indicator" style={styles.thinking}>
-      <ActivityIndicator size="small" color={COLORS.accent} />
+      <ActivityIndicator size="small" color={LUXURY.colors.plum} />
       <Text style={styles.thinkingText}>Styling…</Text>
     </View>
   ) : null;
@@ -123,16 +125,21 @@ export default function StyleChatSessionScreen() {
     || error === STYLE_CHAT_COPY.burstLimitNotice;
   const friendlyError = getFriendlyStyleChatError(error);
   const ErrorBanner = error ? (
-    <View testID="style-chat-error-state" style={styles.errorBanner}>
-      <Text style={styles.errorText}>{friendlyError}</Text>
+    <View
+      testID="style-chat-error-state"
+      style={[styles.errorBanner, isLimitNotice ? styles.limitBanner : null]}
+      accessibilityRole="alert"
+    >
+      <Text style={[styles.errorText, isLimitNotice ? styles.limitText : null]}>{friendlyError}</Text>
       {!isLimitNotice ? (
         <Pressable
           onPress={() => { clearError(); retryLastMessage(); }}
           style={styles.retryLink}
           accessibilityRole="button"
           accessibilityLabel="Retry"
+          accessibilityHint="Resend the last message"
         >
-          <Text style={styles.retryLinkText}>RETRY</Text>
+          <Text style={styles.retryLinkText}>Retry</Text>
         </Pressable>
       ) : null}
     </View>
@@ -156,18 +163,20 @@ export default function StyleChatSessionScreen() {
           disabled={isDeleting}
           accessibilityRole="button"
           accessibilityLabel="Delete this conversation"
+          accessibilityHint="Permanently remove this session and its messages"
+          accessibilityState={{ disabled: isDeleting, busy: isDeleting }}
           hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
         >
           {isDeleting ? (
-            <ActivityIndicator size="small" color={COLORS.error} />
+            <ActivityIndicator size="small" color={LUXURY.colors.error} />
           ) : (
-            <Text style={styles.sessionDeleteText} testID="style-chat-delete-confirm">DELETE</Text>
+            <Text style={styles.sessionDeleteText} testID="style-chat-delete-confirm">Delete</Text>
           )}
         </Pressable>
       </View>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
         <FlatList
@@ -195,7 +204,7 @@ export default function StyleChatSessionScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.chatScreenBg,
+    backgroundColor: LUXURY.colors.ivory,
   },
   flex: {
     flex: 1,
@@ -207,17 +216,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.chatHairline,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.ivory,
   },
   sessionLabel: {
-    ...TYPOGRAPHY.chipLabel,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
     fontSize: 11,
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
     paddingRight: SPACING.sm,
+    letterSpacing: 1.4,
   },
   sessionDeleteBtn: {
     minHeight: 44,
@@ -230,10 +241,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   sessionDeleteText: {
-    ...TYPOGRAPHY.chipLabel,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: COLORS.error,
+    ...LUXURY.typography.caption,
+    fontSize: 12,
+    letterSpacing: 1.4,
+    color: LUXURY.colors.error,
+    fontWeight: '600',
   },
   listContent: {
     paddingTop: SPACING.xl,
@@ -242,7 +254,7 @@ const styles = StyleSheet.create({
   messageList: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: COLORS.chatPanelBg,
+    backgroundColor: LUXURY.colors.ivory,
   },
   messageListLandscape: {
     minHeight: 80,
@@ -264,11 +276,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxl,
     minHeight: 120,
   },
-  emptyText: {
-    ...TYPOGRAPHY.body,
+  emptyTitle: {
+    ...LUXURY.typography.bodyStrong,
     textAlign: 'center',
-    color: COLORS.textSecondary,
+    color: LUXURY.colors.ink,
+    marginBottom: SPACING.sm,
+  },
+  emptyText: {
+    ...LUXURY.typography.body,
+    textAlign: 'center',
+    color: LUXURY.colors.graphite,
     lineHeight: 24,
+  },
+  statusText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.sm,
   },
   thinking: {
     flexDirection: 'row',
@@ -278,9 +301,10 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   thinkingText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.accent,
-    fontSize: 11,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 12,
+    fontWeight: '600',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -290,16 +314,23 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
     borderColor: 'rgba(130, 48, 56, 0.28)',
     backgroundColor: 'rgba(130, 48, 56, 0.07)',
   },
+  limitBanner: {
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: 'rgba(198, 161, 91, 0.10)',
+  },
   errorText: {
-    ...TYPOGRAPHY.body,
+    ...LUXURY.typography.body,
     fontSize: 13,
-    color: COLORS.error,
+    color: LUXURY.colors.error,
     flex: 1,
+  },
+  limitText: {
+    color: LUXURY.colors.goldText,
   },
   retryLink: {
     marginLeft: SPACING.sm,
@@ -307,7 +338,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryLinkText: {
-    ...TYPOGRAPHY.chipLabel,
-    color: COLORS.accent,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
   },
 });

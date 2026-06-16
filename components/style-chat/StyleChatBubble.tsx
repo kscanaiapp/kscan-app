@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 
@@ -26,9 +26,13 @@ export function StyleChatBubble({ message, onRetry, isError }: StyleChatBubblePr
       style={[styles.row, safeRowPadding, isUser ? styles.rowUser : styles.rowAssistant]}
     >
       {!isUser ? (
-        <View style={styles.avatarDot} />
+        <View style={styles.avatarDot} accessibilityLabel="AI stylist" />
       ) : null}
-      <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
+      <View
+        style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}
+        accessibilityRole="text"
+        accessibilityLabel={isUser ? 'Your message' : 'AI stylist message'}
+      >
         <Text style={isUser ? styles.textUser : styles.textAssistant}>
           {content}
         </Text>
@@ -40,8 +44,14 @@ export function StyleChatBubble({ message, onRetry, isError }: StyleChatBubblePr
           </View>
         ) : null}
         {isError && onRetry ? (
-          <Pressable onPress={onRetry} style={styles.retryBtn}>
-            <Text style={styles.retryText}>RETRY</Text>
+          <Pressable
+            onPress={onRetry}
+            style={styles.retryBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Retry last message"
+            accessibilityHint="Resend the message that failed"
+          >
+            <Text style={styles.retryText}>Retry</Text>
           </Pressable>
         ) : null}
       </View>
@@ -55,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     width: '100%',
     minWidth: 0,
-    marginVertical: SPACING.xs,
+    marginVertical: SPACING.sm,
     paddingHorizontal: SPACING.xl,
   },
   rowUser: {
@@ -65,45 +75,46 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   avatarDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(214, 179, 106, 0.72)',
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: LUXURY.colors.gold,
     marginRight: SPACING.sm,
-    marginBottom: 8,
+    marginBottom: 10,
     flexShrink: 0,
   },
   bubble: {
     maxWidth: '84%',
     flexShrink: 1,
     minWidth: 0,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
   bubbleUser: {
-    backgroundColor: COLORS.chatUserBubble,
+    backgroundColor: LUXURY.colors.plum,
     borderWidth: 1,
-    borderColor: 'rgba(198, 161, 91, 0.30)',
-    borderTopColor: COLORS.chatGlossTop,
+    borderColor: LUXURY.colors.plumSoft,
+    ...LUXURY.cards.product.shadow,
   },
   bubbleAssistant: {
-    backgroundColor: COLORS.chatAssistantBubble,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.chatHairline,
+    backgroundColor: LUXURY.colors.pearl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    ...LUXURY.cards.product.shadow,
   },
   textUser: {
-    ...TYPOGRAPHY.body,
-    fontSize: 14,
-    color: COLORS.textInverse,
+    ...LUXURY.typography.body,
+    fontSize: 15,
+    color: LUXURY.colors.inverse,
     lineHeight: 22,
     flexShrink: 1,
     minWidth: 0,
   },
   textAssistant: {
-    ...TYPOGRAPHY.body,
-    fontSize: 14,
-    color: COLORS.textPrimary,
+    ...LUXURY.typography.body,
+    fontSize: 15,
+    color: LUXURY.colors.ink,
     lineHeight: 22,
     flexShrink: 1,
     minWidth: 0,
@@ -115,10 +126,19 @@ const styles = StyleSheet.create({
   retryBtn: {
     marginTop: SPACING.sm,
     alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: LUXURY.colors.pearl,
+    minHeight: 32,
+    justifyContent: 'center',
   },
   retryText: {
-    ...TYPOGRAPHY.chipLabel,
-    color: COLORS.accent,
-    fontSize: 10,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
+    letterSpacing: 1.2,
   },
 });
