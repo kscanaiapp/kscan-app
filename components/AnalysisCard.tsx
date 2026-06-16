@@ -19,6 +19,7 @@ import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import {
   COLORS,
+  LUXURY,
   LAYOUT,
   MOTION,
   RADIUS,
@@ -183,6 +184,14 @@ export function AnalysisCard({
               {/* AI result body */}
               <Text style={styles.body}>{resultText}</Text>
 
+              {/* Match summary */}
+              <View style={styles.matchSummary}>
+                <Text style={styles.matchSummaryLabel}>K Scan understood:</Text>
+                <Text style={styles.matchSummaryValue} numberOfLines={2}>
+                  {category} · {color} · {silhouette}
+                </Text>
+              </View>
+
               {/* Metadata chips */}
               <View style={styles.chipRow}>
                 <Animated.View style={{ opacity: chip1Opacity }}>
@@ -201,7 +210,8 @@ export function AnalysisCard({
                   style={styles.scanRoomCta}
                   onPress={onAddToDressingRoom}
                   activeOpacity={0.86}
-                  accessibilityLabel="Add Scan to Dressing Room"
+                  accessibilityRole="button"
+                  accessibilityLabel="Add this scan to a Dressing Room"
                 >
                   <Text style={styles.scanRoomCtaText}>Add Scan to Dressing Room</Text>
                 </TouchableOpacity>
@@ -224,7 +234,13 @@ export function AnalysisCard({
               ) : null}
 
               {/* Primary CTA */}
-              <TouchableOpacity style={styles.cta} onPress={runExit} activeOpacity={0.86}>
+              <TouchableOpacity
+                style={styles.cta}
+                onPress={runExit}
+                activeOpacity={0.86}
+                accessibilityRole="button"
+                accessibilityLabel="Scan another item"
+              >
                 <Text style={styles.ctaText}>Scan Again</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -238,7 +254,7 @@ export function AnalysisCard({
 const styles = StyleSheet.create({
   backdrop: {
     flex:               1,
-    backgroundColor:    'rgba(9, 9, 11, 0.44)',
+    backgroundColor:    COLORS.backdrop,
     justifyContent:     'flex-end',
     paddingHorizontal:  SPACING.xl,
   },
@@ -259,14 +275,14 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius:     card.borderRadius,
-    borderWidth:      StyleSheet.hairlineWidth,
-    borderColor:      COLORS.borderHairline,
+    borderWidth:      1,
+    borderColor:      LUXURY.colors.border,
     overflow:         'hidden',
-    backgroundColor:  COLORS.surfaceCard,
+    backgroundColor:  LUXURY.colors.pearl,
     maxHeight:        SCREEN_HEIGHT * 0.86,
   },
   cardInner: {
-    backgroundColor:   COLORS.surfaceCard,
+    backgroundColor:   LUXURY.colors.pearl,
     paddingHorizontal: card.paddingHorizontal,
     paddingVertical:   card.paddingVertical,
   },
@@ -275,24 +291,36 @@ const styles = StyleSheet.create({
     width:           card.gripWidth,
     height:          card.gripHeight,
     borderRadius:    RADIUS.pill,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.border,
     marginBottom:    SPACING.lg,
   },
   categoryLabel: {
-    ...TYPOGRAPHY.categoryLabel,
-    color: COLORS.goldPressed,
-    textTransform: 'uppercase',
+    ...LUXURY.typography.sectionLabel,
     marginBottom:  SPACING.xs,
   },
   headline: {
-    ...TYPOGRAPHY.headline,
+    ...LUXURY.typography.displayTitle,
     marginTop: SPACING.xs,
-    color: COLORS.editorialTextPrimary,
   },
   body: {
-    ...TYPOGRAPHY.body,
+    ...LUXURY.typography.body,
     marginTop: SPACING.lg,
-    color: COLORS.editorialTextSecondary,
+  },
+  matchSummary: {
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: LUXURY.colors.cream,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+  },
+  matchSummaryLabel: {
+    ...LUXURY.typography.caption,
+    marginBottom: SPACING.xs,
+  },
+  matchSummaryValue: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
   },
   chipRow: {
     flexDirection: 'row',
@@ -301,41 +329,38 @@ const styles = StyleSheet.create({
     marginTop:     SPACING.xl,
   },
   noMatchNote: {
-    fontSize:      12,
-    fontWeight:    '400' as const,
-    color:         COLORS.editorialTextMuted,
+    ...LUXURY.typography.body,
     textAlign:     'center' as const,
     marginTop:     SPACING.xl,
-    letterSpacing: 0.6,
     fontStyle:     'italic' as const,
   },
   scanRoomCta: {
     width: '100%',
-    minHeight: 46,
+    minHeight: 52,
     borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.xl,
   },
   scanRoomCtaText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.ctaSecondary,
     textAlign: 'center',
   },
   cta: {
     width:          '100%',
     minHeight:      card.ctaMinHeight,
     borderRadius:   RADIUS.pill,
-    backgroundColor: COLORS.gold,
+    backgroundColor: LUXURY.colors.plum,
     justifyContent: 'center',
     alignItems:     'center',
     marginTop:      SPACING.xl,
+    ...SHADOWS.editorialSmall,
   },
   ctaText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.textInverse,
+    ...LUXURY.typography.cta,
+    textAlign: 'center',
   },
 });

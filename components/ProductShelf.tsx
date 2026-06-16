@@ -12,7 +12,7 @@ import {
   TextInput,
   type ImageStyle,
 } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { selectionTick } from '../services/haptics';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
@@ -228,7 +228,9 @@ export function ProductShelf({ products }: ProductShelfProps) {
                 onPress={() => handleLinkPress(purchaseUrl)}
                 activeOpacity={hasLink ? 0.78 : 1}
                 disabled={!hasLink}
-                accessibilityLabel={hasLink ? `Open ${productTitle}` : productTitle}
+                accessibilityRole={hasLink ? 'link' : 'button'}
+                accessibilityLabel={hasLink ? `Open ${productTitle} product page` : `${productTitle} product image`}
+                accessibilityHint={hasLink ? 'Opens the retailer product page' : undefined}
               >
                 {showImage ? (
                   <CatalogProductImage
@@ -276,7 +278,9 @@ export function ProductShelf({ products }: ProductShelfProps) {
                 ) : null}
               </View>
 
-              {hasLink && <View style={styles.linkDot} />}
+              {hasLink && (
+                <View style={styles.linkDot} accessibilityLabel="Has product link" />
+              )}
 
             </View>
           );
@@ -443,14 +447,12 @@ const styles = StyleSheet.create({
     marginBottom:  SPACING.md,
   },
   label: {
-    ...TYPOGRAPHY.sectionLabel,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.sectionLabel,
   },
   labelLine: {
     flex:            1,
     height:          1,
-    backgroundColor: COLORS.borderHairline,
-    opacity:         0.5,
+    backgroundColor: LUXURY.colors.border,
   },
   scrollContent: {
     gap:            SPACING.md,
@@ -458,10 +460,10 @@ const styles = StyleSheet.create({
   },
   card: {
     width:           CARD_WIDTH,
-    borderRadius:    RADIUS.md,
-    borderWidth:     StyleSheet.hairlineWidth,
-    borderColor:     COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius:    RADIUS.lg,
+    borderWidth:     1,
+    borderColor:     LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     overflow:        'hidden',
     ...SHADOWS.editorialSmall,
   },
@@ -480,14 +482,14 @@ const styles = StyleSheet.create({
     left: 0,
   },
   imagePlaceholder: {
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.champagne,
     alignItems:      'center',
     justifyContent:  'center',
   },
   imageSkeleton: {
-    backgroundColor: COLORS.surfaceMuted,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderHairline,
+    backgroundColor: LUXURY.colors.champagne,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.border,
   },
   placeholderMark: {
     width:          72,
@@ -671,22 +673,20 @@ const styles = StyleSheet.create({
     gap:     SPACING.xxs,
   },
   retailer: {
-    fontSize:      9,
-    fontWeight:    '600' as const,
-    letterSpacing: 1.8,
-    color:         COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    fontSize:      10,
+    letterSpacing: 1.4,
+    color:         LUXURY.colors.stone,
     textTransform: 'uppercase' as const,
   },
   name: {
-    fontSize:   12,
-    fontWeight: '500' as const,
-    color:      COLORS.editorialTextPrimary,
-    lineHeight: 17,
+    ...LUXURY.typography.bodyStrong,
+    fontSize:   13,
+    lineHeight: 18,
   },
   price: {
-    fontSize:   13,
-    fontWeight: '600' as const,
-    color:      COLORS.goldPressed,
+    ...LUXURY.typography.bodyStrong,
+    color:      LUXURY.colors.plum,
     marginTop:  SPACING.xxs,
   },
   linkDot: {
@@ -706,11 +706,11 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   addToRoomButton: {
-    minHeight: 34,
-    borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    minHeight: 36,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plumMuted,
+    backgroundColor: LUXURY.colors.plumMuted,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
@@ -718,14 +718,15 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   addToRoomButtonDisabled: {
-    opacity: 0.58,
+    opacity: 0.5,
   },
   addToRoomText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextPrimary,
-    fontSize: 10,
-    letterSpacing: 1.2,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 11,
+    letterSpacing: 0.8,
     textAlign: 'center',
+    textTransform: 'none',
   },
   modalBackdrop: {
     flex: 1,
@@ -734,20 +735,19 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   modalCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     maxHeight: '82%',
   },
   modalTitle: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.displayTitle,
+    fontSize: 22,
   },
   modalItemName: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.body,
     marginTop: SPACING.xs,
     marginBottom: SPACING.md,
   },
@@ -758,74 +758,71 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   roomChoice: {
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.cream,
     padding: SPACING.md,
     gap: SPACING.xs,
   },
   roomChoiceTitle: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.bodyStrong,
   },
   roomChoiceMeta: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldText,
   },
   quickCreate: {
     marginTop: SPACING.lg,
     gap: SPACING.sm,
   },
   quickCreateLabel: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.sectionLabel,
+    fontSize: 11,
   },
   quickCreateInput: {
-    minHeight: 48,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    color: COLORS.editorialTextPrimary,
-    paddingHorizontal: SPACING.md,
+    minHeight: LUXURY.inputs.field.height,
+    borderRadius: LUXURY.inputs.field.borderRadius,
+    borderWidth: LUXURY.inputs.field.borderWidth,
+    borderColor: LUXURY.inputs.field.borderColor,
+    backgroundColor: LUXURY.colors.cream,
+    color: LUXURY.inputs.field.color,
+    paddingHorizontal: LUXURY.inputs.field.paddingHorizontal,
     paddingVertical: SPACING.sm,
-    fontSize: 14,
+    fontSize: LUXURY.inputs.field.fontSize,
   },
   newRoomControls: {
     marginTop: SPACING.md,
   },
   modalPrimaryButton: {
-    minHeight: 48,
+    minHeight: 52,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.gold,
+    backgroundColor: LUXURY.colors.plum,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
+    ...SHADOWS.editorialSmall,
   },
   modalPrimaryText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.textInverse,
+    ...LUXURY.typography.cta,
   },
   modalSecondaryButton: {
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.md,
   },
   modalSecondaryText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.ctaSecondary,
   },
   modalButtonDisabled: {
     opacity: 0.48,
   },
   modalMessage: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.bodyStrong,
     textAlign: 'center',
     marginTop: SPACING.md,
   },
