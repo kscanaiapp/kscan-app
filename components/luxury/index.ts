@@ -19,3 +19,4 @@ export { StatusPill, type StatusPillProps } from './StatusPill';
 export { InlineNotice, type InlineNoticeProps } from './InlineNotice';
 export { EmptyStateCard, type EmptyStateCardProps } from './EmptyStateCard';
 export { SharedScanCard, type SharedScanCardProps } from './SharedScanCard';
+export { SavedLookCard, type SavedLookCardProps } from './SavedLookCard';

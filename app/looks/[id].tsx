@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -9,16 +10,24 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
 import {
-  Header,
-  ItemTile,
-  LoadingOrError,
-  PrimaryButton,
   TextField,
   styleObjectStyles,
 } from '../../components/StyleObjectCards';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import {
+  LuxuryScreen,
+  KScanHeader,
+  SectionHeader,
+  SavedLookCard,
+  InlineNotice,
+  PrimaryButton,
+  SecondaryButton,
+  TertiaryButton,
+  PrivacyFooter,
+} from '../../components/luxury';
+import { LUXURY, SPACING } from '../../constants/theme';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { deleteLook, getLookDetail, updateLook } from '../../services/styleObjects';
 import type { Look, LookItem } from '../../types/styleObjects';
@@ -68,8 +77,12 @@ function EditLookModal({
           <TextField label="Title" value={title} onChangeText={setTitle} />
           <TextField label="Description" value={description} onChangeText={setDescription} multiline />
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton label={saving ? 'Saving' : 'Save Changes'} onPress={handleSave} disabled={!title.trim() || saving} />
-          <PrimaryButton label="Cancel" onPress={onClose} variant="secondary" disabled={saving} />
+          <PrimaryButton
+            title={saving ? 'Saving' : 'Save Changes'}
+            onPress={handleSave}
+            disabled={!title.trim() || saving}
+          />
+          <SecondaryButton title="Cancel" onPress={onClose} disabled={saving} />
         </View>
       </View>
     </Modal>
@@ -126,24 +139,77 @@ function LookDetailContent() {
   const blocking = loading || !!error;
 
   return (
-    <View style={styleObjectStyles.screen}>
+    <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
-      <Header title={look?.title || 'Look'} eyebrow="Look Detail" onBack={() => router.back()} />
+      <KScanHeader
+        title={look?.title || 'Look'}
+        subtitle="LOOK DETAIL"
+        onBack={() => router.back()}
+        backLabel="Back"
+      />
+
       {blocking ? (
-        <LoadingOrError loading={loading} error={error} onRetry={reload} />
+        <View style={styles.centeredFill}>
+          {loading ? null : (
+            <InlineNotice
+              variant="error"
+              title="Unable to load Look"
+              body={error || 'Something went wrong. Please try again.'}
+              action={{ label: 'Retry', onPress: reload, accessibilityLabel: 'Retry loading look' }}
+            />
+          )}
+        </View>
       ) : (
-        <ScrollView contentContainerStyle={styleObjectStyles.content}>
-          {look?.dressingRoomTitle ? <Text style={styles.room}>ROOM: {look.dressingRoomTitle}</Text> : <Text style={styles.room}>STANDALONE LOOK</Text>}
-          {look?.description ? <Text style={styles.description}>{look.description}</Text> : null}
-          <PrimaryButton label="Edit Look" onPress={() => setEditing(true)} variant="secondary" />
-          <View style={styles.items}>
-            {items.map((item) => <ItemTile key={item.id} item={item} />)}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.metaCard}>
+            <Text style={styles.roomLabel}>
+              {look?.dressingRoomTitle ? `ROOM: ${look.dressingRoomTitle}` : 'STANDALONE LOOK'}
+            </Text>
+            {look?.description ? <Text style={styles.description}>{look.description}</Text> : null}
+            <SecondaryButton
+              title="Edit Look"
+              onPress={() => setEditing(true)}
+              accessibilityLabel="Edit look"
+            />
           </View>
-          <PrimaryButton label="Delete Look" onPress={handleDelete} variant="danger" />
+
+          <SectionHeader title="Items" subtitle={`${items.length} saved item${items.length === 1 ? '' : 's'}`} />
+
+          <View style={styles.items}>
+            {items.map((item) => (
+              <SavedLookCard
+                key={item.id}
+                imageUrl={item.imageUrl}
+                title={item.title || 'Untitled item'}
+                subtitle={item.brand || item.category || 'K Scan'}
+                tags={[item.category].filter(Boolean) as string[]}
+                status="Item"
+                accessibilityLabel={`${item.title || 'Untitled item'} look item`}
+              />
+            ))}
+          </View>
+
+          <TertiaryButton
+            title="Delete Look"
+            onPress={handleDelete}
+            textStyle={{ color: LUXURY.colors.error }}
+            accessibilityLabel="Delete look"
+            accessibilityHint="Permanently delete this look"
+          />
         </ScrollView>
       )}
+
       <EditLookModal look={look} visible={editing} onClose={() => setEditing(false)} onSaved={reload} />
-    </View>
+
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+      />
+    </LuxuryScreen>
   );
 }
 
@@ -160,41 +226,57 @@ export default function LookDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  room: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
-    marginBottom: SPACING.md,
+  centeredFill: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: SPACING.xl,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
+    gap: SPACING.lg,
+  },
+  metaCard: {
+    ...LUXURY.cards.hero,
+    gap: SPACING.md,
+  },
+  roomLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldBrushed,
+    letterSpacing: 2.2,
   },
   description: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextSecondary,
-    marginBottom: SPACING.sm,
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
   },
   items: {
-    marginTop: SPACING.lg,
+    gap: SPACING.md,
   },
   modalBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: COLORS.backdrop,
+    backgroundColor: LUXURY.colors.plumDeep + 'C2',
     padding: SPACING.xl,
   },
   modalCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: LUXURY.cards.screen.borderRadius,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
-    ...SHADOWS.editorialRaised,
+    gap: SPACING.md,
+    ...LUXURY.cards.screen.shadow,
   },
   modalTitle: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
   },
   error: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.error,
-    marginTop: SPACING.md,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
     textAlign: 'center',
   },
 });
