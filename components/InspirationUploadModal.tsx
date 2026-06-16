@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   INSPIRATION_NOTE_MAX_LENGTH,
@@ -97,8 +97,13 @@ export function InspirationUploadModal({
           {done ? (
             <>
               <Text style={styles.successText}>Inspiration saved.</Text>
-              <TouchableOpacity style={styles.primaryButton} onPress={onClose}>
-                <Text style={styles.primaryText}>DONE</Text>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Done uploading inspiration"
+              >
+                <Text style={styles.primaryText}>Done</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -113,11 +118,13 @@ export function InspirationUploadModal({
                 value={note}
                 onChangeText={setNote}
                 placeholder="Add a note (optional)"
-                placeholderTextColor={COLORS.editorialTextMuted}
+                placeholderTextColor={LUXURY.colors.stone}
                 maxLength={INSPIRATION_NOTE_MAX_LENGTH + 20}
                 multiline
                 textAlignVertical="top"
                 style={styles.noteInput}
+                accessibilityLabel="Inspiration note"
+                accessibilityHint="Optional note about this inspiration image"
               />
               <Text style={[styles.noteCount, noteTooLong ? styles.noteCountError : null]}>
                 {noteLength}/{INSPIRATION_NOTE_MAX_LENGTH}
@@ -130,13 +137,15 @@ export function InspirationUploadModal({
                 style={[styles.primaryButton, (uploading || noteTooLong) && styles.disabled]}
                 onPress={handleUpload}
                 disabled={uploading || noteTooLong}
+                accessibilityRole="button"
+                accessibilityLabel={roomId ? 'Save to room inspiration' : 'Save to style library'}
               >
                 {uploading ? (
                   <Text style={styles.primaryText}>
-                    {roomId ? 'SAVING ROOM' : 'SAVING LIBRARY'}
+                    {roomId ? 'Saving Room' : 'Saving Library'}
                   </Text>
                 ) : (
-                  <Text style={styles.primaryText}>UPLOAD</Text>
+                  <Text style={styles.primaryText}>Upload</Text>
                 )}
               </TouchableOpacity>
 
@@ -144,8 +153,10 @@ export function InspirationUploadModal({
                 style={[styles.secondaryButton, uploading && styles.disabled]}
                 onPress={onClose}
                 disabled={uploading}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel upload"
               >
-                <Text style={styles.secondaryText}>CANCEL</Text>
+                <Text style={styles.secondaryText}>Cancel</Text>
               </TouchableOpacity>
             </>
           )}
@@ -159,96 +170,99 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: COLORS.backdrop,
+    backgroundColor: LUXURY.colors.plumDeep + 'C2',
     padding: SPACING.xl,
   },
   card: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     maxHeight: '90%',
     ...SHADOWS.editorialRaised,
   },
   title: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
   },
   subtitle: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
     marginTop: SPACING.xs,
     marginBottom: SPACING.md,
   },
   preview: {
     width: '100%',
     height: 220,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surfaceMuted,
+    borderRadius: RADIUS.lg,
+    backgroundColor: LUXURY.colors.champagne,
     marginBottom: SPACING.md,
   },
   noteInput: {
     minHeight: 72,
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    color: COLORS.editorialTextPrimary,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    color: LUXURY.colors.ink,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     fontSize: 14,
     lineHeight: 20,
   },
   noteCount: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
     textAlign: 'right',
     marginTop: SPACING.xs,
   },
   noteCountError: {
-    color: COLORS.error,
+    color: LUXURY.colors.error,
   },
   errorText: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.error,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
   successText: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
     textAlign: 'center',
     marginTop: SPACING.sm,
     marginBottom: SPACING.md,
   },
   primaryButton: {
+    minHeight: 52,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    ...SHADOWS.editorialSmall,
+  },
+  primaryText: {
+    ...LUXURY.typography.cta,
+    color: LUXURY.colors.inverse,
+  },
+  secondaryButton: {
     minHeight: 48,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.gold,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: LUXURY.colors.pearl,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
     marginTop: SPACING.md,
   },
-  primaryText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.textInverse,
-  },
-  secondaryButton: {
-    minHeight: 44,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SPACING.md,
-  },
   secondaryText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.ctaSecondary,
+    color: LUXURY.colors.plum,
   },
   disabled: {
-    opacity: 0.48,
+    opacity: 0.5,
   },
 });

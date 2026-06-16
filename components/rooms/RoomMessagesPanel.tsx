@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import {
   listRoomMessages,
   normalizeMessageBody,
@@ -22,7 +22,6 @@ import {
 // Rendered only inside the authenticated Dressing Room detail screen.
 // Must never be rendered on public preview routes (app/(public)/rooms/*).
 
-const ACCESSIBLE_GOLD_TEXT = '#72521E';
 const MESSAGES_EMPTY_COPY = 'Discuss this room with people you invite.';
 const COMPOSER_PLACEHOLDER = 'Message about this room…';
 
@@ -101,11 +100,14 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionLabel}>ROOM MESSAGES</Text>
+      <Text style={styles.sectionLabel} accessibilityRole="header">
+        Room Messages
+      </Text>
+      <Text style={styles.sectionSubtitle}>Private discussion with invited collaborators.</Text>
 
       {loading ? (
         <View style={styles.statusCard}>
-          <ActivityIndicator size="small" color={COLORS.gold} />
+          <ActivityIndicator size="small" color={LUXURY.colors.plum} />
           <Text style={styles.statusText}>Loading messages…</Text>
         </View>
       ) : loadError ? (
@@ -115,8 +117,10 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
             style={styles.pillButton}
             onPress={() => { void load(); }}
             testID="room-messages-retry-button"
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading messages"
           >
-            <Text style={styles.pillButtonText}>RETRY</Text>
+            <Text style={styles.pillButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : messages.length === 0 ? (
@@ -136,13 +140,15 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
           value={draft}
           onChangeText={setDraft}
           placeholder={COMPOSER_PLACEHOLDER}
-          placeholderTextColor={COLORS.editorialTextSecondary}
+          placeholderTextColor={LUXURY.colors.stone}
           multiline
           textAlignVertical="top"
           maxLength={ROOM_MESSAGE_MAX_LENGTH}
           editable={!sending}
           style={styles.composerInput}
           testID="room-messages-input"
+          accessibilityLabel="Message composer"
+          accessibilityHint="Type a message about this room"
         />
         <View style={styles.composerFooter}>
           <Text style={[styles.charCount, draftTooLong ? styles.charCountError : null]}>
@@ -153,11 +159,14 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
             onPress={() => { void handleSend(); }}
             disabled={!canSend}
             testID="room-messages-send-button"
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+            accessibilityHint="Send your message to the room"
           >
             {sending ? (
-              <ActivityIndicator size="small" color={ACCESSIBLE_GOLD_TEXT} />
+              <ActivityIndicator size="small" color={LUXURY.colors.plum} />
             ) : (
-              <Text style={styles.pillButtonText}>SEND</Text>
+              <Text style={styles.pillButtonText}>Send</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -173,16 +182,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   sectionLabel: {
-    ...TYPOGRAPHY.caption,
-    color: ACCESSIBLE_GOLD_TEXT,
-    letterSpacing: 2.2,
+    ...LUXURY.typography.sectionLabel,
+    color: LUXURY.colors.stone,
+    marginBottom: SPACING.xs,
+  },
+  sectionSubtitle: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
     marginBottom: SPACING.md,
   },
   statusCard: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.md,
     alignItems: 'center',
@@ -190,13 +203,13 @@ const styles = StyleSheet.create({
     ...SHADOWS.editorialSmall,
   },
   statusText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
     textAlign: 'center',
   },
   errorText: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.error,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
     textAlign: 'center',
     marginTop: SPACING.xs,
   },
@@ -204,10 +217,10 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   messageCard: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     ...SHADOWS.editorialSmall,
@@ -219,31 +232,32 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   messageSender: {
-    ...TYPOGRAPHY.caption,
-    color: ACCESSIBLE_GOLD_TEXT,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
     letterSpacing: 1.4,
+    fontWeight: '600',
   },
   messageTime: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   messageBody: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.ink,
     lineHeight: 22,
   },
   composerCard: {
     marginTop: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.cream,
     padding: SPACING.md,
     ...SHADOWS.editorialSmall,
   },
   composerInput: {
     minHeight: 72,
-    color: COLORS.editorialTextPrimary,
+    color: LUXURY.colors.ink,
     fontSize: 15,
     lineHeight: 22,
     paddingHorizontal: SPACING.xs,
@@ -257,28 +271,32 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   charCount: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   charCountError: {
-    color: COLORS.error,
+    color: LUXURY.colors.error,
   },
   pillButton: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.gold,
-    backgroundColor: COLORS.surfaceCard,
-    minWidth: 72,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: LUXURY.colors.pearl,
+    minWidth: 80,
+    minHeight: 36,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   pillButtonDisabled: {
     opacity: 0.45,
   },
   pillButtonText: {
-    ...TYPOGRAPHY.caption,
-    color: ACCESSIBLE_GOLD_TEXT,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
     letterSpacing: 1.4,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
 });

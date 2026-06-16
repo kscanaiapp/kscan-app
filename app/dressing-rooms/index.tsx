@@ -2,10 +2,10 @@ import React, { useMemo, useState } from 'react';
 import {
   Image,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -13,13 +13,18 @@ import { StatusBar } from 'expo-status-bar';
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
 import {
   EmptyState,
-  Header,
   LoadingOrError,
-  PrimaryButton,
   TextField,
   styleObjectStyles,
 } from '../../components/StyleObjectCards';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import {
+  KScanHeader,
+  LuxuryScreen,
+  PrimaryButton,
+  SecondaryButton,
+  SectionHeader,
+} from '../../components/luxury';
+import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useDressingRooms } from '../../hooks/useStyleObjects';
@@ -28,15 +33,17 @@ import type { DressingRoom } from '../../types/styleObjects';
 
 const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
 const DRESSING_ROOM_LOAD_ERROR = "We couldn't load your Dressing Rooms. Please refresh and try again.";
-const ACCESSIBLE_GOLD_TEXT = '#72521E';
 
 function RoomCard({ room }: { room: DressingRoom }) {
   const cover = room.coverImageUrl || room.coverFallbackUrl;
+  const itemCount = room.itemCount ?? 0;
   return (
-    <TouchableOpacity
-      style={styles.card}
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={() => router.push(`/dressing-rooms/${room.id}`)}
-      activeOpacity={0.84}
+      accessibilityRole="button"
+      accessibilityLabel={`${room.title}, ${itemCount} item${itemCount === 1 ? '' : 's'}. ${room.description || ''}`}
+      accessibilityHint="Open this Dressing Room"
     >
       {cover ? (
         <Image source={{ uri: cover }} style={styles.cover} resizeMode="cover" />
@@ -50,9 +57,9 @@ function RoomCard({ room }: { room: DressingRoom }) {
         {room.description ? (
           <Text style={styles.cardDescription} numberOfLines={2}>{room.description}</Text>
         ) : null}
-        <Text style={styles.cardMeta}>{room.itemCount ?? 0} ITEMS</Text>
+        <Text style={styles.cardMeta}>{itemCount} ITEM{itemCount === 1 ? '' : 'S'}</Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -96,6 +103,9 @@ function CreateRoomModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>New Dressing Room</Text>
+          <Text style={styles.modalSubtitle}>
+            Create a private board for a trip, event, sale watchlist, or styling project.
+          </Text>
           <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Vacation Capsule" maxLength={ROOM_TITLE_MAX_LENGTH} />
           <TextField
             label="Description"
@@ -105,14 +115,24 @@ function CreateRoomModal({
             multiline
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton label={saving ? 'Creating' : 'Create Room'} onPress={handleSave} disabled={!canSave} />
-          <PrimaryButton label="Cancel" onPress={onClose} variant="secondary" disabled={saving} />
+          <PrimaryButton
+            title={saving ? 'Creating' : 'Create Room'}
+            onPress={handleSave}
+            disabled={!canSave}
+            loading={saving}
+            accessibilityLabel="Create new dressing room"
+          />
+          <SecondaryButton
+            title="Cancel"
+            onPress={onClose}
+            disabled={saving}
+            accessibilityLabel="Cancel create room"
+          />
         </View>
       </View>
     </Modal>
   );
 }
-
 
 function DressingRoomsContent() {
   const { rooms, loading, error, reload } = useDressingRooms();
@@ -121,29 +141,51 @@ function DressingRoomsContent() {
   const friendlyError = error ? DRESSING_ROOM_LOAD_ERROR : null;
 
   return (
-    <View style={styleObjectStyles.screen}>
+    <LuxuryScreen
+      scrollable
+      safeArea
+      backgroundColor={LUXURY.colors.ivory}
+      accessibilityLabel="Dressing Rooms list"
+    >
       <StatusBar style="dark" />
-      <Header title="Dressing Rooms" eyebrow="Persistent Boards" onBack={() => router.back()} />
+      <KScanHeader
+        title="Dressing Rooms"
+        subtitle="PRIVATE STYLING BOARDS"
+        onBack={() => router.back()}
+        backLabel="Back"
+      />
+
       {blocking ? (
-        <LoadingOrError loading={loading} error={friendlyError} onRetry={reload} />
+        <View style={styleObjectStyles.content}>
+          <LoadingOrError loading={loading} error={friendlyError} onRetry={reload} />
+        </View>
       ) : (
-        <ScrollView contentContainerStyle={styleObjectStyles.content}>
-          <PrimaryButton label="New Dressing Room" onPress={() => setCreating(true)} />
+        <ScrollView
+          contentContainerStyle={[styleObjectStyles.content, styles.content]}
+          showsVerticalScrollIndicator={false}
+        >
+          <SectionHeader
+            title="Your Boards"
+            subtitle={`${rooms.length} private styling space${rooms.length === 1 ? '' : 's'}`}
+            actionLabel="New"
+            onAction={() => setCreating(true)}
+            actionAccessibilityLabel="Create new dressing room"
+          />
+
           {rooms.length === 0 ? (
             <EmptyState
               title="No Dressing Rooms yet."
-              body="Create a board for a trip, event, sale watchlist, or styling project."
+              body="Create a board for a trip, event, sale watchlist, or styling project. Shared only with people you invite."
             />
           ) : (
             <View style={styles.grid}>
               {rooms.map((room) => <RoomCard key={room.id} room={room} />)}
             </View>
           )}
-
         </ScrollView>
       )}
       <CreateRoomModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
-    </View>
+    </LuxuryScreen>
   );
 }
 
@@ -160,48 +202,59 @@ export default function DressingRoomsScreen() {
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingTop: SPACING.sm,
+  },
   grid: {
-    gap: SPACING.md,
-    marginTop: SPACING.lg,
+    gap: SPACING.lg,
+    marginTop: SPACING.sm,
   },
   card: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     overflow: 'hidden',
     ...SHADOWS.editorialSmall,
+  },
+  cardPressed: {
+    backgroundColor: LUXURY.colors.cream,
+    borderColor: LUXURY.colors.goldLight,
   },
   cover: {
     width: '100%',
     aspectRatio: 1.8,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.champagne,
   },
   coverFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   coverFallbackText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    letterSpacing: 3,
   },
   cardBody: {
     padding: SPACING.lg,
     gap: SPACING.xs,
   },
   cardTitle: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
+    fontSize: 16,
   },
   cardDescription: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
     fontSize: 13,
+    lineHeight: 20,
   },
   cardMeta: {
-    ...TYPOGRAPHY.caption,
-    color: ACCESSIBLE_GOLD_TEXT,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldBrushed,
     marginTop: SPACING.xs,
+    letterSpacing: 1.6,
   },
   modalBackdrop: {
     flex: 1,
@@ -210,21 +263,28 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   modalCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     ...SHADOWS.editorialRaised,
   },
   modalTitle: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
-    marginBottom: SPACING.sm,
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
   },
   error: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.error,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
     marginTop: SPACING.md,
     textAlign: 'center',
   },

@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   ACTIVE_DRESSING_ROOM_REACTION_TYPES,
   type ActiveDressingRoomReactionType,
@@ -55,7 +55,8 @@ function ItemReactionsComponent({
           <Pressable
             key={reactionType}
             accessibilityRole="button"
-            accessibilityLabel={`${label} reaction, count ${count}`}
+            accessibilityLabel={`${label} reaction, count ${count}${selected ? ', selected' : ''}`}
+            accessibilityHint={buttonDisabled ? undefined : `Toggle ${label} reaction`}
             accessibilityState={{ disabled: buttonDisabled, selected }}
             disabled={buttonDisabled}
             onPress={() => onReact?.(itemId, reactionType)}
@@ -86,38 +87,39 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xs,
   },
   reactionButton: {
-    minHeight: 32,
-    minWidth: 52,
+    minHeight: 36,
+    minWidth: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.cream,
     paddingHorizontal: SPACING.sm,
   },
   reactionButtonSelected: {
-    borderColor: COLORS.goldPressed,
-    backgroundColor: COLORS.accentSoft,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: LUXURY.colors.plumMuted,
   },
   reactionButtonDisabled: {
-    opacity: 0.72,
+    opacity: 0.6,
   },
   reactionButtonPressed: {
-    backgroundColor: COLORS.surfaceCard,
+    backgroundColor: LUXURY.colors.pearl,
   },
   emoji: {
     fontSize: 14,
   },
   count: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
     fontSize: 11,
     letterSpacing: 0.8,
   },
   countSelected: {
-    color: COLORS.goldPressed,
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
   },
 });
