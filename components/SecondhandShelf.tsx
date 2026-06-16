@@ -9,7 +9,7 @@ import {
   View,
   type ImageStyle,
 } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { selectionTick } from '../services/haptics';
 import type { SecondhandItem } from '../types/scan';
 
@@ -93,6 +93,9 @@ export function SecondhandShelf({ items = [] }: SecondhandShelfProps) {
               style={styles.card}
               onPress={() => handleLinkPress(item.listingUrl)}
               activeOpacity={0.78}
+              accessibilityRole="link"
+              accessibilityLabel={`${item.title || 'Secondhand item'} on Vinted, ${formatPrice(item)}`}
+              accessibilityHint="Opens the Vinted listing"
             >
               {showImage ? (
                 <ListingImage
@@ -115,7 +118,9 @@ export function SecondhandShelf({ items = [] }: SecondhandShelfProps) {
                   {item.brand ? <Text style={styles.meta} numberOfLines={1}>{item.brand}</Text> : null}
                   {item.size ? <Text style={styles.meta} numberOfLines={1}>{item.size}</Text> : null}
                 </View>
-                <Text style={styles.linkText}>View on Vinted</Text>
+                <View style={styles.linkPill}>
+                  <Text style={styles.linkText}>View on Vinted</Text>
+                </View>
               </View>
             </TouchableOpacity>
           );
@@ -138,14 +143,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   label: {
-    ...TYPOGRAPHY.sectionLabel,
-    color: COLORS.goldPressed,
+    ...LUXURY.typography.sectionLabel,
   },
   labelLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.borderHairline,
-    opacity: 0.55,
+    backgroundColor: LUXURY.colors.border,
   },
   scrollContent: {
     gap: SPACING.md,
@@ -153,10 +156,10 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     overflow: 'hidden',
     ...SHADOWS.editorialSmall,
   },
@@ -165,9 +168,9 @@ const styles = StyleSheet.create({
     height: IMAGE_SIZE,
   },
   imageSkeleton: {
-    backgroundColor: COLORS.surfaceMuted,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderHairline,
+    backgroundColor: LUXURY.colors.champagne,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.border,
   },
   listingImage: {
     width: IMAGE_SIZE,
@@ -177,36 +180,33 @@ const styles = StyleSheet.create({
     left: 0,
   },
   imagePlaceholder: {
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.champagne,
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderHairline,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.border,
   },
   placeholderText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
   },
   cardBody: {
     padding: SPACING.sm,
     gap: SPACING.xxs,
   },
   source: {
-    fontSize: 9,
-    fontWeight: '600' as const,
-    letterSpacing: 1.8,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase' as const,
   },
   title: {
-    fontSize: 12,
-    fontWeight: '500' as const,
-    color: COLORS.editorialTextPrimary,
-    lineHeight: 17,
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 13,
+    lineHeight: 18,
   },
   price: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: COLORS.goldPressed,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
     marginTop: SPACING.xxs,
   },
   metaRow: {
@@ -216,21 +216,31 @@ const styles = StyleSheet.create({
   },
   meta: {
     maxWidth: 62,
-    fontSize: 10,
-    fontWeight: '500' as const,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.caption,
+    textTransform: 'none',
+    letterSpacing: 0.4,
+  },
+  linkPill: {
+    alignSelf: 'flex-start',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plumMuted,
+    backgroundColor: LUXURY.colors.plumMuted,
+    minHeight: 30,
+    justifyContent: 'center',
   },
   linkText: {
-    marginTop: SPACING.xs,
-    fontSize: 10,
-    fontWeight: '700' as const,
-    letterSpacing: 1.2,
-    color: COLORS.arBlue,
-    textTransform: 'uppercase' as const,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    textTransform: 'none',
+    letterSpacing: 0.5,
   },
   linkError: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.errorSoft,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
     textAlign: 'center',
     marginTop: SPACING.sm,
   },
