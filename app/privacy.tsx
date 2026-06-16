@@ -24,7 +24,16 @@ import {
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
-import { LuxuryScreen, KScanHeader, PrimaryButton, SecondaryButton, TertiaryButton } from '../components/luxury';
+import {
+  LuxuryScreen,
+  KScanHeader,
+  PrimaryButton,
+  SecondaryButton,
+  TertiaryButton,
+  SectionHeader,
+  StatusPill,
+  InlineNotice,
+} from '../components/luxury';
 import { submitAccountDeletionRequest } from '../services/accountDeletion';
 import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
@@ -45,10 +54,14 @@ const PRIVACY_COPY = {
     'Your saved scan information follows K Scan privacy settings. Account-linked scan details may be included when you request an export.',
   minor:
     'Sale or sharing of personal information is disabled for users under 16 unless legally valid authorization is obtained.',
-  trust:
-    'Private by design. Your data stays under your control. Raw scans and uploaded images are not sold to third-party data buyers.',
-  noFaces:
+  trust: [
+    'Private by design.',
+    'Your data stays under your control.',
+    'Raw scans and uploaded images are not sold to third-party data buyers.',
     'K Scan is not designed for facial recognition or identifying people.',
+  ],
+  deletion:
+    'You can request account deletion from this screen. Your request will be reviewed and processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.',
 };
 
 const SYNC_STATUS_LABELS: Record<string, string> = {
@@ -58,12 +71,127 @@ const SYNC_STATUS_LABELS: Record<string, string> = {
   error: 'Could Not Sync',
 };
 
-const SYNC_STATUS_COLORS: Record<string, string> = {
-  synced: LUXURY.colors.success,
-  syncing: LUXURY.colors.goldBrushed,
-  'local-only': LUXURY.colors.stone,
-  error: LUXURY.colors.error,
+const SYNC_STATUS_VARIANTS: Record<string, StatusPillVariant> = {
+  synced: 'success',
+  syncing: 'gold',
+  'local-only': 'neutral',
+  error: 'error',
 };
+
+type StatusPillVariant = 'success' | 'warning' | 'error' | 'neutral' | 'gold';
+
+interface TrustCenterCardProps {
+  title: string;
+  subtitle?: string;
+  items: string[];
+  details?: string[];
+}
+
+function TrustCenterCard({ title, subtitle, items, details }: TrustCenterCardProps) {
+  return (
+    <View style={styles.trustCard}>
+      <Text style={styles.eyebrow}>TRUST CENTER</Text>
+      <Text style={styles.trustTitle}>{title}</Text>
+      {subtitle ? <Text style={styles.trustSubtitle}>{subtitle}</Text> : null}
+      <View style={styles.trustList}>
+        {items.map((item, index) => (
+          <View key={index} style={styles.trustRow}>
+            <Text style={styles.trustBullet}>✦</Text>
+            <Text style={styles.trustItem}>{item}</Text>
+          </View>
+        ))}
+      </View>
+      {details ? (
+        <View style={styles.trustDetails}>
+          {details.map((detail, index) => (
+            <Text key={index} style={styles.trustDetailItem}>
+              {detail}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+interface DataRequestCardProps {
+  disabled: boolean;
+  correctionText: string;
+  onCorrectionTextChange: (text: string) => void;
+  onExport: () => void;
+  onCorrection: () => void;
+}
+
+function DataRequestCard({
+  disabled,
+  correctionText,
+  onCorrectionTextChange,
+  onExport,
+  onCorrection,
+}: DataRequestCardProps) {
+  return (
+    <View style={styles.dataCard}>
+      <SectionHeader
+        title="Data Requests"
+        subtitle="Export or correct your account information"
+      />
+      <SecondaryButton
+        title="Request Data Export"
+        onPress={onExport}
+        disabled={disabled}
+        accessibilityLabel="Request data export"
+        accessibilityHint="Submit a request to export your account data"
+      />
+
+      <View style={styles.correctionBox}>
+        <TextInput
+          value={correctionText}
+          onChangeText={onCorrectionTextChange}
+          placeholder="Describe a correction request"
+          placeholderTextColor={LUXURY.colors.stone}
+          multiline
+          style={styles.input}
+          accessibilityLabel="Correction request description"
+          accessibilityHint="Describe the account information you want corrected"
+        />
+        <SecondaryButton
+          title="Submit Correction Request"
+          onPress={onCorrection}
+          disabled={disabled}
+          accessibilityLabel="Submit correction request"
+          accessibilityHint="Send your data correction request"
+        />
+      </View>
+    </View>
+  );
+}
+
+interface AccountDeletionCardProps {
+  pending: boolean;
+  disabled: boolean;
+  onRequest: () => void;
+}
+
+function AccountDeletionCard({ pending, disabled, onRequest }: AccountDeletionCardProps) {
+  return (
+    <View style={[styles.dataCard, styles.deletionCard]}>
+      <SectionHeader
+        title="Account Deletion"
+        subtitle="Request permanent account closure"
+      />
+      <Text style={styles.deletionBody}>{PRIVACY_COPY.deletion}</Text>
+      <PrimaryButton
+        title={pending ? 'Deletion Request Pending' : 'Delete Account'}
+        onPress={onRequest}
+        disabled={disabled}
+        style={styles.deletionButton}
+        textStyle={{ color: LUXURY.colors.inverse }}
+        accessibilityLabel="Request account deletion"
+        accessibilityHint="Start the account deletion request flow"
+      />
+    </View>
+  );
+}
 
 export default function PrivacyScreen() {
   const router = useRouter();
@@ -100,34 +228,10 @@ export default function PrivacyScreen() {
   const sensitiveBody =
     preferenceSource === 'remote' ? PRIVACY_COPY.sensitiveRemote : PRIVACY_COPY.sensitiveLocal;
 
-  // Block writes while session is booting, mid-refresh, or a write is in flight
   const writesBlocked = mode === 'booting' || saving || isRefreshing;
 
-  const loadFailureBanner = useMemo(() => {
-    if (!remoteFetchFailed) return null;
-    return (
-      <View style={styles.errorBanner} accessibilityRole="alert">
-        <Text style={styles.errorBannerTitle}>Unable to load your privacy preference right now.</Text>
-        <Text style={styles.errorBannerBody}>
-          {remoteFetchError || 'Check your connection and try again.'} Showing the last-known preference saved on this device until account sync succeeds.
-        </Text>
-      </View>
-    );
-  }, [remoteFetchFailed, remoteFetchError]);
-
-  const syncChip = useMemo(() => {
-    if (mode === 'booting') return null;
-    const label = SYNC_STATUS_LABELS[syncStatus] ?? syncStatus;
-    const color = SYNC_STATUS_COLORS[syncStatus] ?? LUXURY.colors.stone;
-    return (
-      <View style={[styles.syncChip, { borderColor: `${color}55` }]}>
-        {syncStatus === 'syncing' ? (
-          <ActivityIndicator size="small" color={color} style={styles.syncSpinner} />
-        ) : null}
-        <Text style={[styles.syncChipText, { color }]}>{label}</Text>
-      </View>
-    );
-  }, [mode, syncStatus]);
+  const syncChipLabel = SYNC_STATUS_LABELS[syncStatus] ?? syncStatus;
+  const syncChipVariant = SYNC_STATUS_VARIANTS[syncStatus] ?? 'neutral';
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Your privacy preferences will continue to be stored on this device.', [
@@ -186,7 +290,7 @@ export default function PrivacyScreen() {
             },
           },
         ],
-        { cancelable: false },
+        { cancelable: false }
       );
     } catch (error) {
       console.error('Account deletion request failed', error);
@@ -246,9 +350,7 @@ export default function PrivacyScreen() {
         <View style={styles.modalScrim}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Request account deletion?</Text>
-            <Text style={styles.modalBody}>
-              Your deletion request will be reviewed and processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.
-            </Text>
+            <Text style={styles.modalBody}>{PRIVACY_COPY.deletion}</Text>
             <View style={styles.modalActions}>
               <SecondaryButton
                 title="Cancel"
@@ -272,15 +374,16 @@ export default function PrivacyScreen() {
       </Modal>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>TRUST CENTER</Text>
-          <View style={styles.heroRow}>
-            <Text style={styles.title}>Your Privacy Choices</Text>
-            {syncChip}
-          </View>
-          <Text style={styles.body}>
-            Review sale and sharing opt-outs, sensitive processing limits, and account requests.
-          </Text>
+        <View style={styles.heroRow}>
+          <Text style={styles.heroTitle}>Your Privacy Choices</Text>
+          {mode !== 'booting' ? (
+            <StatusPill
+              label={syncChipLabel}
+              variant={syncChipVariant}
+              loading={syncStatus === 'syncing'}
+              accessibilityLabel={`Privacy sync status: ${syncChipLabel}`}
+            />
+          ) : null}
         </View>
 
         {loading ? (
@@ -291,43 +394,63 @@ export default function PrivacyScreen() {
         ) : (
           <>
             {message ? (
-              <View style={styles.messageCard} accessibilityRole="alert">
-                <Text style={styles.messageText}>{message}</Text>
-              </View>
+              <InlineNotice
+                variant="info"
+                body={message}
+                style={styles.noticeSpacer}
+                action={{
+                  label: 'Dismiss',
+                  onPress: () => setMessage(null),
+                  accessibilityLabel: 'Dismiss message',
+                }}
+              />
             ) : null}
-            {loadFailureBanner}
+
+            {remoteFetchFailed ? (
+              <InlineNotice
+                variant="error"
+                title="Unable to load your privacy preference right now."
+                body={
+                  remoteFetchError ||
+                  'Check your connection and try again. Showing the last-known preference saved on this device until account sync succeeds.'
+                }
+                accessibilityRole="alert"
+                style={styles.noticeSpacer}
+              />
+            ) : null}
 
             {accountDeletionPending ? (
-              <View testID="privacy-pending-deletion-banner" style={styles.pendingDeletionBanner} accessibilityRole="alert">
-                <Text style={styles.pendingDeletionTitle}>Account Deletion Pending</Text>
-                <Text style={styles.pendingDeletionBody}>
-                  Your account deletion request is pending processing. For privacy and safety, app access is limited while the request is processed. You can sign out at any time.
-                </Text>
-              </View>
+              <InlineNotice
+                testID="privacy-pending-deletion-banner"
+                variant="error"
+                title="Account Deletion Pending"
+                body="Your account deletion request is pending processing. For privacy and safety, app access is limited while the request is processed. You can sign out at any time."
+                accessibilityRole="alert"
+                style={styles.noticeSpacer}
+              />
             ) : null}
 
             {showSignInCta ? (
-              <Pressable
+              <InlineNotice
                 testID="privacy-auth-cta"
-                style={({ pressed }) => [styles.signInNotice, pressed && styles.signInNoticePressed]}
-                onPress={() => router.push('/auth')}
-                accessibilityRole="button"
-                accessibilityLabel="Sign in or create account"
-                accessibilityHint="Save privacy preferences across devices"
-              >
-                <View style={styles.signInNoticeText}>
-                  <Text style={styles.noticeTitle}>Sign In or Create Account</Text>
-                  <Text style={styles.noticeBody}>
-                    Sign in or create an account to save privacy preferences across devices. Until then, this setting is preserved only on this device.
-                  </Text>
-                </View>
-                <Text style={styles.signInArrow}>›</Text>
-              </Pressable>
+                variant="info"
+                title="Sign In or Create Account"
+                body="Sign in or create an account to save privacy preferences across devices. Until then, this setting is preserved only on this device."
+                action={{
+                  label: 'Sign In',
+                  onPress: () => router.push('/auth'),
+                  accessibilityLabel: 'Sign in or create account',
+                  testID: 'privacy-auth-cta',
+                }}
+                style={styles.noticeSpacer}
+              />
             ) : null}
 
             {isAuthenticated && user ? (
               <View style={styles.accountRow}>
-                <Text style={styles.accountEmail} numberOfLines={1}>{user.email}</Text>
+                <Text style={styles.accountEmail} numberOfLines={1}>
+                  {user.email}
+                </Text>
                 <SecondaryButton
                   title="Sign Out"
                   onPress={handleSignOut}
@@ -339,19 +462,23 @@ export default function PrivacyScreen() {
             ) : null}
 
             {saleSharingLocked ? (
-              <View style={styles.notice}>
-                <Text style={styles.noticeTitle}>Under-16 Protection Active</Text>
-                <Text style={styles.noticeBody}>{PRIVACY_COPY.minor}</Text>
-              </View>
+              <InlineNotice
+                variant="warning"
+                title="Under-16 Protection Active"
+                body={PRIVACY_COPY.minor}
+                style={styles.noticeSpacer}
+              />
             ) : null}
 
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Privacy & Data Choices</Text>
-              <Text style={styles.sectionSubtitle}>
-                {preferenceSource === 'remote'
-                  ? 'These choices are linked to your K Scan account.'
-                  : 'On-device preferences — sign in to sync to your account.'}
-              </Text>
+              <SectionHeader
+                title="Privacy & Data Choices"
+                subtitle={
+                  preferenceSource === 'remote'
+                    ? 'These choices are linked to your K Scan account.'
+                    : 'On-device preferences — sign in to sync to your account.'
+                }
+              />
 
               <PrivacyToggle
                 title="Do Not Sell or Share My Personal Information"
@@ -384,83 +511,59 @@ export default function PrivacyScreen() {
               />
             </View>
 
-            <View style={styles.infoPanel}>
-              <Text style={styles.panelTitle}>How K Scan Handles Your Data</Text>
-              <Text style={styles.panelBody}>{PRIVACY_COPY.trust}</Text>
-              <Text style={styles.panelBody}>{PRIVACY_COPY.scans}</Text>
-              <Text style={styles.panelBody}>{PRIVACY_COPY.noFaces}</Text>
-              <Text style={styles.panelBody}>{PRIVACY_COPY.aggregate}</Text>
-            </View>
+            <TrustCenterCard
+              title="How K Scan Handles Your Data"
+              subtitle="Private by design"
+              items={PRIVACY_COPY.trust}
+              details={[PRIVACY_COPY.scans, PRIVACY_COPY.aggregate]}
+            />
 
-            <View style={styles.actions}>
-              {!remoteActionsEnabled ? (
-                <Text style={styles.edgeHint}>
-                  Data export, correction, and deletion requests require a connected account. Sign in to enable these actions.
-                </Text>
-              ) : null}
-
-              <SecondaryButton
-                title="Request Data Export"
-                onPress={handleExport}
-                disabled={!remoteActionsEnabled || saving}
-                accessibilityLabel="Request data export"
-                accessibilityHint="Submit a request to export your account data"
+            {!remoteActionsEnabled ? (
+              <InlineNotice
+                variant="info"
+                body="Data export, correction, and deletion requests require a connected account. Sign in to enable these actions."
+                style={styles.noticeSpacer}
               />
+            ) : null}
 
-              <View style={styles.correctionBox}>
-                <TextInput
-                  value={correctionText}
-                  onChangeText={setCorrectionText}
-                  placeholder="Describe a correction request"
-                  placeholderTextColor={LUXURY.colors.stone}
-                  multiline
-                  style={styles.input}
-                  accessibilityLabel="Correction request description"
-                  accessibilityHint="Describe the account information you want corrected"
-                />
-                <SecondaryButton
-                  title="Submit Correction Request"
-                  onPress={handleCorrection}
-                  disabled={!remoteActionsEnabled || saving}
-                  accessibilityLabel="Submit correction request"
-                  accessibilityHint="Send your data correction request"
-                />
-              </View>
+            <DataRequestCard
+              disabled={!remoteActionsEnabled || saving}
+              correctionText={correctionText}
+              onCorrectionTextChange={setCorrectionText}
+              onExport={handleExport}
+              onCorrection={handleCorrection}
+            />
 
-              <TertiaryButton
-                title={deletionPending || accountDeletionPending ? 'Deletion Request Pending' : 'Delete Account'}
-                onPress={handleDeletion}
-                disabled={!isAuthenticated || saving || deletionSubmitting || deletionPending || accountDeletionPending}
-                textStyle={{ color: LUXURY.colors.error }}
-                accessibilityLabel="Request account deletion"
-                accessibilityHint="Start the account deletion request flow"
-              />
+            <AccountDeletionCard
+              pending={deletionPending || accountDeletionPending}
+              disabled={!isAuthenticated || saving || deletionSubmitting || deletionPending || accountDeletionPending}
+              onRequest={handleDeletion}
+            />
 
-              <View style={styles.legalFooter}>
-                <Pressable
-                  onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
-                  accessibilityRole="link"
-                  accessibilityLabel="Open Privacy Policy"
-                >
-                  <Text style={styles.legalFooterLink}>Privacy Policy</Text>
-                </Pressable>
-                <Text style={styles.legalFooterSep}>·</Text>
-                <Pressable
-                  onPress={() => void Linking.openURL('https://kscan.app/legal/terms')}
-                  accessibilityRole="link"
-                  accessibilityLabel="Open Terms of Service"
-                >
-                  <Text style={styles.legalFooterLink}>Terms</Text>
-                </Pressable>
-                <Text style={styles.legalFooterSep}>·</Text>
-                <Pressable
-                  onPress={() => void Linking.openURL('https://kscan.app/support')}
-                  accessibilityRole="link"
-                  accessibilityLabel="Open Support"
-                >
-                  <Text style={styles.legalFooterLink}>Support</Text>
-                </Pressable>
-              </View>
+            <View style={styles.legalFooter}>
+              <Pressable
+                onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+                accessibilityRole="link"
+                accessibilityLabel="Open Privacy Policy"
+              >
+                <Text style={styles.legalFooterLink}>Privacy Policy</Text>
+              </Pressable>
+              <Text style={styles.legalFooterSep}>·</Text>
+              <Pressable
+                onPress={() => void Linking.openURL('https://kscan.app/legal/terms')}
+                accessibilityRole="link"
+                accessibilityLabel="Open Terms of Service"
+              >
+                <Text style={styles.legalFooterLink}>Terms</Text>
+              </Pressable>
+              <Text style={styles.legalFooterSep}>·</Text>
+              <Pressable
+                onPress={() => void Linking.openURL('https://kscan.app/support')}
+                accessibilityRole="link"
+                accessibilityLabel="Open Support"
+              >
+                <Text style={styles.legalFooterLink}>Support</Text>
+              </Pressable>
             </View>
           </>
         )}
@@ -475,49 +578,17 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
     paddingBottom: 56,
   },
-  hero: {
-    gap: SPACING.sm,
-    paddingBottom: SPACING.sm,
-  },
-  eyebrow: {
-    ...LUXURY.typography.sectionLabel,
-    color: LUXURY.colors.goldBrushed,
-  },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
     flexWrap: 'wrap',
+    paddingBottom: SPACING.sm,
   },
-  title: {
+  heroTitle: {
     ...LUXURY.typography.displayHeadline,
     flex: 1,
     color: LUXURY.colors.ink,
-  },
-  syncChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    borderWidth: 1,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    backgroundColor: LUXURY.colors.pearl,
-  },
-  syncSpinner: {
-    width: 12,
-    height: 12,
-  },
-  syncChipText: {
-    ...LUXURY.typography.caption,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
-  body: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.graphite,
   },
   loadingPanel: {
     minHeight: 240,
@@ -529,94 +600,8 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
   },
-  messageCard: {
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    borderRadius: RADIUS.lg,
-    backgroundColor: LUXURY.colors.pearl,
-    padding: SPACING.lg,
-    ...SHADOWS.editorialSmall,
-  },
-  messageText: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.ink,
-  },
-  errorBanner: {
-    borderWidth: 1,
-    borderColor: 'rgba(130, 48, 56, 0.28)',
-    borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(130, 48, 56, 0.07)',
-    padding: SPACING.lg,
-    gap: SPACING.sm,
-  },
-  errorBannerTitle: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.error,
-  },
-  errorBannerBody: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.graphite,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  pendingDeletionBanner: {
-    borderWidth: 1,
-    borderColor: 'rgba(130, 48, 56, 0.28)',
-    borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(130, 48, 56, 0.07)',
-    padding: SPACING.lg,
-    gap: SPACING.sm,
-  },
-  pendingDeletionTitle: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.error,
-  },
-  pendingDeletionBody: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.graphite,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  signInNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    borderRadius: RADIUS.lg,
-    backgroundColor: LUXURY.colors.pearl,
-    padding: SPACING.lg,
-    gap: SPACING.sm,
-    ...SHADOWS.editorialSmall,
-  },
-  signInNoticePressed: {
-    backgroundColor: LUXURY.colors.cream,
-    borderColor: LUXURY.colors.goldLight,
-  },
-  signInNoticeText: {
-    flex: 1,
-    gap: SPACING.sm,
-  },
-  signInArrow: {
-    color: LUXURY.colors.goldBrushed,
-    fontSize: 22,
-    fontWeight: '300',
-  },
-  notice: {
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    borderRadius: RADIUS.lg,
-    backgroundColor: LUXURY.colors.pearl,
-    padding: SPACING.lg,
-    gap: SPACING.sm,
-    ...SHADOWS.editorialSmall,
-  },
-  noticeTitle: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.goldBrushed,
-  },
-  noticeBody: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.ink,
+  noticeSpacer: {
+    marginBottom: 0,
   },
   accountRow: {
     flexDirection: 'row',
@@ -644,46 +629,77 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     ...SHADOWS.editorialRaised,
   },
-  sectionTitle: {
+  trustCard: {
+    ...LUXURY.cards.hero,
+    gap: SPACING.md,
+  },
+  eyebrow: {
+    ...LUXURY.typography.sectionLabel,
+    color: LUXURY.colors.goldBrushed,
+  },
+  trustTitle: {
     ...LUXURY.typography.displayTitle,
     fontSize: 20,
     color: LUXURY.colors.ink,
   },
-  sectionSubtitle: {
+  trustSubtitle: {
     ...LUXURY.typography.body,
     fontSize: 13,
     lineHeight: 20,
     color: LUXURY.colors.graphite,
-    marginBottom: SPACING.xs,
   },
-  infoPanel: {
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.xl,
-    backgroundColor: LUXURY.colors.cream,
-    gap: SPACING.md,
-    ...SHADOWS.editorialSmall,
+  trustList: {
+    gap: SPACING.sm,
+    paddingTop: SPACING.xs,
   },
-  panelTitle: {
-    ...LUXURY.typography.sectionLabel,
-    color: LUXURY.colors.goldBrushed,
+  trustDetails: {
+    gap: SPACING.sm,
+    paddingTop: SPACING.xs,
   },
-  panelBody: {
+  trustDetailItem: {
     ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  trustBullet: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.goldBrushed,
+    fontSize: 13,
+    lineHeight: 22,
+  },
+  trustItem: {
+    ...LUXURY.typography.body,
+    flex: 1,
     color: LUXURY.colors.graphite,
     fontSize: 14,
     lineHeight: 22,
   },
-  actions: {
+  dataCard: {
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    borderRadius: RADIUS.xl,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.xl,
     gap: SPACING.md,
+    ...SHADOWS.editorialSmall,
   },
-  edgeHint: {
+  deletionCard: {
+    borderColor: `${LUXURY.colors.error}28`,
+    backgroundColor: `${LUXURY.colors.error}08`,
+  },
+  deletionBody: {
     ...LUXURY.typography.body,
     fontSize: 13,
     lineHeight: 20,
-    color: LUXURY.colors.stone,
-    marginBottom: SPACING.sm,
+    color: LUXURY.colors.graphite,
+  },
+  deletionButton: {
+    backgroundColor: LUXURY.colors.error,
   },
   correctionBox: {
     gap: SPACING.sm,
@@ -695,7 +711,7 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.border,
     padding: SPACING.lg,
     color: LUXURY.colors.ink,
-    backgroundColor: LUXURY.colors.pearl,
+    backgroundColor: LUXURY.colors.warmWhite,
     textAlignVertical: 'top',
     fontSize: 15,
     lineHeight: 22,
