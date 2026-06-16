@@ -18,7 +18,7 @@ import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
-import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { COLORS, LUXURY, LAYOUT, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { supabase } from '../../services/supabaseClient';
@@ -272,7 +272,12 @@ export default function AuthScreen() {
       <View style={styles.root}>
         <StatusBar style="dark" />
         <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel and go back"
+          >
             <Text style={styles.backText}>Cancel</Text>
           </Pressable>
           <View style={styles.headerCenter}>
@@ -284,7 +289,7 @@ export default function AuthScreen() {
 
         <KeyboardAvoidingView
           style={styles.body}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Check Your Email</Text>
@@ -313,7 +318,14 @@ export default function AuthScreen() {
     <View style={styles.root}>
       <StatusBar style="dark" />
       <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} disabled={busy}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel and go back"
+          accessibilityState={{ disabled: busy }}
+        >
           <Text style={[styles.backText, busy && styles.disabled]}>Cancel</Text>
         </Pressable>
         <View style={styles.headerCenter}>
@@ -325,7 +337,7 @@ export default function AuthScreen() {
 
       <KeyboardAvoidingView
         style={styles.body}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.card}>
           {/* Mode switcher tabs */}
@@ -335,6 +347,9 @@ export default function AuthScreen() {
               style={styles.tab}
               onPress={() => switchMode('sign-in')}
               disabled={busy}
+              accessibilityRole="tab"
+              accessibilityLabel="Sign in"
+              accessibilityState={{ selected: mode === 'sign-in', disabled: busy }}
             >
               <Text style={[styles.tabText, mode === 'sign-in' && styles.tabTextActive]}>
                 SIGN IN
@@ -346,6 +361,9 @@ export default function AuthScreen() {
               style={styles.tab}
               onPress={() => switchMode('create-account')}
               disabled={busy}
+              accessibilityRole="tab"
+              accessibilityLabel="Create account"
+              accessibilityState={{ selected: mode === 'create-account', disabled: busy }}
             >
               <Text style={[styles.tabText, mode === 'create-account' && styles.tabTextActive]}>
                 CREATE ACCOUNT
@@ -365,6 +383,9 @@ export default function AuthScreen() {
             style={[styles.googleButton, busy && styles.googleButtonDisabled]}
             onPress={handleGoogleSignIn}
             disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            accessibilityState={{ disabled: busy, busy: googleBusy }}
           >
             {googleBusy ? (
               <ActivityIndicator size="small" color={COLORS.textPrimary} />
@@ -384,6 +405,9 @@ export default function AuthScreen() {
               style={[styles.appleButton, busy && styles.appleButtonDisabled]}
               onPress={handleAppleSignIn}
               disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Apple"
+              accessibilityState={{ disabled: busy, busy: appleBusy }}
             >
               {appleBusy ? (
                 <ActivityIndicator size="small" color={COLORS.black} />
@@ -415,7 +439,9 @@ export default function AuthScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={LUXURY.colors.stone}
+              accessibilityLabel="Email address"
+              accessibilityHint="Enter your email address"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -432,7 +458,9 @@ export default function AuthScreen() {
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={LUXURY.colors.stone}
+              accessibilityLabel="Password"
+              accessibilityHint={mode === 'sign-in' ? 'Enter your password' : 'Create a password'}
               secureTextEntry
               autoCapitalize="none"
               autoComplete={mode === 'sign-in' ? 'password' : 'new-password'}
@@ -451,7 +479,9 @@ export default function AuthScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="••••••••"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={LUXURY.colors.stone}
+                accessibilityLabel="Confirm password"
+                accessibilityHint="Re-enter your password"
                 secureTextEntry
                 autoCapitalize="none"
                 autoComplete="new-password"
@@ -468,6 +498,9 @@ export default function AuthScreen() {
             style={[styles.primaryButton, busy && styles.primaryButtonBusy]}
             onPress={handleSubmit}
             disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={mode === 'sign-in' ? 'Sign in' : 'Create account'}
+            accessibilityState={{ disabled: busy, busy }}
           >
             {busy ? (
               <ActivityIndicator size="small" color={COLORS.textInverse} />
@@ -484,6 +517,9 @@ export default function AuthScreen() {
               onPress={() => router.push('/auth/reset')}
               disabled={busy}
               style={styles.forgotPasswordButton}
+              accessibilityRole="link"
+              accessibilityLabel="Forgot password"
+              accessibilityState={{ disabled: busy }}
             >
               <Text style={[styles.secondaryLinkAction, busy && styles.disabled]}>
                 Forgot password?
@@ -496,6 +532,9 @@ export default function AuthScreen() {
           onPress={() => switchMode(mode === 'sign-in' ? 'create-account' : 'sign-in')}
           disabled={busy}
           style={styles.secondaryLinkRow}
+          accessibilityRole="button"
+          accessibilityLabel={mode === 'sign-in' ? 'Create an account' : 'Sign in to existing account'}
+          accessibilityState={{ disabled: busy }}
         >
           <Text style={styles.secondaryLink}>
             {mode === 'sign-in' ? 'Need an account? ' : 'Already have an account? '}
@@ -509,15 +548,27 @@ export default function AuthScreen() {
           Your choices are private to your account.
         </Text>
         <View style={styles.legalLinks}>
-          <Pressable onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}>
+          <Pressable
+            onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+            accessibilityRole="link"
+            accessibilityLabel="Open Privacy Policy"
+          >
             <Text style={styles.legalLinkText}>Privacy Policy</Text>
           </Pressable>
           <Text style={styles.legalLinkSep}>·</Text>
-          <Pressable onPress={() => void Linking.openURL('https://kscan.app/legal/terms')}>
+          <Pressable
+            onPress={() => void Linking.openURL('https://kscan.app/legal/terms')}
+            accessibilityRole="link"
+            accessibilityLabel="Open Terms of Service"
+          >
             <Text style={styles.legalLinkText}>Terms</Text>
           </Pressable>
           <Text style={styles.legalLinkSep}>·</Text>
-          <Pressable onPress={() => void Linking.openURL('https://kscan.app/support')}>
+          <Pressable
+            onPress={() => void Linking.openURL('https://kscan.app/support')}
+            accessibilityRole="link"
+            accessibilityLabel="Open Support"
+          >
             <Text style={styles.legalLinkText}>Support</Text>
           </Pressable>
         </View>
@@ -529,7 +580,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: LUXURY.colors.ivory,
   },
   header: {
     flexDirection: 'row',
@@ -537,15 +588,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: LAYOUT.screenPadding,
     paddingBottom: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: LUXURY.colors.border,
   },
   backButton: {
-    width: 56,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   backText: {
-    color: COLORS.accent,
+    ...LUXURY.typography.bodyStrong,
     fontSize: 13,
-    fontWeight: '700',
+    color: LUXURY.colors.plum,
   },
   disabled: {
     opacity: 0.4,
@@ -558,30 +611,30 @@ const styles = StyleSheet.create({
     width: 56,
   },
   brand: {
-    ...TYPOGRAPHY.brand,
-    fontSize: 16,
-    letterSpacing: 3.2,
-    textTransform: 'none',
-    color: COLORS.accent,
+    ...LUXURY.typography.brandMark,
+    fontSize: 18,
+    color: LUXURY.colors.plum,
   },
   screenTitle: {
-    ...TYPOGRAPHY.caption,
+    ...LUXURY.typography.sectionLabel,
     marginTop: SPACING.xs,
-    color: COLORS.accent,
+    color: LUXURY.colors.plum,
   },
   body: {
     flex: 1,
     padding: LAYOUT.screenPadding,
     gap: SPACING.lg,
     justifyContent: 'center',
+    paddingBottom: LAYOUT.modalBottomPadding,
   },
   card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.goldMuted,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surfaceCard,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    borderRadius: RADIUS.xl,
+    backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     gap: SPACING.lg,
+    ...SHADOWS.editorialSmall,
   },
   // Mode switcher tabs
   tabRow: {
@@ -596,16 +649,17 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   tabText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.sectionLabel,
+    color: LUXURY.colors.stone,
+    fontSize: 12,
   },
   tabTextActive: {
-    color: COLORS.accent,
+    color: LUXURY.colors.plum,
   },
   tabIndicator: {
     height: 2,
     width: 28,
-    backgroundColor: COLORS.accent,
+    backgroundColor: LUXURY.colors.gold,
     borderRadius: 1,
   },
   tabIndicatorInvisible: {
@@ -617,76 +671,73 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   cardBody: {
-    ...TYPOGRAPHY.body,
-    fontSize: 13,
-    lineHeight: 20,
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
   },
   emailHighlight: {
-    color: COLORS.textPrimary,
+    color: LUXURY.colors.ink,
     fontWeight: '600',
   },
   errorBanner: {
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.45)',
-    borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    borderColor: 'rgba(130, 48, 56, 0.25)',
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(130, 48, 56, 0.08)',
     padding: SPACING.md,
   },
   errorText: {
-    ...TYPOGRAPHY.body,
-    fontSize: 13,
-    color: COLORS.errorSoft,
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    color: LUXURY.colors.error,
   },
   fieldGroup: {
     gap: SPACING.xs,
   },
   fieldLabel: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.sectionLabel,
+    color: LUXURY.colors.stone,
+    fontSize: 11,
   },
   input: {
-    height: 50,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.lg,
-    color: COLORS.textPrimary,
-    backgroundColor: COLORS.bgElevated,
-    fontSize: 15,
+    height: LUXURY.inputs.field.height,
+    borderRadius: LUXURY.inputs.field.borderRadius,
+    borderWidth: LUXURY.inputs.field.borderWidth,
+    borderColor: LUXURY.inputs.field.borderColor,
+    paddingHorizontal: LUXURY.inputs.field.paddingHorizontal,
+    color: LUXURY.inputs.field.color,
+    backgroundColor: LUXURY.colors.cream,
+    fontSize: LUXURY.inputs.field.fontSize,
+    fontWeight: LUXURY.inputs.field.fontWeight,
   },
   inputDisabled: {
     opacity: 0.6,
   },
   primaryButton: {
-    height: 52,
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.gold,
-    borderTopColor: COLORS.softGold,
-    borderRightColor: COLORS.goldMuted,
-    backgroundColor: COLORS.accent,
+    minHeight: LUXURY.buttons.primary.height,
+    borderRadius: LUXURY.buttons.primary.borderRadius,
+    backgroundColor: LUXURY.buttons.primary.backgroundColor,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.sm,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 0,
+    ...SHADOWS.editorialSmall,
   },
   primaryButtonBusy: {
     opacity: 0.7,
   },
   primaryButtonText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.textInverse,
-    fontSize: 13,
+    ...LUXURY.typography.cta,
+    color: LUXURY.buttons.primary.color,
+    fontSize: LUXURY.buttons.primary.fontSize,
+    letterSpacing: LUXURY.buttons.primary.letterSpacing,
+    fontWeight: LUXURY.buttons.primary.fontWeight,
   },
   googleButton: {
     minHeight: 52,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: COLORS.borderStrong,
-    backgroundColor: COLORS.bgElevated,
+    borderColor: LUXURY.colors.borderStrong,
+    backgroundColor: LUXURY.colors.pearl,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -701,22 +752,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.textPrimary,
+    backgroundColor: LUXURY.colors.ink,
   },
   googleIconText: {
-    color: '#4285F4',
+    color: LUXURY.colors.pearl,
     fontSize: 15,
     fontWeight: '800',
   },
   googleButtonText: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.textPrimary,
+    ...LUXURY.typography.bodyStrong,
     fontSize: 14,
   },
   appleButton: {
     minHeight: 52,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.textPrimary,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -726,13 +776,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   appleIconText: {
-    color: COLORS.black,
+    color: LUXURY.colors.pearl,
     fontSize: 15,
     fontWeight: '800',
   },
   appleButtonText: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.black,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.pearl,
     fontSize: 14,
   },
   dividerRow: {
@@ -743,25 +793,24 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: LUXURY.colors.border,
   },
   dividerText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
-    fontSize: 10,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontSize: 12,
   },
   secondaryLinkRow: {
     alignItems: 'center',
     paddingVertical: SPACING.xs,
   },
   secondaryLink: {
-    ...TYPOGRAPHY.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.body,
+    fontSize: 14,
     textAlign: 'center',
   },
   secondaryLinkAction: {
-    color: COLORS.accent,
+    color: LUXURY.colors.plum,
     fontWeight: '600',
   },
   forgotPasswordButton: {
@@ -769,10 +818,9 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
   },
   footNote: {
-    ...TYPOGRAPHY.body,
-    fontSize: 12,
-    lineHeight: 18,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.caption,
+    fontSize: 13,
+    lineHeight: 20,
     textAlign: 'center',
     paddingHorizontal: SPACING.lg,
   },
@@ -786,12 +834,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   legalLinkText: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.caption,
+    fontSize: 12,
     textDecorationLine: 'underline',
+    textTransform: 'none',
+    letterSpacing: 0.5,
+    minHeight: 44,
+    textAlignVertical: 'center',
   },
   legalLinkSep: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.caption,
+    fontSize: 12,
   },
 });
