@@ -328,6 +328,307 @@ export const CAPTURE_BUTTON = {
   borderWidth: 2,
 };
 
+// ── Cross-platform font fallbacks ─────────────────────────────────────────────
+// No custom font assets are added in this polish pass. We rely on system serif
+// on iOS (Georgia) and generic serif on Android to suggest editorial luxury
+// without increasing bundle size or risking asset loading failures.
+export const FONTS = {
+  serif: Platform.select({
+    ios: 'Georgia',
+    android: 'serif',
+    default: 'serif',
+  }) as string,
+  sans: Platform.select({
+    ios: 'System',
+    android: 'sans-serif',
+    default: 'System',
+  }) as string,
+  mono: Platform.select({
+    ios: 'Courier New',
+    android: 'monospace',
+    default: 'monospace',
+  }) as string,
+};
+
+// ── Luxury design tokens (Phase 1) ────────────────────────────────────────────
+// These tokens express the warm ivory / deep plum / brushed gold editorial
+// direction from the luxury mockups. Existing COLORS/SPACING/RADIUS/SHADOWS
+// values are intentionally preserved; LUXURY provides a curated surface for
+// new shared components and screen polish without breaking current callers.
+export const LUXURY = {
+  colors: {
+    // Warm ivory / cream surfaces
+    ivory:         COLORS.canvas,
+    cream:         COLORS.canvasWarm,
+    champagne:     '#F5F0E8',
+    silk:          COLORS.bg,
+    warmWhite:     '#FDFBF8',
+    pearl:         COLORS.surfaceCard,
+    canvasLavender: COLORS.canvasLavender,
+
+    // Deep plum primary actions
+    plum:          COLORS.accent,
+    plumDeep:      COLORS.purpleDeep,
+    plumCore:      COLORS.purpleCore,
+    plumSoft:      COLORS.purpleSoft,
+    plumMuted:     COLORS.purpleMist,
+    plumGlow:      COLORS.purpleGlow,
+
+    // Brushed gold / camel accents
+    gold:          COLORS.gold,
+    goldBrushed:   '#B08D4B',
+    goldLight:     COLORS.softGold,
+    goldChampagne: '#D4B87A',
+    camel:         '#A68B5B',
+
+    // Ink / graphite / stone text
+    ink:           COLORS.textPrimary,
+    graphite:      COLORS.textSecondary,
+    stone:         COLORS.textTertiary,
+    inverse:       COLORS.textInverse,
+
+    // Warm borders
+    border:        '#E8E0D5',
+    borderWarm:    COLORS.border,
+    borderStrong:  COLORS.borderStrong,
+    hairline:      'rgba(198, 161, 91, 0.28)',
+
+    // Status
+    success:       COLORS.success,
+    error:         COLORS.error,
+    warning:       COLORS.warning,
+  },
+
+  typography: {
+    displayHero: {
+      fontFamily: FONTS.serif,
+      fontSize: 36,
+      fontWeight: '400' as const,
+      letterSpacing: -0.5,
+      lineHeight: 44,
+      color: COLORS.textPrimary,
+    },
+    displayHeadline: {
+      fontFamily: FONTS.serif,
+      fontSize: 28,
+      fontWeight: '400' as const,
+      letterSpacing: -0.3,
+      lineHeight: 36,
+      color: COLORS.textPrimary,
+    },
+    displayTitle: {
+      fontFamily: FONTS.serif,
+      fontSize: 22,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 30,
+      color: COLORS.textPrimary,
+    },
+    brandMark: {
+      fontFamily: FONTS.serif,
+      fontSize: 24,
+      fontWeight: '600' as const,
+      letterSpacing: 3,
+      color: COLORS.textPrimary,
+      textTransform: 'uppercase' as const,
+    },
+    sectionLabel: {
+      fontFamily: FONTS.sans,
+      fontSize: 12,
+      fontWeight: '600' as const,
+      letterSpacing: 2.6,
+      color: COLORS.textTertiary,
+      textTransform: 'uppercase' as const,
+    },
+    body: {
+      fontFamily: FONTS.sans,
+      fontSize: 15,
+      fontWeight: '400' as const,
+      lineHeight: 24,
+      color: COLORS.textSecondary,
+    },
+    bodyStrong: {
+      fontFamily: FONTS.sans,
+      fontSize: 15,
+      fontWeight: '600' as const,
+      lineHeight: 24,
+      color: COLORS.textPrimary,
+    },
+    caption: {
+      fontFamily: FONTS.sans,
+      fontSize: 12,
+      fontWeight: '500' as const,
+      letterSpacing: 1.6,
+      color: COLORS.textTertiary,
+    },
+    cta: {
+      fontFamily: FONTS.sans,
+      fontSize: 13,
+      fontWeight: '600' as const,
+      letterSpacing: 2.8,
+      color: COLORS.textInverse,
+      textTransform: 'uppercase' as const,
+    },
+    ctaSecondary: {
+      fontFamily: FONTS.sans,
+      fontSize: 13,
+      fontWeight: '600' as const,
+      letterSpacing: 2.4,
+      color: COLORS.accent,
+      textTransform: 'uppercase' as const,
+    },
+  },
+
+  buttons: {
+    primary: {
+      backgroundColor: COLORS.accent,
+      color: COLORS.textInverse,
+      borderRadius: RADIUS.pill,
+      height: 56,
+      minWidth: 220,
+      paddingHorizontal: SPACING.xxl,
+      letterSpacing: 2.8,
+      fontSize: 13,
+      fontWeight: '600' as const,
+      shadow: SHADOWS.editorialSmall,
+    },
+    secondary: {
+      backgroundColor: 'transparent',
+      color: COLORS.accent,
+      borderColor: COLORS.gold,
+      borderWidth: 1.5,
+      borderRadius: RADIUS.pill,
+      height: 52,
+      minWidth: 200,
+      paddingHorizontal: SPACING.xl,
+      letterSpacing: 2.4,
+      fontSize: 13,
+      fontWeight: '600' as const,
+    },
+    tertiary: {
+      backgroundColor: 'transparent',
+      color: COLORS.textSecondary,
+      borderRadius: RADIUS.pill,
+      height: 44,
+      paddingHorizontal: SPACING.lg,
+      letterSpacing: 1.6,
+      fontSize: 13,
+      fontWeight: '500' as const,
+    },
+  },
+
+  cards: {
+    hero: {
+      backgroundColor: COLORS.canvasWarm,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1,
+      borderColor: 'rgba(198, 161, 91, 0.24)',
+      shadow: SHADOWS.editorialRaised,
+      padding: SPACING.xl,
+    },
+    product: {
+      backgroundColor: COLORS.surfaceCard,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderColor: '#F0EAE0',
+      shadow: SHADOWS.editorialSmall,
+      padding: SPACING.md,
+    },
+    screen: {
+      backgroundColor: COLORS.canvas,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1,
+      borderColor: 'rgba(21, 18, 15, 0.06)',
+      shadow: SHADOWS.editorialSmall,
+      padding: SPACING.xl,
+    },
+    darkFloat: {
+      backgroundColor: COLORS.surfaceStrong,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1,
+      borderColor: COLORS.darkOverlayBorder,
+      shadow: SHADOWS.darkFloat,
+      padding: SPACING.xl,
+    },
+  },
+
+  chips: {
+    styleTag: {
+      backgroundColor: COLORS.purpleMist,
+      color: COLORS.accent,
+      borderRadius: RADIUS.pill,
+      height: 34,
+      paddingHorizontal: SPACING.lg,
+      fontSize: 12,
+      fontWeight: '500' as const,
+      letterSpacing: 0.5,
+    },
+    metadata: {
+      backgroundColor: 'rgba(18, 16, 26, 0.78)',
+      color: COLORS.textInverse,
+      borderRadius: RADIUS.pill,
+      height: 34,
+      paddingHorizontal: SPACING.lg,
+      fontSize: 12,
+      fontWeight: '500' as const,
+      letterSpacing: 0.5,
+    },
+    goldOutline: {
+      backgroundColor: 'transparent',
+      color: COLORS.goldText,
+      borderColor: COLORS.gold,
+      borderWidth: 1,
+      borderRadius: RADIUS.pill,
+      height: 34,
+      paddingHorizontal: SPACING.lg,
+      fontSize: 12,
+      fontWeight: '500' as const,
+      letterSpacing: 0.5,
+    },
+  },
+
+  inputs: {
+    field: {
+      backgroundColor: COLORS.surfaceCard,
+      color: COLORS.textPrimary,
+      placeholderColor: COLORS.textTertiary,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      focusedBorderColor: COLORS.gold,
+      height: 54,
+      paddingHorizontal: SPACING.lg,
+      fontSize: 15,
+      fontWeight: '400' as const,
+    },
+    search: {
+      backgroundColor: 'rgba(247, 243, 236, 0.92)',
+      color: COLORS.textPrimary,
+      placeholderColor: COLORS.textTertiary,
+      borderRadius: RADIUS.pill,
+      borderWidth: 1,
+      borderColor: 'rgba(21, 18, 15, 0.08)',
+      height: 48,
+      paddingHorizontal: SPACING.lg,
+      fontSize: 15,
+      fontWeight: '400' as const,
+    },
+  },
+
+  emptyState: {
+    iconColor: COLORS.gold,
+    titleColor: COLORS.textPrimary,
+    bodyColor: COLORS.textSecondary,
+    actionColor: COLORS.accent,
+  },
+
+  loadingState: {
+    indicatorColor: COLORS.accent,
+    panelBackground: COLORS.surfaceCard,
+    captionColor: COLORS.textTertiary,
+  },
+} as const;
+
 export const api = {
   retryPorts:      [8081, 8082],
   healthTimeoutMs: 1200,
