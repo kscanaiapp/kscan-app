@@ -1,26 +1,29 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Linking,
-  Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+
 import {
-  COLORS,
-  LAYOUT,
-  RADIUS,
-  SHADOWS,
-  SPACING,
-  TYPOGRAPHY,
-} from '../../../constants/theme';
+  LuxuryScreen,
+  KScanHeader,
+  SectionHeader,
+  StatusPill,
+  InlineNotice,
+  EmptyStateCard,
+  SharedScanCard,
+  SecondaryButton,
+  PrivacyFooter,
+} from '../../../components/luxury';
+import { LUXURY, SPACING } from '../../../constants/theme';
 import { getItemReactionCounts } from '../../../services/styleObjects';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
 import {
@@ -144,155 +147,77 @@ function formatSharedDate(iso: string | null): string | null {
   }
 }
 
+function browserUrlForToken(token: string): string {
+  return `https://www.kscan.app/rooms/${encodeURIComponent(token)}`;
+}
+
 // ─── Components ───────────────────────────────────────────────────────────────
-function RoomHeader({ onBack }: { onBack: () => void }) {
+interface SharedRoomPreviewCardProps {
+  preview: ApiPreview;
+}
+
+function SharedRoomPreviewCard({ preview }: SharedRoomPreviewCardProps) {
+  const [coverError, setCoverError] = useState(false);
+  const date = formatSharedDate(preview.sharedAt);
+  const hasCover = Boolean(preview.coverImageUrl) && !coverError;
+
   return (
-    <View style={styles.header}>
-      <TouchableOpacity style={styles.backButton} onPress={onBack} hitSlop={12}>
-        <Text style={styles.backChevron}>‹</Text>
-      </TouchableOpacity>
-      <View style={styles.headerCenter}>
-        <Text style={styles.brand}>K-SCAN</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Shared Room</Text>
+    <View style={styles.previewCard}>
+      <View style={styles.previewHeader}>
+        <StatusPill label="Shared" variant="gold" />
+        <View style={styles.metaPills}>
+          <StatusPill
+            label={`${preview.itemCount} ${preview.itemCount === 1 ? 'item' : 'items'}`}
+            variant="neutral"
+          />
+          {date ? <StatusPill label={date} variant="neutral" /> : null}
         </View>
       </View>
-      <View style={styles.headerSpacer} />
-    </View>
-  );
-}
 
-function MetaRow({ itemCount, sharedAt }: { itemCount: number; sharedAt: string | null }) {
-  const date = formatSharedDate(sharedAt);
-  return (
-    <View style={styles.metaRow}>
-      <View style={styles.metaChip}>
-        <Text style={styles.metaChipText}>
-          {itemCount} {itemCount === 1 ? 'item' : 'items'}
-        </Text>
-      </View>
-      {date ? (
-        <View style={styles.metaChip}>
-          <Text style={styles.metaChipText}>{date}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
+      <Text style={styles.previewTitle}>{preview.title || 'Shared Dressing Room'}</Text>
 
-function CoverCard({ uri }: { uri: string }) {
-  const [errored, setErrored] = useState(false);
-  return (
-    <View style={styles.coverCard}>
-      {!errored ? (
-        <Image
-          source={{ uri }}
-          style={styles.coverImage}
-          resizeMode="cover"
-          onError={() => setErrored(true)}
-        />
-      ) : (
-        <View style={[styles.coverImage, styles.imageFallback]}>
-          <Text style={styles.imageFallbackText}>Preview unavailable</Text>
-        </View>
-      )}
-    </View>
-  );
-}
+      {preview.note ? <Text style={styles.previewNote}>{preview.note}</Text> : null}
 
-function RoomNote({ note }: { note: string }) {
-  return (
-    <View style={styles.noteCard}>
-      <Text style={styles.noteText}>{note}</Text>
-    </View>
-  );
-}
-
-function ItemCard({
-  item,
-  index,
-  counts,
-}: {
-  item: ApiItem;
-  index: number;
-  counts: ReactionCountsForItem;
-}) {
-  const [errored, setErrored] = useState(false);
-  const label = item.title || item.category || `Item ${index + 1}`;
-  const chips = [item.category, item.color, item.silhouette].filter(Boolean) as string[];
-
-  return (
-    <View style={styles.itemCard}>
-      <View style={styles.itemImageWrap}>
-        {item.imageUrl && !errored ? (
+      {hasCover ? (
+        <View style={styles.coverWrap}>
           <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.itemImage}
+            source={{ uri: preview.coverImageUrl! }}
+            style={styles.coverImage}
             resizeMode="cover"
-            onError={() => setErrored(true)}
-          />
-        ) : (
-          <View style={[styles.itemImage, styles.imageFallback]}>
-            <Text style={styles.imageFallbackText}>Preview{'\n'}unavailable</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.itemBody}>
-        <Text style={styles.itemLabel} numberOfLines={2}>{label}</Text>
-        {chips.length > 0 ? (
-          <View style={styles.chipRow}>
-            {chips.map((chip) => (
-              <View key={chip} style={styles.chip}>
-                <Text style={styles.chipText}>{chip}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </View>
-      {item.id ? (
-        <View style={styles.itemReactions}>
-          <ItemReactions
-            itemId={item.id}
-            counts={counts}
-            selectedReaction={null}
-            disabled
+            onError={() => setCoverError(true)}
+            accessibilityLabel="Room cover image"
           />
         </View>
       ) : null}
+
+      <Text style={styles.previewBody}>
+        This is a preview of a private K Scan Dressing Room. Access is controlled by the share
+        token. Only items the owner chose to share are visible here.
+      </Text>
     </View>
   );
 }
 
-function RetryButton({ onPress, label = 'Try Again' }: { onPress: () => void; label?: string }) {
-  return (
-    <TouchableOpacity style={styles.retryButton} onPress={onPress} activeOpacity={0.8}>
-      <Text style={styles.retryButtonText}>{label.toUpperCase()}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function CenteredMessage({
-  eyebrow,
+function ErrorState({
   title,
   body,
-  children,
+  onRetry,
 }: {
-  eyebrow: string;
   title: string;
   body: string;
-  children?: React.ReactNode;
+  onRetry: () => void;
 }) {
   return (
-    <View style={styles.centeredMessage}>
-      <Text style={styles.centeredEyebrow}>{eyebrow.toUpperCase()}</Text>
-      <Text style={styles.centeredTitle}>{title}</Text>
-      <Text style={styles.centeredBody}>{body}</Text>
-      {children}
-    </View>
+    <InlineNotice
+      variant="error"
+      title={title}
+      body={body}
+      action={{ label: 'Try Again', onPress: onRetry, accessibilityLabel: 'Retry loading shared room' }}
+      style={styles.notice}
+    />
   );
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function SharedRoomScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
@@ -300,6 +225,8 @@ export default function SharedRoomScreen() {
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
   const analyticsGuard = useRef(false);
   const lastFetchedAt = useRef<number | null>(null);
+
+  const rawToken = typeof token === 'string' ? token.trim() : '';
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -311,8 +238,6 @@ export default function SharedRoomScreen() {
 
   const load = useCallback(
     async (silent = false) => {
-      const rawToken = typeof token === 'string' ? token.trim() : '';
-
       if (!rawToken) {
         setState({ phase: 'malformed' });
         return;
@@ -324,7 +249,7 @@ export default function SharedRoomScreen() {
       lastFetchedAt.current = Date.now();
       setState(result);
     },
-    [token]
+    [rawToken]
   );
 
   // Initial load
@@ -370,7 +295,7 @@ export default function SharedRoomScreen() {
       ...new Set(
         state.preview.items
           .map((item) => String(item.id || '').trim())
-          .filter(Boolean),
+          .filter(Boolean)
       ),
     ];
 
@@ -403,32 +328,26 @@ export default function SharedRoomScreen() {
 
   // ── Feature flag fallback ──────────────────────────────────────────────────
   if (!ENABLE_IN_APP_SHARED_ROOMS) {
-    const rawToken = typeof token === 'string' ? token.trim() : '';
-    const browserUrl = rawToken
-      ? `https://www.kscan.app/rooms/${encodeURIComponent(rawToken)}`
-      : 'https://www.kscan.app';
-
     return (
-      <View style={styles.root}>
+      <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
         <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeTop} />
-        <RoomHeader onBack={handleBack} />
+        <KScanHeader title="Shared Room" subtitle="PREVIEW" onBack={handleBack} backLabel="Back" />
         <View style={styles.centeredFill}>
-          <CenteredMessage
-            eyebrow="Shared Room"
+          <EmptyStateCard
             title="Shared rooms are coming soon."
-            body="This feature is being prepared for the next release."
-          >
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={() => void Linking.openURL(browserUrl)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.retryButtonText}>VIEW IN BROWSER</Text>
-            </TouchableOpacity>
-          </CenteredMessage>
+            subtitle="This feature is being prepared for the next release."
+            action={{
+              label: 'View in Browser',
+              onPress: () => void Linking.openURL(browserUrlForToken(rawToken) || 'https://www.kscan.app'),
+              accessibilityLabel: 'View shared room in browser',
+            }}
+          />
         </View>
-      </View>
+        <PrivacyFooter
+          onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+          onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+        />
+      </LuxuryScreen>
     );
   }
 
@@ -438,6 +357,7 @@ export default function SharedRoomScreen() {
       case 'loading':
         return (
           <View style={styles.centeredFill}>
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
             <Text style={styles.loadingLabel}>Opening shared room…</Text>
           </View>
         );
@@ -445,10 +365,10 @@ export default function SharedRoomScreen() {
       case 'malformed':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Invalid Link"
-              title="This room link appears invalid."
-              body="Check the link and try again. Nothing private was accessed."
+            <ErrorState
+              title="Invalid Link"
+              body="This room link appears invalid. Check the link and try again. Nothing private was accessed."
+              onRetry={() => void load()}
             />
           </View>
         );
@@ -456,10 +376,10 @@ export default function SharedRoomScreen() {
       case 'unavailable':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Shared Room"
-              title="This shared room is no longer available."
-              body="The link may have been disabled or expired."
+            <ErrorState
+              title="Room Unavailable"
+              body="This shared room is no longer available. The link may have been disabled or expired."
+              onRetry={() => void load()}
             />
           </View>
         );
@@ -467,39 +387,33 @@ export default function SharedRoomScreen() {
       case 'rate_limited':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Shared Room"
-              title="Too many requests."
+            <ErrorState
+              title="Too Many Requests"
               body="Please try again shortly."
-            >
-              <RetryButton onPress={() => void load()} />
-            </CenteredMessage>
+              onRetry={() => void load()}
+            />
           </View>
         );
 
       case 'network_error':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Connection Error"
-              title="Unable to load shared room."
-              body="Check your connection and try again."
-            >
-              <RetryButton onPress={() => void load()} />
-            </CenteredMessage>
+            <ErrorState
+              title="Connection Error"
+              body="Unable to load shared room. Check your connection and try again."
+              onRetry={() => void load()}
+            />
           </View>
         );
 
       case 'timeout':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Request Timed Out"
-              title="Unable to load shared room."
-              body="Please try again."
-            >
-              <RetryButton onPress={() => void load()} />
-            </CenteredMessage>
+            <ErrorState
+              title="Request Timed Out"
+              body="Unable to load shared room. Please try again."
+              onRetry={() => void load()}
+            />
           </View>
         );
 
@@ -512,18 +426,15 @@ export default function SharedRoomScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={COLORS.gold}
+                tintColor={LUXURY.colors.gold}
               />
             }
           >
-            <Text style={styles.roomTitle}>
-              {emptyPreview?.title ?? 'Shared Dressing Room'}
-            </Text>
-            {emptyPreview.note ? <RoomNote note={emptyPreview.note} /> : null}
-            <MetaRow itemCount={0} sharedAt={emptyPreview?.sharedAt ?? null} />
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>This shared room does not have any visible items.</Text>
-            </View>
+            <SharedRoomPreviewCard preview={emptyPreview} />
+            <EmptyStateCard
+              title="No visible items"
+              subtitle="This shared room does not have any visible items right now."
+            />
           </ScrollView>
         );
       }
@@ -537,41 +448,60 @@ export default function SharedRoomScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={COLORS.gold}
+                tintColor={LUXURY.colors.gold}
               />
             }
           >
-            <Text style={styles.roomTitle}>{preview.title || 'Shared Dressing Room'}</Text>
-            {preview.note ? <RoomNote note={preview.note} /> : null}
-            <MetaRow itemCount={preview.itemCount} sharedAt={preview.sharedAt} />
-
-            {preview.coverImageUrl ? (
-              <CoverCard uri={preview.coverImageUrl} />
-            ) : null}
+            <SharedRoomPreviewCard preview={preview} />
 
             {preview.items.length > 0 ? (
-              <View style={styles.itemGrid}>
-                {preview.items.map((item, index) => (
-                  <Pressable
-                    key={item.id ?? `item-${index}`}
-                    style={styles.itemGridCell}
-                    onPress={() => {}}
-                  >
-                    <ItemCard
-                      item={item}
-                      index={index}
-                      counts={item.id ? (reactionCounts[item.id] ?? createEmptyReactionCounts()) : createEmptyReactionCounts()}
-                    />
-                  </Pressable>
-                ))}
-              </View>
+              <>
+                <SectionHeader title="Items" />
+                <View style={styles.itemGrid}>
+                  {preview.items.map((item, index) => {
+                    const label = item.title || item.category || `Item ${index + 1}`;
+                    const chips = [item.category, item.color, item.silhouette].filter(Boolean) as string[];
+                    return (
+                      <SharedScanCard
+                        key={item.id ?? `item-${index}`}
+                        imageUrl={item.imageUrl}
+                        title={label}
+                        subtitle="Shared item"
+                        chips={chips}
+                        status="Shared"
+                        accessibilityLabel={`${label} shared item`}
+                        style={styles.itemGridCell}
+                        footer={
+                          item.id ? (
+                            <ItemReactions
+                              itemId={item.id}
+                              counts={reactionCounts[item.id] ?? createEmptyReactionCounts()}
+                              selectedReaction={null}
+                              disabled
+                            />
+                          ) : null
+                        }
+                      />
+                    );
+                  })}
+                </View>
+              </>
             ) : null}
 
             {preview.isCapped ? (
-              <Text style={styles.cappedNote}>
-                Showing first {preview.maxItemsReturned} items.
-              </Text>
+              <InlineNotice
+                variant="info"
+                body={`Showing first ${preview.maxItemsReturned} items.`}
+                style={styles.notice}
+              />
             ) : null}
+
+            <SecondaryButton
+              title="View in Browser"
+              onPress={() => void Linking.openURL(browserUrlForToken(preview.token))}
+              accessibilityLabel="View shared room in browser"
+              style={styles.browserButton}
+            />
           </ScrollView>
         );
       }
@@ -582,129 +512,76 @@ export default function SharedRoomScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
-      <SafeAreaView style={styles.safeTop} />
-      <RoomHeader onBack={handleBack} />
+      <KScanHeader title="Shared Room" subtitle="DRESSING ROOM PREVIEW" onBack={handleBack} backLabel="Back" />
       {renderContent()}
-    </View>
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+      />
+    </LuxuryScreen>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
+  centeredFill: {
     flex: 1,
-    backgroundColor: COLORS.canvasWarm,
-  },
-  safeTop: {
-    backgroundColor: COLORS.canvasWarm,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: LAYOUT.screenPadding,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderHairline,
-    backgroundColor: COLORS.canvasWarm,
-  },
-  backButton: {
-    width: 42,
-    alignItems: 'flex-start',
     justifyContent: 'center',
-  },
-  backChevron: {
-    fontSize: 30,
-    color: COLORS.goldPressed,
-    lineHeight: 34,
-  },
-  headerCenter: {
-    flex: 1,
     alignItems: 'center',
-    gap: SPACING.xs,
+    padding: SPACING.xl,
+    gap: SPACING.md,
   },
-  headerSpacer: {
-    width: 42,
-  },
-  brand: {
-    ...TYPOGRAPHY.brand,
-    fontSize: 15,
-    color: COLORS.editorialTextPrimary,
-  },
-  badge: {
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.goldMuted,
-    backgroundColor: COLORS.accentSoft,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xxs,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    color: COLORS.goldPressed,
+  loadingLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   scrollContent: {
-    padding: LAYOUT.screenPadding,
-    paddingBottom: 80,
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
+    gap: SPACING.lg,
   },
-  roomTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    color: COLORS.editorialTextPrimary,
-    marginBottom: SPACING.md,
-    lineHeight: 36,
+  previewCard: {
+    ...LUXURY.cards.hero,
+    gap: SPACING.md,
   },
-  metaRow: {
+  previewHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: SPACING.sm,
-    marginBottom: SPACING.xl,
   },
-  noteCard: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.white,
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-    ...SHADOWS.editorialSmall,
+  metaPills: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
   },
-  noteText: {
+  previewTitle: {
+    ...LUXURY.typography.displayHeadline,
+    fontSize: 24,
+    color: LUXURY.colors.ink,
+  },
+  previewNote: {
+    ...LUXURY.typography.body,
     fontSize: 14,
     lineHeight: 22,
-    color: COLORS.editorialTextSecondary,
+    color: LUXURY.colors.graphite,
   },
-  metaChip: {
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderSubtle,
-    backgroundColor: COLORS.white,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  metaChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: COLORS.editorialTextSecondary,
-  },
-  coverCard: {
-    borderRadius: RADIUS.lg,
+  coverWrap: {
+    borderRadius: LUXURY.cards.product.borderRadius,
     overflow: 'hidden',
-    marginBottom: SPACING.xxl,
-    ...SHADOWS.editorialRaised,
+    ...LUXURY.cards.product.shadow,
   },
   coverImage: {
     width: '100%',
     aspectRatio: 4 / 5,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  previewBody: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: LUXURY.colors.graphite,
   },
   itemGrid: {
     flexDirection: 'row',
@@ -714,151 +591,10 @@ const styles = StyleSheet.create({
   itemGridCell: {
     width: '47%',
   },
-  itemCard: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.white,
-    overflow: 'hidden',
-    ...SHADOWS.editorialSmall,
+  notice: {
+    marginBottom: 0,
   },
-  itemImageWrap: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  itemImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageFallbackText: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    color: COLORS.editorialTextMuted,
-  },
-  itemBody: {
-    padding: SPACING.md,
-    gap: SPACING.xs,
-  },
-  itemReactions: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.borderHairline,
-  },
-  itemLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-    color: COLORS.editorialTextPrimary,
-    lineHeight: 18,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
-    marginTop: SPACING.xs,
-  },
-  chip: {
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-  },
-  chipText: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.8,
-    color: COLORS.editorialTextSecondary,
-  },
-  cappedNote: {
-    marginTop: SPACING.xl,
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: COLORS.editorialTextMuted,
-    textAlign: 'center',
-  },
-  emptyCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.white,
-    padding: SPACING.xl,
-    marginTop: SPACING.xl,
-    alignItems: 'center',
-    ...SHADOWS.editorialSmall,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: COLORS.editorialTextSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  centeredFill: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: LAYOUT.screenPadding,
-  },
-  centeredMessage: {
-    gap: SPACING.md,
-    alignItems: 'center',
-  },
-  centeredEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 2.4,
-    textTransform: 'uppercase',
-    color: COLORS.goldPressed,
-    textAlign: 'center',
-  },
-  centeredTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    color: COLORS.editorialTextPrimary,
-    textAlign: 'center',
-    lineHeight: 30,
-  },
-  centeredBody: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: COLORS.editorialTextSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 300,
-  },
-  loadingLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: COLORS.editorialTextMuted,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: SPACING.lg,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.goldMuted,
-    backgroundColor: COLORS.accentSoft,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-  },
-  retryButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: COLORS.goldPressed,
+  browserButton: {
+    alignSelf: 'center',
   },
 });

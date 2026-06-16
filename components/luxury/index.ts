@@ -18,3 +18,4 @@ export { PrivacyFooter, type PrivacyFooterProps } from './PrivacyFooter';
 export { StatusPill, type StatusPillProps } from './StatusPill';
 export { InlineNotice, type InlineNoticeProps } from './InlineNotice';
 export { EmptyStateCard, type EmptyStateCardProps } from './EmptyStateCard';
+export { SharedScanCard, type SharedScanCardProps } from './SharedScanCard';
