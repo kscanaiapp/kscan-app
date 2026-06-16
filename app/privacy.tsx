@@ -328,7 +328,7 @@ export default function PrivacyScreen() {
 
   return (
     <LuxuryScreen
-      scrollable
+      scrollable={false}
       safeArea
       backgroundColor={LUXURY.colors.ivory}
       accessibilityLabel="Privacy and data controls"
@@ -373,7 +373,7 @@ export default function PrivacyScreen() {
         </View>
       </Modal>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroRow}>
           <Text style={styles.heroTitle}>Your Privacy Choices</Text>
           {mode !== 'booting' ? (
@@ -573,6 +573,9 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   content: {
     padding: SPACING.xl,
     gap: SPACING.lg,

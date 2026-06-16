@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Linking,
   RefreshControl,
@@ -24,6 +25,11 @@ import {
   PrivacyFooter,
 } from '../../../components/luxury';
 import { LUXURY, SPACING } from '../../../constants/theme';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const ITEM_GRID_GAP = SPACING.md;
+const ITEM_GRID_H_PAD = SPACING.xl;
+const ITEM_GRID_CELL_W = Math.floor((SCREEN_W - ITEM_GRID_H_PAD * 2 - ITEM_GRID_GAP) / 2);
 import { getItemReactionCounts } from '../../../services/styleObjects';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
 import {
@@ -470,7 +476,7 @@ export default function SharedRoomScreen() {
                         chips={chips}
                         status="Shared"
                         accessibilityLabel={`${label} shared item`}
-                        style={styles.itemGridCell}
+                        style={{ width: ITEM_GRID_CELL_W }}
                         footer={
                           item.id ? (
                             <ItemReactions
@@ -586,10 +592,7 @@ const styles = StyleSheet.create({
   itemGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.md,
-  },
-  itemGridCell: {
-    width: '47%',
+    gap: ITEM_GRID_GAP,
   },
   notice: {
     marginBottom: 0,

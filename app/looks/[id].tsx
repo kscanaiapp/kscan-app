@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Modal,
@@ -150,7 +151,9 @@ function LookDetailContent() {
 
       {blocking ? (
         <View style={styles.centeredFill}>
-          {loading ? null : (
+          {loading ? (
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          ) : (
             <InlineNotice
               variant="error"
               title="Unable to load Look"

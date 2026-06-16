@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -22,7 +24,6 @@ import { InspirationUploadModal } from '../../components/InspirationUploadModal'
 import {
   EmptyState,
   ItemTile,
-  LoadingOrError,
   TextField,
   styleObjectStyles,
 } from '../../components/StyleObjectCards';
@@ -33,6 +34,8 @@ import {
   SecondaryButton,
   SectionHeader,
   TertiaryButton,
+  InlineNotice,
+  PrivacyFooter,
 } from '../../components/luxury';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
@@ -656,8 +659,17 @@ function DressingRoomDetailContent() {
         backLabel="Back"
       />
       {blocking ? (
-        <View style={styleObjectStyles.content}>
-          <LoadingOrError loading={loading} error={error} onRetry={reload} />
+        <View style={styles.centeredFill}>
+          {loading ? (
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          ) : (
+            <InlineNotice
+              variant="error"
+              title="Unable to load Dressing Room"
+              body={error || 'Something went wrong. Please try again.'}
+              action={{ label: 'Retry', onPress: reload, accessibilityLabel: 'Retry loading dressing room' }}
+            />
+          )}
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -685,6 +697,7 @@ function DressingRoomDetailContent() {
                     multiline
                     textAlignVertical="top"
                     style={styles.noteInput}
+                    maxLength={ROOM_NOTE_MAX_LENGTH}
                     accessibilityLabel="Room note editor"
                     accessibilityHint="Edit the private note for this room"
                   />
@@ -886,6 +899,10 @@ function DressingRoomDetailContent() {
         onClose={handleCloseInspirationModal}
         onSuccess={handleInspirationSuccess}
       />
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+      />
     </LuxuryScreen>
   );
 }
@@ -987,6 +1004,12 @@ export default function DressingRoomDetailScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  centeredFill: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
   },
   content: {
     paddingTop: SPACING.sm,

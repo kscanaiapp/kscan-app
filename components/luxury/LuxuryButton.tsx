@@ -79,6 +79,7 @@ export function LuxuryButton({
           <Text
             style={[
               styles.text,
+              !icon && styles.textNoIcon,
               isPrimary && styles.primaryText,
               isSecondary && styles.secondaryText,
               variant === 'tertiary' && styles.tertiaryText,
@@ -149,6 +150,9 @@ const styles = StyleSheet.create({
   text: {
     ...LUXURY.typography.cta,
     marginLeft: SPACING.sm,
+  },
+  textNoIcon: {
+    marginLeft: 0,
   },
   primaryText: {
     color: LUXURY.buttons.primary.color,

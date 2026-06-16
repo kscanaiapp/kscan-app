@@ -1,14 +1,15 @@
 import { useRef, useState } from 'react';
 import {
   Alert,
-  ScrollView,
+  Linking,
   StyleSheet,
+  View,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleChatHeader, useStyleChatHomeBackHandler } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatSessionList } from '../../components/style-chat/StyleChatSessionList';
-import { LuxuryScreen } from '../../components/luxury';
+import { LuxuryScreen, PrivacyFooter } from '../../components/luxury';
 import { LUXURY } from '../../constants/theme';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 import type { StyleChatSession } from '../../services/style-chat/types';
@@ -72,12 +73,7 @@ export default function StyleChatIndexScreen() {
     >
       <StatusBar style="dark" />
       <StyleChatHeader />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={styles.listWrap}>
         <StyleChatSessionList
           sessions={sessions}
           loading={loading}
@@ -87,17 +83,18 @@ export default function StyleChatIndexScreen() {
           onDeleteSession={handleDeleteSession}
           newSessionDisabled={isCreating}
         />
-      </ScrollView>
+      </View>
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+      />
     </LuxuryScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
+  listWrap: {
     flex: 1,
     backgroundColor: LUXURY.colors.ivory,
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
 });

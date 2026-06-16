@@ -57,6 +57,7 @@ export function EmptyStateCard({
         <Pressable
           onPress={action.onPress}
           style={styles.action}
+          hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
           accessibilityRole="button"
           accessibilityLabel={action.accessibilityLabel ?? action.label}
           testID={action.testID}

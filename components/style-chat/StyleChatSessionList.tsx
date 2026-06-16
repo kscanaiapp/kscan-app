@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
@@ -31,7 +31,13 @@ export function StyleChatSessionList({
   };
 
   return (
-    <View testID="style-chat-session-list" style={[styles.container, safeContainerPadding]}>
+    <ScrollView
+      testID="style-chat-session-list"
+      style={styles.container}
+      contentContainerStyle={[styles.content, safeContainerPadding]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {loading ? (
         <View style={styles.centred}>
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />
@@ -112,13 +118,16 @@ export function StyleChatSessionList({
           {STYLE_CHAT_COPY.newSessionCta}
         </Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     padding: SPACING.xl,
   },
   centred: {

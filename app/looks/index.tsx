@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  ActivityIndicator,
+  Dimensions,
   Linking,
   ScrollView,
   StyleSheet,
@@ -19,6 +21,11 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const CARD_GAP = SPACING.md;
+const H_PAD = SPACING.xl;
+const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useLooks } from '../../hooks/useStyleObjects';
 import type { Look } from '../../types/styleObjects';
@@ -39,7 +46,9 @@ function LooksContent() {
 
       {blocking ? (
         <View style={styles.centeredFill}>
-          {loading ? null : (
+          {loading ? (
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          ) : (
             <InlineNotice
               variant="error"
               title="Unable to load Looks"
@@ -76,6 +85,7 @@ function LooksContent() {
                   status="Look"
                   onPress={() => router.push(`/looks/${look.id}`)}
                   accessibilityLabel={`${look.title} look`}
+                  style={{ width: CARD_W }}
                 />
               ))}
             </View>
@@ -118,6 +128,8 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
   },
   grid: {
-    gap: SPACING.md,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CARD_GAP,
   },
 });

@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -12,8 +14,6 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
 import {
-  EmptyState,
-  LoadingOrError,
   TextField,
   styleObjectStyles,
 } from '../../components/StyleObjectCards';
@@ -23,6 +23,9 @@ import {
   PrimaryButton,
   SecondaryButton,
   SectionHeader,
+  InlineNotice,
+  EmptyStateCard,
+  PrivacyFooter,
 } from '../../components/luxury';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
@@ -156,8 +159,17 @@ function DressingRoomsContent() {
       />
 
       {blocking ? (
-        <View style={styleObjectStyles.content}>
-          <LoadingOrError loading={loading} error={friendlyError} onRetry={reload} />
+        <View style={styles.centeredFill}>
+          {loading ? (
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          ) : (
+            <InlineNotice
+              variant="error"
+              title="Unable to load Dressing Rooms"
+              body={friendlyError || 'Something went wrong. Please try again.'}
+              action={{ label: 'Retry', onPress: reload, accessibilityLabel: 'Retry loading dressing rooms' }}
+            />
+          )}
         </View>
       ) : (
         <ScrollView
@@ -173,9 +185,14 @@ function DressingRoomsContent() {
           />
 
           {rooms.length === 0 ? (
-            <EmptyState
-              title="No Dressing Rooms yet."
-              body="Create a board for a trip, event, sale watchlist, or styling project. Shared only with people you invite."
+            <EmptyStateCard
+              title="No Dressing Rooms yet"
+              subtitle="Create a board for a trip, event, sale watchlist, or styling project. Shared only with people you invite."
+              action={{
+                label: 'Create Room',
+                onPress: () => setCreating(true),
+                accessibilityLabel: 'Create new dressing room',
+              }}
             />
           ) : (
             <View style={styles.grid}>
@@ -185,6 +202,10 @@ function DressingRoomsContent() {
         </ScrollView>
       )}
       <CreateRoomModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+      />
     </LuxuryScreen>
   );
 }
@@ -202,6 +223,12 @@ export default function DressingRoomsScreen() {
 }
 
 const styles = StyleSheet.create({
+  centeredFill: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
   content: {
     paddingTop: SPACING.sm,
   },

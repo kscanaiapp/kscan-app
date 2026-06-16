@@ -41,6 +41,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = SPACING.md;
 const H_PAD = SPACING.xl;
 const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
+const CARD_MIN_H = CARD_W + 80;
 
 // ── SavedScan interface ───────────────────────────────────────────────────────
 interface ScanAttributes {
@@ -243,7 +244,7 @@ export default function LibraryScreen() {
                     style={{ width: CARD_W }}
                   />
                 ) : (
-                  <View style={{ width: CARD_W }} />
+                  <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />
                 )}
               </View>
             ))}
@@ -311,7 +312,7 @@ export default function LibraryScreen() {
                     style={{ width: CARD_W }}
                   />
                 ) : (
-                  <View style={{ width: CARD_W }} />
+                  <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />
                 )}
               </View>
             ))}

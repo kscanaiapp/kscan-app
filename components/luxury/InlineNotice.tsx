@@ -114,9 +114,7 @@ export function InlineNotice({
           <Text style={[styles.body, { color: tokens.body }, bodyStyle]}>{body}</Text>
         ) : null}
       </View>
-      {action && !('onPress' in containerProps && false) ? (
-        <Text style={styles.actionLabel}>{action.label}</Text>
-      ) : null}
+      {action ? <Text style={styles.actionLabel}>{action.label}</Text> : null}
     </Container>
   );
 }

@@ -87,6 +87,7 @@ export function KScanHeader({
             <Text
               style={[LUXURY.typography.displayTitle, styles.title, titleStyle]}
               numberOfLines={1}
+              ellipsizeMode="tail"
               accessibilityRole="header"
             >
               {title}
@@ -96,6 +97,7 @@ export function KScanHeader({
             <Text
               style={[LUXURY.typography.caption, styles.subtitle, subtitleStyle]}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {subtitle}
             </Text>
