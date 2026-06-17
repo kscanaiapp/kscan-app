@@ -87,6 +87,11 @@ export const SCAN_ROOM_V2_UI_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_SCAN_ROOM_V2_UI === 'true';
 
+// ── Home Navigation V2 UI rollout flag ─────────────────────────────────────────
+export const HOME_NAVIGATION_V2_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_HOME_NAVIGATION_V2 === 'true';
+
 /** Enables the onboarding framework V1 shell for unauthenticated users. */
 export const ONBOARDING_FRAMEWORK_V1_ENABLED =
   typeof process !== 'undefined' &&
