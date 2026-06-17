@@ -94,16 +94,18 @@ export default function TextScanScreen() {
         accessibilityLabel="TextScan fashion query"
       />
 
-      <View style={styles.suggestionsRow}>
-        {TEXTSCAN_DEMO_SUGGESTIONS.map((suggestion) => (
-          <TextScanSuggestionChip
-            key={suggestion}
-            label={suggestion}
-            onPress={() => setQuery(suggestion)}
-            accessibilityLabel={`Use suggestion: ${suggestion}`}
-          />
-        ))}
-      </View>
+      {TEXTSCAN_DEMO_RESULTS_ENABLED && (
+        <View style={styles.suggestionsRow}>
+          {TEXTSCAN_DEMO_SUGGESTIONS.map((suggestion) => (
+            <TextScanSuggestionChip
+              key={suggestion}
+              label={suggestion}
+              onPress={() => setQuery(suggestion)}
+              accessibilityLabel={`Use suggestion: ${suggestion}`}
+            />
+          ))}
+        </View>
+      )}
 
       <PrimaryButton
         testID="textscan-submit-button"
@@ -129,15 +131,17 @@ export default function TextScanScreen() {
         <Text style={styles.processingTitle}>Parsing your request...</Text>
       </View>
 
-      <View style={styles.attributesCard}>
-        <SectionHeader
-          title="Interpreted Attributes"
-          actionLabel="Edit"
-          onAction={() => setViewState('input')}
-          actionAccessibilityLabel="Edit search query"
-        />
-        <AttributeGrid attributes={TEXTSCAN_DEMO_ATTRIBUTES} />
-      </View>
+      {TEXTSCAN_DEMO_RESULTS_ENABLED && (
+        <View style={styles.attributesCard}>
+          <SectionHeader
+            title="Interpreted Attributes"
+            actionLabel="Edit"
+            onAction={() => setViewState('input')}
+            actionAccessibilityLabel="Edit search query"
+          />
+          <AttributeGrid attributes={TEXTSCAN_DEMO_ATTRIBUTES} />
+        </View>
+      )}
 
       <View style={styles.refiningCard}>
         <Text style={styles.refiningTitle}>Refining results...</Text>

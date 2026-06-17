@@ -17,6 +17,7 @@ interface ScanLandingProps {
   onOpenCamera: () => void;
   onUploadImage: () => void;
   onTextScan: () => void;
+  textScanEnabled?: boolean;
   testID?: string;
 }
 
@@ -34,6 +35,7 @@ export function ScanLanding({
   onOpenCamera,
   onUploadImage,
   onTextScan,
+  textScanEnabled = false,
   testID,
 }: ScanLandingProps) {
   return (
@@ -86,16 +88,18 @@ export function ScanLanding({
           accessibilityHint="Opens the image picker for an uploaded scan"
           testID="scan-room-upload-image"
         />
-        <TouchableOpacity
-          onPress={onTextScan}
-          activeOpacity={0.78}
-          accessibilityRole="button"
-          accessibilityLabel="Describe an item with TextScan"
-          style={styles.textScanButton}
-          testID="scan-room-textscan"
-        >
-          <Text style={styles.textScanText}>✧ Describe an item</Text>
-        </TouchableOpacity>
+        {textScanEnabled && (
+          <TouchableOpacity
+            onPress={onTextScan}
+            activeOpacity={0.78}
+            accessibilityRole="button"
+            accessibilityLabel="Describe an item with TextScan"
+            style={styles.textScanButton}
+            testID="scan-room-textscan"
+          >
+            <Text style={styles.textScanText}>✧ Describe an item</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <PrivacyFooter

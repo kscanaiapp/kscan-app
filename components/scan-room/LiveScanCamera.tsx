@@ -24,6 +24,7 @@ interface LiveScanCameraProps {
   onUpload: () => void;
   onTextScan: () => void;
   onBack: () => void;
+  textScanEnabled?: boolean;
   testID?: string;
 }
 
@@ -44,6 +45,7 @@ export function LiveScanCamera({
   onUpload,
   onTextScan,
   onBack,
+  textScanEnabled = false,
   testID,
 }: LiveScanCameraProps) {
   const insets = useSafeAreaInsets();
@@ -140,15 +142,17 @@ export function LiveScanCamera({
             <Text style={styles.controlPillText}>Upload Image</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={onTextScan}
-            activeOpacity={0.78}
-            accessibilityRole="button"
-            accessibilityLabel="Open TextScan"
-            style={styles.controlPill}
-          >
-            <Text style={styles.controlPillText}>✧ TextScan</Text>
-          </TouchableOpacity>
+          {textScanEnabled && (
+            <TouchableOpacity
+              onPress={onTextScan}
+              activeOpacity={0.78}
+              accessibilityRole="button"
+              accessibilityLabel="Open TextScan"
+              style={styles.controlPill}
+            >
+              <Text style={styles.controlPillText}>✧ TextScan</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             onPress={onBack}
