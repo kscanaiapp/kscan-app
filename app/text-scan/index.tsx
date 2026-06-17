@@ -176,7 +176,6 @@ export default function TextScanScreen() {
   const handleScanAgain = () => {
     setQuery('');
     setViewState('input');
-    router.back();
   };
 
   const renderResultsState = () => {

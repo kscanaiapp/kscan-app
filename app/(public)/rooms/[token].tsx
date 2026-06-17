@@ -25,17 +25,17 @@ import {
   PrivacyFooter,
 } from '../../../components/luxury';
 import { LUXURY, SPACING } from '../../../constants/theme';
-
-const { width: SCREEN_W } = Dimensions.get('window');
-const ITEM_GRID_GAP = SPACING.md;
-const ITEM_GRID_H_PAD = SPACING.xl;
-const ITEM_GRID_CELL_W = Math.floor((SCREEN_W - ITEM_GRID_H_PAD * 2 - ITEM_GRID_GAP) / 2);
 import { getItemReactionCounts } from '../../../services/styleObjects';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
 import {
   isActiveDressingRoomReactionType,
   type ItemReactionCount,
 } from '../../../types/styleObjects';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const ITEM_GRID_GAP = SPACING.md;
+const ITEM_GRID_H_PAD = SPACING.xl;
+const ITEM_GRID_CELL_W = Math.floor((SCREEN_W - ITEM_GRID_H_PAD * 2 - ITEM_GRID_GAP) / 2);
 
 // ─── Feature flag ────────────────────────────────────────────────────────────
 // Set to false to disable without removing the route. Shows a browser fallback.

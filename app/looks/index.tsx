@@ -21,14 +21,14 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { useLooks } from '../../hooks/useStyleObjects';
+import type { Look } from '../../types/styleObjects';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = SPACING.md;
 const H_PAD = SPACING.xl;
 const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
-import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
-import { useLooks } from '../../hooks/useStyleObjects';
-import type { Look } from '../../types/styleObjects';
 
 function LooksContent() {
   const { looks, loading, error, reload } = useLooks();

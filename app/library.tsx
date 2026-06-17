@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 
 import { AnalysisCard } from '../components/AnalysisCard';
+import type { Product } from '../components/ProductShelf';
 import { AddScanToDressingRoomModal } from '../components/AddScanToDressingRoomModal';
 import { InspirationUploadModal } from '../components/InspirationUploadModal';
 import { useLibrary } from '../hooks/useLibrary';
@@ -61,8 +62,8 @@ interface SavedScan {
   thumbnailUri: string | null;
   attributes: ScanAttributes;
   result: string;
-  products: object[];
-  source: 'scan';
+  products: Product[];
+  source: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -357,13 +358,13 @@ export default function LibraryScreen() {
             color: selectedScan.attributes.color_palette,
             silhouette: selectedScan.attributes.silhouette,
           }}
-          products={selectedScan.products as any}
-          scanImageUri={(selectedScan as any).imageUri ?? null}
+          products={selectedScan.products}
+          scanImageUri={selectedScan.imageUri ?? null}
           scanSourceId={selectedScan.id}
           scanSourceType="style_library_scan"
           onDismiss={handleCloseScan}
           onAddToDressingRoom={
-            dressingRoomsEnabled && (selectedScan as any).imageUri
+            dressingRoomsEnabled && selectedScan.imageUri
               ? () => setDressingRoomModalVisible(true)
               : undefined
           }
@@ -371,10 +372,10 @@ export default function LibraryScreen() {
       )}
 
       {/* Top-level modal — never nested inside AnalysisCard's Modal */}
-      {dressingRoomsEnabled && selectedScan && (selectedScan as any).imageUri ? (
+      {dressingRoomsEnabled && selectedScan && selectedScan.imageUri ? (
         <AddScanToDressingRoomModal
           visible={dressingRoomModalVisible}
-          localImageUri={(selectedScan as any).imageUri}
+          localImageUri={selectedScan.imageUri}
           scan={{
             sourceType: 'style_library_scan',
             sourceId: selectedScan.id,
