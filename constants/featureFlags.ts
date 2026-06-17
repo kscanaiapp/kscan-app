@@ -81,3 +81,13 @@ export const SCAN_RESULTS_V2_UI_ENABLED =
 export const SCAN_RESULTS_DEMO_UI_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI === 'true';
+
+// ── Scan Room V2 UI rollout flags ───────────────────────────────────────────
+export const SCAN_ROOM_V2_UI_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_SCAN_ROOM_V2_UI === 'true';
+
+/** Multi-item scanning is future. Do not build UI in this sprint unless enabled. */
+export const SCAN_MULTI_ITEM_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_SCAN_MULTI_ITEM === 'true';

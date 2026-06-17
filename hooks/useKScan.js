@@ -309,6 +309,29 @@ export function useKScan() {
     [status]
   );
 
+  const uploadPhoto = useCallback(
+    (uri) => {
+      if (status !== 'idle') {
+        warnInvalidTransition(status, 'capturing');
+        return;
+      }
+
+      if (!uri || typeof uri !== 'string') {
+        setError('Uploaded image could not be loaded.');
+        setStatus('error');
+        return;
+      }
+
+      setPhoto({ uri });
+      setError(null);
+      setAnalysis(null);
+      setNonFashionMessage(null);
+      secondhandRequestRef.current += 1;
+      setStatus('preview');
+    },
+    [status]
+  );
+
   const dismissResult = useCallback(() => {
     if (status !== 'result' && status !== 'error' && status !== 'non-fashion') {
       warnInvalidTransition(status, 'idle');
@@ -355,5 +378,6 @@ export function useKScan() {
     dismissResult,
     retry,
     selectStaticFixture,
+    uploadPhoto,
   };
 }
