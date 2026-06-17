@@ -10,10 +10,12 @@ import {
   Animated,
   BackHandler,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 
 import { useRouter } from 'expo-router';
 
@@ -23,6 +25,10 @@ import { saveScan } from './services/library';
 import { getApiBaseUrl } from './services/api';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
+import { ScanLanding } from './components/scan-room/ScanLanding';
+import { LiveScanCamera } from './components/scan-room/LiveScanCamera';
+import { CaptureReview } from './components/scan-room/CaptureReview';
+import { AnalyzingScan } from './components/scan-room/AnalyzingScan';
 import { AddScanToDressingRoomModal } from './components/AddScanToDressingRoomModal';
 import { PerceptionLayer } from './components/PerceptionLayer';
 import { ScanButton } from './components/ScanButton';
@@ -32,13 +38,14 @@ import {
   DEV_FALLBACK_STATUS,
   QA_TOOLS_ENABLED,
 } from './constants/build';
-import { TEXTSCAN_UI_ENABLED, SCAN_RESULTS_V2_UI_ENABLED } from './constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED, SCAN_RESULTS_V2_UI_ENABLED, SCAN_ROOM_V2_UI_ENABLED } from './constants/featureFlags';
 import { QA_FIXTURES } from './constants/qaFixtures';
 import {
   BUTTONS,
   COLORS,
   LAYOUT,
   LOADING,
+  LUXURY,
   RADIUS,
   SHADOWS,
   SPACING,
@@ -261,11 +268,38 @@ export default function App() {
     dismissResult,
     retry,
     selectStaticFixture,
+    uploadPhoto,
   } = useKScan();
 
   const router = useRouter();
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
   const qaTapRef = useRef({ count: 0, lastTap: 0 });
+
+  // Scan Room V2 state
+  const [v2CameraVisible, setV2CameraVisible] = useState(false);
+
+  const handleUploadImage = useCallback(async () => {
+    const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permStatus !== 'granted') {
+      Alert.alert(
+        'Photo Access Required',
+        'Allow K Scan to access your photo library to upload a scan image.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+      allowsEditing: false,
+      allowsMultipleSelection: false,
+    });
+
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      uploadPhoto(result.assets[0].uri);
+    }
+  }, [uploadPhoto]);
 
   useEffect(() => {
     if (!permission?.granted || isCameraReady) return undefined;
@@ -658,6 +692,68 @@ export default function App() {
   );
 
   const renderContent = () => {
+    if (SCAN_ROOM_V2_UI_ENABLED) {
+      switch (status) {
+        case 'idle':
+          if (!v2CameraVisible) {
+            return (
+              <ScanLanding
+                onOpenCamera={() => setV2CameraVisible(true)}
+                onUploadImage={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+              />
+            );
+          }
+          return (
+            <LiveScanCamera
+              cameraRef={cameraRef}
+              isCameraReady={isCameraReady}
+              onCapture={() => capturePhoto(cameraRef)}
+              onUpload={handleUploadImage}
+              onTextScan={() => router.push('/text-scan')}
+              onBack={() => setV2CameraVisible(false)}
+            />
+          );
+
+        case 'capturing':
+          return (
+            <View style={styles.v2CapturingOverlay}>
+              <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+              <Text style={styles.v2CapturingText}>Capturing...</Text>
+            </View>
+          );
+
+        case 'preview':
+          if (!photo?.uri) return renderCameraScreen();
+          return (
+            <CaptureReview
+              imageUri={photo.uri}
+              onRetake={retake}
+              onAnalyze={runAnalysis}
+            />
+          );
+
+        case 'processing':
+          return (
+            <AnalyzingScan
+              imageUri={photo?.uri}
+              isComplete={false}
+              hasError={false}
+            />
+          );
+
+        case 'result':
+        case 'non-fashion':
+        case 'error':
+          // Result → ScanResultV2 modal below. Non-fashion / error → existing preview screen.
+          return renderPreviewScreen();
+
+        default:
+          return renderCameraScreen();
+      }
+    }
+
+    // Existing flow (flag disabled)
     switch (status) {
       case 'idle':
       case 'capturing':
@@ -679,7 +775,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style={SCAN_ROOM_V2_UI_ENABLED && status !== 'result' && status !== 'error' ? 'dark' : 'light'} />
       {renderContent()}
 
       {QA_TOOLS_ENABLED && (
@@ -693,8 +789,8 @@ export default function App() {
         </Modal>
       )}
 
-      {/* Processing HUD — onComplete is a no-op: bumping procHudKey here caused an infinite remount loop → ANR */}
-      {status === 'processing' && (
+      {/* Processing HUD — only show old HUD when V2 is disabled */}
+      {status === 'processing' && !SCAN_ROOM_V2_UI_ENABLED && (
         <PerceptionLayer
           key={procHudKey}
           metadata={null}
@@ -705,7 +801,7 @@ export default function App() {
       {savedToast && <SavedToast onDismiss={() => setSavedToast(false)} />}
 
       {/* Post-result HUD: briefly shows real metadata before AnalysisCard slides up */}
-      {status === 'result' && perceiving && (
+      {status === 'result' && perceiving && !SCAN_ROOM_V2_UI_ENABLED && (
         <PerceptionLayer
           metadata={analysis?.metadata ?? EMPTY_METADATA}
           onComplete={() => setPerceiving(false)}
@@ -1235,5 +1331,16 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.darkOverlayBorder,
     ...SHADOWS.darkFloat,
+  },
+  v2CapturingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: LUXURY.colors.ivory,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  v2CapturingText: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.plum,
   },
 });
