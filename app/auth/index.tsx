@@ -632,7 +632,8 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.hairline,
     borderRadius: RADIUS.xl,
     backgroundColor: LUXURY.colors.pearl,
-    padding: SPACING.xl,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: 20,
     gap: SPACING.lg,
     ...SHADOWS.editorialSmall,
   },
@@ -742,6 +743,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: SPACING.md,
+    marginBottom: -SPACING.sm,
   },
   googleButtonDisabled: {
     opacity: 0.6,
@@ -789,6 +791,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
+    marginVertical: -SPACING.xs,
   },
   dividerLine: {
     flex: 1,

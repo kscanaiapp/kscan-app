@@ -1,5 +1,18 @@
 import { useState } from 'react';
 import { View, TextInput, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
+
+const VOICE_UI_ENABLED = false;
+
+/**
+ * FUTURE: Voice input entry point.
+ * When microphone permission, privacy disclosures, and backend voice contract
+ * are ready, mount a voice input affordance on the left side of the composer,
+ * before the text input. Keep disabled until approved.
+ */
+function VoiceInputPlaceholder() {
+  if (!VOICE_UI_ENABLED) return null;
+  return null;
+}
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 
@@ -30,6 +43,8 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
 
   return (
     <View style={[styles.container, safeContainerPadding]}>
+      {/* Future voice affordance — invisible while gated. */}
+      <VoiceInputPlaceholder />
       <TextInput
         testID="style-chat-input"
         style={[styles.input, isLandscape ? styles.inputLandscape : null]}

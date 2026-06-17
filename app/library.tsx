@@ -42,6 +42,7 @@ const CARD_GAP = SPACING.md;
 const H_PAD = SPACING.xl;
 const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
 const CARD_MIN_H = CARD_W + 80;
+const SINGLE_CARD_W = CARD_W * 2 + CARD_GAP;
 
 // ── SavedScan interface ───────────────────────────────────────────────────────
 interface ScanAttributes {
@@ -212,9 +213,24 @@ export default function LibraryScreen() {
           </View>
         ) : scans.length === 0 ? (
           <EmptyStateCard
-            title="No scans yet."
-            subtitle="Scan your first look to build your personal style archive."
+            title="Build Your Style Archive"
+            subtitle="Your saved scans and inspirations will appear here."
           />
+        ) : scans.length === 1 ? (
+          <View style={styles.singleCardRow}>
+            <SavedLookCard
+              testID="scan-card"
+              imageUrl={scans[0].thumbnailUri}
+              title={scans[0].attributes.category || 'Scan'}
+              subtitle={scans[0].result}
+              tags={[scans[0].attributes.color_palette, scans[0].attributes.silhouette].filter(Boolean) as string[]}
+              date={formatDate(scans[0].createdAt)}
+              status="Scan"
+              onPress={() => handleOpenScan(scans[0])}
+              onDelete={() => remove(scans[0].id)}
+              style={{ width: SINGLE_CARD_W }}
+            />
+          </View>
         ) : (
           <View style={styles.grid}>
             {scanPairs.map(([a, b]) => (
@@ -279,8 +295,8 @@ export default function LibraryScreen() {
           </>
         ) : inspirations.length === 0 ? (
           <EmptyStateCard
-            title="No inspiration uploads yet"
-            subtitle="Tap Upload to save screenshots and outfit references."
+            title="Capture Inspiration"
+            subtitle="Upload screenshots and outfit references to round out your Style Library."
             action={{
               label: 'Upload',
               onPress: handleUploadInspiration,
@@ -288,6 +304,18 @@ export default function LibraryScreen() {
               testID: 'upload-inspiration-button',
             }}
           />
+        ) : inspirations.length === 1 ? (
+          <View style={styles.singleCardRow}>
+            <SavedLookCard
+              imageUrl={inspirations[0].imageUrl}
+              title={inspirations[0].note || 'Inspiration'}
+              subtitle="Upload"
+              date={formatDate(inspirations[0].createdAt)}
+              status="Upload"
+              onDelete={() => handleDeleteInspiration(inspirations[0].id)}
+              style={{ width: SINGLE_CARD_W }}
+            />
+          </View>
         ) : (
           <View style={styles.grid}>
             {inspirationPairs.map(([a, b]) => (
@@ -394,6 +422,9 @@ const styles = StyleSheet.create({
   gridRow: {
     flexDirection: 'row',
     gap: SPACING.md,
+  },
+  singleCardRow: {
+    alignItems: 'center',
   },
   loadingWrap: {
     alignItems: 'center',

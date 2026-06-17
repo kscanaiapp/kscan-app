@@ -182,12 +182,13 @@ function DressingRoomsContent() {
             actionLabel="New"
             onAction={() => setCreating(true)}
             actionAccessibilityLabel="Create new dressing room"
+            actionVariant="pill"
           />
 
           {rooms.length === 0 ? (
             <EmptyStateCard
-              title="No Dressing Rooms yet"
-              subtitle="Create a board for a trip, event, sale watchlist, or styling project. Shared only with people you invite."
+              title="Start Your First Styling Room"
+              subtitle="Create a private board to compare scans, notes, and looks."
               action={{
                 label: 'Create Room',
                 onPress: () => setCreating(true),

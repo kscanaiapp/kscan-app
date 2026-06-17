@@ -70,8 +70,8 @@ function LooksContent() {
 
           {looks.length === 0 ? (
             <EmptyStateCard
-              title="No Looks yet"
-              subtitle="Open a Dressing Room, select one or more items, and create your first Look."
+              title="Curate Your First Look"
+              subtitle="Open a Dressing Room, select one or more items, and create your first outfit composition."
             />
           ) : (
             <View style={styles.grid}>

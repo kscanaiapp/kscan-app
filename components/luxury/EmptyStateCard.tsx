@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     backgroundColor: LUXURY.colors.warmWhite,
     padding: SPACING.xl,
-    gap: SPACING.sm,
+    gap: SPACING.lg,
     ...SHADOWS.editorialSmall,
   },
   iconWrap: {
@@ -85,18 +85,18 @@ const styles = StyleSheet.create({
   },
   title: {
     ...LUXURY.typography.displayTitle,
-    fontSize: 18,
+    fontSize: 20,
     textAlign: 'center',
   },
   subtitle: {
     ...LUXURY.typography.body,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 24,
     textAlign: 'center',
     color: LUXURY.colors.graphite,
   },
   action: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     minHeight: 44,
     justifyContent: 'center',
   },

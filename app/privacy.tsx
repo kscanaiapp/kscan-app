@@ -158,6 +158,8 @@ function DataRequestCard({
           title="Submit Correction Request"
           onPress={onCorrection}
           disabled={disabled}
+          numberOfLines={2}
+          style={styles.correctionButton}
           accessibilityLabel="Submit correction request"
           accessibilityHint="Send your data correction request"
         />
@@ -692,8 +694,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.editorialSmall,
   },
   deletionCard: {
-    borderColor: `${LUXURY.colors.error}28`,
-    backgroundColor: `${LUXURY.colors.error}08`,
+    borderColor: `${LUXURY.colors.error}20`,
+    backgroundColor: LUXURY.colors.warmWhite,
   },
   deletionBody: {
     ...LUXURY.typography.body,
@@ -703,6 +705,10 @@ const styles = StyleSheet.create({
   },
   deletionButton: {
     backgroundColor: LUXURY.colors.error,
+    marginTop: SPACING.md,
+  },
+  correctionButton: {
+    width: '100%',
   },
   correctionBox: {
     gap: SPACING.sm,

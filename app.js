@@ -51,6 +51,34 @@ const EMPTY_METADATA = {
   silhouette: '',
 };
 
+// ── Future input-mode extension points (gated, no visible UI) ─────────────────
+const TEXT_SCAN_UI_ENABLED = false;
+const VOICE_UI_ENABLED = false;
+
+/**
+ * FUTURE: TextScan entry point.
+ * When the backend contract is ready, replace this gated placeholder with a
+ * TextScan affordance inside the Scan surface. Keep Scan as the parent feature;
+ * do not place TextScan on Home as a separate primary feature.
+ * Preferred future placement: near the existing camera capture controls, as an
+ * alternate input mode within Scan.
+ */
+function TextScanEntryPointPlaceholder() {
+  if (!TEXT_SCAN_UI_ENABLED) return null;
+  return null;
+}
+
+/**
+ * FUTURE: Voice input entry point.
+ * When microphone permission, privacy disclosures, and backend voice contract
+ * are ready, mount a voice input affordance near the capture controls. Keep
+ * disabled until approved.
+ */
+function VoiceInputPlaceholder() {
+  if (!VOICE_UI_ENABLED) return null;
+  return null;
+}
+
 function ErrorToast({ message, onDismiss }) {
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -127,6 +155,7 @@ function ActionButton({ label, onPress, variant = 'primary', disabled = false })
           isSecondary ? styles.secondaryButtonText : null,
           isTertiary ? styles.tertiaryButtonText : null,
         ]}
+        numberOfLines={2}
       >
         {label}
       </Text>
@@ -473,6 +502,9 @@ export default function App() {
           {renderViewfinder(false)}
 
           <View style={styles.bottomBar}>
+            {/* Future TextScan / voice affordances — invisible while gated. */}
+            <TextScanEntryPointPlaceholder />
+            <VoiceInputPlaceholder />
             {status === 'capturing' ? (
               <ActivityIndicator
                 testID="capturing-indicator"
@@ -783,6 +815,7 @@ const styles = StyleSheet.create({
   actionButtonBase: {
     minWidth: BUTTONS.minWidth,
     minHeight: BUTTONS.height,
+    maxWidth: '100%',
     paddingHorizontal: BUTTONS.horizontalPadding,
     borderRadius: RADIUS.pill,
     alignItems: 'center',
@@ -791,6 +824,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     ...TYPOGRAPHY.cta,
+    textAlign: 'center',
   },
   primaryButton: {
     backgroundColor: COLORS.accent,

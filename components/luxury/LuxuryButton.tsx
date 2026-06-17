@@ -18,6 +18,7 @@ export interface LuxuryButtonProps {
   icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  numberOfLines?: number;
   accessibilityLabel?: string;
   accessibilityHint?: string;
   testID?: string;
@@ -42,6 +43,7 @@ export function LuxuryButton({
   icon,
   style,
   textStyle,
+  numberOfLines = 1,
   accessibilityLabel,
   accessibilityHint,
   testID,
@@ -85,7 +87,8 @@ export function LuxuryButton({
               variant === 'tertiary' && styles.tertiaryText,
               textStyle,
             ]}
-            numberOfLines={1}
+            numberOfLines={numberOfLines}
+            adjustsFontSizeToFit={numberOfLines === 1}
           >
             {title}
           </Text>

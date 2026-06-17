@@ -2,6 +2,7 @@ import { ScrollView, View, Text, Pressable, ActivityIndicator, StyleSheet } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
+import { EmptyStateCard } from '../luxury';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 interface StyleChatSessionListProps {
@@ -48,10 +49,17 @@ export function StyleChatSessionList({
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : safeSessions.length === 0 ? (
-        <View testID="style-chat-empty-state" style={styles.centred}>
-          <Text style={styles.emptyTitle}>No sessions yet.</Text>
-          <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptySessionList}</Text>
-        </View>
+        <EmptyStateCard
+          testID="style-chat-empty-state"
+          title="Ask Your AI Stylist"
+          subtitle="Start a session for outfit ideas, product comparisons, or styling advice."
+          action={{
+            label: STYLE_CHAT_COPY.newSessionCta,
+            onPress: onNewSession,
+            accessibilityLabel: 'New StyleChat session',
+            testID: 'style-chat-new-session-button',
+          }}
+        />
       ) : (
         <View style={styles.list}>
           <Text style={styles.sectionLabel} accessibilityRole="header">
@@ -70,30 +78,32 @@ export function StyleChatSessionList({
 
             return (
               <View key={session.id} style={styles.sessionRowContainer}>
-                <Pressable
-                  style={({ pressed }) => [styles.sessionRowContent, pressed ? styles.sessionRowPressed : null]}
-                  onPress={() => onSelectSession?.(session)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${title}, ${mode}${updatedAt ? `, last active ${updatedAt}` : ''}`}
-                  accessibilityHint="Open this StyleChat session"
-                >
-                  <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
-                  <View style={styles.sessionMetaRow}>
-                    <Text style={styles.sessionMode} numberOfLines={1}>{mode}</Text>
-                    {updatedAt ? <Text style={styles.sessionDate}>{updatedAt}</Text> : null}
-                  </View>
-                </Pressable>
-                <Pressable
-                  testID="style-chat-delete-button"
-                  style={({ pressed }) => [styles.deleteBtn, pressed ? styles.deleteBtnPressed : null]}
-                  onPress={() => onDeleteSession?.(session)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Delete ${title}`}
-                  accessibilityHint="Permanently remove this conversation"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={styles.deleteBtnText}>✕</Text>
-                </Pressable>
+                <View style={styles.sessionCard}>
+                  <Pressable
+                    style={({ pressed }) => [styles.sessionRowContent, pressed ? styles.sessionRowPressed : null]}
+                    onPress={() => onSelectSession?.(session)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${title}, ${mode}${updatedAt ? `, last active ${updatedAt}` : ''}`}
+                    accessibilityHint="Open this StyleChat session"
+                  >
+                    <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
+                    <View style={styles.sessionMetaRow}>
+                      <Text style={styles.sessionMode} numberOfLines={1}>{mode}</Text>
+                      {updatedAt ? <Text style={styles.sessionDate}>{updatedAt}</Text> : null}
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    testID="style-chat-delete-button"
+                    style={({ pressed }) => [styles.deleteBtn, pressed ? styles.deleteBtnPressed : null]}
+                    onPress={() => onDeleteSession?.(session)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${title}`}
+                    accessibilityHint="Permanently remove this conversation"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.deleteBtnText}>✕</Text>
+                  </Pressable>
+                </View>
               </View>
             );
           })}
@@ -136,18 +146,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxl,
     minHeight: 160,
   },
-  emptyTitle: {
-    ...LUXURY.typography.bodyStrong,
-    textAlign: 'center',
-    color: LUXURY.colors.ink,
-    marginBottom: SPACING.sm,
-  },
-  emptyText: {
-    ...LUXURY.typography.body,
-    textAlign: 'center',
-    color: LUXURY.colors.graphite,
-    lineHeight: 24,
-  },
+
   errorText: {
     ...LUXURY.typography.body,
     textAlign: 'center',
@@ -169,25 +168,29 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   sessionRowContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     minWidth: 0,
     marginBottom: SPACING.md,
+  },
+  sessionCard: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    minWidth: 0,
+    minHeight: 64,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    overflow: 'hidden',
+    ...LUXURY.cards.product.shadow,
   },
   sessionRowContent: {
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
     padding: SPACING.md,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    backgroundColor: LUXURY.colors.pearl,
-    ...LUXURY.cards.product.shadow,
   },
   sessionRowPressed: {
     backgroundColor: LUXURY.colors.cream,
-    borderColor: LUXURY.colors.goldLight,
   },
   sessionTitle: {
     ...LUXURY.typography.bodyStrong,
@@ -213,22 +216,19 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.sm,
   },
   deleteBtn: {
-    marginLeft: SPACING.sm,
-    width: 44,
-    height: 44,
+    width: 48,
     flexShrink: 0,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(130, 48, 56, 0.28)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(130, 48, 56, 0.05)',
+    borderLeftWidth: 1,
+    borderLeftColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.warmWhite,
   },
   deleteBtnPressed: {
-    backgroundColor: 'rgba(130, 48, 56, 0.14)',
+    backgroundColor: LUXURY.colors.cream,
   },
   deleteBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     color: LUXURY.colors.error,
     fontWeight: '600',
   },
