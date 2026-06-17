@@ -23,6 +23,7 @@ import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
 import { saveScan } from './services/library';
 import { getApiBaseUrl } from './services/api';
+import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
 import { ScanLanding } from './components/scan-room/ScanLanding';
@@ -253,6 +254,7 @@ export default function App() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
+  const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
   const textScanEnabled =
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
 
@@ -863,7 +865,22 @@ export default function App() {
             onDismiss={dismissResult}
             onSaveToLibrary={() => { /* already auto-saved to library */ }}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
-            onAskStyleChat={() => router.push('/style-chat')}
+            onAskStyleChat={styleChatEnabled ? () => {
+              const source = photo?.source === 'upload' ? 'upload' : 'camera';
+              const meta = analysis?.metadata ?? {};
+              setStyleChatHandoffContext({
+                source,
+                imageUri: photo?.uri ?? null,
+                category: meta.category || null,
+                color: meta.color || null,
+                silhouette: meta.silhouette || null,
+                material: meta.material || null,
+                descriptors: Array.isArray(meta.styleTags) ? meta.styleTags : undefined,
+                analysisText: analysis?.result || null,
+                createdAt: new Date().toISOString(),
+              });
+              router.push('/style-chat');
+            } : undefined}
             onFindSimilar={() => { /* scroll to similar finds handled internally */ }}
           />
         ) : (

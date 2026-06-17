@@ -37,6 +37,8 @@ import {
   TEXTSCAN_DEMO_PRODUCTS,
   TEXTSCAN_DEMO_SUGGESTIONS,
 } from '../../data/textscan-demo';
+import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { TextScanFilter } from '../../components/text-scan/ResultFilterTabs';
 
 type ViewState = 'input' | 'processing' | 'results';
@@ -46,6 +48,9 @@ const MAX_QUERY_LENGTH = 240;
 const PROCESSING_TIMEOUT_MS = 2000;
 
 export default function TextScanScreen() {
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
+
   const [viewState, setViewState] = useState<ViewState>('input');
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<TextScanFilter>('all');
@@ -221,12 +226,21 @@ export default function TextScanScreen() {
 
           {/* Actions */}
           <View style={styles.actionStack}>
-            <SecondaryButton
-              title="Ask StyleChat"
-              onPress={() => router.push('/style-chat')}
-              accessibilityLabel="Ask StyleChat about this request"
-              testID="textscan-ask-stylechat"
-            />
+            {styleChatEnabled && (
+              <SecondaryButton
+                title="Ask StyleChat"
+                onPress={() => {
+                  setStyleChatHandoffContext({
+                    source: 'text-scan',
+                    query: query.trim(),
+                    createdAt: new Date().toISOString(),
+                  });
+                  router.push('/style-chat');
+                }}
+                accessibilityLabel="Ask StyleChat about this request"
+                testID="textscan-ask-stylechat"
+              />
+            )}
             <SecondaryButton
               title="Save to Style Library"
               disabled

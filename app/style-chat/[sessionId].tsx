@@ -23,9 +23,14 @@ import {
 } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
+import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
 import { useStyleChat } from '../../hooks/useStyleChat';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
+import {
+  getStyleChatHandoffContext,
+  clearStyleChatHandoffContext,
+} from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 
 export default function StyleChatSessionScreen() {
@@ -55,6 +60,19 @@ export default function StyleChatSessionScreen() {
     paddingLeft: Math.max(SPACING.xl, insets.left),
     paddingRight: Math.max(SPACING.xl, insets.right),
   };
+
+  const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
+
+  // Consume handoff context on mount and clear it when leaving the session.
+  useEffect(() => {
+    const ctx = getStyleChatHandoffContext();
+    if (ctx) {
+      setHandoffContext(ctx);
+    }
+    return () => {
+      clearStyleChatHandoffContext();
+    };
+  }, []);
 
   // Scroll to bottom when messages arrive or update
   useEffect(() => {
@@ -145,6 +163,13 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : null;
 
+  const ContextPreviewHeader = handoffContext ? (
+    <StyleChatContextPreview
+      context={handoffContext}
+      onDismiss={() => setHandoffContext(null)}
+    />
+  ) : null;
+
   return (
     <SafeAreaView testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="dark" />
@@ -185,6 +210,7 @@ export default function StyleChatSessionScreen() {
           keyExtractor={item => item.id}
           renderItem={renderMessage}
           ListEmptyComponent={ListEmpty}
+          ListHeaderComponent={ContextPreviewHeader}
           ListFooterComponent={ThinkingIndicator}
           style={[styles.messageList, isLandscape ? styles.messageListLandscape : null]}
           contentContainerStyle={[
