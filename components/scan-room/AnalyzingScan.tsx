@@ -20,6 +20,7 @@ interface AnalyzingScanProps {
   errorMessage?: string;
   onRetry?: () => void;
   onRetake?: () => void;
+  onMinimumDisplayComplete?: () => void;
   testID?: string;
 }
 
@@ -48,6 +49,7 @@ export function AnalyzingScan({
   errorMessage,
   onRetry,
   onRetake,
+  onMinimumDisplayComplete,
   testID,
 }: AnalyzingScanProps) {
   const insets = useSafeAreaInsets();
@@ -92,6 +94,21 @@ export function AnalyzingScan({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [isComplete, hasError]);
+
+  // Notify parent when minimum display time has elapsed.
+  useEffect(() => {
+    if (hasError) return;
+
+    const elapsed = Date.now() - startTime.current;
+    const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
+    timerRef.current = setTimeout(() => {
+      onMinimumDisplayComplete?.();
+    }, remaining);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [hasError, onMinimumDisplayComplete]);
 
   if (hasError) {
     return (

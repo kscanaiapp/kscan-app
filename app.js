@@ -277,6 +277,7 @@ export default function App() {
 
   // Scan Room V2 state
   const [v2CameraVisible, setV2CameraVisible] = useState(false);
+  const [v2AnalyzingMinComplete, setV2AnalyzingMinComplete] = useState(false);
 
   const handleUploadImage = useCallback(async () => {
     const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -374,6 +375,7 @@ export default function App() {
       // New analysis: reset post-result HUD and mount a fresh processing HUD
       setPerceiving(false);
       setProcHudKey(k => k + 1);
+      setV2AnalyzingMinComplete(false);
       hasSavedRef.current = false; // arm save for the next result
       return;
     }
@@ -701,6 +703,7 @@ export default function App() {
                 onOpenCamera={() => setV2CameraVisible(true)}
                 onUploadImage={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
+                textScanEnabled={TEXTSCAN_UI_ENABLED}
               />
             );
           }
@@ -712,6 +715,7 @@ export default function App() {
               onUpload={handleUploadImage}
               onTextScan={() => router.push('/text-scan')}
               onBack={() => setV2CameraVisible(false)}
+              textScanEnabled={TEXTSCAN_UI_ENABLED}
             />
           );
 
@@ -724,7 +728,27 @@ export default function App() {
           );
 
         case 'preview':
-          if (!photo?.uri) return renderCameraScreen();
+          if (!photo?.uri) {
+            // Stay inside V2 UI if preview state exists without a valid image URI.
+            return v2CameraVisible ? (
+              <LiveScanCamera
+                cameraRef={cameraRef}
+                isCameraReady={isCameraReady}
+                onCapture={() => capturePhoto(cameraRef)}
+                onUpload={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onBack={() => setV2CameraVisible(false)}
+                textScanEnabled={TEXTSCAN_UI_ENABLED}
+              />
+            ) : (
+              <ScanLanding
+                onOpenCamera={() => setV2CameraVisible(true)}
+                onUploadImage={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                textScanEnabled={TEXTSCAN_UI_ENABLED}
+              />
+            );
+          }
           return (
             <CaptureReview
               imageUri={photo.uri}
@@ -739,13 +763,28 @@ export default function App() {
               imageUri={photo?.uri}
               isComplete={false}
               hasError={false}
+              onMinimumDisplayComplete={() => setV2AnalyzingMinComplete(true)}
             />
           );
 
         case 'result':
+          // Hold the analyzing screen until the minimum display time has elapsed,
+          // then reveal the result via the existing preview/result surface.
+          if (!v2AnalyzingMinComplete) {
+            return (
+              <AnalyzingScan
+                imageUri={photo?.uri}
+                isComplete={true}
+                hasError={false}
+                onMinimumDisplayComplete={() => setV2AnalyzingMinComplete(true)}
+              />
+            );
+          }
+          return renderPreviewScreen();
+
         case 'non-fashion':
         case 'error':
-          // Result → ScanResultV2 modal below. Non-fashion / error → existing preview screen.
+          // Non-fashion / error → existing preview screen without forced delay.
           return renderPreviewScreen();
 
         default:
