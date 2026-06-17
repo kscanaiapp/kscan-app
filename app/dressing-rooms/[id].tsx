@@ -23,7 +23,6 @@ import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
 import { InspirationUploadModal } from '../../components/InspirationUploadModal';
 import {
   EmptyState,
-  ItemTile,
   TextField,
   styleObjectStyles,
 } from '../../components/StyleObjectCards';
@@ -32,8 +31,8 @@ import {
   LuxuryScreen,
   PrimaryButton,
   SecondaryButton,
-  SectionHeader,
   TertiaryButton,
+  SectionHeader,
   InlineNotice,
   PrivacyFooter,
 } from '../../components/luxury';
@@ -67,11 +66,12 @@ import {
   type InspirationItem,
   type ItemReactionCount,
 } from '../../types/styleObjects';
-import {
-  ItemReactions,
-  type ReactionCountsForItem,
-} from '../../components/dressing-rooms/ItemReactions';
-import { RoomMessagesPanel } from '../../components/rooms/RoomMessagesPanel';
+import { type ReactionCountsForItem } from '../../components/dressing-rooms/ItemReactions';
+import { RoomDetailTabs, type RoomDetailTab } from '../../components/dressing-rooms/RoomDetailTabs';
+import { RoomChatBoard } from '../../components/dressing-rooms/RoomChatBoard';
+import { RoomScansGrid } from '../../components/dressing-rooms/RoomScansGrid';
+import { RoomSavedPanel } from '../../components/dressing-rooms/RoomSavedPanel';
+import { RoomInfoPanel } from '../../components/dressing-rooms/RoomInfoPanel';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
@@ -280,6 +280,7 @@ function DressingRoomDetailContent() {
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
   const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
   const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<RoomDetailTab>('chat');
 
   const [inspirations, setInspirations] = useState<InspirationItem[]>([]);
   const [inspirationLoading, setInspirationLoading] = useState(false);
@@ -677,212 +678,159 @@ function DressingRoomDetailContent() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={0}
         >
-          <ScrollView
-            contentContainerStyle={[styleObjectStyles.content, styles.content]}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {room?.description ? <Text style={styles.description}>{room.description}</Text> : null}
+          <View style={styles.flex}>
+            <RoomDetailTabs activeTab={activeTab} onChange={setActiveTab} />
 
-            {/* Room Note */}
-            <View style={styles.noteSection}>
-              <SectionHeader title="Room Note" />
-              {editingNote ? (
-                <>
-                  <TextInput
-                    value={noteDraft}
-                    onChangeText={setNoteDraft}
-                    placeholder="Add a note..."
-                    placeholderTextColor={LUXURY.colors.stone}
-                    multiline
-                    textAlignVertical="top"
-                    style={styles.noteInput}
-                    maxLength={ROOM_NOTE_MAX_LENGTH}
-                    accessibilityLabel="Room note editor"
-                    accessibilityHint="Edit the private note for this room"
-                  />
-                  <Text style={[styles.noteCount, noteTooLong ? styles.noteCountError : null]}>
-                    {noteLength}/{ROOM_NOTE_MAX_LENGTH}
-                  </Text>
-                  {noteError ? <Text style={styles.noteError}>{noteError}</Text> : null}
-                  {noteMessage ? <Text style={styles.noteMessage}>{noteMessage}</Text> : null}
-                  <PrimaryButton
-                    title={savingNote ? 'Saving Note' : 'Save Note'}
-                    onPress={handleSaveNote}
-                    disabled={disableNoteSave}
-                    loading={savingNote}
-                    accessibilityLabel="Save room note"
-                  />
-                  <SecondaryButton
-                    title="Cancel"
-                    onPress={handleCancelNoteEdit}
-                    disabled={savingNote}
-                    accessibilityLabel="Cancel note edit"
-                  />
-                </>
-              ) : (
-                <>
-                  <View style={styles.noteCard}>
-                    <Text style={room?.roomNote ? styles.noteText : styles.notePlaceholder}>
-                      {room?.roomNote || 'Add a note…'}
-                    </Text>
-                  </View>
-                  {noteMessage ? <Text style={styles.noteMessage}>{noteMessage}</Text> : null}
-                  <SecondaryButton
-                    title={room?.roomNote ? 'Edit Note' : 'Add Note'}
-                    onPress={handleStartEditingNote}
-                    accessibilityLabel={room?.roomNote ? 'Edit room note' : 'Add room note'}
-                  />
-                </>
-              )}
-            </View>
-
-            {/* Room management */}
-            <View style={styles.actionGroup}>
-              <SecondaryButton
-                title="Edit Room"
-                onPress={() => setEditing(true)}
-                accessibilityLabel="Edit dressing room"
+            {activeTab === 'chat' && (
+              <RoomChatBoard
+                roomId={roomId}
+                items={items}
+                reactionCounts={reactionCounts}
+                selectedReactions={selectedReactions}
+                mutatingReactionItemId={mutatingReactionItemId}
+                onReact={handleReact}
+                isAuthenticated={isAuthenticated}
               />
-              {canShareRoom ? (
-                <>
-                  <SecondaryButton
-                    title={sharing ? 'Preparing Link' : 'Share Room'}
-                    onPress={handleShareRoom}
-                    disabled={sharing}
-                    loading={sharing}
-                    testID="share-room-button"
-                    accessibilityLabel="Share room link"
-                    accessibilityHint="Create or copy a private invite link for this room"
-                  />
-                  <SecondaryButton
-                    title={revokingShare ? 'Disabling Link' : 'Disable Shared Link'}
-                    onPress={handleRevokeShare}
-                    disabled={revokingShare}
-                    loading={revokingShare}
-                    accessibilityLabel="Disable shared room link"
-                    accessibilityHint="Revoke the current invite link so it no longer works"
-                  />
-                  {shareError ? <Text style={styles.shareError}>{shareError}</Text> : null}
-                  {shareMessage ? <Text style={styles.shareMessage}>{shareMessage}</Text> : null}
-                </>
-              ) : null}
-            </View>
-
-            {/* Create Look */}
-            <View style={styles.lookSection}>
-              <SectionHeader
-                title="Looks"
-                subtitle={selectedCount > 0 ? `${selectedCount} selected` : 'Select items to create a look'}
-              />
-              <PrimaryButton
-                title={selectedCount > 0 ? `Create Look (${selectedCount})` : 'Select Items For Look'}
-                onPress={() => setCreatingLook(true)}
-                disabled={selectedCount === 0}
-                accessibilityLabel={selectedCount > 0 ? `Create look from ${selectedCount} selected items` : 'Select items before creating a look'}
-                accessibilityHint={selectedCount > 0 ? 'Open create look modal' : undefined}
-              />
-            </View>
-
-            {items.length === 0 ? (
-              <EmptyState
-                title="No items in this room yet."
-                body="Add catalog matches from scan results when they include remote product images."
-              />
-            ) : (
-              <View style={styles.items}>
-                {items.map((item) => {
-                  const reactionItemId = normalizeReactionItemId(item.id);
-
-                  return (
-                    <ItemTile
-                      key={item.id}
-                      item={item}
-                      selected={selectedSet.has(item.id)}
-                      onPress={() => toggleItem(item.id)}
-                      onRemove={() => handleRemoveItem(item.id)}
-                      footer={reactionItemId ? (
-                        <ItemReactions
-                          itemId={reactionItemId}
-                          counts={reactionCounts[reactionItemId] ?? createEmptyReactionCounts()}
-                          selectedReaction={selectedReactions[reactionItemId] ?? null}
-                          disabled={!isAuthenticated}
-                          isMutating={mutatingReactionItemId === reactionItemId}
-                          onReact={handleReact}
-                        />
-                      ) : null}
-                    />
-                  );
-                })}
-              </View>
             )}
 
-            {/* Room Inspiration */}
-            <View style={styles.inspirationSection}>
-              <View style={styles.inspirationHeader}>
-                <SectionHeader title="Room Inspiration" subtitle="Reference images" />
-                {isAuthenticated ? (
-                  <TouchableOpacity
-                    style={styles.uploadBtn}
-                    onPress={handleUploadInspiration}
-                    testID="upload-room-inspiration-button"
-                    accessibilityRole="button"
-                    accessibilityLabel="Upload room inspiration image"
-                    accessibilityHint="Choose a clothing-focused image from your library"
-                  >
-                    <Text style={styles.uploadBtnText}>Upload</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
+            {activeTab === 'scans' && (
+              <ScrollView
+                contentContainerStyle={styles.tabContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <RoomScansGrid
+                  items={items}
+                  reactionCounts={reactionCounts}
+                  selectedReactions={selectedReactions}
+                  mutatingReactionItemId={mutatingReactionItemId}
+                  onReact={handleReact}
+                  isAuthenticated={isAuthenticated}
+                  onRemoveItem={handleRemoveItem}
+                />
 
-              {inspirationLoading ? (
-                <>
-                  {[0, 1, 2].map((row) => (
-                    <View key={`inspiration-skeleton-row-${row}`} style={styles.inspirationRow}>
-                      <View style={styles.inspirationSkeletonTile} />
-                      <View style={styles.inspirationSkeletonTile} />
+                {/* Room Inspiration */}
+                <View style={styles.inspirationSection}>
+                  <View style={styles.inspirationHeader}>
+                    <SectionHeader title="Room Inspiration" subtitle="Reference images" />
+                    {isAuthenticated ? (
+                      <TouchableOpacity
+                        style={styles.uploadBtn}
+                        onPress={handleUploadInspiration}
+                        testID="upload-room-inspiration-button"
+                        accessibilityRole="button"
+                        accessibilityLabel="Upload room inspiration image"
+                        accessibilityHint="Choose a clothing-focused image from your library"
+                      >
+                        <Text style={styles.uploadBtnText}>Upload</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  {inspirationLoading ? (
+                    <>
+                      {[0, 1, 2].map((row) => (
+                        <View key={`inspiration-skeleton-row-${row}`} style={styles.inspirationRow}>
+                          <View style={styles.inspirationSkeletonTile} />
+                          <View style={styles.inspirationSkeletonTile} />
+                        </View>
+                      ))}
+                    </>
+                  ) : inspirations.length === 0 ? (
+                    <Text style={styles.inspirationEmpty}>
+                      Upload screenshots and outfit references for this room.
+                    </Text>
+                  ) : (
+                    <View>
+                      {inspirations.reduce<[InspirationItem, InspirationItem | null][]>((pairs, item, i) => {
+                        if (i % 2 === 0) pairs.push([item, inspirations[i + 1] ?? null]);
+                        return pairs;
+                      }, []).map(([a, b]) => (
+                        <View key={a.id} style={styles.inspirationRow}>
+                          <RoomInspirationCard item={a} onRemove={handleRemoveInspiration} />
+                          {b ? (
+                            <RoomInspirationCard item={b} onRemove={handleRemoveInspiration} />
+                          ) : (
+                            <View style={{ width: INSPIRATION_CARD_W }} />
+                          )}
+                        </View>
+                      ))}
                     </View>
-                  ))}
-                </>
-              ) : inspirations.length === 0 ? (
-                <Text style={styles.inspirationEmpty}>
-                  Upload screenshots and outfit references for this room.
-                </Text>
-              ) : (
-                <View>
-                  {inspirations.reduce<[InspirationItem, InspirationItem | null][]>((pairs, item, i) => {
-                    if (i % 2 === 0) pairs.push([item, inspirations[i + 1] ?? null]);
-                    return pairs;
-                  }, []).map(([a, b]) => (
-                    <View key={a.id} style={styles.inspirationRow}>
-                      <RoomInspirationCard item={a} onRemove={handleRemoveInspiration} />
-                      {b ? (
-                        <RoomInspirationCard item={b} onRemove={handleRemoveInspiration} />
-                      ) : (
-                        <View style={{ width: INSPIRATION_CARD_W }} />
-                      )}
-                    </View>
-                  ))}
+                  )}
                 </View>
-              )}
-            </View>
+              </ScrollView>
+            )}
 
-            {/* Room Messages (private, authenticated only — never on public preview) */}
-            {isAuthenticated ? <RoomMessagesPanel roomId={roomId} /> : null}
-
-            <View style={styles.dangerZone}>
-              <TertiaryButton
-                title="Delete Room"
-                onPress={handleDeleteRoom}
-                textStyle={{ color: LUXURY.colors.error }}
-                accessibilityLabel="Delete dressing room"
-                accessibilityHint="Permanently remove this room and its items"
+            {activeTab === 'saved' && (
+              <RoomSavedPanel
+                items={items}
+                selectedIds={selectedIds}
+                onToggleItem={toggleItem}
+                onCreateLook={() => setCreatingLook(true)}
+                selectedCount={selectedCount}
+                onRemoveItem={handleRemoveItem}
               />
-              <Text style={styles.privacyFootnote}>
-                Private by design. Only invited people can see shared room previews.
-              </Text>
-            </View>
-          </ScrollView>
+            )}
+
+            {activeTab === 'info' && (
+              <View style={styles.flex}>
+                {editingNote ? (
+                  <ScrollView
+                    contentContainerStyle={styles.tabContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    <View style={styles.noteSection}>
+                      <TextInput
+                        value={noteDraft}
+                        onChangeText={setNoteDraft}
+                        placeholder="Add a note..."
+                        placeholderTextColor={LUXURY.colors.stone}
+                        multiline
+                        textAlignVertical="top"
+                        style={styles.noteInput}
+                        maxLength={ROOM_NOTE_MAX_LENGTH}
+                        accessibilityLabel="Room note editor"
+                        accessibilityHint="Edit the private note for this room"
+                      />
+                      <Text style={[styles.noteCount, noteTooLong ? styles.noteCountError : null]}>
+                        {noteLength}/{ROOM_NOTE_MAX_LENGTH}
+                      </Text>
+                      {noteError ? <Text style={styles.noteError}>{noteError}</Text> : null}
+                      {noteMessage ? <Text style={styles.noteMessage}>{noteMessage}</Text> : null}
+                      <PrimaryButton
+                        title={savingNote ? 'Saving Note' : 'Save Note'}
+                        onPress={handleSaveNote}
+                        disabled={disableNoteSave}
+                        loading={savingNote}
+                        accessibilityLabel="Save room note"
+                      />
+                      <SecondaryButton
+                        title="Cancel"
+                        onPress={handleCancelNoteEdit}
+                        disabled={savingNote}
+                        accessibilityLabel="Cancel note edit"
+                      />
+                    </View>
+                  </ScrollView>
+                ) : (
+                  <RoomInfoPanel
+                    room={room}
+                    onEdit={() => setEditing(true)}
+                    onShare={handleShareRoom}
+                    onRevokeShare={handleRevokeShare}
+                    onDelete={handleDeleteRoom}
+                    onStartEditingNote={handleStartEditingNote}
+                    canShareRoom={canShareRoom}
+                    sharing={sharing}
+                    revokingShare={revokingShare}
+                    shareError={shareError}
+                    shareMessage={shareMessage}
+                  />
+                )}
+              </View>
+            )}
+          </View>
         </KeyboardAvoidingView>
       )}
       <EditRoomModal room={room} visible={editing} onClose={() => setEditing(false)} onSaved={reload} />
@@ -1011,34 +959,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.xl,
   },
-  content: {
+  tabContent: {
     paddingTop: SPACING.sm,
-  },
-  description: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.graphite,
-    marginBottom: SPACING.sm,
+    paddingBottom: SPACING.xxxl,
   },
   noteSection: {
     marginBottom: SPACING.md,
-  },
-  noteCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    backgroundColor: LUXURY.colors.pearl,
-    padding: SPACING.lg,
-    ...SHADOWS.editorialSmall,
-  },
-  noteText: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.ink,
-    lineHeight: 22,
-  },
-  notePlaceholder: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.stone,
-    lineHeight: 22,
+    padding: SPACING.xl,
   },
   noteInput: {
     minHeight: 120,
@@ -1071,16 +998,37 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.graphite,
     marginTop: SPACING.sm,
   },
-  actionGroup: {
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: COLORS.backdrop,
+    padding: SPACING.xl,
   },
-  lookSection: {
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.md,
+  modalCard: {
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.xl,
+    ...SHADOWS.editorialRaised,
   },
-  items: {
-    marginTop: SPACING.lg,
+  modalTitle: {
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
+    textAlign: 'center',
+  },
+  modalNote: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldBrushed,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  error: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
+    marginTop: SPACING.md,
+    textAlign: 'center',
   },
   inspirationSection: {
     marginTop: SPACING.xxl,
@@ -1130,61 +1078,5 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     backgroundColor: LUXURY.colors.champagne,
     opacity: 0.55,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: COLORS.backdrop,
-    padding: SPACING.xl,
-  },
-  modalCard: {
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    backgroundColor: LUXURY.colors.pearl,
-    padding: SPACING.xl,
-    ...SHADOWS.editorialRaised,
-  },
-  modalTitle: {
-    ...LUXURY.typography.displayTitle,
-    color: LUXURY.colors.ink,
-    textAlign: 'center',
-  },
-  modalNote: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.goldBrushed,
-    textAlign: 'center',
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.sm,
-  },
-  error: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.error,
-    marginTop: SPACING.md,
-    textAlign: 'center',
-  },
-  shareError: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.error,
-    marginTop: SPACING.sm,
-    textAlign: 'center',
-  },
-  shareMessage: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.graphite,
-    marginTop: SPACING.sm,
-    textAlign: 'center',
-  },
-  dangerZone: {
-    marginTop: SPACING.xxl,
-    marginBottom: SPACING.md,
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  privacyFootnote: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.stone,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.lg,
   },
 });
