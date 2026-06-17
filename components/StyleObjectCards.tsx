@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Image,
   Pressable,
@@ -158,15 +158,46 @@ export function ItemTile({
   selected,
   onPress,
   onRemove,
+  onViewDetail,
   footer,
 }: {
   item: DressingRoomItem | LookItem;
   selected?: boolean;
   onPress?: () => void;
   onRemove?: () => void;
+  onViewDetail?: () => void;
   footer?: React.ReactNode;
 }) {
   const versionOk = canRenderSnapshotVersion(item.snapshotVersion);
+
+  const sourceBadge = useMemo(() => {
+    const sourceType = (item as DressingRoomItem).sourceType ?? null;
+    let label: string;
+    switch (sourceType) {
+      case 'live_scan':
+        label = 'Camera Scan';
+        break;
+      case 'upload_inspiration':
+        label = 'Upload';
+        break;
+      case 'style_library_scan':
+        label = 'Library';
+        break;
+      case 'text-scan':
+      case 'textScan':
+        label = 'TextScan';
+        break;
+      case null:
+      case undefined:
+      case '':
+        label = 'Saved Item';
+        break;
+      default:
+        label = 'Saved Item';
+    }
+    return label;
+  }, [(item as DressingRoomItem).sourceType]);
+
   const content = (
     <View style={[styles.itemTile, selected ? styles.itemSelected : null]}>
       {versionOk && item.imageUrl ? (
@@ -178,9 +209,15 @@ export function ItemTile({
       )}
       <View style={styles.itemBody}>
         <Text style={styles.itemBrand} numberOfLines={1}>{item.brand || item.category || 'K-SCAN'}</Text>
+        <Text style={styles.itemSourceBadge}>{sourceBadge}</Text>
         <Text style={styles.itemTitle} numberOfLines={2}>
           {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}
         </Text>
+        {onViewDetail ? (
+          <TouchableOpacity style={styles.viewDetailButton} onPress={onViewDetail}>
+            <Text style={styles.viewDetailText}>View Detail</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       {footer ? <View style={styles.itemFooter}>{footer}</View> : null}
       {selected ? <Text style={styles.selectedMark}>SELECTED</Text> : null}
@@ -355,6 +392,30 @@ const styles = StyleSheet.create({
   itemSelected: {
     borderColor: LUXURY.colors.gold,
     backgroundColor: LUXURY.colors.plumMuted,
+  },
+  itemSourceBadge: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  viewDetailButton: {
+    alignSelf: 'flex-start',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.ivory,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+  },
+  viewDetailText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 10,
+    letterSpacing: 1.2,
   },
   itemImage: {
     width: '100%',

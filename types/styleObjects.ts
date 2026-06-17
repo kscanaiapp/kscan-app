@@ -104,7 +104,7 @@ export type ScanImageSnapshotSource = {
   userId?: string | null;
   localImageUri?: string | null;
   sourceId?: string | null;
-  sourceType?: 'live_scan' | 'style_library_scan';
+  sourceType?: 'live_scan' | 'style_library_scan' | 'upload_inspiration' | 'text-scan' | 'textScan' | null;
   createdAt?: string | null;
   result?: string | null;
   metadata?: {

@@ -72,6 +72,7 @@ import {
   type ReactionCountsForItem,
 } from '../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../components/rooms/RoomMessagesPanel';
+import { RoomItemDetailModal } from '../../components/dressing-rooms/RoomItemDetailModal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
@@ -285,6 +286,8 @@ function DressingRoomDetailContent() {
   const [inspirationLoading, setInspirationLoading] = useState(false);
   const [selectedInspirationUri, setSelectedInspirationUri] = useState<string | null>(null);
   const [showInspirationModal, setShowInspirationModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<DressingRoomItem | null>(null);
+  const [itemDetailVisible, setItemDetailVisible] = useState(false);
 
   const loadInspirations = useCallback(async () => {
     if (!roomId) return;
@@ -410,6 +413,16 @@ function DressingRoomDetailContent() {
         ? current.filter((idValue) => idValue !== itemId)
         : [...current, itemId]
     ));
+  };
+
+  const openItemDetail = (item: DressingRoomItem) => {
+    setSelectedItem(item);
+    setItemDetailVisible(true);
+  };
+
+  const closeItemDetail = () => {
+    setItemDetailVisible(false);
+    setSelectedItem(null);
   };
 
   const handleRemoveItem = async (itemId: string) => {
@@ -786,8 +799,8 @@ function DressingRoomDetailContent() {
 
             {items.length === 0 ? (
               <EmptyState
-                title="No items in this room yet."
-                body="Add catalog matches from scan results when they include remote product images."
+                title="This room is empty."
+                body="Start adding items from your scans, uploads, or Library."
               />
             ) : (
               <View style={styles.items}>
@@ -801,6 +814,7 @@ function DressingRoomDetailContent() {
                       selected={selectedSet.has(item.id)}
                       onPress={() => toggleItem(item.id)}
                       onRemove={() => handleRemoveItem(item.id)}
+                      onViewDetail={() => openItemDetail(item)}
                       footer={reactionItemId ? (
                         <ItemReactions
                           itemId={reactionItemId}
@@ -898,6 +912,23 @@ function DressingRoomDetailContent() {
         roomId={roomId}
         onClose={handleCloseInspirationModal}
         onSuccess={handleInspirationSuccess}
+      />
+      <RoomItemDetailModal
+        visible={itemDetailVisible}
+        item={selectedItem}
+        selected={selectedItem ? selectedSet.has(selectedItem.id) : false}
+        onClose={closeItemDetail}
+        onRemove={() => {
+          if (selectedItem) {
+            closeItemDetail();
+            handleRemoveItem(selectedItem.id);
+          }
+        }}
+        onToggleSelected={() => {
+          if (selectedItem) {
+            toggleItem(selectedItem.id);
+          }
+        }}
       />
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}

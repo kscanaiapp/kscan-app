@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Linking,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -37,12 +37,12 @@ import type { DressingRoom } from '../../types/styleObjects';
 const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
 const DRESSING_ROOM_LOAD_ERROR = "We couldn't load your Dressing Rooms. Please refresh and try again.";
 
-function RoomCard({ room }: { room: DressingRoom }) {
+function RoomCard({ room, style }: { room: DressingRoom; style?: any }) {
   const cover = room.coverImageUrl || room.coverFallbackUrl;
   const itemCount = room.itemCount ?? 0;
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, style, pressed && styles.cardPressed]}
       onPress={() => router.push(`/dressing-rooms/${room.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`${room.title}, ${itemCount} item${itemCount === 1 ? '' : 's'}. ${room.description || ''}`}
@@ -172,20 +172,27 @@ function DressingRoomsContent() {
           )}
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={rooms}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          renderItem={({ item }) => (
+            <RoomCard room={item} style={styles.gridItem} />
+          )}
           contentContainerStyle={[styleObjectStyles.content, styles.content]}
+          columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
-        >
-          <SectionHeader
-            title="Your Boards"
-            subtitle={`${rooms.length} private styling space${rooms.length === 1 ? '' : 's'}`}
-            actionLabel="New"
-            onAction={() => setCreating(true)}
-            actionAccessibilityLabel="Create new dressing room"
-            actionVariant="pill"
-          />
-
-          {rooms.length === 0 ? (
+          ListHeaderComponent={
+            <SectionHeader
+              title="Your Boards"
+              subtitle={`${rooms.length} private styling space${rooms.length === 1 ? '' : 's'}`}
+              actionLabel="New"
+              onAction={() => setCreating(true)}
+              actionAccessibilityLabel="Create new dressing room"
+              actionVariant="pill"
+            />
+          }
+          ListEmptyComponent={
             <EmptyStateCard
               title="Start Your First Styling Room"
               subtitle="Create a private board to compare scans, notes, and looks."
@@ -195,12 +202,8 @@ function DressingRoomsContent() {
                 accessibilityLabel: 'Create new dressing room',
               }}
             />
-          ) : (
-            <View style={styles.grid}>
-              {rooms.map((room) => <RoomCard key={room.id} room={room} />)}
-            </View>
-          )}
-        </ScrollView>
+          }
+        />
       )}
       <CreateRoomModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
       <PrivacyFooter
@@ -233,9 +236,13 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: SPACING.sm,
   },
-  grid: {
-    gap: SPACING.lg,
-    marginTop: SPACING.sm,
+  gridItem: {
+    flex: 1,
+    margin: SPACING.sm,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginHorizontal: -SPACING.sm,
   },
   card: {
     borderRadius: RADIUS.lg,
@@ -251,7 +258,7 @@ const styles = StyleSheet.create({
   },
   cover: {
     width: '100%',
-    aspectRatio: 1.8,
+    aspectRatio: 3 / 4,
     backgroundColor: LUXURY.colors.champagne,
   },
   coverFallback: {
