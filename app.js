@@ -22,6 +22,7 @@ import { useKScan } from './hooks/useKScan';
 import { saveScan } from './services/library';
 import { getApiBaseUrl } from './services/api';
 import { AnalysisCard } from './components/AnalysisCard';
+import { ScanResultV2 } from './components/scan-results/ScanResultV2';
 import { AddScanToDressingRoomModal } from './components/AddScanToDressingRoomModal';
 import { PerceptionLayer } from './components/PerceptionLayer';
 import { ScanButton } from './components/ScanButton';
@@ -31,7 +32,7 @@ import {
   DEV_FALLBACK_STATUS,
   QA_TOOLS_ENABLED,
 } from './constants/build';
-import { TEXTSCAN_UI_ENABLED } from './constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED, SCAN_RESULTS_V2_UI_ENABLED } from './constants/featureFlags';
 import { QA_FIXTURES } from './constants/qaFixtures';
 import {
   BUTTONS,
@@ -712,18 +713,31 @@ export default function App() {
       )}
 
       {status === 'result' && !perceiving && (
-        <AnalysisCard
-          result={analysis?.result ?? ''}
-          metadata={analysis?.metadata ?? EMPTY_METADATA}
-          products={analysis?.products ?? []}
-          secondhand={analysis?.secondhand ?? null}
-          sneakerReference={analysis?.sneakerReference ?? null}
-          scanImageUri={photo?.uri ?? null}
-          scanSourceId={photo?.qaFixtureName ?? null}
-          scanSourceType="live_scan"
-          onDismiss={dismissResult}
-          onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
-        />
+        SCAN_RESULTS_V2_UI_ENABLED ? (
+          <ScanResultV2
+            analysis={analysis}
+            scanImageUri={photo?.uri ?? null}
+            scanSourceId={photo?.qaFixtureName ?? null}
+            onDismiss={dismissResult}
+            onSaveToLibrary={() => { /* already auto-saved to library */ }}
+            onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            onAskStyleChat={() => router.push('/style-chat')}
+            onFindSimilar={() => { /* scroll to similar finds handled internally */ }}
+          />
+        ) : (
+          <AnalysisCard
+            result={analysis?.result ?? ''}
+            metadata={analysis?.metadata ?? EMPTY_METADATA}
+            products={analysis?.products ?? []}
+            secondhand={analysis?.secondhand ?? null}
+            sneakerReference={analysis?.sneakerReference ?? null}
+            scanImageUri={photo?.uri ?? null}
+            scanSourceId={photo?.qaFixtureName ?? null}
+            scanSourceType="live_scan"
+            onDismiss={dismissResult}
+            onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+          />
+        )
       )}
 
       {dressingRoomsEnabled ? (
