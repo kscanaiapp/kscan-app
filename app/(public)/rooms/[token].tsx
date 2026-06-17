@@ -520,7 +520,7 @@ export default function SharedRoomScreen() {
   return (
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
-      <KScanHeader title="Shared Room" subtitle="DRESSING ROOM PREVIEW" onBack={handleBack} backLabel="Back" />
+      <KScanHeader title="Shared Link" subtitle="via Dressing Rooms" onBack={handleBack} backLabel="Back" />
       {renderContent()}
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
