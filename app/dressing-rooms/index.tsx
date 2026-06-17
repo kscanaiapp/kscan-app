@@ -33,38 +33,11 @@ import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useDressingRooms } from '../../hooks/useStyleObjects';
 import { createDressingRoom, ROOM_TITLE_MAX_LENGTH } from '../../services/styleObjects';
 import type { DressingRoom } from '../../types/styleObjects';
+import { DressingRoomHeroCard } from '../../components/dressing-rooms/DressingRoomHeroCard';
+import { DressingRoomCompactCard } from '../../components/dressing-rooms/DressingRoomCompactCard';
 
 const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
 const DRESSING_ROOM_LOAD_ERROR = "We couldn't load your Dressing Rooms. Please refresh and try again.";
-
-function RoomCard({ room }: { room: DressingRoom }) {
-  const cover = room.coverImageUrl || room.coverFallbackUrl;
-  const itemCount = room.itemCount ?? 0;
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      onPress={() => router.push(`/dressing-rooms/${room.id}`)}
-      accessibilityRole="button"
-      accessibilityLabel={`${room.title}, ${itemCount} item${itemCount === 1 ? '' : 's'}. ${room.description || ''}`}
-      accessibilityHint="Open this Dressing Room"
-    >
-      {cover ? (
-        <Image source={{ uri: cover }} style={styles.cover} resizeMode="cover" />
-      ) : (
-        <View style={[styles.cover, styles.coverFallback]}>
-          <Text style={styles.coverFallbackText}>ROOM</Text>
-        </View>
-      )}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{room.title}</Text>
-        {room.description ? (
-          <Text style={styles.cardDescription} numberOfLines={2}>{room.description}</Text>
-        ) : null}
-        <Text style={styles.cardMeta}>{itemCount} ITEM{itemCount === 1 ? '' : 'S'}</Text>
-      </View>
-    </Pressable>
-  );
-}
 
 function CreateRoomModal({
   visible,
@@ -143,6 +116,9 @@ function DressingRoomsContent() {
   const blocking = loading || !!error;
   const friendlyError = error ? DRESSING_ROOM_LOAD_ERROR : null;
 
+  const heroRoom = rooms.length > 0 ? rooms[0] : null;
+  const compactRooms = rooms.length > 1 ? rooms.slice(1) : [];
+
   return (
     <LuxuryScreen
       scrollable
@@ -197,7 +173,14 @@ function DressingRoomsContent() {
             />
           ) : (
             <View style={styles.grid}>
-              {rooms.map((room) => <RoomCard key={room.id} room={room} />)}
+              {heroRoom ? (
+                <View style={styles.heroWrap}>
+                  <DressingRoomHeroCard room={heroRoom} />
+                </View>
+              ) : null}
+              {compactRooms.map((room) => (
+                <DressingRoomCompactCard key={room.id} room={room} />
+              ))}
             </View>
           )}
         </ScrollView>
@@ -237,52 +220,8 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
     marginTop: SPACING.sm,
   },
-  card: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    backgroundColor: LUXURY.colors.pearl,
-    overflow: 'hidden',
-    ...SHADOWS.editorialSmall,
-  },
-  cardPressed: {
-    backgroundColor: LUXURY.colors.cream,
-    borderColor: LUXURY.colors.goldLight,
-  },
-  cover: {
-    width: '100%',
-    aspectRatio: 1.8,
-    backgroundColor: LUXURY.colors.champagne,
-  },
-  coverFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverFallbackText: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.stone,
-    letterSpacing: 3,
-  },
-  cardBody: {
-    padding: SPACING.lg,
-    gap: SPACING.xs,
-  },
-  cardTitle: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.ink,
-    fontSize: 16,
-  },
-  cardDescription: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.graphite,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  cardMeta: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.goldBrushed,
-    marginTop: SPACING.xs,
-    letterSpacing: 1.6,
+  heroWrap: {
+    marginBottom: SPACING.sm,
   },
   modalBackdrop: {
     flex: 1,
