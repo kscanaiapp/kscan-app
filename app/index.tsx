@@ -3,18 +3,24 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import {
   LuxuryScreen,
   KScanHeader,
   PrimaryButton,
+  SecondaryButton,
   SectionHeader,
   PrivacyFooter,
 } from '../components/luxury';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
+import { TEXTSCAN_UI_ENABLED } from '../constants/featureFlags';
 
 export default function Home() {
   const { isAuthenticated, signOut, user, loading } = useAuthSession();
   const [signingOut, setSigningOut] = useState(false);
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const textScanEnabled =
+    TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
 
   const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
   const profileName =
@@ -94,6 +100,16 @@ export default function Home() {
           accessibilityHint="Opens the camera to scan a fashion item"
           style={styles.scanButton}
         />
+        {textScanEnabled && (
+          <SecondaryButton
+            testID="home-textscan-entry-button"
+            title="✧ TextScan"
+            onPress={() => router.push('/text-scan')}
+            accessibilityLabel="Open TextScan"
+            accessibilityHint="Describe a fashion item with text instead of the camera"
+            style={styles.textScanHomeButton}
+          />
+        )}
       </View>
 
       {/* Feature cards */}
@@ -221,6 +237,12 @@ const styles = StyleSheet.create({
   scanButton: {
     alignSelf: 'stretch',
     minWidth: undefined,
+  },
+  textScanHomeButton: {
+    alignSelf: 'stretch',
+    minWidth: undefined,
+    marginTop: SPACING.md,
+    height: 48,
   },
 
   featureGrid: {

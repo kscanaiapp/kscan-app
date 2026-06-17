@@ -31,6 +31,7 @@ import {
   DEV_FALLBACK_STATUS,
   QA_TOOLS_ENABLED,
 } from './constants/build';
+import { TEXTSCAN_UI_ENABLED } from './constants/featureFlags';
 import { QA_FIXTURES } from './constants/qaFixtures';
 import {
   BUTTONS,
@@ -51,21 +52,33 @@ const EMPTY_METADATA = {
   silhouette: '',
 };
 
-// ── Future input-mode extension points (gated, no visible UI) ─────────────────
-const TEXT_SCAN_UI_ENABLED = false;
 const VOICE_UI_ENABLED = false;
 
 /**
- * FUTURE: TextScan entry point.
- * When the backend contract is ready, replace this gated placeholder with a
- * TextScan affordance inside the Scan surface. Keep Scan as the parent feature;
- * do not place TextScan on Home as a separate primary feature.
- * Preferred future placement: near the existing camera capture controls, as an
- * alternate input mode within Scan.
+ * TextScan entry point inside the Scan surface.
+ *
+ * - Rendered as a subtle pill above the capture button.
+ * - Uses the existing dark Scan HUD styling (ivory text, champagne/gold border).
+ * - Tapping pushes /text-scan and leaves the camera view completely.
  */
-function TextScanEntryPointPlaceholder() {
-  if (!TEXT_SCAN_UI_ENABLED) return null;
-  return null;
+function TextScanEntryPoint({ enabled }) {
+  const router = useRouter();
+
+  if (!enabled) return null;
+
+  return (
+    <TouchableOpacity
+      testID="textscan-entry-button"
+      style={styles.textScanEntry}
+      onPress={() => router.push('/text-scan')}
+      activeOpacity={0.86}
+      accessibilityRole="button"
+      accessibilityLabel="Open TextScan"
+      accessibilityHint="Describes a fashion item with text instead of the camera"
+    >
+      <Text style={styles.textScanEntryText}>✧ TextScan</Text>
+    </TouchableOpacity>
+  );
 }
 
 /**
@@ -232,6 +245,8 @@ export default function App() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
+  const textScanEnabled =
+    TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
 
   const {
     status,
@@ -503,7 +518,7 @@ export default function App() {
 
           <View style={styles.bottomBar}>
             {/* Future TextScan / voice affordances — invisible while gated. */}
-            <TextScanEntryPointPlaceholder />
+            <TextScanEntryPoint enabled={textScanEnabled} />
             <VoiceInputPlaceholder />
             {status === 'capturing' ? (
               <ActivityIndicator
@@ -948,6 +963,24 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkOverlay,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.darkOverlayBorder,
+  },
+  textScanEntry: {
+    alignSelf: 'center',
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: COLORS.champagneGold,
+    backgroundColor: 'rgba(9, 7, 13, 0.42)',
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  textScanEntryText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    letterSpacing: 1.6,
+    color: COLORS.textInverse,
   },
   privacyFooter: {
     position: 'absolute',
