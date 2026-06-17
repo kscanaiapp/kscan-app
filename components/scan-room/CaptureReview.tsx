@@ -10,11 +10,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { LuxuryButton } from '../luxury/LuxuryButton';
+import { StatusPill } from '../luxury/StatusPill';
 import { ScanRoomHeader } from './ScanRoomHeader';
 import { AIStarBadge } from '../text-scan/AIStarBadge';
 
 interface CaptureReviewProps {
   imageUri: string;
+  source?: 'camera' | 'upload' | 'fixture';
   onRetake: () => void;
   onAnalyze: () => void;
   testID?: string;
@@ -26,11 +28,13 @@ interface CaptureReviewProps {
  * - Large rounded image card with champagne border.
  * - Clear guidance text.
  * - Analyze Scan = primary glossy plum button.
- * - Retake = secondary gold-outlined button.
+ * - Retake/Replace = secondary gold-outlined button.
  * - No "Add to Dressing Room" here (belongs after analysis in Results).
+ * - Adapts labels for camera vs upload sources.
  */
 export function CaptureReview({
   imageUri,
+  source = 'camera',
   onRetake,
   onAnalyze,
   testID,
@@ -39,6 +43,19 @@ export function CaptureReview({
   const { width: screenWidth } = useWindowDimensions();
   const imageWidth = Math.min(screenWidth - SPACING.xl * 2, 420);
   const imageHeight = imageWidth * 1.25; // 4:5
+
+  const isUpload = source === 'upload';
+  const title = isUpload ? 'Upload Review' : 'Capture Review';
+  const subtitle = isUpload
+    ? 'Confirm the uploaded image is clear before we analyze it.'
+    : 'Confirm the item below is clear and well-framed before we analyze it.';
+  const secondaryLabel = isUpload ? 'Replace Image' : 'Retake';
+  const secondaryHint = isUpload
+    ? 'Choose a different image from your library'
+    : 'Discard this photo and return to camera';
+  const imageAccessibilityLabel = isUpload
+    ? 'Uploaded inspiration image'
+    : 'Captured scan image';
 
   return (
     <ScrollView
@@ -52,10 +69,8 @@ export function CaptureReview({
     >
       <ScanRoomHeader badge={<AIStarBadge />} />
 
-      <Text style={styles.screenTitle}>Capture Review</Text>
-      <Text style={styles.screenSubtitle}>
-        Confirm the item below is clear and well-framed before we analyze it.
-      </Text>
+      <Text style={styles.screenTitle}>{title}</Text>
+      <Text style={styles.screenSubtitle}>{subtitle}</Text>
 
       {/* Image card */}
       <View style={[styles.imageCard, { width: imageWidth, height: imageHeight }]}>
@@ -63,8 +78,27 @@ export function CaptureReview({
           source={{ uri: imageUri }}
           style={styles.image}
           resizeMode="cover"
-          accessibilityLabel="Captured scan image"
+          accessibilityLabel={imageAccessibilityLabel}
         />
+        {isUpload && (
+          <View style={styles.badgeWrap}>
+            <StatusPill
+              label="Upload"
+              variant="neutral"
+              accessibilityLabel="Upload source"
+            />
+          </View>
+        )}
+      </View>
+
+      {/* Metadata placeholder card */}
+      <View style={styles.metaCard}>
+        <Text style={styles.metaLabel}>Category —</Text>
+        <Text style={styles.metaLabel}>Color —</Text>
+        <Text style={styles.metaLabel}>Silhouette —</Text>
+        <Text style={styles.metaMicro}>
+          AI analysis will complete this after scanning.
+        </Text>
       </View>
 
       {/* Guidance card */}
@@ -78,12 +112,12 @@ export function CaptureReview({
       {/* Buttons */}
       <View style={styles.buttonRow}>
         <LuxuryButton
-          title="Retake"
+          title={secondaryLabel}
           variant="secondary"
           onPress={onRetake}
-          accessibilityLabel="Retake photo"
-          accessibilityHint="Discard this photo and return to camera"
-          testID="scan-room-retake"
+          accessibilityLabel={secondaryLabel}
+          accessibilityHint={secondaryHint}
+          testID={isUpload ? 'scan-room-replace-image' : 'scan-room-retake'}
         />
         <LuxuryButton
           title="Analyze Scan"
@@ -94,6 +128,11 @@ export function CaptureReview({
           testID="scan-room-analyze"
         />
       </View>
+
+      {/* Privacy microcopy */}
+      <Text style={styles.privacyText}>
+        Private by design. Your uploaded images are not sold to third-party data buyers.
+      </Text>
     </ScrollView>
   );
 }
@@ -132,6 +171,35 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  badgeWrap: {
+    position: 'absolute',
+    bottom: SPACING.md,
+    left: SPACING.md,
+  },
+  metaCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.lg,
+    marginTop: SPACING.lg,
+    alignSelf: 'stretch',
+    ...SHADOWS.editorialSmall,
+  },
+  metaLabel: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.stone,
+    lineHeight: 20,
+  },
+  metaMicro: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.xs,
+    fontStyle: 'italic',
+  },
   guidanceCard: {
     borderRadius: RADIUS.lg,
     borderWidth: 1,
@@ -162,5 +230,14 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     marginTop: SPACING.xl,
     flexWrap: 'wrap',
+  },
+  privacyText: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+    marginTop: SPACING.lg,
+    maxWidth: 320,
   },
 });

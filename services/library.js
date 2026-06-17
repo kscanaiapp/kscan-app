@@ -96,9 +96,10 @@ export async function loadLibrary() {
  * @param {object} opts
  * @param {string} opts.photoUri   - original capture URI (may be temp cache)
  * @param {object} opts.analysis   - { result, metadata, products } from useKScan
+ * @param {string} [opts.source]   - source identifier ('scan', 'camera', 'upload', 'fixture')
  * @returns {SavedScan|null}  the saved object, or null on complete failure
  */
-export async function saveScan({ photoUri, analysis }) {
+export async function saveScan({ photoUri, analysis, source }) {
   try {
     const id = 'scan_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
 
@@ -123,7 +124,7 @@ export async function saveScan({ photoUri, analysis }) {
       },
       result:   analysis.result   ?? '',
       products: Array.isArray(analysis.products) ? analysis.products : [],
-      source:   'scan',
+      source:   source || 'scan',
     };
 
     const existing = await loadLibrary();

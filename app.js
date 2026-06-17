@@ -404,7 +404,7 @@ export default function App() {
     if (status !== 'result' || !photo?.uri || !analysis || hasSavedRef.current) return;
     hasSavedRef.current = true;
     let live = true;
-    saveScan({ photoUri: photo.uri, analysis }).then(saved => {
+    saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' }).then(saved => {
       if (live && saved) setSavedToast(true);
     });
     return () => { live = false; };
@@ -721,7 +721,7 @@ export default function App() {
               onUpload={handleUploadImage}
               onTextScan={() => router.push('/text-scan')}
               onBack={() => setV2CameraVisible(false)}
-              textScanEnabled={TEXTSCAN_UI_ENABLED}
+              textScanEnabled={textScanEnabled}
             />
           );
 
@@ -758,7 +758,8 @@ export default function App() {
           return (
             <CaptureReview
               imageUri={photo.uri}
-              onRetake={retake}
+              source={photo.source || 'camera'}
+              onRetake={photo.source === 'upload' ? handleUploadImage : retake}
               onAnalyze={runAnalysis}
             />
           );

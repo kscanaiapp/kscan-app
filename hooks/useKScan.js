@@ -90,7 +90,7 @@ export function useKScan() {
         const result = await cameraRef.current.takePictureAsync({
           quality: 0.7,
         });
-        setPhoto(result);
+        setPhoto({ ...result, source: 'camera' });
         setError(null);
         setStatus('preview');
       } catch (err) {
@@ -297,7 +297,7 @@ export function useKScan() {
 
       if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
-      setPhoto({ uri, qaFixtureName: fixtureName });
+      setPhoto({ uri, qaFixtureName: fixtureName, source: 'fixture' });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -311,7 +311,7 @@ export function useKScan() {
 
   const uploadPhoto = useCallback(
     (uri) => {
-      if (status !== 'idle') {
+      if (status !== 'idle' && status !== 'preview') {
         warnInvalidTransition(status, 'capturing');
         return;
       }
@@ -322,7 +322,7 @@ export function useKScan() {
         return;
       }
 
-      setPhoto({ uri });
+      setPhoto({ uri, source: 'upload' });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
