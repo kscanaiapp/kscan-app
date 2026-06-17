@@ -4,15 +4,18 @@ import {
   Text,
   ScrollView,
   StyleSheet,
+  Keyboard,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   LuxuryScreen,
   PrimaryButton,
+  SecondaryButton,
   SectionHeader,
   EmptyStateCard,
   InlineNotice,
+  StatusPill,
 } from '../../components/luxury';
 import {
   AIStarBadge,
@@ -51,6 +54,7 @@ export default function TextScanScreen() {
 
   const handleSubmit = () => {
     if (!isQueryValid) return;
+    Keyboard.dismiss();
     setViewState('processing');
   };
 
@@ -90,29 +94,28 @@ export default function TextScanScreen() {
         onChangeText={setQuery}
         minLength={MIN_QUERY_LENGTH}
         maxLength={MAX_QUERY_LENGTH}
+        placeholder="e.g., oversized wool coat in camel"
         style={styles.inputCard}
         accessibilityLabel="TextScan fashion query"
       />
 
-      {TEXTSCAN_DEMO_RESULTS_ENABLED && (
-        <View style={styles.suggestionsRow}>
-          {TEXTSCAN_DEMO_SUGGESTIONS.map((suggestion) => (
-            <TextScanSuggestionChip
-              key={suggestion}
-              label={suggestion}
-              onPress={() => setQuery(suggestion)}
-              accessibilityLabel={`Use suggestion: ${suggestion}`}
-            />
-          ))}
-        </View>
-      )}
+      <View style={styles.suggestionsRow}>
+        {TEXTSCAN_DEMO_SUGGESTIONS.map((suggestion) => (
+          <TextScanSuggestionChip
+            key={suggestion}
+            label={suggestion}
+            onPress={() => setQuery(suggestion)}
+            accessibilityLabel={`Use suggestion: ${suggestion}`}
+          />
+        ))}
+      </View>
 
       <PrimaryButton
         testID="textscan-submit-button"
-        title="Scan Search ✧"
+        title="Analyze Request"
         onPress={handleSubmit}
         disabled={!isQueryValid}
-        accessibilityLabel="Scan search"
+        accessibilityLabel="Analyze request"
         accessibilityHint="Starts interpreting your fashion query"
         style={styles.submitButton}
       />
@@ -165,22 +168,86 @@ export default function TextScanScreen() {
     </View>
   );
 
+  const handleScanAgain = () => {
+    setQuery('');
+    setViewState('input');
+    router.back();
+  };
+
   const renderResultsState = () => {
     if (!TEXTSCAN_DEMO_RESULTS_ENABLED) {
       return (
         <View style={styles.resultsContainer}>
-          <EmptyStateCard
-            title="TextScan matching is being prepared."
-            subtitle="Camera Scan is available now. Your TextScan UI is ready for backend wiring."
-            icon={<Text style={styles.emptyIcon}>✦</Text>}
-            action={{
-              label: 'Edit Search',
-              onPress: () => setViewState('input'),
-              accessibilityLabel: 'Edit search query',
-              testID: 'textscan-edit-search-button',
-            }}
-            testID="textscan-prepared-state"
-          />
+          {/* User Request Card */}
+          <View style={styles.requestCard}>
+            <Text style={styles.requestLabel}>YOUR REQUEST</Text>
+            <Text style={styles.requestQuery}>{query}</Text>
+            <View style={styles.badgeWrap}>
+              <StatusPill
+                label="TextScan"
+                variant="neutral"
+                accessibilityLabel="TextScan source"
+              />
+            </View>
+          </View>
+
+          {/* Analysis Summary */}
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>ANALYSIS</Text>
+            <Text style={styles.summaryBody}>
+              Live TextScan matching is being prepared.
+            </Text>
+          </View>
+
+          {/* Attribute Placeholders */}
+          <View style={styles.attributesCard}>
+            <SectionHeader
+              title="Interpreted Attributes"
+              actionLabel="Edit"
+              onAction={() => setViewState('input')}
+              actionAccessibilityLabel="Edit search query"
+            />
+            <AttributeGrid
+              attributes={{
+                category: '—',
+                silhouette: '—',
+                color: '—',
+                material: '—',
+                style: '—',
+                budget: '—',
+              }}
+            />
+          </View>
+
+          {/* Actions */}
+          <View style={styles.actionStack}>
+            <SecondaryButton
+              title="Ask StyleChat"
+              onPress={() => router.push('/style-chat')}
+              accessibilityLabel="Ask StyleChat about this request"
+              testID="textscan-ask-stylechat"
+            />
+            <SecondaryButton
+              title="Save to Style Library"
+              disabled
+              onPress={() => {}}
+              accessibilityLabel="Save support for TextScan is being prepared"
+              testID="textscan-save-library"
+            />
+            <SecondaryButton
+              title="Add to Dressing Room"
+              disabled
+              onPress={() => {}}
+              accessibilityLabel="Dressing Room support for TextScan is being prepared"
+              testID="textscan-add-room"
+            />
+            <PrimaryButton
+              title="Scan Again"
+              onPress={handleScanAgain}
+              accessibilityLabel="Start a new TextScan query"
+              testID="textscan-scan-again"
+            />
+          </View>
         </View>
       );
     }
@@ -418,4 +485,54 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: LUXURY.colors.goldBrushed,
   },
+  requestCard: {
+    backgroundColor: LUXURY.colors.warmWhite,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    padding: SPACING.lg,
+    ...SHADOWS.editorialRaised,
+  },
+  requestLabel: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 2.0,
+    color: LUXURY.colors.goldBrushed,
+    marginBottom: SPACING.xs,
+  },
+  requestQuery: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 16,
+    lineHeight: 22,
+    color: LUXURY.colors.plumDeep,
+    marginBottom: SPACING.md,
+  },
+  badgeWrap: {
+    alignSelf: 'flex-start',
+  },
+  summaryCard: {
+    backgroundColor: LUXURY.colors.pearl,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    padding: SPACING.lg,
+    ...SHADOWS.editorialSmall,
+  },
+  summaryLabel: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 2.0,
+    color: LUXURY.colors.goldBrushed,
+    marginBottom: SPACING.xs,
+  },
+  summaryBody: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
+  },
+  actionStack: {
+    gap: SPACING.md,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.xxl,
+  },
 });
+
