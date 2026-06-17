@@ -87,7 +87,7 @@ export const SCAN_ROOM_V2_UI_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_SCAN_ROOM_V2_UI === 'true';
 
-/** Multi-item scanning is future. Do not build UI in this sprint unless enabled. */
-export const SCAN_MULTI_ITEM_ENABLED =
+/** Enables the onboarding framework V1 shell for unauthenticated users. */
+export const ONBOARDING_FRAMEWORK_V1_ENABLED =
   typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_SCAN_MULTI_ITEM === 'true';
+  process.env?.EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1 === 'true';

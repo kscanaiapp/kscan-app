@@ -8,6 +8,7 @@ import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContex
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { ONBOARDING_FRAMEWORK_V1_ENABLED } from '../constants/featureFlags';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
@@ -71,9 +72,20 @@ function AuthGate() {
 
   useEffect(() => {
     if (!waitingForAuthCallbackRoute && guardState.action === 'redirect' && guardState.redirectTo) {
-      router.replace(guardState.redirectTo);
+      const redirectTo =
+        ONBOARDING_FRAMEWORK_V1_ENABLED && guardState.redirectTo === '/auth'
+          ? '/onboarding'
+          : guardState.redirectTo;
+      router.replace(redirectTo);
     }
   }, [guardState.action, guardState.redirectTo, waitingForAuthCallbackRoute]);
+
+  // Redirect authenticated users away from onboarding (defensive — routing guard also handles this)
+  useEffect(() => {
+    if (!loading && session && pathname === '/onboarding') {
+      router.replace('/');
+    }
+  }, [loading, session, pathname]);
 
   if (waitingForAuthCallbackRoute) {
     return <Stack screenOptions={{ headerShown: false }} />;

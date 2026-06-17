@@ -3,6 +3,7 @@ const PUBLIC_ROUTES = new Set([
   '/auth/callback',
   '/auth/reset',
   '/auth/update-password',
+  '/onboarding',
 ]);
 
 const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy']);
@@ -23,6 +24,10 @@ function isPublicRoute(pathname) {
 
 function isAuthEntryRoute(pathname) {
   return normalizePathname(pathname) === '/auth';
+}
+
+function isOnboardingRoute(pathname) {
+  return normalizePathname(pathname) === '/onboarding';
 }
 
 function isAuthCallbackUrl(url) {
@@ -72,7 +77,7 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/privacy' };
   }
 
-  if (isAuthEntryRoute(normalizedPathname)) {
+  if (isAuthEntryRoute(normalizedPathname) || isOnboardingRoute(normalizedPathname)) {
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/' };
   }
 
@@ -86,6 +91,7 @@ module.exports = {
   hasPendingDeletionProfile,
   isAuthCallbackUrl,
   isLimitedAccountRoute,
+  isOnboardingRoute,
   isPublicRoute,
   isSessionUsable,
   normalizePathname,
