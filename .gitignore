@@ -95,3 +95,17 @@ product-search-response.json
 .env.local
 .env.*
 API Keys.docx
+
+# Allow K Scan QA mockup references
+!qa/mockups/
+!qa/mockups/**
+!qa/mockups/**/*.png
+!qa/mockups/**/*.jpg
+!qa/mockups/**/*.jpeg
+!qa/mockups/**/*.webp
+!qa/mockups/**/README.md
+
+# Keep smoke / live test artifacts excluded despite mockup exception above
+qa/scan-room-v2-smoke-*/
+.maestro/flows/smoke/
+scripts/textscan-live-smoke.ps1
