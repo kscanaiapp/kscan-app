@@ -319,6 +319,12 @@ export default function App() {
     if (QA_TOOLS_ENABLED) console.log('[K-SCAN] API URL:', getApiBaseUrl());
   }, []);
 
+  useEffect(() => {
+    if (status === 'processing') {
+      setV2AnalyzingMinComplete(false);
+    }
+  }, [status]);
+
   const handleBrandPress = useCallback(() => {
     if (!QA_TOOLS_ENABLED) return;
 
@@ -703,7 +709,7 @@ export default function App() {
                 onOpenCamera={() => setV2CameraVisible(true)}
                 onUploadImage={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
-                textScanEnabled={TEXTSCAN_UI_ENABLED}
+                textScanEnabled={textScanEnabled}
               />
             );
           }
@@ -738,14 +744,14 @@ export default function App() {
                 onUpload={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
                 onBack={() => setV2CameraVisible(false)}
-                textScanEnabled={TEXTSCAN_UI_ENABLED}
+                textScanEnabled={textScanEnabled}
               />
             ) : (
               <ScanLanding
                 onOpenCamera={() => setV2CameraVisible(true)}
                 onUploadImage={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
-                textScanEnabled={TEXTSCAN_UI_ENABLED}
+                textScanEnabled={textScanEnabled}
               />
             );
           }

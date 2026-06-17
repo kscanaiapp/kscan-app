@@ -143,21 +143,25 @@ export default function TextScanScreen() {
         </View>
       )}
 
-      <View style={styles.refiningCard}>
-        <Text style={styles.refiningTitle}>Refining results...</Text>
-        <Text style={styles.refiningBody}>
-          Finding the best matches across retail and resale.
-        </Text>
-      </View>
-
-      <View style={styles.composerShell} pointerEvents="none">
-        <Text style={styles.composerLabel}>Preview only</Text>
-        <View style={styles.composerField}>
-          <Text style={styles.composerPlaceholder}>
-            Ask me anything about style...
+      {TEXTSCAN_DEMO_RESULTS_ENABLED && (
+        <View style={styles.refiningCard}>
+          <Text style={styles.refiningTitle}>Refining results...</Text>
+          <Text style={styles.refiningBody}>
+            Finding the best matches across retail and resale.
           </Text>
         </View>
-      </View>
+      )}
+
+      {TEXTSCAN_DEMO_RESULTS_ENABLED && (
+        <View style={styles.composerShell} pointerEvents="none">
+          <Text style={styles.composerLabel}>Preview only</Text>
+          <View style={styles.composerField}>
+            <Text style={styles.composerPlaceholder}>
+              Ask me anything about style...
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 
