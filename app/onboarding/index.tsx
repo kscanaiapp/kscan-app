@@ -56,11 +56,14 @@ export default function OnboardingScreen() {
   // Step 4: Terms
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
+  const [ageChecked, setAgeChecked] = useState(false);
   // Local placeholders for future backend fields (do not persist)
   const [acceptedTermsAt] = useState<string | null>(null);
   const [acceptedPrivacyAt] = useState<string | null>(null);
+  const [acceptedAgeAt] = useState<string | null>(null);
   const [termsVersion] = useState<string | null>(null);
   const [privacyVersion] = useState<string | null>(null);
+  const [ageVersion] = useState<string | null>(null);
 
   // Step 5: Permissions (visual toggles only)
   const [cameraPref, setCameraPref] = useState(false);
@@ -382,11 +385,29 @@ export default function OnboardingScreen() {
         <Text style={styles.checkboxLabel}>I acknowledge the Privacy Policy</Text>
       </Pressable>
 
+      <Pressable
+        testID="onboarding-age-checkbox"
+        onPress={() => setAgeChecked((v) => !v)}
+        style={styles.checkboxRow}
+        accessibilityRole="checkbox"
+        accessibilityLabel="Age confirmation checkbox"
+        accessibilityState={{ checked: ageChecked }}
+      >
+        <View style={[styles.checkbox, ageChecked && styles.checkboxChecked]}>
+          {ageChecked && <Text style={styles.checkmark}>✓</Text>}
+        </View>
+        <Text style={styles.checkboxLabel}>I confirm that I am 18 years of age or older.</Text>
+      </Pressable>
+
+      <Text style={styles.ageFooter}>
+        By continuing, you acknowledge that K Scan AI is intended for users 18 years of age or older.
+      </Text>
+
       <PrimaryButton
         testID="onboarding-accept-continue-button"
         title="Accept & Continue"
         onPress={goToNext}
-        disabled={!termsChecked || !privacyChecked}
+        disabled={!termsChecked || !privacyChecked || !ageChecked}
         style={styles.wideButton}
       />
     </View>
@@ -661,6 +682,15 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: LUXURY.colors.graphite,
     paddingHorizontal: SPACING.sm,
+  },
+  ageFooter: {
+    ...LUXURY.typography.caption,
+    textTransform: 'none',
+    letterSpacing: 0.2,
+    lineHeight: 18,
+    color: LUXURY.colors.stone,
+    paddingHorizontal: SPACING.sm,
+    marginTop: -SPACING.sm,
   },
   // Permissions
   permissionRow: {
