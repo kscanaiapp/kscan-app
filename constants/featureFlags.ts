@@ -71,3 +71,13 @@ export const TEXTSCAN_DEMO_RESULTS_ENABLED =
 export const TEXTSCAN_VOICE_PLACEHOLDER_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER === 'true';
+
+// ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
+export const SCAN_RESULTS_V2_UI_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';
+
+/** Enables demo/preview data for Scan Results V2 layout review. Off by default. */
+export const SCAN_RESULTS_DEMO_UI_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI === 'true';
