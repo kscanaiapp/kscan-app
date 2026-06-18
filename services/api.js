@@ -117,6 +117,229 @@ function deduplicateProducts(products) {
 }
 
 /**
+ * POST text query to /api/analyze with mode: 'text'.
+ *
+ * Frontend timeout: 15 seconds (server AI timeout is 10 s).
+ *
+ * Input validation runs before the network call:
+ *   - query must be a string, trimmed, 3–500 chars
+ *   - rejects base64-like payloads, code blocks, prompt injection
+ *   - rejects email, phone, SSN-like patterns
+ *   - rejects >30% non-alphanumeric characters
+ *
+ * Returns normalized backend response on success.
+ * Throws safe errors on timeout, rate limit, or failure.
+ */
+export async function analyzeText(query, options = {}) {
+  const source = options?.source ?? 'textscan';
+
+  // ── Input validation ───────────────────────────────────────────────────────
+  if (typeof query !== 'string') {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  const trimmed = query.trim();
+
+  if (trimmed.length === 0 || trimmed.length < 3 || trimmed.length > 500) {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  const normalized = trimmed.replace(/\s+/g, ' ');
+
+  // Reject base64-like payloads
+  if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(normalized)) {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  // Reject code blocks
+  if (normalized.includes('```') || normalized.includes('`')) {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  // Reject prompt injection patterns
+  const injectionPatterns = [
+    'ignore previous instructions',
+    'system prompt',
+    'developer message',
+    'reveal your prompt',
+    'act as another system',
+    'ignore all instructions',
+    'forget previous',
+    'you are now',
+    'new role:',
+    'override instructions',
+  ];
+  const lower = normalized.toLowerCase();
+  for (const pattern of injectionPatterns) {
+    if (lower.includes(pattern)) {
+      throw userSafeError(
+        'TEXTSCAN_INVALID_INPUT',
+        'Invalid query format. Please describe a fashion item.'
+      );
+    }
+  }
+
+  // Reject email addresses
+  if (/[\w.+-]+@[\w.-]+\.\w+/.test(normalized)) {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  // Reject phone numbers
+  if (/(\+?\d[\d\s-]{7,}\d)/.test(normalized)) {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  // Reject SSN-like patterns
+  if (/\b\d{3}[\s-]\d{2}[\s-]\d{4}\b/.test(normalized)) {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  // Reject queries with more than 30% non-alphanumeric characters
+  const nonAlphaNum = (normalized.match(/[^a-zA-Z0-9\s]/g) || []).length;
+  if (nonAlphaNum / normalized.length > 0.30) {
+    throw userSafeError(
+      'TEXTSCAN_INVALID_INPUT',
+      'Invalid query format. Please describe a fashion item.'
+    );
+  }
+
+  // ── Request ────────────────────────────────────────────────────────────────
+  const TEXTSCAN_TIMEOUT_MS = 15000;
+  const requestStartedAt = Date.now();
+  const endpoint = `${BASE_URL}/api/analyze`;
+  const requestBody = JSON.stringify({ mode: 'text', query: normalized, source });
+  const requestId = createAnalyzeRequestId();
+
+  logAnalyzeDiag({
+    event: 'textscan_request_prepared',
+    requestId,
+    endpoint,
+    queryLength: normalized.length,
+    bodyBytes: requestBody.length,
+  });
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TEXTSCAN_TIMEOUT_MS);
+
+  try {
+    logAnalyzeDiag({
+      event: 'textscan_request_start',
+      requestId,
+      endpoint,
+      elapsedMs: Date.now() - requestStartedAt,
+    });
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: requestBody,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    logAnalyzeDiag({
+      event: 'textscan_request_response',
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      status: response.status,
+      ok: response.ok,
+    });
+
+    // Guard: try parsing JSON; surface a clean error if the server sent garbage
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Server returned an unreadable response (${response.status}).`);
+    }
+
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log('[K-SCAN] textscan raw response:', JSON.stringify(data));
+    }
+
+    // Rate limit
+    if (response.status === 429) {
+      throw userSafeError(
+        'TEXTSCAN_RATE_LIMITED',
+        data?.message || 'Too many requests. Please try again later.'
+      );
+    }
+
+    if (!response.ok) {
+      const safeMessages = {
+        TEXTSCAN_INVALID_INPUT: 'Invalid query format. Please describe a fashion item.',
+        TEXTSCAN_RATE_LIMITED: 'Too many requests. Please try again later.',
+        TEXTSCAN_TIMEOUT: 'Analysis is taking longer than expected. Please try again in a moment.',
+        TEXTSCAN_ANALYSIS_FAILED: 'Unable to analyze this style request. Please try again.',
+        TEXTSCAN_NON_FASHION: "This doesn't appear to be a fashion query. Try describing a garment, style, or outfit.",
+        TEXTSCAN_BACKEND_DISABLED: 'Text analysis is coming soon.',
+      };
+      if (data?.error === true && data?.code) {
+        const safeMessage = safeMessages[data.code] || 'Unable to analyze this style request. Please try again.';
+        throw userSafeError(data.code, safeMessage);
+      }
+      throw new Error(
+        safeMessages.TEXTSCAN_ANALYSIS_FAILED
+      );
+    }
+
+    logAnalyzeDiag({
+      event: 'textscan_request_success',
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      status: response.status,
+    });
+
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    logAnalyzeDiag({
+      event: 'textscan_request_error',
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      errorName: err?.name ?? null,
+      errorMessage: err?.message ?? null,
+    });
+
+    if (err.name === 'AbortError') {
+      throw userSafeError(
+        'TEXTSCAN_TIMEOUT',
+        'Analysis is taking longer than expected. Please try again in a moment.'
+      );
+    }
+    if (err instanceof TypeError || err.name === 'TypeError') {
+      throw userSafeError(
+        'TEXTSCAN_ANALYSIS_FAILED',
+        'We couldn\u2019t complete the analysis. Please check your connection and try again.'
+      );
+    }
+    throw err;
+  }
+}
+
+/**
  * POST image to /api/analyze.
  * Returns one of:
  *   { type: 'fashion', result, metadata, products }
@@ -243,7 +466,7 @@ export async function analyzeImage(base64) {
       );
     }
     // Network / connection failure (fetch throws TypeError for unreachable hosts)
-    if (err instanceof TypeError) {
+    if (err instanceof TypeError || err.name === 'TypeError') {
       throw userSafeError(
         'Network request failed.',
         'We couldn’t complete the scan. Please check your connection and try again.'
