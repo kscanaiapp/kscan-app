@@ -201,9 +201,7 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
       } catch (error) {
         setRemoteRow(null);
         setRemoteFetchFailed(true);
-        setRemoteFetchError(
-          error instanceof Error ? error.message : 'Unable to load privacy settings.',
-        );
+        setRemoteFetchError('Unable to load privacy settings. Please try again later.');
         setProfile(DEFAULT_PROFILE);
         setSyncStatus('error');
       }

@@ -26,6 +26,7 @@ export default function StyleChatIndexScreen() {
     setIsCreating(true);
     try {
       const session = await createSession();
+      if (!session?.id) return;
       router.push(`/style-chat/${session.id}`);
     } catch {
       // createSession throws on auth failure; the session list will show an
