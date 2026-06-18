@@ -29,9 +29,17 @@ import {
 } from '../../components/text-scan';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import {
+  TEXTSCAN_BACKEND_ENABLED,
   TEXTSCAN_DEMO_RESULTS_ENABLED,
   TEXTSCAN_VOICE_PLACEHOLDER_ENABLED,
 } from '../../constants/featureFlags';
+import { analyzeText } from '../../services/api';
+import {
+  normalizeTextScanResult,
+  validateTextScanQuery,
+  toAttributeGrid,
+} from '../../services/textScan';
+import type { TextScanResult } from '../../services/textScan';
 import {
   TEXTSCAN_DEMO_ATTRIBUTES,
   TEXTSCAN_DEMO_PRODUCTS,
@@ -44,8 +52,9 @@ import type { TextScanFilter } from '../../components/text-scan/ResultFilterTabs
 type ViewState = 'input' | 'processing' | 'results';
 
 const MIN_QUERY_LENGTH = 3;
-const MAX_QUERY_LENGTH = 240;
+const MAX_QUERY_LENGTH = 500;
 const PROCESSING_TIMEOUT_MS = 2000;
+const SUBMIT_DEBOUNCE_MS = 500;
 
 export default function TextScanScreen() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
@@ -54,24 +63,74 @@ export default function TextScanScreen() {
   const [viewState, setViewState] = useState<ViewState>('input');
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<TextScanFilter>('all');
+  const [textScanResult, setTextScanResult] = useState<TextScanResult | null>(null);
+  const [textScanError, setTextScanError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastSubmitAt, setLastSubmitAt] = useState(0);
 
   const isQueryValid = query.trim().length >= MIN_QUERY_LENGTH;
 
   const handleSubmit = () => {
-    if (!isQueryValid) return;
+    if (!isQueryValid || isSubmitting) return;
+
+    // Debounce
+    const now = Date.now();
+    if (now - lastSubmitAt < SUBMIT_DEBOUNCE_MS) return;
+    setLastSubmitAt(now);
+
     Keyboard.dismiss();
+    setTextScanResult(null);
+    setTextScanError(null);
+    setIsSubmitting(true);
     setViewState('processing');
   };
 
-  // Simulate a brief processing state, then land on results/prepared.
+  // Processing effect: demo mode uses a timer; backend mode calls the API.
   useEffect(() => {
     if (viewState !== 'processing') return;
 
-    const timer = setTimeout(() => {
-      setViewState('results');
-    }, PROCESSING_TIMEOUT_MS);
+    if (!TEXTSCAN_BACKEND_ENABLED) {
+      const timer = setTimeout(() => {
+        setViewState('results');
+        setIsSubmitting(false);
+      }, PROCESSING_TIMEOUT_MS);
+      return () => clearTimeout(timer);
+    }
 
-    return () => clearTimeout(timer);
+    let cancelled = false;
+
+    const runBackend = async () => {
+      try {
+        const validation = validateTextScanQuery(query);
+        if (!validation.valid) {
+          if (!cancelled) {
+            setTextScanError(validation.message);
+            setViewState('results');
+            setIsSubmitting(false);
+          }
+          return;
+        }
+
+        const raw = await analyzeText(query, { source: 'textscan' });
+        if (!cancelled) {
+          const normalized = normalizeTextScanResult(raw, query);
+          setTextScanResult(normalized);
+          setViewState('results');
+          setIsSubmitting(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setTextScanError(
+            err?.userMessage || 'Unable to analyze this style request. Please try again.'
+          );
+          setViewState('results');
+          setIsSubmitting(false);
+        }
+      }
+    };
+
+    runBackend();
+    return () => { cancelled = true; };
   }, [viewState]);
 
   const retailProducts = TEXTSCAN_DEMO_PRODUCTS.filter((p) => p.type === 'retail');
@@ -119,7 +178,7 @@ export default function TextScanScreen() {
         testID="textscan-submit-button"
         title="Analyze Request"
         onPress={handleSubmit}
-        disabled={!isQueryValid}
+        disabled={!isQueryValid || isSubmitting}
         accessibilityLabel="Analyze request"
         accessibilityHint="Starts interpreting your fashion query"
         style={styles.submitButton}
@@ -138,6 +197,15 @@ export default function TextScanScreen() {
         <Text style={styles.processingSparkle}>✦</Text>
         <Text style={styles.processingTitle}>Parsing your request...</Text>
       </View>
+
+      {TEXTSCAN_BACKEND_ENABLED && (
+        <View style={styles.refiningCard}>
+          <Text style={styles.refiningTitle}>Analyzing style...</Text>
+          <Text style={styles.refiningBody}>
+            Interpreting your fashion query.
+          </Text>
+        </View>
+      )}
 
       {TEXTSCAN_DEMO_RESULTS_ENABLED && (
         <View style={styles.attributesCard}>
@@ -175,11 +243,19 @@ export default function TextScanScreen() {
 
   const handleScanAgain = () => {
     setQuery('');
+    setTextScanResult(null);
+    setTextScanError(null);
     setViewState('input');
   };
 
   const renderResultsState = () => {
-    if (!TEXTSCAN_DEMO_RESULTS_ENABLED) {
+    // ── Backend result branch ────────────────────────────────────────────────
+    if (TEXTSCAN_BACKEND_ENABLED && (textScanResult || textScanError)) {
+      const isNonFashion = textScanResult?.type === 'non_fashion_text';
+      const attributes = textScanResult?.metadata?.attributes
+        ? toAttributeGrid(textScanResult.metadata.attributes)
+        : { category: '—', silhouette: '—', color: '—', material: '—', style: '—', budget: '—' };
+
       return (
         <View style={styles.resultsContainer}>
           {/* User Request Card */}
@@ -198,34 +274,45 @@ export default function TextScanScreen() {
           {/* Analysis Summary */}
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>ANALYSIS</Text>
-            <Text style={styles.summaryBody}>
-              Live TextScan matching is being prepared.
-            </Text>
+            {textScanError ? (
+              <Text style={styles.summaryBody}>{textScanError}</Text>
+            ) : isNonFashion ? (
+              <Text style={styles.summaryBody}>
+                {textScanResult?.result || "This doesn't appear to be a fashion query. Try describing a garment, style, or outfit."}
+              </Text>
+            ) : (
+              <Text style={styles.summaryBody}>
+                {textScanResult?.result || 'Analysis complete.'}
+              </Text>
+            )}
           </View>
 
-          {/* Attribute Placeholders */}
-          <View style={styles.attributesCard}>
-            <SectionHeader
-              title="Interpreted Attributes"
-              actionLabel="Edit"
-              onAction={() => setViewState('input')}
-              actionAccessibilityLabel="Edit search query"
-            />
-            <AttributeGrid
-              attributes={{
-                category: '—',
-                silhouette: '—',
-                color: '—',
-                material: '—',
-                style: '—',
-                budget: '—',
-              }}
-            />
-          </View>
+          {/* Interpreted Attributes */}
+          {!textScanError && (
+            <View style={styles.attributesCard}>
+              <SectionHeader
+                title="Interpreted Attributes"
+                actionLabel="Edit"
+                onAction={() => setViewState('input')}
+                actionAccessibilityLabel="Edit search query"
+              />
+              <AttributeGrid attributes={attributes} />
+            </View>
+          )}
+
+          {/* Safe empty state for non-fashion */}
+          {!textScanError && isNonFashion && (
+            <View style={styles.refiningCard}>
+              <Text style={styles.refiningTitle}>Not a fashion query</Text>
+              <Text style={styles.refiningBody}>
+                Try describing a garment, style, or outfit.
+              </Text>
+            </View>
+          )}
 
           {/* Actions */}
           <View style={styles.actionStack}>
-            {styleChatEnabled && (
+            {styleChatEnabled && !textScanError && !isNonFashion && (
               <SecondaryButton
                 title="Ask StyleChat"
                 onPress={() => {
@@ -244,14 +331,14 @@ export default function TextScanScreen() {
               title="Save to Style Library"
               disabled
               onPress={() => {}}
-              accessibilityLabel="Save support for TextScan is being prepared"
+              accessibilityLabel="Save coming soon for TextScan"
               testID="textscan-save-library"
             />
             <SecondaryButton
               title="Add to Dressing Room"
               disabled
               onPress={() => {}}
-              accessibilityLabel="Dressing Room support for TextScan is being prepared"
+              accessibilityLabel="Add to Room coming soon for TextScan"
               testID="textscan-add-room"
             />
             <PrimaryButton
@@ -265,75 +352,165 @@ export default function TextScanScreen() {
       );
     }
 
+    // ── Demo branch ──────────────────────────────────────────────────────────
+    if (TEXTSCAN_DEMO_RESULTS_ENABLED) {
+      return (
+        <View style={styles.resultsContainer}>
+          <InlineNotice
+            variant="info"
+            title="Demo preview"
+            body={`${TEXTSCAN_DEMO_PRODUCTS.length} sample results for your search`}
+            style={styles.demoNotice}
+          />
+
+          <ResultFilterTabs
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+            style={styles.filterTabs}
+          />
+
+          {activeFilter !== 'resale' && retailProducts.length > 0 && (
+            <>
+              <SectionHeader
+                title="Retail Matches"
+                actionLabel="See all >"
+                onAction={() => {}}
+                actionAccessibilityLabel="See all retail matches"
+              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.productShelf}
+              >
+                {retailProducts.map((product) => (
+                  <TextScanProductCard
+                    key={product.id}
+                    product={product}
+                    style={styles.productCard}
+                  />
+                ))}
+              </ScrollView>
+            </>
+          )}
+
+          {activeFilter !== 'retail' && resaleProducts.length > 0 && (
+            <>
+              <SectionHeader
+                title="Resale Matches"
+                actionLabel="See all >"
+                onAction={() => {}}
+                actionAccessibilityLabel="See all resale matches"
+              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.productShelf}
+              >
+                {resaleProducts.map((product) => (
+                  <TextScanProductCard
+                    key={product.id}
+                    product={product}
+                    style={styles.productCard}
+                  />
+                ))}
+              </ScrollView>
+            </>
+          )}
+
+          <PrimaryButton
+            title="Edit Search"
+            onPress={() => setViewState('input')}
+            accessibilityLabel="Edit search query"
+            style={styles.editSearchButton}
+          />
+        </View>
+      );
+    }
+
+    // ── Fallback / preview branch ───────────────────────────────────────────
     return (
       <View style={styles.resultsContainer}>
-        <InlineNotice
-          variant="info"
-          title="Demo preview"
-          body={`${TEXTSCAN_DEMO_PRODUCTS.length} sample results for your search`}
-          style={styles.demoNotice}
-        />
-
-        <ResultFilterTabs
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-          style={styles.filterTabs}
-        />
-
-        {activeFilter !== 'resale' && retailProducts.length > 0 && (
-          <>
-            <SectionHeader
-              title="Retail Matches"
-              actionLabel="See all >"
-              onAction={() => {}}
-              actionAccessibilityLabel="See all retail matches"
+        {/* User Request Card */}
+        <View style={styles.requestCard}>
+          <Text style={styles.requestLabel}>YOUR REQUEST</Text>
+          <Text style={styles.requestQuery}>{query}</Text>
+          <View style={styles.badgeWrap}>
+            <StatusPill
+              label="TextScan"
+              variant="neutral"
+              accessibilityLabel="TextScan source"
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.productShelf}
-            >
-              {retailProducts.map((product) => (
-                <TextScanProductCard
-                  key={product.id}
-                  product={product}
-                  style={styles.productCard}
-                />
-              ))}
-            </ScrollView>
-          </>
-        )}
+          </View>
+        </View>
 
-        {activeFilter !== 'retail' && resaleProducts.length > 0 && (
-          <>
-            <SectionHeader
-              title="Resale Matches"
-              actionLabel="See all >"
-              onAction={() => {}}
-              actionAccessibilityLabel="See all resale matches"
+        {/* Analysis Summary */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>ANALYSIS</Text>
+          <Text style={styles.summaryBody}>
+            {TEXTSCAN_BACKEND_ENABLED
+              ? 'Text analysis is coming soon.'
+              : 'Live TextScan matching is being prepared.'}
+          </Text>
+        </View>
+
+        {/* Attribute Placeholders */}
+        <View style={styles.attributesCard}>
+          <SectionHeader
+            title="Interpreted Attributes"
+            actionLabel="Edit"
+            onAction={() => setViewState('input')}
+            actionAccessibilityLabel="Edit search query"
+          />
+          <AttributeGrid
+            attributes={{
+              category: '—',
+              silhouette: '—',
+              color: '—',
+              material: '—',
+              style: '—',
+              budget: '—',
+            }}
+          />
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actionStack}>
+          {styleChatEnabled && (
+            <SecondaryButton
+              title="Ask StyleChat"
+              onPress={() => {
+                setStyleChatHandoffContext({
+                  source: 'text-scan',
+                  query: query.trim(),
+                  createdAt: new Date().toISOString(),
+                });
+                router.push('/style-chat');
+              }}
+              accessibilityLabel="Ask StyleChat about this request"
+              testID="textscan-ask-stylechat"
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.productShelf}
-            >
-              {resaleProducts.map((product) => (
-                <TextScanProductCard
-                  key={product.id}
-                  product={product}
-                  style={styles.productCard}
-                />
-              ))}
-            </ScrollView>
-          </>
-        )}
-
-        <PrimaryButton
-          title="Edit Search"
-          onPress={() => setViewState('input')}
-          accessibilityLabel="Edit search query"
-          style={styles.editSearchButton}
-        />
+          )}
+          <SecondaryButton
+            title="Save to Style Library"
+            disabled
+            onPress={() => {}}
+            accessibilityLabel="Save support for TextScan is being prepared"
+            testID="textscan-save-library"
+          />
+          <SecondaryButton
+            title="Add to Dressing Room"
+            disabled
+            onPress={() => {}}
+            accessibilityLabel="Dressing Room support for TextScan is being prepared"
+            testID="textscan-add-room"
+          />
+          <PrimaryButton
+            title="Scan Again"
+            onPress={handleScanAgain}
+            accessibilityLabel="Start a new TextScan query"
+            testID="textscan-scan-again"
+          />
+        </View>
       </View>
     );
   };

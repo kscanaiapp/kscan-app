@@ -72,6 +72,11 @@ export const TEXTSCAN_VOICE_PLACEHOLDER_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER === 'true';
 
+/** Enables real backend text analysis for TextScan. Disabled by default. */
+export const TEXTSCAN_BACKEND_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED === 'true';
+
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =
   typeof process !== 'undefined' &&
@@ -96,3 +101,9 @@ export const HOME_NAVIGATION_V2_ENABLED =
 export const ONBOARDING_FRAMEWORK_V1_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1 === 'true';
+
+// ── Saved Scan Cloud Sync rollout flag ───────────────────────────────────────
+/** Enables cloud metadata sync for saved scans. Disabled by default. */
+export const CLOUD_SAVED_SCANS_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';

@@ -807,6 +807,27 @@ const REPAIR_SYSTEM_PROMPT = `Output ONLY a valid JSON object starting with {. N
 Fashion: {"type":"fashion","result":"<style description>","metadata":{"category":"<Footwear|Outerwear|Tops|Bottoms|Accessories|Dresses>","itemType":"<item>","material":"<fabric>","style":"<Casual|Streetwear|Minimalist|Classic|Bohemian|Athleisure|Formal>","color":"<palette>","silhouette":"<Oversized|Fitted|Relaxed|Boxy|Cropped|Wide-leg|Slim|Flowy|Straight|Layered>"}}
 Non-fashion: {"type":"non-fashion","message":"<description>"}`;
 
+// ─── TextScan prompts ─────────────────────────────────────────────────────────
+// Reuse the same parser (parseAIResponse / parseFashionObject) by keeping the
+// core JSON shape identical: type:"fashion" / type:"non-fashion". The backend
+// route remaps to fashion_text / non_fashion_text before sending to the client.
+const TEXTSCAN_SYSTEM_PROMPT = `You are a high-fashion AI stylist. Your ENTIRE response must be a single valid JSON object.
+
+CRITICAL: Start your response with { and end with }. No markdown fences, no prose, no explanation outside the JSON.
+
+If the user query is NOT about clothing, footwear, accessories, or fashion styling:
+{"type":"non-fashion","message":"This doesn't appear to be a fashion query. Try describing a garment, style, or outfit."}
+
+If the query IS fashion-related:
+{"type":"fashion","result":"<2-4 sentence professional style breakdown with one pairing suggestion>","metadata":{"category":"<EXACTLY ONE of: Footwear | Outerwear | Tops | Bottoms | Accessories | Dresses>","itemType":"<specific item e.g. sneaker, hoodie, tote bag, blazer, jeans>","material":"<fabric or texture e.g. leather, denim, cotton, wool, silk>","style":"<EXACTLY ONE of: Casual | Streetwear | Minimalist | Classic | Bohemian | Athleisure | Formal | Grunge>","color":"<dominant palette e.g. Black, Navy, Camel, Earth Tones>","silhouette":"<EXACTLY ONE fit descriptor: Oversized | Fitted | Relaxed | Boxy | Cropped | Wide-leg | Slim | Flowy | Straight | Layered>","occasion":"<use-case e.g. Everyday, Work, Evening, Travel, Weekend>","styleDescriptors":"<comma-separated search-friendly descriptors e.g. minimalist, structured, neutral palette>"}}
+
+Example for "oversized camel coat":
+{"type":"fashion","result":"A luxurious oversized camel coat in a warm wool-cashmere blend. The relaxed silhouette and neutral tone make it a versatile cold-weather staple. Pair with slim black trousers and leather ankle boots for a polished weekday look.","metadata":{"category":"Outerwear","itemType":"coat","material":"wool-cashmere blend","style":"Classic","color":"Camel","silhouette":"Oversized","occasion":"Everyday","styleDescriptors":"oversized, camel, wool, classic, neutral palette, winter"}}`;
+
+const TEXTSCAN_REPAIR_PROMPT = `Output ONLY a valid JSON object starting with {. No prose, no markdown.
+Fashion: {"type":"fashion","result":"<style description>","metadata":{"category":"<Footwear|Outerwear|Tops|Bottoms|Accessories|Dresses>","itemType":"<item>","material":"<fabric>","style":"<Casual|Streetwear|Minimalist|Classic|Bohemian|Athleisure|Formal>","color":"<palette>","silhouette":"<Oversized|Fitted|Relaxed|Boxy|Cropped|Wide-leg|Slim|Flowy|Straight|Layered>","occasion":"<use-case>","styleDescriptors":"<descriptors>"}}
+Non-fashion: {"type":"non-fashion","message":"<description>"}`;
+
 // ─── Pipeline version constants ───────────────────────────────────────────────
 // Exposed in X-KScan-Debug response headers (non-production only).
 // Bump each when the corresponding logic changes so deployment convergence
@@ -1337,6 +1358,561 @@ async function callOpenRouter(mimeType, data, options = {}) {
   }
 }
 
+// ─── TextScan OpenRouter caller ───────────────────────────────────────────────
+// Reuses the same endpoint and auth but sends a text-only user message.
+async function callOpenRouterText(query, options = {}) {
+  const {
+    temperature  = 0.4,
+    systemPrompt = TEXTSCAN_SYSTEM_PROMPT,
+    isRetry      = false,
+    timeoutMs    = 11000,
+  } = options;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model:       OPENROUTER_MODEL,
+        temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: query },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    console.log('[K-SCAN] OpenRouter text HTTP status:', res.status);
+
+    if (!res.ok) {
+      let errBody;
+      try { errBody = await res.json(); } catch (_) { errBody = {}; }
+      const errMsg = errBody?.error?.message || errBody?.error || `OpenRouter HTTP ${res.status}`;
+      console.error('[K-SCAN] OpenRouter text error response:', JSON.stringify(errBody).slice(0, 400));
+      throw new Error(String(errMsg));
+    }
+
+    const json = await res.json();
+    const contentRaw = json?.choices?.[0]?.message?.content;
+    const rawText = (
+      typeof contentRaw === 'string'
+        ? contentRaw
+        : Array.isArray(contentRaw)
+          ? contentRaw
+              .map((part) => part?.text ?? part?.content ?? '')
+              .filter(Boolean)
+              .join('\n')
+          : ''
+    ).trim();
+
+    const finishReason = json?.choices?.[0]?.finish_reason ?? 'unknown';
+    console.log(`[K-SCAN] OpenRouter text rawText length: ${rawText.length}  finish_reason: ${finishReason}`);
+    if (DEV_PROVIDER_LOGS && DEBUG) console.warn('[K-SCAN] OpenRouter text rawText preview:', previewProviderText(rawText, 1000));
+
+    if (!rawText) {
+      console.warn('[K-SCAN] OpenRouter text returned empty content. finish_reason:', finishReason,
+        '  model:', OPENROUTER_MODEL,
+        '  usage:', JSON.stringify(json?.usage ?? {}));
+      return null;
+    }
+
+    const parsed = parseAIResponse(rawText, { provider: 'OpenRouter', isRetry });
+    if (!parsed) {
+      aiLog('warn', '[K-SCAN] parseAIResponse returned null for non-empty OpenRouter text rawText', {
+        provider: 'OpenRouter',
+        responseLength: rawText.length,
+        preview: previewProviderText(rawText, 1000),
+      });
+    }
+    return { parsed, rawText };
+  } catch (err) {
+    clearTimeout(timeout);
+    aiLog('error', '[K-SCAN] OpenRouter text provider exception', {
+      provider: 'OpenRouter',
+      model: OPENROUTER_MODEL,
+      message: err?.message,
+      name: err?.name,
+    });
+    throw err;
+  }
+}
+
+// ─── TextScan Gemini caller ─────────────────────────────────────────────────
+async function callGeminiText(query, options = {}) {
+  const {
+    systemPrompt = TEXTSCAN_SYSTEM_PROMPT,
+    timeoutMs    = 20000,
+  } = options;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const geminiUrl =
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    const res = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: systemPrompt },
+              { text: query },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1024,
+          topP:          0.95,
+        },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    console.log('[K-SCAN] Gemini text HTTP status:', res.status);
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      const message = json?.error?.message || `Gemini API error: ${res.status}`;
+      console.error('[K-SCAN] Gemini text error:', message);
+      throw new Error(message);
+    }
+
+    const json = await res.json();
+    const textPart = json?.candidates?.[0]?.content?.parts?.[0];
+    const rawText  = typeof textPart?.text === 'string' ? textPart.text.trim() : '';
+    const blockReason =
+      json?.promptFeedback?.blockReason ||
+      json?.candidates?.[0]?.finishReason;
+
+    console.log(`[K-SCAN] Gemini text rawText length: ${rawText.length}  blockReason: ${blockReason ?? 'none'}`);
+    if (DEV_PROVIDER_LOGS && DEBUG) console.warn('[K-SCAN] Gemini text rawText preview:', previewProviderText(rawText, 1000));
+
+    if (!rawText) {
+      console.warn('[K-SCAN] Gemini text returned empty content. blockReason:', blockReason);
+      return null;
+    }
+
+    const parsed = parseAIResponse(rawText, { provider: 'Gemini' });
+    if (!parsed) {
+      aiLog('warn', '[K-SCAN] parseAIResponse returned null for non-empty Gemini text rawText', {
+        provider: 'Gemini',
+        responseLength: rawText.length,
+        preview: previewProviderText(rawText, 1000),
+      });
+    }
+    return { parsed, rawText, blockReason };
+  } catch (err) {
+    clearTimeout(timeout);
+    aiLog('error', '[K-SCAN] Gemini text provider exception', {
+      provider: 'Gemini',
+      message: err?.message,
+      name: err?.name,
+    });
+    throw err;
+  }
+}
+
+// ─── TextScan rate limiter ──────────────────────────────────────────────────
+// NOTE: In-memory only. Production-grade distributed rate limiting is a future
+// hardening task (Redis / sliding-window counter recommended).
+const textScanRateLimits = new Map();
+
+function checkTextScanRateLimit(ip) {
+  const now = Date.now();
+  const key = String(ip || 'anonymous').trim() || 'anonymous';
+  const record = textScanRateLimits.get(key) || { minuteWindow: [], hourWindow: [] };
+
+  // Clean old entries
+  record.minuteWindow = record.minuteWindow.filter((t) => now - t < 60000);
+  record.hourWindow = record.hourWindow.filter((t) => now - t < 3600000);
+
+  if (record.minuteWindow.length >= 10) {
+    return { allowed: false, reason: 'minute' };
+  }
+  if (record.hourWindow.length >= 100) {
+    return { allowed: false, reason: 'hour' };
+  }
+
+  record.minuteWindow.push(now);
+  record.hourWindow.push(now);
+  textScanRateLimits.set(key, record);
+
+  return { allowed: true };
+}
+
+function validateTextQuery(query) {
+  if (typeof query !== 'string') {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  const trimmed = query.trim();
+  if (trimmed.length === 0 || trimmed.length < 3 || trimmed.length > 500) {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  // Reject base64-like payloads
+  if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(trimmed)) {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  // Reject code blocks
+  if (trimmed.includes('```') || trimmed.includes('`')) {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  // Reject prompt injection patterns
+  const injectionPatterns = [
+    'ignore previous instructions',
+    'system prompt',
+    'developer message',
+    'reveal your prompt',
+    'act as another system',
+    'ignore all instructions',
+    'forget previous',
+    'you are now',
+    'new role:',
+    'override instructions',
+  ];
+  const lower = trimmed.toLowerCase();
+  for (const pattern of injectionPatterns) {
+    if (lower.includes(pattern)) {
+      return 'Invalid query format. Please describe a fashion item.';
+    }
+  }
+  // Reject email addresses
+  if (/[\w.+-]+@[\w.-]+\.\w+/.test(trimmed)) {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  // Reject phone numbers
+  if (/(\+?\d[\d\s-]{7,}\d)/.test(trimmed)) {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  // Reject SSN-like patterns
+  if (/\b\d{3}[\s-]\d{2}[\s-]\d{4}\b/.test(trimmed)) {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  // Reject queries with more than 30% non-alphanumeric characters
+  const nonAlphaNum = (trimmed.match(/[^a-zA-Z0-9\s]/g) || []).length;
+  if (nonAlphaNum / trimmed.length > 0.30) {
+    return 'Invalid query format. Please describe a fashion item.';
+  }
+  return null; // valid
+}
+
+function buildTextScanResponse(type, result, metadata, query, confidence) {
+  return {
+    id: `textscan-${Date.now()}`,
+    type,
+    result: result || '',
+    metadata: {
+      source: 'textscan',
+      query: String(query || '').trim(),
+      attributes: metadata || {},
+    },
+    products: [],
+    confidence: confidence ?? null,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+// ─── TextScan handler ─────────────────────────────────────────────────────────
+// Extracted so the main /api/analyze route can delegate without mixing logic.
+async function handleTextAnalyze(req, res) {
+  try {
+    const { query } = req.body;
+
+    // Input validation
+    const validationError = validateTextQuery(query);
+    if (validationError) {
+      return res.status(400).json({
+        error: true,
+        message: validationError,
+        code: 'TEXTSCAN_INVALID_INPUT',
+      });
+    }
+
+    const normalizedQuery = query.trim().replace(/\s+/g, ' ');
+
+    // Rate limiting
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const rateLimit = checkTextScanRateLimit(ip);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({
+        error: true,
+        message: 'Too many requests. Please try again later.',
+        code: 'TEXTSCAN_RATE_LIMITED',
+      });
+    }
+
+    // Diagnostic headers
+    const emitDiag = shouldEmitDiagnostics(req);
+    if (emitDiag) {
+      res.set({
+        'X-KScan-Parser-Version':        PARSER_VERSION,
+        'X-KScan-Normalization-Version': NORMALIZATION_VERSION,
+        'X-KScan-Prompt-Version':        PROMPT_VERSION,
+        'X-KScan-Deployed-Commit':       DEPLOYED_COMMIT,
+      });
+    }
+
+    // Server-side latency tracking
+    const reqStart = Date.now();
+    let retried = false;
+    res.on('finish', () => {
+      const latencyMs = Date.now() - reqStart;
+      console.log(
+        `[K-SCAN METRICS] textscan latency=${latencyMs}ms status=${res.statusCode}` +
+        ` retry=${retried ? 1 : 0} provider=${USE_OPENROUTER ? 'OpenRouter' : 'Gemini'}`
+      );
+      if (latencyMs > 15000) console.warn('[K-SCAN METRICS] WARNING: textscan p95 exceeded 15 s ceiling');
+    });
+
+    const SERVER_BUDGET_MS = 14500;
+    const PRIMARY_TIMEOUT_MS = 11000;
+
+    if (USE_OPENROUTER) {
+      console.log('[K-SCAN] TextScan Provider: OpenRouter  model:', OPENROUTER_MODEL);
+
+      const firstCall = await callOpenRouterText(normalizedQuery, { timeoutMs: PRIMARY_TIMEOUT_MS });
+      let orResult = firstCall?.parsed;
+
+      const hasEmptyMeta = !orResult || (!orResult.metadata?.category && !orResult.metadata?.color);
+      const elapsed = Date.now() - reqStart;
+      const retryBudget = SERVER_BUDGET_MS - elapsed - 200;
+      if (hasEmptyMeta && retryBudget >= 2000) {
+        retried = true;
+        logPipelineEvent('TEXTSCAN_RETRY_TRIGGERED', {
+          provider: 'OpenRouter',
+          reason: 'EMPTY_METADATA_AFTER_REPAIR',
+          retryBudget,
+          preview: previewProviderText(firstCall?.rawText, 200),
+        });
+        console.log(`[K-SCAN] TextScan OpenRouter retry: temperature=0.1 budget=${retryBudget}ms`);
+        const retryCall = await callOpenRouterText(normalizedQuery, {
+          temperature: 0.1,
+          systemPrompt: TEXTSCAN_REPAIR_PROMPT,
+          isRetry: true,
+          timeoutMs: Math.min(retryBudget, 3000),
+        });
+        if (retryCall?.parsed) {
+          orResult = retryCall.parsed;
+        }
+      }
+
+      if (emitDiag) {
+        res.set('X-KScan-Retry-Triggered', retried ? '1' : '0');
+      }
+
+      if (orResult) {
+        if (orResult.type === 'non-fashion') {
+          console.log('[K-SCAN] TextScan Result: NON_FASHION');
+          return res.status(200).json(
+            buildTextScanResponse(
+              'non_fashion_text',
+              orResult.message || "This doesn't appear to be a fashion query. Try describing a garment, style, or outfit.",
+              {},
+              normalizedQuery,
+              0
+            )
+          );
+        }
+        console.log('[K-SCAN] TextScan Result: fashion  metadata:', JSON.stringify(orResult.metadata));
+        const attributes = {
+          category: orResult.metadata?.category || null,
+          color: orResult.metadata?.color || null,
+          material: orResult.metadata?.material || null,
+          silhouette: orResult.metadata?.silhouette || null,
+          occasion: orResult.metadata?.occasion || null,
+          styleDescriptors: (() => {
+            const raw = orResult.metadata?.styleDescriptors;
+            if (typeof raw === 'string') return raw.split(',').map((s) => s.trim()).filter(Boolean);
+            if (Array.isArray(raw)) return raw.filter((s) => typeof s === 'string').map((s) => s.trim()).filter(Boolean);
+            return [];
+          })(),
+        };
+        return res.status(200).json(
+          buildTextScanResponse(
+            'fashion_text',
+            orResult.result || '',
+            attributes,
+            normalizedQuery,
+            orResult.metadata?.confidence ?? null
+          )
+        );
+      }
+
+      console.warn('[K-SCAN] TextScan FAILED: OpenRouter returned no usable content');
+      if (ALLOW_DEV_FALLBACK) {
+        return res.status(200).json(
+          buildTextScanResponse(
+            'fashion_text',
+            '[DEV FALLBACK] Text analysis unavailable.',
+            { category: 'Tops', color: 'Neutral', material: 'Cotton', silhouette: 'Relaxed', occasion: 'Everyday', styleDescriptors: ['fallback'] },
+            normalizedQuery,
+            null
+          )
+        );
+      }
+      return res.status(503).json({
+        error: true,
+        message: 'Unable to analyze this style request. Please try again.',
+        code: 'TEXTSCAN_ANALYSIS_FAILED',
+      });
+    }
+
+    // ── Gemini path ─────────────────────────────────────────────────────────
+    console.log('[K-SCAN] TextScan Provider: Gemini');
+    if (!GEMINI_API_KEY) {
+      console.error('[K-SCAN] Missing GEMINI_API_KEY');
+      if (ALLOW_DEV_FALLBACK) {
+        return res.status(200).json(
+          buildTextScanResponse(
+            'fashion_text',
+            '[DEV FALLBACK] Text analysis unavailable.',
+            { category: 'Tops', color: 'Neutral', material: 'Cotton', silhouette: 'Relaxed', occasion: 'Everyday', styleDescriptors: ['fallback'] },
+            normalizedQuery,
+            null
+          )
+        );
+      }
+      return res.status(503).json({
+        error: true,
+        message: 'Unable to analyze this style request. Please try again.',
+        code: 'TEXTSCAN_ANALYSIS_FAILED',
+      });
+    }
+
+    const geminiCall = await callGeminiText(normalizedQuery, { timeoutMs: 20000 });
+    let geminiResult = geminiCall?.parsed;
+
+    const hasEmptyMeta = !geminiResult || (!geminiResult.metadata?.category && !geminiResult.metadata?.color);
+    const elapsed = Date.now() - reqStart;
+    const retryBudget = SERVER_BUDGET_MS - elapsed - 200;
+    if (hasEmptyMeta && retryBudget >= 2000) {
+      retried = true;
+      logPipelineEvent('TEXTSCAN_RETRY_TRIGGERED', {
+        provider: 'Gemini',
+        reason: 'EMPTY_METADATA_AFTER_REPAIR',
+        retryBudget,
+        preview: previewProviderText(geminiCall?.rawText, 200),
+      });
+      console.log(`[K-SCAN] TextScan Gemini retry: budget=${retryBudget}ms`);
+      const retryCall = await callGeminiText(normalizedQuery, {
+        systemPrompt: TEXTSCAN_REPAIR_PROMPT,
+        timeoutMs: Math.min(retryBudget, 3000),
+      });
+      if (retryCall?.parsed) {
+        geminiResult = retryCall.parsed;
+      }
+    }
+
+    if (emitDiag) {
+      res.set('X-KScan-Retry-Triggered', retried ? '1' : '0');
+    }
+
+    if (geminiResult) {
+      if (geminiResult.type === 'non-fashion') {
+        console.log('[K-SCAN] TextScan Result: NON_FASHION');
+        return res.status(200).json(
+          buildTextScanResponse(
+            'non_fashion_text',
+            geminiResult.message || "This doesn't appear to be a fashion query. Try describing a garment, style, or outfit.",
+            {},
+            normalizedQuery,
+            0
+          )
+        );
+      }
+      console.log('[K-SCAN] TextScan Result: fashion  metadata:', JSON.stringify(geminiResult.metadata));
+      const attributes = {
+        category: geminiResult.metadata?.category || null,
+        color: geminiResult.metadata?.color || null,
+        material: geminiResult.metadata?.material || null,
+        silhouette: geminiResult.metadata?.silhouette || null,
+        occasion: geminiResult.metadata?.occasion || null,
+        styleDescriptors: (() => {
+          const raw = geminiResult.metadata?.styleDescriptors;
+          if (typeof raw === 'string') return raw.split(',').map((s) => s.trim()).filter(Boolean);
+          if (Array.isArray(raw)) return raw.filter((s) => typeof s === 'string').map((s) => s.trim()).filter(Boolean);
+          return [];
+        })(),
+      };
+      return res.status(200).json(
+        buildTextScanResponse(
+          'fashion_text',
+          geminiResult.result || '',
+          attributes,
+          normalizedQuery,
+          geminiResult.metadata?.confidence ?? null
+        )
+      );
+    }
+
+    const blockReason = geminiCall?.blockReason;
+    if (blockReason && blockReason !== 'STOP') {
+      return res.status(200).json(
+        buildTextScanResponse(
+          'non_fashion_text',
+          `Analysis was not generated (${blockReason}). Try a different query.`,
+          {},
+          normalizedQuery,
+          0
+        )
+      );
+    }
+
+    console.warn('[K-SCAN] TextScan FAILED: Gemini returned no usable content');
+    if (ALLOW_DEV_FALLBACK) {
+      return res.status(200).json(
+        buildTextScanResponse(
+          'fashion_text',
+          '[DEV FALLBACK] Text analysis unavailable.',
+          { category: 'Tops', color: 'Neutral', material: 'Cotton', silhouette: 'Relaxed', occasion: 'Everyday', styleDescriptors: ['fallback'] },
+          normalizedQuery,
+          null
+        )
+      );
+    }
+    return res.status(503).json({
+      error: true,
+      message: 'Unable to analyze this style request. Please try again.',
+      code: 'TEXTSCAN_ANALYSIS_FAILED',
+    });
+
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.warn('[K-SCAN] TextScan Final response status: 504 timeout');
+      return res.status(504).json({
+        error: true,
+        message: 'Unable to analyze this style request. Please try again.',
+        code: 'TEXTSCAN_TIMEOUT',
+      });
+    }
+    console.error('[K-SCAN] TextScan Server error message:', error?.message);
+    if (ALLOW_DEV_FALLBACK) {
+      return res.status(200).json({
+        id: `textscan-${Date.now()}`,
+        type: 'fashion_text',
+        result: '[DEV FALLBACK] Text analysis unavailable.',
+        metadata: { source: 'textscan', query: String(req.body?.query || '').trim(), attributes: {} },
+        products: [],
+        confidence: null,
+        savedAt: new Date().toISOString(),
+      });
+    }
+    return res.status(500).json({
+      error: true,
+      message: 'Unable to analyze this style request. Please try again.',
+      code: 'TEXTSCAN_ANALYSIS_FAILED',
+    });
+  }
+}
+
 app.get('/api/health', (req, res) => {
   // Diagnostic headers on health endpoint — required by qa:convergence.
   // In production, emitted only when X-KScan-Validation-Auth is correct.
@@ -1388,6 +1964,13 @@ function validateImageInput(image) {
 app.post('/api/analyze', async (req, res) => {
   try {
     console.log('[K-SCAN] /api/analyze hit');
+
+    // ── TextScan branch ───────────────────────────────────────────────────────
+    // Delegated to handleTextAnalyze so image logic remains untouched.
+    if (req.body?.mode === 'text') {
+      return await handleTextAnalyze(req, res);
+    }
+
     if (DEBUG) {
       console.log('[K-SCAN] body keys:', Object.keys(req.body || {}));
       console.log('[K-SCAN] image type:', typeof req.body?.image);
