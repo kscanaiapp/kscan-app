@@ -55,21 +55,30 @@ on public.saved_scans(user_id, saved_at desc);
 create index if not exists saved_scans_user_deleted_at_idx
 on public.saved_scans(user_id, deleted_at);
 
--- Updated_at trigger using the project's preferred moddatetime extension.
--- If moddatetime is not available, the fallback local function is defined below.
--- This migration prefers the lightweight trigger approach; the project may already
--- have moddatetime enabled from earlier migrations.
+-- Updated_at trigger using a deterministic PL/pgSQL fallback.
+-- No dependency on moddatetime extension. The trigger is always created.
 
-do $$
+
+create or replace function public.set_saved_scans_updated_at()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
 begin
-  if exists (select 1 from pg_extension where extname = 'moddatetime') then
-    create trigger if not exists update_saved_scans_updated_at
-    before update on public.saved_scans
-    for each row
-    execute function moddatetime('updated_at');
-  end if;
-end
+  new.updated_at = now();
+  return new;
+end;
 $$;
+
+-- Drop old trigger if it exists from a previous version of this migration.
+drop trigger if exists update_saved_scans_updated_at on public.saved_scans;
+
+-- Create trigger using the PL/pgSQL function.
+create trigger saved_scans_set_updated_at
+before update on public.saved_scans
+for each row
+execute function public.set_saved_scans_updated_at();
 
 -- Row Level Security: users own their own rows.
 alter table public.saved_scans enable row level security;
