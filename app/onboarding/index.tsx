@@ -24,6 +24,7 @@ import {
 import { OnboardingShell } from '../../components/onboarding';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
+import { recordLegalAcceptances } from '../../services/legalAcceptance';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,8 @@ export default function OnboardingScreen() {
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [ageChecked, setAgeChecked] = useState(false);
+  const [legalBusy, setLegalBusy] = useState(false);
+  const [legalError, setLegalError] = useState<string | null>(null);
   // Local placeholders for future backend fields (do not persist)
   const [acceptedTermsAt] = useState<string | null>(null);
   const [acceptedPrivacyAt] = useState<string | null>(null);
@@ -137,6 +140,30 @@ export default function OnboardingScreen() {
       setCreateBusy(false);
     }
   }, [email, password, signUp, goToNext]);
+
+  // ── Step 4: Accept & Continue handler ───────────────────────────────────
+
+  const handleAcceptAndContinue = useCallback(async () => {
+    setLegalError(null);
+    setLegalBusy(true);
+    try {
+      const result = await recordLegalAcceptances({
+        termsVersion: termsVersion ?? '1.0',
+        privacyVersion: privacyVersion ?? '1.0',
+        minimumAgeVersion: ageVersion ?? '1.0',
+        appVersion: null, // app_version not wired — deferred until app metadata helper exists
+      });
+      if (result.ok) {
+        goToNext();
+      } else {
+        setLegalError(result.error ?? 'Unable to save your preferences. Please try again.');
+      }
+    } catch {
+      setLegalError('Unable to save your preferences. Please try again.');
+    } finally {
+      setLegalBusy(false);
+    }
+  }, [goToNext, termsVersion, privacyVersion, ageVersion]);
 
   // ── Render helpers ───────────────────────────────────────────────────────
 
@@ -403,11 +430,18 @@ export default function OnboardingScreen() {
         By continuing, you acknowledge that K Scan AI is intended for users 18 years of age or older.
       </Text>
 
+      {legalError ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{legalError}</Text>
+        </View>
+      ) : null}
+
       <PrimaryButton
         testID="onboarding-accept-continue-button"
         title="Accept & Continue"
-        onPress={goToNext}
-        disabled={!termsChecked || !privacyChecked || !ageChecked}
+        onPress={handleAcceptAndContinue}
+        loading={legalBusy}
+        disabled={!termsChecked || !privacyChecked || !ageChecked || legalBusy}
         style={styles.wideButton}
       />
     </View>
