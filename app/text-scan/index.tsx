@@ -102,7 +102,7 @@ export default function TextScanScreen() {
     const runBackend = async () => {
       try {
         const validation = validateTextScanQuery(query);
-        if (!validation.valid) {
+        if (validation.valid === false) {
           if (!cancelled) {
             setTextScanError(validation.message);
             setViewState('results');
