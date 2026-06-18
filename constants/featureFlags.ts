@@ -96,3 +96,9 @@ export const HOME_NAVIGATION_V2_ENABLED =
 export const ONBOARDING_FRAMEWORK_V1_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1 === 'true';
+
+// ── Saved Scan Cloud Sync rollout flag ───────────────────────────────────────
+/** Enables cloud metadata sync for saved scans. Disabled by default. */
+export const CLOUD_SAVED_SCANS_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';

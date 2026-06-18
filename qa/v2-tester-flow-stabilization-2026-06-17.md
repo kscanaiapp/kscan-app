@@ -6,7 +6,7 @@
 |-------|-------|
 | **Current branch** | `feature/v2-tester-flow-stabilization-v1` |
 | **Base branch** | `feature/backend-v2-wiring-snapshot-v1` (commit `5e20d8d`) |
-| **Commit** | `TBD` — will be created after this report is finalized |
+| **Commit** | `3b12acb` fix(release): stabilize shared v2 tester flow |
 | **Working tree** | Two intentional source changes staged; prebuild verification artifacts remain unstaged in `android/` |
 
 ---
