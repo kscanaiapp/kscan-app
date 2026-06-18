@@ -66,6 +66,10 @@ apple-audit-assets/
 android/app/release-keystore/
 android/local.properties
 
+# Generated Android adaptive icon assets (from Expo prebuild / adaptiveIcon foreground)
+android/app/src/main/res/mipmap-anydpi-v26/
+android/app/src/main/res/mipmap-*/ic_launcher_foreground.webp
+
 # Physical device debug logs
 physical-*
 
