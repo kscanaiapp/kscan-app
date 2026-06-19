@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  Image,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
@@ -26,7 +27,7 @@ import {
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
-import { FashionCollagePlaceholder } from '../account-home/FashionCollagePlaceholder';
+
 
 function formatDateLabel(iso: string): string {
   try {
@@ -143,7 +144,12 @@ export default function HomeLuxuryTechV1() {
           />
         </View>
         <View style={styles.heroImage}>
-          <FashionCollagePlaceholder style={{ height: '100%' }} />
+          <Image
+            source={require('../../assets/images/home-hero-v1.png')}
+            style={styles.heroImageActual}
+            resizeMode="cover"
+            accessibilityLabel="K Scan home hero image"
+          />
         </View>
       </View>
 
@@ -360,6 +366,12 @@ const styles = StyleSheet.create({
     height: 180,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: RADIUS.lg,
+  },
+  heroImageActual: {
+    width: '100%',
+    height: '100%',
   },
   section: {
     marginBottom: SPACING.xxl,
