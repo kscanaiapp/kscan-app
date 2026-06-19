@@ -29,8 +29,10 @@ import {
 } from '../../components/account-home';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { ACCOUNT_HOME_UX_V1_ENABLED } from '../../constants/featureFlags';
+import { TERMS_VERSION, PRIVACY_VERSION, AGE_VERSION } from '../../constants/legal';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { recordLegalAcceptances } from '../../services/legalAcceptance';
+import { usePermissionPreferences } from '../../hooks/usePermissionPreferences';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -66,19 +68,14 @@ export default function OnboardingScreen() {
   const [ageChecked, setAgeChecked] = useState(false);
   const [legalBusy, setLegalBusy] = useState(false);
   const [legalError, setLegalError] = useState<string | null>(null);
-  // Local placeholders for future backend fields (do not persist)
-  const [acceptedTermsAt] = useState<string | null>(null);
-  const [acceptedPrivacyAt] = useState<string | null>(null);
-  const [acceptedAgeAt] = useState<string | null>(null);
-  const [termsVersion] = useState<string | null>(null);
-  const [privacyVersion] = useState<string | null>(null);
-  const [ageVersion] = useState<string | null>(null);
 
   // Step 5: Permissions (visual toggles only)
-  const [cameraPref, setCameraPref] = useState(false);
-  const [photosPref, setPhotosPref] = useState(false);
-  const [microphonePref, setMicrophonePref] = useState(false);
-  const [notificationsPref, setNotificationsPref] = useState(false);
+  const {
+    preferences: permissionPrefs,
+    togglePreference: togglePermission,
+    isSaving: permissionSaving,
+    savePreferences,
+  } = usePermissionPreferences();
 
   // Auth state: if user becomes authenticated externally, skip to Home
   useEffect(() => {
@@ -153,11 +150,19 @@ export default function OnboardingScreen() {
   const handleAcceptAndContinue = useCallback(async () => {
     setLegalError(null);
     setLegalBusy(true);
+
+    // Capture timestamps at the exact moment the user taps Accept & Continue.
+    // These are kept local; recordLegalAcceptances does not currently accept timestamps.
+    const acceptedAt = new Date().toISOString();
+    const acceptedTermsAt = acceptedAt;
+    const acceptedPrivacyAt = acceptedAt;
+    const acceptedAgeAt = acceptedAt;
+
     try {
       const result = await recordLegalAcceptances({
-        termsVersion: termsVersion ?? '1.0',
-        privacyVersion: privacyVersion ?? '1.0',
-        minimumAgeVersion: ageVersion ?? '1.0',
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        minimumAgeVersion: AGE_VERSION,
         appVersion: null, // app_version not wired — deferred until app metadata helper exists
       });
       if (result.ok) {
@@ -170,7 +175,7 @@ export default function OnboardingScreen() {
     } finally {
       setLegalBusy(false);
     }
-  }, [goToNext, termsVersion, privacyVersion, ageVersion]);
+  }, [goToNext]);
 
   // ── Render helpers ───────────────────────────────────────────────────────
 
@@ -479,17 +484,16 @@ export default function OnboardingScreen() {
 
   const renderPermissions = () => {
     if (ACCOUNT_HOME_UX_V1_ENABLED) {
+      const handlePermissionsContinue = async () => {
+        await savePreferences();
+        goToHome();
+      };
       return (
         <PermissionsStepV1
-          cameraPref={cameraPref}
-          onCameraPrefChange={setCameraPref}
-          photosPref={photosPref}
-          onPhotosPrefChange={setPhotosPref}
-          microphonePref={microphonePref}
-          onMicrophonePrefChange={setMicrophonePref}
-          notificationsPref={notificationsPref}
-          onNotificationsPrefChange={setNotificationsPref}
-          onContinueToHome={goToHome}
+          preferences={permissionPrefs}
+          togglePreference={togglePermission}
+          isSaving={permissionSaving}
+          onContinueToHome={handlePermissionsContinue}
           onNotNow={goToHome}
         />
       );
@@ -509,10 +513,10 @@ export default function OnboardingScreen() {
         </View>
         <Switch
           testID="onboarding-camera-toggle"
-          value={cameraPref}
-          onValueChange={setCameraPref}
+          value={permissionPrefs.camera}
+          onValueChange={() => togglePermission('camera')}
           trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor={cameraPref ? LUXURY.colors.plum : '#f4f3f4'}
+          thumbColor={permissionPrefs.camera ? LUXURY.colors.plum : '#f4f3f4'}
         />
       </View>
 
@@ -524,10 +528,25 @@ export default function OnboardingScreen() {
         </View>
         <Switch
           testID="onboarding-photos-toggle"
-          value={photosPref}
-          onValueChange={setPhotosPref}
+          value={permissionPrefs.photos}
+          onValueChange={() => togglePermission('photos')}
           trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor={photosPref ? LUXURY.colors.plum : '#f4f3f4'}
+          thumbColor={permissionPrefs.photos ? LUXURY.colors.plum : '#f4f3f4'}
+        />
+      </View>
+
+      {/* Microphone */}
+      <View style={styles.permissionRow}>
+        <View style={styles.permissionInfo}>
+          <Text style={styles.permissionLabel}>Microphone</Text>
+          <Text style={styles.permissionStatus}>Optional voice input for StyleChat.</Text>
+        </View>
+        <Switch
+          testID="onboarding-microphone-toggle"
+          value={permissionPrefs.microphone}
+          onValueChange={() => togglePermission('microphone')}
+          trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
+          thumbColor={permissionPrefs.microphone ? LUXURY.colors.plum : '#f4f3f4'}
         />
       </View>
 
@@ -539,10 +558,10 @@ export default function OnboardingScreen() {
         </View>
         <Switch
           testID="onboarding-notifications-toggle"
-          value={notificationsPref}
-          onValueChange={setNotificationsPref}
+          value={permissionPrefs.notifications}
+          onValueChange={() => togglePermission('notifications')}
           trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor={notificationsPref ? LUXURY.colors.plum : '#f4f3f4'}
+          thumbColor={permissionPrefs.notifications ? LUXURY.colors.plum : '#f4f3f4'}
         />
       </View>
 

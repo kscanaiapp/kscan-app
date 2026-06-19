@@ -12,6 +12,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useLibrary } from '../../hooks/useLibrary';
+import { useStylePicks } from '../../hooks/useStylePicks';
+import type { StylePick } from '../../types/stylePicks';
 import {
   LuxuryScreen,
   KScanHeader,
@@ -72,6 +74,7 @@ export default function HomeLuxuryTechV1() {
   const { isAuthenticated, user, loading: authLoading } = useAuthSession();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { scans, loading: scansLoading } = useLibrary();
+  const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
 
   const textScanEnabled =
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
@@ -84,6 +87,9 @@ export default function HomeLuxuryTechV1() {
   const recentScans = scans.slice(0, 4);
   const hasRecentScans = recentScans.length > 0;
   const showRecentSection = scansLoading || hasRecentScans;
+
+  const showStylePicks = stylePicksStatus !== 'backend_not_connected' || picks.length > 0;
+  const hasStylePicks = picks.length > 0;
 
   return (
     <LuxuryScreen
@@ -190,21 +196,64 @@ export default function HomeLuxuryTechV1() {
         </View>
       )}
 
-      {/* Style Picks — editorial placeholder, no fake commerce */}
-      <View style={styles.section}>
+      {/* Style Picks — hook-driven with backend-safe placeholder states */}
+      <View style={styles.section} testID="home-luxury-style-picks-section">
         <View style={styles.sectionHeaderRow}>
           <SectionHeader title="STYLE PICKS FOR YOU" />
           <Text style={styles.stylePicksSub}>Personalized by K Scan AI ✦</Text>
         </View>
-        <View style={styles.stylePicksPlaceholder}>
-          <Text style={styles.stylePicksPlaceholderTitle}>Style inspiration coming soon</Text>
-          <Text style={styles.stylePicksPlaceholderBody}>
-            Scan fashion inspiration to begin. Your saved ideas and AI-curated picks will appear here.
-          </Text>
-        </View>
+
+        {stylePicksLoading ? (
+          <View style={styles.stylePicksPlaceholder}>
+            <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+            <Text style={styles.stylePicksPlaceholderBody}>
+              Loading your style picks…
+            </Text>
+          </View>
+        ) : stylePicksError ? (
+          <View style={styles.stylePicksPlaceholder}>
+            <Text style={styles.stylePicksPlaceholderTitle}>
+              We couldn't load your style picks.
+            </Text>
+            <Text style={styles.stylePicksPlaceholderBody}>
+              Please try again.
+            </Text>
+          </View>
+        ) : hasStylePicks ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.recentScrollContent}
+          >
+            {picks.map((pick: StylePick) => (
+              <View
+                key={pick.id}
+                style={styles.stylePickCard}
+                testID={`home-luxury-style-pick-${pick.id}`}
+              >
+                <Text style={styles.stylePickTitle}>{pick.title}</Text>
+                {pick.subtitle ? (
+                  <Text style={styles.stylePickSubtitle}>{pick.subtitle}</Text>
+                ) : null}
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.stylePicksPlaceholder}>
+            <Text style={styles.stylePicksPlaceholderTitle}>
+              Style inspiration coming soon
+            </Text>
+            <Text style={styles.stylePicksPlaceholderBody}>
+              {stylePicksStatus === 'backend_not_connected'
+                ? 'Scan fashion inspiration to begin. Your personalized picks will appear here after recommendations are connected.'
+                : 'Your saved ideas and AI-curated picks will appear here.'}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Feature explanation row */}
+      {/* Static product education content — no backend integration required. */}
       <View style={styles.featuresRow}>
         <FeatureChip
           icon="✦"
@@ -360,6 +409,27 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: LUXURY.colors.graphite,
     textAlign: 'center',
+  },
+  stylePickCard: {
+    width: 160,
+    backgroundColor: LUXURY.colors.pearl,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    padding: SPACING.lg,
+    marginRight: SPACING.md,
+    ...SHADOWS.editorialSmall,
+  },
+  stylePickTitle: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 13,
+    color: LUXURY.colors.ink,
+  },
+  stylePickSubtitle: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.graphite,
+    marginTop: SPACING.xs,
   },
   featuresRow: {
     flexDirection: 'row',

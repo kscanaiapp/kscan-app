@@ -1,17 +1,13 @@
 import React from 'react';
-import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Switch, StyleSheet, ActivityIndicator } from 'react-native';
 import { PrimaryButton, TertiaryButton } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermissionPreferences';
 
 interface PermissionsStepV1Props {
-  cameraPref: boolean;
-  onCameraPrefChange: (value: boolean) => void;
-  photosPref: boolean;
-  onPhotosPrefChange: (value: boolean) => void;
-  microphonePref: boolean;
-  onMicrophonePrefChange: (value: boolean) => void;
-  notificationsPref: boolean;
-  onNotificationsPrefChange: (value: boolean) => void;
+  preferences: PermissionPreferences;
+  togglePreference: (key: PermissionKey) => void;
+  isSaving: boolean;
   onContinueToHome: () => void;
   onNotNow: () => void;
 }
@@ -30,17 +26,14 @@ interface PermissionsStepV1Props {
  * They remain point-of-use in Scan / Upload flows.
  */
 export function PermissionsStepV1({
-  cameraPref,
-  onCameraPrefChange,
-  photosPref,
-  onPhotosPrefChange,
-  microphonePref,
-  onMicrophonePrefChange,
-  notificationsPref,
-  onNotificationsPrefChange,
+  preferences,
+  togglePreference,
+  isSaving,
   onContinueToHome,
   onNotNow,
 }: PermissionsStepV1Props) {
+  const { camera, photos, microphone, notifications } = preferences;
+
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
       <View style={styles.textBlock}>
@@ -61,8 +54,8 @@ export function PermissionsStepV1({
           badge="ESSENTIAL"
           description="Scan outfits in the real world. Snap or scan to discover style and similar looks instantly."
           actionType="allow"
-          actionValue={cameraPref}
-          onActionChange={onCameraPrefChange}
+          actionValue={camera}
+          onActionChange={() => togglePreference('camera')}
         />
 
         {/* Photos */}
@@ -72,8 +65,8 @@ export function PermissionsStepV1({
           badge="ESSENTIAL"
           description="Import looks and inspiration. Upload photos to find similar pieces and build your style effortlessly."
           actionType="allow"
-          actionValue={photosPref}
-          onActionChange={onPhotosPrefChange}
+          actionValue={photos}
+          onActionChange={() => togglePreference('photos')}
         />
 
         {/* Microphone */}
@@ -83,8 +76,8 @@ export function PermissionsStepV1({
           badge="OPTIONAL"
           description="Voice input for StyleChat. Speak your questions and get hands-free styling advice."
           actionType="toggle"
-          actionValue={microphonePref}
-          onActionChange={onMicrophonePrefChange}
+          actionValue={microphone}
+          onActionChange={() => togglePreference('microphone')}
           recommendation="Recommended"
         />
 
@@ -95,8 +88,8 @@ export function PermissionsStepV1({
           badge="OPTIONAL"
           description="Alerts for new finds and style matches. Stay updated on discoveries and exclusive tips."
           actionType="toggle"
-          actionValue={notificationsPref}
-          onActionChange={onNotificationsPrefChange}
+          actionValue={notifications}
+          onActionChange={() => togglePreference('notifications')}
           recommendation="Recommended"
         />
       </View>
@@ -104,9 +97,10 @@ export function PermissionsStepV1({
       <View style={styles.actions}>
         <PrimaryButton
           testID="onboarding-permissions-continue-button-v1"
-          title="✧ CONTINUE TO HOME"
+          title={isSaving ? '✧ SAVING...' : '✧ CONTINUE TO HOME'}
           onPress={onContinueToHome}
           style={styles.wideButton}
+          loading={isSaving}
         />
 
         <TertiaryButton
@@ -114,6 +108,7 @@ export function PermissionsStepV1({
           title="Not now"
           onPress={onNotNow}
           style={styles.wideButton}
+          disabled={isSaving}
         />
       </View>
     </View>
