@@ -6,6 +6,7 @@ import {
   Image,
   ScrollView,
   useWindowDimensions,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -19,6 +20,7 @@ interface CaptureReviewProps {
   source?: 'camera' | 'upload' | 'fixture';
   onRetake: () => void;
   onAnalyze: () => void;
+  onHome?: () => void;
   testID?: string;
 }
 
@@ -37,6 +39,7 @@ export function CaptureReview({
   source = 'camera',
   onRetake,
   onAnalyze,
+  onHome,
   testID,
 }: CaptureReviewProps) {
   const insets = useSafeAreaInsets();
@@ -67,7 +70,22 @@ export function CaptureReview({
       showsVerticalScrollIndicator={false}
       testID={testID}
     >
-      <ScanRoomHeader badge={<AIStarBadge />} />
+      <ScanRoomHeader
+        badge={<AIStarBadge />}
+        rightAction={
+          onHome ? (
+            <Pressable
+              onPress={onHome}
+              style={styles.homeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go Home"
+              accessibilityHint="Returns to the K Scan home screen"
+            >
+              <Text style={styles.homeButtonText}>Home</Text>
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       <Text style={styles.screenTitle}>{title}</Text>
       <Text style={styles.screenSubtitle}>{subtitle}</Text>
@@ -239,5 +257,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.lg,
     maxWidth: 320,
+  },
+  homeButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.goldChampagne,
+    backgroundColor: LUXURY.colors.pearl,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  homeButtonText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: LUXURY.colors.plum,
+    textTransform: 'uppercase',
   },
 });
