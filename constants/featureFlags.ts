@@ -102,7 +102,10 @@ export const ONBOARDING_FRAMEWORK_V1_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1 === 'true';
 
-// ── Saved Scan Cloud Sync rollout flag ───────────────────────────────────────
+/** Master switch for the bright luxury account/home onboarding and Home visual pass. */
+export const ACCOUNT_HOME_UX_V1_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_ACCOUNT_HOME_UX_V1 === 'true';
 /** Enables cloud metadata sync for saved scans. Disabled by default. */
 export const CLOUD_SAVED_SCANS_ENABLED =
   typeof process !== 'undefined' &&

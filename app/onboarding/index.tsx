@@ -22,7 +22,13 @@ import {
   TertiaryButton,
 } from '../../components/luxury';
 import { OnboardingShell } from '../../components/onboarding';
+import {
+  WelcomeStepV1,
+  AccountSetupStepV1,
+  PermissionsStepV1,
+} from '../../components/account-home';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { ACCOUNT_HOME_UX_V1_ENABLED } from '../../constants/featureFlags';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { recordLegalAcceptances } from '../../services/legalAcceptance';
 
@@ -71,6 +77,7 @@ export default function OnboardingScreen() {
   // Step 5: Permissions (visual toggles only)
   const [cameraPref, setCameraPref] = useState(false);
   const [photosPref, setPhotosPref] = useState(false);
+  const [microphonePref, setMicrophonePref] = useState(false);
   const [notificationsPref, setNotificationsPref] = useState(false);
 
   // Auth state: if user becomes authenticated externally, skip to Home
@@ -167,7 +174,16 @@ export default function OnboardingScreen() {
 
   // ── Render helpers ───────────────────────────────────────────────────────
 
-  const renderWelcome = () => (
+  const renderWelcome = () => {
+    if (ACCOUNT_HOME_UX_V1_ENABLED) {
+      return (
+        <WelcomeStepV1
+          onGetStarted={goToNext}
+          onAlreadyHaveAccount={goToAuth}
+        />
+      );
+    }
+    return (
     <View style={styles.stepContent} testID="onboarding-welcome-screen">
       <View style={styles.heroArea}>
         <Text style={styles.brandMark}>K Scan</Text>
@@ -197,8 +213,21 @@ export default function OnboardingScreen() {
       </Pressable>
     </View>
   );
+  };
 
-  const renderAuthChoice = () => (
+  const renderAuthChoice = () => {
+    if (ACCOUNT_HOME_UX_V1_ENABLED) {
+      return (
+        <AccountSetupStepV1
+          onContinueEmail={goToNext}
+          onContinueGoogle={goToAuth}
+          onContinueApple={goToAuth}
+          onGoToLogin={goToAuth}
+          appleAvailable={Platform.OS === 'ios'}
+        />
+      );
+    }
+    return (
     <View style={styles.stepContent} testID="onboarding-auth-choice-screen">
       <Text style={styles.stepTitle}>Account Access</Text>
       <Text style={styles.stepBody}>Choose how you want to continue.</Text>
@@ -244,6 +273,7 @@ export default function OnboardingScreen() {
       </Pressable>
     </View>
   );
+  };
 
   const renderCreateAccount = () => (
     <View style={styles.stepContent} testID="onboarding-create-account-screen">
@@ -447,7 +477,24 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderPermissions = () => (
+  const renderPermissions = () => {
+    if (ACCOUNT_HOME_UX_V1_ENABLED) {
+      return (
+        <PermissionsStepV1
+          cameraPref={cameraPref}
+          onCameraPrefChange={setCameraPref}
+          photosPref={photosPref}
+          onPhotosPrefChange={setPhotosPref}
+          microphonePref={microphonePref}
+          onMicrophonePrefChange={setMicrophonePref}
+          notificationsPref={notificationsPref}
+          onNotificationsPrefChange={setNotificationsPref}
+          onContinueToHome={goToHome}
+          onNotNow={goToHome}
+        />
+      );
+    }
+    return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen">
       <Text style={styles.stepTitle}>Permissions</Text>
       <Text style={styles.stepBody}>
@@ -514,6 +561,7 @@ export default function OnboardingScreen() {
       />
     </View>
   );
+  };
 
   const renderHomeHandoff = () => (
     <View style={styles.stepContent} testID="onboarding-home-handoff">
