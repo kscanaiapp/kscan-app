@@ -8,6 +8,8 @@ These mockups are the source-of-truth visual reference for the next frontend imp
 
 This is not a backend task and not a production verification report.
 
+**Disclaimer:** This document is a QA/design reference only. It is not an implementation instruction by itself. Future implementation work must be separately scoped and approved. Do not infer approval to build bottom navigation, commerce cards, feature flags, backend wiring, retailer integrations, fake inventory, fake pricing, or fake recommendations from this baseline document.
+
 ## 2. Mockup Inventory
 
 | Mockup | Repo Path | Purpose |
@@ -40,12 +42,10 @@ Do not make the background too tan or muted.
 
 The target feeling is:
 
-```text
-vibrant luxury tech
-bright editorial fashion
-private AI styling
-visual shopping intelligence
-```
+- vibrant luxury tech
+- bright editorial fashion
+- private AI styling
+- visual shopping intelligence
 
 ## 4. Screen-by-Screen Notes
 
