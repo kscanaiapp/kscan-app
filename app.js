@@ -365,9 +365,9 @@ export default function App() {
     [selectStaticFixture]
   );
 
-  // hasSavedRef: prevents saving the same result twice if the effect re-fires.
-  // Reset to false when a new analysis starts (status → processing).
-  const hasSavedRef = useRef(false);
+  // saveStateRef tracks whether the current result is unsaved, saving, or
+  // already saved so the manual CTA only retries failed saves.
+  const saveStateRef = useRef('idle');
   const [savedToast, setSavedToast] = useState(false);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
 
@@ -388,7 +388,7 @@ export default function App() {
       setPerceiving(false);
       setProcHudKey(k => k + 1);
       setV2AnalyzingMinComplete(false);
-      hasSavedRef.current = false; // arm save for the next result
+      saveStateRef.current = 'idle';
       return;
     }
     // When processing succeeds, briefly show the HUD with real metadata
@@ -403,18 +403,31 @@ export default function App() {
     }
   }, [status]);
 
+  const saveCurrentScanToLibrary = useCallback(async () => {
+    if (!photo?.uri || !analysis || saveStateRef.current === 'saving' || saveStateRef.current === 'saved') {
+      return null;
+    }
+    saveStateRef.current = 'saving';
+    const saved = await saveScan({
+      photoUri: photo.uri,
+      analysis,
+      source: photo.source || 'scan',
+    });
+    if (saved) {
+      saveStateRef.current = 'saved';
+      setSavedToast(true);
+      return saved;
+    }
+    saveStateRef.current = 'idle';
+    return null;
+  }, [photo, analysis]);
+
   // Save each successful scan once to the local Style Library.
   // Fires when status becomes 'result' (photo and analysis are both populated).
-  // hasSavedRef prevents duplicate saves if the effect re-runs before dismiss.
   useEffect(() => {
-    if (status !== 'result' || !photo?.uri || !analysis || hasSavedRef.current) return;
-    hasSavedRef.current = true;
-    let live = true;
-    saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' }).then(saved => {
-      if (live && saved) setSavedToast(true);
-    });
-    return () => { live = false; };
-  }, [status, photo, analysis]);
+    if (status !== 'result') return;
+    void saveCurrentScanToLibrary();
+  }, [status, saveCurrentScanToLibrary]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.
@@ -897,12 +910,7 @@ export default function App() {
             scanImageUri={photo?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
             onDismiss={dismissResult}
-            onSaveToLibrary={() => {
-              if (photo?.uri && analysis) {
-                saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' })
-                  .then(saved => { if (saved) setSavedToast(true); });
-              }
-            }}
+            onSaveToLibrary={() => { void saveCurrentScanToLibrary(); }}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
             onAskStyleChat={styleChatEnabled ? () => {
               const source = photo?.source === 'upload' ? 'upload' : 'camera';
