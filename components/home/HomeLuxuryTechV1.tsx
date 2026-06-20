@@ -48,15 +48,26 @@ interface FeatureChipProps {
   icon: string;
   title: string;
   body: string;
+  onPress?: () => void;
+  testID?: string;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
-function FeatureChip({ icon, title, body }: FeatureChipProps) {
+function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, accessibilityHint }: FeatureChipProps) {
   return (
-    <View style={styles.chip}>
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      style={styles.chip}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+    >
       <Text style={styles.chipIcon}>{icon}</Text>
       <Text style={styles.chipTitle}>{title}</Text>
       <Text style={styles.chipBody}>{body}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -265,21 +276,37 @@ export default function HomeLuxuryTechV1() {
           icon="✦"
           title="AI STYLIST"
           body="Smart style insights just for you."
+          onPress={() => router.push('/style-chat')}
+          testID="home-luxury-feature-stylechat"
+          accessibilityLabel="Open AI Stylist"
+          accessibilityHint="Navigate to StyleChat"
         />
         <FeatureChip
           icon="◈"
           title="VISUAL SEARCH"
           body="Scan anything. Find it instantly."
+          onPress={() => router.push('/scan')}
+          testID="home-luxury-feature-scan"
+          accessibilityLabel="Open Visual Search"
+          accessibilityHint="Navigate to the scan camera"
         />
         <FeatureChip
           icon="◇"
           title="SAVE & ORGANIZE"
           body="Save your favorites to your closet."
+          onPress={() => router.push('/library')}
+          testID="home-luxury-feature-library"
+          accessibilityLabel="Open Library"
+          accessibilityHint="Navigate to your saved looks and library"
         />
         <FeatureChip
           icon="◉"
-          title="PRIVATE BY DESIGN"
-          body="Your data stays yours."
+          title="DRESSING ROOMS"
+          body="Compare, save, and decide."
+          onPress={() => router.push('/dressing-rooms')}
+          testID="home-luxury-feature-dressing-rooms"
+          accessibilityLabel="Open Dressing Rooms"
+          accessibilityHint="Navigate to dressing rooms to compare outfits"
         />
       </View>
 
