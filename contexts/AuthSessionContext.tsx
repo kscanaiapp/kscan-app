@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
@@ -42,9 +43,28 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const initialAuthResolvedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
+    let getSessionResolved = false;
+    let authEventSeen = false;
+
+    const completeInitialAuth = (nextSession: Session | null) => {
+      if (!mounted || initialAuthResolvedRef.current) return;
+      initialAuthResolvedRef.current = true;
+      setSession(nextSession);
+      setLoading(false);
+    };
+
+    const completeIfBothNullSourcesResolved = () => {
+      // A transient null from either startup source is not enough to mark the
+      // user signed out; cold-start storage hydration can report the session
+      // from the other source a moment later.
+      if (getSessionResolved && authEventSeen) {
+        completeInitialAuth(null);
+      }
+    };
 
     supabase.auth.getSession().then(async ({ data }) => {
       const bootSession = data.session ?? null;
@@ -54,8 +74,12 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         await supabase.auth.signOut();
       }
       if (!mounted) return;
-      setSession(usableSession);
-      setLoading(false);
+      getSessionResolved = true;
+      if (usableSession) {
+        completeInitialAuth(usableSession);
+      } else {
+        completeIfBothNullSourcesResolved();
+      }
     });
 
     const {
@@ -67,7 +91,17 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       } else {
         invalidateAllMemoryCache();
       }
-      setSession(usableSession);
+      authEventSeen = true;
+
+      if (!mounted) return;
+
+      if (initialAuthResolvedRef.current) {
+        setSession(usableSession);
+      } else if (usableSession) {
+        completeInitialAuth(usableSession);
+      } else {
+        completeIfBothNullSourcesResolved();
+      }
     });
 
     return () => {
