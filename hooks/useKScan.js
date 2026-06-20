@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { analyzeImage } from '../services/api';
+import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
+import { identifyScanImage } from '../services/scanIdentification';
+import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import {
   buildSecondhandSearchRequest,
   searchVintedSecondhand,
@@ -187,7 +190,22 @@ export function useKScan() {
         }
 
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
-        const data = await analyzeImage(sanitized);
+        // Scan backend selection (KS-REL-008C). Default path is the legacy Render
+        // /api/analyze endpoint. When SCAN_IDENTIFY_BACKEND_ENABLED is on (owner-
+        // approved, authenticated flow), route through the app-side scan-identify
+        // Edge Function and map its response into the same analysis shape so the
+        // result UI and downstream enrichment are unchanged.
+        let data;
+        if (SCAN_IDENTIFY_BACKEND_ENABLED) {
+          const identifyResponse = await identifyScanImage(sanitized, {
+            source: photo.source === 'upload' ? 'upload' : 'camera',
+            localPrivacyFiltered: true,
+          });
+          // Throws a user-safe error on 'failed' → handled by the catch below.
+          data = mapScanIdentifyToAnalysis(identifyResponse);
+        } else {
+          data = await analyzeImage(sanitized);
+        }
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
 
         // Enforce minimum HUD display time so PerceptionLayer completes its entry
