@@ -292,9 +292,11 @@ test('mapAuthError: network error maps to network copy', () => {
   assert.match(msg, /connection/i);
 });
 
-test('mapAuthError: unknown error passes through', () => {
+test('mapAuthError: unknown error maps to safe mode-specific copy (never raw)', () => {
+  // Raw backend messages must not surface to users. Unknown errors fall back to
+  // safe, mode-specific copy.
   const msg = mapAuthError('Some unexpected error from server', 'sign-in');
-  assert.equal(msg, 'Some unexpected error from server');
+  assert.equal(msg, 'Sign-in failed. Please check your email and password and try again.');
 });
 
 test('mapAuthError: "rate limit" → rate-limit copy', () => {

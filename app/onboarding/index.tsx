@@ -127,7 +127,7 @@ export default function OnboardingScreen() {
     setCreateError(null);
     setCreateBusy(true);
     try {
-      const result = await signUp(email.trim(), password);
+      const result = await signUp(email.trim(), password, fullName);
       if (result.confirmationRequired) {
         // Email confirmation required — treat as account created enough to proceed
         // In a real app, the user would need to confirm email before full use.
@@ -143,7 +143,7 @@ export default function OnboardingScreen() {
     } finally {
       setCreateBusy(false);
     }
-  }, [email, password, signUp, goToNext]);
+  }, [email, password, fullName, signUp, goToNext]);
 
   // ── Step 4: Accept & Continue handler ───────────────────────────────────
 

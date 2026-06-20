@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -45,12 +45,19 @@ export default function AuthScreen() {
   const { signIn, signUp, isAuthenticated } = useAuthSession();
 
   const [mode, setMode] = useState<AuthMode>('sign-in');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [step, setStep] = useState<AuthStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+
+  // Synchronous execution lock: guarantees exactly one auth request per user
+  // action even before the `busy`-driven re-render disables the controls. This
+  // prevents a double-tap or onSubmitEditing+onPress from firing two signUp /
+  // signIn / OAuth calls back-to-back (a real cause of duplicate-request 429s).
+  const submitLockRef = useRef(false);
 
   // Navigate away when a session appears (sign-in or immediate signup without email confirmation)
   useEffect(() => {
@@ -86,11 +93,13 @@ export default function AuthScreen() {
   };
 
   const handleSubmit = async () => {
+    if (submitLockRef.current) return;
     const validation = validateAuthInput(mode, email, password, confirmPassword);
     if (!validation.valid) {
       setError(validation.error);
       return;
     }
+    submitLockRef.current = true;
     setError(null);
     setStep('submitting');
     try {
@@ -98,7 +107,7 @@ export default function AuthScreen() {
         await signIn(email.trim(), password);
         // isAuthenticated useEffect handles navigation
       } else {
-        const result = await signUp(email.trim(), password);
+        const result = await signUp(email.trim(), password, name);
         if (result.confirmationRequired) {
           // Case B: email confirmation required — show inline panel
           setStep('confirm-email');
@@ -109,10 +118,14 @@ export default function AuthScreen() {
       setStep('idle');
       const raw = err instanceof Error ? err.message : 'Something went wrong. Try again.';
       setError(mapAuthError(raw, mode));
+    } finally {
+      submitLockRef.current = false;
     }
   };
 
   const handleGoogleSignIn = async () => {
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setError(null);
     setStep('google-oauth');
 
@@ -151,11 +164,17 @@ export default function AuthScreen() {
 
       if (parsed.error) {
         const lowerError = String(parsed.error).toLowerCase();
-        setError(
-          lowerError.includes('access_denied')
-            ? 'Google sign-in was denied.'
-            : 'We could not complete Google sign-in. Please try again.',
-        );
+        let message = 'We could not complete Google sign-in. Please try again.';
+        if (lowerError.includes('provider') && lowerError.includes('enabled')) {
+          // GoTrue returns "Provider is not enabled" when Google is disabled
+          // in the project's auth configuration.
+          message = 'Google sign-in is currently unavailable.';
+        } else if (lowerError.includes('access_denied')) {
+          message = 'Google sign-in was denied.';
+        } else if (lowerError.includes('redirect')) {
+          message = 'Sign-in configuration issue. Please try again shortly.';
+        }
+        setError(message);
         setStep('idle');
         return;
       }
@@ -189,12 +208,22 @@ export default function AuthScreen() {
       setStep('idle');
     } catch (err) {
       const raw = err instanceof Error ? err.message : '';
-      setError(
-        raw.toLowerCase().includes('network')
-          ? 'Network error. Please try again.'
-          : 'We could not launch Google sign-in. Please try again.',
-      );
+      const lower = raw.toLowerCase();
+      let message = 'We could not launch Google sign-in. Please try again.';
+      if (
+        (lower.includes('provider') && lower.includes('enabled')) ||
+        lower.includes('provider_disabled')
+      ) {
+        message = 'Google sign-in is currently unavailable.';
+      } else if (lower.includes('redirect')) {
+        message = 'Sign-in configuration issue. Please try again shortly.';
+      } else if (lower.includes('network')) {
+        message = 'Network error. Please try again.';
+      }
+      setError(message);
       setStep('idle');
+    } finally {
+      submitLockRef.current = false;
     }
   };
 
@@ -204,6 +233,8 @@ export default function AuthScreen() {
       return;
     }
 
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setError(null);
     setStep('apple-oauth');
 
@@ -254,6 +285,8 @@ export default function AuthScreen() {
         setError('We could not complete Apple sign-in. Please try again.');
       }
       setStep('idle');
+    } finally {
+      submitLockRef.current = false;
     }
   };
 
@@ -452,6 +485,26 @@ export default function AuthScreen() {
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {mode === 'create-account' ? (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>NAME (OPTIONAL)</Text>
+              <TextInput
+                testID="auth-name-input"
+                value={name}
+                onChangeText={setName}
+                placeholder="How should we greet you?"
+                placeholderTextColor={LUXURY.colors.stone}
+                accessibilityLabel="Display name"
+                accessibilityHint="Optional. The name K Scan greets you with."
+                autoCapitalize="words"
+                autoComplete="name"
+                autoCorrect={false}
+                editable={!busy}
+                style={[styles.input, busy && styles.inputDisabled]}
+              />
             </View>
           ) : null}
 

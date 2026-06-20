@@ -32,7 +32,7 @@ export interface AuthSessionContextValue {
   /** True during a background token refresh. Writes should be deferred. */
   isRefreshing: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<SignUpResult>;
+  signUp: (email: string, password: string, name?: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
 }
 
@@ -81,18 +81,31 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     if (error) throw error;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: AUTH_CALLBACK_URL },
-    });
-    if (error) throw error;
-    return {
-      session: data.session ?? null,
-      confirmationRequired: !data.session,
-    };
-  }, []);
+  const signUp = useCallback(
+    async (email: string, password: string, name?: string): Promise<SignUpResult> => {
+      const trimmedName = (name ?? '').trim();
+      // Persist the optional display name into user metadata so Home can greet
+      // the user by name. Mirrors the keys Google/Apple populate so the Home
+      // name resolver (full_name → name → display_name) works uniformly.
+      const metadata = trimmedName
+        ? { full_name: trimmedName, name: trimmedName, display_name: trimmedName }
+        : undefined;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: AUTH_CALLBACK_URL,
+          ...(metadata ? { data: metadata } : {}),
+        },
+      });
+      if (error) throw error;
+      return {
+        session: data.session ?? null,
+        confirmationRequired: !data.session,
+      };
+    },
+    [],
+  );
 
   const signOut = useCallback(async () => {
     invalidateAllMemoryCache();
