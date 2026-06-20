@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -115,10 +116,6 @@ export default function HomeV2() {
   const profileName =
     (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
 
-  const greeting = profileName
-    ? `Welcome back, ${profileName} ✨`
-    : 'Welcome to K Scan AI';
-
   const recentScans = scans.slice(0, 3);
   const hasRecentScans = recentScans.length > 0;
   const showRecentSection = scansLoading || hasRecentScans;
@@ -140,13 +137,25 @@ export default function HomeV2() {
 
       {/* Hero / Welcome */}
       <View style={styles.hero}>
-        <Text style={styles.heroTitle} accessibilityLabel={greeting}>
-          {greeting}
-        </Text>
-        <Text style={styles.heroBody}>
-          Find, save, and style fashion inspiration. Start with a scan, upload, or
-          style question.
-        </Text>
+        <View style={styles.heroRow}>
+          <View style={styles.heroTextColumn}>
+            <Text style={styles.heroBrand}>K Scan AI</Text>
+            <Text style={styles.heroTagline}>
+              See it.{"\n"}Scan it.{"\n"}Style it.
+            </Text>
+            {!authLoading && (
+              <Text style={styles.heroGreeting}>
+                {profileName ? `Welcome, ${profileName}` : "Welcome, K Scanner"}
+              </Text>
+            )}
+          </View>
+          <Image
+            source={require("../../assets/images/home-hero-v1.png")}
+            style={styles.heroImage}
+            resizeMode="cover"
+            accessibilityLabel="K Scan home hero image"
+          />
+        </View>
       </View>
 
       {/* Primary Actions */}
@@ -289,6 +298,38 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.body,
     marginTop: SPACING.sm,
     color: LUXURY.colors.graphite,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  heroTextColumn: {
+    flex: 1,
+    marginRight: SPACING.lg,
+  },
+  heroBrand: {
+    ...LUXURY.typography.displayHeadline,
+    fontSize: 24,
+    color: LUXURY.colors.ink,
+    marginBottom: SPACING.xs,
+  },
+  heroTagline: {
+    ...LUXURY.typography.displayHeadline,
+    fontSize: 20,
+    lineHeight: 26,
+    color: LUXURY.colors.ink,
+    marginBottom: SPACING.md,
+  },
+  heroGreeting: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
+  },
+  heroImage: {
+    width: 120,
+    height: 150,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
   },
   primaryActions: {
     gap: SPACING.md,
