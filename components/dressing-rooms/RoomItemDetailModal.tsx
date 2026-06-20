@@ -37,7 +37,7 @@ function getSourceBadgeLabel(sourceType?: string | null): string {
     case 'upload_inspiration':
       return 'Upload';
     case 'style_library_scan':
-      return 'Library';
+      return 'Closet';
     case 'text-scan':
     case 'textScan':
       return 'TextScan';
