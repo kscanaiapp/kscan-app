@@ -635,7 +635,7 @@ function DressingRoomDetailContent() {
     if (!roomId) return;
     Alert.alert(
       'Remove from Room?',
-      'The image will remain in your Closet.',
+      'The image will remain in your Style Library.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -800,7 +800,7 @@ function DressingRoomDetailContent() {
             {items.length === 0 ? (
               <EmptyState
                 title="This room is empty."
-                body="Start adding items from your scans, uploads, or Closet."
+                body="Start adding items from your scans, uploads, or Library."
               />
             ) : (
               <View style={styles.items}>
@@ -967,7 +967,7 @@ function RoomInspirationCard({
         hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
         accessibilityRole="button"
         accessibilityLabel="Remove inspiration from room"
-        accessibilityHint="The image will remain in your Closet"
+        accessibilityHint="The image will remain in your Style Library"
       >
         <Text style={inspirationCardStyles.removeBtnText}>×</Text>
       </TouchableOpacity>

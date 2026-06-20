@@ -121,13 +121,13 @@ export default function HomeLegacy() {
           onPress={() => router.push('/library')}
           style={({ pressed }) => [styles.featureCard, pressed && styles.featureCardPressed]}
           accessibilityRole="button"
-          accessibilityLabel="Open Closet"
+          accessibilityLabel="Open Style Library"
         >
           <View style={styles.featureCardHeader}>
             <Text style={styles.featureIcon}>◈</Text>
             <Text style={styles.betaPill}>SAVED</Text>
           </View>
-          <Text style={styles.featureTitle}>Closet</Text>
+          <Text style={styles.featureTitle}>Style Library</Text>
           <Text style={styles.featureBody}>
             Saved scans and inspiration in one place.
           </Text>

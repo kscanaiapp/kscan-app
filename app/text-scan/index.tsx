@@ -328,7 +328,7 @@ export default function TextScanScreen() {
               />
             )}
             <SecondaryButton
-              title="Save to Closet"
+              title="Save to Style Library"
               disabled
               onPress={() => {}}
               accessibilityLabel="Save coming soon for TextScan"
@@ -491,7 +491,7 @@ export default function TextScanScreen() {
             />
           )}
           <SecondaryButton
-            title="Save to Closet"
+            title="Save to Style Library"
             disabled
             onPress={() => {}}
             accessibilityLabel="Save support for TextScan is being prepared"

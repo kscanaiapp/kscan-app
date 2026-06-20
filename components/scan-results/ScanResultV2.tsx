@@ -47,7 +47,7 @@ interface ScanResultV2Props {
   scanSourceId?: string | null;
   /** Called when the user dismisses the result (e.g., "Scan Again"). */
   onDismiss: () => void;
-  /** Called to save the scan to the Closet. */
+  /** Called to save the scan to the Style Library. */
   onSaveToLibrary?: () => void;
   /** Called to add the scan to a Dressing Room. */
   onAddToDressingRoom?: () => void;

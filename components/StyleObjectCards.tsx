@@ -181,7 +181,7 @@ export function ItemTile({
         label = 'Upload';
         break;
       case 'style_library_scan':
-        label = 'Closet';
+        label = 'Library';
         break;
       case 'text-scan':
       case 'textScan':

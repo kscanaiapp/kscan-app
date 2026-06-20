@@ -296,8 +296,8 @@ export default function HomeLuxuryTechV1() {
           body="Save your favorites to your closet."
           onPress={() => router.push('/library')}
           testID="home-luxury-feature-library"
-          accessibilityLabel="Open Closet"
-          accessibilityHint="Navigate to your saved looks and closet"
+          accessibilityLabel="Open Library"
+          accessibilityHint="Navigate to your saved looks and library"
         />
         <FeatureChip
           icon="◉"

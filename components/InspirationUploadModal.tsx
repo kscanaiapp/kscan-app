@@ -88,7 +88,7 @@ export function InspirationUploadModal({
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Text style={styles.title}>
-            {roomId ? 'Add to Room Inspiration' : 'Add to Closet'}
+            {roomId ? 'Add to Room Inspiration' : 'Add to Style Library'}
           </Text>
           <Text style={styles.subtitle}>
             Upload clothing-focused images only. Avoid faces, bystanders, or sensitive information.
@@ -138,11 +138,11 @@ export function InspirationUploadModal({
                 onPress={handleUpload}
                 disabled={uploading || noteTooLong}
                 accessibilityRole="button"
-                accessibilityLabel={roomId ? 'Save to room inspiration' : 'Save to closet'}
+                accessibilityLabel={roomId ? 'Save to room inspiration' : 'Save to style library'}
               >
                 {uploading ? (
                   <Text style={styles.primaryText}>
-                    {roomId ? 'Saving Room' : 'Saving Closet'}
+                    {roomId ? 'Saving Room' : 'Saving Library'}
                   </Text>
                 ) : (
                   <Text style={styles.primaryText}>Upload</Text>
