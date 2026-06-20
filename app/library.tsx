@@ -215,7 +215,7 @@ export default function LibraryScreen() {
         ) : scans.length === 0 ? (
           <EmptyStateCard
             title="Build Your Style Archive"
-            subtitle="Your saved scans and inspirations will appear here."
+            subtitle="Scan-to-Closet starts here. Save scans, uploads, and outfit references into your Closet."
           />
         ) : scans.length === 1 ? (
           <View style={styles.singleCardRow}>
@@ -279,7 +279,7 @@ export default function LibraryScreen() {
         {!isAuthenticated ? (
           <EmptyStateCard
             title="Sign in to upload inspiration"
-            subtitle="Save screenshots and outfit references to your Closet."
+            subtitle="Scan-to-Closet and save inspiration to your Closet."
           />
         ) : inspirationLoading ? (
           <View style={styles.loadingWrap}>
@@ -297,7 +297,7 @@ export default function LibraryScreen() {
         ) : inspirations.length === 0 ? (
           <EmptyStateCard
             title="Capture Inspiration"
-            subtitle="Upload screenshots and outfit references to round out your Closet."
+            subtitle="Scan-to-Closet starts here. Upload screenshots to round out your Closet."
             action={{
               label: 'Upload',
               onPress: handleUploadInspiration,

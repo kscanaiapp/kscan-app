@@ -293,7 +293,7 @@ export default function HomeLuxuryTechV1() {
         <FeatureChip
           icon="◇"
           title="SAVE & ORGANIZE"
-          body="Save your favorites to your closet."
+          body="Scan-to-Closet style memory."
           onPress={() => router.push('/library')}
           testID="home-luxury-feature-library"
           accessibilityLabel="Open Closet"
