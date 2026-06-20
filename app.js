@@ -297,23 +297,43 @@ export default function App() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 1,
       allowsEditing: false,
       allowsMultipleSelection: false,
     });
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      uploadPhoto(result.assets[0].uri);
+    if (result.canceled) {
+      if (__DEV__) console.log('[K-SCAN] Image picker canceled');
+      return;
     }
+
+    if (!result.assets?.[0]?.uri) {
+      if (__DEV__) console.warn('[K-SCAN] Image picker returned empty assets');
+      Alert.alert('No Image Selected', 'Please select an image to analyze.');
+      return;
+    }
+
+    uploadPhoto(result.assets[0].uri);
   }, [uploadPhoto]);
 
+  // Reset camera readiness when returning to idle so the next capture waits
+  // for the camera to actually report ready, not a stale value from a prior session.
   useEffect(() => {
-    if (!permission?.granted || isCameraReady) return undefined;
-    const timer = setTimeout(() => {
-      setIsCameraReady(true);
-    }, 2500);
-    return () => clearTimeout(timer);
+    if (status === 'idle' && isCameraReady) {
+      setIsCameraReady(false);
+    }
+  }, [status, isCameraReady]);
+
+  // Camera readiness: rely solely on CameraView.onCameraReady. The 2.5s fallback
+  // timer was removed because it created false-ready states — the button enabled
+  // before the camera was actually ready, causing failed captures.
+  useEffect(() => {
+    if (permission?.granted && !isCameraReady) {
+      // Camera permission is granted but camera hasn't reported ready yet.
+      // onCameraReady from CameraView will set isCameraReady = true.
+      // No fallback timer — we only trust the actual camera readiness signal.
+    }
   }, [permission?.granted, isCameraReady]);
 
   useEffect(() => {

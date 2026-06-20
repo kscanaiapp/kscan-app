@@ -176,17 +176,22 @@ export function useKScan() {
         const compressed = await compressForUpload(photo.uri);
         if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
 
-        const sanitized = await sanitizeImageBeforeUpload(compressed);
+        let sanitized = compressed;
+        if (typeof sanitizeImageBeforeUpload === 'function') {
+          sanitized = await sanitizeImageBeforeUpload(compressed);
+        }
         if (__DEV__) {
-          const sanitizerStatus = getPrivacySanitizerStatus();
-          console.warn(
-            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
-            sanitizerStatus.mode +
-            ' faceDetectionAvailable=' +
-            sanitizerStatus.faceDetectionAvailable +
-            ' faceBlurApplied=' +
-            sanitizerStatus.faceBlurApplied
-          );
+          if (typeof getPrivacySanitizerStatus === 'function') {
+            const sanitizerStatus = getPrivacySanitizerStatus();
+            console.warn(
+              '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
+              sanitizerStatus.mode +
+              ' faceDetectionAvailable=' +
+              sanitizerStatus.faceDetectionAvailable +
+              ' faceBlurApplied=' +
+              sanitizerStatus.faceBlurApplied
+            );
+          }
         }
 
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
@@ -196,7 +201,7 @@ export function useKScan() {
         // Edge Function and map its response into the same analysis shape so the
         // result UI and downstream enrichment are unchanged.
         let data;
-        if (SCAN_IDENTIFY_BACKEND_ENABLED) {
+        if (typeof SCAN_IDENTIFY_BACKEND_ENABLED !== 'undefined' && SCAN_IDENTIFY_BACKEND_ENABLED) {
           const identifyResponse = await identifyScanImage(sanitized, {
             source: photo.source === 'upload' ? 'upload' : 'camera',
             localPrivacyFiltered: true,
