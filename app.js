@@ -39,7 +39,12 @@ import {
   DEV_FALLBACK_STATUS,
   QA_TOOLS_ENABLED,
 } from './constants/build';
-import { TEXTSCAN_UI_ENABLED, SCAN_RESULTS_V2_UI_ENABLED, SCAN_ROOM_V2_UI_ENABLED } from './constants/featureFlags';
+import {
+  TEXTSCAN_UI_ENABLED,
+  SCAN_RESULTS_V2_UI_ENABLED,
+  SCAN_ROOM_V2_UI_ENABLED,
+  isTextScanVisible,
+} from './constants/featureFlags';
 import { QA_FIXTURES } from './constants/qaFixtures';
 import {
   BUTTONS,
@@ -252,11 +257,18 @@ export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const {
+    isFeatureEnabled,
+    isLoading: featureFreezeLoading,
+    remoteError: featureFreezeRemoteError,
+  } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
-  const textScanEnabled =
-    TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
+  const textScanEnabled = isTextScanVisible({
+    localEnabled: TEXTSCAN_UI_ENABLED,
+    remoteTextScanEnabled: featureFreezeLoading ? null : isFeatureEnabled('textScan'),
+    remoteFlagError: featureFreezeRemoteError,
+  });
 
   const {
     status,

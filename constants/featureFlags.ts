@@ -53,6 +53,21 @@ export const DEFAULT_FEATURE_FREEZE_CONFIG = {
 // production builds always use remote config unless this remains null.
 export const DEV_FEATURE_FREEZE_OVERRIDE: boolean | null = __DEV__ ? null : null;
 
+const rawAppEnvironment =
+  typeof process !== 'undefined'
+    ? process.env?.EXPO_PUBLIC_APP_ENV?.toLowerCase()
+    : undefined;
+
+export const APP_ENVIRONMENT =
+  rawAppEnvironment ||
+  (typeof __DEV__ !== 'undefined' && __DEV__ ? 'development' : 'production');
+
+export const TEXTSCAN_FEATURE_FREEZE_FAIL_OPEN =
+  APP_ENVIRONMENT === 'development' ||
+  APP_ENVIRONMENT === 'dev' ||
+  APP_ENVIRONMENT === 'staging' ||
+  APP_ENVIRONMENT === 'preview';
+
 // ── TextScan UI rollout flags ────────────────────────────────────────────────
 // These are intentionally environment-driven so the TextScan UI can be built and
 // reviewed without affecting release builds. Defaults are all false.
@@ -72,10 +87,27 @@ export const TEXTSCAN_VOICE_PLACEHOLDER_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER === 'true';
 
-/** Enables real backend text analysis for TextScan. Disabled by default. */
+/** Enables real backend text analysis for TextScan. Enabled unless explicitly disabled. */
 export const TEXTSCAN_BACKEND_ENABLED =
   typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED === 'true';
+  process.env?.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED !== 'false';
+
+type TextScanVisibilityInput = {
+  localEnabled: boolean;
+  remoteTextScanEnabled: boolean | null | undefined;
+  remoteFlagError?: boolean;
+};
+
+export function isTextScanVisible({
+  localEnabled,
+  remoteTextScanEnabled,
+  remoteFlagError = false,
+}: TextScanVisibilityInput): boolean {
+  if (!localEnabled) return false;
+  if (remoteTextScanEnabled === true) return true;
+  if (!TEXTSCAN_FEATURE_FREEZE_FAIL_OPEN) return false;
+  return remoteFlagError || remoteTextScanEnabled == null;
+}
 
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =

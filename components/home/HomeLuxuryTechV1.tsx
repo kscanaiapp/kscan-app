@@ -26,7 +26,7 @@ import {
   StatusPill,
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED, isTextScanVisible } from '../../constants/featureFlags';
 
 
 function formatDateLabel(iso: string): string {
@@ -84,12 +84,19 @@ function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, a
  */
 export default function HomeLuxuryTechV1() {
   const { isAuthenticated, user, loading: authLoading } = useAuthSession();
-  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const {
+    isFeatureEnabled,
+    isLoading: featureFreezeLoading,
+    remoteError: featureFreezeRemoteError,
+  } = useFeatureFreeze();
   const { scans, loading: scansLoading } = useLibrary();
   const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
 
-  const textScanEnabled =
-    TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
+  const textScanEnabled = isTextScanVisible({
+    localEnabled: TEXTSCAN_UI_ENABLED,
+    remoteTextScanEnabled: featureFreezeLoading ? null : isFeatureEnabled('textScan'),
+    remoteFlagError: featureFreezeRemoteError,
+  });
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
 
   const meta = user?.user_metadata as Record<string, string | undefined> | undefined;

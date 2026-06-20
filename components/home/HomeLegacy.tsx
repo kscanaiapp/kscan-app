@@ -13,14 +13,21 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED, isTextScanVisible } from '../../constants/featureFlags';
 
 export default function HomeLegacy() {
   const { isAuthenticated, signOut, user, loading } = useAuthSession();
   const [signingOut, setSigningOut] = useState(false);
-  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
-  const textScanEnabled =
-    TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
+  const {
+    isFeatureEnabled,
+    isLoading: featureFreezeLoading,
+    remoteError: featureFreezeRemoteError,
+  } = useFeatureFreeze();
+  const textScanEnabled = isTextScanVisible({
+    localEnabled: TEXTSCAN_UI_ENABLED,
+    remoteTextScanEnabled: featureFreezeLoading ? null : isFeatureEnabled('textScan'),
+    remoteFlagError: featureFreezeRemoteError,
+  });
 
   const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
   const profileName =

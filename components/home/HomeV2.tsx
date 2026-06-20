@@ -24,7 +24,7 @@ import {
   StatusPill,
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED, isTextScanVisible } from '../../constants/featureFlags';
 
 interface DestinationCardProps {
   title: string;
@@ -93,11 +93,18 @@ function formatDateLabel(iso: string): string {
 
 export default function HomeV2() {
   const { isAuthenticated, user, loading: authLoading } = useAuthSession();
-  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const {
+    isFeatureEnabled,
+    isLoading: featureFreezeLoading,
+    remoteError: featureFreezeRemoteError,
+  } = useFeatureFreeze();
   const { scans, loading: scansLoading } = useLibrary();
 
-  const textScanEnabled =
-    TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
+  const textScanEnabled = isTextScanVisible({
+    localEnabled: TEXTSCAN_UI_ENABLED,
+    remoteTextScanEnabled: featureFreezeLoading ? null : isFeatureEnabled('textScan'),
+    remoteFlagError: featureFreezeRemoteError,
+  });
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');

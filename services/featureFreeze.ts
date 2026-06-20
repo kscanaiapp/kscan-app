@@ -18,6 +18,8 @@ export type FeatureFreezeConfig = {
   updatedAt: string | null;
 };
 
+export type FeatureFreezeConfigSource = 'remote' | 'cache' | 'default';
+
 type RemoteAppConfigRow = {
   value?: unknown;
 };
@@ -117,21 +119,26 @@ export async function fetchRemoteFeatureFreezeConfig(): Promise<FeatureFreezeCon
 
 export async function loadFeatureFreezeConfig(): Promise<{
   config: FeatureFreezeConfig;
-  source: 'remote' | 'cache' | 'default';
+  source: FeatureFreezeConfigSource;
+  remoteError: boolean;
 }> {
   const cached = await readCachedFeatureFreezeConfig();
 
   try {
     const remote = await fetchRemoteFeatureFreezeConfig();
     await cacheFeatureFreezeConfig(remote);
-    return { config: applyDevFeatureFreezeOverride(remote), source: 'remote' };
+    return { config: applyDevFeatureFreezeOverride(remote), source: 'remote', remoteError: false };
   } catch {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.warn('[K-SCAN FeatureFreeze] remote fetch failed; using cache/default');
     }
     if (cached) {
-      return { config: applyDevFeatureFreezeOverride(cached), source: 'cache' };
+      return { config: applyDevFeatureFreezeOverride(cached), source: 'cache', remoteError: true };
     }
-    return { config: applyDevFeatureFreezeOverride({ ...DEFAULT_FEATURE_FREEZE_CONFIG }), source: 'default' };
+    return {
+      config: applyDevFeatureFreezeOverride({ ...DEFAULT_FEATURE_FREEZE_CONFIG }),
+      source: 'default',
+      remoteError: true,
+    };
   }
 }

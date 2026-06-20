@@ -6,24 +6,15 @@
  */
 
 import type { TextScanDemoAttributes } from '../data/textscan-demo';
+import type { FashionAttributes } from '../types/scanIdentification';
 
 export type TextScanResultType = 'fashion_text' | 'non_fashion_text';
 
-export interface TextScanAttributes {
-  category?: string | null;
-  itemType?: string | null;
+export type TextScanAttributes = FashionAttributes & {
   color?: string | null;
-  colorPalette?: string[];
   material?: string | null;
-  materialEstimate?: string | null;
-  silhouette?: string | null;
-  pattern?: string | null;
-  texture?: string | null;
-  occasion?: string | null;
   styleDescriptors?: string[];
-  styleTags?: string[];
-  confidenceScore?: number | null;
-}
+};
 
 export interface TextScanMetadata {
   source: 'textscan';
@@ -111,23 +102,23 @@ function safeAttributes(raw: unknown): TextScanAttributes {
   const styleTags = safeArray(sourceAttrs.styleTags);
   const styleDescriptors = safeArray(sourceAttrs.styleDescriptors ?? sourceAttrs.style);
   const material =
-    safeString(sourceAttrs.material ?? sourceAttrs.materialEstimate ?? sourceAttrs.fabric) || null;
+    safeString(sourceAttrs.material ?? sourceAttrs.materialEstimate ?? sourceAttrs.fabric) || undefined;
   const materialEstimate = safeString(sourceAttrs.materialEstimate) || material;
 
   return {
-    category: safeString(sourceAttrs.category ?? sourceAttrs.itemType) || null,
-    itemType: safeString(sourceAttrs.itemType) || null,
+    category: safeString(sourceAttrs.category ?? sourceAttrs.itemType) || undefined,
+    itemType: safeString(sourceAttrs.itemType) || undefined,
     color: safeString(sourceAttrs.color) || (colorPalette.length ? colorPalette.join(', ') : null),
     colorPalette,
     material,
     materialEstimate,
-    silhouette: safeString(sourceAttrs.silhouette ?? sourceAttrs.fit) || null,
-    pattern: safeString(sourceAttrs.pattern) || null,
-    texture: safeString(sourceAttrs.texture) || null,
-    occasion: safeString(sourceAttrs.occasion) || null,
+    silhouette: safeString(sourceAttrs.silhouette ?? sourceAttrs.fit) || undefined,
+    pattern: safeString(sourceAttrs.pattern) || undefined,
+    texture: safeString(sourceAttrs.texture) || undefined,
+    occasion: safeString(sourceAttrs.occasion) || undefined,
     styleDescriptors: styleDescriptors.length ? styleDescriptors : styleTags,
     styleTags,
-    confidenceScore: safeNumber(sourceAttrs.confidenceScore),
+    confidenceScore: safeNumber(sourceAttrs.confidenceScore) ?? undefined,
   };
 }
 

@@ -16,6 +16,8 @@ type FeatureFreezeContextValue = {
   isFrozen: boolean;
   isLoading: boolean;
   message: string;
+  source: 'remote' | 'cache' | 'default';
+  remoteError: boolean;
   refresh: () => Promise<void>;
   isFeatureEnabled: (featureKey: FeatureKey) => boolean;
 };
@@ -27,12 +29,16 @@ export function FeatureFreezeProvider({ children }: { children: React.ReactNode 
     applyDevFeatureFreezeOverride({ ...DEFAULT_FEATURE_FREEZE_CONFIG }),
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [source, setSource] = useState<'remote' | 'cache' | 'default'>('default');
+  const [remoteError, setRemoteError] = useState(false);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
       const result = await loadFeatureFreezeConfig();
       setConfig(result.config);
+      setSource(result.source);
+      setRemoteError(result.remoteError);
     } finally {
       setIsLoading(false);
     }
@@ -45,6 +51,7 @@ export function FeatureFreezeProvider({ children }: { children: React.ReactNode 
       .then((cached) => {
         if (mounted && cached) {
           setConfig(applyDevFeatureFreezeOverride(cached));
+          setSource('cache');
         }
       })
       .finally(() => {
@@ -63,10 +70,12 @@ export function FeatureFreezeProvider({ children }: { children: React.ReactNode 
       isFrozen,
       isLoading,
       message: config.freezeMessage,
+      source,
+      remoteError,
       refresh,
       isFeatureEnabled: (featureKey) => isFeatureEnabledForFreeze(featureKey, isFrozen),
     };
-  }, [config, isLoading, refresh]);
+  }, [config, isLoading, remoteError, refresh, source]);
 
   return (
     <FeatureFreezeContext.Provider value={value}>
