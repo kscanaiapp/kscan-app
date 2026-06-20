@@ -6,6 +6,7 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { LuxuryButton } from '../luxury/LuxuryButton';
@@ -17,6 +18,7 @@ interface ScanLandingProps {
   onOpenCamera: () => void;
   onUploadImage: () => void;
   onTextScan: () => void;
+  onHome?: () => void;
   textScanEnabled?: boolean;
   testID?: string;
 }
@@ -35,6 +37,7 @@ export function ScanLanding({
   onOpenCamera,
   onUploadImage,
   onTextScan,
+  onHome,
   textScanEnabled = false,
   testID,
 }: ScanLandingProps) {
@@ -45,7 +48,22 @@ export function ScanLanding({
       showsVerticalScrollIndicator={false}
       testID={testID}
     >
-      <ScanRoomHeader badge={<AIStarBadge />} />
+      <ScanRoomHeader
+        badge={<AIStarBadge />}
+        rightAction={
+          onHome ? (
+            <Pressable
+              onPress={onHome}
+              style={styles.homeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go Home"
+              accessibilityHint="Returns to the K Scan home screen"
+            >
+              <Text style={styles.homeButtonText}>Home</Text>
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       {/* Hero card */}
       <View style={styles.heroCard}>
@@ -192,5 +210,23 @@ const styles = StyleSheet.create({
   },
   privacyFooter: {
     marginTop: SPACING.xxl,
+  },
+  homeButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.goldChampagne,
+    backgroundColor: LUXURY.colors.pearl,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  homeButtonText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: LUXURY.colors.plum,
+    textTransform: 'uppercase',
   },
 });

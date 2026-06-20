@@ -5,6 +5,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -290,21 +291,33 @@ export default function AuthScreen() {
         <KeyboardAvoidingView
           style={styles.body}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
         >
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Check Your Email</Text>
-            <Text style={styles.cardBody}>
-              We sent a confirmation link to{' '}
-              <Text style={styles.emailHighlight}>{email.trim()}</Text>. Open the link to verify
-              your account and K Scan will sign you in automatically.
-            </Text>
-            <Pressable style={styles.primaryButton} onPress={handleBackToSignIn}>
-              <Text style={styles.primaryButtonText}>SIGN IN</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.footNote}>
-            Didn't receive it? Check your spam folder, or try creating the account again.
-          </Text>
+          <ScrollView
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: Math.max(insets.bottom, 24) + 120 },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.scrollInner}>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Check Your Email</Text>
+                <Text style={styles.cardBody}>
+                  We sent a confirmation link to{' '}
+                  <Text style={styles.emailHighlight}>{email.trim()}</Text>. Open the link to verify
+                  your account and K Scan will sign you in automatically.
+                </Text>
+                <Pressable style={styles.primaryButton} onPress={handleBackToSignIn}>
+                  <Text style={styles.primaryButtonText}>SIGN IN</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.footNote}>
+                Didn't receive it? Check your spam folder, or try creating the account again.
+              </Text>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </View>
     );
@@ -338,9 +351,19 @@ export default function AuthScreen() {
       <KeyboardAvoidingView
         style={styles.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
-        <View style={styles.card}>
-          {/* Mode switcher tabs */}
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(insets.bottom, 24) + 120 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.scrollInner}>
+            <View style={styles.card}>
+              {/* Mode switcher tabs */}
           <View style={styles.tabRow}>
             <Pressable
               testID="auth-mode-signin"
@@ -571,7 +594,9 @@ export default function AuthScreen() {
           >
             <Text style={styles.legalLinkText}>Support</Text>
           </Pressable>
-        </View>
+            </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -623,9 +648,13 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     padding: LAYOUT.screenPadding,
-    gap: SPACING.lg,
-    justifyContent: 'center',
     paddingBottom: LAYOUT.modalBottomPadding,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  scrollInner: {
+    gap: SPACING.lg,
   },
   card: {
     borderWidth: 1,

@@ -6,6 +6,7 @@ export interface ScanRoomHeaderProps {
   badge?: React.ReactNode;
   style?: ViewStyle;
   testID?: string;
+  rightAction?: React.ReactNode;
 }
 
 /**
@@ -18,12 +19,19 @@ export function ScanRoomHeader({
   badge,
   style,
   testID,
+  rightAction,
 }: ScanRoomHeaderProps) {
   return (
     <View style={[styles.root, style]} testID={testID}>
-      <View style={styles.brandRow}>
-        <Text style={styles.brandTitle}>K Scan AI</Text>
-        {badge}
+      <View style={styles.row}>
+        <View style={styles.left} />
+        <View style={styles.center}>
+          <Text style={styles.brandTitle}>K Scan AI</Text>
+          {badge}
+        </View>
+        <View style={styles.right}>
+          {rightAction}
+        </View>
       </View>
       <View style={styles.divider}>
         <Text style={styles.dividerText}>✧</Text>
@@ -37,11 +45,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.lg,
   },
-  brandRow: {
+  row: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    paddingHorizontal: SPACING.lg,
+    alignSelf: 'stretch',
+  },
+  left: {
+    minWidth: 44,
+    minHeight: 44,
+  },
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.md,
+    flexDirection: 'row',
+  },
+  right: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   brandTitle: {
     ...LUXURY.typography.brandMark,

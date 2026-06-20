@@ -281,6 +281,10 @@ export default function App() {
   const [v2CameraVisible, setV2CameraVisible] = useState(false);
   const [v2AnalyzingMinComplete, setV2AnalyzingMinComplete] = useState(false);
 
+  const handleHome = useCallback(() => {
+    router.replace('/');
+  }, [router]);
+
   const handleUploadImage = useCallback(async () => {
     const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permStatus !== 'granted') {
@@ -526,6 +530,16 @@ export default function App() {
             </View>
           </SafeAreaView>
 
+          <Pressable
+            onPress={handleHome}
+            style={styles.homeButtonV1}
+            accessibilityRole="button"
+            accessibilityLabel="Go Home"
+            accessibilityHint="Returns to the K Scan home screen"
+          >
+            <Text style={styles.homeButtonV1Text}>Home</Text>
+          </Pressable>
+
           {status === 'idle' && (
             <TouchableOpacity
               testID="library-button"
@@ -688,7 +702,20 @@ export default function App() {
   const renderPreviewScreen = () => (
     <SafeAreaView style={styles.previewScreen}>
       <View style={styles.previewHeader}>
-        {renderBrandTitle()}
+        <View style={styles.previewHeaderRow}>
+          <View style={styles.previewHeaderLeft}>
+            {renderBrandTitle()}
+          </View>
+          <Pressable
+            onPress={handleHome}
+            style={styles.homeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go Home"
+            accessibilityHint="Returns to the K Scan home screen"
+          >
+            <Text style={styles.homeButtonText}>Home</Text>
+          </Pressable>
+        </View>
         <Text style={styles.subtitle}>Look Analyzer</Text>
       </View>
 
@@ -711,6 +738,7 @@ export default function App() {
                 onOpenCamera={() => setV2CameraVisible(true)}
                 onUploadImage={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
+                onHome={handleHome}
                 textScanEnabled={textScanEnabled}
               />
             );
@@ -723,6 +751,7 @@ export default function App() {
               onUpload={handleUploadImage}
               onTextScan={() => router.push('/text-scan')}
               onBack={() => setV2CameraVisible(false)}
+              onHome={handleHome}
               textScanEnabled={textScanEnabled}
             />
           );
@@ -746,6 +775,7 @@ export default function App() {
                 onUpload={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
                 onBack={() => setV2CameraVisible(false)}
+                onHome={handleHome}
                 textScanEnabled={textScanEnabled}
               />
             ) : (
@@ -753,6 +783,7 @@ export default function App() {
                 onOpenCamera={() => setV2CameraVisible(true)}
                 onUploadImage={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
+                onHome={handleHome}
                 textScanEnabled={textScanEnabled}
               />
             );
@@ -763,6 +794,7 @@ export default function App() {
               source={photo.source || 'camera'}
               onRetake={photo.source === 'upload' ? handleUploadImage : retake}
               onAnalyze={runAnalysis}
+              onHome={handleHome}
             />
           );
 
@@ -773,6 +805,7 @@ export default function App() {
               isComplete={false}
               hasError={false}
               onMinimumDisplayComplete={() => setV2AnalyzingMinComplete(true)}
+              onHome={handleHome}
             />
           );
 
@@ -786,6 +819,7 @@ export default function App() {
                 isComplete={true}
                 hasError={false}
                 onMinimumDisplayComplete={() => setV2AnalyzingMinComplete(true)}
+                onHome={handleHome}
               />
             );
           }
@@ -1188,6 +1222,51 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.darkOverlayBorder,
     backgroundColor: COLORS.obsidian,
     marginBottom: SPACING.sm,
+  },
+  previewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  previewHeaderLeft: {
+    flex: 1,
+  },
+  homeButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: COLORS.champagneGold,
+    backgroundColor: COLORS.surfaceCard,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  homeButtonText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: COLORS.textInverse,
+    textTransform: 'uppercase',
+  },
+  homeButtonV1: {
+    position: 'absolute',
+    top: LAYOUT.safeTop + SPACING.lg,
+    left: LAYOUT.screenPadding,
+    zIndex: 30,
+    elevation: 30,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.darkOverlay,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.darkOverlayBorder,
+    ...SHADOWS.darkFloat,
+  },
+  homeButtonV1Text: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textInverse,
   },
   previewContainer: {
     flex: 1,

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   useWindowDimensions,
+  Pressable,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
@@ -24,6 +25,7 @@ interface LiveScanCameraProps {
   onUpload: () => void;
   onTextScan: () => void;
   onBack: () => void;
+  onHome?: () => void;
   textScanEnabled?: boolean;
   testID?: string;
 }
@@ -45,6 +47,7 @@ export function LiveScanCamera({
   onUpload,
   onTextScan,
   onBack,
+  onHome,
   textScanEnabled = false,
   testID,
 }: LiveScanCameraProps) {
@@ -55,12 +58,24 @@ export function LiveScanCamera({
   const viewfinderWidth = Math.min(screenWidth - SPACING.xl * 2, 420);
   const viewfinderHeight = viewfinderWidth * 1.25; // 4:5
 
+  const homeButton = onHome ? (
+    <Pressable
+      onPress={onHome}
+      style={styles.homeButton}
+      accessibilityRole="button"
+      accessibilityLabel="Go Home"
+      accessibilityHint="Returns to the K Scan home screen"
+    >
+      <Text style={styles.homeButtonText}>Home</Text>
+    </Pressable>
+  ) : undefined;
+
   // Permission denied state
   if (!permission?.granted) {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]} testID={testID}>
         <StatusBar style="dark" />
-        <ScanRoomHeader badge={<AIStarBadge />} />
+        <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
         <View style={styles.permissionContainer}>
           <EmptyStateCard
             title="Camera access is needed to scan items."
@@ -94,7 +109,7 @@ export function LiveScanCamera({
   return (
     <View style={[styles.root, { paddingTop: insets.top }]} testID={testID}>
       <StatusBar style="dark" />
-      <ScanRoomHeader badge={<AIStarBadge />} />
+      <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
 
       {/* Viewfinder */}
       <View style={[styles.viewfinderWrap, { width: viewfinderWidth, height: viewfinderHeight }]}>
@@ -293,5 +308,23 @@ const styles = StyleSheet.create({
   },
   permissionAltActions: {
     gap: SPACING.md,
+  },
+  homeButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.goldChampagne,
+    backgroundColor: LUXURY.colors.pearl,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  homeButtonText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: LUXURY.colors.plum,
+    textTransform: 'uppercase',
   },
 });
