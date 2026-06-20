@@ -98,6 +98,9 @@ product-search-response.json
 .env
 .env.local
 .env.*
+# Keep example/template env files tracked (placeholders only, no real secrets)
+!.env.example
+!.env.local.example
 API Keys.docx
 
 # Allow K Scan QA mockup references
