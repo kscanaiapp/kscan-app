@@ -319,6 +319,13 @@ export default function TextScanScreen() {
                   setStyleChatHandoffContext({
                     source: 'text-scan',
                     query: query.trim(),
+                    textScanId: textScanResult?.id ?? null,
+                    category: textScanResult?.metadata?.attributes?.category ?? null,
+                    color: textScanResult?.metadata?.attributes?.color ?? null,
+                    silhouette: textScanResult?.metadata?.attributes?.silhouette ?? null,
+                    material: textScanResult?.metadata?.attributes?.material ?? null,
+                    descriptors: textScanResult?.metadata?.attributes?.styleTags ?? null,
+                    analysisText: textScanResult?.result ?? null,
                     createdAt: new Date().toISOString(),
                   });
                   router.push('/style-chat');

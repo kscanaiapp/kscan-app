@@ -19,6 +19,7 @@ export type StyleChatHandoffContext = {
   descriptors?: string[];
   analysisText?: string | null;
   createdAt?: string;
+  textScanId?: string | null;
 };
 
 let currentHandoff: StyleChatHandoffContext | null = null;

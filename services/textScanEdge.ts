@@ -1,5 +1,13 @@
 // services/textScanEdge.ts
-// Client adapter for TextScan through the existing scan-identify Supabase Edge Function.
+// Canonical client adapter for TextScan (Phase 23).
+//
+// Backend path:
+//   TextScan screen → analyzeTextWithEdge() → supabase.functions.invoke('scan-identify')
+//   → scan-identify Edge Function (text mode branch) → Gemini
+//   → normalized TextScan result
+//
+// The parallel `supabase/functions/text-scan/` Edge Function is deprecated and not
+// invoked by this adapter. It is preserved only as a reference.
 
 import { supabase } from './supabaseClient';
 import {

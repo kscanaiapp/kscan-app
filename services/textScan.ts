@@ -214,17 +214,52 @@ export function normalizeTextScanResult(
 }
 
 /**
- * Convert TextScan attributes into the legacy AttributeGrid shape
- * used by the TextScan UI demo components.
+ * Convert a TextScanResult into the stabilized StyleMatch contract shape.
+ *
+ * This mapping is future-proof: `items` and `actions` are defaulted so the
+ * UI can adopt the full StyleMatch contract without changing this adapter.
  */
-export function toAttributeGrid(attrs: TextScanAttributes): TextScanDemoAttributes {
+export function toStyleMatch(result: TextScanResult): {
+  id: string;
+  source: 'textscan';
+  confidence: number | null;
+  summary: string;
+  intent: {
+    style: string | null;
+    occasion: string | null;
+    colors: string[];
+    materials: string[];
+    silhouette: string | null;
+    keywords: string[];
+  };
+  items: { retail: []; resale: []; suggested: [] };
+  actions: { canSave: false; canOpenOnPhone: false };
+  meta: { scanModeLabel: string; confidenceLabel: string; isDemo: boolean };
+} {
+  const attrs = result.metadata?.attributes ?? {};
+  const styleTags = Array.isArray(attrs.styleTags) ? attrs.styleTags : [];
+  const colorPalette = Array.isArray(attrs.colorPalette) ? attrs.colorPalette : [];
+
   return {
-    category: attrs.category ?? '—',
-    silhouette: attrs.silhouette ?? '—',
-    color: attrs.color ?? '—',
-    material: attrs.material ?? '—',
-    style: attrs.styleDescriptors?.join(', ') ?? '—',
-    budget: '—', // Not computed in this sprint
+    id: result.id,
+    source: 'textscan',
+    confidence: result.confidence ?? attrs.confidenceScore ?? null,
+    summary: result.result,
+    intent: {
+      style: styleTags.length ? styleTags.join(', ') : null,
+      occasion: attrs.occasion ?? null,
+      colors: colorPalette,
+      materials: attrs.material ? [attrs.material] : attrs.materialEstimate ? [attrs.materialEstimate] : [],
+      silhouette: attrs.silhouette ?? null,
+      keywords: styleTags,
+    },
+    items: { retail: [], resale: [], suggested: [] },
+    actions: { canSave: false, canOpenOnPhone: false },
+    meta: {
+      scanModeLabel: 'TextScan',
+      confidenceLabel: typeof result.confidence === 'number' ? `${Math.round(result.confidence * 100)}%` : '—',
+      isDemo: false,
+    },
   };
 }
 
