@@ -800,7 +800,7 @@ function DressingRoomDetailContent() {
             {items.length === 0 ? (
               <EmptyState
                 title="This room is empty."
-                body="Start adding items from your scans, uploads, or Closet."
+                body="Start adding items from your scans, uploads, or Closet. Use Scan-to-Closet to save looks."
               />
             ) : (
               <View style={styles.items}>
