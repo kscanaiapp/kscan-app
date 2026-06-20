@@ -264,6 +264,24 @@ export function toStyleMatch(result: TextScanResult): {
 }
 
 /**
+ * Convert TextScan attributes into the legacy AttributeGrid shape
+ * used by the TextScan UI (results "Interpreted Attributes" card).
+ *
+ * Restored after the Phase 23 consolidation removed it while the
+ * TextScan screen (app/text-scan/index.tsx) still imports/calls it.
+ */
+export function toAttributeGrid(attrs: TextScanAttributes): TextScanDemoAttributes {
+  return {
+    category: attrs.category ?? '—',
+    silhouette: attrs.silhouette ?? '—',
+    color: attrs.color ?? '—',
+    material: attrs.material ?? '—',
+    style: attrs.styleDescriptors?.join(', ') ?? '—',
+    budget: '—', // Not computed in this sprint
+  };
+}
+
+/**
  * Frontend input validation for TextScan queries.
  *
  * Returns { valid: true } or { valid: false, message: '...' }.
