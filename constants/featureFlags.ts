@@ -110,3 +110,15 @@ export const ACCOUNT_HOME_UX_V1_ENABLED =
 export const CLOUD_SAVED_SCANS_ENABLED =
   typeof process !== 'undefined' &&
   process.env?.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';
+
+// ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
+/**
+ * Routes the image Scan analyze call through the app-side `scan-identify`
+ * Supabase Edge Function (Gemini vision) instead of the legacy Render
+ * `/api/analyze` endpoint. Disabled by default — enabling requires owner
+ * approval and an authenticated Scan flow (the Edge Function rejects anon calls).
+ * Does not affect TextScan.
+ */
+export const SCAN_IDENTIFY_BACKEND_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true';
