@@ -131,25 +131,38 @@ function AuthGate() {
     }
   }, [guardState.action, guardState.redirectTo, waitingForAuthCallbackRoute, session, onboardingComplete]);
 
-  // Defensive: redirect authenticated users away from onboarding routes
+  // Defensive: redirect authenticated users away from onboarding routes.
   useEffect(() => {
     if (loading || !onboardingChecked) return;
-    if (!session) return;
+    const userId = session?.user?.id;
+    if (!userId) return;
 
-    if (pathname === '/onboarding') {
-      if (!onboardingComplete) {
-        router.replace('/onboarding/permissions');
-      } else {
-        router.replace('/');
-      }
+    // Stay out of the way while the user is on the permissions screen.
+    if (pathname === '/onboarding/permissions') return;
+
+    // Known-complete: just normalize the bare /onboarding entry route to home.
+    if (onboardingComplete) {
+      if (pathname === '/onboarding') router.replace('/');
       return;
     }
 
-    // Catch-all: any authenticated user without onboarding completion
-    // who lands on a route other than permissions should be redirected
-    if (!onboardingComplete && pathname !== '/onboarding/permissions') {
+    // The in-memory snapshot says incomplete, but it is only read once at
+    // startup. The permissions screen writes completion and then navigates
+    // home, so re-verify against storage before bouncing the user back —
+    // otherwise a just-completed user is trapped on the permissions screen.
+    let cancelled = false;
+    isOnboardingComplete(userId).then((complete) => {
+      if (cancelled) return;
+      if (complete) {
+        setOnboardingComplete(true);
+        if (pathname === '/onboarding') router.replace('/');
+        return;
+      }
       router.replace('/onboarding/permissions');
-    }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loading, onboardingChecked, session, pathname, onboardingComplete]);
 
   if (waitingForAuthCallbackRoute) {
