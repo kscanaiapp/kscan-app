@@ -146,7 +146,7 @@ function SavedToast({ onDismiss }) {
 
   return (
     <Animated.View style={[styles.savedToast, { opacity }]}>
-      <Text style={styles.savedToastText}>Saved to Style Library</Text>
+      <Text style={styles.savedToastText}>Saved to Closet</Text>
     </Animated.View>
   );
 }
@@ -547,7 +547,7 @@ export default function App() {
               onPress={() => router.push('/library')}
               activeOpacity={0.8}
             >
-              <Text style={styles.libraryButtonText}>LIBRARY</Text>
+              <Text style={styles.libraryButtonText}>CLOSET</Text>
             </TouchableOpacity>
           )}
 
