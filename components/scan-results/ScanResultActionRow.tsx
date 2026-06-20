@@ -34,7 +34,7 @@ export function ScanResultActionRow({
   onFindSimilar,
   onAskStyleChat,
   onAddToDressingRoom,
-  saveLabel = 'Save to Library',
+  saveLabel = 'Save to Closet',
   findSimilarLabel = 'Find Similar',
   askStyleChatLabel = 'Ask StyleChat',
   addToDressingRoomLabel = 'Add to Dressing Room',

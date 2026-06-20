@@ -237,13 +237,13 @@ export default function HomeV2() {
           accessibilityHint="Organize looks you are deciding between"
         />
         <DestinationCard
-          title="Library"
+          title="Closet"
           body="Revisit saved scans, uploads, and style ideas."
           icon="◈"
           route="/library"
           enabled={libraryEnabled}
           testID="home-v2-library-card"
-          accessibilityLabel="Open Library"
+          accessibilityLabel="Open Closet"
           accessibilityHint="View saved scans, uploads, and style ideas"
         />
       </View>
