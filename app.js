@@ -1250,33 +1250,6 @@ const styles = StyleSheet.create({
     color: COLORS.textInverse,
     textTransform: 'uppercase',
   },
-  previewHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  previewHeaderLeft: {
-    flex: 1,
-  },
-  homeButton: {
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: COLORS.champagneGold,
-    backgroundColor: COLORS.surfaceCard,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    minHeight: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  homeButtonText: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: COLORS.textInverse,
-    textTransform: 'uppercase',
-  },
   homeButtonV1: {
     position: 'absolute',
     top: LAYOUT.safeTop + SPACING.lg,
