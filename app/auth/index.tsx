@@ -59,12 +59,9 @@ export default function AuthScreen() {
   // signIn / OAuth calls back-to-back (a real cause of duplicate-request 429s).
   const submitLockRef = useRef(false);
 
-  // Navigate away when a session appears (sign-in or immediate signup without email confirmation)
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/');
-    }
-  }, [isAuthenticated, router]);
+  // Auth routing is now handled by the AuthGate in _layout.tsx,
+  // which checks onboarding completion before redirecting.
+  // Local redirect removed to prevent bypassing the permissions page.
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -105,14 +102,14 @@ export default function AuthScreen() {
     try {
       if (mode === 'sign-in') {
         await signIn(email.trim(), password);
-        // isAuthenticated useEffect handles navigation
+        // AuthGate in _layout.tsx handles post-signin routing
       } else {
         const result = await signUp(email.trim(), password, name);
         if (result.confirmationRequired) {
           // Case B: email confirmation required — show inline panel
           setStep('confirm-email');
         }
-        // Case A: session created — isAuthenticated useEffect handles navigation
+        // Case A: session created — AuthGate handles routing to permissions page
       }
     } catch (err) {
       setStep('idle');

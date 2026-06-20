@@ -48,7 +48,7 @@ type OnboardingStep =
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { loading: authLoading, isAuthenticated, signUp, signIn } = useAuthSession();
+  const { loading: authLoading, signUp, signIn } = useAuthSession();
 
   const [step, setStep] = useState<OnboardingStep>(1);
 
@@ -77,12 +77,9 @@ export default function OnboardingScreen() {
     savePreferences,
   } = usePermissionPreferences();
 
-  // Auth state: if user becomes authenticated externally, skip to Home
-  useEffect(() => {
-    if (isAuthenticated && step < 6) {
-      router.replace('/');
-    }
-  }, [isAuthenticated, step, router]);
+  // AuthGate in _layout.tsx handles all authenticated routing, including
+  // redirecting to /onboarding/permissions when onboarding is not complete.
+  // Local redirect removed to prevent skipping the Terms step (step 4).
 
   // Android hardware back handler
   useEffect(() => {
@@ -166,7 +163,7 @@ export default function OnboardingScreen() {
         appVersion: null, // app_version not wired — deferred until app metadata helper exists
       });
       if (result.ok) {
-        goToNext();
+        router.replace('/onboarding/permissions');
       } else {
         setLegalError(result.error ?? 'Unable to save your preferences. Please try again.');
       }
@@ -175,7 +172,7 @@ export default function OnboardingScreen() {
     } finally {
       setLegalBusy(false);
     }
-  }, [goToNext]);
+  }, [router]);
 
   // ── Render helpers ───────────────────────────────────────────────────────
 
