@@ -121,4 +121,4 @@ export const CLOUD_SAVED_SCANS_ENABLED =
  */
 export const SCAN_IDENTIFY_BACKEND_ENABLED =
   typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true';
+  process.env?.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED !== 'false';

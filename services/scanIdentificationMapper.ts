@@ -20,12 +20,12 @@ export type MappedScanMetadata = {
   color: string;
   silhouette: string;
   itemType?: string;
-  materialEstimate?: string;
+  material?: string;
   pattern?: string;
   texture?: string;
   occasion?: string;
   styleTags?: string[];
-  confidenceScore?: number;
+  confidence?: number;
 };
 
 export type MappedFashionAnalysis = {
@@ -63,12 +63,12 @@ function buildMetadata(attributes: FashionAttributes | undefined): MappedScanMet
     silhouette: a.silhouette ?? '',
   };
   if (a.itemType) meta.itemType = a.itemType;
-  if (a.materialEstimate) meta.materialEstimate = a.materialEstimate;
+  if (a.materialEstimate) meta.material = a.materialEstimate;
   if (a.pattern) meta.pattern = a.pattern;
   if (a.texture) meta.texture = a.texture;
   if (a.occasion) meta.occasion = a.occasion;
   if (Array.isArray(a.styleTags) && a.styleTags.length) meta.styleTags = a.styleTags;
-  if (typeof a.confidenceScore === 'number') meta.confidenceScore = a.confidenceScore;
+  if (typeof a.confidenceScore === 'number') meta.confidence = a.confidenceScore;
   return meta;
 }
 
