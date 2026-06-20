@@ -897,7 +897,12 @@ export default function App() {
             scanImageUri={photo?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
             onDismiss={dismissResult}
-            onSaveToLibrary={() => { /* already auto-saved to library */ }}
+            onSaveToLibrary={() => {
+              if (photo?.uri && analysis) {
+                saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' })
+                  .then(saved => { if (saved) setSavedToast(true); });
+              }
+            }}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
             onAskStyleChat={styleChatEnabled ? () => {
               const source = photo?.source === 'upload' ? 'upload' : 'camera';
