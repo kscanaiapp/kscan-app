@@ -11,11 +11,18 @@ export type TextScanResultType = 'fashion_text' | 'non_fashion_text';
 
 export interface TextScanAttributes {
   category?: string | null;
+  itemType?: string | null;
   color?: string | null;
+  colorPalette?: string[];
   material?: string | null;
+  materialEstimate?: string | null;
   silhouette?: string | null;
+  pattern?: string | null;
+  texture?: string | null;
   occasion?: string | null;
   styleDescriptors?: string[];
+  styleTags?: string[];
+  confidenceScore?: number | null;
 }
 
 export interface TextScanMetadata {
@@ -51,6 +58,10 @@ function isFashionType(type: unknown): boolean {
   if (typeof type !== 'string') return false;
   const t = type.toLowerCase().replace(/[-_]/g, '');
   return t.includes('fashion') && !isNonFashionType(type);
+}
+
+function isCompletedType(type: unknown): boolean {
+  return typeof type === 'string' && type.toLowerCase() === 'completed';
 }
 
 function safeString(value: unknown): string {
@@ -96,13 +107,27 @@ function safeAttributes(raw: unknown): TextScanAttributes {
       ? (src.attributes as Record<string, unknown>)
       : src;
 
+  const colorPalette = safeArray(sourceAttrs.colorPalette);
+  const styleTags = safeArray(sourceAttrs.styleTags);
+  const styleDescriptors = safeArray(sourceAttrs.styleDescriptors ?? sourceAttrs.style);
+  const material =
+    safeString(sourceAttrs.material ?? sourceAttrs.materialEstimate ?? sourceAttrs.fabric) || null;
+  const materialEstimate = safeString(sourceAttrs.materialEstimate) || material;
+
   return {
     category: safeString(sourceAttrs.category ?? sourceAttrs.itemType) || null,
-    color: safeString(sourceAttrs.color) || null,
-    material: safeString(sourceAttrs.material ?? sourceAttrs.fabric) || null,
+    itemType: safeString(sourceAttrs.itemType) || null,
+    color: safeString(sourceAttrs.color) || (colorPalette.length ? colorPalette.join(', ') : null),
+    colorPalette,
+    material,
+    materialEstimate,
     silhouette: safeString(sourceAttrs.silhouette ?? sourceAttrs.fit) || null,
+    pattern: safeString(sourceAttrs.pattern) || null,
+    texture: safeString(sourceAttrs.texture) || null,
     occasion: safeString(sourceAttrs.occasion) || null,
-    styleDescriptors: safeArray(sourceAttrs.styleDescriptors ?? sourceAttrs.style),
+    styleDescriptors: styleDescriptors.length ? styleDescriptors : styleTags,
+    styleTags,
+    confidenceScore: safeNumber(sourceAttrs.confidenceScore),
   };
 }
 
@@ -147,37 +172,40 @@ export function normalizeTextScanResult(
   }
 
   const src = raw as Record<string, unknown>;
-  const rawType = src.type;
+  const rawType = src.type ?? src.status;
 
   // Determine normalized type
   let type: TextScanResultType;
   if (isNonFashionType(rawType)) {
     type = 'non_fashion_text';
-  } else if (isFashionType(rawType)) {
+  } else if (isFashionType(rawType) || isCompletedType(rawType)) {
     type = 'fashion_text';
   } else {
     // Fallback: if backend has metadata with category/color, treat as fashion
-    const meta = src.metadata ?? src;
+    const meta = src.metadata ?? src.attributes ?? src;
     const hasAttrs =
       !!(
         meta &&
         typeof meta === 'object' &&
         !Array.isArray(meta) &&
         ((meta as Record<string, unknown>).category ||
+          (meta as Record<string, unknown>).itemType ||
           (meta as Record<string, unknown>).color ||
+          (meta as Record<string, unknown>).colorPalette ||
+          (meta as Record<string, unknown>).materialEstimate ||
           (meta as Record<string, unknown>).silhouette)
       );
     type = hasAttrs ? 'fashion_text' : 'non_fashion_text';
   }
 
-  const metadata = safeMetadata(src.metadata ?? src, query);
-  const result = safeString(src.result ?? src.message) || NON_FASHION_COPY;
-  const confidence = safeNumber(src.confidence);
+  const metadata = safeMetadata(src.metadata ?? src.attributes ?? src, query);
+  const result = safeString(src.result ?? src.message ?? src.userMessage) || NON_FASHION_COPY;
+  const confidence = safeNumber(src.confidence ?? metadata.attributes.confidenceScore);
 
   return {
     id: safeString(src.id) || generateId(),
     type,
-    result: type === 'non_fashion_text' ? NON_FASHION_COPY : result,
+    result,
     metadata,
     products: [], // Always forced empty in this sprint
     confidence: type === 'non_fashion_text' ? 0 : confidence,

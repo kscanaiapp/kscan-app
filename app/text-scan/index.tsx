@@ -33,13 +33,14 @@ import {
   TEXTSCAN_DEMO_RESULTS_ENABLED,
   TEXTSCAN_VOICE_PLACEHOLDER_ENABLED,
 } from '../../constants/featureFlags';
-import { analyzeText } from '../../services/api';
 import {
-  normalizeTextScanResult,
+  analyzeTextWithEdge,
+  type TextScanResult,
+} from '../../services/textScanEdge';
+import {
   validateTextScanQuery,
   toAttributeGrid,
 } from '../../services/textScan';
-import type { TextScanResult } from '../../services/textScan';
 import {
   TEXTSCAN_DEMO_ATTRIBUTES,
   TEXTSCAN_DEMO_PRODUCTS,
@@ -111,10 +112,9 @@ export default function TextScanScreen() {
           return;
         }
 
-        const raw = await analyzeText(query, { source: 'textscan' });
+        const result = await analyzeTextWithEdge(query, { source: 'text-scan' });
         if (!cancelled) {
-          const normalized = normalizeTextScanResult(raw, query);
-          setTextScanResult(normalized);
+          setTextScanResult(result);
           setViewState('results');
           setIsSubmitting(false);
         }

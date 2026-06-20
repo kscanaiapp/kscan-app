@@ -34,6 +34,8 @@ const CORS_HEADERS = {
 
 // Max compressed base64 payload accepted from the client (2 MB of base64 chars).
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
+const MIN_TEXT_QUERY_CHARS = 2;
+const MAX_TEXT_QUERY_CHARS = 2_000;
 const MAX_OUTPUT_TOKENS = 512;
 // Provider call timeout. Target is ~5s; an 8s hard cap absorbs cold starts / free
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
@@ -66,6 +68,10 @@ const SAFE_NON_FASHION_MESSAGE =
   'This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories.';
 const IMAGE_TOO_LARGE_MESSAGE =
   'Image too large. Please retake the photo closer or in better light.';
+const TEXT_SCAN_FAILED_MESSAGE =
+  "I couldn't analyze that fashion request yet. Try describing the item, color, material, and occasion.";
+const TEXT_SCAN_NON_FASHION_MESSAGE =
+  'That does not look like a fashion request yet. Try describing a clothing item, accessory, material, color, or occasion.';
 
 // ── Provider prompt (server-side only) ──────────────────────────────────────────
 
@@ -100,6 +106,51 @@ Rules:
 - For non_fashion, omit attributes and set a short userMessage.
 - Do not include people, identity, or demographic fields under any key.
 - Output JSON only. No markdown, no prose outside the JSON.`;
+
+function buildTextIdentifyPrompt(textQuery: string): string {
+  return `You are K Scan AI, a fashion-specific analysis system.
+
+Analyze the user's fashion text request and extract only fashion-relevant attributes.
+
+User text:
+${textQuery}
+
+Return ONLY valid JSON.
+Do not include markdown.
+Do not include code fences.
+Do not include explanations.
+
+Return this structure using the same field names as scan-identify image mode:
+{
+  "status": "completed" | "non_fashion" | "failed",
+  "attributes": {
+    "category": string | null,
+    "silhouette": string | null,
+    "colorPalette": string[],
+    "materialEstimate": string | null,
+    "pattern": string | null,
+    "texture": string | null,
+    "occasion": string | null,
+    "styleTags": string[],
+    "confidenceScore": number
+  },
+  "recommendedProducts": [],
+  "userMessage": string
+}
+
+If the text is not fashion-related, return:
+{
+  "status": "non_fashion",
+  "attributes": null,
+  "recommendedProducts": [],
+  "userMessage": "${TEXT_SCAN_NON_FASHION_MESSAGE}"
+}
+
+Never identify people.
+Never infer protected traits.
+Never return brands unless the user explicitly typed them.
+Never invent products, prices, retailers, or inventory.`;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -261,7 +312,9 @@ Deno.serve(async (req) => {
 
   // ── 2. Parse and validate request body ──────────────────────────────────────
   let body: {
+    mode?: unknown;
     imageBase64?: unknown;
+    textQuery?: unknown;
     source?: unknown;
     localPrivacyFiltered?: unknown;
     clientTimestamp?: unknown;
@@ -270,6 +323,151 @@ Deno.serve(async (req) => {
     body = await req.json();
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
+  }
+
+  const mode = typeof body.mode === 'string' ? body.mode.trim().toLowerCase() : 'image';
+
+  if (mode === 'text') {
+    const textQuery =
+      typeof body.textQuery === 'string' ? body.textQuery.replace(/\s+/g, ' ').trim() : '';
+
+    if (
+      textQuery.length < MIN_TEXT_QUERY_CHARS ||
+      textQuery.length > MAX_TEXT_QUERY_CHARS
+    ) {
+      return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+    }
+
+    const isAiDisabled = readTrimmedEnv('SCAN_IDENTIFY_AI_ENABLED')?.toLowerCase() === 'false';
+    if (isAiDisabled) {
+      console.log('[scan-identify] kill switch active');
+      return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+    }
+
+    const geminiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiKey) {
+      console.error('[scan-identify] GEMINI_API_KEY not configured');
+      return json({ error: 'AI provider not configured' }, 500);
+    }
+
+    const modelName =
+      readTrimmedEnv('SCAN_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+    const timeoutMs = (() => {
+      const raw = readTrimmedEnv('SCAN_GEMINI_TIMEOUT_MS');
+      const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
+      return Number.isFinite(parsed) && parsed >= 2_000 && parsed <= 20_000
+        ? parsed
+        : DEFAULT_GEMINI_TIMEOUT_MS;
+    })();
+
+    const geminiUrl = (() => {
+      const u = new URL(`${GEMINI_API_BASE}/${modelName}:generateContent`);
+      u.searchParams.set('key', geminiKey);
+      return u.toString();
+    })();
+
+    const geminiBody = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: buildTextIdentifyPrompt(textQuery) }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        responseMimeType: 'application/json',
+      },
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = Date.now();
+
+    try {
+      const res = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geminiBody),
+        signal: controller.signal,
+      });
+
+      const raw = await res.text().catch(() => '');
+      const elapsedMs = Date.now() - startedAt;
+
+      if (!res.ok) {
+        const meta = extractGeminiErrorMeta(raw);
+        console.warn(
+          '[scan-identify] text_gemini_http_error uid=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
+          userId.slice(0, 8),
+          res.status,
+          String(meta.code ?? 'none'),
+          String(meta.status ?? 'none'),
+          elapsedMs,
+        );
+        return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+      }
+
+      let data: GeminiResponse;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        console.warn('[scan-identify] text_gemini_parse_failure elapsedMs=%d', elapsedMs);
+        return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+      }
+
+      const blockReason = data.promptFeedback?.blockReason;
+      const text = extractGeminiText(data);
+      if (!text) {
+        console.warn(
+          '[scan-identify] text_gemini_empty blockReason=%s elapsedMs=%d',
+          blockReason ?? 'none',
+          elapsedMs,
+        );
+        return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+      }
+
+      const parsed = parseModelJson(text);
+      if (!parsed) {
+        console.warn('[scan-identify] text_model_json_unparseable elapsedMs=%d', elapsedMs);
+        return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+      }
+
+      const rawStatus = typeof parsed.status === 'string' ? parsed.status.toLowerCase() : '';
+      const attributes = sanitizeAttributes(parsed.attributes);
+
+      if (rawStatus === 'failed') {
+        console.warn('[scan-identify] text_model_failed elapsedMs=%d', elapsedMs);
+        return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+      }
+
+      if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
+        const msg = safeStringMessage(parsed.userMessage) ?? TEXT_SCAN_NON_FASHION_MESSAGE;
+        console.log('[scan-identify] ok uid=%s mode=text status=non_fashion elapsedMs=%d', userId.slice(0, 8), elapsedMs);
+        return json(normalized('non_fashion', msg), 200);
+      }
+
+      if (!attributes) {
+        console.warn('[scan-identify] text_completed_without_attributes elapsedMs=%d', elapsedMs);
+        return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+      }
+
+      const userMessage =
+        safeStringMessage(parsed.userMessage) ?? 'Interpreted a fashion request from your description.';
+      console.log(
+        '[scan-identify] ok uid=%s mode=text status=completed attrKeys=%d elapsedMs=%d',
+        userId.slice(0, 8),
+        Object.keys(attributes).length,
+        elapsedMs,
+      );
+      return json(normalized('completed', userMessage, attributes), 200);
+    } catch (err) {
+      const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+      console.warn('[scan-identify] text_%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', Date.now() - startedAt);
+      return json(normalized('failed', TEXT_SCAN_FAILED_MESSAGE), 200);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   // Accept either a raw base64 string or a data URI; strip the prefix server-side.
