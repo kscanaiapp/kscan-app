@@ -4,7 +4,7 @@
 
 **Branch:** `fix/scan-to-closet-copy-v1`  
 **Base:** `feature/scan-identification-api-v1` (active integration baseline with backend scan-to-closet persistence merged)  
-**Commit:** `42d3438` (cherry-picked from `b9273ee` which was accidentally placed on `feature/scan-identification-api-v1`, then QA doc amended)  
+**Commit:** `26d0876` (cherry-picked from `b9273ee` which was accidentally placed on `feature/scan-identification-api-v1`, then QA doc amended in place)  
 **Working tree:** Clean (no modified tracked files, only untracked QA/docs)
 
 **Note on accidental commit:** The original commit `b9273ee` was accidentally committed to `feature/scan-identification-api-v1` instead of `fix/scan-to-closet-copy-v1`. The commit was cherry-picked to `fix/scan-to-closet-copy-v1` as `7de54d5`. The integration branch still contains `b9273ee` at its tip. This is a copy-only patch with zero functional changes, so it does not break the integration branch. If desired, `b9273ee` can be reverted from `feature/scan-identification-api-v1` using `git revert b9273ee` or the branch can be reset to `47358c2`.
