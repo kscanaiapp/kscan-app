@@ -12,6 +12,10 @@ import { ONBOARDING_FRAMEWORK_V1_ENABLED } from '../constants/featureFlags';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
+import {
+  isOnboardingComplete,
+  clearLegacyInvalidOnboardingKey,
+} from '../services/onboardingCompletion';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -42,6 +46,8 @@ function AuthGate() {
   const { bootStatus, profile } = usePrivacyPreferences();
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -58,12 +64,51 @@ function AuthGate() {
     };
   }, []);
 
+  // One-time cleanup of the stale shared "unknown" onboarding key.
+  useEffect(() => {
+    void clearLegacyInvalidOnboardingKey();
+  }, []);
+
+  // Check onboarding completion after auth resolves.
+  useEffect(() => {
+    if (loading || !initialUrlChecked) return;
+
+    // No session at all: nothing to check; let the routing guard send the
+    // user to auth/sign-in.
+    if (!session) {
+      setOnboardingComplete(false);
+      setOnboardingChecked(true);
+      return;
+    }
+
+    // Session exists but the user id has not hydrated yet. Hold in the safe
+    // loading state (onboardingChecked stays false) until it resolves rather
+    // than reading/writing under an invalid key or flashing the permissions UI.
+    const userId = session.user?.id;
+    if (!userId) {
+      setOnboardingChecked(false);
+      return;
+    }
+
+    let mounted = true;
+    isOnboardingComplete(userId)
+      .then((complete) => {
+        if (mounted) setOnboardingComplete(complete);
+      })
+      .finally(() => {
+        if (mounted) setOnboardingChecked(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [loading, initialUrlChecked, session]);
+
   const waitingForAuthCallbackRoute =
     initialUrlChecked && isAuthCallbackUrl(initialUrl) && pathname !== '/auth/callback';
 
   const guardState = getRoutingGuardState({
     pathname,
-    loading: loading || !initialUrlChecked,
+    loading: loading || !initialUrlChecked || !onboardingChecked,
     session,
     profile,
     profileLoading: Boolean(session && bootStatus !== 'ready'),
@@ -72,20 +117,40 @@ function AuthGate() {
 
   useEffect(() => {
     if (!waitingForAuthCallbackRoute && guardState.action === 'redirect' && guardState.redirectTo) {
-      const redirectTo =
-        ONBOARDING_FRAMEWORK_V1_ENABLED && guardState.redirectTo === '/auth'
-          ? '/onboarding'
-          : guardState.redirectTo;
+      let redirectTo = guardState.redirectTo;
+
+      // Authenticated users without completed onboarding go to permissions page
+      if (session && !onboardingComplete && redirectTo === '/') {
+        redirectTo = '/onboarding/permissions';
+      }
+
+      if (ONBOARDING_FRAMEWORK_V1_ENABLED && redirectTo === '/auth') {
+        redirectTo = '/onboarding';
+      }
       router.replace(redirectTo);
     }
-  }, [guardState.action, guardState.redirectTo, waitingForAuthCallbackRoute]);
+  }, [guardState.action, guardState.redirectTo, waitingForAuthCallbackRoute, session, onboardingComplete]);
 
-  // Redirect authenticated users away from onboarding (defensive — routing guard also handles this)
+  // Defensive: redirect authenticated users away from onboarding routes
   useEffect(() => {
-    if (!loading && session && pathname === '/onboarding') {
-      router.replace('/');
+    if (loading || !onboardingChecked) return;
+    if (!session) return;
+
+    if (pathname === '/onboarding') {
+      if (!onboardingComplete) {
+        router.replace('/onboarding/permissions');
+      } else {
+        router.replace('/');
+      }
+      return;
     }
-  }, [loading, session, pathname]);
+
+    // Catch-all: any authenticated user without onboarding completion
+    // who lands on a route other than permissions should be redirected
+    if (!onboardingComplete && pathname !== '/onboarding/permissions') {
+      router.replace('/onboarding/permissions');
+    }
+  }, [loading, onboardingChecked, session, pathname, onboardingComplete]);
 
   if (waitingForAuthCallbackRoute) {
     return <Stack screenOptions={{ headerShown: false }} />;

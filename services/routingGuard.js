@@ -4,6 +4,10 @@ const PUBLIC_ROUTES = new Set([
   '/auth/reset',
   '/auth/update-password',
   '/onboarding',
+  // NOTE: '/onboarding/permissions' is intentionally NOT public. It must only be
+  // reachable by an authenticated user whose onboarding is incomplete; the
+  // authenticated AuthGate owns that access. Leaving it public would let an
+  // unauthenticated deep link sit in the permissions UI without a session.
 ]);
 
 const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy']);

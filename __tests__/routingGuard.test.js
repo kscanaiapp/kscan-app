@@ -49,6 +49,35 @@ test('public auth routes are allowed while signed out', () => {
   }
 });
 
+test('onboarding entry route remains public while signed out', () => {
+  const state = getRoutingGuardState({ pathname: '/onboarding', loading: false, session: null, nowSeconds: NOW });
+  assert.equal(state.action, 'allow');
+  assert.equal(isPublicRoute('/onboarding'), true);
+});
+
+test('permissions route is NOT public: signed-out direct access redirects to /auth', () => {
+  assert.equal(isPublicRoute('/onboarding/permissions'), false);
+  const state = getRoutingGuardState({
+    pathname: '/onboarding/permissions',
+    loading: false,
+    session: null,
+    nowSeconds: NOW,
+  });
+  assert.equal(state.action, 'redirect');
+  assert.equal(state.redirectTo, '/auth');
+});
+
+test('authenticated user is allowed on the permissions route', () => {
+  const state = getRoutingGuardState({
+    pathname: '/onboarding/permissions',
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+  });
+  assert.equal(state.action, 'allow');
+  assert.equal(state.redirectTo, null);
+});
+
 test('deep-link callback route is not blocked by the auth gate', () => {
   const state = getRoutingGuardState({
     pathname: '/auth/callback',
