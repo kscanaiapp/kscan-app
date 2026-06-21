@@ -8,9 +8,10 @@ import com.kscan.glasses.config.BetaConfig
  *
  * All gates must be true to create a [RealAnalyzeClient]:
  * 1. [BuildConfig.DEBUG] == true (debug builds only)
- * 2. [BetaConfig.enableRealAnalyze] == true (explicit opt-in)
- * 3. [BetaConfig.enableRealFaceMasking] == true (privacy gate)
- * 4. [AnalyzeClientConfig.backendUrl] is non-empty
+ * 2. [BetaConfig.useMockApi] == false (mock lock — must be explicitly false)
+ * 3. [BetaConfig.enableRealAnalyze] == true (explicit opt-in)
+ * 4. [BetaConfig.enableRealFaceMasking] == true (privacy gate)
+ * 5. [AnalyzeClientConfig.backendUrl] is non-empty
  *
  * If any gate is false, returns [MockAnalyzeClient] (safe default).
  */
@@ -21,6 +22,9 @@ object AnalyzeClientFactory {
         clientConfig: AnalyzeClientConfig,
     ): AnalyzeClient {
         if (!BuildConfig.DEBUG) {
+            return MockAnalyzeClient()
+        }
+        if (betaConfig.useMockApi) {
             return MockAnalyzeClient()
         }
         if (!betaConfig.enableRealAnalyze || !betaConfig.enableRealFaceMasking) {
