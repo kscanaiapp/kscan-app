@@ -536,7 +536,7 @@ export default function TextScanScreen() {
         title="TextScan"
         onBack={handleBack}
         backLabel="Back"
-        rightAction={<AIStarBadge label="AI STAR" />}
+        rightAction={<AIStarBadge />}
       />
 
       {viewState === 'input' && renderInputState()}

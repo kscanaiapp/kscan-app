@@ -14,14 +14,16 @@ export function AIStarBadge({
   label = 'AI STAR',
   style,
 }: AIStarBadgeProps) {
+  const labelToRender = label?.trim();
+
   return (
     <View
       style={[styles.root, style]}
       accessibilityRole="text"
-      accessibilityLabel={`${label} powered`}
+      accessibilityLabel={labelToRender ? `${labelToRender} powered` : 'AI powered'}
     >
       <Text style={styles.sparkle}>✦</Text>
-      <Text style={styles.label}>{label}</Text>
+      {labelToRender ? <Text style={styles.label}>{labelToRender}</Text> : null}
     </View>
   );
 }
