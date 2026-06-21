@@ -206,7 +206,7 @@ class KScanViewModelTest {
         advanceUntilIdle()
 
         assertEquals(AppScreen.ERROR, vm.screen.value)
-        assertEquals("Internal error", vm.errorMessage.value)
+        assertEquals("Server error (500). Please retry.", vm.errorMessage.value)
     }
 
     @Test

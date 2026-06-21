@@ -265,7 +265,7 @@ class KScanViewModel(
         } catch (e: CaptureException) {
             showError("Capture failed. Please check camera access and retry.")
         } catch (e: Exception) {
-            showError(e.message ?: "Something went wrong.")
+            showError("Something went wrong. Please retry.")
         } finally {
             _isProcessing.value = false
         }

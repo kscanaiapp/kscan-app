@@ -23,7 +23,7 @@ object ScanErrorMapper {
         is ScanOrchestratorError.EncodeFailure -> "Image processing failed. Please retry."
         is ScanOrchestratorError.Timeout -> "Analysis timed out. Tap to retry."
         is ScanOrchestratorError.Network -> "Connection issue. Check network and retry."
-        is ScanOrchestratorError.HttpError -> error.userMessage
+        is ScanOrchestratorError.HttpError -> "Server error (${error.status}). Please retry."
         is ScanOrchestratorError.MalformedResponse -> "Server returned an unreadable response."
         is ScanOrchestratorError.BetaDisabled -> "Beta analyze is disabled."
         is ScanOrchestratorError.NonFashion -> error.userMessage

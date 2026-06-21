@@ -14,6 +14,7 @@ object SafeLog {
 
     @JvmStatic
     fun d(tag: String, message: String) {
+        if (rejectPayloadLog(message)) return
         try {
             Log.d("$TAG_PREFIX.$tag", message)
         } catch (_: RuntimeException) {
@@ -23,6 +24,7 @@ object SafeLog {
 
     @JvmStatic
     fun i(tag: String, message: String) {
+        if (rejectPayloadLog(message)) return
         try {
             Log.i("$TAG_PREFIX.$tag", message)
         } catch (_: RuntimeException) {
@@ -32,6 +34,7 @@ object SafeLog {
 
     @JvmStatic
     fun w(tag: String, message: String) {
+        if (rejectPayloadLog(message)) return
         try {
             Log.w("$TAG_PREFIX.$tag", message)
         } catch (_: RuntimeException) {
@@ -41,6 +44,7 @@ object SafeLog {
 
     @JvmStatic
     fun e(tag: String, message: String, throwable: Throwable? = null) {
+        if (rejectPayloadLog(message)) return
         try {
             if (throwable != null) {
                 Log.e("$TAG_PREFIX.$tag", message, throwable)

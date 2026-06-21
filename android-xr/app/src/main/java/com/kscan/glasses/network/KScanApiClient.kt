@@ -47,8 +47,7 @@ class KScanApiClient(
             }
 
             if (status !in 200..299) {
-                val message = json.optString("message", json.optString("result", "Server error ($status)"))
-                throw AnalyzeException.HttpError(status, message)
+                throw AnalyzeException.HttpError(status, "Server error ($status)")
             }
 
             parseAnalyzeResponse(json)
