@@ -11,7 +11,7 @@ interface StyleChatHeaderProps {
 }
 
 export function navigateStyleChatHome() {
-  router.dismissTo('/');
+  router.replace('/');
 }
 
 export function useStyleChatHomeBackHandler(bypassRef?: { current: boolean }) {
@@ -38,7 +38,7 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
       <View
         style={[
           styles.topRow,
-          { paddingTop: insets.top > 0 ? SPACING.md : SPACING.xl },
+          { paddingTop: insets.top > 0 ? SPACING.lg : SPACING.xl },
         ]}
       >
         <Pressable
@@ -58,8 +58,6 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
             {STYLE_CHAT_COPY.header}
           </Text>
         </View>
-
-        <View style={styles.rightSpacer} />
       </View>
 
       <View style={styles.subtitleRow}>
@@ -110,12 +108,9 @@ const styles = StyleSheet.create({
     textTransform: 'none',
   },
   titleWrap: {
-    flex: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginLeft: SPACING.sm,
     minWidth: 0,
-  },
-  rightSpacer: {
-    width: 88,
   },
   title: {
     ...LUXURY.typography.brandMark,

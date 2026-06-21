@@ -84,12 +84,22 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
       }
     }
 
+    // Safety timeout: if the Supabase query hangs, force-clear loading after 10s
+    // so the user can see the error state and navigate away.
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        setLoadingSession(false);
+        setLoadingMessages(false);
+      }
+    }, 10000);
+
     void loadSession();
     void loadMessages();
     void loadDailyUsage();
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [sessionId]);
 
