@@ -8,7 +8,6 @@ import {
   useWindowDimensions,
   Pressable,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanRoomHeader } from './ScanRoomHeader';
 import { AIStarBadge } from '../text-scan/AIStarBadge';
@@ -55,7 +54,6 @@ export function AnalyzingScan({
   onHome,
   testID,
 }: AnalyzingScanProps) {
-  const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const [activeStep, setActiveStep] = useState(0);
   const startTime = useRef(Date.now());
@@ -127,7 +125,7 @@ export function AnalyzingScan({
 
   if (hasError) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top }]} testID={testID}>
+      <View style={styles.root} testID={testID}>
         <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
         <View style={styles.errorContainer}>
           <EmptyStateCard
@@ -160,7 +158,7 @@ export function AnalyzingScan({
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]} testID={testID}>
+    <View style={styles.root} testID={testID}>
       <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
 
       <Text style={styles.title}>Analyzing your scan</Text>

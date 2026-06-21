@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 
 export interface ScanRoomHeaderProps {
@@ -21,8 +22,17 @@ export function ScanRoomHeader({
   testID,
   rightAction,
 }: ScanRoomHeaderProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={[styles.root, style]} testID={testID}>
+    <View
+      style={[
+        styles.root,
+        { paddingTop: Math.max(SPACING.lg, insets.top + SPACING.sm) },
+        style,
+      ]}
+      testID={testID}
+    >
       <View style={styles.row}>
         <View style={styles.left} />
         <View style={styles.center}>
@@ -43,7 +53,7 @@ export function ScanRoomHeader({
 const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
-    paddingVertical: SPACING.lg,
+    paddingBottom: SPACING.lg,
   },
   row: {
     flexDirection: 'row',

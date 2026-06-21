@@ -162,7 +162,7 @@ export default function LibraryScreen() {
   const handleDeleteInspiration = async (id: string) => {
     Alert.alert(
       'Delete Inspiration?',
-      'This will remove the image from your Style Library and any Dressing Rooms it was added to.',
+      'This will remove the image from your Style Closet and any Dressing Rooms it was added to.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -195,7 +195,7 @@ export default function LibraryScreen() {
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
       <KScanHeader
-        title="Style Library"
+        title="Style Closet"
         subtitle="SCANS & INSPIRATION"
         onBack={() => router.back()}
         backLabel="Back"
@@ -279,7 +279,7 @@ export default function LibraryScreen() {
         {!isAuthenticated ? (
           <EmptyStateCard
             title="Sign in to upload inspiration"
-            subtitle="Save screenshots and outfit references to your Style Library."
+            subtitle="Save screenshots and outfit references to your Style Closet."
           />
         ) : inspirationLoading ? (
           <View style={styles.loadingWrap}>
@@ -297,7 +297,7 @@ export default function LibraryScreen() {
         ) : inspirations.length === 0 ? (
           <EmptyStateCard
             title="Capture Inspiration"
-            subtitle="Upload screenshots and outfit references to round out your Style Library."
+            subtitle="Upload screenshots and outfit references to round out your Style Closet."
             action={{
               label: 'Upload',
               onPress: handleUploadInspiration,

@@ -1,7 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   Alert,
-  SafeAreaView,
   View,
   Text,
   FlatList,
@@ -171,7 +170,7 @@ export default function StyleChatSessionScreen() {
   ) : null;
 
   return (
-    <SafeAreaView testID="style-chat-screen" style={styles.safe}>
+    <View testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="dark" />
       <StyleChatHeader showBadge={false} />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
@@ -219,11 +218,14 @@ export default function StyleChatSessionScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         />
         {ErrorBanner}
-        <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
+        <View style={styles.composerWrap}>
+          <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
+        </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -281,6 +283,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     backgroundColor: LUXURY.colors.ivory,
+  },
+  composerWrap: {
+    flexShrink: 0,
   },
   messageListLandscape: {
     minHeight: 80,

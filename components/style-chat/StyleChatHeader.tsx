@@ -38,7 +38,7 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
       <View
         style={[
           styles.topRow,
-          { paddingTop: insets.top > 0 ? SPACING.md : SPACING.xl },
+          { paddingTop: Math.max(SPACING.xl, insets.top + SPACING.sm) },
         ]}
       >
         <Pressable

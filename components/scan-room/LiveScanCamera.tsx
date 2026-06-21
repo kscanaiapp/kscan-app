@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanButton } from '../ScanButton';
 import { ScanRoomHeader } from './ScanRoomHeader';
@@ -51,7 +50,6 @@ export function LiveScanCamera({
   textScanEnabled = false,
   testID,
 }: LiveScanCameraProps) {
-  const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -73,7 +71,7 @@ export function LiveScanCamera({
   // Permission denied state
   if (!permission?.granted) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top }]} testID={testID}>
+      <View style={styles.root} testID={testID}>
         <StatusBar style="dark" />
         <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
         <View style={styles.permissionContainer}>
@@ -107,7 +105,7 @@ export function LiveScanCamera({
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]} testID={testID}>
+    <View style={styles.root} testID={testID}>
       <StatusBar style="dark" />
       <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
 

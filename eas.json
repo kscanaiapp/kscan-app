@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 12.0.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "preview": {
@@ -12,6 +12,10 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
+        "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
+        "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
+        "EXPO_PUBLIC_SCAN_ROOM_V2_UI": "true",
+        "EXPO_PUBLIC_SCAN_RESULTS_V2_UI": "true",
         "EXPO_PUBLIC_SUPABASE_URL": "https://wyyuqfdxucjksghsmhry.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5eXVxZmR4dWNqa3NnaHNtaHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjcyNTksImV4cCI6MjA5MDkwMzI1OX0.GQ8Q6CBuwt_aZ45JTf6qU-a9jOW9m0JEYTXOEuaSdVI"
       }
@@ -24,6 +28,10 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
+        "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
+        "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
+        "EXPO_PUBLIC_SCAN_ROOM_V2_UI": "true",
+        "EXPO_PUBLIC_SCAN_RESULTS_V2_UI": "true",
         "EXPO_PUBLIC_SUPABASE_URL": "https://wyyuqfdxucjksghsmhry.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5eXVxZmR4dWNqa3NnaHNtaHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjcyNTksImV4cCI6MjA5MDkwMzI1OX0.GQ8Q6CBuwt_aZ45JTf6qU-a9jOW9m0JEYTXOEuaSdVI"
       }
@@ -38,6 +46,10 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
+        "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
+        "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
+        "EXPO_PUBLIC_SCAN_ROOM_V2_UI": "true",
+        "EXPO_PUBLIC_SCAN_RESULTS_V2_UI": "true",
         "EXPO_PUBLIC_SUPABASE_URL": "https://wyyuqfdxucjksghsmhry.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5eXVxZmR4dWNqa3NnaHNtaHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjcyNTksImV4cCI6MjA5MDkwMzI1OX0.GQ8Q6CBuwt_aZ45JTf6qU-a9jOW9m0JEYTXOEuaSdVI"
       }

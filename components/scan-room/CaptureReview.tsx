@@ -65,7 +65,7 @@ export function CaptureReview({
       style={styles.root}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: insets.top, paddingBottom: insets.bottom + SPACING.xxxl },
+        { paddingBottom: insets.bottom + SPACING.xxxl },
       ]}
       showsVerticalScrollIndicator={false}
       testID={testID}
