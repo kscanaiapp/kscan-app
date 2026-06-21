@@ -12,7 +12,7 @@
 //   - Response sanitized before returning to mobile
 //
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
-// Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-1.5-flash).
+// Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-2.5-flash).
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -33,8 +33,10 @@ const MAX_RECENT_MESSAGES  = 6;
 const GEMINI_TIMEOUT_MS    = 12_000;
 const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Stable GA default; operator should set STYLECHAT_GEMINI_MODEL at deployment.
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+// Stable GA default; operator may override via STYLECHAT_GEMINI_MODEL at deployment.
+// NOTE: gemini-1.5-* is unavailable to projects created after Google's 2025 cutoff
+// (returns 404 NOT_FOUND), so the default must be a current-generation GA model.
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // ── System prompt (server-side only) ──────────────────────────────────────────
