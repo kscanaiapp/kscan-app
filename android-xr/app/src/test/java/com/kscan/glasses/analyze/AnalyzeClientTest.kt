@@ -1,5 +1,6 @@
 package com.kscan.glasses.analyze
 
+import com.kscan.glasses.config.BetaConfig
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -35,6 +36,24 @@ class AnalyzeClientTest {
     }
 
     @Test
+    fun `real analyze requires enableRealFaceMasking`() = runTest {
+        val config = AnalyzeClientConfig(
+            backendUrl = "https://example.com",
+            enableRealAnalyze = true,
+        )
+        val transport = FakeHttpTransport { _, _, _ -> HttpTransportResponse(200, "{}") }
+        val betaConfig = BetaConfig(enableRealAnalyze = true, enableRealFaceMasking = false)
+        val client = RealAnalyzeClient(config, transport, betaConfig)
+
+        try {
+            client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
+            assertTrue("Expected exception", false)
+        } catch (e: AnalyzeException.Disabled) {
+            assertTrue(e.message?.contains("enableRealFaceMasking") == true)
+        }
+    }
+
+    @Test
     fun `timeout maps to AnalyzeException Timeout`() = runTest {
         val config = AnalyzeClientConfig(
             backendUrl = "https://example.com",
@@ -43,7 +62,8 @@ class AnalyzeClientTest {
         val transport = FakeHttpTransport { _, _, _ ->
             throw java.net.SocketTimeoutException("timed out")
         }
-        val client = RealAnalyzeClient(config, transport)
+        val betaConfig = BetaConfig(enableRealAnalyze = true, enableRealFaceMasking = true)
+        val client = RealAnalyzeClient(config, transport, betaConfig)
 
         try {
             client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
@@ -62,7 +82,8 @@ class AnalyzeClientTest {
         val transport = FakeHttpTransport { _, _, _ ->
             HttpTransportResponse(200, "not-json")
         }
-        val client = RealAnalyzeClient(config, transport)
+        val betaConfig = BetaConfig(enableRealAnalyze = true, enableRealFaceMasking = true)
+        val client = RealAnalyzeClient(config, transport, betaConfig)
 
         try {
             client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
@@ -81,7 +102,8 @@ class AnalyzeClientTest {
         val transport = FakeHttpTransport { _, _, _ ->
             HttpTransportResponse(500, "{}")
         }
-        val client = RealAnalyzeClient(config, transport)
+        val betaConfig = BetaConfig(enableRealAnalyze = true, enableRealFaceMasking = true)
+        val client = RealAnalyzeClient(config, transport, betaConfig)
 
         try {
             client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
@@ -125,7 +147,8 @@ class AnalyzeClientTest {
             capturedBody = body
             HttpTransportResponse(200, "{\"type\":\"non-fashion\",\"message\":\"nope\"}")
         }
-        val client = RealAnalyzeClient(config, transport)
+        val betaConfig = BetaConfig(enableRealAnalyze = true, enableRealFaceMasking = true)
+        val client = RealAnalyzeClient(config, transport, betaConfig)
         client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
 
         // Assert body was sent but NOT logged anywhere in client code

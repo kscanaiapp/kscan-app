@@ -1,5 +1,9 @@
 package com.kscan.glasses.analyze
 
+import com.kscan.glasses.config.BetaConfig
+import com.kscan.glasses.state.FashionAnalyzeResult
+import com.kscan.glasses.state.NonFashionAnalyzeResult
+import com.kscan.glasses.state.ProductMatch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -10,19 +14,29 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * Real analyze client — compile-safe placeholder.
  *
- * Fails fast if enableRealAnalyze is false.
+ * Fails fast if any safety gate is not met.
  * Uses injected HttpTransport; never logs request/response bodies.
  */
 class RealAnalyzeClient(
     private val config: AnalyzeClientConfig,
     private val transport: HttpTransport,
+    private val betaConfig: BetaConfig = BetaConfig.DEFAULT,
 ) : AnalyzeClient {
 
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
     override suspend fun analyze(request: AnalyzeRequest): AnalyzeResponse {
+        if (!betaConfig.enableRealAnalyze) {
+            throw AnalyzeException.Disabled("Real analyze is disabled by BetaConfig. Use MockAnalyzeClient for tests.")
+        }
+        if (!betaConfig.enableRealFaceMasking) {
+            throw AnalyzeException.Disabled("Real analyze requires enableRealFaceMasking=true in BetaConfig.")
+        }
         if (!config.enableRealAnalyze) {
-            throw AnalyzeException.Disabled("Real analyze is disabled by config. Use MockAnalyzeClient for tests.")
+            throw AnalyzeException.Disabled("Real analyze is disabled by AnalyzeClientConfig. Use MockAnalyzeClient for tests.")
+        }
+        if (config.backendUrl.isBlank()) {
+            throw AnalyzeException.Disabled("backendUrl is required for real analyze.")
         }
 
         val endpoint = config.backendUrl.trimEnd('/') + "/api/analyze"
