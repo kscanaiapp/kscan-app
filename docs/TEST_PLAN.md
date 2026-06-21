@@ -6,9 +6,10 @@
 |----|------|-------------------|
 | M1 | Bridge schema message types validate | `phone-bridge/tests/bridge-contract.test.ts` |
 | M2 | Sanitizer strict mode blocks on failure | `phone-bridge/tests/sanitizer.test.ts` |
-| M3 | Voice command parser recognizes phrases | Android unit tests (TODO) |
-| M4 | Mock scan flow end-to-end | Manual: emulator + mock API |
-| M5 | Top 3 results only in UI | Manual visual check |
+| M3 | Voice command parser recognizes phrases | `VoiceCommandControllerTest` |
+| M4 | Mobile app bridge route validation | `MobileAppBridgeTest` (Phase 2) |
+| M5 | Mock scan flow end-to-end | Manual: emulator + mock API |
+| M6 | Top 3 results only in UI | Manual visual check |
 
 ```bash
 cd phone-bridge && npm test
@@ -50,6 +51,7 @@ cd phone-bridge && npm test
 - [ ] Top 3 products displayed / spoken
 - [ ] `sendToPhone` emits `ANALYSIS_RESULT`
 - [ ] Save and Open on Phone actions work in mock bridge
+- [ ] Mobile app handoff placeholder routes validate (`kscan://glasses/...`)
 - [ ] Audio-only mode never crashes without display
 - [ ] Missing camera falls back to phone capture message (stub)
 - [ ] No secrets in repo or logs

@@ -5,6 +5,7 @@
 - Full repository scaffold per Prompt 1 specification
 - Kotlin Android app shell with Jetpack Compose (600×600 viewport)
 - Provider bridge layer: `GlassesBridgeProvider`, `MockBridgeProvider`, `GoogleBridgeProvider` (stubs)
+- Mobile app bridge contracts: `MobileAppBridge`, `MockMobileAppBridge`, `MobileAppRoute`, `SessionSnapshot` (Phase 2)
 - Mock scan flow: capture → sanitize → analyze → results → TTS → phone message
 - `KScanApiClient` with real backend contract (10s timeout)
 - Privacy pipeline interfaces + mock sanitizer
@@ -24,6 +25,7 @@
 | Bluetooth / Wi-Fi sessions | Stub |
 | Wake word / always-listening | Not implemented |
 | Meta bridge | Interface slot only |
+| Mobile app deep-link handoff | Placeholder contracts (Phase 2) |
 
 ## What works in mock mode
 
