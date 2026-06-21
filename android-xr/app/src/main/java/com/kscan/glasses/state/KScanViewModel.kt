@@ -17,6 +17,11 @@ import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizerFactory
 import com.kscan.glasses.privacy.SanitizeResult
 import com.kscan.glasses.privacy.SanitizerMode
+import com.kscan.glasses.scan.ScanErrorMapper
+import com.kscan.glasses.scan.ScanInput
+import com.kscan.glasses.scan.ScanOrchestrator
+import com.kscan.glasses.scan.ScanOrchestratorResult
+import com.kscan.glasses.scan.ScanOrchestratorState
 import com.kscan.glasses.voice.SpeechFeedback
 import com.kscan.glasses.voice.VoiceAction
 import com.kscan.glasses.voice.VoiceCommandController
@@ -40,6 +45,7 @@ class KScanViewModel(
     backendUrl: String,
     apiClientOverride: KScanAnalyzeClient? = null,
     sanitizerOverride: PrivacyImageSanitizer? = null,
+    private val orchestrator: ScanOrchestrator? = null,
 ) : ViewModel() {
 
     private val apiClient: KScanAnalyzeClient = apiClientOverride ?: if (useMockApi) {
@@ -76,6 +82,9 @@ class KScanViewModel(
     private val _deviceConnected = MutableStateFlow(true)
     val deviceConnected: StateFlow<Boolean> = _deviceConnected.asStateFlow()
 
+    private val _orchestratorState = MutableStateFlow(ScanOrchestratorState.READY)
+    val orchestratorState: StateFlow<ScanOrchestratorState> = _orchestratorState.asStateFlow()
+
     private var scanSession = ScanSession(id = UUID.randomUUID().toString(), startedAtMs = System.currentTimeMillis())
 
     private val actionItems = listOf("Scan", "Library", "Settings")
@@ -86,6 +95,55 @@ class KScanViewModel(
         viewModelScope.launch {
             refreshDeviceState()
         }
+    }
+
+    /** Entry point for local image picker to route into orchestrator mock path. */
+    fun onImagePicked(input: ScanInput) {
+        if (_isProcessing.value) return
+        if (orchestrator != null) {
+            viewModelScope.launch { runOrchestratorFlow(input) }
+        } else {
+            // Fallback to legacy scan flow without orchestrator
+            startScanIfIdle()
+        }
+    }
+
+    private suspend fun runOrchestratorFlow(input: ScanInput) {
+        _isProcessing.value = true
+        _orchestratorState.value = ScanOrchestratorState.PREPARING_IMAGE
+        _screen.value = AppScreen.PROCESSING
+
+        _orchestratorState.value = ScanOrchestratorState.PRIVACY_CHECK
+        val result = orchestrator?.run(input)
+
+        when (result) {
+            is ScanOrchestratorResult.Success -> {
+                _orchestratorState.value = ScanOrchestratorState.COMPLETE
+                val top3 = result.result.products.take(3)
+                val summary = buildString {
+                    append(result.result.result.take(120))
+                    if (top3.isNotEmpty()) append(". Top match: ${top3.first().name}.")
+                }
+                _results.value = ResultsUiState(
+                    summary = result.result.result,
+                    topProducts = top3,
+                )
+                speech.speakSummary(summary)
+                focusNavigator = FocusNavigator({ resultsFocusItemCount() })
+                _screen.value = if (_hasDisplay.value) AppScreen.RESULTS else AppScreen.SCAN
+            }
+            is ScanOrchestratorResult.Failure -> {
+                _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
+                val userMessage = ScanErrorMapper.toUserMessage(result.error)
+                showError(userMessage)
+            }
+            null -> {
+                _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
+                showError("Something went wrong.")
+            }
+        }
+
+        _isProcessing.value = false
     }
 
     fun onInput(input: GlassesInput) {
