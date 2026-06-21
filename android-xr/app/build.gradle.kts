@@ -18,7 +18,7 @@ android {
         buildConfigField("String", "KSCAN_BACKEND_URL", "\"https://kscan-app-1.onrender.com\"")
         // Debug defaults: mock infrastructure is allowed for local development without hardware.
         buildConfigField("boolean", "USE_MOCK_BRIDGE", "true")
-        buildConfigField("boolean", "USE_MOCK_API", "false")
+        buildConfigField("boolean", "USE_MOCK_API", "true")
         buildConfigField("boolean", "USE_MOCK_SANITIZER", "true")
 
         vectorDrawables {
@@ -40,7 +40,7 @@ android {
         debug {
             // Debug builds may use mock bridge and mock sanitizer for emulator/local testing.
             buildConfigField("boolean", "USE_MOCK_BRIDGE", "true")
-            buildConfigField("boolean", "USE_MOCK_API", "false")
+            buildConfigField("boolean", "USE_MOCK_API", "true")
             buildConfigField("boolean", "USE_MOCK_SANITIZER", "true")
         }
     }

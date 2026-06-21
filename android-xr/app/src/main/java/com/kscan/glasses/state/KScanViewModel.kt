@@ -9,14 +9,6 @@ import com.kscan.glasses.bridge.MockBridgeProvider
 import com.kscan.glasses.navigation.FocusEvent
 import com.kscan.glasses.navigation.FocusNavigator
 import com.kscan.glasses.navigation.GlassesInput
-import com.kscan.glasses.network.AnalyzeException
-import com.kscan.glasses.network.KScanAnalyzeClient
-import com.kscan.glasses.network.KScanApiClient
-import com.kscan.glasses.network.MockKScanApiClient
-import com.kscan.glasses.privacy.PrivacyImageSanitizer
-import com.kscan.glasses.privacy.PrivacyImageSanitizerFactory
-import com.kscan.glasses.privacy.SanitizeResult
-import com.kscan.glasses.privacy.SanitizerMode
 import com.kscan.glasses.scan.ScanErrorMapper
 import com.kscan.glasses.scan.ScanInput
 import com.kscan.glasses.scan.ScanOrchestrator
@@ -35,28 +27,13 @@ import java.util.UUID
 /**
  * ViewModel for K Scan glasses scan flow.
  *
- * @param apiClientOverride Optional injection for tests. If null, resolved via useMockApi flag.
- * @param sanitizerOverride Optional injection for tests. If null, resolved via useMockSanitizer flag.
+ * All scan execution is routed through the provided [ScanOrchestrator].
+ * The orchestrator is the single authority for capture, sanitization, and analysis.
  */
 class KScanViewModel(
     private val bridge: GlassesBridgeProvider,
-    useMockApi: Boolean,
-    useMockSanitizer: Boolean,
-    backendUrl: String,
-    apiClientOverride: KScanAnalyzeClient? = null,
-    sanitizerOverride: PrivacyImageSanitizer? = null,
-    private val orchestrator: ScanOrchestrator? = null,
+    private val orchestrator: ScanOrchestrator,
 ) : ViewModel() {
-
-    private val apiClient: KScanAnalyzeClient = apiClientOverride ?: if (useMockApi) {
-        MockKScanApiClient()
-    } else {
-        KScanApiClient(backendUrl)
-    }
-
-    private val sanitizer: PrivacyImageSanitizer = sanitizerOverride ?: PrivacyImageSanitizerFactory.create(
-        if (useMockSanitizer) SanitizerMode.MOCK else SanitizerMode.PRODUCTION
-    )
 
     private val speech = SpeechFeedback(bridge)
     private val voiceParser = VoiceCommandController()
@@ -97,15 +74,10 @@ class KScanViewModel(
         }
     }
 
-    /** Entry point for local image picker to route into orchestrator mock path. */
+    /** Entry point for local image picker to route into orchestrator. */
     fun onImagePicked(input: ScanInput) {
         if (_isProcessing.value) return
-        if (orchestrator != null) {
-            viewModelScope.launch { runOrchestratorFlow(input) }
-        } else {
-            // Fallback to legacy scan flow without orchestrator
-            startScanIfIdle()
-        }
+        viewModelScope.launch { runOrchestratorFlow(input) }
     }
 
     private suspend fun runOrchestratorFlow(input: ScanInput) {
@@ -114,7 +86,7 @@ class KScanViewModel(
         _screen.value = AppScreen.PROCESSING
 
         _orchestratorState.value = ScanOrchestratorState.PRIVACY_CHECK
-        val result = orchestrator?.run(input)
+        val result = orchestrator.run(input)
 
         when (result) {
             is ScanOrchestratorResult.Success -> {
@@ -129,6 +101,12 @@ class KScanViewModel(
                     topProducts = top3,
                 )
                 speech.speakSummary(summary)
+                bridge.sendToPhone(
+                    BridgeMessage.AnalysisResult(
+                        analysisId = scanSession.id,
+                        result = result.result,
+                    ),
+                )
                 focusNavigator = FocusNavigator({ resultsFocusItemCount() })
                 _screen.value = if (_hasDisplay.value) AppScreen.RESULTS else AppScreen.SCAN
             }
@@ -136,10 +114,6 @@ class KScanViewModel(
                 _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
                 val userMessage = ScanErrorMapper.toUserMessage(result.error)
                 showError(userMessage)
-            }
-            null -> {
-                _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
-                showError("Something went wrong.")
             }
         }
 
@@ -286,27 +260,10 @@ class KScanViewModel(
             val capture = bridge.capturePhoto()
             scanSession = scanSession.copy(captureSource = capture.source.name, status = ScanStatus.SANITIZING)
 
-            when (val sanitized = sanitizer.sanitize(capture.base64, capture.mimeType)) {
-                is SanitizeResult.Blocked, is SanitizeResult.Error -> {
-                    showError("Privacy check blocked upload. Please retry.")
-                    return
-                }
-                is SanitizeResult.Success -> {
-                    scanSession = scanSession.copy(status = ScanStatus.ANALYZING)
-                    val response = apiClient.analyzeImage(sanitized.sanitizedBase64)
-                    handleAnalyzeResponse(response)
-                }
-            }
+            val input = ScanInput(capture.base64, capture.mimeType)
+            runOrchestratorFlow(input)
         } catch (e: CaptureException) {
             showError("Capture failed. Please check camera access and retry.")
-        } catch (e: AnalyzeException.Network) {
-            showError("Connection issue. Check network and retry.")
-        } catch (e: AnalyzeException.Timeout) {
-            showError("Analysis timed out. Tap to retry.")
-        } catch (e: AnalyzeException.HttpError) {
-            showError(e.message ?: "Server error.")
-        } catch (e: AnalyzeException.MalformedJson) {
-            showError("Server returned an unreadable response.")
         } catch (e: Exception) {
             showError(e.message ?: "Something went wrong.")
         } finally {
@@ -314,45 +271,8 @@ class KScanViewModel(
         }
     }
 
-    private suspend fun handleAnalyzeResponse(response: AnalyzeResponse) {
-        when (response) {
-            is NonFashionAnalyzeResult -> {
-                val msg = response.message
-                speech.speakSummary(msg)
-                showError(msg)
-            }
-            is FashionAnalyzeResult -> {
-                val top3 = response.products.take(3)
-                val summary = buildString {
-                    append(response.result.take(120))
-                    if (top3.isNotEmpty()) append(". Top match: ${top3.first().name}.")
-                }
-
-                _results.value = ResultsUiState(
-                    summary = response.result,
-                    topProducts = top3,
-                )
-                scanSession = scanSession.copy(status = ScanStatus.COMPLETE)
-
-                speech.speakSummary(summary)
-
-                val state = bridge.getDeviceState()
-                bridge.sendToPhone(
-                    BridgeMessage.AnalysisResult(
-                        analysisId = scanSession.id,
-                        result = response,
-                    ),
-                )
-
-                focusNavigator = FocusNavigator({ resultsFocusItemCount() })
-                _screen.value = if (_hasDisplay.value) AppScreen.RESULTS else AppScreen.SCAN
-            }
-        }
-    }
-
     private suspend fun saveFocusedProduct() {
         val product = focusedProduct() ?: return
-        val state = bridge.getDeviceState()
         bridge.sendToPhone(
             BridgeMessage.SaveItem(
                 itemId = product.id,

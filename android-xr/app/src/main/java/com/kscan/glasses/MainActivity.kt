@@ -26,9 +26,6 @@ class MainActivity : ComponentActivity() {
         val orchestrator = com.kscan.glasses.scan.ScanOrchestratorFactory.create()
         viewModel = KScanViewModel(
             bridge = app.bridgeProvider,
-            useMockApi = BuildConfig.USE_MOCK_API,
-            useMockSanitizer = BuildConfig.USE_MOCK_SANITIZER,
-            backendUrl = BuildConfig.KSCAN_BACKEND_URL,
             orchestrator = orchestrator,
         )
 

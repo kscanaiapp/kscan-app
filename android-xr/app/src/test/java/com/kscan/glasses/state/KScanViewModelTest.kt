@@ -1,5 +1,7 @@
 package com.kscan.glasses.state
 
+import com.kscan.glasses.analyze.AnalyzeClient
+import com.kscan.glasses.analyze.AnalyzeRequest
 import com.kscan.glasses.bridge.BridgeMessage
 import com.kscan.glasses.bridge.BridgeMessageType
 import com.kscan.glasses.bridge.BridgeResult
@@ -9,10 +11,12 @@ import com.kscan.glasses.bridge.CaptureSource
 import com.kscan.glasses.bridge.DeviceCapabilities
 import com.kscan.glasses.bridge.DeviceState
 import com.kscan.glasses.bridge.GlassesBridgeProvider
-import com.kscan.glasses.network.AnalyzeException
+import com.kscan.glasses.config.BetaConfig
+import com.kscan.glasses.mobilebridge.MockMobileAppBridge
 import com.kscan.glasses.network.KScanAnalyzeClient
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
+import com.kscan.glasses.scan.ScanOrchestrator
 import com.kscan.glasses.testing.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -20,6 +24,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -39,13 +44,32 @@ class KScanViewModelTest {
         apiClient: KScanAnalyzeClient = mockk(relaxed = true),
         sanitizer: PrivacyImageSanitizer = mockk(relaxed = true),
     ): KScanViewModel {
+        val analyzeClient = object : AnalyzeClient {
+            override suspend fun analyze(request: AnalyzeRequest): AnalyzeResponse {
+                val base64 = request.imageDataUrl.substringAfter("base64,", "")
+                return try {
+                    apiClient.analyzeImage(base64)
+                } catch (e: com.kscan.glasses.network.AnalyzeException.Timeout) {
+                    throw com.kscan.glasses.analyze.AnalyzeException.Timeout(e.message ?: "Analysis timed out")
+                } catch (e: com.kscan.glasses.network.AnalyzeException.Network) {
+                    throw com.kscan.glasses.analyze.AnalyzeException.Network(e.message ?: "Network error")
+                } catch (e: com.kscan.glasses.network.AnalyzeException.HttpError) {
+                    throw com.kscan.glasses.analyze.AnalyzeException.HttpError(e.status, e.message ?: "Server error")
+                } catch (e: com.kscan.glasses.network.AnalyzeException.MalformedJson) {
+                    throw com.kscan.glasses.analyze.AnalyzeException.MalformedJson(e.message ?: "Malformed response")
+                }
+            }
+        }
+        val orchestrator = ScanOrchestrator(
+            sanitizer = sanitizer,
+            analyzeClient = analyzeClient,
+            mobileBridge = MockMobileAppBridge(),
+            config = BetaConfig.DEFAULT,
+            ioDispatcher = UnconfinedTestDispatcher(),
+        )
         return KScanViewModel(
             bridge = bridge,
-            useMockApi = false,
-            useMockSanitizer = false,
-            backendUrl = "https://example.com",
-            apiClientOverride = apiClient,
-            sanitizerOverride = sanitizer,
+            orchestrator = orchestrator,
         )
     }
 
@@ -153,7 +177,7 @@ class KScanViewModelTest {
             coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
         }
         val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } throws AnalyzeException.Timeout("Timed out")
+            coEvery { analyzeImage(any()) } throws com.kscan.glasses.network.AnalyzeException.Timeout("Timed out")
         }
 
         val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
@@ -174,7 +198,7 @@ class KScanViewModelTest {
             coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
         }
         val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } throws AnalyzeException.HttpError(500, "Internal error")
+            coEvery { analyzeImage(any()) } throws com.kscan.glasses.network.AnalyzeException.HttpError(500, "Internal error")
         }
 
         val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
@@ -195,7 +219,7 @@ class KScanViewModelTest {
             coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
         }
         val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } throws AnalyzeException.MalformedJson("Bad JSON")
+            coEvery { analyzeImage(any()) } throws com.kscan.glasses.network.AnalyzeException.MalformedJson("Bad JSON")
         }
 
         val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
