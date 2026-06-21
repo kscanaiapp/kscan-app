@@ -102,13 +102,26 @@ Throwable stack traces are still logged via `Log.e(tag, message, throwable)` bec
 
 ## Important Confirmations
 
-### `INTERNET` permission was NOT added in this phase
+### `INTERNET` permission was removed in this close-out pass
 
-The `AndroidManifest.xml` contains `<uses-permission android:name="android.permission.INTERNET" />` from **Phase 1** (pre-existing). No new permissions were added in Phase 3A.
+The `android.permission.INTERNET` permission was present from Phase 1 but was **removed** during Phase 3A close-out because no default/mock path requires network access. The permission was unnecessary because:
+
+- `MockAnalyzeClient` returns synthetic data without any network calls
+- `KScanViewModel` routes all scan paths through `ScanOrchestrator`, which uses the injected `AnalyzeClient` interface
+- `RealAnalyzeClient` and `KscanHttpTransport` are unreachable under default config (all factory gates are false)
+- `KScanApiClient` (legacy network path) is no longer instantiated anywhere in the codebase
+
+If all gates are explicitly enabled in a future debug build, the `INTERNET` permission must be re-added to the manifest before `KscanHttpTransport` can function.
 
 ### `useMockApi = true` blocks real analyze
 
 Confirmed by `AnalyzeClientFactoryTest.useMockApi true blocks real analyze`. When `BetaConfig.useMockApi = true`, `AnalyzeClientFactory.create()` returns `MockAnalyzeClient` even if all other gates are true.
+
+### Legacy network path is unreachable
+
+- `KScanApiClient` is defined in `network/KScanApiClient.kt` but **never instantiated** anywhere in the main source tree
+- `KscanHttpTransport` is only instantiated inside `AnalyzeClientFactory` as part of the `RealAnalyzeClient` construction path, which requires all gates to be true
+- `KScanViewModel`, `ScanOrchestrator`, `MainActivity`, and `ScanOrchestratorFactory` contain no references to either class
 
 ### No secrets are committed
 
@@ -127,8 +140,9 @@ With all defaults:
 - `BetaConfig.enableRealFaceMasking = false`
 - `AnalyzeClientConfig.enableRealAnalyze = false`
 - `AnalyzeClientConfig.backendUrl = ""`
+- `android.permission.INTERNET` is **absent** from the manifest
 
-The APK built with these defaults will **never** instantiate `RealAnalyzeClient` or `KscanHttpTransport`. The scan path always uses `MockAnalyzeClient`.
+The APK built with these defaults will **never** instantiate `RealAnalyzeClient` or `KscanHttpTransport`. Even if someone bypassed the factory gates, the missing `INTERNET` permission would cause a `SecurityException` at runtime. The scan path always uses `MockAnalyzeClient`.
 
 ---
 
@@ -164,6 +178,7 @@ Total tests: **97** (all pass)
 
 ## Files Changed
 
+- `app/src/main/AndroidManifest.xml` — `INTERNET` permission removed
 - `app/src/main/java/com/kscan/glasses/analyze/AnalyzeClientFactory.kt` — Factory with 5 gates
 - `app/src/main/java/com/kscan/glasses/analyze/KscanHttpTransport.kt` — Minimal HTTP transport
 - `app/src/main/java/com/kscan/glasses/analyze/RealAnalyzeClient.kt` — Gated real analyze client
@@ -171,8 +186,9 @@ Total tests: **97** (all pass)
 - `app/src/main/java/com/kscan/glasses/scan/ScanErrorMapper.kt` — Safe error mapping
 - `app/src/main/java/com/kscan/glasses/config/SafeLog.kt` — Payload guard enforcement
 - `app/src/main/java/com/kscan/glasses/state/KScanViewModel.kt` — Orchestrator-only path
-- `app/src/main/java/com/kscan/glasses/network/KScanApiClient.kt` — Safe hardcoded error messages
+- `app/src/main/java/com/kscan/glasses/network/KScanApiClient.kt` — Safe hardcoded error messages (legacy, unreachable)
 - `app/build.gradle.kts` — `USE_MOCK_API = true` default
+- `docs/PHASE_3A_CONTROLLED_BACKEND_ANALYZE.md` — Phase 3A close-out report
 
 ---
 
@@ -185,7 +201,22 @@ Total tests: **97** (all pass)
 - No Supabase real integration
 - No ML Kit face masking production
 - No production secrets or credentials
-- No `INTERNET` permission added (was pre-existing)
+- `INTERNET` permission was removed, not retained
+
+---
+
+## Commits
+
+Phase 3A produced **6** commits on `master`:
+
+```
+c0b603a Phase 3A Step 7 — Final validation and documentation
+c233204 Phase 3A Step 4 — Safe Logging Review
+4c31d5c Phase 3A Step 3 — Orchestrator Integration
+0276cbb Phase 3A Step 2b — Fix AnalyzeClientFactory gate: add useMockApi == false
+03fd3c9 Phase 3A Step 2 — Add controlled backend analyze boundary
+d2cbd93 Phase 3A Step 1 — Invariant fix: make ScanOrchestrator single execution authority
+```
 
 ---
 
