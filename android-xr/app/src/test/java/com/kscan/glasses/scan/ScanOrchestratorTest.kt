@@ -155,6 +155,62 @@ class ScanOrchestratorTest {
     }
 
     @Test
+    fun `sanitizer error blocks analyze entirely`() = runTest {
+        val sanitizer = object : PrivacyImageSanitizer {
+            override suspend fun sanitize(base64: String, mimeType: String) =
+                com.kscan.glasses.privacy.SanitizeResult.Error("Sanitizer crashed")
+        }
+        val orchestrator = createOrchestrator(sanitizer = sanitizer, dispatcher = UnconfinedTestDispatcher(testScheduler))
+        val input = ScanInput(base64 = "any", mimeType = "image/jpeg")
+
+        val result = orchestrator.run(input)
+
+        assertTrue(result is ScanOrchestratorResult.Failure)
+        val failure = result as ScanOrchestratorResult.Failure
+        assertTrue(failure.error is ScanOrchestratorError.PrivacyBlocked)
+        assertTrue(failure.error.userMessage.contains("Sanitizer crashed"))
+    }
+
+    @Test
+    fun `unexpected exception is caught and mapped to safe failure`() = runTest {
+        val analyzeClient = object : AnalyzeClient {
+            override suspend fun analyze(request: com.kscan.glasses.analyze.AnalyzeRequest): com.kscan.glasses.state.AnalyzeResponse {
+                throw RuntimeException("data:image/jpeg;base64,secret-leak") // simulates accidental payload in exception
+            }
+        }
+        val orchestrator = createOrchestrator(analyzeClient = analyzeClient, dispatcher = UnconfinedTestDispatcher(testScheduler))
+        val input = ScanInput(base64 = "mock", mimeType = "image/jpeg")
+
+        val result = orchestrator.run(input)
+
+        assertTrue(result is ScanOrchestratorResult.Failure)
+        val failure = result as ScanOrchestratorResult.Failure
+        assertTrue(failure.error is ScanOrchestratorError.Unknown)
+        // The orchestrator must NOT leak raw exception messages containing payload data
+        assertTrue(!failure.error.userMessage.contains("base64"))
+        assertTrue(!failure.error.userMessage.contains("data:image"))
+    }
+
+    @Test
+    fun `orchestrator only emits safe structured outcomes never raw exceptions`() = runTest {
+        val analyzeClient = object : AnalyzeClient {
+            override suspend fun analyze(request: com.kscan.glasses.analyze.AnalyzeRequest): com.kscan.glasses.state.AnalyzeResponse {
+                throw IllegalStateException("raw internal error with payload data:image/jpeg;base64,xyz")
+            }
+        }
+        val orchestrator = createOrchestrator(analyzeClient = analyzeClient, dispatcher = UnconfinedTestDispatcher(testScheduler))
+        val input = ScanInput(base64 = "mock", mimeType = "image/jpeg")
+
+        val result = orchestrator.run(input)
+
+        assertTrue(result is ScanOrchestratorResult.Failure)
+        val failure = result as ScanOrchestratorResult.Failure
+        // Verify the sealed result contains a safe user message, not the raw exception text
+        assertTrue(!failure.error.userMessage.contains("base64"))
+        assertTrue(!failure.error.userMessage.contains("data:image"))
+        assertTrue(!failure.error.userMessage.contains("payload"))
+    }
+    @Test
     fun `ScanErrorMapper produces user-friendly messages`() {
         assertEquals("Privacy check blocked upload. Please retry.", ScanErrorMapper.toUserMessage(
             ScanOrchestratorError.PrivacyBlocked("reason")

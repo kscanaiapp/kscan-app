@@ -86,7 +86,7 @@ class ScanOrchestrator(
             ScanOrchestratorResult.Failure(ScanOrchestratorError.MalformedResponse(e.message ?: "Malformed response"))
         } catch (e: Exception) {
             SafeLog.e("ScanOrchestrator", "Unexpected scan error", e)
-            ScanOrchestratorResult.Failure(ScanOrchestratorError.Unknown(e.message ?: "Unknown error"))
+            ScanOrchestratorResult.Failure(ScanOrchestratorError.Unknown("Unexpected error occurred"))
         }
     }
 
