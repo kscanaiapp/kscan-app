@@ -68,6 +68,7 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
     clearTimeout: () => {},
     requestAnimationFrame: (callback) => callback(),
     Date,
+    SCAN_IDENTIFY_BACKEND_ENABLED: false,
     useState: (initialValue) => {
       const slot = stateSlots[stateIndex] ?? { value: initialValue };
       stateSlots[stateIndex] = slot;
@@ -86,8 +87,20 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
     useRef: (initialValue) => ({ current: initialValue }),
     analyzeImage,
     compressForUpload,
+    sanitizeImageBeforeUpload: async (image) => image,
+    getPrivacySanitizerStatus: () => ({
+      mode: 'test',
+      faceDetectionAvailable: false,
+      faceBlurApplied: false,
+    }),
+    identifyScanImage: async () => {
+      throw new Error('scan-identify should not be called when disabled');
+    },
+    mapScanIdentifyToAnalysis: (response) => response,
     buildSecondhandSearchRequest: () => null,
     searchVintedSecondhand: async () => ({ enabled: false, items: [] }),
+    shouldEnrichSneakers: () => false,
+    searchSneakers: async () => [],
     errorPulse: () => {},
     softImpact: () => {},
     successPulse: () => {},
