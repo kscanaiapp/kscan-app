@@ -88,9 +88,7 @@ class AnalyzeClientFactoryTest {
     }
 
     @Test
-    fun `all gates true returns RealAnalyzeClient`() = runTest {
-        // Note: This test will only pass in debug builds because BuildConfig.DEBUG is checked
-        // In release builds, this test would fail — but we only run unit tests in debug
+    fun `all gates true returns RealAnalyzeClient in debug only`() = runTest {
         val client = AnalyzeClientFactory.create(
             betaConfig = BetaConfig(
                 useMockApi = false,
@@ -102,6 +100,11 @@ class AnalyzeClientFactoryTest {
                 enableRealAnalyze = true,
             ),
         )
-        assertTrue(client is RealAnalyzeClient)
+        if (com.kscan.glasses.BuildConfig.DEBUG) {
+            assertTrue(client is RealAnalyzeClient)
+        } else {
+            // Release builds always return MockAnalyzeClient regardless of gates
+            assertTrue(client is MockAnalyzeClient)
+        }
     }
 }
