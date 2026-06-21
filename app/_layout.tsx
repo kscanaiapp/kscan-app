@@ -138,7 +138,9 @@ function AuthGate() {
       if (ONBOARDING_FRAMEWORK_V1_ENABLED && redirectTo === '/auth') {
         redirectTo = '/onboarding';
       }
-      router.replace(redirectTo);
+      if (pathname !== redirectTo) {
+        router.replace(redirectTo);
+      }
     }
   }, [guardState.action, guardState.redirectTo, waitingForAuthCallbackRoute, session, onboardingComplete]);
 
@@ -152,7 +154,9 @@ function AuthGate() {
 
     // Known-complete: just normalize the bare /onboarding entry route to home.
     if (onboardingComplete) {
-      if (pathname === '/onboarding') router.replace('/');
+      if (pathname === '/onboarding') {
+        router.replace('/');
+      }
       return;
     }
 
@@ -165,10 +169,14 @@ function AuthGate() {
       if (cancelled) return;
       if (complete) {
         setOnboardingComplete(true);
-        if (pathname === '/onboarding') router.replace('/');
+        if (pathname === '/onboarding') {
+          router.replace('/');
+        }
         return;
       }
-      router.replace('/onboarding/permissions');
+      if (pathname !== '/onboarding/permissions') {
+        router.replace('/onboarding/permissions');
+      }
     });
     return () => {
       cancelled = true;
