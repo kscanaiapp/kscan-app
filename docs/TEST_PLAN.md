@@ -10,6 +10,11 @@
 | M4 | Mobile app bridge route validation | `MobileAppBridgeTest` (Phase 2) |
 | M5 | Mock scan flow end-to-end | Manual: emulator + mock API |
 | M6 | Top 3 results only in UI | Manual visual check |
+| M7 | Scan orchestrator happy path | `ScanOrchestratorTest` (Phase 2) |
+| M8 | Beta config safety gates | `BetaConfigTest` (Phase 2) |
+| M9 | Voice command parser | `VoiceCommandParserTest` (Phase 2) |
+| M10 | Connectivity placeholder status | `ConnectivityPlaceholderTest` (Phase 2) |
+| M11 | Supabase placeholder safe defaults | `SupabasePlaceholderTest` (Phase 2) |
 
 ```bash
 cd phone-bridge && npm test

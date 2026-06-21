@@ -6,6 +6,10 @@
 - Kotlin Android app shell with Jetpack Compose (600×600 viewport)
 - Provider bridge layer: `GlassesBridgeProvider`, `MockBridgeProvider`, `GoogleBridgeProvider` (stubs)
 - Mobile app bridge contracts: `MobileAppBridge`, `MockMobileAppBridge`, `MobileAppRoute`, `SessionSnapshot` (Phase 2)
+- Analyze client boundary: `AnalyzeClient`, `MockAnalyzeClient`, `RealAnalyzeClient` (Phase 2)
+- Beta config and safety gates: `BetaConfig`, `BetaSafetyGuard`, `SafeLog` (Phase 2)
+- Scan orchestrator: `ScanOrchestrator`, `ScanOrchestratorState`, `ScanErrorMapper` (Phase 2)
+- Voice/Connectivity/Supabase placeholders (Phase 2)
 - Mock scan flow: capture → sanitize → analyze → results → TTS → phone message
 - `KScanApiClient` with real backend contract (10s timeout)
 - Privacy pipeline interfaces + mock sanitizer
