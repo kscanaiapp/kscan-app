@@ -14,25 +14,43 @@ object SafeLog {
 
     @JvmStatic
     fun d(tag: String, message: String) {
-        Log.d("$TAG_PREFIX.$tag", message)
+        try {
+            Log.d("$TAG_PREFIX.$tag", message)
+        } catch (_: RuntimeException) {
+            // Fallback for unit tests where Android Log is not mocked
+        }
     }
 
     @JvmStatic
     fun i(tag: String, message: String) {
-        Log.i("$TAG_PREFIX.$tag", message)
+        try {
+            Log.i("$TAG_PREFIX.$tag", message)
+        } catch (_: RuntimeException) {
+            // Fallback for unit tests where Android Log is not mocked
+        }
     }
 
     @JvmStatic
     fun w(tag: String, message: String) {
-        Log.w("$TAG_PREFIX.$tag", message)
+        try {
+            Log.w("$TAG_PREFIX.$tag", message)
+        } catch (_: RuntimeException) {
+            // Fallback for unit tests where Android Log is not mocked
+        }
     }
 
     @JvmStatic
     fun e(tag: String, message: String, throwable: Throwable? = null) {
-        if (throwable != null) {
-            Log.e("$TAG_PREFIX.$tag", message, throwable)
-        } else {
-            Log.e("$TAG_PREFIX.$tag", message)
+        try {
+            if (throwable != null) {
+                Log.e("$TAG_PREFIX.$tag", message, throwable)
+            } else {
+                Log.e("$TAG_PREFIX.$tag", message)
+            }
+        } catch (_: RuntimeException) {
+            // Fallback for unit tests where Android Log is not mocked
+            System.err.println("[$TAG_PREFIX.$tag] ERROR: $message")
+            throwable?.printStackTrace()
         }
     }
 
