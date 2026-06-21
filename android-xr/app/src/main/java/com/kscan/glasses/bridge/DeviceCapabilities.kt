@@ -66,5 +66,8 @@ data class DeviceCapabilities(
             supportsWiFiTransfer = false,
             supportsTouchpadGestures = false
         )
+
+        /** Convenience factory for tests. */
+        fun mockDisplayGlasses(): DeviceCapabilities = MOCK_DISPLAY_GLASSES.copy()
     }
 }

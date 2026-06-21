@@ -1,6 +1,6 @@
 package com.kscan.glasses.bridge
 
-import com.kscan.glasses.result.FashionAnalysisResult
+import com.kscan.glasses.state.FashionAnalyzeResult
 
 /**
  * Typed bridge messages for glasses → phone and phone → glasses communication.
@@ -14,6 +14,7 @@ import com.kscan.glasses.result.FashionAnalysisResult
 sealed class BridgeMessage(
     open val messageId: String = java.util.UUID.randomUUID().toString()
 ) {
+    abstract val type: String
 
     // ── Lifecycle / Handshake ───────────────────────────────────────────────
 
@@ -22,13 +23,17 @@ sealed class BridgeMessage(
         val deviceId: String,
         val version: String = "1.0.0-alpha",
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.HELLO.name
+    }
 
     /** Current device state broadcast (capabilities, battery, permissions). */
     data class DeviceState(
         val state: com.kscan.glasses.bridge.DeviceState,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.DEVICE_STATE.name
+    }
 
     // ── Permissions ─────────────────────────────────────────────────────────
 
@@ -36,14 +41,18 @@ sealed class BridgeMessage(
     data class RequestPermissions(
         val permissions: List<String>,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.REQUEST_PERMISSIONS.name
+    }
 
     /** Result of a permission request. */
     data class PermissionsResult(
         val granted: List<String>,
         val denied: List<String>,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.PERMISSIONS_RESULT.name
+    }
 
     // ── Capture ─────────────────────────────────────────────────────────────
 
@@ -51,7 +60,9 @@ sealed class BridgeMessage(
     data class CapturePhoto(
         val source: String = "glasses", // "glasses" | "phone" | "mock"
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.CAPTURE_PHOTO.name
+    }
 
     /** Photo successfully captured. **No image bytes in production.** */
     data class PhotoCaptured(
@@ -59,14 +70,18 @@ sealed class BridgeMessage(
         /** Safe placeholder only — no real image bytes in bridge messages. */
         val placeholderUri: String = "mock://photo-captured",
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.PHOTO_CAPTURED.name
+    }
 
     /** Photo capture failed. */
     data class PhotoError(
         val captureId: String,
         val reason: String,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.PHOTO_ERROR.name
+    }
 
     // ── Analysis ────────────────────────────────────────────────────────────
 
@@ -75,14 +90,18 @@ sealed class BridgeMessage(
         val analysisId: String,
         val captureId: String,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.ANALYSIS_STARTED.name
+    }
 
     /** Analysis completed with a result. */
     data class AnalysisResult(
         val analysisId: String,
-        val result: FashionAnalysisResult,
+        val result: FashionAnalyzeResult,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.ANALYSIS_RESULT.name
+    }
 
     // ── Actions ─────────────────────────────────────────────────────────────
 
@@ -93,14 +112,18 @@ sealed class BridgeMessage(
         /** MOCK/DEMO only — no real thumbnail bytes. */
         val thumbnailPlaceholder: String = "mock://thumbnail",
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.SAVE_ITEM.name
+    }
 
     /** Open a detailed view on the phone companion app. */
     data class OpenOnPhone(
         val itemId: String,
         val deepLinkPath: String = "/library/item",
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.OPEN_ON_PHONE.name
+    }
 
     // ── Auth / Session ──────────────────────────────────────────────────────
 
@@ -109,7 +132,9 @@ sealed class BridgeMessage(
         val sessionRef: String = "mock-session-ref",
         val expiresAt: Long? = null,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.AUTH_SESSION.name
+    }
 
     // ── Error ───────────────────────────────────────────────────────────────
 
@@ -119,5 +144,7 @@ sealed class BridgeMessage(
         val description: String,
         val recoverable: Boolean = false,
         override val messageId: String = java.util.UUID.randomUUID().toString()
-    ) : BridgeMessage(messageId)
+    ) : BridgeMessage(messageId) {
+        override val type = BridgeMessageType.ERROR.name
+    }
 }

@@ -17,9 +17,9 @@ class KScanApplication : Application() {
         ReleaseSafetyGuard.verify()
 
         bridgeProvider = if (BuildConfig.USE_MOCK_BRIDGE) {
-            MockBridgeProvider(applicationContext)
+            MockBridgeProvider()
         } else {
-            GoogleBridgeProvider(applicationContext)
+            GoogleBridgeProvider()
         }
     }
 }

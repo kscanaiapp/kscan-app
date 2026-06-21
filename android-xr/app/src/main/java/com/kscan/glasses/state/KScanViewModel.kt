@@ -2,9 +2,7 @@ package com.kscan.glasses.state
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kscan.glasses.bridge.BridgeMessageFactory
-import com.kscan.glasses.bridge.BridgeMessageType
-import com.kscan.glasses.bridge.BridgeResult
+import com.kscan.glasses.bridge.BridgeMessage
 import com.kscan.glasses.bridge.CaptureException
 import com.kscan.glasses.bridge.GlassesBridgeProvider
 import com.kscan.glasses.bridge.MockBridgeProvider
@@ -221,8 +219,9 @@ class KScanViewModel(
 
         try {
             bridge.sendToPhone(
-                BridgeMessageFactory.deviceState(bridge.getDeviceState()).copy(
-                    type = BridgeMessageType.ANALYSIS_STARTED.name,
+                BridgeMessage.AnalysisStarted(
+                    analysisId = scanSession.id,
+                    captureId = scanSession.id,
                 ),
             )
 
@@ -281,7 +280,10 @@ class KScanViewModel(
 
                 val state = bridge.getDeviceState()
                 bridge.sendToPhone(
-                    BridgeMessageFactory.analysisResult(state.sessionId, scanSession.id),
+                    BridgeMessage.AnalysisResult(
+                        analysisId = scanSession.id,
+                        result = response,
+                    ),
                 )
 
                 focusNavigator = FocusNavigator({ resultsFocusItemCount() })
@@ -293,7 +295,12 @@ class KScanViewModel(
     private suspend fun saveFocusedProduct() {
         val product = focusedProduct() ?: return
         val state = bridge.getDeviceState()
-        bridge.sendToPhone(BridgeMessageFactory.saveItem(state.sessionId, product.id))
+        bridge.sendToPhone(
+            BridgeMessage.SaveItem(
+                itemId = product.id,
+                label = product.name,
+            ),
+        )
         speech.speakSummary("Saved ${product.name}")
     }
 

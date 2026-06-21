@@ -14,11 +14,13 @@ class MockBridgeProvider(
     initialState: DeviceState = DeviceState.MOCK_CONNECTED_DISPLAY
 ) : GlassesBridgeProvider {
 
-    override var isConnected: Boolean = initialState.isConnected
+    override var isConnected: Boolean = initialState.connected
         private set
 
     override var currentState: DeviceState? = initialState
         private set
+
+    private var audioOnlyMode: Boolean = false
 
     private val _sentMessages = mutableListOf<BridgeMessage>()
     val sentMessages: List<BridgeMessage>
@@ -36,11 +38,36 @@ class MockBridgeProvider(
         // Auto-update state on DeviceState messages
         if (message is BridgeMessage.DeviceState) {
             currentState = message.state
-            isConnected = message.state.isConnected
+            isConnected = message.state.connected
         }
 
         // Notify listeners
         listeners.forEach { it.onMessage(message) }
+    }
+
+    override suspend fun sendToPhone(message: BridgeMessage): BridgeResult<Unit> {
+        send(message)
+        return BridgeResult.Success(Unit)
+    }
+
+    override suspend fun getDeviceState(): DeviceState {
+        return currentState ?: DeviceState.MOCK_DISCONNECTED
+    }
+
+    override suspend fun openOnPhone(url: String) {
+        // Mock — no real transport.
+    }
+
+    override suspend fun capturePhoto(): CaptureResult {
+        return CaptureResult(
+            base64 = "mock-base64-image-data",
+            mimeType = "image/jpeg",
+            source = CaptureSource.MOCK,
+        )
+    }
+
+    override suspend fun speak(text: String) {
+        _spokenText.add(text)
     }
 
     override fun registerListener(listener: GlassesBridgeProvider.BridgeListener) {
@@ -60,8 +87,16 @@ class MockBridgeProvider(
     }
 
     /** Simulate the glasses speaking text (for HUD voice-ready states). */
-    fun speak(text: String) {
-        _spokenText.add(text)
+    fun setAudioOnlyMode(enabled: Boolean) {
+        audioOnlyMode = enabled
+        currentState = currentState?.let {
+            it.copy(
+                capabilities = it.capabilities.copy(
+                    hasDisplay = !enabled,
+                    isAudioOnly = enabled,
+                )
+            )
+        }
     }
 
     /** Simulate receiving a message from the remote side (injects into listeners). */

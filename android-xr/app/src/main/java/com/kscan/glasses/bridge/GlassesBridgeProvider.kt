@@ -19,6 +19,21 @@ interface GlassesBridgeProvider {
     /** Send a message toward the glasses or phone bridge. */
     fun send(message: BridgeMessage)
 
+    /** Send a message to the phone and await a result. */
+    suspend fun sendToPhone(message: BridgeMessage): BridgeResult<Unit>
+
+    /** Get current device state. */
+    suspend fun getDeviceState(): DeviceState
+
+    /** Open a URL on the companion phone. */
+    suspend fun openOnPhone(url: String)
+
+    /** Capture a photo and return the result. */
+    suspend fun capturePhoto(): CaptureResult
+
+    /** Speak text via the glasses audio output. */
+    suspend fun speak(text: String)
+
     /** Register a listener for incoming bridge messages. */
     fun registerListener(listener: BridgeListener)
 

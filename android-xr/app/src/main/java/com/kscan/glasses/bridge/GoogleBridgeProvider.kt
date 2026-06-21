@@ -26,6 +26,26 @@ class GoogleBridgeProvider : GlassesBridgeProvider {
         // TODO: Implement real Google glasses bridge transport when SDK is available.
     }
 
+    override suspend fun sendToPhone(message: BridgeMessage): BridgeResult<Unit> {
+        return BridgeResult.Failure(UnsupportedOperationException("Google bridge not implemented"))
+    }
+
+    override suspend fun getDeviceState(): DeviceState {
+        return DeviceState.MOCK_DISCONNECTED
+    }
+
+    override suspend fun openOnPhone(url: String) {
+        // Placeholder — no real transport.
+    }
+
+    override suspend fun capturePhoto(): CaptureResult {
+        throw UnsupportedOperationException("Google bridge capture not implemented")
+    }
+
+    override suspend fun speak(text: String) {
+        // Placeholder — no audio output.
+    }
+
     override fun registerListener(listener: GlassesBridgeProvider.BridgeListener) {
         // Placeholder — no real listeners.
     }
