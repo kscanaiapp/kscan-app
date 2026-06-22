@@ -59,57 +59,46 @@ export const DEV_FEATURE_FREEZE_OVERRIDE: boolean | null = __DEV__ ? null : null
 
 /** Master switch for TextScan UI entry points and the /text-scan route affordance. */
 export const TEXTSCAN_UI_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_ENABLE_TEXTSCAN === 'true';
+  process.env.EXPO_PUBLIC_ENABLE_TEXTSCAN === 'true';
 
 /** Enables demo/preview result data on the TextScan results state. Off by default. */
 export const TEXTSCAN_DEMO_RESULTS_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS === 'true';
+  process.env.EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS === 'true';
 
 /** Shows a non-interactive voice-input placeholder block for design review only. */
 export const TEXTSCAN_VOICE_PLACEHOLDER_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER === 'true';
+  process.env.EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER === 'true';
 
 /** Enables real backend text analysis for TextScan. Disabled by default. */
 export const TEXTSCAN_BACKEND_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED === 'true';
+  process.env.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED === 'true';
 
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';
+  process.env.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';
 
 /** Enables demo/preview data for Scan Results V2 layout review. Off by default. */
 export const SCAN_RESULTS_DEMO_UI_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI === 'true';
+  process.env.EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI === 'true';
 
 // ── Scan Room V2 UI rollout flags ───────────────────────────────────────────
 export const SCAN_ROOM_V2_UI_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_SCAN_ROOM_V2_UI === 'true';
+  process.env.EXPO_PUBLIC_SCAN_ROOM_V2_UI === 'true';
 
 // ── Home Navigation V2 UI rollout flag ─────────────────────────────────────────
 export const HOME_NAVIGATION_V2_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_HOME_NAVIGATION_V2 === 'true';
+  process.env.EXPO_PUBLIC_HOME_NAVIGATION_V2 === 'true';
 
 /** Enables the onboarding framework V1 shell for unauthenticated users. */
 export const ONBOARDING_FRAMEWORK_V1_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1 === 'true';
+  process.env.EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1 === 'true';
 
 /** Master switch for the bright luxury account/home onboarding and Home visual pass. */
 export const ACCOUNT_HOME_UX_V1_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_ACCOUNT_HOME_UX_V1 === 'true';
+  process.env.EXPO_PUBLIC_ACCOUNT_HOME_UX_V1 === 'true';
 /** Enables cloud metadata sync for saved scans. Disabled by default. */
 export const CLOUD_SAVED_SCANS_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';
+  process.env.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';
 
 // ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
 /**
@@ -120,5 +109,4 @@ export const CLOUD_SAVED_SCANS_ENABLED =
  * Does not affect TextScan.
  */
 export const SCAN_IDENTIFY_BACKEND_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true';
+  process.env.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true';

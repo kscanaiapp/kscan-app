@@ -4,8 +4,7 @@
 import type { ProductMatch, PurchaseOption, ScanResultV2 } from '../components/scan-results/types';
 
 export const SCAN_RESULTS_DEMO_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI === 'true';
+  process.env.EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI === 'true';
 
 // Generic labels only — no real brands or retailers.
 const DEMO_PRODUCT_MATCHES: ProductMatch[] = [

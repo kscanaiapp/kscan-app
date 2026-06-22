@@ -54,7 +54,7 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
         </Pressable>
 
         <View style={styles.titleWrap}>
-          <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.2}>
             {STYLE_CHAT_COPY.header}
           </Text>
         </View>
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     minHeight: 44,
-    minWidth: 88,
+    minWidth: 60,
     justifyContent: 'center',
   },
   homeButtonPressed: {
@@ -115,13 +115,15 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   rightSpacer: {
-    width: 88,
+    width: 60,
   },
   title: {
     ...LUXURY.typography.brandMark,
-    fontSize: 20,
-    letterSpacing: 3,
+    fontSize: 18,
+    letterSpacing: 2,
     color: LUXURY.colors.ink,
+    textAlign: 'center',
+    width: '100%',
   },
   subtitleRow: {
     width: '100%',
@@ -131,7 +133,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...LUXURY.typography.caption,
-    letterSpacing: 2.2,
+    letterSpacing: 1.6,
+    fontSize: 10,
     color: LUXURY.colors.goldBrushed,
     textAlign: 'center',
   },

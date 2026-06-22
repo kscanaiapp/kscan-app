@@ -201,7 +201,7 @@ export default function StyleChatSessionScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         <FlatList
           ref={listRef}
@@ -219,6 +219,11 @@ export default function StyleChatSessionScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          onContentSizeChange={() => {
+            if (messages.length > 0) {
+              listRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
         />
         {ErrorBanner}
         <View style={styles.composerWrap}>

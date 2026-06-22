@@ -6,10 +6,7 @@ import { searchKicksCrewRapidApi } from './providers/kickscrewRapidApi';
 
 // ─── Feature flag ────────────────────────────────────────────────────────────
 
-const ENRICHMENT_ENABLED =
-  typeof process !== 'undefined'
-    ? process.env.EXPO_PUBLIC_ENABLE_SNEAKER_ENRICHMENT !== 'false'
-    : true;
+const ENRICHMENT_ENABLED = process.env.EXPO_PUBLIC_ENABLE_SNEAKER_ENRICHMENT !== 'false';
 
 // ─── Detection tables ────────────────────────────────────────────────────────
 

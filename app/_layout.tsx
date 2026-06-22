@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
 import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
@@ -106,13 +107,15 @@ function AuthGate() {
 export default function Layout() {
   return (
     <ErrorBoundary>
-      <AuthSessionProvider>
-        <PrivacyPreferencesProvider>
-          <FeatureFreezeProvider>
-            <AuthGate />
-          </FeatureFreezeProvider>
-        </PrivacyPreferencesProvider>
-      </AuthSessionProvider>
+      <SafeAreaProvider>
+        <AuthSessionProvider>
+          <PrivacyPreferencesProvider>
+            <FeatureFreezeProvider>
+              <AuthGate />
+            </FeatureFreezeProvider>
+          </PrivacyPreferencesProvider>
+        </AuthSessionProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
