@@ -15,6 +15,10 @@ import { useRouter } from 'expo-router';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import {
+  markOnboardingComplete,
+  isOnboardingComplete,
+} from '../../services/onboardingCompletion';
+import {
   LuxuryScreen,
   KScanHeader,
   PrimaryButton,
@@ -48,7 +52,7 @@ type OnboardingStep =
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { loading: authLoading, isAuthenticated, signUp, signIn } = useAuthSession();
+  const { loading: authLoading, isAuthenticated, user, signUp, signIn } = useAuthSession();
 
   const [step, setStep] = useState<OnboardingStep>(1);
 
@@ -77,12 +81,17 @@ export default function OnboardingScreen() {
     savePreferences,
   } = usePermissionPreferences();
 
-  // Auth state: if user becomes authenticated externally, skip to Home
+  // Auth state: if onboarding is already complete for this user, redirect to Home.
+  // Otherwise, stay on onboarding so the user can finish Terms + Permissions.
   useEffect(() => {
-    if (isAuthenticated && step < 6) {
-      router.replace('/');
+    if (isAuthenticated && user?.id) {
+      isOnboardingComplete(user.id).then((complete) => {
+        if (complete) {
+          router.replace('/');
+        }
+      });
     }
-  }, [isAuthenticated, step, router]);
+  }, [isAuthenticated, user?.id, router]);
 
   // Android hardware back handler
   useEffect(() => {
@@ -108,9 +117,12 @@ export default function OnboardingScreen() {
     setStep((prev) => Math.max(1, prev - 1) as OnboardingStep);
   }, []);
 
-  const goToHome = useCallback(() => {
+  const goToHome = useCallback(async () => {
+    if (user?.id) {
+      await markOnboardingComplete(user.id);
+    }
     router.replace('/');
-  }, [router]);
+  }, [router, user?.id]);
 
   const goToAuth = useCallback(() => {
     router.push('/auth');
@@ -486,7 +498,7 @@ export default function OnboardingScreen() {
     if (ACCOUNT_HOME_UX_V1_ENABLED) {
       const handlePermissionsContinue = async () => {
         await savePreferences();
-        goToHome();
+        await goToHome();
       };
       return (
         <PermissionsStepV1

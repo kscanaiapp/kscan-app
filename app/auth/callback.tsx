@@ -55,7 +55,7 @@ export default function AuthCallbackScreen() {
             setState('error');
             return;
           }
-          router.replace(getAuthCallbackRedirect(parsed));
+          router.replace(parsed.isRecovery ? getAuthCallbackRedirect(parsed) : '/onboarding');
           return;
         }
 
@@ -70,7 +70,7 @@ export default function AuthCallbackScreen() {
             setState('error');
             return;
           }
-          router.replace(getAuthCallbackRedirect(parsed));
+          router.replace(parsed.isRecovery ? getAuthCallbackRedirect(parsed) : '/onboarding');
           return;
         }
 
@@ -91,7 +91,7 @@ export default function AuthCallbackScreen() {
           setState('error');
           return;
         }
-        router.replace(getAuthCallbackRedirect(parsed));
+        router.replace(parsed.isRecovery ? getAuthCallbackRedirect(parsed) : '/onboarding');
         return;
       } catch (error) {
         console.error('Auth callback failed unexpectedly', error);
@@ -120,7 +120,7 @@ export default function AuthCallbackScreen() {
       hasHandledDeepLink.current = true;
       void supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
-          router.replace('/');
+          router.replace('/onboarding');
           return;
         }
         setMessage(AUTH_CALLBACK_FAILED_MESSAGE);

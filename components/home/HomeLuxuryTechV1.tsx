@@ -96,6 +96,7 @@ export default function HomeLuxuryTechV1() {
   const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
   const profileName =
     (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
+  const firstName = profileName?.split(' ')[0] ?? null;
 
   const recentScans = scans.slice(0, 4);
   const hasRecentScans = recentScans.length > 0;
@@ -137,6 +138,16 @@ export default function HomeLuxuryTechV1() {
           ) : undefined
         }
       />
+
+      {/* Greeting */}
+      {isAuthenticated && (
+        <Text
+          style={styles.greeting}
+          accessibilityLabel={`Welcome, ${firstName ?? 'K Scanner'}`}
+        >
+          {`Welcome, ${firstName ?? 'K Scanner'}`}
+        </Text>
+      )}
 
       {/* Hero Section */}
       <View style={styles.heroCard}>
@@ -218,10 +229,7 @@ export default function HomeLuxuryTechV1() {
 
       {/* Style Picks — hook-driven with backend-safe placeholder states */}
       <View style={styles.section} testID="home-luxury-style-picks-section">
-        <View style={styles.sectionHeaderRow}>
-          <SectionHeader title="STYLE PICKS FOR YOU" />
-          <Text style={styles.stylePicksSub}>Personalized by K Scan AI ✦</Text>
-        </View>
+        <SectionHeader title="STYLE PICKS FOR YOU" />
 
         {stylePicksLoading ? (
           <View style={styles.stylePicksPlaceholder}>
@@ -360,6 +368,13 @@ const styles = StyleSheet.create({
     textTransform: 'none',
     letterSpacing: 2,
   },
+  greeting: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 16,
+    color: LUXURY.colors.ink,
+    marginTop: -SPACING.md,
+    marginBottom: SPACING.lg,
+  },
   heroCard: {
     backgroundColor: LUXURY.colors.pearl,
     borderRadius: RADIUS.xl,
@@ -429,11 +444,6 @@ const styles = StyleSheet.create({
   },
   recentScrollContent: {
     paddingRight: SPACING.lg,
-  },
-  stylePicksSub: {
-    ...LUXURY.typography.caption,
-    fontSize: 11,
-    color: LUXURY.colors.stone,
   },
   stylePicksPlaceholder: {
     backgroundColor: LUXURY.colors.cream,

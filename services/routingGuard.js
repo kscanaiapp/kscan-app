@@ -51,7 +51,7 @@ function hasPendingDeletionProfile(profile) {
   return profile.account_status === 'pending_deletion' || Boolean(profile.account_locked_at);
 }
 
-function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile, profileLoading }) {
+function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile, profileLoading, onboardingComplete = undefined }) {
   const normalizedPathname = normalizePathname(pathname);
   const hasUsableSession = isSessionUsable(session, nowSeconds);
 
@@ -77,8 +77,17 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/privacy' };
   }
 
-  if (isAuthEntryRoute(normalizedPathname) || isOnboardingRoute(normalizedPathname)) {
+  if (isAuthEntryRoute(normalizedPathname)) {
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/' };
+  }
+
+  // Narrow /onboarding redirect: only redirect if onboarding is complete.
+  // Mid-onboarding authenticated users must be allowed to stay.
+  if (isOnboardingRoute(normalizedPathname)) {
+    if (onboardingComplete) {
+      return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/' };
+    }
+    return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
   }
 
   return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
