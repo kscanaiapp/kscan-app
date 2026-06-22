@@ -399,7 +399,7 @@ export default function LibraryScreen() {
 
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
-        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
       />
     </LuxuryScreen>
   );

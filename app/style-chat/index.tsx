@@ -87,7 +87,7 @@ export default function StyleChatIndexScreen() {
       </View>
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
-        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
       />
     </LuxuryScreen>
   );
