@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, TextInput, Pressable, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 
 const VOICE_UI_ENABLED = false;
+const ANDROID_NAV_BAR_BOTTOM_PADDING = 56;
 
 /**
  * FUTURE: Voice input entry point.
@@ -27,7 +28,9 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
   const insets = useSafeAreaInsets();
   const isLandscape = width > height;
   const composerBottomPadding =
-    Platform.OS === 'android' ? SPACING.md : (insets.bottom > 0 ? insets.bottom : 12) + 8;
+    Platform.OS === 'android'
+      ? Math.max(insets.bottom + SPACING.md, ANDROID_NAV_BAR_BOTTOM_PADDING)
+      : (insets.bottom > 0 ? insets.bottom : 12) + 8;
   const safeContainerPadding = {
     paddingLeft: Math.max(SPACING.xl, insets.left),
     paddingRight: Math.max(SPACING.xl, insets.right),
