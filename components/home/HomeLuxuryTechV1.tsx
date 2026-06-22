@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -327,6 +328,7 @@ export default function HomeLuxuryTechV1() {
       {/* Trust footer */}
       <PrivacyFooter
         onPrivacyPress={() => router.push('/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/support')}
         trustCopy="Private by design. K Scan is not designed for facial recognition or identifying people."
         privacyTestID="home-luxury-privacy-button"
       />

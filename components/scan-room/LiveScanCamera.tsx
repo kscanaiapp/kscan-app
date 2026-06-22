@@ -7,6 +7,7 @@ import {
   Image,
   useWindowDimensions,
   Pressable,
+  Linking,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
@@ -81,7 +82,7 @@ export function LiveScanCamera({
             icon={<Text style={styles.permissionIcon}>✦</Text>}
             action={{
               label: permission?.canAskAgain ? 'Allow Camera' : 'Open Settings',
-              onPress: permission?.canAskAgain ? requestPermission : () => {},
+              onPress: permission?.canAskAgain ? requestPermission : () => { void Linking.openSettings(); },
               accessibilityLabel: 'Allow camera access',
             }}
           />
