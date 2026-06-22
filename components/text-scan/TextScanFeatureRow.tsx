@@ -15,7 +15,7 @@ interface FeatureBlock {
 
 const FEATURES: FeatureBlock[] = [
   {
-    title: 'AI STAR POWERED',
+    title: '',
     body: 'Advanced AI understands natural language fashion queries with precision.',
   },
   {
@@ -53,9 +53,9 @@ export function TextScanFeatureRow({
   return (
     <View style={[styles.root, style]}>
       {blocks.map((feature) => (
-        <View key={feature.title} style={styles.block}>
+        <View key={feature.title || feature.body} style={styles.block}>
           <View style={styles.blockHeader}>
-            <Text style={styles.title}>{feature.title}</Text>
+            <Text style={styles.title}>{feature.title || ' '}</Text>
             {feature.badge ? (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{feature.badge}</Text>

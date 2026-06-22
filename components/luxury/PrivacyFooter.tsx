@@ -34,7 +34,6 @@ export interface PrivacyFooterProps {
  * Uses only claims already supported by the app and privacy policy:
  * - "Private by design"
  * - "Your data stays under your control"
- * - "We do not sell your personal data"
  *
  * No "end-to-end encrypted" or other unsupported security claims are made.
  */
@@ -51,7 +50,7 @@ export function PrivacyFooter({
   return (
     <View style={[styles.root, style]}>
       <Text style={[styles.trust, trustStyle]}>
-        {trustCopy ?? 'Private by design. Your data stays under your control. We do not sell your personal data.'}
+        {trustCopy ?? 'Private by design. Your data stays under your control.'}
       </Text>
 
       <View style={styles.links}>

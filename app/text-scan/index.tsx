@@ -18,7 +18,6 @@ import {
   StatusPill,
 } from '../../components/luxury';
 import {
-  AIStarBadge,
   AttributeGrid,
   ResultFilterTabs,
   TextScanFeatureRow,
@@ -529,7 +528,6 @@ export default function TextScanScreen() {
         title="TextScan"
         onBack={handleBack}
         backLabel="Back"
-        rightAction={<AIStarBadge label="AI STAR" />}
       />
 
       {viewState === 'input' && renderInputState()}
