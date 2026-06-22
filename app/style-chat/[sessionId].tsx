@@ -238,9 +238,13 @@ export default function StyleChatSessionScreen() {
           {ChatBody}
         </KeyboardAvoidingView>
       ) : (
-        <View style={styles.flex}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior="padding"
+          keyboardVerticalOffset={0}
+        >
           {ChatBody}
-        </View>
+        </KeyboardAvoidingView>
       )}
     </View>
   );
