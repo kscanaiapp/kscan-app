@@ -169,6 +169,37 @@ export default function StyleChatSessionScreen() {
     />
   ) : null;
 
+  const ChatBody = (
+    <>
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={item => item.id}
+        renderItem={renderMessage}
+        ListEmptyComponent={ListEmpty}
+        ListHeaderComponent={ContextPreviewHeader}
+        ListFooterComponent={ThinkingIndicator}
+        style={[styles.messageList, isLandscape ? styles.messageListLandscape : null]}
+        contentContainerStyle={[
+          messages.length === 0 ? styles.listContentEmpty : styles.listContent,
+          isLandscape ? styles.listContentLandscape : null,
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        onContentSizeChange={() => {
+          if (messages.length > 0) {
+            listRef.current?.scrollToEnd({ animated: true });
+          }
+        }}
+      />
+      {ErrorBanner}
+      <View style={styles.composerWrap}>
+        <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
+      </View>
+    </>
+  );
+
   return (
     <View testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="dark" />
@@ -198,38 +229,19 @@ export default function StyleChatSessionScreen() {
           )}
         </Pressable>
       </View>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
-      >
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={renderMessage}
-          ListEmptyComponent={ListEmpty}
-          ListHeaderComponent={ContextPreviewHeader}
-          ListFooterComponent={ThinkingIndicator}
-          style={[styles.messageList, isLandscape ? styles.messageListLandscape : null]}
-          contentContainerStyle={[
-            messages.length === 0 ? styles.listContentEmpty : styles.listContent,
-            isLandscape ? styles.listContentLandscape : null,
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          onContentSizeChange={() => {
-            if (messages.length > 0) {
-              listRef.current?.scrollToEnd({ animated: true });
-            }
-          }}
-        />
-        {ErrorBanner}
-        <View style={styles.composerWrap}>
-          <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
+      {Platform.OS === 'ios' ? (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior="padding"
+          keyboardVerticalOffset={insets.top}
+        >
+          {ChatBody}
+        </KeyboardAvoidingView>
+      ) : (
+        <View style={styles.flex}>
+          {ChatBody}
         </View>
-      </KeyboardAvoidingView>
+      )}
     </View>
   );
 }

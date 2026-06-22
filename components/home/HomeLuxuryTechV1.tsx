@@ -115,6 +115,8 @@ export default function HomeLuxuryTechV1() {
 
       <KScanHeader
         showBrandMark
+        brandLabel="K Scan AI"
+        brandMarkStyle={styles.homeBrandMark}
         subtitle="AI STYLIST • VISUAL SHOPPING"
         rightAction={
           isAuthenticated ? (
@@ -351,6 +353,10 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.inverse,
     fontSize: 14,
     fontWeight: '600',
+  },
+  homeBrandMark: {
+    textTransform: 'none',
+    letterSpacing: 2,
   },
   heroCard: {
     backgroundColor: LUXURY.colors.pearl,

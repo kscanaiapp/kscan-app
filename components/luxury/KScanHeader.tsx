@@ -15,6 +15,8 @@ export interface KScanHeaderProps {
   subtitle?: string;
   /** Show a serif brand mark before the title. */
   showBrandMark?: boolean;
+  /** Optional visible brand label when showBrandMark is enabled. */
+  brandLabel?: string;
   /** Called when the back/close area is pressed. */
   onBack?: () => void;
   /** Optional back button label; defaults to "Back". */
@@ -25,6 +27,8 @@ export interface KScanHeaderProps {
   style?: ViewStyle;
   /** Override the title text style. */
   titleStyle?: TextStyle;
+  /** Override the brand mark text style. */
+  brandMarkStyle?: TextStyle;
   /** Override the subtitle text style. */
   subtitleStyle?: TextStyle;
   /** Accessibility label for the header landmark. */
@@ -42,11 +46,13 @@ export function KScanHeader({
   title,
   subtitle,
   showBrandMark = false,
+  brandLabel = 'K Scan',
   onBack,
   backLabel = 'Back',
   rightAction,
   style,
   titleStyle,
+  brandMarkStyle,
   subtitleStyle,
   accessibilityLabel,
 }: KScanHeaderProps) {
@@ -79,8 +85,14 @@ export function KScanHeader({
 
         <View style={styles.center}>
           {showBrandMark && (
-            <Text style={styles.brandMark} accessibilityRole="text">
-              K Scan
+            <Text
+              style={[styles.brandMark, brandMarkStyle]}
+              accessibilityRole="text"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {brandLabel}
             </Text>
           )}
           {title && !showBrandMark && (
