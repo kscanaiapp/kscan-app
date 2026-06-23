@@ -22,7 +22,10 @@ class KscanHttpTransport : HttpTransport {
                 doOutput = true
                 doInput = true
                 connectTimeout = 10_000
-                readTimeout = 10_000
+                readTimeout = 15_000
+                instanceFollowRedirects = false
+                useCaches = false
+                defaultUseCaches = false
                 headers.forEach { (key, value) ->
                     setRequestProperty(key, value)
                 }

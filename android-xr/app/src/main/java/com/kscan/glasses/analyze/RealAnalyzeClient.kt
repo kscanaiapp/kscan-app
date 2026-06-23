@@ -38,6 +38,9 @@ class RealAnalyzeClient(
         if (config.backendUrl.isBlank()) {
             throw AnalyzeException.Disabled("backendUrl is required for real analyze.")
         }
+        if (!config.backendUrl.startsWith("https://", ignoreCase = true)) {
+            throw AnalyzeException.Disabled("Non-HTTPS backend URL is not allowed.")
+        }
 
         val endpoint = config.backendUrl.trimEnd('/') + "/api/analyze"
         val body = StringBuilder().append("{\"image\":\"").append(request.imageDataUrl).append("\"}").toString()

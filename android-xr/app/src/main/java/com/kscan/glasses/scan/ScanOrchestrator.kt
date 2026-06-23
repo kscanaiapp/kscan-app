@@ -1,8 +1,12 @@
 package com.kscan.glasses.scan
 
 import com.kscan.glasses.analyze.AnalyzeClient
+import com.kscan.glasses.analyze.AnalyzeClientConfig
+import com.kscan.glasses.analyze.AnalyzeDryRunGate
 import com.kscan.glasses.analyze.AnalyzeException
 import com.kscan.glasses.analyze.AnalyzeRequest
+import com.kscan.glasses.analyze.DebugAnalyzeConfig
+import com.kscan.glasses.analyze.DryRunGateResult
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.config.SafeLog
 import com.kscan.glasses.mobilebridge.MobileAppBridge
@@ -25,6 +29,8 @@ class ScanOrchestrator(
     private val analyzeClient: AnalyzeClient,
     private val mobileBridge: MobileAppBridge,
     private val config: BetaConfig,
+    private val clientConfig: AnalyzeClientConfig = AnalyzeClientConfig.MOCK_ONLY,
+    private val debugConfig: DebugAnalyzeConfig = DebugAnalyzeConfig.DEFAULT,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -59,18 +65,30 @@ class ScanOrchestrator(
                 )
             }
 
-            // 5. Analyze
+            // 5. Dry-run gate (Phase 3B): proves real analyze readiness without transport execution.
+            if (config.enableDryRun) {
+                val gateResult = AnalyzeDryRunGate.evaluate(
+                    betaConfig = config,
+                    clientConfig = clientConfig,
+                    debugConfig = debugConfig,
+                    sanitizerSuccess = true,
+                )
+                return@withContext when (gateResult) {
+                    DryRunGateResult.Ready -> ScanOrchestratorResult.DryRunReady
+                    is DryRunGateResult.ConfigBlocked -> ScanOrchestratorResult.ConfigBlocked(gateResult.gate)
+                    is DryRunGateResult.Blocked -> ScanOrchestratorResult.DryRunBlocked(gateResult.gate)
+                }
+            }
+
+            // 6. Analyze
             val request = AnalyzeRequest(dataUrl)
             val response = analyzeClient.analyze(request)
 
-            // 6. Map response
+            // 7. Map response
             when (response) {
                 is FashionAnalyzeResult -> ScanOrchestratorResult.Success(response)
                 is NonFashionAnalyzeResult -> ScanOrchestratorResult.Failure(
                     ScanOrchestratorError.NonFashion(response.message)
-                )
-                else -> ScanOrchestratorResult.Failure(
-                    ScanOrchestratorError.Unknown("Unexpected analyze response type")
                 )
             }
         } catch (e: AnalyzeException.Disabled) {
@@ -105,6 +123,9 @@ class ScanOrchestrator(
 sealed class ScanOrchestratorResult {
     data class Success(val result: FashionAnalyzeResult) : ScanOrchestratorResult()
     data class Failure(val error: ScanOrchestratorError) : ScanOrchestratorResult()
+    object DryRunReady : ScanOrchestratorResult()
+    data class DryRunBlocked(val gate: String) : ScanOrchestratorResult()
+    data class ConfigBlocked(val gate: String) : ScanOrchestratorResult()
 }
 
 sealed class ScanOrchestratorError(val userMessage: String) {

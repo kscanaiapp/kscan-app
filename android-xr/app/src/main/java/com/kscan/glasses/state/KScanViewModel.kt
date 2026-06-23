@@ -115,6 +115,23 @@ class KScanViewModel(
                 val userMessage = ScanErrorMapper.toUserMessage(result.error)
                 showError(userMessage)
             }
+            is ScanOrchestratorResult.DryRunReady -> {
+                _orchestratorState.value = ScanOrchestratorState.COMPLETE
+                _results.value = ResultsUiState(
+                    summary = "Dry run ready",
+                    topProducts = emptyList(),
+                )
+                speech.speakSummary("Dry run ready")
+                _screen.value = if (_hasDisplay.value) AppScreen.RESULTS else AppScreen.SCAN
+            }
+            is ScanOrchestratorResult.DryRunBlocked -> {
+                _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
+                showError("Dry run blocked")
+            }
+            is ScanOrchestratorResult.ConfigBlocked -> {
+                _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
+                showError("Backend config blocked")
+            }
         }
 
         _isProcessing.value = false

@@ -1,13 +1,11 @@
 package com.kscan.glasses.scan
 
+import com.kscan.glasses.analyze.AnalyzeClientConfig
+import com.kscan.glasses.analyze.DebugAnalyzeConfig
 import com.kscan.glasses.config.BetaConfig
-import com.kscan.glasses.config.SafeLog
 import com.kscan.glasses.mobilebridge.MobileAppBridge
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
-import com.kscan.glasses.state.FashionAnalyzeResult
-import com.kscan.glasses.state.ProductMatch
-import com.kscan.glasses.state.ResultsUiState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 
@@ -21,6 +19,8 @@ object ScanOrchestratorFactory {
         sanitizer: PrivacyImageSanitizer = MockPrivacyImageSanitizer(),
         analyzeClient: com.kscan.glasses.analyze.AnalyzeClient = com.kscan.glasses.analyze.MockAnalyzeClient(),
         mobileBridge: MobileAppBridge = com.kscan.glasses.mobilebridge.MockMobileAppBridge(),
+        clientConfig: AnalyzeClientConfig = AnalyzeClientConfig.MOCK_ONLY,
+        debugConfig: DebugAnalyzeConfig = DebugAnalyzeConfig.DEFAULT,
         ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ): ScanOrchestrator {
         return ScanOrchestrator(
@@ -28,6 +28,8 @@ object ScanOrchestratorFactory {
             analyzeClient = analyzeClient,
             mobileBridge = mobileBridge,
             config = config,
+            clientConfig = clientConfig,
+            debugConfig = debugConfig,
             ioDispatcher = ioDispatcher,
         )
     }
