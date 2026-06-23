@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -10,6 +10,7 @@ import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { ONBOARDING_FRAMEWORK_V1_ENABLED } from '../constants/featureFlags';
+import { isOnboardingComplete, subscribeOnboardingCompletion } from '../services/onboardingCompletion';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
@@ -43,6 +44,8 @@ function AuthGate() {
   const { bootStatus, profile } = usePrivacyPreferences();
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const lastRedirectRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -59,6 +62,46 @@ function AuthGate() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      setOnboardingComplete(null);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setOnboardingComplete(null);
+    isOnboardingComplete(userId)
+      .then((complete) => {
+        if (mounted) setOnboardingComplete(complete);
+      })
+      .catch((error) => {
+        logError('Unable to read onboarding completion flag', error, { userId });
+        if (mounted) setOnboardingComplete(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeOnboardingCompletion((completedUserId) => {
+      if (completedUserId === session?.user?.id) {
+        setOnboardingComplete(true);
+      }
+    });
+
+    return unsubscribe;
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    lastRedirectRef.current = null;
+  }, [pathname]);
+
   const waitingForAuthCallbackRoute =
     initialUrlChecked && isAuthCallbackUrl(initialUrl) && pathname !== '/auth/callback';
 
@@ -68,6 +111,7 @@ function AuthGate() {
     session,
     profile,
     profileLoading: Boolean(session && bootStatus !== 'ready'),
+    onboardingComplete,
     nowSeconds: undefined,
   });
 
@@ -80,8 +124,15 @@ function AuthGate() {
       ONBOARDING_FRAMEWORK_V1_ENABLED && guardState.redirectTo === '/auth'
         ? '/onboarding'
         : guardState.redirectTo;
+    if (pathname === '/onboarding' && redirectTo.startsWith('/onboarding')) {
+      return;
+    }
+    if (lastRedirectRef.current === redirectTo) {
+      return;
+    }
+    lastRedirectRef.current = redirectTo;
     router.replace(redirectTo);
-  }, [guardState.action, guardState.redirectTo, waitingForAuthCallbackRoute]);
+  }, [guardState.action, guardState.redirectTo, pathname, waitingForAuthCallbackRoute]);
 
   if (waitingForAuthCallbackRoute) {
     return <Stack screenOptions={{ headerShown: false }} />;

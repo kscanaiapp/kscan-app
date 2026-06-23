@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { Platform } from 'react-native';
 import {
   PrimaryButton,
   SecondaryButton,
 } from '../../components/luxury';
-import { LUXURY, SPACING } from '../../constants/theme';
-import { FashionCollagePlaceholder } from './FashionCollagePlaceholder';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 
 interface AccountSetupStepV1Props {
   onContinueEmail: () => void;
@@ -14,13 +13,15 @@ interface AccountSetupStepV1Props {
   onContinueGoogle?: () => void;
   onGoToLogin: () => void;
   appleAvailable?: boolean;
+  error?: string | null;
+  googleBusy?: boolean;
 }
 
 /**
  * Bright luxury Account Setup / Auth Choice step (Step 2).
  *
  * Matches the account-login-v1 mockup:
- * - Fashion collage placeholder
+ * - Real fashion hero image
  * - "Welcome to your AI style world" headline
  * - Email, Apple, Google auth choices
  * - Existing member login link
@@ -31,10 +32,17 @@ export function AccountSetupStepV1({
   onContinueGoogle,
   onGoToLogin,
   appleAvailable,
+  error,
+  googleBusy,
 }: AccountSetupStepV1Props) {
   return (
     <View style={styles.stepContent} testID="onboarding-auth-choice-screen-v1">
-      <FashionCollagePlaceholder />
+      <Image
+        source={require('../../assets/images/welcome-hero.png')}
+        style={styles.heroImage}
+        resizeMode="cover"
+        accessibilityLabel="K Scan account setup hero"
+      />
 
       <View style={styles.textBlock}>
         <Text style={styles.headline} accessibilityRole="header">
@@ -48,6 +56,12 @@ export function AccountSetupStepV1({
       </View>
 
       <View style={styles.actions}>
+        {error ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
         <PrimaryButton
           testID="onboarding-continue-email-button-v1"
           title="✉  CONTINUE WITH EMAIL"
@@ -69,6 +83,8 @@ export function AccountSetupStepV1({
             testID="onboarding-continue-google-button-v1"
             title="G  CONTINUE WITH GOOGLE"
             onPress={onContinueGoogle}
+            loading={googleBusy}
+            disabled={googleBusy}
             style={styles.wideButton}
           />
         )}
@@ -95,6 +111,12 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     paddingBottom: SPACING.xl,
   },
+  heroImage: {
+    width: '100%',
+    height: 240,
+    borderRadius: RADIUS.xl,
+    marginBottom: SPACING.md,
+  },
   textBlock: {
     gap: SPACING.sm,
     marginBottom: SPACING.md,
@@ -120,6 +142,19 @@ const styles = StyleSheet.create({
   wideButton: {
     alignSelf: 'stretch',
     minWidth: undefined,
+  },
+  errorBanner: {
+    borderWidth: 1,
+    borderColor: 'rgba(130, 48, 56, 0.25)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(130, 48, 56, 0.08)',
+    padding: 12,
+  },
+  errorText: {
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    color: LUXURY.colors.error,
+    textAlign: 'center',
   },
   footerLink: {
     ...LUXURY.typography.body,

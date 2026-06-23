@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY_PREFIX = 'onboardingComplete';
+type CompletionListener = (userId: string) => void;
+
+const completionListeners = new Set<CompletionListener>();
 
 function getKey(userId: string): string {
   return `${STORAGE_KEY_PREFIX}:${userId}`;
@@ -18,6 +21,14 @@ export async function markOnboardingComplete(userId: string): Promise<void> {
     return;
   }
   await AsyncStorage.setItem(getKey(userId), 'true');
+  completionListeners.forEach((listener) => listener(userId));
+}
+
+export function subscribeOnboardingCompletion(listener: CompletionListener): () => void {
+  completionListeners.add(listener);
+  return () => {
+    completionListeners.delete(listener);
+  };
 }
 
 /**

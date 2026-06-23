@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import {
@@ -37,6 +37,10 @@ import { TERMS_VERSION, PRIVACY_VERSION, AGE_VERSION } from '../../constants/leg
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { recordLegalAcceptances } from '../../services/legalAcceptance';
 import { usePermissionPreferences } from '../../hooks/usePermissionPreferences';
+import * as WebBrowser from 'expo-web-browser';
+import { supabase } from '../../services/supabaseClient';
+import { AUTH_CALLBACK_URL } from '../../services/authConfig';
+import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -52,7 +56,10 @@ type OnboardingStep =
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const routeParams = useLocalSearchParams<{ resume?: string | string[] }>();
   const { loading: authLoading, isAuthenticated, user, signUp, signIn } = useAuthSession();
+  const resumeParam = Array.isArray(routeParams.resume) ? routeParams.resume[0] : routeParams.resume;
+  const shouldResumeTerms = resumeParam === 'terms';
 
   const [step, setStep] = useState<OnboardingStep>(1);
 
@@ -65,6 +72,13 @@ export default function OnboardingScreen() {
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+  const resumeHandledRef = useRef(false);
+  const authResumeKeyRef = useRef<string | null>(null);
+  const routedHomeRef = useRef(false);
 
   // Step 4: Terms
   const [termsChecked, setTermsChecked] = useState(false);
@@ -81,17 +95,54 @@ export default function OnboardingScreen() {
     savePreferences,
   } = usePermissionPreferences();
 
+  const replaceHomeOnce = useCallback(() => {
+    if (routedHomeRef.current) return;
+    routedHomeRef.current = true;
+    router.replace('/');
+  }, [router]);
+
+  const moveToTermsOnce = useCallback(() => {
+    setStep((current) => (current === 4 ? current : 4));
+  }, []);
+
+  useEffect(() => {
+    if (resumeHandledRef.current || resumeParam !== 'terms') return;
+    resumeHandledRef.current = true;
+    moveToTermsOnce();
+  }, [moveToTermsOnce, resumeParam]);
+
   // Auth state: if onboarding is already complete for this user, redirect to Home.
   // Otherwise, stay on onboarding so the user can finish Terms + Permissions.
+  // If user is authenticated but on Welcome/Auth-Choice (steps 1-2), skip to Terms (step 4)
+  // so they don't get reset after OAuth or returning with an existing session.
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      isOnboardingComplete(user.id).then((complete) => {
+    if (authLoading || !isAuthenticated || !user?.id) return;
+    const resumeKey = `${user.id}:${resumeParam === 'terms' ? 'terms' : 'session'}`;
+    if (authResumeKeyRef.current === resumeKey) return;
+    authResumeKeyRef.current = resumeKey;
+
+    let active = true;
+    isOnboardingComplete(user.id)
+      .then((complete) => {
+        if (!active) return;
         if (complete) {
-          router.replace('/');
+          replaceHomeOnce();
+        } else {
+          setStep((current) => {
+            if (current === 4) return current;
+            return shouldResumeTerms || current <= 2 ? 4 : current;
+          });
         }
+      })
+      .catch((error) => {
+        console.warn('[onboarding] Unable to read onboarding completion flag', error);
+        if (active) moveToTermsOnce();
       });
-    }
-  }, [isAuthenticated, user?.id, router]);
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, isAuthenticated, user?.id, moveToTermsOnce, replaceHomeOnce, resumeParam, shouldResumeTerms]);
 
   // Android hardware back handler
   useEffect(() => {
@@ -110,19 +161,47 @@ export default function OnboardingScreen() {
   // ── Navigation helpers ───────────────────────────────────────────────────
 
   const goToNext = useCallback(() => {
+    setCreateError(null);
+    setConfirmationEmail(null);
     setStep((prev) => Math.min(6, prev + 1) as OnboardingStep);
   }, []);
 
   const goToPrev = useCallback(() => {
+    setCreateError(null);
+    setConfirmationEmail(null);
     setStep((prev) => Math.max(1, prev - 1) as OnboardingStep);
   }, []);
+
+  const continueAuthenticatedFlow = useCallback(
+    async (sessionUserId?: string | null) => {
+      const resolvedUserId =
+        sessionUserId ??
+        user?.id ??
+        (await supabase.auth.getSession()).data.session?.user?.id ??
+        null;
+
+      if (!resolvedUserId) {
+        moveToTermsOnce();
+        return;
+      }
+
+      const complete = await isOnboardingComplete(resolvedUserId);
+      if (complete) {
+        replaceHomeOnce();
+        return;
+      }
+
+      moveToTermsOnce();
+    },
+    [moveToTermsOnce, replaceHomeOnce, user?.id],
+  );
 
   const goToHome = useCallback(async () => {
     if (user?.id) {
       await markOnboardingComplete(user.id);
     }
-    router.replace('/');
-  }, [router, user?.id]);
+    replaceHomeOnce();
+  }, [replaceHomeOnce, user?.id]);
 
   const goToAuth = useCallback(() => {
     router.push('/auth');
@@ -131,31 +210,120 @@ export default function OnboardingScreen() {
   // ── Step 3: Create Account handler ───────────────────────────────────────
 
   const handleCreateAccount = useCallback(async () => {
-    const validation = validateAuthInput('create-account', email, password, undefined);
+    const validation = validateAuthInput('create-account', email, password, confirmPassword);
     if (!validation.valid) {
       setCreateError(validation.error);
       return;
     }
+    const trimmedEmail = email.trim();
+    setConfirmationEmail(null);
     setCreateError(null);
     setCreateBusy(true);
     try {
-      const result = await signUp(email.trim(), password);
+      const result = await signUp(trimmedEmail, password);
       if (result.confirmationRequired) {
-        // Email confirmation required — treat as account created enough to proceed
-        // In a real app, the user would need to confirm email before full use.
-        // For this framework, proceed to Terms.
-        goToNext(); // to step 4
-      } else {
-        // Session created immediately — proceed to Terms
-        goToNext();
+        setConfirmationEmail(trimmedEmail);
+        return;
       }
+      await continueAuthenticatedFlow(result.session?.user?.id ?? null);
     } catch (err) {
       const raw = err instanceof Error ? err.message : 'Something went wrong. Try again.';
       setCreateError(mapAuthError(raw, 'create-account'));
     } finally {
       setCreateBusy(false);
     }
-  }, [email, password, signUp, goToNext]);
+  }, [email, password, confirmPassword, signUp, continueAuthenticatedFlow]);
+
+  // ── Google OAuth handler (used from onboarding auth-choice step) ─────────────
+
+  const handleGoogleSignIn = useCallback(async () => {
+    setCreateError(null);
+    setConfirmationEmail(null);
+    setGoogleBusy(true);
+
+    try {
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: AUTH_CALLBACK_URL,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (oauthError) {
+        throw oauthError;
+      }
+
+      if (!data.url) {
+        throw new Error('Missing Google sign-in URL.');
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, AUTH_CALLBACK_URL);
+
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        setCreateError('Sign-in cancelled.');
+        setGoogleBusy(false);
+        return;
+      }
+
+      if (result.type !== 'success' || !result.url) {
+        setCreateError('We could not complete Google sign-in. Please try again.');
+        setGoogleBusy(false);
+        return;
+      }
+
+      const parsed = parseAuthCallbackUrl(result.url);
+
+      if (parsed.error) {
+        const lowerError = String(parsed.error).toLowerCase();
+        setCreateError(
+          lowerError.includes('access_denied')
+            ? 'Google sign-in was denied.'
+            : 'We could not complete Google sign-in. Please try again.',
+        );
+        setGoogleBusy(false);
+        return;
+      }
+
+      if (parsed.code) {
+        const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(parsed.code);
+        if (error) {
+          setCreateError('We could not complete Google sign-in. Please try again.');
+          setGoogleBusy(false);
+          return;
+        }
+        await continueAuthenticatedFlow(sessionData.session?.user?.id ?? null);
+        setGoogleBusy(false);
+        return;
+      }
+
+      if (parsed.hasSessionTokens) {
+        const { data: sessionData, error } = await supabase.auth.setSession({
+          access_token: parsed.accessToken,
+          refresh_token: parsed.refreshToken,
+        });
+        if (error) {
+          setCreateError('We could not complete Google sign-in. Please try again.');
+          setGoogleBusy(false);
+          return;
+        }
+        await continueAuthenticatedFlow(sessionData.session?.user?.id ?? null);
+        setGoogleBusy(false);
+        return;
+      }
+
+      setCreateError('We could not complete Google sign-in. Please try again.');
+      setGoogleBusy(false);
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : '';
+      setCreateError(
+        raw.toLowerCase().includes('network')
+          ? 'Network error. Please try again.'
+          : 'We could not launch Google sign-in. Please try again.',
+      );
+      setGoogleBusy(false);
+    }
+  }, [continueAuthenticatedFlow]);
 
   // ── Step 4: Accept & Continue handler ───────────────────────────────────
 
@@ -237,10 +405,12 @@ export default function OnboardingScreen() {
       return (
         <AccountSetupStepV1
           onContinueEmail={goToNext}
-          onContinueGoogle={goToAuth}
+          onContinueGoogle={handleGoogleSignIn}
           onContinueApple={goToAuth}
           onGoToLogin={goToAuth}
           appleAvailable={Platform.OS === 'ios'}
+          error={createError}
+          googleBusy={googleBusy}
         />
       );
     }
@@ -248,6 +418,12 @@ export default function OnboardingScreen() {
     <View style={styles.stepContent} testID="onboarding-auth-choice-screen">
       <Text style={styles.stepTitle}>Account Access</Text>
       <Text style={styles.stepBody}>Choose how you want to continue.</Text>
+
+      {createError ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{createError}</Text>
+        </View>
+      ) : null}
 
       <PrimaryButton
         testID="onboarding-continue-email-button"
@@ -259,10 +435,9 @@ export default function OnboardingScreen() {
       <SecondaryButton
         testID="onboarding-continue-google-button"
         title="Continue with Google"
-        onPress={() => {
-          // Redirect to existing auth screen for Google OAuth
-          goToAuth();
-        }}
+        onPress={handleGoogleSignIn}
+        loading={googleBusy}
+        disabled={googleBusy}
         style={styles.wideButton}
       />
 
@@ -292,7 +467,45 @@ export default function OnboardingScreen() {
   );
   };
 
-  const renderCreateAccount = () => (
+  const renderCreateAccount = () => {
+    if (confirmationEmail) {
+      return (
+        <View style={styles.stepContent} testID="onboarding-confirm-email-screen">
+          <Text style={styles.stepTitle}>Check Your Email</Text>
+          <Text style={styles.stepBody}>
+            We sent a confirmation link to{' '}
+            <Text style={styles.emailHighlight}>{confirmationEmail}</Text>. Open it to verify
+            your account, then return to sign in.
+          </Text>
+
+          <View style={styles.infoBanner}>
+            <Text style={styles.infoText}>
+              Supabase email confirmation is enabled for this account path, so Terms and
+              Permissions will unlock after the verified session starts.
+            </Text>
+          </View>
+
+          <PrimaryButton
+            testID="onboarding-confirm-email-login-button"
+            title="Sign In"
+            onPress={goToAuth}
+            style={styles.wideButton}
+          />
+
+          <TertiaryButton
+            testID="onboarding-confirm-email-edit-button"
+            title="Use Another Email"
+            onPress={() => {
+              setConfirmationEmail(null);
+              setCreateError(null);
+            }}
+            style={styles.wideButton}
+          />
+        </View>
+      );
+    }
+
+    return (
     <View style={styles.stepContent} testID="onboarding-create-account-screen">
       <Text style={styles.stepTitle}>Create Account</Text>
       <Text style={styles.stepBody}>Join K Scan to save your style journey.</Text>
@@ -354,6 +567,29 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
+        <TextInput
+          testID="onboarding-create-confirm-password-input"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          placeholder="Re-enter your password"
+          placeholderTextColor={LUXURY.colors.stone}
+          secureTextEntry={!confirmPasswordVisible}
+          textContentType="newPassword"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!createBusy}
+          style={styles.input}
+        />
+        <Pressable
+          onPress={() => setConfirmPasswordVisible((v) => !v)}
+          style={styles.eyeToggle}
+        >
+          <Text style={styles.eyeToggleText}>{confirmPasswordVisible ? 'Hide' : 'Show'}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>STYLE NICKNAME (OPTIONAL)</Text>
         <TextInput
           testID="onboarding-style-nickname-input"
@@ -407,6 +643,7 @@ export default function OnboardingScreen() {
       </Pressable>
     </View>
   );
+  };
 
   const renderTerms = () => (
     <View style={styles.stepContent} testID="onboarding-terms-screen">
@@ -763,6 +1000,22 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.body,
     fontSize: 14,
     color: LUXURY.colors.error,
+  },
+  infoBanner: {
+    borderWidth: 1,
+    borderColor: 'rgba(46, 109, 130, 0.24)',
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(46, 109, 130, 0.08)',
+    padding: SPACING.md,
+  },
+  infoText: {
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    color: LUXURY.colors.graphite,
+  },
+  emailHighlight: {
+    color: LUXURY.colors.ink,
+    fontWeight: '700',
   },
   // Terms
   trustCard: {

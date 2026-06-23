@@ -19,15 +19,11 @@ import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
-import { isOnboardingComplete } from '../../services/onboardingCompletion';
 import { COLORS, LUXURY, LAYOUT, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { supabase } from '../../services/supabaseClient';
-import {
-  getAuthCallbackRedirect,
-  parseAuthCallbackUrl,
-} from '../../services/authDeepLink';
+import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -43,7 +39,7 @@ function createRawNonce(length = 32) {
 export default function AuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signIn, signUp, isAuthenticated, user } = useAuthSession();
+  const { signIn, signUp } = useAuthSession();
 
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
@@ -52,18 +48,6 @@ export default function AuthScreen() {
   const [step, setStep] = useState<AuthStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
-
-  // Navigate away when a session appears (sign-in or immediate signup without email confirmation)
-  useEffect(() => {
-    if (!isAuthenticated || !user?.id) return;
-    isOnboardingComplete(user.id).then((complete) => {
-      if (complete) {
-        router.replace('/');
-      } else {
-        router.replace('/onboarding');
-      }
-    });
-  }, [isAuthenticated, user?.id, router]);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -173,7 +157,6 @@ export default function AuthScreen() {
           setStep('idle');
           return;
         }
-        router.replace('/onboarding');
         return;
       }
 
@@ -187,7 +170,6 @@ export default function AuthScreen() {
           setStep('idle');
           return;
         }
-        router.replace('/onboarding');
         return;
       }
 
@@ -246,7 +228,7 @@ export default function AuthScreen() {
         return;
       }
 
-      router.replace('/onboarding');
+      return;
     } catch (err) {
       const code = typeof err === 'object' && err && 'code' in err ? String(err.code) : '';
       const message = err instanceof Error ? err.message : '';

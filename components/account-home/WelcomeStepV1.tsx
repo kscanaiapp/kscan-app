@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import {
   PrimaryButton,
   SecondaryButton,
 } from '../../components/luxury';
-import { LUXURY, SPACING } from '../../constants/theme';
-import { FashionCollagePlaceholder } from './FashionCollagePlaceholder';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 
 interface WelcomeStepV1Props {
   onGetStarted: () => void;
@@ -17,7 +16,7 @@ interface WelcomeStepV1Props {
  *
  * Matches the landing-page-v1 mockup:
  * - K Scan brand header
- * - Fashion collage placeholder
+ * - Real fashion hero image
  * - "See it. Scan it. Style it." headline
  * - Value proposition body
  * - Primary "Get Started" CTA
@@ -26,7 +25,12 @@ interface WelcomeStepV1Props {
 export function WelcomeStepV1({ onGetStarted, onAlreadyHaveAccount }: WelcomeStepV1Props) {
   return (
     <View style={styles.stepContent} testID="onboarding-welcome-screen-v1">
-      <FashionCollagePlaceholder />
+      <Image
+        source={require('../../assets/images/welcome-hero.png')}
+        style={styles.heroImage}
+        resizeMode="cover"
+        accessibilityLabel="Welcome to K Scan"
+      />
 
       <View style={styles.textBlock}>
         <Text style={styles.headline} accessibilityRole="header">
@@ -64,6 +68,12 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.xl,
+  },
+  heroImage: {
+    width: '100%',
+    height: 320,
+    borderRadius: RADIUS.xl,
+    marginBottom: SPACING.xl,
   },
   textBlock: {
     gap: SPACING.sm,
