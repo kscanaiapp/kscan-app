@@ -2,7 +2,7 @@
   "expo": {
     "name": "K Scan",
     "slug": "kscan",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "sdkVersion": "54.0.0",
     "scheme": "kscan",
     "orientation": "portrait",
@@ -33,7 +33,7 @@
     ],
     "android": {
       "package": "com.kscanai.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.CAMERA",
