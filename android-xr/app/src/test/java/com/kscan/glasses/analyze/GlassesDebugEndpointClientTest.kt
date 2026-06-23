@@ -173,7 +173,57 @@ class GlassesDebugEndpointClientTest {
         assertEquals("", fashion.silhouette)
     }
 
+    @Test
+    fun `maps config disabled 503 to HttpError exception`() = runTest {
+        val fakeTransport = FakeHttpTransport { _, _, _ ->
+            HttpTransportResponse(503, configDisabledJson)
+        }
+
+        val client = GlassesDebugEndpointClient(
+            endpointUrl = "http://127.0.0.1:3999/api/glasses/analyze-debug",
+            authToken = "test-token",
+            transport = fakeTransport,
+        )
+
+        try {
+            client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
+            assertTrue("Expected exception", false)
+        } catch (e: AnalyzeException.HttpError) {
+            assertEquals(503, e.status)
+            assertTrue(e.message?.contains("CONFIG_DISABLED") == true)
+        }
+    }
+
+    @Test
+    fun `transport is called exactly once per analyze`() = runTest {
+        var callCount = 0
+        val fakeTransport = FakeHttpTransport { _, _, _ ->
+            callCount++
+            HttpTransportResponse(200, debugSuccessJson)
+        }
+
+        val client = GlassesDebugEndpointClient(
+            endpointUrl = "http://127.0.0.1:3999/api/glasses/analyze-debug",
+            authToken = "test-token",
+            transport = fakeTransport,
+        )
+
+        client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
+        assertEquals(1, callCount)
+    }
+
     companion object {
+        private val configDisabledJson = """
+        {
+            "ok": false,
+            "requestId": "test-req-3",
+            "error": {
+                "code": "CONFIG_DISABLED",
+                "message": "The backend is unavailable."
+            }
+        }
+        """.trimIndent()
+
         private val debugSuccessJson = """
         {
             "ok": true,

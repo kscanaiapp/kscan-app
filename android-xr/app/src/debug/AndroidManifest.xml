@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only manifest overlay.
+
+  This manifest is merged ONLY into debug builds.
+  Release and main builds do NOT receive this permission.
+
+  android.permission.INTERNET is added here strictly for:
+  - local emulator smoke testing against the debug backend endpoint
+  - local device testing on a trusted LAN
+
+  It must NEVER be added to src/main/AndroidManifest.xml.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
