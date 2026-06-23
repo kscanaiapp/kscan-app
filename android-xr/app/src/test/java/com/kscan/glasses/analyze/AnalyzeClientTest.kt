@@ -114,6 +114,24 @@ class AnalyzeClientTest {
     }
 
     @Test
+    fun `real analyze rejects non-HTTPS backend URL`() = runTest {
+        val config = AnalyzeClientConfig(
+            backendUrl = "http://example.com",
+            enableRealAnalyze = true,
+        )
+        val transport = FakeHttpTransport { _, _, _ -> HttpTransportResponse(200, "{}") }
+        val betaConfig = BetaConfig(enableRealAnalyze = true, enableRealFaceMasking = true)
+        val client = RealAnalyzeClient(config, transport, betaConfig)
+
+        try {
+            client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
+            assertTrue("Expected exception", false)
+        } catch (e: AnalyzeException.Disabled) {
+            assertTrue(e.message?.contains("HTTPS") == true)
+        }
+    }
+
+    @Test
     fun `data URL validation accepts valid data URLs`() {
         assertTrue(AnalyzeRequest.isValidDataUrl("data:image/jpeg;base64,abc"))
         assertTrue(AnalyzeRequest.isValidDataUrl("data:image/png;base64,abc"))

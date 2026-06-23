@@ -35,8 +35,32 @@ class BetaConfigTest {
             enableRealVoice = false,
             enableRealCamera = false,
             enableRealFaceMasking = false,
+            enableDryRun = false,
         )
         assertTrue(BetaSafetyGuard.isSafeDebugConfig(config))
+    }
+
+    @Test
+    fun `enableDryRun defaults to false`() {
+        assertFalse(BetaConfig.DEFAULT.enableDryRun)
+    }
+
+    @Test
+    fun `real analyze preparation permitted only in debug`() {
+        val safeRealConfig = BetaConfig(
+            useMockApi = false,
+            enableRealAnalyze = true,
+            enableRealFaceMasking = true,
+            enableDryRun = true,
+        )
+        assertTrue(BetaSafetyGuard.permitsRealAnalyzePreparation(safeRealConfig, isDebugBuild = true))
+        assertFalse(BetaSafetyGuard.permitsRealAnalyzePreparation(safeRealConfig, isDebugBuild = false))
+    }
+
+    @Test
+    fun `real analyze preparation denied when config is unsafe`() {
+        val unsafeConfig = BetaConfig(enableRealAnalyze = true)
+        assertFalse(BetaSafetyGuard.permitsRealAnalyzePreparation(unsafeConfig, isDebugBuild = true))
     }
 
     @Test
