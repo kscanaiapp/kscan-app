@@ -4,13 +4,15 @@ Isolated backend endpoint for the Google glasses controlled live smoke test (Pha
 
 ## Verified Status
 
-- **npm install:** ✅ Clean (71 packages installed, 0 vulnerabilities in production dependencies)
-- **Unit tests:** ✅ 14/14 pass
+- **npm install:** ✅ Clean (72 packages installed, 0 vulnerabilities in production dependencies)
+- **Unit tests:** ✅ 20/20 pass (validation, service, error mapping, disabled mode, auth hardening, mock determinism, no-proxy)
 - **Smoke tests:** ✅ 7/7 pass (disabled mode, enabled without token, missing image, invalid prefix, bad token, valid mock, no payload leakage)
-- **Static safety review:** ✅ No payload logging, no persistence, no hardcoded secrets, no raw exception leakage
+- **Static safety review:** ✅ No payload logging, no persistence, no hardcoded secrets, no raw exception leakage, no live URL hardcoding
 - **Live calls:** ❌ None performed (intentionally)
 - **Android changes:** ❌ None
 - **INTERNET permission added:** ❌ None
+- **Open unauthenticated endpoint:** ❌ None (enabled=true requires token)
+- **Accidental proxy calls:** ❌ None (mock-only by default)
 
 ## Endpoint
 

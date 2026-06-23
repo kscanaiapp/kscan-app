@@ -5,7 +5,7 @@
  *   - application/json
  *   - required image field as a JPEG data URL
  *   - 8 MB payload ceiling
- *   - optional Bearer token auth (when KSCAN_GLASSES_ANALYZE_DEBUG_TOKEN is set)
+ *   - required Bearer token auth (when KSCAN_GLASSES_ANALYZE_ENABLED is true)
  *   - backend enabled flag (KSCAN_GLASSES_ANALYZE_ENABLED === 'true')
  *
  * Never logs image payloads or request bodies.

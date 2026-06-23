@@ -53,6 +53,29 @@ describe('glasses-analyze-debug validation', () => {
     assert.strictEqual(next.error().message, 'MISSING_IMAGE');
   });
 
+  it('rejects image that is not a string', () => {
+    const req = mockReq({ body: { image: 12345 } });
+    const next = mockNext();
+    validateGlassesAnalyzeRequest(req, mockRes(), next);
+    assert.strictEqual(next.error().message, 'MISSING_IMAGE');
+  });
+
+  it('rejects image that is null', () => {
+    const req = mockReq({ body: { image: null } });
+    const next = mockNext();
+    validateGlassesAnalyzeRequest(req, mockRes(), next);
+    assert.strictEqual(next.error().message, 'MISSING_IMAGE');
+  });
+
+  it('rejects non-JSON content type', () => {
+    const req = mockReq({
+      is: () => false,
+      body: { image: 'data:image/jpeg;base64,abc' },
+    });
+    const next = mockNext();
+    validateGlassesAnalyzeRequest(req, mockRes(), next);
+    assert.strictEqual(next.error().message, 'INVALID_JSON');
+  });
   it('rejects non-JPEG data URL', () => {
     const req = mockReq({ body: { image: 'data:image/png;base64,abc' } });
     const next = mockNext();
@@ -85,6 +108,20 @@ describe('glasses-analyze-debug validation', () => {
     validateGlassesAnalyzeRequest(req, mockRes(), next);
     assert.strictEqual(next.error().message, 'CONFIG_DISABLED');
     delete process.env.KSCAN_GLASSES_ANALYZE_ENABLED;
+  });
+
+  it('enabled=false returns CONFIG_DISABLED', () => {
+    process.env.KSCAN_GLASSES_ANALYZE_ENABLED = 'false';
+    process.env.KSCAN_GLASSES_ANALYZE_DEBUG_TOKEN = 'secret-token';
+    const req = mockReq({
+      headers: { authorization: 'Bearer secret-token' },
+      body: { image: 'data:image/jpeg;base64,abc' },
+    });
+    const next = mockNext();
+    validateGlassesAnalyzeRequest(req, mockRes(), next);
+    assert.strictEqual(next.error().message, 'CONFIG_DISABLED');
+    delete process.env.KSCAN_GLASSES_ANALYZE_ENABLED;
+    delete process.env.KSCAN_GLASSES_ANALYZE_DEBUG_TOKEN;
   });
 
   it('rejects unauthorized request when token is configured', () => {
@@ -153,6 +190,25 @@ describe('glasses-analyze-debug service', () => {
     assert.ok(service instanceof MockGlassesAnalyzeService);
     delete process.env.KSCAN_GLASSES_ANALYZE_ENABLED;
     delete process.env.KSCAN_GLASSES_ANALYZE_BACKEND_URL;
+  });
+
+  it('mock mode returns deterministic HUD-safe response', async () => {
+    const service = new MockGlassesAnalyzeService({ model: 'mock-debug' });
+    const result1 = await service.analyze({ requestId: 'req-d' });
+    const result2 = await service.analyze({ requestId: 'req-d' });
+    assert.deepStrictEqual(result1, result2);
+    assert.strictEqual(result1.ok, true);
+    assert.strictEqual(result1.result.safeForHud, true);
+    assert.strictEqual(result1.meta.model, 'mock-debug');
+  });
+
+  it('RealGlassesAnalyzeService is never called when mock is used', async () => {
+    process.env.KSCAN_GLASSES_ANALYZE_ENABLED = 'true';
+    delete process.env.KSCAN_GLASSES_ANALYZE_BACKEND_URL;
+    const { createGlassesAnalyzeService } = require('../services/glassesAnalyzeService');
+    const service = createGlassesAnalyzeService();
+    assert.ok(!(service instanceof RealGlassesAnalyzeService));
+    delete process.env.KSCAN_GLASSES_ANALYZE_ENABLED;
   });
 });
 

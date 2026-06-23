@@ -54,7 +54,7 @@ function request(port, body, headers = {}) {
 
 async function main() {
   const results = [];
-  const port = 3005;
+  const port = 3999;
 
   // Test 1: disabled by default
   {
@@ -160,6 +160,8 @@ async function main() {
   console.log(allPass ? '\nAll smoke tests passed.' : '\nSome smoke tests failed.');
   process.exit(allPass ? 0 : 1);
 }
+
+module.exports = { buildApp };
 
 main().catch((err) => {
   console.error('Smoke test error:', err.message);
