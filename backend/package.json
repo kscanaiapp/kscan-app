@@ -1,0 +1,16 @@
+{
+  "name": "@kscan/glasses-debug-backend",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "description": "Isolated debug backend for K Scan Google Glasses smoke test",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.22.1"
+  }
+}
