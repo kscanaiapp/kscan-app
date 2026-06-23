@@ -1,5 +1,6 @@
 package com.kscan.glasses.config
 
+import com.kscan.glasses.BuildConfig
 import com.kscan.glasses.safety.ReleaseSafetyGuard
 
 /**
@@ -37,5 +38,18 @@ object BetaSafetyGuard {
         } catch (_: IllegalStateException) {
             false
         }
+    }
+
+    /**
+     * Returns true only when the current build is a debug build and the config combination
+     * is considered safe for debug-only real analyze *preparation* (dry-run wiring).
+     *
+     * This does NOT override sanitizer failure and does NOT permit live network execution.
+     */
+    fun permitsRealAnalyzePreparation(
+        config: BetaConfig,
+        isDebugBuild: Boolean = BuildConfig.DEBUG,
+    ): Boolean {
+        return isDebugBuild && isSafeDebugConfig(config)
     }
 }

@@ -1,7 +1,29 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+// Debug-only backend analyze helpers. Missing properties fall back to safe blank/false defaults.
+fun debugProperty(name: String): String {
+    return project.findProperty(name)?.toString()
+        ?: localProperty(name)
+        ?: ""
+}
+
+fun debugPropertyBoolean(name: String): Boolean {
+    return project.findProperty(name)?.toString()?.toBoolean()
+        ?: localProperty(name)?.toBoolean()
+        ?: false
+}
+
+fun localProperty(name: String): String? {
+    val file = rootProject.file("local.properties")
+    return if (file.exists()) {
+        Properties().apply { load(file.inputStream()) }.getProperty(name)
+    } else null
 }
 
 android {
@@ -15,7 +37,16 @@ android {
         versionCode = 1
         versionName = "0.1.0-alpha"
 
-        buildConfigField("String", "KSCAN_BACKEND_URL", "\"https://kscan-app-1.onrender.com\"")
+        // Debug-only backend analyze config. Committed defaults are blank/disabled.
+        // Real values must be supplied via gitignored local.properties (or project properties)
+        // and are never committed.
+        val debugAnalyzeUrl = debugProperty("KSCAN_DEBUG_ANALYZE_URL")
+        val debugAnalyzeAuthToken = debugProperty("KSCAN_DEBUG_ANALYZE_AUTH_TOKEN")
+        val debugAnalyzeDryRun = debugPropertyBoolean("KSCAN_DEBUG_ANALYZE_DRY_RUN")
+        buildConfigField("String", "KSCAN_DEBUG_ANALYZE_URL", "\"$debugAnalyzeUrl\"")
+        buildConfigField("String", "KSCAN_DEBUG_ANALYZE_AUTH_TOKEN", "\"$debugAnalyzeAuthToken\"")
+        buildConfigField("boolean", "KSCAN_DEBUG_ANALYZE_DRY_RUN", "$debugAnalyzeDryRun")
+
         // Debug defaults: mock infrastructure is allowed for local development without hardware.
         buildConfigField("boolean", "USE_MOCK_BRIDGE", "true")
         buildConfigField("boolean", "USE_MOCK_API", "true")

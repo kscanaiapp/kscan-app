@@ -15,6 +15,7 @@ data class BetaConfig(
     val enableRealVoice: Boolean = false,
     val enableRealCamera: Boolean = false,
     val enableRealFaceMasking: Boolean = false,
+    val enableDryRun: Boolean = false,
 ) {
     companion object {
         val DEFAULT = BetaConfig()

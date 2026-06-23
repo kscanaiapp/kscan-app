@@ -35,7 +35,10 @@ The glasses implementation is **phone-hosted / projected** where platform APIs r
    ```bash
    cp .env.example .env
    ```
-3. Set `KSCAN_BACKEND_URL` (default: `https://kscan-app-1.onrender.com`)
+3. Set debug-only backend analyze placeholders in `.env`:
+   - `KSCAN_DEBUG_ANALYZE_URL=` (leave blank for mock-only builds)
+   - `KSCAN_DEBUG_ANALYZE_AUTH_TOKEN=`
+   - `KSCAN_DEBUG_ANALYZE_DRY_RUN=false`
 4. For phone bridge development:
    ```bash
    cd phone-bridge && npm install
@@ -45,7 +48,9 @@ The glasses implementation is **phone-hosted / projected** where platform APIs r
 
 | Variable | Description |
 |----------|-------------|
-| `KSCAN_BACKEND_URL` | K Scan backend base URL |
+| `KSCAN_DEBUG_ANALYZE_URL` | Debug-only backend analyze URL (blank = dry-run blocked) |
+| `KSCAN_DEBUG_ANALYZE_AUTH_TOKEN` | Debug-only bearer token (blank = no Authorization header) |
+| `KSCAN_DEBUG_ANALYZE_DRY_RUN` | `true` to allow backend analyze dry-run wiring |
 | `SUPABASE_URL` | Supabase project URL (phone bridge relay — placeholder) |
 | `SUPABASE_ANON_KEY` | Supabase anon key (placeholder only in repo) |
 | `KSCAN_BRIDGE_MODE` | `mock` \| `phone` \| `google` |
