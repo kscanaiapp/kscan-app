@@ -14,6 +14,11 @@ import androidx.compose.ui.unit.dp
 import com.kscan.glasses.navigation.InputMapper
 import com.kscan.glasses.state.KScanViewModel
 import com.kscan.glasses.ui.KScanGlassesApp
+import com.kscan.glasses.analyze.AnalyzeClientConfig
+import com.kscan.glasses.analyze.AnalyzeClientFactory
+import com.kscan.glasses.analyze.DebugAnalyzeConfig
+import com.kscan.glasses.analyze.GlassesDebugEndpointClientFactory
+import com.kscan.glasses.config.BetaConfig
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: KScanViewModel
@@ -23,7 +28,28 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val app = application as KScanApplication
-        val orchestrator = com.kscan.glasses.scan.ScanOrchestratorFactory.create()
+
+        // Debug-only: use GlassesDebugEndpointClient when local debug config is present.
+        // This path is active ONLY in debug builds with local.properties configured.
+        // Release builds always use the standard factory path (MockAnalyzeClient default).
+        val analyzeClient = if (BuildConfig.DEBUG && DebugAnalyzeConfig.DEFAULT.isPresent) {
+            GlassesDebugEndpointClientFactory.create(
+                betaConfig = BetaConfig.DEFAULT.copy(
+                    enableRealAnalyze = true,
+                    enableRealFaceMasking = true,
+                ),
+                debugConfig = DebugAnalyzeConfig.DEFAULT,
+            )
+        } else {
+            AnalyzeClientFactory.create(
+                betaConfig = BetaConfig.DEFAULT,
+                clientConfig = AnalyzeClientConfig.MOCK_ONLY,
+            )
+        }
+
+        val orchestrator = com.kscan.glasses.scan.ScanOrchestratorFactory.create(
+            analyzeClient = analyzeClient,
+        )
         viewModel = KScanViewModel(
             bridge = app.bridgeProvider,
             orchestrator = orchestrator,
