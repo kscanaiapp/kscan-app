@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanRoomHeader } from './ScanRoomHeader';
-import { AIStarBadge } from '../text-scan/AIStarBadge';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 
 interface AnalyzingScanProps {
@@ -126,7 +125,7 @@ export function AnalyzingScan({
   if (hasError) {
     return (
       <View style={styles.root} testID={testID}>
-        <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
+        <ScanRoomHeader rightAction={homeButton} />
         <View style={styles.errorContainer}>
           <EmptyStateCard
             title={errorMessage || 'Analysis failed'}
@@ -159,7 +158,7 @@ export function AnalyzingScan({
 
   return (
     <View style={styles.root} testID={testID}>
-      <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
+      <ScanRoomHeader rightAction={homeButton} />
 
       <Text style={styles.title}>Analyzing your scan</Text>
 
@@ -327,20 +326,21 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.goldChampagne,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.goldBrushed,
     backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     minHeight: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.editorialSmall,
   },
   homeButtonText: {
     ...LUXURY.typography.caption,
     fontSize: 11,
     letterSpacing: 1.2,
-    color: LUXURY.colors.plum,
+    color: LUXURY.colors.plumDeep,
     textTransform: 'uppercase',
   },
 });

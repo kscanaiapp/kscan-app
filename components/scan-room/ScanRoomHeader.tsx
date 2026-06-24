@@ -14,7 +14,7 @@ export interface ScanRoomHeaderProps {
  * Shared Scan Room header.
  *
  * - K Scan AI brand mark with champagne sparkle divider.
- * - Optional AI STAR badge or other trailing node.
+ * - Optional trailing node (e.g. a Home action).
  */
 export function ScanRoomHeader({
   badge,

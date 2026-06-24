@@ -11,7 +11,6 @@ import {
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { LuxuryButton } from '../luxury/LuxuryButton';
 import { PrivacyFooter } from '../luxury/PrivacyFooter';
-import { AIStarBadge } from '../text-scan/AIStarBadge';
 import { ScanRoomHeader } from './ScanRoomHeader';
 
 interface ScanLandingProps {
@@ -49,7 +48,6 @@ export function ScanLanding({
       testID={testID}
     >
       <ScanRoomHeader
-        badge={<AIStarBadge />}
         rightAction={
           onHome ? (
             <Pressable
@@ -213,20 +211,21 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.goldChampagne,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.goldBrushed,
     backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     minHeight: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.editorialSmall,
   },
   homeButtonText: {
     ...LUXURY.typography.caption,
     fontSize: 11,
     letterSpacing: 1.2,
-    color: LUXURY.colors.plum,
+    color: LUXURY.colors.plumDeep,
     textTransform: 'uppercase',
   },
 });

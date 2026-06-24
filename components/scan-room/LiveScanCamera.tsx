@@ -15,7 +15,6 @@ import { StatusBar } from 'expo-status-bar';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanButton } from '../ScanButton';
 import { ScanRoomHeader } from './ScanRoomHeader';
-import { AIStarBadge } from '../text-scan/AIStarBadge';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { LuxuryButton } from '../luxury/LuxuryButton';
 
@@ -79,7 +78,7 @@ export function LiveScanCamera({
     return (
       <View style={styles.root} testID={testID}>
         <StatusBar style="dark" />
-        <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
+        <ScanRoomHeader rightAction={homeButton} />
         <View style={styles.permissionContainer}>
           <EmptyStateCard
             title="Camera access is needed to scan items."
@@ -113,7 +112,7 @@ export function LiveScanCamera({
   return (
     <View style={styles.root} testID={testID}>
       <StatusBar style="dark" />
-      <ScanRoomHeader badge={<AIStarBadge />} rightAction={homeButton} />
+      <ScanRoomHeader rightAction={homeButton} />
 
       {/* Viewfinder */}
       <View style={[styles.viewfinderWrap, { width: viewfinderWidth, height: viewfinderHeight }]}>
@@ -323,20 +322,21 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.goldChampagne,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.goldBrushed,
     backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     minHeight: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.editorialSmall,
   },
   homeButtonText: {
     ...LUXURY.typography.caption,
     fontSize: 11,
     letterSpacing: 1.2,
-    color: LUXURY.colors.plum,
+    color: LUXURY.colors.plumDeep,
     textTransform: 'uppercase',
   },
   capturingOverlay: {
