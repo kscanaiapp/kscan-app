@@ -827,7 +827,28 @@ export default function App() {
 
         case 'non-fashion':
         case 'error':
-          // Non-fashion / error → existing preview screen without forced delay.
+          if (!photo?.uri) {
+            return v2CameraVisible ? (
+              <LiveScanCamera
+                cameraRef={cameraRef}
+                isCameraReady={isCameraReady}
+                onCapture={() => capturePhoto(cameraRef)}
+                onUpload={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onBack={() => setV2CameraVisible(false)}
+                onHome={handleHome}
+                textScanEnabled={textScanEnabled}
+              />
+            ) : (
+              <ScanLanding
+                onOpenCamera={() => setV2CameraVisible(true)}
+                onUploadImage={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onHome={handleHome}
+                textScanEnabled={textScanEnabled}
+              />
+            );
+          }
           return renderPreviewScreen();
 
         default:
@@ -881,6 +902,10 @@ export default function App() {
       )}
 
       {savedToast && <SavedToast onDismiss={() => setSavedToast(false)} />}
+
+      {SCAN_ROOM_V2_UI_ENABLED && status === 'error' && error && !photo?.uri && (
+        <ErrorToast message={error} onDismiss={dismissResult} />
+      )}
 
       {/* Post-result HUD: briefly shows real metadata before AnalysisCard slides up */}
       {status === 'result' && perceiving && !SCAN_ROOM_V2_UI_ENABLED && (
