@@ -341,6 +341,7 @@ Deno.serve(async (req) => {
   }
 
   const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
+  const source = typeof body.source === 'string' ? body.source : 'unknown';
   let imageBase64 = '';
   let textQuery = '';
 
@@ -452,9 +453,10 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const meta = extractGeminiErrorMeta(raw);
       console.warn(
-        '[scan-identify] gemini_http_error uid=%s mode=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
+        '[scan-identify] gemini_http_error uid=%s mode=%s source=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
         userId.slice(0, 8),
         mode,
+        source,
         res.status,
         String(meta.code ?? 'none'),
         String(meta.status ?? 'none'),
@@ -467,7 +469,7 @@ Deno.serve(async (req) => {
     try {
       data = JSON.parse(raw);
     } catch {
-      console.warn('[scan-identify] gemini_parse_failure mode=%s elapsedMs=%d', mode, elapsedMs);
+      console.warn('[scan-identify] gemini_parse_failure mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -475,8 +477,9 @@ Deno.serve(async (req) => {
     const text = extractGeminiText(data);
     if (!text) {
       console.warn(
-        '[scan-identify] gemini_empty mode=%s blockReason=%s elapsedMs=%d',
+        '[scan-identify] gemini_empty mode=%s source=%s blockReason=%s elapsedMs=%d',
         mode,
+        source,
         blockReason ?? 'none',
         elapsedMs,
       );
@@ -485,7 +488,7 @@ Deno.serve(async (req) => {
 
     const parsed = parseModelJson(text);
     if (!parsed) {
-      console.warn('[scan-identify] model_json_unparseable mode=%s elapsedMs=%d', mode, elapsedMs);
+      console.warn('[scan-identify] model_json_unparseable mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -495,12 +498,12 @@ Deno.serve(async (req) => {
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
       const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
-      console.log('[scan-identify] ok uid=%s mode=%s status=non_fashion elapsedMs=%d', userId.slice(0, 8), mode, elapsedMs);
+      console.log('[scan-identify] ok uid=%s mode=%s source=%s status=non_fashion elapsedMs=%d', userId.slice(0, 8), mode, source, elapsedMs);
       return json(normalized('non_fashion', msg), 200);
     }
 
     if (!attributes) {
-      console.warn('[scan-identify] completed_without_attributes mode=%s elapsedMs=%d', mode, elapsedMs);
+      console.warn('[scan-identify] completed_without_attributes mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -509,16 +512,17 @@ Deno.serve(async (req) => {
         ? 'Analyzed your fashion request.'
         : 'Identified a fashion item from your scan.');
     console.log(
-      '[scan-identify] ok uid=%s mode=%s status=completed attrKeys=%d elapsedMs=%d',
+      '[scan-identify] ok uid=%s mode=%s source=%s status=completed attrKeys=%d elapsedMs=%d',
       userId.slice(0, 8),
       mode,
+      source,
       Object.keys(attributes).length,
       elapsedMs,
     );
     return json(normalized('completed', userMessage, attributes), 200);
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
-    console.warn('[scan-identify] %s mode=%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', mode, Date.now() - startedAt);
+    console.warn('[scan-identify] %s mode=%s source=%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', mode, source, Date.now() - startedAt);
     return json(normalized('failed', safeFailed), 200);
   } finally {
     clearTimeout(timer);

@@ -119,6 +119,12 @@ function deduplicateProducts(products) {
 /**
  * POST text query to /api/analyze with mode: 'text'.
  *
+ * DEPRECATED: This function is the legacy Render-based TextScan path.
+ * The canonical TextScan path now uses analyzeTextWithEdge() in
+ * services/textScanEdge.ts, which calls the scan-identify Supabase
+ * Edge Function. This function is preserved for backward compatibility
+ * only. Do not use for new TextScan flows.
+ *
  * Frontend timeout: 15 seconds (server AI timeout is 10 s).
  *
  * Input validation runs before the network call:

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { validateTextScanQuery } from './textScan';
 import type { TextScanResult } from './textScan';
 
 const EDGE_FN = 'scan-identify';
@@ -130,6 +131,14 @@ export async function analyzeTextWithEdge(
   options: TextScanInvokeOptions = {},
 ): Promise<TextScanResult> {
   const trimmed = query.trim();
+
+  // Defense-in-depth: validate before invoking the edge function
+  const validation = validateTextScanQuery(trimmed);
+  if (!validation.valid) {
+    const err = new Error('TEXTSCAN_INVALID_INPUT');
+    (err as any).userMessage = validation.message;
+    throw err;
+  }
 
   // Authenticated calls only
   try {

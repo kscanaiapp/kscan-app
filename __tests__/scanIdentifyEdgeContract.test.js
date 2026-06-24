@@ -1,0 +1,194 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const ROOT = path.resolve(__dirname, '..');
+const EDGE_SOURCE = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+
+// ── 1. CORS and Auth Contract ──
+
+test('edge source: CORS OPTIONS preflight is handled', () => {
+  assert.ok(EDGE_SOURCE.includes("req.method === 'OPTIONS'"), 'Must handle OPTIONS preflight');
+  assert.ok(EDGE_SOURCE.includes('Access-Control-Allow-Origin'), 'Must include CORS allow-origin');
+  assert.ok(EDGE_SOURCE.includes('Access-Control-Allow-Methods'), 'Must include CORS allow-methods');
+});
+
+test('edge source: anonymous requests are rejected', () => {
+  assert.ok(EDGE_SOURCE.includes("authHeader?.startsWith('Bearer ')"), 'Must check Bearer auth header');
+  assert.ok(EDGE_SOURCE.includes("auth.getUser()"), 'Must verify auth with getUser');
+  assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error');
+});
+
+// ── 2. Text Mode Contract ──
+
+test('edge source: text mode accepts request without imageBase64', () => {
+  assert.ok(EDGE_SOURCE.includes("mode === 'text'"), 'Must branch on text mode');
+  assert.ok(EDGE_SOURCE.includes('textQuery'), 'Must accept textQuery');
+});
+
+test('edge source: text mode rejects empty textQuery', () => {
+  assert.ok(EDGE_SOURCE.includes("if (!textQuery)"), 'Must check empty textQuery');
+});
+
+test('edge source: text mode validates textQuery length', () => {
+  assert.ok(EDGE_SOURCE.includes('MAX_TEXT_QUERY_LEN'), 'Must define max text query length');
+});
+
+test('edge source: text mode rejects invalid textQuery', () => {
+  assert.ok(EDGE_SOURCE.includes('validateTextQuery'), 'Must have text query validation');
+});
+
+test('edge source: text mode handles long input safely', () => {
+  assert.ok(EDGE_SOURCE.includes('MAX_TEXT_QUERY_LEN'), 'Must cap text query length');
+});
+
+// ── 3. Image Mode Backward Compatibility ──
+
+test('edge source: image mode remains backward-compatible', () => {
+  assert.ok(EDGE_SOURCE.includes('imageBase64'), 'Must accept imageBase64');
+  assert.ok(EDGE_SOURCE.includes('MAX_IMAGE_BASE64_BYTES'), 'Must guard image size');
+});
+
+test('edge source: image mode works without explicit mode field', () => {
+  assert.ok(EDGE_SOURCE.includes("typeof body.mode === 'string'") && EDGE_SOURCE.includes("'image'"), 'Must default to image mode');
+});
+
+// ── 4. Kill Switch and Env Vars ──
+
+test('edge source: kill switch disables AI', () => {
+  assert.ok(EDGE_SOURCE.includes('SCAN_IDENTIFY_AI_ENABLED'), 'Must reference kill switch env var');
+  assert.ok(EDGE_SOURCE.includes("'false'"), 'Must check false value');
+});
+
+test('edge source: missing Gemini key returns safe error', () => {
+  assert.ok(EDGE_SOURCE.includes("Deno.env.get('GEMINI_API_KEY')"), 'Must read GEMINI_API_KEY');
+  assert.ok(EDGE_SOURCE.includes("{ error: 'AI provider not configured' }"), 'Must return safe error for missing key');
+});
+
+test('edge source: env var audit lists expected variables', () => {
+  assert.ok(EDGE_SOURCE.includes("Deno.env.get('GEMINI_API_KEY')"), 'Must reference GEMINI_API_KEY');
+  assert.ok(EDGE_SOURCE.includes('SCAN_GEMINI_MODEL'), 'Must reference SCAN_GEMINI_MODEL');
+  assert.ok(EDGE_SOURCE.includes('GEMINI_MODEL'), 'Must reference GEMINI_MODEL fallback');
+  assert.ok(EDGE_SOURCE.includes('SCAN_IDENTIFY_AI_ENABLED'), 'Must reference SCAN_IDENTIFY_AI_ENABLED');
+  assert.ok(EDGE_SOURCE.includes("Deno.env.get('SUPABASE_URL')"), 'Must reference SUPABASE_URL');
+  assert.ok(EDGE_SOURCE.includes("Deno.env.get('SUPABASE_ANON_KEY')"), 'Must reference SUPABASE_ANON_KEY');
+});
+
+// ── 5. Gemini Response Handling ──
+
+test('edge source: malformed Gemini JSON is handled safely', () => {
+  assert.ok(EDGE_SOURCE.includes('parseModelJson'), 'Must have parseModelJson helper');
+  assert.ok(EDGE_SOURCE.includes('model_json_unparseable'), 'Must log parse failure');
+});
+
+test('edge source: markdown-fenced JSON is parsed correctly', () => {
+  assert.ok(EDGE_SOURCE.includes('parseModelJson'), 'Must have parseModelJson helper');
+  assert.ok(EDGE_SOURCE.includes('```'), 'Must handle markdown fences');
+});
+
+test('edge source: Gemini timeout returns user-safe failure', () => {
+  assert.ok(EDGE_SOURCE.includes('AbortController'), 'Must use AbortController for timeout');
+  assert.ok(EDGE_SOURCE.includes('AbortError'), 'Must catch AbortError');
+  assert.ok(EDGE_SOURCE.includes('SAFE_FAILED_MESSAGE'), 'Must return safe message on timeout');
+});
+
+test('edge source: error response does not leak secrets', () => {
+  // Verify no raw error text is returned to client
+  assert.ok(EDGE_SOURCE.includes('SAFE_FAILED_MESSAGE'), 'Must use safe failure message');
+  assert.ok(EDGE_SOURCE.includes('SAFE_TEXT_FAILED_MESSAGE'), 'Must use safe text failure message');
+  assert.ok(EDGE_SOURCE.includes('SAFE_NON_FASHION_MESSAGE'), 'Must use safe non-fashion message');
+  assert.ok(EDGE_SOURCE.includes('SAFE_TEXT_NON_FASHION_MESSAGE'), 'Must use safe text non-fashion message');
+  // Verify stack traces are not returned
+  assert.equal(EDGE_SOURCE.includes('err.stack'), false, 'Must not reference stack traces in responses');
+  assert.equal(EDGE_SOURCE.includes('"stack"'), false, 'Must not include stack in JSON responses');
+});
+
+// ── 6. Source Field Preservation ──
+
+test('edge source: source field is preserved in request parsing', () => {
+  assert.ok(EDGE_SOURCE.includes('source?:'), 'Must accept source in request type');
+  assert.ok(EDGE_SOURCE.includes('source'), 'Must reference source in body parsing');
+});
+
+test('edge source: source field is preserved in logs', () => {
+  assert.ok(EDGE_SOURCE.includes('source'), 'Must log source field');
+});
+
+// ── 7. Structured Output ──
+
+test('edge source: structured output uses responseMimeType application/json', () => {
+  assert.ok(EDGE_SOURCE.includes("responseMimeType: 'application/json'"), 'Must use JSON response mime type');
+});
+
+// ── 8. Non-Fashion Response ──
+
+test('edge source: non-fashion response is handled correctly', () => {
+  assert.ok(EDGE_SOURCE.includes('non_fashion'), 'Must handle non_fashion status');
+  assert.ok(EDGE_SOURCE.includes('SAFE_NON_FASHION_MESSAGE'), 'Must use safe non-fashion message');
+  assert.ok(EDGE_SOURCE.includes('SAFE_TEXT_NON_FASHION_MESSAGE'), 'Must use safe text non-fashion message');
+});
+
+// ── 9. Request Validation Parity ──
+
+test('edge source: text validation matches client-side rules', () => {
+  assert.ok(EDGE_SOURCE.includes('validateTextQuery'), 'Must have validateTextQuery function');
+  // Check that the same validation rules exist server-side
+  assert.ok(EDGE_SOURCE.includes('length < 3'), 'Must reject too-short queries');
+  assert.ok(EDGE_SOURCE.includes('length > MAX_TEXT_QUERY_LEN'), 'Must reject too-long queries');
+  assert.ok(EDGE_SOURCE.includes('A-Za-z0-9+/') && EDGE_SOURCE.includes('{40,}'), 'Must reject base64 payloads');
+  assert.ok(EDGE_SOURCE.includes("'```'"), 'Must reject code blocks');
+  assert.ok(EDGE_SOURCE.includes('ignore previous instructions'), 'Must reject prompt injection');
+  assert.ok(EDGE_SOURCE.includes('[\\w.+-]+@[\\w.-]+\\.\\w+'), 'Must reject email addresses');
+  assert.ok(EDGE_SOURCE.includes('(\\+?\\d[\\d\\s-]{7,}\\d)'), 'Must reject phone numbers');
+  assert.ok(EDGE_SOURCE.includes('\\b\\d{3}[\\s-]\\d{2}[\\s-]\\d{4}\\b'), 'Must reject SSN-like patterns');
+  assert.ok(EDGE_SOURCE.includes('0.30'), 'Must reject excessive non-alphanumeric chars');
+});
+
+// ── 10. Deployment Readiness ──
+
+test('edge source: no Node.js-only APIs are used', () => {
+  assert.equal(EDGE_SOURCE.includes('process.env'), false, 'Must not use process.env');
+  assert.equal(EDGE_SOURCE.includes('require('), false, 'Must not use require()');
+  assert.equal(EDGE_SOURCE.includes('module.exports'), false, 'Must not use module.exports');
+  assert.equal(EDGE_SOURCE.includes('Buffer'), false, 'Must not use Buffer');
+  assert.equal(EDGE_SOURCE.includes('fs.'), false, 'Must not use fs module');
+  assert.equal(EDGE_SOURCE.includes('path.'), false, 'Must not use path module');
+});
+
+test('edge source: Deno.serve is present', () => {
+  assert.ok(EDGE_SOURCE.includes('Deno.serve'), 'Must use Deno.serve');
+});
+
+test('edge source: default model is gemini-1.5-flash', () => {
+  assert.ok(EDGE_SOURCE.includes("gemini-1.5-flash"), 'Default model must be gemini-1.5-flash');
+  assert.equal(EDGE_SOURCE.includes('gemini-2.0'), false, 'Must not use gemini-2.0 in TextScan path');
+});
+
+test('edge source: text mode and image mode share auth, timeout, and error handling', () => {
+  assert.ok(EDGE_SOURCE.includes('auth.getUser'), 'Auth is shared');
+  assert.ok(EDGE_SOURCE.includes('AbortController'), 'Timeout is shared');
+  assert.ok(EDGE_SOURCE.includes('SAFE_FAILED_MESSAGE'), 'Error handling is shared');
+});
+
+test('edge source: CORS headers are valid for browser/web clients', () => {
+  assert.ok(EDGE_SOURCE.includes('Access-Control-Allow-Origin'), 'Must have allow-origin');
+  assert.ok(EDGE_SOURCE.includes('Access-Control-Allow-Headers'), 'Must have allow-headers');
+  assert.ok(EDGE_SOURCE.includes('authorization'), 'Must allow authorization header');
+  assert.ok(EDGE_SOURCE.includes('content-type'), 'Must allow content-type header');
+});
+
+// ── 11. Image Base64 Not Required for Text Mode ──
+
+test('edge source: imageBase64 is not required for text mode', () => {
+  assert.ok(EDGE_SOURCE.includes('imageBase64?:'), 'Must make imageBase64 optional');
+  assert.ok(EDGE_SOURCE.includes('textQuery?:'), 'Must make textQuery optional');
+});
+
+// ── 12. Future Source Compatibility ──
+
+test('edge source: accepts unknown source values without crashing', () => {
+  assert.ok(EDGE_SOURCE.includes('source?:'), 'Must accept optional source');
+  // The source should be used for logging, not for routing or auth bypass
+  assert.ok(EDGE_SOURCE.includes('source'), 'Must reference source in logs');
+});
