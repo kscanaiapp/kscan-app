@@ -52,6 +52,7 @@ export function ScanRoomHeader({
 
 const styles = StyleSheet.create({
   root: {
+    alignSelf: 'stretch',
     alignItems: 'center',
     paddingBottom: SPACING.lg,
   },

@@ -331,6 +331,12 @@ export default function App() {
     }
   }, [status]);
 
+  useEffect(() => {
+    if (!v2CameraVisible) {
+      setIsCameraReady(false);
+    }
+  }, [v2CameraVisible]);
+
   const handleBrandPress = useCallback(() => {
     if (!QA_TOOLS_ENABLED) return;
 
@@ -748,6 +754,7 @@ export default function App() {
               cameraRef={cameraRef}
               isCameraReady={isCameraReady}
               onCapture={() => capturePhoto(cameraRef)}
+              onCameraReady={() => setIsCameraReady(true)}
               onUpload={handleUploadImage}
               onTextScan={() => router.push('/text-scan')}
               onBack={() => setV2CameraVisible(false)}
@@ -758,10 +765,18 @@ export default function App() {
 
         case 'capturing':
           return (
-            <View style={styles.v2CapturingOverlay}>
-              <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-              <Text style={styles.v2CapturingText}>Capturing...</Text>
-            </View>
+            <LiveScanCamera
+              cameraRef={cameraRef}
+              isCameraReady={isCameraReady}
+              isCapturing
+              onCapture={() => capturePhoto(cameraRef)}
+              onCameraReady={() => setIsCameraReady(true)}
+              onUpload={handleUploadImage}
+              onTextScan={() => router.push('/text-scan')}
+              onBack={() => setV2CameraVisible(false)}
+              onHome={handleHome}
+              textScanEnabled={textScanEnabled}
+            />
           );
 
         case 'preview':
@@ -772,6 +787,7 @@ export default function App() {
                 cameraRef={cameraRef}
                 isCameraReady={isCameraReady}
                 onCapture={() => capturePhoto(cameraRef)}
+                onCameraReady={() => setIsCameraReady(true)}
                 onUpload={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
                 onBack={() => setV2CameraVisible(false)}
@@ -833,6 +849,7 @@ export default function App() {
                 cameraRef={cameraRef}
                 isCameraReady={isCameraReady}
                 onCapture={() => capturePhoto(cameraRef)}
+                onCameraReady={() => setIsCameraReady(true)}
                 onUpload={handleUploadImage}
                 onTextScan={() => router.push('/text-scan')}
                 onBack={() => setV2CameraVisible(false)}

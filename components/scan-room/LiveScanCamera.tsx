@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   Pressable,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +27,8 @@ interface LiveScanCameraProps {
   onTextScan: () => void;
   onBack: () => void;
   onHome?: () => void;
+  onCameraReady?: () => void;
+  isCapturing?: boolean;
   textScanEnabled?: boolean;
   testID?: string;
 }
@@ -48,6 +51,8 @@ export function LiveScanCamera({
   onTextScan,
   onBack,
   onHome,
+  onCameraReady,
+  isCapturing = false,
   textScanEnabled = false,
   testID,
 }: LiveScanCameraProps) {
@@ -117,6 +122,7 @@ export function LiveScanCamera({
             style={styles.camera}
             ref={cameraRef}
             facing="back"
+            onCameraReady={onCameraReady}
           />
         </View>
 
@@ -141,7 +147,7 @@ export function LiveScanCamera({
       <View style={styles.controls}>
         <ScanButton
           onPress={onCapture}
-          disabled={!isCameraReady}
+          disabled={!isCameraReady || isCapturing}
           testID="scan-room-capture-button"
         />
 
@@ -179,6 +185,13 @@ export function LiveScanCamera({
           </TouchableOpacity>
         </View>
       </View>
+
+      {isCapturing && (
+        <View style={styles.capturingOverlay}>
+          <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          <Text style={styles.capturingText}>Capturing...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -325,5 +338,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: LUXURY.colors.plum,
     textTransform: 'uppercase',
+  },
+  capturingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    zIndex: 100,
+  },
+  capturingText: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.plum,
   },
 });
