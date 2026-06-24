@@ -85,6 +85,16 @@ export const SCAN_RESULTS_DEMO_UI_ENABLED =
 export const SCAN_ROOM_V2_UI_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_ROOM_V2_UI === 'true';
 
+// ── Shared Dressing Room Chat ────────────────────────────────────────────────
+/**
+ * Enables native in-app Dressing Room chat (real shared messaging) for the room
+ * owner and authorized participants. Off by default; enabling requires owner
+ * approval and the shared-messaging migration to be applied. Item/image emoji
+ * reactions and the read-only public preview are independent of this flag.
+ */
+export const ROOM_CHAT_ENABLED =
+  process.env.EXPO_PUBLIC_ROOM_CHAT_ENABLED === 'true';
+
 // ── Home Navigation V2 UI rollout flag ─────────────────────────────────────────
 export const HOME_NAVIGATION_V2_ENABLED =
   process.env.EXPO_PUBLIC_HOME_NAVIGATION_V2 === 'true';

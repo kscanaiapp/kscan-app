@@ -18,11 +18,13 @@ import {
   type RoomMessage,
 } from '../../services/roomMessages';
 
-// Private In-App Room Messaging v1.
-// Rendered only inside the authenticated Dressing Room detail screen.
-// Must never be rendered on public preview routes (app/(public)/rooms/*).
+// Shared In-App Room Chat v1.
+// Backend-backed (services/roomMessages). Renders for AUTHENTICATED users only —
+// the room owner (Dressing Room detail screen) or an authorized participant who
+// joined via a share token (shared room screen). Never render for anonymous
+// preview viewers; the messages table is never exposed on the public preview.
 
-const MESSAGES_EMPTY_COPY = 'Discuss this room with people you invite.';
+const MESSAGES_EMPTY_COPY = 'No messages yet. Start the conversation about this room.';
 const COMPOSER_PLACEHOLDER = 'Message about this room…';
 
 function formatMessageTimestamp(createdAt: string) {
@@ -40,7 +42,7 @@ function MessageRow({ message }: { message: RoomMessage }) {
   return (
     <View style={styles.messageCard}>
       <View style={styles.messageMetaRow}>
-        <Text style={styles.messageSender}>{message.isMine ? 'You' : 'Collaborator'}</Text>
+        <Text style={styles.messageSender}>{message.isMine ? 'You' : 'Participant'}</Text>
         <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
       </View>
       <Text style={styles.messageBody}>{message.body}</Text>
@@ -101,9 +103,9 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel} accessibilityRole="header">
-        Room Messages
+        Room Chat
       </Text>
-      <Text style={styles.sectionSubtitle}>Private discussion with invited collaborators.</Text>
+      <Text style={styles.sectionSubtitle}>Chat with everyone who has access to this room.</Text>
 
       {loading ? (
         <View style={styles.statusCard}>

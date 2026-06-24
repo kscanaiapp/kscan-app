@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -25,8 +27,12 @@ import {
   PrivacyFooter,
 } from '../../../components/luxury';
 import { LUXURY, SPACING } from '../../../constants/theme';
+import { ROOM_CHAT_ENABLED } from '../../../constants/featureFlags';
+import { useAuthSession } from '../../../contexts/AuthSessionContext';
 import { getItemReactionCounts } from '../../../services/styleObjects';
+import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
+import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
   isActiveDressingRoomReactionType,
   type ItemReactionCount,
@@ -221,6 +227,62 @@ function ErrorState({
       action={{ label: 'Try Again', onPress: onRetry, accessibilityLabel: 'Retry loading shared room' }}
       style={styles.notice}
     />
+  );
+}
+
+// Authenticated participant chat entry. Renders nothing for anonymous viewers
+// or when the chat flag is off, so the public read-only preview is unchanged.
+// An authenticated user joins via the existing share token, then sees the same
+// backend-backed RoomMessagesPanel used on the owner's room detail screen.
+function SharedRoomChatSection({ token }: { token: string }) {
+  const { isAuthenticated } = useAuthSession();
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const joinInFlight = useRef(false);
+
+  const handleJoin = useCallback(async () => {
+    if (joinInFlight.current) return;
+    joinInFlight.current = true;
+    setJoining(true);
+    setJoinError(null);
+    try {
+      const joinedRoomId = await joinSharedRoom(token);
+      setRoomId(joinedRoomId);
+    } catch (err: any) {
+      // err.message is a friendly string from services/roomMessages — never a
+      // raw Supabase/RLS error and never a token.
+      setJoinError(typeof err?.message === 'string' ? err.message : ROOM_JOIN_ERROR);
+    } finally {
+      joinInFlight.current = false;
+      setJoining(false);
+    }
+  }, [token]);
+
+  if (!ROOM_CHAT_ENABLED || !isAuthenticated) {
+    return null;
+  }
+
+  if (roomId) {
+    return <RoomMessagesPanel roomId={roomId} />;
+  }
+
+  return (
+    <View style={styles.chatJoinCard}>
+      <SectionHeader title="Room Chat" subtitle="Shared conversation" />
+      <Text style={styles.chatJoinBody}>
+        Join this shared room to chat with the owner and other participants.
+      </Text>
+      {joinError ? <Text style={styles.chatJoinError}>{joinError}</Text> : null}
+      <SecondaryButton
+        title={joining ? 'Opening Chat' : 'Join the Conversation'}
+        onPress={handleJoin}
+        disabled={joining}
+        loading={joining}
+        accessibilityLabel="Join the shared room conversation"
+        accessibilityHint="Opens in-room chat with the room owner and participants"
+      />
+    </View>
   );
 }
 
@@ -428,6 +490,7 @@ export default function SharedRoomScreen() {
         return (
           <ScrollView
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -441,6 +504,7 @@ export default function SharedRoomScreen() {
               title="No visible items"
               subtitle="This shared room does not have any visible items right now."
             />
+            <SharedRoomChatSection token={rawToken} />
           </ScrollView>
         );
       }
@@ -450,6 +514,7 @@ export default function SharedRoomScreen() {
         return (
           <ScrollView
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -502,6 +567,8 @@ export default function SharedRoomScreen() {
               />
             ) : null}
 
+            <SharedRoomChatSection token={rawToken} />
+
             <SecondaryButton
               title="View in Browser"
               onPress={() => void Linking.openURL(browserUrlForToken(preview.token))}
@@ -521,7 +588,13 @@ export default function SharedRoomScreen() {
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
       <KScanHeader title="Shared Room" subtitle="DRESSING ROOM PREVIEW" onBack={handleBack} backLabel="Back" />
-      {renderContent()}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        {renderContent()}
+      </KeyboardAvoidingView>
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
         onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
@@ -531,12 +604,34 @@ export default function SharedRoomScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   centeredFill: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.xl,
     gap: SPACING.md,
+  },
+  chatJoinCard: {
+    borderRadius: LUXURY.cards.product.borderRadius,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+    ...LUXURY.cards.product.shadow,
+  },
+  chatJoinBody: {
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: LUXURY.colors.graphite,
+  },
+  chatJoinError: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
   },
   loadingLabel: {
     ...LUXURY.typography.caption,

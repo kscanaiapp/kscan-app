@@ -38,6 +38,7 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { ROOM_CHAT_ENABLED } from '../../constants/featureFlags';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import {
@@ -881,8 +882,9 @@ function DressingRoomDetailContent() {
               )}
             </View>
 
-            {/* Room Messages (private, authenticated only — never on public preview) */}
-            {isAuthenticated ? <RoomMessagesPanel roomId={roomId} /> : null}
+            {/* Room Chat — shared messaging (owner + authorized participants).
+                Authenticated only; never rendered on the public preview. */}
+            {isAuthenticated && ROOM_CHAT_ENABLED ? <RoomMessagesPanel roomId={roomId} /> : null}
 
             <View style={styles.dangerZone}>
               <TertiaryButton
