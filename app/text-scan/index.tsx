@@ -32,7 +32,7 @@ import {
   TEXTSCAN_DEMO_RESULTS_ENABLED,
   TEXTSCAN_VOICE_PLACEHOLDER_ENABLED,
 } from '../../constants/featureFlags';
-import { analyzeText } from '../../services/api';
+import { analyzeTextWithEdge } from '../../services/textScanEdge';
 import {
   normalizeTextScanResult,
   validateTextScanQuery,
@@ -110,9 +110,8 @@ export default function TextScanScreen() {
           return;
         }
 
-        const raw = await analyzeText(query, { source: 'textscan' });
+        const normalized = await analyzeTextWithEdge(query, { source: 'textscan' });
         if (!cancelled) {
-          const normalized = normalizeTextScanResult(raw, query);
           setTextScanResult(normalized);
           setViewState('results');
           setIsSubmitting(false);
@@ -315,9 +314,17 @@ export default function TextScanScreen() {
               <SecondaryButton
                 title="Ask StyleChat"
                 onPress={() => {
+                  const attrs = textScanResult?.metadata?.attributes;
                   setStyleChatHandoffContext({
                     source: 'text-scan',
                     query: query.trim(),
+                    textScanId: textScanResult?.id ?? null,
+                    category: attrs?.category ?? null,
+                    color: attrs?.color ?? null,
+                    silhouette: attrs?.silhouette ?? null,
+                    material: attrs?.material ?? null,
+                    descriptors: attrs?.styleDescriptors ?? null,
+                    analysisText: textScanResult?.result ?? null,
                     createdAt: new Date().toISOString(),
                   });
                   router.push('/style-chat');
@@ -481,6 +488,13 @@ export default function TextScanScreen() {
                 setStyleChatHandoffContext({
                   source: 'text-scan',
                   query: query.trim(),
+                  textScanId: null,
+                  category: null,
+                  color: null,
+                  silhouette: null,
+                  material: null,
+                  descriptors: null,
+                  analysisText: null,
                   createdAt: new Date().toISOString(),
                 });
                 router.push('/style-chat');

@@ -12,6 +12,7 @@ export type StyleChatHandoffContext = {
   source: StyleChatHandoffSource;
   imageUri?: string | null;
   query?: string | null;
+  textScanId?: string | null;
   category?: string | null;
   color?: string | null;
   silhouette?: string | null;

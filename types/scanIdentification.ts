@@ -35,9 +35,11 @@ export type FashionAttributes = {
 };
 
 export type ScanIdentifyRequest = {
-  imageBase64: string;
-  source: 'camera' | 'upload';
-  localPrivacyFiltered: boolean;
+  mode?: 'image' | 'text';
+  imageBase64?: string;
+  textQuery?: string;
+  source: string;
+  localPrivacyFiltered?: boolean;
   clientTimestamp: string;
 };
 

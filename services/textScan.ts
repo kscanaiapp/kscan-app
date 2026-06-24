@@ -98,11 +98,11 @@ function safeAttributes(raw: unknown): TextScanAttributes {
 
   return {
     category: safeString(sourceAttrs.category ?? sourceAttrs.itemType) || null,
-    color: safeString(sourceAttrs.color) || null,
-    material: safeString(sourceAttrs.material ?? sourceAttrs.fabric) || null,
+    color: safeString(sourceAttrs.color ?? (Array.isArray(sourceAttrs.colorPalette) ? sourceAttrs.colorPalette[0] : undefined)) || null,
+    material: safeString(sourceAttrs.material ?? sourceAttrs.fabric ?? sourceAttrs.materialEstimate) || null,
     silhouette: safeString(sourceAttrs.silhouette ?? sourceAttrs.fit) || null,
     occasion: safeString(sourceAttrs.occasion) || null,
-    styleDescriptors: safeArray(sourceAttrs.styleDescriptors ?? sourceAttrs.style),
+    styleDescriptors: safeArray(sourceAttrs.styleDescriptors ?? sourceAttrs.style ?? sourceAttrs.styleTags),
   };
 }
 
@@ -197,6 +197,50 @@ export function toAttributeGrid(attrs: TextScanAttributes): TextScanDemoAttribut
     material: attrs.material ?? '—',
     style: attrs.styleDescriptors?.join(', ') ?? '—',
     budget: '—', // Not computed in this sprint
+  };
+}
+
+/**
+ * Map a TextScanResult into the stabilized StyleMatch contract shape.
+ *
+ * - source is always "textscan"
+ * - meta.isDemo is always false
+ * - items are empty arrays (deferred)
+ * - actions are disabled until product matching is wired
+ * - summary is the result text (caller may truncate for HUD/audio)
+ */
+export function toStyleMatch(result: TextScanResult) {
+  const attrs = result.metadata?.attributes ?? {};
+  const styleTags = Array.isArray(attrs.styleDescriptors) ? attrs.styleDescriptors : [];
+  const colorPalette = attrs.color ? [attrs.color] : [];
+
+  return {
+    id: result.id,
+    source: 'textscan' as const,
+    confidence: result.confidence ?? null,
+    summary: result.result ?? null,
+    intent: {
+      style: styleTags.length ? styleTags.join(', ') : null,
+      occasion: attrs.occasion ?? null,
+      colors: colorPalette,
+      materials: attrs.material ? [attrs.material] : [],
+      silhouette: attrs.silhouette ?? null,
+      keywords: styleTags,
+    },
+    items: {
+      retail: [] as never[],
+      resale: [] as never[],
+      suggested: [] as never[],
+    },
+    actions: {
+      canSave: false,
+      canOpenOnPhone: false,
+    },
+    meta: {
+      scanModeLabel: 'TextScan',
+      confidenceLabel: typeof result.confidence === 'number' ? `${Math.round(result.confidence * 100)}%` : '—',
+      isDemo: false,
+    },
   };
 }
 

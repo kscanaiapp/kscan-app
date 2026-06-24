@@ -1,12 +1,16 @@
-// scan-identify — Secure server-side Gemini vision proxy for K Scan fashion ID.
+// scan-identify — Secure server-side Gemini proxy for K Scan fashion ID.
 //
 // Architecture:
 //   Mobile Scan capture
 //     → local compression + privacy sanitizer (client)
 //     → supabase.functions.invoke('scan-identify')
-//     → this function → Gemini Flash (vision)
+//     → this function → Gemini Flash (vision or text)
 //     → normalized fashion attributes
 //     → Scan result UI
+//
+// Supports two modes:
+//   - image: vision analysis of a captured/uploaded photo
+//   - text:  natural-language fashion query analysis (TextScan)
 //
 // Product rule: K Scan identifies FASHION ITEMS, not people. If a person, face,
 // or bystander appears, identity is ignored entirely; only fashion attributes of
@@ -34,6 +38,7 @@ const CORS_HEADERS = {
 
 // Max compressed base64 payload accepted from the client (2 MB of base64 chars).
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
+const MAX_TEXT_QUERY_LEN = 500;
 const MAX_OUTPUT_TOKENS = 512;
 // Provider call timeout. Target is ~5s; an 8s hard cap absorbs cold starts / free
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
@@ -66,8 +71,12 @@ const SAFE_NON_FASHION_MESSAGE =
   'This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories.';
 const IMAGE_TOO_LARGE_MESSAGE =
   'Image too large. Please retake the photo closer or in better light.';
+const SAFE_TEXT_FAILED_MESSAGE =
+  "We couldn't analyze this request. Please try describing a garment, style, or outfit.";
+const SAFE_TEXT_NON_FASHION_MESSAGE =
+  "This doesn't appear to be a fashion query. Try describing a garment, style, or outfit.";
 
-// ── Provider prompt (server-side only) ──────────────────────────────────────────
+// ── Provider prompts (server-side only) ────────────────────────────────────────
 
 const IDENTIFY_PROMPT = `Analyze this image for fashion items only.
 
@@ -99,6 +108,35 @@ Rules:
 - confidenceScore is a number between 0 and 1.
 - For non_fashion, omit attributes and set a short userMessage.
 - Do not include people, identity, or demographic fields under any key.
+- Output JSON only. No markdown, no prose outside the JSON.`;
+
+const TEXT_IDENTIFY_PROMPT = `Analyze this fashion text query and return structured attributes.
+
+If the query describes clothing, footwear, accessories, or fashion styling, return fashion attributes.
+
+If the query is about non-fashion topics (landscapes, food, animals, interiors, etc.), return status: non_fashion.
+
+Return strict JSON only, matching exactly this shape (omit any attribute you cannot determine):
+{
+  "status": "completed" | "non_fashion",
+  "attributes": {
+    "category": string,
+    "itemType": string,
+    "silhouette": string,
+    "colorPalette": string[],
+    "materialEstimate": string,
+    "pattern": string,
+    "texture": string,
+    "styleTags": string[],
+    "occasion": string,
+    "confidenceScore": number
+  },
+  "userMessage": string
+}
+
+Rules:
+- confidenceScore is a number between 0 and 1.
+- For non_fashion, omit attributes and set a short userMessage (≤ 120 characters where possible).
 - Output JSON only. No markdown, no prose outside the JSON.`;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -226,6 +264,34 @@ function extractGeminiText(data: GeminiResponse): string {
     .trim();
 }
 
+function validateTextQuery(value: unknown): string | undefined {
+  if (typeof value !== 'string') return 'Invalid query format';
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length < 3 || trimmed.length > MAX_TEXT_QUERY_LEN) return 'Invalid query format';
+  if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(trimmed)) return 'Invalid query format';
+  if (trimmed.includes('```') || trimmed.includes('`')) return 'Invalid query format';
+  const lower = trimmed.toLowerCase();
+  const injections = [
+    'ignore previous instructions',
+    'system prompt',
+    'developer message',
+    'reveal your prompt',
+    'act as another system',
+    'ignore all instructions',
+    'forget previous',
+    'you are now',
+    'new role:',
+    'override instructions',
+  ];
+  if (injections.some((p) => lower.includes(p))) return 'Invalid query format';
+  if (/[\w.+-]+@[\w.-]+\.\w+/.test(trimmed)) return 'Invalid query format';
+  if (/(\+?\d[\d\s-]{7,}\d)/.test(trimmed)) return 'Invalid query format';
+  if (/\b\d{3}[\s-]\d{2}[\s-]\d{4}\b/.test(trimmed)) return 'Invalid query format';
+  const nonAlphaNum = (trimmed.match(/[^a-zA-Z0-9\s]/g) || []).length;
+  if (nonAlphaNum / trimmed.length > 0.30) return 'Invalid query format';
+  return undefined;
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -261,7 +327,9 @@ Deno.serve(async (req) => {
 
   // ── 2. Parse and validate request body ──────────────────────────────────────
   let body: {
+    mode?: unknown;
     imageBase64?: unknown;
+    textQuery?: unknown;
     source?: unknown;
     localPrivacyFiltered?: unknown;
     clientTimestamp?: unknown;
@@ -272,24 +340,38 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
-  // Accept either a raw base64 string or a data URI; strip the prefix server-side.
-  let imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : '';
-  imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
+  const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
+  let imageBase64 = '';
+  let textQuery = '';
 
-  if (!imageBase64) {
-    return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
-  }
-  if (imageBase64.length > MAX_IMAGE_BASE64_BYTES) {
-    // Oversized images never reach the provider.
-    console.warn('[scan-identify] image_too_large bytes=%d', imageBase64.length);
-    return json(normalized('failed', IMAGE_TOO_LARGE_MESSAGE), 200);
+  if (mode === 'text') {
+    textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
+    if (!textQuery) {
+      return json(normalized('failed', SAFE_TEXT_FAILED_MESSAGE), 200);
+    }
+    const textValidation = validateTextQuery(textQuery);
+    if (textValidation) {
+      return json({ error: true, message: textValidation, code: 'TEXTSCAN_INVALID_INPUT' }, 400);
+    }
+  } else {
+    // Accept either a raw base64 string or a data URI; strip the prefix server-side.
+    imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : '';
+    imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
+
+    if (!imageBase64) {
+      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+    }
+    if (imageBase64.length > MAX_IMAGE_BASE64_BYTES) {
+      console.warn('[scan-identify] image_too_large bytes=%d', imageBase64.length);
+      return json(normalized('failed', IMAGE_TOO_LARGE_MESSAGE), 200);
+    }
   }
 
   // ── 3. Kill switch + provider key ────────────────────────────────────────────
   const isAiDisabled = readTrimmedEnv('SCAN_IDENTIFY_AI_ENABLED')?.toLowerCase() === 'false';
   if (isAiDisabled) {
     console.log('[scan-identify] kill switch active');
-    return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+    return json(normalized('failed', mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE), 200);
   }
 
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
@@ -308,33 +390,53 @@ Deno.serve(async (req) => {
       : DEFAULT_GEMINI_TIMEOUT_MS;
   })();
 
-  // ── 4. Call Gemini (vision) with a timeout guard ─────────────────────────────
+  // ── 4. Call Gemini with a timeout guard ──────────────────────────────────────
   const geminiUrl = (() => {
     const u = new URL(`${GEMINI_API_BASE}/${modelName}:generateContent`);
     u.searchParams.set('key', geminiKey);
     return u.toString();
   })();
 
-  const geminiBody = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: IDENTIFY_PROMPT },
-          { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
+  const geminiBody = mode === 'text'
+    ? {
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: TEXT_IDENTIFY_PROMPT },
+              { text: textQuery },
+            ],
+          },
         ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      responseMimeType: 'application/json',
-    },
-  };
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          responseMimeType: 'application/json',
+        },
+      }
+    : {
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: IDENTIFY_PROMPT },
+              { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          responseMimeType: 'application/json',
+        },
+      };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
+
+  const safeFailed = mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE;
+  const safeNonFashion = mode === 'text' ? SAFE_TEXT_NON_FASHION_MESSAGE : SAFE_NON_FASHION_MESSAGE;
 
   try {
     const res = await fetch(geminiUrl, {
@@ -350,39 +452,41 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const meta = extractGeminiErrorMeta(raw);
       console.warn(
-        '[scan-identify] gemini_http_error uid=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
+        '[scan-identify] gemini_http_error uid=%s mode=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
         userId.slice(0, 8),
+        mode,
         res.status,
         String(meta.code ?? 'none'),
         String(meta.status ?? 'none'),
         elapsedMs,
       );
-      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+      return json(normalized('failed', safeFailed), 200);
     }
 
     let data: GeminiResponse;
     try {
       data = JSON.parse(raw);
     } catch {
-      console.warn('[scan-identify] gemini_parse_failure elapsedMs=%d', elapsedMs);
-      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+      console.warn('[scan-identify] gemini_parse_failure mode=%s elapsedMs=%d', mode, elapsedMs);
+      return json(normalized('failed', safeFailed), 200);
     }
 
     const blockReason = data.promptFeedback?.blockReason;
     const text = extractGeminiText(data);
     if (!text) {
       console.warn(
-        '[scan-identify] gemini_empty blockReason=%s elapsedMs=%d',
+        '[scan-identify] gemini_empty mode=%s blockReason=%s elapsedMs=%d',
+        mode,
         blockReason ?? 'none',
         elapsedMs,
       );
-      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+      return json(normalized('failed', safeFailed), 200);
     }
 
     const parsed = parseModelJson(text);
     if (!parsed) {
-      console.warn('[scan-identify] model_json_unparseable elapsedMs=%d', elapsedMs);
-      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+      console.warn('[scan-identify] model_json_unparseable mode=%s elapsedMs=%d', mode, elapsedMs);
+      return json(normalized('failed', safeFailed), 200);
     }
 
     const rawStatus = typeof parsed.status === 'string' ? parsed.status.toLowerCase() : '';
@@ -390,30 +494,32 @@ Deno.serve(async (req) => {
 
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
-      const msg = safeStringMessage(parsed.userMessage) ?? SAFE_NON_FASHION_MESSAGE;
-      console.log('[scan-identify] ok uid=%s status=non_fashion elapsedMs=%d', userId.slice(0, 8), elapsedMs);
+      const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
+      console.log('[scan-identify] ok uid=%s mode=%s status=non_fashion elapsedMs=%d', userId.slice(0, 8), mode, elapsedMs);
       return json(normalized('non_fashion', msg), 200);
     }
 
     if (!attributes) {
-      // Claimed completed but produced nothing usable — treat as failed, not empty success.
-      console.warn('[scan-identify] completed_without_attributes elapsedMs=%d', elapsedMs);
-      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+      console.warn('[scan-identify] completed_without_attributes mode=%s elapsedMs=%d', mode, elapsedMs);
+      return json(normalized('failed', safeFailed), 200);
     }
 
     const userMessage =
-      safeStringMessage(parsed.userMessage) ?? 'Identified a fashion item from your scan.';
+      safeStringMessage(parsed.userMessage) ?? (mode === 'text'
+        ? 'Analyzed your fashion request.'
+        : 'Identified a fashion item from your scan.');
     console.log(
-      '[scan-identify] ok uid=%s status=completed attrKeys=%d elapsedMs=%d',
+      '[scan-identify] ok uid=%s mode=%s status=completed attrKeys=%d elapsedMs=%d',
       userId.slice(0, 8),
+      mode,
       Object.keys(attributes).length,
       elapsedMs,
     );
     return json(normalized('completed', userMessage, attributes), 200);
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
-    console.warn('[scan-identify] %s elapsedMs=%d', isTimeout ? 'timeout' : 'error', Date.now() - startedAt);
-    return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+    console.warn('[scan-identify] %s mode=%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', mode, Date.now() - startedAt);
+    return json(normalized('failed', safeFailed), 200);
   } finally {
     clearTimeout(timer);
   }
