@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 
 export interface ScanRoomHeaderProps {
-  badge?: React.ReactNode;
   style?: ViewStyle;
   testID?: string;
   rightAction?: React.ReactNode;
@@ -17,7 +16,6 @@ export interface ScanRoomHeaderProps {
  * - Optional trailing node (e.g. a Home action).
  */
 export function ScanRoomHeader({
-  badge,
   style,
   testID,
   rightAction,
@@ -37,7 +35,6 @@ export function ScanRoomHeader({
         <View style={styles.left} />
         <View style={styles.center}>
           <Text style={styles.brandTitle}>K Scan AI</Text>
-          {badge}
         </View>
         <View style={styles.right}>
           {rightAction}
