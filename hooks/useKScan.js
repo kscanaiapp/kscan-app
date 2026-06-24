@@ -83,7 +83,11 @@ export function useKScan() {
         warnInvalidTransition(status, 'capturing');
         return;
       }
-      if (!cameraRef?.current) return;
+      if (!cameraRef?.current || typeof cameraRef.current.takePictureAsync !== 'function') {
+        setError('We could not take the photo. Please try again.');
+        setStatus('error');
+        return;
+      }
 
       captureInProgressRef.current = true;
       setStatus('capturing');
@@ -93,6 +97,9 @@ export function useKScan() {
         const result = await cameraRef.current.takePictureAsync({
           quality: 0.7,
         });
+        if (!result || typeof result.uri !== 'string' || result.uri.length === 0) {
+          throw new Error('Camera returned an invalid photo.');
+        }
         setPhoto({ ...result, source: 'camera' });
         setError(null);
         setStatus('preview');
@@ -100,6 +107,7 @@ export function useKScan() {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.error('Capture failed:', err);
         }
+        setPhoto(null);
         setError('We could not take the photo. Please try again.');
         setStatus('error');
       } finally {
@@ -134,13 +142,15 @@ export function useKScan() {
         warnInvalidTransition(status, 'processing');
         return;
       }
-      if (!photo?.uri) {
+      if (!photo?.uri || typeof photo.uri !== 'string') {
         logAnalyzeDiag({
           event: 'analyze_trigger_rejected',
           source: 'runAnalysis',
           reason: 'missing_photo_uri',
           status,
         });
+        setError('We could not take the photo. Please try again.');
+        setStatus('error');
         return;
       }
 
