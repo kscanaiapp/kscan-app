@@ -1,18 +1,21 @@
 // services/privacyLensPrototype.js
-// K Scan AI — Privacy Lens Post-Capture Prototype (Phase 1A)
-// NO-TERMINAL SCAFFOLD — Mock only. No real face detection. No pixelation.
+// K Scan AI — Privacy Lens Post-Capture Prototype (Phase 1B)
+// NO-TERMINAL BUILD — Uses only installed dependencies.
 //
-// WARNING: This is a contract-first architectural prototype.
-// It does NOT implement real privacy filtering.
-// It does NOT manipulate pixels.
-// It does NOT perform biometric detection.
+// WARNING: This is a prototype, not a production privacy feature.
+// Face detection is mocked. Image redaction is a placeholder.
+// Real face detection and selective redaction require additional native dependencies.
 //
 // Activation:
-//   Both flags below are hardcoded to false. Production behavior is unchanged.
+//   PRIVACY_LENS_POST_CAPTURE_ENABLED is hardcoded to false.
+//   Production behavior is unchanged while the flag is false.
 //   Only enable in __DEV__ after explicit human approval and dependency verification.
 
+import * as ImageManipulator from 'expo-image-manipulator';
+import { writeAsStringAsync, deleteAsync, cacheDirectory } from 'expo-file-system/legacy';
+
 // ── Hardcoded guard flags (both disabled by default) ───────────────────────────
-const PRIVACY_LENS_PROTOTYPE_ENABLED = false;
+const PRIVACY_LENS_POST_CAPTURE_ENABLED = false;
 const PRIVACY_LENS_MOCK_DETECTION_ENABLED = false;
 
 const MOCK_ENABLED =
@@ -20,16 +23,31 @@ const MOCK_ENABLED =
   __DEV__ === true &&
   PRIVACY_LENS_MOCK_DETECTION_ENABLED === true;
 
+// ── Safe user-facing strings (design-only; not wired to UI) ────────────────────
+const SAFE_MESSAGES = Object.freeze({
+  failed: 'Privacy check failed. Please retake or try again.',
+  unsupported: 'Privacy features are not available on this device.',
+  skipped: 'Privacy check was not applied.',
+});
+
 // ── Type definitions (JSDoc) ─────────────────────────────────────────────────
 /**
  * @typedef {'success' | 'failed' | 'skipped' | 'unsupported'} SanitizerStatus
  */
 
 /**
+ * @typedef {Object} FaceRegion
+ * @property {number} x Normalized x-coordinate (0-1).
+ * @property {number} y Normalized y-coordinate (0-1).
+ * @property {number} width Normalized width (0-1).
+ * @property {number} height Normalized height (0-1).
+ */
+
+/**
  * @typedef {Object} SanitizationResult
  * @property {SanitizerStatus} status
  * @property {string | null} artifact
- *   Sanitized image payload (e.g., base64 data URI) or null on failure/unsupported.
+ *   Sanitized image payload (base64 data URI) or null on failure/unsupported.
  * @property {number} facesDetected
  *   In-memory count only. NEVER logged to console, analytics, crash reporting,
  *   or backend telemetry. NEVER included in network payloads.
@@ -42,30 +60,20 @@ const MOCK_ENABLED =
  *   Safe, non-technical message for future UI surfacing.
  */
 
-// ── Safe user-facing strings (design-only; not wired to UI) ──────────────────
-const SAFE_MESSAGES = Object.freeze({
-  failed:
-    'Privacy check failed. Please retake or try again.',
-  unsupported:
-    'Privacy features are not available on this device.',
-  skipped:
-    'Privacy check was not applied.',
-});
-
-// ── Mock detector stub ───────────────────────────────────────────────────────
+// ── Mock detector ──────────────────────────────────────────────────────────────
 /**
- * Minimal stub detector. Returns an empty face-region array by default.
- * Only returns a hardcoded mock region when MOCK_ENABLED is true.
+ * Minimal mock detector. Returns an empty face-region array by default.
+ * Only returns hardcoded mock regions when MOCK_ENABLED is true.
  *
  * Rules:
- *   - Does not manipulate pixels.
  *   - Does not perform real detection.
  *   - Does not log coordinates, landmarks, contours, or bounds.
  *   - Mock region data is discarded after use; never stored or transmitted.
  *
- * @returns {Array<{x: number, y: number, width: number, height: number, label: string}>}
+ * @param {string} _input base64 data URI (not used by mock).
+ * @returns {Promise<FaceRegion[]>}
  */
-function runMockDetectorStub() {
+export async function detectFaces(_input) {
   if (!MOCK_ENABLED) {
     return [];
   }
@@ -73,92 +81,91 @@ function runMockDetectorStub() {
   // Hardcoded mock region for prototype testing ONLY.
   // Never enable in production. No real detection.
   return [
-    { x: 0.25, y: 0.25, width: 0.5, height: 0.5, label: 'mock-face-stub' },
+    { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
   ];
 }
 
-// ── Strategy: Mock (disabled by default) ───────────────────────────────────
+// ── Temp file helpers ─────────────────────────────────────────────────────────
 /**
- * Mock sanitizer strategy.
- * Does not manipulate pixels. Does not claim redaction occurred.
- * Returns the original artifact inside a clearly marked mock result.
+ * Convert a base64 data URI to a temporary file for expo-image-manipulator.
  *
- * @param {string} inputArtifact
- * @returns {SanitizationResult}
+ * @param {string} base64DataUri
+ * @returns {Promise<string>} temp file URI
  */
-function SanitizerStrategyMock(inputArtifact) {
-  const start = Date.now();
-  const mockRegions = runMockDetectorStub();
-
-  // Future real implementations must treat all detected face regions as all-or-nothing.
-  // If any region fails during real processing, the entire sanitizer must return failed.
-
-  return {
-    status: 'skipped',
-    artifact: inputArtifact,
-    facesDetected: mockRegions.length,
-    processingTimeMs: Date.now() - start,
-    method: 'mock',
-    redacted: false,
-    cleanupUris: [],
-    userMessage: SAFE_MESSAGES.skipped,
-  };
+async function base64DataUriToTempFile(base64DataUri) {
+  // Strip data URI prefix to get raw base64
+  const rawBase64 = base64DataUri.replace(/^data:[^;]+;base64,/, '');
+  const tempFile = `${cacheDirectory}privacy-lens-${Date.now()}.jpg`;
+  await writeAsStringAsync(tempFile, rawBase64, { encoding: 'base64' });
+  return tempFile;
 }
 
-// ── Strategy: Real placeholder (not implemented) ───────────────────────────────
+// ── Redaction placeholder ─────────────────────────────────────────────────────
 /**
- * Placeholder for future real pixelation / redaction / blur implementation.
+ * Placeholder redaction adapter.
  *
- * Requirements before activation:
- *   1. Terminal agent must verify and install a real image-processing library
- *      capable of overlay/mask/pixelation (expo-image-manipulator ~14.0.8
- *      supports resize, crop, rotate, flip only — no verified blur/pixelate).
- *   2. Real still-image face detector must be verified and installed.
- *   3. Timeout boundary (~3000ms) must be implemented.
- *   4. Raw temp-file cleanup must be verified.
+ * Current behavior: returns the original image unchanged.
+ * This demonstrates the pipeline structure (temp file → manipulate → cleanup).
  *
- * @param {string} _inputArtifact
- * @returns {SanitizationResult}
+ * Real implementation requires:
+ *   1. A library capable of selective pixelation/blur/overlay (e.g., Skia).
+ *   2. Real face detection coordinates from a detector (e.g., MLKit).
+ *
+ * All-or-nothing rule: if any region fails during real processing, the entire
+ * sanitizer must return failed. Partial sanitization is unacceptable.
+ *
+ * @param {string} input base64 data URI
+ * @param {FaceRegion[]} faceRegions detected face regions (mock or real)
+ * @returns {Promise<string>} image payload (base64 data URI)
  */
-function SanitizerStrategyRealPlaceholder(_inputArtifact) {
-  return {
-    status: 'unsupported',
-    artifact: null,
-    facesDetected: 0,
-    processingTimeMs: 0,
-    method: 'none',
-    redacted: false,
-    cleanupUris: [],
-    userMessage: SAFE_MESSAGES.unsupported,
-  };
-}
-
-// ── Factory ──────────────────────────────────────────────────────────────────
-/**
- * Selects a sanitizer strategy based on flags.
- *
- * Default path (both flags false): returns a mock-stub result with the original
- * artifact unchanged, so the contract shape is available for future callers without
- * breaking the legacy string-only pipeline.
- *
- * @param {string} inputArtifact
- * @returns {SanitizationResult}
- */
-export function createPrivacyLensSanitizer(inputArtifact) {
-  if (!PRIVACY_LENS_PROTOTYPE_ENABLED) {
-    return SanitizerStrategyMock(inputArtifact);
+export async function redactFaces(input, faceRegions) {
+  if (!faceRegions || faceRegions.length === 0) {
+    return input;
   }
 
-  // When the prototype flag is enabled but no real dependencies are installed,
-  // still fall back to the mock strategy. A terminal dependency spike will swap
-  // this branch to the real strategy later.
-  return SanitizerStrategyMock(inputArtifact);
+  let tempFile = null;
+  try {
+    // Convert base64 data URI to temp file for expo-image-manipulator
+    tempFile = await base64DataUriToTempFile(input);
+
+    // Placeholder: expo-image-manipulator pass-through.
+    // No real redaction is performed. The pipeline demonstrates:
+    //   1. Temp file creation from base64
+    //   2. Image manipulation via expo-image-manipulator
+    //   3. Base64 conversion back
+    //   4. Temp file cleanup
+    //
+    // Real redaction would require selective operations (blur, pixelate, overlay).
+    // expo-image-manipulator ~14.0.8 supports only: resize, crop, rotate, flip.
+    // Selective redaction requires Skia or a native image-processing library.
+    const result = await ImageManipulator.manipulateAsync(
+      tempFile,
+      [], // No operations — pass-through placeholder
+      { format: ImageManipulator.SaveFormat.JPEG, base64: true }
+    );
+
+    return `data:image/jpeg;base64,${result.base64}`;
+  } catch (error) {
+    // Any manipulation failure is treated as a redaction failure.
+    // In the future design, a thrown sanitizer must NEVER allow raw upload.
+    const err = new Error('Privacy redaction failed. Please retake or try again.');
+    err.userMessage = SAFE_MESSAGES.failed;
+    throw err;
+  } finally {
+    // Cleanup temp file — always attempt, ignore errors
+    if (tempFile) {
+      try {
+        await deleteAsync(tempFile);
+      } catch (_cleanupError) {
+        // Ignore cleanup errors — do not log temp file paths or image data
+      }
+    }
+  }
 }
 
-// ── Upload gate helper (design-only; not wired to production) ───────────────
+// ── Upload gate helper (design-only; not wired into production) ────────────────
 /**
- * Determines whether a sanitized result is safe to upload under a
- * privacy-gated flow.
+ * Determines whether a sanitized result is safe to upload under a privacy-gated flow.
  *
  * Rules:
  *   - Returns true ONLY for status === 'success' AND redacted === true.
@@ -179,34 +186,75 @@ export function validatePrivacyLensUploadGate(sanitizerResult) {
   );
 }
 
-// ── Prototype wrapper with safe failure boundary ─────────────────────────────
+// ── Main prototype function ───────────────────────────────────────────────────
 /**
- * Safe prototype wrapper with try/catch boundary.
+ * Privacy Lens post-capture sanitizer prototype.
  *
- * Any exception returns a failed result. In the future design, a thrown
- * sanitizer must NEVER allow raw upload.
+ * Pipeline:
+ *   1. Detect faces (mock by default, real when dependencies available).
+ *   2. Redact faces (placeholder by default, real when Skia/native available).
+ *   3. Return sanitized image or throw error (fail-closed).
  *
- * TODO (future real implementation):
- *   - Add a timeout boundary (~3000ms). If exceeded → status: 'failed'.
- *   - Swap the mock strategy for the real strategy after dependency verification.
- *   - Wire cleanupUris deletion into the caller's finally block.
+ * Fail-closed design: any error in the pipeline throws a safe error,
+ * preventing the raw image from being uploaded.
  *
- * @param {string} inputArtifact
- * @returns {SanitizationResult}
+ * @param {string} input base64 data URI ("data:image/jpeg;base64,...")
+ * @returns {Promise<string>} sanitized image payload (base64 data URI)
+ * @throws {Error} if privacy check or redaction fails
  */
-export function sanitizeImageBeforeUploadPrototype(inputArtifact) {
+export async function sanitizeImageBeforeUploadV2(input) {
+  const start = Date.now();
+
   try {
-    return createPrivacyLensSanitizer(inputArtifact);
-  } catch (_err) {
-    return {
-      status: 'failed',
-      artifact: null,
-      facesDetected: 0,
-      processingTimeMs: 0,
-      method: 'none',
-      redacted: false,
-      cleanupUris: [],
-      userMessage: SAFE_MESSAGES.failed,
-    };
+    // Step 1: Detect faces
+    const faceRegions = await detectFaces(input);
+    const facesDetected = faceRegions.length;
+
+    if (facesDetected === 0) {
+      // No faces detected — return original image unchanged
+      return input;
+    }
+
+    // Step 2: Redact faces (placeholder)
+    // Future real implementation: use Skia or native module for selective pixelation.
+    const redacted = await redactFaces(input, faceRegions);
+
+    // Step 3: Return sanitized image
+    // In the future, this would return a SanitizationResult object.
+    // For now, we return the string to preserve the legacy caller contract.
+    return redacted;
+  } catch (error) {
+    // Fail-closed: any exception prevents upload
+    if (error?.userMessage) {
+      throw error;
+    }
+    const err = new Error(SAFE_MESSAGES.failed);
+    err.userMessage = SAFE_MESSAGES.failed;
+    throw err;
+  } finally {
+    // processingTimeMs is computed but not logged (per privacy rules)
+    const _processingTimeMs = Date.now() - start;
+    // Intentionally not logging _processingTimeMs to avoid any data leakage
   }
+}
+
+// ── Legacy-compatible wrapper (disabled by default) ───────────────────────────
+/**
+ * Legacy-compatible wrapper that preserves the original string return contract.
+ *
+ * When PRIVACY_LENS_POST_CAPTURE_ENABLED is false, this function is not used
+ * and the legacy sanitizer in services/privacyImageSanitizer.js handles the call.
+ *
+ * When true, this wrapper calls the prototype pipeline and returns a string.
+ *
+ * @param {string} input base64 data URI
+ * @returns {Promise<string>} sanitized image payload or original input
+ * @throws {Error} if privacy check fails
+ */
+export async function sanitizeImageBeforeUploadPrototype(input) {
+  if (!PRIVACY_LENS_POST_CAPTURE_ENABLED) {
+    return input;
+  }
+
+  return await sanitizeImageBeforeUploadV2(input);
 }
