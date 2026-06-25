@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -29,11 +30,17 @@ import {
 import { LUXURY, SPACING } from '../../../constants/theme';
 import { ROOM_CHAT_ENABLED } from '../../../constants/featureFlags';
 import { useAuthSession } from '../../../contexts/AuthSessionContext';
-import { getItemReactionCounts } from '../../../services/styleObjects';
+import {
+  getItemReactionCounts,
+  getMyItemReaction,
+  removeItemReaction,
+  setItemReaction,
+} from '../../../services/styleObjects';
 import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
+  type DressingRoomReactionType,
   isActiveDressingRoomReactionType,
   type ItemReactionCount,
 } from '../../../types/styleObjects';
@@ -94,6 +101,7 @@ const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
 };
 
 type ReactionCountsByItem = Record<string, ReactionCountsForItem>;
+type SelectedReactionsByItem = Record<string, DressingRoomReactionType | null>;
 
 function createEmptyReactionCounts() {
   return { ...EMPTY_REACTION_COUNTS };
@@ -234,9 +242,16 @@ function ErrorState({
 // or when the chat flag is off, so the public read-only preview is unchanged.
 // An authenticated user joins via the existing share token, then sees the same
 // backend-backed RoomMessagesPanel used on the owner's room detail screen.
-function SharedRoomChatSection({ token }: { token: string }) {
+function SharedRoomChatSection({
+  token,
+  roomId,
+  onJoined,
+}: {
+  token: string;
+  roomId: string | null;
+  onJoined: (roomId: string) => void;
+}) {
   const { isAuthenticated } = useAuthSession();
-  const [roomId, setRoomId] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const joinInFlight = useRef(false);
@@ -248,7 +263,7 @@ function SharedRoomChatSection({ token }: { token: string }) {
     setJoinError(null);
     try {
       const joinedRoomId = await joinSharedRoom(token);
-      setRoomId(joinedRoomId);
+      onJoined(joinedRoomId);
     } catch (err: any) {
       // err.message is a friendly string from services/roomMessages — never a
       // raw Supabase/RLS error and never a token.
@@ -257,7 +272,7 @@ function SharedRoomChatSection({ token }: { token: string }) {
       joinInFlight.current = false;
       setJoining(false);
     }
-  }, [token]);
+  }, [onJoined, token]);
 
   if (!ROOM_CHAT_ENABLED || !isAuthenticated) {
     return null;
@@ -288,9 +303,13 @@ function SharedRoomChatSection({ token }: { token: string }) {
 
 export default function SharedRoomScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
+  const { isAuthenticated } = useAuthSession();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
+  const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
+  const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
+  const [joinedRoomId, setJoinedRoomId] = useState<string | null>(null);
   const analyticsGuard = useRef(false);
   const lastFetchedAt = useRef<number | null>(null);
 
@@ -352,9 +371,16 @@ export default function SharedRoomScreen() {
   }, [load]);
 
   useEffect(() => {
+    setJoinedRoomId(null);
+    setSelectedReactions({});
+    setMutatingReactionItemId(null);
+  }, [rawToken]);
+
+  useEffect(() => {
     if (state.phase !== 'available') {
       if (state.phase !== 'empty') {
         setReactionCounts({});
+        setSelectedReactions({});
       }
       return;
     }
@@ -369,12 +395,13 @@ export default function SharedRoomScreen() {
 
     if (itemIds.length === 0) {
       setReactionCounts({});
+      setSelectedReactions({});
       return;
     }
 
     let cancelled = false;
 
-    const loadReactionCounts = async () => {
+    const loadReactions = async () => {
       try {
         const counts = await getItemReactionCounts(itemIds);
         if (!cancelled) {
@@ -385,14 +412,97 @@ export default function SharedRoomScreen() {
           setReactionCounts(buildReactionCountsByItem(itemIds, []));
         }
       }
+
+      if (!isAuthenticated || !joinedRoomId) {
+        if (!cancelled) {
+          setSelectedReactions(
+            Object.fromEntries(itemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
+          );
+        }
+        return;
+      }
+
+      try {
+        const mine = await getMyItemReaction(itemIds);
+        if (!cancelled) {
+          setSelectedReactions(mine);
+        }
+      } catch {
+        if (!cancelled) {
+          setSelectedReactions(
+            Object.fromEntries(itemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
+          );
+        }
+      }
     };
 
-    void loadReactionCounts();
+    void loadReactions();
 
     return () => {
       cancelled = true;
     };
-  }, [state]);
+  }, [isAuthenticated, joinedRoomId, state]);
+
+  const refreshItemReactions = useCallback(async (itemIds: string[]) => {
+    const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
+    if (normalizedItemIds.length === 0) return;
+
+    try {
+      const counts = await getItemReactionCounts(normalizedItemIds);
+      setReactionCounts((current) => ({
+        ...current,
+        ...buildReactionCountsByItem(normalizedItemIds, counts),
+      }));
+    } catch {
+      setReactionCounts((current) => ({
+        ...current,
+        ...buildReactionCountsByItem(normalizedItemIds, []),
+      }));
+    }
+
+    if (!isAuthenticated || !joinedRoomId) {
+      setSelectedReactions((current) => ({
+        ...current,
+        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
+      }));
+      return;
+    }
+
+    try {
+      const mine = await getMyItemReaction(normalizedItemIds);
+      setSelectedReactions((current) => ({ ...current, ...mine }));
+    } catch {
+      setSelectedReactions((current) => ({
+        ...current,
+        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
+      }));
+    }
+  }, [isAuthenticated, joinedRoomId]);
+
+  const handleReact = useCallback(async (itemId: string, reactionType: DressingRoomReactionType) => {
+    if (!isAuthenticated || !joinedRoomId || mutatingReactionItemId === itemId) return;
+
+    const currentReaction = selectedReactions[itemId] ?? null;
+    setMutatingReactionItemId(itemId);
+    try {
+      if (currentReaction === reactionType) {
+        await removeItemReaction(itemId);
+      } else {
+        await setItemReaction(itemId, reactionType);
+      }
+      await refreshItemReactions([itemId]);
+    } catch {
+      Alert.alert('Unable to save reaction.', 'Please try again.');
+    } finally {
+      setMutatingReactionItemId((current) => (current === itemId ? null : current));
+    }
+  }, [
+    isAuthenticated,
+    joinedRoomId,
+    mutatingReactionItemId,
+    refreshItemReactions,
+    selectedReactions,
+  ]);
 
   // ── Feature flag fallback ──────────────────────────────────────────────────
   if (!ENABLE_IN_APP_SHARED_ROOMS) {
@@ -504,7 +614,7 @@ export default function SharedRoomScreen() {
               title="No visible items"
               subtitle="This shared room does not have any visible items right now."
             />
-            <SharedRoomChatSection token={rawToken} />
+            <SharedRoomChatSection token={rawToken} roomId={joinedRoomId} onJoined={setJoinedRoomId} />
           </ScrollView>
         );
       }
@@ -532,6 +642,7 @@ export default function SharedRoomScreen() {
                   {preview.items.map((item, index) => {
                     const label = item.title || item.category || `Item ${index + 1}`;
                     const chips = [item.category, item.color, item.silhouette].filter(Boolean) as string[];
+                    const canReact = Boolean(isAuthenticated && joinedRoomId && item.id);
                     return (
                       <SharedScanCard
                         key={item.id ?? `item-${index}`}
@@ -547,8 +658,10 @@ export default function SharedRoomScreen() {
                             <ItemReactions
                               itemId={item.id}
                               counts={reactionCounts[item.id] ?? createEmptyReactionCounts()}
-                              selectedReaction={null}
-                              disabled
+                              selectedReaction={selectedReactions[item.id] ?? null}
+                              disabled={!canReact || mutatingReactionItemId === item.id}
+                              isMutating={mutatingReactionItemId === item.id}
+                              onReact={canReact ? handleReact : undefined}
                             />
                           ) : null
                         }
@@ -567,7 +680,7 @@ export default function SharedRoomScreen() {
               />
             ) : null}
 
-            <SharedRoomChatSection token={rawToken} />
+            <SharedRoomChatSection token={rawToken} roomId={joinedRoomId} onJoined={setJoinedRoomId} />
 
             <SecondaryButton
               title="View in Browser"
