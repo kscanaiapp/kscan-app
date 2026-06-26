@@ -625,10 +625,26 @@ test('index wiring: legacy path preserved when USE_GATEWAY_WIRING is off', () =>
   assert.equal('apiVersion' in out, false);
 });
 
-test('index wiring: gateway comment reflects active validation behind the feature flag', () => {
+test('index wiring: request context is normalized once before gateway feature gating', () => {
   const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
   assert.doesNotMatch(source, /TODO: wire scan-identify to enforce canonical request validation in next pass\./);
-  assert.match(source, /privacy evaluation stay behind a feature/);
+  assert.match(source, /function buildScanRequestContext/);
+  assert.match(source, /const requestContext = buildScanRequestContext\(body\)/);
+  assert.match(source, /gates canonical validation, privacy evaluation, and response sidecars/);
+});
+
+test('index wiring: USE_GATEWAY_WIRING still gates canonical validation and sidecars', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+  const flagBlock = source.slice(source.indexOf('if (USE_GATEWAY_WIRING)'), source.indexOf('function enrichLegacyResponseDirect'));
+  assert.match(flagBlock, /validateKScanAIRequest\(requestContext\.gatewayRequest\)/);
+  assert.match(flagBlock, /evaluatePrivacyState\(validation\.value\)/);
+  assert.match(source, /if \(!USE_GATEWAY_WIRING\) return legacyResponse/);
+});
+
+test('index wiring: provider inputs use canonical request only when gateway wiring is enabled', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+  assert.match(source, /const rawTextQuery = USE_GATEWAY_WIRING \? requestContext\.gatewayRequest\.input\.textQuery : body\.textQuery/);
+  assert.match(source, /const rawImageBase64 = USE_GATEWAY_WIRING \? requestContext\.gatewayRequest\.input\.imageBase64 : body\.imageBase64/);
 });
 
 // -- 27. scan-identify model resolution prefers staging override env names --

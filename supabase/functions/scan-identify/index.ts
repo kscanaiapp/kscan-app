@@ -287,6 +287,31 @@ interface GeminiResponse {
   promptFeedback?: { blockReason?: string };
 }
 
+type ScanRequestMode = 'image' | 'text';
+
+type ScanIdentifyRequestBody = {
+  mode?: unknown;
+  inputType?: unknown;
+  imageBase64?: unknown;
+  imageMimeType?: unknown;
+  imageBytes?: unknown;
+  textQuery?: unknown;
+  source?: unknown;
+  localPrivacyFiltered?: unknown;
+  clientTimestamp?: unknown;
+  requestId?: unknown;
+  input?: unknown;
+  privacy?: unknown;
+  client?: unknown;
+};
+
+type ScanRequestContext = {
+  mode: ScanRequestMode;
+  source: string;
+  gatewayRequestId: string;
+  gatewayRequest: ReturnType<typeof normalizeLegacyBody>;
+};
+
 function extractGeminiText(data: GeminiResponse): string {
   const parts = data.candidates?.[0]?.content?.parts ?? [];
   return parts
@@ -324,6 +349,32 @@ function validateTextQuery(value: unknown): string | undefined {
   return undefined;
 }
 
+function resolveScanRequestMode(body: ScanIdentifyRequestBody): ScanRequestMode {
+  if (typeof body.mode === 'string') return body.mode.toLowerCase() === 'text' ? 'text' : 'image';
+  return body.inputType === 'text' ? 'text' : 'image';
+}
+
+function resolveScanRequestSource(body: ScanIdentifyRequestBody): string {
+  if (typeof body.source === 'string') return body.source;
+  if (body.client && typeof body.client === 'object' && !Array.isArray(body.client)) {
+    const platform = (body.client as Record<string, unknown>).platform;
+    if (typeof platform === 'string') return platform;
+  }
+  return 'unknown';
+}
+
+function buildScanRequestContext(body: ScanIdentifyRequestBody): ScanRequestContext {
+  const gatewayRequestId = typeof body.requestId === 'string' ? body.requestId : crypto.randomUUID();
+  const gatewayRequest = normalizeLegacyBody(body, { requestId: gatewayRequestId });
+
+  return {
+    mode: resolveScanRequestMode(body),
+    source: resolveScanRequestSource(body),
+    gatewayRequestId,
+    gatewayRequest,
+  };
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -358,41 +409,32 @@ Deno.serve(async (req) => {
   const userId = user.id;
 
   // ── 2. Parse and validate request body ──────────────────────────────────────
-  let body: {
-    mode?: unknown;
-    imageBase64?: unknown;
-    textQuery?: unknown;
-    source?: unknown;
-    localPrivacyFiltered?: unknown;
-    clientTimestamp?: unknown;
-    requestId?: unknown;
-  } = {};
+  let body: ScanIdentifyRequestBody = {};
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
-  const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
-  const source = typeof body.source === 'string' ? body.source : 'unknown';
+  const requestContext = buildScanRequestContext(body);
+  const mode = requestContext.mode;
+  const source = requestContext.source;
 
   // ── Gateway wiring (feature-flagged) ─────────────────────────────────────────
-  // Canonical request validation and privacy evaluation stay behind a feature
-  // flag so legacy clients can keep their existing response contract.
+  // Request normalization always builds a canonical context. The feature flag
+  // gates canonical validation, privacy evaluation, and response sidecars while
+  // the flag-off provider path keeps legacy request behavior intact.
   const USE_GATEWAY_WIRING = readTrimmedEnv('USE_GATEWAY_WIRING')?.toLowerCase() === 'true';
-  let gatewayRequestId = '';
   let gatewayPrivacy: { privacyVerified: boolean; warnings: string[] } | undefined;
 
   if (USE_GATEWAY_WIRING) {
-    gatewayRequestId = typeof body.requestId === 'string' ? body.requestId : crypto.randomUUID();
-    const gatewayReq = normalizeLegacyBody(body, { requestId: gatewayRequestId });
-    const validation = validateKScanAIRequest(gatewayReq);
+    const validation = validateKScanAIRequest(requestContext.gatewayRequest);
     if (!validation.ok) {
       const legacy = canonicalToLegacyResponse(validation.response, mode === 'text' ? 'text' : 'image');
       const enriched = enrichLegacyResponse(legacy, validation.response);
       return json(enriched, 200);
     }
-    gatewayPrivacy = evaluatePrivacyState(gatewayReq);
+    gatewayPrivacy = evaluatePrivacyState(validation.value);
     if (gatewayPrivacy.warnings.length) {
       console.warn('[scan-identify] privacy_warnings uid=%s warnings=%j', userId.slice(0, 8), gatewayPrivacy.warnings);
     }
@@ -401,7 +443,7 @@ Deno.serve(async (req) => {
   function enrichLegacyResponseDirect(legacyResponse: Record<string, unknown>): Record<string, unknown> {
     if (!USE_GATEWAY_WIRING) return legacyResponse;
     return enrichLegacyResponseWithGatewayMetadata(legacyResponse, {
-      requestId: gatewayRequestId,
+      requestId: requestContext.gatewayRequestId,
       privacy: gatewayPrivacy,
     });
   }
@@ -410,7 +452,8 @@ Deno.serve(async (req) => {
   let textQuery = '';
 
   if (mode === 'text') {
-    textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
+    const rawTextQuery = USE_GATEWAY_WIRING ? requestContext.gatewayRequest.input.textQuery : body.textQuery;
+    textQuery = typeof rawTextQuery === 'string' ? rawTextQuery.trim() : '';
     if (!textQuery) {
       return json(enrichLegacyResponseDirect(normalized('failed', SAFE_TEXT_FAILED_MESSAGE)), 200);
     }
@@ -420,7 +463,8 @@ Deno.serve(async (req) => {
     }
   } else {
     // Accept either a raw base64 string or a data URI; strip the prefix server-side.
-    imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : '';
+    const rawImageBase64 = USE_GATEWAY_WIRING ? requestContext.gatewayRequest.input.imageBase64 : body.imageBase64;
+    imageBase64 = typeof rawImageBase64 === 'string' ? rawImageBase64 : '';
     imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
 
     if (!imageBase64) {
