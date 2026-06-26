@@ -27,6 +27,7 @@
 // Model precedence: SCAN_IDENTIFY_GEMINI_MODEL, legacy aliases, fallback model, then DEFAULT_MODEL.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { KScanAIRequest } from './gatewayContract.ts';
 import {
   normalizeLegacyBody,
   canonicalToLegacyResponse,
@@ -312,6 +313,19 @@ type ScanRequestContext = {
   gatewayRequest: ReturnType<typeof normalizeLegacyBody>;
 };
 
+type GatewayPrivacyMetadata = {
+  privacyVerified: boolean;
+  warnings: string[];
+};
+
+type GatewayWiringState = {
+  enabled: boolean;
+  canonicalRequest: ReturnType<typeof normalizeLegacyBody>;
+  validatedRequest?: KScanAIRequest;
+  privacy?: GatewayPrivacyMetadata;
+  compatibilityResponse?: Record<string, unknown>;
+};
+
 type ScanProviderInput =
   | {
       mode: 'text';
@@ -388,21 +402,63 @@ function buildScanRequestContext(body: ScanIdentifyRequestBody): ScanRequestCont
   };
 }
 
+/**
+ * Promotion guardrail: canonical validation should become default-on only once
+ * flag-off and flag-on share the same request normalization, provider input
+ * selection, and legacy-compatible response behavior across supported clients.
+ */
+function resolveGatewayWiringState(
+  requestContext: ScanRequestContext,
+  useGatewayWiring: boolean,
+  mode: ScanRequestMode,
+  userId: string,
+): GatewayWiringState {
+  const state: GatewayWiringState = {
+    enabled: useGatewayWiring,
+    canonicalRequest: requestContext.gatewayRequest,
+  };
+  if (!useGatewayWiring) return state;
+
+  const validation = validateKScanAIRequest(requestContext.gatewayRequest);
+  if (!validation.ok) {
+    return {
+      ...state,
+      compatibilityResponse: enrichLegacyResponse(
+        canonicalToLegacyResponse(validation.response, mode),
+        validation.response,
+      ),
+    };
+  }
+
+  const privacy = evaluatePrivacyState(validation.value);
+  if (privacy.warnings.length) {
+    console.warn('[scan-identify] privacy_warnings uid=%s warnings=%j', userId.slice(0, 8), privacy.warnings);
+  }
+
+  return {
+    ...state,
+    validatedRequest: validation.value,
+    privacy,
+  };
+}
+
 function buildProviderInput(
   body: ScanIdentifyRequestBody,
   requestContext: ScanRequestContext,
-  useGatewayWiring: boolean,
+  gatewayWiring: GatewayWiringState,
 ): ScanProviderInput | null {
   if (requestContext.mode === 'text') {
-    const rawTextQuery = useGatewayWiring ? requestContext.gatewayRequest.input.textQuery : body.textQuery;
+    const rawTextQuery = gatewayWiring.enabled
+      ? (gatewayWiring.validatedRequest?.input.textQuery ?? requestContext.gatewayRequest.input.textQuery)
+      : body.textQuery;
     return {
       mode: 'text',
       textQuery: typeof rawTextQuery === 'string' ? rawTextQuery.trim() : '',
     };
   }
 
-  const imageInput = useGatewayWiring
-    ? requestContext.gatewayRequest.input
+  const imageInput = gatewayWiring.enabled
+    ? (gatewayWiring.validatedRequest?.input ?? requestContext.gatewayRequest.input)
     : {
         imageBase64: typeof body.imageBase64 === 'string' ? body.imageBase64 : undefined,
         imageMimeType: typeof body.imageMimeType === 'string' ? body.imageMimeType : undefined,
@@ -471,30 +527,18 @@ Deno.serve(async (req) => {
   // gates canonical validation, privacy evaluation, and response sidecars while
   // the flag-off provider path keeps legacy request behavior intact.
   const USE_GATEWAY_WIRING = readTrimmedEnv('USE_GATEWAY_WIRING')?.toLowerCase() === 'true';
-  let gatewayPrivacy: { privacyVerified: boolean; warnings: string[] } | undefined;
-
-  if (USE_GATEWAY_WIRING) {
-    const validation = validateKScanAIRequest(requestContext.gatewayRequest);
-    if (!validation.ok) {
-      const legacy = canonicalToLegacyResponse(validation.response, mode === 'text' ? 'text' : 'image');
-      const enriched = enrichLegacyResponse(legacy, validation.response);
-      return json(enriched, 200);
-    }
-    gatewayPrivacy = evaluatePrivacyState(validation.value);
-    if (gatewayPrivacy.warnings.length) {
-      console.warn('[scan-identify] privacy_warnings uid=%s warnings=%j', userId.slice(0, 8), gatewayPrivacy.warnings);
-    }
-  }
+  const gatewayWiring = resolveGatewayWiringState(requestContext, USE_GATEWAY_WIRING, mode, userId);
+  if (gatewayWiring.compatibilityResponse) return json(gatewayWiring.compatibilityResponse, 200);
 
   function enrichLegacyResponseDirect(legacyResponse: Record<string, unknown>): Record<string, unknown> {
-    if (!USE_GATEWAY_WIRING) return legacyResponse;
+    if (!gatewayWiring.enabled) return legacyResponse;
     return enrichLegacyResponseWithGatewayMetadata(legacyResponse, {
       requestId: requestContext.gatewayRequestId,
-      privacy: gatewayPrivacy,
+      privacy: gatewayWiring.privacy,
     });
   }
 
-  const providerInput = buildProviderInput(body, requestContext, USE_GATEWAY_WIRING);
+  const providerInput = buildProviderInput(body, requestContext, gatewayWiring);
 
   if (mode === 'text') {
     const textQuery = providerInput?.mode === 'text' ? providerInput.textQuery : '';
