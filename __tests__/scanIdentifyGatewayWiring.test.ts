@@ -201,6 +201,18 @@ test('validation: unsupported image MIME returns structured failure', () => {
 
 // ── 8. localPrivacyFiltered maps to transitional privacy metadata but not proof ─
 
+test('validation: parseGatewayImageInput strips data URI and preserves metadata only', () => {
+  const parsed = validation.parseGatewayImageInput({
+    imageBase64: 'data:image/jpeg;base64,QUJD',
+    imageMimeType: 'IMAGE/JPEG',
+  });
+  assert.ok(parsed, 'expected parsed image input');
+  assert.equal(parsed.normalizedBase64, 'QUJD');
+  assert.equal(parsed.mimeType, 'image/jpeg');
+  assert.equal(parsed.byteLength, 3);
+  assert.equal('privacyVerified' in parsed, false);
+});
+
 test('validation: invalid image base64 returns safe legacy failure without echoing payload', () => {
   const req = {
     apiVersion: '1.0',
@@ -643,8 +655,17 @@ test('index wiring: USE_GATEWAY_WIRING still gates canonical validation and side
 
 test('index wiring: provider inputs use canonical request only when gateway wiring is enabled', () => {
   const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
-  assert.match(source, /const rawTextQuery = USE_GATEWAY_WIRING \? requestContext\.gatewayRequest\.input\.textQuery : body\.textQuery/);
-  assert.match(source, /const rawImageBase64 = USE_GATEWAY_WIRING \? requestContext\.gatewayRequest\.input\.imageBase64 : body\.imageBase64/);
+  assert.match(source, /const providerInput = buildProviderInput\(body, requestContext, USE_GATEWAY_WIRING\)/);
+  assert.match(source, /const rawTextQuery = useGatewayWiring \? requestContext\.gatewayRequest\.input\.textQuery : body\.textQuery/);
+  assert.match(source, /const imageInput = useGatewayWiring/);
+  assert.match(source, /parseGatewayImageInput\(imageInput\)/);
+});
+
+test('index wiring: provider image handoff includes a future privacy-processed image seam', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+  assert.match(source, /privacyProcessedImageBase64: undefined/);
+  assert.match(source, /providerInput\.privacyProcessedImageBase64 \?\? providerInput\.imageBase64/);
+  assert.match(source, /providerMimeType: DEFAULT_MIME/);
 });
 
 // -- 27. scan-identify model resolution prefers staging override env names --
