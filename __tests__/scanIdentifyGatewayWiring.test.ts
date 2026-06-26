@@ -326,6 +326,49 @@ test('adapter: enrichLegacyResponse adds non-breaking metadata', () => {
   assert.ok(enriched.telemetry);
 });
 
+test('adapter: direct gateway enrichment copies legacy response before adding metadata', () => {
+  const legacy = { status: 'completed', recommendedProducts: [], userMessage: 'OK.' };
+  const enriched = adapter.enrichLegacyResponseWithGatewayMetadata(legacy, {
+    requestId: 'req-direct',
+    privacy: { privacyVerified: true, warnings: [] },
+  });
+
+  assert.notEqual(enriched, legacy);
+  assert.equal(enriched.status, 'completed');
+  assert.equal(enriched.requestId, 'req-direct');
+  assert.equal(enriched.apiVersion, '1.0');
+  assert.equal(enriched.privacyVerified, true);
+  assert.equal('requestId' in legacy, false);
+  assert.equal('privacyVerified' in legacy, false);
+});
+
+test('adapter: direct gateway enrichment does not verify privacy when warnings exist', () => {
+  const legacy = { status: 'failed', recommendedProducts: [], userMessage: 'Try again.' };
+  const enriched = adapter.enrichLegacyResponseWithGatewayMetadata(legacy, {
+    requestId: 'req-warn',
+    privacy: {
+      privacyVerified: true,
+      warnings: ['maskingMode is unknown; privacy masking is not proven.'],
+    },
+  });
+
+  assert.equal(enriched.privacyVerified, false);
+  assert.deepEqual(enriched.privacyWarnings, ['maskingMode is unknown; privacy masking is not proven.']);
+});
+
+test('adapter: direct gateway enrichment skips non-legacy statusless responses', () => {
+  const errorBody = { error: 'AI provider not configured' };
+  const enriched = adapter.enrichLegacyResponseWithGatewayMetadata(errorBody, {
+    requestId: 'req-error',
+    privacy: { privacyVerified: true, warnings: [] },
+  });
+
+  assert.equal(enriched, errorBody);
+  assert.equal('requestId' in enriched, false);
+  assert.equal('apiVersion' in enriched, false);
+  assert.equal('privacyVerified' in enriched, false);
+});
+
 // ── 17. future canonical payload with all fields normalizes correctly ────────────
 
 test('adapter: future canonical payload with all fields', () => {
