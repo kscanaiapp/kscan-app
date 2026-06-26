@@ -33,7 +33,7 @@ import {
   enrichLegacyResponse,
   enrichLegacyResponseWithGatewayMetadata,
 } from './gatewayAdapter.ts';
-import { validateKScanAIRequest, evaluatePrivacyState } from './gatewayValidation.ts';
+import { validateKScanAIRequest, evaluatePrivacyState, parseGatewayImageInput } from './gatewayValidation.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -312,6 +312,19 @@ type ScanRequestContext = {
   gatewayRequest: ReturnType<typeof normalizeLegacyBody>;
 };
 
+type ScanProviderInput =
+  | {
+      mode: 'text';
+      textQuery: string;
+    }
+  | {
+      mode: 'image';
+      imageBase64: string;
+      providerMimeType: string;
+      imageMimeType?: string;
+      privacyProcessedImageBase64?: string;
+    };
+
 function extractGeminiText(data: GeminiResponse): string {
   const parts = data.candidates?.[0]?.content?.parts ?? [];
   return parts
@@ -372,6 +385,39 @@ function buildScanRequestContext(body: ScanIdentifyRequestBody): ScanRequestCont
     source: resolveScanRequestSource(body),
     gatewayRequestId,
     gatewayRequest,
+  };
+}
+
+function buildProviderInput(
+  body: ScanIdentifyRequestBody,
+  requestContext: ScanRequestContext,
+  useGatewayWiring: boolean,
+): ScanProviderInput | null {
+  if (requestContext.mode === 'text') {
+    const rawTextQuery = useGatewayWiring ? requestContext.gatewayRequest.input.textQuery : body.textQuery;
+    return {
+      mode: 'text',
+      textQuery: typeof rawTextQuery === 'string' ? rawTextQuery.trim() : '',
+    };
+  }
+
+  const imageInput = useGatewayWiring
+    ? requestContext.gatewayRequest.input
+    : {
+        imageBase64: typeof body.imageBase64 === 'string' ? body.imageBase64 : undefined,
+        imageMimeType: typeof body.imageMimeType === 'string' ? body.imageMimeType : undefined,
+      };
+  const parsedImage = parseGatewayImageInput(imageInput);
+  if (!parsedImage) return null;
+
+  return {
+    mode: 'image',
+    imageBase64: parsedImage.normalizedBase64,
+    providerMimeType: DEFAULT_MIME,
+    imageMimeType: parsedImage.mimeType,
+    // Future privacy-processed image flows should populate this seam instead of
+    // replacing the validated original image input ad hoc.
+    privacyProcessedImageBase64: undefined,
   };
 }
 
@@ -448,12 +494,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  let imageBase64 = '';
-  let textQuery = '';
+  const providerInput = buildProviderInput(body, requestContext, USE_GATEWAY_WIRING);
 
   if (mode === 'text') {
-    const rawTextQuery = USE_GATEWAY_WIRING ? requestContext.gatewayRequest.input.textQuery : body.textQuery;
-    textQuery = typeof rawTextQuery === 'string' ? rawTextQuery.trim() : '';
+    const textQuery = providerInput?.mode === 'text' ? providerInput.textQuery : '';
     if (!textQuery) {
       return json(enrichLegacyResponseDirect(normalized('failed', SAFE_TEXT_FAILED_MESSAGE)), 200);
     }
@@ -462,16 +506,11 @@ Deno.serve(async (req) => {
       return json({ error: true, message: textValidation, code: 'TEXTSCAN_INVALID_INPUT' }, 400);
     }
   } else {
-    // Accept either a raw base64 string or a data URI; strip the prefix server-side.
-    const rawImageBase64 = USE_GATEWAY_WIRING ? requestContext.gatewayRequest.input.imageBase64 : body.imageBase64;
-    imageBase64 = typeof rawImageBase64 === 'string' ? rawImageBase64 : '';
-    imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
-
-    if (!imageBase64) {
+    if (!providerInput || providerInput.mode !== 'image') {
       return json(enrichLegacyResponseDirect(normalized('failed', SAFE_FAILED_MESSAGE)), 200);
     }
-    if (imageBase64.length > MAX_IMAGE_BASE64_BYTES) {
-      console.warn('[scan-identify] image_too_large bytes=%d', imageBase64.length);
+    if (providerInput.imageBase64.length > MAX_IMAGE_BASE64_BYTES) {
+      console.warn('[scan-identify] image_too_large bytes=%d', providerInput.imageBase64.length);
       return json(enrichLegacyResponseDirect(normalized('failed', IMAGE_TOO_LARGE_MESSAGE)), 200);
     }
   }
@@ -505,14 +544,14 @@ Deno.serve(async (req) => {
     return u.toString();
   })();
 
-  const geminiBody = mode === 'text'
+  const geminiBody = providerInput?.mode === 'text'
     ? {
         contents: [
           {
             role: 'user',
             parts: [
               { text: TEXT_IDENTIFY_PROMPT },
-              { text: textQuery },
+              { text: providerInput.textQuery },
             ],
           },
         ],
@@ -528,7 +567,14 @@ Deno.serve(async (req) => {
             role: 'user',
             parts: [
               { text: IDENTIFY_PROMPT },
-              { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
+              {
+                inline_data: {
+                  mime_type: providerInput?.mode === 'image' ? providerInput.providerMimeType : DEFAULT_MIME,
+                  data: providerInput?.mode === 'image'
+                    ? (providerInput.privacyProcessedImageBase64 ?? providerInput.imageBase64)
+                    : '',
+                },
+              },
             ],
           },
         ],

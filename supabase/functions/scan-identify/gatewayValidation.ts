@@ -26,6 +26,12 @@ const ALLOWED_INPUT_TYPES: readonly KScanAIInputType[] = ['image', 'text', 'mixe
 const DEFAULT_INTENT: KScanAIIntent = { inferredGoal: 'identify', nextActions: ['ask_followup'] };
 const BASE64_IMAGE_PAYLOAD_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
+export type ParsedGatewayImageInput = {
+  mimeType?: string;
+  normalizedBase64: string;
+  byteLength: number;
+};
+
 function emptyTelemetry(requestId: string, surface: KScanAISurface, inputType: KScanAIInputType): KScanAITelemetry {
   return { requestId, surface, inputType, apiVersion: AI_GATEWAY_API_VERSION };
 }
@@ -89,23 +95,25 @@ function parseBase64ImagePayload(value: string): { ok: true; byteLength: number 
   return { ok: true, byteLength: Math.max(0, Math.floor((payload.length * 3) / 4) - padding) };
 }
 
-function parseImageInput(input: KScanAIRequest['input']): { ok: true; mimeType?: string; byteLength: number } | { ok: false } {
+export function parseGatewayImageInput(
+  input: Pick<KScanAIRequest['input'], 'imageBase64' | 'imageMimeType'>,
+): ParsedGatewayImageInput | null {
   const rawImage = typeof input.imageBase64 === 'string' ? input.imageBase64.trim() : '';
-  if (!rawImage) return { ok: false };
+  if (!rawImage) return null;
 
   let mimeType = normalizeMimeType(input.imageMimeType);
   let payload = rawImage;
 
   if (rawImage.toLowerCase().startsWith('data:')) {
     const match = rawImage.match(/^data:([^;]+);base64,(.+)$/i);
-    if (!match) return { ok: false };
+    if (!match) return null;
     mimeType = normalizeMimeType(match[1]);
-    payload = match[2];
+    payload = match[2].trim();
   }
 
   const parsed = parseBase64ImagePayload(payload);
-  if (!parsed.ok) return { ok: false };
-  return { ok: true, mimeType, byteLength: parsed.byteLength };
+  if (!parsed.ok) return null;
+  return { mimeType, normalizedBase64: payload, byteLength: parsed.byteLength };
 }
 
 export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
@@ -169,8 +177,8 @@ export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
   }
 
   if (inputType === 'image' || inputType === 'mixed') {
-    const imageInput = parseImageInput(input as KScanAIRequest['input']);
-    if (!imageInput.ok) {
+    const imageInput = parseGatewayImageInput(input as KScanAIRequest['input']);
+    if (!imageInput) {
       return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_IMAGE_BASE64', 'Image input is invalid or unsupported.', 'Image payload is not valid base64.', telemetryContext) };
     }
 
