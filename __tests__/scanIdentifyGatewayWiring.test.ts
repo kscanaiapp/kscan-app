@@ -641,23 +641,28 @@ test('index wiring: request context is normalized once before gateway feature ga
   const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
   assert.doesNotMatch(source, /TODO: wire scan-identify to enforce canonical request validation in next pass\./);
   assert.match(source, /function buildScanRequestContext/);
+  assert.match(source, /function resolveGatewayWiringState/);
   assert.match(source, /const requestContext = buildScanRequestContext\(body\)/);
   assert.match(source, /gates canonical validation, privacy evaluation, and response sidecars/);
+  assert.match(source, /canonical validation should become default-on only once/);
 });
 
 test('index wiring: USE_GATEWAY_WIRING still gates canonical validation and sidecars', () => {
   const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
-  const flagBlock = source.slice(source.indexOf('if (USE_GATEWAY_WIRING)'), source.indexOf('function enrichLegacyResponseDirect'));
-  assert.match(flagBlock, /validateKScanAIRequest\(requestContext\.gatewayRequest\)/);
-  assert.match(flagBlock, /evaluatePrivacyState\(validation\.value\)/);
-  assert.match(source, /if \(!USE_GATEWAY_WIRING\) return legacyResponse/);
+  const helperBlock = source.slice(source.indexOf('function resolveGatewayWiringState'), source.indexOf('function buildProviderInput'));
+  assert.match(helperBlock, /if \(!useGatewayWiring\) return state/);
+  assert.match(helperBlock, /const validation = validateKScanAIRequest\(requestContext\.gatewayRequest\)/);
+  assert.match(helperBlock, /compatibilityResponse: enrichLegacyResponse/);
+  assert.match(helperBlock, /canonicalToLegacyResponse\(validation\.response, mode\)/);
+  assert.match(helperBlock, /const privacy = evaluatePrivacyState\(validation\.value\)/);
+  assert.match(source, /if \(!gatewayWiring\.enabled\) return legacyResponse/);
 });
 
 test('index wiring: provider inputs use canonical request only when gateway wiring is enabled', () => {
   const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
-  assert.match(source, /const providerInput = buildProviderInput\(body, requestContext, USE_GATEWAY_WIRING\)/);
-  assert.match(source, /const rawTextQuery = useGatewayWiring \? requestContext\.gatewayRequest\.input\.textQuery : body\.textQuery/);
-  assert.match(source, /const imageInput = useGatewayWiring/);
+  assert.match(source, /const providerInput = buildProviderInput\(body, requestContext, gatewayWiring\)/);
+  assert.match(source, /gatewayWiring\.validatedRequest\?\.input\.textQuery \?\? requestContext\.gatewayRequest\.input\.textQuery/);
+  assert.match(source, /gatewayWiring\.validatedRequest\?\.input \?\? requestContext\.gatewayRequest\.input/);
   assert.match(source, /parseGatewayImageInput\(imageInput\)/);
 });
 
