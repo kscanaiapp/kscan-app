@@ -27,8 +27,12 @@
 // Model precedence: SCAN_IDENTIFY_GEMINI_MODEL, legacy aliases, fallback model, then DEFAULT_MODEL.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { AI_GATEWAY_API_VERSION } from './gatewayContract.ts';
-import { normalizeLegacyBody, canonicalToLegacyResponse, enrichLegacyResponse } from './gatewayAdapter.ts';
+import {
+  normalizeLegacyBody,
+  canonicalToLegacyResponse,
+  enrichLegacyResponse,
+  enrichLegacyResponseWithGatewayMetadata,
+} from './gatewayAdapter.ts';
 import { validateKScanAIRequest, evaluatePrivacyState } from './gatewayValidation.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -396,16 +400,10 @@ Deno.serve(async (req) => {
 
   function enrichLegacyResponseDirect(legacyResponse: Record<string, unknown>): Record<string, unknown> {
     if (!USE_GATEWAY_WIRING) return legacyResponse;
-    if (typeof legacyResponse.status !== 'string') return legacyResponse;
-    if (gatewayRequestId) legacyResponse.requestId = gatewayRequestId;
-    legacyResponse.apiVersion = AI_GATEWAY_API_VERSION;
-    if (gatewayPrivacy) {
-      legacyResponse.privacyVerified = gatewayPrivacy.privacyVerified;
-      if (gatewayPrivacy.warnings.length) {
-        legacyResponse.privacyWarnings = gatewayPrivacy.warnings;
-      }
-    }
-    return legacyResponse;
+    return enrichLegacyResponseWithGatewayMetadata(legacyResponse, {
+      requestId: gatewayRequestId,
+      privacy: gatewayPrivacy,
+    });
   }
 
   let imageBase64 = '';

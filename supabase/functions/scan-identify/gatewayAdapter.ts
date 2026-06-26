@@ -19,6 +19,16 @@ import {
 
 const DEFAULT_INTENT: KScanAIIntent = { inferredGoal: 'identify', nextActions: ['ask_followup'] };
 
+export type LegacyGatewayPrivacyMetadata = {
+  privacyVerified: boolean;
+  warnings: string[];
+};
+
+export type LegacyGatewayResponseMetadata = {
+  requestId?: string;
+  privacy?: LegacyGatewayPrivacyMetadata;
+};
+
 function toProvider(source?: string): KScanAIProvider {
   const s = (source ?? '').toLowerCase();
   if (s.includes('gemini')) return 'gemini';
@@ -310,5 +320,28 @@ export function enrichLegacyResponse(
   if (canonical.errors.length) {
     enriched.errors = canonical.errors.map(e => ({ code: e.code, userMessage: e.userMessage, recoverable: e.recoverable }));
   }
+  return enriched;
+}
+
+export function enrichLegacyResponseWithGatewayMetadata(
+  legacy: Record<string, unknown>,
+  metadata: LegacyGatewayResponseMetadata,
+): Record<string, unknown> {
+  if (typeof legacy.status !== 'string') return legacy;
+
+  const enriched = { ...legacy };
+  if (metadata.requestId) enriched.requestId = metadata.requestId;
+  enriched.apiVersion = AI_GATEWAY_API_VERSION;
+
+  const privacy = metadata.privacy;
+  if (privacy) {
+    const rawWarnings = Array.isArray(privacy.warnings) ? privacy.warnings : [];
+    const warnings = rawWarnings.filter((warning): warning is string => typeof warning === 'string' && warning.length > 0);
+    enriched.privacyVerified = privacy.privacyVerified === true && warnings.length === 0;
+    if (warnings.length) {
+      enriched.privacyWarnings = warnings;
+    }
+  }
+
   return enriched;
 }
