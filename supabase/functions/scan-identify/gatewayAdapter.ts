@@ -138,6 +138,12 @@ export function normalizeLegacyBody(
     imageBase64: inputType === 'image' || inputType === 'mixed'
       ? (typeof body.imageBase64 === 'string' ? body.imageBase64 : undefined)
       : undefined,
+    imageMimeType: inputType === 'image' || inputType === 'mixed'
+      ? (typeof body.imageMimeType === 'string' ? body.imageMimeType : undefined)
+      : undefined,
+    imageBytes: inputType === 'image' || inputType === 'mixed'
+      ? (typeof body.imageBytes === 'number' ? body.imageBytes : undefined)
+      : undefined,
     textQuery: inputType === 'text'
       ? (typeof body.textQuery === 'string' ? body.textQuery : undefined)
       : undefined,

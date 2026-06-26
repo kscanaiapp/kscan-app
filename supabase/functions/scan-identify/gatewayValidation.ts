@@ -24,6 +24,7 @@ const ALLOWED_SURFACES: readonly KScanAISurface[] = ['mobile_scan', 'text_scan',
 const ALLOWED_INPUT_TYPES: readonly KScanAIInputType[] = ['image', 'text', 'mixed'];
 
 const DEFAULT_INTENT: KScanAIIntent = { inferredGoal: 'identify', nextActions: ['ask_followup'] };
+const BASE64_IMAGE_PAYLOAD_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
 function emptyTelemetry(requestId: string, surface: KScanAISurface, inputType: KScanAIInputType): KScanAITelemetry {
   return { requestId, surface, inputType, apiVersion: AI_GATEWAY_API_VERSION };
@@ -73,31 +74,38 @@ function buildValidationErrorResponse(
   });
 }
 
-function isValidDataUri(dataUri: string): { mimeType?: string; base64?: string; byteLength?: number } {
-  const match = dataUri.match(/^data:([^;]+);base64,(.*)$/);
-  if (!match) return {};
-  const mimeType = match[1];
-  const base64 = match[2];
-  const byteLength = Math.floor(base64.length * 0.75);
-  return { mimeType, base64, byteLength };
+function normalizeMimeType(value: string | undefined): string | undefined {
+  const normalized = value?.trim().toLowerCase();
+  return normalized || undefined;
 }
 
-function estimateImageBytes(input: KScanAIRequest['input']): number {
-  if (!input.imageBase64) return 0;
-  if (input.imageBase64.startsWith('data:')) {
-    const { byteLength } = isValidDataUri(input.imageBase64);
-    return byteLength ?? 0;
-  }
-  return Math.floor(input.imageBase64.length * 0.75);
+function parseBase64ImagePayload(value: string): { ok: true; byteLength: number } | { ok: false } {
+  const payload = value.trim();
+  if (!payload) return { ok: false };
+  if (!BASE64_IMAGE_PAYLOAD_RE.test(payload) || payload.length % 4 === 1) return { ok: false };
+
+  const padding = payload.endsWith('==') ? 2 : payload.endsWith('=') ? 1 : 0;
+  if (padding > 0 && payload.length % 4 !== 0) return { ok: false };
+  return { ok: true, byteLength: Math.max(0, Math.floor((payload.length * 3) / 4) - padding) };
 }
 
-function detectMimeType(input: KScanAIRequest['input']): string | undefined {
-  if (input.imageMimeType) return input.imageMimeType;
-  if (input.imageBase64?.startsWith('data:')) {
-    const { mimeType } = isValidDataUri(input.imageBase64);
-    return mimeType;
+function parseImageInput(input: KScanAIRequest['input']): { ok: true; mimeType?: string; byteLength: number } | { ok: false } {
+  const rawImage = typeof input.imageBase64 === 'string' ? input.imageBase64.trim() : '';
+  if (!rawImage) return { ok: false };
+
+  let mimeType = normalizeMimeType(input.imageMimeType);
+  let payload = rawImage;
+
+  if (rawImage.toLowerCase().startsWith('data:')) {
+    const match = rawImage.match(/^data:([^;]+);base64,(.+)$/i);
+    if (!match) return { ok: false };
+    mimeType = normalizeMimeType(match[1]);
+    payload = match[2];
   }
-  return undefined;
+
+  const parsed = parseBase64ImagePayload(payload);
+  if (!parsed.ok) return { ok: false };
+  return { ok: true, mimeType, byteLength: parsed.byteLength };
 }
 
 export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
@@ -161,14 +169,17 @@ export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
   }
 
   if (inputType === 'image' || inputType === 'mixed') {
-    const imageBytes = estimateImageBytes(input as KScanAIRequest['input']);
-    if (imageBytes > MAX_GATEWAY_IMAGE_BYTES) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'IMAGE_TOO_LARGE', 'Image exceeds maximum allowed size.', `Image payload estimated at ${imageBytes} bytes (max ${MAX_GATEWAY_IMAGE_BYTES}).`, telemetryContext) };
+    const imageInput = parseImageInput(input as KScanAIRequest['input']);
+    if (!imageInput.ok) {
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_IMAGE_BASE64', 'Image input is invalid or unsupported.', 'Image payload is not valid base64.', telemetryContext) };
     }
 
-    const mimeType = detectMimeType(input as KScanAIRequest['input']);
-    if (mimeType && !GATEWAY_ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'UNSUPPORTED_IMAGE_TYPE', 'Unsupported image format.', `MIME type '${mimeType}' is not allowed.`, telemetryContext) };
+    if (imageInput.byteLength > MAX_GATEWAY_IMAGE_BYTES) {
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'IMAGE_TOO_LARGE', 'Image exceeds maximum allowed size.', `Image payload estimated at ${imageInput.byteLength} bytes (max ${MAX_GATEWAY_IMAGE_BYTES}).`, telemetryContext) };
+    }
+
+    if (imageInput.mimeType && !GATEWAY_ALLOWED_IMAGE_MIME_TYPES.includes(imageInput.mimeType)) {
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'UNSUPPORTED_IMAGE_TYPE', 'Unsupported image format.', `MIME type '${imageInput.mimeType}' is not allowed.`, telemetryContext) };
     }
   }
 
@@ -194,7 +205,7 @@ export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
     privacy: privacy as KScanAIPrivacy,
     input: {
       imageBase64: typeof input.imageBase64 === 'string' ? input.imageBase64 : undefined,
-      imageMimeType: typeof input.imageMimeType === 'string' ? input.imageMimeType : undefined,
+      imageMimeType: typeof input.imageMimeType === 'string' ? normalizeMimeType(input.imageMimeType) : undefined,
       textQuery: typeof input.textQuery === 'string' ? input.textQuery : undefined,
       imageBytes: typeof input.imageBytes === 'number' ? input.imageBytes : undefined,
     },
@@ -256,6 +267,10 @@ export function evaluatePrivacyState(
     }
     if (effectivePrivacy.maskingMode === 'pass_through' || effectivePrivacy.maskingMode === 'unknown') {
       warnings.push(`maskingMode is '${effectivePrivacy.maskingMode}'; privacy masking is not proven.`);
+    }
+    if (effectivePrivacy.privacyVerified === true) {
+      warnings.push('privacyVerified was claimed true for an image request but gateway proof is not available.');
+      effectivePrivacy.privacyVerified = false;
     }
     privacyVerified = false;
   } else {

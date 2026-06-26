@@ -78,6 +78,8 @@ function assertErrorResult(result) {
 test('adapter: legacy image payload normalizes into canonical request', () => {
   const body = {
     imageBase64: 'data:image/jpeg;base64,QUJD',
+    imageMimeType: 'image/jpeg',
+    imageBytes: 3,
     source: 'camera',
     localPrivacyFiltered: true,
     clientTimestamp: '2024-01-01T00:00:00Z',
@@ -88,6 +90,8 @@ test('adapter: legacy image payload normalizes into canonical request', () => {
   assert.equal(req.surface, 'mobile_scan');
   assert.equal(req.inputType, 'image');
   assert.equal(req.input.imageBase64, 'data:image/jpeg;base64,QUJD');
+  assert.equal(req.input.imageMimeType, 'image/jpeg');
+  assert.equal(req.input.imageBytes, 3);
   assert.equal(req.privacy.piiMasked, true);
   assert.equal(req.privacy.rawImageSent, false);
   assert.equal(req.privacy.legacyLocalPrivacyFiltered, true);
@@ -197,6 +201,45 @@ test('validation: unsupported image MIME returns structured failure', () => {
 
 // ── 8. localPrivacyFiltered maps to transitional privacy metadata but not proof ─
 
+test('validation: invalid image base64 returns safe legacy failure without echoing payload', () => {
+  const req = {
+    apiVersion: '1.0',
+    requestId: 'req-7b',
+    surface: 'mobile_scan',
+    inputType: 'image',
+    privacy: { piiMasked: true, rawImageSent: false },
+    input: { imageBase64: 'not-base64-%%%' },
+  };
+  const result = validation.validateKScanAIRequest(req);
+  assertErrorResult(result);
+  assert.ok(result.response.errors.some(e => e.code === 'INVALID_IMAGE_BASE64'));
+  const serialized = JSON.stringify(result.response);
+  assert.equal(serialized.includes('not-base64'), false);
+  assert.equal(serialized.includes('%%%'), false);
+  assert.equal(serialized.includes('imageBase64'), false);
+
+  const legacy = adapter.canonicalToLegacyResponse(result.response, 'image');
+  assert.equal(legacy.status, 'failed');
+  assert.ok(legacy.userMessage);
+  assert.equal(JSON.stringify(legacy).includes('not-base64'), false);
+});
+
+test('validation: image MIME metadata is client-neutral and case-insensitive', () => {
+  const req = {
+    apiVersion: '1.0',
+    requestId: 'req-7c',
+    surface: 'mobile_scan',
+    inputType: 'image',
+    privacy: { piiMasked: true, rawImageSent: false },
+    input: { imageBase64: 'QUJD', imageMimeType: 'IMAGE/PNG' },
+    client: { platform: 'ios' },
+  };
+  const result = validation.validateKScanAIRequest(req);
+  assertValidResult(result);
+  assert.equal(result.value.input.imageMimeType, 'image/png');
+  assert.equal(result.value.client?.platform, 'ios');
+});
+
 test('privacy: localPrivacyFiltered maps to transitional metadata', () => {
   const result = validation.evaluatePrivacyState({
     inputType: 'image',
@@ -225,6 +268,22 @@ test('privacy: unproven privacy produces warning not rejection in Phase 1', () =
 });
 
 // ── 10. provider timeout maps to safe scan-identify-compatible failure ─────────
+
+test('privacy: image request cannot self-assert privacyVerified true', () => {
+  const result = validation.evaluatePrivacyState({
+    inputType: 'image',
+    privacy: {
+      piiMasked: true,
+      rawImageSent: false,
+      maskingMode: 'blur',
+      privacyVerified: true,
+      privacyVerifiedBy: 'client',
+    },
+  });
+  assert.equal(result.privacyVerified, false);
+  assert.equal(result.effectivePrivacy.privacyVerified, false);
+  assert.ok(result.warnings.some(w => w.includes('gateway proof')));
+});
 
 test('adapter: canonical fallback maps to legacy failed', () => {
   const canonical = {
