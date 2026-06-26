@@ -24,9 +24,12 @@
 //   - recommendedProducts is always [] in this slice (matching deferred)
 //
 // Kill switch: set SCAN_IDENTIFY_AI_ENABLED=false (trim/case-insensitive) to disable.
-// Model precedence: SCAN_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL.
+// Model precedence: SCAN_IDENTIFY_GEMINI_MODEL, legacy aliases, fallback model, then DEFAULT_MODEL.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { AI_GATEWAY_API_VERSION } from './gatewayContract.ts';
+import { normalizeLegacyBody, canonicalToLegacyResponse, enrichLegacyResponse } from './gatewayAdapter.ts';
+import { validateKScanAIRequest, evaluatePrivacyState } from './gatewayValidation.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -40,12 +43,24 @@ const CORS_HEADERS = {
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_QUERY_LEN = 500;
 const MAX_OUTPUT_TOKENS = 512;
+// Text mode needs a larger budget than image: gemini-2.5-flash spends "thinking"
+// tokens against maxOutputTokens before emitting JSON, and at 512 the JSON was
+// being truncated (finishReason=MAX_TOKENS) on longer text descriptions. 1024
+// leaves headroom for the full attribute object without materially raising cost.
+const TEXT_SCAN_MAX_OUTPUT_TOKENS = 1024;
 // Provider call timeout. Target is ~5s; an 8s hard cap absorbs cold starts / free
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
+const GEMINI_MODEL_ENV_NAMES = [
+  'SCAN_IDENTIFY_GEMINI_MODEL',
+  'SCAN_GEMINI_MODEL',
+  'GEMINI_MODEL',
+  'SCAN_IDENTIFY_GEMINI_FALLBACK_MODEL',
+] as const;
+const RETIRED_GEMINI_MODEL_NAMES = new Set(['gemini-1.5-flash']);
 
 // Output sanitization caps — keep responses small and predictable.
 const MAX_STRING_LEN = 80;
@@ -145,6 +160,19 @@ const readTrimmedEnv = (name: string): string | undefined => {
   const value = Deno.env.get(name)?.trim();
   return value ? value : undefined;
 };
+
+function resolveGeminiModelName(): string {
+  for (const name of GEMINI_MODEL_ENV_NAMES) {
+    const value = normalizeGeminiModelName(readTrimmedEnv(name));
+    if (value && !RETIRED_GEMINI_MODEL_NAMES.has(value)) return value;
+  }
+  return DEFAULT_MODEL;
+}
+
+function normalizeGeminiModelName(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.replace(/^models\//, '').trim() || undefined;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -333,6 +361,7 @@ Deno.serve(async (req) => {
     source?: unknown;
     localPrivacyFiltered?: unknown;
     clientTimestamp?: unknown;
+    requestId?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -342,13 +371,49 @@ Deno.serve(async (req) => {
 
   const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
   const source = typeof body.source === 'string' ? body.source : 'unknown';
+
+  // ── Gateway wiring (feature-flagged) ─────────────────────────────────────────
+  // TODO: wire scan-identify to enforce canonical request validation in next pass.
+  const USE_GATEWAY_WIRING = readTrimmedEnv('USE_GATEWAY_WIRING')?.toLowerCase() === 'true';
+  let gatewayRequestId = '';
+  let gatewayPrivacy: { privacyVerified: boolean; warnings: string[] } | undefined;
+
+  if (USE_GATEWAY_WIRING) {
+    gatewayRequestId = typeof body.requestId === 'string' ? body.requestId : crypto.randomUUID();
+    const gatewayReq = normalizeLegacyBody(body, { requestId: gatewayRequestId });
+    const validation = validateKScanAIRequest(gatewayReq);
+    if (!validation.ok) {
+      const legacy = canonicalToLegacyResponse(validation.response, mode === 'text' ? 'text' : 'image');
+      const enriched = enrichLegacyResponse(legacy, validation.response);
+      return json(enriched, 200);
+    }
+    gatewayPrivacy = evaluatePrivacyState(gatewayReq);
+    if (gatewayPrivacy.warnings.length) {
+      console.warn('[scan-identify] privacy_warnings uid=%s warnings=%j', userId.slice(0, 8), gatewayPrivacy.warnings);
+    }
+  }
+
+  function enrichLegacyResponseDirect(legacyResponse: Record<string, unknown>): Record<string, unknown> {
+    if (!USE_GATEWAY_WIRING) return legacyResponse;
+    if (typeof legacyResponse.status !== 'string') return legacyResponse;
+    if (gatewayRequestId) legacyResponse.requestId = gatewayRequestId;
+    legacyResponse.apiVersion = AI_GATEWAY_API_VERSION;
+    if (gatewayPrivacy) {
+      legacyResponse.privacyVerified = gatewayPrivacy.privacyVerified;
+      if (gatewayPrivacy.warnings.length) {
+        legacyResponse.privacyWarnings = gatewayPrivacy.warnings;
+      }
+    }
+    return legacyResponse;
+  }
+
   let imageBase64 = '';
   let textQuery = '';
 
   if (mode === 'text') {
     textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
     if (!textQuery) {
-      return json(normalized('failed', SAFE_TEXT_FAILED_MESSAGE), 200);
+      return json(enrichLegacyResponseDirect(normalized('failed', SAFE_TEXT_FAILED_MESSAGE)), 200);
     }
     const textValidation = validateTextQuery(textQuery);
     if (textValidation) {
@@ -360,11 +425,11 @@ Deno.serve(async (req) => {
     imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
 
     if (!imageBase64) {
-      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+      return json(enrichLegacyResponseDirect(normalized('failed', SAFE_FAILED_MESSAGE)), 200);
     }
     if (imageBase64.length > MAX_IMAGE_BASE64_BYTES) {
       console.warn('[scan-identify] image_too_large bytes=%d', imageBase64.length);
-      return json(normalized('failed', IMAGE_TOO_LARGE_MESSAGE), 200);
+      return json(enrichLegacyResponseDirect(normalized('failed', IMAGE_TOO_LARGE_MESSAGE)), 200);
     }
   }
 
@@ -372,7 +437,7 @@ Deno.serve(async (req) => {
   const isAiDisabled = readTrimmedEnv('SCAN_IDENTIFY_AI_ENABLED')?.toLowerCase() === 'false';
   if (isAiDisabled) {
     console.log('[scan-identify] kill switch active');
-    return json(normalized('failed', mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE), 200);
+    return json(enrichLegacyResponseDirect(normalized('failed', mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE)), 200);
   }
 
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
@@ -381,8 +446,7 @@ Deno.serve(async (req) => {
     return json({ error: 'AI provider not configured' }, 500);
   }
 
-  const modelName =
-    readTrimmedEnv('SCAN_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+  const modelName = resolveGeminiModelName();
   const timeoutMs = (() => {
     const raw = readTrimmedEnv('SCAN_GEMINI_TIMEOUT_MS');
     const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
@@ -411,7 +475,7 @@ Deno.serve(async (req) => {
         ],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          maxOutputTokens: TEXT_SCAN_MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
         },
       }
@@ -432,12 +496,19 @@ Deno.serve(async (req) => {
         },
       };
 
+  const safeFailed = mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE;
+  const safeNonFashion = mode === 'text' ? SAFE_TEXT_NON_FASHION_MESSAGE : SAFE_NON_FASHION_MESSAGE;
+
+  function providerFailure(): Response {
+    return new Response(JSON.stringify(enrichLegacyResponseDirect(normalized('failed', safeFailed))), {
+      status: 200,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
-
-  const safeFailed = mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE;
-  const safeNonFashion = mode === 'text' ? SAFE_TEXT_NON_FASHION_MESSAGE : SAFE_NON_FASHION_MESSAGE;
 
   try {
     const res = await fetch(geminiUrl, {
@@ -462,7 +533,7 @@ Deno.serve(async (req) => {
         String(meta.status ?? 'none'),
         elapsedMs,
       );
-      return json(normalized('failed', safeFailed), 200);
+      return providerFailure();
     }
 
     let data: GeminiResponse;
@@ -470,11 +541,27 @@ Deno.serve(async (req) => {
       data = JSON.parse(raw);
     } catch {
       console.warn('[scan-identify] gemini_parse_failure mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
-      return json(normalized('failed', safeFailed), 200);
+      return providerFailure();
     }
 
     const blockReason = data.promptFeedback?.blockReason;
+    const finishReason = data.candidates?.[0]?.finishReason;
     const text = extractGeminiText(data);
+
+    // Truncated provider output: the model hit the token ceiling before completing
+    // its JSON. The partial text is unparseable (or, worse, parseable-but-incomplete),
+    // so never trust it — classify as model_output_truncated and fail safely.
+    if (finishReason === 'MAX_TOKENS') {
+      console.warn(
+        '[scan-identify] model_output_truncated mode=%s source=%s textLen=%d elapsedMs=%d',
+        mode,
+        source,
+        text.length,
+        elapsedMs,
+      );
+      return providerFailure();
+    }
+
     if (!text) {
       console.warn(
         '[scan-identify] gemini_empty mode=%s source=%s blockReason=%s elapsedMs=%d',
@@ -483,13 +570,13 @@ Deno.serve(async (req) => {
         blockReason ?? 'none',
         elapsedMs,
       );
-      return json(normalized('failed', safeFailed), 200);
+      return providerFailure();
     }
 
     const parsed = parseModelJson(text);
     if (!parsed) {
       console.warn('[scan-identify] model_json_unparseable mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
-      return json(normalized('failed', safeFailed), 200);
+      return providerFailure();
     }
 
     const rawStatus = typeof parsed.status === 'string' ? parsed.status.toLowerCase() : '';
@@ -499,12 +586,12 @@ Deno.serve(async (req) => {
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
       const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
       console.log('[scan-identify] ok uid=%s mode=%s source=%s status=non_fashion elapsedMs=%d', userId.slice(0, 8), mode, source, elapsedMs);
-      return json(normalized('non_fashion', msg), 200);
+      return json(enrichLegacyResponseDirect(normalized('non_fashion', msg)), 200);
     }
 
     if (!attributes) {
       console.warn('[scan-identify] completed_without_attributes mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
-      return json(normalized('failed', safeFailed), 200);
+      return providerFailure();
     }
 
     const userMessage =
@@ -519,11 +606,11 @@ Deno.serve(async (req) => {
       Object.keys(attributes).length,
       elapsedMs,
     );
-    return json(normalized('completed', userMessage, attributes), 200);
+    return json(enrichLegacyResponseDirect(normalized('completed', userMessage, attributes)), 200);
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
     console.warn('[scan-identify] %s mode=%s source=%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', mode, source, Date.now() - startedAt);
-    return json(normalized('failed', safeFailed), 200);
+    return providerFailure();
   } finally {
     clearTimeout(timer);
   }
