@@ -373,7 +373,8 @@ Deno.serve(async (req) => {
   const source = typeof body.source === 'string' ? body.source : 'unknown';
 
   // ── Gateway wiring (feature-flagged) ─────────────────────────────────────────
-  // TODO: wire scan-identify to enforce canonical request validation in next pass.
+  // Canonical request validation and privacy evaluation stay behind a feature
+  // flag so legacy clients can keep their existing response contract.
   const USE_GATEWAY_WIRING = readTrimmedEnv('USE_GATEWAY_WIRING')?.toLowerCase() === 'true';
   let gatewayRequestId = '';
   let gatewayPrivacy: { privacyVerified: boolean; warnings: string[] } | undefined;

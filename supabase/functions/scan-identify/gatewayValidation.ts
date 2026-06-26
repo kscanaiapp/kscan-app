@@ -48,8 +48,27 @@ function baseResponse(requestId: string, status: KScanAIResponse['status'], sour
   };
 }
 
-function buildValidationErrorResponse(requestId: string, code: string, userMessage: string, debugMessage?: string): KScanAIResponse {
+function coerceSurface(value: unknown): KScanAISurface {
+  return ALLOWED_SURFACES.includes(value as KScanAISurface) ? (value as KScanAISurface) : 'mobile_scan';
+}
+
+function coerceInputType(value: unknown): KScanAIInputType {
+  return ALLOWED_INPUT_TYPES.includes(value as KScanAIInputType) ? (value as KScanAIInputType) : 'image';
+}
+
+function buildValidationErrorResponse(
+  requestId: string,
+  code: string,
+  userMessage: string,
+  debugMessage?: string,
+  telemetryContext?: { surface?: unknown; inputType?: unknown },
+): KScanAIResponse {
   return baseResponse(requestId, 'error', { primary: 'unknown' }, {
+    telemetry: emptyTelemetry(
+      requestId,
+      coerceSurface(telemetryContext?.surface),
+      coerceInputType(telemetryContext?.inputType),
+    ),
     errors: [makeError(code, userMessage, { debugMessage, recoverable: false })],
   });
 }
@@ -85,9 +104,15 @@ export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
   const requestId = raw && typeof raw === 'object' && 'requestId' in raw && typeof (raw as Record<string, unknown>).requestId === 'string'
     ? (raw as Record<string, unknown>).requestId
     : 'unknown';
+  const telemetryContext = raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? {
+        surface: (raw as Record<string, unknown>).surface,
+        inputType: (raw as Record<string, unknown>).inputType,
+      }
+    : undefined;
 
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Invalid request format.') };
+    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Invalid request format.', undefined, telemetryContext) };
   }
 
   const src = raw as Record<string, unknown>;
@@ -95,24 +120,24 @@ export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
   const required = ['apiVersion', 'requestId', 'surface', 'inputType', 'privacy', 'input'] as const;
   for (const key of required) {
     if (!(key in src) || src[key] === undefined || src[key] === null) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', `Missing required field: ${key}.`, `Field '${key}' is missing or null.`) };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', `Missing required field: ${key}.`, `Field '${key}' is missing or null.`, telemetryContext) };
     }
   }
 
   if (src.apiVersion !== AI_GATEWAY_API_VERSION) {
-    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Unsupported API version.', `Expected ${AI_GATEWAY_API_VERSION}, received ${src.apiVersion}.`) };
+    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Unsupported API version.', `Expected ${AI_GATEWAY_API_VERSION}, received ${src.apiVersion}.`, telemetryContext) };
   }
 
   if (typeof src.requestId !== 'string' || !src.requestId.trim()) {
-    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Missing or invalid requestId.') };
+    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Missing or invalid requestId.', undefined, telemetryContext) };
   }
 
   if (!ALLOWED_SURFACES.includes(src.surface as KScanAISurface)) {
-    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Invalid surface.', `Surface '${src.surface}' is not allowed.`) };
+    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Invalid surface.', `Surface '${src.surface}' is not allowed.`, telemetryContext) };
   }
 
   if (!ALLOWED_INPUT_TYPES.includes(src.inputType as KScanAIInputType)) {
-    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Invalid input type.', `inputType '${src.inputType}' is not allowed.`) };
+    return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_REQUEST', 'Invalid input type.', `inputType '${src.inputType}' is not allowed.`, telemetryContext) };
   }
 
   const inputType = src.inputType as KScanAIInputType;
@@ -121,43 +146,43 @@ export function validateKScanAIRequest(raw: unknown): KScanAIValidationResult {
   if (inputType === 'image' || inputType === 'mixed') {
     const hasImageBase64 = typeof input.imageBase64 === 'string' && input.imageBase64.trim().length > 0;
     if (!hasImageBase64) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_INPUT', 'Image input is required for image/mixed requests.') };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_INPUT', 'Image input is required for image/mixed requests.', undefined, telemetryContext) };
     }
   }
 
   if (inputType === 'text' || inputType === 'mixed') {
     const textQuery = typeof input.textQuery === 'string' ? input.textQuery : '';
     if (!textQuery.trim()) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_INPUT', 'Text query is required for text/mixed requests.') };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'INVALID_INPUT', 'Text query is required for text/mixed requests.', undefined, telemetryContext) };
     }
     if (textQuery.length > MAX_GATEWAY_TEXT_LENGTH) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'TEXT_TOO_LONG', `Text query exceeds ${MAX_GATEWAY_TEXT_LENGTH} characters.`) };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'TEXT_TOO_LONG', `Text query exceeds ${MAX_GATEWAY_TEXT_LENGTH} characters.`, undefined, telemetryContext) };
     }
   }
 
   if (inputType === 'image' || inputType === 'mixed') {
     const imageBytes = estimateImageBytes(input as KScanAIRequest['input']);
     if (imageBytes > MAX_GATEWAY_IMAGE_BYTES) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'IMAGE_TOO_LARGE', 'Image exceeds maximum allowed size.', `Image payload estimated at ${imageBytes} bytes (max ${MAX_GATEWAY_IMAGE_BYTES}).`) };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'IMAGE_TOO_LARGE', 'Image exceeds maximum allowed size.', `Image payload estimated at ${imageBytes} bytes (max ${MAX_GATEWAY_IMAGE_BYTES}).`, telemetryContext) };
     }
 
     const mimeType = detectMimeType(input as KScanAIRequest['input']);
     if (mimeType && !GATEWAY_ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'UNSUPPORTED_IMAGE_TYPE', 'Unsupported image format.', `MIME type '${mimeType}' is not allowed.`) };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'UNSUPPORTED_IMAGE_TYPE', 'Unsupported image format.', `MIME type '${mimeType}' is not allowed.`, telemetryContext) };
     }
   }
 
   const privacy = src.privacy as Record<string, unknown>;
   if (!privacy || typeof privacy !== 'object' || Array.isArray(privacy)) {
-    return { ok: false, response: buildValidationErrorResponse(requestId, 'PRIVACY_FLAGS_MISSING', 'Privacy configuration is missing.') };
+    return { ok: false, response: buildValidationErrorResponse(requestId, 'PRIVACY_FLAGS_MISSING', 'Privacy configuration is missing.', undefined, telemetryContext) };
   }
 
   if (inputType === 'image' || inputType === 'mixed') {
     if (!('piiMasked' in privacy)) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'PRIVACY_FLAGS_MISSING', 'Privacy flag piiMasked is required for image requests.') };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'PRIVACY_FLAGS_MISSING', 'Privacy flag piiMasked is required for image requests.', undefined, telemetryContext) };
     }
     if (!('rawImageSent' in privacy)) {
-      return { ok: false, response: buildValidationErrorResponse(requestId, 'PRIVACY_FLAGS_MISSING', 'Privacy flag rawImageSent is required for image requests.') };
+      return { ok: false, response: buildValidationErrorResponse(requestId, 'PRIVACY_FLAGS_MISSING', 'Privacy flag rawImageSent is required for image requests.', undefined, telemetryContext) };
     }
   }
 

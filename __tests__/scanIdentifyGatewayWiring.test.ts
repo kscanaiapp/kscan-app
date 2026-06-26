@@ -441,6 +441,21 @@ test('validation: error response includes required canonical fields', () => {
   assert.ok(resp.telemetry && typeof resp.telemetry.requestId === 'string');
 });
 
+test('validation: error telemetry preserves surface and inputType from request', () => {
+  const req = {
+    apiVersion: '1.0',
+    requestId: 'req-22b',
+    surface: 'text_scan',
+    inputType: 'text',
+    privacy: { piiMasked: true, rawImageSent: false },
+    input: {},
+  };
+  const result = validation.validateKScanAIRequest(req);
+  assertErrorResult(result);
+  assert.equal(result.response.telemetry.surface, 'text_scan');
+  assert.equal(result.response.telemetry.inputType, 'text');
+});
+
 // ── 23. roomId/sharedByUserId carried in session but not broadcast ───────────────
 
 test('adapter: session carries roomId/sharedByUserId without broadcast behavior', () => {
@@ -506,6 +521,12 @@ test('index wiring: legacy path preserved when USE_GATEWAY_WIRING is off', () =>
   assert.equal(out.userMessage, 'OK.');
   assert.equal('requestId' in out, false);
   assert.equal('apiVersion' in out, false);
+});
+
+test('index wiring: gateway comment reflects active validation behind the feature flag', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+  assert.doesNotMatch(source, /TODO: wire scan-identify to enforce canonical request validation in next pass\./);
+  assert.match(source, /privacy evaluation stay behind a feature/);
 });
 
 // -- 27. scan-identify model resolution prefers staging override env names --
