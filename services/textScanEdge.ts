@@ -134,7 +134,7 @@ export async function analyzeTextWithEdge(
 
   // Defense-in-depth: validate before invoking the edge function
   const validation = validateTextScanQuery(trimmed);
-  if (!validation.valid) {
+  if (validation.valid === false) {
     const err = new Error('TEXTSCAN_INVALID_INPUT');
     (err as any).userMessage = validation.message;
     throw err;
