@@ -76,7 +76,7 @@ function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, a
  * Bright luxury Home dashboard (HomeLuxuryTechV1).
  *
  * Matches the home-page-v1 mockup direction without fake commerce:
- * - Hero with "Scan it. Find it. Love it." and fashion placeholder
+ * - Hero with "See it. Scan it. Style it." and fashion placeholder
  * - Start Scan primary CTA
  * - Real recent scans from useLibrary (or empty state)
  * - Style Picks editorial placeholder (no fake prices / retailers)
@@ -153,8 +153,8 @@ export default function HomeLuxuryTechV1() {
       <View style={styles.heroCard}>
         <View style={styles.heroText}>
           <Text style={styles.heroHeadline} accessibilityRole="header">
-            Scan it.{'\n'}Find it.{' '}
-            <Text style={styles.heroHeadlineGold}>Love it.</Text>
+            See it.{'\n'}Scan it.{' '}
+            <Text style={styles.heroHeadlineGold}>Style it.</Text>
           </Text>
           <Text style={styles.heroBody}>
             Instantly discover style inspiration and shop what you love.
