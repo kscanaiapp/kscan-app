@@ -40,13 +40,15 @@ android {
         // Debug-only backend analyze config. Committed defaults are blank/disabled.
         // Real values must be supplied via gitignored local.properties (or project properties)
         // and are never committed.
+        //
+        // SECURITY: Never place credentials, tokens, or secrets in BuildConfig.
+        // BuildConfig values are compiled into the APK and can be extracted.
+        // Debug URLs must not contain embedded credentials (e.g. no user:pass in the URL).
         val debugAnalyzeEnabled = debugPropertyBoolean("KSCAN_DEBUG_ANALYZE_ENABLED")
         val debugAnalyzeUrl = debugProperty("KSCAN_DEBUG_ANALYZE_URL")
-        val debugAnalyzeAuthToken = debugProperty("KSCAN_DEBUG_ANALYZE_AUTH_TOKEN")
         val debugAnalyzeDryRun = debugPropertyBoolean("KSCAN_DEBUG_ANALYZE_DRY_RUN")
         buildConfigField("boolean", "KSCAN_DEBUG_ANALYZE_ENABLED", "$debugAnalyzeEnabled")
         buildConfigField("String", "KSCAN_DEBUG_ANALYZE_URL", "\"$debugAnalyzeUrl\"")
-        buildConfigField("String", "KSCAN_DEBUG_ANALYZE_AUTH_TOKEN", "\"$debugAnalyzeAuthToken\"")
         buildConfigField("boolean", "KSCAN_DEBUG_ANALYZE_DRY_RUN", "$debugAnalyzeDryRun")
 
         // Debug defaults: mock infrastructure is allowed for local development without hardware.

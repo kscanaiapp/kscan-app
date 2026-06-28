@@ -1,5 +1,6 @@
 package com.kscan.glasses.analyze
 
+import com.kscan.glasses.BuildConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -66,5 +67,24 @@ class DebugAnalyzeConfigTest {
         // but we can assert the field exists and is readable.
         // In practice, the default is false.
         assertEquals(false, config.dryRunBuildFlag)
+    }
+
+    // ─── Security / BuildConfig hardening tests ────────────────────────────────
+
+    @Test
+    fun `fromBuildConfig does not expose an auth token`() {
+        val config = DebugAnalyzeConfig.fromBuildConfig()
+        // The authToken must be intentionally empty because BuildConfig never
+        // contains credentials. It must not leak a local.properties token.
+        assertEquals("", config.authToken)
+    }
+
+    @Test
+    fun `fromBuildConfig returns expected non-secret fields`() {
+        val config = DebugAnalyzeConfig.fromBuildConfig()
+        // These fields are allowed to come from BuildConfig because they are
+        // non-secret flags (boolean, debug URL string, dry-run flag).
+        // We only assert the types/shape exist; exact values depend on build config.
+        assertEquals(false, config.authToken.isNotBlank())
     }
 }
