@@ -32,6 +32,7 @@ class ScanOrchestratorDryRunTest {
     )
 
     private val dryRunDebugConfig = DebugAnalyzeConfig(
+        enabled = true,
         backendUrl = "https://example.com",
         authToken = "",
         dryRunBuildFlag = true,

@@ -12,10 +12,10 @@ import com.kscan.glasses.BuildConfig
  * was supplied locally; it does not enable dry-run unless all [BetaConfig] gates also pass.
  */
 data class DebugAnalyzeConfig(
-    val enabled: Boolean = BuildConfig.KSCAN_DEBUG_ANALYZE_ENABLED,
-    val backendUrl: String = BuildConfig.KSCAN_DEBUG_ANALYZE_URL,
-    val authToken: String = BuildConfig.KSCAN_DEBUG_ANALYZE_AUTH_TOKEN,
-    val dryRunBuildFlag: Boolean = BuildConfig.KSCAN_DEBUG_ANALYZE_DRY_RUN,
+    val enabled: Boolean = false,
+    val backendUrl: String = "",
+    val authToken: String = "",
+    val dryRunBuildFlag: Boolean = false,
 ) {
     /**
      * True when debug analyze is explicitly enabled AND a backend URL is present.
@@ -24,7 +24,17 @@ data class DebugAnalyzeConfig(
     val isPresent: Boolean
         get() = enabled && backendUrl.isNotBlank()
 
+    override fun toString(): String =
+        "DebugAnalyzeConfig(enabled=$enabled, backendUrl=$backendUrl, authToken=[REDACTED], dryRunBuildFlag=$dryRunBuildFlag)"
+
     companion object {
         val DEFAULT = DebugAnalyzeConfig()
+
+        fun fromBuildConfig(): DebugAnalyzeConfig = DebugAnalyzeConfig(
+            enabled = BuildConfig.KSCAN_DEBUG_ANALYZE_ENABLED,
+            backendUrl = BuildConfig.KSCAN_DEBUG_ANALYZE_URL,
+            authToken = BuildConfig.KSCAN_DEBUG_ANALYZE_AUTH_TOKEN,
+            dryRunBuildFlag = BuildConfig.KSCAN_DEBUG_ANALYZE_DRY_RUN,
+        )
     }
 }

@@ -21,6 +21,7 @@ class AnalyzeDryRunGateTest {
     )
 
     private val debugConfig = DebugAnalyzeConfig(
+        enabled = true,
         backendUrl = "https://example.com",
         authToken = "",
         dryRunBuildFlag = true,

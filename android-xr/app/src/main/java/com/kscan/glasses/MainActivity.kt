@@ -32,13 +32,14 @@ class MainActivity : ComponentActivity() {
         // Debug-only: use GlassesDebugEndpointClient when local debug config is present.
         // This path is active ONLY in debug builds with local.properties configured.
         // Release builds always use the standard factory path (MockAnalyzeClient default).
-        val analyzeClient = if (BuildConfig.DEBUG && DebugAnalyzeConfig.DEFAULT.isPresent && !DebugAnalyzeConfig.DEFAULT.dryRunBuildFlag) {
+        val debugConfig = DebugAnalyzeConfig.fromBuildConfig()
+        val analyzeClient = if (BuildConfig.DEBUG && debugConfig.isPresent && !debugConfig.dryRunBuildFlag) {
             GlassesDebugEndpointClientFactory.create(
                 betaConfig = BetaConfig.DEFAULT.copy(
                     enableRealAnalyze = true,
                     enableRealFaceMasking = true,
                 ),
-                debugConfig = DebugAnalyzeConfig.DEFAULT,
+                debugConfig = debugConfig,
             )
         } else {
             AnalyzeClientFactory.create(
