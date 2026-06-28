@@ -10,6 +10,10 @@ import com.kscan.glasses.BuildConfig
  *
  * Token and URL are never logged. [isPresent] only indicates that a non-empty backend URL
  * was supplied locally; it does not enable dry-run unless all [BetaConfig] gates also pass.
+ *
+ * SECURITY: Do not place credentials, tokens, or secrets in BuildConfig. BuildConfig values are
+ * compiled into the APK and can be extracted by anyone who has the APK. Future live debug auth
+ * must use a separate runtime-only credential provider.
  */
 data class DebugAnalyzeConfig(
     val enabled: Boolean = false,
@@ -33,7 +37,10 @@ data class DebugAnalyzeConfig(
         fun fromBuildConfig(): DebugAnalyzeConfig = DebugAnalyzeConfig(
             enabled = BuildConfig.KSCAN_DEBUG_ANALYZE_ENABLED,
             backendUrl = BuildConfig.KSCAN_DEBUG_ANALYZE_URL,
-            authToken = BuildConfig.KSCAN_DEBUG_ANALYZE_AUTH_TOKEN,
+            // SECURITY: Do not read credentials from BuildConfig. BuildConfig values are compiled
+            // into the APK and can be extracted. Future live debug auth must use a runtime-only
+            // credential provider. For now, authToken is always empty in BuildConfig-derived config.
+            authToken = "",
             dryRunBuildFlag = BuildConfig.KSCAN_DEBUG_ANALYZE_DRY_RUN,
         )
     }
