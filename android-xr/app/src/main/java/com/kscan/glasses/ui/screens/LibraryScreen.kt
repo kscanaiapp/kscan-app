@@ -20,7 +20,7 @@ fun LibraryScreen() {
             .padding(20.dp),
     ) {
         Text(
-            text = "Library",
+            text = "Closet",
             color = Color(0xFF00E5FF),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,

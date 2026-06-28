@@ -61,7 +61,7 @@ Schema: `shared/bridge.schema.json`
 | `PHOTO_ERROR` | either | Capture failure |
 | `ANALYSIS_STARTED` | glasses → phone | Scan in progress |
 | `ANALYSIS_RESULT` | glasses → phone | Top products + summary |
-| `SAVE_ITEM` | glasses → phone | Persist to library on phone |
+| `SAVE_ITEM` | glasses → phone | Persist to closet on phone |
 | `OPEN_ON_PHONE` | glasses → phone | Open product URL |
 | `AUTH_SESSION` | phone → glasses | Relay Supabase session (no logging) |
 | `ERROR` | either | Structured error |

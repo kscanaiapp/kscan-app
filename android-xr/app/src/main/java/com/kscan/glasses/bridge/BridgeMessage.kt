@@ -105,7 +105,7 @@ sealed class BridgeMessage(
 
     // ── Actions ─────────────────────────────────────────────────────────────
 
-    /** Save a look/item to the user's library. */
+    /** Save a look/item to the user's closet. */
     data class SaveItem(
         val itemId: String,
         val label: String,
