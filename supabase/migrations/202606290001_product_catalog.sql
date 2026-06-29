@@ -61,6 +61,12 @@ CREATE INDEX IF NOT EXISTS product_catalog_style_tags_gin
 CREATE INDEX IF NOT EXISTS product_catalog_distinctive_features_gin
   ON public.product_catalog USING gin (distinctive_features);
 
+-- Unique index on external_product_id so feed upserts and the seed file can use
+-- ON CONFLICT (external_product_id). Nullable column: Postgres treats NULLs as
+-- distinct, so rows without an external id are unaffected.
+CREATE UNIQUE INDEX IF NOT EXISTS product_catalog_external_product_id_key
+  ON public.product_catalog (external_product_id);
+
 -- Enable RLS. No public read policies for v1.
 ALTER TABLE public.product_catalog ENABLE ROW LEVEL SECURITY;
 
