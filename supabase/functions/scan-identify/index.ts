@@ -37,6 +37,11 @@ import {
   safeParseAiJson,
   type NormalizedIdentification,
 } from '../_shared/scanHelpers.ts';
+import {
+  fetchCatalogCandidates,
+  adaptCatalogCandidate,
+  mergeProductCandidates,
+} from '../_shared/catalogRetrieval.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -807,6 +812,17 @@ Deno.serve(async (req) => {
   }
   const userId = user.id;
 
+  // ── Service-role client for catalog retrieval (safe, no public RLS read) ──
+  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const catalogClient = supabaseUrl && supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : null;
+  if (!catalogClient) {
+    console.log('[scan-identify] catalog_client_not_available');
+  }
+
   // ── 2. Parse and validate request body ──────────────────────────────────────
   let body: {
     mode?: unknown;
@@ -1080,24 +1096,32 @@ Deno.serve(async (req) => {
         confidenceScore: 0.95,
       };
       const nonFashionResponse = normalized('non_fashion', msg, nonFashionAttributes, nonFashionIdentification);
-      const responseWithAttributes = ensureLegacyAttributes(nonFashionResponse);
-      const normalizedIdentification = normalizeIdentification(
-        responseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
+      const nonFashionResponseWithAttributes = ensureLegacyAttributes(nonFashionResponse);
+      const nonFashionNormalizedId = normalizeIdentification(
+        nonFashionResponseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
       );
-      const rankedProducts = rankRecommendedProducts(
-        Array.isArray(responseWithAttributes.recommendedProducts)
-          ? responseWithAttributes.recommendedProducts
-          : [],
-        normalizedIdentification,
+      const nonFashionExistingProducts = Array.isArray(nonFashionResponseWithAttributes.recommendedProducts)
+        ? nonFashionResponseWithAttributes.recommendedProducts
+        : [];
+      const nonFashionCatalogCandidates = nonFashionNormalizedId
+        ? await fetchCatalogCandidates(catalogClient, nonFashionNormalizedId, { limit: 30 })
+        : [];
+      const nonFashionMergedCandidates = mergeProductCandidates(
+        nonFashionExistingProducts,
+        nonFashionCatalogCandidates.map(adaptCatalogCandidate),
+      );
+      const nonFashionRankedProducts = rankRecommendedProducts(
+        nonFashionMergedCandidates,
+        nonFashionNormalizedId,
       );
       const finalResponse = {
-        ...responseWithAttributes,
-        recommendedProducts: rankedProducts,
+        ...nonFashionResponseWithAttributes,
+        recommendedProducts: nonFashionRankedProducts.slice(0, 10),
       };
       const auditEvent = buildAuditEvent(
         finalResponse,
-        normalizedIdentification,
-        rankedProducts,
+        nonFashionNormalizedId,
+        nonFashionRankedProducts,
         elapsedMs,
         scanId,
       );
@@ -1139,24 +1163,32 @@ Deno.serve(async (req) => {
     );
 
     const completedResponse = normalized('completed', userMessage, attributes, identification);
-    const responseWithAttributes = ensureLegacyAttributes(completedResponse);
-    const normalizedIdentification = normalizeIdentification(
-      responseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
+    const completedResponseWithAttributes = ensureLegacyAttributes(completedResponse);
+    const completedNormalizedId = normalizeIdentification(
+      completedResponseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
     );
-    const rankedProducts = rankRecommendedProducts(
-      Array.isArray(responseWithAttributes.recommendedProducts)
-        ? responseWithAttributes.recommendedProducts
-        : [],
-      normalizedIdentification,
+    const completedExistingProducts = Array.isArray(completedResponseWithAttributes.recommendedProducts)
+      ? completedResponseWithAttributes.recommendedProducts
+      : [];
+    const completedCatalogCandidates = completedNormalizedId
+      ? await fetchCatalogCandidates(catalogClient, completedNormalizedId, { limit: 30 })
+      : [];
+    const completedMergedCandidates = mergeProductCandidates(
+      completedExistingProducts,
+      completedCatalogCandidates.map(adaptCatalogCandidate),
+    );
+    const completedRankedProducts = rankRecommendedProducts(
+      completedMergedCandidates,
+      completedNormalizedId,
     );
     const finalResponse = {
-      ...responseWithAttributes,
-      recommendedProducts: rankedProducts,
+      ...completedResponseWithAttributes,
+      recommendedProducts: completedRankedProducts.slice(0, 10),
     };
     const auditEvent = buildAuditEvent(
       finalResponse,
-      normalizedIdentification,
-      rankedProducts,
+      completedNormalizedId,
+      completedRankedProducts,
       elapsedMs,
       scanId,
     );

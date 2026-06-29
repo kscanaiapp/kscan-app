@@ -1,0 +1,7 @@
+retailer,brand,product_name,canonical_category,raw_category,description,price,currency,product_url,image_url,availability,color_normalized,material_tags,silhouette_tags,style_tags,pattern_tags,distinctive_features,search_text,source,external_product_id,last_seen_at
+# EXAMPLE ONLY — DO NOT INSERT AS PRODUCTION DATA
+# Replace with real merchant feed data. Remove example rows before importing.
+# Required columns: retailer, product_name, canonical_category
+# Optional: brand, description, price, currency, product_url, image_url, availability, color_normalized, material_tags, silhouette_tags, style_tags, pattern_tags, distinctive_features, search_text, source, external_product_id, last_seen_at
+
+EXAMPLE_RETAILER,EXAMPLE_BRAND,EXAMPLE PRODUCT NAME,blazer,blazer,Example description,299.00,USD,https://example.com/p/1,https://example.com/img/1.jpg,in_stock,black,"wool blend","tailored/structured","minimalist,workwear",solid,"gold buttons,structured shoulders",black tailored blazer,EXAMPLE,ext-123,2025-06-29T00:00:00Z
