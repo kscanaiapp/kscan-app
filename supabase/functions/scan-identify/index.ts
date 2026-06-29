@@ -1081,9 +1081,13 @@ Deno.serve(async (req) => {
       };
       const nonFashionResponse = normalized('non_fashion', msg, nonFashionAttributes, nonFashionIdentification);
       const responseWithAttributes = ensureLegacyAttributes(nonFashionResponse);
-      const normalizedIdentification = normalizeIdentification(responseWithAttributes.identification);
+      const normalizedIdentification = normalizeIdentification(
+        responseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
+      );
       const rankedProducts = rankRecommendedProducts(
-        responseWithAttributes.recommendedProducts ?? [],
+        Array.isArray(responseWithAttributes.recommendedProducts)
+          ? responseWithAttributes.recommendedProducts
+          : [],
         normalizedIdentification,
       );
       const finalResponse = {
@@ -1136,9 +1140,13 @@ Deno.serve(async (req) => {
 
     const completedResponse = normalized('completed', userMessage, attributes, identification);
     const responseWithAttributes = ensureLegacyAttributes(completedResponse);
-    const normalizedIdentification = normalizeIdentification(responseWithAttributes.identification);
+    const normalizedIdentification = normalizeIdentification(
+      responseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
+    );
     const rankedProducts = rankRecommendedProducts(
-      responseWithAttributes.recommendedProducts ?? [],
+      Array.isArray(responseWithAttributes.recommendedProducts)
+        ? responseWithAttributes.recommendedProducts
+        : [],
       normalizedIdentification,
     );
     const finalResponse = {
