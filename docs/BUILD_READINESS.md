@@ -33,7 +33,7 @@
 
 ## What works in mock mode
 
-- Compose UI navigation (Scan, Processing, Results, Library, Settings, Error)
+- Compose UI navigation (Scan, Processing, Results, Closet, Settings, Error)
 - D-pad / keyboard input mapping
 - Mock photo capture
 - Mock or real API analyze (config flag)

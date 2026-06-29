@@ -15,7 +15,7 @@ import com.kscan.glasses.ui.components.FocusableCard
 import com.kscan.glasses.ui.components.StatusChip
 import com.kscan.glasses.ui.components.VoiceHint
 
-private val actions = listOf("Scan", "Library", "Settings")
+private val actions = listOf("Scan", "Closet", "Settings")
 
 @Composable
 fun ScanScreen(
@@ -51,7 +51,7 @@ fun ScanScreen(
                 title = label,
                 subtitle = when (label) {
                     "Scan" -> "Capture and analyze fashion"
-                    "Library" -> "Saved looks on phone"
+                    "Closet" -> "Saved looks on phone"
                     else -> "Mock mode & audio-only toggle"
                 },
                 focused = index == focusedIndex,

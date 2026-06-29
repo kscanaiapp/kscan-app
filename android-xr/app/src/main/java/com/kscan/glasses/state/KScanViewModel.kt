@@ -64,7 +64,7 @@ class KScanViewModel(
 
     private var scanSession = ScanSession(id = UUID.randomUUID().toString(), startedAtMs = System.currentTimeMillis())
 
-    private val actionItems = listOf("Scan", "Library", "Settings")
+    private val actionItems = listOf("Scan", "Closet", "Settings")
     private val resultsActions = listOf("Save", "Open on Phone", "Scan Again")
     private var focusNavigator = FocusNavigator({ actionItems.size })
 
@@ -175,7 +175,7 @@ class KScanViewModel(
         when (val event = focusNavigator.onInput(input)) {
             is FocusEvent.Activated -> when (actionItems[event.index]) {
                 "Scan" -> startScanIfIdle()
-                "Library" -> _screen.value = AppScreen.LIBRARY
+                "Closet" -> _screen.value = AppScreen.LIBRARY
                 "Settings" -> _screen.value = AppScreen.SETTINGS
             }
             is FocusEvent.Back -> Unit
