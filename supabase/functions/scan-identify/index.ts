@@ -26,6 +26,17 @@
 // Kill switch: set SCAN_IDENTIFY_AI_ENABLED=false (trim/case-insensitive) to disable.
 // Model precedence: SCAN_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL.
 
+import {
+  cleanAiJsonText,
+  normalizeIdentification,
+  rankRecommendedProducts,
+  deriveLegacyAttributesFromIdentification,
+  ensureLegacyAttributes,
+  buildAuditEvent,
+  logScanIdentificationAudit,
+  safeParseAiJson,
+  type NormalizedIdentification,
+} from '../_shared/scanHelpers.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -39,7 +50,7 @@ const CORS_HEADERS = {
 // Max compressed base64 payload accepted from the client (2 MB of base64 chars).
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_QUERY_LEN = 500;
-const MAX_OUTPUT_TOKENS = 1024;
+const MAX_OUTPUT_TOKENS = 2048;
 // Provider call timeout. Target is ~5s; an 8s hard cap absorbs cold starts / free
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
@@ -82,6 +93,7 @@ const IDENTIFICATION_STRING_KEYS = [
   'closure',
   'visible_brand_text',
   'brand_guess',
+  'scan_quality_note',
 ] as const;
 const IDENTIFICATION_ARRAY_KEYS = [
   'secondary_colors',
@@ -89,6 +101,7 @@ const IDENTIFICATION_ARRAY_KEYS = [
   'style_tags',
   'occasion_tags',
   'search_queries',
+  'styling_suggestions',
 ] as const;
 const IDENTIFICATION_BOOLEAN_KEYS = ['logo_detected', 'non_fashion'] as const;
 const IDENTIFICATION_NUMBER_KEYS = ['confidence_score'] as const;
@@ -106,18 +119,75 @@ const SAFE_TEXT_NON_FASHION_MESSAGE =
 
 // ── Provider prompts (server-side only) ────────────────────────────────────────
 
-const IDENTIFY_PROMPT = `You are a high-fidelity fashion identification engine. Analyze the provided image and identify the SINGLE dominant fashion item. Ignore people, faces, bodies, backgrounds, and bystanders. Do not infer demographic traits, race, age, gender, body type, or health.
+const IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
 
-If the image contains clothing, footwear, accessories, or jewelry, return detailed fashion attributes.
-If the image contains landscapes, food, animals, interiors, text-only content, or no fashion-relevant item, return non_fashion.
+Analyze the uploaded image and identify the dominant fashion item only.
 
-Be specific. Prefer "black double-breasted blazer with gold buttons" over "jacket." Prefer "white ribbed sleeveless tank top" over "shirt." Prefer "floral puff-sleeve midi dress" over "dress."
+Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plates, furniture, and background clutter.
 
-Never hallucinate a brand, SKU, exact material, or exact product name. Use unknown, null, or [] when uncertain. Only set brand_guess when visible brand text/logo or strong evidence exists.
+Do not identify people.
+Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
+
+Return strict JSON only.
+No markdown.
+No commentary.
+
+Use the existing response shape:
+- status
+- userMessage
+- attributes
+- recommendedProducts
+- identification
+
+The \`attributes\` object is legacy and must remain populated for the current app.
+
+The optional \`identification\` object must include:
+- visual_observation
+- item_type
+- subtype
+- primary_color
+- secondary_colors
+- pattern
+- material_estimate
+- silhouette
+- fit
+- length
+- sleeve_length
+- neckline_or_lapel
+- closure
+- distinctive_features
+- style_tags
+- occasion_tags
+- visible_brand_text
+- logo_detected
+- brand_guess
+- confidence_score
+- search_queries
+- non_fashion
+- styling_suggestions
+- scan_quality_note
+
+If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
+
+If confidence_score is below 0.70, include scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
+
+If confidence_score is 0.70 or higher, set scan_quality_note to null.
 
 Return strict JSON only, matching exactly this shape:
 {
   "status": "completed" | "non_fashion",
+  "attributes": {
+    "category": "blazer",
+    "itemType": "double-breasted blazer",
+    "silhouette": "structured",
+    "colorPalette": ["black"],
+    "materialEstimate": "wool blend",
+    "pattern": "solid",
+    "texture": "wool blend",
+    "styleTags": ["tailored", "minimalist", "polished"],
+    "occasion": "workwear",
+    "confidenceScore": 0.84
+  },
   "identification": {
     "visual_observation": "A concise 1-2 sentence description of the dominant fashion item only.",
     "item_type": "blazer",
@@ -144,8 +214,11 @@ Return strict JSON only, matching exactly this shape:
       "tailored black blazer structured shoulders",
       "minimalist black blazer peak lapel"
     ],
-    "non_fashion": false
+    "non_fashion": false,
+    "styling_suggestions": ["Pair with tailored trousers and a silk blouse.", "Layer over a monochrome dress for a sharp look."],
+    "scan_quality_note": null
   },
+  "recommendedProducts": [],
   "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
 }
 
@@ -156,6 +229,18 @@ Input description: A black tailored blazer with structured shoulders, gold butto
 Expected output:
 {
   "status": "completed",
+  "attributes": {
+    "category": "blazer",
+    "itemType": "double-breasted blazer",
+    "silhouette": "structured",
+    "colorPalette": ["black"],
+    "materialEstimate": "wool blend",
+    "pattern": "solid",
+    "texture": "wool blend",
+    "styleTags": ["tailored", "minimalist", "polished"],
+    "occasion": "workwear",
+    "confidenceScore": 0.92
+  },
   "identification": {
     "visual_observation": "A black double-breasted blazer with structured shoulders, peak lapels, and gold buttons.",
     "item_type": "blazer",
@@ -182,8 +267,11 @@ Expected output:
       "tailored black blazer structured shoulders",
       "minimalist black blazer peak lapel"
     ],
-    "non_fashion": false
+    "non_fashion": false,
+    "styling_suggestions": ["Pair with tailored trousers and a silk blouse.", "Layer over a monochrome dress for a sharp look."],
+    "scan_quality_note": null
   },
+  "recommendedProducts": [],
   "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
 }
 
@@ -192,6 +280,18 @@ Input description: A floral midi dress with short puff sleeves, fitted waist, an
 Expected output:
 {
   "status": "completed",
+  "attributes": {
+    "category": "dress",
+    "itemType": "puff-sleeve midi dress",
+    "silhouette": "A-line",
+    "colorPalette": ["multi", "green", "pink"],
+    "materialEstimate": "lightweight cotton or viscose",
+    "pattern": "floral",
+    "texture": "lightweight cotton or viscose",
+    "styleTags": ["feminine", "romantic", "summer"],
+    "occasion": "daytime",
+    "confidenceScore": 0.89
+  },
   "identification": {
     "visual_observation": "A floral puff-sleeve midi dress with a fitted waist and soft flowing skirt.",
     "item_type": "dress",
@@ -218,8 +318,11 @@ Expected output:
       "A-line floral midi dress short sleeve",
       "romantic summer dress puff sleeves"
     ],
-    "non_fashion": false
+    "non_fashion": false,
+    "styling_suggestions": ["Style with strappy sandals and a woven clutch for brunch.", "Add a denim jacket and white sneakers for a casual day out."],
+    "scan_quality_note": null
   },
+  "recommendedProducts": [],
   "userMessage": "Floral puff-sleeve midi dress with a fitted waist and soft flowing skirt."
 }
 
@@ -228,6 +331,18 @@ Input description: White low-top leather sneakers with rubber sole and minimal b
 Expected output:
 {
   "status": "completed",
+  "attributes": {
+    "category": "sneakers",
+    "itemType": "low-top leather sneakers",
+    "silhouette": "low-top",
+    "colorPalette": ["white"],
+    "materialEstimate": "leather upper, rubber sole",
+    "pattern": "solid",
+    "texture": "leather upper, rubber sole",
+    "styleTags": ["minimalist", "casual", "streetwear"],
+    "occasion": "casual",
+    "confidenceScore": 0.87
+  },
   "identification": {
     "visual_observation": "White low-top leather sneakers with a rubber sole and minimal branding.",
     "item_type": "sneakers",
@@ -254,8 +369,11 @@ Expected output:
       "minimalist white leather sneakers",
       "casual white low top sneakers"
     ],
-    "non_fashion": false
+    "non_fashion": false,
+    "styling_suggestions": ["Wear with cropped jeans and a plain tee for a clean look.", "Pair with a midi skirt and oversized sweater for contrast."],
+    "scan_quality_note": null
   },
+  "recommendedProducts": [],
   "userMessage": "White low-top leather sneakers with a rubber sole and minimal branding."
 }
 
@@ -264,20 +382,34 @@ Input description: A coffee mug on a desk.
 Expected output:
 {
   "status": "non_fashion",
+  "recommendedProducts": [],
+  "userMessage": "This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories.",
+  "attributes": {
+    "category": "unknown",
+    "itemType": "NON_FASHION",
+    "silhouette": "unknown",
+    "colorPalette": [],
+    "materialEstimate": "unknown",
+    "pattern": "unknown",
+    "texture": "unknown",
+    "styleTags": [],
+    "occasion": "unknown",
+    "confidenceScore": 0.95
+  },
   "identification": {
-    "visual_observation": "This is a coffee mug, not a fashion item.",
+    "visual_observation": "The image appears to show a non-fashion item.",
     "item_type": "NON_FASHION",
-    "subtype": null,
-    "primary_color": null,
+    "subtype": "unknown",
+    "primary_color": "unknown",
     "secondary_colors": [],
-    "pattern": null,
-    "material_estimate": null,
-    "silhouette": null,
-    "fit": null,
-    "length": null,
-    "sleeve_length": null,
-    "neckline_or_lapel": null,
-    "closure": null,
+    "pattern": "unknown",
+    "material_estimate": "unknown",
+    "silhouette": "unknown",
+    "fit": "unknown",
+    "length": "unknown",
+    "sleeve_length": "unknown",
+    "neckline_or_lapel": "unknown",
+    "closure": "unknown",
     "distinctive_features": [],
     "style_tags": [],
     "occasion_tags": [],
@@ -286,9 +418,10 @@ Expected output:
     "brand_guess": null,
     "confidence_score": 0.95,
     "search_queries": [],
-    "non_fashion": true
-  },
-  "userMessage": "This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories."
+    "non_fashion": true,
+    "styling_suggestions": [],
+    "scan_quality_note": null
+  }
 }
 
 Rules:
@@ -297,20 +430,78 @@ Rules:
 - Do not include people, identity, or demographic fields under any key.
 - If a person or face appears, state in visual_observation that they were ignored and focus only on the clothing or accessory.
 - For non_fashion, item_type must be "NON_FASHION" and non_fashion must be true.
-- userMessage should be a concise, friendly summary derived from visual_observation.`;
+- userMessage should be a concise, friendly summary derived from visual_observation.
+- The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
 
-const TEXT_IDENTIFY_PROMPT = `You are a high-fidelity fashion identification engine. Analyze this fashion text query and identify the described item.
+const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
 
-If the query describes clothing, footwear, accessories, or fashion styling, return detailed fashion attributes.
-If the query is about non-fashion topics (landscapes, food, animals, interiors, etc.), return non_fashion.
+Analyze this fashion text query and identify the described item.
 
-Be specific. Prefer "black double-breasted blazer with gold buttons" over "jacket." Prefer "white ribbed sleeveless tank top" over "shirt." Prefer "floral puff-sleeve midi dress" over "dress."
+Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plates, furniture, and background clutter.
 
-Never hallucinate a brand, SKU, exact material, or exact product name. Use unknown, null, or [] when uncertain. Only set brand_guess when visible brand text/logo or strong evidence exists.
+Do not identify people.
+Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
+
+Return strict JSON only.
+No markdown.
+No commentary.
+
+Use the existing response shape:
+- status
+- userMessage
+- attributes
+- recommendedProducts
+- identification
+
+The \`attributes\` object is legacy and must remain populated for the current app.
+
+The optional \`identification\` object must include:
+- visual_observation
+- item_type
+- subtype
+- primary_color
+- secondary_colors
+- pattern
+- material_estimate
+- silhouette
+- fit
+- length
+- sleeve_length
+- neckline_or_lapel
+- closure
+- distinctive_features
+- style_tags
+- occasion_tags
+- visible_brand_text
+- logo_detected
+- brand_guess
+- confidence_score
+- search_queries
+- non_fashion
+- styling_suggestions
+- scan_quality_note
+
+If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
+
+If confidence_score is below 0.70, include scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
+
+If confidence_score is 0.70 or higher, set scan_quality_note to null.
 
 Return strict JSON only, matching exactly this shape:
 {
   "status": "completed" | "non_fashion",
+  "attributes": {
+    "category": "blazer",
+    "itemType": "double-breasted blazer",
+    "silhouette": "structured",
+    "colorPalette": ["black"],
+    "materialEstimate": "wool blend",
+    "pattern": "solid",
+    "texture": "wool blend",
+    "styleTags": ["tailored", "minimalist", "polished"],
+    "occasion": "workwear",
+    "confidenceScore": 0.84
+  },
   "identification": {
     "visual_observation": "A concise 1-2 sentence description of the described fashion item.",
     "item_type": "blazer",
@@ -337,8 +528,11 @@ Return strict JSON only, matching exactly this shape:
       "tailored black blazer structured shoulders",
       "minimalist black blazer peak lapel"
     ],
-    "non_fashion": false
+    "non_fashion": false,
+    "styling_suggestions": ["Pair with tailored trousers and a silk blouse.", "Layer over a monochrome dress for a sharp look."],
+    "scan_quality_note": null
   },
+  "recommendedProducts": [],
   "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
 }
 
@@ -346,7 +540,8 @@ Rules:
 - Return JSON only. No markdown, no prose outside the JSON.
 - If uncertain about any field, use null, unknown, or [].
 - For non_fashion, item_type must be "NON_FASHION" and non_fashion must be true.
-- userMessage should be a concise, friendly summary derived from visual_observation.`;
+- userMessage should be a concise, friendly summary derived from visual_observation.
+- The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -515,26 +710,13 @@ function buildAttributesFromIdentification(
 
 /** Strip markdown fences and parse the first JSON object from model text. */
 function parseModelJson(text: string): Record<string, unknown> | null {
-  let t = text.trim().replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
   try {
-    const parsed = JSON.parse(t);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    // Fallback: extract the first {...} block.
-    const start = t.indexOf('{');
-    const end = t.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        const parsed = JSON.parse(t.slice(start, end + 1));
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-          ? (parsed as Record<string, unknown>)
-          : null;
-      } catch {
-        return null;
-      }
+    const parsed = safeParseAiJson(text);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
     }
+    return null;
+  } catch {
     return null;
   }
 }
@@ -633,6 +815,9 @@ Deno.serve(async (req) => {
     source?: unknown;
     localPrivacyFiltered?: unknown;
     clientTimestamp?: unknown;
+    scanId?: unknown;
+    scan_id?: unknown;
+    id?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -644,6 +829,15 @@ Deno.serve(async (req) => {
   const source = typeof body.source === 'string' ? body.source : 'unknown';
   let imageBase64 = '';
   let textQuery = '';
+
+  // Resolve scan ID for audit logging
+  const scanId = typeof body.scanId === 'string' && body.scanId.trim()
+    ? body.scanId.trim()
+    : typeof body.scan_id === 'string' && body.scan_id.trim()
+    ? body.scan_id.trim()
+    : typeof body.id === 'string' && body.id.trim()
+    ? body.id.trim()
+    : req.headers.get('x-scan-id') || req.headers.get('x-request-id') || crypto.randomUUID();
 
   if (mode === 'text') {
     textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
@@ -762,6 +956,16 @@ Deno.serve(async (req) => {
         String(meta.status ?? 'none'),
         elapsedMs,
       );
+      // Audit log failure
+      const failureAudit = buildAuditEvent(
+        { status: 'failed' },
+        null,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      failureAudit.error_reason = 'gemini_http_error';
+      logScanIdentificationAudit(failureAudit);
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -770,6 +974,15 @@ Deno.serve(async (req) => {
       data = JSON.parse(raw);
     } catch {
       console.warn('[scan-identify] gemini_parse_failure mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
+      const failureAudit = buildAuditEvent(
+        { status: 'failed' },
+        null,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      failureAudit.error_reason = 'gemini_parse_failure';
+      logScanIdentificationAudit(failureAudit);
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -783,12 +996,30 @@ Deno.serve(async (req) => {
         blockReason ?? 'none',
         elapsedMs,
       );
+      const failureAudit = buildAuditEvent(
+        { status: 'failed' },
+        null,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      failureAudit.error_reason = 'gemini_empty';
+      logScanIdentificationAudit(failureAudit);
       return json(normalized('failed', safeFailed), 200);
     }
 
     const parsed = parseModelJson(text);
     if (!parsed) {
       console.warn('[scan-identify] model_json_unparseable mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
+      const failureAudit = buildAuditEvent(
+        { status: 'failed' },
+        null,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      failureAudit.error_reason = 'model_json_unparseable';
+      logScanIdentificationAudit(failureAudit);
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -809,11 +1040,78 @@ Deno.serve(async (req) => {
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
       const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
       console.log('[scan-identify] ok uid=%s mode=%s source=%s status=non_fashion elapsedMs=%d', userId.slice(0, 8), mode, source, elapsedMs);
-      return json(normalized('non_fashion', msg), 200);
+      // Build non-fashion response with safe attributes and identification
+      const nonFashionIdentification = identification ?? {
+        visual_observation: 'The image appears to show a non-fashion item.',
+        item_type: 'NON_FASHION',
+        subtype: 'unknown',
+        primary_color: 'unknown',
+        secondary_colors: [],
+        pattern: 'unknown',
+        material_estimate: 'unknown',
+        silhouette: 'unknown',
+        fit: 'unknown',
+        length: 'unknown',
+        sleeve_length: 'unknown',
+        neckline_or_lapel: 'unknown',
+        closure: 'unknown',
+        distinctive_features: [],
+        style_tags: [],
+        occasion_tags: [],
+        visible_brand_text: null,
+        logo_detected: false,
+        brand_guess: null,
+        confidence_score: 0.95,
+        search_queries: [],
+        non_fashion: true,
+        styling_suggestions: [],
+        scan_quality_note: null,
+      };
+      const nonFashionAttributes = attributes ?? {
+        category: 'unknown',
+        itemType: 'NON_FASHION',
+        silhouette: 'unknown',
+        colorPalette: [],
+        materialEstimate: 'unknown',
+        pattern: 'unknown',
+        texture: 'unknown',
+        styleTags: [],
+        occasion: 'unknown',
+        confidenceScore: 0.95,
+      };
+      const nonFashionResponse = normalized('non_fashion', msg, nonFashionAttributes, nonFashionIdentification);
+      const responseWithAttributes = ensureLegacyAttributes(nonFashionResponse);
+      const normalizedIdentification = normalizeIdentification(responseWithAttributes.identification);
+      const rankedProducts = rankRecommendedProducts(
+        responseWithAttributes.recommendedProducts ?? [],
+        normalizedIdentification,
+      );
+      const finalResponse = {
+        ...responseWithAttributes,
+        recommendedProducts: rankedProducts,
+      };
+      const auditEvent = buildAuditEvent(
+        finalResponse,
+        normalizedIdentification,
+        rankedProducts,
+        elapsedMs,
+        scanId,
+      );
+      logScanIdentificationAudit(auditEvent);
+      return json(finalResponse, 200);
     }
 
     if (!attributes) {
       console.warn('[scan-identify] completed_without_attributes mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
+      const failureAudit = buildAuditEvent(
+        { status: 'failed' },
+        null,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      failureAudit.error_reason = 'completed_without_attributes';
+      logScanIdentificationAudit(failureAudit);
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -835,10 +1133,40 @@ Deno.serve(async (req) => {
       identification ? Object.keys(identification).length : 0,
       elapsedMs,
     );
-    return json(normalized('completed', userMessage, attributes, identification), 200);
+
+    const completedResponse = normalized('completed', userMessage, attributes, identification);
+    const responseWithAttributes = ensureLegacyAttributes(completedResponse);
+    const normalizedIdentification = normalizeIdentification(responseWithAttributes.identification);
+    const rankedProducts = rankRecommendedProducts(
+      responseWithAttributes.recommendedProducts ?? [],
+      normalizedIdentification,
+    );
+    const finalResponse = {
+      ...responseWithAttributes,
+      recommendedProducts: rankedProducts,
+    };
+    const auditEvent = buildAuditEvent(
+      finalResponse,
+      normalizedIdentification,
+      rankedProducts,
+      elapsedMs,
+      scanId,
+    );
+    logScanIdentificationAudit(auditEvent);
+    return json(finalResponse, 200);
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
-    console.warn('[scan-identify] %s mode=%s source=%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', mode, source, Date.now() - startedAt);
+    const elapsedMs = Date.now() - startedAt;
+    console.warn('[scan-identify] %s mode=%s source=%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', mode, source, elapsedMs);
+    const failureAudit = buildAuditEvent(
+      { status: 'failed' },
+      null,
+      [],
+      elapsedMs,
+      scanId,
+    );
+    failureAudit.error_reason = isTimeout ? 'timeout' : 'exception';
+    logScanIdentificationAudit(failureAudit);
     return json(normalized('failed', safeFailed), 200);
   } finally {
     clearTimeout(timer);

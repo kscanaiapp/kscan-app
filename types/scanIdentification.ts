@@ -70,6 +70,8 @@ export type DetailedIdentification = {
   confidence_score?: number;
   search_queries?: string[];
   non_fashion?: boolean;
+  styling_suggestions?: string[];
+  scan_quality_note?: string | null;
 };
 
 export type ScanIdentifyResponse = {
@@ -81,4 +83,31 @@ export type ScanIdentifyResponse = {
   /** Always [] in this slice — product matching is deferred. */
   recommendedProducts: [];
   userMessage?: string;
+};
+
+export type MatchConfidenceTier =
+  | 'exact_candidate'
+  | 'closest_match'
+  | 'similar_style'
+  | 'discovery_fallback';
+
+export type NormalizedIdentification = Partial<DetailedIdentification> & {
+  canonicalCategory: string;
+  canonicalColor: string;
+  canonicalMaterial: string;
+  canonicalSilhouette: string;
+  normalizedFeatures: string[];
+  normalizedStyleTags: string[];
+  normalizedSearchQueries: string[];
+};
+
+export type RankedScanProduct = Record<string, unknown> & {
+  id?: string;
+  name?: string;
+  title?: string;
+  displayName?: string;
+  matchScore?: number;
+  similarityPercentage?: number;
+  confidenceTier?: MatchConfidenceTier;
+  matchReasons?: Record<string, number | boolean | string>;
 };
