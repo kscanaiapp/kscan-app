@@ -13,7 +13,7 @@
  * prices, or match scores are produced.
  */
 
-import type { ScanIdentifyResponse, FashionAttributes } from '../types/scanIdentification';
+import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification } from '../types/scanIdentification';
 
 export type MappedScanMetadata = {
   category: string;
@@ -55,20 +55,42 @@ export function createScanError(userMessage: string): Error & { userMessage: str
   return err;
 }
 
-function buildMetadata(attributes: FashionAttributes | undefined): MappedScanMetadata {
+function buildMetadata(
+  attributes: FashionAttributes | undefined,
+  identification?: DetailedIdentification,
+): MappedScanMetadata {
   const a = attributes ?? {};
+  const id = identification ?? {};
+
+  // Prefer identification fields over legacy attributes (Day-1 prompt upgrade).
+  let color = '';
+  if (id.primary_color) {
+    const colors = [id.primary_color];
+    if (Array.isArray(id.secondary_colors) && id.secondary_colors.length) {
+      colors.push(...id.secondary_colors);
+    }
+    color = colors.join(', ');
+  } else if (Array.isArray(a.colorPalette) && a.colorPalette.length) {
+    color = a.colorPalette.join(', ');
+  }
+
   const meta: MappedScanMetadata = {
-    category: a.category ?? '',
-    color: Array.isArray(a.colorPalette) ? a.colorPalette.join(', ') : '',
-    silhouette: a.silhouette ?? '',
+    category: id.item_type ?? a.category ?? '',
+    color,
+    silhouette: id.silhouette ?? a.silhouette ?? '',
   };
-  if (a.itemType) meta.itemType = a.itemType;
-  if (a.materialEstimate) meta.materialEstimate = a.materialEstimate;
-  if (a.pattern) meta.pattern = a.pattern;
+  if (a.itemType || id.subtype || id.item_type) meta.itemType = id.subtype ?? id.item_type ?? a.itemType;
+  if (a.materialEstimate || id.material_estimate) meta.materialEstimate = id.material_estimate ?? a.materialEstimate;
+  if (a.pattern || id.pattern) meta.pattern = id.pattern ?? a.pattern;
   if (a.texture) meta.texture = a.texture;
-  if (a.occasion) meta.occasion = a.occasion;
-  if (Array.isArray(a.styleTags) && a.styleTags.length) meta.styleTags = a.styleTags;
-  if (typeof a.confidenceScore === 'number') meta.confidenceScore = a.confidenceScore;
+  if (a.occasion || (Array.isArray(id.occasion_tags) && id.occasion_tags.length)) {
+    meta.occasion = (id.occasion_tags?.length ? id.occasion_tags[0] : undefined) ?? a.occasion;
+  }
+  const styleTags = Array.isArray(a.styleTags) && a.styleTags.length ? a.styleTags : undefined;
+  const idStyleTags = Array.isArray(id.style_tags) && id.style_tags.length ? id.style_tags : undefined;
+  if (styleTags || idStyleTags) meta.styleTags = idStyleTags ?? styleTags;
+  const conf = id.confidence_score ?? a.confidenceScore;
+  if (typeof conf === 'number') meta.confidenceScore = conf;
   return meta;
 }
 
@@ -90,10 +112,15 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
   }
 
   if (resp.status === 'completed') {
+    // Prefer the rich visual_observation for the displayed result string.
+    const result =
+      resp.identification?.visual_observation?.trim() ??
+      resp.userMessage?.trim() ??
+      DEFAULT_FASHION_SUMMARY;
     return {
       type: 'fashion',
-      result: resp.userMessage?.trim() || DEFAULT_FASHION_SUMMARY,
-      metadata: buildMetadata(resp.attributes),
+      result,
+      metadata: buildMetadata(resp.attributes, resp.identification),
       products: [],
     };
   }

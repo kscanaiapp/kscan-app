@@ -202,3 +202,110 @@ test('identifyScanImage: invoke error → failed', async () => {
   const out = await adapter.identifyScanImage(TINY_DATA_URI, { source: 'camera' });
   assert.equal(out.status, 'failed');
 });
+
+// ── New identification mapping tests (Day-1 prompt upgrade) ───────────────────
+
+test('mapper: identification.visual_observation preferred for result', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    userMessage: 'A tan trench coat.',
+    attributes: {
+      category: 'Outerwear',
+      silhouette: 'Relaxed straight fit',
+      colorPalette: ['Tan', 'Camel'],
+      itemType: 'Trench coat',
+      confidenceScore: 0.86,
+    },
+    identification: {
+      visual_observation: 'A classic tan double-breasted trench coat with wide lapels and a belted waist.',
+      item_type: 'trench coat',
+      subtype: 'double-breasted trench coat',
+      primary_color: 'tan',
+      secondary_colors: ['camel'],
+      pattern: 'solid',
+      material_estimate: 'cotton gabardine',
+      silhouette: 'structured',
+      fit: 'relaxed',
+      length: 'knee length',
+      sleeve_length: 'long sleeve',
+      neckline_or_lapel: 'notch lapel',
+      closure: 'double-breasted buttons',
+      distinctive_features: ['belted waist', 'storm flap'],
+      style_tags: ['classic', 'timeless', 'polished'],
+      occasion_tags: ['workwear', 'rainwear', 'travel'],
+      visible_brand_text: null,
+      logo_detected: false,
+      brand_guess: null,
+      confidence_score: 0.91,
+      search_queries: [
+        'tan double breasted trench coat belted waist',
+        'classic tan trench coat storm flap',
+      ],
+      non_fashion: false,
+    },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.result, 'A classic tan double-breasted trench coat with wide lapels and a belted waist.');
+  assert.equal(out.metadata.category, 'trench coat');
+  assert.equal(out.metadata.color, 'tan, camel');
+  assert.equal(out.metadata.silhouette, 'structured');
+  assert.equal(out.metadata.itemType, 'double-breasted trench coat');
+  assert.equal(out.metadata.materialEstimate, 'cotton gabardine');
+  assert.equal(out.metadata.pattern, 'solid');
+  assert.equal(out.metadata.occasion, 'workwear');
+  assert.deepStrictEqual(out.metadata.styleTags, ['classic', 'timeless', 'polished']);
+  assert.equal(out.metadata.confidenceScore, 0.91);
+  assertEmptyArray(out.products);
+});
+
+test('mapper: identification color preferred over legacy colorPalette', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    attributes: {
+      category: 'Tops',
+      colorPalette: ['Red', 'White'],
+    },
+    identification: {
+      visual_observation: 'A red silk blouse.',
+      primary_color: 'crimson',
+      secondary_colors: ['ivory'],
+    },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.result, 'A red silk blouse.');
+  assert.equal(out.metadata.color, 'crimson, ivory');
+});
+
+test('adapter: normalizeScanIdentifyResponse passes identification through', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    recommendedProducts: [],
+    attributes: { category: 'Footwear' },
+    identification: {
+      visual_observation: 'White leather sneakers.',
+      item_type: 'sneakers',
+      confidence_score: 0.87,
+    },
+  });
+  assert.equal(out.status, 'completed');
+  assert.equal(out.identification.visual_observation, 'White leather sneakers.');
+  assert.equal(out.identification.item_type, 'sneakers');
+  assert.equal(out.identification.confidence_score, 0.87);
+});
+
+test('adapter: normalizeScanIdentifyResponse clamps identification confidence_score', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    recommendedProducts: [],
+    attributes: { category: 'Footwear' },
+    identification: {
+      visual_observation: 'White leather sneakers.',
+      confidence_score: 1.5,
+    },
+  });
+  assert.equal(out.identification.confidence_score, 1);
+});

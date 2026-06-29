@@ -43,10 +43,41 @@ export type ScanIdentifyRequest = {
   clientTimestamp: string;
 };
 
+/**
+ * Rich fashion identification output from the backend prompt upgrade.
+ * Added as an optional backward-compatible field on ScanIdentifyResponse.
+ */
+export type DetailedIdentification = {
+  visual_observation?: string;
+  item_type?: string;
+  subtype?: string;
+  primary_color?: string;
+  secondary_colors?: string[];
+  pattern?: string;
+  material_estimate?: string;
+  silhouette?: string;
+  fit?: string;
+  length?: string;
+  sleeve_length?: string;
+  neckline_or_lapel?: string;
+  closure?: string;
+  distinctive_features?: string[];
+  style_tags?: string[];
+  occasion_tags?: string[];
+  visible_brand_text?: string | null;
+  logo_detected?: boolean;
+  brand_guess?: string | null;
+  confidence_score?: number;
+  search_queries?: string[];
+  non_fashion?: boolean;
+};
+
 export type ScanIdentifyResponse = {
   scanId?: string;
   status: FashionIdentificationStatus;
   attributes?: FashionAttributes;
+  /** Rich identification fields (Day-1 prompt upgrade). Optional for backward compat. */
+  identification?: DetailedIdentification;
   /** Always [] in this slice — product matching is deferred. */
   recommendedProducts: [];
   userMessage?: string;

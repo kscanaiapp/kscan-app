@@ -18,6 +18,7 @@ import type {
   ScanIdentifyRequest,
   ScanIdentifyResponse,
   FashionAttributes,
+  DetailedIdentification,
 } from '../types/scanIdentification';
 
 const EDGE_FN = 'scan-identify';
@@ -82,6 +83,55 @@ function normalizeAttributes(raw: unknown): FashionAttributes | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
+function normalizeIdentification(raw: unknown): DetailedIdentification | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: DetailedIdentification = {};
+
+  const stringKeys: (keyof DetailedIdentification)[] = [
+    'visual_observation',
+    'item_type',
+    'subtype',
+    'primary_color',
+    'pattern',
+    'material_estimate',
+    'silhouette',
+    'fit',
+    'length',
+    'sleeve_length',
+    'neckline_or_lapel',
+    'closure',
+    'visible_brand_text',
+    'brand_guess',
+  ];
+  const arrayKeys: (keyof DetailedIdentification)[] = [
+    'secondary_colors',
+    'distinctive_features',
+    'style_tags',
+    'occasion_tags',
+    'search_queries',
+  ];
+
+  for (const key of stringKeys) {
+    const v = src[key];
+    if (typeof v === 'string' && v.trim()) (out as Record<string, unknown>)[key] = v.trim();
+  }
+  for (const key of arrayKeys) {
+    const v = src[key];
+    if (Array.isArray(v)) {
+      const items = v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim());
+      if (items.length) (out as Record<string, unknown>)[key] = items;
+    }
+  }
+  if (typeof src.logo_detected === 'boolean') out.logo_detected = src.logo_detected;
+  if (typeof src.non_fashion === 'boolean') out.non_fashion = src.non_fashion;
+  const conf = src.confidence_score;
+  const n = typeof conf === 'number' ? conf : typeof conf === 'string' ? Number(conf) : NaN;
+  if (Number.isFinite(n)) out.confidence_score = Math.max(0, Math.min(1, n));
+
+  return Object.keys(out).length ? out : undefined;
+}
+
 /**
  * Normalize a raw Edge Function payload into a guaranteed-safe response shape.
  * Exported for unit testing.
@@ -107,6 +157,7 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
       status: 'completed',
       recommendedProducts: [],
       attributes,
+      identification: normalizeIdentification(src.identification),
       userMessage: userMessage ?? 'Identified a fashion item from your scan.',
       scanId: typeof src.scanId === 'string' ? src.scanId : undefined,
     };
