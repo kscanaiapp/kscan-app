@@ -23,6 +23,7 @@ import {
   isRemoteImageUrl,
   UnsupportedStyleObjectItemError,
 } from '../services/styleObjects';
+import type { ProductMatchSnapshotSource } from '../types/styleObjects';
 
 export interface Product {
   id?:         string;
@@ -44,9 +45,11 @@ export interface Product {
   image_src?:  string | null;
   product_image_url?: string | null;
   imageCategory?: string | null;
+  category?:   string | null;
   productUrl?: string | null;
   purchaseUrl?: string | null;
   purchase_url?: string | null;
+  product_url?: string | null;
   url?:        string | null;
   link?:       string | null;
   affiliateUrl?: string | null;
@@ -411,12 +414,25 @@ function AddToRoomModal({
   const [message, setMessage] = useState<string | null>(null);
   const [newRoomTitle, setNewRoomTitle] = useState('');
 
+  function toSnapshotPrice(price: string | number | null | undefined): string | null {
+    if (price === null || price === undefined || price === '') return null;
+    if (typeof price === 'number' && (!Number.isFinite(price) || price <= 0)) return null;
+    return String(price);
+  }
+
+  function normalizeForSnapshot(p: Product): ProductMatchSnapshotSource {
+    return {
+      ...p,
+      price: toSnapshotPrice(p.price),
+    };
+  }
+
   const handleAdd = async (roomId: string) => {
     if (!product || saving) return;
     setSaving(true);
     setMessage(null);
     try {
-      await addProductToDressingRoom(roomId, product);
+      await addProductToDressingRoom(roomId, normalizeForSnapshot(product));
       const roomName = rooms.find((room) => room.id === roomId)?.title || 'Dressing Room';
       setMessage(`Saved to ${roomName}.`);
       setTimeout(onClose, 900);
@@ -441,7 +457,7 @@ function AddToRoomModal({
         title: newRoomTitle,
         description: null,
       });
-      await addProductToDressingRoom(room.id, product);
+      await addProductToDressingRoom(room.id, normalizeForSnapshot(product));
       setNewRoomTitle('');
       setMessage(`Saved to ${room.title}.`);
       await reload();

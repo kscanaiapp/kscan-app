@@ -5,12 +5,13 @@
  * existing result UI — no UI rewrite required.
  *
  * Output shapes (match `services/api.js` `analyzeImage`):
- *   completed    → { type: 'fashion', result, metadata, products: [] }
+ *   completed    → { type: 'fashion', result, metadata, products }
  *   non_fashion  → { type: 'non-fashion', message }
  *   failed       → throws a user-safe error (caught by useKScan → error state)
  *
- * Product matching is deferred: `products` is always []. No retailer data,
- * prices, or match scores are produced.
+ * `products` is the backend `recommendedProducts` (catalog-ranked candidates)
+ * passed straight through, falling back to [] when absent. ProductShelf reads
+ * each candidate's image/url/retailer/price fields directly.
  */
 
 import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification, RankedScanProduct, DisplayResult } from '../types/scanIdentification';

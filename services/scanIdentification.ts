@@ -7,9 +7,12 @@
  * Guarantees:
  *   - Uses the current authenticated Supabase client (token attached by invoke).
  *   - Validates + size-guards the payload before any network call (<= 2 MB).
- *   - Always returns a normalized response (status, recommendedProducts: [],
+ *   - Always returns a normalized response (status, recommendedProducts,
  *     userMessage); never throws raw provider/network errors at the UI.
- *   - recommendedProducts is always [] in this slice (product matching deferred).
+ *   - On `completed`, passes through the backend `recommendedProducts` array
+ *     (catalog-ranked candidates) unchanged except for light field hygiene;
+ *     falls back to [] when the field is missing/null/invalid. `non_fashion`
+ *     and `failed` always return [].
  *   - Does not touch TextScan.
  */
 

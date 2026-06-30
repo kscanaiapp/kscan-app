@@ -6,8 +6,9 @@
  * image-agnostic at the attribute level so TextScan can later return the same
  * `FashionAttributes` shape from a text query instead of an image.
  *
- * Product matching is deferred: `recommendedProducts` is always `[]` in this
- * slice. No retailer data, prices, or match scores are produced here.
+ * `recommendedProducts` carries catalog-ranked candidates from the backend
+ * (`scan-identify` + `_shared/catalogRetrieval`). It is an array — empty when
+ * the backend has no matches, populated otherwise.
  */
 
 export type FashionIdentificationStatus =
