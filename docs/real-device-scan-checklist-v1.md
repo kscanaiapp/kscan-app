@@ -90,6 +90,14 @@ npx expo start --android
 - [ ] No crash
 - [ ] Screenshot captured
 
+## Dressing Room Save Path
+- [ ] Tap a product card's Add to Dressing Room action.
+- [ ] Add a product to an existing Dressing Room.
+- [ ] Create a new Dressing Room and add the product in the same modal flow.
+- [ ] Verify the saved item appears in the target room with title, image, retailer/category, price if present, and product link if present.
+- [ ] Test a product with missing price and confirm save/display does not show `$0.00` or "Free".
+- [ ] Capture screenshots and Metro/device logs for any save failure.
+
 ## Debug Checklist (if shelf does not appear)
 1. Check Metro logs: did `scan-identify` return `recommendedProducts`?
 2. Check `analysis.products` is populated in `useKScan` / `app.js`.

@@ -111,4 +111,101 @@ describe('normalizeForSnapshot', () => {
     const out = normalizeForSnapshot({ price: 0 });
     assert.equal(out.price, null);
   });
+
+  it('preserves TEST catalog row shape and exposes save-ready fields', () => {
+    const product = {
+      id: 'catalog-bag-1',
+      product_name: 'Leather Tote',
+      retailer: 'Staging Retailer',
+      image_url: 'https://placehold.co/400x600?text=Tote',
+      product_url: 'https://example.com/tote',
+      canonical_category: 'handbag',
+      price: 249,
+    };
+
+    const out = normalizeForSnapshot(product);
+
+    assert.equal(out.product_name, 'Leather Tote');
+    assert.equal(out.image_url, 'https://placehold.co/400x600?text=Tote');
+    assert.equal(out.product_url, 'https://example.com/tote');
+    assert.equal(out.canonical_category, 'handbag');
+    assert.equal(out.id, 'catalog-bag-1');
+    assert.equal(out.title, 'Leather Tote');
+    assert.equal(out.retailer, 'Staging Retailer');
+    assert.equal(out.imageUrl, 'https://placehold.co/400x600?text=Tote');
+    assert.equal(out.productUrl, 'https://example.com/tote');
+    assert.equal(out.imageCategory, 'handbag');
+    assert.equal(out.price, '249');
+  });
+
+  it('normalizes camelCase product rows for the Dressing Room save contract', () => {
+    const out = normalizeForSnapshot({
+      externalProductId: 'external-dress-1',
+      productName: 'Silk Slip Dress',
+      brand: 'Atelier Test',
+      imageUrl: 'https://example.com/dress.jpg',
+      productUrl: 'https://example.com/dress',
+      category: 'Dresses',
+      price: '$120',
+    });
+
+    assert.equal(out.id, 'external-dress-1');
+    assert.equal(out.title, 'Silk Slip Dress');
+    assert.equal(out.retailer, 'Atelier Test');
+    assert.equal(out.imageUrl, 'https://example.com/dress.jpg');
+    assert.equal(out.productUrl, 'https://example.com/dress');
+    assert.equal(out.imageCategory, 'Dresses');
+    assert.equal(out.price, '$120');
+  });
+
+  it('does not throw when optional save fields are missing', () => {
+    let out;
+
+    assert.doesNotThrow(() => {
+      out = normalizeForSnapshot({
+        id: 'minimal-product',
+        name: 'Minimal Product',
+        price: undefined,
+      });
+    });
+
+    assert.equal(out.id, 'minimal-product');
+    assert.equal(out.title, 'Minimal Product');
+    assert.equal(out.price, null);
+    assert.equal(out.imageUrl, null);
+    assert.equal(out.productUrl, null);
+    assert.equal(out.purchaseUrl, null);
+    assert.equal(out.retailer, null);
+    assert.equal(out.imageCategory, null);
+  });
+
+  it('uses deterministic stable IDs without introducing random IDs', () => {
+    const withBothIds = normalizeForSnapshot({
+      id: 'catalog-id',
+      external_product_id: 'external-id',
+      title: 'Stable Product',
+    });
+    const withExternalOnly = normalizeForSnapshot({
+      external_product_id: 'external-only',
+      title: 'External Product',
+    });
+    const withoutStableId = normalizeForSnapshot({ title: 'Unkeyed Product' });
+
+    assert.equal(withBothIds.id, 'catalog-id');
+    assert.equal(withExternalOnly.id, 'external-only');
+    assert.equal(withoutStableId.id, null);
+    assert.equal(normalizeForSnapshot({ title: 'Unkeyed Product' }).id, null);
+  });
+
+  it('ProductShelf add and create flows use the same normalized snapshot shape', () => {
+    const productShelf = fs.readFileSync(
+      path.join(ROOT, 'components', 'ProductShelf.tsx'),
+      'utf8'
+    );
+    const normalizedSaves = productShelf.match(
+      /addProductToDressingRoom\([^,]+,\s*normalizeForSnapshot\(product\)\)/g
+    );
+
+    assert.equal(normalizedSaves?.length, 2);
+  });
 });

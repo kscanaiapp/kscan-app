@@ -120,7 +120,8 @@ test('ProductShelf exposes a visible Add to Dressing Room action', () => {
 test('ProductShelf gates Dressing Room saves by title and remote image eligibility', () => {
   assert.match(productShelf, /canAddProductToDressingRoom/);
   assert.match(productShelf, /getProductTitle\(product\)\.length > 0/);
-  assert.match(productShelf, /isRemoteImageUrl\(product\?\.imageUrl\)/);
+  assert.match(productShelf, /isRemoteImageUrl\(getProductImageUrl\(product\)\)/);
+  assert.match(productShelf, /product\.image_url/);
   assert.match(productShelf, /Can't Save Yet/);
 });
 
