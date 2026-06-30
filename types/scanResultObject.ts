@@ -29,6 +29,9 @@ export type ScanResultSource = 'camera' | 'upload' | 'room' | 'unknown';
 /** Confidence buckets for display + explainability. */
 export type ScanConfidenceLabel = 'high' | 'medium' | 'low' | 'exploratory';
 
+/** Honest product-match type for the result card. */
+export type ScanResultType = 'exact' | 'close' | 'style' | 'exploratory';
+
 /** Named signals we may be missing for a confident identity. */
 export type ScanMissingSignal =
   | 'brand'
@@ -118,6 +121,15 @@ export type ResultCardViewModel = {
   heroImageUrl: string | null;
   badges: string[];
   confidenceLabel: ScanConfidenceLabel;
+  resultType: ScanResultType;
+  matchQualityLabel: string;
+  signalsFound: Array<{ label: string; value: string }>;
+  primaryReason: string;
+  secondaryReasons: string[];
+  missingSignals: ScanMissingSignal[];
+  cardCtaLabel: string;
+  emptyMatchMessage: string;
+  heroFallbackLabel: string;
   primaryMatch: RankedScanProduct | null;
   matchCount: number;
   saveEnabled: boolean;

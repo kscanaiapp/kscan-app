@@ -44,6 +44,8 @@ export type CatalogProductCandidate = {
   last_seen_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  match_widened_from?: string;
+  match_widened_stage?: string;
 };
 
 // ── Fetch ───────────────────────────────────────────────────────────────────────
@@ -73,21 +75,26 @@ export async function fetchCatalogCandidates(
   const sb = supabaseClient as { from: (table: string) => { select: (cols: string) => { eq: (col: string, val: string) => { limit: (n: number) => { order: (col: string, opts?: { ascending?: boolean; nullsFirst?: boolean }) => Promise<{ data: unknown[] | null; error: { message: string } | null }> } } } } };
 
   try {
-    const { data, error } = await sb
-      .from('product_catalog')
-      .select('*')
-      .eq('canonical_category', canonicalCategory)
-      .limit(limit * 3)
-      .order('last_seen_at', { ascending: false, nullsFirst: false });
+    const primaryRows = await fetchCatalogCategoryRows(sb, canonicalCategory, limit * 3);
+    const rows = [...primaryRows];
+    const seenIds = new Set(rows.map((row) => row.id).filter(Boolean));
 
-    if (error) {
-      console.warn('[catalogRetrieval] query_error category=%s message=%s', canonicalCategory, error.message);
-      return [];
+    if (rows.length < Math.min(4, limit)) {
+      for (const adjacentCategory of getAdjacentCatalogCategories(canonicalCategory)) {
+        const adjacentRows = await fetchCatalogCategoryRows(sb, adjacentCategory, limit);
+        for (const row of adjacentRows) {
+          if (row.id && seenIds.has(row.id)) continue;
+          if (row.id) seenIds.add(row.id);
+          rows.push({
+            ...row,
+            match_widened_from: canonicalCategory,
+            match_widened_stage: `adjacent:${adjacentCategory}`,
+          });
+          if (rows.length >= limit * 3) break;
+        }
+        if (rows.length >= Math.min(4, limit)) break;
+      }
     }
-
-    if (!Array.isArray(data)) return [];
-
-    const rows = data as CatalogProductCandidate[];
 
     // Sort in JS: exact color match first, then availability, then last_seen_at, then created_at
     const color = normalizedIdentification.canonicalColor;
@@ -117,6 +124,32 @@ export async function fetchCatalogCandidates(
     console.warn('[catalogRetrieval] exception category=%s message=%s', canonicalCategory, msg);
     return [];
   }
+}
+
+async function fetchCatalogCategoryRows(
+  sb: { from: (table: string) => { select: (cols: string) => { eq: (col: string, val: string) => { limit: (n: number) => { order: (col: string, opts?: { ascending?: boolean; nullsFirst?: boolean }) => Promise<{ data: unknown[] | null; error: { message: string } | null }> } } } } },
+  canonicalCategory: string,
+  rowLimit: number,
+): Promise<CatalogProductCandidate[]> {
+  const { data, error } = await sb
+    .from('product_catalog')
+    .select('*')
+    .eq('canonical_category', canonicalCategory)
+    .limit(rowLimit)
+    .order('last_seen_at', { ascending: false, nullsFirst: false });
+
+  if (error) {
+    console.warn('[catalogRetrieval] query_error category=%s message=%s', canonicalCategory, error.message);
+    return [];
+  }
+
+  return Array.isArray(data) ? data as CatalogProductCandidate[] : [];
+}
+
+function getAdjacentCatalogCategories(canonicalCategory: string): string[] {
+  if (canonicalCategory === 'top') return ['dress', 'outerwear'];
+  if (canonicalCategory === 'pants') return ['outerwear'];
+  return [];
 }
 
 function availabilityPriority(availability?: string | null): number {

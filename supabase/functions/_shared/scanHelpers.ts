@@ -402,25 +402,39 @@ function scoreRecommendedProduct(
   const reasons: Record<string, number | boolean | string> = {};
 
   const pCat = typeof product.category === 'string' ? product.category : '';
+  const pCanonicalCat = typeof product.canonical_category === 'string' ? product.canonical_category : '';
   const pItemType = typeof product.itemType === 'string' ? product.itemType : '';
   const pTags = normalizeStringArray(product.tags);
   const pStyleTags = normalizeStringArray(product.styleTags);
+  const pStyleTagsSnake = normalizeStringArray(product.style_tags);
+  const pMaterialTags = normalizeStringArray(product.material_tags);
   const pBrand = typeof product.brand === 'string' ? product.brand : '';
   const pName = typeof product.name === 'string' ? product.name : '';
   const pTitle = typeof product.title === 'string' ? product.title : '';
+  const pProductName = typeof product.product_name === 'string' ? product.product_name : '';
   const pDisplay = typeof product.displayName === 'string' ? product.displayName : '';
   const pColor = typeof product.color === 'string' ? product.color : '';
+  const pColorNormalized = typeof product.color_normalized === 'string' ? product.color_normalized : '';
   const pColorPalette = normalizeStringArray(product.colorPalette);
-  const allText = `${pCat} ${pItemType} ${pTags.join(' ')} ${pStyleTags.join(' ')} ${pBrand} ${pName} ${pTitle} ${pDisplay} ${pColor} ${pColorPalette.join(' ')}`.toLowerCase();
+  const allProductTags = [...pTags, ...pStyleTags, ...pStyleTagsSnake].map((tag) => tag.toLowerCase());
+  const allText = `${pCanonicalCat} ${pCat} ${pItemType} ${allProductTags.join(' ')} ${pMaterialTags.join(' ')} ${pBrand} ${pName} ${pTitle} ${pProductName} ${pDisplay} ${pColor} ${pColorNormalized} ${pColorPalette.join(' ')}`.toLowerCase();
 
   // Category match (0.35)
   const catMatch = normalizedIdentification.canonicalCategory &&
     (allText.includes(normalizedIdentification.canonicalCategory) ||
+      pCanonicalCat.toLowerCase() === normalizedIdentification.canonicalCategory ||
       pCat.toLowerCase() === normalizedIdentification.canonicalCategory ||
       pItemType.toLowerCase() === normalizedIdentification.canonicalCategory);
   if (catMatch) {
     score += 0.35;
     reasons.category_match = true;
+  }
+
+  const widenedFrom = typeof product.match_widened_from === 'string' ? product.match_widened_from : '';
+  if (!catMatch && widenedFrom === normalizedIdentification.canonicalCategory) {
+    score += 0.25;
+    reasons.adjacent_category_match = true;
+    reasons.match_widened_from = widenedFrom;
   }
 
   // Color match (0.20)
@@ -453,7 +467,7 @@ function scoreRecommendedProduct(
   // Material match (0.08)
   const pMat = typeof product.material === 'string' ? product.material : '';
   const pMatEst = typeof product.materialEstimate === 'string' ? product.materialEstimate : '';
-  const matText = `${pMat} ${pMatEst}`.toLowerCase();
+  const matText = `${pMat} ${pMatEst} ${pMaterialTags.join(' ')}`.toLowerCase();
   const matMatch = normalizedIdentification.canonicalMaterial &&
     matText.includes(normalizedIdentification.canonicalMaterial);
   if (matMatch) {
@@ -463,7 +477,9 @@ function scoreRecommendedProduct(
 
   // Style tag match (0.07)
   const styleOverlap = normalizedIdentification.normalizedStyleTags.length > 0 &&
-    normalizedIdentification.normalizedStyleTags.some((st) => pStyleTags.includes(st) || pTags.includes(st));
+    normalizedIdentification.normalizedStyleTags
+      .map((st) => st.toLowerCase())
+      .some((st) => allProductTags.includes(st));
   if (styleOverlap) {
     score += 0.07;
     reasons.style_match = true;
@@ -478,7 +494,7 @@ function scoreRecommendedProduct(
   }
 
   // Product appears available/in stock (0.02)
-  const inStock = product.availability === 'in stock' || product.inStock === true || product.in_stock === true;
+  const inStock = product.availability === 'in stock' || product.availability === 'in_stock' || product.inStock === true || product.in_stock === true;
   if (inStock) {
     score += 0.02;
     reasons.in_stock = true;
@@ -510,11 +526,13 @@ export function rankRecommendedProducts(
       normalizedIdentification.visible_brand_text.trim().length > 0
     ) || normalizedIdentification.logo_detected === true;
 
-    if (score >= 0.90 && hasBrandEvidence) {
+    const widened = typeof product.match_widened_from === 'string' && product.match_widened_from.length > 0;
+
+    if (!widened && score >= 0.90 && hasBrandEvidence) {
       confidenceTier = 'exact_candidate';
-    } else if (score >= 0.75) {
+    } else if (!widened && score >= 0.75) {
       confidenceTier = 'closest_match';
-    } else if (score >= 0.55) {
+    } else if (score >= 0.50) {
       confidenceTier = 'similar_style';
     } else {
       confidenceTier = 'discovery_fallback';

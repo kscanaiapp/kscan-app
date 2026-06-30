@@ -27,6 +27,7 @@ import type {
   ScanResultObject,
   ScanResultSource,
   ScanConfidenceLabel,
+  ScanResultType,
   ScanMissingSignal,
   ScanItemAttributes,
   ScanResultVisual,
@@ -207,6 +208,10 @@ function getProductTitle(product: RankedScanProduct | null | undefined): string 
   );
 }
 
+function hasSafeProductUrl(product: RankedScanProduct | null | undefined): boolean {
+  return !!resolveSafeProductUrl(product);
+}
+
 // ── field resolution ──────────────────────────────────────────────────────────
 
 function resolveColor(
@@ -333,7 +338,11 @@ function deriveConfidenceLabel(
   input: CreateScanResultInput,
   matchCount: number,
 ): ScanConfidenceLabel {
-  // Honor an explicit displayResult label when it's already one of ours.
+  const weakIdentity = !hasBrandIdentity(input) && matchCount === 0;
+  const score = item.confidence;
+
+  // Honor an explicit displayResult label when it's already one of ours, while
+  // still capping weak identity so confidence stays honest.
   const explicit = cleanText(input.displayResult?.confidenceLabel).toLowerCase();
   if (
     explicit === 'high' ||
@@ -341,11 +350,9 @@ function deriveConfidenceLabel(
     explicit === 'low' ||
     explicit === 'exploratory'
   ) {
+    if (weakIdentity && explicit === 'high') return score != null && score >= 0.55 ? 'low' : 'exploratory';
     return explicit as ScanConfidenceLabel;
   }
-
-  const weakIdentity = !hasBrandIdentity(input) && matchCount === 0;
-  const score = item.confidence;
 
   if (score == null) {
     // No numeric signal: lean exploratory unless we at least found matches.
@@ -401,6 +408,14 @@ function buildCardSubtitle(
   matchCount: number,
   confidence: ScanConfidenceLabel,
 ): string {
+  const signalCount = buildSignalsFound(item).length;
+  if (matchCount === 0) return 'Product matches will improve as the catalog grows.';
+  if ((confidence === 'high' || confidence === 'medium') && signalCount >= 4) {
+    return 'Matched on category, color, material, and silhouette.';
+  }
+  if (matchCount > 0 && (confidence === 'high' || confidence === 'medium')) {
+    return 'Good visual similarity. Exact product identity is still learning.';
+  }
   const weak = confidence === 'exploratory' || (!item.category && confidence === 'low');
   if (matchCount > 0) {
     if (weak) return 'Style match found — exact item still learning';
@@ -425,6 +440,86 @@ function buildBadges(item: ScanItemAttributes): string[] {
   return dedupe(badges.map(capitalizeFirst)).slice(0, 5);
 }
 
+function buildSignalsFound(item: ScanItemAttributes): Array<{ label: string; value: string }> {
+  const signals: Array<{ label: string; value: string }> = [];
+  if (item.category) signals.push({ label: 'Category', value: capitalizeFirst(item.category) });
+  if (item.color) signals.push({ label: 'Color', value: item.color });
+  if (item.material) signals.push({ label: 'Material', value: capitalizeFirst(item.material) });
+  if (item.silhouette) signals.push({ label: 'Silhouette', value: capitalizeFirst(item.silhouette) });
+  if (item.styleTags.length) {
+    signals.push({ label: 'Style tags', value: item.styleTags.slice(0, 3).join(', ') });
+  }
+  return signals;
+}
+
+function hasExactProductEvidence(
+  input: CreateScanResultInput,
+  primaryMatch: RankedScanProduct | null | undefined,
+  confidence: ScanConfidenceLabel,
+): boolean {
+  if (confidence !== 'high' || !primaryMatch) return false;
+  if (!hasBrandIdentity(input)) return false;
+  if (!getProductTitle(primaryMatch)) return false;
+  if (!resolveSafeProductImage(primaryMatch) || !hasSafeProductUrl(primaryMatch)) return false;
+  return true;
+}
+
+function deriveResultType(
+  item: ScanItemAttributes,
+  confidence: ScanConfidenceLabel,
+  matches: RankedScanProduct[],
+  input: CreateScanResultInput,
+): ScanResultType {
+  const primary = matches[0] ?? null;
+  if (hasExactProductEvidence(input, primary, confidence)) return 'exact';
+  if (matches.length > 0 && (confidence === 'high' || confidence === 'medium')) return 'close';
+  if (matches.length > 0) return 'style';
+  if (item.category || item.color || item.material || item.styleTags.length) return 'exploratory';
+  return 'exploratory';
+}
+
+function buildMatchQualityLabel(resultType: ScanResultType, matchCount: number): string {
+  if (matchCount === 0) return 'Style analysis ready';
+  if (resultType === 'exact') return 'Exact match candidate';
+  if (resultType === 'close') return 'Strong style match';
+  if (resultType === 'style') return 'Close style match';
+  return 'Style direction found';
+}
+
+function buildPrimaryReason(
+  item: ScanItemAttributes,
+  resultType: ScanResultType,
+  matchCount: number,
+): string {
+  if (matchCount === 0) return 'Product matches will improve as the catalog grows.';
+  const labels = buildSignalsFound(item).map((signal) => signal.label.toLowerCase());
+  if (labels.length >= 4) return 'Matched on category, color, material, and silhouette.';
+  if (labels.length > 0) return `Matched on ${labels.slice(0, 4).join(', ')}.`;
+  if (resultType === 'style' || resultType === 'exploratory') {
+    return 'We found similar pieces based on the strongest visible signals.';
+  }
+  return 'Good visual similarity. Exact product identity is still learning.';
+}
+
+function buildSecondaryReasons(
+  item: ScanItemAttributes,
+  resultType: ScanResultType,
+  missingSignals: ScanMissingSignal[],
+): string[] {
+  const reasons: string[] = [];
+  if (item.styleTags.length) reasons.push(`Style direction: ${item.styleTags.slice(0, 3).join(', ')}.`);
+  if (resultType !== 'exact') reasons.push('Exact product identity is still learning.');
+  if (missingSignals.includes('brand')) reasons.push('No clear brand or logo was visible.');
+  if (missingSignals.includes('product image')) reasons.push('No safe catalog hero image was available.');
+  return dedupe(reasons).slice(0, 3);
+}
+
+function buildCardCtaLabel(matchCount: number): string {
+  return matchCount > 0
+    ? 'Save this scan to your Style Memory.'
+    : 'Create an account to save this scan to your Style Memory.';
+}
+
 function buildVisual(
   item: ScanItemAttributes,
   matches: RankedScanProduct[],
@@ -444,16 +539,14 @@ function buildWhyThisMatched(
   item: ScanItemAttributes,
   matches: RankedScanProduct[],
 ): string {
-  const signals = [item.category, item.color, item.material]
+  const signals = [item.category, item.color, item.material, item.silhouette]
     .map((s) => cleanText(s))
     .filter(Boolean);
   if (matches.length && signals.length) {
-    return `Matched on ${signals.join(', ')} against ${matches.length} catalog ${
-      matches.length === 1 ? 'candidate' : 'candidates'
-    }.`;
+    return buildPrimaryReason(item, 'style', matches.length);
   }
   if (signals.length) {
-    return `Identified ${signals.join(', ')} from the scan. No catalog match yet.`;
+    return `Identified ${signals.join(', ')} from the scan. Product matches will improve as the catalog grows.`;
   }
   return 'Limited signal from this scan — saved as exploratory style metadata.';
 }
@@ -531,12 +624,44 @@ export function createResultCardViewModel(
       ? scanResultObject
       : createScanResultObject({});
   const matches = Array.isArray(sro.matches) ? sro.matches : [];
+  const missingSignals = Array.isArray(sro.explainability.missingSignals)
+    ? sro.explainability.missingSignals
+    : [];
+  const inferredInput: CreateScanResultInput = {
+    identification: {
+      brand_guess: missingSignals.includes('brand') ? null : 'visible brand signal',
+      logo_detected: !missingSignals.includes('brand'),
+    },
+  };
+  const resultType = deriveResultType(
+    sro.item,
+    sro.explainability.confidenceLabel,
+    matches,
+    inferredInput,
+  );
+  const signalsFound = buildSignalsFound(sro.item);
   return {
     title: sro.visual.cardTitle,
-    subtitle: sro.visual.cardSubtitle,
+    subtitle:
+      resultType === 'exact' || resultType === 'close'
+        ? 'Matched on category, color, material, and silhouette.'
+        : resultType === 'style'
+          ? 'Good visual similarity. Exact product identity is still learning.'
+          : matches.length === 0
+            ? 'Product matches will improve as the catalog grows.'
+            : 'We found similar pieces based on the strongest visible signals.',
     heroImageUrl: sro.visual.heroImageUrl ?? null,
     badges: Array.isArray(sro.visual.badges) ? sro.visual.badges : [],
     confidenceLabel: sro.explainability.confidenceLabel,
+    resultType,
+    matchQualityLabel: buildMatchQualityLabel(resultType, matches.length),
+    signalsFound,
+    primaryReason: sro.explainability.whyThisMatched || buildPrimaryReason(sro.item, resultType, matches.length),
+    secondaryReasons: buildSecondaryReasons(sro.item, resultType, missingSignals),
+    missingSignals,
+    cardCtaLabel: buildCardCtaLabel(matches.length),
+    emptyMatchMessage: 'Style analysis ready. Product matches will improve as the catalog grows.',
+    heroFallbackLabel: signalsFound[0]?.value || 'Style metadata',
     primaryMatch: matches[0] ?? null,
     matchCount: matches.length,
     saveEnabled: true,

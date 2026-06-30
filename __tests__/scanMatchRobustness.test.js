@@ -199,6 +199,27 @@ test('color with no catalog match still returns all category rows (no over-filte
   assert.ok(rows.every((r) => r.canonical_category === 'outerwear'));
 });
 
+test('sparse top scan widens to adjacent style-family catalog rows', async () => {
+  const id = scanHelpers.normalizeIdentification({
+    item_type: 'cotton t-shirt',
+    primary_color: 'floral',
+    style_tags: ['feminine'],
+  });
+  assert.equal(id.canonicalCategory, 'top');
+  const rows = await catalog.fetchCatalogCandidates(client, id, { limit: 30 });
+  assert.ok(rows.length > 0, 'top should not dead-end when adjacent style-family rows exist');
+  assert.ok(rows.some((r) => r.match_widened_from === 'top'), 'widened rows are labeled');
+
+  const ranked = scanHelpers.rankRecommendedProducts(
+    rows.map(catalog.adaptCatalogCandidate),
+    id,
+  );
+  assert.ok(ranked.length > 0);
+  assert.equal(ranked[0].confidenceTier, 'similar_style');
+  assert.notEqual(ranked[0].confidenceTier, 'exact_candidate');
+  assert.equal(ranked[0].matchReasons.adjacent_category_match, true);
+});
+
 // ── in_stock-first ordering ──────────────────────────────────────────────────
 
 test('in_stock rows sort ahead of out_of_stock / null availability', async () => {

@@ -263,8 +263,8 @@ export function AnalysisCard({
                   ? <ProductShelf products={products} />
                   : (
                     <View style={styles.emptyState}>
-                      <Text style={styles.noMatchNote}>No exact matches found.</Text>
-                      <Text style={styles.noMatchSub}>Try scanning the item from a clearer front angle. We’re adding more products every day.</Text>
+                      <Text style={styles.noMatchNote}>Style analysis ready.</Text>
+                      <Text style={styles.noMatchSub}>Product matches will improve as the catalog grows. Save the strongest style signals and compare future finds.</Text>
                     </View>
                   )
               ) : null}

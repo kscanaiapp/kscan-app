@@ -224,12 +224,16 @@ test('createResultCardViewModel derives title/subtitle/badges/matchCount', () =>
   const vm = sro.createResultCardViewModel(obj);
   assert.equal(typeof vm.title, 'string');
   assert.ok(vm.title.length > 0);
-  assert.equal(vm.subtitle, '2 close matches found');
+  assert.equal(vm.subtitle, 'Matched on category, color, material, and silhouette.');
   assert.ok(Array.isArray(vm.badges));
   assert.ok(vm.badges.length > 0);
   assert.equal(vm.matchCount, 2);
   assert.equal(vm.primaryMatch.id, 'p1');
   assert.equal(vm.confidenceLabel, 'high');
+  assert.equal(vm.resultType, 'exact');
+  assert.equal(vm.matchQualityLabel, 'Exact match candidate');
+  assert.ok(vm.signalsFound.some((signal) => signal.label === 'Category'));
+  assert.ok(vm.primaryReason.includes('Matched on category'));
   assert.equal(vm.privacyCaption, 'Saved as style metadata, not a raw photo.');
 });
 

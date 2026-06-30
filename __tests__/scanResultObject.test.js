@@ -228,7 +228,12 @@ test('ResultCardViewModel has title, subtitle, badges, matchCount, confidenceLab
   assert.equal(card.confidenceLabel, 'high');
   assert.equal(card.primaryMatch.id, 'p1');
   assert.equal(card.privacyCaption, 'Saved as style metadata, not a raw photo.');
-  assert.equal(card.subtitle, '3 close matches found');
+  assert.equal(card.resultType, 'exact');
+  assert.equal(card.matchQualityLabel, 'Exact match candidate');
+  assert.equal(card.subtitle, 'Matched on category, color, material, and silhouette.');
+  assert.ok(card.primaryReason.includes('Matched on category'));
+  assert.ok(card.signalsFound.some((signal) => signal.label === 'Category' && signal.value === 'Jacket'));
+  assert.ok(card.signalsFound.some((signal) => signal.label === 'Color' && signal.value === 'Black, Charcoal'));
   assert.equal(card.saveEnabled, true);
   assert.equal(card.shareEnabled, true);
   assert.equal(card.compareEnabled, true);
@@ -342,4 +347,40 @@ test('weak identity single match shows learning subtitle', () => {
     recommendedProducts: [{ id: 'q', imageUrl: 'https://cdn.example.com/q.jpg' }],
   });
   assert.equal(out.visual.cardSubtitle, 'Style match found — exact item still learning');
+  const card = sro.createResultCardViewModel(out);
+  assert.equal(card.resultType, 'style');
+  assert.equal(card.matchQualityLabel, 'Close style match');
+  assert.equal(card.subtitle, 'Good visual similarity. Exact product identity is still learning.');
+});
+
+test('weak scan produces exploratory result card copy', () => {
+  const out = sro.createScanResultObject(weakScan());
+  const card = sro.createResultCardViewModel(out);
+  assert.equal(card.resultType, 'exploratory');
+  assert.equal(card.matchQualityLabel, 'Style analysis ready');
+  assert.equal(card.emptyMatchMessage, 'Style analysis ready. Product matches will improve as the catalog grows.');
+  assert.ok(card.missingSignals.includes('brand'));
+});
+
+test('no product matches still produce useful result-card copy', () => {
+  const input = strongScan();
+  input.recommendedProducts = [];
+  input.displayResult = {};
+  const out = sro.createScanResultObject(input);
+  const card = sro.createResultCardViewModel(out);
+  assert.equal(card.matchCount, 0);
+  assert.equal(card.resultType, 'exploratory');
+  assert.equal(card.matchQualityLabel, 'Style analysis ready');
+  assert.equal(card.subtitle, 'Product matches will improve as the catalog grows.');
+});
+
+test('result card never claims exact match without strong evidence', () => {
+  const input = strongScan();
+  input.identification.brand_guess = null;
+  input.identification.logo_detected = false;
+  const out = sro.createScanResultObject(input);
+  const card = sro.createResultCardViewModel(out);
+  assert.notEqual(card.resultType, 'exact');
+  assert.notEqual(card.matchQualityLabel, 'Exact match candidate');
+  assert.ok(card.missingSignals.includes('brand'));
 });
