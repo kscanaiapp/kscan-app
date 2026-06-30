@@ -19,6 +19,8 @@ import type {
   ScanIdentifyResponse,
   FashionAttributes,
   DetailedIdentification,
+  DisplayResult,
+  RankedScanProduct,
 } from '../types/scanIdentification';
 
 const EDGE_FN = 'scan-identify';
@@ -132,9 +134,36 @@ function normalizeIdentification(raw: unknown): DetailedIdentification | undefin
   return Object.keys(out).length ? out : undefined;
 }
 
+function normalizeRecommendedProducts(raw: unknown): RankedScanProduct[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((p): p is Record<string, unknown> => p && typeof p === 'object' && !Array.isArray(p))
+    .map((p) => {
+      const out: RankedScanProduct = { ...p };
+      if (typeof p.id !== 'string') delete (out as Record<string, unknown>).id;
+      return out;
+    });
+}
+
+function normalizeDisplayResult(raw: unknown): DisplayResult | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: DisplayResult = {};
+  if (typeof src.headline === 'string' && src.headline.trim()) out.headline = src.headline.trim();
+  if (typeof src.details === 'string' && src.details.trim()) out.details = src.details.trim();
+  if (Array.isArray(src.styling)) {
+    const items = src.styling
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim());
+    if (items.length) out.styling = items;
+  }
+  if (typeof src.confidenceLabel === 'string' && src.confidenceLabel.trim()) {
+    out.confidenceLabel = src.confidenceLabel.trim();
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /**
- * Normalize a raw Edge Function payload into a guaranteed-safe response shape.
- * Exported for unit testing.
  */
 export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyResponse {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return failed();
@@ -155,11 +184,12 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
     if (!attributes) return failed();
     return {
       status: 'completed',
-      recommendedProducts: [],
+      recommendedProducts: normalizeRecommendedProducts(src.recommendedProducts),
       attributes,
       identification: normalizeIdentification(src.identification),
       userMessage: userMessage ?? 'Identified a fashion item from your scan.',
       scanId: typeof src.scanId === 'string' ? src.scanId : undefined,
+      displayResult: normalizeDisplayResult(src.displayResult),
     };
   }
 

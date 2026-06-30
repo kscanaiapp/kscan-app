@@ -133,6 +133,15 @@ Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plat
 Do not identify people.
 Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
 
+Real camera scan rules:
+- If multiple clothing items are present, identify the dominant, most central, or largest fashion item.
+- Ignore accessories unless they are the primary subject.
+- Focus on garment cut, silhouette, color, texture, material, pattern, and distinctive construction details.
+- Do not infer brand unless a logo, tag, or text is clearly visible.
+- If the item is partially obscured, describe only what is visible and lower confidence_score.
+- If the image is too dark, too blurry, too far away, or the item is too small, include scan_quality_note.
+- If uncertain, return category: unknown rather than forcing a confident wrong category.
+
 Return strict JSON only.
 No markdown.
 No commentary.
@@ -554,6 +563,36 @@ const readTrimmedEnv = (name: string): string | undefined => {
   const value = Deno.env.get(name)?.trim();
   return value ? value : undefined;
 };
+
+function buildDisplayResult(
+  identification: Record<string, unknown> | undefined,
+  confidenceScore?: number,
+): Record<string, unknown> | undefined {
+  if (!identification) return undefined;
+  const out: Record<string, unknown> = {};
+  const vo = safeVisualObservation(identification.visual_observation);
+  if (vo) out.headline = vo;
+  const detailsParts: string[] = [];
+  const cat = safeString(identification.item_type);
+  if (cat) detailsParts.push(cat);
+  const color = safeString(identification.primary_color);
+  if (color) detailsParts.push(color);
+  const mat = safeString(identification.material_estimate);
+  if (mat) detailsParts.push(mat);
+  const fit = safeString(identification.fit);
+  if (fit) detailsParts.push(fit);
+  const sil = safeString(identification.silhouette);
+  if (sil) detailsParts.push(sil);
+  if (detailsParts.length) out.details = detailsParts.join(' · ');
+  const styling = safeStringArray(identification.styling_suggestions);
+  if (styling?.length) out.styling = styling;
+  if (confidenceScore !== undefined) {
+    if (confidenceScore >= 0.85) out.confidenceLabel = 'High';
+    else if (confidenceScore >= 0.70) out.confidenceLabel = 'Medium';
+    else out.confidenceLabel = 'Low';
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -1117,6 +1156,7 @@ Deno.serve(async (req) => {
       const finalResponse = {
         ...nonFashionResponseWithAttributes,
         recommendedProducts: nonFashionRankedProducts.slice(0, 10),
+        displayResult: buildDisplayResult(nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined, 0.95),
       };
       const auditEvent = buildAuditEvent(
         finalResponse,
@@ -1184,6 +1224,12 @@ Deno.serve(async (req) => {
     const finalResponse = {
       ...completedResponseWithAttributes,
       recommendedProducts: completedRankedProducts.slice(0, 10),
+      displayResult: buildDisplayResult(
+        completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
+        typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
+          ? ((completedResponseWithAttributes.identification as Record<string, unknown>).confidence_score as number)
+          : undefined,
+      ),
     };
     const auditEvent = buildAuditEvent(
       finalResponse,

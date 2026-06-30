@@ -309,3 +309,101 @@ test('adapter: normalizeScanIdentifyResponse clamps identification confidence_sc
   });
   assert.equal(out.identification.confidence_score, 1);
 });
+
+
+// ── recommendedProducts pass-through (v3 readiness) ─────────────────────────
+
+test('adapter: normalizeScanIdentifyResponse preserves recommendedProducts', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    attributes: { category: 'Outerwear' },
+    recommendedProducts: [
+      { id: 'p1', name: 'Trench Coat', matchScore: 0.92 },
+      { id: 'p2', name: 'Blazer', matchScore: 0.84 },
+    ],
+  });
+  assert.equal(out.status, 'completed');
+  assert.equal(out.recommendedProducts.length, 2);
+  assert.equal(out.recommendedProducts[0].id, 'p1');
+  assert.equal(out.recommendedProducts[1].name, 'Blazer');
+});
+
+test('adapter: normalizeScanIdentifyResponse normalizes displayResult', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    attributes: { category: 'Blazer' },
+    displayResult: {
+      headline: 'Black double-breasted blazer',
+      details: 'blazer · black · wool blend · tailored',
+      styling: ['Pair with trousers.', 'Layer over a dress.'],
+      confidenceLabel: 'High',
+    },
+  });
+  assert.equal(out.displayResult?.headline, 'Black double-breasted blazer');
+  assert.equal(out.displayResult?.details, 'blazer · black · wool blend · tailored');
+  assert.deepStrictEqual(out.displayResult?.styling, ['Pair with trousers.', 'Layer over a dress.']);
+  assert.equal(out.displayResult?.confidenceLabel, 'High');
+});
+
+test('adapter: normalizeScanIdentifyResponse strips malformed displayResult', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    attributes: { category: 'Blazer' },
+    displayResult: { headline: '', styling: ['', 123, null] },
+  });
+  assert.equal(out.displayResult, undefined);
+});
+
+// ── Mapper pass-through (v3 readiness) ───────────────────────────────────────
+
+test('mapper: recommendedProducts passed through as products', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [
+      { id: 'p1', displayName: 'Black Blazer', matchScore: 0.92 },
+    ],
+    userMessage: 'Black blazer.',
+    attributes: { category: 'blazer' },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.products.length, 1);
+  assert.equal(out.products[0].displayName, 'Black Blazer');
+});
+
+test('mapper: displayResult preserved on fashion analysis', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    userMessage: 'Black blazer.',
+    attributes: { category: 'blazer' },
+    displayResult: {
+      headline: 'Black blazer',
+      confidenceLabel: 'High',
+    },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.displayResult?.headline, 'Black blazer');
+  assert.equal(out.displayResult?.confidenceLabel, 'High');
+});
+
+test('mapper: scanQualityNote and stylingSuggestions in metadata', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    userMessage: 'Blazer.',
+    attributes: { category: 'blazer' },
+    identification: {
+      visual_observation: 'A blazer.',
+      item_type: 'blazer',
+      confidence_score: 0.65,
+      scan_quality_note: 'Too far away.',
+      styling_suggestions: ['Pair with jeans.', 'Add a belt.'],
+    },
+  });
+  assert.equal(out.metadata.confidenceScore, 0.65);
+  assert.equal(out.metadata.scanQualityNote, 'Too far away.');
+  assert.deepStrictEqual(out.metadata.stylingSuggestions, ['Pair with jeans.', 'Add a belt.']);
+});

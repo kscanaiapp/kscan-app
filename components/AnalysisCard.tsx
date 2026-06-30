@@ -37,7 +37,14 @@ const EMPTY_VALUE = '—';
 
 export interface AnalysisCardProps {
   result:    string;
-  metadata:  { category: string; color: string; silhouette: string };
+  metadata:  {
+    category: string;
+    color: string;
+    silhouette: string;
+    confidenceScore?: number;
+    scanQualityNote?: string | null;
+    stylingSuggestions?: string[];
+  };
   products?: Product[];
   secondhand?: VintedSecondhandSearchResponse | null;
   sneakerReference?: SneakerReference[] | null;
@@ -145,6 +152,10 @@ export function AnalysisCard({
   const category   = sanitizeText(meta.category);
   const color      = sanitizeText(meta.color);
   const silhouette = sanitizeText(meta.silhouette);
+  const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
+  const scanQualityNote = meta.scanQualityNote ?? undefined;
+  const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
+  const showEmptyGuidance = products.length === 0 && priceDiscoveryEnabled;
 
   return (
     <Modal transparent animationType="none" onRequestClose={runExit}>
@@ -205,6 +216,18 @@ export function AnalysisCard({
                 </Animated.View>
               </View>
 
+              {/* Low-confidence / scan quality guidance */}
+              {(showLowConfidence || scanQualityNote) && (
+                <View style={styles.guidanceBox}>
+                  <Text style={styles.guidanceTitle}>Scan tip</Text>
+                  {scanQualityNote ? (
+                    <Text style={styles.guidanceText}>{scanQualityNote}</Text>
+                  ) : (
+                    <Text style={styles.guidanceText}>Try a clearer photo with better lighting. Move closer to the garment and try a straight-on front view.</Text>
+                  )}
+                </View>
+              )}
+
               {scanImageUri && onAddToDressingRoom ? (
                 <TouchableOpacity
                   style={styles.scanRoomCta}
@@ -226,7 +249,12 @@ export function AnalysisCard({
               {priceDiscoveryEnabled ? (
                 products.length > 0
                   ? <ProductShelf products={products} />
-                  : <Text style={styles.noMatchNote}>No close catalog matches found.</Text>
+                  : (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.noMatchNote}>No exact matches found.</Text>
+                      <Text style={styles.noMatchSub}>Try scanning the item from a clearer front angle. We’re adding more products every day.</Text>
+                    </View>
+                  )
               ) : null}
 
               {resaleValuationEnabled && secondhand?.enabled && secondhand.items.length > 0 ? (
@@ -328,11 +356,35 @@ const styles = StyleSheet.create({
     gap:           SPACING.sm,
     marginTop:     SPACING.xl,
   },
+  guidanceBox: {
+    marginTop: SPACING.xl,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: LUXURY.colors.cream,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+  },
+  guidanceTitle: {
+    ...LUXURY.typography.caption,
+    marginBottom: SPACING.xs,
+  },
+  guidanceText: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+  },
+  emptyState: {
+    marginTop: SPACING.xl,
+    alignItems: 'center',
+  },
   noMatchNote: {
     ...LUXURY.typography.body,
     textAlign:     'center' as const,
-    marginTop:     SPACING.xl,
     fontStyle:     'italic' as const,
+  },
+  noMatchSub: {
+    ...LUXURY.typography.caption,
+    textAlign: 'center' as const,
+    marginTop: SPACING.sm,
   },
   scanRoomCta: {
     width: '100%',

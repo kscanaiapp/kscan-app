@@ -26,15 +26,33 @@ import {
 
 export interface Product {
   id?:         string;
+  displayName?: string;
   title?:      string;
   name?:       string;
+  product_name?: string;
   retailer?:   string;
-  price?:      string;
+  brand?:      string;
+  source?:     string;
+  merchant?:   string;
+  store?:      string;
+  price?:      string | number | null;
+  currency?:   string;
   imageUrl?:   string | null;
+  image_url?:  string | null;
+  thumbnail?:  string | null;
+  thumbnailUrl?: string | null;
+  image_src?:  string | null;
+  product_image_url?: string | null;
   imageCategory?: string | null;
   productUrl?: string | null;
   purchaseUrl?: string | null;
+  purchase_url?: string | null;
+  url?:        string | null;
+  link?:       string | null;
   affiliateUrl?: string | null;
+  availability?: string | null;
+  matchScore?: number;
+  similarityPercentage?: number;
 }
 
 interface ProductShelfProps {
@@ -57,12 +75,78 @@ function normalizeImageCategory(category: string | null | undefined) {
   return PLACEHOLDER_CATEGORIES.has(normalized) ? normalized : 'accessories';
 }
 
-function getProductTitle(product: Product | null | undefined) {
-  return String(product?.title || product?.name || '').trim();
+function getProductTitle(product: Product | null | undefined): string {
+  if (!product) return '';
+  return (
+    String(product.displayName || product.name || product.title || product.product_name || '').trim()
+  );
+}
+
+function getProductImageUrl(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const candidates = [
+    product.imageUrl,
+    product.image_url,
+    product.thumbnail,
+    product.thumbnailUrl,
+    product.image_src,
+    product.product_image_url,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+  }
+  return null;
+}
+
+function getPurchaseUrl(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const candidates = [
+    product.purchaseUrl,
+    product.productUrl,
+    product.affiliateUrl,
+    product.product_url,
+    product.purchase_url,
+    product.url,
+    product.link,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+  }
+  return null;
+}
+
+function getRetailer(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const candidates = [product.retailer, product.brand, product.source, product.merchant, product.store];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  return null;
+}
+
+function formatPrice(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const price = product.price;
+  if (price === null || price === undefined) return null;
+  if (typeof price === 'number') {
+    if (price <= 0 || !Number.isFinite(price)) return null;
+    const currency = String(product.currency || 'USD').toUpperCase();
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price);
+    } catch {
+      return `$${price.toFixed(2)}`;
+    }
+  }
+  if (typeof price === 'string') {
+    const trimmed = price.trim();
+    if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return null;
+    return trimmed;
+  }
+  return null;
 }
 
 export function canAddProductToDressingRoom(product: Product | null | undefined) {
-  return getProductTitle(product).length > 0 && isRemoteImageUrl(product?.imageUrl);
+  return getProductTitle(product).length > 0 && isRemoteImageUrl(getProductImageUrl(product));
 }
 
 function ProductImagePlaceholder({ category }: { category: string }) {
@@ -202,19 +286,24 @@ export function ProductShelf({ products }: ProductShelfProps) {
         contentContainerStyle={styles.scrollContent}
       >
         {products.map((p, i) => {
-          const purchaseUrl = p.affiliateUrl || p.productUrl || p.purchaseUrl || null;
+          const productImageUrl = getProductImageUrl(p);
+          const purchaseUrl = getPurchaseUrl(p);
           const hasLink = !!purchaseUrl;
           const productKey = p.id ?? String(i);
           const productTitle = getProductTitle(p) || 'Unknown Product';
           const canSaveToRoom = canAddProductToDressingRoom(p);
-          const imageCategory = normalizeImageCategory(p.imageCategory);
-          const showImage = !!p.imageUrl && !failedImages[productKey];
+          const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
+          const showImage = !!productImageUrl && !failedImages[productKey];
+          const retailer = getRetailer(p);
+          const priceText = formatPrice(p);
+          const availability = typeof p.availability === 'string' ? p.availability.toLowerCase() : null;
+          const isOutOfStock = availability === 'out_of_stock' || availability === 'out of stock';
           if (typeof __DEV__ !== 'undefined' && __DEV__ && !showImage) {
             console.log(
               '[K-SCAN ProductShelf] fallback',
               JSON.stringify({
-                name: p.name || 'Unknown Product',
-                hasImageUrl: !!p.imageUrl,
+                name: productTitle,
+                hasImageUrl: !!productImageUrl,
                 category: imageCategory,
               }),
             );
@@ -234,7 +323,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
               >
                 {showImage ? (
                   <CatalogProductImage
-                    uri={p.imageUrl}
+                    uri={productImageUrl}
                     productKey={productKey}
                     imageCategory={imageCategory}
                     onError={() => setFailedImages((current) => ({ ...current, [productKey]: true }))}
@@ -247,15 +336,20 @@ export function ProductShelf({ products }: ProductShelfProps) {
               </TouchableOpacity>
 
               <View style={styles.cardBody}>
-                {p.retailer ? (
+                {retailer ? (
                   <Text style={styles.retailer} numberOfLines={1}>
-                    {p.retailer.toUpperCase()}
+                    {retailer.toUpperCase()}
                   </Text>
                 ) : null}
                 <Text style={styles.name} numberOfLines={2}>
                   {productTitle}
                 </Text>
-                <Text style={styles.price}>{p.price || '—'}</Text>
+                {priceText ? (
+                  <Text style={styles.price}>{priceText}</Text>
+                ) : null}
+                {isOutOfStock ? (
+                  <Text style={styles.availabilityLabel}>Out of stock</Text>
+                ) : null}
                 {dressingRoomsEnabled ? (
                   <TouchableOpacity
                     testID="add-to-dressing-room-button"
@@ -688,6 +782,12 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.bodyStrong,
     color:      LUXURY.colors.plum,
     marginTop:  SPACING.xxs,
+  },
+  availabilityLabel: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.xxs,
   },
   linkDot: {
     position:        'absolute',

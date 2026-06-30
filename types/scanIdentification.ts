@@ -74,15 +74,24 @@ export type DetailedIdentification = {
   scan_quality_note?: string | null;
 };
 
+export type DisplayResult = {
+  headline?: string;
+  details?: string;
+  styling?: string[];
+  confidenceLabel?: string;
+};
+
 export type ScanIdentifyResponse = {
   scanId?: string;
   status: FashionIdentificationStatus;
   attributes?: FashionAttributes;
   /** Rich identification fields (Day-1 prompt upgrade). Optional for backward compat. */
   identification?: DetailedIdentification;
-  /** Always [] in this slice — product matching is deferred. */
-  recommendedProducts: [];
+  /** Catalog-ranked candidates when the backend has matching products. */
+  recommendedProducts: RankedScanProduct[];
   userMessage?: string;
+  /** Display result for seller/demo views; not integrated into ProductShelf. */
+  displayResult?: DisplayResult;
 };
 
 export type MatchConfidenceTier =

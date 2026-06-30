@@ -13,7 +13,7 @@
  * prices, or match scores are produced.
  */
 
-import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification } from '../types/scanIdentification';
+import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification, RankedScanProduct, DisplayResult } from '../types/scanIdentification';
 
 export type MappedScanMetadata = {
   category: string;
@@ -26,13 +26,16 @@ export type MappedScanMetadata = {
   occasion?: string;
   styleTags?: string[];
   confidenceScore?: number;
+  scanQualityNote?: string | null;
+  stylingSuggestions?: string[];
 };
 
 export type MappedFashionAnalysis = {
   type: 'fashion';
   result: string;
   metadata: MappedScanMetadata;
-  products: [];
+  products: RankedScanProduct[];
+  displayResult?: DisplayResult;
 };
 
 export type MappedNonFashionAnalysis = {
@@ -91,6 +94,10 @@ function buildMetadata(
   if (styleTags || idStyleTags) meta.styleTags = idStyleTags ?? styleTags;
   const conf = id.confidence_score ?? a.confidenceScore;
   if (typeof conf === 'number') meta.confidenceScore = conf;
+  if (typeof id.scan_quality_note === 'string') meta.scanQualityNote = id.scan_quality_note;
+  if (Array.isArray(id.styling_suggestions) && id.styling_suggestions.length) {
+    meta.stylingSuggestions = id.styling_suggestions;
+  }
   return meta;
 }
 
@@ -121,7 +128,8 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
       type: 'fashion',
       result,
       metadata: buildMetadata(resp.attributes, resp.identification),
-      products: [],
+      products: resp.recommendedProducts ?? [],
+      displayResult: resp.displayResult,
     };
   }
 
