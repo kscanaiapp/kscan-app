@@ -28,6 +28,7 @@
 
 import {
   cleanAiJsonText,
+  deriveConfidenceLabel,
   normalizeIdentification,
   rankRecommendedProducts,
   deriveLegacyAttributesFromIdentification,
@@ -140,7 +141,9 @@ Real camera scan rules:
 - Do not infer brand unless a logo, tag, or text is clearly visible.
 - If the item is partially obscured, describe only what is visible and lower confidence_score.
 - If the image is too dark, too blurry, too far away, or the item is too small, include scan_quality_note.
-- If uncertain, return category: unknown rather than forcing a confident wrong category.
+- If a jacket, coat, blazer, dress, or other garment is the dominant item, classify the scan as that garment even if a bag, shoe, hat, or other accessory is also visible. Never classify the scan as a bag or accessory when a garment is clearly the main subject.
+- Choose exactly one dominant item. Do not blend two items into one result.
+- If uncertain between two categories, return item_type: "unknown" with a lower confidence_score rather than forcing a confident wrong category.
 
 Return strict JSON only.
 No markdown.
@@ -183,9 +186,11 @@ The optional \`identification\` object must include:
 
 If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
 
-If confidence_score is below 0.70, include scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
+If confidence_score is below 0.60, you MUST include a scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
 
-If confidence_score is 0.70 or higher, set scan_quality_note to null.
+If confidence_score is between 0.60 and 0.79, include a scan_quality_note only when the image is blurry, dark, far away, or the item is partially visible.
+
+If confidence_score is 0.80 or higher and the item is clearly visible, set scan_quality_note to null.
 
 Return strict JSON only, matching exactly this shape:
 {
@@ -497,9 +502,11 @@ The optional \`identification\` object must include:
 
 If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
 
-If confidence_score is below 0.70, include scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
+If confidence_score is below 0.60, you MUST include a scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
 
-If confidence_score is 0.70 or higher, set scan_quality_note to null.
+If confidence_score is between 0.60 and 0.79, include a scan_quality_note only when the image is blurry, dark, far away, or the item is partially visible.
+
+If confidence_score is 0.80 or higher and the item is clearly visible, set scan_quality_note to null.
 
 Return strict JSON only, matching exactly this shape:
 {
@@ -587,9 +594,14 @@ function buildDisplayResult(
   const styling = safeStringArray(identification.styling_suggestions);
   if (styling?.length) out.styling = styling;
   if (confidenceScore !== undefined) {
-    if (confidenceScore >= 0.85) out.confidenceLabel = 'High';
-    else if (confidenceScore >= 0.70) out.confidenceLabel = 'Medium';
-    else out.confidenceLabel = 'Low';
+    const hasQualityNote =
+      typeof identification.scan_quality_note === 'string' &&
+      identification.scan_quality_note.trim().length > 0;
+    const label = deriveConfidenceLabel(confidenceScore, {
+      hasQualityNote,
+      itemType: safeString(identification.item_type),
+    });
+    if (label) out.confidenceLabel = label;
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -749,6 +761,41 @@ function buildAttributesFromIdentification(
   const confidence = safeConfidence(identification.confidence_score);
   if (confidence !== undefined) out.confidenceScore = confidence;
 
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Build a minimal identification object from legacy attributes. Used when the
+ * model returns only the legacy `attributes` shape (no `identification`), so
+ * catalog retrieval -- which keys off identification -> canonicalCategory --
+ * still has a category, color, and silhouette to work with.
+ */
+function buildIdentificationFromAttributes(
+  attributes: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!attributes) return undefined;
+  const out: Record<string, unknown> = {};
+  const category = safeString(attributes.category);
+  const itemType = safeString(attributes.itemType);
+  if (category) out.item_type = category;
+  if (itemType) out.subtype = itemType;
+  const palette = safeStringArray(attributes.colorPalette);
+  if (palette?.length) {
+    out.primary_color = palette[0];
+    if (palette.length > 1) out.secondary_colors = palette.slice(1);
+  }
+  const sil = safeString(attributes.silhouette);
+  if (sil) out.silhouette = sil;
+  const mat = safeString(attributes.materialEstimate);
+  if (mat) out.material_estimate = mat;
+  const pat = safeString(attributes.pattern);
+  if (pat) out.pattern = pat;
+  const styleTags = safeStringArray(attributes.styleTags);
+  if (styleTags?.length) out.style_tags = styleTags;
+  const occasion = safeString(attributes.occasion);
+  if (occasion) out.occasion_tags = [occasion];
+  const conf = safeConfidence(attributes.confidenceScore);
+  if (conf !== undefined) out.confidence_score = conf;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -1081,7 +1128,7 @@ Deno.serve(async (req) => {
     const rawStatus = typeof parsed.status === 'string' ? parsed.status.toLowerCase() : '';
 
     // Try the new rich identification shape first.
-    const identification = sanitizeIdentification(parsed.identification);
+    let identification = sanitizeIdentification(parsed.identification);
     let attributes: Record<string, unknown> | undefined;
     if (identification) {
       attributes = buildAttributesFromIdentification(identification);
@@ -1089,6 +1136,11 @@ Deno.serve(async (req) => {
     // Fallback: old direct attributes shape for backward compatibility.
     if (!attributes) {
       attributes = sanitizeAttributes(parsed.attributes);
+    }
+    // If the model returned only legacy attributes (no identification), derive a
+    // minimal identification so catalog retrieval still gets a canonicalCategory.
+    if (!identification && attributes && rawStatus === 'completed') {
+      identification = sanitizeIdentification(buildIdentificationFromAttributes(attributes));
     }
 
     // Non-fashion (explicit, or completed with no usable attributes).

@@ -89,39 +89,69 @@ export function cleanAiJsonText(raw: string): string {
   return t;
 }
 
+/** Remove trailing commas before } or ] which are invalid JSON but common in
+ * loosely-generated model output. */
+export function stripTrailingCommas(input: string): string {
+  return input.replace(/,(\s*[}\]])/g, '$1');
+}
+
 export function safeParseAiJson(raw: string): unknown {
   const cleaned = cleanAiJsonText(raw);
   try {
     return JSON.parse(cleaned);
   } catch {
-    // Extract first complete JSON object between first { and last }
-    const start = cleaned.indexOf('{');
-    const end = cleaned.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(cleaned.slice(start, end + 1));
-      } catch {
-        throw new Error('ai_json_parse_failed');
+    // Retry after stripping trailing commas (common model defect).
+    try {
+      return JSON.parse(stripTrailingCommas(cleaned));
+    } catch {
+      // Extract first complete JSON object between first { and last }
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        const slice = cleaned.slice(start, end + 1);
+        try {
+          return JSON.parse(slice);
+        } catch {
+          try {
+            return JSON.parse(stripTrailingCommas(slice));
+          } catch {
+            throw new Error('ai_json_parse_failed');
+          }
+        }
       }
+      throw new Error('ai_json_parse_failed');
     }
-    throw new Error('ai_json_parse_failed');
   }
 }
 
 // ── Normalizers ─────────────────────────────────────────────────────────────────
 
+// Canonical categories present in product_catalog today: outerwear, blazer,
+// dress, footwear, bag, accessory. "pants"/"top" have no catalog rows yet but
+// are kept so future catalog rows resolve correctly. All patterns are
+// plural-tolerant (s?) — the prior version missed "sneakers", "boots",
+// "raincoat", "puffer", etc., which produced wrong canonical categories and
+// therefore zero catalog matches.
 export function normalizeCategory(input?: string | null): string {
   if (!input || typeof input !== 'string') return '';
   const lower = input.toLowerCase().trim();
-  if (/\b(blazer|suit jacket|tailored jacket|sports coat)\b/.test(lower)) return 'blazer';
-  if (/\b(jacket|coat|outerwear|parka|trench)\b/.test(lower)) return 'outerwear';
-  if (/\b(dress|gown)\b/.test(lower)) return 'dress';
-  if (/\b(jeans|pants|trousers|slacks|leggings|shorts)\b/.test(lower)) return 'pants';
-  if (/\b(shirt|blouse|top|tank|tee|sweater|hoodie)\b/.test(lower)) return 'top';
-  if (/\b(sneaker|shoe|boot|heel|loafer|sandal)\b/.test(lower)) return 'footwear';
-  if (/\b(bag|handbag|purse|tote|clutch|backpack)\b/.test(lower)) return 'bag';
-  if (/\b(belt|jewelry|necklace|bracelet|ring|sunglasses|scarf|hat)\b/.test(lower)) return 'accessory';
-  if (lower === 'non_fashion') return 'NON_FASHION';
+  if (lower === 'non_fashion' || lower === 'non-fashion') return 'NON_FASHION';
+  // Blazer is a distinct catalog category; check before generic outerwear.
+  if (/\b(blazers?|suit jackets?|tailored jackets?|sports? coats?|sport coats?)\b/.test(lower)) return 'blazer';
+  // Outerwear: jackets, coats, and synonyms.
+  if (/\b(jackets?|coats?|outerwear|parkas?|trench(?:\s?coats?)?|puffers?|puffer jackets?|down jackets?|bombers?|bomber jackets?|windbreakers?|overcoats?|peacoats?|pea coats?|anoraks?|raincoats?|rain jackets?)\b/.test(lower)) return 'outerwear';
+  // Dress / gown.
+  if (/\b(dress(?:es)?|gowns?|sundress(?:es)?|frocks?)\b/.test(lower)) return 'dress';
+  // Bottoms — checked before footwear so "bootcut jeans" maps to pants.
+  if (/\b(jeans|pants|trousers|slacks|leggings|shorts|chinos|joggers|sweatpants|culottes)\b/.test(lower)) return 'pants';
+  // Tops.
+  if (/\b(shirts?|blouses?|tops?|tanks?|tank tops?|tees?|t-shirts?|tshirts?|sweaters?|hoodies?|jumpers?|pullovers?|polos?|cardigans?)\b/.test(lower)) return 'top';
+  // Footwear (plural-tolerant; "bootcut" already routed to pants above).
+  if (/\b(sneakers?|shoes?|boots?|heels?|loafers?|sandals?|pumps?|trainers?|flats?|footwear)\b/.test(lower)) return 'footwear';
+  // Bags.
+  if (/\b(bags?|handbags?|purses?|totes?|clutch(?:es)?|backpacks?|satchels?|crossbody|cross-body|duffels?|duffles?)\b/.test(lower)) return 'bag';
+  // Accessories.
+  if (/\b(belts?|jewelry|jewellery|necklaces?|bracelets?|rings?|earrings?|sunglasses|scarf|scarves|hats?|caps?|beanies?|gloves?|watch(?:es)?|ties?|wallets?)\b/.test(lower)) return 'accessory';
   return lower;
 }
 
@@ -168,6 +198,27 @@ export function normalizeSilhouette(input?: string | null): string {
   if (lower === 'straight') return 'straight';
   if (/\b(flowing|flowy|maxi)\b/.test(lower)) return 'flowing';
   return lower;
+}
+
+/**
+ * Confidence label calibration (sprint v1):
+ *   >= 0.80 -> High, 0.60-0.79 -> Medium, < 0.60 -> Low.
+ * A scan-quality note (blurry/dark/far/partial) or an unknown/non-fashion item
+ * type can never read as High confidence.
+ */
+export function deriveConfidenceLabel(
+  score: number | undefined,
+  opts?: { hasQualityNote?: boolean; itemType?: string | null },
+): 'High' | 'Medium' | 'Low' | undefined {
+  if (typeof score !== 'number' || !Number.isFinite(score)) return undefined;
+  let label: 'High' | 'Medium' | 'Low' =
+    score >= 0.80 ? 'High' : score >= 0.60 ? 'Medium' : 'Low';
+  if (opts?.hasQualityNote && label === 'High') label = 'Medium';
+  const it = typeof opts?.itemType === 'string' ? opts.itemType.toLowerCase() : '';
+  if (label === 'High' && (it === 'unknown' || it === 'non_fashion' || it === 'non-fashion')) {
+    label = 'Medium';
+  }
+  return label;
 }
 
 export function normalizeStringArray(input: unknown): string[] {
