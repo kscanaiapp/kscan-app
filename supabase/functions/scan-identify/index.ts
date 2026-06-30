@@ -1191,29 +1191,19 @@ Deno.serve(async (req) => {
       const nonFashionNormalizedId = normalizeIdentification(
         nonFashionResponseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
       );
-      const nonFashionExistingProducts = Array.isArray(nonFashionResponseWithAttributes.recommendedProducts)
-        ? nonFashionResponseWithAttributes.recommendedProducts
-        : [];
-      const nonFashionCatalogCandidates = nonFashionNormalizedId
-        ? await fetchCatalogCandidates(catalogClient, nonFashionNormalizedId, { limit: 30 })
-        : [];
-      const nonFashionMergedCandidates = mergeProductCandidates(
-        nonFashionExistingProducts,
-        nonFashionCatalogCandidates.map(adaptCatalogCandidate),
-      );
-      const nonFashionRankedProducts = rankRecommendedProducts(
-        nonFashionMergedCandidates,
-        nonFashionNormalizedId,
-      );
+      // Non-fashion scans never surface catalog products. Even though the model
+      // marks the scan non_fashion, it can still emit a plausible item_type
+      // (e.g. "bag"), which would otherwise leak real catalog rows of that
+      // category into a non-fashion result. Force an empty shelf here.
       const finalResponse = {
         ...nonFashionResponseWithAttributes,
-        recommendedProducts: nonFashionRankedProducts.slice(0, 10),
+        recommendedProducts: [],
         displayResult: buildDisplayResult(nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined, 0.95),
       };
       const auditEvent = buildAuditEvent(
         finalResponse,
         nonFashionNormalizedId,
-        nonFashionRankedProducts,
+        [],
         elapsedMs,
         scanId,
       );

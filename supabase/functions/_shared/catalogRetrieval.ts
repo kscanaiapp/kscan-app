@@ -120,10 +120,15 @@ export async function fetchCatalogCandidates(
 }
 
 function availabilityPriority(availability?: string | null): number {
-  if (!availability) return 0;
+  // Tiers: in_stock (2) > unknown/missing (1) > out_of_stock/other (0).
+  // Null/empty availability is treated as "unknown" — below in_stock but above
+  // an explicit out_of_stock, so sparse rows missing the field are not buried
+  // beneath known-unavailable rows.
+  if (!availability) return 1;
   const a = availability.toLowerCase();
   if (a === 'in_stock' || a === 'in stock' || a === 'available') return 2;
   if (a === 'unknown') return 1;
+  if (a === 'out_of_stock' || a === 'out of stock' || a === 'sold_out' || a === 'sold out' || a === 'unavailable') return 0;
   return 0;
 }
 

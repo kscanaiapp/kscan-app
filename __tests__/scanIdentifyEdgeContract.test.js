@@ -129,6 +129,20 @@ test('edge source: non-fashion response is handled correctly', () => {
   assert.ok(EDGE_SOURCE.includes('SAFE_TEXT_NON_FASHION_MESSAGE'), 'Must use safe text non-fashion message');
 });
 
+test('edge source: non-fashion scans never surface catalog products', () => {
+  // A non-fashion scan can still carry a plausible item_type from the model;
+  // the branch must force an empty shelf rather than fetch catalog rows.
+  assert.ok(
+    EDGE_SOURCE.includes('Non-fashion scans never surface catalog products'),
+    'Must document forced-empty shelf for non-fashion',
+  );
+  assert.equal(
+    EDGE_SOURCE.includes('nonFashionCatalogCandidates'),
+    false,
+    'Must not fetch catalog candidates in the non-fashion branch',
+  );
+});
+
 // ── 9. Request Validation Parity ──
 
 test('edge source: text validation matches client-side rules', () => {
