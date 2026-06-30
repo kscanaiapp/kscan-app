@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataChip } from './MetadataChip';
 import { ProductShelf, type Product } from './ProductShelf';
+import { ScanResultCard } from './scan/ScanResultCard';
 import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
@@ -30,6 +31,7 @@ import {
 } from '../constants/theme';
 import type { VintedSecondhandSearchResponse } from '../types/scan';
 import type { SneakerReference } from '../services/sneakers/types';
+import type { ScanResultObject } from '../types/scanResultObject';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y     = SCREEN_HEIGHT * 0.36;
@@ -46,6 +48,9 @@ export interface AnalysisCardProps {
     stylingSuggestions?: string[];
   };
   products?: Product[];
+  /** Optional structured Scan Result Object (Part 2). When present, an additive
+   *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
+  scanResultObject?: ScanResultObject | null;
   secondhand?: VintedSecondhandSearchResponse | null;
   sneakerReference?: SneakerReference[] | null;
   scanImageUri?: string | null;
@@ -63,6 +68,7 @@ export function AnalysisCard({
   result,
   metadata,
   products = [],
+  scanResultObject,
   secondhand,
   sneakerReference,
   scanImageUri,
@@ -243,6 +249,12 @@ export function AnalysisCard({
               {/* Sneaker enrichment card — renders only when enrichment resolves */}
               {sneakerReference && sneakerReference.length > 0 ? (
                 <SneakerMatchCard matches={sneakerReference} />
+              ) : null}
+
+              {/* Scan Result Object summary card (Part 2). Additive — only when
+                  the structured object is present; otherwise UI is unchanged. */}
+              {scanResultObject ? (
+                <ScanResultCard scanResultObject={scanResultObject} />
               ) : null}
 
               {/* Products or empty state */}

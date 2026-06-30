@@ -964,6 +964,7 @@ export default function App() {
             result={analysis?.result ?? ''}
             metadata={analysis?.metadata ?? EMPTY_METADATA}
             products={analysis?.products ?? []}
+            scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
             scanImageUri={photo?.uri ?? null}

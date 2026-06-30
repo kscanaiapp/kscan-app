@@ -165,3 +165,121 @@ Do not implement until the owner approves after the Part 1 report.
 
 Part 2 must extend/wrap Dressing Rooms. It must not create a parallel
 save/memory system, a duplicate Dressing Room, or a general social feed.
+
+---
+
+## Part 2 — Activation (IMPLEMENTED on `feature/scan-result-style-memory-activation-v1`)
+
+Status of each activation goal:
+
+| Goal | Status |
+| --- | --- |
+| Mapper integration | **Completed** |
+| Result card UI | **Completed** (additive, gated) |
+| Dressing Room save bridge | **Completed** (wraps existing path) |
+| Metadata persistence | **Deferred** — `METADATA_PERSISTENCE_DEFERRED_SCHEMA_STRICT` |
+| Share action | **Completed** (text-only, RN built-in) |
+| Compare | **Deferred** — `COMPARE_UI_DEFERRED_NEEDS_SAVED_SCAN_METADATA` |
+
+### Mapper integration (completed)
+
+`services/scanIdentificationMapper.ts` now attaches an optional
+`scanResultObject` to the `completed` `MappedFashionAnalysis`, generated via
+`createScanResultObject` from the same `identification` / `attributes` /
+`recommendedProducts` it already produced. It is wrapped in `try/catch` so a
+failure degrades safely (field omitted) and never alters the existing
+`result` / `metadata` / `products` / `displayResult` contract, ranking, or
+confidence scoring. The VM-sandboxed mapper test
+(`__tests__/scanIdentification.test.js`) supplies `services/scanResultObject.ts`
+through the loader `requireMap` — resolving the Part 1 `INTEGRATION_DEFERRED_TYPE_SAFETY`
+deferral.
+
+`hooks/useKScan.js` sets `analysis = mapScanIdentifyToAnalysis(...)`, so the
+field flows straight to the result UI as `analysis.scanResultObject`.
+
+### Result screen + card activation (completed)
+
+**Exact result screen:** `app.js` (the Expo Router root scan route). It renders
+`AnalysisCard` by default (the `ScanResultV2` path is behind the off-by-default
+`EXPO_PUBLIC_SCAN_RESULTS_V2_UI` flag and is out of scope here). `AnalysisCard`
+renders `ProductShelf` internally inside its `ScrollView`.
+
+`components/scan/ScanResultCard.tsx` renders `createResultCardViewModel(...)`
+(title, subtitle, safe catalog hero image, badges, confidence label, match
+count, privacy caption, Save / Share / Compare). It is rendered **inside
+`AnalysisCard`, directly above the product shelf**, and only when
+`analysis.scanResultObject` is present — otherwise the UI is byte-for-byte
+unchanged. `app.js` passes `scanResultObject={analysis?.scanResultObject ?? null}`.
+
+### Dressing Room save bridge (completed)
+
+`services/scanResultDressingRoom.ts` wraps the existing
+`addProductToDressingRoom` (services/styleObjects.ts), reusing the pure
+`normalizeForSnapshot` mapper:
+
+- `selectPrimaryMatch` / `buildDressingRoomSaveSource` map the top product match
+  to the exact `ProductMatchSnapshotSource` the existing path accepts.
+- `saveScanResultToDressingRoom` persists only the standard product match and
+  returns a `StyleMemoryItem` with `savedToDressingRoomId` set to the created
+  item id.
+- No safe match → `NO_SAFE_PRODUCT_MATCH_TO_SAVE`.
+- The raw scan-image path (`addScanImageToDressingRoom`, which uploads a local
+  image) is intentionally never imported or called.
+
+**Save UI** reuses the existing `AddToRoomModal` (now exported from
+`ProductShelf`) for the primary match — no duplicate modal, no new room-selection
+logic. Save is disabled with copy "Save unlocks after a product match is found."
+when there is no safe catalog match.
+
+### Metadata persistence — deferred (`METADATA_PERSISTENCE_DEFERRED_SCHEMA_STRICT`)
+
+`buildProductMatchSnapshot` / `ProductMatchSnapshotSource` have a fixed field set
+and hardcode `snapshotPayload.metadata = {}`. Extra StyleMemory metadata cannot
+be attached without a schema/type change, which is out of Part 2 scope. The
+`StyleMemoryItem` therefore stays in-memory for the current result, linked by
+`savedToDressingRoomId`. No migration was added.
+
+### Share action (completed)
+
+`buildScanShareMessage` (in `services/scanResultObject.ts`) builds a text-only
+message (title, subtitle, color, material, style tags, safe `https?://` product
+URL) from the safe share payload. `ScanResultCard` shares it via React Native's
+built-in `Share.share({ message })` — already used elsewhere
+(`app/dressing-rooms/[id].tsx`), so **no new dependency**. No deep links, no
+backend share endpoint, no Open Graph, no raw/local image, no userId, no notes.
+
+### Compare — deferred (`COMPARE_UI_DEFERRED_NEEDS_SAVED_SCAN_METADATA`)
+
+`compareScanResults` remains pure (Part 1). Compare needs *two*
+`ScanResultObject`s and there is no safe in-app source of a second one yet (that
+requires reading saved-scan metadata, which is the deferred persistence work).
+The card renders Compare as a **disabled affordance** with copy "Compare unlocks
+after another saved scan." A `compareSource` prop is in place for when a second
+source exists. No new history/last-two-scans context or table was created.
+
+### Privacy guarantees (Part 2)
+
+- Hero image and any shared product URL come only from catalog/product match
+  data; `normalizeForSnapshot` and the share resolver accept only `https?://`,
+  so a raw/local/captured scan URI can never be saved or shared.
+- No raw image, local camera URI, captured URI, face, person, plate,
+  geolocation, biometric, private note, or auth/session data is persisted or
+  shared.
+- No cloud persistence beyond the existing Dressing Room product-save path; no
+  new table.
+
+### What remains for future work
+
+1. Real-device validation of the result card + Dressing Room product save.
+2. If StyleMemory metadata must persist, a draft Supabase schema (e.g. a
+   snapshot-payload `metadata.styleMemory` namespace or a new column) — owner-
+   approved, never auto-deployed.
+3. A safe source of a second `ScanResultObject` (saved-scan metadata) to enable
+   Compare UI.
+4. Deep-link / backend share-resolution infrastructure for richer sharing.
+
+**Exact result screen file:** `app.js` → `components/AnalysisCard.tsx` →
+`components/scan/ScanResultCard.tsx`.
+**Exact Dressing Room save path reused:** `addProductToDressingRoom` in
+`services/styleObjects.ts` (via `services/scanResultDressingRoom.ts` and the
+reused `AddToRoomModal`).

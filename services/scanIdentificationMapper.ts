@@ -15,6 +15,8 @@
  */
 
 import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification, RankedScanProduct, DisplayResult } from '../types/scanIdentification';
+import type { ScanResultObject } from '../types/scanResultObject';
+import { createScanResultObject } from './scanResultObject';
 
 export type MappedScanMetadata = {
   category: string;
@@ -37,6 +39,14 @@ export type MappedFashionAnalysis = {
   metadata: MappedScanMetadata;
   products: RankedScanProduct[];
   displayResult?: DisplayResult;
+  /**
+   * Optional structured Scan Result Object (Part 2 activation). Additive and
+   * non-breaking: existing consumers ignore it. Generated from the same
+   * identification/attributes/products the mapper already produced — it does NOT
+   * change result/metadata/products/displayResult, ranking, or confidence
+   * scoring. Degrades safely (omitted) if generation ever fails.
+   */
+  scanResultObject?: ScanResultObject;
 };
 
 export type MappedNonFashionAnalysis = {
@@ -129,13 +139,29 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('[scanIdentificationMapper] mapped products=' + products.length);
     }
-    return {
+    const analysis: MappedFashionAnalysis = {
       type: 'fashion',
       result,
       metadata: buildMetadata(resp.attributes, resp.identification),
       products,
       displayResult: resp.displayResult,
     };
+
+    // Additive Part 2 enrichment. Wrapped so a failure here can never break the
+    // existing analysis contract — on any error we simply omit the field.
+    try {
+      analysis.scanResultObject = createScanResultObject({
+        scanId: resp.scanId,
+        identification: resp.identification,
+        attributes: resp.attributes,
+        displayResult: resp.displayResult,
+        recommendedProducts: products,
+      });
+    } catch {
+      // Degrade safely: keep the existing analysis exactly as-is.
+    }
+
+    return analysis;
   }
 
   // failed (or unknown) → safe error state.

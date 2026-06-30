@@ -407,7 +407,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
   );
 }
 
-function AddToRoomModal({
+export function AddToRoomModal({
   product,
   visible,
   onClose,

@@ -711,3 +711,53 @@ export function createShareReadyPayload(scanResultObject: ScanResultObject): Sha
     matches: Array.isArray(sro.matches) ? sro.matches : [],
   };
 }
+
+/** Safe catalog/product link keys. Mirrors ProductShelf.getPurchaseUrl. */
+const SAFE_PRODUCT_URL_KEYS = [
+  'affiliateUrl',
+  'productUrl',
+  'purchaseUrl',
+  'product_url',
+  'purchase_url',
+  'url',
+  'link',
+] as const;
+
+function resolveSafeProductUrl(product: RankedScanProduct | null | undefined): string | null {
+  if (!product || typeof product !== 'object') return null;
+  const record = product as Record<string, unknown>;
+  for (const key of SAFE_PRODUCT_URL_KEYS) {
+    const candidate = cleanText(record[key]);
+    if (candidate && isHttpUrl(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Build a TEXT-ONLY, share-safe message from a scan result. Pure. Derives only
+ * from the safe share payload (id/createdAt/item/visual/matches) — it can never
+ * include userId, private notes, auth/session data, or any raw/local/captured
+ * image URI. The only URL included is a safe `https?://` catalog/product link.
+ *
+ * NOTE: deep links, kscan.app/scan URLs, backend share-resolution, and Open
+ * Graph metadata are intentionally NOT generated here and remain deferred.
+ */
+export function buildScanShareMessage(scanResultObject: ScanResultObject): string {
+  const payload = createShareReadyPayload(scanResultObject);
+  const { item, visual } = payload;
+  const lines: string[] = [];
+
+  const heading = [cleanText(visual.cardTitle), cleanText(visual.cardSubtitle)]
+    .filter(Boolean)
+    .join(' — ');
+  if (heading) lines.push(heading);
+
+  if (item.color) lines.push(`Color: ${item.color}`);
+  if (item.material) lines.push(`Material: ${item.material}`);
+  if (item.styleTags.length) lines.push(`Style: ${item.styleTags.join(', ')}`);
+
+  const productUrl = resolveSafeProductUrl(payload.matches[0]);
+  if (productUrl) lines.push(`Product: ${productUrl}`);
+
+  return lines.join('\n');
+}

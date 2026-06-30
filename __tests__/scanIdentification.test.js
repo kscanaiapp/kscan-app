@@ -54,8 +54,13 @@ function loadTsModule(relativePath, requireMap = {}) {
   return mod.exports;
 }
 
-// Mapper has only type-only imports (erased on transpile) → no requireMap needed.
-const mapper = loadTsModule('services/scanIdentificationMapper.ts');
+// Part 2: the mapper now has a runtime import of services/scanResultObject.ts
+// (for createScanResultObject). That module itself has only type-only imports,
+// so it loads cleanly with no requireMap and is supplied to the mapper here.
+const scanResultObjectModule = loadTsModule('services/scanResultObject.ts');
+const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
+  './scanResultObject': scanResultObjectModule,
+});
 
 function loadAdapter(supabaseStub) {
   return loadTsModule('services/scanIdentification.ts', {
@@ -515,4 +520,86 @@ test('mapper: non_fashion maps products to empty array without crashing', () => 
     userMessage: 'Not fashion.',
   });
   assert.equal(out.type, 'non-fashion');
+});
+
+// ── Part 2: scanResultObject mapper integration ───────────────────────────────
+
+test('mapper: completed analysis includes scanResultObject', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [
+      { id: 'p1', name: 'Leather Jacket', imageUrl: 'https://cdn.example.com/p1.jpg' },
+    ],
+    identification: {
+      item_type: 'jacket',
+      primary_color: 'Black',
+      material_estimate: 'Leather',
+      confidence_score: 0.9,
+      brand_guess: 'AllSaints',
+    },
+  });
+  assert.ok(out.scanResultObject, 'scanResultObject should be present');
+  assert.equal(out.scanResultObject.item.category, 'jacket');
+  assert.equal(out.scanResultObject.item.material, 'Leather');
+});
+
+test('mapper: existing fields remain unchanged when scanResultObject added', () => {
+  const input = {
+    status: 'completed',
+    recommendedProducts: [
+      { id: 'p1', name: 'Leather Jacket', imageUrl: 'https://cdn.example.com/p1.jpg' },
+    ],
+    identification: { visual_observation: 'A black jacket.', item_type: 'jacket', confidence_score: 0.8 },
+    displayResult: { headline: 'Jacket', confidenceLabel: 'high' },
+  };
+  const out = mapper.mapScanIdentifyToAnalysis(input);
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.result, 'A black jacket.');
+  assert.equal(out.products.length, 1);
+  assert.equal(out.products[0].id, 'p1');
+  assert.equal(out.displayResult.confidenceLabel, 'high');
+});
+
+test('mapper: empty/partial scan still maps safely with scanResultObject', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({ status: 'completed', recommendedProducts: [] });
+  assert.equal(out.type, 'fashion');
+  assert.ok(out.scanResultObject);
+  // partial input must not crash and must degrade to a usable object
+  assert.equal(typeof out.scanResultObject.explainability.confidenceLabel, 'string');
+});
+
+test('mapper: scanResultObject privacy flags are false', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [{ id: 'p1', imageUrl: 'https://cdn.example.com/p1.jpg' }],
+    identification: { item_type: 'jacket', confidence_score: 0.8 },
+  });
+  assert.equal(out.scanResultObject.privacy.rawImageStored, false);
+  assert.equal(out.scanResultObject.privacy.cloudPhotoStorage, false);
+});
+
+test('mapper: heroImageUrl comes from recommendedProducts, not raw image fields', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [
+      {
+        id: 'p1',
+        imageUrl: 'https://cdn.example.com/catalog.jpg',
+        localImageUri: 'file:///raw.jpg',
+        capturedImageUri: 'file:///captured.jpg',
+      },
+    ],
+    identification: { item_type: 'jacket', confidence_score: 0.8 },
+  });
+  assert.equal(out.scanResultObject.visual.heroImageUrl, 'https://cdn.example.com/catalog.jpg');
+});
+
+test('mapper: empty recommendedProducts → matches empty and heroImageUrl null', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    identification: { item_type: 'jacket', confidence_score: 0.8, brand_guess: 'X' },
+  });
+  assert.equal(out.scanResultObject.matches.length, 0);
+  assert.equal(out.scanResultObject.visual.heroImageUrl, null);
 });
