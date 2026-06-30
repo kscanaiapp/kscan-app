@@ -24,6 +24,7 @@ import {
   UnsupportedStyleObjectItemError,
 } from '../services/styleObjects';
 import type { ProductMatchSnapshotSource } from '../types/styleObjects';
+import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnapshot';
 
 export interface Product {
   id?:         string;
@@ -413,19 +414,6 @@ function AddToRoomModal({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [newRoomTitle, setNewRoomTitle] = useState('');
-
-  function toSnapshotPrice(price: string | number | null | undefined): string | null {
-    if (price === null || price === undefined || price === '') return null;
-    if (typeof price === 'number' && (!Number.isFinite(price) || price <= 0)) return null;
-    return String(price);
-  }
-
-  function normalizeForSnapshot(p: Product): ProductMatchSnapshotSource {
-    return {
-      ...p,
-      price: toSnapshotPrice(p.price),
-    };
-  }
 
   const handleAdd = async (roomId: string) => {
     if (!product || saving) return;

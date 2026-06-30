@@ -407,3 +407,112 @@ test('mapper: scanQualityNote and stylingSuggestions in metadata', () => {
   assert.equal(out.metadata.scanQualityNote, 'Too far away.');
   assert.deepStrictEqual(out.metadata.stylingSuggestions, ['Pair with jeans.', 'Add a belt.']);
 });
+
+
+// ── recommendedProducts data-contract coverage (v3 readiness) ────────────────
+
+test('adapter: normalizeScanIdentifyResponse preserves snake_case product fields', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    attributes: { category: 'Bags' },
+    recommendedProducts: [
+      {
+        id: 'bag-1',
+        name: 'Leather Tote',
+        retailer: 'Staging Retailer',
+        image_url: 'https://placehold.co/400x600?text=Tote',
+        product_url: 'https://example.com/tote',
+        canonical_category: 'handbag',
+        category: 'Handbag',
+        price: 249,
+      },
+    ],
+  });
+  assert.equal(out.status, 'completed');
+  assert.equal(out.recommendedProducts.length, 1);
+  const p = out.recommendedProducts[0];
+  assert.equal(p.id, 'bag-1');
+  assert.equal(p.retailer, 'Staging Retailer');
+  assert.equal(p.image_url, 'https://placehold.co/400x600?text=Tote');
+  assert.equal(p.product_url, 'https://example.com/tote');
+  assert.equal(p.canonical_category, 'handbag');
+  assert.equal(p.category, 'Handbag');
+  assert.equal(p.price, 249);
+});
+
+test('adapter: normalizeScanIdentifyResponse falls back to [] for missing/null/invalid recommendedProducts', () => {
+  const adapter = loadAdapter({});
+  const completed = { status: 'completed', attributes: { category: 'Tops' } };
+  assertEmptyArray(adapter.normalizeScanIdentifyResponse({ ...completed, recommendedProducts: undefined }).recommendedProducts);
+  assertEmptyArray(adapter.normalizeScanIdentifyResponse({ ...completed, recommendedProducts: null }).recommendedProducts);
+  assertEmptyArray(adapter.normalizeScanIdentifyResponse({ ...completed, recommendedProducts: 'nope' }).recommendedProducts);
+  assertEmptyArray(adapter.normalizeScanIdentifyResponse({ ...completed, recommendedProducts: {} }).recommendedProducts);
+});
+
+test('adapter: normalizeScanIdentifyResponse drops malformed product entries but keeps valid ones', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    attributes: { category: 'Footwear' },
+    recommendedProducts: [
+      { id: 'good', name: 'Sneaker' },
+      null,
+      'not-an-object',
+      { id: 'also-good', retailer: 'Retailer' },
+    ],
+  });
+  assert.equal(out.recommendedProducts.length, 2);
+  assert.equal(out.recommendedProducts[0].id, 'good');
+  assert.equal(out.recommendedProducts[1].id, 'also-good');
+});
+
+test('mapper: completed with empty recommendedProducts is still a success', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    userMessage: 'A black dress.',
+    attributes: { category: 'Dresses' },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.result, 'A black dress.');
+  assert.equal(out.metadata.category, 'Dresses');
+  assertEmptyArray(out.products);
+});
+
+test('mapper: recommendedProducts preserve image/link/retailer/category fields', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [
+      {
+        id: 'shoe-1',
+        name: 'White Sneaker',
+        retailer: 'Test Retailer',
+        image_url: 'https://placehold.co/400x600?text=Sneaker',
+        product_url: 'https://example.com/sneaker',
+        category: 'Footwear',
+        price: 89.99,
+      },
+    ],
+    userMessage: 'White sneaker.',
+    attributes: { category: 'Footwear' },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.products.length, 1);
+  const p = out.products[0];
+  assert.equal(p.name, 'White Sneaker');
+  assert.equal(p.retailer, 'Test Retailer');
+  assert.equal(p.image_url, 'https://placehold.co/400x600?text=Sneaker');
+  assert.equal(p.product_url, 'https://example.com/sneaker');
+  assert.equal(p.category, 'Footwear');
+  assert.equal(p.price, 89.99);
+});
+
+test('mapper: non_fashion maps products to empty array without crashing', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'non_fashion',
+    recommendedProducts: [],
+    userMessage: 'Not fashion.',
+  });
+  assert.equal(out.type, 'non-fashion');
+});

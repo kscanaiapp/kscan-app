@@ -4,22 +4,30 @@
 Validate signed-in real-device scans against App Staging.
 Confirm the CATALOG MATCHES shelf populates from scan-identify v78 TEST rows.
 
+> ⚠️ Code agents / CI cannot perform physical real-device validation. This checklist must be executed by a human tester with an actual phone in hand.
+
 ## Required Setup
 - [ ] Physical device (iOS or Android).
 - [ ] Signed-in staging user (Google/Apple/Email auth against App Staging).
 - [ ] App configured with `EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED=true`.
-  - Check `.env.local` or `eas.json` development profile.
+  - Local Metro runs: set it in `.env.local` (EAS development profile is not used by `npx expo start`).
+  - EAS development builds: verify it is set in `eas.json` under `build.development.env`.
 - [ ] App targeting Supabase App Staging project `wyyuqfdxucjksghsmhry`.
   - Verify `EXPO_PUBLIC_SUPABASE_URL=https://wyyuqfdxucjksghsmhry.supabase.co`.
+  - Do **not** use Production or the Privacy project `yzqjvdfgefveprobvvyw` for scan testing.
 - [ ] No global `mobile_feature_freeze` blocking `priceDiscovery` or `ProductShelf`.
+- [ ] Restart Metro after changing any `EXPO_PUBLIC_*` variable.
 
 ## Metro / Dev Start
 ```bash
 # Ensure env is loaded (Expo reads .env / .env.local)
+# Restart Metro after any EXPO_PUBLIC_* change.
 npx expo start
 # Or for Android:
 npx expo start --android
 ```
+
+> On a physical device, local Metro uses your computer's LAN IP (e.g. `http://192.168.1.X:8081`), not `localhost`. The device must be on the same Wi-Fi network as the dev machine.
 
 ## Test Scans
 
