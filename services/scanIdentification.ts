@@ -248,7 +248,13 @@ export async function identifyScanImage(
       return failed();
     }
 
-    return normalizeScanIdentifyResponse(data);
+    const normalized = normalizeScanIdentifyResponse(data);
+    if (__DEV__) {
+      console.log('[scanIdentification] response scan_status=' + normalized.status +
+        ' category=' + (normalized.attributes?.category ?? '(none)') +
+        ' recommendedProducts=' + normalized.recommendedProducts.length);
+    }
+    return normalized;
   } catch (err: any) {
     if (__DEV__) {
       const isAbort = err?.name === 'AbortError';

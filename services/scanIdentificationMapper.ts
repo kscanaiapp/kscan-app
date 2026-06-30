@@ -125,11 +125,15 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
       resp.identification?.visual_observation?.trim() ??
       resp.userMessage?.trim() ??
       DEFAULT_FASHION_SUMMARY;
+    const products = resp.recommendedProducts ?? [];
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log('[scanIdentificationMapper] mapped products=' + products.length);
+    }
     return {
       type: 'fashion',
       result,
       metadata: buildMetadata(resp.attributes, resp.identification),
-      products: resp.recommendedProducts ?? [],
+      products,
       displayResult: resp.displayResult,
     };
   }

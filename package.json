@@ -20,7 +20,8 @@
     "privacy:process-deletion": "node scripts/process-deletion-request.js",
     "verify:apple-readiness": "node scripts/verify-apple-readiness.js",
     "verify:apple-submission": "node scripts/verify-apple-submission.js",
-    "check:scan-readiness": "node scripts/check-scan-readiness.js"
+    "check:scan-readiness": "node scripts/check-scan-readiness.js",
+    "smoke:scan-identify": "node scripts/smoke-scan-identify.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

@@ -35,7 +35,29 @@ function hasText(rel, text) {
   return content ? content.includes(text) : false;
 }
 
-// 1. .env.example documents required public env vars.
+// ── git grep helper ───────────────────────────────────────────────────────────
+
+function activeSourceHas(pattern, extraExcludes = []) {
+  const base = [
+    ':!node_modules', ':!dist', ':!qa', ':!archive', ':!tmp',
+    ':!.gradle-user-home', ':!.idea', ':!.expo', ':!.maestro',
+    ':!android', ':!apple-audit-assets', ':!scripts/seed-test-catalog.sql',
+    ':!supabase/migrations',
+  ];
+  const excludes = [...base, ...extraExcludes].map((e) => `'${e}'`).join(' ');
+  try {
+    const output = execSync(
+      `git grep -n "${pattern}" -- ${excludes} || true`,
+      { cwd: ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    return output.trim();
+  } catch {
+    return '';
+  }
+}
+
+// ── 1. .env.example documents required public env vars ───────────────────────
+
 if (hasText('.env.example', 'EXPO_PUBLIC_SUPABASE_URL')) {
   pass('.env.example documents EXPO_PUBLIC_SUPABASE_URL');
 } else {
@@ -48,53 +70,90 @@ if (hasText('.env.example', 'EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED')) {
   fail('.env.example is missing EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED');
 }
 
-// 2. eas.json development profile enables the scan-identify backend.
+// 1b. .env.example must document App Staging URL (not just the key name).
+if (hasText('.env.example', 'wyyuqfdxucjksghsmhry.supabase.co')) {
+  pass('.env.example documents App Staging Supabase URL (wyyuqfdxucjksghsmhry.supabase.co)');
+} else {
+  fail('.env.example is missing the App Staging Supabase URL (wyyuqfdxucjksghsmhry.supabase.co)');
+}
+
+// ── 2. eas.json development profile ──────────────────────────────────────────
+
 const easJson = (() => {
-  try {
-    return JSON.parse(read('eas.json') || '{}');
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(read('eas.json') || '{}'); } catch { return {}; }
 })();
 const devEnv = easJson?.build?.development?.env || {};
+
 if (devEnv.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true') {
   pass('eas.json development profile has EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED=true');
 } else {
   fail('eas.json development profile is missing EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED=true');
 }
 
-// 3. Checklist exists for human tester.
-if (fs.existsSync(path.join(ROOT, 'docs', 'real-device-scan-checklist-v1.md'))) {
+// ── 3. Human checklist exists and contains required warnings ─────────────────
+
+const checklistPath = path.join(ROOT, 'docs', 'real-device-scan-checklist-v1.md');
+if (fs.existsSync(checklistPath)) {
   pass('docs/real-device-scan-checklist-v1.md exists');
 } else {
   fail('docs/real-device-scan-checklist-v1.md is missing');
 }
 
-// 4. Active source must not reference the Privacy project.
-function activeSourceHas(pattern) {
-  try {
-    // Cross-platform fallback: use git grep if available, otherwise node globbing is too slow.
-    const output = execSync(
-      `git grep -n "${pattern}" -- ':!node_modules' ':!dist' ':!qa' ':!archive' ':!tmp' ':!.gradle-user-home' ':!.idea' ':!.expo' ':!.maestro' ':!android' ':!apple-audit-assets' || true`,
-      { cwd: ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
-    );
-    return output.trim();
-  } catch {
-    return '';
-  }
+const checklist = read('docs/real-device-scan-checklist-v1.md') || '';
+
+if (checklist.includes('real-device') || checklist.toLowerCase().includes('real device') || checklist.includes('physical device')) {
+  pass('Checklist warns: real-device validation required');
+} else {
+  fail('Checklist is missing real-device validation warning');
 }
 
-const privacyHits = activeSourceHas('yzqjvdfgefveprobvvyw');
+if (checklist.includes('.env.local') || checklist.includes('env.local')) {
+  pass('Checklist mentions .env.local / Metro env setup');
+} else {
+  fail('Checklist is missing .env.local / Metro env setup warning');
+}
+
+if (checklist.includes('LAN') || checklist.includes('192.168') || checklist.includes('Wi-Fi') || checklist.includes('WiFi')) {
+  pass('Checklist mentions LAN/IP note for physical device Metro testing');
+} else {
+  fail('Checklist is missing LAN/IP note for physical device Metro testing');
+}
+
+if (checklist.toLowerCase().includes('restart') || checklist.toLowerCase().includes('metro')) {
+  pass('Checklist mentions Metro restart after env changes');
+} else {
+  fail('Checklist is missing Metro restart after env changes warning');
+}
+
+// ── 4. Active source must not reference Privacy project ──────────────────────
+
+const privacyHits = activeSourceHas('yzqjvdfgefveprobvvyw', [':!docs', ':!scripts/check-scan-readiness.js']);
 if (!privacyHits) {
   pass('Active source does not reference Privacy project yzqjvdfgefveprobvvyw');
 } else {
   fail('Active source references Privacy project yzqjvdfgefveprobvvyw:\n' + privacyHits.split('\n').slice(0, 5).join('\n'));
 }
 
-// 5. Active scan/product source must not hardcode recommendedProducts: [] as an override.
+// ── 5. No test.example.com in runtime code ───────────────────────────────────
+
+const testExampleHits = activeSourceHas('test\\.example\\.com', [
+  ':!docs', ':!scripts/seed-test-catalog.sql', ':!supabase/migrations',
+]);
+if (!testExampleHits) {
+  pass('Active runtime code does not reference test.example.com');
+} else {
+  fail('Active runtime code references test.example.com:\n' + testExampleHits.split('\n').slice(0, 5).join('\n'));
+}
+
+// ── 6. No hardcoded recommendedProducts: [] override outside failure/test ────
+
 const hardcodedHits = activeSourceHas('recommendedProducts[[:space:]]*[:=][[:space:]]*\\[\\]');
-// Allow hardcoded [] only in failure/non-fashion branches and tests.
-const allowedPaths = ['services/scanIdentification.ts', '__tests__/'];
+// Allow hardcoded [] only in explicit failure/non-fashion branches and tests.
+const allowedPaths = [
+  'services/scanIdentification.ts',
+  '__tests__/',
+  'services/textScan',
+];
 const suspicious = hardcodedHits
   .split('\n')
   .filter((line) => line.trim())
@@ -106,7 +165,16 @@ if (!suspicious.length) {
   fail('Suspicious hardcoded recommendedProducts: [] found:\n' + suspicious.slice(0, 5).join('\n'));
 }
 
-// 6. Print summary.
+// ── 7. Smoke script exists ───────────────────────────────────────────────────
+
+if (fs.existsSync(path.join(ROOT, 'scripts', 'smoke-scan-identify.js'))) {
+  pass('scripts/smoke-scan-identify.js exists');
+} else {
+  fail('scripts/smoke-scan-identify.js is missing — run smoke test cannot be run by owner with JWT');
+}
+
+// ── Summary ──────────────────────────────────────────────────────────────────
+
 const failures = CHECKS.filter((c) => !c.ok);
 console.log(`\nScan readiness check: ${failures.length === 0 ? 'PASS' : 'FAIL'} (${CHECKS.length} checks, ${failures.length} failures)\n`);
 for (const c of CHECKS) {

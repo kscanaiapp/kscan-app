@@ -268,6 +268,13 @@ export function ProductShelf({ products }: ProductShelfProps) {
 
   if (!products || products.length === 0) return null;
 
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    const missingImage = products.filter((p) => !getProductImageUrl(p)).length;
+    const missingLink = products.filter((p) => !getPurchaseUrl(p)).length;
+    console.log('[K-SCAN ProductShelf] rendering products=' + products.length +
+      ' missingImageUrl=' + missingImage + ' missingProductUrl=' + missingLink);
+  }
+
   const handleLinkPress = (url: string | null | undefined) => {
     if (!url) return;
     selectionTick();
