@@ -1,0 +1,178 @@
+// Executable unit tests for the Dressing Room product-save policy.
+//
+// Locks the verified behavior of buildProductMatchSnapshot (services/styleObjects.ts):
+//   - Product saves REQUIRE a remote (http/https) image; missing/non-remote → throws
+//     UnsupportedStyleObjectItemError (deliberate product policy; the DB allows
+//     image_url NULL only for the separate uploaded-scan-image path).
+//   - Field resolution accepts BOTH camelCase and snake_case so a product that
+//     ProductShelf marks saveable (its getProductImageUrl reads both shapes) can
+//     actually be saved.
+//
+// The module is transpiled in-process and run in a VM sandbox; expo/supabase
+// imports are stubbed because they are only used inside other functions.
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const ts = require('typescript');
+const vm = require('node:vm');
+
+const ROOT = path.resolve(__dirname, '..');
+
+function loadStyleObjects() {
+  const filename = path.join(ROOT, 'services', 'styleObjects.ts');
+  const source = fs.readFileSync(filename, 'utf8');
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const mod = { exports: {} };
+  const sandbox = {
+    console,
+    exports: mod.exports,
+    module: mod,
+    Date,
+    Math,
+    Number,
+    Object,
+    Array,
+    JSON,
+    String,
+    Boolean,
+    Promise,
+    Set,
+    require: (id) => {
+      if (id.startsWith('node:')) return require(id);
+      // Stub app/runtime deps — only used inside functions we are not calling here.
+      if (id === './supabaseClient') return { supabase: {} };
+      if (id === 'expo-file-system/legacy') return {};
+      if (id === 'expo-image-manipulator') return {};
+      throw new Error(`Unexpected require: ${id}`);
+    },
+  };
+  vm.runInNewContext(output, sandbox, { filename });
+  return mod.exports;
+}
+
+const styleObjects = loadStyleObjects();
+const { buildProductMatchSnapshot, UnsupportedStyleObjectItemError, isRemoteImageUrl } = styleObjects;
+
+// ── isRemoteImageUrl ──────────────────────────────────────────────────────────
+
+test('isRemoteImageUrl: accepts http/https, rejects everything else', () => {
+  assert.equal(isRemoteImageUrl('https://placehold.co/x.png'), true);
+  assert.equal(isRemoteImageUrl('http://example.com/x.jpg'), true);
+  assert.equal(isRemoteImageUrl('file:///local/x.jpg'), false);
+  assert.equal(isRemoteImageUrl('/relative/x.jpg'), false);
+  assert.equal(isRemoteImageUrl(''), false);
+  assert.equal(isRemoteImageUrl(null), false);
+  assert.equal(isRemoteImageUrl(undefined), false);
+});
+
+// ── Image-save policy: remote image required ──────────────────────────────────
+
+test('buildProductMatchSnapshot: remote https image (camelCase) succeeds', () => {
+  const snap = buildProductMatchSnapshot({
+    id: 'p1',
+    title: 'Black Blazer',
+    retailer: 'K Scan Demo Catalog',
+    imageUrl: 'https://placehold.co/400x600?text=Blazer',
+    productUrl: 'https://kscan.app/?test_product=black-blazer',
+    imageCategory: 'outerwear',
+    price: '$199',
+  });
+  assert.equal(snap.sourceType, 'product_match');
+  assert.equal(snap.sourceId, 'p1');
+  assert.equal(snap.title, 'Black Blazer');
+  assert.equal(snap.imageUrl, 'https://placehold.co/400x600?text=Blazer');
+  assert.equal(snap.brand, 'K Scan Demo Catalog');
+  assert.equal(snap.category, 'outerwear');
+  assert.equal(snap.productUrl, 'https://kscan.app/?test_product=black-blazer');
+  assert.equal(snap.snapshotVersion, 1);
+});
+
+test('buildProductMatchSnapshot: http image is accepted', () => {
+  const snap = buildProductMatchSnapshot({
+    id: 'p2',
+    name: 'Sneaker',
+    imageUrl: 'http://example.com/s.jpg',
+  });
+  assert.equal(snap.imageUrl, 'http://example.com/s.jpg');
+});
+
+test('buildProductMatchSnapshot: missing image throws UnsupportedStyleObjectItemError', () => {
+  assert.throws(
+    () => buildProductMatchSnapshot({ id: 'p3', title: 'No Image' }),
+    (err) => {
+      assert.ok(err instanceof UnsupportedStyleObjectItemError);
+      assert.equal(err.name, 'UnsupportedStyleObjectItemError');
+      return true;
+    },
+  );
+});
+
+test('buildProductMatchSnapshot: non-remote image (file/relative) throws', () => {
+  assert.throws(
+    () => buildProductMatchSnapshot({ id: 'p4', title: 'Local', imageUrl: 'file:///x.jpg' }),
+    UnsupportedStyleObjectItemError,
+  );
+  assert.throws(
+    () => buildProductMatchSnapshot({ id: 'p5', title: 'Rel', imageUrl: '/img/1.jpg' }),
+    UnsupportedStyleObjectItemError,
+  );
+});
+
+// ── snake_case / camelCase resolution (save-shape consistency) ────────────────
+
+test('buildProductMatchSnapshot: resolves snake_case image_url (catalog row shape)', () => {
+  // A catalog row carrying only snake_case fields — what ProductShelf marks
+  // saveable via getProductImageUrl — must also succeed at save time.
+  const snap = buildProductMatchSnapshot({
+    id: 'bag-1',
+    product_name: 'Leather Tote Bag',
+    retailer: 'K Scan Demo Catalog',
+    image_url: 'https://placehold.co/400x600?text=Tote',
+    product_url: 'https://kscan.app/?test_product=leather-tote-bag',
+    canonical_category: 'bag',
+    price: '$0',
+  });
+  assert.equal(snap.imageUrl, 'https://placehold.co/400x600?text=Tote');
+  assert.equal(snap.title, 'Leather Tote Bag'); // from product_name
+  assert.equal(snap.brand, 'K Scan Demo Catalog');
+  assert.equal(snap.category, 'bag'); // from canonical_category
+  assert.equal(snap.productUrl, 'https://kscan.app/?test_product=leather-tote-bag');
+});
+
+test('buildProductMatchSnapshot: camelCase takes precedence over snake_case', () => {
+  const snap = buildProductMatchSnapshot({
+    id: 'p6',
+    title: 'Preferred Title',
+    product_name: 'Fallback Title',
+    imageUrl: 'https://example.com/a.jpg',
+    image_url: 'https://example.com/b.jpg',
+  });
+  assert.equal(snap.title, 'Preferred Title');
+  assert.equal(snap.imageUrl, 'https://example.com/a.jpg');
+});
+
+test('buildProductMatchSnapshot: title falls back to "Untitled item" when no name fields', () => {
+  const snap = buildProductMatchSnapshot({
+    id: 'p7',
+    imageUrl: 'https://example.com/x.jpg',
+  });
+  assert.equal(snap.title, 'Untitled item');
+});
+
+test('buildProductMatchSnapshot: resolves alternate image aliases (thumbnail)', () => {
+  const snap = buildProductMatchSnapshot({
+    id: 'p8',
+    title: 'Thumb',
+    thumbnail: 'https://example.com/thumb.jpg',
+  });
+  assert.equal(snap.imageUrl, 'https://example.com/thumb.jpg');
+});

@@ -91,13 +91,29 @@ export type ProductMatchSnapshotSource = {
   id?: string | null;
   title?: string | null;
   name?: string | null;
+  displayName?: string | null;
+  product_name?: string | null;
   retailer?: string | null;
+  brand?: string | null;
   price?: string | null;
   imageUrl?: string | null;
+  // snake_case / alternate image aliases (mirror ProductShelf getProductImageUrl)
+  image_url?: string | null;
+  thumbnail?: string | null;
+  thumbnailUrl?: string | null;
+  image_src?: string | null;
+  product_image_url?: string | null;
   imageCategory?: string | null;
+  category?: string | null;
+  canonical_category?: string | null;
   productUrl?: string | null;
   purchaseUrl?: string | null;
   affiliateUrl?: string | null;
+  // snake_case / alternate link aliases (mirror ProductShelf getPurchaseUrl)
+  product_url?: string | null;
+  purchase_url?: string | null;
+  url?: string | null;
+  link?: string | null;
 };
 
 export type ScanImageSnapshotSource = {

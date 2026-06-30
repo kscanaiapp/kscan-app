@@ -200,7 +200,18 @@ async function resolveSignedImageUrlsForItems<T extends { imageUrl?: string | nu
 }
 
 export function buildProductMatchSnapshot(source: ProductMatchSnapshotSource) {
-  const imageUrl = cleanText(source.imageUrl);
+  // Resolve fields accepting BOTH camelCase and snake_case so the snapshot
+  // builder accepts exactly what ProductShelf considers saveable: its
+  // eligibility gate (getProductImageUrl/getPurchaseUrl/getProductTitle) reads
+  // both shapes. Without this, a catalog row carrying only `image_url` (no
+  // `imageUrl` alias) would pass the UI gate yet throw here.
+  const imageUrl =
+    cleanText(source.imageUrl) ||
+    cleanText(source.image_url) ||
+    cleanText(source.thumbnail) ||
+    cleanText(source.thumbnailUrl) ||
+    cleanText(source.image_src) ||
+    cleanText(source.product_image_url);
   if (!isRemoteImageUrl(imageUrl)) {
     throw new UnsupportedStyleObjectItemError();
   }
@@ -208,11 +219,23 @@ export function buildProductMatchSnapshot(source: ProductMatchSnapshotSource) {
   const productUrl =
     cleanText(source.affiliateUrl) ||
     cleanText(source.productUrl) ||
-    cleanText(source.purchaseUrl);
+    cleanText(source.purchaseUrl) ||
+    cleanText(source.product_url) ||
+    cleanText(source.purchase_url) ||
+    cleanText(source.url) ||
+    cleanText(source.link);
   const price = parsePrice(source.price);
-  const title = cleanText(source.title) || cleanText(source.name) || 'Untitled item';
-  const brand = cleanText(source.retailer);
-  const category = cleanText(source.imageCategory);
+  const title =
+    cleanText(source.title) ||
+    cleanText(source.name) ||
+    cleanText(source.displayName) ||
+    cleanText(source.product_name) ||
+    'Untitled item';
+  const brand = cleanText(source.retailer) || cleanText(source.brand);
+  const category =
+    cleanText(source.imageCategory) ||
+    cleanText(source.category) ||
+    cleanText(source.canonical_category);
 
   return {
     sourceType: 'product_match',

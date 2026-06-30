@@ -125,6 +125,12 @@ if (checklist.toLowerCase().includes('restart') || checklist.toLowerCase().inclu
   fail('Checklist is missing Metro restart after env changes warning');
 }
 
+if (checklist.includes('Add to Dressing Room') || checklist.toLowerCase().includes('dressing room save')) {
+  pass('Checklist documents the Dressing Room save path');
+} else {
+  fail('Checklist is missing Dressing Room save-path validation steps');
+}
+
 // ── 4. Active source must not reference Privacy project ──────────────────────
 
 const privacyHits = activeSourceHas('yzqjvdfgefveprobvvyw', [':!docs', ':!scripts/check-scan-readiness.js']);

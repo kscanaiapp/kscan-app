@@ -180,15 +180,23 @@ test('thumbs-down reaction migration preserves legacy favorite rows while hiding
   assert.doesNotMatch(thumbsDownReactionMigration, /\(values \('like'\), \('love'\), \('favorite'\), \('looking'\)\)/);
 });
 
-test('public room preview payload exposes dressing room item ids for read-only counts', () => {
+test('public room preview exposes item ids and gates reactions: anonymous read-only counts, writes require auth + room join', () => {
   assert.match(publicPreviewItemIdMigration, /create or replace function public\.get_public_room_preview/);
   assert.match(publicPreviewItemIdMigration, /'id', dri\.id/);
   assert.match(publicRoomScreen, /ApiItem\.id === public\.dressing_room_items\.id/);
+  // Aggregate counts are always available (anonymous + authenticated).
   assert.match(publicRoomScreen, /getItemReactionCounts/);
   assert.match(publicRoomScreen, /<ItemReactions/);
-  assert.doesNotMatch(publicRoomScreen, /getMyItemReaction/);
-  assert.doesNotMatch(publicRoomScreen, /setItemReaction/);
-  assert.doesNotMatch(publicRoomScreen, /removeItemReaction/);
+  // Personal reaction read (getMyItemReaction) and writes (setItemReaction /
+  // removeItemReaction) are an authenticated-participant feature, NOT exposed to
+  // anonymous viewers. The privacy gate is enforced two ways in the screen:
+  //   1. Loading "my" reactions is skipped unless signed in AND joined the room.
+  //   2. The reaction UI is interactive only when `canReact` (auth + joinedRoomId).
+  assert.match(publicRoomScreen, /if \(!isAuthenticated \|\| !joinedRoomId\)/);
+  assert.match(publicRoomScreen, /const canReact = Boolean\(isAuthenticated && joinedRoomId/);
+  assert.match(publicRoomScreen, /onReact=\{canReact \? handleReact : undefined\}/);
+  // handleReact itself refuses to mutate when not signed-in/joined.
+  assert.match(publicRoomScreen, /if \(!isAuthenticated \|\| !joinedRoomId \|\| mutatingReactionItemId === itemId\) return;/);
 });
 
 test('inspiration_items migration creates tables with RLS and soft-delete support', () => {

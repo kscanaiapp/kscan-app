@@ -91,12 +91,21 @@ npx expo start --android
 - [ ] Screenshot captured
 
 ## Dressing Room Save Path
+> Requires the `dressingRooms` feature enabled and a signed-in user.
+> Policy (verified in code + tests): a product is saveable only when it has a
+> title AND a remote (http/https) image. TEST catalog rows use placehold.co
+> images, so they are saveable. Image-less product saves are intentionally
+> blocked by the service (`buildProductMatchSnapshot` throws
+> `UnsupportedStyleObjectItemError`); the DB itself permits a null image only for
+> the separate uploaded-scan-image path.
 - [ ] Tap a product card's Add to Dressing Room action.
 - [ ] Add a product to an existing Dressing Room.
 - [ ] Create a new Dressing Room and add the product in the same modal flow.
 - [ ] Verify the saved item appears in the target room with title, image, retailer/category, price if present, and product link if present.
 - [ ] Test a product with missing price and confirm save/display does not show `$0.00` or "Free".
-- [ ] Capture screenshots and Metro/device logs for any save failure.
+- [ ] A card showing "Can't Save Yet" (no remote image) opens a modal that explains it can't be saved and does NOT crash.
+- [ ] Duplicate behavior: saving the same product twice currently creates two room items (duplicates allowed by design — no unique constraint). Note if this is undesired.
+- [ ] Capture screenshots and Metro/device logs for any save failure (look for `UnsupportedStyleObjectItemError`).
 
 ## Debug Checklist (if shelf does not appear)
 1. Check Metro logs: did `scan-identify` return `recommendedProducts`?
