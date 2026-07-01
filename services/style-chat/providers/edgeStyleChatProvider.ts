@@ -27,6 +27,9 @@ export interface EdgeChatMessage {
   content: string;
   model: string;
   tokenEstimate: number;
+  // Optional, additive explanation for concrete recommendations. Absent for
+  // greetings, refusals, fallbacks, and older backend responses.
+  whyThisWorks?: string;
 }
 
 export interface EdgeChatUsage {
@@ -84,6 +87,11 @@ function normalizeMessage(value: unknown, fallbackContent: string): EdgeChatMess
     ? raw.content
     : fallbackContent;
 
+  // Additive, optional. Only surfaced when the backend sends a non-empty string.
+  const whyThisWorks = typeof raw.why_this_works === 'string' && raw.why_this_works.trim().length > 0
+    ? raw.why_this_works.trim()
+    : undefined;
+
   return {
     sender: raw.sender === 'system' ? 'system' : 'assistant',
     content,
@@ -91,6 +99,7 @@ function normalizeMessage(value: unknown, fallbackContent: string): EdgeChatMess
     tokenEstimate: typeof raw.tokenEstimate === 'number' && Number.isFinite(raw.tokenEstimate)
       ? raw.tokenEstimate
       : 0,
+    ...(whyThisWorks ? { whyThisWorks } : {}),
   };
 }
 

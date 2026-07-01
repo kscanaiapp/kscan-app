@@ -37,6 +37,27 @@ const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/m
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Local rollback switch for the explainable-recommendation slice (Option A). Setting this
+// to false restores plain replies: the prompt stops requesting an explanation and the
+// parser/response stop emitting why_this_works. No other code change is required.
+const STYLECHAT_EXPLANATIONS_ENABLED = true;
+const WHY_THIS_WORKS_MAX_CHARS = 200;
+
+// Appended to the system prompt only when explanations are enabled. Instructs Gemini to
+// wrap concrete recommendations so the explanation can be split out non-destructively.
+const EXPLANATION_INSTRUCTIONS = `FORMAT FOR RECOMMENDATIONS:
+When your reply contains a concrete outfit or styling recommendation, wrap it exactly like this:
+<content>
+Your normal styling reply goes here, in plain text.
+</content>
+<why_this_works>
+One short sentence (aim for 120 characters or less) on why this recommendation works.
+</why_this_works>
+
+Only include the <why_this_works> block for concrete recommendations. For greetings, clarifying questions, refusals, or "I need more information" replies, respond in plain text with NO tags.
+Keep the explanation to a single mobile-friendly sentence. Do not overclaim personalization and do not invent wardrobe items you were not given. If you have little style history for this user, keep it cautious, e.g. "Based on your available items…" or "as a starting point.".
+These two tags are the only markup permitted; everything inside them stays plain text.`;
+
 // ── System prompt (server-side only) ──────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are K Scan StyleChat, a personal styling assistant inside the K Scan AI app.
@@ -266,6 +287,7 @@ interface GeminiCallResult {
   text: string;
   tokenEstimate: number;
   finishReason: string;
+  whyThisWorks?: string;
 }
 
 function buildGeminiBody(systemText: string, contents: GeminiTurn[]): GeminiBody {
@@ -312,6 +334,34 @@ function extractGeminiText(candidate: GeminiCandidate | undefined): string {
       .filter(Boolean)
       .join(' '),
   );
+}
+
+// Splits raw Gemini output into the recommendation text and the optional explanation.
+// Extraction is non-destructive: text without tags returns { content: <original> } so the
+// existing pipeline behaves exactly as before, and malformed/truncated tags never leak.
+function parseStyleChatOutput(rawText: string): { content: string; whyThisWorks?: string } {
+  const text = typeof rawText === 'string' ? rawText : '';
+
+  const whyMatch = text.match(/<why_this_works>([\s\S]*?)<\/why_this_works>/i);
+  const rawWhy = whyMatch ? normalizeAssistantText(whyMatch[1]) : '';
+  const whyThisWorks = rawWhy
+    ? (rawWhy.length > WHY_THIS_WORKS_MAX_CHARS ? rawWhy.slice(0, WHY_THIS_WORKS_MAX_CHARS).trim() : rawWhy)
+    : undefined;
+
+  const contentMatch = text.match(/<content>([\s\S]*?)<\/content>/i);
+  let content = contentMatch
+    ? contentMatch[1]
+    : text.replace(/<why_this_works>[\s\S]*?<\/why_this_works>/gi, ' ');
+
+  // Drop any stray/orphan tags (e.g. a block left unterminated by MAX_TOKENS truncation).
+  content = content.replace(/<\/?(?:content|why_this_works)>/gi, ' ').trim();
+
+  return {
+    content: content.length > 0
+      ? content
+      : text.replace(/<\/?(?:content|why_this_works)>/gi, ' ').replace(/\s+/g, ' ').trim(),
+    whyThisWorks,
+  };
 }
 
 function incompleteReasonFor(text: string, userMessage: string, finishReason: string): string | null {
@@ -377,7 +427,20 @@ async function callGemini(
     const finishReason = typeof candidate?.finishReason === 'string' ? candidate.finishReason : '';
     const blockReason  = geminiData.promptFeedback?.blockReason;
     const totalTokens  = geminiData.usageMetadata?.totalTokenCount;
-    const candidateText = extractGeminiText(candidate);
+    let candidateText: string;
+    let whyThisWorks: string | undefined;
+    if (STYLECHAT_EXPLANATIONS_ENABLED) {
+      const rawCandidateText = (candidate?.content?.parts ?? [])
+        .map((part) => (typeof part.text === 'string' ? part.text : ''))
+        .filter(Boolean)
+        .join(' ');
+      const parsedOutput = parseStyleChatOutput(rawCandidateText);
+      candidateText = normalizeAssistantText(parsedOutput.content);
+      whyThisWorks = parsedOutput.whyThisWorks;
+    } else {
+      candidateText = extractGeminiText(candidate);
+      whyThisWorks = undefined;
+    }
 
     if (!candidateText) {
       console.warn(
@@ -428,6 +491,7 @@ async function callGemini(
       text: assistantText,
       tokenEstimate,
       finishReason,
+      whyThisWorks,
     };
   } finally {
     clearTimeout(timer);
@@ -799,9 +863,13 @@ Deno.serve(async (req) => {
 
   // ── 7. Build Gemini request payload ──────────────────────────────────────────
 
-  const systemText = memoryText
-    ? `${SYSTEM_PROMPT}\n\nUser style context (use as background only):\n${memoryText}`
+  const baseSystemPrompt = STYLECHAT_EXPLANATIONS_ENABLED
+    ? `${SYSTEM_PROMPT}\n\n${EXPLANATION_INSTRUCTIONS}`
     : SYSTEM_PROMPT;
+
+  const systemText = memoryText
+    ? `${baseSystemPrompt}\n\nUser style context (use as background only):\n${memoryText}`
+    : baseSystemPrompt;
 
   // Map history to Gemini conversation turns.
   // Gemini requires alternating user/model turns; merge consecutive same-role messages.
@@ -835,6 +903,7 @@ Deno.serve(async (req) => {
 
   let assistantText  = '';
   let tokenEstimate  = 0;
+  let whyThisWorks: string | undefined;
   let wasRetried     = false;
   let usedFallback   = false;
 
@@ -842,6 +911,7 @@ Deno.serve(async (req) => {
     const initial = await callGemini(geminiUrl, geminiBody, 'initial', modelName);
     assistantText = initial.text;
     tokenEstimate = initial.tokenEstimate;
+    whyThisWorks  = initial.whyThisWorks;
 
     const incompleteReason = incompleteReasonFor(
       assistantText,
@@ -896,11 +966,13 @@ Deno.serve(async (req) => {
           // Retry produced a complete answer — use it.
           assistantText = retry.text;
           tokenEstimate = retry.tokenEstimate;
+          whyThisWorks  = retry.whyThisWorks;
         } else if (retryIncompleteReason !== 'max_tokens' && retryHasText) {
           // Best-effort: retry text is non-empty and was NOT truncated by MAX_TOKENS, but
           // the heuristic still flags it. Prefer real Gemini guidance over a generic fallback.
           assistantText = retry.text;
           tokenEstimate = retry.tokenEstimate;
+          whyThisWorks  = retry.whyThisWorks;
           usedFallback = false;
           console.warn(
             '[stylechat-generate] returned_best_effort_after_retry reason=%s responseChars=%d finishReason=%s retried=true model=%s elapsedMs=%d',
@@ -915,6 +987,7 @@ Deno.serve(async (req) => {
           usedFallback = true;
           assistantText = buildStyleChatFallback();
           tokenEstimate = 0;
+          whyThisWorks  = undefined;
           console.warn(
             '[stylechat-generate] retry remained incomplete reason=%s responseChars=%d finishReason=%s',
             retryIncompleteReason,
@@ -931,6 +1004,7 @@ Deno.serve(async (req) => {
           // MAX_TOKENS. Return it as best-effort rather than discarding real guidance.
           assistantText = initial.text;
           tokenEstimate = initial.tokenEstimate;
+          whyThisWorks  = initial.whyThisWorks;
           usedFallback = false;
           console.warn(
             '[stylechat-generate] returned_best_effort_initial_after_retry_failure reason=%s responseChars=%d finishReason=%s retried=true model=%s elapsedMs=%d',
@@ -945,6 +1019,7 @@ Deno.serve(async (req) => {
           usedFallback = true;
           assistantText = buildStyleChatFallback();
           tokenEstimate = 0;
+          whyThisWorks  = undefined;
           console.warn(
             '[stylechat-generate] retry %s elapsedMs=%d',
             retryTimedOut ? 'timeout' : 'error',
@@ -988,6 +1063,7 @@ Deno.serve(async (req) => {
     usedFallback = true;
     assistantText = buildStyleChatFallback();
     tokenEstimate = 0;
+    whyThisWorks  = undefined;
     console.warn(
       '[stylechat-generate] empty_final_text_fallback model=%s elapsedMs=%d',
       modelName,
@@ -1022,14 +1098,33 @@ Deno.serve(async (req) => {
   // When a fallback message was substituted (Gemini failed, retry failed, or retry was
   // truncated/empty), surface status "error" while preserving the message shape. Real
   // and best-effort Gemini text return status "success".
+  // Additive, optional explanation. Included only on a real/best-effort success path with a
+  // non-empty parsed explanation; older clients that ignore the field are unaffected.
+  const responseMessage: {
+    sender: 'assistant';
+    content: string;
+    model: string;
+    tokenEstimate: number;
+    why_this_works?: string;
+  } = {
+    sender: 'assistant',
+    content: assistantText,
+    model: modelName,
+    tokenEstimate: finalTokenEstimate,
+  };
+
+  if (
+    STYLECHAT_EXPLANATIONS_ENABLED &&
+    !usedFallback &&
+    typeof whyThisWorks === 'string' &&
+    whyThisWorks.trim().length > 0
+  ) {
+    responseMessage.why_this_works = whyThisWorks.trim();
+  }
+
   return json({
     status: usedFallback ? 'error' : 'success',
-    message: {
-      sender: 'assistant',
-      content: assistantText,
-      model: modelName,
-      tokenEstimate: finalTokenEstimate,
-    },
+    message: responseMessage,
     usage: { messagesUsed, messagesLimit, resetAt },
   });
 });

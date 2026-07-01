@@ -7,12 +7,16 @@ import {
   readStyleChatDailyUsage,
 } from '../services/style-chat/styleChatRepository';
 import { getFriendlyStyleChatError } from '../services/style-chat/styleChatErrors';
-import type { StyleChatMessage, StyleChatSession } from '../services/style-chat/types';
+import type { StyleChatMessage, StyleChatSession, StyleChatUiBlock } from '../services/style-chat/types';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
 // MockStyleChatProvider remains available in edgeStyleChatProvider's fallback chain.
 const provider = new EdgeStyleChatProvider();
+
+// Local rollback switch for the visible "Why this works" explanation slice (Option A).
+// Set to false to stop rendering/persisting explanation blocks with no backend change.
+const ENABLE_STYLECHAT_EXPLANATIONS = true;
 
 function getSafeCount(value: number | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : fallback;
@@ -180,6 +184,15 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
 
         // 4. success — optimistic assistant bubble, then persist.
         const assistantContent = result.message.content.trim() || STYLE_CHAT_COPY.errorGeneric;
+
+        // Optional "Why this works" explanation for concrete recommendations. Stored in
+        // the existing ui_blocks jsonb column so it persists across reload with no schema
+        // change; absent explanations render as a normal message bubble.
+        const explanationBlocks: StyleChatUiBlock[] =
+          ENABLE_STYLECHAT_EXPLANATIONS && result.message.whyThisWorks
+            ? [{ type: 'why_this_works', title: 'Why this works', body: result.message.whyThisWorks }]
+            : [];
+
         const optimisticAssistant: StyleChatMessage = {
           id: `optimistic-assistant-${Date.now()}`,
           sessionId,
@@ -189,7 +202,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
           referencedSavedItemIds: [],
           referencedDressingRoomIds: [],
           referencedCatalogItems: [],
-          uiBlocks: [],
+          uiBlocks: explanationBlocks,
           provider: 'gemini',
           model: result.message.model || undefined,
           tokenEstimate: result.message.tokenEstimate,
@@ -202,6 +215,7 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
           sessionId,
           sender: 'assistant',
           content: assistantContent,
+          uiBlocks: explanationBlocks,
           provider: 'gemini',
           model: result.message.model || undefined,
           tokenEstimate: result.message.tokenEstimate,
