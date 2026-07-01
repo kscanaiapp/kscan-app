@@ -1,99 +1,99 @@
 {
-  "expo": {
-    "name": "K Scan",
-    "slug": "kscan",
-    "version": "1.0.1",
-    "sdkVersion": "54.0.0",
-    "scheme": "kscan",
-    "orientation": "portrait",
-    "userInterfaceStyle": "dark",
-    "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#09090b"
-    },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "K Scan uses your camera to photograph your outfit for style analysis.",
-          "microphonePermission": false
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms."
-        }
-      ],
-      "expo-router",
-      "expo-font"
-    ],
-    "android": {
-      "package": "com.kscanai.app",
-      "versionCode": 12,
-      "softwareKeyboardLayoutMode": "resize",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.INTERNET",
-        "android.permission.VIBRATE"
-      ],
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
-      ],
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1a0a2e"
-      },
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": false,
-          "data": [
-            {
-              "scheme": "kscan"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ]
-    },
-    "ios": {
-      "bundleIdentifier": "com.kscanai.app",
-      "buildNumber": "2",
-      "deploymentTarget": "16.0",
-      "supportsTablet": false,
-      "usesAppleSignIn": true,
-      "infoPlist": {
-        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis.",
-        "NSPhotoLibraryUsageDescription": "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "privacyManifests": {
-        "NSPrivacyAccessedAPITypes": [
-          {
-            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": [
-              "CA92.1"
-            ]
-          },
-          {
-            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
-            "NSPrivacyAccessedAPITypeReasons": [
-              "C617.1"
-            ]
-          }
-        ]
-      }
-    },
-    "extra": {
-      "eas": {
-        "projectId": "a075728d-bd77-446f-843d-0f63fd54cc2e"
-      }
-    }
-  }
+    "expo":  {
+                 "name":  "K Scan",
+                 "slug":  "kscan",
+                 "version":  "1.0.1",
+                 "sdkVersion":  "54.0.0",
+                 "scheme":  "kscan",
+                 "orientation":  "portrait",
+                 "userInterfaceStyle":  "dark",
+                 "icon":  "./assets/icon.png",
+                 "splash":  {
+                                "image":  "./assets/splash-icon.png",
+                                "resizeMode":  "contain",
+                                "backgroundColor":  "#09090b"
+                            },
+                 "plugins":  [
+                                 [
+                                     "expo-camera",
+                                     {
+                                         "cameraPermission":  "K Scan uses your camera to photograph your outfit for style analysis.",
+                                         "microphonePermission":  false
+                                     }
+                                 ],
+                                 [
+                                     "expo-image-picker",
+                                     {
+                                         "photosPermission":  "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms."
+                                     }
+                                 ],
+                                 "expo-router",
+                                 "expo-font"
+                             ],
+                 "android":  {
+                                 "package":  "com.kscanai.app",
+                                 "versionCode":  12,
+                                 "softwareKeyboardLayoutMode":  "resize",
+                                 "permissions":  [
+                                                     "android.permission.CAMERA",
+                                                     "android.permission.INTERNET",
+                                                     "android.permission.VIBRATE"
+                                                 ],
+                                 "blockedPermissions":  [
+                                                            "android.permission.RECORD_AUDIO"
+                                                        ],
+                                 "adaptiveIcon":  {
+                                                      "foregroundImage":  "./assets/adaptive-icon.png",
+                                                      "backgroundColor":  "#1a0a2e"
+                                                  },
+                                 "intentFilters":  [
+                                                       {
+                                                           "action":  "VIEW",
+                                                           "autoVerify":  false,
+                                                           "data":  [
+                                                                        {
+                                                                            "scheme":  "kscan"
+                                                                        }
+                                                                    ],
+                                                           "category":  [
+                                                                            "BROWSABLE",
+                                                                            "DEFAULT"
+                                                                        ]
+                                                       }
+                                                   ]
+                             },
+                 "ios":  {
+                             "bundleIdentifier":  "com.kscanai.app",
+                             "buildNumber":  "6",
+                             "deploymentTarget":  "16.0",
+                             "supportsTablet":  false,
+                             "usesAppleSignIn":  true,
+                             "infoPlist":  {
+                                               "NSCameraUsageDescription":  "K Scan uses your camera to photograph your outfit for style analysis.",
+                                               "NSPhotoLibraryUsageDescription":  "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
+                                               "ITSAppUsesNonExemptEncryption":  false
+                                           },
+                             "privacyManifests":  {
+                                                      "NSPrivacyAccessedAPITypes":  [
+                                                                                        {
+                                                                                            "NSPrivacyAccessedAPIType":  "NSPrivacyAccessedAPICategoryUserDefaults",
+                                                                                            "NSPrivacyAccessedAPITypeReasons":  [
+                                                                                                                                    "CA92.1"
+                                                                                                                                ]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyAccessedAPIType":  "NSPrivacyAccessedAPICategoryFileTimestamp",
+                                                                                            "NSPrivacyAccessedAPITypeReasons":  [
+                                                                                                                                    "C617.1"
+                                                                                                                                ]
+                                                                                        }
+                                                                                    ]
+                                                  }
+                         },
+                 "extra":  {
+                               "eas":  {
+                                           "projectId":  "a075728d-bd77-446f-843d-0f63fd54cc2e"
+                                       }
+                           }
+             }
 }
