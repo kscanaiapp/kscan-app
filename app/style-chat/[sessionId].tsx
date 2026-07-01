@@ -31,12 +31,17 @@ import {
   clearStyleChatHandoffContext,
 } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatMessage } from '../../services/style-chat/types';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const { user } = useAuthSession();
+  // Style DNA Phase 0 local feedback key. StyleChat is auth-only, so this is
+  // populated whenever messages exist; null hides the local feedback UI.
+  const userKey = user ? `user:${user.id}` : null;
   const {
     session,
     messages,
@@ -116,7 +121,7 @@ export default function StyleChatSessionScreen() {
   const isLoading = loadingSession || loadingMessages;
 
   const renderMessage = ({ item }: { item: StyleChatMessage }) => (
-    <StyleChatBubble message={item} />
+    <StyleChatBubble message={item} userKey={userKey} />
   );
 
   const ListEmpty = isLoading ? (
@@ -174,6 +179,7 @@ export default function StyleChatSessionScreen() {
       <FlatList
         ref={listRef}
         data={messages}
+        extraData={userKey}
         keyExtractor={item => item.id}
         renderItem={renderMessage}
         ListEmptyComponent={ListEmpty}

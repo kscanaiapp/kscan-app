@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Linking,
@@ -12,16 +12,18 @@ import { StyleChatSessionList } from '../../components/style-chat/StyleChatSessi
 import { LuxuryScreen, PrivacyFooter } from '../../components/luxury';
 import { LUXURY } from '../../constants/theme';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
+import { getStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 export default function StyleChatIndexScreen() {
   const isDeleteDialogOpenRef = useRef(false);
+  const handoffAutoStartAttemptedRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessions, loading, error, createSession, deleteSession } = useStyleChatSessions();
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleNewSession = async () => {
+  const handleNewSession = useCallback(async () => {
     if (isCreating) return;
     setIsCreating(true);
     try {
@@ -34,7 +36,15 @@ export default function StyleChatIndexScreen() {
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [createSession, isCreating]);
+
+  useEffect(() => {
+    if (handoffAutoStartAttemptedRef.current || loading || isCreating || error) return;
+    const handoff = getStyleChatHandoffContext();
+    handoffAutoStartAttemptedRef.current = true;
+    if (!handoff) return;
+    void handleNewSession();
+  }, [error, handleNewSession, isCreating, loading]);
 
   const handleDeleteSession = (session: StyleChatSession) => {
     const clearDialog = () => { isDeleteDialogOpenRef.current = false; };

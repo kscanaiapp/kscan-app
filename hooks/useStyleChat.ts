@@ -37,6 +37,11 @@ export interface UseStyleChatReturn {
   clearError: () => void;
 }
 
+type FailedSendState = {
+  content: string;
+  userMessageId: string | null;
+};
+
 export function useStyleChat(sessionId: string): UseStyleChatReturn {
   const [session, setSession] = useState<StyleChatSession | null>(null);
   const [messages, setMessages] = useState<StyleChatMessage[]>([]);
@@ -44,9 +49,14 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
+  const failedSendRef = useRef<FailedSendState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
+
+  useEffect(() => {
+    failedSendRef.current = null;
+  }, [sessionId]);
 
   // Load session, messages, and today's daily usage on mount.
   useEffect(() => {
@@ -100,7 +110,13 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   const canSend = Boolean(sessionId) && messagesUsed < messagesLimit && !isSending;
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      options?: {
+        skipUserPersistence?: boolean;
+        existingUserMessageId?: string | null;
+      },
+    ) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       if (!sessionId) {
@@ -113,37 +129,48 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
         return;
       }
       isSendingRef.current = true;
+      failedSendRef.current = null;
+
+      const skipUserPersistence = options?.skipUserPersistence === true;
+      let persistedUserMessageId = options?.existingUserMessageId ?? null;
 
       // 1. Optimistic user bubble
-      const optimisticUser: StyleChatMessage = {
-        id: `optimistic-user-${Date.now()}`,
-        sessionId,
-        sender: 'user',
-        content: trimmed,
-        referencedScanIds: [],
-        referencedSavedItemIds: [],
-        referencedDressingRoomIds: [],
-        referencedCatalogItems: [],
-        uiBlocks: [],
-        provider: 'client',
-        tokenEstimate: 0,
-        createdAt: new Date().toISOString(),
-      };
+      const optimisticUser: StyleChatMessage | null = skipUserPersistence
+        ? null
+        : {
+            id: `optimistic-user-${Date.now()}`,
+            sessionId,
+            sender: 'user',
+            content: trimmed,
+            referencedScanIds: [],
+            referencedSavedItemIds: [],
+            referencedDressingRoomIds: [],
+            referencedCatalogItems: [],
+            uiBlocks: [],
+            provider: 'client',
+            tokenEstimate: 0,
+            createdAt: new Date().toISOString(),
+          };
 
-      setMessages(prev => [...prev, optimisticUser]);
+      if (optimisticUser) {
+        setMessages(prev => [...prev, optimisticUser]);
+      }
       setIsSending(true);
       setError(null);
 
       try {
         // 2. Persist user message; replace optimistic entry with real row.
-        const savedUser = await saveStyleChatMessage({
-          sessionId,
-          sender: 'user',
-          content: trimmed,
-        });
-        setMessages(prev =>
-          prev.map(m => (m.id === optimisticUser.id ? savedUser : m)),
-        );
+        if (!skipUserPersistence) {
+          const savedUser = await saveStyleChatMessage({
+            sessionId,
+            sender: 'user',
+            content: trimmed,
+          });
+          persistedUserMessageId = savedUser.id;
+          setMessages(prev =>
+            prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
+          );
+        }
 
         // 3. Call the secure Edge Function proxy. Server enforces quota, assembles
         //    context, calls Gemini, and returns a typed result.
@@ -231,8 +258,14 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
       } catch (err: unknown) {
         // Remove optimistic entries on failure so retry is clean.
         setMessages(prev =>
-          prev.filter(m => !m.id.startsWith('optimistic-')),
+          optimisticUser
+            ? prev.filter(m => m.id !== optimisticUser.id && !m.id.startsWith('optimistic-assistant-'))
+            : prev.filter(m => !m.id.startsWith('optimistic-assistant-')),
         );
+        failedSendRef.current = {
+          content: trimmed,
+          userMessageId: persistedUserMessageId,
+        };
         setError(getFriendlyStyleChatError(err));
       } finally {
         isSendingRef.current = false;
@@ -243,9 +276,18 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   );
 
   const retryLastMessage = useCallback(() => {
+    const failedSend = failedSendRef.current;
+    if (failedSend) {
+      failedSendRef.current = null;
+      void sendMessage(failedSend.content, {
+        skipUserPersistence: Boolean(failedSend.userMessageId),
+        existingUserMessageId: failedSend.userMessageId,
+      });
+      return;
+    }
+
     const lastUser = [...messages].reverse().find(m => m.sender === 'user');
     if (lastUser) {
-      setMessages(prev => prev.filter(m => m.id !== lastUser.id));
       void sendMessage(lastUser.content);
     }
   }, [messages, sendMessage]);

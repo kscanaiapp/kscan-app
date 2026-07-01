@@ -42,6 +42,17 @@ export function StyleChatContextPreview({ context, onDismiss }: StyleChatContext
   const descriptors = Array.isArray(context.descriptors)
     ? context.descriptors.filter((d): d is string => typeof d === 'string' && d.length > 0)
     : [];
+  const hasDetailSignals = hasImage || hasQuery || hasAnalysisText || attributes.length > 0 || descriptors.length > 0;
+  const summaryText = hasQuery
+    ? context.query
+    : hasAnalysisText
+      ? context.analysisText
+      : hasDetailSignals
+        ? 'Reference details from this item are shown below.'
+        : 'Only limited item details are available right now. Ask a broader styling question or rescan for more specifics.';
+  const microcopy = hasDetailSignals
+    ? 'Keep this reference in view while you chat. If details are missing, StyleChat may keep the guidance general.'
+    : 'This item came through with limited detail, so the next reply may stay broad until you add more context.';
 
   return (
     <View style={styles.card} testID="style-chat-context-preview">
@@ -74,15 +85,9 @@ export function StyleChatContextPreview({ context, onDismiss }: StyleChatContext
           />
         ) : null}
         <View style={styles.textCol}>
-          {hasQuery ? (
-            <Text style={styles.queryText} numberOfLines={3}>
-              {context.query}
-            </Text>
-          ) : hasAnalysisText ? (
-            <Text style={styles.queryText} numberOfLines={3}>
-              {context.analysisText}
-            </Text>
-          ) : null}
+          <Text style={styles.queryText} numberOfLines={hasDetailSignals ? 3 : 4}>
+            {summaryText}
+          </Text>
         </View>
       </View>
 
@@ -104,7 +109,7 @@ export function StyleChatContextPreview({ context, onDismiss }: StyleChatContext
 
       {/* Microcopy expectation setter */}
       <Text style={styles.microcopy}>
-        Context available for reference. StyleChat will be able to use this directly in a future update.
+        {microcopy}
       </Text>
     </View>
   );
