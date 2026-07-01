@@ -28,7 +28,15 @@
                                      }
                                  ],
                                  "expo-router",
-                                 "expo-font"
+                                 "expo-font",
+                                 [
+                                     "expo-location",
+                                     {
+                                         "locationWhenInUsePermission":  "K Scan uses your general location while the app is open to suggest weather-appropriate outfit advice.",
+                                         "isIosBackgroundLocationEnabled":  false,
+                                         "isAndroidBackgroundLocationEnabled":  false
+                                     }
+                                 ]
                              ],
                  "android":  {
                                  "package":  "com.kscanai.app",
@@ -37,7 +45,9 @@
                                  "permissions":  [
                                                      "android.permission.CAMERA",
                                                      "android.permission.INTERNET",
-                                                     "android.permission.VIBRATE"
+                                                     "android.permission.VIBRATE",
+                                                     "android.permission.ACCESS_COARSE_LOCATION",
+                                                     "android.permission.ACCESS_FINE_LOCATION"
                                                  ],
                                  "blockedPermissions":  [
                                                             "android.permission.RECORD_AUDIO"
@@ -89,6 +99,7 @@
                              "infoPlist":  {
                                                "NSCameraUsageDescription":  "K Scan uses your camera to photograph your outfit for style analysis.",
                                                "NSPhotoLibraryUsageDescription":  "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
+                                               "NSLocationWhenInUseUsageDescription":  "K Scan uses your general location while the app is open to suggest weather-appropriate outfit advice.",
                                                "ITSAppUsesNonExemptEncryption":  false
                                            },
                              "privacyManifests":  {

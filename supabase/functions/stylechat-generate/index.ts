@@ -522,6 +522,157 @@ function buildMemoryText(
   return text.length > MAX_MEMORY_CHARS ? text.slice(0, MAX_MEMORY_CHARS) : text;
 }
 
+// ── Weather-aware styling (Phase 0) ─────────────────────────────────────────────
+// Optional, additive. The client sends a rounded foreground location; we fetch a
+// compact current-weather read from Open-Meteo (no API key) and expose it to the
+// model as optional context. Weather never blocks a reply: a 1.5s timeout or any
+// failure yields null and generation proceeds without weather. No raw GPS is logged.
+
+const WEATHER_FETCH_TIMEOUT_MS = 1_500;
+const WEATHER_CACHE_TTL_MS     = 15 * 60 * 1_000;
+const OPEN_METEO_BASE          = 'https://api.open-meteo.com/v1/forecast';
+
+type WeatherCondition = 'hot' | 'cold' | 'rain' | 'snow' | 'windy' | 'clear' | 'unknown';
+
+interface WeatherLocationInput {
+  enabled: boolean;
+  source: 'gps_foreground';
+  roundedLat: number;
+  roundedLon: number;
+  requestedAt: string;
+  locale?: string;
+}
+
+interface WeatherStylingContext {
+  enabled: boolean;
+  source: 'gps_foreground';
+  temperatureF?: number;
+  temperatureC?: number;
+  preferredUnit?: 'F' | 'C';
+  condition?: WeatherCondition;
+  observedAt: string;
+  expiresAt: string;
+}
+
+// Opportunistic in-memory cache keyed by ROUNDED coordinates. Best-effort only
+// (edge instances are ephemeral); correctness never depends on it. Durable edge
+// caching (Web Cache API) is deferred pending confirmation of Supabase Edge runtime
+// support. No raw/un-rounded GPS is ever cached.
+const weatherCache = new Map<string, { context: WeatherStylingContext; cachedAt: number }>();
+
+function parseWeatherLocationInput(raw: unknown): WeatherLocationInput | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (r.enabled !== true) return null;
+  if (r.source !== 'gps_foreground') return null;
+  const lat = typeof r.roundedLat === 'number' ? r.roundedLat : NaN;
+  const lon = typeof r.roundedLon === 'number' ? r.roundedLon : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+  return {
+    enabled: true,
+    source: 'gps_foreground',
+    roundedLat: lat,
+    roundedLon: lon,
+    requestedAt: typeof r.requestedAt === 'string' ? r.requestedAt : new Date().toISOString(),
+    locale: typeof r.locale === 'string' ? r.locale : undefined,
+  };
+}
+
+const SNOW_CODES  = new Set([71, 73, 75, 77, 85, 86]);
+const RAIN_CODES  = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
+const CLEAR_CODES = new Set([0, 1, 2, 3, 45, 48]);
+
+function resolveCondition(weatherCode: number, tempF: number, windMph: number): WeatherCondition {
+  if (SNOW_CODES.has(weatherCode)) return 'snow';
+  if (RAIN_CODES.has(weatherCode)) return 'rain';
+  if (Number.isFinite(windMph) && windMph >= 25) return 'windy';
+  if (Number.isFinite(tempF) && tempF >= 80) return 'hot';
+  if (Number.isFinite(tempF) && tempF <= 45) return 'cold';
+  if (CLEAR_CODES.has(weatherCode)) return 'clear';
+  return 'unknown';
+}
+
+async function fetchWeatherStylingContext(
+  input: WeatherLocationInput | null,
+): Promise<WeatherStylingContext | null> {
+  if (!input) return null;
+
+  const cacheKey = input.roundedLat + ',' + input.roundedLon;
+  const cached = weatherCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt < WEATHER_CACHE_TTL_MS) {
+    return cached.context;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEATHER_FETCH_TIMEOUT_MS);
+  try {
+    const url = new URL(OPEN_METEO_BASE);
+    url.searchParams.set('latitude', String(input.roundedLat));
+    url.searchParams.set('longitude', String(input.roundedLon));
+    url.searchParams.set('current', 'temperature_2m,weather_code,wind_speed_10m');
+    url.searchParams.set('temperature_unit', 'fahrenheit');
+    url.searchParams.set('wind_speed_unit', 'mph');
+
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    if (!res.ok) {
+      console.warn('[stylechat-generate] weather_http_error status=%d', res.status);
+      return null;
+    }
+    const data = await res.json() as { current?: Record<string, unknown> };
+    const current = data.current ?? {};
+    const rawTempF = typeof current.temperature_2m === 'number' ? current.temperature_2m : NaN;
+    const weatherCode = typeof current.weather_code === 'number' ? current.weather_code : -1;
+    const windMph = typeof current.wind_speed_10m === 'number' ? current.wind_speed_10m : NaN;
+    if (!Number.isFinite(rawTempF)) {
+      console.warn('[stylechat-generate] weather_parse_incomplete');
+      return null;
+    }
+    const temperatureF = Math.round(rawTempF);
+    const temperatureC = Math.round((rawTempF - 32) * 5 / 9);
+    const condition = resolveCondition(weatherCode, rawTempF, windMph);
+    const now = Date.now();
+    const context: WeatherStylingContext = {
+      enabled: true,
+      source: 'gps_foreground',
+      temperatureF,
+      temperatureC,
+      // Phase 0: default to Fahrenheit. TODO: localize preferred unit via device locale.
+      preferredUnit: 'F',
+      condition,
+      observedAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + WEATHER_CACHE_TTL_MS).toISOString(),
+    };
+    weatherCache.set(cacheKey, { context, cachedAt: now });
+    // Metadata-only log — never coordinates.
+    console.log('[stylechat-generate] weather_ok condition=%s tempF=%d', condition, temperatureF);
+    return context;
+  } catch (err) {
+    const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+    console.warn('[stylechat-generate] weather_%s', isTimeout ? 'timeout' : 'error');
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const WEATHER_STYLING_INSTRUCTION =
+  'Consider local weather context if provided, but only when it materially affects outfit comfort, footwear, layers, outerwear, or practicality. Do not fabricate weather. Do not mention the user\'s location. Do not state the exact temperature unless the user asks or it materially improves the answer; prefer general wording like "It\'s warm today." If no weather context is provided, do not mention weather.';
+
+function buildWeatherContextBlock(ctx: WeatherStylingContext): string {
+  const unit = ctx.preferredUnit ?? 'F';
+  const temp = unit === 'C' ? ctx.temperatureC : ctx.temperatureF;
+  const tempLine = typeof temp === 'number' ? 'Temperature: ' + temp + '°' + unit : 'Temperature: unknown';
+  const condition = ctx.condition ?? 'unknown';
+  return [
+    '[Optional Context: Weather]',
+    tempLine,
+    'Condition: ' + condition,
+    'Use only if relevant to the styling request.',
+    '[/Optional Context]',
+  ].join('\n');
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -563,6 +714,7 @@ Deno.serve(async (req) => {
   let body: {
     sessionId?: unknown;
     message?: unknown;
+    weatherLocation?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -591,6 +743,9 @@ Deno.serve(async (req) => {
   if (message.length > MAX_MESSAGE_CHARS) {
     return json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters` }, 400);
   }
+
+  // Optional, additive weather-aware styling input. Unknown/absent -> null (older clients).
+  const weatherLocation = parseWeatherLocationInput(body.weatherLocation);
 
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
 
@@ -762,6 +917,10 @@ Deno.serve(async (req) => {
 
   const startedAt = Date.now();
 
+  // Kick off weather fetch now so it runs in parallel with context assembly and adds
+  // no sequential latency before Gemini. Resolves to null on timeout/failure.
+  const weatherContextPromise = fetchWeatherStylingContext(weatherLocation);
+
   // Fetch last MAX_RECENT_MESSAGES messages for this session (most recent first).
   const { data: recentMsgs } = await userClient
     .from('style_chat_messages')
@@ -871,6 +1030,13 @@ Deno.serve(async (req) => {
     ? `${baseSystemPrompt}\n\nUser style context (use as background only):\n${memoryText}`
     : baseSystemPrompt;
 
+  // Await the parallel weather fetch and, when present, append the optional weather
+  // instruction + compact context block. Absent weather leaves the prompt unchanged.
+  const weatherContext = await weatherContextPromise;
+  const systemTextForModel = weatherContext
+    ? `${systemText}\n\n${WEATHER_STYLING_INSTRUCTION}\n\n${buildWeatherContextBlock(weatherContext)}`
+    : systemText;
+
   // Map history to Gemini conversation turns.
   // Gemini requires alternating user/model turns; merge consecutive same-role messages.
   const turns: GeminiTurn[] = [];
@@ -895,7 +1061,7 @@ Deno.serve(async (req) => {
     turns.unshift({ role: 'user', parts: [{ text: '[session start]' }] });
   }
 
-  const geminiBody = buildGeminiBody(systemText, turns);
+  const geminiBody = buildGeminiBody(systemTextForModel, turns);
 
   // ── 8. Call Gemini ────────────────────────────────────────────────────────────
 
@@ -939,7 +1105,7 @@ Deno.serve(async (req) => {
         initial.finishReason || 'none',
       );
 
-      const retryBody = buildGeminiBody(systemText, buildRetryTurns(turns));
+      const retryBody = buildGeminiBody(systemTextForModel, buildRetryTurns(turns));
 
       try {
         const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName);

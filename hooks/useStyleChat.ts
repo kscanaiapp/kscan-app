@@ -8,6 +8,7 @@ import {
 } from '../services/style-chat/styleChatRepository';
 import { getFriendlyStyleChatError } from '../services/style-chat/styleChatErrors';
 import type { StyleChatMessage, StyleChatSession, StyleChatUiBlock } from '../services/style-chat/types';
+import type { WeatherLocationInput } from '../constants/weatherStyling';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
@@ -42,7 +43,12 @@ type FailedSendState = {
   userMessageId: string | null;
 };
 
-export function useStyleChat(sessionId: string): UseStyleChatReturn {
+export interface UseStyleChatOptions {
+  // Awaited before each send; returns a rounded weather location or null to skip.
+  getWeatherLocation?: () => Promise<WeatherLocationInput | null>;
+}
+
+export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): UseStyleChatReturn {
   const [session, setSession] = useState<StyleChatSession | null>(null);
   const [messages, setMessages] = useState<StyleChatMessage[]>([]);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -50,6 +56,9 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
   const failedSendRef = useRef<FailedSendState | null>(null);
+  // Held in a ref so passing an inline getter does not churn sendMessage/retry identity.
+  const getWeatherLocationRef = useRef(opts?.getWeatherLocation);
+  getWeatherLocationRef.current = opts?.getWeatherLocation;
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
@@ -174,7 +183,13 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
 
         // 3. Call the secure Edge Function proxy. Server enforces quota, assembles
         //    context, calls Gemini, and returns a typed result.
-        const result = await provider.generateReply({ sessionId, message: trimmed });
+        // Weather is optional and best-effort: a failure/timeout resolves to null and
+        // the message sends normally without weather context.
+        const resolveWeather = getWeatherLocationRef.current;
+        const weatherLocation = resolveWeather
+          ? await resolveWeather().catch(() => null)
+          : null;
+        const result = await provider.generateReply({ sessionId, message: trimmed, weatherLocation });
 
         if (result.status === 'burst_limit') {
           // Burst limit: transient per-minute cap. Do not persist, do not update daily usage.

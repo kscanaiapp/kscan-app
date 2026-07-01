@@ -11,6 +11,7 @@
 import { supabase } from '../../supabaseClient';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
+import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 
 const EDGE_FN      = 'stylechat-generate';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
@@ -149,13 +150,22 @@ export class EdgeStyleChatProvider {
   async generateReply(input: {
     sessionId: string;
     message: string;
+    weatherLocation?: WeatherLocationInput | null;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), TIMEOUT_MS);
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
-        body: { sessionId: input.sessionId, message: input.message },
+        body: {
+          sessionId: input.sessionId,
+          message: input.message,
+          // Additive/optional: sent only when weather-aware styling is enabled and a
+          // rounded foreground fix is available. Requests without it stay valid.
+          ...(input.weatherLocation && input.weatherLocation.enabled
+            ? { weatherLocation: input.weatherLocation }
+            : {}),
+        },
         signal: ac.signal,
       });
 

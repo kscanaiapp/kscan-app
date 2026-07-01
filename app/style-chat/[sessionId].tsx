@@ -32,6 +32,9 @@ import {
 } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { useWeatherStyling } from '../../hooks/useWeatherStyling';
+import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
+import { WEATHER_COPY } from '../../constants/weatherStyling';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -42,6 +45,7 @@ export default function StyleChatSessionScreen() {
   // Style DNA Phase 0 local feedback key. StyleChat is auth-only, so this is
   // populated whenever messages exist; null hides the local feedback UI.
   const userKey = user ? `user:${user.id}` : null;
+  const weather = useWeatherStyling(sessionId ?? '');
   const {
     session,
     messages,
@@ -53,7 +57,7 @@ export default function StyleChatSessionScreen() {
     sendMessage,
     retryLastMessage,
     clearError,
-  } = useStyleChat(sessionId ?? '');
+  } = useStyleChat(sessionId ?? '', { getWeatherLocation: weather.getWeatherLocation });
 
   const [isDeleting, setIsDeleting] = useState(false);
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
@@ -199,9 +203,28 @@ export default function StyleChatSessionScreen() {
           }
         }}
       />
+      {weather.enabled ? (
+        weather.promptVisible ? (
+          <StyleChatWeatherPrompt
+            onUseWeather={() => { void weather.acceptWeather(); }}
+            onNotNow={() => { void weather.dismissPrompt(); }}
+            requesting={weather.requesting}
+          />
+        ) : weather.chipState === 'active' ? (
+          <StyleChatWeatherChip label={WEATHER_COPY.active} />
+        ) : weather.chipState === 'denied' ? (
+          <Text style={styles.weatherDenied}>{WEATHER_COPY.denied}</Text>
+        ) : null
+      ) : null}
       {ErrorBanner}
       <View style={styles.composerWrap}>
-        <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
+        <StyleChatInput
+          onSend={text => {
+            weather.markStylingIntent();
+            void sendMessage(text);
+          }}
+          disabled={!canSend}
+        />
       </View>
     </>
   );
@@ -399,5 +422,13 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.plum,
     fontWeight: '600',
+  },
+  weatherDenied: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    marginHorizontal: SPACING.xl,
+    marginBottom: SPACING.xs,
+    letterSpacing: 0.6,
   },
 });
