@@ -17,6 +17,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { SCAN_DIAGNOSTICS_ENABLED } from '../constants/build';
 import type {
   ScanIdentifyRequest,
   ScanIdentifyResponse,
@@ -32,7 +33,16 @@ const INVOKE_TIMEOUT_MS = 12_000;
 // Mirror the server guard so oversized payloads never leave the device.
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
 
-const SAFE_FAILED_MESSAGE =
+// Neutral default for generic (non image-quality) failures. Never blames the
+// user's photo or lighting; those appear only on an explicit image-quality
+// rejection (IMAGE_QUALITY_MESSAGE).
+const NEUTRAL_FAILED_MESSAGE = "We couldn't complete this scan. Please try again.";
+// Cause-specific frontend failure copy.
+const TIMEOUT_MESSAGE = 'Analysis is taking longer than expected. Please try again.';
+const NETWORK_MESSAGE =
+  "We couldn't connect to the analysis service. Please check your connection and try again.";
+// Shown ONLY when the backend explicitly signals image quality as the cause.
+const IMAGE_QUALITY_MESSAGE =
   "We couldn't complete this scan. Please try again in better light or retake the photo.";
 const IMAGE_TOO_LARGE_MESSAGE =
   'Image too large. Please retake the photo closer or in better light.';
@@ -45,7 +55,7 @@ export type IdentifyScanOptions = {
   localPrivacyFiltered?: boolean;
 };
 
-function failed(userMessage = SAFE_FAILED_MESSAGE): ScanIdentifyResponse {
+function failed(userMessage = NEUTRAL_FAILED_MESSAGE): ScanIdentifyResponse {
   return { status: 'failed', recommendedProducts: [], userMessage };
 }
 
@@ -166,6 +176,85 @@ function normalizeDisplayResult(raw: unknown): DisplayResult | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
+/** Coarse failure classification for diagnostics + message mapping. */
+export type ScanFailureReason =
+  | 'timeout'
+  | 'invoke_error'
+  | 'backend_failed'
+  | 'malformed_response'
+  | 'missing_attributes'
+  | 'non_fashion'
+  | 'image_quality'
+  | 'unknown';
+
+/**
+ * Detects an EXPLICIT image-quality failure signal on a raw backend payload.
+ * The current `scan-identify` contract has no dedicated quality field, so this
+ * returns false for today's responses (-> conservative neutral messaging). It
+ * honors a future explicit signal without a contract rewrite, and never uses
+ * substring matching on user-facing copy.
+ */
+function hasImageQualitySignal(src: Record<string, unknown>): boolean {
+  const reason =
+    typeof src.reason === 'string'
+      ? src.reason
+      : typeof src.failureReason === 'string'
+        ? src.failureReason
+        : '';
+  if (reason.toLowerCase() === 'image_quality') return true;
+  return src.imageQuality === true || src.qualityRejected === true;
+}
+
+/**
+ * Classifies a raw backend payload for diagnostics. Network/timeout reasons are
+ * decided by the caller at the invoke/catch boundary; this covers payload-level
+ * outcomes only.
+ */
+function classifyRawResponse(raw: unknown): ScanFailureReason | 'completed' {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'malformed_response';
+  const src = raw as Record<string, unknown>;
+  const status = typeof src.status === 'string' ? src.status.toLowerCase() : '';
+  if (status.includes('non')) return 'non_fashion';
+  if (status === 'completed') {
+    return normalizeAttributes(src.attributes) ? 'completed' : 'missing_attributes';
+  }
+  if (hasImageQualitySignal(src)) return 'image_quality';
+  return 'backend_failed';
+}
+
+/**
+ * Resolves the user-facing message for a failed payload. Only an explicit
+ * image-quality signal keeps lighting/retake guidance; every other (generic)
+ * failure discards any backend `userMessage` -- including the exact legacy
+ * lighting copy -- and uses the neutral message so we never wrongly blame the
+ * user's photo.
+ */
+function resolveFailedUserMessage(
+  backendMessage: string | undefined,
+  hasQualitySignal: boolean,
+): string {
+  if (hasQualitySignal) return backendMessage ?? IMAGE_QUALITY_MESSAGE;
+  return NEUTRAL_FAILED_MESSAGE;
+}
+
+/**
+ * Emits a single safe diagnostic line classifying a failed scan. Logs only
+ * coarse metadata (reason, scan status, payload presence, truncated backend
+ * message) -- never image bytes, tokens, or secrets. Dev builds only.
+ */
+function logScanFailure(
+  reason: ScanFailureReason,
+  detail: { scanStatus?: string; hasPayload?: boolean; backendMessage?: string } = {},
+): void {
+  if (!SCAN_DIAGNOSTICS_ENABLED) return;
+  console.log('[scanIdentification] Failure reason:', {
+    reason,
+    scanStatus: detail.scanStatus,
+    hasPayload: detail.hasPayload,
+    backendMessage: detail.backendMessage?.slice(0, 200),
+  });
+}
+
 /**
  */
 export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyResponse {
@@ -196,8 +285,10 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
     };
   }
 
-  // Anything else (including explicit 'failed') maps to a safe failure.
-  return failed(userMessage ?? SAFE_FAILED_MESSAGE);
+  // Anything else (including explicit 'failed') maps to a safe failure. Only an
+  // explicit image-quality signal keeps lighting/retake guidance; otherwise we
+  // discard any generic backend userMessage and use the neutral message.
+  return failed(resolveFailedUserMessage(userMessage, hasImageQualitySignal(src)));
 }
 
 /**
@@ -244,23 +335,29 @@ export async function identifyScanImage(
     });
 
     if (error) {
-      if (__DEV__) console.warn('[scanIdentification] invoke error:', error?.message);
-      return failed();
+      logScanFailure('invoke_error', { hasPayload: false, backendMessage: error?.message });
+      return failed(NETWORK_MESSAGE);
     }
 
+    const reason = classifyRawResponse(data);
     const normalized = normalizeScanIdentifyResponse(data);
-    if (__DEV__) {
+    if (reason !== 'completed' && reason !== 'non_fashion') {
+      const backendMessage =
+        data && typeof data === 'object' && typeof (data as any).userMessage === 'string'
+          ? (data as any).userMessage.slice(0, 200)
+          : undefined;
+      logScanFailure(reason, { scanStatus: normalized.status, hasPayload: !!data, backendMessage });
+    } else if (__DEV__) {
       console.log('[scanIdentification] response scan_status=' + normalized.status +
         ' category=' + (normalized.attributes?.category ?? '(none)') +
         ' recommendedProducts=' + normalized.recommendedProducts.length);
     }
     return normalized;
   } catch (err: any) {
-    if (__DEV__) {
-      const isAbort = err?.name === 'AbortError';
-      console.warn('[scanIdentification]', isAbort ? 'invoke timed out' : err?.message);
-    }
-    return failed();
+    const isAbort = err?.name === 'AbortError';
+    const reason: ScanFailureReason = isAbort ? 'timeout' : 'invoke_error';
+    logScanFailure(reason, { hasPayload: false, backendMessage: err?.message });
+    return failed(isAbort ? TIMEOUT_MESSAGE : NETWORK_MESSAGE);
   } finally {
     clearTimeout(timeoutId);
   }

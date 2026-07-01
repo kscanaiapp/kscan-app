@@ -45,6 +45,7 @@ function loadTsModule(relativePath, requireMap = {}) {
 
 const adapter = loadTsModule('services/scanIdentification.ts', {
   './supabaseClient': { supabase: {} },
+  '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
 });
 const mapper = loadTsModule('services/scanIdentificationMapper.ts');
 

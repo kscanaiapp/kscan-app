@@ -59,8 +59,10 @@ export type MappedScanAnalysis = MappedFashionAnalysis | MappedNonFashionAnalysi
 const DEFAULT_FASHION_SUMMARY = 'Identified a fashion item from your scan.';
 const DEFAULT_NON_FASHION_MESSAGE =
   'This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories.';
-const DEFAULT_FAILED_MESSAGE =
-  "We couldn't complete this scan. Please try again in better light or retake the photo.";
+// Neutral fallback only. The adapter (normalizeScanIdentifyResponse) already
+// resolves the correct cause-specific/neutral message before mapping, so this
+// defensive default must not blame lighting or photo quality.
+const DEFAULT_FAILED_MESSAGE = "We couldn't complete this scan. Please try again.";
 
 /** Error carrying a user-facing message, matching the contract used by useKScan. */
 export function createScanError(userMessage: string): Error & { userMessage: string } {

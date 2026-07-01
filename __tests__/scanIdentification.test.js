@@ -65,6 +65,7 @@ const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
 function loadAdapter(supabaseStub) {
   return loadTsModule('services/scanIdentification.ts', {
     './supabaseClient': { supabase: supabaseStub },
+    '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
   });
 }
 
@@ -132,6 +133,32 @@ test('normalizeScanIdentifyResponse: garbage → failed', () => {
 test('normalizeScanIdentifyResponse: completed without attributes → failed', () => {
   const adapter = loadAdapter({});
   assert.equal(adapter.normalizeScanIdentifyResponse({ status: 'completed' }).status, 'failed');
+});
+
+test('normalizeScanIdentifyResponse: generic failed neutralizes lighting copy (Task 1A)', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'failed',
+    userMessage:
+      "We couldn't complete this scan. Please try again in better light or retake the photo.",
+  });
+  assert.equal(out.status, 'failed');
+  assert.equal(out.userMessage, "We couldn't complete this scan. Please try again.");
+  assert.ok(!/better light/i.test(out.userMessage), 'generic failure must not blame lighting');
+});
+
+test('normalizeScanIdentifyResponse: explicit image-quality failed keeps retake guidance (Task 1A)', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({ status: 'failed', reason: 'image_quality' });
+  assert.equal(out.status, 'failed');
+  assert.match(out.userMessage, /better light/i);
+});
+
+test('normalizeScanIdentifyResponse: missing attributes uses neutral message (Task 1A)', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({ status: 'completed' });
+  assert.equal(out.status, 'failed');
+  assert.equal(out.userMessage, "We couldn't complete this scan. Please try again.");
 });
 
 test('normalizeScanIdentifyResponse: drops out-of-range confidence to clamp', () => {

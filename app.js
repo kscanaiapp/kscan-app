@@ -686,10 +686,20 @@ export default function App() {
     }
 
     if (status === 'error') {
+      // A failed scan has no usable analysis to save. Guard on concrete fields --
+      // an empty object ({}) is truthy -- so we never offer to save a scan the
+      // app just told the user failed.
+      const hasUsableAnalysis = Boolean(
+        analysis &&
+          (analysis.result ||
+            analysis.metadata?.category ||
+            (Array.isArray(analysis.products) && analysis.products.length) ||
+            analysis.type === 'non-fashion'),
+      );
       return (
         <View style={styles.actionsContainer}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {photo?.uri && dressingRoomsEnabled ? (
+          {photo?.uri && dressingRoomsEnabled && hasUsableAnalysis ? (
             <ActionButton
               label="Add Scan to Dressing Room"
               onPress={() => setScanRoomModalVisible(true)}
