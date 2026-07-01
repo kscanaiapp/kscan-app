@@ -19,12 +19,22 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { AUTH_CALLBACK_URL } = require('../services/authConfig');
 const { parseAuthCallbackUrl, buildAuthCallbackUrlFromParams, getAuthCallbackRedirect } = require('../services/authDeepLink');
 const { isAuthCallbackUrl, getRoutingGuardState, isPublicRoute } = require('../services/routingGuard');
 
 const NOW = 1000;
+const authScreenSource = fs.readFileSync(
+  path.join(__dirname, '..', 'app', 'auth', 'index.tsx'),
+  'utf8',
+);
+const onboardingSource = fs.readFileSync(
+  path.join(__dirname, '..', 'app', 'onboarding', 'index.tsx'),
+  'utf8',
+);
 
 // -- 1. AUTH_CALLBACK_URL matches the kscan:// scheme in app.json ------------
 test('AUTH_CALLBACK_URL uses the kscan:// deep-link scheme registered in app.json', () => {
@@ -116,4 +126,23 @@ test('getAuthCallbackRedirect sends a normal login callback to home (/)', () => 
   const normalParsed = parseAuthCallbackUrl('kscan://auth/callback?code=abc');
   assert.equal(normalParsed.isRecovery, false);
   assert.equal(getAuthCallbackRedirect(normalParsed), '/');
+});
+
+// 11. True Google browser cancellation remains user-safe
+test('Google OAuth cancel and dismiss paths still show Sign-in cancelled', () => {
+  assert.match(
+    authScreenSource,
+    /result\.type === 'cancel' \|\| result\.type === 'dismiss'[\s\S]{0,160}setError\('Sign-in cancelled\.'\)/,
+  );
+  assert.match(
+    onboardingSource,
+    /result\.type === 'cancel' \|\| result\.type === 'dismiss'[\s\S]{0,180}setCreateError\('Sign-in cancelled\.'\)/,
+  );
+});
+
+// 12. Apple sign-in remains a separate native id-token flow
+test('Apple sign-in stays separate from the Google deep-link browser flow', () => {
+  assert.match(authScreenSource, /AppleAuthentication\.signInAsync/);
+  assert.match(authScreenSource, /signInWithIdToken\(\{[\s\S]*?provider: 'apple'/);
+  assert.doesNotMatch(authScreenSource, /provider: 'apple'[\s\S]{0,240}openAuthSessionAsync/);
 });

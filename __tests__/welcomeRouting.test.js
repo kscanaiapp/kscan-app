@@ -21,6 +21,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   getRoutingGuardState,
@@ -29,6 +31,18 @@ const {
 
 const NOW = 1000;
 const validSession = { access_token: 'access-token', expires_at: NOW + 3600 };
+const onboardingSource = fs.readFileSync(
+  path.join(__dirname, '..', 'app', 'onboarding', 'index.tsx'),
+  'utf8',
+);
+const welcomeStepSource = fs.readFileSync(
+  path.join(__dirname, '..', 'components', 'account-home', 'WelcomeStepV1.tsx'),
+  'utf8',
+);
+const accountSetupStepSource = fs.readFileSync(
+  path.join(__dirname, '..', 'components', 'account-home', 'AccountSetupStepV1.tsx'),
+  'utf8',
+);
 
 // -- The remap formula from _layout.tsx (post-fix) --------------------------
 // Duplicated here so this test breaks loudly if the formula regresses.
@@ -111,4 +125,32 @@ test('authenticated user with complete onboarding on /onboarding is redirected t
   });
   assert.equal(state.action, 'redirect');
   assert.equal(state.redirectTo, '/');
+});
+
+// -- 7. Welcome Step 1 starts fresh users and advances to auth choice ---------
+test('Welcome Step 1 is the fresh-user first screen and wires Get Started to Step 2', () => {
+  assert.match(onboardingSource, /const \[step, setStep\] = useState<OnboardingStep>\(1\)/);
+  assert.match(onboardingSource, /<WelcomeStepV1[\s\S]*onGetStarted=\{goToNext\}[\s\S]*onAlreadyHaveAccount=\{goToAuth\}/);
+  assert.match(welcomeStepSource, /onboarding-welcome-screen-v1/);
+  assert.match(welcomeStepSource, /See it\. Scan it\./);
+  assert.match(welcomeStepSource, /Style it\./);
+  assert.match(welcomeStepSource, /onboarding-get-started-button-v1/);
+});
+
+// -- 8. Welcome Step 2 exposes the expected auth choices ----------------------
+test('Welcome Step 2 exposes Email, Google, and existing-member actions', () => {
+  assert.match(onboardingSource, /<AccountSetupStepV1[\s\S]*onContinueEmail=\{goToNext\}[\s\S]*onContinueGoogle=\{handleGoogleSignIn\}[\s\S]*onGoToLogin=\{goToAuth\}/);
+  assert.match(accountSetupStepSource, /onboarding-auth-choice-screen-v1/);
+  assert.match(accountSetupStepSource, /Welcome to your/);
+  assert.match(accountSetupStepSource, /AI style world/);
+  assert.match(accountSetupStepSource, /onboarding-continue-email-button-v1/);
+  assert.match(accountSetupStepSource, /onboarding-continue-google-button-v1/);
+  assert.match(accountSetupStepSource, /Already a member\?/);
+});
+
+// -- 9. Step 4 is reserved for resume/authenticated incomplete flows ----------
+test('Step 4 terms resume is gated to explicit resume or authenticated incomplete users', () => {
+  assert.match(onboardingSource, /resumeParam === 'terms'/);
+  assert.match(onboardingSource, /if \(authLoading \|\| !isAuthenticated \|\| !user\?\.id\) return;/);
+  assert.match(onboardingSource, /return shouldResumeTerms \|\| current <= 2 \? 4 : current;/);
 });
