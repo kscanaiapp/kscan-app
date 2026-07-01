@@ -7,9 +7,9 @@ function parseParamString(value) {
   for (const pair of trimmed.split('&')) {
     if (!pair) continue;
     const [rawKey, ...rawValue] = pair.split('=');
-    const key = decodeURIComponent(rawKey || '');
+    const key = decodeURIComponent((rawKey || '').replace(/\+/g, ' '));
     if (!key) continue;
-    params[key] = decodeURIComponent(rawValue.join('=') || '');
+    params[key] = decodeURIComponent((rawValue.join('=') || '').replace(/\+/g, ' '));
   }
   return params;
 }

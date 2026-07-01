@@ -9,7 +9,6 @@ import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContex
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
-import { ONBOARDING_FRAMEWORK_V1_ENABLED } from '../constants/featureFlags';
 import { isOnboardingComplete, subscribeOnboardingCompletion } from '../services/onboardingCompletion';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
@@ -121,7 +120,7 @@ function AuthGate() {
     }
 
     const redirectTo =
-      ONBOARDING_FRAMEWORK_V1_ENABLED && guardState.redirectTo === '/auth'
+      guardState.redirectTo === '/auth'
         ? '/onboarding'
         : guardState.redirectTo;
     if (pathname === '/onboarding' && redirectTo.startsWith('/onboarding')) {
