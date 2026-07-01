@@ -59,6 +59,21 @@
                                                                             "BROWSABLE",
                                                                             "DEFAULT"
                                                                         ]
+                                                       },
+                                                       {
+                                                           "action":  "VIEW",
+                                                           "autoVerify":  true,
+                                                           "data":  [
+                                                                        {
+                                                                            "scheme":  "https",
+                                                                            "host":  "kscan.app",
+                                                                            "pathPrefix":  "/rooms"
+                                                                        }
+                                                                    ],
+                                                           "category":  [
+                                                                            "BROWSABLE",
+                                                                            "DEFAULT"
+                                                                        ]
                                                        }
                                                    ]
                              },
@@ -66,6 +81,9 @@
                              "bundleIdentifier":  "com.kscanai.app",
                              "buildNumber":  "6",
                              "deploymentTarget":  "16.0",
+                             "associatedDomains":  [
+                                                       "applinks:kscan.app"
+                                                   ],
                              "supportsTablet":  false,
                              "usesAppleSignIn":  true,
                              "infoPlist":  {

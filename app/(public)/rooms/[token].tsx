@@ -23,8 +23,10 @@ import {
   StatusPill,
   InlineNotice,
   EmptyStateCard,
+  PrimaryButton,
   SharedScanCard,
   SecondaryButton,
+  TertiaryButton,
   PrivacyFooter,
 } from '../../../components/luxury';
 import { LUXURY, SPACING } from '../../../constants/theme';
@@ -44,6 +46,17 @@ import {
   isActiveDressingRoomReactionType,
   type ItemReactionCount,
 } from '../../../types/styleObjects';
+import {
+  KSCAN_PUBLIC_BASE_URL,
+  KSCAN_ROOM_API_BASE_URL,
+  ROOM_OPEN_APP_TIMEOUT_MS,
+  buildRoomAppUrl,
+  buildRoomWebUrl,
+  getRoomInstallUrl,
+  isLikelyInAppBrowser,
+  logRoomLinkEvent,
+  normalizeRoomShareToken,
+} from '../../../services/roomDeepLinks';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const ITEM_GRID_GAP = SPACING.md;
@@ -55,7 +68,7 @@ const ITEM_GRID_CELL_W = Math.floor((SCREEN_W - ITEM_GRID_H_PAD * 2 - ITEM_GRID_
 const ENABLE_IN_APP_SHARED_ROOMS = true;
 
 // ─── API ─────────────────────────────────────────────────────────────────────
-const API_BASE = 'https://www.kscan.app/api/rooms';
+const API_BASE = KSCAN_ROOM_API_BASE_URL;
 const FETCH_TIMEOUT_MS = 10_000;
 const BG_REFETCH_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -167,8 +180,11 @@ function formatSharedDate(iso: string | null): string | null {
   }
 }
 
-function browserUrlForToken(token: string): string {
-  return `https://www.kscan.app/rooms/${encodeURIComponent(token)}`;
+type OpenAppStatus = 'idle' | 'attempting' | 'failed';
+
+function getWebUserAgent() {
+  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return '';
+  return navigator.userAgent || '';
 }
 
 // ─── Components ───────────────────────────────────────────────────────────────
@@ -238,6 +254,90 @@ function ErrorState({
   );
 }
 
+function WebFallbackActions({
+  token,
+  openAppStatus,
+  webSelected,
+  likelyInAppBrowser,
+  installUrl,
+  onOpenInApp,
+  onOpenWeb,
+  onGetApp,
+}: {
+  token: string;
+  openAppStatus: OpenAppStatus;
+  webSelected: boolean;
+  likelyInAppBrowser: boolean;
+  installUrl: string | null;
+  onOpenInApp: () => void;
+  onOpenWeb: () => void;
+  onGetApp: () => void;
+}) {
+  if (Platform.OS !== 'web' || !normalizeRoomShareToken(token)) return null;
+
+  return (
+    <View style={styles.fallbackCard}>
+      <View style={styles.fallbackCopy}>
+        <StatusPill label="App-first link" variant="gold" />
+        <Text style={styles.fallbackTitle}>Open this Dressing Room in K Scan</Text>
+        <Text style={styles.fallbackBody}>
+          The native app is the primary room experience. This page is here when app links
+          cannot hand off automatically.
+        </Text>
+      </View>
+
+      <View style={styles.fallbackActions}>
+        <PrimaryButton
+          title={openAppStatus === 'attempting' ? 'Opening App' : 'Open in App'}
+          onPress={onOpenInApp}
+          loading={openAppStatus === 'attempting'}
+          accessibilityLabel="Open this Dressing Room in the K Scan app"
+          testID="room-open-in-app-button"
+        />
+        <SecondaryButton
+          title="Open in Web"
+          onPress={onOpenWeb}
+          accessibilityLabel="Continue viewing this Dressing Room in the browser"
+          testID="room-open-in-web-button"
+        />
+        {installUrl ? (
+          <TertiaryButton
+            title="Get the App"
+            onPress={onGetApp}
+            accessibilityLabel="Get the K Scan app"
+            testID="room-get-app-button"
+          />
+        ) : null}
+      </View>
+
+      {likelyInAppBrowser ? (
+        <InlineNotice
+          variant="info"
+          body="If this does not open the app, tap the menu and choose Open in Safari or Open in Chrome."
+          style={styles.notice}
+        />
+      ) : null}
+
+      {openAppStatus === 'failed' ? (
+        <InlineNotice
+          variant="warning"
+          title="App did not open"
+          body="You can keep viewing the safe web preview here, or install K Scan on a supported device."
+          style={styles.notice}
+        />
+      ) : null}
+
+      {webSelected ? (
+        <InlineNotice
+          variant="success"
+          body="You are viewing the safe web preview."
+          style={styles.notice}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 // Authenticated participant chat entry. Renders nothing for anonymous viewers
 // or when the chat flag is off, so the public read-only preview is unchanged.
 // An authenticated user joins via the existing share token, then sees the same
@@ -303,17 +403,23 @@ function SharedRoomChatSection({
 
 export default function SharedRoomScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
-  const { isAuthenticated } = useAuthSession();
+  const { isAuthenticated, loading: authLoading } = useAuthSession();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
   const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
   const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
   const [joinedRoomId, setJoinedRoomId] = useState<string | null>(null);
-  const analyticsGuard = useRef(false);
+  const [openAppStatus, setOpenAppStatus] = useState<OpenAppStatus>('idle');
+  const [webSelected, setWebSelected] = useState(false);
+  const linkOpenedGuard = useRef<string | null>(null);
+  const outcomeAnalyticsGuard = useRef<string | null>(null);
   const lastFetchedAt = useRef<number | null>(null);
 
   const rawToken = typeof token === 'string' ? token.trim() : '';
+  const webUserAgent = getWebUserAgent();
+  const installUrl = getRoomInstallUrl(webUserAgent);
+  const likelyInAppBrowser = isLikelyInAppBrowser(webUserAgent);
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -325,7 +431,7 @@ export default function SharedRoomScreen() {
 
   const load = useCallback(
     async (silent = false) => {
-      if (!rawToken) {
+      if (!normalizeRoomShareToken(rawToken)) {
         setState({ phase: 'malformed' });
         return;
       }
@@ -338,6 +444,78 @@ export default function SharedRoomScreen() {
     },
     [rawToken]
   );
+
+  const handleOpenInApp = useCallback(() => {
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken) {
+      setOpenAppStatus('failed');
+      logRoomLinkEvent('room_token_invalid', { surface: 'web_fallback' });
+      return;
+    }
+
+    const appUrl = buildRoomAppUrl(shareToken);
+    setOpenAppStatus('attempting');
+    logRoomLinkEvent('room_open_app_cta_clicked', { surface: 'web_fallback' });
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.href = appUrl;
+      window.setTimeout(() => {
+        setOpenAppStatus('failed');
+        logRoomLinkEvent('room_open_app_cta_failed', { surface: 'web_fallback' });
+      }, ROOM_OPEN_APP_TIMEOUT_MS);
+      return;
+    }
+
+    void Linking.openURL(appUrl).catch(() => {
+      setOpenAppStatus('failed');
+      logRoomLinkEvent('room_open_app_cta_failed', { surface: Platform.OS });
+    });
+  }, [rawToken]);
+
+  useEffect(() => {
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken || state.phase === 'loading') return;
+
+    const key = `${shareToken}:${state.phase}:${Platform.OS}`;
+    if (outcomeAnalyticsGuard.current === key) return;
+    outcomeAnalyticsGuard.current = key;
+
+    if (state.phase === 'available' || state.phase === 'empty') {
+      logRoomLinkEvent(Platform.OS === 'web' ? 'room_link_opened_web' : 'room_link_opened_native', {
+        surface: Platform.OS === 'web' ? 'web_fallback' : 'native',
+      });
+      return;
+    }
+
+    if (state.phase === 'malformed') {
+      logRoomLinkEvent('room_token_invalid', { surface: Platform.OS });
+      return;
+    }
+
+    if (state.phase === 'unavailable') {
+      logRoomLinkEvent('room_token_revoked', { surface: Platform.OS, reason: 'unavailable' });
+    }
+  }, [rawToken, state.phase]);
+
+  const handleOpenWeb = useCallback(() => {
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken) return;
+
+    logRoomLinkEvent('room_link_opened_web', {
+      surface: Platform.OS === 'web' ? 'web_fallback' : 'native',
+    });
+    if (Platform.OS === 'web') {
+      setWebSelected(true);
+      return;
+    }
+
+    void Linking.openURL(buildRoomWebUrl(shareToken));
+  }, [rawToken]);
+
+  const handleGetApp = useCallback(() => {
+    if (!installUrl) return;
+    void Linking.openURL(installUrl);
+  }, [installUrl]);
 
   // Initial load
   useEffect(() => {
@@ -357,12 +535,15 @@ export default function SharedRoomScreen() {
     return () => sub.remove();
   }, [load]);
 
-  // Analytics guard — fire only once per successful load
+  // Deep-link analytics: safe event names only, no token or user data.
   useEffect(() => {
-    if (state.phase !== 'available' || analyticsGuard.current) return;
-    analyticsGuard.current = true;
-    // room_shared_view_opened — no token, no title, no item data
-  }, [state.phase]);
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken || linkOpenedGuard.current === shareToken) return;
+    linkOpenedGuard.current = shareToken;
+    logRoomLinkEvent('room_share_link_opened', {
+      surface: Platform.OS === 'web' ? 'web_fallback' : 'native',
+    });
+  }, [rawToken]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -374,6 +555,8 @@ export default function SharedRoomScreen() {
     setJoinedRoomId(null);
     setSelectedReactions({});
     setMutatingReactionItemId(null);
+    setOpenAppStatus('idle');
+    setWebSelected(false);
   }, [rawToken]);
 
   useEffect(() => {
@@ -516,7 +699,7 @@ export default function SharedRoomScreen() {
             subtitle="This feature is being prepared for the next release."
             action={{
               label: 'View in Browser',
-              onPress: () => void Linking.openURL(browserUrlForToken(rawToken) || 'https://www.kscan.app'),
+              onPress: () => void Linking.openURL(buildRoomWebUrl(rawToken) || KSCAN_PUBLIC_BASE_URL),
               accessibilityLabel: 'View shared room in browser',
             }}
           />
@@ -531,6 +714,15 @@ export default function SharedRoomScreen() {
 
   // ── States ────────────────────────────────────────────────────────────────
   const renderContent = () => {
+    if (Platform.OS !== 'web' && authLoading) {
+      return (
+        <View style={styles.centeredFill}>
+          <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          <Text style={styles.loadingLabel}>Opening native Dressing Room...</Text>
+        </View>
+      );
+    }
+
     switch (state.phase) {
       case 'loading':
         return (
@@ -609,6 +801,16 @@ export default function SharedRoomScreen() {
               />
             }
           >
+            <WebFallbackActions
+              token={rawToken}
+              openAppStatus={openAppStatus}
+              webSelected={webSelected}
+              likelyInAppBrowser={likelyInAppBrowser}
+              installUrl={installUrl}
+              onOpenInApp={handleOpenInApp}
+              onOpenWeb={handleOpenWeb}
+              onGetApp={handleGetApp}
+            />
             <SharedRoomPreviewCard preview={emptyPreview} />
             <EmptyStateCard
               title="No visible items"
@@ -633,6 +835,16 @@ export default function SharedRoomScreen() {
               />
             }
           >
+            <WebFallbackActions
+              token={rawToken}
+              openAppStatus={openAppStatus}
+              webSelected={webSelected}
+              likelyInAppBrowser={likelyInAppBrowser}
+              installUrl={installUrl}
+              onOpenInApp={handleOpenInApp}
+              onOpenWeb={handleOpenWeb}
+              onGetApp={handleGetApp}
+            />
             <SharedRoomPreviewCard preview={preview} />
 
             {preview.items.length > 0 ? (
@@ -684,7 +896,7 @@ export default function SharedRoomScreen() {
 
             <SecondaryButton
               title="View in Browser"
-              onPress={() => void Linking.openURL(browserUrlForToken(preview.token))}
+              onPress={() => void Linking.openURL(buildRoomWebUrl(preview.token))}
               accessibilityLabel="View shared room in browser"
               style={styles.browserButton}
             />
@@ -700,7 +912,12 @@ export default function SharedRoomScreen() {
   return (
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
-      <KScanHeader title="Shared Room" subtitle="DRESSING ROOM PREVIEW" onBack={handleBack} backLabel="Back" />
+      <KScanHeader
+        title={Platform.OS === 'web' ? 'Shared Room' : 'Dressing Room'}
+        subtitle={Platform.OS === 'web' ? 'WEB FALLBACK' : 'SHARED ROOM'}
+        onBack={handleBack}
+        backLabel="Back"
+      />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -726,6 +943,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.xl,
     gap: SPACING.md,
+  },
+  fallbackCard: {
+    borderRadius: LUXURY.cards.product.borderRadius,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+    ...LUXURY.cards.product.shadow,
+  },
+  fallbackCopy: {
+    gap: SPACING.sm,
+  },
+  fallbackTitle: {
+    ...LUXURY.typography.displayTitle,
+    fontSize: 21,
+    color: LUXURY.colors.ink,
+  },
+  fallbackBody: {
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: LUXURY.colors.graphite,
+  },
+  fallbackActions: {
+    gap: SPACING.sm,
+    alignItems: 'center',
   },
   chatJoinCard: {
     borderRadius: LUXURY.cards.product.borderRadius,
