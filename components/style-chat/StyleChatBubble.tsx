@@ -5,6 +5,7 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { useStyleDnaFeedback } from '../../hooks/useStyleDnaFeedback';
+import { StyleChatReasonChips } from './StyleChatReasonChips';
 import {
   STYLE_DNA_ENABLED,
   type LocalStyleDnaFeedbackValue,
@@ -92,7 +93,16 @@ function StyleDnaFeedbackRow({
   messageId: string;
   onSaved?: () => void;
 }) {
-  const { selectedFeedback, isSavingFeedback, feedbackError, saveFeedback } = useStyleDnaFeedback({
+  const {
+    selectedFeedback,
+    isSavingFeedback,
+    feedbackError,
+    saveFeedback,
+    reasonEnabled,
+    selectedReason,
+    isSavingReason,
+    saveReason,
+  } = useStyleDnaFeedback({
     userKey,
     sessionId,
     messageId,
@@ -136,6 +146,14 @@ function StyleDnaFeedbackRow({
           );
         })}
       </View>
+      {reasonEnabled && selectedFeedback != null ? (
+        <StyleChatReasonChips
+          feedback={selectedFeedback}
+          selectedReason={selectedReason}
+          isSaving={isSavingReason}
+          onPick={saveReason}
+        />
+      ) : null}
       {feedbackError ? (
         <Text style={styles.feedbackError} accessibilityLiveRegion="polite">
           {feedbackError}

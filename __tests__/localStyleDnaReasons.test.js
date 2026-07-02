@@ -145,3 +145,23 @@ test('valid code sets cover the documented reason taxonomy', () => {
   assert.equal(reasons.isValidReasonCode('practical'), true);
   assert.equal(reasons.isValidReasonCode('nope'), false);
 });
+
+test('clearReasonForMessage removes a stored reason', async () => {
+  const { reasons } = load(makeStorage());
+  await reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful', reasonCode: 'practical' });
+  await reasons.clearReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1' });
+  assert.equal(await reasons.getReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1' }), null);
+});
+
+test('Style DNA context (derived from feedback) is unaffected by reason saves', async () => {
+  const { store, reasons, profile } = load(makeStorage());
+  await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful' });
+  await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'b', feedback: 'helpful' });
+  await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'c', feedback: 'not_my_style' });
+  await reasons.setReasonForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful', reasonCode: 'practical' });
+  const summary = await profile.getStyleDnaProfileSummary({ userKey: U });
+  const ctxMod = run('services/style-dna/styleDnaContext.ts', {}, {});
+  const ctx = ctxMod.buildStyleDnaContext(summary, { enabled: true });
+  assert.equal(ctx.signalCount, 3);
+  assert.equal(ctx.confidence, 'low');
+});
