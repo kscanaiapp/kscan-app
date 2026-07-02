@@ -9,6 +9,7 @@ import {
 import { getFriendlyStyleChatError } from '../services/style-chat/styleChatErrors';
 import type { StyleChatMessage, StyleChatSession, StyleChatUiBlock } from '../services/style-chat/types';
 import type { WeatherLocationInput } from '../constants/weatherStyling';
+import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
@@ -46,6 +47,8 @@ type FailedSendState = {
 export interface UseStyleChatOptions {
   // Awaited before each send; returns a rounded weather location or null to skip.
   getWeatherLocation?: () => Promise<WeatherLocationInput | null>;
+  // Awaited before each send; returns a data-only Style DNA context or null to skip.
+  getStyleDnaContext?: () => Promise<StyleDnaContext | null>;
 }
 
 export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): UseStyleChatReturn {
@@ -59,6 +62,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   // Held in a ref so passing an inline getter does not churn sendMessage/retry identity.
   const getWeatherLocationRef = useRef(opts?.getWeatherLocation);
   getWeatherLocationRef.current = opts?.getWeatherLocation;
+  const getStyleDnaContextRef = useRef(opts?.getStyleDnaContext);
+  getStyleDnaContextRef.current = opts?.getStyleDnaContext;
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
@@ -189,7 +194,14 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         const weatherLocation = resolveWeather
           ? await resolveWeather().catch(() => null)
           : null;
-        const result = await provider.generateReply({ sessionId, message: trimmed, weatherLocation });
+        // Style DNA context is independent of weather and best-effort: any failure
+        // resolves to null and the message sends normally. Read fresh each send so a
+        // reset (which clears local feedback) immediately yields a neutral request.
+        const resolveStyleDna = getStyleDnaContextRef.current;
+        const styleDnaContext = resolveStyleDna
+          ? await resolveStyleDna().catch(() => null)
+          : null;
+        const result = await provider.generateReply({ sessionId, message: trimmed, weatherLocation, styleDnaContext });
 
         if (result.status === 'burst_limit') {
           // Burst limit: transient per-minute cap. Do not persist, do not update daily usage.

@@ -36,11 +36,16 @@ function load(storage, env = {}) {
   const store = run('services/style-dna/localStyleDnaFeedbackStore.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
   }, env);
-  const profile = run('services/style-dna/localStyleDnaProfile.ts', {
+  const reasons = run('services/style-dna/localStyleDnaReasons.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
     './localStyleDnaFeedbackStore': store,
   }, env);
-  return { store, profile };
+  const profile = run('services/style-dna/localStyleDnaProfile.ts', {
+    '@react-native-async-storage/async-storage': asyncMock,
+    './localStyleDnaFeedbackStore': store,
+    './localStyleDnaReasons': reasons,
+  }, env);
+  return { store, reasons, profile };
 }
 
 const U = 'user:abc';

@@ -3,6 +3,7 @@ import {
   STYLE_DNA_NAMESPACE,
   clearLocalStyleDnaForUser,
 } from './localStyleDnaFeedbackStore';
+import { clearReasonsForUser } from './localStyleDnaReasons';
 
 // ── Style DNA Phase 1 — local profile summary ───────────────────────────────────
 // Derives a compact, device-local summary from the Phase 0 feedback signals
@@ -152,5 +153,8 @@ export function buildStyleDnaSummaryText(summary: LocalStyleDnaProfileSummary): 
 
 // Reset: the profile is derived from local feedback, so clearing feedback resets it.
 export async function resetLocalStyleDnaProfile(userKey: string): Promise<void> {
+  // Phase 3: reset clears Phase 0 feedback AND Phase 3 reason codes for this user,
+  // so the derived profile summary and any reason aggregation both return to empty.
   await clearLocalStyleDnaForUser(userKey);
+  await clearReasonsForUser(userKey);
 }

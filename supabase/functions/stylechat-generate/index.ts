@@ -15,6 +15,7 @@
 // Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-1.5-flash).
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -715,6 +716,7 @@ Deno.serve(async (req) => {
     sessionId?: unknown;
     message?: unknown;
     weatherLocation?: unknown;
+    styleDnaContext?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -746,6 +748,10 @@ Deno.serve(async (req) => {
 
   // Optional, additive weather-aware styling input. Unknown/absent -> null (older clients).
   const weatherLocation = parseWeatherLocationInput(body.weatherLocation);
+
+  // Optional, additive Style DNA personalization signal. Unknown/absent/malformed -> null
+  // (older app builds send nothing and behave exactly as before).
+  const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
 
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
 
@@ -1033,9 +1039,14 @@ Deno.serve(async (req) => {
   // Await the parallel weather fetch and, when present, append the optional weather
   // instruction + compact context block. Absent weather leaves the prompt unchanged.
   const weatherContext = await weatherContextPromise;
-  const systemTextForModel = weatherContext
+  const systemTextWithWeather = weatherContext
     ? `${systemText}\n\n${WEATHER_STYLING_INSTRUCTION}\n\n${buildWeatherContextBlock(weatherContext)}`
     : systemText;
+  // Style DNA is additive and independent of weather: appended only when a valid,
+  // above-threshold context is present. Absent/malformed leaves the prompt unchanged.
+  const systemTextForModel = styleDnaContext
+    ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
+    : systemTextWithWeather;
 
   // Map history to Gemini conversation turns.
   // Gemini requires alternating user/model turns; merge consecutive same-role messages.

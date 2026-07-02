@@ -12,6 +12,7 @@ import { supabase } from '../../supabaseClient';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
+import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
 
 const EDGE_FN      = 'stylechat-generate';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
@@ -151,6 +152,7 @@ export class EdgeStyleChatProvider {
     sessionId: string;
     message: string;
     weatherLocation?: WeatherLocationInput | null;
+    styleDnaContext?: StyleDnaContext | null;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), TIMEOUT_MS);
@@ -164,6 +166,12 @@ export class EdgeStyleChatProvider {
           // rounded foreground fix is available. Requests without it stay valid.
           ...(input.weatherLocation && input.weatherLocation.enabled
             ? { weatherLocation: input.weatherLocation }
+            : {}),
+          // Additive/optional Style DNA personalization signal (Phase 2). Sent only
+          // when the client built a flag-on, above-threshold context. Requests without
+          // it stay valid; the Edge Function treats a missing field as pre-Phase 2.
+          ...(input.styleDnaContext && input.styleDnaContext.enabled
+            ? { styleDnaContext: input.styleDnaContext }
             : {}),
         },
         signal: ac.signal,

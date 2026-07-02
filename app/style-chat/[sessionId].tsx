@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Alert,
   View,
@@ -43,6 +43,7 @@ import {
   type LocalStyleDnaProfileSummary,
 } from '../../services/style-dna/localStyleDnaProfile';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
+import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -54,6 +55,19 @@ export default function StyleChatSessionScreen() {
   // populated whenever messages exist; null hides the local feedback UI.
   const userKey = user ? `user:${user.id}` : null;
   const weather = useWeatherStyling(sessionId ?? '');
+  // Phase 2: build a data-only Style DNA context per send. Reads the local profile
+  // fresh each time and self-gates on EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED + the
+  // >=3-signal threshold (returns null otherwise). Reading fresh means a reset — which
+  // clears local feedback — immediately produces a neutral request with no memoized ctx.
+  const getStyleDnaContext = useCallback(async () => {
+    if (!userKey) return null;
+    try {
+      const summary = await getStyleDnaProfileSummary({ userKey });
+      return buildStyleDnaContext(summary);
+    } catch {
+      return null;
+    }
+  }, [userKey]);
   const {
     session,
     messages,
@@ -65,7 +79,10 @@ export default function StyleChatSessionScreen() {
     sendMessage,
     retryLastMessage,
     clearError,
-  } = useStyleChat(sessionId ?? '', { getWeatherLocation: weather.getWeatherLocation });
+  } = useStyleChat(sessionId ?? '', {
+    getWeatherLocation: weather.getWeatherLocation,
+    getStyleDnaContext,
+  });
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [styleDnaSummary, setStyleDnaSummary] = useState<LocalStyleDnaProfileSummary | null>(null);
