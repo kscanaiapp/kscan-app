@@ -15,6 +15,7 @@ export interface UseStyleDnaFeedbackParams {
   sessionId: string;
   messageId: string;
   enabled?: boolean;
+  onSaved?: (value: LocalStyleDnaFeedbackValue) => void;
 }
 
 export interface UseStyleDnaFeedbackReturn {
@@ -29,6 +30,7 @@ export function useStyleDnaFeedback({
   sessionId,
   messageId,
   enabled = true,
+  onSaved,
 }: UseStyleDnaFeedbackParams): UseStyleDnaFeedbackReturn {
   const [selectedFeedback, setSelectedFeedback] = useState<LocalStyleDnaFeedbackValue | null>(null);
   const [isSavingFeedback, setIsSavingFeedback] = useState(false);
@@ -88,7 +90,10 @@ export function useStyleDnaFeedback({
             messageId,
             feedback: value,
           });
-          if (mountedRef.current) setIsSavingFeedback(false);
+          if (mountedRef.current) {
+            setIsSavingFeedback(false);
+            onSaved?.(value);
+          }
         } catch {
           // Revert optimistic state on write failure.
           if (mountedRef.current) {
@@ -99,7 +104,7 @@ export function useStyleDnaFeedback({
         }
       })();
     },
-    [active, selectedFeedback, userKey, sessionId, messageId],
+    [active, selectedFeedback, userKey, sessionId, messageId, onSaved],
   );
 
   return { selectedFeedback, isSavingFeedback, feedbackError, saveFeedback };

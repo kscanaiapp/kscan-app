@@ -19,6 +19,7 @@ interface StyleChatBubbleProps {
    * the session screen. When absent, local feedback UI is not rendered.
    */
   userKey?: string | null;
+  onStyleDnaFeedbackSaved?: () => void;
 }
 
 type AssistantContentBlock =
@@ -84,15 +85,18 @@ function StyleDnaFeedbackRow({
   userKey,
   sessionId,
   messageId,
+  onSaved,
 }: {
   userKey: string;
   sessionId: string;
   messageId: string;
+  onSaved?: () => void;
 }) {
   const { selectedFeedback, isSavingFeedback, feedbackError, saveFeedback } = useStyleDnaFeedback({
     userKey,
     sessionId,
     messageId,
+    onSaved,
   });
   const [didInteract, setDidInteract] = useState(false);
 
@@ -145,7 +149,13 @@ function StyleDnaFeedbackRow({
   );
 }
 
-export function StyleChatBubble({ message, onRetry, isError, userKey }: StyleChatBubbleProps) {
+export function StyleChatBubble({
+  message,
+  onRetry,
+  isError,
+  userKey,
+  onStyleDnaFeedbackSaved,
+}: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
   const content = typeof message.content === 'string' ? message.content : '';
   const uiBlocks = Array.isArray(message.uiBlocks) ? message.uiBlocks : [];
@@ -225,6 +235,7 @@ export function StyleChatBubble({ message, onRetry, isError, userKey }: StyleCha
             userKey={userKey as string}
             sessionId={message.sessionId}
             messageId={message.id}
+            onSaved={onStyleDnaFeedbackSaved}
           />
         ) : null}
         {isError && onRetry ? (

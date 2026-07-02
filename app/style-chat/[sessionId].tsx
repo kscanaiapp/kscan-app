@@ -23,6 +23,7 @@ import {
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
+import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
@@ -35,6 +36,13 @@ import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useWeatherStyling } from '../../hooks/useWeatherStyling';
 import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
 import { WEATHER_COPY } from '../../constants/weatherStyling';
+import {
+  buildStyleDnaSummaryText,
+  getStyleDnaProfileSummary,
+  resetLocalStyleDnaProfile,
+  type LocalStyleDnaProfileSummary,
+} from '../../services/style-dna/localStyleDnaProfile';
+import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -60,6 +68,10 @@ export default function StyleChatSessionScreen() {
   } = useStyleChat(sessionId ?? '', { getWeatherLocation: weather.getWeatherLocation });
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [styleDnaSummary, setStyleDnaSummary] = useState<LocalStyleDnaProfileSummary | null>(null);
+  const [isLoadingStyleDna, setIsLoadingStyleDna] = useState(false);
+  const [isResettingStyleDna, setIsResettingStyleDna] = useState(false);
+  const [styleDnaRefreshTick, setStyleDnaRefreshTick] = useState(0);
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -81,6 +93,34 @@ export default function StyleChatSessionScreen() {
       clearStyleChatHandoffContext();
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!STYLE_DNA_ENABLED || !userKey) {
+      setStyleDnaSummary(null);
+      setIsLoadingStyleDna(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIsLoadingStyleDna(true);
+    void (async () => {
+      try {
+        const nextSummary = await getStyleDnaProfileSummary({ userKey });
+        if (!cancelled) setStyleDnaSummary(nextSummary);
+      } catch {
+        if (!cancelled) setStyleDnaSummary(null);
+      } finally {
+        if (!cancelled) setIsLoadingStyleDna(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userKey, styleDnaRefreshTick]);
 
   // Scroll to bottom when messages arrive or update
   useEffect(() => {
@@ -122,10 +162,49 @@ export default function StyleChatSessionScreen() {
     );
   };
 
+  const refreshStyleDnaSummary = () => {
+    setStyleDnaRefreshTick((value) => value + 1);
+  };
+
+  const handleResetStyleDna = () => {
+    if (!userKey || !styleDnaSummary || styleDnaSummary.totalSignals === 0 || isResettingStyleDna) {
+      return;
+    }
+    Alert.alert(
+      'Reset local Style DNA?',
+      'This clears Helpful and Not my style feedback for this account on this device only. It cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResettingStyleDna(true);
+            try {
+              await resetLocalStyleDnaProfile(userKey);
+              refreshStyleDnaSummary();
+            } catch {
+              Alert.alert(
+                'Could not reset local Style DNA',
+                "We couldn't clear the local profile right now. Please try again.",
+              );
+            } finally {
+              setIsResettingStyleDna(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const isLoading = loadingSession || loadingMessages;
 
   const renderMessage = ({ item }: { item: StyleChatMessage }) => (
-    <StyleChatBubble message={item} userKey={userKey} />
+    <StyleChatBubble
+      message={item}
+      userKey={userKey}
+      onStyleDnaFeedbackSaved={refreshStyleDnaSummary}
+    />
   );
 
   const ListEmpty = isLoading ? (
@@ -177,6 +256,8 @@ export default function StyleChatSessionScreen() {
       onDismiss={() => setHandoffContext(null)}
     />
   ) : null;
+
+  const styleDnaSummaryText = styleDnaSummary ? buildStyleDnaSummaryText(styleDnaSummary) : null;
 
   const ChatBody = (
     <>
@@ -258,6 +339,15 @@ export default function StyleChatSessionScreen() {
           )}
         </Pressable>
       </View>
+      {STYLE_DNA_ENABLED && userKey ? (
+        <StyleChatStyleDnaCard
+          summary={styleDnaSummary}
+          summaryText={styleDnaSummaryText}
+          loading={isLoadingStyleDna}
+          resetting={isResettingStyleDna}
+          onReset={handleResetStyleDna}
+        />
+      ) : null}
       {Platform.OS === 'ios' ? (
         <KeyboardAvoidingView
           style={styles.flex}
