@@ -182,14 +182,21 @@ export default function HomeLuxuryTechV1() {
       {showRecentSection && (
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <SectionHeader title="RECENT SCANS" />
+            <SectionHeader title="RECENT SCANS" style={styles.sectionHeaderTitle} />
             {hasRecentScans && (
               <Pressable
                 testID="home-luxury-view-all-scans"
                 onPress={() => router.push('/library')}
                 accessibilityRole="button"
+                style={styles.sectionHeaderAction}
               >
-                <Text style={styles.viewAll}>View all ›</Text>
+                <Text
+                  style={styles.viewAll}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  View all ›
+                </Text>
               </Pressable>
             )}
           </View>
@@ -431,6 +438,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  sectionHeaderTitle: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionHeaderAction: {
+    flexShrink: 0,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   viewAll: {
     ...LUXURY.typography.bodyStrong,
