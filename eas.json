@@ -51,12 +51,12 @@
     },
     "production": {
       "distribution": "store",
-      "autoIncrement": "buildNumber",
       "android": {
         "buildType": "app-bundle"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "autoIncrement": "buildNumber"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
