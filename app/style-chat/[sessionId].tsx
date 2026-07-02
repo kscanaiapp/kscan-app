@@ -238,8 +238,13 @@ export default function StyleChatSessionScreen() {
 
   const ThinkingIndicator = isSending ? (
     <View testID="style-chat-thinking-indicator" style={styles.thinking}>
-      <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-      <Text style={styles.thinkingText}>Styling…</Text>
+      <View style={styles.thinkingSpinner}>
+        <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+      </View>
+      <View style={styles.thinkingCopy}>
+        <Text style={styles.thinkingText}>StyleChat is thinking...</Text>
+        <Text style={styles.thinkingSubtext}>Reading the conversation context before it answers.</Text>
+      </View>
     </View>
   ) : null;
 
@@ -483,16 +488,42 @@ const styles = StyleSheet.create({
   },
   thinking: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.sm,
+    alignItems: 'flex-start',
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.pearl,
     gap: SPACING.sm,
   },
+  thinkingSpinner: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  thinkingCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
   thinkingText: {
-    ...LUXURY.typography.caption,
+    ...LUXURY.typography.bodyStrong,
     color: LUXURY.colors.plum,
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  thinkingSubtext: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 0.4,
+    marginTop: SPACING.xxs,
   },
   errorBanner: {
     flexDirection: 'row',

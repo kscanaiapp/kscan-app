@@ -266,7 +266,16 @@ export function ProductShelf({ products }: ProductShelfProps) {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
-  if (!products || products.length === 0) return null;
+  if (!products || products.length === 0) {
+    return (
+      <View testID="product-shelf-empty" style={styles.emptyShelf}>
+        <Text style={styles.emptyShelfTitle}>No catalog matches yet.</Text>
+        <Text style={styles.emptyShelfBody}>
+          Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.
+        </Text>
+      </View>
+    );
+  }
 
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     const missingImage = products.filter((p) => !getProductImageUrl(p)).length;
@@ -340,8 +349,16 @@ export function ProductShelf({ products }: ProductShelfProps) {
                     onError={() => setFailedImages((current) => ({ ...current, [productKey]: true }))}
                   />
                 ) : (
-                  <View style={[styles.image, styles.imagePlaceholder]}>
+                  <View
+                    style={[styles.image, styles.imagePlaceholder]}
+                    accessible
+                    accessibilityRole="image"
+                    accessibilityLabel={`Catalog image unavailable for ${productTitle}`}
+                  >
                     <ProductImagePlaceholder category={imageCategory} />
+                    <Text style={styles.placeholderLabel} numberOfLines={1}>
+                      Image pending
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -356,10 +373,14 @@ export function ProductShelf({ products }: ProductShelfProps) {
                   {productTitle}
                 </Text>
                 {priceText ? (
-                  <Text style={styles.price}>{priceText}</Text>
+                  <Text style={styles.price} numberOfLines={1}>
+                    {priceText}
+                  </Text>
                 ) : null}
                 {isOutOfStock ? (
-                  <Text style={styles.availabilityLabel}>Out of stock</Text>
+                  <Text style={styles.availabilityLabel} numberOfLines={1}>
+                    Out of stock
+                  </Text>
                 ) : null}
                 {dressingRoomsEnabled ? (
                   <TouchableOpacity
@@ -376,7 +397,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
                     }}
                     activeOpacity={0.82}
                   >
-                    <Text style={styles.addToRoomText}>
+                    <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
                       {canSaveToRoom ? 'Add to Dressing Room' : "Can't Save Yet"}
                     </Text>
                   </TouchableOpacity>
@@ -429,7 +450,7 @@ export function AddToRoomModal({
     try {
       await addProductToDressingRoom(roomId, normalizeForSnapshot(product));
       const roomName = rooms.find((room) => room.id === roomId)?.title || 'Dressing Room';
-      setMessage(`Saved to ${roomName}.`);
+      setMessage(`Saved to ${roomName}. You can revisit it from Dressing Rooms.`);
       setTimeout(onClose, 900);
     } catch (err: any) {
       setMessage(
@@ -454,7 +475,7 @@ export function AddToRoomModal({
       });
       await addProductToDressingRoom(room.id, normalizeForSnapshot(product));
       setNewRoomTitle('');
-      setMessage(`Saved to ${room.title}.`);
+      setMessage(`Saved to ${room.title}. You can revisit it from Dressing Rooms.`);
       await reload();
       setTimeout(onClose, 900);
     } catch (err: any) {
@@ -478,14 +499,22 @@ export function AddToRoomModal({
           {unsupported ? (
             <Text style={styles.modalMessage}>This item can't be saved to a Dressing Room yet.</Text>
           ) : loading ? (
-            <ActivityIndicator color={COLORS.accent} />
+            <View style={styles.modalLoading}>
+              <ActivityIndicator color={COLORS.accent} />
+              <Text style={styles.modalMessage}>Loading Dressing Rooms...</Text>
+            </View>
           ) : error ? (
             <Text style={styles.modalMessage}>{error}</Text>
           ) : (
             <>
               <ScrollView style={styles.roomList} contentContainerStyle={styles.roomListContent}>
                 {rooms.length === 0 ? (
-                  <Text style={styles.modalMessage}>Create your first Dressing Room.</Text>
+                  <View style={styles.modalEmptyState}>
+                    <Text style={styles.modalMessage}>No Dressing Rooms yet.</Text>
+                    <Text style={styles.modalSubMessage}>
+                      Create one below to save this item and revisit it later.
+                    </Text>
+                  </View>
                 ) : (
                   rooms.map((room) => (
                     <TouchableOpacity
@@ -545,6 +574,28 @@ const styles = StyleSheet.create({
   container: {
     marginTop: SPACING.xl,
   },
+  emptyShelf: {
+    marginTop: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.cream,
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
+  emptyShelfTitle: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
+    textAlign: 'center',
+  },
+  emptyShelfBody: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    lineHeight: 18,
+    textTransform: 'none',
+  },
   labelRow: {
     flexDirection: 'row',
     alignItems:    'center',
@@ -590,6 +641,9 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.champagne,
     alignItems:      'center',
     justifyContent:  'center',
+    gap:             SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.border,
   },
   imageSkeleton: {
     backgroundColor: LUXURY.colors.champagne,
@@ -616,6 +670,14 @@ const styles = StyleSheet.create({
   },
   placeholderCyanFill: {
     backgroundColor: COLORS.arBlue,
+  },
+  placeholderLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    maxWidth: IMAGE_SIZE - SPACING.lg,
+    textAlign: 'center',
   },
   footwearUpper: {
     position:     'absolute',
@@ -838,6 +900,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textAlign: 'center',
     textTransform: 'none',
+    flexShrink: 1,
   },
   modalBackdrop: {
     flex: 1,
@@ -867,6 +930,14 @@ const styles = StyleSheet.create({
   },
   roomListContent: {
     gap: SPACING.sm,
+  },
+  modalLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.lg,
+  },
+  modalEmptyState: {
+    paddingVertical: SPACING.md,
   },
   roomChoice: {
     borderRadius: RADIUS.lg,
@@ -936,5 +1007,13 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.bodyStrong,
     textAlign: 'center',
     marginTop: SPACING.md,
+  },
+  modalSubMessage: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    lineHeight: 18,
+    textTransform: 'none',
   },
 });

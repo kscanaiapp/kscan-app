@@ -263,8 +263,10 @@ export function AnalysisCard({
                   ? <ProductShelf products={products} />
                   : (
                     <View style={styles.emptyState}>
-                      <Text style={styles.noMatchNote}>Style analysis ready.</Text>
-                      <Text style={styles.noMatchSub}>Product matches will improve as the catalog grows. Save the strongest style signals and compare future finds.</Text>
+                      <Text style={styles.noMatchNote}>No catalog matches yet.</Text>
+                      <Text style={styles.noMatchSub}>
+                        The style read is still useful. Try a clearer angle, closer crop, or simpler background to improve product matches.
+                      </Text>
                     </View>
                   )
               ) : null}
@@ -387,16 +389,24 @@ const styles = StyleSheet.create({
   emptyState: {
     marginTop: SPACING.xl,
     alignItems: 'center',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.cream,
+    padding: SPACING.lg,
   },
   noMatchNote: {
-    ...LUXURY.typography.body,
+    ...LUXURY.typography.bodyStrong,
     textAlign:     'center' as const,
-    fontStyle:     'italic' as const,
+    color: LUXURY.colors.ink,
   },
   noMatchSub: {
-    ...LUXURY.typography.caption,
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    lineHeight: 20,
     textAlign: 'center' as const,
     marginTop: SPACING.sm,
+    color: LUXURY.colors.graphite,
   },
   scanRoomCta: {
     width: '100%',
