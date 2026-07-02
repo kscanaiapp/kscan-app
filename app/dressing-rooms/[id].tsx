@@ -835,7 +835,11 @@ function DressingRoomDetailContent() {
             {/* Room Inspiration */}
             <View style={styles.inspirationSection}>
               <View style={styles.inspirationHeader}>
-                <SectionHeader title="Room Inspiration" subtitle="Reference images" />
+                <SectionHeader
+                  title="Room Inspiration"
+                  subtitle="Reference images"
+                  style={styles.inspirationHeaderText}
+                />
                 {isAuthenticated ? (
                   <TouchableOpacity
                     style={styles.uploadBtn}
@@ -1121,9 +1125,14 @@ const styles = StyleSheet.create({
   },
   inspirationHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    gap: SPACING.sm,
     marginBottom: SPACING.md,
+  },
+  inspirationHeaderText: {
+    flex: 1,
+    minWidth: 0,
   },
   uploadBtn: {
     paddingHorizontal: SPACING.md,
@@ -1134,6 +1143,7 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     minHeight: 36,
     justifyContent: 'center',
+    flexShrink: 0,
   },
   uploadBtnText: {
     ...LUXURY.typography.caption,
