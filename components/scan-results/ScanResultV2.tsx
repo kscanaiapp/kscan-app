@@ -33,6 +33,7 @@ import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { mapLegacyToV2 } from './types';
 import type { LegacyAnalysisData, ScanResultV2 } from './types';
 import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
+import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -295,6 +296,9 @@ export function ScanResultV2({
                   purchaseOptions={v2Data.purchaseOptions}
                 />
               </View>
+
+              {/* Free Tier Utility footer (flag-guarded; renders null by default) */}
+              <ScanResultUtilityFooter result={v2Data} />
 
               {/* Privacy footer */}
               <View style={styles.privacyFooter}>
