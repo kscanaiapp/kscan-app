@@ -1,8 +1,10 @@
--- WARNING: DO NOT APPLY THIS MIGRATION YET
--- Status: PENDING REVIEW
--- This migration is proposed for future free-tier utility backend sync.
--- It has not been reviewed, tested, or approved for staging/production.
--- Apply only after explicit owner approval, backend review, and QA validation.
+-- Status: REVIEWED — approved for KScan App Staging (wyyuqfdxucjksghsmhry) only.
+-- Not for Production until validated. Reviewed for the free-tier utility beta:
+--   * RLS enabled + user-scoped policies on every table (auth.uid()).
+--   * Explicit GRANTs to the authenticated role (this DB does not grant
+--     public tables to authenticated by default — RLS alone yields 42501).
+--   * Unique (user_id, client_id) index per table so client upserts have a
+--     matching ON CONFLICT arbiter.
 
 -- Purpose
 -- Optional backend tables for the Free Tier Utility Expansion prototype.
@@ -513,6 +515,51 @@ create policy "Users can delete own activity log"
   for delete
   to authenticated
   using (user_id = auth.uid());
+
+-- ============================================================================
+-- Upsert reconciliation keys
+-- The client sync layer upserts with onConflict = (user_id, client_id), so
+-- each table needs a matching unique index to serve as the ON CONFLICT arbiter.
+-- client_id is nullable (NULLs are distinct), but the local mapper always
+-- populates it for synced rows.
+-- ============================================================================
+
+create unique index if not exists wardrobe_utility_items_user_client_uidx
+  on public.wardrobe_utility_items (user_id, client_id);
+create unique index if not exists wardrobe_collections_user_client_uidx
+  on public.wardrobe_collections (user_id, client_id);
+create unique index if not exists wardrobe_collection_items_user_client_uidx
+  on public.wardrobe_collection_items (user_id, client_id);
+create unique index if not exists wardrobe_brand_sizing_notes_user_client_uidx
+  on public.wardrobe_brand_sizing_notes (user_id, client_id);
+create unique index if not exists wardrobe_outfit_feedback_user_client_uidx
+  on public.wardrobe_outfit_feedback (user_id, client_id);
+create unique index if not exists wardrobe_care_notes_user_client_uidx
+  on public.wardrobe_care_notes (user_id, client_id);
+create unique index if not exists wardrobe_wishlist_intents_user_client_uidx
+  on public.wardrobe_wishlist_intents (user_id, client_id);
+create unique index if not exists wardrobe_wear_events_user_client_uidx
+  on public.wardrobe_wear_events (user_id, client_id);
+create unique index if not exists wardrobe_activity_log_user_client_uidx
+  on public.wardrobe_activity_log (user_id, client_id);
+
+-- ============================================================================
+-- Table privileges
+-- RLS policies are necessary but not sufficient: in this project new public
+-- tables are NOT granted to the authenticated role by default, so without
+-- these GRANTs every authenticated query fails with 42501. RLS still scopes
+-- each authenticated user to their own rows via the policies above.
+-- ============================================================================
+
+grant select, insert, update, delete on public.wardrobe_utility_items to authenticated;
+grant select, insert, update, delete on public.wardrobe_collections to authenticated;
+grant select, insert, update, delete on public.wardrobe_collection_items to authenticated;
+grant select, insert, update, delete on public.wardrobe_brand_sizing_notes to authenticated;
+grant select, insert, update, delete on public.wardrobe_outfit_feedback to authenticated;
+grant select, insert, update, delete on public.wardrobe_care_notes to authenticated;
+grant select, insert, update, delete on public.wardrobe_wishlist_intents to authenticated;
+grant select, insert, update, delete on public.wardrobe_wear_events to authenticated;
+grant select, insert, update, delete on public.wardrobe_activity_log to authenticated;
 
 -- ============================================================================
 -- Shared updated_at trigger

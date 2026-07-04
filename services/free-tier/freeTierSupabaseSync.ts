@@ -11,8 +11,9 @@
  * - never uses service-role keys
  * - never uploads raw images
  *
- * Full push/pull snapshots are intentionally stubbed; real network calls will
- * be wired once the remote table contracts are validated and flags are enabled.
+ * Pull and push snapshots are implemented behind the backend sync flags.
+ * Network calls only run when flags are enabled and an authenticated session
+ * exists; otherwise the functions return safe skipped results.
  */
 
 import { supabase } from '../supabaseClient';
@@ -36,6 +37,35 @@ import type {
   FreeTierSyncError,
   FreeTierSyncDirection,
 } from './freeTierSyncTypes';
+import { FREE_TIER_STORAGE_KEYS } from './wardrobeUtilityTypes';
+import type {
+  CareNoteEntry,
+  BrandSizingEntry,
+  OutfitFeedbackEntry,
+  WishlistIntentEntry,
+  OutfitCollection,
+  WearTrackingEntry,
+  ActivityEvent,
+  ActivityEventType,
+  WishlistIntentKind,
+} from './wardrobeUtilityTypes';
+import { writeStore } from './freeTierStorage';
+import { loadCareNotes } from './careNotes';
+import { loadBrandSizing, normalizeBrandKey } from './brandSizingMemory';
+import { loadOutfitFeedback } from './outfitFeedback';
+import { loadWishlistIntent } from './wishlistIntent';
+import { loadCollections } from './outfitCollections';
+import { loadWearTracking } from './costPerWear';
+import { loadActivityLog } from './activityLog';
+import {
+  mapCareNoteEntryToRemote,
+  mapBrandSizingEntryToRemote,
+  mapOutfitFeedbackEntryToRemote,
+  mapWishlistIntentEntryToRemote,
+  mapWearTrackingEntryToRemoteWearEvent,
+  mapActivityEventToRemote,
+  mapOutfitCollectionToRemote,
+} from './freeTierBackendMapper';
 
 const ENTITY_TABLE_MAP: Record<FreeTierSyncEntityName, string> = {
   utility_item: 'wardrobe_utility_items',
@@ -129,7 +159,7 @@ export async function syncFreeTierEntity(
     );
   }
 
-  const direction = operation === 'upsert' ? 'push' : 'push';
+  const direction: FreeTierSyncDirection = 'push';
 
   if (operation === 'upsert' && !FREE_TIER_BACKEND_WRITE_ENABLED) {
     return makeResult(
@@ -245,76 +275,389 @@ export async function syncPendingFreeTierWrites(): Promise<FreeTierSyncResult[]>
   return results;
 }
 
+// ── Conflict helpers ─────────────────────────────────────────────────────────
+
+/** Parse an ISO/timestamptz string to epoch ms; NaN-safe (0 when unparseable). */
+function toEpoch(value?: string | null): number {
+  if (!value) return 0;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Remote row wins only when strictly newer than the local record. */
+function remoteIsNewer(remoteUpdatedAt?: string | null, localUpdatedAt?: string | null): boolean {
+  return toEpoch(remoteUpdatedAt) > toEpoch(localUpdatedAt);
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+/** Fetch the caller's non-deleted rows for a table. RLS also scopes by user. */
+async function fetchRemoteRows(
+  table: string,
+  userId: string
+): Promise<Record<string, unknown>[]> {
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+  if (error) throw error;
+  return Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+}
+
+interface PullCounts {
+  careNotes: number;
+  brandSizing: number;
+  outfitFeedback: number;
+  wishlistIntent: number;
+  wearTracking: number;
+  activityLog: number;
+  collections: number;
+}
+
 /**
- * Pull a remote utility snapshot for the authenticated user.
- * Stub: returns not-implemented until the sync contract and conflict strategy
- * are reviewed. No network calls are made.
+ * Pull a remote utility snapshot for the authenticated user and merge it into
+ * the local stores. Local-first and non-destructive:
+ * - returns a safe skipped result when flags are off or unauthenticated
+ * - only overwrites a local record when the remote copy is strictly newer
+ * - never deletes local-only records (remote is additive/refreshing only)
+ * - each entity merge is isolated; one failing table never aborts the others
+ *   and never leaves local data in a partial state
  */
 export async function pullFreeTierUtilitySnapshot(): Promise<{
   success: boolean;
-  data?: unknown;
+  skipped?: boolean;
+  counts?: PullCounts;
   error?: FreeTierSyncError;
 }> {
   if (!FREE_TIER_BACKEND_SYNC_ENABLED) {
-    return { success: true };
+    return { success: true, skipped: true };
   }
-
   if (!FREE_TIER_BACKEND_READ_ENABLED) {
-    return {
-      success: false,
-      error: makeError('READ_DISABLED', 'Backend read flag is disabled.'),
-    };
+    return { success: true, skipped: true, error: makeError('READ_DISABLED', 'Backend read flag is disabled.') };
   }
 
   const userId = await getCurrentUserId();
   if (!userId) {
-    return {
-      success: false,
-      error: makeError('UNAUTHENTICATED', 'No authenticated user; pull skipped.'),
-    };
+    return { success: true, skipped: true, error: makeError('UNAUTHENTICATED', 'No authenticated user; pull skipped.') };
   }
 
-  // TODO: implement selective pull once conflict resolution and pagination
-  // strategy are reviewed. For now this is a safe no-op stub.
-  return {
-    success: false,
-    error: makeError('NOT_IMPLEMENTED', 'pullFreeTierUtilitySnapshot is a planned stub.'),
+  const counts: PullCounts = {
+    careNotes: 0,
+    brandSizing: 0,
+    outfitFeedback: 0,
+    wishlistIntent: 0,
+    wearTracking: 0,
+    activityLog: 0,
+    collections: 0,
   };
+  let anyError: FreeTierSyncError | undefined;
+
+  // Care notes: Record<itemId, CareNoteEntry> keyed by source_item_id.
+  try {
+    const rows = await fetchRemoteRows(ENTITY_TABLE_MAP.care_note, userId);
+    const local = await loadCareNotes();
+    const next = { ...local };
+    for (const row of rows) {
+      const itemId = asString(row.source_item_id);
+      const updatedAt = asString(row.updated_at);
+      if (!itemId) continue;
+      if (remoteIsNewer(updatedAt, next[itemId]?.updatedAt)) {
+        next[itemId] = {
+          itemId,
+          tags: asStringArray(row.tags),
+          note: asString(row.note),
+          updatedAt: updatedAt ?? new Date().toISOString(),
+        } as CareNoteEntry;
+        counts.careNotes++;
+      }
+    }
+    if (counts.careNotes > 0) await writeStore(FREE_TIER_STORAGE_KEYS.careNotes, next, userId);
+  } catch (err) {
+    anyError = makeError('PULL_CARE_FAILED', err instanceof Error ? err.message : String(err), 'care_note');
+  }
+
+  // Brand sizing: Record<normalizedBrandKey, BrandSizingEntry>.
+  try {
+    const rows = await fetchRemoteRows(ENTITY_TABLE_MAP.brand_sizing_note, userId);
+    const local = await loadBrandSizing();
+    const next = { ...local };
+    for (const row of rows) {
+      const brand = asString(row.brand);
+      const key = normalizeBrandKey(brand);
+      const updatedAt = asString(row.updated_at);
+      if (!key || !brand) continue;
+      if (remoteIsNewer(updatedAt, next[key]?.lastUpdatedAt)) {
+        next[key] = {
+          brand,
+          usualSize: asString(row.usual_size),
+          fitNote: asString(row.fit_note),
+          runsSmall: typeof row.runs_small === 'boolean' ? row.runs_small : undefined,
+          runsLarge: typeof row.runs_large === 'boolean' ? row.runs_large : undefined,
+          lastUpdatedAt: updatedAt ?? new Date().toISOString(),
+        } as BrandSizingEntry;
+        counts.brandSizing++;
+      }
+    }
+    if (counts.brandSizing > 0) await writeStore(FREE_TIER_STORAGE_KEYS.brandSizing, next, userId);
+  } catch (err) {
+    anyError = makeError('PULL_SIZING_FAILED', err instanceof Error ? err.message : String(err), 'brand_sizing_note');
+  }
+
+  // Outfit feedback: Record<targetId, OutfitFeedbackEntry>.
+  try {
+    const rows = await fetchRemoteRows(ENTITY_TABLE_MAP.outfit_feedback, userId);
+    const local = await loadOutfitFeedback();
+    const next = { ...local };
+    for (const row of rows) {
+      const targetId = asString(row.target_id);
+      const updatedAt = asString(row.updated_at);
+      if (!targetId) continue;
+      if (remoteIsNewer(updatedAt, next[targetId]?.updatedAt)) {
+        next[targetId] = {
+          targetId,
+          rating: asNumber(row.rating),
+          tags: asStringArray(row.tags),
+          updatedAt: updatedAt ?? new Date().toISOString(),
+        } as OutfitFeedbackEntry;
+        counts.outfitFeedback++;
+      }
+    }
+    if (counts.outfitFeedback > 0) await writeStore(FREE_TIER_STORAGE_KEYS.outfitFeedback, next, userId);
+  } catch (err) {
+    anyError = makeError('PULL_FEEDBACK_FAILED', err instanceof Error ? err.message : String(err), 'outfit_feedback');
+  }
+
+  // Wishlist intent: Record<itemId, WishlistIntentEntry> keyed by source_item_id.
+  try {
+    const rows = await fetchRemoteRows(ENTITY_TABLE_MAP.wishlist_intent, userId);
+    const local = await loadWishlistIntent();
+    const next = { ...local };
+    for (const row of rows) {
+      const itemId = asString(row.source_item_id);
+      const intent = asString(row.intent) as WishlistIntentKind | undefined;
+      const updatedAt = asString(row.updated_at);
+      if (!itemId || !intent) continue;
+      if (remoteIsNewer(updatedAt, next[itemId]?.updatedAt)) {
+        next[itemId] = {
+          itemId,
+          intent,
+          titleSnapshot: asString(row.title_snapshot),
+          updatedAt: updatedAt ?? new Date().toISOString(),
+        } as WishlistIntentEntry;
+        counts.wishlistIntent++;
+      }
+    }
+    if (counts.wishlistIntent > 0) await writeStore(FREE_TIER_STORAGE_KEYS.wishlistIntent, next, userId);
+  } catch (err) {
+    anyError = makeError('PULL_WISHLIST_FAILED', err instanceof Error ? err.message : String(err), 'wishlist_intent');
+  }
+
+  // Wear tracking: Record<itemId, WearTrackingEntry>. Remote holds one
+  // aggregate row per item (pushed via upsert); rebuild from metadata.
+  try {
+    const rows = await fetchRemoteRows(ENTITY_TABLE_MAP.wear_event, userId);
+    const local = await loadWearTracking();
+    const next = { ...local };
+    for (const row of rows) {
+      const itemId = asString(row.source_item_id);
+      if (!itemId) continue;
+      const meta = asRecord(row.metadata);
+      const localUpdatedAt = asString(meta.localUpdatedAt) ?? asString(row.updated_at);
+      if (remoteIsNewer(localUpdatedAt, next[itemId]?.updatedAt)) {
+        next[itemId] = {
+          itemId,
+          wearCount: asNumber(meta.localWearCount) ?? next[itemId]?.wearCount ?? 0,
+          lastWornAt: asString(row.worn_at) ?? next[itemId]?.lastWornAt,
+          estimatedPrice: asNumber(row.estimated_price) ?? next[itemId]?.estimatedPrice,
+          updatedAt: localUpdatedAt ?? new Date().toISOString(),
+        } as WearTrackingEntry;
+        counts.wearTracking++;
+      }
+    }
+    if (counts.wearTracking > 0) await writeStore(FREE_TIER_STORAGE_KEYS.wearTracking, next, userId);
+  } catch (err) {
+    anyError = makeError('PULL_WEAR_FAILED', err instanceof Error ? err.message : String(err), 'wear_event');
+  }
+
+  // Activity log: ActivityEvent[] merged by client-stable id; additive only,
+  // capped to the newest 50, newest first.
+  try {
+    const rows = await fetchRemoteRows(ENTITY_TABLE_MAP.activity_log, userId);
+    const local = await loadActivityLog();
+    const seen = new Set(local.map((e) => e.id));
+    const incoming: ActivityEvent[] = [];
+    for (const row of rows) {
+      const clientId = asString(row.client_id);
+      const id = clientId?.startsWith('activity:') ? clientId.slice('activity:'.length) : asString(row.id);
+      if (!id || seen.has(id)) continue;
+      const meta = asRecord(row.metadata);
+      incoming.push({
+        id,
+        type: (asString(row.event_type) ?? 'saved_item') as ActivityEventType,
+        label: asString(row.label) ?? '',
+        createdAt: asString(meta.localCreatedAt) ?? asString(row.created_at) ?? new Date().toISOString(),
+      });
+      seen.add(id);
+    }
+    if (incoming.length > 0) {
+      const merged = [...local, ...incoming]
+        .sort((a, b) => toEpoch(b.createdAt) - toEpoch(a.createdAt))
+        .slice(0, 50);
+      counts.activityLog = incoming.length;
+      await writeStore(FREE_TIER_STORAGE_KEYS.activityLog, merged, userId);
+    }
+  } catch (err) {
+    anyError = makeError('PULL_ACTIVITY_FAILED', err instanceof Error ? err.message : String(err), 'activity_log');
+  }
+
+  // Collections: OutfitCollection[]. Metadata-only merge (name/cover). Nested
+  // item membership is NOT synced yet (see push note), so local itemIds are
+  // always preserved and never overwritten from remote.
+  try {
+    const rows = await fetchRemoteRows(ENTITY_TABLE_MAP.collection, userId);
+    const local = await loadCollections();
+    const byId = new Map(local.map((c) => [c.id, c]));
+    let changed = false;
+    for (const row of rows) {
+      const clientId = asString(row.client_id);
+      const id = clientId?.startsWith('collection:') ? clientId.slice('collection:'.length) : asString(row.id);
+      const name = asString(row.name);
+      const updatedAt = asString(row.updated_at);
+      if (!id || !name) continue;
+      const existing = byId.get(id);
+      if (!existing) {
+        byId.set(id, {
+          id,
+          name,
+          itemIds: [],
+          coverItemId: asString(row.cover_item_id),
+          createdAt: updatedAt ?? new Date().toISOString(),
+          updatedAt: updatedAt ?? new Date().toISOString(),
+        });
+        changed = true;
+        counts.collections++;
+      } else if (remoteIsNewer(updatedAt, existing.updatedAt)) {
+        byId.set(id, {
+          ...existing, // preserve local itemIds
+          name,
+          coverItemId: asString(row.cover_item_id) ?? existing.coverItemId,
+          updatedAt: updatedAt ?? existing.updatedAt,
+        });
+        changed = true;
+        counts.collections++;
+      }
+    }
+    if (changed) await writeStore(FREE_TIER_STORAGE_KEYS.collections, Array.from(byId.values()), userId);
+  } catch (err) {
+    anyError = makeError('PULL_COLLECTIONS_FAILED', err instanceof Error ? err.message : String(err), 'collection');
+  }
+
+  return { success: !anyError, counts, error: anyError };
+}
+
+interface PushCounts {
+  attempted: number;
+  succeeded: number;
+  failed: number;
 }
 
 /**
- * Push the entire local utility snapshot to the backend.
- * Stub: returns not-implemented until batching, conflict resolution, and
- * privacy review are complete. No network calls are made.
+ * Push the local utility snapshot to the backend for the authenticated user.
+ * Local-first and non-destructive:
+ * - returns a safe skipped result when flags are off or unauthenticated
+ * - upserts each local record via syncFreeTierEntity (RLS-scoped, user-owned)
+ * - never mutates or deletes local data
+ * - a failed upsert is captured per-record; it does not abort the batch
+ *
+ * Note: nested collection membership (collection_item rows) is intentionally
+ * NOT pushed here. That table keys membership by a uuid FK to the remote
+ * collection id, which is not resolvable from local string ids without a
+ * post-insert lookup; deferring it avoids guaranteed FK failures. Collection
+ * name/cover metadata still syncs.
  */
 export async function pushFreeTierUtilitySnapshot(): Promise<{
   success: boolean;
+  skipped?: boolean;
+  counts?: PushCounts;
   results?: FreeTierSyncResult[];
   error?: FreeTierSyncError;
 }> {
   if (!FREE_TIER_BACKEND_SYNC_ENABLED) {
-    return { success: true };
+    return { success: true, skipped: true };
   }
-
   if (!FREE_TIER_BACKEND_WRITE_ENABLED) {
-    return {
-      success: false,
-      error: makeError('WRITE_DISABLED', 'Backend write flag is disabled.'),
-    };
+    return { success: true, skipped: true, error: makeError('WRITE_DISABLED', 'Backend write flag is disabled.') };
   }
 
   const userId = await getCurrentUserId();
   if (!userId) {
+    return { success: true, skipped: true, error: makeError('UNAUTHENTICATED', 'No authenticated user; push skipped.') };
+  }
+
+  const results: FreeTierSyncResult[] = [];
+  try {
+    const [care, sizing, feedback, wishlist, collections, wear, activity] = await Promise.all([
+      loadCareNotes(),
+      loadBrandSizing(),
+      loadOutfitFeedback(),
+      loadWishlistIntent(),
+      loadCollections(),
+      loadWearTracking(),
+      loadActivityLog(),
+    ]);
+
+    for (const entry of Object.values(care) as CareNoteEntry[]) {
+      results.push(await syncFreeTierEntity('care_note', 'upsert', mapCareNoteEntryToRemote(entry)));
+    }
+    for (const entry of Object.values(sizing) as BrandSizingEntry[]) {
+      results.push(await syncFreeTierEntity('brand_sizing_note', 'upsert', mapBrandSizingEntryToRemote(entry)));
+    }
+    for (const entry of Object.values(feedback) as OutfitFeedbackEntry[]) {
+      results.push(await syncFreeTierEntity('outfit_feedback', 'upsert', mapOutfitFeedbackEntryToRemote(entry)));
+    }
+    for (const entry of Object.values(wishlist) as WishlistIntentEntry[]) {
+      results.push(await syncFreeTierEntity('wishlist_intent', 'upsert', mapWishlistIntentEntryToRemote(entry)));
+    }
+    for (const entry of Object.values(wear) as WearTrackingEntry[]) {
+      results.push(await syncFreeTierEntity('wear_event', 'upsert', mapWearTrackingEntryToRemoteWearEvent(entry)));
+    }
+    for (const event of activity as ActivityEvent[]) {
+      results.push(await syncFreeTierEntity('activity_log', 'upsert', mapActivityEventToRemote(event)));
+    }
+    for (const collection of collections as OutfitCollection[]) {
+      results.push(await syncFreeTierEntity('collection', 'upsert', mapOutfitCollectionToRemote(collection)));
+    }
+
+    // Drain any queued writes (e.g. from prior offline sessions) if enabled.
+    if (FREE_TIER_BACKEND_QUEUE_ENABLED) {
+      const queued = await syncPendingFreeTierWrites();
+      results.push(...queued);
+    }
+  } catch (err) {
     return {
       success: false,
-      error: makeError('UNAUTHENTICATED', 'No authenticated user; push skipped.'),
+      results,
+      error: makeError('PUSH_FAILED', err instanceof Error ? err.message : String(err)),
     };
   }
 
-  // TODO: implement batch push with mapping from local stores once table
-  // contracts and conflict strategy are reviewed.
-  return {
-    success: false,
-    error: makeError('NOT_IMPLEMENTED', 'pushFreeTierUtilitySnapshot is a planned stub.'),
+  const succeeded = results.filter((r) => r.success).length;
+  const counts: PushCounts = {
+    attempted: results.length,
+    succeeded,
+    failed: results.length - succeeded,
   };
+  return { success: counts.failed === 0, counts, results };
 }
