@@ -14,6 +14,7 @@ export const FREE_TIER_STORAGE_KEYS = {
   activityLog: 'kscan.freeTier.activityLog.v1',
   styleBoards: 'kscan.freeTier.styleBoards.v1',
   utilityMeta: 'kscan.freeTier.utilityMeta.v1',
+  syncQueue: 'kscan.freeTier.syncQueue.v1',
 } as const;
 
 export type FreeTierStorageKey =
