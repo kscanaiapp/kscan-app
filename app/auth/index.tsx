@@ -425,7 +425,7 @@ export default function AuthScreen() {
                 <ActivityIndicator size="small" color={COLORS.black} />
               ) : (
                 <>
-                  <Text style={styles.appleIconText}>Apple</Text>
+                  <Text style={styles.appleIconText}>{''}</Text>
                   <Text style={styles.appleButtonText}>Continue with Apple</Text>
                 </>
               )}

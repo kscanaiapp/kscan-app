@@ -140,7 +140,7 @@ function AuthGate() {
   if (guardState.action !== 'allow') {
     return (
       <View testID="auth-gate-loading" style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color="#00FFFF" />
+        <ActivityIndicator size="large" color={COLORS.accent} />
         <Text style={styles.loadingText}>K-SCAN</Text>
       </View>
     );

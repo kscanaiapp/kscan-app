@@ -333,12 +333,7 @@ export default function StyleChatSessionScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      testID="style-chat-screen"
-      style={styles.safe}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
+    <View testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="dark" />
       <StyleChatHeader showBadge={false} />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
@@ -375,8 +370,14 @@ export default function StyleChatSessionScreen() {
           onReset={handleResetStyleDna}
         />
       ) : null}
-      {ChatBody}
-    </KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+      >
+        {ChatBody}
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 

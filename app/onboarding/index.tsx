@@ -480,8 +480,8 @@ export default function OnboardingScreen() {
 
           <View style={styles.infoBanner}>
             <Text style={styles.infoText}>
-              Supabase email confirmation is enabled for this account path, so Terms and
-              Permissions will unlock after the verified session starts.
+              Once you verify your email and sign in, you'll continue right where you left
+              off with Terms and Permissions.
             </Text>
           </View>
 
