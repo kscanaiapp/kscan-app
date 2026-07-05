@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -68,6 +69,22 @@ export default function TextScanScreen() {
   const [lastSubmitAt, setLastSubmitAt] = useState(0);
 
   const isQueryValid = query.trim().length >= MIN_QUERY_LENGTH;
+
+  const openWebSearch = useCallback(() => {
+    const attrs = textScanResult?.metadata?.attributes;
+    const terms = textScanResult?.searchQueries?.length
+      ? textScanResult.searchQueries
+      : [
+          [attrs?.category, attrs?.color, attrs?.material, attrs?.silhouette]
+            .filter(Boolean)
+            .join(' '),
+        ];
+    const searchTerm = terms[0]?.trim() || query.trim();
+    const url = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(searchTerm)}`;
+    Linking.openURL(url).catch(() => {
+      setTextScanError('Unable to open web search. Please try again.');
+    });
+  }, [textScanResult, query]);
 
   const handleSubmit = () => {
     if (!isQueryValid || isSubmitting) return;
@@ -308,8 +325,97 @@ export default function TextScanScreen() {
             </View>
           )}
 
+          {/* Product matches */}
+          {!textScanError && !isNonFashion && textScanResult?.products && textScanResult.products.length > 0 && (
+            <View style={styles.matchesCard}>
+              <ResultFilterTabs
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+                style={styles.filterTabs}
+              />
+              {activeFilter !== 'resale' && textScanResult.products.filter((p) => p.type === 'retail').length > 0 && (
+                <>
+                  <SectionHeader
+                    title="Retail Matches"
+                    actionAccessibilityLabel="Retail matches"
+                  />
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.productShelf}
+                  >
+                    {textScanResult.products
+                      .filter((p) => p.type === 'retail')
+                      .map((product) => (
+                        <TextScanProductCard
+                          key={product.id}
+                          product={product}
+                          style={styles.productCard}
+                          onPress={product.productUrl ? () => Linking.openURL(product.productUrl!) : undefined}
+                        />
+                      ))}
+                  </ScrollView>
+                </>
+              )}
+              {activeFilter !== 'retail' && textScanResult.products.filter((p) => p.type === 'resale').length > 0 && (
+                <>
+                  <SectionHeader
+                    title="Resale Matches"
+                    actionAccessibilityLabel="Resale matches"
+                  />
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.productShelf}
+                  >
+                    {textScanResult.products
+                      .filter((p) => p.type === 'resale')
+                      .map((product) => (
+                        <TextScanProductCard
+                          key={product.id}
+                          product={product}
+                          style={styles.productCard}
+                          onPress={product.productUrl ? () => Linking.openURL(product.productUrl!) : undefined}
+                        />
+                      ))}
+                  </ScrollView>
+                </>
+              )}
+              {activeFilter === 'similar' && textScanResult.products.length > 0 && (
+                <>
+                  <SectionHeader
+                    title="Similar Finds"
+                    actionAccessibilityLabel="Similar finds"
+                  />
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.productShelf}
+                  >
+                    {textScanResult.products.map((product) => (
+                      <TextScanProductCard
+                        key={product.id}
+                        product={product}
+                        style={styles.productCard}
+                        onPress={product.productUrl ? () => Linking.openURL(product.productUrl!) : undefined}
+                      />
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+            </View>
+          )}
+
           {/* Actions */}
           <View style={styles.actionStack}>
+            {!textScanError && !isNonFashion && (
+              <PrimaryButton
+                title="Shop this style"
+                onPress={openWebSearch}
+                accessibilityLabel="Search the web for this style"
+                testID="textscan-shop-style"
+              />
+            )}
             {styleChatEnabled && !textScanError && !isNonFashion && (
               <SecondaryButton
                 title="Ask StyleChat"
@@ -454,7 +560,7 @@ export default function TextScanScreen() {
           <Text style={styles.summaryLabel}>ANALYSIS</Text>
           <Text style={styles.summaryBody}>
             {TEXTSCAN_BACKEND_ENABLED
-              ? 'Text analysis is coming soon.'
+              ? "We couldn't load the analysis. Please try again."
               : 'Live TextScan matching is being prepared.'}
           </Text>
         </View>
@@ -617,6 +723,15 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
     ...SHADOWS.editorialSmall,
+  },
+  matchesCard: {
+    backgroundColor: LUXURY.colors.warmWhite,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.editorialRaised,
   },
   refiningCard: {
     backgroundColor: LUXURY.colors.warmWhite,

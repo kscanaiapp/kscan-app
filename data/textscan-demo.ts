@@ -6,10 +6,11 @@
 export interface TextScanDemoProduct {
   id: string;
   title: string;
-  price: string;
+  price?: string;
   source: string;
-  type: 'retail' | 'resale';
+  type: 'retail' | 'resale' | 'similar';
   imageUrl?: string;
+  productUrl?: string;
 }
 
 export interface TextScanDemoAttributes {

@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { validateTextScanQuery } from './textScan';
-import type { TextScanResult } from './textScan';
+import type { TextScanProduct, TextScanProductType, TextScanResult } from './textScan';
 
 const EDGE_FN = 'scan-identify';
 // User-facing timeout budget. The edge function internally caps at ~8 s.
@@ -48,6 +48,74 @@ function normalizeMaterial(
   if (material && typeof material === 'string') return material.trim() || null;
   if (materialEstimate && typeof materialEstimate === 'string') return materialEstimate.trim() || null;
   return null;
+}
+
+function formatPrice(price: unknown, currency: unknown): string | undefined {
+  if (typeof price !== 'number' || !Number.isFinite(price)) return undefined;
+  const symbol = typeof currency === 'string' && currency.trim() ? currency.trim() : '$';
+  return `${symbol}${price.toFixed(2)}`;
+}
+
+function classifyProductType(source?: string | null): TextScanProductType {
+  const resaleNames = [
+    'ebay', 'poshmark', 'depop', 'thredup', 'thred up',
+    'vestiaire', 'vestiaire collective', 'therealreal', 'the realreal',
+    'grailed', 'mercari', 'tradesy', 'rebag', 'fashionphile',
+  ];
+  const s = (source || '').toLowerCase();
+  return resaleNames.some((name) => s.includes(name)) ? 'resale' : 'retail';
+}
+
+function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
+  if (!Array.isArray(raw)) return [];
+  const products: TextScanProduct[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const p = item as Record<string, unknown>;
+    const id = typeof p.id === 'string' && p.id.trim() ? p.id.trim() : undefined;
+    if (!id) continue;
+    const title =
+      (typeof p.name === 'string' && p.name.trim())
+        ? p.name.trim()
+        : (typeof p.title === 'string' && p.title.trim())
+          ? p.title.trim()
+          : (typeof p.product_name === 'string' && p.product_name.trim())
+            ? p.product_name.trim()
+            : undefined;
+    if (!title) continue;
+    const source =
+      (typeof p.retailer === 'string' && p.retailer.trim())
+        ? p.retailer.trim()
+        : (typeof p.brand === 'string' && p.brand.trim())
+          ? p.brand.trim()
+          : (typeof p.source === 'string' && p.source.trim())
+            ? p.source.trim()
+            : 'K Scan';
+    const imageUrl =
+      (typeof p.imageUrl === 'string' && p.imageUrl.trim())
+        ? p.imageUrl.trim()
+        : (typeof p.image_url === 'string' && p.image_url.trim())
+          ? p.image_url.trim()
+          : undefined;
+    const productUrl =
+      (typeof p.purchaseUrl === 'string' && p.purchaseUrl.trim())
+        ? p.purchaseUrl.trim()
+        : (typeof p.product_url === 'string' && p.product_url.trim())
+          ? p.product_url.trim()
+          : (typeof p.url === 'string' && p.url.trim())
+            ? p.url.trim()
+            : undefined;
+    products.push({
+      id,
+      title,
+      source,
+      price: formatPrice(p.price, p.currency),
+      type: classifyProductType(source),
+      imageUrl,
+      productUrl,
+    });
+  }
+  return products;
 }
 
 function mapEdgeResponseToTextScanResult(
@@ -106,12 +174,31 @@ function mapEdgeResponseToTextScanResult(
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : null;
   })();
 
+  const identification =
+    src.identification && typeof src.identification === 'object' && !Array.isArray(src.identification)
+      ? (src.identification as Record<string, unknown>)
+      : undefined;
+
+  const searchQueries = Array.isArray(identification?.search_queries)
+    ? (identification.search_queries as unknown[])
+        .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+        .map((s) => s.trim())
+    : [];
+
+  const stylingSuggestions = Array.isArray(identification?.styling_suggestions)
+    ? (identification.styling_suggestions as unknown[])
+        .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+        .map((s) => s.trim())
+    : [];
+
   return {
     id: generateId(),
     type: isNonFashion ? 'non_fashion_text' : 'fashion_text',
     result: isNonFashion ? NON_FASHION_MESSAGE : userMessage,
     metadata: { source: 'textscan', query, attributes },
-    products: [],
+    products: isNonFashion ? [] : mapRecommendedProducts(src.recommendedProducts),
+    searchQueries,
+    stylingSuggestions,
     confidence: isNonFashion ? 0 : confidence,
     savedAt: new Date().toISOString(),
   };

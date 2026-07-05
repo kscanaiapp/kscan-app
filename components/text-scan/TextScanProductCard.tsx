@@ -23,8 +23,8 @@ export function TextScanProductCard({
     <View style={[styles.root, style]}>
       <View style={styles.badge}>
         <StatusPill
-          label={product.type === 'retail' ? 'Retail' : 'Resale'}
-          variant={product.type === 'retail' ? 'neutral' : 'gold'}
+          label={product.type === 'retail' ? 'Retail' : product.type === 'resale' ? 'Resale' : 'Similar'}
+          variant={product.type === 'retail' ? 'neutral' : product.type === 'resale' ? 'gold' : 'neutral'}
         />
       </View>
       <ProductCard

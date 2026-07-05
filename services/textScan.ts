@@ -9,6 +9,18 @@ import type { TextScanDemoAttributes } from '../data/textscan-demo';
 
 export type TextScanResultType = 'fashion_text' | 'non_fashion_text';
 
+export type TextScanProductType = 'retail' | 'resale' | 'similar';
+
+export interface TextScanProduct {
+  id: string;
+  title: string;
+  source: string;
+  price?: string;
+  type: TextScanProductType;
+  imageUrl?: string;
+  productUrl?: string;
+}
+
 export interface TextScanAttributes {
   category?: string | null;
   color?: string | null;
@@ -29,7 +41,9 @@ export interface TextScanResult {
   type: TextScanResultType;
   result: string;
   metadata: TextScanMetadata;
-  products: [];
+  products: TextScanProduct[];
+  searchQueries?: string[];
+  stylingSuggestions?: string[];
   confidence?: number | null;
   savedAt: string;
 }
