@@ -48,12 +48,21 @@ function loadModule(filename, requireMap = {}) {
 }
 
 const shoppingProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts'));
+const farfetchProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/farfetchProvider.ts'));
 const router = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/scanCommerceRouter.ts'), {
   './shoppingProvider.ts': shoppingProvider,
+  './farfetchProvider.ts': farfetchProvider,
 });
 
 function resetEnv() {
-  ENV = { SHOPPING_SERPER_API_KEY: 'serper-test-key', SHOPPING_BRAVE_API_KEY: 'brave-test-key' };
+  ENV = {
+    SHOPPING_SERPER_API_KEY: 'serper-test-key',
+    SHOPPING_BRAVE_API_KEY: 'brave-test-key',
+    RAPIDAPI_KEY: 'rapidapi-test-key',
+    FARFETCH_ENABLED: 'true',
+    FARFETCH_RAPIDAPI_HOST: 'farfetch-data.p.rapidapi.com',
+    FARFETCH_RAPIDAPI_BASE_URL: 'https://farfetch-data.p.rapidapi.com',
+  };
   shoppingProvider._resetShoppingCache();
 }
 
@@ -63,16 +72,23 @@ function serperOk(items) {
 function braveOk(results) {
   return { ok: true, status: 200, json: async () => ({ web: { results } }) };
 }
-function routeFetch({ serper, brave }) {
-  return async (url) => {
+function farfetchOk(items) {
+  return { ok: true, status: 200, json: async () => ({ products: items }) };
+}
+function routeFetch({ serper, brave, farfetch }) {
+  return async (url, options) => {
     const u = String(url);
     if (u.includes('serper.dev')) {
-      if (typeof serper === 'function') return serper();
+      if (typeof serper === 'function') return serper(url, options);
       return serper;
     }
     if (u.includes('brave.com')) {
-      if (typeof brave === 'function') return brave();
+      if (typeof brave === 'function') return brave(url, options);
       return brave;
+    }
+    if (u.includes('farfetch-data.p.rapidapi.com')) {
+      if (typeof farfetch === 'function') return farfetch(url, options);
+      return farfetch;
     }
     throw new Error('unexpected url ' + u);
   };
@@ -233,6 +249,7 @@ test('getScanCommerceResults: Serper success returns retail products', async () 
 test('getScanCommerceResults: Serper empty triggers Brave fallback', async () => {
   resetEnv();
   FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([]),
     serper: serperOk([]),
     brave: braveOk([{ title: 'Polo Buying Guide', url: 'https://blog.com/polo', profile: { name: 'Style Blog' } }]),
   });
@@ -241,16 +258,18 @@ test('getScanCommerceResults: Serper empty triggers Brave fallback', async () =>
     identification: { item_type: 'polo shirt', primary_color: 'red' },
   });
   assert.equal(result.provider, 'brave');
-  assert.equal(result.providersTried.length, 2);
-  assert.equal(result.providersTried[0], 'serper');
-  assert.equal(result.providersTried[1], 'brave');
+  assert.equal(result.providersTried.length, 3);
+  assert.equal(result.providersTried[0], 'farfetch');
+  assert.equal(result.providersTried[1], 'serper');
+  assert.equal(result.providersTried[2], 'brave');
   assert.equal(result.products.length, 1);
   assert.equal(result.products[0].type, 'similar');
 });
 
-test('getScanCommerceResults: both providers fail returns empty products', async () => {
+test('getScanCommerceResults: all providers fail returns empty products', async () => {
   resetEnv();
   FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([]),
     serper: serperOk([]),
     brave: braveOk([]),
   });
@@ -280,6 +299,305 @@ test('getScanCommerceResults: text mode returns no products', async () => {
   assert.equal(result.products.length, 0);
   assert.equal(result.provider, 'none');
   assert.equal(result.errorType, 'wrong_mode');
+});
+
+// ── Farfetch provider routing ──
+
+test('Farfetch is skipped when FARFETCH_ENABLED is not true', async () => {
+  resetEnv();
+  ENV.FARFETCH_ENABLED = 'false';
+  let farfetchCalled = false;
+  FETCH_IMPL = routeFetch({
+    farfetch: () => {
+      farfetchCalled = true;
+      return { ok: false, status: 500, json: async () => ({}) };
+    },
+    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'serper');
+  assert.equal(farfetchCalled, false);
+  assert.equal(result.providersTried.includes('farfetch'), false);
+});
+
+test('Farfetch is skipped when no RapidAPI key exists', async () => {
+  resetEnv();
+  delete ENV.RAPIDAPI_KEY;
+  delete ENV.FARFETCH_RAPIDAPI_KEY;
+  let farfetchCalled = false;
+  FETCH_IMPL = routeFetch({
+    farfetch: () => {
+      farfetchCalled = true;
+      return { ok: false, status: 500, json: async () => ({}) };
+    },
+    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'serper');
+  assert.equal(farfetchCalled, false);
+  assert.equal(result.providersTried.includes('farfetch'), false);
+});
+
+test('Farfetch is tried before Serper when enabled', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Red Polo', url: 'https://farfetch.com/red-polo', price: '$95', images: [{ url: 'https://cdn.farfetch.com/red-polo.jpg' }] },
+      { id: 'ff2', name: 'Navy Polo', url: 'https://farfetch.com/navy-polo', price: '$90' },
+      { id: 'ff3', name: 'White Polo', url: 'https://farfetch.com/white-polo', price: '$85' },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.providersTried[0], 'farfetch');
+  assert.equal(result.products.length, 3);
+  assert.equal(result.products[0].source, 'Farfetch');
+  assert.equal(result.products[0].type, 'retail');
+  assert.equal(result.products[0].productUrl, 'https://farfetch.com/red-polo');
+});
+
+test('Farfetch success with 3+ valid products skips Serper/Brave', async () => {
+  resetEnv();
+  let serperCalled = false;
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Bag A', url: 'https://farfetch.com/bag-a' },
+      { id: 'ff2', name: 'Bag B', url: 'https://farfetch.com/bag-b' },
+      { id: 'ff3', name: 'Bag C', url: 'https://farfetch.com/bag-c' },
+    ]),
+    serper: () => {
+      serperCalled = true;
+      return serperOk([]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(serperCalled, false);
+  assert.equal(result.products.length, 3);
+});
+
+test('Farfetch success with 1-2 valid products merges with Serper/Brave', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Bag A', url: 'https://farfetch.com/bag-a' },
+      { id: 'ff2', name: 'Bag B', url: 'https://farfetch.com/bag-b' },
+    ]),
+    serper: serperOk([
+      { title: 'Bag C', link: 'https://shop.com/bag-c' },
+      { title: 'Bag D', link: 'https://shop.com/bag-d' },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.providersTried.length, 2);
+  assert.equal(result.providersTried[0], 'farfetch');
+  assert.equal(result.providersTried[1], 'serper');
+  assert.equal(result.products.length, 4);
+  assert.equal(result.products[0].source, 'Farfetch');
+  assert.equal(result.products[2].source, 'shop.com');
+});
+
+test('Farfetch zero valid products falls back to Serper/Brave', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([]),
+    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'serper');
+  assert.equal(result.providersTried[0], 'farfetch');
+  assert.equal(result.providersTried[1], 'serper');
+  assert.equal(result.products.length, 1);
+});
+
+test('Farfetch HTTP failure falls back to Serper/Brave', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: { ok: false, status: 500, json: async () => ({}) },
+    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'serper');
+  assert.equal(result.products.length, 1);
+});
+
+test('Farfetch invalid JSON falls back safely', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: { ok: true, status: 200, json: async () => 'not json' },
+    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'serper');
+  assert.equal(result.products.length, 1);
+});
+
+test('Farfetch invalid products are skipped', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([
+      { id: 'bad1', name: '', url: 'https://farfetch.com/bad' },
+      { id: 'bad2', name: 'No URL' },
+      { id: 'good', name: 'Valid Bag', url: 'https://farfetch.com/bag' },
+    ]),
+    serper: serperOk([]),
+    brave: braveOk([]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  // Only 1 valid Farfetch product, so Serper/Brave fallback runs; both empty.
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'Valid Bag');
+  assert.equal(result.providersTried[0], 'farfetch');
+});
+
+test('Farfetch internal duplicate URLs are deduped', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Bag A', url: 'https://farfetch.com/bag?utm_source=x' },
+      { id: 'ff2', name: 'Bag A dup', url: 'https://farfetch.com/bag?utm_campaign=y' },
+      { id: 'ff3', name: 'Bag B', url: 'https://farfetch.com/bag-b' },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.products.length, 2);
+});
+
+test('FARFETCH_RAPIDAPI_KEY is preferred over RAPIDAPI_KEY', async () => {
+  resetEnv();
+  ENV.FARFETCH_RAPIDAPI_KEY = 'dedicated-farfetch-key';
+  let usedKey;
+  FETCH_IMPL = routeFetch({
+    farfetch: async (_url, options) => {
+      usedKey = options?.headers?.['X-RapidAPI-Key'];
+      return farfetchOk([{ id: 'ff1', name: 'Bag', url: 'https://farfetch.com/bag' }]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(usedKey, 'dedicated-farfetch-key');
+});
+
+test('Farfetch timeout falls back to Serper/Brave', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: () => new Promise((_resolve, reject) => {
+      const e = new Error('aborted');
+      e.name = 'AbortError';
+      setTimeout(() => reject(e), 10);
+    }),
+    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'serper');
+  assert.equal(result.products.length, 1);
+});
+
+test('Farfetch 429 falls back safely without response-body logging', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: { ok: false, status: 429, json: async () => ({ message: 'rate limited' }) },
+    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'serper');
+  assert.equal(result.products.length, 1);
+});
+
+test('Farfetch is not called for non-fashion scans', async () => {
+  resetEnv();
+  let farfetchCalled = false;
+  FETCH_IMPL = routeFetch({
+    farfetch: () => {
+      farfetchCalled = true;
+      return farfetchOk([{ id: 'ff1', name: 'Bag', url: 'https://farfetch.com/bag' }]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { non_fashion: true, item_type: 'NON_FASHION' },
+  });
+  assert.equal(farfetchCalled, false);
+  assert.equal(result.errorType, 'non_fashion');
+});
+
+test('Farfetch is not called for weak query', async () => {
+  resetEnv();
+  let farfetchCalled = false;
+  FETCH_IMPL = routeFetch({
+    farfetch: () => {
+      farfetchCalled = true;
+      return farfetchOk([{ id: 'ff1', name: 'Bag', url: 'https://farfetch.com/bag' }]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'top', primary_color: 'stylish' },
+  });
+  assert.equal(farfetchCalled, false);
+  assert.equal(result.errorType, 'weak_query');
+});
+
+test('Cross-provider URL dedupe prefers Farfetch over Serper', async () => {
+  resetEnv();
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Bag A', url: 'https://shop.com/bag-a' },
+    ]),
+    serper: serperOk([
+      { title: 'Bag A dup', link: 'https://shop.com/bag-a?utm_source=serper' },
+      { title: 'Bag B', link: 'https://shop.com/bag-b' },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  // 1 Farfetch + 2 Serper, but one Serper duplicates Farfetch URL.
+  assert.equal(result.products.length, 2);
+  assert.equal(result.products[0].source, 'Farfetch');
+  assert.equal(result.products[1].source, 'shop.com');
 });
 
 // ── Product normalization / dedupe helpers ──

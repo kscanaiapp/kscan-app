@@ -197,3 +197,38 @@ test('captureScanIntelligence: successful insert uses a single row insert', asyn
   assert.equal(typeof INSERT_CALLS[0].row, 'object');
   assert.equal(INSERT_CALLS[0].row.scan_id, 'scan-123');
 });
+
+
+test('buildScanIntelligenceRow: captures Farfetch provider and source', () => {
+  resetEnv();
+  const mod = loadModule();
+  const row = mod.buildScanIntelligenceRow({
+    scanId: 'scan-456',
+    userId: 'user-456',
+    mode: 'image',
+    identification: { item_type: 'handbag', primary_color: 'black' },
+    attributes: { category: 'bag' },
+    isFashion: true,
+    commerce: {
+      provider: 'farfetch',
+      providersTried: ['farfetch', 'serper'],
+      query: 'black Chanel handbag',
+      count: 4,
+      catalogCount: 1,
+    },
+    recommendedProducts: [
+      { id: 'ff1', title: 'Bag A', type: 'retail', source: 'Farfetch', productUrl: 'https://farfetch.com/a' },
+      { id: 'cat1', product_name: 'Bag B', type: 'catalog', product_url: 'https://catalog.com/b' },
+    ],
+    imageHash: null,
+    appPlatform: 'ios',
+    appVersion: '1.3.0',
+  });
+
+  assert.equal(row.commerce_provider, 'farfetch');
+  assertArrayValues(row.providers_tried, ['farfetch', 'serper']);
+  assertArrayValues(row.recommended_product_sources, ['Farfetch', 'Catalog']);
+  assertArrayValues(row.recommended_product_types, ['retail', 'catalog']);
+  assert.equal(row.commerce_result_count, 4);
+  assert.equal(row.catalog_count, 1);
+});

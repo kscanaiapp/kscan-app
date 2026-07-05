@@ -129,6 +129,8 @@ function summarizeRecommendedProducts(
       ? 'Serper'
       : safeString(commerce?.provider, 20)?.toLowerCase() === 'brave'
       ? 'Brave'
+      : safeString(commerce?.provider, 20)?.toLowerCase() === 'farfetch'
+      ? 'Farfetch'
       : null;
 
   for (const rawProduct of recommendedProducts) {

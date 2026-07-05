@@ -1,9 +1,10 @@
 // scanCommerceRouter.ts — Camera-scan live commerce fallback for image mode.
 //
-// Phase 1 scope:
-//   - Serper Shopping primary
+// Phase 2A scope:
+//   - Farfetch specialized provider (when enabled)
+//   - Serper Shopping fallback
 //   - Brave Web Search fallback
-//   - No specialized provider routing yet (KicksCrew/Farfetch/ASOS/etc. out of scope)
+//   - No other specialized providers yet
 //
 // Backend-only. No API keys, headers, raw provider payloads, or user PII are
 // logged or returned to the mobile app.
@@ -13,6 +14,10 @@ import {
   normalizeUrl as normalizeShoppingUrl,
   type RecommendedProduct,
 } from './shoppingProvider.ts';
+import {
+  searchFarfetchProducts,
+  type FarfetchProduct,
+} from './farfetchProvider.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,9 +30,11 @@ export type ScanCommerceInput = {
   limit?: number;
 };
 
+export type ScanCommerceProvider = 'farfetch' | 'serper' | 'brave' | 'none';
+
 export type ScanCommerceResult = {
   products: RecommendedProduct[];
-  provider: 'serper' | 'brave' | 'none';
+  provider: ScanCommerceProvider;
   providersTried: string[];
   query: string;
   count: number;
@@ -36,14 +43,27 @@ export type ScanCommerceResult = {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
+// Generic words that weaken a query when they dominate and no concrete signal
+// (brand, color, material, distinctive detail) is present.
 const GENERIC_WORDS = new Set([
   'stylish',
-  'casual',
-  'outfit',
-  'fashion',
-  'trendy',
-  'nice',
   'cute',
+  'nice',
+  'fashion',
+  'outfit',
+  'clothes',
+  'top',
+  'bottom',
+  'shirt',
+  'pants',
+  'dress',
+  'shoes',
+  'bag',
+  'item',
+  'thing',
+  'look',
+  'casual',
+  'trendy',
   'modern',
   'chic',
   'elegant',
@@ -98,6 +118,7 @@ const TRACKING_PARAMS = new Set([
 ]);
 
 const MAX_QUERY_LEN = 200;
+const FARFETCH_SUFFICIENT_THRESHOLD = 3;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -232,18 +253,27 @@ function cleanQuery(raw: string): string {
 
 /**
  * Weak-query heuristic.
- * A query is too weak if it has fewer than 3 meaningful words, or if it is
- * mostly generic words and lacks a concrete fashion signal (category, brand,
- * color, material, silhouette, distinctive feature).
+ * A query is too weak if it is empty, shorter than 3 characters, has fewer
+ * than 3 meaningful words with no brand signal, or is mostly generic words.
  */
 export function isWeakQuery(query: string): boolean {
   const cleaned = cleanQuery(query);
   if (!cleaned) return true;
+  if (cleaned.length < 3) return true;
 
   const words = cleaned.split(' ').filter(Boolean);
   const meaningful = words.filter((w) => !GENERIC_WORDS.has(w.toLowerCase()));
 
-  if (meaningful.length < 3) return true;
+  if (meaningful.length < 3) {
+    // A brand + category/color is enough to be meaningful even with <3 words.
+    const hasBrand = words.some((w) => !GENERIC_WORDS.has(w.toLowerCase()));
+    const hasCategorySignal = words.some((w) =>
+      ['polo', 'blazer', 'handbag', 'sneakers', 'coat', 'dress', 'trench'].some((sig) =>
+        w.toLowerCase().includes(sig)
+      )
+    );
+    return !(hasBrand && hasCategorySignal);
+  }
 
   const genericCount = words.length - meaningful.length;
   const mostlyGeneric = genericCount > 0 && genericCount / words.length > 0.5;
@@ -272,15 +302,48 @@ function logCommerce(
   );
 }
 
+// ── Provider result merging ──────────────────────────────────────────────────
+
+function normalizeToRecommendedProduct(p: FarfetchProduct): RecommendedProduct {
+  return {
+    id: p.id,
+    title: p.title,
+    source: p.source,
+    price: p.price,
+    type: p.type,
+    imageUrl: p.imageUrl,
+    productUrl: p.productUrl,
+  };
+}
+
+function dedupeProductsByUrl(products: RecommendedProduct[]): RecommendedProduct[] {
+  const out: RecommendedProduct[] = [];
+  const seen = new Set<string>();
+  for (const p of products) {
+    const normalized = normalizeProductUrl(p.productUrl);
+    if (normalized) {
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+    }
+    out.push(p);
+  }
+  return out;
+}
+
 // ── Public entry point ───────────────────────────────────────────────────────
 
 /**
  * Get live commerce results for a camera scan.
  *
- * For Phase 1 this is a thin wrapper around getShoppingResults() so the
- * Serper/Brave implementation is not duplicated. Provider failures are caught
- * and surfaced only as safe diagnostics; the scan itself never fails because of
- * commerce.
+ * Phase 2A routing:
+ *   1. Farfetch when enabled and a RapidAPI key is available.
+ *      - 3+ valid products: use Farfetch, skip Serper/Brave.
+ *      - 1-2 valid products: keep Farfetch and fall back to Serper/Brave.
+ *      - 0 valid products or failure: fall back to Serper/Brave.
+ *   2. Serper primary / Brave fallback.
+ *
+ * Provider failures are caught and surfaced only as safe diagnostics; the scan
+ * itself never fails because of commerce.
  */
 export async function getScanCommerceResults(
   input: ScanCommerceInput,
@@ -323,36 +386,71 @@ export async function getScanCommerceResults(
     };
   }
 
+  const limit = Math.max(1, Math.min(10, input.limit ?? 8));
+
+  // ── 1. Try Farfetch first when enabled ─────────────────────────────────────
+  let farfetchProducts: RecommendedProduct[] = [];
+  let farfetchErrorType: string | undefined;
   try {
-    providersTried.push('serper');
-    const result = await getShoppingResults({ query, limit: input.limit });
-    const provider = result.provider === 'brave'
-      ? 'brave'
-      : result.provider === 'serper'
-      ? 'serper'
-      : 'none';
-    if (provider === 'brave') providersTried.push('brave');
-
-    logCommerce(provider, Date.now() - started, result.products.length, 0, result.errorType);
-
-    return {
-      products: result.products,
-      provider,
-      providersTried,
-      query: result.query,
-      count: result.products.length,
-      errorType: result.errorType,
-    };
+    const farfetch = await searchFarfetchProducts(query, { limit });
+    // Only record that we tried Farfetch if it was actually enabled/configured.
+    if (farfetch.errorType !== 'disabled' && farfetch.errorType !== 'no_key') {
+      providersTried.push('farfetch');
+    }
+    farfetchProducts = farfetch.products.map(normalizeToRecommendedProduct);
+    farfetchErrorType = farfetch.errorType;
   } catch (err) {
-    const errorType = err instanceof Error ? err.name : 'unknown';
-    logCommerce('none', Date.now() - started, 0, 0, errorType);
+    providersTried.push('farfetch');
+    farfetchErrorType = err instanceof Error ? err.name : 'unknown';
+  }
+
+  // 1a. Farfetch has enough products → skip Serper/Brave entirely.
+  if (farfetchProducts.length >= FARFETCH_SUFFICIENT_THRESHOLD) {
+    logCommerce('farfetch', Date.now() - started, farfetchProducts.length, 0, farfetchErrorType);
     return {
-      products: [],
-      provider: 'none',
+      products: dedupeProductsByUrl(farfetchProducts),
+      provider: 'farfetch',
       providersTried,
       query,
-      count: 0,
-      errorType: 'provider_exception',
+      count: farfetchProducts.length,
+      errorType: farfetchErrorType,
     };
   }
+
+  // ── 2. Serper/Brave fallback ───────────────────────────────────────────────
+  let serperBraveProducts: RecommendedProduct[] = [];
+  let serperBraveProvider: ScanCommerceProvider = 'none';
+  let serperBraveErrorType: string | undefined;
+
+  try {
+    providersTried.push('serper');
+    const shopping = await getShoppingResults({ query, limit });
+    serperBraveProducts = shopping.products;
+    serperBraveProvider = shopping.provider === 'brave'
+      ? 'brave'
+      : shopping.provider === 'serper'
+      ? 'serper'
+      : 'none';
+    if (serperBraveProvider === 'brave') providersTried.push('brave');
+    serperBraveErrorType = shopping.errorType;
+  } catch (err) {
+    serperBraveErrorType = err instanceof Error ? err.name : 'unknown';
+  }
+
+  // Merge Farfetch first, then Serper/Brave, deduping by normalized URL.
+  const merged = dedupeProductsByUrl([...farfetchProducts, ...serperBraveProducts]);
+  const provider: ScanCommerceProvider = merged.length > 0
+    ? (farfetchProducts.length > 0 ? 'farfetch' : serperBraveProvider)
+    : 'none';
+
+  logCommerce(provider, Date.now() - started, merged.length, 0, farfetchErrorType ?? serperBraveErrorType);
+
+  return {
+    products: merged,
+    provider,
+    providersTried,
+    query,
+    count: merged.length,
+    errorType: merged.length > 0 ? undefined : (farfetchErrorType ?? serperBraveErrorType ?? 'no_results'),
+  };
 }
