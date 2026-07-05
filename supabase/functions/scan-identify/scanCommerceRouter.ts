@@ -1,7 +1,8 @@
 // scanCommerceRouter.ts — Camera-scan live commerce fallback for image mode.
 //
-// Phase 2A scope:
-//   - Farfetch specialized provider (when enabled)
+// Phase 2B scope:
+//   - KicksCrew specialized provider for sneaker/footwear scans (when enabled)
+//   - Farfetch specialized provider for non-sneaker fashion scans (when enabled)
 //   - Serper Shopping fallback
 //   - Brave Web Search fallback
 //   - No other specialized providers yet
@@ -18,6 +19,10 @@ import {
   searchFarfetchProducts,
   type FarfetchProduct,
 } from './farfetchProvider.ts';
+import {
+  searchKicksCrewProducts,
+  type KicksCrewProduct,
+} from './kicksCrewProvider.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +35,7 @@ export type ScanCommerceInput = {
   limit?: number;
 };
 
-export type ScanCommerceProvider = 'farfetch' | 'serper' | 'brave' | 'none';
+export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
 
 export type ScanCommerceResult = {
   products: RecommendedProduct[];
@@ -118,7 +123,152 @@ const TRACKING_PARAMS = new Set([
 ]);
 
 const MAX_QUERY_LEN = 200;
-const FARFETCH_SUFFICIENT_THRESHOLD = 3;
+const SUFFICIENT_THRESHOLD = 3;
+const MAX_RESULTS = 10;
+
+const SNEAKER_KEYWORDS = new Set([
+  'sneaker',
+  'sneakers',
+  'trainer',
+  'trainers',
+  'running shoe',
+  'running shoes',
+  'basketball shoe',
+  'basketball shoes',
+  'tennis shoe',
+  'tennis shoes',
+  'skate shoe',
+  'skate shoes',
+  'athletic shoe',
+  'athletic shoes',
+  'high-top',
+  'high top',
+  'low-top',
+  'low top',
+  'mid-top',
+  'mid top',
+  'retro sneaker',
+  'retro sneakers',
+]);
+
+const SNEAKER_BRANDS = [
+  'nike',
+  'jordan',
+  'air jordan',
+  'adidas',
+  'yeezy',
+  'new balance',
+  'asics',
+  'puma',
+  'converse',
+  'reebok',
+  'vans',
+  'saucony',
+  'on running',
+  'hoka',
+  'hoka one one',
+  'salomon',
+  'brooks',
+];
+
+const SNEAKER_MODELS = [
+  'air force',
+  'air force 1',
+  'af1',
+  'dunk',
+  'dunk low',
+  'dunk high',
+  'air max',
+  'jordan 1',
+  'jordan 3',
+  'jordan 4',
+  'jordan 11',
+  'aj1',
+  'aj3',
+  'aj4',
+  'aj11',
+  'samba',
+  'gazelle',
+  'campus',
+  'forum',
+  'superstar',
+  'ultraboost',
+  'yeezy 350',
+  'yeezy 500',
+  'yeezy 700',
+  'yeezy slide',
+  '990',
+  '991',
+  '992',
+  '993',
+  '327',
+  '550',
+  '574',
+  'gel-kayano',
+  'gel kayano',
+  'gel-lyte',
+  'gel lyte',
+  'gt-2160',
+  'gt 2160',
+  'chuck taylor',
+  'chuck 70',
+  'one star',
+  'old skool',
+  'sk8-hi',
+  'sk8 hi',
+  'authentic',
+  'eras',
+  'club c',
+  'classic leather',
+  'question mid',
+  'kamikaze',
+  'hurricane',
+  'shadow 6000',
+  'xt-6',
+  'xt 6',
+  'speedcross',
+  'ghost',
+  'glycerin'
+];
+
+const NON_SNEAKER_FOOTWEAR = new Set([
+  'boot',
+  'boots',
+  'ankle boot',
+  'ankle boots',
+  'chelsea boot',
+  'chelsea boots',
+  'hiking boot',
+  'hiking boots',
+  'sandal',
+  'sandals',
+  'slide',
+  'slides',
+  'flip-flop',
+  'flip-flops',
+  'flip flop',
+  'flip flops',
+  'dress shoe',
+  'dress shoes',
+  'oxford',
+  'oxfords',
+  'loafer',
+  'loafers',
+  'heel',
+  'heels',
+  'pump',
+  'pumps',
+  'ballet flat',
+  'ballet flats',
+  'slipper',
+  'slippers',
+  'moccasin',
+  'moccasins',
+  'wedge',
+  'wedges',
+  'espadrille',
+  'espadrilles',
+]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -283,6 +433,86 @@ export function isWeakQuery(query: string): boolean {
   return meaningful.length < 4;
 }
 
+/**
+ * Determine whether the scanned item is likely a sneaker/streetwear footwear
+ * item that should route to KicksCrew first.
+ *
+ * Rules:
+ *   - Explicit non-sneaker footwear categories block KicksCrew unless a strong
+ *     sneaker model signal is also present.
+ *   - Sneaker-specific keywords or models trigger KicksCrew.
+ *   - A sneaker brand paired with a footwear/sneaker context triggers KicksCrew.
+ *   - The word "shoe" alone is not enough; it needs a sneaker keyword, model,
+ *     or sneaker brand.
+ */
+export function isSneakerIdentification(
+  identification: Record<string, unknown> | undefined,
+  attributes: Record<string, unknown> | undefined,
+  searchQueries?: string[],
+  originalText?: string,
+): boolean {
+  if (!identification) identification = {};
+  if (!attributes) attributes = {};
+
+  const corpusParts: string[] = [];
+  corpusParts.push(str(identification.item_type));
+  corpusParts.push(str(identification.itemType));
+  corpusParts.push(str(identification.category));
+  corpusParts.push(str(attributes.category));
+  corpusParts.push(str(identification.subtype));
+  corpusParts.push(str(identification.brand_guess));
+  corpusParts.push(str(identification.brand));
+  corpusParts.push(str(attributes.brand));
+  corpusParts.push(str(identification.visible_brand_text));
+  corpusParts.push(str(identification.material_estimate));
+  corpusParts.push(str(attributes.material));
+  corpusParts.push(str(identification.silhouette));
+  corpusParts.push(str(attributes.style));
+  corpusParts.push(str(originalText));
+
+  if (Array.isArray(identification.style_tags)) {
+    for (const t of identification.style_tags as unknown[]) {
+      corpusParts.push(str(t));
+    }
+  }
+  if (Array.isArray(attributes.styleTags)) {
+    for (const t of attributes.styleTags as unknown[]) {
+      corpusParts.push(str(t));
+    }
+  }
+
+  const queryList = Array.isArray(searchQueries)
+    ? searchQueries
+    : Array.isArray(identification.search_queries)
+    ? (identification.search_queries as unknown[])
+    : [];
+  for (const q of queryList) corpusParts.push(str(q));
+
+  const corpus = collapseSpaces(corpusParts.join(' ')).toLowerCase();
+  if (!corpus) return false;
+
+  const hasSneakerKeyword = Array.from(SNEAKER_KEYWORDS).some((kw) => corpus.includes(kw));
+  const hasSneakerModel = SNEAKER_MODELS.some((m) => corpus.includes(m));
+  const hasSneakerBrand = SNEAKER_BRANDS.some((b) => corpus.includes(b));
+
+  const explicitNonSneaker = Array.from(NON_SNEAKER_FOOTWEAR).some((cat) => corpus.includes(cat));
+
+  // Strong model signal overrides an otherwise non-sneaker footwear word.
+  if (explicitNonSneaker && !hasSneakerModel && !hasSneakerKeyword) return false;
+
+  if (hasSneakerKeyword) return true;
+  if (hasSneakerModel) return true;
+
+  // "shoe" alone is not enough; require a sneaker brand plus a footwear word.
+  if (hasSneakerBrand && (corpus.includes('sneaker') || corpus.includes('shoe') || corpus.includes('trainer'))) {
+    return true;
+  }
+
+  // Brand + model already handled above via hasSneakerModel; brand + a generic
+  // footwear word without sneaker context is not sufficient.
+  return false;
+}
+
 // ── Safe logging ─────────────────────────────────────────────────────────────
 
 function logCommerce(
@@ -304,7 +534,7 @@ function logCommerce(
 
 // ── Provider result merging ──────────────────────────────────────────────────
 
-function normalizeToRecommendedProduct(p: FarfetchProduct): RecommendedProduct {
+function normalizeToRecommendedProduct(p: FarfetchProduct | KicksCrewProduct): RecommendedProduct {
   return {
     id: p.id,
     title: p.title,
@@ -335,12 +565,19 @@ function dedupeProductsByUrl(products: RecommendedProduct[]): RecommendedProduct
 /**
  * Get live commerce results for a camera scan.
  *
- * Phase 2A routing:
- *   1. Farfetch when enabled and a RapidAPI key is available.
- *      - 3+ valid products: use Farfetch, skip Serper/Brave.
- *      - 1-2 valid products: keep Farfetch and fall back to Serper/Brave.
- *      - 0 valid products or failure: fall back to Serper/Brave.
- *   2. Serper primary / Brave fallback.
+ * Phase 2B routing:
+ *   For sneaker/footwear scans:
+ *     1. KicksCrew when enabled and a RapidAPI key is available.
+ *        - 3+ valid products: use KicksCrew, skip Farfetch/Serper/Brave.
+ *        - 1-2 valid products: keep KicksCrew and try Farfetch.
+ *          - combined 3+ : skip Serper/Brave.
+ *          - combined <3 : fall back to Serper/Brave.
+ *        - 0 valid products or failure: fall back to Farfetch → Serper/Brave.
+ *   For non-sneaker fashion scans:
+ *     1. Farfetch when enabled and a RapidAPI key is available.
+ *        - 3+ valid products: use Farfetch, skip Serper/Brave.
+ *        - 1-2 valid products: keep Farfetch and fall back to Serper/Brave.
+ *        - 0 valid products or failure: fall back to Serper/Brave.
  *
  * Provider failures are caught and surfaced only as safe diagnostics; the scan
  * itself never fails because of commerce.
@@ -387,8 +624,46 @@ export async function getScanCommerceResults(
   }
 
   const limit = Math.max(1, Math.min(10, input.limit ?? 8));
+  const isSneaker = isSneakerIdentification(
+    input.identification,
+    input.attributes,
+    input.searchQueries,
+    input.originalText,
+  );
 
-  // ── 1. Try Farfetch first when enabled ─────────────────────────────────────
+  // ── 1. Sneaker path: try KicksCrew first ────────────────────────────────────
+  let kicksProducts: RecommendedProduct[] = [];
+  let kicksErrorType: string | undefined;
+
+  if (isSneaker) {
+    try {
+      const kicks = await searchKicksCrewProducts(query, { limit });
+      if (kicks.errorType !== 'disabled' && kicks.errorType !== 'no_key') {
+        providersTried.push('kickscrew');
+      }
+      kicksProducts = kicks.products.map(normalizeToRecommendedProduct);
+      kicksErrorType = kicks.errorType;
+    } catch (err) {
+      providersTried.push('kickscrew');
+      kicksErrorType = err instanceof Error ? err.name : 'unknown';
+    }
+
+    // 1a. KicksCrew has enough products → skip Farfetch/Serper/Brave entirely.
+    if (kicksProducts.length >= SUFFICIENT_THRESHOLD) {
+      const products = dedupeProductsByUrl(kicksProducts).slice(0, MAX_RESULTS);
+      logCommerce('kickscrew', Date.now() - started, products.length, 0, kicksErrorType);
+      return {
+        products,
+        provider: 'kickscrew',
+        providersTried,
+        query,
+        count: products.length,
+        errorType: kicksErrorType,
+      };
+    }
+  }
+
+  // ── 2. Try Farfetch (first for non-sneaker, supplement for sneaker) ────────
   let farfetchProducts: RecommendedProduct[] = [];
   let farfetchErrorType: string | undefined;
   try {
@@ -404,20 +679,25 @@ export async function getScanCommerceResults(
     farfetchErrorType = err instanceof Error ? err.name : 'unknown';
   }
 
-  // 1a. Farfetch has enough products → skip Serper/Brave entirely.
-  if (farfetchProducts.length >= FARFETCH_SUFFICIENT_THRESHOLD) {
-    logCommerce('farfetch', Date.now() - started, farfetchProducts.length, 0, farfetchErrorType);
+  // Merge KicksCrew first, then Farfetch, deduping by normalized URL.
+  const kicksFarfetchMerged = dedupeProductsByUrl([...kicksProducts, ...farfetchProducts]);
+
+  // 2a. Combined KicksCrew + Farfetch is enough → skip Serper/Brave.
+  if (kicksFarfetchMerged.length >= SUFFICIENT_THRESHOLD) {
+    const products = kicksFarfetchMerged.slice(0, MAX_RESULTS);
+    const provider: ScanCommerceProvider = kicksProducts.length > 0 ? 'kickscrew' : 'farfetch';
+    logCommerce(provider, Date.now() - started, products.length, 0, kicksErrorType ?? farfetchErrorType);
     return {
-      products: dedupeProductsByUrl(farfetchProducts),
-      provider: 'farfetch',
+      products,
+      provider,
       providersTried,
       query,
-      count: farfetchProducts.length,
-      errorType: farfetchErrorType,
+      count: products.length,
+      errorType: kicksErrorType ?? farfetchErrorType,
     };
   }
 
-  // ── 2. Serper/Brave fallback ───────────────────────────────────────────────
+  // ── 3. Serper/Brave fallback ───────────────────────────────────────────────
   let serperBraveProducts: RecommendedProduct[] = [];
   let serperBraveProvider: ScanCommerceProvider = 'none';
   let serperBraveErrorType: string | undefined;
@@ -437,13 +717,13 @@ export async function getScanCommerceResults(
     serperBraveErrorType = err instanceof Error ? err.name : 'unknown';
   }
 
-  // Merge Farfetch first, then Serper/Brave, deduping by normalized URL.
-  const merged = dedupeProductsByUrl([...farfetchProducts, ...serperBraveProducts]);
+  // Merge live providers in priority order, then dedupe.
+  const merged = dedupeProductsByUrl([...kicksFarfetchMerged, ...serperBraveProducts]).slice(0, MAX_RESULTS);
   const provider: ScanCommerceProvider = merged.length > 0
-    ? (farfetchProducts.length > 0 ? 'farfetch' : serperBraveProvider)
+    ? (kicksProducts.length > 0 ? 'kickscrew' : farfetchProducts.length > 0 ? 'farfetch' : serperBraveProvider)
     : 'none';
 
-  logCommerce(provider, Date.now() - started, merged.length, 0, farfetchErrorType ?? serperBraveErrorType);
+  logCommerce(provider, Date.now() - started, merged.length, 0, kicksErrorType ?? farfetchErrorType ?? serperBraveErrorType);
 
   return {
     products: merged,
@@ -451,6 +731,6 @@ export async function getScanCommerceResults(
     providersTried,
     query,
     count: merged.length,
-    errorType: merged.length > 0 ? undefined : (farfetchErrorType ?? serperBraveErrorType ?? 'no_results'),
+    errorType: merged.length > 0 ? undefined : (kicksErrorType ?? farfetchErrorType ?? serperBraveErrorType ?? 'no_results'),
   };
 }

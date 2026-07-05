@@ -232,3 +232,36 @@ test('buildScanIntelligenceRow: captures Farfetch provider and source', () => {
   assert.equal(row.commerce_result_count, 4);
   assert.equal(row.catalog_count, 1);
 });
+
+test('buildScanIntelligenceRow: captures KicksCrew provider and source', () => {
+  resetEnv();
+  const mod = loadModule();
+  const row = mod.buildScanIntelligenceRow({
+    scanId: 'scan-789',
+    userId: 'user-789',
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+    attributes: { category: 'sneaker' },
+    isFashion: true,
+    commerce: {
+      provider: 'kickscrew',
+      providersTried: ['kickscrew', 'farfetch'],
+      query: 'Nike Air Force 1 white',
+      count: 3,
+      catalogCount: 0,
+    },
+    recommendedProducts: [
+      { id: 'kc1', title: 'AF1 White', type: 'retail', source: 'KicksCrew', productUrl: 'https://kickscrew.com/af1-white' },
+    ],
+    imageHash: null,
+    appPlatform: 'ios',
+    appVersion: '1.4.0',
+  });
+
+  assert.equal(row.commerce_provider, 'kickscrew');
+  assertArrayValues(row.providers_tried, ['kickscrew', 'farfetch']);
+  assertArrayValues(row.recommended_product_sources, ['KicksCrew']);
+  assertArrayValues(row.recommended_product_types, ['retail']);
+  assert.equal(row.commerce_result_count, 3);
+  assert.equal(row.catalog_count, 0);
+});

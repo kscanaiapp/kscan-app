@@ -49,9 +49,11 @@ function loadModule(filename, requireMap = {}) {
 
 const shoppingProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts'));
 const farfetchProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/farfetchProvider.ts'));
+const kicksCrewProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/kicksCrewProvider.ts'));
 const router = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/scanCommerceRouter.ts'), {
   './shoppingProvider.ts': shoppingProvider,
   './farfetchProvider.ts': farfetchProvider,
+  './kicksCrewProvider.ts': kicksCrewProvider,
 });
 
 function resetEnv() {
@@ -62,6 +64,9 @@ function resetEnv() {
     FARFETCH_ENABLED: 'true',
     FARFETCH_RAPIDAPI_HOST: 'farfetch-data.p.rapidapi.com',
     FARFETCH_RAPIDAPI_BASE_URL: 'https://farfetch-data.p.rapidapi.com',
+    KICKSCREW_ENABLED: 'false',
+    KICKSCREW_RAPIDAPI_HOST: 'kickscrew-sneakers-data.p.rapidapi.com',
+    KICKSCREW_RAPIDAPI_BASE_URL: 'https://kickscrew-sneakers-data.p.rapidapi.com',
   };
   shoppingProvider._resetShoppingCache();
 }
@@ -75,7 +80,10 @@ function braveOk(results) {
 function farfetchOk(items) {
   return { ok: true, status: 200, json: async () => ({ products: items }) };
 }
-function routeFetch({ serper, brave, farfetch }) {
+function kickscrewOk(items) {
+  return { ok: true, status: 200, json: async () => ({ products: items }) };
+}
+function routeFetch({ serper, brave, farfetch, kickscrew }) {
   return async (url, options) => {
     const u = String(url);
     if (u.includes('serper.dev')) {
@@ -89,6 +97,10 @@ function routeFetch({ serper, brave, farfetch }) {
     if (u.includes('farfetch-data.p.rapidapi.com')) {
       if (typeof farfetch === 'function') return farfetch(url, options);
       return farfetch;
+    }
+    if (u.includes('kickscrew-sneakers-data.p.rapidapi.com')) {
+      if (typeof kickscrew === 'function') return kickscrew(url, options);
+      return kickscrew;
     }
     throw new Error('unexpected url ' + u);
   };
@@ -598,6 +610,581 @@ test('Cross-provider URL dedupe prefers Farfetch over Serper', async () => {
   assert.equal(result.products.length, 2);
   assert.equal(result.products[0].source, 'Farfetch');
   assert.equal(result.products[1].source, 'shop.com');
+});
+
+// ── Sneaker detection ──
+
+test('isSneakerIdentification: Nike Air Force 1 triggers KicksCrew', () => {
+  assert.equal(router.isSneakerIdentification({ item_type: 'sneaker', brand_guess: 'Nike' }, {}), true);
+  assert.equal(
+    router.isSneakerIdentification(
+      { item_type: 'low-top sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+      {},
+    ),
+    true,
+  );
+});
+
+test('isSneakerIdentification: Jordan 1 triggers KicksCrew', () => {
+  assert.equal(router.isSneakerIdentification({ item_type: 'sneaker', brand_guess: 'Jordan' }, {}), true);
+  assert.equal(
+    router.isSneakerIdentification(
+      { item_type: 'high-top', brand_guess: 'Air Jordan', style_tags: ['Jordan 1'] },
+      {},
+    ),
+    true,
+  );
+});
+
+test('isSneakerIdentification: Adidas Samba triggers KicksCrew', () => {
+  assert.equal(
+    router.isSneakerIdentification({ item_type: 'sneaker', brand_guess: 'Adidas', subtype: 'Samba' }, {}),
+    true,
+  );
+});
+
+test('isSneakerIdentification: New Balance 990 triggers KicksCrew', () => {
+  assert.equal(
+    router.isSneakerIdentification({ item_type: 'running shoe', brand_guess: 'New Balance', style_tags: ['990'] }, {}),
+    true,
+  );
+});
+
+test('isSneakerIdentification: Converse Chuck Taylor high top triggers KicksCrew', () => {
+  assert.equal(
+    router.isSneakerIdentification(
+      { item_type: 'high-top', brand_guess: 'Converse', visible_brand_text: 'Chuck Taylor' },
+      {},
+    ),
+    true,
+  );
+});
+
+test('isSneakerIdentification: Asics Gel-Kayano running shoe triggers KicksCrew', () => {
+  assert.equal(
+    router.isSneakerIdentification(
+      { item_type: 'running shoe', brand_guess: 'Asics', style_tags: ['Gel-Kayano'] },
+      {},
+    ),
+    true,
+  );
+});
+
+test('isSneakerIdentification: shoe alone does not trigger KicksCrew', () => {
+  assert.equal(router.isSneakerIdentification({ item_type: 'shoe', primary_color: 'black' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'shoes', primary_color: 'white' }, {}), false);
+});
+
+test('isSneakerIdentification: non-sneaker footwear does not trigger KicksCrew', () => {
+  assert.equal(router.isSneakerIdentification({ item_type: 'loafer', brand_guess: 'Gucci' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'Chelsea boot', brand_guess: 'Chelsea' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'high heel', brand_guess: 'Louboutin' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'sandal', brand_guess: 'Birkenstock' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'dress shoe', brand_guess: 'Allen Edmonds' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'ballet flat', brand_guess: 'Chanel' }, {}), false);
+});
+
+test('isSneakerIdentification: non-footwear fashion does not trigger KicksCrew', () => {
+  assert.equal(router.isSneakerIdentification({ item_type: 'handbag', brand_guess: 'Chanel' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'polo shirt', brand_guess: 'Lacoste' }, {}), false);
+  assert.equal(router.isSneakerIdentification({ item_type: 'trench coat', brand_guess: 'Burberry' }, {}), false);
+});
+
+test('isSneakerIdentification: strong sneaker model overrides non-sneaker footwear word', () => {
+  // A query like "Nike Dunk boot" is ambiguous; our rule allows model override.
+  assert.equal(
+    router.isSneakerIdentification(
+      { item_type: 'boot', brand_guess: 'Nike', style_tags: ['Dunk'] },
+      {},
+    ),
+    true,
+  );
+});
+
+// ── KicksCrew provider routing ──
+
+test('KicksCrew disabled skips provider and continues to Farfetch', async () => {
+  resetEnv();
+  let kickscrewCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: () => {
+      kickscrewCalled = true;
+      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
+    },
+    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(kickscrewCalled, false);
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.providersTried.includes('kickscrew'), false);
+});
+
+test('KicksCrew missing key skips provider and continues to Farfetch', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  // Give Farfetch its own dedicated key so it can run while KicksCrew has none.
+  ENV.FARFETCH_RAPIDAPI_KEY = 'dedicated-farfetch-key';
+  delete ENV.RAPIDAPI_KEY;
+  delete ENV.KICKSCREW_RAPIDAPI_KEY;
+  let kickscrewCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: () => {
+      kickscrewCalled = true;
+      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
+    },
+    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(kickscrewCalled, false);
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.providersTried.includes('kickscrew'), false);
+});
+
+test('KICKSCREW_RAPIDAPI_KEY is preferred over RAPIDAPI_KEY', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  ENV.KICKSCREW_RAPIDAPI_KEY = 'dedicated-kickscrew-key';
+  let usedKey;
+  FETCH_IMPL = routeFetch({
+    kickscrew: async (_url, options) => {
+      usedKey = options?.headers?.['x-rapidapi-key'];
+      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(usedKey, 'dedicated-kickscrew-key');
+});
+
+test('RAPIDAPI_KEY is used as KicksCrew fallback key', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let usedKey;
+  FETCH_IMPL = routeFetch({
+    kickscrew: async (_url, options) => {
+      usedKey = options?.headers?.['x-rapidapi-key'];
+      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(usedKey, 'rapidapi-test-key');
+});
+
+test('KicksCrew success with 3+ products skips Farfetch/Serper/Brave', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let farfetchCalled = false;
+  let serperCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'kc1', name: 'Air Force 1 White', url: 'https://kickscrew.com/af1-white' },
+      { id: 'kc2', name: 'Air Force 1 Black', url: 'https://kickscrew.com/af1-black' },
+      { id: 'kc3', name: 'Air Force 1 Grey', url: 'https://kickscrew.com/af1-grey' },
+    ]),
+    farfetch: () => {
+      farfetchCalled = true;
+      return farfetchOk([]);
+    },
+    serper: () => {
+      serperCalled = true;
+      return serperOk([]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(result.products.length, 3);
+  assert.equal(result.products[0].source, 'KicksCrew');
+  assert.equal(farfetchCalled, false);
+  assert.equal(serperCalled, false);
+  assert.equal(result.providersTried[0], 'kickscrew');
+});
+
+test('KicksCrew success with 1-2 products merges with Farfetch', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let serperCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'kc1', name: 'Air Force 1 White', url: 'https://kickscrew.com/af1-white' },
+      { id: 'kc2', name: 'Air Force 1 Black', url: 'https://kickscrew.com/af1-black' },
+    ]),
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Air Force 1 Grey', url: 'https://farfetch.com/af1-grey' },
+      { id: 'ff2', name: 'Air Force 1 Beige', url: 'https://farfetch.com/af1-beige' },
+    ]),
+    serper: () => {
+      serperCalled = true;
+      return serperOk([]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(result.products.length, 4);
+  assert.equal(result.products[0].source, 'KicksCrew');
+  assert.equal(result.products[2].source, 'Farfetch');
+  assert.equal(serperCalled, false);
+});
+
+test('KicksCrew + Farfetch combined >=3 skips Serper/Brave', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let serperCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'kc1', name: 'Jordan 1 White', url: 'https://kickscrew.com/j1-white' },
+    ]),
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Jordan 1 Red', url: 'https://farfetch.com/j1-red' },
+      { id: 'ff2', name: 'Jordan 1 Black', url: 'https://farfetch.com/j1-black' },
+    ]),
+    serper: () => {
+      serperCalled = true;
+      return serperOk([]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Jordan', style_tags: ['Jordan 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(result.products.length, 3);
+  assert.equal(serperCalled, false);
+});
+
+test('KicksCrew + Farfetch combined <3 continues to Serper/Brave', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'kc1', name: 'Jordan 1 White', url: 'https://kickscrew.com/j1-white' },
+    ]),
+    farfetch: farfetchOk([]),
+    serper: serperOk([{ title: 'Jordan 1 Red', link: 'https://shop.com/j1-red' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Jordan', style_tags: ['Jordan 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(result.products.length, 2);
+  assert.equal(result.providersTried[0], 'kickscrew');
+  assert.equal(result.providersTried[1], 'farfetch');
+  assert.equal(result.providersTried[2], 'serper');
+});
+
+test('KicksCrew zero products falls back to Farfetch', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([]),
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].source, 'Farfetch');
+});
+
+test('KicksCrew timeout falls back to Farfetch', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: () => new Promise((_resolve, reject) => {
+      const e = new Error('aborted');
+      e.name = 'AbortError';
+      setTimeout(() => reject(e), 10);
+    }),
+    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.products.length, 1);
+});
+
+test('KicksCrew 401 falls back safely', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: { ok: false, status: 401, json: async () => ({ message: 'unauthorized' }) },
+    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.products.length, 1);
+});
+
+test('KicksCrew 429 falls back safely', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: { ok: false, status: 429, json: async () => ({ message: 'rate limited' }) },
+    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.products.length, 1);
+});
+
+test('KicksCrew invalid JSON falls back safely', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: { ok: true, status: 200, json: async () => 'not json' },
+    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.products.length, 1);
+});
+
+test('KicksCrew successful mapping produces normalized retail products', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      {
+        id: 'kc1',
+        name: "Air Jordan 1 Mid 'Pine Green' 852542-301",
+        brand: 'Air Jordan',
+        price: { amount: 1141.0, currency: 'USD' },
+        images: [{ url: 'https://cdn.shopify.com/kc/pine-green.jpg' }],
+        url: 'https://www.kickscrew.com/en-PT/products/air-jordan-1-mid-se-pine-green-852542-301',
+      },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Jordan', style_tags: ['Jordan 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(result.products.length, 1);
+  const p = result.products[0];
+  assert.equal(p.title, "Air Jordan 1 Mid 'Pine Green' 852542-301");
+  assert.equal(p.source, 'KicksCrew');
+  assert.equal(p.type, 'retail');
+  assert.equal(p.price, '$1,141.00');
+  assert.equal(p.imageUrl, 'https://cdn.shopify.com/kc/pine-green.jpg');
+  assert.ok(p.productUrl.includes('kickscrew.com'));
+});
+
+test('KicksCrew invalid products are skipped', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'bad1', name: '', url: 'https://kickscrew.com/bad' },
+      { id: 'bad2', name: 'No URL' },
+      { id: 'good', name: 'Valid Sneaker', url: 'https://kickscrew.com/valid' },
+    ]),
+    farfetch: farfetchOk([]),
+    serper: serperOk([]),
+    brave: braveOk([]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'Valid Sneaker');
+});
+
+test('KicksCrew out-of-stock products are skipped when availability is available', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'kc1', name: 'In Stock', url: 'https://kickscrew.com/in-stock', availability: 'in_stock' },
+      { id: 'kc2', name: 'Out of Stock', url: 'https://kickscrew.com/oos', availability: 'out_of_stock' },
+      { id: 'kc3', name: 'Sold Out', url: 'https://kickscrew.com/sold-out', inStock: false },
+      { id: 'kc4', name: 'Available', url: 'https://kickscrew.com/avail', available: true },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.products.length, 2);
+  assert.equal(result.products[0].title, 'In Stock');
+  assert.equal(result.products[1].title, 'Available');
+});
+
+test('KicksCrew internal duplicate URLs are deduped', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'kc1', name: 'AF1 White', url: 'https://kickscrew.com/af1?utm_source=x' },
+      { id: 'kc2', name: 'AF1 White dup', url: 'https://kickscrew.com/af1?utm_campaign=y' },
+      { id: 'kc3', name: 'AF1 Black', url: 'https://kickscrew.com/af1-black' },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.provider, 'kickscrew');
+  assert.equal(result.products.length, 2);
+});
+
+test('KicksCrew wins duplicate URL over catalog and Farfetch', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk([
+      { id: 'kc1', name: 'AF1 White', url: 'https://shop.com/af1-white' },
+    ]),
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'AF1 White Farfetch', url: 'https://shop.com/af1-white' },
+    ]),
+    serper: serperOk([{ title: 'AF1 White Serper', link: 'https://shop.com/af1-white' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].source, 'KicksCrew');
+});
+
+test('KicksCrew is not called for non-sneaker fashion scans', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let kickscrewCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: () => {
+      kickscrewCalled = true;
+      return kickscrewOk([{ id: 'kc1', name: 'Sneaker', url: 'https://kickscrew.com/sneaker' }]);
+    },
+    farfetch: farfetchOk([{ id: 'ff1', name: 'Handbag', url: 'https://farfetch.com/bag' }]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  assert.equal(kickscrewCalled, false);
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.products[0].source, 'Farfetch');
+});
+
+test('KicksCrew is not called for weak sneaker query', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let kickscrewCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: () => {
+      kickscrewCalled = true;
+      return kickscrewOk([{ id: 'kc1', name: 'Sneaker', url: 'https://kickscrew.com/sneaker' }]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', primary_color: 'cool' },
+  });
+  assert.equal(kickscrewCalled, false);
+  assert.equal(result.errorType, 'weak_query');
+});
+
+test('KicksCrew is not called for non-fashion scans', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let kickscrewCalled = false;
+  FETCH_IMPL = routeFetch({
+    kickscrew: () => {
+      kickscrewCalled = true;
+      return kickscrewOk([{ id: 'kc1', name: 'Sneaker', url: 'https://kickscrew.com/sneaker' }]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { non_fashion: true, item_type: 'NON_FASHION', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(kickscrewCalled, false);
+  assert.equal(result.errorType, 'non_fashion');
+});
+
+test('Non-sneaker fashion still calls Farfetch first', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    farfetch: farfetchOk([
+      { id: 'ff1', name: 'Red Polo', url: 'https://farfetch.com/red-polo' },
+      { id: 'ff2', name: 'Navy Polo', url: 'https://farfetch.com/navy-polo' },
+      { id: 'ff3', name: 'White Polo', url: 'https://farfetch.com/white-polo' },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.provider, 'farfetch');
+  assert.equal(result.providersTried[0], 'farfetch');
+  assert.equal(result.products.length, 3);
+});
+
+test('Final recommendedProducts capped to top 10', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  // KicksCrew + Farfetch combined <3 so Serper runs, giving enough total to hit the cap.
+  const kickscrewItems = Array.from({ length: 1 }, (_, i) => ({
+    id: `kc${i}`,
+    name: `Sneaker ${i}`,
+    url: `https://kickscrew.com/sneaker-${i}`,
+  }));
+  const farfetchItems = Array.from({ length: 1 }, (_, i) => ({
+    id: `ff${i}`,
+    name: `Sneaker FF ${i}`,
+    url: `https://farfetch.com/sneaker-ff-${i}`,
+  }));
+  const serperItems = Array.from({ length: 10 }, (_, i) => ({
+    title: `Sneaker SERP ${i}`,
+    link: `https://shop.com/sneaker-serp-${i}`,
+  }));
+  FETCH_IMPL = routeFetch({
+    kickscrew: kickscrewOk(kickscrewItems),
+    farfetch: farfetchOk(farfetchItems),
+    serper: serperOk(serperItems),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(result.products.length, 10);
 });
 
 // ── Product normalization / dedupe helpers ──
