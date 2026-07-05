@@ -49,6 +49,10 @@ import {
   getShoppingResults,
   buildShoppingQuery,
 } from './shoppingProvider.ts';
+import {
+  getScanCommerceResults,
+  normalizeProductUrl,
+} from './scanCommerceRouter.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -1260,7 +1264,15 @@ Deno.serve(async (req) => {
     //   - Image (camera) mode: existing catalog retrieval (unchanged).
     let finalRecommendedProducts: RankedScanProduct[];
     let rankedProductsForAudit: RankedScanProduct[];
-    let shoppingMeta: { provider: string; query: string; count: number } | undefined;
+    let shoppingMeta:
+      | {
+        provider: string;
+        query: string;
+        count: number;
+        providersTried?: string[];
+        catalogCount?: number;
+      }
+      | undefined;
 
     if (mode === 'text') {
       const shoppingQuery = buildShoppingQuery({
@@ -1295,28 +1307,64 @@ Deno.serve(async (req) => {
         count: finalRecommendedProducts.length,
       };
     } else {
+      // Image (camera) mode: preserve existing catalog retrieval and add the
+      // Serper/Brave live commerce fallback. Catalog is sparse in the demo
+      // build, so live results are preferred when they duplicate catalog rows.
       const completedExistingProducts = Array.isArray(completedResponseWithAttributes.recommendedProducts)
         ? completedResponseWithAttributes.recommendedProducts
         : [];
       const completedCatalogCandidates = completedNormalizedId
         ? await fetchCatalogCandidates(catalogClient, completedNormalizedId, { limit: 30 })
         : [];
-      const completedMergedCandidates = mergeProductCandidates(
-        completedExistingProducts,
-        completedCatalogCandidates.map(adaptCatalogCandidate),
-      );
+      const adaptedCatalogCandidates = completedCatalogCandidates.map(adaptCatalogCandidate);
+
+      const commerce = await getScanCommerceResults({
+        mode: 'image',
+        identification: (completedResponseWithAttributes.identification as Record<string, unknown> | undefined) ||
+          {},
+        attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
+        searchQueries: Array.isArray(completedNormalizedId?.normalizedSearchQueries)
+          ? completedNormalizedId.normalizedSearchQueries
+          : undefined,
+        limit: 10,
+      });
+
+      const liveProducts = commerce.products.map((p) => ({
+        id: p.id,
+        name: p.title,
+        title: p.title,
+        source: p.source,
+        retailer: p.source,
+        price: p.price,
+        type: p.type,
+        imageUrl: p.imageUrl,
+        image_url: p.imageUrl,
+        productUrl: p.productUrl,
+        product_url: p.productUrl,
+        url: p.productUrl,
+      }));
+
+      const completedMergedCandidates = mergeLiveAndCatalogProducts(liveProducts, adaptedCatalogCandidates);
       const completedRankedProducts = rankRecommendedProducts(
         completedMergedCandidates,
         completedNormalizedId,
       );
       finalRecommendedProducts = completedRankedProducts.slice(0, 10);
       rankedProductsForAudit = completedRankedProducts;
+      shoppingMeta = {
+        provider: commerce.provider,
+        providersTried: commerce.providersTried,
+        query: commerce.query,
+        count: liveProducts.length,
+        catalogCount: adaptedCatalogCandidates.length,
+      };
     }
 
     const finalResponse = {
       ...completedResponseWithAttributes,
       recommendedProducts: finalRecommendedProducts,
-      ...(shoppingMeta ? { shopping: shoppingMeta } : {}),
+      ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
+      ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
       displayResult: buildDisplayResult(
         completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
         typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
@@ -1357,4 +1405,48 @@ function safeStringMessage(value: unknown): string | undefined {
   const t = value.replace(/\s+/g, ' ').trim();
   if (!t) return undefined;
   return t.slice(0, MAX_USER_MESSAGE_LEN);
+}
+
+/**
+ * Merge live commerce products with catalog candidates.
+ * Live products are preferred; catalog duplicates are dropped by normalized URL.
+ * Products without a URL are still kept to preserve existing catalog behavior.
+ */
+function mergeLiveAndCatalogProducts(
+  liveProducts: Record<string, unknown>[],
+  catalogCandidates: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const merged: Record<string, unknown>[] = [];
+  const seenUrls = new Set<string>();
+
+  function normalizedUrlOf(p: Record<string, unknown>): string | undefined {
+    const candidates = [p.productUrl, p.product_url, p.url, p.purchaseUrl, p.purchase_url];
+    for (const c of candidates) {
+      const normalized = normalizeProductUrl(c);
+      if (normalized) return normalized;
+    }
+    return undefined;
+  }
+
+  // Live products first so they win dedupe.
+  for (const p of liveProducts) {
+    const url = normalizedUrlOf(p);
+    if (url) {
+      if (seenUrls.has(url)) continue;
+      seenUrls.add(url);
+    }
+    merged.push(p);
+  }
+
+  // Catalog products appended; skip any whose normalized URL already appeared.
+  for (const p of catalogCandidates) {
+    const url = normalizedUrlOf(p);
+    if (url) {
+      if (seenUrls.has(url)) continue;
+      seenUrls.add(url);
+    }
+    merged.push(p);
+  }
+
+  return merged;
 }

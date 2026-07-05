@@ -209,8 +209,7 @@ test('edge source: accepts unknown source values without crashing', () => {
 
 // ── 13. Mode-Specific Provider Routing ──
 
-test('edge source: text mode is the only path that calls live shopping APIs', () => {
-  // The source must import and call getShoppingResults for text mode commerce.
+test('edge source: text mode calls live shopping APIs', () => {
   assert.ok(
     EDGE_SOURCE.includes('await getShoppingResults('),
     'Must call getShoppingResults for text mode commerce',
@@ -232,19 +231,29 @@ test('edge source: text mode is the only path that calls live shopping APIs', ()
   const shoppingCallIndex = EDGE_SOURCE.indexOf('await getShoppingResults(');
   assert.ok(
     shoppingCallIndex > productRecBranchStart && shoppingCallIndex < elseBranchStart,
-    'getShoppingResults must be called inside the text mode branch only',
+    'getShoppingResults must be called inside the text mode branch',
   );
+});
 
-  // The else (image/camera) branch must use catalog retrieval, not shopping APIs.
-  const nextClosingBrace = EDGE_SOURCE.indexOf('    }', elseBranchStart + 1);
-  const elseBranch = EDGE_SOURCE.slice(elseBranchStart, nextClosingBrace);
-  assert.equal(
-    elseBranch.includes('await getShoppingResults('),
-    false,
-    'Image mode must not call getShoppingResults (live shopping APIs)',
+test('edge source: image mode uses catalog retrieval plus the commerce router fallback', () => {
+  const imageBranchStart = EDGE_SOURCE.indexOf('} else {');
+  assert.ok(imageBranchStart !== -1, 'Must have an else branch for image mode');
+
+  const imageBranch = EDGE_SOURCE.slice(imageBranchStart);
+  assert.ok(
+    imageBranch.includes('fetchCatalogCandidates('),
+    'Image mode must use fetchCatalogCandidates for catalog retrieval',
   );
   assert.ok(
-    elseBranch.includes('fetchCatalogCandidates('),
-    'Image mode must use fetchCatalogCandidates for catalog retrieval',
+    imageBranch.includes('getScanCommerceResults('),
+    'Image mode must call the camera commerce router fallback',
+  );
+  assert.ok(
+    imageBranch.includes('mergeLiveAndCatalogProducts('),
+    'Image mode must merge live and catalog products',
+  );
+  assert.ok(
+    imageBranch.includes('commerce:'),
+    'Image mode must include commerce diagnostics',
   );
 });
