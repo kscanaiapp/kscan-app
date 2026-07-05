@@ -128,7 +128,7 @@ export async function getFreeTierSyncStatus(): Promise<FreeTierSyncStatus> {
       writeEnabled: false,
       queueEnabled: false,
       pendingWrites: 0,
-      lastError: 'getFreeTierSyncStatus failed',
+      lastError: 'Unable to check sync status',
     };
   }
 }

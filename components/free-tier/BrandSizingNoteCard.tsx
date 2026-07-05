@@ -48,6 +48,8 @@ export function BrandSizingNoteCard(props: { brand?: string }) {
             placeholderTextColor={FT_COLORS.textMuted}
             value={draftSize}
             onChangeText={setDraftSize}
+            returnKeyType="next"
+            blurOnSubmit={false}
             maxLength={40}
           />
           <TextInput
@@ -56,6 +58,8 @@ export function BrandSizingNoteCard(props: { brand?: string }) {
             placeholderTextColor={FT_COLORS.textMuted}
             value={draftNote}
             onChangeText={setDraftNote}
+            returnKeyType="done"
+            blurOnSubmit={true}
             maxLength={200}
           />
           <UtilityRow>

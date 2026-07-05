@@ -58,6 +58,8 @@ export function CostPerWearCard(props: { item?: NormalizedItem | null }) {
           value={draftPrice}
           onChangeText={setDraftPrice}
           onSubmitEditing={submitPrice}
+          returnKeyType="done"
+          blurOnSubmit={true}
           maxLength={10}
         />
       ) : null}
