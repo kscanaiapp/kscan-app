@@ -297,7 +297,12 @@ export function ScanResultV2({
                 />
               </View>
 
-              {/* Free Tier Utility footer (flag-guarded; renders null by default) */}
+              {/* Next-step framing above sticky actions */}
+              <Text style={styles.nextStepPrompt}>
+                What would you like to do with this look?
+              </Text>
+
+              {/* Closet tools footer (flag-guarded; renders null by default) */}
               <ScanResultUtilityFooter result={v2Data} />
 
               {/* Privacy footer */}
@@ -417,6 +422,14 @@ const styles = StyleSheet.create({
   secondaryCtaText: {
     ...LUXURY.typography.ctaSecondary,
     textAlign: 'center',
+  },
+  nextStepPrompt: {
+    ...LUXURY.typography.caption,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: LUXURY.colors.plum,
+    textAlign: 'center',
+    marginTop: SPACING.xl,
   },
   privacyFooter: {
     marginTop: SPACING.xl,

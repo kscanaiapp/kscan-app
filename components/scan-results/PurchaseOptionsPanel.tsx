@@ -32,7 +32,7 @@ export function PurchaseOptionsPanel({
 
   return (
     <View style={styles.container} testID={testID ?? 'purchase-options-panel'}>
-      <SectionHeader title="PURCHASE OPTIONS" />
+      <SectionHeader title="MATCHING PRODUCTS" />
 
       {hasData ? (
         <View style={styles.list}>
@@ -95,8 +95,8 @@ export function PurchaseOptionsPanel({
         </View>
       ) : (
         <EmptyStateCard
-          title="Purchase options will appear when retailer matching is available."
-          subtitle="Your scan analysis is ready."
+          title="Matching products will appear here for shoppable looks."
+          subtitle="Based on your scan — save this look to your Closet to keep it."
           testID="purchase-options-empty"
         />
       )}

@@ -10,6 +10,7 @@ import {
   isFreeTierFeatureEnabled,
 } from '../../constants/freeTierUtilityFlags';
 import { useDailyStylePrompt } from '../../hooks/useDailyStylePrompt';
+import { markWornToday } from '../../services/free-tier/costPerWear';
 import type {
   NormalizedItem,
   OutfitFeedbackEntry,
@@ -74,9 +75,18 @@ export function DailyStylePromptCard(props: {
       <UtilityRow>
         <UtilityButton
           label="Wear this"
-          onPress={() =>
-            props.onWearThis?.({ item: pick.item, outfit: pick.outfit })
-          }
+          onPress={() => {
+            const item = pick.kind === 'item' ? pick.item : pick.outfit?.items?.[0];
+            const ids = pick.kind === 'outfit'
+              ? (pick.outfit?.items ?? []).map((i) => i.id)
+              : item
+                ? [item.id]
+                : [];
+            ids.forEach((id) => {
+              markWornToday(id).catch(() => undefined);
+            });
+            props.onWearThis?.({ item: pick.item, outfit: pick.outfit });
+          }}
         />
         {pick.kind === 'outfit' && pick.outfit && props.onSaveAsLook ? (
           <UtilityButton

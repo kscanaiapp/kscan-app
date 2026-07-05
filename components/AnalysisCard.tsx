@@ -32,6 +32,8 @@ import {
 import type { VintedSecondhandSearchResponse } from '../types/scan';
 import type { SneakerReference } from '../services/sneakers/types';
 import type { ScanResultObject } from '../types/scanResultObject';
+import { SavedItemUtilityPanel } from './free-tier/SavedItemUtilityPanel';
+import { normalizeItem, normalizeItems } from '../services/free-tier/itemNormalization';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y     = SCREEN_HEIGHT * 0.36;
@@ -56,6 +58,8 @@ export interface AnalysisCardProps {
   scanImageUri?: string | null;
   scanSourceId?: string | null;
   scanSourceType?: 'live_scan' | 'style_library_scan';
+  /** Optional raw saved scans so the free-tier utility panel can show pairings. */
+  relatedSavedScans?: unknown[];
   onDismiss: () => void;
   onAddToDressingRoom?: () => void;
 }
@@ -74,6 +78,7 @@ export function AnalysisCard({
   scanImageUri,
   scanSourceId,
   scanSourceType = 'live_scan',
+  relatedSavedScans,
   onDismiss,
   onAddToDressingRoom,
 }: AnalysisCardProps) {
@@ -285,6 +290,26 @@ export function AnalysisCard({
               >
                 <Text style={styles.ctaText}>Scan Again</Text>
               </TouchableOpacity>
+
+              {/* Free-tier per-item utilities for saved library scans */}
+              {scanSourceType === 'style_library_scan' ? (
+                <SavedItemUtilityPanel
+                  item={normalizeItem({
+                    id: scanSourceId,
+                    title: result,
+                    attributes: {
+                      category: metadata.category,
+                      color_palette: metadata.color,
+                      silhouette: metadata.silhouette,
+                    },
+                    imageUri: scanImageUri,
+                    createdAt: new Date().toISOString(),
+                    source: 'library',
+                  })}
+                  relatedItems={normalizeItems(relatedSavedScans ?? [], 'library')}
+                  context="library"
+                />
+              ) : null}
             </ScrollView>
           </View>
         </Animated.View>

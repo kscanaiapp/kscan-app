@@ -5,8 +5,9 @@
  */
 
 import { useCallback, useState } from 'react';
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 import {
+  KSCAN_SHARE_URL,
   buildItemShareText,
   buildOutfitShareText,
 } from '../services/free-tier/shareTextBuilder';
@@ -24,7 +25,14 @@ export function useShareOutfit() {
     if (!message) return false;
     setSharing(true);
     try {
-      const result = await Share.share({ message });
+      // Mirror the Dressing Room share pattern: iOS gets a dedicated url
+      // field (app-first via universal link), Android keeps the link in the
+      // message body. Same canonical URL on both platforms.
+      const payload =
+        Platform.OS === 'ios'
+          ? { title: 'K Scan', message, url: KSCAN_SHARE_URL }
+          : { message };
+      const result = await Share.share(payload);
       if (result.action === Share.sharedAction) {
         recordActivity('shared_outfit', activityLabel).catch(() => undefined);
         return true;

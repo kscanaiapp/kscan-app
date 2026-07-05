@@ -399,8 +399,12 @@ export default function App() {
     }
     // When processing succeeds, briefly show the HUD with real metadata
     // before revealing the AnalysisCard (the cinematic reveal moment).
+    // The post-result PerceptionLayer HUD only mounts when the legacy
+    // (non-V2) scan room UI is active, so only gate on it there --
+    // otherwise `perceiving` would stay true forever and the V2 result
+    // Modal (ScanResultV2 / AnalysisCard) would never be allowed to render.
     if (prev === 'processing' && status === 'result') {
-      setPerceiving(true);
+      setPerceiving(!SCAN_ROOM_V2_UI_ENABLED);
       return;
     }
     // Clear on any reset path

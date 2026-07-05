@@ -4,6 +4,9 @@
  * wishlist intent, complete-the-look, and wear-again sections. Each section
  * hides itself when its flag is off or its data is missing — no broken
  * empty components.
+ *
+ * Self-contained: if feedback/wear/care are not provided, the panel loads
+ * them from local stores so it can be dropped into any screen.
  */
 
 import React from 'react';
@@ -14,6 +17,7 @@ import type {
   WearTrackingEntry,
 } from '../../services/free-tier/wardrobeUtilityTypes';
 import { FREE_TIER_UTILITY_ENABLED } from '../../constants/freeTierUtilityFlags';
+import { useWardrobeUtility } from '../../hooks/useWardrobeUtility';
 import { BrandSizingNoteCard } from './BrandSizingNoteCard';
 import { CareNoteCard } from './CareNoteCard';
 import { CompleteTheLookCard } from './CompleteTheLookCard';
@@ -38,6 +42,14 @@ export function SavedItemUtilityPanel(props: {
   const related = props.relatedItems ?? [];
   const context = props.context ?? 'library';
 
+  // Load local utility stores if the parent did not provide them. This makes
+  // the panel safe to drop into AnalysisCard / ScanResultV2 without rewiring
+  // every host screen.
+  const localUtility = useWardrobeUtility(related);
+  const feedback = props.feedback ?? localUtility.feedback;
+  const wear = props.wear ?? localUtility.wear;
+  const care = props.care ?? localUtility.care;
+
   return (
     <>
       {context === 'scan' || context === 'product' ? (
@@ -54,14 +66,14 @@ export function SavedItemUtilityPanel(props: {
         <CompleteTheLookCard
           anchor={props.item}
           savedItems={related}
-          feedback={props.feedback}
+          feedback={feedback}
         />
       ) : null}
       {context === 'library' || context === 'home' ? (
         <WearAgainSuggestionCard
           items={related}
-          feedback={props.feedback}
-          wear={props.wear}
+          feedback={feedback}
+          wear={wear}
         />
       ) : null}
       <ShareOutfitButton item={props.item} subtle />

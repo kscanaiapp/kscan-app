@@ -40,10 +40,10 @@ export function SimilarFindsShelf({
   return (
     <View style={styles.container} testID={testID ?? 'similar-finds-shelf'}>
       <SectionHeader
-        title="SIMILAR FINDS"
+        title="SIMILAR STYLES YOU CAN SHOP"
         actionLabel="View all"
         onAction={onViewAll}
-        actionAccessibilityLabel="View all similar finds"
+        actionAccessibilityLabel="View all similar styles"
       />
 
       {hasData ? (
@@ -81,8 +81,8 @@ export function SimilarFindsShelf({
         </ScrollView>
       ) : (
         <EmptyStateCard
-          title="Similar finds will appear when product matching is available."
-          subtitle="Your scan analysis is ready."
+          title="Similar styles from this look will appear here."
+          subtitle="Based on your scan — your style analysis above is ready to use."
           testID="similar-finds-empty"
         />
       )}

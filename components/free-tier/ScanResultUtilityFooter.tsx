@@ -11,9 +11,7 @@ import { FREE_TIER_UTILITY_ENABLED } from '../../constants/freeTierUtilityFlags'
 import { loadLibrary } from '../../services/library';
 import { normalizeItem, normalizeItems } from '../../services/free-tier/itemNormalization';
 import type { NormalizedItem } from '../../services/free-tier/wardrobeUtilityTypes';
-import { BrandSizingNoteCard } from './BrandSizingNoteCard';
-import { WardrobeDuplicateHintCard } from './WardrobeDuplicateHintCard';
-import { WishlistIntentCard } from './WishlistIntentCard';
+import { SavedItemUtilityPanel } from './SavedItemUtilityPanel';
 
 export function ScanResultUtilityFooter(props: { result?: unknown }) {
   const [savedItems, setSavedItems] = useState<NormalizedItem[]>([]);
@@ -40,10 +38,10 @@ export function ScanResultUtilityFooter(props: { result?: unknown }) {
   if (!candidate) return null;
 
   return (
-    <>
-      <WardrobeDuplicateHintCard candidate={candidate} savedItems={savedItems} />
-      {candidate.brand ? <BrandSizingNoteCard brand={candidate.brand} /> : null}
-      <WishlistIntentCard item={candidate} />
-    </>
+    <SavedItemUtilityPanel
+      item={candidate}
+      relatedItems={savedItems}
+      context="scan"
+    />
   );
 }

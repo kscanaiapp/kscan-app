@@ -22,6 +22,8 @@ export function OutfitCollectionsSection() {
   const [pendingRenameId, setPendingRenameId] = useState<string | null>(null);
   if (!enabled || loading) return null;
 
+  const isRenaming = pendingRenameId !== null;
+
   const handleSubmit = () => {
     const name = draftName.trim();
     if (!name) return;
@@ -44,10 +46,12 @@ export function OutfitCollectionsSection() {
 
   const promptRename = (collection: OutfitCollection) => {
     setDraftName(collection.name);
-    Alert.alert('Rename collection', 'Update the name below, then tap Rename.', [
-      { text: 'OK' },
-    ]);
     setPendingRenameId(collection.id);
+  };
+
+  const cancelRename = () => {
+    setPendingRenameId(null);
+    setDraftName('');
   };
 
   return (
@@ -76,7 +80,7 @@ export function OutfitCollectionsSection() {
       )}
       <TextInput
         style={styles.input}
-        placeholder="New collection name"
+        placeholder={isRenaming ? 'Rename collection' : 'New collection name'}
         placeholderTextColor={FT_COLORS.textMuted}
         value={draftName}
         onChangeText={setDraftName}
@@ -86,17 +90,13 @@ export function OutfitCollectionsSection() {
         maxLength={60}
       />
       <UtilityRow>
-        <UtilityButton label="Create collection" disabled={!draftName.trim()} onPress={handleSubmit} />
-        {pendingRenameId && draftName.trim() ? (
-          <UtilityButton
-            label="Rename"
-            subtle
-            onPress={() => {
-              rename(pendingRenameId, draftName.trim());
-              setPendingRenameId(null);
-              setDraftName('');
-            }}
-          />
+        <UtilityButton
+          label={isRenaming ? 'Rename' : 'Create collection'}
+          disabled={!draftName.trim()}
+          onPress={handleSubmit}
+        />
+        {isRenaming ? (
+          <UtilityButton label="Cancel" subtle onPress={cancelRename} />
         ) : null}
       </UtilityRow>
     </>

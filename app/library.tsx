@@ -197,8 +197,8 @@ export default function LibraryScreen() {
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
       <KScanHeader
-        title="Style Closet"
-        subtitle="SCANS & INSPIRATION"
+        title="Your Closet"
+        subtitle="SAVED LOOKS & INSPIRATION"
         onBack={() => router.back()}
         backLabel="Back"
       />
@@ -208,7 +208,7 @@ export default function LibraryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SectionHeader title="Scans" />
+        <SectionHeader title="Saved Looks" />
 
         {loading ? (
           <View style={styles.loadingWrap}>
@@ -216,8 +216,8 @@ export default function LibraryScreen() {
           </View>
         ) : scans.length === 0 ? (
           <EmptyStateCard
-            title="Build Your Style Archive"
-            subtitle="Your saved scans and inspirations will appear here."
+            title="Start Your Closet"
+            subtitle="Save a scan and your looks will live here."
           />
         ) : scans.length === 1 ? (
           <View style={styles.singleCardRow}>
@@ -369,6 +369,7 @@ export default function LibraryScreen() {
           scanImageUri={selectedScan.imageUri ?? null}
           scanSourceId={selectedScan.id}
           scanSourceType="style_library_scan"
+          relatedSavedScans={scans}
           onDismiss={handleCloseScan}
           onAddToDressingRoom={
             dressingRoomsEnabled && selectedScan.imageUri

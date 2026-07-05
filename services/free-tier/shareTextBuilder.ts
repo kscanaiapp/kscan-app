@@ -8,6 +8,14 @@ import type { NormalizedItem, SuggestedOutfit, SavedOutfit } from './wardrobeUti
 
 export const SHARE_WATERMARK = 'Styled with K Scan';
 
+/**
+ * Canonical share URL. kscan.app is configured as an app link / universal
+ * link in app.json (iOS associated domains + Android intent filter), so on
+ * devices with K Scan installed this opens the app first, with the website
+ * as the web fallback. Matches the existing Dressing Room share pattern.
+ */
+export const KSCAN_SHARE_URL = 'https://kscan.app';
+
 function describeItem(item: NormalizedItem): string {
   const parts = [item.color, item.category].filter(Boolean);
   return item.title ?? (parts.length > 0 ? parts.join(' ') : 'Saved item');
@@ -19,7 +27,9 @@ export function buildItemShareText(item?: NormalizedItem | null): string {
     'Check out this look I saved in K Scan: ' +
     describeItem(item) +
     '\n\nWhat do you think of this outfit?\n' +
-    SHARE_WATERMARK
+    SHARE_WATERMARK +
+    ' — ' +
+    KSCAN_SHARE_URL
   );
 }
 
@@ -40,6 +50,6 @@ export function buildOutfitShareText(
     ...lines,
     '',
     'What do you think of this outfit?',
-    SHARE_WATERMARK,
+    SHARE_WATERMARK + ' — ' + KSCAN_SHARE_URL,
   ].join('\n');
 }
