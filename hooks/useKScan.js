@@ -166,56 +166,10 @@ export function useKScan() {
       secondhandRequestRef.current += 1;
       const secondhandRequestId = secondhandRequestRef.current;
 
-      if (__DEV__) console.log('[DEBUG] SET_PROCESSING');
-
-      // Yield one frame so React renders the processing UI (PerceptionLayer)
-      // before the JS thread is occupied by compression work.
-      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_START');
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_DONE');
-
-      try {
-        const processingStart = Date.now();
-
-        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS uri=' + photo.uri.slice(0, 80));
-        if (__DEV__ && photo.qaFixtureName) {
-          console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
-          console.log('[K-SCAN QA] Using compressImage utility: true');
-          console.log('[K-SCAN QA] Sending fixture through /api/analyze');
-        }
-        const compressed = await compressForUpload(photo.uri);
-        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
-
-        const sanitized = await sanitizeImageBeforeUpload(compressed);
-        if (__DEV__) {
-          const sanitizerStatus = getPrivacySanitizerStatus();
-          console.warn(
-            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
-            sanitizerStatus.mode +
-            ' faceDetectionAvailable=' +
-            sanitizerStatus.faceDetectionAvailable +
-            ' faceBlurApplied=' +
-            sanitizerStatus.faceBlurApplied
-          );
-        }
-
-        if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
-        // Scan backend selection (KS-REL-008C). Default path is the legacy Render
-        // /api/analyze endpoint. When SCAN_IDENTIFY_BACKEND_ENABLED is on (owner-
-        // approved, authenticated flow), route through the app-side scan-identify
-        // Edge Function and map its response into the same analysis shape so the
-        // result UI and downstream enrichment are unchanged.
-        let data;
-        if (SCAN_IDENTIFY_BACKEND_ENABLED) {
-          const identifyResponse = await identifyScanImage(sanitized, {
-            source: photo.source === 'upload' ? 'upload' : 'camera',
-            localPrivacyFiltered: true,
-          });
-          // Throws a user-safe error on 'failed' → handled by the catch below.
-          data = mapScanIdentifyToAnalysis(identifyResponse);
-        } else {
-          data = await analyzeImage(sanitized);
-        }
+      // Shared completion path for both the primary scan-identify path and the
+      // legacy /api/analyze fallback. Keeps status transitions, enrichment, and
+      // minimum-HUD timing identical regardless of which backend answered.
+      const finishAnalysis = async (data, processingStart) => {
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
 
         // Enforce minimum HUD display time so PerceptionLayer completes its entry
@@ -274,9 +228,102 @@ export function useKScan() {
             });
           });
         }
+      };
+
+      if (__DEV__) console.log('[DEBUG] SET_PROCESSING');
+
+      // Yield one frame so React renders the processing UI (PerceptionLayer)
+      // before the JS thread is occupied by compression work.
+      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_START');
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_DONE');
+
+      let processingStart;
+      let sanitized;
+      let usedScanIdentify = false;
+
+      try {
+        processingStart = Date.now();
+
+        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS uri=' + photo.uri.slice(0, 80));
+        if (__DEV__ && photo.qaFixtureName) {
+          console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
+          console.log('[K-SCAN QA] Using compressImage utility: true');
+          console.log('[K-SCAN QA] Sending fixture through /api/analyze');
+        }
+        const compressed = await compressForUpload(photo.uri);
+        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
+
+        sanitized = await sanitizeImageBeforeUpload(compressed);
+        if (__DEV__) {
+          const sanitizerStatus = getPrivacySanitizerStatus();
+          console.warn(
+            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
+            sanitizerStatus.mode +
+            ' faceDetectionAvailable=' +
+            sanitizerStatus.faceDetectionAvailable +
+            ' faceBlurApplied=' +
+            sanitizerStatus.faceBlurApplied
+          );
+        }
+
+        if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
+        // Scan backend selection (KS-REL-008C). Default path is the legacy Render
+        // /api/analyze endpoint. When SCAN_IDENTIFY_BACKEND_ENABLED is on (owner-
+        // approved, authenticated flow), route through the app-side scan-identify
+        // Edge Function and map its response into the same analysis shape so the
+        // result UI and downstream enrichment are unchanged.
+        let data;
+        if (SCAN_IDENTIFY_BACKEND_ENABLED) {
+          usedScanIdentify = true;
+          const identifyResponse = await identifyScanImage(sanitized, {
+            source: photo.source === 'upload' ? 'upload' : 'camera',
+            localPrivacyFiltered: true,
+          });
+          // Throws a user-safe error on 'failed' → handled by the catch below.
+          data = mapScanIdentifyToAnalysis(identifyResponse);
+        } else {
+          data = await analyzeImage(sanitized);
+        }
+        await finishAnalysis(data, processingStart);
       } catch (err) {
-        if (__DEV__) console.error('[DEBUG] ANALYZE_ERROR', err?.message);
-        if (isMounted.current) {
+        logAnalyzeDiag({
+          event: 'scan_identify_failed',
+          source: 'runAnalysis',
+          usedScanIdentify,
+          errorMessage: err?.message ?? null,
+        });
+        if (__DEV__) {
+          console.warn('[useKScan] scan-identify path failed; attempting legacy fallback', err?.message);
+        }
+
+        if (usedScanIdentify && sanitized) {
+          try {
+            const fallbackData = await analyzeImage(sanitized);
+            logAnalyzeDiag({
+              event: 'fallback_analysis_success',
+              source: 'runAnalysis',
+            });
+            await finishAnalysis(fallbackData, processingStart);
+          } catch (fallbackErr) {
+            logAnalyzeDiag({
+              event: 'fallback_analysis_failed',
+              source: 'runAnalysis',
+              errorMessage: fallbackErr?.message ?? null,
+            });
+            if (__DEV__) {
+              console.warn('[useKScan] legacy fallback also failed', fallbackErr?.message);
+            }
+            if (isMounted.current) {
+              errorPulse();
+              setError(
+                fallbackErr?.userMessage ||
+                'We couldn’t complete the scan. Please check your connection and try again.'
+              );
+              setStatus('error');
+            }
+          }
+        } else if (isMounted.current) {
           errorPulse();
           setError(
             err?.userMessage ||
