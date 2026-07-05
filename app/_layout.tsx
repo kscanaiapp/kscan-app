@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Stack, router, usePathname } from 'expo-router';
+import { Stack, router, useNavigationContainerRef, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
@@ -45,6 +45,8 @@ function AuthGate() {
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const lastRedirectRef = useRef<string | null>(null);
+  const navigationRef = useNavigationContainerRef();
+  const [navReady, setNavReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -101,6 +103,25 @@ function AuthGate() {
     lastRedirectRef.current = null;
   }, [pathname]);
 
+  useEffect(() => {
+    if (!navigationRef) return;
+    if (navigationRef.isReady()) {
+      setNavReady(true);
+      return;
+    }
+    const check = () => {
+      if (navigationRef.isReady()) {
+        setNavReady(true);
+      }
+    };
+    const id = setInterval(check, 50);
+    const timeout = setTimeout(() => clearInterval(id), 2000);
+    return () => {
+      clearInterval(id);
+      clearTimeout(timeout);
+    };
+  }, [navigationRef]);
+
   const waitingForAuthCallbackRoute =
     initialUrlChecked && isAuthCallbackUrl(initialUrl) && pathname !== '/auth/callback';
 
@@ -115,7 +136,7 @@ function AuthGate() {
   });
 
   useEffect(() => {
-    if (waitingForAuthCallbackRoute || guardState.action !== 'redirect' || !guardState.redirectTo) {
+    if (waitingForAuthCallbackRoute || guardState.action !== 'redirect' || !guardState.redirectTo || !navReady) {
       return;
     }
 
@@ -130,19 +151,35 @@ function AuthGate() {
       return;
     }
     lastRedirectRef.current = redirectTo;
-    router.replace(redirectTo);
-  }, [guardState.action, guardState.redirectTo, pathname, waitingForAuthCallbackRoute]);
+    // Defer slightly so the Stack navigator has time to register its routes.
+    const timer = setTimeout(() => {
+      router.replace(redirectTo);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [guardState.action, guardState.redirectTo, pathname, waitingForAuthCallbackRoute, navReady]);
 
   if (waitingForAuthCallbackRoute) {
     return <Stack screenOptions={{ headerShown: false }} />;
   }
 
-  if (guardState.action !== 'allow') {
+  if (guardState.action === 'loading') {
     return (
       <View testID="auth-gate-loading" style={styles.loadingRoot}>
         <ActivityIndicator size="large" color={COLORS.accent} />
         <Text style={styles.loadingText}>K-SCAN</Text>
       </View>
+    );
+  }
+
+  if (guardState.action === 'redirect') {
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <View testID="auth-gate-redirecting" style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.loadingText}>K-SCAN</Text>
+        </View>
+      </>
     );
   }
 
@@ -168,6 +205,13 @@ export default function Layout() {
 const styles = StyleSheet.create({
   loadingRoot: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    backgroundColor: COLORS.bg,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.md,
