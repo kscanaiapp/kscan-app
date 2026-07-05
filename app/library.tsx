@@ -36,6 +36,8 @@ import {
   PrivacyFooter,
 } from '../components/luxury';
 import { LUXURY, SPACING } from '../constants/theme';
+import { FREE_TIER_UTILITY_ENABLED } from '../constants/freeTierUtilityFlags';
+import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -267,6 +269,11 @@ export default function LibraryScreen() {
             ))}
           </View>
         )}
+
+        {/* Free Tier Utility section (flag-guarded; renders null by default) */}
+        {FREE_TIER_UTILITY_ENABLED ? (
+          <FreeTierUtilitySection rawItems={scans} variant="library" />
+        ) : null}
 
         <SectionHeader
           title="Inspiration"
