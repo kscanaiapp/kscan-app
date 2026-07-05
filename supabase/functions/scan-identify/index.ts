@@ -21,7 +21,8 @@
 //   - GEMINI_API_KEY never leaves this function
 //   - Raw provider output is parsed + normalized, never returned verbatim
 //   - No stack traces returned to the client
-//   - recommendedProducts is always [] in this slice (matching deferred)
+//   - recommendedProducts: image mode uses catalog retrieval (product_catalog DB);
+//     text mode uses live shopping APIs (Serper primary, Brave fallback).
 //
 // Kill switch: set SCAN_IDENTIFY_AI_ENABLED=false (trim/case-insensitive) to disable.
 // Model precedence: SCAN_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL.

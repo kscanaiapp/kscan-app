@@ -206,3 +206,45 @@ test('edge source: accepts unknown source values without crashing', () => {
   // The source should be used for logging, not for routing or auth bypass
   assert.ok(EDGE_SOURCE.includes('source'), 'Must reference source in logs');
 });
+
+// ── 13. Mode-Specific Provider Routing ──
+
+test('edge source: text mode is the only path that calls live shopping APIs', () => {
+  // The source must import and call getShoppingResults for text mode commerce.
+  assert.ok(
+    EDGE_SOURCE.includes('await getShoppingResults('),
+    'Must call getShoppingResults for text mode commerce',
+  );
+
+  // Locate the text mode branch that handles product recommendations.
+  // There are two "if (mode === 'text')" blocks; the second one is the
+  // product-recommendations branch that calls getShoppingResults.
+  const firstTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')");
+  assert.ok(firstTextBranch !== -1, "Must have 'if (mode === \\'text\\')' branch");
+
+  const secondTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')", firstTextBranch + 1);
+  const productRecBranchStart = secondTextBranch !== -1 ? secondTextBranch : firstTextBranch;
+
+  const elseBranchStart = EDGE_SOURCE.indexOf('} else {', productRecBranchStart);
+  assert.ok(elseBranchStart !== -1, 'Must have an else branch for image mode');
+
+  // The getShoppingResults call must live inside the text branch.
+  const shoppingCallIndex = EDGE_SOURCE.indexOf('await getShoppingResults(');
+  assert.ok(
+    shoppingCallIndex > productRecBranchStart && shoppingCallIndex < elseBranchStart,
+    'getShoppingResults must be called inside the text mode branch only',
+  );
+
+  // The else (image/camera) branch must use catalog retrieval, not shopping APIs.
+  const nextClosingBrace = EDGE_SOURCE.indexOf('    }', elseBranchStart + 1);
+  const elseBranch = EDGE_SOURCE.slice(elseBranchStart, nextClosingBrace);
+  assert.equal(
+    elseBranch.includes('await getShoppingResults('),
+    false,
+    'Image mode must not call getShoppingResults (live shopping APIs)',
+  );
+  assert.ok(
+    elseBranch.includes('fetchCatalogCandidates('),
+    'Image mode must use fetchCatalogCandidates for catalog retrieval',
+  );
+});
