@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { AnalysisCard } from '../components/AnalysisCard';
 import type { Product } from '../components/ProductShelf';
 import { AddScanToDressingRoomModal } from '../components/AddScanToDressingRoomModal';
+import { AddInspirationToDressingRoomModal } from '../components/AddInspirationToDressingRoomModal';
 import { InspirationUploadModal } from '../components/InspirationUploadModal';
 import { useLibrary } from '../hooks/useLibrary';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
@@ -111,6 +112,7 @@ export default function LibraryScreen() {
   const [inspirationError, setInspirationError] = useState<string | null>(null);
   const [selectedInspirationUri, setSelectedInspirationUri] = useState<string | null>(null);
   const [showInspirationModal, setShowInspirationModal] = useState(false);
+  const [inspirationForRoom, setInspirationForRoom] = useState<InspirationItem | null>(null);
 
   const loadInspirations = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -161,6 +163,12 @@ export default function LibraryScreen() {
     setSelectedInspirationUri(null);
   };
 
+  // Tapping a Closet/Inspiration item opens the room picker so it can be added
+  // to a Dressing Room. Gated by the dressingRooms feature flag.
+  const handleAddInspirationToRoom = (item: InspirationItem) => {
+    setInspirationForRoom(item);
+  };
+
   const handleDeleteInspiration = async (id: string) => {
     Alert.alert(
       'Delete Inspiration?',
@@ -175,7 +183,9 @@ export default function LibraryScreen() {
               await deleteInspirationItem(id);
               setInspirations((current) => current.filter((item) => item.id !== id));
             } catch (err: any) {
-              Alert.alert('Could not delete', err?.message || 'Try again.');
+              // Never surface raw Supabase/RLS errors to users.
+              console.warn('Delete inspiration failed', err);
+              Alert.alert('Could not delete', 'Could not delete this Closet item. Please try again.');
             }
           },
         },
@@ -320,6 +330,8 @@ export default function LibraryScreen() {
               subtitle="Upload"
               date={formatDate(inspirations[0].createdAt)}
               status="Upload"
+              onPress={dressingRoomsEnabled ? () => handleAddInspirationToRoom(inspirations[0]) : undefined}
+              viewLabel="Add to Room"
               onDelete={() => handleDeleteInspiration(inspirations[0].id)}
               style={{ width: SINGLE_CARD_W }}
             />
@@ -334,6 +346,8 @@ export default function LibraryScreen() {
                   subtitle="Upload"
                   date={formatDate(a.createdAt)}
                   status="Upload"
+                  onPress={dressingRoomsEnabled ? () => handleAddInspirationToRoom(a) : undefined}
+                  viewLabel="Add to Room"
                   onDelete={() => handleDeleteInspiration(a.id)}
                   style={{ width: CARD_W }}
                 />
@@ -344,6 +358,8 @@ export default function LibraryScreen() {
                     subtitle="Upload"
                     date={formatDate(b.createdAt)}
                     status="Upload"
+                    onPress={dressingRoomsEnabled ? () => handleAddInspirationToRoom(b) : undefined}
+                    viewLabel="Add to Room"
                     onDelete={() => handleDeleteInspiration(b.id)}
                     style={{ width: CARD_W }}
                   />
@@ -395,6 +411,15 @@ export default function LibraryScreen() {
             },
           }}
           onClose={() => setDressingRoomModalVisible(false)}
+        />
+      ) : null}
+
+      {dressingRoomsEnabled ? (
+        <AddInspirationToDressingRoomModal
+          visible={!!inspirationForRoom}
+          inspirationId={inspirationForRoom?.id ?? null}
+          inspirationLabel={inspirationForRoom?.note ?? null}
+          onClose={() => setInspirationForRoom(null)}
         />
       ) : null}
 

@@ -1049,5 +1049,45 @@ export async function removeInspirationFromDressingRoom(roomId: string, inspirat
   if (error) throw safeError(error, 'Unable to remove inspiration from room.');
 }
 
+// Attaches an EXISTING Closet/Inspiration item (already stored) to a Dressing
+// Room. The stored image is reused — no re-upload is performed. Ownership is
+// enforced by RLS: the link row must have user_id = auth.uid() and the target
+// room must belong to the caller. The upsert revives a previously removed
+// (soft-deleted) link so re-adding an item is idempotent.
+export async function addInspirationToDressingRoom(input: {
+  roomId: string;
+  inspirationId: string;
+  userId?: string | null;
+}): Promise<void> {
+  const userId = requireAuthUserId(input.userId);
+  const roomId = String(input.roomId || '').trim();
+  const inspirationId = String(input.inspirationId || '').trim();
+  if (!roomId || !inspirationId) {
+    throw new Error('Missing Dressing Room or Closet item.');
+  }
+
+  const { data: roomRow } = await supabase
+    .from('dressing_rooms')
+    .select('id')
+    .eq('id', roomId)
+    .single();
+  if (!roomRow) {
+    throw new Error('Dressing Room not found or access denied.');
+  }
+
+  const { error } = await supabase
+    .from('dressing_room_inspiration_items')
+    .upsert(
+      {
+        room_id: roomId,
+        inspiration_id: inspirationId,
+        user_id: userId,
+        deleted_at: null,
+      },
+      { onConflict: 'room_id,inspiration_id' },
+    );
+  if (error) throw safeError(error, 'Unable to add item to Dressing Room.');
+}
+
 // Satisfies DressingRoomInspirationLink type reference without unused-import error
 export type { DressingRoomInspirationLink };
