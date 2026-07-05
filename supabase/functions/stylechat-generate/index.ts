@@ -2,13 +2,15 @@
 //
 // Architecture:
 //   Mobile StyleChat UI → supabase.functions.invoke() → this function → Gemini Flash
+//   Optional additive context (weather, Style DNA, active scan/upload/TextScan) is
+//   sent by the client but validated and consumed server-side.
 //
 // Security guarantees:
 //   - JWT verified via auth.getUser() before any data access
 //   - User identity derived from token, never from request body
 //   - Daily quota enforced atomically via increment_stylechat_daily_usage() RPC
 //   - Gemini API key never leaves this function
-//   - Context assembled server-side; mobile sends only { sessionId, message }
+//   - Core payload is { sessionId, message }; optional context fields are additive.
 //   - Response sanitized before returning to mobile
 //
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
@@ -16,6 +18,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
+import { parseActiveContext, buildActiveContextBlock } from './activeContext.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -717,6 +720,7 @@ Deno.serve(async (req) => {
     message?: unknown;
     weatherLocation?: unknown;
     styleDnaContext?: unknown;
+    activeContext?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -752,6 +756,10 @@ Deno.serve(async (req) => {
   // Optional, additive Style DNA personalization signal. Unknown/absent/malformed -> null
   // (older app builds send nothing and behave exactly as before).
   const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
+
+  // Optional, additive active scan/upload/TextScan context for grounding. Malformed or
+  // unknown-source input is dropped so old clients and bad payloads are harmless.
+  const activeContext = parseActiveContext(body.activeContext);
 
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
 
@@ -1044,9 +1052,15 @@ Deno.serve(async (req) => {
     : systemText;
   // Style DNA is additive and independent of weather: appended only when a valid,
   // above-threshold context is present. Absent/malformed leaves the prompt unchanged.
-  const systemTextForModel = styleDnaContext
+  const systemTextWithStyleDna = styleDnaContext
     ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
     : systemTextWithWeather;
+
+  // Active reference context is appended last so it is the freshest grounding signal.
+  // It is only included when the client sent a valid, known source (camera/upload/text-scan).
+  const systemTextForModel = activeContext
+    ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
+    : systemTextWithStyleDna;
 
   // Map history to Gemini conversation turns.
   // Gemini requires alternating user/model turns; merge consecutive same-role messages.

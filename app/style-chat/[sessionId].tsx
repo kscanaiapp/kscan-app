@@ -68,6 +68,20 @@ export default function StyleChatSessionScreen() {
       return null;
     }
   }, [userKey]);
+
+  const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
+
+  // Consume handoff context on mount and clear it when leaving the session.
+  useEffect(() => {
+    const ctx = getStyleChatHandoffContext();
+    if (ctx) {
+      setHandoffContext(ctx);
+    }
+    return () => {
+      clearStyleChatHandoffContext();
+    };
+  }, []);
+
   const {
     session,
     messages,
@@ -82,6 +96,7 @@ export default function StyleChatSessionScreen() {
   } = useStyleChat(sessionId ?? '', {
     getWeatherLocation: weather.getWeatherLocation,
     getStyleDnaContext,
+    activeContext: handoffContext ?? null,
   });
 
   const [isDeleting, setIsDeleting] = useState(false);
@@ -97,19 +112,6 @@ export default function StyleChatSessionScreen() {
     paddingLeft: Math.max(SPACING.xl, insets.left),
     paddingRight: Math.max(SPACING.xl, insets.right),
   };
-
-  const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
-
-  // Consume handoff context on mount and clear it when leaving the session.
-  useEffect(() => {
-    const ctx = getStyleChatHandoffContext();
-    if (ctx) {
-      setHandoffContext(ctx);
-    }
-    return () => {
-      clearStyleChatHandoffContext();
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

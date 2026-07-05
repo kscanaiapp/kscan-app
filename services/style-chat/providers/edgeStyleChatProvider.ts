@@ -13,6 +13,7 @@ import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../consta
 import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
+import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
 
 const EDGE_FN      = 'stylechat-generate';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
@@ -153,6 +154,7 @@ export class EdgeStyleChatProvider {
     message: string;
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
+    activeContext?: StyleChatHandoffContext | null;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), TIMEOUT_MS);
@@ -173,6 +175,9 @@ export class EdgeStyleChatProvider {
           ...(input.styleDnaContext && input.styleDnaContext.enabled
             ? { styleDnaContext: input.styleDnaContext }
             : {}),
+          // Additive/optional active scan/upload/TextScan context. Sent while the user
+          // has a visible context card in StyleChat. Requests without it stay valid.
+          ...(input.activeContext ? { activeContext: input.activeContext } : {}),
         },
         signal: ac.signal,
       });

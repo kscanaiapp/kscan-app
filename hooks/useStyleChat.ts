@@ -10,6 +10,7 @@ import { getFriendlyStyleChatError } from '../services/style-chat/styleChatError
 import type { StyleChatMessage, StyleChatSession, StyleChatUiBlock } from '../services/style-chat/types';
 import type { WeatherLocationInput } from '../constants/weatherStyling';
 import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
+import type { StyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
@@ -49,6 +50,9 @@ export interface UseStyleChatOptions {
   getWeatherLocation?: () => Promise<WeatherLocationInput | null>;
   // Awaited before each send; returns a data-only Style DNA context or null to skip.
   getStyleDnaContext?: () => Promise<StyleDnaContext | null>;
+  // Active scan/upload/TextScan context visible in the StyleChat UI. Passed to the
+  // backend on every message so replies are grounded to the reference item.
+  activeContext?: StyleChatHandoffContext | null;
 }
 
 export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): UseStyleChatReturn {
@@ -64,6 +68,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   getWeatherLocationRef.current = opts?.getWeatherLocation;
   const getStyleDnaContextRef = useRef(opts?.getStyleDnaContext);
   getStyleDnaContextRef.current = opts?.getStyleDnaContext;
+  const activeContextRef = useRef(opts?.activeContext);
+  activeContextRef.current = opts?.activeContext;
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
@@ -201,7 +207,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         const styleDnaContext = resolveStyleDna
           ? await resolveStyleDna().catch(() => null)
           : null;
-        const result = await provider.generateReply({ sessionId, message: trimmed, weatherLocation, styleDnaContext });
+        // Active scan/upload/TextScan context is held in a ref so it is included on
+        // every send while the context card is visible, without recreating sendMessage.
+        const activeContext = activeContextRef.current ?? null;
+        const result = await provider.generateReply({ sessionId, message: trimmed, weatherLocation, styleDnaContext, activeContext });
 
         if (result.status === 'burst_limit') {
           // Burst limit: transient per-minute cap. Do not persist, do not update daily usage.
