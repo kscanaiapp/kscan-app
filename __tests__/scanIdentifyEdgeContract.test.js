@@ -257,3 +257,33 @@ test('edge source: image mode uses catalog retrieval plus the commerce router fa
     'Image mode must include commerce diagnostics',
   );
 });
+
+test('edge source: image mode generates a fresh scanId for metadata capture', () => {
+  assert.ok(
+    EDGE_SOURCE.includes("mode === 'image' ? crypto.randomUUID() : requestScanId"),
+    'Image mode must generate a fresh scanId',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('scanId'),
+    'Image responses should preserve scanId as an optional field',
+  );
+});
+
+test('edge source: image mode captures scan intelligence with timeout protection', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('captureScanIntelligence'),
+    'Must invoke scan intelligence capture from the edge function',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('Promise.race(['),
+    'Must bound capture latency with Promise.race',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('SCAN_INTELLIGENCE_TIMEOUT_MS = 500'),
+    'Capture timeout must be capped at 500ms',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('appPlatform') && EDGE_SOURCE.includes('appVersion'),
+    'Must pass through optional app metadata when present',
+  );
+});

@@ -53,6 +53,7 @@ import {
   getScanCommerceResults,
   normalizeProductUrl,
 } from './scanCommerceRouter.ts';
+import { captureScanIntelligence } from './scanIntelligenceCapture.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ const MAX_OUTPUT_TOKENS = 2048;
 // Provider call timeout. Target is ~5s; an 8s hard cap absorbs cold starts / free
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
+const SCAN_INTELLIGENCE_TIMEOUT_MS = 500;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
@@ -925,6 +927,8 @@ Deno.serve(async (req) => {
     imageBase64?: unknown;
     textQuery?: unknown;
     source?: unknown;
+    appPlatform?: unknown;
+    appVersion?: unknown;
     localPrivacyFiltered?: unknown;
     clientTimestamp?: unknown;
     scanId?: unknown;
@@ -939,17 +943,23 @@ Deno.serve(async (req) => {
 
   const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
   const source = typeof body.source === 'string' ? body.source : 'unknown';
+  const appPlatform = typeof body.appPlatform === 'string' && body.appPlatform.trim()
+    ? body.appPlatform.trim()
+    : null;
+  const appVersion = typeof body.appVersion === 'string' && body.appVersion.trim()
+    ? body.appVersion.trim()
+    : null;
   let imageBase64 = '';
   let textQuery = '';
 
-  // Resolve scan ID for audit logging
-  const scanId = typeof body.scanId === 'string' && body.scanId.trim()
+  const requestScanId = typeof body.scanId === 'string' && body.scanId.trim()
     ? body.scanId.trim()
     : typeof body.scan_id === 'string' && body.scan_id.trim()
     ? body.scan_id.trim()
     : typeof body.id === 'string' && body.id.trim()
     ? body.id.trim()
     : req.headers.get('x-scan-id') || req.headers.get('x-request-id') || crypto.randomUUID();
+  const scanId = mode === 'image' ? crypto.randomUUID() : requestScanId;
 
   if (mode === 'text') {
     textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
@@ -1207,9 +1217,23 @@ Deno.serve(async (req) => {
       // category into a non-fashion result. Force an empty shelf here.
       const finalResponse = {
         ...nonFashionResponseWithAttributes,
+        ...(mode === 'image' ? { scanId } : {}),
         recommendedProducts: [],
         displayResult: buildDisplayResult(nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined, 0.95),
       };
+      if (mode === 'image') {
+        await captureImageModeScanIntelligence({
+          scanId,
+          userId,
+          identification: nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined,
+          attributes: nonFashionResponseWithAttributes.attributes as Record<string, unknown> | undefined,
+          isFashion: false,
+          commerce: undefined,
+          recommendedProducts: [],
+          appPlatform,
+          appVersion,
+        });
+      }
       const auditEvent = buildAuditEvent(
         finalResponse,
         nonFashionNormalizedId,
@@ -1362,6 +1386,7 @@ Deno.serve(async (req) => {
 
     const finalResponse = {
       ...completedResponseWithAttributes,
+      ...(mode === 'image' ? { scanId } : {}),
       recommendedProducts: finalRecommendedProducts,
       ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
       ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
@@ -1372,6 +1397,19 @@ Deno.serve(async (req) => {
           : undefined,
       ),
     };
+    if (mode === 'image') {
+      await captureImageModeScanIntelligence({
+        scanId,
+        userId,
+        identification: completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
+        attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
+        isFashion: true,
+        commerce: shoppingMeta,
+        recommendedProducts: finalRecommendedProducts,
+        appPlatform,
+        appVersion,
+      });
+    }
     const auditEvent = buildAuditEvent(
       finalResponse,
       completedNormalizedId,
@@ -1449,4 +1487,56 @@ function mergeLiveAndCatalogProducts(
   }
 
   return merged;
+}
+
+async function captureImageModeScanIntelligence(input: {
+  scanId: string;
+  userId: string | null;
+  identification?: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+  isFashion: boolean;
+  commerce?: {
+    provider: string;
+    query: string;
+    count: number;
+    providersTried?: string[];
+    catalogCount?: number;
+  };
+  recommendedProducts?: unknown[];
+  appPlatform: string | null;
+  appVersion: string | null;
+}): Promise<void> {
+  try {
+    const captureResult = await Promise.race([
+      captureScanIntelligence({
+        scanId: input.scanId,
+        userId: input.userId,
+        mode: 'image',
+        identification: input.identification || {},
+        attributes: input.attributes,
+        isFashion: input.isFashion,
+        commerce: input.commerce,
+        recommendedProducts: input.recommendedProducts,
+        imageHash: null,
+        appPlatform: input.appPlatform,
+        appVersion: input.appVersion,
+      }).then(() => 'captured' as const),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), SCAN_INTELLIGENCE_TIMEOUT_MS)),
+    ]);
+    if (captureResult === 'timeout') {
+      console.warn('[ScanIntelligence]', {
+        event: 'capture_timeout',
+        errorType: 'timeout',
+        table: 'scan_intelligence_events',
+        scanId: input.scanId,
+      });
+    }
+  } catch (error) {
+    console.warn('[ScanIntelligence]', {
+      event: 'capture_timeout_or_error',
+      errorType: error instanceof Error ? error.name : 'unknown',
+      table: 'scan_intelligence_events',
+      scanId: input.scanId,
+    });
+  }
 }
