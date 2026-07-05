@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -128,107 +131,122 @@ export function AddScanToDressingRoomModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Add Scan to Dressing Room</Text>
-          <Text style={styles.subtitle}>
-            Save this clothing-focused image to a Dressing Room. Avoid faces, bystanders, or sensitive information.
-          </Text>
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={0}
+        >
+          <View style={styles.card}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.title}>Add Scan to Dressing Room</Text>
+              <Text style={styles.subtitle}>
+                Save this clothing-focused image to a Dressing Room. Avoid faces, bystanders, or sensitive information.
+              </Text>
 
-          {missingImage ? (
-            <Text style={styles.message}>No local scan image is available.</Text>
-          ) : successState ? (
-            <>
-              <Text style={styles.successTitle}>Added to Dressing Room</Text>
-              {message ? <Text style={styles.message}>{message}</Text> : null}
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={handleViewDressingRoom}
-                accessibilityRole="button"
-                accessibilityLabel="View Dressing Room"
-              >
-                <Text style={styles.primaryText}>View Dressing Room</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="Continue scanning"
-              >
-                <Text style={styles.secondaryText}>Continue Scanning</Text>
-              </TouchableOpacity>
-            </>
-          ) : loading ? (
-            <ActivityIndicator color={LUXURY.colors.plum} />
-          ) : error ? (
-            <Text style={styles.message}>{error}</Text>
-          ) : (
-            <>
-              <ScrollView style={styles.roomList} contentContainerStyle={styles.roomListContent}>
-                {rooms.length === 0 ? (
-                  <Text style={styles.message}>Create your first Dressing Room.</Text>
-                ) : (
-                  rooms.map((room) => (
-                    <TouchableOpacity
-                      key={room.id}
-                      style={styles.roomChoice}
-                      onPress={() => handleSave(room.id, room.title)}
-                      disabled={saving}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Save scan to ${room.title}`}
-                      accessibilityHint={`Adds this scan to ${room.title}`}
-                    >
-                      <Text style={styles.roomChoiceTitle}>{room.title}</Text>
-                      <Text style={styles.roomChoiceMeta}>{room.itemCount ?? 0} ITEMS</Text>
-                      {saving ? <ActivityIndicator color={LUXURY.colors.plum} /> : null}
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
+              {missingImage ? (
+                <Text style={styles.message}>No local scan image is available.</Text>
+              ) : successState ? (
+                <>
+                  <Text style={styles.successTitle}>Added to Dressing Room</Text>
+                  {message ? <Text style={styles.message}>{message}</Text> : null}
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={handleViewDressingRoom}
+                    accessibilityRole="button"
+                    accessibilityLabel="View Dressing Room"
+                  >
+                    <Text style={styles.primaryText}>View Dressing Room</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel="Continue scanning"
+                  >
+                    <Text style={styles.secondaryText}>Continue Scanning</Text>
+                  </TouchableOpacity>
+                </>
+              ) : loading ? (
+                <ActivityIndicator color={LUXURY.colors.plum} />
+              ) : error ? (
+                <Text style={styles.message}>{error}</Text>
+              ) : (
+                <>
+                  <View style={styles.roomList}>
+                    {rooms.length === 0 ? (
+                      <Text style={styles.message}>Create your first Dressing Room.</Text>
+                    ) : (
+                      rooms.map((room) => (
+                        <TouchableOpacity
+                          key={room.id}
+                          style={styles.roomChoice}
+                          onPress={() => handleSave(room.id, room.title)}
+                          disabled={saving}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Save scan to ${room.title}`}
+                          accessibilityHint={`Adds this scan to ${room.title}`}
+                        >
+                          <Text style={styles.roomChoiceTitle}>{room.title}</Text>
+                          <Text style={styles.roomChoiceMeta}>{room.itemCount ?? 0} ITEMS</Text>
+                          {saving ? <ActivityIndicator color={LUXURY.colors.plum} /> : null}
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </View>
 
-              <View style={styles.quickCreate}>
-                <Text style={styles.quickCreateLabel}>New Room</Text>
-                <TextInput
-                  value={newRoomTitle}
-                  onChangeText={setNewRoomTitle}
-                  placeholder="Inspiration Board"
-                  placeholderTextColor={LUXURY.colors.stone}
-                  style={styles.input}
-                  accessibilityLabel="New dressing room title"
-                  accessibilityHint="Create a new room and save the scan to it"
-                />
-              </View>
+                  <View style={styles.quickCreate}>
+                    <Text style={styles.quickCreateLabel}>New Room</Text>
+                    <TextInput
+                      value={newRoomTitle}
+                      onChangeText={setNewRoomTitle}
+                      placeholder="Inspiration Board"
+                      placeholderTextColor={LUXURY.colors.stone}
+                      style={styles.input}
+                      returnKeyType="done"
+                      blurOnSubmit
+                      onSubmitEditing={Keyboard.dismiss}
+                      accessibilityLabel="New dressing room title"
+                      accessibilityHint="Create a new room and save the scan to it"
+                    />
+                  </View>
 
-              <TouchableOpacity
-                style={[styles.primaryButton, (!newRoomTitle.trim() || saving) && styles.disabled]}
-                onPress={handleCreateAndSave}
-                disabled={!newRoomTitle.trim() || saving}
-                accessibilityRole="button"
-                accessibilityLabel="Create new room and save scan"
-              >
-                {saving ? (
-                  <ActivityIndicator color={LUXURY.colors.inverse} />
-                ) : (
-                  <Text style={styles.primaryText}>CREATE + SAVE SCAN</Text>
-                )}
-              </TouchableOpacity>
-            </>
-          )}
+                  <TouchableOpacity
+                    style={[styles.primaryButton, (!newRoomTitle.trim() || saving) && styles.disabled]}
+                    onPress={handleCreateAndSave}
+                    disabled={!newRoomTitle.trim() || saving}
+                    accessibilityRole="button"
+                    accessibilityLabel="Create new room and save scan"
+                  >
+                    {saving ? (
+                      <ActivityIndicator color={LUXURY.colors.inverse} />
+                    ) : (
+                      <Text style={styles.primaryText}>CREATE + SAVE SCAN</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
 
-          {!successState ? (
-            <>
-              {message ? <Text style={styles.message}>{message}</Text> : null}
-              <TouchableOpacity
-                style={[styles.secondaryButton, saving && styles.disabled]}
-                onPress={onClose}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityLabel="Close add to room"
-              >
-                <Text style={styles.secondaryText}>Close</Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
-        </View>
+              {!successState ? (
+                <>
+                  {message ? <Text style={styles.message}>{message}</Text> : null}
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, saving && styles.disabled]}
+                    onPress={onClose}
+                    disabled={saving}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close add to room"
+                  >
+                    <Text style={styles.secondaryText}>Close</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -241,14 +259,22 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.plumDeep + 'C2',
     padding: SPACING.xl,
   },
+  keyboardContainer: {
+    width: '100%',
+  },
   card: {
     borderRadius: RADIUS.xl,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,
     backgroundColor: LUXURY.colors.pearl,
-    padding: SPACING.xl,
     maxHeight: '84%',
+    overflow: 'hidden',
     ...SHADOWS.editorialRaised,
+  },
+  scrollContent: {
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xl + 120,
+    gap: 0,
   },
   title: {
     ...LUXURY.typography.displayTitle,
@@ -267,9 +293,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   roomList: {
-    maxHeight: 260,
-  },
-  roomListContent: {
     gap: SPACING.sm,
   },
   roomChoice: {
