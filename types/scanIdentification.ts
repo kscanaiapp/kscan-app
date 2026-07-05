@@ -88,8 +88,10 @@ export type ScanIdentifyResponse = {
   attributes?: FashionAttributes;
   /** Rich identification fields (Day-1 prompt upgrade). Optional for backward compat. */
   identification?: DetailedIdentification;
-  /** Catalog-ranked candidates when the backend has matching products. */
+  /** Live commerce product matches (provider results). */
   recommendedProducts: RankedScanProduct[];
+  /** Catalog similarity matches scored deterministically from product_catalog. */
+  similarityMatches?: RankedScanProduct[];
   userMessage?: string;
   /** Display result for seller/demo views; not integrated into ProductShelf. */
   displayResult?: DisplayResult;

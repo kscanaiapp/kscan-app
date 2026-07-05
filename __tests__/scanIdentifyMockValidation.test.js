@@ -47,7 +47,10 @@ const adapter = loadTsModule('services/scanIdentification.ts', {
   './supabaseClient': { supabase: {} },
   '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
 });
-const mapper = loadTsModule('services/scanIdentificationMapper.ts');
+const scanResultObject = loadTsModule('services/scanResultObject.ts');
+const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
+  './scanResultObject': scanResultObject,
+});
 
 // ── Mock case 1: Black double-breasted blazer ─────────────────────────────────
 

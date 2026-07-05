@@ -149,7 +149,7 @@ export function ScanResultV2({
   // Build title from available metadata
   const title = v2Data?.title || 'Style Match';
 
-  const hasSimilarFinds = Array.isArray(v2Data?.similarFinds) && v2Data.similarFinds.length > 0;
+  const hasSimilarFinds = Array.isArray(v2Data?.similarFinds) && v2Data.similarFinds.length >= 2;
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -294,25 +294,29 @@ export function ScanResultV2({
                 />
               </View>
 
-              {/* Similar Finds */}
-              <View
-                style={styles.section}
-                onLayout={(event) => {
-                  similarFindsY.current = event.nativeEvent.layout.y;
-                }}
-              >
-                <SimilarFindsShelf
-                  similarFinds={v2Data.similarFinds}
-                  onViewAll={handleViewAllSimilar}
-                />
-              </View>
+              {/* Similar Finds: only show when there are at least 2 matches. */}
+              {hasSimilarFinds ? (
+                <View
+                  style={styles.section}
+                  onLayout={(event) => {
+                    similarFindsY.current = event.nativeEvent.layout.y;
+                  }}
+                >
+                  <SimilarFindsShelf
+                    similarFinds={v2Data.similarFinds}
+                    onViewAll={handleViewAllSimilar}
+                  />
+                </View>
+              ) : null}
 
               {/* Purchase Options */}
-              <View style={styles.section}>
-                <PurchaseOptionsPanel
-                  purchaseOptions={v2Data.purchaseOptions}
-                />
-              </View>
+              {Array.isArray(v2Data.purchaseOptions) && v2Data.purchaseOptions.length > 0 ? (
+                <View style={styles.section}>
+                  <PurchaseOptionsPanel
+                    purchaseOptions={v2Data.purchaseOptions}
+                  />
+                </View>
+              ) : null}
 
               {/* Next-step framing above sticky actions */}
               <Text style={styles.nextStepPrompt}>

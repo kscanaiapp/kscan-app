@@ -249,8 +249,12 @@ test('edge source: image mode uses catalog retrieval plus the commerce router fa
     'Image mode must call the camera commerce router fallback',
   );
   assert.ok(
-    imageBranch.includes('mergeLiveAndCatalogProducts('),
-    'Image mode must merge live and catalog products',
+    imageBranch.includes('findSimilarityMatches('),
+    'Image mode must score catalog candidates with the similarity matcher',
+  );
+  assert.ok(
+    imageBranch.includes('similarityMatches'),
+    'Image mode must return a similarityMatches array',
   );
   assert.ok(
     imageBranch.includes('commerce:'),

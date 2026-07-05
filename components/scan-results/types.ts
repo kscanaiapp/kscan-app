@@ -51,9 +51,60 @@ export type LegacyAnalysisData = {
     styleTags?: string[];
   };
   products?: any[];
+  purchaseOptions?: any[];
   secondhand?: any;
   sneakerReference?: any[];
 };
+
+function formatPriceLabel(price: unknown, currency?: string | null): string | undefined {
+  if (price === null || price === undefined) return undefined;
+  if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
+    const ccy = String(currency || 'USD').toUpperCase();
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: ccy }).format(price);
+    } catch {
+      return `$${price.toFixed(2)}`;
+    }
+  }
+  if (typeof price === 'string') {
+    const trimmed = price.trim();
+    if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return undefined;
+    return trimmed;
+  }
+  return undefined;
+}
+
+function availabilityLabel(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const v = value.toLowerCase().trim();
+  if (v === 'in_stock' || v === 'in stock' || v === 'available') return 'In Stock';
+  if (v === 'out_of_stock' || v === 'out of stock' || v === 'sold_out' || v === 'sold out' || v === 'unavailable') {
+    return 'Out of Stock';
+  }
+  return undefined;
+}
+
+function productUrlOf(p: Record<string, unknown>): string | undefined {
+  for (const key of ['productUrl', 'product_url', 'purchaseUrl', 'purchase_url', 'url', 'link']) {
+    const value = p[key];
+    if (typeof value === 'string' && value.trim().startsWith('http')) return value.trim();
+  }
+  return undefined;
+}
+
+function imageUrlOf(p: Record<string, unknown>): string | undefined {
+  for (const key of ['imageUrl', 'image_url', 'thumbnail', 'thumbnailUrl', 'image_src', 'product_image_url']) {
+    const value = p[key];
+    if (typeof value === 'string' && value.trim().startsWith('http')) return value.trim();
+  }
+  return undefined;
+}
+
+function titleOf(p: Record<string, unknown>): string {
+  return (
+    String(p.displayName || p.title || p.name || p.product_name || '').trim() || 'Similar style'
+  );
+}
 
 /** Maps legacy analysis data into the V2 shape for forward-compat rendering. */
 export function mapLegacyToV2(
@@ -73,6 +124,53 @@ export function mapLegacyToV2(
     title = `${meta.category} Match`;
   }
 
+  const similarFinds: ProductMatch[] | undefined = Array.isArray(legacy.products)
+    ? legacy.products
+      .filter((p) => p && typeof p === 'object')
+      .map((p, index) => {
+        const product = p as Record<string, unknown>;
+        return {
+          id: String(product.id ?? `similar-${index}`),
+          title: titleOf(product),
+          brand: typeof product.brand === 'string' ? product.brand : undefined,
+          retailer: typeof product.retailer === 'string'
+            ? product.retailer
+            : typeof product.source === 'string'
+            ? product.source
+            : undefined,
+          imageUrl: imageUrlOf(product),
+          priceLabel: formatPriceLabel(product.price, typeof product.currency === 'string' ? product.currency : undefined),
+          matchPercent: typeof product.similarityPercentage === 'number'
+            ? product.similarityPercentage
+            : typeof product.matchScore === 'number'
+            ? Math.round(product.matchScore)
+            : undefined,
+          productUrl: productUrlOf(product),
+        };
+      })
+    : undefined;
+
+  const purchaseOptions: PurchaseOption[] | undefined = Array.isArray(legacy.purchaseOptions)
+    ? legacy.purchaseOptions
+      .filter((p) => p && typeof p === 'object')
+      .map((p, index) => {
+        const product = p as Record<string, unknown>;
+        return {
+          id: String(product.id ?? `purchase-${index}`),
+          retailer:
+            typeof product.retailer === 'string'
+              ? product.retailer
+              : typeof product.source === 'string'
+              ? product.source
+              : 'Retailer',
+          title: titleOf(product),
+          priceLabel: formatPriceLabel(product.price, typeof product.currency === 'string' ? product.currency : undefined),
+          availabilityLabel: availabilityLabel(product.availability),
+          productUrl: productUrlOf(product),
+        };
+      })
+    : undefined;
+
   return {
     imageUri: scanImageUri ?? undefined,
     title,
@@ -84,7 +182,7 @@ export function mapLegacyToV2(
     styleTags: meta.styleTags,
     styleAnalysis: analysisText || undefined,
     analysisText: analysisText || undefined,
-    similarFinds: undefined,
-    purchaseOptions: undefined,
+    similarFinds: similarFinds && similarFinds.length > 0 ? similarFinds : undefined,
+    purchaseOptions: purchaseOptions && purchaseOptions.length > 0 ? purchaseOptions : undefined,
   };
 }

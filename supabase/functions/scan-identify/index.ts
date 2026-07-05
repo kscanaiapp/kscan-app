@@ -31,7 +31,6 @@ import {
   cleanAiJsonText,
   deriveConfidenceLabel,
   normalizeIdentification,
-  rankRecommendedProducts,
   deriveLegacyAttributesFromIdentification,
   ensureLegacyAttributes,
   buildAuditEvent,
@@ -43,7 +42,6 @@ import {
 import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
-  mergeProductCandidates,
 } from '../_shared/catalogRetrieval.ts';
 import {
   getShoppingResults,
@@ -51,8 +49,11 @@ import {
 } from './shoppingProvider.ts';
 import {
   getScanCommerceResults,
-  normalizeProductUrl,
 } from './scanCommerceRouter.ts';
+import {
+  findSimilarityMatches,
+  type SimilarityMatch,
+} from './similarityMatcher.ts';
 import { captureScanIntelligence } from './scanIntelligenceCapture.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -1287,6 +1288,7 @@ Deno.serve(async (req) => {
     //   - Text mode: real shopping providers (Serper primary, Brave fallback).
     //   - Image (camera) mode: existing catalog retrieval (unchanged).
     let finalRecommendedProducts: RankedScanProduct[];
+    let finalSimilarityMatches: SimilarityMatch[] = [];
     let rankedProductsForAudit: RankedScanProduct[];
     let shoppingMeta:
       | {
@@ -1295,6 +1297,7 @@ Deno.serve(async (req) => {
         count: number;
         providersTried?: string[];
         catalogCount?: number;
+        similarityMatches?: number;
       }
       | undefined;
 
@@ -1331,12 +1334,9 @@ Deno.serve(async (req) => {
         count: finalRecommendedProducts.length,
       };
     } else {
-      // Image (camera) mode: preserve existing catalog retrieval and add the
-      // Serper/Brave live commerce fallback. Catalog is sparse in the demo
-      // build, so live results are preferred when they duplicate catalog rows.
-      const completedExistingProducts = Array.isArray(completedResponseWithAttributes.recommendedProducts)
-        ? completedResponseWithAttributes.recommendedProducts
-        : [];
+      // Image (camera) mode: live commerce first, then deterministic catalog
+      // similarity scoring. The similarity matcher runs non-blocking and is
+      // allowed to return fewer than 2 matches; the UI hides the section then.
       const completedCatalogCandidates = completedNormalizedId
         ? await fetchCatalogCandidates(catalogClient, completedNormalizedId, { limit: 30 })
         : [];
@@ -1368,19 +1368,29 @@ Deno.serve(async (req) => {
         url: p.productUrl,
       }));
 
-      const completedMergedCandidates = mergeLiveAndCatalogProducts(liveProducts, adaptedCatalogCandidates);
-      const completedRankedProducts = rankRecommendedProducts(
-        completedMergedCandidates,
-        completedNormalizedId,
-      );
-      finalRecommendedProducts = completedRankedProducts.slice(0, 10);
-      rankedProductsForAudit = completedRankedProducts;
+      finalRecommendedProducts = liveProducts.slice(0, 10) as RankedScanProduct[];
+
+      // Score catalog candidates separately; never block commerce on this.
+      try {
+        finalSimilarityMatches = await findSimilarityMatches({
+          normalizedIdentification: completedNormalizedId,
+          candidates: adaptedCatalogCandidates,
+          options: { threshold: 60, maxMatches: 10, timeoutMs: 300, candidateCap: 500 },
+        });
+      } catch (similarityErr) {
+        const msg = similarityErr instanceof Error ? similarityErr.message : String(similarityErr);
+        console.warn('[scan-identify] similarity matcher failed: %s', msg);
+        finalSimilarityMatches = [];
+      }
+
+      rankedProductsForAudit = finalSimilarityMatches as RankedScanProduct[];
       shoppingMeta = {
         provider: commerce.provider,
         providersTried: commerce.providersTried,
         query: commerce.query,
         count: liveProducts.length,
         catalogCount: adaptedCatalogCandidates.length,
+        similarityMatches: finalSimilarityMatches.length,
       };
     }
 
@@ -1388,6 +1398,7 @@ Deno.serve(async (req) => {
       ...completedResponseWithAttributes,
       ...(mode === 'image' ? { scanId } : {}),
       recommendedProducts: finalRecommendedProducts,
+      ...(mode === 'image' ? { similarityMatches: finalSimilarityMatches } : {}),
       ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
       ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
       displayResult: buildDisplayResult(
@@ -1443,50 +1454,6 @@ function safeStringMessage(value: unknown): string | undefined {
   const t = value.replace(/\s+/g, ' ').trim();
   if (!t) return undefined;
   return t.slice(0, MAX_USER_MESSAGE_LEN);
-}
-
-/**
- * Merge live commerce products with catalog candidates.
- * Live products are preferred; catalog duplicates are dropped by normalized URL.
- * Products without a URL are still kept to preserve existing catalog behavior.
- */
-function mergeLiveAndCatalogProducts(
-  liveProducts: Record<string, unknown>[],
-  catalogCandidates: Record<string, unknown>[],
-): Record<string, unknown>[] {
-  const merged: Record<string, unknown>[] = [];
-  const seenUrls = new Set<string>();
-
-  function normalizedUrlOf(p: Record<string, unknown>): string | undefined {
-    const candidates = [p.productUrl, p.product_url, p.url, p.purchaseUrl, p.purchase_url];
-    for (const c of candidates) {
-      const normalized = normalizeProductUrl(c);
-      if (normalized) return normalized;
-    }
-    return undefined;
-  }
-
-  // Live products first so they win dedupe.
-  for (const p of liveProducts) {
-    const url = normalizedUrlOf(p);
-    if (url) {
-      if (seenUrls.has(url)) continue;
-      seenUrls.add(url);
-    }
-    merged.push(p);
-  }
-
-  // Catalog products appended; skip any whose normalized URL already appeared.
-  for (const p of catalogCandidates) {
-    const url = normalizedUrlOf(p);
-    if (url) {
-      if (seenUrls.has(url)) continue;
-      seenUrls.add(url);
-    }
-    merged.push(p);
-  }
-
-  return merged;
 }
 
 async function captureImageModeScanIntelligence(input: {

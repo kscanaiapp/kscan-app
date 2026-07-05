@@ -37,7 +37,10 @@ export type MappedFashionAnalysis = {
   type: 'fashion';
   result: string;
   metadata: MappedScanMetadata;
+  /** Catalog similarity matches (legacy ProductShelf / V2 Similar Finds). */
   products: RankedScanProduct[];
+  /** Live commerce purchase options when the backend separates them. */
+  purchaseOptions?: RankedScanProduct[];
   displayResult?: DisplayResult;
   /**
    * Optional structured Scan Result Object (Part 2 activation). Additive and
@@ -137,15 +140,22 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
       resp.identification?.visual_observation?.trim() ??
       resp.userMessage?.trim() ??
       DEFAULT_FASHION_SUMMARY;
-    const products = resp.recommendedProducts ?? [];
+
+    // Phase 3A split: similarityMatches power the catalog shelf; recommendedProducts
+    // are live commerce purchase options. For backward compat with an older backend
+    // that only returns recommendedProducts, treat that field as the catalog shelf.
+    const hasSimilarityField = Array.isArray(resp.similarityMatches);
+    const products = hasSimilarityField ? resp.similarityMatches : (resp.recommendedProducts ?? []);
+    const purchaseOptions = hasSimilarityField ? resp.recommendedProducts : undefined;
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.log('[scanIdentificationMapper] mapped products=' + products.length);
+      console.log('[scanIdentificationMapper] mapped products=' + products.length + ' purchaseOptions=' + (purchaseOptions?.length ?? 0));
     }
     const analysis: MappedFashionAnalysis = {
       type: 'fashion',
       result,
       metadata: buildMetadata(resp.attributes, resp.identification),
       products,
+      purchaseOptions,
       displayResult: resp.displayResult,
     };
 

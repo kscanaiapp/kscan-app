@@ -166,7 +166,6 @@ export function AnalysisCard({
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
-  const showEmptyGuidance = products.length === 0 && priceDiscoveryEnabled;
 
   return (
     <Modal transparent animationType="none" onRequestClose={runExit}>
@@ -262,18 +261,10 @@ export function AnalysisCard({
                 <ScanResultCard scanResultObject={scanResultObject} />
               ) : null}
 
-              {/* Products or empty state */}
-              {priceDiscoveryEnabled ? (
-                products.length > 0
-                  ? <ProductShelf products={products} />
-                  : (
-                    <View style={styles.emptyState}>
-                      <Text style={styles.noMatchNote}>No catalog matches yet.</Text>
-                      <Text style={styles.noMatchSub}>
-                        The style read is still useful. Try a clearer angle, closer crop, or simpler background to improve product matches.
-                      </Text>
-                    </View>
-                  )
+              {/* Catalog similarity matches: hide the entire section unless there
+                  are at least 2 meaningful matches. */}
+              {priceDiscoveryEnabled && products.length >= 2 ? (
+                <ProductShelf products={products} />
               ) : null}
 
               {resaleValuationEnabled && secondhand?.enabled && secondhand.items.length > 0 ? (
