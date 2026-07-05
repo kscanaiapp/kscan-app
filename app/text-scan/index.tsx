@@ -381,7 +381,7 @@ export default function TextScanScreen() {
                   </ScrollView>
                 </>
               )}
-              {activeFilter === 'similar' && textScanResult.products.length > 0 && (
+              {(activeFilter === 'all' || activeFilter === 'similar') && textScanResult.products.filter((p) => p.type === 'similar').length > 0 && (
                 <>
                   <SectionHeader
                     title="Similar Finds"
@@ -392,7 +392,9 @@ export default function TextScanScreen() {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.productShelf}
                   >
-                    {textScanResult.products.map((product) => (
+                    {textScanResult.products
+                      .filter((p) => p.type === 'similar')
+                      .map((product) => (
                       <TextScanProductCard
                         key={product.id}
                         product={product}

@@ -56,6 +56,16 @@ function formatPrice(price: unknown, currency: unknown): string | undefined {
   return `${symbol}${price.toFixed(2)}`;
 }
 
+// Accepts either a pre-formatted string price (from real shopping providers,
+// e.g. Serper) or a numeric price + currency (legacy/catalog shape).
+function normalizeProductPrice(price: unknown, currency: unknown): string | undefined {
+  if (typeof price === 'string') {
+    const trimmed = price.trim();
+    return trimmed || undefined;
+  }
+  return formatPrice(price, currency);
+}
+
 function classifyProductType(source?: string | null): TextScanProductType {
   const resaleNames = [
     'ebay', 'poshmark', 'depop', 'thredup', 'thred up',
@@ -105,12 +115,13 @@ function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
           : (typeof p.url === 'string' && p.url.trim())
             ? p.url.trim()
             : undefined;
+    const explicitType = typeof p.type === 'string' ? p.type.trim().toLowerCase() : '';
     products.push({
       id,
       title,
       source,
-      price: formatPrice(p.price, p.currency),
-      type: classifyProductType(source),
+      price: normalizeProductPrice(p.price, p.currency),
+      type: explicitType === 'similar' ? 'similar' : classifyProductType(source),
       imageUrl,
       productUrl,
     });

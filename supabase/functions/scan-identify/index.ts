@@ -37,12 +37,17 @@ import {
   logScanIdentificationAudit,
   safeParseAiJson,
   type NormalizedIdentification,
+  type RankedScanProduct,
 } from '../_shared/scanHelpers.ts';
 import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
   mergeProductCandidates,
 } from '../_shared/catalogRetrieval.ts';
+import {
+  getShoppingResults,
+  buildShoppingQuery,
+} from './shoppingProvider.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -1249,23 +1254,68 @@ Deno.serve(async (req) => {
     const completedNormalizedId = normalizeIdentification(
       completedResponseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
     );
-    const completedExistingProducts = Array.isArray(completedResponseWithAttributes.recommendedProducts)
-      ? completedResponseWithAttributes.recommendedProducts
-      : [];
-    const completedCatalogCandidates = completedNormalizedId
-      ? await fetchCatalogCandidates(catalogClient, completedNormalizedId, { limit: 30 })
-      : [];
-    const completedMergedCandidates = mergeProductCandidates(
-      completedExistingProducts,
-      completedCatalogCandidates.map(adaptCatalogCandidate),
-    );
-    const completedRankedProducts = rankRecommendedProducts(
-      completedMergedCandidates,
-      completedNormalizedId,
-    );
+    // Product recommendations.
+    //   - Text mode: real shopping providers (Serper primary, Brave fallback).
+    //   - Image (camera) mode: existing catalog retrieval (unchanged).
+    let finalRecommendedProducts: RankedScanProduct[];
+    let rankedProductsForAudit: RankedScanProduct[];
+    let shoppingMeta: { provider: string; query: string; count: number } | undefined;
+
+    if (mode === 'text') {
+      const shoppingQuery = buildShoppingQuery({
+        searchQueries: identification?.search_queries,
+        brand: identification?.brand_guess ?? identification?.visible_brand_text,
+        color: identification?.primary_color,
+        category: identification?.item_type ?? identification?.subtype,
+        material: identification?.material_estimate,
+        silhouette: identification?.silhouette,
+        style: Array.isArray(identification?.style_tags)
+          ? (identification.style_tags as unknown[]).join(' ')
+          : identification?.style_tags,
+        text: textQuery,
+      });
+      const shopping = await getShoppingResults({ query: shoppingQuery, limit: 8 });
+      finalRecommendedProducts = shopping.products.slice(0, 8).map((p) => ({
+        id: p.id,
+        name: p.title,
+        title: p.title,
+        source: p.source,
+        retailer: p.source,
+        url: p.productUrl,
+        product_url: p.productUrl,
+        imageUrl: p.imageUrl,
+        price: p.price,
+        type: p.type,
+      })) as RankedScanProduct[];
+      rankedProductsForAudit = finalRecommendedProducts;
+      shoppingMeta = {
+        provider: shopping.provider,
+        query: shopping.query,
+        count: finalRecommendedProducts.length,
+      };
+    } else {
+      const completedExistingProducts = Array.isArray(completedResponseWithAttributes.recommendedProducts)
+        ? completedResponseWithAttributes.recommendedProducts
+        : [];
+      const completedCatalogCandidates = completedNormalizedId
+        ? await fetchCatalogCandidates(catalogClient, completedNormalizedId, { limit: 30 })
+        : [];
+      const completedMergedCandidates = mergeProductCandidates(
+        completedExistingProducts,
+        completedCatalogCandidates.map(adaptCatalogCandidate),
+      );
+      const completedRankedProducts = rankRecommendedProducts(
+        completedMergedCandidates,
+        completedNormalizedId,
+      );
+      finalRecommendedProducts = completedRankedProducts.slice(0, 10);
+      rankedProductsForAudit = completedRankedProducts;
+    }
+
     const finalResponse = {
       ...completedResponseWithAttributes,
-      recommendedProducts: completedRankedProducts.slice(0, 10),
+      recommendedProducts: finalRecommendedProducts,
+      ...(shoppingMeta ? { shopping: shoppingMeta } : {}),
       displayResult: buildDisplayResult(
         completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
         typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
@@ -1276,7 +1326,7 @@ Deno.serve(async (req) => {
     const auditEvent = buildAuditEvent(
       finalResponse,
       completedNormalizedId,
-      completedRankedProducts,
+      rankedProductsForAudit,
       elapsedMs,
       scanId,
     );
