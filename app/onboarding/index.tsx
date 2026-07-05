@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import {
@@ -95,11 +95,19 @@ export default function OnboardingScreen() {
     savePreferences,
   } = usePermissionPreferences();
 
+  const navigationRef = useNavigationContainerRef();
   const replaceHomeOnce = useCallback(() => {
     if (routedHomeRef.current) return;
     routedHomeRef.current = true;
-    router.replace('/');
-  }, [router]);
+    const performReplace = () => {
+      if (navigationRef.isReady?.()) {
+        router.replace('/');
+        return;
+      }
+      setTimeout(performReplace, 50);
+    };
+    performReplace();
+  }, [router, navigationRef]);
 
   const moveToTermsOnce = useCallback(() => {
     setStep((current) => (current === 4 ? current : 4));
