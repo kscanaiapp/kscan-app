@@ -9,9 +9,9 @@
  *   non_fashion  → { type: 'non-fashion', message }
  *   failed       → throws a user-safe error (caught by useKScan → error state)
  *
- * `products` is the backend `recommendedProducts` (catalog-ranked candidates)
- * passed straight through, falling back to [] when absent. ProductShelf reads
- * each candidate's image/url/retailer/price fields directly.
+ * In Phase 3A, `products` is the backend `similarityMatches` catalog shelf and
+ * `purchaseOptions` is live `recommendedProducts`. Older responses without
+ * `similarityMatches` still fall back to `recommendedProducts` as the shelf.
  */
 
 import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification, RankedScanProduct, DisplayResult } from '../types/scanIdentification';
@@ -144,9 +144,11 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
     // Phase 3A split: similarityMatches power the catalog shelf; recommendedProducts
     // are live commerce purchase options. For backward compat with an older backend
     // that only returns recommendedProducts, treat that field as the catalog shelf.
-    const hasSimilarityField = Array.isArray(resp.similarityMatches);
-    const products = hasSimilarityField ? resp.similarityMatches : (resp.recommendedProducts ?? []);
-    const purchaseOptions = hasSimilarityField ? resp.recommendedProducts : undefined;
+    const hasSimilarityField = Object.prototype.hasOwnProperty.call(resp, 'similarityMatches');
+    const similarityMatches = Array.isArray(resp.similarityMatches) ? resp.similarityMatches : [];
+    const recommendedProducts = Array.isArray(resp.recommendedProducts) ? resp.recommendedProducts : [];
+    const products = hasSimilarityField ? similarityMatches : recommendedProducts;
+    const purchaseOptions = hasSimilarityField ? recommendedProducts : undefined;
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('[scanIdentificationMapper] mapped products=' + products.length + ' purchaseOptions=' + (purchaseOptions?.length ?? 0));
     }

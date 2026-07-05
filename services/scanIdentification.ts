@@ -9,10 +9,11 @@
  *   - Validates + size-guards the payload before any network call (<= 2 MB).
  *   - Always returns a normalized response (status, recommendedProducts,
  *     userMessage); never throws raw provider/network errors at the UI.
- *   - On `completed`, passes through the backend `recommendedProducts` array
- *     (catalog-ranked candidates) unchanged except for light field hygiene;
- *     falls back to [] when the field is missing/null/invalid. `non_fashion`
- *     and `failed` always return [].
+ *   - On `completed`, passes through backend product arrays unchanged except
+ *     for light field hygiene. Phase 3A separates live `recommendedProducts`
+ *     from catalog `similarityMatches`; missing/null/invalid arrays normalize
+ *     to [] when their field is present. `non_fashion` and `failed` always
+ *     return [].
  *   - Does not touch TextScan.
  */
 
@@ -274,7 +275,7 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
   if (rawStatus === 'completed') {
     const attributes = normalizeAttributes(src.attributes);
     if (!attributes) return failed();
-    return {
+    const out: ScanIdentifyResponse = {
       status: 'completed',
       recommendedProducts: normalizeRecommendedProducts(src.recommendedProducts),
       attributes,
@@ -283,6 +284,10 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
       scanId: typeof src.scanId === 'string' ? src.scanId : undefined,
       displayResult: normalizeDisplayResult(src.displayResult),
     };
+    if (Object.prototype.hasOwnProperty.call(src, 'similarityMatches')) {
+      out.similarityMatches = normalizeRecommendedProducts(src.similarityMatches);
+    }
+    return out;
   }
 
   // Anything else (including explicit 'failed') maps to a safe failure. Only an

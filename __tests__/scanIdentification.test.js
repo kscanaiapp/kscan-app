@@ -361,6 +361,25 @@ test('adapter: normalizeScanIdentifyResponse preserves recommendedProducts', () 
   assert.equal(out.recommendedProducts[1].name, 'Blazer');
 });
 
+test('adapter: normalizeScanIdentifyResponse preserves similarityMatches separately', () => {
+  const adapter = loadAdapter({});
+  const out = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    attributes: { category: 'Outerwear' },
+    recommendedProducts: [
+      { id: 'live-1', title: 'Live Commerce Coat', type: 'retail' },
+    ],
+    similarityMatches: [
+      { id: 'sim-1', name: 'Catalog Similar Coat', matchScore: 82 },
+    ],
+  });
+  assert.equal(out.status, 'completed');
+  assert.equal(out.recommendedProducts.length, 1);
+  assert.equal(out.recommendedProducts[0].id, 'live-1');
+  assert.equal(out.similarityMatches.length, 1);
+  assert.equal(out.similarityMatches[0].id, 'sim-1');
+});
+
 test('adapter: normalizeScanIdentifyResponse normalizes displayResult', () => {
   const adapter = loadAdapter({});
   const out = adapter.normalizeScanIdentifyResponse({
@@ -403,6 +422,41 @@ test('mapper: recommendedProducts passed through as products', () => {
   assert.equal(out.type, 'fashion');
   assert.equal(out.products.length, 1);
   assert.equal(out.products[0].displayName, 'Black Blazer');
+});
+
+test('mapper: similarityMatches drive products and recommendedProducts become purchaseOptions', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [
+      { id: 'live-1', title: 'Live Commerce Coat', type: 'retail' },
+    ],
+    similarityMatches: [
+      { id: 'sim-1', name: 'Catalog Similar Coat', matchScore: 82 },
+    ],
+    userMessage: 'A coat.',
+    attributes: { category: 'Outerwear' },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.products.length, 1);
+  assert.equal(out.products[0].id, 'sim-1');
+  assert.equal(out.purchaseOptions.length, 1);
+  assert.equal(out.purchaseOptions[0].id, 'live-1');
+});
+
+test('mapper: explicit null similarityMatches hides catalog products but preserves purchaseOptions', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [
+      { id: 'live-1', title: 'Live Commerce Coat', type: 'retail' },
+    ],
+    similarityMatches: null,
+    userMessage: 'A coat.',
+    attributes: { category: 'Outerwear' },
+  });
+  assert.equal(out.type, 'fashion');
+  assertEmptyArray(out.products);
+  assert.equal(out.purchaseOptions.length, 1);
+  assert.equal(out.purchaseOptions[0].id, 'live-1');
 });
 
 test('mapper: displayResult preserved on fashion analysis', () => {

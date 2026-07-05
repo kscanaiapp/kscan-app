@@ -21,8 +21,8 @@
 //   - GEMINI_API_KEY never leaves this function
 //   - Raw provider output is parsed + normalized, never returned verbatim
 //   - No stack traces returned to the client
-//   - recommendedProducts: image mode uses catalog retrieval (product_catalog DB);
-//     text mode uses live shopping APIs (Serper primary, Brave fallback).
+//   - recommendedProducts: live commerce products.
+//   - similarityMatches: image-mode catalog similarity products.
 //
 // Kill switch: set SCAN_IDENTIFY_AI_ENABLED=false (trim/case-insensitive) to disable.
 // Model precedence: SCAN_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL.
@@ -73,6 +73,7 @@ const MAX_OUTPUT_TOKENS = 2048;
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
 const SCAN_INTELLIGENCE_TIMEOUT_MS = 500;
+const SIMILARITY_TIMEOUT_MS = 300;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
@@ -1337,11 +1338,6 @@ Deno.serve(async (req) => {
       // Image (camera) mode: live commerce first, then deterministic catalog
       // similarity scoring. The similarity matcher runs non-blocking and is
       // allowed to return fewer than 2 matches; the UI hides the section then.
-      const completedCatalogCandidates = completedNormalizedId
-        ? await fetchCatalogCandidates(catalogClient, completedNormalizedId, { limit: 30 })
-        : [];
-      const adaptedCatalogCandidates = completedCatalogCandidates.map(adaptCatalogCandidate);
-
       const commerce = await getScanCommerceResults({
         mode: 'image',
         identification: (completedResponseWithAttributes.identification as Record<string, unknown> | undefined) ||
@@ -1370,18 +1366,13 @@ Deno.serve(async (req) => {
 
       finalRecommendedProducts = liveProducts.slice(0, 10) as RankedScanProduct[];
 
-      // Score catalog candidates separately; never block commerce on this.
-      try {
-        finalSimilarityMatches = await findSimilarityMatches({
-          normalizedIdentification: completedNormalizedId,
-          candidates: adaptedCatalogCandidates,
-          options: { threshold: 60, maxMatches: 10, timeoutMs: 300, candidateCap: 500 },
-        });
-      } catch (similarityErr) {
-        const msg = similarityErr instanceof Error ? similarityErr.message : String(similarityErr);
-        console.warn('[scan-identify] similarity matcher failed: %s', msg);
-        finalSimilarityMatches = [];
-      }
+      // Score catalog candidates separately after live commerce. Timeout/error
+      // returns [] so Similar Items hides without suppressing purchase options.
+      const similarity = await buildImageSimilarityMatches({
+        catalogClient,
+        normalizedIdentification: completedNormalizedId,
+      });
+      finalSimilarityMatches = similarity.matches;
 
       rankedProductsForAudit = finalSimilarityMatches as RankedScanProduct[];
       shoppingMeta = {
@@ -1389,7 +1380,7 @@ Deno.serve(async (req) => {
         providersTried: commerce.providersTried,
         query: commerce.query,
         count: liveProducts.length,
-        catalogCount: adaptedCatalogCandidates.length,
+        catalogCount: similarity.catalogCount,
         similarityMatches: finalSimilarityMatches.length,
       };
     }
@@ -1454,6 +1445,63 @@ function safeStringMessage(value: unknown): string | undefined {
   const t = value.replace(/\s+/g, ' ').trim();
   if (!t) return undefined;
   return t.slice(0, MAX_USER_MESSAGE_LEN);
+}
+
+async function buildImageSimilarityMatches(input: {
+  catalogClient: unknown;
+  normalizedIdentification: NormalizedIdentification | null;
+}): Promise<{ matches: SimilarityMatch[]; catalogCount: number }> {
+  if (!input.normalizedIdentification) {
+    return { matches: [], catalogCount: 0 };
+  }
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const work = (async (): Promise<{
+    matches: SimilarityMatch[];
+    catalogCount: number;
+    error?: unknown;
+  }> => {
+    try {
+      const catalogCandidates = await fetchCatalogCandidates(
+        input.catalogClient,
+        input.normalizedIdentification,
+        { limit: 30 },
+      );
+      const adaptedCatalogCandidates = catalogCandidates.map(adaptCatalogCandidate);
+      const matches = await findSimilarityMatches({
+        normalizedIdentification: input.normalizedIdentification,
+        candidates: adaptedCatalogCandidates,
+        options: {
+          threshold: 60,
+          maxMatches: 10,
+          timeoutMs: SIMILARITY_TIMEOUT_MS,
+          candidateCap: 500,
+        },
+      });
+      return { matches, catalogCount: adaptedCatalogCandidates.length };
+    } catch (error) {
+      return { matches: [], catalogCount: 0, error };
+    }
+  })();
+
+  const result = await Promise.race([
+    work,
+    new Promise<'timeout'>((resolve) => {
+      timeoutId = setTimeout(() => resolve('timeout'), SIMILARITY_TIMEOUT_MS);
+    }),
+  ]);
+  if (timeoutId) clearTimeout(timeoutId);
+
+  if (result === 'timeout') {
+    console.warn('[scan-identify] similarity matcher timed out after %dms', SIMILARITY_TIMEOUT_MS);
+    return { matches: [], catalogCount: 0 };
+  }
+
+  if (result.error) {
+    const msg = result.error instanceof Error ? result.error.message : String(result.error);
+    console.warn('[scan-identify] similarity matcher failed: %s', msg);
+  }
+  return { matches: result.matches, catalogCount: result.catalogCount };
 }
 
 async function captureImageModeScanIntelligence(input: {

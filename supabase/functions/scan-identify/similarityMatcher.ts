@@ -16,7 +16,7 @@
  *   silhouette          3
  *
  * A match must score >= threshold (default 60) to be returned. The UI hides the
- * "Catalog Matches" section entirely when fewer than 2 meaningful matches exist.
+ * "Similar Items" section entirely when fewer than 2 meaningful matches exist.
  */
 
 export type SimilarityMatchInputIdentification = {

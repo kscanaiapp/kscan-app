@@ -423,7 +423,7 @@ function buildCardSubtitle(
     return `${matchCount} ${noun} found`;
   }
   if (weak) return 'Style match found — exact item still learning';
-  return 'No catalog matches yet — saved as style metadata';
+  return 'No similar items yet — saved as style metadata';
 }
 
 function capitalizeFirst(value: string): string {

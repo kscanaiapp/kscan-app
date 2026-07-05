@@ -269,7 +269,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
   if (!products || products.length === 0) {
     return (
       <View testID="product-shelf-empty" style={styles.emptyShelf}>
-        <Text style={styles.emptyShelfTitle}>No catalog matches yet.</Text>
+        <Text style={styles.emptyShelfTitle}>No similar items yet.</Text>
         <Text style={styles.emptyShelfBody}>
           Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.
         </Text>
@@ -296,7 +296,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
   return (
     <View testID="product-shelf" style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>CATALOG MATCHES</Text>
+        <Text style={styles.label}>SIMILAR ITEMS</Text>
         <View style={styles.labelLine} />
       </View>
 
