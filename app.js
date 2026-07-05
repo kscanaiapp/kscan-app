@@ -971,7 +971,6 @@ export default function App() {
               });
               router.push('/style-chat');
             } : undefined}
-            onFindSimilar={() => { /* scroll to similar finds handled internally */ }}
           />
         ) : (
           <AnalysisCard

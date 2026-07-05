@@ -93,6 +93,8 @@ export function ScanResultV2({
   const translateY = React.useRef(new Animated.Value(FROM_Y)).current;
   const opacity = React.useRef(new Animated.Value(0)).current;
   const isExiting = React.useRef(false);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const similarFindsY = React.useRef(0);
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -144,6 +146,8 @@ export function ScanResultV2({
   // Build title from available metadata
   const title = v2Data?.title || 'Style Match';
 
+  const hasSimilarFinds = Array.isArray(v2Data?.similarFinds) && v2Data.similarFinds.length > 0;
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -152,11 +156,15 @@ export function ScanResultV2({
     }
   };
 
-  const handleViewAllSimilar = () => {
-    if (onFindSimilar) {
-      onFindSimilar();
+  const handleFindSimilar = React.useCallback(() => {
+    if (scrollViewRef.current && similarFindsY.current > 0) {
+      scrollViewRef.current.scrollTo({ y: similarFindsY.current, animated: true });
     }
-  };
+    // Keep any external handler contract intact.
+    onFindSimilar?.();
+  }, [onFindSimilar]);
+
+  const handleViewAllSimilar = handleFindSimilar;
 
   // If no meaningful data at all, show empty state
   if (!v2Data) {
@@ -215,6 +223,7 @@ export function ScanResultV2({
 
           <View style={styles.card}>
             <ScrollView
+              ref={scrollViewRef}
               bounces={false}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
@@ -283,7 +292,12 @@ export function ScanResultV2({
               </View>
 
               {/* Similar Finds */}
-              <View style={styles.section}>
+              <View
+                style={styles.section}
+                onLayout={(event) => {
+                  similarFindsY.current = event.nativeEvent.layout.y;
+                }}
+              >
                 <SimilarFindsShelf
                   similarFinds={v2Data.similarFinds}
                   onViewAll={handleViewAllSimilar}
@@ -320,7 +334,7 @@ export function ScanResultV2({
             {/* Sticky Bottom Action Row */}
             <ScanResultActionRow
               onSave={onSaveToLibrary}
-              onFindSimilar={onFindSimilar}
+              onFindSimilar={hasSimilarFinds ? handleFindSimilar : undefined}
               onAskStyleChat={onAskStyleChat}
               onAddToDressingRoom={onAddToDressingRoom}
             />
