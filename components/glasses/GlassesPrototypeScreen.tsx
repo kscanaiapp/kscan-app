@@ -14,8 +14,8 @@ import {
   Pressable,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { GlassesCaptureState, GlassesMockResult } from '../../types/glasses';
 import { analyze } from '../../services/glasses/mockGlassesService';
