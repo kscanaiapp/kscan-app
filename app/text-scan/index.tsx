@@ -441,20 +441,6 @@ export default function TextScanScreen() {
                 testID="textscan-ask-stylechat"
               />
             )}
-            <SecondaryButton
-              title="Save to Style Closet"
-              disabled
-              onPress={() => {}}
-              accessibilityLabel="Save coming soon for TextScan"
-              testID="textscan-save-library"
-            />
-            <SecondaryButton
-              title="Add to Dressing Room"
-              disabled
-              onPress={() => {}}
-              accessibilityLabel="Add to Room coming soon for TextScan"
-              testID="textscan-add-room"
-            />
             <PrimaryButton
               title="Scan Again"
               onPress={handleScanAgain}
@@ -611,20 +597,6 @@ export default function TextScanScreen() {
               testID="textscan-ask-stylechat"
             />
           )}
-          <SecondaryButton
-            title="Save to Style Closet"
-            disabled
-            onPress={() => {}}
-            accessibilityLabel="Save support for TextScan is being prepared"
-            testID="textscan-save-library"
-          />
-          <SecondaryButton
-            title="Add to Dressing Room"
-            disabled
-            onPress={() => {}}
-            accessibilityLabel="Dressing Room support for TextScan is being prepared"
-            testID="textscan-add-room"
-          />
           <PrimaryButton
             title="Scan Again"
             onPress={handleScanAgain}
@@ -854,5 +826,4 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xxl,
   },
 });
-
 

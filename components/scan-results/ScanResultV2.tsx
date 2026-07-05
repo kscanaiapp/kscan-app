@@ -50,6 +50,8 @@ interface ScanResultV2Props {
   onDismiss: () => void;
   /** Called to save the scan to the Style Library. */
   onSaveToLibrary?: () => void;
+  /** Optional label for the save/library action. */
+  saveActionLabel?: string;
   /** Called to add the scan to a Dressing Room. */
   onAddToDressingRoom?: () => void;
   /** Called to navigate to StyleChat. */
@@ -73,6 +75,7 @@ export function ScanResultV2({
   scanSourceId,
   onDismiss,
   onSaveToLibrary,
+  saveActionLabel,
   onAddToDressingRoom,
   onAskStyleChat,
   onFindSimilar,
@@ -334,6 +337,7 @@ export function ScanResultV2({
             {/* Sticky Bottom Action Row */}
             <ScanResultActionRow
               onSave={onSaveToLibrary}
+              saveLabel={saveActionLabel}
               onFindSimilar={hasSimilarFinds ? handleFindSimilar : undefined}
               onAskStyleChat={onAskStyleChat}
               onAddToDressingRoom={onAddToDressingRoom}

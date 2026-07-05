@@ -375,6 +375,7 @@ export default function App() {
   // Reset to false when a new analysis starts (status → processing).
   const hasSavedRef = useRef(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [savedScanId, setSavedScanId] = useState(null);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
 
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
@@ -394,6 +395,7 @@ export default function App() {
       setPerceiving(false);
       setProcHudKey(k => k + 1);
       setV2AnalyzingMinComplete(false);
+      setSavedScanId(null);
       hasSavedRef.current = false; // arm save for the next result
       return;
     }
@@ -421,7 +423,10 @@ export default function App() {
     hasSavedRef.current = true;
     let live = true;
     saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' }).then(saved => {
-      if (live && saved) setSavedToast(true);
+      if (live && saved) {
+        setSavedScanId(saved.id);
+        setSavedToast(true);
+      }
     });
     return () => { live = false; };
   }, [status, photo, analysis]);
@@ -953,7 +958,8 @@ export default function App() {
             scanImageUri={photo?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
             onDismiss={dismissResult}
-            onSaveToLibrary={() => { /* already auto-saved to library */ }}
+            onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
+            saveActionLabel={savedScanId ? 'View Closet' : undefined}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
             onAskStyleChat={styleChatEnabled ? () => {
               const source = photo?.source === 'upload' ? 'upload' : 'camera';
