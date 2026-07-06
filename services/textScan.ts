@@ -111,6 +111,21 @@ function firstString(value: unknown): string | undefined {
   return undefined;
 }
 
+function firstNonEmptyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function firstProductArray(src: Record<string, unknown>): unknown[] | undefined {
+  for (const key of ['recommendedProducts', 'products', 'purchaseOptions', 'shoppingResults', 'retailMatches']) {
+    const value = src[key];
+    if (Array.isArray(value) && value.length > 0) return value;
+  }
+  return undefined;
+}
+
 function safeAttributes(raw: unknown): TextScanAttributes {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return {};
@@ -126,7 +141,8 @@ function safeAttributes(raw: unknown): TextScanAttributes {
   const metadataDirectAttrs =
     metadata &&
     (metadata.category || metadata.color || metadata.itemType || metadata.silhouette ||
-      metadata.material || metadata.materialEstimate || metadata.styleTags || metadata.styleDescriptors)
+      metadata.material || metadata.materialEstimate || metadata.style || metadata.styleTags ||
+      metadata.tags || metadata.styleDescriptors)
       ? metadata
       : undefined;
 
@@ -147,21 +163,35 @@ function safeAttributes(raw: unknown): TextScanAttributes {
 
   return {
     category:
-      safeString(base.category ?? base.itemType ?? identification?.item_type ?? identification?.subtype) || null,
+      firstNonEmptyString(
+        base.category,
+        base.itemType,
+        identification?.item_type,
+        identification?.category,
+        identification?.subtype
+      ) || null,
     color:
-      safeString(
-        base.color ?? firstColor(base.colorPalette) ?? identification?.primary_color
+      firstNonEmptyString(
+        base.color,
+        firstColor(base.colorPalette),
+        identification?.primary_color,
+        identification?.color
       ) || null,
     material:
-      safeString(
-        base.material ?? base.fabric ?? base.materialEstimate ?? identification?.material_estimate
+      firstNonEmptyString(
+        base.material,
+        firstString(base.materials),
+        base.fabric,
+        base.materialEstimate,
+        identification?.material_estimate,
+        identification?.material
       ) || null,
     silhouette:
-      safeString(base.silhouette ?? base.fit ?? identification?.silhouette) || null,
+      firstNonEmptyString(base.silhouette, base.fit, identification?.silhouette) || null,
     occasion:
-      safeString(base.occasion ?? firstString(identification?.occasion_tags)) || null,
+      firstNonEmptyString(base.occasion, firstString(identification?.occasion_tags)) || null,
     styleDescriptors: safeArray(
-      base.styleDescriptors ?? base.style ?? base.styleTags ?? identification?.style_tags
+      base.styleDescriptors ?? base.style ?? base.styleTags ?? base.tags ?? identification?.style_tags
     ),
   };
 }
@@ -203,23 +233,42 @@ function classifyProductType(source?: string | null): TextScanProductType {
 function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
   if (!Array.isArray(raw)) return [];
   const products: TextScanProduct[] = [];
-  for (const item of raw) {
+  for (let index = 0; index < raw.length; index++) {
+    const item = raw[index];
     if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
     const p = item as Record<string, unknown>;
-    const id = typeof p.id === 'string' && p.id.trim() ? p.id.trim() : undefined;
-    if (!id) continue;
-    const title = safeString(p.name ?? p.title ?? p.product_name) || undefined;
+    const title = firstNonEmptyString(p.title, p.name, p.productName, p.product_name, p.displayName) || undefined;
     if (!title) continue;
-    const source = safeString(p.retailer ?? p.brand ?? p.source) || 'K Scan';
-    const imageUrl = safeString(p.imageUrl ?? p.image_url) || undefined;
-    const productUrl = safeString(p.purchaseUrl ?? p.productUrl ?? p.product_url ?? p.url) || undefined;
+    const productUrl = firstNonEmptyString(
+      p.productUrl,
+      p.product_url,
+      p.purchaseUrl,
+      p.purchase_url,
+      p.url,
+      p.link,
+      p.affiliateUrl
+    ) || undefined;
+    const id = firstNonEmptyString(p.id, productUrl, `${title}-${index}`);
+    const source = firstNonEmptyString(p.retailer, p.merchant, p.source, p.brand, p.store) || 'K Scan';
+    const imageUrl = firstNonEmptyString(
+      p.imageUrl,
+      p.image_url,
+      p.thumbnail,
+      p.thumbnailUrl,
+      p.image_src,
+      p.product_image_url
+    ) || undefined;
     const explicitType = typeof p.type === 'string' ? p.type.trim().toLowerCase() : '';
     products.push({
       id,
       title,
       source,
-      price: normalizeProductPrice(p.price, p.currency),
-      type: explicitType === 'similar' ? 'similar' : classifyProductType(source),
+      price: normalizeProductPrice(p.price ?? p.priceText ?? p.salePrice, p.currency),
+      type: explicitType === 'similar'
+        ? 'similar'
+        : explicitType === 'resale'
+        ? 'resale'
+        : classifyProductType(source),
       imageUrl,
       productUrl,
     });
@@ -257,17 +306,21 @@ export function normalizeTextScanResult(
   }
 
   const src = raw as Record<string, unknown>;
-  const rawType = src.type;
+  const rawType = src.type ?? src.status;
+  const rawStatus = safeString(src.status).toLowerCase();
 
   // Determine normalized type
   let type: TextScanResultType;
-  if (isNonFashionType(rawType)) {
+  if (rawStatus.includes('non') || isNonFashionType(rawType)) {
     type = 'non_fashion_text';
-  } else if (isFashionType(rawType)) {
+  } else if (rawStatus === 'completed' || isFashionType(rawType)) {
     type = 'fashion_text';
   } else {
     // Fallback: if backend has metadata with category/color, treat as fashion
     const meta = src.metadata ?? src;
+    const attrs = src.attributes;
+    const identification = src.identification;
+    const hasProducts = Array.isArray(firstProductArray(src));
     const hasAttrs =
       !!(
         meta &&
@@ -276,15 +329,45 @@ export function normalizeTextScanResult(
         ((meta as Record<string, unknown>).category ||
           (meta as Record<string, unknown>).color ||
           (meta as Record<string, unknown>).silhouette)
+      ) ||
+      !!(
+        attrs &&
+        typeof attrs === 'object' &&
+        !Array.isArray(attrs) &&
+        ((attrs as Record<string, unknown>).category ||
+          (attrs as Record<string, unknown>).color ||
+          (attrs as Record<string, unknown>).colorPalette ||
+          (attrs as Record<string, unknown>).silhouette)
+      ) ||
+      !!(
+        identification &&
+        typeof identification === 'object' &&
+        !Array.isArray(identification) &&
+        ((identification as Record<string, unknown>).item_type ||
+          (identification as Record<string, unknown>).category ||
+          (identification as Record<string, unknown>).primary_color)
       );
-    type = hasAttrs ? 'fashion_text' : 'non_fashion_text';
+    type = hasAttrs || hasProducts ? 'fashion_text' : 'non_fashion_text';
   }
 
   const metadata = safeMetadata(src, query);
-  const result = safeString(src.result ?? src.message) || NON_FASHION_COPY;
+  const identification =
+    src.identification && typeof src.identification === 'object' && !Array.isArray(src.identification)
+      ? (src.identification as Record<string, unknown>)
+      : undefined;
+  const result = firstNonEmptyString(
+    src.result,
+    src.analysis,
+    src.description,
+    src.message,
+    src.summary,
+    src.userMessage,
+    src.interpretation,
+    identification?.visual_observation
+  ) || NON_FASHION_COPY;
   const confidence = safeNumber(src.confidence);
 
-  const rawProducts = src.recommendedProducts ?? src.products;
+  const rawProducts = firstProductArray(src);
   const products = type === 'non_fashion_text' ? [] : mapRecommendedProducts(rawProducts);
 
   return {

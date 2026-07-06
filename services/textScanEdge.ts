@@ -66,6 +66,28 @@ function normalizeProductPrice(price: unknown, currency: unknown): string | unde
   return formatPrice(price, currency);
 }
 
+function firstNonEmptyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function firstString(value: unknown): string | undefined {
+  if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
+    return value[0].trim();
+  }
+  return undefined;
+}
+
+function firstProductArray(src: Record<string, unknown>): unknown[] | undefined {
+  for (const key of ['recommendedProducts', 'products', 'purchaseOptions', 'shoppingResults', 'retailMatches']) {
+    const value = src[key];
+    if (Array.isArray(value) && value.length > 0) return value;
+  }
+  return undefined;
+}
+
 function classifyProductType(source?: string | null): TextScanProductType {
   const resaleNames = [
     'ebay', 'poshmark', 'depop', 'thredup', 'thred up',
@@ -79,51 +101,42 @@ function classifyProductType(source?: string | null): TextScanProductType {
 function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
   if (!Array.isArray(raw)) return [];
   const products: TextScanProduct[] = [];
-  for (const item of raw) {
+  for (let index = 0; index < raw.length; index++) {
+    const item = raw[index];
     if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
     const p = item as Record<string, unknown>;
-    const id = typeof p.id === 'string' && p.id.trim() ? p.id.trim() : undefined;
-    if (!id) continue;
-    const title =
-      (typeof p.name === 'string' && p.name.trim())
-        ? p.name.trim()
-        : (typeof p.title === 'string' && p.title.trim())
-          ? p.title.trim()
-          : (typeof p.product_name === 'string' && p.product_name.trim())
-            ? p.product_name.trim()
-            : undefined;
+    const title = firstNonEmptyString(p.title, p.name, p.productName, p.product_name, p.displayName) || undefined;
     if (!title) continue;
-    const source =
-      (typeof p.retailer === 'string' && p.retailer.trim())
-        ? p.retailer.trim()
-        : (typeof p.brand === 'string' && p.brand.trim())
-          ? p.brand.trim()
-          : (typeof p.source === 'string' && p.source.trim())
-            ? p.source.trim()
-            : 'K Scan';
-    const imageUrl =
-      (typeof p.imageUrl === 'string' && p.imageUrl.trim())
-        ? p.imageUrl.trim()
-        : (typeof p.image_url === 'string' && p.image_url.trim())
-          ? p.image_url.trim()
-          : undefined;
-    const productUrl =
-      (typeof p.purchaseUrl === 'string' && p.purchaseUrl.trim())
-        ? p.purchaseUrl.trim()
-        : (typeof p.productUrl === 'string' && p.productUrl.trim())
-          ? p.productUrl.trim()
-          : (typeof p.product_url === 'string' && p.product_url.trim())
-            ? p.product_url.trim()
-            : (typeof p.url === 'string' && p.url.trim())
-              ? p.url.trim()
-              : undefined;
+    const productUrl = firstNonEmptyString(
+      p.productUrl,
+      p.product_url,
+      p.purchaseUrl,
+      p.purchase_url,
+      p.url,
+      p.link,
+      p.affiliateUrl
+    ) || undefined;
+    const id = firstNonEmptyString(p.id, productUrl, `${title}-${index}`);
+    const source = firstNonEmptyString(p.retailer, p.merchant, p.source, p.brand, p.store) || 'K Scan';
+    const imageUrl = firstNonEmptyString(
+      p.imageUrl,
+      p.image_url,
+      p.thumbnail,
+      p.thumbnailUrl,
+      p.image_src,
+      p.product_image_url
+    ) || undefined;
     const explicitType = typeof p.type === 'string' ? p.type.trim().toLowerCase() : '';
     products.push({
       id,
       title,
       source,
-      price: normalizeProductPrice(p.price, p.currency),
-      type: explicitType === 'similar' ? 'similar' : classifyProductType(source),
+      price: normalizeProductPrice(p.price ?? p.priceText ?? p.salePrice, p.currency),
+      type: explicitType === 'similar'
+        ? 'similar'
+        : explicitType === 'resale'
+        ? 'resale'
+        : classifyProductType(source),
       imageUrl,
       productUrl,
     });
@@ -164,6 +177,8 @@ function mapEdgeResponseToTextScanResult(
 
     const legacyStyleTags = Array.isArray(a?.styleTags)
       ? (a.styleTags as unknown[]).filter((x): x is string => typeof x === 'string')
+      : Array.isArray(a?.tags)
+      ? (a.tags as unknown[]).filter((x): x is string => typeof x === 'string')
       : undefined;
     const idStyleTags = Array.isArray(identification?.style_tags)
       ? (identification.style_tags as unknown[]).filter((x): x is string => typeof x === 'string')
@@ -186,6 +201,9 @@ function mapEdgeResponseToTextScanResult(
         (typeof identification?.item_type === 'string' && identification.item_type.trim()
           ? identification.item_type.trim()
           : null) ??
+        (typeof identification?.category === 'string' && identification.category.trim()
+          ? identification.category.trim()
+          : null) ??
         (typeof identification?.subtype === 'string' && identification.subtype.trim()
           ? identification.subtype.trim()
           : null),
@@ -196,14 +214,21 @@ function mapEdgeResponseToTextScanResult(
         ) ??
         (typeof identification?.primary_color === 'string' && identification.primary_color.trim()
           ? identification.primary_color.trim()
+          : null) ??
+        (typeof identification?.color === 'string' && identification.color.trim()
+          ? identification.color.trim()
           : null),
       material:
         normalizeMaterial(
           typeof a?.materialEstimate === 'string' ? a.materialEstimate : null,
           typeof a?.material === 'string' ? a.material : null,
         ) ??
+        firstString(a?.materials) ??
         (typeof identification?.material_estimate === 'string' && identification.material_estimate.trim()
           ? identification.material_estimate.trim()
+          : null) ??
+        (typeof identification?.material === 'string' && identification.material.trim()
+          ? identification.material.trim()
           : null),
       silhouette:
         (typeof a?.silhouette === 'string' && a.silhouette.trim() ? a.silhouette.trim() : null) ??
@@ -219,11 +244,19 @@ function mapEdgeResponseToTextScanResult(
 
   const isNonFashion = rawStatus.includes('non');
   const userMessage =
-    typeof src.userMessage === 'string' && src.userMessage.trim()
-      ? src.userMessage.trim()
-      : isNonFashion
-        ? NON_FASHION_MESSAGE
-        : 'Analyzed your fashion request.';
+    firstNonEmptyString(
+      src.result,
+      src.analysis,
+      src.description,
+      src.message,
+      src.summary,
+      src.userMessage,
+      src.interpretation,
+      identification?.visual_observation,
+    ) ||
+    (isNonFashion
+      ? NON_FASHION_MESSAGE
+      : 'Analyzed your fashion request.');
 
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     console.log(
@@ -263,7 +296,7 @@ function mapEdgeResponseToTextScanResult(
         .map((s) => s.trim())
     : [];
 
-  const products = isNonFashion ? [] : mapRecommendedProducts(src.recommendedProducts);
+  const products = isNonFashion ? [] : mapRecommendedProducts(firstProductArray(src));
 
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     console.log(

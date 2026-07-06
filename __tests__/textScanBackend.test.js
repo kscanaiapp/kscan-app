@@ -127,6 +127,63 @@ test('normalizeTextScanResult: preserves products from backend aliases', () => {
   assert.equal(result.products[1].type, 'similar');
 });
 
+test('normalizeTextScanResult: preserves alternate live product arrays', () => {
+  const purchaseOptions = [
+    {
+      productName: 'Black Leather Jacket',
+      merchant: 'AllSaints',
+      thumbnail: 'https://cdn.example.com/jacket.jpg',
+      link: 'https://example.com/jacket',
+      priceText: '$499',
+      type: 'retail',
+    },
+  ];
+  const result = normalizeTextScanResult(
+    {
+      type: 'fashion_text',
+      recommendedProducts: [],
+      products: [],
+      purchaseOptions,
+    },
+    'black leather jacket'
+  );
+
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'Black Leather Jacket');
+  assert.equal(result.products[0].source, 'AllSaints');
+  assert.equal(result.products[0].imageUrl, 'https://cdn.example.com/jacket.jpg');
+  assert.equal(result.products[0].productUrl, 'https://example.com/jacket');
+  assert.equal(result.products[0].price, '$499');
+  assert.equal(result.purchaseOptions?.length, 1);
+  assert.equal(purchaseOptions[0].productName, 'Black Leather Jacket');
+});
+
+test('normalizeTextScanResult: maps retailMatches and broad product aliases', () => {
+  const result = normalizeTextScanResult(
+    {
+      type: 'fashion_text',
+      retailMatches: [
+        {
+          displayName: 'White Linen Dress',
+          store: 'Reformation',
+          thumbnailUrl: 'https://cdn.example.com/dress.jpg',
+          purchase_url: 'https://example.com/dress',
+          salePrice: 198,
+          currency: 'USD',
+        },
+      ],
+    },
+    'white linen dress'
+  );
+
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'White Linen Dress');
+  assert.equal(result.products[0].source, 'Reformation');
+  assert.equal(result.products[0].imageUrl, 'https://cdn.example.com/dress.jpg');
+  assert.equal(result.products[0].productUrl, 'https://example.com/dress');
+  assert.equal(result.products[0].price, 'USD198.00');
+});
+
 test('normalizeTextScanResult: non-fashion responses keep empty products', () => {
   const result = normalizeTextScanResult(
     { type: 'non_fashion_text', products: [{ id: 'p1', title: 'Fake' }] },
@@ -176,6 +233,49 @@ test('normalizeTextScanResult: identification aliases fill gaps when legacy attr
   assert.deepStrictEqual(result.metadata.attributes.styleDescriptors, ['preppy']);
 });
 
+test('normalizeTextScanResult: maps metadata and newer identification aliases', () => {
+  const result = normalizeTextScanResult(
+    {
+      type: 'fashion_text',
+      metadata: {
+        category: 'outerwear',
+        color: 'black',
+        material: 'leather',
+        silhouette: 'moto',
+        tags: ['edgy', 'minimal'],
+      },
+      identification: {
+        category: 'jacket',
+        color: 'black',
+        material: 'leather',
+        brand_name: 'Acne Studios',
+      },
+    },
+    'black leather jacket'
+  );
+
+  assert.equal(result.metadata.attributes.category, 'outerwear');
+  assert.equal(result.metadata.attributes.color, 'black');
+  assert.equal(result.metadata.attributes.material, 'leather');
+  assert.equal(result.metadata.attributes.silhouette, 'moto');
+  assert.equal(JSON.stringify(result.metadata.attributes.styleDescriptors), JSON.stringify(['edgy', 'minimal']));
+});
+
+test('normalizeTextScanResult: preserves analysis text aliases before visual fallback', () => {
+  const result = normalizeTextScanResult(
+    {
+      type: 'fashion_text',
+      analysis: 'A polished tan trench coat for rainy-day tailoring.',
+      identification: {
+        visual_observation: 'A tan coat.',
+      },
+    },
+    'tan trench coat'
+  );
+
+  assert.equal(result.result, 'A polished tan trench coat for rainy-day tailoring.');
+});
+
 test('normalizeTextScanResult: handles non-fashion response', () => {
   const result = normalizeTextScanResult(
     { type: 'non-fashion', message: 'Not fashion' },
@@ -193,6 +293,26 @@ test('normalizeTextScanResult: maps fashion type to fashion_text', () => {
   assert.equal(result.type, 'fashion_text');
   assert.equal(result.metadata.attributes.category, 'Outerwear');
   assert.equal(result.metadata.attributes.color, 'Camel');
+});
+
+test('normalizeTextScanResult: maps completed status with attributes to fashion_text', () => {
+  const result = normalizeTextScanResult(
+    {
+      status: 'completed',
+      userMessage: 'A black Chanel handbag.',
+      attributes: { category: 'bag', colorPalette: ['black'] },
+      recommendedProducts: [
+        { title: 'Classic Flap Bag', source: 'Chanel', productUrl: 'https://example.com/bag' },
+      ],
+    },
+    'black Chanel handbag'
+  );
+
+  assert.equal(result.type, 'fashion_text');
+  assert.equal(result.result, 'A black Chanel handbag.');
+  assert.equal(result.metadata.attributes.category, 'bag');
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].productUrl, 'https://example.com/bag');
 });
 
 test('normalizeTextScanResult: preserves backend analysis text', () => {

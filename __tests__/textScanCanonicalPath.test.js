@@ -471,6 +471,41 @@ test('analyzeTextWithEdge: maps recommendedProducts to products', async () => {
   assert.equal(result.purchaseOptions?.length, 2);
 });
 
+test('analyzeTextWithEdge: maps alternate product arrays and aliases', async () => {
+  const mockSupabase = createMockSupabaseClient({
+    response: {
+      data: {
+        status: 'completed',
+        attributes: { category: 'Dress' },
+        analysis: 'A breezy white linen dress.',
+        recommendedProducts: [],
+        shoppingResults: [
+          {
+            productName: 'White Linen Midi Dress',
+            merchant: 'Mango',
+            thumbnail: 'https://cdn.example.com/linen.jpg',
+            link: 'https://example.com/linen-dress',
+            priceText: '$129',
+            type: 'retail',
+          },
+        ],
+      },
+      error: null,
+    },
+  });
+  const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+  const result = await analyzeTextWithEdge('white linen dress');
+
+  assert.equal(result.result, 'A breezy white linen dress.');
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'White Linen Midi Dress');
+  assert.equal(result.products[0].source, 'Mango');
+  assert.equal(result.products[0].imageUrl, 'https://cdn.example.com/linen.jpg');
+  assert.equal(result.products[0].productUrl, 'https://example.com/linen-dress');
+  assert.equal(result.products[0].price, '$129');
+  assert.equal(result.purchaseOptions?.length, 1);
+});
+
 test('analyzeTextWithEdge: falls back to identification aliases when attributes sparse', async () => {
   const mockSupabase = createMockSupabaseClient({
     response: {
