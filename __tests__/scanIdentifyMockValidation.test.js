@@ -48,8 +48,11 @@ const adapter = loadTsModule('services/scanIdentification.ts', {
   '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
 });
 const scanResultObject = loadTsModule('services/scanResultObject.ts');
+const scanTitleBuilder = loadTsModule('services/scanTitleBuilder.ts');
 const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   './scanResultObject': scanResultObject,
+  './scanTitleBuilder': scanTitleBuilder,
+  '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
 
 // ── Mock case 1: Black double-breasted blazer ─────────────────────────────────

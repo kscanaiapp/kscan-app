@@ -59,7 +59,7 @@ const DEMO_PURCHASE_OPTIONS: PurchaseOption[] = [
 export function getDemoScanResultV2(base?: Partial<ScanResultV2>): ScanResultV2 {
   return {
     id: 'demo-scan-id',
-    title: 'Style Match',
+    title: 'Blue Trench Coat',
     category: 'Outerwear',
     color: 'Blue',
     silhouette: 'Trench Coat',

@@ -17,6 +17,8 @@
 import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification, RankedScanProduct, DisplayResult } from '../types/scanIdentification';
 import type { ScanResultObject } from '../types/scanResultObject';
 import { createScanResultObject } from './scanResultObject';
+import { buildScanTitle, deriveBrandConfidence, type BrandConfidence } from './scanTitleBuilder';
+import { SCAN_IDENTITY_DEBUG } from '../constants/build';
 
 export type MappedScanMetadata = {
   category: string;
@@ -31,6 +33,14 @@ export type MappedScanMetadata = {
   confidenceScore?: number;
   scanQualityNote?: string | null;
   stylingSuggestions?: string[];
+  /** Optional enriched identity fields used by the title builder. */
+  brand?: string | null;
+  brandConfidence?: BrandConfidence;
+  fit?: string;
+  material?: string;
+  styleDescriptors?: string[];
+  primaryItem?: string;
+  displayCategory?: string;
 };
 
 export type MappedFashionAnalysis = {
@@ -42,6 +52,8 @@ export type MappedFashionAnalysis = {
   /** Live commerce purchase options when the backend separates them. */
   purchaseOptions?: RankedScanProduct[];
   displayResult?: DisplayResult;
+  /** Clean, deterministic display title for the scan result UI. */
+  title?: string;
   /**
    * Optional structured Scan Result Object (Part 2 activation). Additive and
    * non-breaking: existing consumers ignore it. Generated from the same
@@ -93,8 +105,9 @@ function buildMetadata(
     color = a.colorPalette.join(', ');
   }
 
+  const category = id.item_type ?? a.category ?? '';
   const meta: MappedScanMetadata = {
-    category: id.item_type ?? a.category ?? '',
+    category,
     color,
     silhouette: id.silhouette ?? a.silhouette ?? '',
   };
@@ -114,6 +127,12 @@ function buildMetadata(
   if (Array.isArray(id.styling_suggestions) && id.styling_suggestions.length) {
     meta.stylingSuggestions = id.styling_suggestions;
   }
+  // Enriched identity fields for the title builder (all optional, additive).
+  meta.primaryItem = id.subtype ?? id.item_type ?? a.itemType ?? category;
+  meta.displayCategory = category;
+  meta.fit = id.fit ?? undefined;
+  meta.material = id.material_estimate ?? a.materialEstimate ?? undefined;
+  meta.styleDescriptors = idStyleTags ?? styleTags ?? undefined;
   return meta;
 }
 
@@ -152,10 +171,46 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('[scanIdentificationMapper] mapped products=' + products.length + ' purchaseOptions=' + (purchaseOptions?.length ?? 0));
     }
+    const metadata = buildMetadata(resp.attributes, resp.identification);
+
+    // Conservative brand attribution: do not hallucinate brands.
+    const geminiBrand = resp.identification?.brand_guess ?? resp.identification?.visible_brand_text ?? null;
+    const { brand, confidence: brandConfidence } = deriveBrandConfidence(
+      geminiBrand,
+      resp.identification?.logo_detected,
+      resp.identification?.visible_brand_text,
+      recommendedProducts,
+    );
+    metadata.brand = brand;
+    metadata.brandConfidence = brandConfidence;
+
+    const title = buildScanTitle({
+      rawVisionTitle: result,
+      primaryItem: metadata.primaryItem,
+      displayCategory: metadata.displayCategory,
+      color: metadata.color,
+      brand: metadata.brand,
+      brandConfidence: metadata.brandConfidence,
+      fit: metadata.fit,
+      material: metadata.material,
+      styleDescriptors: metadata.styleDescriptors,
+      recommendedProducts,
+    });
+
+    if (SCAN_IDENTITY_DEBUG) {
+      console.log('[KSCAN_IDENTITY] titleBuilderLocation=scanIdentificationMapper');
+      console.log('[KSCAN_IDENTITY] rawVisionTitle=' + String(result ?? ''));
+      console.log('[KSCAN_IDENTITY] normalizedCategory=' + metadata.displayCategory);
+      console.log('[KSCAN_IDENTITY] brandCandidate=' + (brand ?? ''));
+      console.log('[KSCAN_IDENTITY] brandConfidence=' + brandConfidence);
+      console.log('[KSCAN_IDENTITY] finalDisplayTitle=' + title);
+    }
+
     const analysis: MappedFashionAnalysis = {
       type: 'fashion',
       result,
-      metadata: buildMetadata(resp.attributes, resp.identification),
+      title,
+      metadata,
       products,
       purchaseOptions,
       displayResult: resp.displayResult,

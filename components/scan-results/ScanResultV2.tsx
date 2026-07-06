@@ -147,7 +147,7 @@ export function ScanResultV2({
   }, [translateY, opacity]);
 
   // Build title from available metadata
-  const title = v2Data?.title || 'Style Match';
+  const title = v2Data?.title || 'Fashion Item';
 
   const hasSimilarFinds = Array.isArray(v2Data?.similarFinds) && v2Data.similarFinds.length >= 2;
 
@@ -264,7 +264,7 @@ export function ScanResultV2({
               {/* Style Match Summary */}
               <View style={styles.section}>
                 <StyleMatchPanel
-                  title={v2Data.title}
+                  title={title}
                   category={v2Data.category}
                   color={v2Data.color}
                   silhouette={v2Data.silhouette}

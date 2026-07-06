@@ -54,12 +54,15 @@ function loadTsModule(relativePath, requireMap = {}) {
   return mod.exports;
 }
 
-// Part 2: the mapper now has a runtime import of services/scanResultObject.ts
-// (for createScanResultObject). That module itself has only type-only imports,
-// so it loads cleanly with no requireMap and is supplied to the mapper here.
+// Part 2: the mapper now has runtime imports of services/scanResultObject.ts
+// and services/scanTitleBuilder.ts. Both are dependency-free and load cleanly
+// with no requireMap.
 const scanResultObjectModule = loadTsModule('services/scanResultObject.ts');
+const scanTitleBuilderModule = loadTsModule('services/scanTitleBuilder.ts');
 const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   './scanResultObject': scanResultObjectModule,
+  './scanTitleBuilder': scanTitleBuilderModule,
+  '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
 
 function loadAdapter(supabaseStub) {
@@ -683,4 +686,40 @@ test('mapper: empty recommendedProducts → matches empty and heroImageUrl null'
   });
   assert.equal(out.scanResultObject.matches.length, 0);
   assert.equal(out.scanResultObject.visual.heroImageUrl, null);
+});
+
+test('mapper: produces clean display title without "Match" suffix', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    userMessage: 'red polo shirt Match',
+    identification: {
+      item_type: 'polo shirt',
+      primary_color: 'red',
+      confidence_score: 0.86,
+    },
+  });
+  assert.equal(out.type, 'fashion');
+  assert.ok(out.title, 'title should be present');
+  assert.doesNotMatch(out.title, /\bMatch\b/i);
+  assert.equal(out.title, 'Red Polo Shirt');
+});
+
+test('mapper: high-confidence brand appears in title', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [
+      { brand: 'Lacoste', retailer: 'A' },
+      { brand: 'Lacoste', retailer: 'B' },
+      { brand: 'Lacoste', retailer: 'C' },
+    ],
+    identification: {
+      item_type: 'polo shirt',
+      primary_color: 'red',
+      brand_guess: 'Lacoste',
+      confidence_score: 0.9,
+    },
+  });
+  assert.equal(out.title, 'Red Lacoste Polo Shirt');
+  assert.equal(out.metadata.brandConfidence, 'high');
 });

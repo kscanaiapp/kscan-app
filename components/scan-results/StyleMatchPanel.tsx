@@ -40,13 +40,9 @@ export function StyleMatchPanel({
 }: StyleMatchPanelProps) {
   const formattedConfidence = formatMatchPercent(confidence);
 
-  // Build a display title from available metadata (no fake brands)
-  const displayTitle = (() => {
-    if (title && title.trim()) return title.trim();
-    if (color && category) return `${color} ${category} Match`;
-    if (category) return `${category} Match`;
-    return 'Style Match';
-  })();
+  // Use the provided title; it is already built deterministically upstream.
+  // Fallbacks are defensive only and never append "Match".
+  const displayTitle = title && title.trim() ? title.trim() : 'Fashion Item';
 
   const hasMetadata = category || color || silhouette || material;
 

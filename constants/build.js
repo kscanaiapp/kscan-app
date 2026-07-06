@@ -9,3 +9,9 @@ export const QA_TOOLS_ENABLED =
 export const SCAN_DIAGNOSTICS_ENABLED =
   (typeof __DEV__ !== 'undefined' && __DEV__ === true) ||
   process.env.EXPO_PUBLIC_SCAN_DIAG === '1';
+
+// Gated diagnostic logging for the scan title builder. Off in production unless
+// explicitly enabled via env. Does not log image bytes or secrets.
+export const SCAN_IDENTITY_DEBUG =
+  process.env.EXPO_PUBLIC_SCAN_IDENTITY_DEBUG === 'true' ||
+  process.env.SCAN_IDENTITY_DEBUG === 'true';

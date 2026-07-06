@@ -1,3 +1,6 @@
+import { buildScanTitle } from '../../services/scanTitleBuilder';
+import { SCAN_IDENTITY_DEBUG } from '../../constants/build';
+
 export type ProductMatch = {
   id: string;
   title: string;
@@ -42,6 +45,7 @@ export type ScanResultV2 = {
 
 export type LegacyAnalysisData = {
   result?: string;
+  title?: string;
   metadata?: {
     category?: string;
     color?: string;
@@ -49,6 +53,12 @@ export type LegacyAnalysisData = {
     material?: string;
     confidence?: number;
     styleTags?: string[];
+    brand?: string | null;
+    brandConfidence?: 'high' | 'medium' | 'low';
+    fit?: string;
+    primaryItem?: string;
+    displayCategory?: string;
+    styleDescriptors?: string[];
   };
   products?: any[];
   purchaseOptions?: any[];
@@ -116,12 +126,31 @@ export function mapLegacyToV2(
   const meta = legacy.metadata ?? {};
   const analysisText = legacy.result ?? '';
 
-  // Build a title from available metadata (no fake brands)
-  let title = 'Style Match';
-  if (meta.color && meta.category) {
-    title = `${meta.color} ${meta.category} Match`;
-  } else if (meta.category) {
-    title = `${meta.category} Match`;
+  // Prefer a title already computed by the mapper; otherwise build one
+  // deterministically from the available metadata (no fake brands, no "Match").
+  let title = legacy.title;
+  if (!title || !title.trim()) {
+    title = buildScanTitle({
+      rawVisionTitle: analysisText,
+      primaryItem: meta.primaryItem ?? meta.category,
+      displayCategory: meta.displayCategory ?? meta.category,
+      color: meta.color,
+      brand: meta.brand,
+      brandConfidence: meta.brandConfidence,
+      fit: meta.fit,
+      material: meta.material,
+      styleDescriptors: meta.styleDescriptors ?? meta.styleTags,
+      recommendedProducts: legacy.purchaseOptions ?? legacy.products,
+    });
+
+    if (SCAN_IDENTITY_DEBUG) {
+      console.log('[KSCAN_IDENTITY] titleBuilderLocation=mapLegacyToV2');
+      console.log('[KSCAN_IDENTITY] rawVisionTitle=' + analysisText);
+      console.log('[KSCAN_IDENTITY] normalizedCategory=' + (meta.displayCategory ?? meta.category ?? ''));
+      console.log('[KSCAN_IDENTITY] brandCandidate=' + (meta.brand ?? ''));
+      console.log('[KSCAN_IDENTITY] brandConfidence=' + (meta.brandConfidence ?? ''));
+      console.log('[KSCAN_IDENTITY] finalDisplayTitle=' + title);
+    }
   }
 
   const similarFinds: ProductMatch[] | undefined = Array.isArray(legacy.products)
