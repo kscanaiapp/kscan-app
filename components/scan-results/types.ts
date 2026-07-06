@@ -1,5 +1,6 @@
 import { buildScanTitle } from '../../services/scanTitleBuilder';
 import { SCAN_IDENTITY_DEBUG } from '../../constants/build';
+import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 
 export type ProductMatch = {
   id: string;
@@ -82,6 +83,35 @@ function formatPriceLabel(price: unknown, currency?: string | null): string | un
     return trimmed;
   }
   return undefined;
+}
+
+function valueLooksDemo(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const normalized = value.toLowerCase().trim();
+  if (!normalized) return false;
+  if (normalized.includes('k-scan demo')) return true;
+  if (normalized.includes('k scan demo')) return true;
+  if (normalized.includes('demo catalog')) return true;
+  if (normalized.includes('retail preview')) return true;
+  if (normalized.includes('resale preview')) return true;
+  if (normalized.includes('marketplace preview')) return true;
+  return false;
+}
+
+export function isDemoProductMatch(product: ProductMatch): boolean {
+  if (!product) return false;
+  if (typeof product.id === 'string' && product.id.toLowerCase().startsWith('demo-')) return true;
+  return (
+    valueLooksDemo(product.retailer) ||
+    valueLooksDemo(product.brand) ||
+    valueLooksDemo(product.title)
+  );
+}
+
+export function isDemoPurchaseOption(option: PurchaseOption): boolean {
+  if (!option) return false;
+  if (typeof option.id === 'string' && option.id.toLowerCase().startsWith('demo-')) return true;
+  return valueLooksDemo(option.retailer) || valueLooksDemo(option.title);
 }
 
 function availabilityLabel(value: unknown): string | undefined {
@@ -177,6 +207,7 @@ export function mapLegacyToV2(
           productUrl: productUrlOf(product),
         };
       })
+      .filter((p) => SCAN_RESULTS_DEMO_UI_ENABLED || !isDemoProductMatch(p))
     : undefined;
 
   const purchaseOptions: PurchaseOption[] | undefined = Array.isArray(legacy.purchaseOptions)
@@ -198,6 +229,7 @@ export function mapLegacyToV2(
           productUrl: productUrlOf(product),
         };
       })
+      .filter((p) => SCAN_RESULTS_DEMO_UI_ENABLED || !isDemoPurchaseOption(p))
     : undefined;
 
   return {
