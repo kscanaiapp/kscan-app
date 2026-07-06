@@ -81,6 +81,7 @@ const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) /
 const KSCAN_PUBLIC_BASE_URL = 'https://kscan.app';
 const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
 const DRESSING_ROOM_LOAD_ERROR = "We couldn't load this room. Please refresh and try again.";
+const DRESSING_ROOM_MISSING_ID_ERROR = 'This Dressing Room is unavailable.';
 const DRESSING_ROOM_SHARE_ERROR = "We couldn't update sharing right now. Please try again.";
 const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
   love: 0,
@@ -303,7 +304,14 @@ function DressingRoomDetailContent() {
   }, [roomId]);
 
   const reload = useCallback(async () => {
-    if (!roomId) return;
+    if (!roomId) {
+      setRoom(null);
+      setItems([]);
+      setSelectedIds([]);
+      setError(DRESSING_ROOM_MISSING_ID_ERROR);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
