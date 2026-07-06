@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -18,6 +19,7 @@ interface ScanResultActionRowProps {
   askStyleChatLabel?: string;
   addToDressingRoomLabel?: string;
   testID?: string;
+  onLayout?: (event: LayoutChangeEvent) => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export function ScanResultActionRow({
   askStyleChatLabel = 'Ask StyleChat',
   addToDressingRoomLabel = 'Add to Dressing Room',
   testID,
+  onLayout,
 }: ScanResultActionRowProps) {
   const insets = useSafeAreaInsets();
 
@@ -60,6 +63,7 @@ export function ScanResultActionRow({
         { paddingBottom: Math.max(SPACING.md, insets.bottom) },
       ]}
       testID={testID ?? 'scan-result-action-row'}
+      onLayout={onLayout}
     >
       <View style={styles.row}>
         {actions.map((action, index) => {

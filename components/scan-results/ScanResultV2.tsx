@@ -103,6 +103,7 @@ export function ScanResultV2({
   const isExiting = React.useRef(false);
   const scrollViewRef = React.useRef<ScrollView>(null);
   const similarFindsY = React.useRef(0);
+  const [actionRowHeight, setActionRowHeight] = React.useState(0);
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -236,7 +237,15 @@ export function ScanResultV2({
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
                 styles.cardInner,
-                { paddingBottom: SPACING.xxxl + 80 }, // extra padding for sticky action row
+                {
+                  // Ensure the last scrollable content clears the absolute sticky
+                  // action row, including its measured height, safe-area inset,
+                  // and a small extra margin.
+                  paddingBottom:
+                    Math.max(actionRowHeight, 100) +
+                    Math.max(insets.bottom, SPACING.md) +
+                    SPACING.xl,
+                },
               ]}
             >
               {/* Header */}
@@ -339,8 +348,8 @@ export function ScanResultV2({
                 </Text>
               </View>
 
-              {/* Bottom spacing so ScrollView content clears sticky action row */}
-              <View style={{ height: 100 }} />
+              {/* Extra spacer so ScrollView content clears sticky action row */}
+              <View style={{ height: SPACING.xl }} />
             </ScrollView>
 
             {/* Sticky Bottom Action Row */}
@@ -350,6 +359,7 @@ export function ScanResultV2({
               onFindSimilar={hasSimilarFinds ? handleFindSimilar : undefined}
               onAskStyleChat={onAskStyleChat}
               onAddToDressingRoom={onAddToDressingRoom}
+              onLayout={(event) => setActionRowHeight(event.nativeEvent.layout.height)}
             />
           </View>
         </Animated.View>
