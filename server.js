@@ -81,6 +81,24 @@ function loadCatalog() {
 
 const CATALOG = loadCatalog();
 
+// Demo/synthetic catalog rows must not surface in release builds. They are
+// preserved in data/catalog.json for local layout testing and can be re-enabled
+// server-side by setting INCLUDE_DEMO_CATALOG=true.
+const INCLUDE_DEMO_CATALOG = process.env.INCLUDE_DEMO_CATALOG === 'true';
+
+function isDemoCatalogProduct(product) {
+  if (!product || typeof product !== 'object' || Array.isArray(product)) return false;
+  const id = String(product.id || '').toLowerCase();
+  const retailer = String(product.retailer || '').toLowerCase();
+  const name = String(product.name || product.title || product.displayName || '').toLowerCase();
+  return (
+    id.startsWith('demo-') ||
+    retailer.includes('k-scan demo') ||
+    retailer.includes('k scan demo') ||
+    name.includes('demo catalog')
+  );
+}
+
 const IMAGE_PLACEHOLDER_CATEGORIES = new Set([
   'footwear',
   'outerwear',
@@ -598,7 +616,8 @@ function matchProducts(metadata, options = {}) {
   const eligibleCatalog = requestedCategory
     ? CATALOG.filter((product) => imageCategoryForProduct(product) === requestedCategory)
     : CATALOG;
-  const catalogForScoring = eligibleCatalog.length > 0 ? eligibleCatalog : CATALOG;
+  const catalogForScoring = (eligibleCatalog.length > 0 ? eligibleCatalog : CATALOG)
+    .filter((product) => INCLUDE_DEMO_CATALOG || !isDemoCatalogProduct(product));
 
   // itemKeywords drawn from allKeywords so normalization activates category filter.
   // e.g. AI says "outerwear" → expands to ["jacket","coat"] → category filter fires.
