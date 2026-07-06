@@ -28,6 +28,7 @@ export function TextScanProductCard({
         />
       </View>
       <ProductCard
+        imageUrl={product.imageUrl}
         title={product.title}
         subtitle={product.source}
         price={product.price}
