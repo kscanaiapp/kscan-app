@@ -90,7 +90,12 @@ export function ScanResultV2({
   // Demo data override (dev-only, gated)
   if (SCAN_RESULTS_DEMO_UI_ENABLED && !v2Data?.similarFinds) {
     const demo = getDemoScanResultV2(v2Data ?? undefined);
-    v2Data = { ...demo, ...v2Data, similarFinds: demo.similarFinds, purchaseOptions: demo.purchaseOptions };
+    v2Data = {
+      ...demo,
+      ...v2Data,
+      similarFinds: demo.similarFinds,
+      purchaseOptions: v2Data?.purchaseOptions ?? demo.purchaseOptions,
+    };
   }
 
   const translateY = React.useRef(new Animated.Value(FROM_Y)).current;
