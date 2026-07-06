@@ -31,13 +31,34 @@ import { PurchaseOptionsPanel } from './PurchaseOptionsPanel';
 import { ScanResultActionRow } from './ScanResultActionRow';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { mapLegacyToV2 } from './types';
-import type { LegacyAnalysisData, ScanResultV2 } from './types';
+import type { LegacyAnalysisData, ProductMatch, ScanResultV2 } from './types';
 import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y = SCREEN_HEIGHT * 0.36;
+const SIMILAR_SCROLL_TOP_OFFSET = 20;
+
+function isRenderableSimilarFind(product: ProductMatch | null | undefined): product is ProductMatch {
+  if (!product) return false;
+
+  const id = product.id?.trim() ?? '';
+  const title = product.title?.trim() ?? '';
+  const genericTitle = title.toLowerCase() === 'similar style';
+  const hasSpecificTitle = title.length > 0 && !genericTitle;
+  const hasStableIdentifier = id.length > 0 && !/^similar-\d+$/.test(id);
+
+  return Boolean(
+    hasSpecificTitle ||
+      hasStableIdentifier ||
+      product.imageUrl?.trim() ||
+      product.productUrl?.trim() ||
+      product.brand?.trim() ||
+      product.retailer?.trim() ||
+      product.priceLabel?.trim()
+  );
+}
 
 interface ScanResultV2Props {
   /** Legacy analysis data from the current scan pipeline. */
@@ -102,8 +123,11 @@ export function ScanResultV2({
   const opacity = React.useRef(new Animated.Value(0)).current;
   const isExiting = React.useRef(false);
   const scrollViewRef = React.useRef<ScrollView>(null);
-  const similarFindsY = React.useRef(0);
   const [actionRowHeight, setActionRowHeight] = React.useState(0);
+  const [similarFindsTarget, setSimilarFindsTarget] = React.useState<{
+    key: string;
+    y: number;
+  } | null>(null);
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -155,7 +179,13 @@ export function ScanResultV2({
   // Build title from available metadata
   const title = v2Data?.title || 'Fashion Item';
 
-  const hasSimilarFinds = Array.isArray(v2Data?.similarFinds) && v2Data.similarFinds.length >= 2;
+  const renderableSimilarFinds = Array.isArray(v2Data?.similarFinds)
+    ? v2Data.similarFinds.filter(isRenderableSimilarFind)
+    : [];
+  const similarFindsKey = renderableSimilarFinds.map((product) => product.id).join('|');
+  const hasRenderableSimilarFinds = renderableSimilarFinds.length >= 2;
+  const similarFindsTargetReady =
+    hasRenderableSimilarFinds && similarFindsTarget?.key === similarFindsKey;
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -166,12 +196,15 @@ export function ScanResultV2({
   };
 
   const handleFindSimilar = React.useCallback(() => {
-    if (scrollViewRef.current && similarFindsY.current > 0) {
-      scrollViewRef.current.scrollTo({ y: similarFindsY.current, animated: true });
+    if (!similarFindsTargetReady || !similarFindsTarget) {
+      return;
     }
+
+    scrollViewRef.current?.scrollTo({ y: similarFindsTarget.y, animated: true });
+
     // Keep any external handler contract intact.
     onFindSimilar?.();
-  }, [onFindSimilar]);
+  }, [onFindSimilar, similarFindsTarget, similarFindsTargetReady]);
 
   const handleViewAllSimilar = handleFindSimilar;
 
@@ -309,15 +342,18 @@ export function ScanResultV2({
               </View>
 
               {/* Similar Finds: only show when there are at least 2 matches. */}
-              {hasSimilarFinds ? (
+              {hasRenderableSimilarFinds ? (
                 <View
                   style={styles.section}
                   onLayout={(event) => {
-                    similarFindsY.current = event.nativeEvent.layout.y;
+                    setSimilarFindsTarget({
+                      key: similarFindsKey,
+                      y: Math.max(event.nativeEvent.layout.y - SIMILAR_SCROLL_TOP_OFFSET, 0),
+                    });
                   }}
                 >
                   <SimilarFindsShelf
-                    similarFinds={v2Data.similarFinds}
+                    similarFinds={renderableSimilarFinds}
                     onViewAll={handleViewAllSimilar}
                   />
                 </View>
@@ -356,7 +392,7 @@ export function ScanResultV2({
             <ScanResultActionRow
               onSave={onSaveToLibrary}
               saveLabel={saveActionLabel}
-              onFindSimilar={hasSimilarFinds ? handleFindSimilar : undefined}
+              onFindSimilar={similarFindsTargetReady ? handleFindSimilar : undefined}
               onAskStyleChat={onAskStyleChat}
               onAddToDressingRoom={onAddToDressingRoom}
               onLayout={(event) => setActionRowHeight(event.nativeEvent.layout.height)}
