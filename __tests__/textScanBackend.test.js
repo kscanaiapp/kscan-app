@@ -92,17 +92,88 @@ test('normalizeTextScanResult: creates/validates id', () => {
   assert.ok(result2.id.startsWith('textscan-'));
 });
 
-test('normalizeTextScanResult: defaults products to []', () => {
-  const result = normalizeTextScanResult({ products: [{ id: 'p1' }] }, 'q');
-  assert.equal(JSON.stringify(result.products), '[]');
+test('normalizeTextScanResult: maps recommendedProducts to products', () => {
+  const result = normalizeTextScanResult(
+    {
+      type: 'fashion_text',
+      result: 'A warm camel coat.',
+      recommendedProducts: [
+        { id: 'p1', title: 'Camel Wool Coat', source: 'Nordstrom', price: '$295', type: 'retail' },
+      ],
+    },
+    'q'
+  );
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].id, 'p1');
+  assert.equal(result.products[0].title, 'Camel Wool Coat');
+  assert.equal(result.products[0].type, 'retail');
+  assert.equal(result.purchaseOptions?.length, 1);
 });
 
-test('normalizeTextScanResult: forces products to [] even if backend returns product-like data', () => {
+test('normalizeTextScanResult: preserves products from backend aliases', () => {
   const result = normalizeTextScanResult(
-    { products: [{ id: 'p1', name: 'Fake' }, { id: 'p2' }] },
+    {
+      type: 'fashion_text',
+      products: [
+        { id: 'p2', name: 'Trench Coat', retailer: 'Burberry', url: 'https://example.com/p2', type: 'retail' },
+        { id: 'p3', title: 'Similar Coat', source: 'Web', product_url: 'https://example.com/p3', type: 'similar' },
+      ],
+    },
+    'q'
+  );
+  assert.equal(result.products.length, 2);
+  assert.equal(result.products[0].title, 'Trench Coat');
+  assert.equal(result.products[0].productUrl, 'https://example.com/p2');
+  assert.equal(result.products[1].type, 'similar');
+});
+
+test('normalizeTextScanResult: non-fashion responses keep empty products', () => {
+  const result = normalizeTextScanResult(
+    { type: 'non_fashion_text', products: [{ id: 'p1', title: 'Fake' }] },
     'q'
   );
   assert.equal(JSON.stringify(result.products), '[]');
+  assert.equal(result.purchaseOptions, undefined);
+});
+
+test('normalizeTextScanResult: populates attributes from identification aliases', () => {
+  const result = normalizeTextScanResult(
+    {
+      type: 'fashion_text',
+      identification: {
+        item_type: 'trench coat',
+        primary_color: 'tan',
+        material_estimate: 'cotton gabardine',
+        silhouette: 'belted',
+        style_tags: ['classic', 'structured'],
+      },
+    },
+    'tan burberry trench coat'
+  );
+  assert.equal(result.metadata.attributes.category, 'trench coat');
+  assert.equal(result.metadata.attributes.color, 'tan');
+  assert.equal(result.metadata.attributes.material, 'cotton gabardine');
+  assert.equal(result.metadata.attributes.silhouette, 'belted');
+  assert.deepStrictEqual(result.metadata.attributes.styleDescriptors, ['classic', 'structured']);
+});
+
+test('normalizeTextScanResult: identification aliases fill gaps when legacy attributes sparse', () => {
+  const result = normalizeTextScanResult(
+    {
+      type: 'fashion_text',
+      attributes: { category: 'outerwear' },
+      identification: {
+        primary_color: 'white',
+        material_estimate: 'piqué cotton',
+        style_tags: ['preppy'],
+      },
+    },
+    'white polo shirt'
+  );
+  assert.equal(result.metadata.attributes.category, 'outerwear');
+  assert.equal(result.metadata.attributes.color, 'white');
+  assert.equal(result.metadata.attributes.material, 'piqué cotton');
+  assert.deepStrictEqual(result.metadata.attributes.styleDescriptors, ['preppy']);
 });
 
 test('normalizeTextScanResult: handles non-fashion response', () => {
@@ -122,6 +193,14 @@ test('normalizeTextScanResult: maps fashion type to fashion_text', () => {
   assert.equal(result.type, 'fashion_text');
   assert.equal(result.metadata.attributes.category, 'Outerwear');
   assert.equal(result.metadata.attributes.color, 'Camel');
+});
+
+test('normalizeTextScanResult: preserves backend analysis text', () => {
+  const result = normalizeTextScanResult(
+    { type: 'fashion_text', result: 'Tan Burberry trench coat with red side stitching.' },
+    'q'
+  );
+  assert.equal(result.result, 'Tan Burberry trench coat with red side stitching.');
 });
 
 test('normalizeTextScanResult: preserves styleDescriptors as array', () => {

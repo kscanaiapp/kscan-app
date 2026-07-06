@@ -35,7 +35,6 @@ import {
 } from '../../constants/featureFlags';
 import { analyzeTextWithEdge } from '../../services/textScanEdge';
 import {
-  normalizeTextScanResult,
   validateTextScanQuery,
   toAttributeGrid,
 } from '../../services/textScan';
@@ -129,6 +128,16 @@ export default function TextScanScreen() {
 
         const normalized = await analyzeTextWithEdge(query, { source: 'textscan' });
         if (!cancelled) {
+          if (typeof __DEV__ !== 'undefined' && __DEV__) {
+            console.log(
+              '[TEXTSCAN UI] products=' +
+                (normalized.products?.length ?? 0) +
+                ' purchaseOptions=' +
+                (normalized.purchaseOptions?.length ?? 0) +
+                ' showCards=' +
+                Boolean(normalized.products && normalized.products.length > 0)
+            );
+          }
           setTextScanResult(normalized);
           setViewState('results');
           setIsSubmitting(false);

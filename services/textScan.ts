@@ -42,6 +42,7 @@ export interface TextScanResult {
   result: string;
   metadata: TextScanMetadata;
   products: TextScanProduct[];
+  purchaseOptions?: TextScanProduct[];
   searchQueries?: string[];
   stylingSuggestions?: string[];
   confidence?: number | null;
@@ -96,27 +97,72 @@ function safeNumber(value: unknown): number | null {
   return null;
 }
 
+function firstColor(palette: unknown): string | undefined {
+  if (Array.isArray(palette) && palette.length > 0 && typeof palette[0] === 'string') {
+    return palette[0].trim();
+  }
+  return undefined;
+}
+
+function firstString(value: unknown): string | undefined {
+  if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
+    return value[0].trim();
+  }
+  return undefined;
+}
+
 function safeAttributes(raw: unknown): TextScanAttributes {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return {};
   }
   const src = raw as Record<string, unknown>;
 
-  // Map backend metadata fields to TextScan attributes
-  // Backend may return metadata.category, metadata.color, etc.
-  // Or it may return attributes directly.
-  const sourceAttrs =
+  // Legacy shape: metadata.attributes or metadata directly
+  const metadata =
+    src.metadata && typeof src.metadata === 'object' && !Array.isArray(src.metadata)
+      ? (src.metadata as Record<string, unknown>)
+      : undefined;
+  const legacyAttrs = metadata?.attributes;
+  const metadataDirectAttrs =
+    metadata &&
+    (metadata.category || metadata.color || metadata.itemType || metadata.silhouette ||
+      metadata.material || metadata.materialEstimate || metadata.styleTags || metadata.styleDescriptors)
+      ? metadata
+      : undefined;
+
+  // New shape: attributes at top level
+  const topAttrs =
     src.attributes && typeof src.attributes === 'object' && !Array.isArray(src.attributes)
       ? (src.attributes as Record<string, unknown>)
-      : src;
+      : undefined;
+
+  // Rich identification shape (may supplement or replace legacy attributes)
+  const identification =
+    src.identification && typeof src.identification === 'object' && !Array.isArray(src.identification)
+      ? (src.identification as Record<string, unknown>)
+      : undefined;
+
+  // Use the richest attribute source available; identification fills gaps.
+  const base = (topAttrs ?? legacyAttrs ?? metadataDirectAttrs ?? src) as Record<string, unknown>;
 
   return {
-    category: safeString(sourceAttrs.category ?? sourceAttrs.itemType) || null,
-    color: safeString(sourceAttrs.color ?? (Array.isArray(sourceAttrs.colorPalette) ? sourceAttrs.colorPalette[0] : undefined)) || null,
-    material: safeString(sourceAttrs.material ?? sourceAttrs.fabric ?? sourceAttrs.materialEstimate) || null,
-    silhouette: safeString(sourceAttrs.silhouette ?? sourceAttrs.fit) || null,
-    occasion: safeString(sourceAttrs.occasion) || null,
-    styleDescriptors: safeArray(sourceAttrs.styleDescriptors ?? sourceAttrs.style ?? sourceAttrs.styleTags),
+    category:
+      safeString(base.category ?? base.itemType ?? identification?.item_type ?? identification?.subtype) || null,
+    color:
+      safeString(
+        base.color ?? firstColor(base.colorPalette) ?? identification?.primary_color
+      ) || null,
+    material:
+      safeString(
+        base.material ?? base.fabric ?? base.materialEstimate ?? identification?.material_estimate
+      ) || null,
+    silhouette:
+      safeString(base.silhouette ?? base.fit ?? identification?.silhouette) || null,
+    occasion:
+      safeString(base.occasion ?? firstString(identification?.occasion_tags)) || null,
+    styleDescriptors: safeArray(
+      base.styleDescriptors ?? base.style ?? base.styleTags ?? identification?.style_tags
+    ),
   };
 }
 
@@ -132,6 +178,55 @@ function safeMetadata(raw: unknown, query: string): TextScanMetadata {
   };
 }
 
+function normalizeProductPrice(price: unknown, currency: unknown): string | undefined {
+  if (typeof price === 'string') {
+    const trimmed = price.trim();
+    return trimmed || undefined;
+  }
+  if (typeof price === 'number' && Number.isFinite(price)) {
+    const symbol = typeof currency === 'string' && currency.trim() ? currency.trim() : '$';
+    return `${symbol}${price.toFixed(2)}`;
+  }
+  return undefined;
+}
+
+function classifyProductType(source?: string | null): TextScanProductType {
+  const resaleNames = [
+    'ebay', 'poshmark', 'depop', 'thredup', 'thred up',
+    'vestiaire', 'vestiaire collective', 'therealreal', 'the realreal',
+    'grailed', 'mercari', 'tradesy', 'rebag', 'fashionphile',
+  ];
+  const s = (source || '').toLowerCase();
+  return resaleNames.some((name) => s.includes(name)) ? 'resale' : 'retail';
+}
+
+function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
+  if (!Array.isArray(raw)) return [];
+  const products: TextScanProduct[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const p = item as Record<string, unknown>;
+    const id = typeof p.id === 'string' && p.id.trim() ? p.id.trim() : undefined;
+    if (!id) continue;
+    const title = safeString(p.name ?? p.title ?? p.product_name) || undefined;
+    if (!title) continue;
+    const source = safeString(p.retailer ?? p.brand ?? p.source) || 'K Scan';
+    const imageUrl = safeString(p.imageUrl ?? p.image_url) || undefined;
+    const productUrl = safeString(p.purchaseUrl ?? p.productUrl ?? p.product_url ?? p.url) || undefined;
+    const explicitType = typeof p.type === 'string' ? p.type.trim().toLowerCase() : '';
+    products.push({
+      id,
+      title,
+      source,
+      price: normalizeProductPrice(p.price, p.currency),
+      type: explicitType === 'similar' ? 'similar' : classifyProductType(source),
+      imageUrl,
+      productUrl,
+    });
+  }
+  return products;
+}
+
 /**
  * Normalize a raw backend response into a safe TextScanResult.
  *
@@ -139,10 +234,11 @@ function safeMetadata(raw: unknown, query: string): TextScanMetadata {
  *   - id is always present.
  *   - type is always 'fashion_text' or 'non_fashion_text'.
  *   - metadata is always an object with attributes.
- *   - products is always [] regardless of backend data.
+ *   - products are mapped from backend recommendedProducts/products when present.
+ *   - purchaseOptions mirrors products for consumers expecting the camera-scan split.
  *   - savedAt is always present.
  *   - Missing fields do not crash the UI.
- *   - Non-fashion responses render safely.
+ *   - Non-fashion responses render safely with empty products.
  */
 export function normalizeTextScanResult(
   raw: unknown,
@@ -184,16 +280,20 @@ export function normalizeTextScanResult(
     type = hasAttrs ? 'fashion_text' : 'non_fashion_text';
   }
 
-  const metadata = safeMetadata(src.metadata ?? src, query);
+  const metadata = safeMetadata(src, query);
   const result = safeString(src.result ?? src.message) || NON_FASHION_COPY;
   const confidence = safeNumber(src.confidence);
+
+  const rawProducts = src.recommendedProducts ?? src.products;
+  const products = type === 'non_fashion_text' ? [] : mapRecommendedProducts(rawProducts);
 
   return {
     id: safeString(src.id) || generateId(),
     type,
     result: type === 'non_fashion_text' ? NON_FASHION_COPY : result,
     metadata,
-    products: [], // Always forced empty in this sprint
+    products,
+    purchaseOptions: products.length > 0 ? [...products] : undefined,
     confidence: type === 'non_fashion_text' ? 0 : confidence,
     savedAt: safeString(src.savedAt) || new Date().toISOString(),
   };

@@ -110,11 +110,13 @@ function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
     const productUrl =
       (typeof p.purchaseUrl === 'string' && p.purchaseUrl.trim())
         ? p.purchaseUrl.trim()
-        : (typeof p.product_url === 'string' && p.product_url.trim())
-          ? p.product_url.trim()
-          : (typeof p.url === 'string' && p.url.trim())
-            ? p.url.trim()
-            : undefined;
+        : (typeof p.productUrl === 'string' && p.productUrl.trim())
+          ? p.productUrl.trim()
+          : (typeof p.product_url === 'string' && p.product_url.trim())
+            ? p.product_url.trim()
+            : (typeof p.url === 'string' && p.url.trim())
+              ? p.url.trim()
+              : undefined;
     const explicitType = typeof p.type === 'string' ? p.type.trim().toLowerCase() : '';
     products.push({
       id,
@@ -148,26 +150,70 @@ function mapEdgeResponseToTextScanResult(
   const src = raw as Record<string, unknown>;
   const rawStatus = typeof src.status === 'string' ? src.status.toLowerCase() : '';
 
+  const identification =
+    src.identification && typeof src.identification === 'object' && !Array.isArray(src.identification)
+      ? (src.identification as Record<string, unknown>)
+      : undefined;
+
   const attributes = (() => {
     const rawAttrs = src.attributes;
-    if (!rawAttrs || typeof rawAttrs !== 'object' || Array.isArray(rawAttrs)) return {};
-    const a = rawAttrs as Record<string, unknown>;
+    const a =
+      rawAttrs && typeof rawAttrs === 'object' && !Array.isArray(rawAttrs)
+        ? (rawAttrs as Record<string, unknown>)
+        : undefined;
+
+    const legacyStyleTags = Array.isArray(a?.styleTags)
+      ? (a.styleTags as unknown[]).filter((x): x is string => typeof x === 'string')
+      : undefined;
+    const idStyleTags = Array.isArray(identification?.style_tags)
+      ? (identification.style_tags as unknown[]).filter((x): x is string => typeof x === 'string')
+      : undefined;
+    const styleTags = legacyStyleTags && legacyStyleTags.length > 0 ? legacyStyleTags : idStyleTags;
+    const styleDescriptorsInput =
+      typeof a?.styleDescriptors === 'string' ? (a.styleDescriptors as string) : undefined;
+
+    const firstOccasion = Array.isArray(identification?.occasion_tags)
+      ? (identification.occasion_tags as unknown[]).find((x): x is string => typeof x === 'string')
+      : undefined;
+
+    // Defensive: if the legacy attributes object is missing or sparse, fall back
+    // to the rich identification fields so TextScan UI never renders blanks when
+    // the backend returns the new prompt-upgrade shape.
     return {
-      category: typeof a.category === 'string' && a.category.trim() ? a.category.trim() : null,
-      color: normalizeColor(
-        Array.isArray(a.colorPalette) ? a.colorPalette : null,
-        typeof a.color === 'string' ? a.color : null,
-      ),
-      material: normalizeMaterial(
-        typeof a.materialEstimate === 'string' ? a.materialEstimate : null,
-        typeof a.material === 'string' ? a.material : null,
-      ),
-      silhouette: typeof a.silhouette === 'string' && a.silhouette.trim() ? a.silhouette.trim() : null,
-      occasion: typeof a.occasion === 'string' && a.occasion.trim() ? a.occasion.trim() : null,
-      styleDescriptors: normalizeStyleDescriptors(
-        Array.isArray(a.styleTags) ? a.styleTags : null,
-        typeof a.styleDescriptors === 'string' ? a.styleDescriptors : null,
-      ),
+      category:
+        (typeof a?.category === 'string' && a.category.trim() ? a.category.trim() : null) ??
+        (typeof a?.itemType === 'string' && a.itemType.trim() ? a.itemType.trim() : null) ??
+        (typeof identification?.item_type === 'string' && identification.item_type.trim()
+          ? identification.item_type.trim()
+          : null) ??
+        (typeof identification?.subtype === 'string' && identification.subtype.trim()
+          ? identification.subtype.trim()
+          : null),
+      color:
+        normalizeColor(
+          Array.isArray(a?.colorPalette) ? a.colorPalette : null,
+          typeof a?.color === 'string' ? a.color : null,
+        ) ??
+        (typeof identification?.primary_color === 'string' && identification.primary_color.trim()
+          ? identification.primary_color.trim()
+          : null),
+      material:
+        normalizeMaterial(
+          typeof a?.materialEstimate === 'string' ? a.materialEstimate : null,
+          typeof a?.material === 'string' ? a.material : null,
+        ) ??
+        (typeof identification?.material_estimate === 'string' && identification.material_estimate.trim()
+          ? identification.material_estimate.trim()
+          : null),
+      silhouette:
+        (typeof a?.silhouette === 'string' && a.silhouette.trim() ? a.silhouette.trim() : null) ??
+        (typeof identification?.silhouette === 'string' && identification.silhouette.trim()
+          ? identification.silhouette.trim()
+          : null),
+      occasion:
+        (typeof a?.occasion === 'string' && a.occasion.trim() ? a.occasion.trim() : null) ??
+        (typeof firstOccasion === 'string' && firstOccasion.trim() ? firstOccasion.trim() : null),
+      styleDescriptors: normalizeStyleDescriptors(styleTags, styleDescriptorsInput),
     };
   })();
 
@@ -179,16 +225,31 @@ function mapEdgeResponseToTextScanResult(
         ? NON_FASHION_MESSAGE
         : 'Analyzed your fashion request.';
 
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.log(
+      '[TEXTSCAN RAW] recommendedProducts=' +
+        (Array.isArray(src.recommendedProducts) ? src.recommendedProducts.length : 'none') +
+        ' keys=[' +
+        Object.keys(src).join(', ') +
+        ']' +
+        ' category=' +
+        (attributes.category ?? '(none)') +
+        ' color=' +
+        (attributes.color ?? '(none)') +
+        ' material=' +
+        (attributes.material ?? '(none)') +
+        ' silhouette=' +
+        (attributes.silhouette ?? '(none)')
+    );
+  }
+
   const confidence = (() => {
-    const rawConf = (src.attributes as Record<string, unknown> | undefined)?.confidenceScore;
+    const rawConf =
+      (src.attributes as Record<string, unknown> | undefined)?.confidenceScore ??
+      identification?.confidence_score;
     const n = typeof rawConf === 'number' ? rawConf : typeof rawConf === 'string' ? Number(rawConf) : NaN;
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : null;
   })();
-
-  const identification =
-    src.identification && typeof src.identification === 'object' && !Array.isArray(src.identification)
-      ? (src.identification as Record<string, unknown>)
-      : undefined;
 
   const searchQueries = Array.isArray(identification?.search_queries)
     ? (identification.search_queries as unknown[])
@@ -202,12 +263,30 @@ function mapEdgeResponseToTextScanResult(
         .map((s) => s.trim())
     : [];
 
+  const products = isNonFashion ? [] : mapRecommendedProducts(src.recommendedProducts);
+
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.log(
+      '[TEXTSCAN NORMALIZED] products=' +
+        products.length +
+        ' purchaseOptions=' +
+        products.length +
+        ' attrs=[' +
+        Object.entries(attributes)
+          .filter(([, v]) => v != null && !(Array.isArray(v) && v.length === 0))
+          .map(([k]) => k)
+          .join(',') +
+        ']'
+    );
+  }
+
   return {
     id: generateId(),
     type: isNonFashion ? 'non_fashion_text' : 'fashion_text',
     result: isNonFashion ? NON_FASHION_MESSAGE : userMessage,
     metadata: { source: 'textscan', query, attributes },
-    products: isNonFashion ? [] : mapRecommendedProducts(src.recommendedProducts),
+    products,
+    purchaseOptions: products.length > 0 ? [...products] : undefined,
     searchQueries,
     stylingSuggestions,
     confidence: isNonFashion ? 0 : confidence,

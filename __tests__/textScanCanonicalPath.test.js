@@ -432,6 +432,73 @@ test('analyzeTextWithEdge: maps missing fields safely', async () => {
   assert.equal(JSON.stringify(result.metadata.attributes.styleDescriptors), JSON.stringify([]));
 });
 
+test('analyzeTextWithEdge: maps recommendedProducts to products', async () => {
+  const mockSupabase = createMockSupabaseClient({
+    response: {
+      data: {
+        status: 'completed',
+        attributes: { category: 'Outerwear', colorPalette: ['Tan'] },
+        userMessage: 'Tan trench coat.',
+        recommendedProducts: [
+          {
+            id: 'serper-abc',
+            title: 'Heritage Trench Coat',
+            source: 'Burberry',
+            price: '$2,590',
+            type: 'retail',
+            imageUrl: 'https://cdn.example.com/coat.jpg',
+            productUrl: 'https://example.com/coat',
+          },
+          {
+            id: 'brave-xyz',
+            title: 'Similar Trench Coat',
+            source: 'Web',
+            type: 'similar',
+            productUrl: 'https://example.com/similar',
+          },
+        ],
+      },
+      error: null,
+    },
+  });
+  const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+  const result = await analyzeTextWithEdge('tan burberry trench coat');
+  assert.equal(result.products.length, 2);
+  assert.equal(result.products[0].title, 'Heritage Trench Coat');
+  assert.equal(result.products[0].type, 'retail');
+  assert.equal(result.products[0].productUrl, 'https://example.com/coat');
+  assert.equal(result.products[1].type, 'similar');
+  assert.equal(result.purchaseOptions?.length, 2);
+});
+
+test('analyzeTextWithEdge: falls back to identification aliases when attributes sparse', async () => {
+  const mockSupabase = createMockSupabaseClient({
+    response: {
+      data: {
+        status: 'completed',
+        attributes: {},
+        identification: {
+          item_type: 'polo shirt',
+          primary_color: 'white',
+          material_estimate: 'piqué cotton',
+          silhouette: 'classic fit',
+          style_tags: ['preppy', 'casual'],
+        },
+        userMessage: 'White polo shirt.',
+        recommendedProducts: [],
+      },
+      error: null,
+    },
+  });
+  const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+  const result = await analyzeTextWithEdge('white polo shirt made by Polo with bear on the front');
+  assert.equal(result.metadata.attributes.category, 'polo shirt');
+  assert.equal(result.metadata.attributes.color, 'white');
+  assert.equal(result.metadata.attributes.material, 'piqué cotton');
+  assert.equal(result.metadata.attributes.silhouette, 'classic fit');
+  assert.deepStrictEqual(result.metadata.attributes.styleDescriptors, ['preppy', 'casual']);
+});
+
 // ── 5. Regression fixture coverage ──
 
 test('regression fixtures: all 12 queries are present', () => {
