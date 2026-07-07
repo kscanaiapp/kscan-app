@@ -205,14 +205,18 @@ export function useKScan() {
 
         const secondhandRequest = buildSecondhandSearchRequest(data);
         if (secondhandRequest) {
-          searchVintedSecondhand(secondhandRequest).then((secondhand) => {
-            if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
-            if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
-            setAnalysis((current) => {
-              if (!current || current.type === 'non-fashion') return current;
-              return { ...current, secondhand };
+          searchVintedSecondhand(secondhandRequest)
+            .then((secondhand) => {
+              if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+              if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
+              setAnalysis((current) => {
+                if (!current || current.type === 'non-fashion') return current;
+                return { ...current, secondhand };
+              });
+            })
+            .catch(() => {
+              // Async enrichment failure must not replace the result card.
             });
-          });
         }
 
         // Sneaker enrichment — async, never blocks the result card.
@@ -224,14 +228,18 @@ export function useKScan() {
           model:              data.metadata?.silhouette,
         };
         if (shouldEnrichSneakers(sneakerInput)) {
-          searchSneakers(sneakerInput).then((sneakerReference) => {
-            if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
-            if (!sneakerReference || sneakerReference.length === 0) return;
-            setAnalysis((current) => {
-              if (!current || current.type === 'non-fashion') return current;
-              return { ...current, sneakerReference };
+          searchSneakers(sneakerInput)
+            .then((sneakerReference) => {
+              if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+              if (!sneakerReference || sneakerReference.length === 0) return;
+              setAnalysis((current) => {
+                if (!current || current.type === 'non-fashion') return current;
+                return { ...current, sneakerReference };
+              });
+            })
+            .catch(() => {
+              // Async enrichment failure must not replace the result card.
             });
-          });
         }
       };
 
