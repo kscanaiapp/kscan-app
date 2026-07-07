@@ -1,22 +1,21 @@
 /**
  * K-SCAN service layer. All backend communication lives here.
  *
- * Base URL resolution (in priority order):
- *   1. EXPO_PUBLIC_API_URL in .env (set per environment — see README)
- *   2. Hosted beta backend: https://kscan-app-1.onrender.com
+ * Legacy API base URL resolution:
+ *   - EXPO_PUBLIC_API_URL in .env (set per environment — see README)
+ *   - No hosted fallback is configured; legacy calls fail lazily without it.
  *
  * Environment guide:
  *   Local dev (iOS sim):    EXPO_PUBLIC_API_URL=http://localhost:3001
  *   Local dev (Android em): EXPO_PUBLIC_API_URL=http://10.0.2.2:3001
  *   Physical device:        EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:3001
- *   Hosted beta backend:    EXPO_PUBLIC_API_URL=https://kscan-app-1.onrender.com
  */
 
 // 45 seconds — must exceed the server's 15-second AI timeout plus network
 // round-trip, so the client waits for the server's own error response rather
 // than timing out first and showing a generic network error.
 const ANALYZE_TIMEOUT_MS = 45000;
-const HOSTED_BETA_BASE_URL = 'https://kscan-app-1.onrender.com';
+const API_URL_CONFIG_ERROR = 'KSCAN_API_URL_NOT_CONFIGURED';
 let analyzeRequestSequence = 0;
 
 function createAnalyzeRequestId() {
@@ -35,6 +34,7 @@ function logAnalyzeDiag(payload) {
 
 function userSafeError(message, userMessage) {
   const error = new Error(message);
+  error.code = message;
   error.userMessage = userMessage;
   return error;
 }
@@ -42,16 +42,26 @@ function userSafeError(message, userMessage) {
 function resolveBaseUrl() {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl && envUrl.trim()) return envUrl.trim();
-  return HOSTED_BETA_BASE_URL;
+  return null;
 }
 
-// Resolved once at module load — log it once for easy debugging
+function getRequiredApiBaseUrl() {
+  const baseUrl = resolveBaseUrl();
+  if (baseUrl) return baseUrl;
+  throw userSafeError(
+    API_URL_CONFIG_ERROR,
+    'The legacy analysis service is not configured. Please try again later.'
+  );
+}
+
+// Safe at module load: missing EXPO_PUBLIC_API_URL is reported only if a legacy
+// API function is invoked.
 export const BASE_URL = resolveBaseUrl();
 export function getApiBaseUrl() {
-  return BASE_URL;
+  return resolveBaseUrl();
 }
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
-  console.log('[K-SCAN] API_BASE_URL:', BASE_URL);
+  console.log('[K-SCAN] API_BASE_URL:', BASE_URL || '(not configured)');
 }
 
 const KNOWN_BAD_PRODUCT_IMAGE_RE =
@@ -233,7 +243,8 @@ export async function analyzeText(query, options = {}) {
   // ── Request ────────────────────────────────────────────────────────────────
   const TEXTSCAN_TIMEOUT_MS = 15000;
   const requestStartedAt = Date.now();
-  const endpoint = `${BASE_URL}/api/analyze`;
+  const baseUrl = getRequiredApiBaseUrl();
+  const endpoint = `${baseUrl}/api/analyze`;
   const requestBody = JSON.stringify({ mode: 'text', query: normalized, source });
   const requestId = createAnalyzeRequestId();
 
@@ -356,7 +367,8 @@ export async function analyzeImage(base64) {
   if (__DEV__) console.log('[DEBUG] analyzeImage called payloadLen=' + (base64?.length ?? 0));
 
   const requestStartedAt = Date.now();
-  const endpoint = `${BASE_URL}/api/analyze`;
+  const baseUrl = getRequiredApiBaseUrl();
+  const endpoint = `${baseUrl}/api/analyze`;
   const requestBody = JSON.stringify({ image: base64 });
   const requestId = createAnalyzeRequestId();
   logAnalyzeDiag({
@@ -373,7 +385,7 @@ export async function analyzeImage(base64) {
   const timeoutId = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
 
   try {
-    if (__DEV__) console.log('[DEBUG] FETCH_START url=' + BASE_URL + '/api/analyze');
+    if (__DEV__) console.log('[DEBUG] FETCH_START url=' + baseUrl + '/api/analyze');
     logAnalyzeDiag({
       event: 'request_start',
       requestId,

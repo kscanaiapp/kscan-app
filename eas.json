@@ -11,7 +11,6 @@
         "applicationArchivePath": "android/app/build/outputs/apk/release/app-release.apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -57,7 +56,6 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -82,8 +80,7 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "buildConfiguration": "Release",
-        "autoIncrement": "buildNumber"
+        "buildConfiguration": "Release"
       },
       "env": {
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",

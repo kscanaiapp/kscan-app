@@ -457,6 +457,64 @@ test('parseAIResponse: empty fashion metadata normalizes to non-fashion', () => 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. services/api.js — analyzeText validation and request shape
 // ─────────────────────────────────────────────────────────────────────────────
+test('services/api.js: import is safe without EXPO_PUBLIC_API_URL and has no Render fallback', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services/api.js'), 'utf8');
+  assert.equal(source.includes('onrender'), false);
+  assert.equal(source.includes('HOSTED_BETA_BASE_URL'), false);
+
+  const api = loadJsModule('services/api.js', {}, { process: { env: {} } });
+  assert.equal(api.getApiBaseUrl(), null);
+});
+
+test('analyzeText: missing EXPO_PUBLIC_API_URL fails lazily without fetch', async () => {
+  let fetchCalled = false;
+  const mockFetch = async () => {
+    fetchCalled = true;
+    throw new Error('fetch should not be called');
+  };
+
+  const { analyzeText } = loadJsModule('services/api.js', {}, {
+    process: { env: {} },
+    fetch: mockFetch,
+  });
+
+  let thrown = false;
+  try {
+    await analyzeText('oversized camel coat');
+  } catch (err) {
+    thrown = true;
+    assert.equal(err.message, 'KSCAN_API_URL_NOT_CONFIGURED');
+    assert.match(err.userMessage, /legacy analysis service is not configured/i);
+  }
+
+  assert.equal(thrown, true);
+  assert.equal(fetchCalled, false);
+});
+
+test('analyzeImage: missing EXPO_PUBLIC_API_URL fails lazily without fetch', async () => {
+  let fetchCalled = false;
+  const mockFetch = async () => {
+    fetchCalled = true;
+    throw new Error('fetch should not be called');
+  };
+
+  const { analyzeImage } = loadJsModule('services/api.js', {}, {
+    process: { env: {} },
+    fetch: mockFetch,
+  });
+
+  let thrown = false;
+  try {
+    await analyzeImage('data:image/jpeg;base64,test');
+  } catch (err) {
+    thrown = true;
+    assert.equal(err.message, 'KSCAN_API_URL_NOT_CONFIGURED');
+  }
+
+  assert.equal(thrown, true);
+  assert.equal(fetchCalled, false);
+});
+
 test('analyzeText: rejects empty string', async () => {
   let thrown = false;
   try {
