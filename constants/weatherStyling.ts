@@ -35,8 +35,10 @@ export const WEATHER_DISMISS_COOLDOWN_DAYS = 7;
 export const WEATHER_DISMISS_COOLDOWN_SESSIONS = 5;
 
 export const WEATHER_COPY = {
-  promptTitle: 'Use local weather for better outfit advice?',
-  promptUse: 'Use weather',
+  promptTitle: 'Use approximate location for weather-aware styling?',
+  promptBody:
+    'K Scan AI can use your approximate location to tailor StyleChat suggestions to your local weather. Location is optional, used only while you are using the app, and raw coordinates are not stored.',
+  promptUse: 'Continue',
   promptNotNow: 'Not now',
   active: 'Weather-aware',
   activeLong: 'Weather-aware advice is on',

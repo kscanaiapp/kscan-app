@@ -2,8 +2,8 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-nati
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { WEATHER_COPY } from '../../constants/weatherStyling';
 
-// First-party consent prompt shown only after clear styling intent, and only when
-// the user is eligible (never on launch/onboarding/mount). Tapping "Use weather"
+// Prominent in-app disclosure shown only after clear styling intent, and only when
+// the user is eligible (never on launch/onboarding/mount). Tapping "Continue"
 // triggers the OS foreground-permission dialog in the caller.
 export function StyleChatWeatherPrompt({
   onUseWeather,
@@ -17,6 +17,7 @@ export function StyleChatWeatherPrompt({
   return (
     <View style={styles.card} accessibilityRole="summary">
       <Text style={styles.title}>{WEATHER_COPY.promptTitle}</Text>
+      <Text style={styles.body}>{WEATHER_COPY.promptBody}</Text>
       <View style={styles.actions}>
         <Pressable
           onPress={onNotNow}
@@ -33,7 +34,7 @@ export function StyleChatWeatherPrompt({
           disabled={requesting}
           style={styles.primaryBtn}
           accessibilityRole="button"
-          accessibilityLabel="Use local weather for outfit advice"
+          accessibilityLabel="Continue and request location permission"
           accessibilityState={{ disabled: requesting, busy: requesting }}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
@@ -72,7 +73,15 @@ const styles = StyleSheet.create({
   title: {
     ...LUXURY.typography.body,
     fontSize: 14,
+    fontWeight: '600',
     color: LUXURY.colors.ink,
+    marginBottom: SPACING.xs,
+  },
+  body: {
+    ...LUXURY.typography.caption,
+    fontSize: 13,
+    lineHeight: 18,
+    color: LUXURY.colors.graphite,
     marginBottom: SPACING.sm,
   },
   actions: {

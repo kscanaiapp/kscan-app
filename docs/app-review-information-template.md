@@ -24,7 +24,7 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ## Review Notes
 
 ```text
-The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared rooms, photo-library inspiration upload, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, and microphone access are not part of this build. Coarse foreground location is used only for weather-aware StyleChat suggestions.
+The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared rooms, photo-library inspiration upload, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, and microphone access are not part of this build. When-In-Use approximate location is requested only for weather-aware StyleChat suggestions, after a prominent in-app disclosure. Location is optional, and raw coordinates are not stored.
 
 To review the app:
 1. Sign in with the reviewer email/password above.

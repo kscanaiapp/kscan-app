@@ -24,12 +24,13 @@ The shipping build includes:
 ### What the app requests
 
 - **Android permission:** `android.permission.ACCESS_COARSE_LOCATION` only.
-- **iOS purpose string:** `NSLocationWhenInUseUsageDescription` — "K Scan uses your general location while the app is open to suggest weather-appropriate outfit advice."
+- **iOS purpose string:** `NSLocationWhenInUseUsageDescription` — "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored."
 - **No fine location**, no background location, no continuous tracking.
 
 ### How location is used
 
-- `services/weather/weatherStylingContext.ts` requests foreground permission only.
+- `components/style-chat/StyleChatWeatherPrompt.tsx` shows a prominent in-app disclosure before any OS permission request.
+- `services/weather/weatherStylingContext.ts` requests foreground permission only inside the disclosure primary-button callback.
 - `Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low })` returns a city-scale fix.
 - Raw latitude/longitude are rounded immediately; only rounded coordinates are sent to the `stylechat-generate` Edge Function for weather context.
 - GPS coordinates are not stored, logged, or linked to the user account.
@@ -47,7 +48,11 @@ The shipping build includes:
 | Diagnostics / crash data | Only if retained in production logs | No | App functionality / security |
 | Tracking / Advertising ID | No | No | — |
 
-**Required before Play submission:** Add an in-app prominent disclosure before the first location permission request. The system rationale text in `app.json` is not sufficient on its own for Google Play.
+**Play Console / Data Safety disclosure wording:**
+
+```text
+K Scan AI requests approximate location for weather-aware styling suggestions. A prominent in-app disclosure is shown before the OS permission prompt. Location is optional, used only while the app is in use, and raw coordinates are not stored or shared for advertising.
+```
 
 ## 3. Account Deletion
 
@@ -78,7 +83,7 @@ The shipping build includes:
 
 ## 6. Remaining Play Blockers Checklist
 
-- [ ] In-app prominent location disclosure
+- [x] In-app prominent location disclosure
 - [ ] Data Safety form matches the table above
 - [ ] Automated account erasure or compliant web deletion flow
 - [ ] UGC report/block/moderation policy and UI

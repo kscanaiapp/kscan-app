@@ -9,6 +9,10 @@ import {
 // location history. Namespaced under the existing Style DNA local prefix.
 const PERMISSION_KEY = '@style_dna_v1/weather/permissionState';
 
+// Prominent disclosure choice flag, separate from the OS permission state.
+// Set after either "Continue" or "Not now" so the disclosure is not reshown.
+const DISCLOSURE_KEY = 'kscan.locationDisclosure.v1';
+
 export type WeatherPermissionRecord = {
   schemaVersion: 1;
   state: WeatherPermissionState;
@@ -95,6 +99,32 @@ export function isPromptEligible(record: WeatherPermissionRecord, now: number = 
 export async function clearWeatherPermissionState(): Promise<void> {
   try {
     await AsyncStorage.removeItem(PERMISSION_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export async function readLocationDisclosureChoice(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(DISCLOSURE_KEY);
+    return raw === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setLocationDisclosureChoice(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DISCLOSURE_KEY, 'true');
+  } catch {
+    // Best-effort: a missing flag may cause the disclosure to reshown, which is
+    // acceptable and still privacy-compliant.
+  }
+}
+
+export async function clearLocationDisclosureChoice(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DISCLOSURE_KEY);
   } catch {
     // ignore
   }

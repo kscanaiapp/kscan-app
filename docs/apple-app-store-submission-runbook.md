@@ -136,8 +136,18 @@ Use these as the App Store Connect App Privacy baseline for the current build:
 - Diagnostics: declare only if retained in production logs
 - Tracking: no
 - Data used for tracking: no
-- Approximate/foreground location: yes for weather-aware StyleChat (coarse, transient, not stored or linked to user)
+- Approximate/When-In-Use location: yes for weather-aware StyleChat only (coarse, transient, optional, not stored or linked to user)
 - Contacts, audio, payment, purchases, health, fitness, sensitive info, browsing history, search history, advertising data: no for this build
+
+## Location / Prominent Disclosure
+
+The app requests only `NSLocationWhenInUseUsageDescription` approximate location for weather-aware StyleChat. A prominent in-app disclosure is shown before the OS permission prompt. The disclosure explains that location is optional, used only while the app is in use, and that raw coordinates are not stored.
+
+Reviewer-facing wording:
+
+```text
+K Scan AI requests When-In-Use approximate location only to tailor StyleChat suggestions to local weather. Location is optional, and raw coordinates are not stored.
+```
 
 ## App Review Notes
 
