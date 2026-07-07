@@ -14,10 +14,21 @@ test('edge source: CORS OPTIONS preflight is handled', () => {
   assert.ok(EDGE_SOURCE.includes('Access-Control-Allow-Methods'), 'Must include CORS allow-methods');
 });
 
-test('edge source: anonymous requests are rejected', () => {
-  assert.ok(EDGE_SOURCE.includes("authHeader?.startsWith('Bearer ')"), 'Must check Bearer auth header');
-  assert.ok(EDGE_SOURCE.includes("auth.getUser()"), 'Must verify auth with getUser');
-  assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error');
+test('edge source: text mode remains authenticated', () => {
+  assert.ok(EDGE_SOURCE.includes("mode === 'text' && !auth.isAuthenticated"), 'Text mode must keep auth gate');
+  assert.ok(EDGE_SOURCE.includes("auth.getUser()"), 'Must verify signed-in users with getUser');
+  assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error for protected paths');
+});
+
+test('edge source: image mode allows project-key analysis-only without user data', () => {
+  assert.ok(EDGE_SOURCE.includes('isAnonymousImageAnalysis'), 'Must identify anonymous image analysis path');
+  assert.ok(EDGE_SOURCE.includes('hasValidProjectAccess'), 'Must require project access for anonymous image analysis');
+  assert.ok(EDGE_SOURCE.includes("provider: 'anonymous_analysis_only'"), 'Must mark anonymous scans analysis-only');
+  assert.ok(EDGE_SOURCE.includes('commerceSkipped: true'), 'Must skip commerce for anonymous scans');
+  assert.ok(
+    EDGE_SOURCE.includes("mode === 'image' && auth.isAuthenticated"),
+    'Image metadata capture must remain authenticated-only',
+  );
 });
 
 // ── 2. Text Mode Contract ──
@@ -54,6 +65,41 @@ test('edge source: image mode works without explicit mode field', () => {
   assert.ok(EDGE_SOURCE.includes("typeof body.mode === 'string'") && EDGE_SOURCE.includes("'image'"), 'Must default to image mode');
 });
 
+test('edge source: image failures return safe app-compatible shape', () => {
+  assert.ok(EDGE_SOURCE.includes('NO_IMAGE_PROVIDED_MESSAGE'), 'Must return explicit no-image message');
+  assert.ok(EDGE_SOURCE.includes('INVALID_IMAGE_MESSAGE'), 'Must return explicit invalid-image message');
+  assert.ok(EDGE_SOURCE.includes('identification:'), 'Must always include identification object');
+  assert.ok(EDGE_SOURCE.includes('attributes:'), 'Must always include attributes object');
+  assert.ok(EDGE_SOURCE.includes('products:'), 'Must always include products array');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions:'), 'Must always include purchaseOptions array');
+  assert.ok(EDGE_SOURCE.includes('similarityMatches:'), 'Must always include similarityMatches array');
+  assert.ok(EDGE_SOURCE.includes('shoppingMeta:'), 'Must always include shoppingMeta object');
+});
+
+test('edge source: invalid image payload is rejected before Gemini', () => {
+  const validationIndex = EDGE_SOURCE.indexOf('validateImageBase64(imageBase64)');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  assert.ok(validationIndex !== -1, 'Must validate image base64');
+  assert.ok(geminiIndex !== -1, 'Must call Gemini after validation');
+  assert.ok(validationIndex < geminiIndex, 'Image validation must run before Gemini');
+});
+
+test('edge source: anonymous image scans are rate-limited before Gemini', () => {
+  const rateLimitIndex = EDGE_SOURCE.indexOf('checkAnonymousImageRateLimit');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_WINDOW_MS'), 'Must define anonymous limiter window');
+  assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_MAX'), 'Must define anonymous limiter maximum');
+  assert.ok(rateLimitIndex !== -1, 'Must check anonymous rate limit');
+  assert.ok(geminiIndex !== -1, 'Must call Gemini after rate limit');
+  assert.ok(rateLimitIndex < geminiIndex, 'Anonymous rate limit must run before Gemini');
+  assert.ok(EDGE_SOURCE.includes('retryAfterSeconds'), 'Limited response must include retryAfterSeconds');
+});
+
+test('edge source: Render fallback is not reintroduced', () => {
+  assert.equal(EDGE_SOURCE.includes('render.com'), false, 'Must not reference Render');
+  assert.equal(EDGE_SOURCE.includes('/api/analyze'), false, 'Must not call legacy analyze fallback');
+});
+
 // ── 4. Kill Switch and Env Vars ──
 
 test('edge source: kill switch disables AI', () => {
@@ -63,7 +109,8 @@ test('edge source: kill switch disables AI', () => {
 
 test('edge source: missing Gemini key returns safe error', () => {
   assert.ok(EDGE_SOURCE.includes("Deno.env.get('GEMINI_API_KEY')"), 'Must read GEMINI_API_KEY');
-  assert.ok(EDGE_SOURCE.includes("{ error: 'AI provider not configured' }"), 'Must return safe error for missing key');
+  assert.ok(EDGE_SOURCE.includes("error: 'AI provider not configured'"), 'Must return safe error for missing key');
+  assert.ok(EDGE_SOURCE.includes("normalized('failed'"), 'Missing-key response must use normalized safe shape');
 });
 
 test('edge source: env var audit lists expected variables', () => {

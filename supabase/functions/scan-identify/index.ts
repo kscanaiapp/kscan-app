@@ -16,8 +16,9 @@
 // or bystander appears, identity is ignored entirely; only fashion attributes of
 // visible garments/accessories are returned. No biometric/demographic traits.
 //
-// Security guarantees (mirrors stylechat-generate):
-//   - JWT verified via auth.getUser() before any provider call
+// Security guarantees (mirrors stylechat-generate where user data is involved):
+//   - Signed-in users are verified via auth.getUser() before user-owned data work
+//   - Image mode can run analysis-only for project-authenticated anon/reviewer calls
 //   - GEMINI_API_KEY never leaves this function
 //   - Raw provider output is parsed + normalized, never returned verbatim
 //   - No stack traces returned to the client
@@ -79,6 +80,9 @@ const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
+const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const ANON_SCAN_RATE_LIMIT_MAX = 6;
+const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
 
 // Output sanitization caps — keep responses small and predictable.
 const MAX_STRING_LEN = 120;
@@ -130,6 +134,10 @@ const IDENTIFICATION_NUMBER_KEYS = ['confidence_score'] as const;
 
 const SAFE_FAILED_MESSAGE =
   "We couldn't complete this scan. Please try again in better light or retake the photo.";
+const NO_IMAGE_PROVIDED_MESSAGE =
+  'No image provided. Please retake the photo and try again.';
+const INVALID_IMAGE_MESSAGE =
+  'Image payload is invalid. Please retake the photo and try again.';
 const SAFE_NON_FASHION_MESSAGE =
   'This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories.';
 const IMAGE_TOO_LARGE_MESSAGE =
@@ -138,6 +146,37 @@ const SAFE_TEXT_FAILED_MESSAGE =
   "We couldn't analyze this request. Please try describing a garment, style, or outfit.";
 const SAFE_TEXT_NON_FASHION_MESSAGE =
   "This doesn't appear to be a fashion query. Try describing a garment, style, or outfit.";
+
+type AuthContext = {
+  userId: string | null;
+  isAuthenticated: boolean;
+  hasProjectAccess: boolean;
+  authError: boolean;
+};
+
+type ShoppingMeta = {
+  provider: string;
+  query: string;
+  count: number;
+  providersTried?: string[];
+  catalogCount?: number;
+  similarityMatches?: number;
+  commerceSkipped?: boolean;
+  reason?: string;
+};
+
+type AnonymousRateEntry = {
+  windowStart: number;
+  count: number;
+};
+
+type ProjectAccessCacheEntry = {
+  valid: boolean;
+  expiresAt: number;
+};
+
+const anonymousScanRateLimits = new Map<string, AnonymousRateEntry>();
+const projectAccessCache = new Map<string, ProjectAccessCacheEntry>();
 
 // ── Provider prompts (server-side only) ────────────────────────────────────────
 
@@ -638,12 +677,210 @@ function normalized(
 ) {
   const out: Record<string, unknown> = {
     status,
+    identification: identification && typeof identification === 'object' ? identification : {},
+    attributes: attributes && typeof attributes === 'object' ? attributes : {},
     recommendedProducts: [],
+    products: [],
+    purchaseOptions: [],
+    similarityMatches: [],
+    shoppingMeta: {},
     userMessage,
   };
-  if (status === 'completed' && attributes) out.attributes = attributes;
-  if (status === 'completed' && identification) out.identification = identification;
   return out;
+}
+
+function withSafeImageArrays(
+  response: Record<string, unknown>,
+  options: {
+    recommendedProducts?: unknown[];
+    products?: unknown[];
+    purchaseOptions?: unknown[];
+    similarityMatches?: unknown[];
+    shoppingMeta?: ShoppingMeta;
+  } = {},
+): Record<string, unknown> {
+  const recommendedProducts = Array.isArray(options.recommendedProducts)
+    ? options.recommendedProducts
+    : Array.isArray(response.recommendedProducts)
+    ? response.recommendedProducts
+    : [];
+  const similarityMatches = Array.isArray(options.similarityMatches)
+    ? options.similarityMatches
+    : Array.isArray(response.similarityMatches)
+    ? response.similarityMatches
+    : [];
+  return {
+    ...response,
+    recommendedProducts,
+    products: Array.isArray(options.products) ? options.products : similarityMatches,
+    purchaseOptions: Array.isArray(options.purchaseOptions) ? options.purchaseOptions : recommendedProducts,
+    similarityMatches,
+    shoppingMeta: options.shoppingMeta && typeof options.shoppingMeta === 'object' ? options.shoppingMeta : {},
+  };
+}
+
+function extractBearerToken(authHeader: string | null): string {
+  if (!authHeader) return '';
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() ?? '';
+}
+
+function safeHeaderValue(value: string | null): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+async function hasValidProjectAccess(
+  req: Request,
+  supabaseUrl: string,
+  supabaseAnonKey: string,
+): Promise<boolean> {
+  const bearerToken = extractBearerToken(req.headers.get('Authorization'));
+  const apiKey = safeHeaderValue(req.headers.get('apikey')) || safeHeaderValue(req.headers.get('x-api-key'));
+  if (bearerToken === supabaseAnonKey || apiKey === supabaseAnonKey) return true;
+
+  const candidate = apiKey || bearerToken;
+  if (!candidate) return false;
+  return validateProjectAccessKey(supabaseUrl, candidate);
+}
+
+async function validateProjectAccessKey(supabaseUrl: string, candidate: string): Promise<boolean> {
+  const keyHash = await sha256Hex(candidate);
+  const now = Date.now();
+  const cached = projectAccessCache.get(keyHash);
+  if (cached && cached.expiresAt > now) return cached.valid;
+
+  let valid = false;
+  try {
+    const res = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
+      method: 'GET',
+      headers: { apikey: candidate },
+    });
+    valid = res.ok;
+  } catch {
+    valid = false;
+  }
+
+  projectAccessCache.set(keyHash, {
+    valid,
+    expiresAt: now + PROJECT_ACCESS_CACHE_MS,
+  });
+  return valid;
+}
+
+async function resolveAuthContext(
+  req: Request,
+  supabaseUrl: string,
+  supabaseAnonKey: string,
+): Promise<AuthContext> {
+  const authHeader = req.headers.get('Authorization');
+  const bearerToken = extractBearerToken(authHeader);
+  const hasProjectAccess = await hasValidProjectAccess(req, supabaseUrl, supabaseAnonKey);
+
+  if (!bearerToken || bearerToken === supabaseAnonKey) {
+    return {
+      userId: null,
+      isAuthenticated: false,
+      hasProjectAccess,
+      authError: false,
+    };
+  }
+
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader ?? '' } },
+  });
+
+  const { data: { user }, error: authError } = await userClient.auth.getUser();
+  return {
+    userId: authError || !user ? null : user.id,
+    isAuthenticated: Boolean(!authError && user),
+    hasProjectAccess,
+    authError: Boolean(authError || !user),
+  };
+}
+
+function getClientFingerprintMaterial(req: Request): string {
+  const forwardedFor = safeHeaderValue(req.headers.get('x-forwarded-for')).split(',')[0]?.trim() ?? '';
+  const ip =
+    forwardedFor ||
+    safeHeaderValue(req.headers.get('cf-connecting-ip')) ||
+    safeHeaderValue(req.headers.get('x-real-ip')) ||
+    'unknown-ip';
+  const userAgent = safeHeaderValue(req.headers.get('user-agent')) || 'unknown-agent';
+  return `${ip}|${userAgent}`;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function checkAnonymousImageRateLimit(fingerprint: string): {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  count: number;
+} {
+  const now = Date.now();
+  if (anonymousScanRateLimits.size > 1000) {
+    for (const [key, entry] of anonymousScanRateLimits.entries()) {
+      if (now - entry.windowStart > ANON_SCAN_RATE_LIMIT_WINDOW_MS * 2) {
+        anonymousScanRateLimits.delete(key);
+      }
+    }
+  }
+
+  const current = anonymousScanRateLimits.get(fingerprint);
+  const entry = !current || now - current.windowStart >= ANON_SCAN_RATE_LIMIT_WINDOW_MS
+    ? { windowStart: now, count: 0 }
+    : current;
+  entry.count += 1;
+  anonymousScanRateLimits.set(fingerprint, entry);
+
+  const retryAfterSeconds = Math.max(
+    1,
+    Math.ceil((entry.windowStart + ANON_SCAN_RATE_LIMIT_WINDOW_MS - now) / 1000),
+  );
+  return {
+    allowed: entry.count <= ANON_SCAN_RATE_LIMIT_MAX,
+    retryAfterSeconds,
+    count: entry.count,
+  };
+}
+
+function validateImageBase64(imageBase64: string): string | undefined {
+  if (imageBase64.length < 16) return 'too_short';
+  if (imageBase64.length % 4 === 1 || !/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64)) {
+    return 'invalid_base64';
+  }
+
+  let prefix = '';
+  try {
+    const prefixLength = Math.min(imageBase64.length, 128);
+    const chunk = imageBase64.slice(0, prefixLength);
+    const paddedChunk = chunk.padEnd(Math.ceil(chunk.length / 4) * 4, '=');
+    prefix = atob(paddedChunk);
+  } catch {
+    return 'invalid_base64';
+  }
+
+  const bytes = Array.from(prefix).map((ch) => ch.charCodeAt(0));
+  const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isPng =
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a;
+  const isWebp =
+    prefix.slice(0, 4) === 'RIFF' &&
+    prefix.slice(8, 12) === 'WEBP';
+
+  return isJpeg || isPng || isWebp ? undefined : 'unsupported_image';
 }
 
 function safeString(value: unknown): string | undefined {
@@ -892,11 +1129,6 @@ Deno.serve(async (req) => {
   }
 
   // ── 1. Verify authenticated user from JWT ────────────────────────────────────
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return json({ error: 'Missing authorization' }, 401);
-  }
-
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -904,27 +1136,7 @@ Deno.serve(async (req) => {
     return json({ error: 'Server configuration error' }, 500);
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return json({ error: 'Not authenticated' }, 401);
-  }
-  const userId = user.id;
-
   // ── Service-role client for catalog retrieval (safe, no public RLS read) ──
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const catalogClient = supabaseUrl && supabaseServiceRoleKey
-    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      })
-    : null;
-  if (!catalogClient) {
-    console.log('[scan-identify] catalog_client_not_available');
-  }
-
   // ── 2. Parse and validate request body ──────────────────────────────────────
   let body: {
     mode?: unknown;
@@ -942,11 +1154,11 @@ Deno.serve(async (req) => {
   try {
     body = await req.json();
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return json({ ...normalized('failed', INVALID_IMAGE_MESSAGE), error: 'Invalid JSON' }, 400);
   }
 
   const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
-  const source = typeof body.source === 'string' ? body.source : 'unknown';
+  const source = safeString(body.source) ?? 'unknown';
   const appPlatform = typeof body.appPlatform === 'string' && body.appPlatform.trim()
     ? body.appPlatform.trim()
     : null;
@@ -965,6 +1177,40 @@ Deno.serve(async (req) => {
     : req.headers.get('x-scan-id') || req.headers.get('x-request-id') || crypto.randomUUID();
   const scanId = mode === 'image' ? crypto.randomUUID() : requestScanId;
 
+  const auth = await resolveAuthContext(req, supabaseUrl, supabaseAnonKey);
+  const userId = auth.userId;
+  const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
+
+  if (mode === 'text' && !auth.isAuthenticated) {
+    return json({ error: 'Not authenticated' }, 401);
+  }
+
+  if (isAnonymousImageAnalysis && !auth.hasProjectAccess) {
+    return json(
+      {
+        ...normalized('failed', SAFE_FAILED_MESSAGE),
+        error: 'Not authenticated',
+      },
+      401,
+    );
+  }
+
+  if (isAnonymousImageAnalysis && auth.authError) {
+    console.warn('[scan-identify] image_auth_fallback_to_analysis_only reason=user_jwt_unverified');
+  }
+
+  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const catalogClient = auth.isAuthenticated && supabaseUrl && supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : null;
+  if (auth.isAuthenticated && !catalogClient) {
+    console.log('[scan-identify] catalog_client_not_available');
+  }
+
+  let anonymousFingerprint = '';
+
   if (mode === 'text') {
     textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
     if (!textQuery) {
@@ -980,11 +1226,36 @@ Deno.serve(async (req) => {
     imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
 
     if (!imageBase64) {
-      return json(normalized('failed', SAFE_FAILED_MESSAGE), 200);
+      return json(normalized('failed', NO_IMAGE_PROVIDED_MESSAGE), 200);
     }
     if (imageBase64.length > MAX_IMAGE_BASE64_BYTES) {
       console.warn('[scan-identify] image_too_large bytes=%d', imageBase64.length);
       return json(normalized('failed', IMAGE_TOO_LARGE_MESSAGE), 200);
+    }
+    const imageValidation = validateImageBase64(imageBase64);
+    if (imageValidation) {
+      console.warn('[scan-identify] invalid_image_payload reason=%s', imageValidation);
+      return json(normalized('failed', INVALID_IMAGE_MESSAGE), 200);
+    }
+
+    if (isAnonymousImageAnalysis) {
+      anonymousFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
+      const rateLimit = checkAnonymousImageRateLimit(anonymousFingerprint);
+      console.log(
+        '[scan-identify] anonymous_image_attempt fingerprint=%s count=%d allowed=%s',
+        anonymousFingerprint.slice(0, 12),
+        rateLimit.count,
+        String(rateLimit.allowed),
+      );
+      if (!rateLimit.allowed) {
+        return json(
+          {
+            ...normalized('failed', 'Scan limit reached. Please try again later.'),
+            retryAfterSeconds: rateLimit.retryAfterSeconds,
+          },
+          429,
+        );
+      }
     }
   }
 
@@ -998,7 +1269,13 @@ Deno.serve(async (req) => {
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiKey) {
     console.error('[scan-identify] GEMINI_API_KEY not configured');
-    return json({ error: 'AI provider not configured' }, 500);
+    return json(
+      {
+        ...normalized('failed', mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE),
+        error: 'AI provider not configured',
+      },
+      500,
+    );
   }
 
   const modelName =
@@ -1058,6 +1335,7 @@ Deno.serve(async (req) => {
 
   const safeFailed = mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE;
   const safeNonFashion = mode === 'text' ? SAFE_TEXT_NON_FASHION_MESSAGE : SAFE_NON_FASHION_MESSAGE;
+  const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
   try {
     const res = await fetch(geminiUrl, {
@@ -1074,7 +1352,7 @@ Deno.serve(async (req) => {
       const meta = extractGeminiErrorMeta(raw);
       console.warn(
         '[scan-identify] gemini_http_error uid=%s mode=%s source=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
-        userId.slice(0, 8),
+        logUserId,
         mode,
         source,
         res.status,
@@ -1170,7 +1448,7 @@ Deno.serve(async (req) => {
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
       const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
-      console.log('[scan-identify] ok uid=%s mode=%s source=%s status=non_fashion elapsedMs=%d', userId.slice(0, 8), mode, source, elapsedMs);
+      console.log('[scan-identify] ok uid=%s mode=%s source=%s status=non_fashion elapsedMs=%d', logUserId, mode, source, elapsedMs);
       // Build non-fashion response with safe attributes and identification
       const nonFashionIdentification = identification ?? {
         visual_observation: 'The image appears to show a non-fashion item.',
@@ -1219,13 +1497,30 @@ Deno.serve(async (req) => {
       // marks the scan non_fashion, it can still emit a plausible item_type
       // (e.g. "bag"), which would otherwise leak real catalog rows of that
       // category into a non-fashion result. Force an empty shelf here.
-      const finalResponse = {
-        ...nonFashionResponseWithAttributes,
-        ...(mode === 'image' ? { scanId } : {}),
-        recommendedProducts: [],
-        displayResult: buildDisplayResult(nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined, 0.95),
-      };
-      if (mode === 'image') {
+      const finalResponse = withSafeImageArrays(
+        {
+          ...nonFashionResponseWithAttributes,
+          ...(mode === 'image' ? { scanId } : {}),
+          displayResult: buildDisplayResult(nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined, 0.95),
+        },
+        {
+          recommendedProducts: [],
+          products: [],
+          purchaseOptions: [],
+          similarityMatches: [],
+          shoppingMeta: {
+            provider: isAnonymousImageAnalysis ? 'anonymous_analysis_only' : 'none',
+            query: '',
+            count: 0,
+            providersTried: [],
+            catalogCount: 0,
+            similarityMatches: 0,
+            commerceSkipped: isAnonymousImageAnalysis,
+            reason: isAnonymousImageAnalysis ? 'anonymous_non_fashion' : 'non_fashion',
+          },
+        },
+      );
+      if (mode === 'image' && auth.isAuthenticated) {
         await captureImageModeScanIntelligence({
           scanId,
           userId,
@@ -1238,14 +1533,22 @@ Deno.serve(async (req) => {
           appVersion,
         });
       }
-      const auditEvent = buildAuditEvent(
-        finalResponse,
-        nonFashionNormalizedId,
-        [],
-        elapsedMs,
-        scanId,
-      );
-      logScanIdentificationAudit(auditEvent);
+      if (isAnonymousImageAnalysis) {
+        console.log(
+          '[scan-identify] anonymous_image_result fingerprint=%s status=non_fashion elapsedMs=%d',
+          anonymousFingerprint.slice(0, 12),
+          elapsedMs,
+        );
+      } else {
+        const auditEvent = buildAuditEvent(
+          finalResponse,
+          nonFashionNormalizedId,
+          [],
+          elapsedMs,
+          scanId,
+        );
+        logScanIdentificationAudit(auditEvent);
+      }
       return json(finalResponse, 200);
     }
 
@@ -1274,7 +1577,7 @@ Deno.serve(async (req) => {
 
     console.log(
       '[scan-identify] ok uid=%s mode=%s source=%s status=completed attrKeys=%d idKeys=%d elapsedMs=%d',
-      userId.slice(0, 8),
+      logUserId,
       mode,
       source,
       Object.keys(attributes).length,
@@ -1295,16 +1598,7 @@ Deno.serve(async (req) => {
     let finalRecommendedProducts: RankedScanProduct[];
     let finalSimilarityMatches: SimilarityMatch[] = [];
     let rankedProductsForAudit: RankedScanProduct[];
-    let shoppingMeta:
-      | {
-        provider: string;
-        query: string;
-        count: number;
-        providersTried?: string[];
-        catalogCount?: number;
-        similarityMatches?: number;
-      }
-      | undefined;
+    let shoppingMeta: ShoppingMeta | undefined;
 
     if (mode === 'text') {
       const shoppingQuery = buildShoppingQuery({
@@ -1337,6 +1631,20 @@ Deno.serve(async (req) => {
         provider: shopping.provider,
         query: shopping.query,
         count: finalRecommendedProducts.length,
+      };
+    } else if (isAnonymousImageAnalysis) {
+      finalRecommendedProducts = [];
+      finalSimilarityMatches = [];
+      rankedProductsForAudit = [];
+      shoppingMeta = {
+        provider: 'anonymous_analysis_only',
+        query: '',
+        count: 0,
+        providersTried: [],
+        catalogCount: 0,
+        similarityMatches: 0,
+        commerceSkipped: true,
+        reason: 'anonymous_image_analysis',
       };
     } else {
       // Image (camera) mode: live commerce first, then deterministic catalog
@@ -1420,21 +1728,28 @@ Deno.serve(async (req) => {
       };
     }
 
-    const finalResponse = {
-      ...completedResponseWithAttributes,
-      ...(mode === 'image' ? { scanId } : {}),
-      recommendedProducts: finalRecommendedProducts,
-      ...(mode === 'image' ? { similarityMatches: finalSimilarityMatches } : {}),
-      ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
-      ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
-      displayResult: buildDisplayResult(
-        completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
-        typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
-          ? ((completedResponseWithAttributes.identification as Record<string, unknown>).confidence_score as number)
-          : undefined,
-      ),
-    };
-    if (mode === 'image') {
+    const finalResponse = withSafeImageArrays(
+      {
+        ...completedResponseWithAttributes,
+        ...(mode === 'image' ? { scanId } : {}),
+        ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
+        ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
+        displayResult: buildDisplayResult(
+          completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
+          typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
+            ? ((completedResponseWithAttributes.identification as Record<string, unknown>).confidence_score as number)
+            : undefined,
+        ),
+      },
+      {
+        recommendedProducts: finalRecommendedProducts,
+        products: mode === 'image' ? finalSimilarityMatches : finalRecommendedProducts,
+        purchaseOptions: finalRecommendedProducts,
+        similarityMatches: mode === 'image' ? finalSimilarityMatches : [],
+        shoppingMeta,
+      },
+    );
+    if (mode === 'image' && auth.isAuthenticated) {
       await captureImageModeScanIntelligence({
         scanId,
         userId,
@@ -1447,14 +1762,22 @@ Deno.serve(async (req) => {
         appVersion,
       });
     }
-    const auditEvent = buildAuditEvent(
-      finalResponse,
-      completedNormalizedId,
-      rankedProductsForAudit,
-      elapsedMs,
-      scanId,
-    );
-    logScanIdentificationAudit(auditEvent);
+    if (isAnonymousImageAnalysis) {
+      console.log(
+        '[scan-identify] anonymous_image_result fingerprint=%s status=completed elapsedMs=%d',
+        anonymousFingerprint.slice(0, 12),
+        elapsedMs,
+      );
+    } else {
+      const auditEvent = buildAuditEvent(
+        finalResponse,
+        completedNormalizedId,
+        rankedProductsForAudit,
+        elapsedMs,
+        scanId,
+      );
+      logScanIdentificationAudit(auditEvent);
+    }
     return json(finalResponse, 200);
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
