@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { WEATHER_COPY } from '../../constants/weatherStyling';
 
 // Prominent in-app disclosure shown only after clear styling intent, and only when
@@ -39,7 +39,7 @@ export function StyleChatWeatherPrompt({
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
           {requesting ? (
-            <ActivityIndicator size="small" color={LUXURY.colors.inverse} />
+            <ActivityIndicator size="small" color={COLORS.textInverse} />
           ) : (
             <Text style={styles.primaryText}>{WEATHER_COPY.promptUse}</Text>
           )}
@@ -67,21 +67,18 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: LUXURY.colors.hairline,
-    backgroundColor: LUXURY.colors.pearl,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.surfaceCard,
   },
   title: {
-    ...LUXURY.typography.body,
+    ...TYPOGRAPHY.bodyStrong,
     fontSize: 14,
-    fontWeight: '600',
-    color: LUXURY.colors.ink,
     marginBottom: SPACING.xs,
   },
   body: {
-    ...LUXURY.typography.caption,
+    ...TYPOGRAPHY.body,
     fontSize: 13,
     lineHeight: 18,
-    color: LUXURY.colors.graphite,
     marginBottom: SPACING.sm,
   },
   actions: {
@@ -96,9 +93,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   secondaryText: {
-    ...LUXURY.typography.caption,
+    ...TYPOGRAPHY.caption,
     fontSize: 13,
-    color: LUXURY.colors.graphite,
+    color: COLORS.textSecondary,
     letterSpacing: 0.4,
   },
   primaryBtn: {
@@ -108,15 +105,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.pill,
-    backgroundColor: LUXURY.colors.plum,
+    backgroundColor: COLORS.purplePrimary,
     borderWidth: 1,
-    borderColor: LUXURY.colors.plumSoft,
+    borderColor: COLORS.purpleSoft,
   },
   primaryText: {
-    ...LUXURY.typography.caption,
+    ...TYPOGRAPHY.caption,
     fontSize: 13,
     fontWeight: '600',
-    color: LUXURY.colors.inverse,
+    color: COLORS.textInverse,
     letterSpacing: 0.6,
   },
   chip: {
@@ -130,19 +127,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: LUXURY.colors.hairline,
-    backgroundColor: LUXURY.colors.ivory,
+    borderColor: COLORS.borderHairline,
+    backgroundColor: COLORS.canvasWarm,
   },
   chipDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: LUXURY.colors.gold,
+    backgroundColor: COLORS.gold,
   },
   chipText: {
-    ...LUXURY.typography.caption,
+    ...TYPOGRAPHY.caption,
     fontSize: 11,
-    color: LUXURY.colors.stone,
+    color: COLORS.textTertiary,
     letterSpacing: 0.8,
   },
 });
