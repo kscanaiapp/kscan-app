@@ -206,10 +206,12 @@ test('identifyScanImage: oversized payload → too large, no invoke', async () =
 
 test('identifyScanImage: success path returns normalized completed', async () => {
   let sentBody = null;
+  let invokedFn = null;
   const adapter = loadAdapter({
     auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
     functions: {
-      invoke: async (_fn, opts) => {
+      invoke: async (fn, opts) => {
+        invokedFn = fn;
         sentBody = opts.body;
         return {
           data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Footwear' }, userMessage: 'Sneakers.' },
@@ -222,6 +224,7 @@ test('identifyScanImage: success path returns normalized completed', async () =>
   assert.equal(out.status, 'completed');
   assert.equal(out.attributes.category, 'Footwear');
   assertEmptyArray(out.recommendedProducts);
+  assert.equal(invokedFn, 'scan-identify', 'Camera route must invoke scan-identify Edge Function');
   // data-URI prefix stripped before sending
   assert.equal(sentBody.imageBase64, 'QUJD');
   assert.equal(sentBody.source, 'upload');

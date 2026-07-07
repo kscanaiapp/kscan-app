@@ -491,6 +491,9 @@ test('edge source: anonymous image scan skips commerce, similarity, and authenti
 test('edge source: production stage logs are present and do not leak sensitive data', () => {
   const logLabels = [
     'request_start',
+    'quota_allowed',
+    'quota_rate_limited',
+    'quota_check_error',
     'gemini_start',
     'gemini_success',
     'gemini_timeout',
@@ -515,4 +518,106 @@ test('edge source: production stage logs are present and do not leak sensitive d
   // Variable names like bearerToken/geminiKey are used for request handling but
   // are never logged directly; the existing 'error response does not leak secrets'
   // test covers the response contract.
+});
+
+// ── 15. Authenticated daily quota enforcement ──
+
+test('edge source: authenticated image scan checks DB quota before Gemini', () => {
+  const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check');
+  assert.ok(
+    EDGE_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
+    'Must call scan_identify daily quota RPC',
+  );
+  assert.ok(quotaIndex !== -1, 'Must check authenticated quota');
+  assert.ok(geminiIndex !== -1, 'Must call Gemini after quota');
+  assert.ok(quotaIndex < geminiIndex, 'Authenticated quota must run before Gemini');
+});
+
+test('edge source: authenticated TextScan checks DB quota before Gemini', () => {
+  assert.ok(EDGE_SOURCE.includes("mode === 'text'"), 'Must branch on text mode');
+  assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check for text');
+  const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  assert.ok(quotaIndex < geminiIndex, 'Text scan quota must run before Gemini');
+});
+
+test('edge source: quota exceeded returns HTTP 200 rate_limited app-safe shape', () => {
+  assert.ok(EDGE_SOURCE.includes("status: 'rate_limited'"), 'Must return rate_limited status');
+  assert.ok(EDGE_SOURCE.includes('buildRateLimitedResponse'), 'Must use rate-limited response builder');
+  assert.ok(
+    EDGE_SOURCE.includes('Daily scan limit reached. Try again tomorrow.'),
+    'Must include user-facing rate-limit message',
+  );
+  assert.ok(EDGE_SOURCE.includes("provider: 'rate_limited'"), 'Must mark shoppingMeta provider as rate_limited');
+  assert.ok(EDGE_SOURCE.includes("reason: 'daily_limit'"), 'Must mark reason as daily_limit');
+  assert.ok(EDGE_SOURCE.includes('recommendedProducts: []'), 'Rate-limited response must include empty recommendedProducts');
+  assert.ok(EDGE_SOURCE.includes('products: []'), 'Rate-limited response must include empty products');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions: []'), 'Rate-limited response must include empty purchaseOptions');
+  assert.ok(EDGE_SOURCE.includes('similarityMatches: []'), 'Rate-limited response must include empty similarityMatches');
+});
+
+test('edge source: quota exceeded does not call Gemini, commerce, or similarity', () => {
+  const rateLimitReturn = EDGE_SOURCE.indexOf('return json(buildRateLimitedResponse(), 200)');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const commerceIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
+  const similarityIndex = EDGE_SOURCE.indexOf('buildImageSimilarityMatches');
+  assert.ok(rateLimitReturn !== -1, 'Must return early on quota exceeded');
+  assert.ok(rateLimitReturn < geminiIndex, 'Rate-limited response must return before Gemini');
+  assert.ok(rateLimitReturn < commerceIndex, 'Rate-limited response must return before commerce');
+  assert.ok(rateLimitReturn < similarityIndex, 'Rate-limited response must return before similarity');
+});
+
+test('edge source: quota DB/RPC failure fails open and proceeds to Gemini', () => {
+  assert.ok(EDGE_SOURCE.includes('quota_check_error'), 'Must log quota check errors');
+  assert.ok(
+    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
+    'Must allow scan when quota check fails',
+  );
+});
+
+test('edge source: missing service role key fails open for authenticated quota', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('reason=missing_service_role_client'),
+    'Must detect missing service role client',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
+    'Must allow scan when service role client missing',
+  );
+});
+
+test('edge source: anonymous image scan uses anonymous guard, not DB user quota', () => {
+  const anonGuardIndex = EDGE_SOURCE.indexOf('checkAnonymousImageRateLimit');
+  const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
+  assert.ok(anonGuardIndex !== -1, 'Must keep anonymous image guard');
+  assert.ok(quotaIndex !== -1, 'Must have authenticated quota check');
+  assert.ok(
+    EDGE_SOURCE.includes('if (auth.isAuthenticated && userId)'),
+    'Quota check must be gated to authenticated users',
+  );
+  assert.ok(EDGE_SOURCE.includes('isAnonymousImageAnalysis'), 'Must preserve anonymous image analysis path');
+});
+
+test('edge source: TextScan remains authenticated-only', () => {
+  assert.ok(EDGE_SOURCE.includes("mode === 'text' && !auth.isAuthenticated"), 'Text mode must keep auth gate');
+  assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error for text mode');
+});
+
+test('edge source: quota logs do not expose full user id, tokens, image, or text', () => {
+  const quotaLogLines = EDGE_SOURCE.split('\n').filter(
+    (line) =>
+      line.includes('quota_allowed') ||
+      line.includes('quota_rate_limited') ||
+      line.includes('quota_check_error'),
+  );
+  assert.ok(quotaLogLines.length >= 3, 'Must have quota allowed, rate-limited, and error log lines');
+  for (const line of quotaLogLines) {
+    assert.ok(line.includes('user=%s'), 'Quota log must truncate user id with format specifier');
+    assert.equal(line.includes('imageBase64'), false, 'Quota log must not reference image payload');
+    assert.equal(line.includes('textQuery'), false, 'Quota log must not reference text query');
+    assert.equal(line.includes('bearerToken'), false, 'Quota log must not reference bearer token');
+    assert.equal(line.includes('geminiKey'), false, 'Quota log must not reference gemini key');
+  }
 });

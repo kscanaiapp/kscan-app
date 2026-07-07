@@ -83,6 +83,8 @@ const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
 const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const ANON_SCAN_RATE_LIMIT_MAX = 6;
+const SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT = 30;
+const SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT = 50;
 const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
 
 // Output sanitization caps — keep responses small and predictable.
@@ -818,6 +820,81 @@ async function sha256Hex(value: string): Promise<string> {
     .join('');
 }
 
+function getScanIdentifyDailyLimit(mode: string): number {
+  const raw = readTrimmedEnv(
+    mode === 'text' ? 'SCAN_IDENTIFY_TEXT_DAILY_LIMIT' : 'SCAN_IDENTIFY_IMAGE_DAILY_LIMIT',
+  );
+  const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : (mode === 'text' ? SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT : SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT);
+}
+
+async function checkAuthenticatedScanQuota(
+  catalogClient: unknown,
+  userId: string,
+  mode: string,
+  logUserId: string,
+): Promise<{ allowed: boolean; count: number; limit: number }> {
+  if (!catalogClient) {
+    console.warn(
+      '[scan-identify] quota_check_error user=%s mode=%s reason=missing_service_role_client',
+      logUserId,
+      mode,
+    );
+    return { allowed: true, count: 0, limit: 0 };
+  }
+
+  const dailyLimit = getScanIdentifyDailyLimit(mode);
+
+  try {
+    const { data, error } = await (catalogClient as any).rpc('check_and_increment_scan_identify_daily_usage', {
+      p_user_id: userId,
+      p_mode: mode,
+      p_daily_limit: dailyLimit,
+    });
+
+    if (error) throw error;
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row.allowed !== 'boolean') {
+      throw new Error('malformed_rpc_response');
+    }
+
+    const allowed = row.allowed;
+    const count = typeof row.count === 'number' ? row.count : 0;
+    const limit = typeof row.limit === 'number' ? row.limit : dailyLimit;
+
+    return { allowed, count, limit };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[scan-identify] quota_check_error user=%s mode=%s error=%s', logUserId, mode, msg);
+    return { allowed: true, count: 0, limit: 0 };
+  }
+}
+
+function buildRateLimitedResponse(): Record<string, unknown> {
+  return {
+    status: 'rate_limited',
+    identification: null,
+    attributes: {},
+    recommendedProducts: [],
+    products: [],
+    purchaseOptions: [],
+    similarityMatches: [],
+    shoppingMeta: {
+      provider: 'rate_limited',
+      query: '',
+      count: 0,
+      providersTried: [],
+      catalogCount: 0,
+      similarityMatches: 0,
+      reason: 'daily_limit',
+    },
+    userMessage: 'Daily scan limit reached. Try again tomorrow.',
+  };
+}
+
 function checkAnonymousImageRateLimit(fingerprint: string): {
   allowed: boolean;
   retryAfterSeconds: number;
@@ -1181,13 +1258,14 @@ Deno.serve(async (req) => {
   const auth = await resolveAuthContext(req, supabaseUrl, supabaseAnonKey);
   const userId = auth.userId;
   const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
+  const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
   console.log(
     '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
     mode,
     source,
     auth.isAuthenticated ? 'authenticated' : 'anonymous',
-    userId ? userId.slice(0, 8) : 'anon',
+    logUserId,
     String(auth.hasProjectAccess),
   );
 
@@ -1267,6 +1345,34 @@ Deno.serve(async (req) => {
         );
       }
     }
+  }
+
+  // ── 2b. Authenticated per-user daily quota check ─────────────────────────────
+  // Checked after mode/body validation and before any AI/commerce call.
+  // Quota failures return an HTTP 200 app-safe body so mobile clients treat it
+  // as a normal outcome rather than a network/system error.
+  // DB or configuration errors fail open so a quota rollout issue cannot
+  // break all scans.
+
+  if (auth.isAuthenticated && userId) {
+    const quota = await checkAuthenticatedScanQuota(catalogClient, userId, mode, logUserId);
+    if (!quota.allowed) {
+      console.log(
+        '[scan-identify] quota_rate_limited user=%s mode=%s count=%d limit=%d',
+        logUserId,
+        mode,
+        quota.count,
+        quota.limit,
+      );
+      return json(buildRateLimitedResponse(), 200);
+    }
+    console.log(
+      '[scan-identify] quota_allowed user=%s mode=%s count=%d limit=%d',
+      logUserId,
+      mode,
+      quota.count,
+      quota.limit,
+    );
   }
 
   // ── 3. Kill switch + provider key ────────────────────────────────────────────
@@ -1352,7 +1458,6 @@ Deno.serve(async (req) => {
 
   const safeFailed = mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE;
   const safeNonFashion = mode === 'text' ? SAFE_TEXT_NON_FASHION_MESSAGE : SAFE_NON_FASHION_MESSAGE;
-  const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
   try {
     const res = await fetch(geminiUrl, {

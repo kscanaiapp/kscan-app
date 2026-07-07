@@ -50,6 +50,19 @@ test('canonical path: TextScan UI imports analyzeTextWithEdge, not analyzeText',
   assert.equal(hasLegacyImport, false, 'TextScan screen must not import legacy analyzeText from services/api');
 });
 
+test('canonical path: TextScan route invokes scan-identify Edge Function', () => {
+  const textScanEdge = fs.readFileSync(path.join(ROOT, 'services/textScanEdge.ts'), 'utf8');
+  assert.ok(
+    textScanEdge.includes("const EDGE_FN = 'scan-identify'"),
+    'textScanEdge must target the scan-identify function',
+  );
+  assert.ok(
+    textScanEdge.includes('supabase.functions.invoke(EDGE_FN'),
+    'textScanEdge must invoke scan-identify',
+  );
+  assert.ok(textScanEdge.includes("mode: 'text'"), 'textScanEdge must set mode to text');
+});
+
 // ── 2. services/textScan.ts — toStyleMatch contract hardening ──
 
 const textScan = loadTsModule('services/textScan.ts');
