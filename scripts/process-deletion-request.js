@@ -389,11 +389,12 @@ async function deleteOwnedStorageObjects(supabase, userId) {
   for (const resource of STORAGE_RESOURCES) {
     const bucket = supabase.storage.from(resource.bucket);
     for (const prefix of resource.prefixesForUser(userId)) {
+      const sanitizedPrefix = prefix.replace(userId, shortUserId(userId));
       const listing = await listStoragePrefix(bucket, prefix);
       if (listing.skipped) {
         results.push({
           bucket: resource.bucket,
-          prefix,
+          prefix: sanitizedPrefix,
           status: listing.reason,
           pathsAttempted: 0,
         });
@@ -403,7 +404,7 @@ async function deleteOwnedStorageObjects(supabase, userId) {
       if (listing.paths.length === 0) {
         results.push({
           bucket: resource.bucket,
-          prefix,
+          prefix: sanitizedPrefix,
           status: 'no_objects',
           pathsAttempted: 0,
         });
@@ -417,7 +418,7 @@ async function deleteOwnedStorageObjects(supabase, userId) {
 
       results.push({
         bucket: resource.bucket,
-        prefix,
+        prefix: sanitizedPrefix,
         status: 'removed',
         pathsAttempted: listing.paths.length,
       });
@@ -538,7 +539,7 @@ async function buildDeletionSummary(supabase, request) {
     maybeSingle(
       supabase,
       'profiles',
-      'id,email,account_status,account_locked_at,deletion_requested_at',
+      'id,account_status,account_locked_at,deletion_requested_at',
       'id',
       userId,
     ),
@@ -552,19 +553,31 @@ async function buildDeletionSummary(supabase, request) {
   }
 
   return {
-    request,
+    request: {
+      id: request.id,
+      partialUserId: shortUserId(request.user_id),
+      status: request.status,
+      requestedAt: request.requested_at,
+      requestSource: request.request_source,
+      notes: request.notes,
+    },
     user: {
-      id: userId,
-      email: profile?.email ?? authUserResult.data?.user?.email ?? null,
+      partialUserId: shortUserId(userId),
       authUserExists: Boolean(authUserResult.data?.user),
-      profile,
+      profile: profile
+        ? {
+            accountStatus: profile.account_status,
+            accountLockedAt: profile.account_locked_at,
+            deletionRequestedAt: profile.deletion_requested_at,
+          }
+        : null,
     },
     linkedRowCounts: Object.fromEntries(coverage.map((entry) => [entry.table, entry.count])),
     deletionCoverage: coverage,
     storageCoverage: STORAGE_RESOURCES.flatMap((resource) =>
       resource.prefixesForUser(userId).map((prefix) => ({
         bucket: resource.bucket,
-        prefix,
+        prefix: prefix.replace(userId, shortUserId(userId)),
         action: 'remove_owned_storage_objects_before_auth_delete',
       })),
     ),

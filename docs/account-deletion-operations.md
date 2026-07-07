@@ -143,7 +143,7 @@ You may use `--user-id "<auth-user-id>"` instead of `--request-id` when working 
 ## Operator Checklist
 
 1. Confirm the request came from the authenticated in-app deletion path or a matching support ticket.
-2. Run a dry-run for the request and review the user ID, email, request timestamp, linked row counts, and the shared-room transfer summary.
+2. Run a dry-run for the request and review the partial user ID, request ID, request timestamp, linked row counts, and the shared-room transfer summary.
 3. Confirm no legal hold, fraud/security exception, or billing obligation applies. This release has no in-app purchases or subscriptions.
 4. Run with `--confirm-delete`.
 5. Save the generated audit JSON path or terminal output in the support ticket.

@@ -578,6 +578,107 @@ test('buildDeletionSummary dry-run shows skipped candidate reasons', async () =>
   assert.equal(room.selectedRecipientId, shortUserId(activeId));
 });
 
+function assertNoSensitiveStrings(value, fullUserId, description) {
+  const serialized = JSON.stringify(value);
+  assert.ok(
+    !serialized.includes(fullUserId),
+    `${description} must not contain full user id`,
+  );
+  assert.ok(
+    !serialized.includes('@example.com'),
+    `${description} must not contain email addresses`,
+  );
+}
+
+test('buildDeletionSummary dry-run omits full email and full user id', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const participantId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
+    profile: { id: userId, email: 'test@example.com', account_status: 'active' },
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+    authUser: { id: userId, email: 'test@example.com' },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
+  }).client;
+
+  const summary = await buildDeletionSummary(supabase, {
+    id: 'req-1',
+    user_id: userId,
+    requested_at: '2026-07-07T00:00:00Z',
+    request_source: 'mobile_app',
+    notes: null,
+  });
+
+  assert.equal(summary.user.email, undefined);
+  assert.equal(summary.user.id, undefined);
+  assert.equal(summary.user.partialUserId, shortUserId(userId));
+  assert.equal(summary.user.profile.email, undefined);
+  assert.equal(summary.user.profile.id, undefined);
+  assertNoSensitiveStrings(summary, userId, 'dry-run summary');
+  assertNoSensitiveStrings(summary, participantId, 'dry-run summary');
+});
+
+test('processDeletionRequest confirm-delete result and audit file omit full email and full user id', async () => {
+  const userId = '12345678-90ab-cdef-1234-567890abcdef';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const participantId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const outputDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'deletion-test-'));
+
+  try {
+    const supabase = createSupabaseMock({
+      rooms: [{ id: roomId, title: 'Shared Closet' }],
+      participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
+      profile: { id: userId, email: 'test@example.com', account_status: 'active' },
+      profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+      authUser: { id: userId, email: 'test@example.com' },
+      authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
+    }).client;
+
+    const result = await processDeletionRequest(
+      supabase,
+      {
+        id: 'request-audit',
+        user_id: userId,
+        requested_at: '2026-07-07T00:00:00Z',
+        request_source: 'mobile_app',
+        notes: null,
+      },
+      { outputDir },
+    );
+
+    assert.equal(result.userId, shortUserId(userId));
+    assert.equal(result.email, undefined);
+    assertNoSensitiveStrings(result, userId, 'confirm-delete result');
+    assertNoSensitiveStrings(result, participantId, 'confirm-delete result');
+
+    assert.ok(result.auditFile);
+    const audit = JSON.parse(fs.readFileSync(result.auditFile, 'utf8'));
+    assertNoSensitiveStrings(audit, userId, 'audit file');
+    assertNoSensitiveStrings(audit, participantId, 'audit file');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('deleteOwnedStorageObjects returns sanitized prefixes without full user id', async () => {
+  const userId = '12345678-90ab-cdef-1234-567890abcdef';
+  const storage = createStorageMock({
+    [`${userId}/scans`]: [{ name: 'scan.jpg' }],
+    [`${userId}/inspirations`]: [{ name: 'inspiration.jpg' }],
+  });
+
+  const results = await deleteOwnedStorageObjects(storage.client, userId);
+
+  assert.equal(results.length, 2);
+  for (const entry of results) {
+    assert.ok(!entry.prefix.includes(userId), 'storage prefix must not contain full user id');
+    assert.ok(entry.prefix.includes(shortUserId(userId)), 'storage prefix must contain partial user id');
+  }
+});
+
 test('USER_DATA_RESOURCES covers all user-linked tables in migrations', () => {
   const migrationsDir = path.join(__dirname, '..', 'supabase', 'migrations');
   const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
