@@ -9,10 +9,11 @@ Last updated: 2026-06-12
 - Mobile candidate: earlier Apple candidate; not the current Android RC source of truth
 - App version: `1.0.0`
 - iOS bundle ID: `com.kscanai.app`
-- iOS build number in repo: `1`
+- iOS build number in repo: `2`
 - EAS project: `@ams2dad/kscan`
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
-- Still not included for this release: microphone, location, tracking, push notifications, ads, subscriptions, or in-app purchases.
+- Included for this release: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and When-In-Use approximate location for weather-aware StyleChat.
+- Still not included for this release: microphone, tracking, push notifications, ads, subscriptions, or in-app purchases.
 
 ## Local Submission Readiness
 
@@ -94,7 +95,7 @@ Create or verify the App Store Connect app record before submission:
 - Release option: manual release after approval
 - Age rating: not Made for Kids. EAS Metadata currently supports `NONE`, `SEVENTEEN_PLUS`, and `UNRATED` for `ageRatingOverride`; it does not encode a 13+ override. Leave `ageRatingOverride: "NONE"` unless App Store Connect review requires a manual higher rating.
 
-If App Store Connect already has build number `1` for version `1.0.0`, bump `ios.buildNumber` before building again.
+If App Store Connect already has build number `2` for version `1.0.0`, bump `ios.buildNumber` before building again.
 
 After the App Store Connect app record exists, add the numeric App Store Connect app ID to:
 
@@ -135,7 +136,18 @@ Use these as the App Store Connect App Privacy baseline for the current build:
 - Diagnostics: declare only if retained in production logs
 - Tracking: no
 - Data used for tracking: no
-- Location, contacts, audio, payment, purchases, health, fitness, sensitive info, browsing history, search history, advertising data: no for this build
+- Approximate/When-In-Use location: yes for weather-aware StyleChat only (coarse, transient, optional, not stored or linked to user)
+- Contacts, audio, payment, purchases, health, fitness, sensitive info, browsing history, search history, advertising data: no for this build
+
+## Location / Prominent Disclosure
+
+The app requests only `NSLocationWhenInUseUsageDescription` approximate location for weather-aware StyleChat. A prominent in-app disclosure is shown before the OS permission prompt. The disclosure explains that location is optional, used only while the app is in use, and that raw coordinates are not stored.
+
+Reviewer-facing wording:
+
+```text
+K Scan AI requests When-In-Use approximate location only to tailor StyleChat suggestions to local weather. Location is optional, and raw coordinates are not stored.
+```
 
 ## App Review Notes
 
@@ -153,7 +165,8 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Sign in with a pre-verified reviewer account.
 - Allow camera permission and complete one scan.
 - Save and delete a local library item.
-- Verify no microphone, photo library, location, push, ATT, or payment prompts appear.
+- Open a StyleChat session and confirm the prominent location disclosure appears before the OS location prompt.
+- Verify no microphone, push, ATT, or payment prompts appear.
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.

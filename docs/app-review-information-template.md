@@ -24,7 +24,7 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ## Review Notes
 
 ```text
-The current Android RC includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not part of this build.
+The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, and microphone access are not part of this build. When-In-Use approximate location is requested only for weather-aware StyleChat suggestions, after a prominent in-app disclosure. Location is optional, and raw coordinates are not stored.
 
 To review the app:
 1. Sign in with the reviewer email/password above.
@@ -42,7 +42,8 @@ Users can request account deletion in the app from Privacy > Delete Account. Onc
 - [ ] Reviewer account has completed email confirmation if Supabase requires it.
 - [ ] Reviewer account is not already in `pending_deletion`.
 - [ ] Camera permission prompt appears with the expected purpose text.
-- [ ] No microphone, photo library, location, ATT, push, payment, subscription, or ad prompt appears.
+- [ ] Location permission prompt appears with the expected purpose text after the prominent in-app disclosure.
+- [ ] No microphone, ATT, push, payment, subscription, or ad prompt appears.
 - [ ] Privacy URL works: `https://kscan.app/legal/privacy`.
 - [ ] Support URL works: `https://kscan.app/support`.
 - [ ] Account deletion URL works: `https://kscan.app/legal/delete-account`.
