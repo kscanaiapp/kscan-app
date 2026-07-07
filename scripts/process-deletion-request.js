@@ -5,12 +5,52 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const OPEN_STATUSES = ['pending', 'processing'];
-const COUNT_TABLES = [
-  'profiles',
-  'privacy_settings',
-  'privacy_export_requests',
-  'privacy_correction_requests',
-  'deletion_requests',
+const USER_DATA_RESOURCES = [
+  { table: 'profiles', column: 'id', action: 'auth_delete_cascade' },
+  { table: 'privacy_settings', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'privacy_export_requests', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'privacy_correction_requests', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'deletion_requests', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'legal_acceptances', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'saved_scans', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'dressing_rooms', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'dressing_room_items', column: null, action: 'parent_room_cascade', count: false },
+  { table: 'dressing_room_inspiration_items', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'dressing_room_item_reactions', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'dressing_room_messages', column: 'sender_id', action: 'auth_delete_cascade' },
+  { table: 'dressing_room_participants', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'room_shares', column: 'owner_id', action: 'auth_delete_cascade' },
+  { table: 'looks', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'look_items', column: null, action: 'parent_look_cascade', count: false },
+  { table: 'inspiration_items', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'style_chat_sessions', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'style_chat_messages', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'style_memory_events', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'style_chat_usage', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'style_chat_daily_usage', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'wardrobe_utility_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_collections', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_collection_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_brand_sizing_notes', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_outfit_feedback', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_care_notes', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_wishlist_intents', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_wear_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+  { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+];
+
+const DIRECT_DELETE_RESOURCES = USER_DATA_RESOURCES.filter(
+  (resource) => resource.action === 'direct_delete_before_auth',
+);
+
+const STORAGE_RESOURCES = [
+  {
+    bucket: 'style-library-images',
+    prefixesForUser: (userId) => [`${userId}/scans`, `${userId}/inspirations`],
+  },
 ];
 
 function printHelp() {
@@ -131,6 +171,23 @@ function appendNote(existing, note) {
   return trimmed ? `${trimmed}\n${note}` : note;
 }
 
+function shortUserId(userId) {
+  return typeof userId === 'string' && userId.length > 8 ? `${userId.slice(0, 8)}...` : 'unknown';
+}
+
+function isMissingResourceError(error) {
+  const code = String(error?.code ?? '').toUpperCase();
+  const message = String(error?.message ?? '').toLowerCase();
+  return (
+    code === '42P01' ||
+    code === 'PGRST205' ||
+    message.includes('does not exist') ||
+    message.includes('could not find the table') ||
+    message.includes('schema cache') ||
+    message.includes('bucket not found')
+  );
+}
+
 async function failIfError(result, label) {
   if (result.error) {
     throw new Error(`${label}: ${result.error.message}`);
@@ -180,9 +237,149 @@ async function countRows(supabase, table, column, value) {
   return (await failIfError(result, `count ${table}`)).count ?? 0;
 }
 
+async function countResourceRows(supabase, resource, userId) {
+  if (resource.count === false || !resource.column) {
+    return {
+      table: resource.table,
+      column: resource.column,
+      action: resource.action,
+      count: null,
+      covered: true,
+      notes: 'Covered through parent-row cascade.',
+    };
+  }
+
+  const result = await supabase
+    .from(resource.table)
+    .select('*', { count: 'exact', head: true })
+    .eq(resource.column, userId);
+
+  if (result.error) {
+    if (resource.optional && isMissingResourceError(result.error)) {
+      return {
+        table: resource.table,
+        column: resource.column,
+        action: resource.action,
+        count: null,
+        covered: true,
+        notes: 'Optional table not present in this project.',
+      };
+    }
+    throw new Error(`count ${resource.table}: ${result.error.message}`);
+  }
+
+  return {
+    table: resource.table,
+    column: resource.column,
+    action: resource.action,
+    count: result.count ?? 0,
+    covered: true,
+    notes: resource.optional ? 'Optional feature table; covered when present.' : 'Covered.',
+  };
+}
+
+async function deleteDirectUserRows(supabase, userId) {
+  const results = [];
+  for (const resource of DIRECT_DELETE_RESOURCES) {
+    const result = await supabase
+      .from(resource.table)
+      .delete({ count: 'exact' })
+      .eq(resource.column, userId);
+
+    if (result.error) {
+      if (resource.optional && isMissingResourceError(result.error)) {
+        results.push({
+          table: resource.table,
+          column: resource.column,
+          status: 'skipped_missing_optional_table',
+          count: null,
+        });
+        continue;
+      }
+      throw new Error(`delete ${resource.table}: ${result.error.message}`);
+    }
+
+    results.push({
+      table: resource.table,
+      column: resource.column,
+      status: 'deleted',
+      count: result.count ?? null,
+    });
+  }
+  return results;
+}
+
+async function listStoragePrefix(storageBucket, prefix) {
+  const paths = [];
+  const limit = 1000;
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await storageBucket.list(prefix, { limit, offset });
+    if (error) {
+      if (isMissingResourceError(error)) {
+        return { paths, skipped: true, reason: 'missing_storage_prefix_or_bucket' };
+      }
+      throw new Error(`list storage ${prefix}: ${error.message}`);
+    }
+
+    const page = Array.isArray(data) ? data : [];
+    for (const item of page) {
+      if (item?.name) paths.push(`${prefix}/${item.name}`);
+    }
+
+    if (page.length < limit) break;
+    offset += limit;
+  }
+
+  return { paths, skipped: false, reason: null };
+}
+
+async function deleteOwnedStorageObjects(supabase, userId) {
+  const results = [];
+  for (const resource of STORAGE_RESOURCES) {
+    const bucket = supabase.storage.from(resource.bucket);
+    for (const prefix of resource.prefixesForUser(userId)) {
+      const listing = await listStoragePrefix(bucket, prefix);
+      if (listing.skipped) {
+        results.push({
+          bucket: resource.bucket,
+          prefix,
+          status: listing.reason,
+          pathsAttempted: 0,
+        });
+        continue;
+      }
+
+      if (listing.paths.length === 0) {
+        results.push({
+          bucket: resource.bucket,
+          prefix,
+          status: 'no_objects',
+          pathsAttempted: 0,
+        });
+        continue;
+      }
+
+      const { error } = await bucket.remove(listing.paths);
+      if (error) {
+        throw new Error(`remove storage ${prefix}: ${error.message}`);
+      }
+
+      results.push({
+        bucket: resource.bucket,
+        prefix,
+        status: 'removed',
+        pathsAttempted: listing.paths.length,
+      });
+    }
+  }
+  return results;
+}
+
 async function buildDeletionSummary(supabase, request) {
   const userId = request.user_id;
-  const [profile, authUserResult, counts] = await Promise.all([
+  const [profile, authUserResult, coverage] = await Promise.all([
     maybeSingle(
       supabase,
       'profiles',
@@ -191,7 +388,7 @@ async function buildDeletionSummary(supabase, request) {
       userId,
     ),
     supabase.auth.admin.getUserById(userId),
-    Promise.all(COUNT_TABLES.map(async (table) => [table, await countRows(supabase, table, table === 'profiles' ? 'id' : 'user_id', userId)])),
+    Promise.all(USER_DATA_RESOURCES.map((resource) => countResourceRows(supabase, resource, userId))),
   ]);
 
   if (authUserResult.error) {
@@ -206,8 +403,17 @@ async function buildDeletionSummary(supabase, request) {
       authUserExists: Boolean(authUserResult.data?.user),
       profile,
     },
-    linkedRowCounts: Object.fromEntries(counts),
-    localDeviceDataNote: 'Saved scan thumbnails live in the app sandbox and are removed by in-app delete or app uninstall; they are not server-side Supabase rows.',
+    linkedRowCounts: Object.fromEntries(coverage.map((entry) => [entry.table, entry.count])),
+    deletionCoverage: coverage,
+    storageCoverage: STORAGE_RESOURCES.flatMap((resource) =>
+      resource.prefixesForUser(userId).map((prefix) => ({
+        bucket: resource.bucket,
+        prefix,
+        action: 'remove_owned_storage_objects_before_auth_delete',
+      })),
+    ),
+    localDeviceDataNote:
+      'Saved scan thumbnails in the app sandbox are removed by in-app delete or app uninstall; server-side deletion covers Supabase rows and owned storage objects.',
   };
 }
 
@@ -225,6 +431,7 @@ async function writeAuditFile(outputDir, payload) {
 async function processDeletionRequest(supabase, request, options) {
   const startedAt = new Date().toISOString();
   const note = `Manual deletion processor started at ${startedAt}.`;
+  const safeUserId = shortUserId(request.user_id);
 
   await failIfError(
     await supabase
@@ -249,6 +456,8 @@ async function processDeletionRequest(supabase, request, options) {
     'lock profile before auth deletion',
   );
 
+  const storageResults = await deleteOwnedStorageObjects(supabase, request.user_id);
+  const directDeletionResults = await deleteDirectUserRows(supabase, request.user_id);
   const deleteResult = await supabase.auth.admin.deleteUser(request.user_id);
   if (deleteResult.error) {
     throw new Error(`delete auth user: ${deleteResult.error.message}`);
@@ -260,8 +469,16 @@ async function processDeletionRequest(supabase, request, options) {
     deletionRequestId: request.id,
     requestedAt: request.requested_at,
     requestSource: request.request_source,
-    userId: request.user_id,
-    note: 'Supabase Auth user deleted. Public rows with auth.users(id) foreign keys are expected to cascade.',
+    userId: safeUserId,
+    storageResults,
+    directDeletionResults,
+    deletionCoverage: USER_DATA_RESOURCES.map(({ table, column, action, optional }) => ({
+      table,
+      column,
+      action,
+      optional: Boolean(optional),
+    })),
+    note: 'Supabase Auth user deleted last. Public rows with auth.users(id) foreign keys are expected to cascade; known non-cascade rows and owned storage prefixes were handled first.',
   };
   const auditFile = await writeAuditFile(options.outputDir, auditPayload);
 
@@ -269,7 +486,9 @@ async function processDeletionRequest(supabase, request, options) {
     status: 'completed',
     completedAt,
     deletionRequestId: request.id,
-    userId: request.user_id,
+    userId: safeUserId,
+    storageResults,
+    directDeletionResults,
     auditFile,
   };
 }
@@ -314,6 +533,12 @@ if (require.main === module) {
 
 module.exports = {
   appendNote,
+  buildDeletionSummary,
+  deleteDirectUserRows,
+  deleteOwnedStorageObjects,
   parseArgs,
   processDeletionRequest,
+  shortUserId,
+  STORAGE_RESOURCES,
+  USER_DATA_RESOURCES,
 };

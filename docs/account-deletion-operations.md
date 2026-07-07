@@ -14,7 +14,19 @@ This runbook gives the release owner a manual account-erasure path for the curre
 - `public.privacy_export_requests`: export request rows, references `auth.users(id)` with `on delete cascade`.
 - `public.privacy_correction_requests`: correction request rows, references `auth.users(id)` with `on delete cascade`.
 - `public.deletion_requests`: deletion request rows, references `auth.users(id)` with `on delete cascade`.
-- Local saved scans: stored in the app sandbox by `expo-file-system`, not in Supabase. Users can remove saved scans in the app before deletion or remove them by uninstalling the app.
+- `public.legal_acceptances`: legal/age acceptance rows, references `auth.users(id)` with `on delete cascade`.
+- `public.saved_scans`: cloud scan metadata, references `auth.users(id)` with `on delete cascade`. Raw scan images remain local unless explicitly uploaded into room/library storage.
+- `public.dressing_rooms`, `public.looks`, `public.room_shares`: user-owned room/look/share rows, reference `auth.users(id)` with `on delete cascade`.
+- `public.dressing_room_items`, `public.look_items`: child rows removed through their parent room/look cascade.
+- `public.dressing_room_messages`, `public.dressing_room_item_reactions`, `public.dressing_room_participants`: user-authored or membership collaboration rows, reference `auth.users(id)` with `on delete cascade`.
+- `public.inspiration_items`, `public.dressing_room_inspiration_items`: user-uploaded inspiration metadata and room links, reference `auth.users(id)` with `on delete cascade`.
+- `public.style_chat_sessions`, `public.style_chat_messages`, `public.style_memory_events`, `public.style_chat_usage`, `public.style_chat_daily_usage`: StyleChat content, memory, and usage rows, reference `auth.users(id)` with `on delete cascade`.
+- `public.scan_identify_usage_daily`: authenticated scan quota rows, references `auth.users(id)` with `on delete cascade`.
+- `public.wardrobe_*` free-tier sync tables: optional user-scoped utility rows, reference `auth.users(id)` with `on delete cascade` when those beta migrations are deployed.
+- `public.style_chat_burst_usage`: StyleChat burst limiter rows. This table does not declare an Auth foreign key, so the processor deletes matching `user_id` rows before deleting the Auth user.
+- `public.scan_intelligence_events`: optional scan intelligence/audit rows where deployed. The processor best-effort deletes matching `user_id` rows before deleting the Auth user and skips cleanly if the table is not present.
+- `storage.objects` in bucket `style-library-images`: uploaded room/library image objects under `{userId}/scans/` and `{userId}/inspirations/`. The processor removes only those owned prefixes before deleting the Auth user.
+- Local saved scans/thumbnails: stored in the app sandbox by `expo-file-system`. They are removed by in-app delete or app uninstall and are not server-side Supabase rows.
 
 ## Intake Behavior
 
@@ -58,9 +70,11 @@ On confirmed processing, `scripts/process-deletion-request.js`:
 
 1. Marks the deletion request `processing`.
 2. Locks the profile with `account_status = 'pending_deletion'` and `account_locked_at`.
-3. Calls `supabase.auth.admin.deleteUser(user_id)`.
-4. Relies on the schema's `on delete cascade` foreign keys to remove the user's linked public rows.
-5. Optionally writes a local audit JSON file outside the app data path.
+3. Removes owned storage objects from `style-library-images` under `{userId}/scans/` and `{userId}/inspirations/`.
+4. Deletes known user-linked non-cascade rows such as `style_chat_burst_usage` and optional `scan_intelligence_events`.
+5. Calls `supabase.auth.admin.deleteUser(user_id)` last.
+6. Relies on the schema's `on delete cascade` foreign keys to remove the user's linked public rows.
+7. Optionally writes a local audit JSON file outside the app data path, using a partial user ID only.
 
 Because `deletion_requests` currently cascades from `auth.users`, the request row is expected to be removed with the Auth user. Keep the generated audit JSON or support-ticket note as the operational completion record.
 

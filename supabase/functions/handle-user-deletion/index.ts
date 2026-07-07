@@ -1,3 +1,5 @@
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -19,26 +21,33 @@ function env(name: string) {
   return value;
 }
 
+function shortUserId(userId: string) {
+  return userId ? `${userId.slice(0, 8)}...` : 'unknown';
+}
+
 async function requireUser(req: Request): Promise<AuthUser> {
   const authorization = req.headers.get('Authorization') ?? '';
   if (!authorization.toLowerCase().startsWith('bearer ')) {
-    throw new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: corsHeaders });
+    throw json({ error: 'Authentication required' }, 401);
   }
 
   const supabaseUrl = env('SUPABASE_URL');
   const anonKey = env('SUPABASE_ANON_KEY');
-  const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      apikey: anonKey,
-      Authorization: authorization,
+  const accessToken = authorization.slice('bearer '.length).trim();
+  const userClient = createClient(supabaseUrl, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
     },
   });
 
-  if (!authResponse.ok) {
-    throw new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: corsHeaders });
+  const { data: { user }, error } = await userClient.auth.getUser(accessToken);
+  if (error || !user?.id) {
+    throw json({ error: 'Authentication required' }, 401);
   }
 
-  return await authResponse.json();
+  return { id: user.id, email: user.email ?? undefined };
 }
 
 async function rest(path: string, init: RequestInit = {}) {
@@ -69,6 +78,7 @@ async function insertDeletionRequest(userId: string) {
     { label: 'internal_notes', body: { internal_notes: deletionRequestNote } },
     { label: 'no note field', body: {} },
   ];
+  const safeUserId = shortUserId(userId);
 
   // The intended release schema uses mobile_app + notes. Some beta-linked
   // projects still expose app/internal_notes, so try legacy-safe fallbacks
@@ -89,11 +99,15 @@ async function insertDeletionRequest(userId: string) {
 
       const detail = await response.text();
       if (noteVariant.label !== 'no note field' && isMissingColumn(detail, noteVariant.label)) {
-        console.warn(`deletion_requests.${noteVariant.label} unavailable; retrying intake`);
+        console.warn(
+          `[handle-user-deletion] deletion_requests.${noteVariant.label} unavailable; retrying intake uid=${safeUserId}`,
+        );
         continue;
       }
 
-      console.error(`Deletion request insert failed for ${requestSource}/${noteVariant.label}`, detail);
+      console.error(
+        `[handle-user-deletion] deletion_request_insert_failed uid=${safeUserId} source=${requestSource} note=${noteVariant.label} status=${response.status}`,
+      );
     }
   }
 
@@ -131,17 +145,21 @@ Deno.serve(async (req) => {
 
     const [deletionRequest] = await insertResponse.json();
 
-    await rest(`profiles?id=eq.${user.id}`, {
+    const profileResponse = await rest(`profiles?id=eq.${user.id}`, {
       method: 'PATCH',
       body: JSON.stringify({
         account_status: 'pending_deletion',
         deletion_requested_at: deletionRequest.requested_at,
       }),
     });
+    if (!profileResponse.ok) {
+      console.warn(
+        `[handle-user-deletion] profile_pending_update_failed uid=${shortUserId(user.id)} status=${profileResponse.status}`,
+      );
+    }
 
-    // Production integration point:
-    // enqueue confirmation email and downstream erasure workflow here. Actual
-    // deletion should honor retention, fraud/security exceptions, and legal holds.
+    // Request-based deletion model: an operator/service-role processor performs
+    // final erasure within the documented SLA after fraud/security/legal review.
     return json({
       status: 'pending',
       request_id: deletionRequest.id,
@@ -149,6 +167,9 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     if (error instanceof Response) return error;
-    return json({ error: error instanceof Error ? error.message : 'Unexpected error' }, 500);
+    console.error(
+      `[handle-user-deletion] unexpected_error type=${error instanceof Error ? error.name : 'unknown'}`,
+    );
+    return json({ error: 'Unable to process deletion request' }, 500);
   }
 });
