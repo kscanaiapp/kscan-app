@@ -291,3 +291,75 @@ test('edge source: image mode captures scan intelligence with timeout protection
     'Must pass through optional app metadata when present',
   );
 });
+
+test('edge source: image mode commerce lookup has a 3000ms Promise.race timeout guard', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000'),
+    'Image mode commerce timeout constant must be 3000ms',
+  );
+
+  const imageBranchStart = EDGE_SOURCE.indexOf('} else {');
+  assert.ok(imageBranchStart !== -1, 'Must have an else branch for image mode');
+
+  const imageBranch = EDGE_SOURCE.slice(imageBranchStart);
+  assert.ok(
+    imageBranch.includes('Promise.race(['),
+    'Image mode commerce must be wrapped in Promise.race',
+  );
+  assert.ok(
+    imageBranch.includes('getScanCommerceResults('),
+    'Promise.race must include the live commerce call',
+  );
+  assert.ok(
+    imageBranch.includes('.catch('),
+    'Live commerce call must include a .catch() error fallback',
+  );
+  assert.ok(
+    imageBranch.includes('setTimeout(') && imageBranch.includes('commerce_timeout'),
+    'Promise.race must include a commerce_timeout timeout fallback',
+  );
+  assert.ok(
+    imageBranch.includes('IMAGE_MODE_COMMERCE_TIMEOUT_MS'),
+    'Image branch must reference the commerce timeout constant',
+  );
+});
+
+test('edge source: image mode commerce error fallback returns safe empty products', () => {
+  const imageBranchStart = EDGE_SOURCE.indexOf('} else {');
+  assert.ok(imageBranchStart !== -1, 'Must have an else branch for image mode');
+
+  const imageBranch = EDGE_SOURCE.slice(imageBranchStart);
+  const catchIndex = imageBranch.indexOf('.catch(');
+  assert.ok(catchIndex !== -1, 'Image branch must call .catch() on the commerce promise');
+
+  const fallbackText = imageBranch.slice(catchIndex);
+  assert.ok(
+    fallbackText.includes("provider: 'error'") || fallbackText.includes('provider: "error"'),
+    'Error fallback provider must be "error"',
+  );
+  assert.ok(
+    fallbackText.includes('products: []'),
+    'Error fallback products must be an empty array',
+  );
+  assert.ok(
+    fallbackText.includes('providersTried: []'),
+    'Error fallback providersTried must be an empty array',
+  );
+});
+
+test('edge source: image mode still runs similarity matcher after commerce timeout or error', () => {
+  const imageBranchStart = EDGE_SOURCE.indexOf('} else {');
+  assert.ok(imageBranchStart !== -1, 'Must have an else branch for image mode');
+
+  const imageBranch = EDGE_SOURCE.slice(imageBranchStart);
+  const commerceTimeoutIndex = imageBranch.indexOf('commerce_timeout');
+  const catchIndex = imageBranch.indexOf('.catch(');
+  const similarityIndex = imageBranch.indexOf('buildImageSimilarityMatches');
+  assert.ok(commerceTimeoutIndex !== -1, 'Image branch must handle commerce_timeout');
+  assert.ok(catchIndex !== -1, 'Image branch must handle commerce errors with .catch()');
+  assert.ok(similarityIndex !== -1, 'Image branch must call buildImageSimilarityMatches');
+  assert.ok(
+    similarityIndex > commerceTimeoutIndex && similarityIndex > catchIndex,
+    'Similarity matcher must run after both the commerce timeout and error branches',
+  );
+});

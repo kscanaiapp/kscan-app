@@ -49,6 +49,7 @@ import {
 } from './shoppingProvider.ts';
 import {
   getScanCommerceResults,
+  type ScanCommerceResult,
 } from './scanCommerceRouter.ts';
 import {
   findSimilarityMatches,
@@ -74,6 +75,7 @@ const MAX_OUTPUT_TOKENS = 2048;
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
 const SCAN_INTELLIGENCE_TIMEOUT_MS = 500;
 const SIMILARITY_TIMEOUT_MS = 300;
+const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
@@ -1287,7 +1289,9 @@ Deno.serve(async (req) => {
     );
     // Product recommendations.
     //   - Text mode: real shopping providers (Serper primary, Brave fallback).
-    //   - Image (camera) mode: existing catalog retrieval (unchanged).
+    //   - Image (camera) mode: live commerce router first, then catalog
+    //     similarity scoring. Live commerce is bounded by a 3s timeout so that
+    //     a slow provider cannot block the similarity shelf.
     let finalRecommendedProducts: RankedScanProduct[];
     let finalSimilarityMatches: SimilarityMatch[] = [];
     let rankedProductsForAudit: RankedScanProduct[];
@@ -1338,33 +1342,64 @@ Deno.serve(async (req) => {
       // Image (camera) mode: live commerce first, then deterministic catalog
       // similarity scoring. The similarity matcher runs non-blocking and is
       // allowed to return fewer than 2 matches; the UI hides the section then.
-      const commerce = await getScanCommerceResults({
-        mode: 'image',
-        identification: (completedResponseWithAttributes.identification as Record<string, unknown> | undefined) ||
-          {},
-        attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
-        searchQueries: Array.isArray(completedNormalizedId?.normalizedSearchQueries)
-          ? completedNormalizedId.normalizedSearchQueries
-          : undefined,
-        limit: 10,
-      });
+      // Live commerce is capped at IMAGE_MODE_COMMERCE_TIMEOUT_MS so a slow
+      // provider cannot block the Similar Items shelf.
+      const commerce = await Promise.race([
+        getScanCommerceResults({
+          mode: 'image',
+          identification: (completedResponseWithAttributes.identification as Record<string, unknown> | undefined) ||
+            {},
+          attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
+          searchQueries: Array.isArray(completedNormalizedId?.normalizedSearchQueries)
+            ? completedNormalizedId.normalizedSearchQueries
+            : undefined,
+          limit: 10,
+        }).catch((err) => {
+          console.warn('[scan-identify] image commerce provider error:', err);
+          return {
+            provider: 'error',
+            providersTried: [],
+            query: '',
+            products: [],
+            count: 0,
+          } as unknown as ScanCommerceResult;
+        }),
+        new Promise<'commerce_timeout'>((resolve) => {
+          setTimeout(() => resolve('commerce_timeout'), IMAGE_MODE_COMMERCE_TIMEOUT_MS);
+        }),
+      ]);
 
-      const liveProducts = commerce.products.map((p) => ({
-        id: p.id,
-        name: p.title,
-        title: p.title,
-        source: p.source,
-        retailer: p.source,
-        price: p.price,
-        type: p.type,
-        imageUrl: p.imageUrl,
-        image_url: p.imageUrl,
-        productUrl: p.productUrl,
-        product_url: p.productUrl,
-        url: p.productUrl,
-      }));
+      let liveProducts: RankedScanProduct[] = [];
+      let commerceProvider = 'none';
+      let providersTried: string[] = [];
+      let commerceQuery = '';
 
-      finalRecommendedProducts = liveProducts.slice(0, 10) as RankedScanProduct[];
+      if (commerce === 'commerce_timeout') {
+        console.warn(
+          '[scan-identify] commerce lookup timed out after %dms',
+          IMAGE_MODE_COMMERCE_TIMEOUT_MS,
+        );
+      } else {
+        liveProducts = commerce.products.map((p) => ({
+          id: p.id,
+          name: p.title,
+          title: p.title,
+          source: p.source,
+          retailer: p.source,
+          price: p.price,
+          type: p.type,
+          imageUrl: p.imageUrl,
+          image_url: p.imageUrl,
+          productUrl: p.productUrl,
+          product_url: p.productUrl,
+          url: p.productUrl,
+        })) as RankedScanProduct[];
+        commerceProvider = commerce.provider;
+        providersTried = commerce.providersTried;
+        commerceQuery = commerce.query;
+      }
+
+      finalRecommendedProducts = liveProducts.slice(0, 10);
 
       // Score catalog candidates separately after live commerce. Timeout/error
       // returns [] so Similar Items hides without suppressing purchase options.
@@ -1376,9 +1411,9 @@ Deno.serve(async (req) => {
 
       rankedProductsForAudit = finalSimilarityMatches as RankedScanProduct[];
       shoppingMeta = {
-        provider: commerce.provider,
-        providersTried: commerce.providersTried,
-        query: commerce.query,
+        provider: commerceProvider,
+        providersTried,
+        query: commerceQuery,
         count: liveProducts.length,
         catalogCount: similarity.catalogCount,
         similarityMatches: finalSimilarityMatches.length,
