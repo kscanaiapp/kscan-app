@@ -15,7 +15,7 @@ const DRIVER_MARKER = 'kscan-delete-e2e-driver-v1';
 const STATE_TTL_MS = 6 * 60 * 60 * 1000;
 const OWNER_EMAIL_RE = /^kscan-delete-e2e-owner-[a-zA-Z0-9_-]+@example\.com$/;
 const PARTICIPANT_EMAIL_RE = /^kscan-delete-e2e-participant-[a-zA-Z0-9_-]+@example\.com$/;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const REQUIRED_ENV = [
   'EXPO_PUBLIC_SUPABASE_URL',
@@ -352,13 +352,13 @@ function loadLatestState() {
   return state;
 }
 
-function validateStateEnvelope(state) {
+function validateStateEnvelope(state, { requireDryRunGate = true } = {}) {
   if (state.marker !== DRIVER_MARKER) throw new Error('State marker mismatch');
   if (state.projectRef !== APPROVED_PROJECT_REF) throw new Error('State project ref mismatch');
   if (!state.createdAt || Date.now() - Date.parse(state.createdAt) > STATE_TTL_MS) {
     throw new Error('Dry-run state is stale; run --dry-run again');
   }
-  if (!state.dryRunGate?.passed) {
+  if (requireDryRunGate && !state.dryRunGate?.passed) {
     throw new Error('Confirm-delete requires a passed dry-run gate');
   }
   if (!OWNER_EMAIL_RE.test(state.owner?.email ?? '')) {
@@ -662,7 +662,7 @@ async function fetchDeletionRequest(admin, requestId) {
 }
 
 async function validateIdentityGates(admin, state, operatorDryRun) {
-  validateStateEnvelope(state);
+  validateStateEnvelope(state, { requireDryRunGate: false });
 
   const request = await fetchDeletionRequest(admin, state.requestId);
   if (request.user_id !== state.owner.id) {
