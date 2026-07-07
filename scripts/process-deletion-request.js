@@ -68,11 +68,11 @@ function printHelp() {
 
 Usage:
   node scripts/process-deletion-request.js --list-pending
-  node scripts/process-deletion-request.js --request-id <uuid> [--dry-run]
-  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete
-  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete --verify
-  node scripts/process-deletion-request.js --user-id <uuid> [--dry-run]
-  node scripts/process-deletion-request.js --user-id <uuid> --confirm-delete
+  node scripts/process-deletion-request.js --request-id <uuid> [--dry-run] [--output-dir <path>]
+  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete [--output-dir <path>]
+  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete --verify [--output-dir <path>]
+  node scripts/process-deletion-request.js --user-id <uuid> [--dry-run] [--output-dir <path>]
+  node scripts/process-deletion-request.js --user-id <uuid> --confirm-delete [--output-dir <path>]
 
 Environment:
   SUPABASE_URL
