@@ -118,8 +118,28 @@ function firstNonEmptyString(...values: unknown[]): string {
   return '';
 }
 
+function firstStringArray(...values: unknown[]): string[] {
+  for (const value of values) {
+    const strings = safeArray(value);
+    if (strings.length > 0) return strings;
+  }
+  return [];
+}
+
+const PRODUCT_ARRAY_KEYS = [
+  'recommendedProducts',
+  'recommended_products',
+  'products',
+  'purchaseOptions',
+  'purchase_options',
+  'shoppingResults',
+  'shopping_results',
+  'retailMatches',
+  'retail_matches',
+] as const;
+
 function firstProductArray(src: Record<string, unknown>): unknown[] | undefined {
-  for (const key of ['recommendedProducts', 'products', 'purchaseOptions', 'shoppingResults', 'retailMatches']) {
+  for (const key of PRODUCT_ARRAY_KEYS) {
     const value = src[key];
     if (Array.isArray(value) && value.length > 0) return value;
   }
@@ -237,7 +257,9 @@ function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
     const item = raw[index];
     if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
     const p = item as Record<string, unknown>;
-    const title = firstNonEmptyString(p.title, p.name, p.productName, p.product_name, p.displayName) || undefined;
+    const title =
+      firstNonEmptyString(p.title, p.name, p.productName, p.product_name, p.displayName, p.display_name) ||
+      undefined;
     if (!title) continue;
     const productUrl = firstNonEmptyString(
       p.productUrl,
@@ -246,16 +268,20 @@ function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
       p.purchase_url,
       p.url,
       p.link,
-      p.affiliateUrl
+      p.affiliateUrl,
+      p.affiliate_url
     ) || undefined;
     const id = firstNonEmptyString(p.id, productUrl, `${title}-${index}`);
-    const source = firstNonEmptyString(p.retailer, p.merchant, p.source, p.brand, p.store) || 'K Scan';
+    const source = firstNonEmptyString(p.retailer, p.source, p.provider, p.merchant, p.store, p.brand) || 'K Scan';
     const imageUrl = firstNonEmptyString(
       p.imageUrl,
       p.image_url,
       p.thumbnail,
       p.thumbnailUrl,
+      p.thumbnail_url,
+      p.imageSrc,
       p.image_src,
+      p.productImageUrl,
       p.product_image_url
     ) || undefined;
     const explicitType = typeof p.type === 'string' ? p.type.trim().toLowerCase() : '';
@@ -263,7 +289,10 @@ function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
       id,
       title,
       source,
-      price: normalizeProductPrice(p.price ?? p.priceText ?? p.salePrice, p.currency),
+      price: normalizeProductPrice(
+        p.price ?? p.priceText ?? p.price_text ?? p.priceLabel ?? p.price_label ?? p.salePrice ?? p.sale_price,
+        p.currency
+      ),
       type: explicitType === 'similar'
         ? 'similar'
         : explicitType === 'resale'
@@ -369,6 +398,18 @@ export function normalizeTextScanResult(
 
   const rawProducts = firstProductArray(src);
   const products = type === 'non_fashion_text' ? [] : mapRecommendedProducts(rawProducts);
+  const searchQueries = firstStringArray(
+    src.searchQueries,
+    src.search_queries,
+    identification?.search_queries,
+    identification?.normalizedSearchQueries,
+    identification?.normalized_search_queries,
+  );
+  const stylingSuggestions = firstStringArray(
+    src.stylingSuggestions,
+    src.styling_suggestions,
+    identification?.styling_suggestions,
+  );
 
   return {
     id: safeString(src.id) || generateId(),
@@ -377,6 +418,8 @@ export function normalizeTextScanResult(
     metadata,
     products,
     purchaseOptions: products.length > 0 ? [...products] : undefined,
+    searchQueries,
+    stylingSuggestions,
     confidence: type === 'non_fashion_text' ? 0 : confidence,
     savedAt: safeString(src.savedAt) || new Date().toISOString(),
   };

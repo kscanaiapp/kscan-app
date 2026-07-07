@@ -54,6 +54,8 @@ const MIN_QUERY_LENGTH = 3;
 const MAX_QUERY_LENGTH = 500;
 const PROCESSING_TIMEOUT_MS = 2000;
 const SUBMIT_DEBOUNCE_MS = 500;
+const PRODUCT_LINK_ERROR_MESSAGE = 'Unable to open product link. Please try again.';
+const WEB_SEARCH_ERROR_MESSAGE = 'Unable to open web search. Please try again.';
 
 export default function TextScanScreen() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
@@ -69,6 +71,18 @@ export default function TextScanScreen() {
 
   const isQueryValid = query.trim().length >= MIN_QUERY_LENGTH;
 
+  const openUrl = useCallback((rawUrl: string | undefined, errorMessage: string) => {
+    const url = rawUrl?.trim();
+    if (!url) return;
+    try {
+      Linking.openURL(url).catch(() => {
+        setTextScanError(errorMessage);
+      });
+    } catch {
+      setTextScanError(errorMessage);
+    }
+  }, []);
+
   const openWebSearch = useCallback(() => {
     const attrs = textScanResult?.metadata?.attributes;
     const terms = textScanResult?.searchQueries?.length
@@ -80,10 +94,8 @@ export default function TextScanScreen() {
         ];
     const searchTerm = terms[0]?.trim() || query.trim();
     const url = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(searchTerm)}`;
-    Linking.openURL(url).catch(() => {
-      setTextScanError('Unable to open web search. Please try again.');
-    });
-  }, [textScanResult, query]);
+    openUrl(url, WEB_SEARCH_ERROR_MESSAGE);
+  }, [textScanResult, query, openUrl]);
 
   const handleSubmit = () => {
     if (!isQueryValid || isSubmitting) return;
@@ -360,7 +372,7 @@ export default function TextScanScreen() {
                           key={product.id}
                           product={product}
                           style={styles.productCard}
-                          onPress={product.productUrl ? () => Linking.openURL(product.productUrl!) : undefined}
+                          onPress={product.productUrl?.trim() ? () => openUrl(product.productUrl, PRODUCT_LINK_ERROR_MESSAGE) : undefined}
                         />
                       ))}
                   </ScrollView>
@@ -384,7 +396,7 @@ export default function TextScanScreen() {
                           key={product.id}
                           product={product}
                           style={styles.productCard}
-                          onPress={product.productUrl ? () => Linking.openURL(product.productUrl!) : undefined}
+                          onPress={product.productUrl?.trim() ? () => openUrl(product.productUrl, PRODUCT_LINK_ERROR_MESSAGE) : undefined}
                         />
                       ))}
                   </ScrollView>
@@ -408,7 +420,7 @@ export default function TextScanScreen() {
                         key={product.id}
                         product={product}
                         style={styles.productCard}
-                        onPress={product.productUrl ? () => Linking.openURL(product.productUrl!) : undefined}
+                        onPress={product.productUrl?.trim() ? () => openUrl(product.productUrl, PRODUCT_LINK_ERROR_MESSAGE) : undefined}
                       />
                     ))}
                   </ScrollView>
@@ -835,4 +847,3 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xxl,
   },
 });
-
