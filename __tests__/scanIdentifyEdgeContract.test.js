@@ -258,7 +258,7 @@ test('edge source: accepts unknown source values without crashing', () => {
 
 test('edge source: text mode calls live shopping APIs', () => {
   assert.ok(
-    EDGE_SOURCE.includes('await getShoppingResults('),
+    EDGE_SOURCE.includes('getShoppingResults('),
     'Must call getShoppingResults for text mode commerce',
   );
 
@@ -275,7 +275,7 @@ test('edge source: text mode calls live shopping APIs', () => {
   assert.ok(elseBranchStart !== -1, 'Must have an else branch for image mode');
 
   // The getShoppingResults call must live inside the text branch.
-  const shoppingCallIndex = EDGE_SOURCE.indexOf('await getShoppingResults(');
+  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
   assert.ok(
     shoppingCallIndex > productRecBranchStart && shoppingCallIndex < elseBranchStart,
     'getShoppingResults must be called inside the text mode branch',
@@ -409,4 +409,110 @@ test('edge source: image mode still runs similarity matcher after commerce timeo
     similarityIndex > commerceTimeoutIndex && similarityIndex > catchIndex,
     'Similarity matcher must run after both the commerce timeout and error branches',
   );
+});
+
+// ── 14. Gemini Timeout and Resilience ──
+
+test('edge source: default Gemini timeout is 14000ms when env override is absent', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('DEFAULT_GEMINI_TIMEOUT_MS = 14_000'),
+    'Default Gemini timeout must be 14000ms',
+  );
+});
+
+test('edge source: SCAN_GEMINI_TIMEOUT_MS override clamps within 2000ms to 20000ms', () => {
+  assert.ok(EDGE_SOURCE.includes('SCAN_GEMINI_TIMEOUT_MS'), 'Must reference SCAN_GEMINI_TIMEOUT_MS');
+  assert.ok(EDGE_SOURCE.includes('parsed >= 2_000'), 'Must enforce minimum 2000ms');
+  assert.ok(EDGE_SOURCE.includes('parsed <= 20_000'), 'Must enforce maximum 20000ms');
+});
+
+test('edge source: Gemini timeout logs elapsedMs and timeoutMs and returns safe failed shape', () => {
+  assert.ok(EDGE_SOURCE.includes('gemini_timeout'), 'Must log gemini_timeout');
+  assert.ok(EDGE_SOURCE.includes('timeoutMs=%d'), 'Must include timeoutMs in timeout log');
+  assert.ok(
+    EDGE_SOURCE.includes("normalized('failed', safeFailed)"),
+    'Must return safe failed shape on timeout',
+  );
+  assert.ok(EDGE_SOURCE.includes('AbortError'), 'Must recognize AbortError');
+});
+
+test('edge source: Gemini empty or no-identification returns safe failure shape', () => {
+  assert.ok(EDGE_SOURCE.includes('gemini_empty'), 'Must log gemini_empty');
+  assert.ok(EDGE_SOURCE.includes('completed_without_attributes'), 'Must handle completed without attributes');
+  assert.ok(
+    EDGE_SOURCE.includes("normalized('failed', safeFailed)"),
+    'Must return safe failed shape on empty/no-identification',
+  );
+});
+
+test('edge source: Gemini success returns completed response even with empty products', () => {
+  assert.ok(EDGE_SOURCE.includes('gemini_success'), 'Must log gemini_success');
+  assert.ok(EDGE_SOURCE.includes('parse_success'), 'Must log parse_success');
+  assert.ok(EDGE_SOURCE.includes("normalized('completed'"), 'Must return completed response');
+  assert.ok(EDGE_SOURCE.includes('final_status status=completed'), 'Must log final completed status');
+});
+
+test('edge source: image commerce failure or timeout does not fail a completed scan', () => {
+  assert.ok(EDGE_SOURCE.includes('commerce_timeout'), 'Must log commerce_timeout');
+  assert.ok(EDGE_SOURCE.includes("provider: 'error'"), 'Must catch commerce errors');
+  assert.ok(
+    EDGE_SOURCE.includes('buildImageSimilarityMatches'),
+    'Similarity matcher must still run after commerce issues',
+  );
+  assert.ok(EDGE_SOURCE.includes('final_status status=completed'), 'Must still complete after commerce issues');
+});
+
+test('edge source: text-mode shopping failure does not fail a completed Gemini interpretation', () => {
+  assert.ok(EDGE_SOURCE.includes('TEXT_MODE_COMMERCE_TIMEOUT_MS'), 'Must define text commerce timeout');
+  assert.ok(EDGE_SOURCE.includes('text_commerce_timeout'), 'Must handle text commerce timeout');
+  assert.ok(EDGE_SOURCE.includes('.catch((err)'), 'Must catch text commerce errors');
+  assert.ok(
+    EDGE_SOURCE.includes('finalRecommendedProducts = []'),
+    'Must fall back to empty products on text commerce failure',
+  );
+  assert.ok(EDGE_SOURCE.includes('final_status status=completed'), 'Must still complete after text commerce failure');
+});
+
+test('edge source: anonymous image scan skips commerce, similarity, and authenticated user writes', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('commerce_skipped reason=anonymous_image_analysis'),
+    'Must log commerce_skipped for anonymous scans',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('similarity_skipped reason=anonymous_image_analysis'),
+    'Must log similarity_skipped for anonymous scans',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes("mode === 'image' && auth.isAuthenticated"),
+    'Must only capture scan intelligence for authenticated users',
+  );
+});
+
+test('edge source: production stage logs are present and do not leak sensitive data', () => {
+  const logLabels = [
+    'request_start',
+    'gemini_start',
+    'gemini_success',
+    'gemini_timeout',
+    'gemini_http_error',
+    'gemini_empty',
+    'model_json_unparseable',
+    'parse_success',
+    'commerce_skipped',
+    'commerce_started',
+    'commerce_timeout',
+    'similarity_skipped',
+    'similarity_started',
+    'similarity_timeout',
+    'final_status',
+  ];
+  for (const label of logLabels) {
+    assert.ok(
+      EDGE_SOURCE.includes(`[scan-identify] ${label}`),
+      `Must include production stage log: ${label}`,
+    );
+  }
+  // Variable names like bearerToken/geminiKey are used for request handling but
+  // are never logged directly; the existing 'error response does not leak secrets'
+  // test covers the response contract.
 });

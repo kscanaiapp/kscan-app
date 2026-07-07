@@ -71,12 +71,13 @@ const CORS_HEADERS = {
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_QUERY_LEN = 500;
 const MAX_OUTPUT_TOKENS = 2048;
-// Provider call timeout. Target is ~5s; an 8s hard cap absorbs cold starts / free
+// Provider call timeout. Target is ~5s; a 14s hard cap absorbs cold starts / free
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
-const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
+const DEFAULT_GEMINI_TIMEOUT_MS = 14_000;
 const SCAN_INTELLIGENCE_TIMEOUT_MS = 500;
 const SIMILARITY_TIMEOUT_MS = 300;
 const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
+const TEXT_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
@@ -1181,6 +1182,15 @@ Deno.serve(async (req) => {
   const userId = auth.userId;
   const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
 
+  console.log(
+    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
+    mode,
+    source,
+    auth.isAuthenticated ? 'authenticated' : 'anonymous',
+    userId ? userId.slice(0, 8) : 'anon',
+    String(auth.hasProjectAccess),
+  );
+
   if (mode === 'text' && !auth.isAuthenticated) {
     return json({ error: 'Not authenticated' }, 401);
   }
@@ -1329,6 +1339,13 @@ Deno.serve(async (req) => {
         },
       };
 
+  console.log(
+    '[scan-identify] gemini_start timeoutMs=%d model=%s mode=%s source=%s',
+    timeoutMs,
+    modelName,
+    mode,
+    source,
+  );
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
@@ -1370,8 +1387,21 @@ Deno.serve(async (req) => {
       );
       failureAudit.error_reason = 'gemini_http_error';
       logScanIdentificationAudit(failureAudit);
+      console.log(
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
       return json(normalized('failed', safeFailed), 200);
     }
+
+    console.log(
+      '[scan-identify] gemini_success elapsedMs=%d mode=%s source=%s',
+      elapsedMs,
+      mode,
+      source,
+    );
 
     let data: GeminiResponse;
     try {
@@ -1387,6 +1417,12 @@ Deno.serve(async (req) => {
       );
       failureAudit.error_reason = 'gemini_parse_failure';
       logScanIdentificationAudit(failureAudit);
+      console.log(
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -1409,6 +1445,12 @@ Deno.serve(async (req) => {
       );
       failureAudit.error_reason = 'gemini_empty';
       logScanIdentificationAudit(failureAudit);
+      console.log(
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -1424,8 +1466,21 @@ Deno.serve(async (req) => {
       );
       failureAudit.error_reason = 'model_json_unparseable';
       logScanIdentificationAudit(failureAudit);
+      console.log(
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
       return json(normalized('failed', safeFailed), 200);
     }
+
+    console.log(
+      '[scan-identify] parse_success elapsedMs=%d mode=%s source=%s',
+      elapsedMs,
+      mode,
+      source,
+    );
 
     const rawStatus = typeof parsed.status === 'string' ? parsed.status.toLowerCase() : '';
 
@@ -1549,6 +1604,12 @@ Deno.serve(async (req) => {
         );
         logScanIdentificationAudit(auditEvent);
       }
+      console.log(
+        '[scan-identify] final_status status=non_fashion elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
       return json(finalResponse, 200);
     }
 
@@ -1563,6 +1624,12 @@ Deno.serve(async (req) => {
       );
       failureAudit.error_reason = 'completed_without_attributes';
       logScanIdentificationAudit(failureAudit);
+      console.log(
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -1613,26 +1680,64 @@ Deno.serve(async (req) => {
           : identification?.style_tags,
         text: textQuery,
       });
-      const shopping = await getShoppingResults({ query: shoppingQuery, limit: 8 });
-      finalRecommendedProducts = shopping.products.slice(0, 8).map((p) => ({
-        id: p.id,
-        name: p.title,
-        title: p.title,
-        source: p.source,
-        retailer: p.source,
-        url: p.productUrl,
-        product_url: p.productUrl,
-        imageUrl: p.imageUrl,
-        price: p.price,
-        type: p.type,
-      })) as RankedScanProduct[];
+      console.log('[scan-identify] commerce_started mode=%s source=%s', mode, source);
+      const shopping = await Promise.race([
+        getShoppingResults({ query: shoppingQuery, limit: 8 }).catch((err) => {
+          console.warn('[scan-identify] text commerce provider error:', err);
+          return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
+            ReturnType<typeof getShoppingResults>
+          >;
+        }),
+        new Promise<'text_commerce_timeout'>((resolve) => {
+          setTimeout(() => resolve('text_commerce_timeout'), TEXT_MODE_COMMERCE_TIMEOUT_MS);
+        }),
+      ]);
+
+      if (shopping === 'text_commerce_timeout') {
+        console.warn(
+          '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
+          TEXT_MODE_COMMERCE_TIMEOUT_MS,
+          mode,
+          source,
+        );
+        finalRecommendedProducts = [];
+        shoppingMeta = {
+          provider: 'timeout',
+          query: shoppingQuery,
+          count: 0,
+          reason: 'text_commerce_timeout',
+        };
+      } else {
+        finalRecommendedProducts = shopping.products.slice(0, 8).map((p) => ({
+          id: p.id,
+          name: p.title,
+          title: p.title,
+          source: p.source,
+          retailer: p.source,
+          url: p.productUrl,
+          product_url: p.productUrl,
+          imageUrl: p.imageUrl,
+          price: p.price,
+          type: p.type,
+        })) as RankedScanProduct[];
+        shoppingMeta = {
+          provider: shopping.provider,
+          query: shopping.query,
+          count: finalRecommendedProducts.length,
+        };
+      }
       rankedProductsForAudit = finalRecommendedProducts;
-      shoppingMeta = {
-        provider: shopping.provider,
-        query: shopping.query,
-        count: finalRecommendedProducts.length,
-      };
     } else if (isAnonymousImageAnalysis) {
+      console.log(
+        '[scan-identify] commerce_skipped reason=anonymous_image_analysis mode=%s source=%s',
+        mode,
+        source,
+      );
+      console.log(
+        '[scan-identify] similarity_skipped reason=anonymous_image_analysis mode=%s source=%s',
+        mode,
+        source,
+      );
       finalRecommendedProducts = [];
       finalSimilarityMatches = [];
       rankedProductsForAudit = [];
@@ -1652,6 +1757,7 @@ Deno.serve(async (req) => {
       // allowed to return fewer than 2 matches; the UI hides the section then.
       // Live commerce is capped at IMAGE_MODE_COMMERCE_TIMEOUT_MS so a slow
       // provider cannot block the Similar Items shelf.
+      console.log('[scan-identify] commerce_started mode=%s source=%s', mode, source);
       const commerce = await Promise.race([
         getScanCommerceResults({
           mode: 'image',
@@ -1684,8 +1790,10 @@ Deno.serve(async (req) => {
 
       if (commerce === 'commerce_timeout') {
         console.warn(
-          '[scan-identify] commerce lookup timed out after %dms',
+          '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
           IMAGE_MODE_COMMERCE_TIMEOUT_MS,
+          mode,
+          source,
         );
       } else {
         liveProducts = commerce.products.map((p) => ({
@@ -1714,6 +1822,8 @@ Deno.serve(async (req) => {
       const similarity = await buildImageSimilarityMatches({
         catalogClient,
         normalizedIdentification: completedNormalizedId,
+        mode,
+        source,
       });
       finalSimilarityMatches = similarity.matches;
 
@@ -1778,11 +1888,35 @@ Deno.serve(async (req) => {
       );
       logScanIdentificationAudit(auditEvent);
     }
+    console.log(
+      '[scan-identify] final_status status=completed elapsedMs=%d mode=%s source=%s',
+      elapsedMs,
+      mode,
+      source,
+    );
     return json(finalResponse, 200);
   } catch (err) {
-    const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+    const isTimeout =
+      (err instanceof DOMException && err.name === 'AbortError') ||
+      (err && typeof err === 'object' && (err as Error).name === 'AbortError');
     const elapsedMs = Date.now() - startedAt;
-    console.warn('[scan-identify] %s mode=%s source=%s elapsedMs=%d', isTimeout ? 'timeout' : 'error', mode, source, elapsedMs);
+    if (isTimeout) {
+      console.warn(
+        '[scan-identify] gemini_timeout elapsedMs=%d timeoutMs=%d mode=%s source=%s',
+        elapsedMs,
+        timeoutMs,
+        mode,
+        source,
+      );
+    } else {
+      console.warn(
+        '[scan-identify] gemini_error elapsedMs=%d mode=%s source=%s error=%s',
+        elapsedMs,
+        mode,
+        source,
+        err instanceof Error ? err.name : String(err),
+      );
+    }
     const failureAudit = buildAuditEvent(
       { status: 'failed' },
       null,
@@ -1792,6 +1926,12 @@ Deno.serve(async (req) => {
     );
     failureAudit.error_reason = isTimeout ? 'timeout' : 'exception';
     logScanIdentificationAudit(failureAudit);
+    console.log(
+      '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+      elapsedMs,
+      mode,
+      source,
+    );
     return json(normalized('failed', safeFailed), 200);
   } finally {
     clearTimeout(timer);
@@ -1808,10 +1948,23 @@ function safeStringMessage(value: unknown): string | undefined {
 async function buildImageSimilarityMatches(input: {
   catalogClient: unknown;
   normalizedIdentification: NormalizedIdentification | null;
+  mode?: string;
+  source?: string;
 }): Promise<{ matches: SimilarityMatch[]; catalogCount: number }> {
   if (!input.normalizedIdentification) {
+    console.log(
+      '[scan-identify] similarity_skipped reason=no_identification mode=%s source=%s',
+      input.mode,
+      input.source,
+    );
     return { matches: [], catalogCount: 0 };
   }
+
+  console.log(
+    '[scan-identify] similarity_started mode=%s source=%s',
+    input.mode,
+    input.source,
+  );
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const work = (async (): Promise<{
@@ -1851,7 +2004,12 @@ async function buildImageSimilarityMatches(input: {
   if (timeoutId) clearTimeout(timeoutId);
 
   if (result === 'timeout') {
-    console.warn('[scan-identify] similarity matcher timed out after %dms', SIMILARITY_TIMEOUT_MS);
+    console.warn(
+      '[scan-identify] similarity_timeout timeoutMs=%d mode=%s source=%s',
+      SIMILARITY_TIMEOUT_MS,
+      input.mode,
+      input.source,
+    );
     return { matches: [], catalogCount: 0 };
   }
 
