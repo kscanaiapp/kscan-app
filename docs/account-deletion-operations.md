@@ -36,7 +36,7 @@ The operator script follows this table. Tables marked **optional** are skipped w
 |---|---|---|---|
 | `public.style_chat_burst_usage` | `user_id` | Direct delete before auth delete | 1 |
 | `public.scan_intelligence_events` | `user_id` | Direct delete before auth delete (skip if missing) | 2 |
-| `public.dressing_rooms` | `user_id` | Transfer shared rooms to earliest participant, then auth cascade | 3 |
+| `public.dressing_rooms` | `user_id` | Transfer shared rooms to earliest **active** participant, then auth cascade | 3 |
 | `storage.objects` (`style-library-images`) | path prefix `{userId}/scans/`, `{userId}/inspirations/` | Direct storage delete before auth delete | 4 |
 | `auth.users` | `id` | Delete auth user; triggers all auth cascades | 5 |
 | `public.profiles` | `id` | Auth delete cascade | 6 |
@@ -75,7 +75,7 @@ The operator script follows this table. Tables marked **optional** are skipped w
 
 **Deletion order summary:**
 1. Direct-delete non-cascade rows (`style_chat_burst_usage`, `scan_intelligence_events`).
-2. Transfer shared `dressing_rooms` to another participant.
+2. Transfer shared `dressing_rooms` to the earliest remaining **active** participant (verified profile and auth user existence).
 3. Delete owned `style-library-images` storage objects.
 4. Delete the Supabase Auth user, which cascades all `auth.users` foreign-key rows.
 5. Parent-cascade tables are cleaned up automatically by step 4.
@@ -100,7 +100,12 @@ Other buckets (e.g., legacy `investor-docs`) are not user-owned and are intentio
 `dressing_rooms` cascade-deletes dependent rows (`dressing_room_items`, `dressing_room_messages`, `dressing_room_participants`, `room_shares`, etc.) when the owning user is removed. To avoid removing other participants' data, the processor now applies the following policy before calling `auth.admin.deleteUser`:
 
 - For each `dressing_rooms` row owned by the deleted user, inspect `dressing_room_participants` ordered by `created_at` ascending.
-- If another participant exists, transfer room ownership to the earliest joined participant (`dressing_rooms.user_id = participant.user_id`).
+- Validate each candidate in order until one passes all checks:
+  - A `profiles` row exists for the candidate.
+  - `profiles.account_status` is `active` (not `pending_deletion`, `locked`, `suspended`, or `deleted`).
+  - The candidate still exists in `auth.users`.
+- Transfer room ownership to the first valid candidate (`dressing_rooms.user_id = participant.user_id`).
+- If no valid candidate exists, log `no_valid_recipient` and leave the room to cascade normally with the owner.
 - The original owner's messages, reactions, and inspiration links are still removed by the auth cascade.
 - `room_shares` rows for the original owner are removed by the auth cascade; the new owner can generate a fresh share link if desired.
 - Rooms with no other participants are left to cascade normally and are fully removed with the owner.
@@ -150,7 +155,7 @@ On confirmed processing, `scripts/process-deletion-request.js`:
 
 1. Marks the deletion request `processing`.
 2. Locks the profile with `account_status = 'pending_deletion'` and `account_locked_at`.
-3. Transfers any shared dressing rooms to the earliest remaining participant (see Shared Room Safety above).
+3. Transfers any shared dressing rooms to the earliest remaining active participant (see Shared Room Safety above), or records `no_valid_recipient` when no active participant exists.
 4. Removes owned storage objects from `style-library-images` under `{userId}/scans/` and `{userId}/inspirations/`.
 5. Deletes known user-linked non-cascade rows such as `style_chat_burst_usage` and optional `scan_intelligence_events`.
 6. Calls `supabase.auth.admin.deleteUser(user_id)` last.

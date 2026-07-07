@@ -65,7 +65,9 @@ function createSupabaseMock(options = {}) {
     rooms = [],
     participants = [],
     profile = null,
+    profilesById = {},
     authUser = null,
+    authUsersById = {},
     updateResult = { data: [{ id: 'room-1' }], error: null },
     residualTables = {},
   } = options;
@@ -101,7 +103,10 @@ function createSupabaseMock(options = {}) {
               let data = [];
               if (table === 'dressing_rooms') data = rooms;
               else if (table === 'dressing_room_participants') data = participants;
-              else if (table === 'profiles') data = profile ? [profile] : [];
+              else if (table === 'profiles') {
+                if (profilesById[value]) data = [profilesById[value]];
+                else if (profile && value === profile.id) data = [profile];
+              }
 
               const base = {
                 data,
@@ -147,8 +152,10 @@ function createSupabaseMock(options = {}) {
           calls.push({ type: 'auth.deleteUser', value });
           return { error: null };
         },
-        async getUserById() {
-          return { data: { user: authUser }, error: null };
+        async getUserById(value) {
+          calls.push({ type: 'auth.getUserById', value });
+          const user = authUsersById[value] ?? authUser;
+          return { data: { user }, error: null };
         },
       },
     },
@@ -270,6 +277,8 @@ test('processDeletionRequest transfers shared rooms before auth user deletion', 
   const supabase = createSupabaseMock({
     rooms: [{ id: roomId, title: 'Shared Closet' }],
     participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
   }).client;
 
   const result = await processDeletionRequest(
@@ -353,13 +362,16 @@ test('getSharedRoomsForUser identifies rooms with other participants', async () 
   const supabase = createSupabaseMock({
     rooms: [{ id: roomId, title: 'Shared Closet' }],
     participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
   }).client;
 
   const rooms = await getSharedRoomsForUser(supabase, userId);
 
   assert.equal(rooms.length, 1);
   assert.equal(rooms[0].roomId, roomId);
-  assert.equal(rooms[0].nextOwnerId, participantId);
+  assert.equal(rooms[0].selectedRecipientId, participantId);
+  assert.equal(rooms[0].noValidRecipient, false);
 });
 
 test('transferSharedRoomOwnership updates the earliest participant to owner', async () => {
@@ -370,11 +382,14 @@ test('transferSharedRoomOwnership updates the earliest participant to owner', as
   const supabase = createSupabaseMock({
     rooms: [{ id: roomId, title: 'Shared Closet' }],
     participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
   }).client;
 
   const results = await transferSharedRoomOwnership(supabase, userId);
 
   assert.equal(results.length, 1);
+  assert.equal(results[0].action, 'transfer');
   const transferCall = supabase.calls.find(
     (call) => call.type === 'update' && call.table === 'dressing_rooms',
   );
@@ -391,7 +406,9 @@ test('buildDeletionSummary includes shared-room transfer policy', async () => {
     rooms: [{ id: roomId, title: 'Shared Closet' }],
     participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
     profile: { id: userId, email: 'test@example.com', account_status: 'active' },
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
     authUser: { id: userId, email: 'test@example.com' },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
   }).client;
 
   const summary = await buildDeletionSummary(supabase, {
@@ -403,8 +420,162 @@ test('buildDeletionSummary includes shared-room transfer policy', async () => {
   });
 
   assert.ok(summary.sharedRoomCheck);
-  assert.equal(summary.sharedRoomCheck.policy, 'transfer_to_earliest_participant');
+  assert.equal(summary.sharedRoomCheck.policy, 'transfer_to_earliest_active_participant');
   assert.equal(summary.sharedRoomCheck.sharedRooms.length, 1);
+  const room = summary.sharedRoomCheck.sharedRooms[0];
+  assert.equal(room.selectedRecipientId, shortUserId(participantId));
+  assert.equal(room.noValidRecipient, false);
+  assert.equal(room.candidates.length, 1);
+  assert.equal(room.candidates[0].status, 'selected');
+});
+
+test('transferSharedRoomOwnership skips pending_deletion participant', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const participantId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
+    profilesById: { [participantId]: { id: participantId, account_status: 'pending_deletion' } },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].action, 'no_valid_recipient');
+  const transferCalls = supabase.calls.filter(
+    (call) => call.type === 'update' && call.table === 'dressing_rooms',
+  );
+  assert.equal(transferCalls.length, 0);
+});
+
+test('transferSharedRoomOwnership skips ineligible-status participants', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const lockedId = '00000000-0000-0000-0000-000000000002';
+  const suspendedId = '00000000-0000-0000-0000-000000000003';
+  const deletedId = '00000000-0000-0000-0000-000000000004';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [
+      { user_id: lockedId, created_at: '2026-01-01T00:00:00Z' },
+      { user_id: suspendedId, created_at: '2026-01-02T00:00:00Z' },
+      { user_id: deletedId, created_at: '2026-01-03T00:00:00Z' },
+    ],
+    profilesById: {
+      [lockedId]: { id: lockedId, account_status: 'locked' },
+      [suspendedId]: { id: suspendedId, account_status: 'suspended' },
+      [deletedId]: { id: deletedId, account_status: 'deleted' },
+    },
+    authUsersById: {
+      [lockedId]: { id: lockedId, email: 'locked@example.com' },
+      [suspendedId]: { id: suspendedId, email: 'suspended@example.com' },
+      [deletedId]: { id: deletedId, email: 'deleted@example.com' },
+    },
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].action, 'no_valid_recipient');
+  assert.equal(results[0].candidateCount, 3);
+  assert.ok(results[0].candidates.every((c) => c.reason?.startsWith('status_ineligible')));
+});
+
+test('transferSharedRoomOwnership skips participant missing from auth.users', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const participantId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z' }],
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+    authUsersById: {},
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].action, 'no_valid_recipient');
+  assert.ok(results[0].candidates[0].reason, 'auth_user_missing');
+});
+
+test('transferSharedRoomOwnership transfers earliest active participant', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const pendingId = '00000000-0000-0000-0000-000000000002';
+  const activeId = '00000000-0000-0000-0000-000000000003';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [
+      { user_id: pendingId, created_at: '2026-01-01T00:00:00Z' },
+      { user_id: activeId, created_at: '2026-01-02T00:00:00Z' },
+    ],
+    profilesById: {
+      [pendingId]: { id: pendingId, account_status: 'pending_deletion' },
+      [activeId]: { id: activeId, account_status: 'active' },
+    },
+    authUsersById: {
+      [pendingId]: { id: pendingId, email: 'pending@example.com' },
+      [activeId]: { id: activeId, email: 'active@example.com' },
+    },
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].action, 'transfer');
+  assert.equal(results[0].newOwnerId, shortUserId(activeId));
+  const transferCall = supabase.calls.find(
+    (call) => call.type === 'update' && call.table === 'dressing_rooms',
+  );
+  assert.ok(transferCall);
+  assert.equal(transferCall.payload.user_id, activeId);
+});
+
+test('buildDeletionSummary dry-run shows skipped candidate reasons', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const pendingId = '00000000-0000-0000-0000-000000000002';
+  const activeId = '00000000-0000-0000-0000-000000000003';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [
+      { user_id: pendingId, created_at: '2026-01-01T00:00:00Z' },
+      { user_id: activeId, created_at: '2026-01-02T00:00:00Z' },
+    ],
+    profile: { id: userId, email: 'test@example.com', account_status: 'active' },
+    profilesById: {
+      [pendingId]: { id: pendingId, account_status: 'pending_deletion' },
+      [activeId]: { id: activeId, account_status: 'active' },
+    },
+    authUser: { id: userId, email: 'test@example.com' },
+    authUsersById: {
+      [pendingId]: { id: pendingId, email: 'pending@example.com' },
+      [activeId]: { id: activeId, email: 'active@example.com' },
+    },
+  }).client;
+
+  const summary = await buildDeletionSummary(supabase, {
+    id: 'req-1',
+    user_id: userId,
+    requested_at: '2026-07-07T00:00:00Z',
+    request_source: 'mobile_app',
+    notes: null,
+  });
+
+  const room = summary.sharedRoomCheck.sharedRooms[0];
+  assert.equal(room.candidates.length, 2);
+  assert.equal(room.candidates[0].status, 'skipped');
+  assert.ok(room.candidates[0].reason?.startsWith('status_ineligible'));
+  assert.equal(room.candidates[1].status, 'selected');
+  assert.equal(room.selectedRecipientId, shortUserId(activeId));
 });
 
 test('USER_DATA_RESOURCES covers all user-linked tables in migrations', () => {

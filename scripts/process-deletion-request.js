@@ -47,10 +47,11 @@ const DIRECT_DELETE_RESOURCES = USER_DATA_RESOURCES.filter(
 );
 
 // Rooms owned by the deleted user are transferred to the earliest remaining
-// participant so that other users' data (items, messages, participants) is not
-// removed by the auth.users cascade. Rooms with no other participants are left
-// to cascade normally. See docs/account-deletion-operations.md.
-const SHARED_ROOM_TRANSFER_POLICY = 'transfer_to_earliest_participant';
+// active participant (verified profile status and auth user existence) so that
+// other users' data (items, messages, participants) is not removed by the
+// auth.users cascade. Rooms with no valid active participant are left to cascade
+// normally. See docs/account-deletion-operations.md.
+const SHARED_ROOM_TRANSFER_POLICY = 'transfer_to_earliest_active_participant';
 
 // Only the style-library-images bucket is known to hold user-owned objects.
 // Prefixes are intentionally explicit to avoid accidentally listing/deleting
@@ -210,6 +211,37 @@ async function failIfError(result, label) {
     throw new Error(`${label}: ${result.error.message}`);
   }
   return result;
+}
+
+const ELIGIBLE_TRANSFER_STATUSES = ['active'];
+const INELIGIBLE_TRANSFER_STATUSES = ['pending_deletion', 'locked', 'suspended', 'deleted'];
+
+async function validateTransferCandidate(supabase, candidateUserId) {
+  const profileResult = await supabase
+    .from('profiles')
+    .select('id,account_status')
+    .eq('id', candidateUserId)
+    .maybeSingle();
+  if (profileResult.error) {
+    return { valid: false, reason: 'profile_lookup_error' };
+  }
+  if (!profileResult.data) {
+    return { valid: false, reason: 'profile_missing' };
+  }
+  if (INELIGIBLE_TRANSFER_STATUSES.includes(profileResult.data.account_status)) {
+    return { valid: false, reason: `status_ineligible:${profileResult.data.account_status}` };
+  }
+  if (!ELIGIBLE_TRANSFER_STATUSES.includes(profileResult.data.account_status)) {
+    return { valid: false, reason: `status_not_active:${profileResult.data.account_status}` };
+  }
+  const authResult = await supabase.auth.admin.getUserById(candidateUserId);
+  if (authResult.error) {
+    return { valid: false, reason: 'auth_lookup_error' };
+  }
+  if (!authResult.data?.user) {
+    return { valid: false, reason: 'auth_user_missing' };
+  }
+  return { valid: true, reason: null };
 }
 
 async function listPendingRequests(supabase, limit) {
@@ -407,20 +439,53 @@ async function getSharedRoomsForUser(supabase, userId) {
       .from('dressing_room_participants')
       .select('user_id,created_at')
       .eq('dressing_room_id', room.id)
-      .order('created_at', { ascending: true })
-      .limit(1);
+      .order('created_at', { ascending: true });
     const participants = (await failIfError(participantsResult, `list participants for room ${room.id}`))
       .data ?? [];
-    if (participants.length > 0) {
-      shared.push({
-        roomId: room.id,
-        roomTitle: room.title,
-        nextOwnerId: participants[0].user_id,
-        nextOwnerJoinedAt: participants[0].created_at,
-      });
+    const candidates = [];
+    let selectedRecipientId = null;
+    let selectedJoinedAt = null;
+    for (const participant of participants) {
+      const validation = await validateTransferCandidate(supabase, participant.user_id);
+      const candidate = {
+        userId: participant.user_id,
+        joinedAt: participant.created_at,
+        status: validation.valid ? 'selected' : 'skipped',
+        reason: validation.valid ? undefined : validation.reason,
+      };
+      candidates.push(candidate);
+      if (validation.valid && selectedRecipientId === null) {
+        selectedRecipientId = participant.user_id;
+        selectedJoinedAt = participant.created_at;
+      }
     }
+    shared.push({
+      roomId: room.id,
+      roomTitle: room.title,
+      candidateCount: participants.length,
+      selectedRecipientId,
+      selectedJoinedAt,
+      noValidRecipient: selectedRecipientId === null,
+      candidates,
+    });
   }
   return shared;
+}
+
+function sanitizeSharedRoomForOutput(room) {
+  return {
+    roomId: room.roomId,
+    roomTitle: room.roomTitle,
+    candidateCount: room.candidateCount,
+    selectedRecipientId: room.selectedRecipientId ? shortUserId(room.selectedRecipientId) : null,
+    noValidRecipient: room.noValidRecipient,
+    candidates: room.candidates.map((c) => ({
+      userId: shortUserId(c.userId),
+      joinedAt: c.joinedAt,
+      status: c.status,
+      reason: c.reason,
+    })),
+  };
 }
 
 async function transferSharedRoomOwnership(supabase, userId) {
@@ -428,9 +493,23 @@ async function transferSharedRoomOwnership(supabase, userId) {
   const transferredAt = new Date().toISOString();
   const results = [];
   for (const room of sharedRooms) {
+    if (!room.selectedRecipientId) {
+      results.push({
+        roomId: room.roomId,
+        roomTitle: room.roomTitle,
+        action: 'no_valid_recipient',
+        candidateCount: room.candidateCount,
+        candidates: room.candidates.map((c) => ({
+          userId: shortUserId(c.userId),
+          reason: c.reason,
+        })),
+        note: 'No active remaining participant found; room will be removed by owner cascade.',
+      });
+      continue;
+    }
     const updateResult = await supabase
       .from('dressing_rooms')
-      .update({ user_id: room.nextOwnerId, updated_at: transferredAt })
+      .update({ user_id: room.selectedRecipientId, updated_at: transferredAt })
       .eq('id', room.roomId)
       .eq('user_id', userId)
       .select('id');
@@ -438,8 +517,15 @@ async function transferSharedRoomOwnership(supabase, userId) {
     results.push({
       roomId: room.roomId,
       roomTitle: room.roomTitle,
-      newOwnerId: shortUserId(room.nextOwnerId),
-      newOwnerJoinedAt: room.nextOwnerJoinedAt,
+      action: 'transfer',
+      newOwnerId: shortUserId(room.selectedRecipientId),
+      newOwnerJoinedAt: room.selectedJoinedAt,
+      candidateCount: room.candidateCount,
+      candidates: room.candidates.map((c) => ({
+        userId: shortUserId(c.userId),
+        status: c.status,
+        reason: c.reason,
+      })),
       transferredAt,
     });
   }
@@ -484,9 +570,9 @@ async function buildDeletionSummary(supabase, request) {
     ),
     sharedRoomCheck: {
       policy: SHARED_ROOM_TRANSFER_POLICY,
-      sharedRooms: sharedRoomCheck,
+      sharedRooms: sharedRoomCheck.map(sanitizeSharedRoomForOutput),
       note:
-        'Shared rooms are transferred to the earliest remaining participant before the original owner is deleted. Rooms with no other participants are removed with the owner.',
+        'Shared rooms are transferred to the earliest remaining active participant before the original owner is deleted. Rooms with no valid active participant are removed with the owner.',
     },
     localDeviceDataNote:
       'Saved scan thumbnails in the app sandbox are removed by in-app delete or app uninstall; server-side deletion covers Supabase rows and owned storage objects.',
@@ -608,7 +694,7 @@ async function processDeletionRequest(supabase, request, options) {
       action,
       optional: Boolean(optional),
     })),
-    note: 'Shared rooms were transferred to the earliest remaining participant before auth deletion. Supabase Auth user was deleted last; public rows with auth.users(id) foreign keys cascade. Known non-cascade rows and owned storage prefixes were handled first.',
+    note: 'Shared rooms were transferred to the earliest remaining active participant before auth deletion. Supabase Auth user was deleted last; public rows with auth.users(id) foreign keys cascade. Known non-cascade rows and owned storage prefixes were handled first.',
   };
   const auditFile = await writeAuditFile(options.outputDir, auditPayload);
 
