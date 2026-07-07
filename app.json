@@ -41,7 +41,7 @@
                              ],
                  "android":  {
                                  "package":  "com.kscanai.app",
-                                 "versionCode": 22,
+                                 "versionCode": 23,
                                  "softwareKeyboardLayoutMode":  "resize",
                                  "permissions":  [
                                                      "android.permission.CAMERA",

@@ -29,8 +29,8 @@ import type {
 } from '../types/scanIdentification';
 
 const EDGE_FN = 'scan-identify';
-// Slightly longer than the edge function's provider timeout (~8 s) + overhead.
-const INVOKE_TIMEOUT_MS = 12_000;
+// Slightly longer than the edge function's provider timeout (~14 s) + overhead.
+const INVOKE_TIMEOUT_MS = 20_000;
 // Mirror the server guard so oversized payloads never leave the device.
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
 

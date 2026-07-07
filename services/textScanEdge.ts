@@ -3,9 +3,9 @@ import { validateTextScanQuery } from './textScan';
 import type { TextScanProduct, TextScanProductType, TextScanResult } from './textScan';
 
 const EDGE_FN = 'scan-identify';
-// User-facing timeout budget. The edge function internally caps at ~8 s.
-// 10 s gives a small buffer for cold-start overhead without hanging the UI.
-const INVOKE_TIMEOUT_MS = 10_000;
+// User-facing timeout budget. The edge function internally caps at ~14 s.
+// 20 s gives a small buffer for cold-start overhead without hanging the UI.
+const INVOKE_TIMEOUT_MS = 20_000;
 
 const SAFE_FAILED_MESSAGE =
   "We couldn't analyze this request. Please try describing a garment, style, or outfit.";
