@@ -28,6 +28,73 @@ This runbook gives the release owner a manual account-erasure path for the curre
 - `storage.objects` in bucket `style-library-images`: uploaded room/library image objects under `{userId}/scans/` and `{userId}/inspirations/`. The processor removes only those owned prefixes before deleting the Auth user.
 - Local saved scans/thumbnails: stored in the app sandbox by `expo-file-system`. They are removed by in-app delete or app uninstall and are not server-side Supabase rows.
 
+## Deletion Method Reference Table
+
+The operator script follows this table. Tables marked **optional** are skipped without error if the migration is not deployed.
+
+| Table | User-link column | Deletion method | Order |
+|---|---|---|---|
+| `public.style_chat_burst_usage` | `user_id` | Direct delete before auth delete | 1 |
+| `public.scan_intelligence_events` | `user_id` | Direct delete before auth delete (skip if missing) | 2 |
+| `public.dressing_rooms` | `user_id` | Transfer shared rooms to earliest participant, then auth cascade | 3 |
+| `storage.objects` (`style-library-images`) | path prefix `{userId}/scans/`, `{userId}/inspirations/` | Direct storage delete before auth delete | 4 |
+| `auth.users` | `id` | Delete auth user; triggers all auth cascades | 5 |
+| `public.profiles` | `id` | Auth delete cascade | 6 |
+| `public.privacy_settings` | `user_id` | Auth delete cascade | 6 |
+| `public.privacy_export_requests` | `user_id` | Auth delete cascade | 6 |
+| `public.privacy_correction_requests` | `user_id` | Auth delete cascade | 6 |
+| `public.deletion_requests` | `user_id` | Auth delete cascade | 6 |
+| `public.legal_acceptances` | `user_id` | Auth delete cascade | 6 |
+| `public.saved_scans` | `user_id` | Auth delete cascade | 6 |
+| `public.dressing_room_inspiration_items` | `user_id` | Auth delete cascade | 6 |
+| `public.dressing_room_item_reactions` | `user_id` | Auth delete cascade | 6 |
+| `public.dressing_room_messages` | `sender_id` | Auth delete cascade | 6 |
+| `public.dressing_room_participants` | `user_id` | Auth delete cascade | 6 |
+| `public.room_shares` | `owner_id` | Auth delete cascade | 6 |
+| `public.looks` | `user_id` | Auth delete cascade | 6 |
+| `public.inspiration_items` | `user_id` | Auth delete cascade | 6 |
+| `public.style_chat_sessions` | `user_id` | Auth delete cascade | 6 |
+| `public.style_chat_messages` | `user_id` | Auth delete cascade | 6 |
+| `public.style_memory_events` | `user_id` | Auth delete cascade | 6 |
+| `public.style_chat_usage` | `user_id` | Auth delete cascade | 6 |
+| `public.style_chat_daily_usage` | `user_id` | Auth delete cascade | 6 |
+| `public.scan_identify_usage_daily` | `user_id` | Auth delete cascade | 6 |
+| `public.wardrobe_utility_items` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_collections` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_collection_items` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_brand_sizing_notes` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_outfit_feedback` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_care_notes` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_wishlist_intents` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_wear_events` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.wardrobe_activity_log` | `user_id` | Auth delete cascade (optional) | 6 |
+| `public.dressing_room_items` | `dressing_room_id` | Parent cascade via `dressing_rooms` | 7 |
+| `public.look_items` | `look_id` | Parent cascade via `looks` | 7 |
+| `public.app_config` | — | Not user-linked; intentionally skipped | — |
+| `public.product_catalog` | — | Not user-linked; intentionally skipped | — |
+
+**Deletion order summary:**
+1. Direct-delete non-cascade rows (`style_chat_burst_usage`, `scan_intelligence_events`).
+2. Transfer shared `dressing_rooms` to another participant.
+3. Delete owned `style-library-images` storage objects.
+4. Delete the Supabase Auth user, which cascades all `auth.users` foreign-key rows.
+5. Parent-cascade tables are cleaned up automatically by step 4.
+
+## Service-Role Client Requirement
+
+The operator script **must** create a Supabase client with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` and use it for all delete operations. The anon key must never be used for deletion processing. The script aborts if either environment variable is missing.
+
+## Storage Buckets and Prefixes
+
+Based on the discovery audit, only one storage bucket currently holds user-owned objects:
+
+| Bucket | User-owned prefixes | Action |
+|---|---|---|
+| `style-library-images` | `{userId}/scans/` | Delete all objects under prefix |
+| `style-library-images` | `{userId}/inspirations/` | Delete all objects under prefix |
+
+Other buckets (e.g., legacy `investor-docs`) are not user-owned and are intentionally skipped. If a future feature adds a new user-owned prefix, add it to `STORAGE_RESOURCES` in `scripts/process-deletion-request.js` and update this table.
+
 ## Shared Room Safety
 
 `dressing_rooms` cascade-deletes dependent rows (`dressing_room_items`, `dressing_room_messages`, `dressing_room_participants`, `room_shares`, etc.) when the owning user is removed. To avoid removing other participants' data, the processor now applies the following policy before calling `auth.admin.deleteUser`:
@@ -61,7 +128,10 @@ $env:SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
 node scripts/process-deletion-request.js --list-pending
 node scripts/process-deletion-request.js --request-id "<request-id>"
 node scripts/process-deletion-request.js --request-id "<request-id>" --confirm-delete --output-dir "qa/deletion-processing"
+node scripts/process-deletion-request.js --request-id "<request-id>" --confirm-delete --output-dir "qa/deletion-processing" --verify
 ```
+
+The `--verify` flag runs a read-only completeness check after deletion and reports any residual rows. It is safe to add to every confirmed run.
 
 You may use `--user-id "<auth-user-id>"` instead of `--request-id` when working from a support ticket that records the Supabase user ID.
 
@@ -88,6 +158,35 @@ On confirmed processing, `scripts/process-deletion-request.js`:
 8. Optionally writes a local audit JSON file outside the app data path, using a partial user ID only. The audit includes the room-transfer result, storage results, direct-deletion results, and deletion coverage map.
 
 Because `deletion_requests` currently cascades from `auth.users`, the request row is expected to be removed with the Auth user. Keep the generated audit JSON or support-ticket note as the operational completion record.
+
+## Post-Deletion Verification
+
+When `--verify` is passed, the operator script performs a read-only check after auth deletion:
+
+- Counts rows in every user-linked table by the mapped user-link column.
+- Checks that the auth user no longer exists.
+- Reports any residual data as `verification.residuals`.
+
+Verification intentionally excludes parent-cascade tables (`dressing_room_items`, `look_items`) because their lifecycle is governed by the parent row, and excludes `deletion_requests` because it is the operational request record.
+
+## Audit Logging
+
+The operator script emits a machine-readable JSON summary for every confirmed run. The summary includes:
+
+- `deletionRequestId`
+- `userId`: first 8 characters only
+- `authUserDeleted`: `true` when `auth.admin.deleteUser` succeeded
+- `roomTransferResults`: shared rooms transferred to a new owner
+- `storageResults`: storage prefixes processed and object counts
+- `directDeletionResults`: non-cascade rows deleted
+- `auditFile`: local path of the full audit JSON
+- `verification`: result of the `--verify` completeness check (if enabled)
+
+Save this JSON or the terminal output in the support ticket for compliance.
+
+## Active Sessions After Auth Deletion
+
+After `auth.admin.deleteUser()` succeeds, the user's existing JWTs remain technically valid until they expire. Supabase does not provide a service-role method to revoke a specific user's sessions in the JS client. The app signs the user out immediately after submitting the deletion request, and pending-deletion accounts are blocked from normal app use on the next token refresh. If a future Supabase client version exposes user-specific session revocation, add it to the processor as an optional step.
 
 ## App Review Statement
 

@@ -14,6 +14,7 @@ const {
   shortUserId,
   transferSharedRoomOwnership,
   USER_DATA_RESOURCES,
+  verifyDeletionCompleteness,
 } = require('../scripts/process-deletion-request');
 
 function createStorageMock(filesByPrefix = {}) {
@@ -66,6 +67,7 @@ function createSupabaseMock(options = {}) {
     profile = null,
     authUser = null,
     updateResult = { data: [{ id: 'room-1' }], error: null },
+    residualTables = {},
   } = options;
 
   function makeThenable(base) {
@@ -101,7 +103,11 @@ function createSupabaseMock(options = {}) {
               else if (table === 'dressing_room_participants') data = participants;
               else if (table === 'profiles') data = profile ? [profile] : [];
 
-              const base = { data, error: null, count: data.length };
+              const base = {
+                data,
+                error: null,
+                count: residualTables[table] ?? data.length,
+              };
               return makeThenable(base);
             },
           };
@@ -162,6 +168,7 @@ test('parseArgs: request deletion is dry-run by default', () => {
     outputDir: null,
     requestId: 'req-1',
     userId: null,
+    verify: false,
   });
 });
 
@@ -185,6 +192,11 @@ test('parseArgs: requires exactly one selector', () => {
 test('parseArgs: validates limit range', () => {
   assert.throws(() => parseArgs(['--list-pending', '--limit', '0']), /between 1 and 100/);
   assert.equal(parseArgs(['--list-pending', '--limit', '5']).limit, 5);
+});
+
+test('parseArgs: --verify enables post-deletion completeness check', () => {
+  assert.equal(parseArgs(['--request-id', 'req-1', '--verify']).verify, true);
+  assert.equal(parseArgs(['--request-id', 'req-1']).verify, false);
 });
 
 test('appendNote appends on a new line without losing existing notes', () => {
@@ -284,6 +296,47 @@ test('processDeletionRequest transfers shared rooms before auth user deletion', 
   );
   assert.ok(transferIndex < authDeleteIndex);
   assert.equal(result.roomTransferResults.length, 1);
+  assert.equal(result.authUserDeleted, true);
+  assert.ok(result.summary);
+});
+
+test('processDeletionRequest includes verification result when --verify is set', async () => {
+  const userId = '12345678-90ab-cdef-1234-567890abcdef';
+  const supabase = createSupabaseMock({ authUser: null }).client;
+
+  const result = await processDeletionRequest(
+    supabase,
+    {
+      id: 'request-3',
+      user_id: userId,
+      requested_at: '2026-07-07T00:00:00Z',
+      request_source: 'mobile_app',
+      notes: null,
+    },
+    { verify: true },
+  );
+
+  assert.ok(result.verification);
+  assert.equal(result.verification.passed, true);
+  assert.deepEqual(result.verification.residuals, []);
+});
+
+test('verifyDeletionCompleteness detects residual rows and lingering auth user', async () => {
+  const userId = '12345678-90ab-cdef-1234-567890abcdef';
+  const supabase = createSupabaseMock({
+    authUser: { id: userId, email: 'test@example.com' },
+    residualTables: { saved_scans: 3, style_chat_sessions: 1 },
+  }).client;
+
+  const result = await verifyDeletionCompleteness(supabase, userId);
+
+  assert.equal(result.passed, false);
+  const residualTables = result.residuals.map((r) => r.table);
+  assert.ok(residualTables.includes('saved_scans'));
+  assert.ok(residualTables.includes('style_chat_sessions'));
+  assert.ok(residualTables.includes('auth.users'));
+  assert.ok(!residualTables.includes('dressing_room_items'));
+  assert.ok(!residualTables.includes('deletion_requests'));
 });
 
 test('shortUserId never returns the full user id', () => {

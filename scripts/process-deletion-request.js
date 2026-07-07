@@ -52,6 +52,9 @@ const DIRECT_DELETE_RESOURCES = USER_DATA_RESOURCES.filter(
 // to cascade normally. See docs/account-deletion-operations.md.
 const SHARED_ROOM_TRANSFER_POLICY = 'transfer_to_earliest_participant';
 
+// Only the style-library-images bucket is known to hold user-owned objects.
+// Prefixes are intentionally explicit to avoid accidentally listing/deleting
+// non-user folders. If a new user-owned prefix is added, register it here.
 const STORAGE_RESOURCES = [
   {
     bucket: 'style-library-images',
@@ -66,6 +69,7 @@ Usage:
   node scripts/process-deletion-request.js --list-pending
   node scripts/process-deletion-request.js --request-id <uuid> [--dry-run]
   node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete
+  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete --verify
   node scripts/process-deletion-request.js --user-id <uuid> [--dry-run]
   node scripts/process-deletion-request.js --user-id <uuid> --confirm-delete
 
@@ -76,7 +80,8 @@ Environment:
 Safety:
   The command is dry-run by default. It only deletes the Supabase Auth user when
   --confirm-delete is present. Deleting the auth user cascades the local public
-  rows that reference auth.users(id).
+  rows that reference auth.users(id). Use --verify to run a read-only
+  completeness check after a confirmed deletion.
 `);
 }
 
@@ -99,6 +104,7 @@ function parseArgs(argv) {
     outputDir: null,
     requestId: null,
     userId: null,
+    verify: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -138,6 +144,9 @@ function parseArgs(argv) {
         options.userId = takeValue(argv, i, arg);
         i += 1;
         break;
+      case '--verify':
+        options.verify = true;
+        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -163,6 +172,8 @@ function requireEnv(name) {
   return value;
 }
 
+// The service-role key is required for all deletion operations. The anon key
+// must never be used here because it cannot delete storage objects or auth users.
 function createSupabaseAdminClient() {
   return createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_SERVICE_ROLE_KEY'), {
     auth: {
@@ -493,10 +504,49 @@ async function writeAuditFile(outputDir, payload) {
   return fullPath;
 }
 
+async function verifyDeletionCompleteness(supabase, userId) {
+  const residuals = [];
+  for (const resource of USER_DATA_RESOURCES) {
+    // Parent-cascade tables are verified through their parent row lifecycle.
+    // deletion_requests is the operational request record and is expected to
+    // cascade away with the auth user; it is excluded from residual checks.
+    if (!resource.column || resource.table === 'deletion_requests') continue;
+
+    const result = await supabase
+      .from(resource.table)
+      .select('*', { count: 'exact', head: true })
+      .eq(resource.column, userId);
+
+    if (result.error) {
+      if (resource.optional && isMissingResourceError(result.error)) continue;
+      throw new Error(`verify ${resource.table}: ${result.error.message}`);
+    }
+
+    const count = result.count ?? 0;
+    if (count > 0) {
+      residuals.push({ table: resource.table, column: resource.column, count });
+    }
+  }
+
+  const authUserResult = await supabase.auth.admin.getUserById(userId);
+  if (!authUserResult.error && authUserResult.data?.user) {
+    residuals.push({ table: 'auth.users', column: 'id', count: 1 });
+  }
+
+  return { passed: residuals.length === 0, residuals };
+}
+
 async function processDeletionRequest(supabase, request, options) {
   const startedAt = new Date().toISOString();
   const note = `Manual deletion processor started at ${startedAt}.`;
   const safeUserId = shortUserId(request.user_id);
+
+  // Deletion order (see docs/account-deletion-operations.md):
+  // 1. Mark request processing and lock the profile.
+  // 2. Direct-delete non-cascade rows first to avoid FK errors later.
+  // 3. Transfer shared dressing rooms so other participants keep their data.
+  // 4. Delete owned storage objects.
+  // 5. Delete the Supabase Auth user last so auth FK cascades clean up the rest.
 
   await failIfError(
     await supabase
@@ -521,21 +571,34 @@ async function processDeletionRequest(supabase, request, options) {
     'lock profile before auth deletion',
   );
 
+  const directDeletionResults = await deleteDirectUserRows(supabase, request.user_id);
   const roomTransferResults = await transferSharedRoomOwnership(supabase, request.user_id);
   const storageResults = await deleteOwnedStorageObjects(supabase, request.user_id);
-  const directDeletionResults = await deleteDirectUserRows(supabase, request.user_id);
   const deleteResult = await supabase.auth.admin.deleteUser(request.user_id);
   if (deleteResult.error) {
     throw new Error(`delete auth user: ${deleteResult.error.message}`);
   }
 
   const completedAt = new Date().toISOString();
+  const summary = {
+    authUserDeleted: true,
+    roomsTransferred: roomTransferResults.length,
+    storagePrefixesProcessed: storageResults.length,
+    storageObjectsRemoved: storageResults.reduce((sum, entry) => sum + (entry.pathsAttempted ?? 0), 0),
+    directRowsDeleted: directDeletionResults.reduce(
+      (sum, entry) => sum + (typeof entry.count === 'number' ? entry.count : 0),
+      0,
+    ),
+  };
+
   const auditPayload = {
     completedAt,
     deletionRequestId: request.id,
     requestedAt: request.requested_at,
     requestSource: request.request_source,
     userId: safeUserId,
+    authUserDeleted: summary.authUserDeleted,
+    summary,
     roomTransferResults,
     storageResults,
     directDeletionResults,
@@ -549,16 +612,24 @@ async function processDeletionRequest(supabase, request, options) {
   };
   const auditFile = await writeAuditFile(options.outputDir, auditPayload);
 
-  return {
+  const result = {
     status: 'completed',
     completedAt,
     deletionRequestId: request.id,
     userId: safeUserId,
+    authUserDeleted: summary.authUserDeleted,
+    summary,
     roomTransferResults,
     storageResults,
     directDeletionResults,
     auditFile,
   };
+
+  if (options.verify) {
+    result.verification = await verifyDeletionCompleteness(supabase, request.user_id);
+  }
+
+  return result;
 }
 
 async function main(argv = process.argv.slice(2)) {
@@ -611,4 +682,5 @@ module.exports = {
   STORAGE_RESOURCES,
   transferSharedRoomOwnership,
   USER_DATA_RESOURCES,
+  verifyDeletionCompleteness,
 };
