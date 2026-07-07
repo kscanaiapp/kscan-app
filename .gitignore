@@ -97,10 +97,12 @@ product-search-response.json
 # secrets
 .env
 .env.local
+.env.e2e
 .env.*
 # Keep example/template env files tracked (placeholders only, no real secrets)
 !.env.example
 !.env.local.example
+!.env.e2e.example
 API Keys.docx
 
 # Allow K Scan QA mockup references
@@ -114,5 +116,7 @@ API Keys.docx
 
 # Keep smoke / live test artifacts excluded despite mockup exception above
 qa/scan-room-v2-smoke-*/
+qa/delete-e2e-*/
+qa/delete-e2e-*.json
 .maestro/flows/smoke/
 scripts/textscan-live-smoke.ps1
