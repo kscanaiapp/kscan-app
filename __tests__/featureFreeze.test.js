@@ -24,6 +24,7 @@ function loadTsModule(relativePath, requireMap = {}) {
     console,
     exports: module.exports,
     module,
+    process: { env: {} },
     require: (id) => {
       if (id in requireMap) return requireMap[id];
       throw new Error(`Unexpected require: ${id}`);
