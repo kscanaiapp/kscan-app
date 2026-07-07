@@ -18,7 +18,8 @@
                                      "expo-camera",
                                      {
                                          "cameraPermission":  "K Scan uses your camera to photograph your outfit for style analysis.",
-                                         "microphonePermission":  false
+                                         "microphonePermission":  false,
+                                         "recordAudioAndroid":  false
                                      }
                                  ],
                                  [
