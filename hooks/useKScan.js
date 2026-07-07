@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { analyzeImage } from '../services/api';
 import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
 import { identifyScanImage } from '../services/scanIdentification';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
@@ -48,6 +47,12 @@ function warnInvalidTransition(from, to) {
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     console.warn(`[useKScan] Invalid transition ignored: ${from} -> ${to}`);
   }
+}
+
+function userSafeError(message, userMessage) {
+  const error = new Error(message);
+  error.userMessage = userMessage;
+  return error;
 }
 
 /**
@@ -249,7 +254,7 @@ export function useKScan() {
         if (__DEV__ && photo.qaFixtureName) {
           console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
           console.log('[K-SCAN QA] Using compressImage utility: true');
-          console.log('[K-SCAN QA] Sending fixture through /api/analyze');
+          console.log('[K-SCAN QA] Sending fixture through scan-identify');
         }
         const compressed = await compressForUpload(photo.uri);
         if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
@@ -268,23 +273,22 @@ export function useKScan() {
         }
 
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
-        // Scan backend selection (KS-REL-008C). Default path is the legacy Render
-        // /api/analyze endpoint. When SCAN_IDENTIFY_BACKEND_ENABLED is on (owner-
-        // approved, authenticated flow), route through the app-side scan-identify
-        // Edge Function and map its response into the same analysis shape so the
-        // result UI and downstream enrichment are unchanged.
-        let data;
-        if (SCAN_IDENTIFY_BACKEND_ENABLED) {
-          usedScanIdentify = true;
-          const identifyResponse = await identifyScanImage(sanitized, {
-            source: photo.source === 'upload' ? 'upload' : 'camera',
-            localPrivacyFiltered: true,
-          });
-          // Throws a user-safe error on 'failed' → handled by the catch below.
-          data = mapScanIdentifyToAnalysis(identifyResponse);
-        } else {
-          data = await analyzeImage(sanitized);
+        // Production camera scan path (KS-REL-008C): always route through the
+        // app-side scan-identify Supabase Edge Function. The legacy Render
+        // /api/analyze fallback has been removed for production submission.
+        if (!SCAN_IDENTIFY_BACKEND_ENABLED) {
+          throw userSafeError(
+            'scan backend disabled',
+            'We couldn’t complete the scan. Please check your connection and try again.',
+          );
         }
+        usedScanIdentify = true;
+        const identifyResponse = await identifyScanImage(sanitized, {
+          source: photo.source === 'upload' ? 'upload' : 'camera',
+          localPrivacyFiltered: true,
+        });
+        // Throws a user-safe error on 'failed' → handled by the catch below.
+        const data = mapScanIdentifyToAnalysis(identifyResponse);
         await finishAnalysis(data, processingStart);
       } catch (err) {
         logAnalyzeDiag({
@@ -294,36 +298,10 @@ export function useKScan() {
           errorMessage: err?.message ?? null,
         });
         if (__DEV__) {
-          console.warn('[useKScan] scan-identify path failed; attempting legacy fallback', err?.message);
+          console.warn('[useKScan] scan-identify path failed', err?.message);
         }
 
-        if (usedScanIdentify && sanitized) {
-          try {
-            const fallbackData = await analyzeImage(sanitized);
-            logAnalyzeDiag({
-              event: 'fallback_analysis_success',
-              source: 'runAnalysis',
-            });
-            await finishAnalysis(fallbackData, processingStart);
-          } catch (fallbackErr) {
-            logAnalyzeDiag({
-              event: 'fallback_analysis_failed',
-              source: 'runAnalysis',
-              errorMessage: fallbackErr?.message ?? null,
-            });
-            if (__DEV__) {
-              console.warn('[useKScan] legacy fallback also failed', fallbackErr?.message);
-            }
-            if (isMounted.current) {
-              errorPulse();
-              setError(
-                fallbackErr?.userMessage ||
-                'We couldn’t complete the scan. Please check your connection and try again.'
-              );
-              setStatus('error');
-            }
-          }
-        } else if (isMounted.current) {
+        if (isMounted.current) {
           errorPulse();
           setError(
             err?.userMessage ||

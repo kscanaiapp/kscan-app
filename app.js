@@ -22,7 +22,6 @@ import { useRouter } from 'expo-router';
 import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
 import { saveScan } from './services/library';
-import { getApiBaseUrl } from './services/api';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
@@ -224,7 +223,6 @@ function QAPanel({ status, onSelectFixture }) {
     <View style={styles.qaPanel} testID="qa-panel">
       <Text style={styles.qaTitle}>QA</Text>
       <Text style={styles.qaText}>Build: {APP_BUILD_LABEL}</Text>
-      <Text style={styles.qaText}>API: {getApiBaseUrl()}</Text>
       <Text style={styles.qaText}>DEV_FALLBACK: {DEV_FALLBACK_STATUS}</Text>
       <Text style={styles.qaText}>Static QA: enabled</Text>
       <Text style={styles.qaText}>State: {status}</Text>
@@ -322,7 +320,7 @@ export default function App() {
     console.log('[K-SCAN] __DEV__:', true);
     console.log(`[K-SCAN] DEV_FALLBACK: ${DEV_FALLBACK_STATUS}`);
     console.log(`[K-SCAN] Static QA path enabled: ${QA_TOOLS_ENABLED}`);
-    if (QA_TOOLS_ENABLED) console.log('[K-SCAN] API URL:', getApiBaseUrl());
+    if (QA_TOOLS_ENABLED) console.log('[K-SCAN] QA tools active');
   }, []);
 
   useEffect(() => {
