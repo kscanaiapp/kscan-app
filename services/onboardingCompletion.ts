@@ -17,7 +17,9 @@ function getKey(userId: string): string {
  */
 export async function markOnboardingComplete(userId: string): Promise<void> {
   if (!userId) {
-    console.warn('[onboardingCompletion] markOnboardingComplete called with empty userId');
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.warn('[onboardingCompletion] markOnboardingComplete called with empty userId');
+    }
     return;
   }
   await AsyncStorage.setItem(getKey(userId), 'true');

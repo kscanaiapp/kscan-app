@@ -1,6 +1,6 @@
 // services/privacyImageSanitizer.js
 
-const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+const isDev = typeof __DEV__ !== 'undefined' && __DEV__ === true;
 
 const SANITIZER_STATUS = Object.freeze({
   faceDetectionAvailable: false,

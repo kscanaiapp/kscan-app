@@ -184,7 +184,9 @@ export default function LibraryScreen() {
               setInspirations((current) => current.filter((item) => item.id !== id));
             } catch (err: any) {
               // Never surface raw Supabase/RLS errors to users.
-              console.warn('Delete inspiration failed', err);
+              if (__DEV__) {
+                console.warn('Delete inspiration failed', err);
+              }
               Alert.alert('Could not delete', 'Could not delete this Closet item. Please try again.');
             }
           },

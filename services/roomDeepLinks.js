@@ -135,7 +135,9 @@ function logRoomLinkEvent(eventName, metadata = {}) {
     if (/token|secret|key|user/i.test(key)) continue;
     safeMetadata[key] = value;
   }
-  console.info('[room-link]', { event, ...safeMetadata });
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.info('[room-link]', { event, ...safeMetadata });
+  }
 }
 
 module.exports = {

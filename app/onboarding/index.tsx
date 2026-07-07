@@ -143,7 +143,9 @@ export default function OnboardingScreen() {
         }
       })
       .catch((error) => {
-        console.warn('[onboarding] Unable to read onboarding completion flag', error);
+        if (__DEV__) {
+          console.warn('[onboarding] Unable to read onboarding completion flag', error);
+        }
         if (active) moveToTermsOnce();
       });
 

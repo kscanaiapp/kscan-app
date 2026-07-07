@@ -136,7 +136,9 @@ export async function POST(request) {
     const geminiUrl =
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
 
-    console.log('[K-SCAN] model:', 'gemini-2.0-flash-exp');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[K-SCAN] model:', 'gemini-2.0-flash-exp');
+    }
 
     const response = await fetch(geminiUrl, {
       method: 'POST',
@@ -148,11 +150,15 @@ export async function POST(request) {
     });
 
     const json = await response.json();
-    console.log('[K-SCAN] gemini status:', response.status);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[K-SCAN] gemini status:', response.status);
+    }
 
     if (!response.ok) {
       const message = json?.error?.message || `Gemini API error: ${response.status}`;
-      console.error('Gemini API error:', message);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Gemini API error:', message);
+      }
       return Response.json(
         { result: `Analysis failed: ${message}. Check your API key and quota.`, metadata: { category: '', color: '', silhouette: '' } },
         { status: 502 }
@@ -185,7 +191,9 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Server Error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Server Error:', error instanceof Error ? error.message : error);
+    }
     return Response.json(
       { result: 'Server error while analyzing image. Please try again.', metadata: { category: '', color: '', silhouette: '' } },
       { status: 500 }
