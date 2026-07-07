@@ -108,6 +108,11 @@ function parseArgs(argv) {
     verify: false,
   };
 
+  const destructiveFlagOccurrences = argv.filter((arg) => arg === '--confirm-delete' || arg === '--dry-run').length;
+  if (destructiveFlagOccurrences > 1) {
+    throw new Error('--confirm-delete and --dry-run are mutually exclusive');
+  }
+
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     switch (arg) {
@@ -515,6 +520,9 @@ async function transferSharedRoomOwnership(supabase, userId) {
       .eq('user_id', userId)
       .select('id');
     await failIfError(updateResult, `transfer ownership of room ${room.roomId}`);
+    if (!Array.isArray(updateResult.data) || updateResult.data.length !== 1) {
+      throw new Error(`transfer ownership of room ${room.roomId} did not update exactly one row`);
+    }
     results.push({
       roomId: room.roomId,
       roomTitle: room.roomTitle,
@@ -647,28 +655,32 @@ async function processDeletionRequest(supabase, request, options) {
   // 4. Delete owned storage objects.
   // 5. Delete the Supabase Auth user last so auth FK cascades clean up the rest.
 
-  await failIfError(
-    await supabase
-      .from('deletion_requests')
-      .update({
-        status: 'processing',
-        notes: appendNote(request.notes, note),
-      })
-      .eq('id', request.id),
-    'mark deletion request processing',
-  );
+  const markProcessingResult = await supabase
+    .from('deletion_requests')
+    .update({
+      status: 'processing',
+      notes: appendNote(request.notes, note),
+    })
+    .eq('id', request.id)
+    .select('id');
+  await failIfError(markProcessingResult, 'mark deletion request processing');
+  if (!Array.isArray(markProcessingResult.data) || markProcessingResult.data.length !== 1) {
+    throw new Error('mark deletion request processing did not update exactly one open request');
+  }
 
-  await failIfError(
-    await supabase
-      .from('profiles')
-      .update({
-        account_status: 'pending_deletion',
-        account_locked_at: startedAt,
-        deletion_requested_at: request.requested_at,
-      })
-      .eq('id', request.user_id),
-    'lock profile before auth deletion',
-  );
+  const lockProfileResult = await supabase
+    .from('profiles')
+    .update({
+      account_status: 'pending_deletion',
+      account_locked_at: startedAt,
+      deletion_requested_at: request.requested_at,
+    })
+    .eq('id', request.user_id)
+    .select('id');
+  await failIfError(lockProfileResult, 'lock profile before auth deletion');
+  if (!Array.isArray(lockProfileResult.data) || lockProfileResult.data.length !== 1) {
+    throw new Error('lock profile before auth deletion did not update exactly one profile');
+  }
 
   const directDeletionResults = await deleteDirectUserRows(supabase, request.user_id);
   const roomTransferResults = await transferSharedRoomOwnership(supabase, request.user_id);
@@ -681,7 +693,7 @@ async function processDeletionRequest(supabase, request, options) {
   const completedAt = new Date().toISOString();
   const summary = {
     authUserDeleted: true,
-    roomsTransferred: roomTransferResults.length,
+    roomsTransferred: roomTransferResults.filter((entry) => entry.action === 'transfer').length,
     storagePrefixesProcessed: storageResults.length,
     storageObjectsRemoved: storageResults.reduce((sum, entry) => sum + (entry.pathsAttempted ?? 0), 0),
     directRowsDeleted: directDeletionResults.reduce(
