@@ -12,8 +12,10 @@ Last updated: 2026-06-12
 - iOS build number in repo: `2`
 - EAS project: `@ams2dad/kscan`
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
-- Included for this release: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and When-In-Use approximate location for weather-aware StyleChat.
-- Still not included for this release: microphone, tracking, push notifications, ads, subscriptions, or in-app purchases.
+- Included for this release: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, and data export/correction request entry points.
+- Still not included for this release: location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases.
+
+> Note: StyleChat/weather-aware styling is present in code but guarded off on iOS in this build (`app/style-chat/[sessionId].tsx`). It does not run on iOS and therefore does not request or collect location.
 
 ## Local Submission Readiness
 
@@ -136,18 +138,14 @@ Use these as the App Store Connect App Privacy baseline for the current build:
 - Diagnostics: declare only if retained in production logs
 - Tracking: no
 - Data used for tracking: no
-- Approximate/When-In-Use location: yes for weather-aware StyleChat only (coarse, transient, optional, not stored or linked to user)
+- Location: not requested or collected on iOS in this build. StyleChat/weather is guarded off on iOS.
 - Contacts, audio, payment, purchases, health, fitness, sensitive info, browsing history, search history, advertising data: no for this build
 
 ## Location / Prominent Disclosure
 
-The app requests only `NSLocationWhenInUseUsageDescription` approximate location for weather-aware StyleChat. A prominent in-app disclosure is shown before the OS permission prompt. The disclosure explains that location is optional, used only while the app is in use, and that raw coordinates are not stored.
+This iOS submission does **not** request location permission and does **not** collect location data. StyleChat/weather-aware styling is guarded off on iOS in `app/style-chat/[sessionId].tsx`, so the prominent location disclosure and OS permission request do not appear.
 
-Reviewer-facing wording:
-
-```text
-K Scan AI requests When-In-Use approximate location only to tailor StyleChat suggestions to local weather. Location is optional, and raw coordinates are not stored.
-```
+If StyleChat/weather is enabled for iOS later, reintroduce the cross-platform location disclosure and the `NSLocationWhenInUseUsageDescription` / `NSPrivacyCollectedDataTypeLocation` declarations before requesting location permission.
 
 ## App Review Notes
 
@@ -165,8 +163,7 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Sign in with a pre-verified reviewer account.
 - Allow camera permission and complete one scan.
 - Save and delete a local library item.
-- Open a StyleChat session and confirm the prominent location disclosure appears before the OS location prompt.
-- Verify no microphone, push, ATT, or payment prompts appear.
+- Verify no location, microphone, push, ATT, or payment prompts appear.
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.

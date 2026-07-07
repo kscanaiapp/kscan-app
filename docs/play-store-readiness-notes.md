@@ -23,13 +23,13 @@ The shipping build includes:
 
 ### What the app requests
 
-- **Android permission:** `android.permission.ACCESS_COARSE_LOCATION` only.
-- **iOS purpose string:** `NSLocationWhenInUseUsageDescription` — "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored."
+- **Android permission:** `android.permission.ACCESS_COARSE_LOCATION` only (when weather-aware StyleChat is enabled).
+- **iOS note:** This Play Store document covers Android. The current iOS submission branch (`ios/full-submission-readiness-v2`) has StyleChat/weather guarded off and does not declare iOS location permission.
 - **No fine location**, no background location, no continuous tracking.
 
 ### How location is used
 
-- `components/style-chat/StyleChatWeatherPrompt.tsx` shows a prominent in-app disclosure before any OS permission request.
+- On Android, `components/style-chat/StyleChatWeatherPrompt.tsx` shows a prominent in-app disclosure before any OS permission request.
 - `services/weather/weatherStylingContext.ts` requests foreground permission only inside the disclosure primary-button callback.
 - `Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low })` returns a city-scale fix.
 - Raw latitude/longitude are rounded immediately; only rounded coordinates are sent to the `stylechat-generate` Edge Function for weather context.
@@ -48,11 +48,13 @@ The shipping build includes:
 | Diagnostics / crash data | Only if retained in production logs | No | App functionality / security |
 | Tracking / Advertising ID | No | No | — |
 
-**Play Console / Data Safety disclosure wording:**
+**Play Console / Data Safety disclosure wording (Android, when weather-aware StyleChat is enabled):**
 
 ```text
 K Scan AI requests approximate location for weather-aware styling suggestions. A prominent in-app disclosure is shown before the OS permission prompt. Location is optional, used only while the app is in use, and raw coordinates are not stored or shared for advertising.
 ```
+
+> Note: The current iOS submission branch does not enable StyleChat/weather and therefore does not request location on iOS.
 
 ## 3. Account Deletion
 
@@ -83,7 +85,7 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 
 ## 6. Remaining Play Blockers Checklist
 
-- [x] In-app prominent location disclosure
+- [ ] In-app prominent location disclosure (required only when weather-aware StyleChat is enabled)
 - [ ] Data Safety form matches the table above
 - [ ] Automated account erasure or compliant web deletion flow
 - [ ] UGC report/block/moderation policy and UI
