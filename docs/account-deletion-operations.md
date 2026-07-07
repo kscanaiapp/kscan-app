@@ -1,6 +1,6 @@
 # K Scan Account Deletion Operations
 
-Last updated: 2026-06-12
+Last updated: 2026-07-07
 
 ## Purpose
 
@@ -28,12 +28,22 @@ This runbook gives the release owner a manual account-erasure path for the curre
 - `storage.objects` in bucket `style-library-images`: uploaded room/library image objects under `{userId}/scans/` and `{userId}/inspirations/`. The processor removes only those owned prefixes before deleting the Auth user.
 - Local saved scans/thumbnails: stored in the app sandbox by `expo-file-system`. They are removed by in-app delete or app uninstall and are not server-side Supabase rows.
 
+## Shared Room Safety
+
+`dressing_rooms` cascade-deletes dependent rows (`dressing_room_items`, `dressing_room_messages`, `dressing_room_participants`, `room_shares`, etc.) when the owning user is removed. To avoid removing other participants' data, the processor now applies the following policy before calling `auth.admin.deleteUser`:
+
+- For each `dressing_rooms` row owned by the deleted user, inspect `dressing_room_participants` ordered by `created_at` ascending.
+- If another participant exists, transfer room ownership to the earliest joined participant (`dressing_rooms.user_id = participant.user_id`).
+- The original owner's messages, reactions, and inspiration links are still removed by the auth cascade.
+- `room_shares` rows for the original owner are removed by the auth cascade; the new owner can generate a fresh share link if desired.
+- Rooms with no other participants are left to cascade normally and are fully removed with the owner.
+
 ## Intake Behavior
 
 When the user taps Delete Account in the app, `supabase/functions/handle-user-deletion`:
 
-1. Verifies the caller's bearer token with Supabase Auth.
-2. Refuses duplicate open requests for the same account.
+1. Verifies the caller's bearer token with Supabase Auth and validates the returned user ID is a UUID.
+2. Refuses duplicate open requests (`pending` or `processing`) for the same account.
 3. Inserts a `deletion_requests` row with status `pending`.
 4. Marks the profile `account_status = 'pending_deletion'`.
 5. Returns the request ID and timestamp to the client.
@@ -58,7 +68,7 @@ You may use `--user-id "<auth-user-id>"` instead of `--request-id` when working 
 ## Operator Checklist
 
 1. Confirm the request came from the authenticated in-app deletion path or a matching support ticket.
-2. Run a dry-run for the request and review the user ID, email, request timestamp, and linked row counts.
+2. Run a dry-run for the request and review the user ID, email, request timestamp, linked row counts, and the shared-room transfer summary.
 3. Confirm no legal hold, fraud/security exception, or billing obligation applies. This release has no in-app purchases or subscriptions.
 4. Run with `--confirm-delete`.
 5. Save the generated audit JSON path or terminal output in the support ticket.
@@ -70,11 +80,12 @@ On confirmed processing, `scripts/process-deletion-request.js`:
 
 1. Marks the deletion request `processing`.
 2. Locks the profile with `account_status = 'pending_deletion'` and `account_locked_at`.
-3. Removes owned storage objects from `style-library-images` under `{userId}/scans/` and `{userId}/inspirations/`.
-4. Deletes known user-linked non-cascade rows such as `style_chat_burst_usage` and optional `scan_intelligence_events`.
-5. Calls `supabase.auth.admin.deleteUser(user_id)` last.
-6. Relies on the schema's `on delete cascade` foreign keys to remove the user's linked public rows.
-7. Optionally writes a local audit JSON file outside the app data path, using a partial user ID only.
+3. Transfers any shared dressing rooms to the earliest remaining participant (see Shared Room Safety above).
+4. Removes owned storage objects from `style-library-images` under `{userId}/scans/` and `{userId}/inspirations/`.
+5. Deletes known user-linked non-cascade rows such as `style_chat_burst_usage` and optional `scan_intelligence_events`.
+6. Calls `supabase.auth.admin.deleteUser(user_id)` last.
+7. Relies on the schema's `on delete cascade` foreign keys to remove the user's remaining linked public rows.
+8. Optionally writes a local audit JSON file outside the app data path, using a partial user ID only. The audit includes the room-transfer result, storage results, direct-deletion results, and deletion coverage map.
 
 Because `deletion_requests` currently cascades from `auth.users`, the request row is expected to be removed with the Auth user. Keep the generated audit JSON or support-ticket note as the operational completion record.
 

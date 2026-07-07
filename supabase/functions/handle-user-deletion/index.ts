@@ -8,6 +8,8 @@ const corsHeaders = {
 
 type AuthUser = { id: string; email?: string };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -25,6 +27,10 @@ function shortUserId(userId: string) {
   return userId ? `${userId.slice(0, 8)}...` : 'unknown';
 }
 
+function isValidUuid(value: string): boolean {
+  return UUID_REGEX.test(value);
+}
+
 async function requireUser(req: Request): Promise<AuthUser> {
   const authorization = req.headers.get('Authorization') ?? '';
   if (!authorization.toLowerCase().startsWith('bearer ')) {
@@ -34,6 +40,10 @@ async function requireUser(req: Request): Promise<AuthUser> {
   const supabaseUrl = env('SUPABASE_URL');
   const anonKey = env('SUPABASE_ANON_KEY');
   const accessToken = authorization.slice('bearer '.length).trim();
+  if (!accessToken) {
+    throw json({ error: 'Authentication required' }, 401);
+  }
+
   const userClient = createClient(supabaseUrl, anonKey, {
     auth: {
       autoRefreshToken: false,
@@ -43,7 +53,7 @@ async function requireUser(req: Request): Promise<AuthUser> {
   });
 
   const { data: { user }, error } = await userClient.auth.getUser(accessToken);
-  if (error || !user?.id) {
+  if (error || !user?.id || !isValidUuid(user.id)) {
     throw json({ error: 'Authentication required' }, 401);
   }
 

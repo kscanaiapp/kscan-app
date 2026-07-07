@@ -46,6 +46,12 @@ const DIRECT_DELETE_RESOURCES = USER_DATA_RESOURCES.filter(
   (resource) => resource.action === 'direct_delete_before_auth',
 );
 
+// Rooms owned by the deleted user are transferred to the earliest remaining
+// participant so that other users' data (items, messages, participants) is not
+// removed by the auth.users cascade. Rooms with no other participants are left
+// to cascade normally. See docs/account-deletion-operations.md.
+const SHARED_ROOM_TRANSFER_POLICY = 'transfer_to_earliest_participant';
+
 const STORAGE_RESOURCES = [
   {
     bucket: 'style-library-images',
@@ -377,9 +383,61 @@ async function deleteOwnedStorageObjects(supabase, userId) {
   return results;
 }
 
+async function getOwnedRooms(supabase, userId) {
+  const result = await supabase.from('dressing_rooms').select('id,title').eq('user_id', userId);
+  return (await failIfError(result, 'list owned dressing rooms')).data ?? [];
+}
+
+async function getSharedRoomsForUser(supabase, userId) {
+  const rooms = await getOwnedRooms(supabase, userId);
+  const shared = [];
+  for (const room of rooms) {
+    const participantsResult = await supabase
+      .from('dressing_room_participants')
+      .select('user_id,created_at')
+      .eq('dressing_room_id', room.id)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const participants = (await failIfError(participantsResult, `list participants for room ${room.id}`))
+      .data ?? [];
+    if (participants.length > 0) {
+      shared.push({
+        roomId: room.id,
+        roomTitle: room.title,
+        nextOwnerId: participants[0].user_id,
+        nextOwnerJoinedAt: participants[0].created_at,
+      });
+    }
+  }
+  return shared;
+}
+
+async function transferSharedRoomOwnership(supabase, userId) {
+  const sharedRooms = await getSharedRoomsForUser(supabase, userId);
+  const transferredAt = new Date().toISOString();
+  const results = [];
+  for (const room of sharedRooms) {
+    const updateResult = await supabase
+      .from('dressing_rooms')
+      .update({ user_id: room.nextOwnerId, updated_at: transferredAt })
+      .eq('id', room.roomId)
+      .eq('user_id', userId)
+      .select('id');
+    await failIfError(updateResult, `transfer ownership of room ${room.roomId}`);
+    results.push({
+      roomId: room.roomId,
+      roomTitle: room.roomTitle,
+      newOwnerId: shortUserId(room.nextOwnerId),
+      newOwnerJoinedAt: room.nextOwnerJoinedAt,
+      transferredAt,
+    });
+  }
+  return results;
+}
+
 async function buildDeletionSummary(supabase, request) {
   const userId = request.user_id;
-  const [profile, authUserResult, coverage] = await Promise.all([
+  const [profile, authUserResult, coverage, sharedRoomCheck] = await Promise.all([
     maybeSingle(
       supabase,
       'profiles',
@@ -389,6 +447,7 @@ async function buildDeletionSummary(supabase, request) {
     ),
     supabase.auth.admin.getUserById(userId),
     Promise.all(USER_DATA_RESOURCES.map((resource) => countResourceRows(supabase, resource, userId))),
+    getSharedRoomsForUser(supabase, userId),
   ]);
 
   if (authUserResult.error) {
@@ -412,6 +471,12 @@ async function buildDeletionSummary(supabase, request) {
         action: 'remove_owned_storage_objects_before_auth_delete',
       })),
     ),
+    sharedRoomCheck: {
+      policy: SHARED_ROOM_TRANSFER_POLICY,
+      sharedRooms: sharedRoomCheck,
+      note:
+        'Shared rooms are transferred to the earliest remaining participant before the original owner is deleted. Rooms with no other participants are removed with the owner.',
+    },
     localDeviceDataNote:
       'Saved scan thumbnails in the app sandbox are removed by in-app delete or app uninstall; server-side deletion covers Supabase rows and owned storage objects.',
   };
@@ -456,6 +521,7 @@ async function processDeletionRequest(supabase, request, options) {
     'lock profile before auth deletion',
   );
 
+  const roomTransferResults = await transferSharedRoomOwnership(supabase, request.user_id);
   const storageResults = await deleteOwnedStorageObjects(supabase, request.user_id);
   const directDeletionResults = await deleteDirectUserRows(supabase, request.user_id);
   const deleteResult = await supabase.auth.admin.deleteUser(request.user_id);
@@ -470,6 +536,7 @@ async function processDeletionRequest(supabase, request, options) {
     requestedAt: request.requested_at,
     requestSource: request.request_source,
     userId: safeUserId,
+    roomTransferResults,
     storageResults,
     directDeletionResults,
     deletionCoverage: USER_DATA_RESOURCES.map(({ table, column, action, optional }) => ({
@@ -478,7 +545,7 @@ async function processDeletionRequest(supabase, request, options) {
       action,
       optional: Boolean(optional),
     })),
-    note: 'Supabase Auth user deleted last. Public rows with auth.users(id) foreign keys are expected to cascade; known non-cascade rows and owned storage prefixes were handled first.',
+    note: 'Shared rooms were transferred to the earliest remaining participant before auth deletion. Supabase Auth user was deleted last; public rows with auth.users(id) foreign keys cascade. Known non-cascade rows and owned storage prefixes were handled first.',
   };
   const auditFile = await writeAuditFile(options.outputDir, auditPayload);
 
@@ -487,6 +554,7 @@ async function processDeletionRequest(supabase, request, options) {
     completedAt,
     deletionRequestId: request.id,
     userId: safeUserId,
+    roomTransferResults,
     storageResults,
     directDeletionResults,
     auditFile,
@@ -536,9 +604,11 @@ module.exports = {
   buildDeletionSummary,
   deleteDirectUserRows,
   deleteOwnedStorageObjects,
+  getSharedRoomsForUser,
   parseArgs,
   processDeletionRequest,
   shortUserId,
   STORAGE_RESOURCES,
+  transferSharedRoomOwnership,
   USER_DATA_RESOURCES,
 };
