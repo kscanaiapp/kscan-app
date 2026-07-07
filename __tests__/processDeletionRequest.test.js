@@ -121,15 +121,15 @@ function createSupabaseMock(options = {}) {
           calls.push({ type: 'update', table, payload });
           return {
             eq(column, value) {
-              return {
+              const updateChain = {
                 eq(column2, value2) {
-                  return {
-                    select(columns) {
-                      return Promise.resolve(updateResult);
-                    },
-                  };
+                  return updateChain;
+                },
+                select(columns) {
+                  return Promise.resolve(updateResult);
                 },
               };
+              return updateChain;
             },
           };
         },
