@@ -7,12 +7,13 @@ Last updated: 2026-06-12
 ## Current Release Scope
 
 - Mobile candidate: earlier Apple candidate; not the current Android RC source of truth
-- App version: `1.0.0`
+- App version: `1.0.1`
 - iOS bundle ID: `com.kscanai.app`
-- iOS build number in repo: `1`
+- iOS build number in repo: `13`
 - EAS project: `@ams2dad/kscan`
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
-- Still not included for this release: microphone, location, tracking, push notifications, ads, subscriptions, or in-app purchases.
+- Included for this release: photo-library inspiration upload, StyleChat, Dressing Rooms, shared rooms, Google Sign-In, Sign in with Apple, and coarse foreground location for weather-aware StyleChat.
+- Still not included for this release: microphone, tracking, push notifications, ads, subscriptions, or in-app purchases.
 
 ## Local Submission Readiness
 
@@ -94,7 +95,7 @@ Create or verify the App Store Connect app record before submission:
 - Release option: manual release after approval
 - Age rating: not Made for Kids. EAS Metadata currently supports `NONE`, `SEVENTEEN_PLUS`, and `UNRATED` for `ageRatingOverride`; it does not encode a 13+ override. Leave `ageRatingOverride: "NONE"` unless App Store Connect review requires a manual higher rating.
 
-If App Store Connect already has build number `1` for version `1.0.0`, bump `ios.buildNumber` before building again.
+If App Store Connect already has build number `13` for version `1.0.1`, bump `ios.buildNumber` before building again.
 
 After the App Store Connect app record exists, add the numeric App Store Connect app ID to:
 
@@ -135,7 +136,8 @@ Use these as the App Store Connect App Privacy baseline for the current build:
 - Diagnostics: declare only if retained in production logs
 - Tracking: no
 - Data used for tracking: no
-- Location, contacts, audio, payment, purchases, health, fitness, sensitive info, browsing history, search history, advertising data: no for this build
+- Approximate/foreground location: yes for weather-aware StyleChat (coarse, transient, not stored or linked to user)
+- Contacts, audio, payment, purchases, health, fitness, sensitive info, browsing history, search history, advertising data: no for this build
 
 ## App Review Notes
 
