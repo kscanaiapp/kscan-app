@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +19,7 @@ import {
   sendRoomMessage,
   type RoomMessage,
 } from '../../services/roomMessages';
+import { addHiddenContentId, readHiddenContentIds } from '../../services/ugcSafetyStore';
 
 // Shared In-App Room Chat v1.
 // Backend-backed (services/roomMessages). Renders for AUTHENTICATED users only —
@@ -38,12 +41,28 @@ function formatMessageTimestamp(createdAt: string) {
   });
 }
 
-function MessageRow({ message }: { message: RoomMessage }) {
+function MessageRow({
+  message,
+  onReport,
+}: {
+  message: RoomMessage;
+  onReport: (message: RoomMessage) => void;
+}) {
   return (
     <View style={styles.messageCard}>
       <View style={styles.messageMetaRow}>
         <Text style={styles.messageSender}>{message.isMine ? 'You' : 'Participant'}</Text>
-        <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
+        <View style={styles.messageMetaRight}>
+          <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
+          <TouchableOpacity
+            onPress={() => onReport(message)}
+            accessibilityRole="button"
+            accessibilityLabel="Report message"
+            testID={`room-message-report-${message.id}`}
+          >
+            <Text style={styles.reportButtonText}>Report</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <Text style={styles.messageBody}>{message.body}</Text>
     </View>
@@ -57,6 +76,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string> | null>(null);
   const sendInFlightRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -64,15 +84,74 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     setLoading(true);
     setLoadError(null);
     try {
-      setMessages(await listRoomMessages(roomId));
+      const [fetchedMessages, hidden] = await Promise.all([
+        listRoomMessages(roomId),
+        readHiddenContentIds().catch(() => [] as string[]),
+      ]);
+      setMessages(fetchedMessages);
+      setHiddenIds(new Set(hidden));
     } catch (err: any) {
       // err.message is always a friendly string from services/roomMessages —
       // never a raw Supabase/Postgres/RLS error, and never a message body.
+      setMessages([]);
+      setHiddenIds(new Set());
       setLoadError(typeof err?.message === 'string' ? err.message : ROOM_MESSAGES_LOAD_ERROR);
     } finally {
       setLoading(false);
     }
   }, [roomId]);
+
+  const handleReport = useCallback(
+    (message: RoomMessage) => {
+      Alert.alert(
+        'Report content',
+        'This opens a prefilled email to K Scan AI support and hides this content on this device.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Report & Hide',
+            style: 'destructive',
+            onPress: async () => {
+              const added = await addHiddenContentId(message.id);
+              if (!added) {
+                Alert.alert("We couldn't hide this content right now. Please try again.");
+                return;
+              }
+              setHiddenIds((current) => {
+                const next = new Set<string>(current ?? new Set<string>());
+                next.add(message.id);
+                return next;
+              });
+
+              const subject = 'Report content in K Scan AI';
+              const body = `Please review this shared content.\n\nRoom ID:\n${roomId}\n\nContent ID:\n${message.id}\n\nContent type:\nmessage\n\nReason:\n`;
+              const mailto = `mailto:support@kscan.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+              let emailOpened = false;
+              try {
+                const supported = await Linking.canOpenURL(mailto);
+                if (supported) {
+                  await Linking.openURL(mailto);
+                  emailOpened = true;
+                }
+              } catch {
+                emailOpened = false;
+              }
+
+              if (emailOpened) {
+                Alert.alert('Thanks. We opened a report email and hid this content on this device.');
+              } else {
+                Alert.alert(
+                  'This content is hidden on this device. Please contact support@kscan.app to complete the report.'
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [roomId]
+  );
 
   useEffect(() => {
     void load();
@@ -107,7 +186,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
       </Text>
       <Text style={styles.sectionSubtitle}>Chat with everyone who has access to this room.</Text>
 
-      {loading ? (
+      {loading || hiddenIds === null ? (
         <View style={styles.statusCard}>
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />
           <Text style={styles.statusText}>Loading messages…</Text>
@@ -131,9 +210,11 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
         </View>
       ) : (
         <View style={styles.messageList} testID="room-messages-list">
-          {messages.map((message) => (
-            <MessageRow key={message.id} message={message} />
-          ))}
+          {messages
+            .filter((message) => !hiddenIds.has(message.id))
+            .map((message) => (
+              <MessageRow key={message.id} message={message} onReport={handleReport} />
+            ))}
         </View>
       )}
 
@@ -242,6 +323,16 @@ const styles = StyleSheet.create({
   messageTime: {
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
+  },
+  messageMetaRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  reportButtonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
+    fontWeight: '600',
   },
   messageBody: {
     ...LUXURY.typography.body,

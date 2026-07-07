@@ -1,6 +1,6 @@
 # K Scan Apple App Store Submission Runbook
 
-Last updated: 2026-06-12
+Last updated: 2026-07-07
 
 > Release-scope warning: This runbook contains Apple/App Store preparation notes from an earlier candidate and must not be reused as Google Play/Data Safety source-of-truth. The Android RC on `release/android-1.0.0` includes StyleChat, Dressing Rooms, Google OAuth, Apple OAuth, and account deletion lifecycle work. Use the current QA release notes instead.
 
@@ -126,6 +126,14 @@ After the binary has processed in App Store Connect, push the metadata if desire
 npx --yes eas-cli@latest metadata:push --non-interactive
 ```
 
+## UGC / Report and Local Hide
+
+- Shared Dressing Rooms and room chat are the primary UGC surfaces in this build.
+- Each room message has a **Report** action that opens a confirmation with **Report & Hide**.
+- Confirming opens a prefilled email to `support@kscan.app` and hides the message locally on the device using the key `kscan.hidden_content_ids.v1`.
+- No server-side report log, moderation queue, or user block list exists in this build.
+- Full server-side moderation, reporting storage, and user blocking remain future enhancements.
+
 ## App Privacy Defaults
 
 Use these as the App Store Connect App Privacy baseline for the current build:
@@ -153,6 +161,8 @@ K Scan AI requests When-In-Use approximate location only to tailor StyleChat sug
 
 Use `docs/app-review-information-template.md` when filling App Store Connect. Enter real reviewer credentials directly in App Store Connect or a secure secret manager, not in git.
 
+Include the UGC note from the Review Notes section of `docs/app-review-information-template.md` so reviewers understand the no-DB report + local-hide behavior.
+
 Use this operational deletion statement only after the service-role process in `docs/account-deletion-operations.md` has been accepted by the release owner:
 
 ```text
@@ -169,6 +179,7 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.
+- In a shared room with chat enabled, post a room message, tap **Report**, confirm **Report & Hide**, and verify the message is hidden locally and a prefilled email to `support@kscan.app` is offered.
 - Confirm live pages return 200:
   - `https://kscan.app/legal/privacy`
   - `https://kscan.app/privacy`

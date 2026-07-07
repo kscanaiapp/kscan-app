@@ -69,9 +69,11 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - Dressing Rooms can be shared via public share links.
 - Room members can post messages and reactions.
 - Share links enforce `max_redemptions` and expiry.
-- **No in-app report, block, or moderation UI exists.**
+- In room chat, each message shows a **Report** action. Tapping it opens a confirmation with **Report & Hide**; confirming opens a prefilled email to `support@kscan.app` and hides the message locally on the device.
+- Hidden content IDs are stored device-locally (`kscan.hidden_content_ids.v1`); no server-side report log, block list, or moderation table exists yet.
+- Full server-side moderation and user blocking remain future enhancements.
 
-**Play risk:** User-generated content with sharing is a common Play review friction point. Before public launch, either implement report/block/moderation or limit sharing to invited known contacts and document the policy.
+**Play risk:** User-generated content with sharing is a common Play review friction point. This build provides the minimum no-DB report + local-hide path. Before public launch, implement server-side moderation, reporting storage, and user blocking to fully satisfy Play policy expectations.
 
 ## 5. Production/Staging Project Naming
 
@@ -86,6 +88,6 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - [x] In-app prominent location disclosure
 - [ ] Data Safety form matches the table above
 - [ ] Automated account erasure or compliant web deletion flow
-- [ ] UGC report/block/moderation policy and UI
+- [x] Minimum UGC report/local-hide path (no DB schema)
 - [ ] Rename Supabase production project or create true production project
 - [ ] Production AAB built and uploaded

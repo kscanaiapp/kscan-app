@@ -1,6 +1,6 @@
 # K Scan App Review Information Template
 
-Last updated: 2026-06-12
+Last updated: 2026-07-07
 
 > Release-scope warning: This template contains Apple/App Store review notes from an earlier candidate and must not be reused as Google Play/Data Safety source-of-truth. The Android RC on `release/android-1.0.0` includes StyleChat, Dressing Rooms, Google OAuth, Apple OAuth, and account deletion lifecycle work. Use the current QA release notes instead.
 
@@ -26,6 +26,8 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ```text
 The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared rooms, photo-library inspiration upload, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, and microphone access are not part of this build. When-In-Use approximate location is requested only for weather-aware StyleChat suggestions, after a prominent in-app disclosure. Location is optional, and raw coordinates are not stored.
 
+Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action that opens a prefilled email to support@kscan.app and hides the message locally on the device. Server-side moderation, reporting storage, and user blocking are not implemented in this build.
+
 To review the app:
 1. Sign in with the reviewer email/password above.
 2. Allow camera access when prompted.
@@ -47,3 +49,4 @@ Users can request account deletion in the app from Privacy > Delete Account. Onc
 - [ ] Privacy URL works: `https://kscan.app/legal/privacy`.
 - [ ] Support URL works: `https://kscan.app/support`.
 - [ ] Account deletion URL works: `https://kscan.app/legal/delete-account`.
+- [ ] UGC report action is visible on room messages and hides content locally.
