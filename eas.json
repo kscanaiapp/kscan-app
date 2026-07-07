@@ -86,7 +86,6 @@
         "autoIncrement": "buildNumber"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://kscan-app-1.onrender.com",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -101,7 +100,8 @@
         "EXPO_PUBLIC_STYLE_DNA_REASON_FEEDBACK_ENABLED": "true",
         "EXPO_PUBLIC_ENABLE_TEXTSCAN": "true",
         "EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED": "true",
-        "EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS": "false"
+        "EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS": "false",
+        "EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED": "true"
       }
     }
   },
