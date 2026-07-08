@@ -91,9 +91,12 @@ export default function OnboardingScreen() {
   const {
     preferences: permissionPrefs,
     togglePreference: togglePermission,
+    setPreference: setPermissionPreference,
     isSaving: permissionSaving,
     savePreferences,
+    requestMicrophonePermission,
   } = usePermissionPreferences();
+  const [microphoneMessage, setMicrophoneMessage] = useState<string | null>(null);
 
   const navigationRef = useNavigationContainerRef();
   const replaceHomeOnce = useCallback(() => {
@@ -751,6 +754,8 @@ export default function OnboardingScreen() {
         <PermissionsStepV1
           preferences={permissionPrefs}
           togglePreference={togglePermission}
+          setPreference={setPermissionPreference}
+          requestMicrophonePermission={requestMicrophonePermission}
           isSaving={permissionSaving}
           onContinueToHome={handlePermissionsContinue}
           onNotNow={goToHome}
@@ -761,7 +766,7 @@ export default function OnboardingScreen() {
     <View style={styles.stepContent} testID="onboarding-permissions-screen">
       <Text style={styles.stepTitle}>Permissions</Text>
       <Text style={styles.stepBody}>
-        You can change these anytime in device settings. No permissions are requested now.
+        You can change these anytime in device settings. On Android, tapping the Microphone toggle will request microphone access for VoiceScan.
       </Text>
 
       {/* Camera */}
@@ -798,16 +803,36 @@ export default function OnboardingScreen() {
       <View style={styles.permissionRow}>
         <View style={styles.permissionInfo}>
           <Text style={styles.permissionLabel}>Microphone</Text>
-          <Text style={styles.permissionStatus}>Optional voice input for StyleChat.</Text>
+          <Text style={styles.permissionStatus}>
+            VoiceScan uses your microphone only when you start a voice or wearable input action.
+          </Text>
         </View>
         <Switch
           testID="onboarding-microphone-toggle"
           value={permissionPrefs.microphone}
-          onValueChange={() => togglePermission('microphone')}
+          onValueChange={async (value) => {
+            setMicrophoneMessage(null);
+            if (value && Platform.OS === 'android') {
+              const { granted } = await requestMicrophonePermission();
+              if (granted) {
+                setPermissionPreference('microphone', true);
+              } else {
+                setPermissionPreference('microphone', false);
+                setMicrophoneMessage(
+                  'Microphone access denied. Please enable microphone permissions in your Android App Settings to use VoiceScan.'
+                );
+              }
+            } else {
+              setPermissionPreference('microphone', value);
+            }
+          }}
           trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
           thumbColor={permissionPrefs.microphone ? LUXURY.colors.plum : '#f4f3f4'}
         />
       </View>
+      {microphoneMessage ? (
+        <Text style={styles.microphoneMessage}>{microphoneMessage}</Text>
+      ) : null}
 
       {/* Notifications */}
       <View style={styles.permissionRow}>
@@ -1092,5 +1117,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     marginTop: SPACING.xs,
     color: LUXURY.colors.graphite,
+  },
+  microphoneMessage: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
   },
 });

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { Platform, PermissionsAndroid } from 'react-native';
 
 export type PermissionKey = 'camera' | 'photos' | 'microphone' | 'notifications';
 
@@ -23,6 +24,12 @@ export interface SavePreferencesResult {
   reason: 'backend_not_connected';
 }
 
+export interface MicrophonePermissionResult {
+  granted: boolean;
+  canAskAgain: boolean;
+  error: string | null;
+}
+
 export interface UsePermissionPreferencesReturn {
   preferences: PermissionPreferences;
   status: PermissionPreferencesStatus;
@@ -33,6 +40,7 @@ export interface UsePermissionPreferencesReturn {
   togglePreference: (key: PermissionKey) => void;
   savePreferences: () => Promise<SavePreferencesResult>;
   resetPreferences: () => void;
+  requestMicrophonePermission: () => Promise<MicrophonePermissionResult>;
 }
 
 const DEFAULT_PREFERENCES: PermissionPreferences = {
@@ -90,6 +98,37 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
     setError(null);
   }, []);
 
+  const requestMicrophonePermission = useCallback(async (): Promise<MicrophonePermissionResult> => {
+    if (Platform.OS !== 'android') {
+      return { granted: false, canAskAgain: false, error: null };
+    }
+
+    try {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: 'Enable VoiceScan microphone',
+          message:
+            'VoiceScan uses your microphone only when you start a voice or wearable input action. K Scan AI does not listen in the background.',
+          buttonPositive: 'Allow',
+        }
+      );
+
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        return { granted: true, canAskAgain: true, error: null };
+      }
+
+      const blocked = result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN;
+      return { granted: false, canAskAgain: !blocked, error: null };
+    } catch (err) {
+      return {
+        granted: false,
+        canAskAgain: false,
+        error: err instanceof Error ? err.message : 'Microphone permission request failed',
+      };
+    }
+  }, []);
+
   return {
     preferences,
     status,
@@ -100,5 +139,6 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
     togglePreference,
     savePreferences,
     resetPreferences,
+    requestMicrophonePermission,
   };
 }

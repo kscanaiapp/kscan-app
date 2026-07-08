@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Pressable, Switch, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, Switch, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { PrimaryButton, TertiaryButton } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermissionPreferences';
@@ -7,6 +7,8 @@ import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermis
 interface PermissionsStepV1Props {
   preferences: PermissionPreferences;
   togglePreference: (key: PermissionKey) => void;
+  setPreference: (key: PermissionKey, value: boolean) => void;
+  requestMicrophonePermission: () => Promise<{ granted: boolean; canAskAgain: boolean; error: string | null }>;
   isSaving: boolean;
   onContinueToHome: () => void;
   onNotNow: () => void;
@@ -22,17 +24,21 @@ interface PermissionsStepV1Props {
  * - Toggle switches for Microphone/Notifications
  * - Continue to Home CTA and Not now link
  *
- * Native permission requests are NOT triggered here.
- * They remain point-of-use in Scan / Upload flows.
+ * Native permission requests are triggered here only for the Android
+ * microphone toggle (VoiceScan / wearable voice input). Camera, photos,
+ * and notifications remain point-of-use in Scan / Upload flows.
  */
 export function PermissionsStepV1({
   preferences,
   togglePreference,
+  setPreference,
+  requestMicrophonePermission,
   isSaving,
   onContinueToHome,
   onNotNow,
 }: PermissionsStepV1Props) {
   const { camera, photos, microphone, notifications } = preferences;
+  const [microphoneMessage, setMicrophoneMessage] = useState<string | null>(null);
 
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
@@ -74,12 +80,30 @@ export function PermissionsStepV1({
           icon="◉"
           title="Microphone"
           badge="OPTIONAL"
-          description="Voice input for StyleChat. Speak your questions and get hands-free styling advice."
+          description="VoiceScan uses your microphone only when you start a voice or wearable input action. K Scan AI does not listen in the background."
           actionType="toggle"
           actionValue={microphone}
-          onActionChange={() => togglePreference('microphone')}
+          onActionChange={async (value) => {
+            setMicrophoneMessage(null);
+            if (value && Platform.OS === 'android') {
+              const { granted } = await requestMicrophonePermission();
+              if (granted) {
+                setPreference('microphone', true);
+              } else {
+                setPreference('microphone', false);
+                setMicrophoneMessage(
+                  'Microphone access denied. Please enable microphone permissions in your Android App Settings to use VoiceScan.'
+                );
+              }
+            } else {
+              setPreference('microphone', value);
+            }
+          }}
           recommendation="Recommended"
         />
+        {microphoneMessage ? (
+          <Text style={styles.microphoneMessage}>{microphoneMessage}</Text>
+        ) : null}
 
         {/* Notifications */}
         <PermissionCard
@@ -317,6 +341,13 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.cta,
     fontSize: 11,
     color: LUXURY.colors.plum,
+  },
+  microphoneMessage: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
   },
   actions: {
     gap: SPACING.md,

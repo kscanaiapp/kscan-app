@@ -68,7 +68,8 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - Purpose: foreground VoiceScan and wearable voice input while the user is using those features.
 - The permission is not for continuous background listening, screen-off recording, biometric voice identification, targeted advertising, or ad measurement.
 - No Android foreground-service microphone permission is currently required because no background/foreground-service recording path was found in this branch.
-- Runtime audit note: this branch has microphone preference UI and dormant voice placeholders, but no active recording/request path was found. Final Android device QA must verify the OS microphone prompt and VoiceScan/wearable runtime before production submission.
+- Runtime path: On Android, the onboarding permissions screen (Step 5) exposes a **Microphone** toggle. Tapping the toggle on triggers `PermissionsAndroid.request(RECORD_AUDIO)` and shows the OS microphone prompt. If the user denies, a non-blocking message explains how to enable microphone access in Android App Settings.
+- This pass wires the permission request only; it does not record, upload, store, or transcribe audio. VoiceScan transcription and wearable audio input remain future implementation.
 
 ## 4. Account Deletion
 
@@ -127,6 +128,7 @@ Known live mismatch to fix: the privacy page still references the older iOS subm
 - [x] Public account deletion URL verified
 - [x] Minimum UGC report/local-hide path (no DB schema)
 - [x] Supabase production project renamed
-- [ ] Final Android VoiceScan/wearable microphone runtime verified on device/AAB
+- [x] Foreground Android microphone permission request path wired through onboarding permissions screen
+- [ ] Final Android VoiceScan/wearable microphone prompt verified on a physical device/AAB
 - [ ] Live privacy/legal/support pages updated to match the Android Data Safety scope
 - [ ] Production AAB built and uploaded
