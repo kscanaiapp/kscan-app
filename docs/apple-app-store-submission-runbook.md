@@ -15,6 +15,7 @@ Last updated: 2026-07-08
 - Included for this release: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, and data export/correction request entry points.
 - Still not included for this release as active functionality: location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio.
 - **Audio/Microphone collection: No.** No microphone permission is requested in this build. StyleChat is typed text input only. No hands-free voice input is available.
+- **Welcome / onboarding tree restored.** New users see the full welcome flow: Welcome, Auth Choice, Account Setup, Terms + Privacy, and Permissions. The Permissions page shows Camera, Photos, and Notifications as interactive preference toggles; Microphone is disabled and shows only "Coming Soon". No microphone or location permission is requested from this page.
 
 > Note: StyleChat/weather-aware styling is present in code but guarded off on iOS in this build (`app/style-chat/[sessionId].tsx`). It does not run on iOS and therefore does not request or collect location.
 

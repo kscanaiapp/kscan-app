@@ -60,3 +60,10 @@ export const DEV_FEATURE_FREEZE_OVERRIDE: boolean | null = __DEV__ ? null : null
  * this flag is false.
  */
 export const VOICESCAN_ENABLED = false;
+
+// ── Onboarding / account-home UX flag ──────────────────────────────────────────
+/**
+ * Enables the bright-luxury welcome/onboarding flow (Welcome, Auth Choice,
+ * Account Setup, Terms, and Permissions steps) for iOS submission readiness.
+ */
+export const ACCOUNT_HOME_UX_V1_ENABLED = true;

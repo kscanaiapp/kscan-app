@@ -65,7 +65,8 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis."
+        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis.",
+        "NSPhotoLibraryUsageDescription": "K Scan uses your photo library so you can upload inspiration images for style analysis."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,

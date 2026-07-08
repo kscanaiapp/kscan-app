@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Stack, router, usePathname } from 'expo-router';
+import { Stack, router, useNavigationContainerRef, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
 import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { isOnboardingComplete, subscribeOnboardingCompletion } from '../services/onboardingCompletion';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
@@ -41,6 +43,10 @@ function AuthGate() {
   const { bootStatus, profile } = usePrivacyPreferences();
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const lastRedirectRef = useRef<string | null>(null);
+  const navigationRef = useNavigationContainerRef();
+  const [navReady, setNavReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -57,6 +63,65 @@ function AuthGate() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      setOnboardingComplete(null);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setOnboardingComplete(null);
+    isOnboardingComplete(userId)
+      .then((complete) => {
+        if (mounted) setOnboardingComplete(complete);
+      })
+      .catch((error) => {
+        logError('Unable to read onboarding completion flag', error, { userId });
+        if (mounted) setOnboardingComplete(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeOnboardingCompletion((completedUserId) => {
+      if (completedUserId === session?.user?.id) {
+        setOnboardingComplete(true);
+      }
+    });
+
+    return unsubscribe;
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    lastRedirectRef.current = null;
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!navigationRef) return;
+    if (navigationRef.isReady()) {
+      setNavReady(true);
+      return;
+    }
+    const check = () => {
+      if (navigationRef.isReady()) {
+        setNavReady(true);
+      }
+    };
+    const id = setInterval(check, 50);
+    const timeout = setTimeout(() => clearInterval(id), 2000);
+    return () => {
+      clearInterval(id);
+      clearTimeout(timeout);
+    };
+  }, [navigationRef]);
+
   const waitingForAuthCallbackRoute =
     initialUrlChecked && isAuthCallbackUrl(initialUrl) && pathname !== '/auth/callback';
 
@@ -66,25 +131,55 @@ function AuthGate() {
     session,
     profile,
     profileLoading: Boolean(session && bootStatus !== 'ready'),
+    onboardingComplete,
     nowSeconds: undefined,
   });
 
   useEffect(() => {
-    if (!waitingForAuthCallbackRoute && guardState.action === 'redirect' && guardState.redirectTo) {
-      router.replace(guardState.redirectTo);
+    if (waitingForAuthCallbackRoute || guardState.action !== 'redirect' || !guardState.redirectTo || !navReady) {
+      return;
     }
-  }, [guardState.action, guardState.redirectTo, waitingForAuthCallbackRoute]);
+
+    const redirectTo =
+      guardState.redirectTo === '/auth'
+        ? '/onboarding'
+        : guardState.redirectTo;
+    if (pathname === '/onboarding' && redirectTo.startsWith('/onboarding')) {
+      return;
+    }
+    if (lastRedirectRef.current === redirectTo) {
+      return;
+    }
+    lastRedirectRef.current = redirectTo;
+    // Defer slightly so the Stack navigator has time to register its routes.
+    const timer = setTimeout(() => {
+      router.replace(redirectTo);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [guardState.action, guardState.redirectTo, pathname, waitingForAuthCallbackRoute, navReady]);
 
   if (waitingForAuthCallbackRoute) {
     return <Stack screenOptions={{ headerShown: false }} />;
   }
 
-  if (guardState.action !== 'allow') {
+  if (guardState.action === 'loading') {
     return (
       <View testID="auth-gate-loading" style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color="#00FFFF" />
+        <ActivityIndicator size="large" color={COLORS.accent} />
         <Text style={styles.loadingText}>K-SCAN</Text>
       </View>
+    );
+  }
+
+  if (guardState.action === 'redirect') {
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <View testID="auth-gate-redirecting" style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.loadingText}>K-SCAN</Text>
+        </View>
+      </>
     );
   }
 
@@ -94,13 +189,15 @@ function AuthGate() {
 export default function Layout() {
   return (
     <ErrorBoundary>
-      <AuthSessionProvider>
-        <PrivacyPreferencesProvider>
-          <FeatureFreezeProvider>
-            <AuthGate />
-          </FeatureFreezeProvider>
-        </PrivacyPreferencesProvider>
-      </AuthSessionProvider>
+      <SafeAreaProvider>
+        <AuthSessionProvider>
+          <PrivacyPreferencesProvider>
+            <FeatureFreezeProvider>
+              <AuthGate />
+            </FeatureFreezeProvider>
+          </PrivacyPreferencesProvider>
+        </AuthSessionProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
@@ -108,6 +205,13 @@ export default function Layout() {
 const styles = StyleSheet.create({
   loadingRoot: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    backgroundColor: COLORS.bg,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.md,

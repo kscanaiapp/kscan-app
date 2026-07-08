@@ -3,6 +3,7 @@ const PUBLIC_ROUTES = new Set([
   '/auth/callback',
   '/auth/reset',
   '/auth/update-password',
+  '/onboarding',
 ]);
 
 const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy']);
@@ -25,8 +26,17 @@ function isAuthEntryRoute(pathname) {
   return normalizePathname(pathname) === '/auth';
 }
 
+function isOnboardingRoute(pathname) {
+  return normalizePathname(pathname) === '/onboarding';
+}
+
 function isAuthCallbackUrl(url) {
   return /(^|\/)auth\/callback($|[?#/])/.test(String(url || ''));
+}
+
+function isAuthSessionRoute(pathname) {
+  const normalized = normalizePathname(pathname);
+  return normalized === '/auth/callback' || normalized === '/auth/update-password';
 }
 
 function isLimitedAccountRoute(pathname) {
@@ -46,7 +56,7 @@ function hasPendingDeletionProfile(profile) {
   return profile.account_status === 'pending_deletion' || Boolean(profile.account_locked_at);
 }
 
-function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile, profileLoading }) {
+function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile, profileLoading, onboardingComplete = null }) {
   const normalizedPathname = normalizePathname(pathname);
   const hasUsableSession = isSessionUsable(session, nowSeconds);
 
@@ -61,6 +71,10 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/auth' };
   }
 
+  if (isAuthSessionRoute(normalizedPathname)) {
+    return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
+  }
+
   if (profileLoading) {
     return { action: 'loading', pathname: normalizedPathname, redirectTo: null };
   }
@@ -72,7 +86,22 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/privacy' };
   }
 
-  if (isAuthEntryRoute(normalizedPathname)) {
+  if (onboardingComplete === null || onboardingComplete === undefined) {
+    return { action: 'loading', pathname: normalizedPathname, redirectTo: null };
+  }
+
+  if (!onboardingComplete) {
+    if (isOnboardingRoute(normalizedPathname)) {
+      return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
+    }
+    return {
+      action: 'redirect',
+      pathname: normalizedPathname,
+      redirectTo: '/onboarding?resume=terms',
+    };
+  }
+
+  if (isAuthEntryRoute(normalizedPathname) || isOnboardingRoute(normalizedPathname)) {
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/' };
   }
 
@@ -85,7 +114,9 @@ module.exports = {
   getRoutingGuardState,
   hasPendingDeletionProfile,
   isAuthCallbackUrl,
+  isAuthSessionRoute,
   isLimitedAccountRoute,
+  isOnboardingRoute,
   isPublicRoute,
   isSessionUsable,
   normalizePathname,

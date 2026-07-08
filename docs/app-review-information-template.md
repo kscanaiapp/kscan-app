@@ -28,6 +28,8 @@ The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms,
 
 Audio/Microphone collection: No. No microphone permission is requested in this build. StyleChat is typed text input only. No hands-free voice input is available.
 
+Welcome / onboarding flow: New users are presented with a full welcome/onboarding tree (Welcome, Auth Choice, Account Setup, Terms + Privacy, Permissions). The Permissions page includes Camera, Photos, and Notifications preference toggles. Microphone is disabled and shows only "Coming Soon"; tapping it does not request microphone permission. Location is not requested on this page.
+
 Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action. Confirming Report & Hide immediately hides the content on the device and filters content from that reported user locally when the sender is known. A server-side content_reports moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin dashboard and server-side cross-device blocking remain future enhancements.
 
 To review the app:
