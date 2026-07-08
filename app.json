@@ -18,8 +18,8 @@
                                      "expo-camera",
                                      {
                                          "cameraPermission":  "K Scan uses your camera to photograph your outfit for style analysis.",
-                                         "microphonePermission":  false,
-                                         "recordAudioAndroid":  false
+                                         "microphonePermission":  "K Scan uses your microphone for VoiceScan and wearable voice input while you use those features.",
+                                         "recordAudioAndroid":  true
                                      }
                                  ],
                                  [
@@ -45,12 +45,13 @@
                                  "softwareKeyboardLayoutMode":  "resize",
                                  "permissions":  [
                                                      "android.permission.CAMERA",
+                                                     "android.permission.RECORD_AUDIO",
                                                      "android.permission.INTERNET",
                                                      "android.permission.VIBRATE",
                                                      "android.permission.ACCESS_COARSE_LOCATION"
                                                  ],
                                  "blockedPermissions":  [
-                                                            "android.permission.RECORD_AUDIO"
+                                                            "android.permission.ACCESS_FINE_LOCATION"
                                                         ],
                                  "adaptiveIcon":  {
                                                       "foregroundImage":  "./assets/adaptive-icon.png",
