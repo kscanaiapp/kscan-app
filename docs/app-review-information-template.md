@@ -1,6 +1,6 @@
 # K Scan App Review Information Template
 
-Last updated: 2026-06-12
+Last updated: 2026-07-08
 
 > Release-scope warning: This template contains Apple/App Store review notes from an earlier candidate and must not be reused as Google Play/Data Safety source-of-truth. The Android RC on `release/android-1.0.0` includes StyleChat, Dressing Rooms, Google OAuth, Apple OAuth, and account deletion lifecycle work. Use the current QA release notes instead.
 
@@ -25,6 +25,8 @@ Use this template when filling App Store Connect App Review Information. Do not 
 
 ```text
 The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared-room messages and reactions, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
+
+Audio/Microphone collection: No. No microphone permission is requested in this build. StyleChat is typed text input only. No hands-free voice input is available.
 
 Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action. Confirming Report & Hide immediately hides the content on the device and filters content from that reported user locally when the sender is known. A server-side content_reports moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin dashboard and server-side cross-device blocking remain future enhancements.
 

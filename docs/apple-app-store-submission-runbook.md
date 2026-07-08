@@ -1,6 +1,6 @@
 # K Scan Apple App Store Submission Runbook
 
-Last updated: 2026-06-12
+Last updated: 2026-07-08
 
 > Release-scope warning: This runbook contains Apple/App Store preparation notes from an earlier candidate and must not be reused as Google Play/Data Safety source-of-truth. The Android RC on `release/android-1.0.0` includes StyleChat, Dressing Rooms, Google OAuth, Apple OAuth, and account deletion lifecycle work. Use the current QA release notes instead.
 
@@ -14,6 +14,7 @@ Last updated: 2026-06-12
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
 - Included for this release: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, and data export/correction request entry points.
 - Still not included for this release as active functionality: location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio.
+- **Audio/Microphone collection: No.** No microphone permission is requested in this build. StyleChat is typed text input only. No hands-free voice input is available.
 
 > Note: StyleChat/weather-aware styling is present in code but guarded off on iOS in this build (`app/style-chat/[sessionId].tsx`). It does not run on iOS and therefore does not request or collect location.
 
