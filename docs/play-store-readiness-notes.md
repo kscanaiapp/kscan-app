@@ -84,11 +84,13 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - Dressing Rooms can be shared via public share links.
 - Room members can post messages and reactions.
 - Share links enforce `max_redemptions` and expiry.
-- In room chat, each message shows a **Report** action. Tapping it opens a confirmation with **Report & Hide**; confirming opens a prefilled email to `kscanai.app@gmail.com` and hides the message locally on the device.
-- Hidden content IDs are stored device-locally (`kscan.hidden_content_ids.v1`); no server-side report log, block list, or moderation table exists yet.
-- Full server-side moderation and user blocking remain future enhancements.
+- In room chat, each message shows a **Report** action. Tapping it opens a confirmation with **Report & Hide**; confirming immediately hides the content on the device and filters content from that reported user locally when the sender is known.
+- Hidden content IDs are stored device-locally (`kscan.hidden_content_ids.v1`). Hidden user IDs are also stored device-locally (`kscan.hidden_user_ids.v1`) so blocked-sender filtering survives a cold app restart.
+- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin dashboard and server-side cross-device blocking remain future enhancements.
 
-**Play risk:** User-generated content with sharing is a common Play review friction point. This build provides the minimum no-DB report + local-hide path. Before public launch, implement server-side moderation, reporting storage, and user blocking to fully satisfy Play policy expectations.
+Data Safety note: `content_reports` contains user IDs and content references for app safety, abuse prevention, and moderation. It is not shared with third parties.
+
+**Play risk:** User-generated content with sharing is a common Play review friction point. This build provides report + local hide/block plus a prepared server-side report log. Before public launch, deploy the `content_reports` migration, implement an admin moderation dashboard, and add server-side cross-device blocking to fully satisfy Play policy expectations.
 
 ## 6. Production/Staging Project Naming
 

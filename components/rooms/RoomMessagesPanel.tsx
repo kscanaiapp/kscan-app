@@ -19,7 +19,13 @@ import {
   sendRoomMessage,
   type RoomMessage,
 } from '../../services/roomMessages';
-import { addHiddenContentId, readHiddenContentIds } from '../../services/ugcSafetyStore';
+import {
+  addHiddenContentId,
+  addHiddenUserId,
+  readHiddenContentIds,
+  readHiddenUserIds,
+} from '../../services/ugcSafetyStore';
+import { submitContentReport } from '../../services/contentReports';
 
 // Shared In-App Room Chat v1.
 // Backend-backed (services/roomMessages). Renders for AUTHENTICATED users only —
@@ -28,6 +34,8 @@ import { addHiddenContentId, readHiddenContentIds } from '../../services/ugcSafe
 // preview viewers; the messages table is never exposed on the public preview.
 
 const MESSAGES_EMPTY_COPY = 'No messages yet. Start the conversation about this room.';
+const MESSAGES_FILTERED_EMPTY_COPY =
+  'You have reported or hidden all recent activity in this room.';
 const COMPOSER_PLACEHOLDER = 'Message about this room…';
 
 function formatMessageTimestamp(createdAt: string) {
@@ -77,6 +85,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string> | null>(null);
+  const [hiddenUserIds, setHiddenUserIds] = useState<Set<string> | null>(null);
   const sendInFlightRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -84,17 +93,20 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     setLoading(true);
     setLoadError(null);
     try {
-      const [fetchedMessages, hidden] = await Promise.all([
+      const [fetchedMessages, hiddenContentIds, hiddenUserIdsResult] = await Promise.all([
         listRoomMessages(roomId),
         readHiddenContentIds().catch(() => [] as string[]),
+        readHiddenUserIds().catch(() => [] as string[]),
       ]);
       setMessages(fetchedMessages);
-      setHiddenIds(new Set(hidden));
+      setHiddenIds(new Set(hiddenContentIds));
+      setHiddenUserIds(new Set(hiddenUserIdsResult));
     } catch (err: any) {
       // err.message is always a friendly string from services/roomMessages —
       // never a raw Supabase/Postgres/RLS error, and never a message body.
       setMessages([]);
       setHiddenIds(new Set());
+      setHiddenUserIds(new Set());
       setLoadError(typeof err?.message === 'string' ? err.message : ROOM_MESSAGES_LOAD_ERROR);
     } finally {
       setLoading(false);
@@ -105,28 +117,59 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     (message: RoomMessage) => {
       Alert.alert(
         'Report content',
-        'This opens a prefilled email to K Scan AI support and hides this content on this device.',
+        'Report & Hide will immediately hide this content on this device and filter content from this sender when their id is known.',
         [
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Report & Hide',
             style: 'destructive',
             onPress: async () => {
-              const added = await addHiddenContentId(message.id);
-              if (!added) {
-                Alert.alert("We couldn't hide this content right now. Please try again.");
-                return;
-              }
+              // 1. Immediate in-memory hide so there is no state flash.
               setHiddenIds((current) => {
                 const next = new Set<string>(current ?? new Set<string>());
                 next.add(message.id);
                 return next;
+              });
+              if (message.senderId) {
+                setHiddenUserIds((current) => {
+                  const next = new Set<string>(current ?? new Set<string>());
+                  next.add(message.senderId);
+                  return next;
+                });
+              }
+
+              // 2. Persist hide/block in the background; UI does not wait.
+              const [contentPersisted, userPersisted] = await Promise.all([
+                addHiddenContentId(message.id),
+                message.senderId ? addHiddenUserId(message.senderId) : Promise.resolve(true),
+              ]);
+
+              if (!contentPersisted || !userPersisted) {
+                Alert.alert("We couldn't hide this content right now. Please try again.");
+                return;
+              }
+
+              // 3. Attempt server-side report insert asynchronously. Failure must not unhide.
+              const reportResult = await submitContentReport({
+                targetType: 'message',
+                targetId: message.id,
+                reportedUserId: message.senderId || null,
+                roomId,
+                reasonCategory: 'inappropriate',
               });
 
               const subject = 'Report content in K Scan AI';
               const body = `Please review this shared content.\n\nRoom ID:\n${roomId}\n\nContent ID:\n${message.id}\n\nContent type:\nmessage\n\nReason:\n`;
               const mailto = `mailto:kscanai.app@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
+              if (reportResult.ok && reportResult.serverAccepted) {
+                Alert.alert(
+                  'Thanks. We received your report and hid this content on this device.'
+                );
+                return;
+              }
+
+              // Migration may not be deployed yet; fall back to email/local hide.
               let emailOpened = false;
               try {
                 const supported = await Linking.canOpenURL(mailto);
@@ -139,10 +182,12 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
               }
 
               if (emailOpened) {
-                Alert.alert('Thanks. We opened a report email and hid this content on this device.');
+                Alert.alert(
+                  'Thanks. This content has been hidden on this device. If needed, your report can also be sent to K Scan AI support.'
+                );
               } else {
                 Alert.alert(
-                  'This content is hidden on this device. Please contact kscanai.app@gmail.com to complete the report.'
+                  'Thanks. This content has been hidden on this device. If needed, your report can also be sent to K Scan AI support.'
                 );
               }
             },
@@ -186,7 +231,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
       </Text>
       <Text style={styles.sectionSubtitle}>Chat with everyone who has access to this room.</Text>
 
-      {loading || hiddenIds === null ? (
+      {loading || hiddenIds === null || hiddenUserIds === null ? (
         <View style={styles.statusCard}>
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />
           <Text style={styles.statusText}>Loading messages…</Text>
@@ -204,18 +249,26 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
             <Text style={styles.pillButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : messages.length === 0 ? (
-        <View style={styles.statusCard}>
-          <Text style={styles.statusText}>{MESSAGES_EMPTY_COPY}</Text>
-        </View>
       ) : (
-        <View style={styles.messageList} testID="room-messages-list">
-          {messages
-            .filter((message) => !hiddenIds.has(message.id))
-            .map((message) => (
-              <MessageRow key={message.id} message={message} onReport={handleReport} />
-            ))}
-        </View>
+        (() => {
+          const visibleMessages = messages.filter(
+            (message) =>
+              !hiddenIds.has(message.id) && !hiddenUserIds.has(message.senderId)
+          );
+          return visibleMessages.length === 0 ? (
+            <View style={styles.statusCard}>
+              <Text style={styles.statusText}>
+                {messages.length === 0 ? MESSAGES_EMPTY_COPY : MESSAGES_FILTERED_EMPTY_COPY}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.messageList} testID="room-messages-list">
+              {visibleMessages.map((message) => (
+                <MessageRow key={message.id} message={message} onReport={handleReport} />
+              ))}
+            </View>
+          );
+        })()
       )}
 
       <View style={styles.composerCard}>

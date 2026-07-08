@@ -130,9 +130,8 @@ npx --yes eas-cli@latest metadata:push --non-interactive
 
 - Shared Dressing Rooms and room chat are the primary UGC surfaces in this build.
 - Each room message has a **Report** action that opens a confirmation with **Report & Hide**.
-- Confirming opens a prefilled email to `kscanai.app@gmail.com` and hides the message locally on the device using the key `kscan.hidden_content_ids.v1`.
-- No server-side report log, moderation queue, or user block list exists in this build.
-- Full server-side moderation, reporting storage, and user blocking remain future enhancements.
+- Confirming immediately hides the message locally on the device using `kscan.hidden_content_ids.v1` and filters content from the reported sender using `kscan.hidden_user_ids.v1` when the sender id is known.
+- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full server-side moderation, reporting storage, and user blocking remain future enhancements.
 
 ## App Privacy Defaults
 

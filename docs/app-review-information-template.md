@@ -26,7 +26,7 @@ Use this template when filling store reviewer instructions. Do not commit real r
 ```text
 The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared rooms, photo-library inspiration upload, privacy controls, data export/correction request entry points, and in-app account deletion request intake. VoiceScan is visible as an inactive "Coming Soon" placeholder only; it does not request microphone permission, record audio, or call backend services in this release. The app does not perform background listening, screen-off recording, biometric voice identification, targeted advertising, push notifications, ads, subscriptions, or in-app purchases. When-In-Use approximate location is requested only for weather-aware StyleChat suggestions, after a prominent in-app disclosure. Location is optional, and raw coordinates are not stored.
 
-Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action that opens a prefilled email to kscanai.app@gmail.com and hides the message locally on the device. Server-side moderation, reporting storage, and user blocking are not implemented in this build.
+Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action. Confirming Report & Hide immediately hides the content on the device and filters content from that reported user locally when the sender is known. A server-side content_reports moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin dashboard and server-side cross-device blocking remain future enhancements.
 
 To review the app:
 1. Sign in with the reviewer email/password above.
