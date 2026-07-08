@@ -69,7 +69,7 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - Dressing Rooms can be shared via public share links.
 - Room members can post messages and reactions.
 - Share links enforce `max_redemptions` and expiry.
-- In room chat, each message shows a **Report** action. Tapping it opens a confirmation with **Report & Hide**; confirming opens a prefilled email to `support@kscan.app` and hides the message locally on the device.
+- In room chat, each message shows a **Report** action. Tapping it opens a confirmation with **Report & Hide**; confirming opens a prefilled email to `kscanai.app@gmail.com` and hides the message locally on the device.
 - Hidden content IDs are stored device-locally (`kscan.hidden_content_ids.v1`); no server-side report log, block list, or moderation table exists yet.
 - Full server-side moderation and user blocking remain future enhancements.
 
@@ -78,9 +78,9 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 ## 5. Production/Staging Project Naming
 
 - All `eas.json` profiles (including `production`) point to Supabase project ref `wyyuqfdxucjksghsmhry`.
-- The Supabase Dashboard currently displays this project as **"KScan App Staging"**.
-- The project ref, keys, and data are production-grade; only the display name is misleading.
-- **Owner action:** Rename the project to **"K Scan AI Production"** in Supabase Dashboard (Project Settings → General → Project Name). The ref does not change.
+- The Supabase Dashboard currently displays this project as **"KScan App Production"**.
+- The project ref, keys, and data are production-grade.
+- The project ref does not change.
 - Before public launch, create true staging/production separation.
 
 ## 6. Remaining Play Blockers Checklist
@@ -89,5 +89,5 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - [ ] Data Safety form matches the table above
 - [ ] Automated account erasure or compliant web deletion flow
 - [x] Minimum UGC report/local-hide path (no DB schema)
-- [ ] Rename Supabase production project or create true production project
+- [x] Supabase production project renamed
 - [ ] Production AAB built and uploaded
