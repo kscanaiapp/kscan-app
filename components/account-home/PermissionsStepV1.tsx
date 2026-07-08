@@ -21,13 +21,13 @@ interface PermissionsStepV1Props {
  * - Card-based permission rows with icons
  * - Essential vs Optional labels
  * - Visual-only Allow buttons for Camera/Photos
- * - Toggle switches for Microphone/Notifications
+ * - Disabled Coming Soon toggles for Microphone/Notifications
  * - Continue to Home CTA and Not now link
  *
  * VoiceScan is planned but inactive for the current launch. The Microphone
  * card is therefore rendered as a disabled "Coming Soon" placeholder and does
  * not request microphone permission or mutate local state. Camera, photos,
- * and notifications remain point-of-use in Scan / Upload flows.
+ * and notifications remain point-of-use or future launch surfaces.
  */
 export function PermissionsStepV1({
   preferences,
@@ -37,7 +37,7 @@ export function PermissionsStepV1({
   onContinueToHome,
   onNotNow,
 }: PermissionsStepV1Props) {
-  const { camera, photos, notifications } = preferences;
+  const { camera, photos } = preferences;
 
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
@@ -91,12 +91,13 @@ export function PermissionsStepV1({
         <PermissionCard
           icon="◉"
           title="Notifications"
-          badge="OPTIONAL"
-          description="Alerts for new finds and style matches. Stay updated on discoveries and exclusive tips."
+          badge="Coming Soon"
+          description="Notifications are coming soon and are not active in this build."
           actionType="toggle"
-          actionValue={notifications}
-          onActionChange={() => togglePreference('notifications')}
-          recommendation="Recommended"
+          actionValue={false}
+          onActionChange={() => {}}
+          disabled={true}
+          accessibilityLabel="Notifications permission, coming soon, disabled"
         />
       </View>
 

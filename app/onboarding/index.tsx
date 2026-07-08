@@ -8,7 +8,7 @@ import {
   Switch,
   BackHandler,
   ActivityIndicator,
-  Platform,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router';
@@ -209,6 +209,7 @@ export default function OnboardingScreen() {
   );
 
   const goToHome = useCallback(async () => {
+    setStep(6);
     if (user?.id) {
       await markOnboardingComplete(user.id);
     }
@@ -418,9 +419,8 @@ export default function OnboardingScreen() {
         <AccountSetupStepV1
           onContinueEmail={goToNext}
           onContinueGoogle={handleGoogleSignIn}
-          onContinueApple={goToAuth}
           onGoToLogin={goToAuth}
-          appleAvailable={Platform.OS === 'ios'}
+          appleAvailable={false}
           error={createError}
           googleBusy={googleBusy}
         />
@@ -452,18 +452,6 @@ export default function OnboardingScreen() {
         disabled={googleBusy}
         style={styles.wideButton}
       />
-
-      {Platform.OS === 'ios' && (
-        <SecondaryButton
-          testID="onboarding-continue-apple-button"
-          title="Continue with Apple"
-          onPress={() => {
-            // Redirect to existing auth screen for Apple OAuth
-            goToAuth();
-          }}
-          style={styles.wideButton}
-        />
-      )}
 
       <Pressable
         testID="onboarding-auth-login-link"
@@ -682,6 +670,24 @@ export default function OnboardingScreen() {
         choose to scan. You can manage permissions in device settings.
       </Text>
 
+      <View style={styles.legalLinks}>
+        <Pressable
+          onPress={() => void Linking.openURL('https://kscan.app/legal/terms')}
+          accessibilityRole="link"
+          accessibilityLabel="Open Terms of Service"
+        >
+          <Text style={styles.legalLinkText}>Terms of Service</Text>
+        </Pressable>
+        <Text style={styles.legalLinkSep}>·</Text>
+        <Pressable
+          onPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+          accessibilityRole="link"
+          accessibilityLabel="Open Privacy Policy"
+        >
+          <Text style={styles.legalLinkText}>Privacy Policy</Text>
+        </Pressable>
+      </View>
+
       <Pressable
         testID="onboarding-terms-checkbox"
         onPress={() => setTermsChecked((v) => !v)}
@@ -821,17 +827,25 @@ export default function OnboardingScreen() {
       </View>
 
       {/* Notifications */}
-      <View style={styles.permissionRow}>
+      <View
+        style={[styles.permissionRow, styles.permissionRowDisabled]}
+        accessibilityLabel="Notifications permission, coming soon, disabled"
+        accessibilityState={{ disabled: true }}
+      >
         <View style={styles.permissionInfo}>
           <Text style={styles.permissionLabel}>Notifications</Text>
-          <Text style={styles.permissionStatus}>Optional alerts can be enabled later.</Text>
+          <Text style={styles.permissionStatus}>Coming Soon</Text>
+          <Text style={styles.permissionSubtext}>Notifications are coming soon and are not active in this build.</Text>
         </View>
         <Switch
           testID="onboarding-notifications-toggle"
-          value={permissionPrefs.notifications}
-          onValueChange={() => togglePermission('notifications')}
+          value={false}
+          onValueChange={() => {}}
+          disabled={true}
           trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor={permissionPrefs.notifications ? LUXURY.colors.plum : '#f4f3f4'}
+          thumbColor="#f4f3f4"
+          accessibilityLabel="Toggle Notifications"
+          accessibilityState={{ disabled: true, checked: false }}
         />
       </View>
 
@@ -1078,6 +1092,27 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.stone,
     paddingHorizontal: SPACING.sm,
     marginTop: -SPACING.sm,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  legalLinkText: {
+    ...LUXURY.typography.caption,
+    textTransform: 'none',
+    letterSpacing: 0.2,
+    textDecorationLine: 'underline',
+    color: LUXURY.colors.plum,
+    minHeight: 44,
+    textAlignVertical: 'center',
+  },
+  legalLinkSep: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   // Permissions
   permissionRow: {

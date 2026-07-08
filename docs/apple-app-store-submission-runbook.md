@@ -12,10 +12,10 @@ Last updated: 2026-07-08
 - iOS build number in repo: `2`
 - EAS project: `@ams2dad/kscan`
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
-- Included for this release: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, and data export/correction request entry points.
-- Still not included for this release as active functionality: location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio.
-- **Audio/Microphone collection: No.** No microphone permission is requested in this build. StyleChat is typed text input only. No hands-free voice input is available.
-- **Welcome / onboarding tree restored.** New users see the full welcome flow: Welcome, Auth Choice, Account Setup, Terms + Privacy, and Permissions. The Permissions page shows Camera, Photos, and Notifications as interactive preference toggles; Microphone is disabled and shows only "Coming Soon". No microphone or location permission is requested from this page.
+- Included for this iOS release source surface: welcome/onboarding, email/password account access, onboarding Google OAuth, camera scan, photo-library upload, local library, privacy controls, data export/correction request entry points, and account deletion request intake.
+- Still not included for this release as active functionality: Apple OAuth entry points, StyleChat, Dressing Rooms, location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio.
+- **Audio/Microphone collection: No.** No microphone permission is requested in this build. Voice input is not available.
+- **Welcome / onboarding tree restored.** New users see the full welcome flow: Welcome, Auth Choice, Account Setup, Terms + Privacy, Permissions, and a completion/home handoff state. The Permissions page shows Camera and Photos as preference choices, while Microphone and Notifications are disabled and show only "Coming Soon". No microphone or location permission is requested from this page.
 
 > Note: StyleChat/weather-aware styling is present in code but guarded off on iOS in this build (`app/style-chat/[sessionId].tsx`). It does not run on iOS and therefore does not request or collect location.
 
@@ -132,10 +132,10 @@ npx --yes eas-cli@latest metadata:push --non-interactive
 
 ## UGC / Report and Local Hide
 
-- Shared Dressing Rooms and room chat are the primary UGC surfaces in this build.
-- Each room message has a **Report** action that opens a confirmation with **Report & Hide**.
+- Shared Dressing Rooms and room chat are not exposed from the iOS home surface in this branch.
+- If a reviewer reaches an existing UGC route, each room message has a **Report** action that opens a confirmation with **Report & Hide**.
 - Confirming immediately hides the message locally on the device using `kscan.hidden_content_ids.v1` and filters content from the reported sender using `kscan.hidden_user_ids.v1` when the sender id is known.
-- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full server-side moderation, reporting storage, and user blocking remain future enhancements.
+- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin moderation remains a future enhancement.
 
 ## App Privacy Defaults
 

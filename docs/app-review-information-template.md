@@ -24,13 +24,13 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ## Review Notes
 
 ```text
-The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared-room messages and reactions, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
+The current iOS build includes the restored welcome/onboarding flow, email/password account access, onboarding Google OAuth, camera scan, photo-library upload, local library, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Apple OAuth entry points, StyleChat, Dressing Rooms, subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
 
-Audio/Microphone collection: No. No microphone permission is requested in this build. StyleChat is typed text input only. No hands-free voice input is available.
+Audio/Microphone collection: No. No microphone permission is requested in this build. Voice input is not available.
 
-Welcome / onboarding flow: New users are presented with a full welcome/onboarding tree (Welcome, Auth Choice, Account Setup, Terms + Privacy, Permissions). The Permissions page includes Camera, Photos, and Notifications preference toggles. Microphone is disabled and shows only "Coming Soon"; tapping it does not request microphone permission. Location is not requested on this page.
+Welcome / onboarding flow: New users are presented with a full welcome/onboarding tree (Welcome, Auth Choice, Account Setup, Terms + Privacy, Permissions, and a completion/home handoff state). The Permissions page includes Camera and Photos preference choices. Microphone and Notifications are disabled and show only "Coming Soon"; tapping either does not request a native permission. Location is not requested on this page.
 
-Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action. Confirming Report & Hide immediately hides the content on the device and filters content from that reported user locally when the sender is known. A server-side content_reports moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin dashboard and server-side cross-device blocking remain future enhancements.
+Shared Dressing Rooms and room chat are not exposed from the iOS home surface in this branch. If a reviewer reaches an existing UGC route, each room message includes a Report action. Confirming Report & Hide immediately hides the content on the device and filters content from that reported user locally when the sender is known. A server-side content_reports moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin moderation remains a future enhancement.
 
 To review the app:
 1. Sign in with the reviewer email/password above.
@@ -38,8 +38,7 @@ To review the app:
 3. Capture a clothing item or outfit for scan analysis.
 4. Observe the VoiceScan "Coming Soon" placeholder on the home screen; confirm it is inactive and does not request microphone access.
 5. Save a result to the local library, then delete it from the library.
-6. Open a Dressing Room with messages, use Report on a message, and confirm the message hides locally.
-7. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.
+6. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.
 
 Users can request account deletion in the app from Privacy > Delete Account. Once a request is submitted, the app marks the account as pending deletion, limits normal app access, and provides a clear sign-out path. Requests are processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.
 ```
@@ -54,4 +53,4 @@ Users can request account deletion in the app from Privacy > Delete Account. Onc
 - [ ] Privacy URL works: `https://kscan.app/legal/privacy`.
 - [ ] Support URL works: `https://kscan.app/support`.
 - [ ] Account deletion URL works: `https://kscan.app/legal/delete-account`.
-- [ ] UGC report action is visible on room messages and hides content locally.
+- [ ] If UGC routes are included in the reviewed build, the report action is visible on room messages and hides content locally.
