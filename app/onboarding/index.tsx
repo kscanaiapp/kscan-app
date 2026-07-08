@@ -808,7 +808,7 @@ export default function OnboardingScreen() {
         <View style={styles.permissionInfo}>
           <Text style={styles.permissionLabel}>Microphone</Text>
           <Text style={styles.permissionStatus}>Coming Soon</Text>
-          <Text style={styles.permissionSubtext}>VoiceScan is coming soon.</Text>
+          <Text style={styles.permissionSubtext}>VoiceScan is coming soon and is not active in this build.</Text>
         </View>
         <Switch
           testID="onboarding-microphone-toggle"

@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable, Switch, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import { PrimaryButton, TertiaryButton } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
+
 import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermissionPreferences';
 
 interface PermissionsStepV1Props {
@@ -39,8 +39,7 @@ export function PermissionsStepV1({
   onContinueToHome,
   onNotNow,
 }: PermissionsStepV1Props) {
-  const { camera, photos, microphone, notifications } = preferences;
-  const microphoneDisabled = !VOICESCAN_ENABLED;
+  const { camera, photos, notifications } = preferences;
 
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
@@ -81,28 +80,12 @@ export function PermissionsStepV1({
         <PermissionCard
           icon="◉"
           title="Microphone"
-          badge={microphoneDisabled ? 'Coming Soon' : 'OPTIONAL'}
-          description={
-            microphoneDisabled
-              ? 'VoiceScan is coming soon.'
-              : 'VoiceScan uses your microphone only when you start a voice or wearable input action. K Scan AI does not listen in the background.'
-          }
+          badge="Coming Soon"
+          description="VoiceScan is coming soon and is not active in this build."
           actionType="toggle"
-          actionValue={microphoneDisabled ? false : microphone}
-          onActionChange={
-            microphoneDisabled
-              ? () => {}
-              : async (value) => {
-                  if (value && Platform.OS === 'android') {
-                    const { granted } = await requestMicrophonePermission();
-                    setPreference('microphone', granted);
-                  } else {
-                    setPreference('microphone', value);
-                  }
-                }
-          }
-          disabled={microphoneDisabled}
-          recommendation="Recommended"
+          actionValue={false}
+          onActionChange={() => {}}
+          disabled={true}
           accessibilityLabel="Microphone permission, coming soon, disabled"
         />
 
@@ -184,7 +167,11 @@ function PermissionCard({
             <Text
               style={[
                 styles.cardBadge,
-                badge === 'ESSENTIAL' ? styles.badgeEssential : styles.badgeOptional,
+                badge === 'ESSENTIAL'
+                  ? styles.badgeEssential
+                  : badge === 'Coming Soon'
+                    ? styles.badgeComingSoon
+                    : styles.badgeOptional,
               ]}
             >
               {badge}
@@ -318,6 +305,10 @@ const styles = StyleSheet.create({
   badgeOptional: {
     color: LUXURY.colors.goldText,
     backgroundColor: LUXURY.colors.goldLight,
+  },
+  badgeComingSoon: {
+    color: LUXURY.colors.stone,
+    backgroundColor: LUXURY.colors.border,
   },
   cardDescription: {
     ...LUXURY.typography.caption,
