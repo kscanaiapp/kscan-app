@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +19,13 @@ import {
   sendRoomMessage,
   type RoomMessage,
 } from '../../services/roomMessages';
+import {
+  addHiddenContentId,
+  addHiddenUserId,
+  readHiddenContentIds,
+  readHiddenUserIds,
+} from '../../services/ugcSafetyStore';
+import { submitContentReport } from '../../services/contentReports';
 
 // Private In-App Room Messaging v1.
 // Rendered only inside the authenticated Dressing Room detail screen.
@@ -24,6 +33,8 @@ import {
 
 const ACCESSIBLE_GOLD_TEXT = '#72521E';
 const MESSAGES_EMPTY_COPY = 'Discuss this room with people you invite.';
+const MESSAGES_FILTERED_EMPTY_COPY =
+  'You have reported or hidden all recent activity in this room.';
 const COMPOSER_PLACEHOLDER = 'Message about this room…';
 
 function formatMessageTimestamp(createdAt: string) {
@@ -37,12 +48,28 @@ function formatMessageTimestamp(createdAt: string) {
   });
 }
 
-function MessageRow({ message }: { message: RoomMessage }) {
+function MessageRow({
+  message,
+  onReport,
+}: {
+  message: RoomMessage;
+  onReport: (message: RoomMessage) => void;
+}) {
   return (
     <View style={styles.messageCard}>
       <View style={styles.messageMetaRow}>
         <Text style={styles.messageSender}>{message.isMine ? 'You' : 'Collaborator'}</Text>
-        <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
+        <View style={styles.messageMetaRight}>
+          <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
+          <TouchableOpacity
+            onPress={() => onReport(message)}
+            accessibilityRole="button"
+            accessibilityLabel="Report message"
+            testID={`room-message-report-${message.id}`}
+          >
+            <Text style={styles.reportButtonText}>Report</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <Text style={styles.messageBody}>{message.body}</Text>
     </View>
@@ -56,6 +83,8 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string> | null>(null);
+  const [hiddenUserIds, setHiddenUserIds] = useState<Set<string> | null>(null);
   const sendInFlightRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -63,15 +92,102 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     setLoading(true);
     setLoadError(null);
     try {
-      setMessages(await listRoomMessages(roomId));
+      const [fetchedMessages, hiddenContentIds, hiddenUserIdsResult] = await Promise.all([
+        listRoomMessages(roomId),
+        readHiddenContentIds().catch(() => [] as string[]),
+        readHiddenUserIds().catch(() => [] as string[]),
+      ]);
+      setMessages(fetchedMessages);
+      setHiddenIds(new Set(hiddenContentIds));
+      setHiddenUserIds(new Set(hiddenUserIdsResult));
     } catch (err: any) {
       // err.message is always a friendly string from services/roomMessages —
       // never a raw Supabase/Postgres/RLS error, and never a message body.
+      setMessages([]);
+      setHiddenIds(new Set());
+      setHiddenUserIds(new Set());
       setLoadError(typeof err?.message === 'string' ? err.message : ROOM_MESSAGES_LOAD_ERROR);
     } finally {
       setLoading(false);
     }
   }, [roomId]);
+
+  const handleReport = useCallback(
+    (message: RoomMessage) => {
+      Alert.alert(
+        'Report content',
+        'Report & Hide will immediately hide this content on this device and filter content from this sender when their id is known.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Report & Hide',
+            style: 'destructive',
+            onPress: async () => {
+              // 1. Immediate in-memory hide so there is no state flash.
+              setHiddenIds((current) => {
+                const next = new Set<string>(current ?? new Set<string>());
+                next.add(message.id);
+                return next;
+              });
+              if (message.senderId) {
+                setHiddenUserIds((current) => {
+                  const next = new Set<string>(current ?? new Set<string>());
+                  next.add(message.senderId);
+                  return next;
+                });
+              }
+
+              // 2. Persist hide/block in the background; UI does not wait.
+              const [contentPersisted, userPersisted] = await Promise.all([
+                addHiddenContentId(message.id),
+                message.senderId ? addHiddenUserId(message.senderId) : Promise.resolve(true),
+              ]);
+
+              if (!contentPersisted || !userPersisted) {
+                Alert.alert("We couldn't hide this content right now. Please try again.");
+                return;
+              }
+
+              // 3. Attempt server-side report insert asynchronously. Failure must not unhide.
+              const reportResult = await submitContentReport({
+                targetType: 'message',
+                targetId: message.id,
+                reportedUserId: message.senderId || null,
+                roomId,
+                reasonCategory: 'inappropriate',
+              });
+
+              const subject = 'Report content in K Scan AI';
+              const body = `Please review this shared content.\n\nRoom ID:\n${roomId}\n\nContent ID:\n${message.id}\n\nContent type:\nmessage\n\nReason:\n`;
+              const mailto = `mailto:kscanai.app@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+              if (reportResult.ok && reportResult.serverAccepted) {
+                Alert.alert(
+                  'Thanks. We received your report and hid this content on this device.'
+                );
+                return;
+              }
+
+              // Migration may not be deployed yet; fall back to email/local hide.
+              try {
+                const supported = await Linking.canOpenURL(mailto);
+                if (supported) {
+                  await Linking.openURL(mailto);
+                }
+              } catch {
+                // Ignore mailto errors; content is already hidden.
+              }
+
+              Alert.alert(
+                'Thanks. This content has been hidden on this device. If needed, your report can also be sent to K Scan AI support.'
+              );
+            },
+          },
+        ]
+      );
+    },
+    [roomId]
+  );
 
   useEffect(() => {
     void load();
@@ -103,7 +219,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>ROOM MESSAGES</Text>
 
-      {loading ? (
+      {loading || hiddenIds === null || hiddenUserIds === null ? (
         <View style={styles.statusCard}>
           <ActivityIndicator size="small" color={COLORS.gold} />
           <Text style={styles.statusText}>Loading messages…</Text>
@@ -119,16 +235,26 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
             <Text style={styles.pillButtonText}>RETRY</Text>
           </TouchableOpacity>
         </View>
-      ) : messages.length === 0 ? (
-        <View style={styles.statusCard}>
-          <Text style={styles.statusText}>{MESSAGES_EMPTY_COPY}</Text>
-        </View>
       ) : (
-        <View style={styles.messageList} testID="room-messages-list">
-          {messages.map((message) => (
-            <MessageRow key={message.id} message={message} />
-          ))}
-        </View>
+        (() => {
+          const visibleMessages = messages.filter(
+            (message) =>
+              !hiddenIds.has(message.id) && !hiddenUserIds.has(message.senderId)
+          );
+          return visibleMessages.length === 0 ? (
+            <View style={styles.statusCard}>
+              <Text style={styles.statusText}>
+                {messages.length === 0 ? MESSAGES_EMPTY_COPY : MESSAGES_FILTERED_EMPTY_COPY}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.messageList} testID="room-messages-list">
+              {visibleMessages.map((message) => (
+                <MessageRow key={message.id} message={message} onReport={handleReport} />
+              ))}
+            </View>
+          );
+        })()
       )}
 
       <View style={styles.composerCard}>
@@ -226,6 +352,16 @@ const styles = StyleSheet.create({
   messageTime: {
     ...TYPOGRAPHY.caption,
     color: COLORS.editorialTextSecondary,
+  },
+  messageMetaRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  reportButtonText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.error,
+    fontWeight: '600',
   },
   messageBody: {
     ...TYPOGRAPHY.body,

@@ -25,6 +25,7 @@ const ROOM_MESSAGES_REALTIME_UNAVAILABLE = 'Live message updates are not availab
 export type RoomMessage = {
   id: string;
   roomId: string;
+  senderId: string;
   body: string;
   createdAt: string;
   isMine: boolean;
@@ -72,6 +73,7 @@ function toRoomMessage(row: MessageRow, currentUserId: string | null): RoomMessa
   return {
     id: row.id,
     roomId: row.room_id,
+    senderId: row.sender_id,
     body: row.body,
     createdAt: row.created_at,
     isMine: Boolean(currentUserId && row.sender_id === currentUserId),

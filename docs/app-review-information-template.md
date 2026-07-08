@@ -24,7 +24,9 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ## Review Notes
 
 ```text
-The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
+The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared-room messages and reactions, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
+
+Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action. Confirming Report & Hide immediately hides the content on the device and filters content from that reported user locally when the sender is known. A server-side content_reports moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin dashboard and server-side cross-device blocking remain future enhancements.
 
 To review the app:
 1. Sign in with the reviewer email/password above.
@@ -32,7 +34,8 @@ To review the app:
 3. Capture a clothing item or outfit for scan analysis.
 4. Observe the VoiceScan "Coming Soon" placeholder on the home screen; confirm it is inactive and does not request microphone access.
 5. Save a result to the local library, then delete it from the library.
-6. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.
+6. Open a Dressing Room with messages, use Report on a message, and confirm the message hides locally.
+7. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.
 
 Users can request account deletion in the app from Privacy > Delete Account. Once a request is submitted, the app marks the account as pending deletion, limits normal app access, and provides a clear sign-out path. Requests are processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.
 ```
@@ -47,3 +50,4 @@ Users can request account deletion in the app from Privacy > Delete Account. Onc
 - [ ] Privacy URL works: `https://kscan.app/legal/privacy`.
 - [ ] Support URL works: `https://kscan.app/support`.
 - [ ] Account deletion URL works: `https://kscan.app/legal/delete-account`.
+- [ ] UGC report action is visible on room messages and hides content locally.

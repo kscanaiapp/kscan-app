@@ -128,6 +128,13 @@ After the binary has processed in App Store Connect, push the metadata if desire
 npx --yes eas-cli@latest metadata:push --non-interactive
 ```
 
+## UGC / Report and Local Hide
+
+- Shared Dressing Rooms and room chat are the primary UGC surfaces in this build.
+- Each room message has a **Report** action that opens a confirmation with **Report & Hide**.
+- Confirming immediately hides the message locally on the device using `kscan.hidden_content_ids.v1` and filters content from the reported sender using `kscan.hidden_user_ids.v1` when the sender id is known.
+- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full server-side moderation, reporting storage, and user blocking remain future enhancements.
+
 ## App Privacy Defaults
 
 Use these as the App Store Connect App Privacy baseline for the current build:
