@@ -22,6 +22,7 @@ This runbook gives the release owner a manual account-erasure path for the curre
 - `public.inspiration_items`, `public.dressing_room_inspiration_items`: user-uploaded inspiration metadata and room links, reference `auth.users(id)` with `on delete cascade`.
 - `public.style_chat_sessions`, `public.style_chat_messages`, `public.style_memory_events`, `public.style_chat_usage`, `public.style_chat_daily_usage`: StyleChat content, memory, and usage rows, reference `auth.users(id)` with `on delete cascade`.
 - `public.scan_identify_usage_daily`: authenticated scan quota rows, references `auth.users(id)` with `on delete cascade`.
+- `public.content_reports`: optional moderation report rows. Reports filed by the deleted user cascade through `reporter_user_id`; reports about the deleted user are retained for moderation with `reported_user_id` set null.
 - `public.wardrobe_*` free-tier sync tables: optional user-scoped utility rows, reference `auth.users(id)` with `on delete cascade` when those beta migrations are deployed.
 - `public.style_chat_burst_usage`: StyleChat burst limiter rows. This table does not declare an Auth foreign key, so the processor deletes matching `user_id` rows before deleting the Auth user.
 - `public.scan_intelligence_events`: optional scan intelligence/audit rows where deployed. The processor best-effort deletes matching `user_id` rows before deleting the Auth user and skips cleanly if the table is not present.
@@ -59,6 +60,8 @@ The operator script follows this table. Tables marked **optional** are skipped w
 | `public.style_chat_usage` | `user_id` | Auth delete cascade | 6 |
 | `public.style_chat_daily_usage` | `user_id` | Auth delete cascade | 6 |
 | `public.scan_identify_usage_daily` | `user_id` | Auth delete cascade | 6 |
+| `public.content_reports` | `reporter_user_id` | Auth delete cascade (optional) | 6 |
+| `public.content_reports` | `reported_user_id` | Auth delete set null (optional moderation retention) | 6 |
 | `public.wardrobe_utility_items` | `user_id` | Auth delete cascade (optional) | 6 |
 | `public.wardrobe_collections` | `user_id` | Auth delete cascade (optional) | 6 |
 | `public.wardrobe_collection_items` | `user_id` | Auth delete cascade (optional) | 6 |
@@ -78,7 +81,7 @@ The operator script follows this table. Tables marked **optional** are skipped w
 2. Transfer shared `dressing_rooms` to the earliest remaining **active** participant (verified profile and auth user existence).
 3. Delete owned `style-library-images` storage objects.
 4. Delete the Supabase Auth user, which cascades all `auth.users` foreign-key rows.
-5. Parent-cascade tables are cleaned up automatically by step 4.
+5. Parent-cascade tables are cleaned up automatically by step 4; optional moderation reports about the deleted user are retained with `reported_user_id` set null.
 
 ## Service-Role Client Requirement
 

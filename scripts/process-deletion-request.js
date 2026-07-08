@@ -29,6 +29,8 @@ const USER_DATA_RESOURCES = [
   { table: 'style_chat_usage', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_daily_usage', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'content_reports', column: 'reporter_user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'content_reports', column: 'reported_user_id', action: 'auth_delete_set_null', optional: true },
   { table: 'wardrobe_utility_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_collections', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_collection_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },

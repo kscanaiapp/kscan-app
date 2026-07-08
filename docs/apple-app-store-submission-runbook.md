@@ -174,7 +174,7 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Sign in with a pre-verified reviewer account.
 - Allow camera permission and complete one scan.
 - Save and delete a local library item.
-- Verify no microphone, photo library, location, push, ATT, or payment prompts appear.
+- Verify no microphone, push, ATT, or payment prompts appear. Camera, photo library, and contextual approximate-location prompts may appear when their feature flows are exercised.
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.

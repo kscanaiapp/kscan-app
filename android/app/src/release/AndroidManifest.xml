@@ -3,8 +3,7 @@
 
     <!-- Explicitly block debug-only permissions from leaking into the release build. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
-    <!-- READ_EXTERNAL_STORAGE / WRITE_EXTERNAL_STORAGE are kept because expo-image-picker's
-         requestMediaLibraryPermissionsAsync() requires them on Android 12 and below (API < 33).
-         On Android 13+ the library uses the system photo picker and does not request them. -->
+    <!-- No release storage/media permission is declared here; verify the merged AAB
+         manifest after build before Play upload. -->
 
 </manifest>
