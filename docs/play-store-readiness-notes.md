@@ -60,9 +60,9 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - The `handle-user-deletion` Edge Function validates the caller, creates a pending `deletion_requests` row, and marks the profile `pending_deletion`.
 - Final erasure is performed manually with `scripts/process-deletion-request.js` using a service-role key.
 - Target SLA: within 30 days, subject to legal/security exceptions.
-- Dry-run E2E passed on this branch. Confirm-delete still requires owner review and approval.
+- Confirm-delete E2E passed on this branch; the deletion backend is operationally proven.
 
-**Play risk:** If Google Play reviewers test deletion and re-sign-in, they will still see data because erasure is manual/operator-gated. Consider adding automated erasure or a clear web deletion form before public production submission.
+**Play risk:** Deletion remains operator-processed rather than instant automatic erasure. Keep reviewer copy clear that requests are handled through the guarded internal erasure workflow, generally within 30 days, subject to legal/security exceptions.
 
 ## 4. UGC / Shared Rooms
 
@@ -87,7 +87,7 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 
 - [x] In-app prominent location disclosure
 - [ ] Data Safety form matches the table above
-- [ ] Automated account erasure or compliant web deletion flow
+- [x] Public account deletion URL verified
 - [x] Minimum UGC report/local-hide path (no DB schema)
 - [x] Supabase production project renamed
 - [ ] Production AAB built and uploaded

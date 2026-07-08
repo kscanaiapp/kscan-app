@@ -130,7 +130,7 @@ npx --yes eas-cli@latest metadata:push --non-interactive
 
 - Shared Dressing Rooms and room chat are the primary UGC surfaces in this build.
 - Each room message has a **Report** action that opens a confirmation with **Report & Hide**.
-- Confirming opens a prefilled email to `support@kscan.app` and hides the message locally on the device using the key `kscan.hidden_content_ids.v1`.
+- Confirming opens a prefilled email to `kscanai.app@gmail.com` and hides the message locally on the device using the key `kscan.hidden_content_ids.v1`.
 - No server-side report log, moderation queue, or user block list exists in this build.
 - Full server-side moderation, reporting storage, and user blocking remain future enhancements.
 
@@ -179,7 +179,7 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.
-- In a shared room with chat enabled, post a room message, tap **Report**, confirm **Report & Hide**, and verify the message is hidden locally and a prefilled email to `support@kscan.app` is offered.
+- In a shared room with chat enabled, post a room message, tap **Report**, confirm **Report & Hide**, and verify the message is hidden locally and a prefilled email to `kscanai.app@gmail.com` is offered.
 - Confirm live pages return 200:
   - `https://kscan.app/legal/privacy`
   - `https://kscan.app/privacy`

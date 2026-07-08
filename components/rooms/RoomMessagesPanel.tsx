@@ -125,7 +125,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
 
               const subject = 'Report content in K Scan AI';
               const body = `Please review this shared content.\n\nRoom ID:\n${roomId}\n\nContent ID:\n${message.id}\n\nContent type:\nmessage\n\nReason:\n`;
-              const mailto = `mailto:support@kscan.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+              const mailto = `mailto:kscanai.app@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
               let emailOpened = false;
               try {
@@ -142,7 +142,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
                 Alert.alert('Thanks. We opened a report email and hid this content on this device.');
               } else {
                 Alert.alert(
-                  'This content is hidden on this device. Please contact support@kscan.app to complete the report.'
+                  'This content is hidden on this device. Please contact kscanai.app@gmail.com to complete the report.'
                 );
               }
             },
