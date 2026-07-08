@@ -13,7 +13,7 @@ Last updated: 2026-06-12
 - EAS project: `@ams2dad/kscan`
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
 - Included for this release: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, and data export/correction request entry points.
-- Still not included for this release: location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases.
+- Still not included for this release as active functionality: location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio.
 
 > Note: StyleChat/weather-aware styling is present in code but guarded off on iOS in this build (`app/style-chat/[sessionId].tsx`). It does not run on iOS and therefore does not request or collect location.
 
@@ -163,7 +163,7 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Sign in with a pre-verified reviewer account.
 - Allow camera permission and complete one scan.
 - Save and delete a local library item.
-- Verify no location, microphone, push, ATT, or payment prompts appear.
+- Verify no location, microphone, push, ATT, or payment prompts appear. VoiceScan displays "Coming Soon" on the home screen and does not trigger a microphone prompt.
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.

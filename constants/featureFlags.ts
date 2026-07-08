@@ -50,3 +50,13 @@ export const DEFAULT_FEATURE_FREEZE_CONFIG = {
 // Dev-only local switch for beta testing. Change to true/false locally if needed;
 // production builds always use remote config unless this remains null.
 export const DEV_FEATURE_FREEZE_OVERRIDE: boolean | null = __DEV__ ? null : null;
+
+// ── VoiceScan placeholder flag ───────────────────────────────────────────────
+/**
+ * Master switch for VoiceScan interactivity. VoiceScan is planned but inactive
+ * for the current launch; the flag is permanently false here so the UI only
+ * renders a non-interactive "Coming Soon" placeholder. No microphone permission
+ * request, recording, backend call, or local state mutation should occur while
+ * this flag is false.
+ */
+export const VOICESCAN_ENABLED = false;

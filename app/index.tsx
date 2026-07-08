@@ -5,8 +5,36 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { VOICESCAN_ENABLED } from '../constants/featureFlags';
 
 const ACCESSIBLE_GOLD_TEXT = COLORS.goldText;
+
+/**
+ * Inactive VoiceScan placeholder pill.
+ *
+ * VoiceScan is planned but inactive for the current launch. This pill is
+ * intentionally visible so users know the feature is coming, but it is a
+ * silent no-op: no navigation, no microphone request, no backend call, and
+ * no local state mutation.
+ */
+function VoiceScanPlaceholderPill() {
+  const inactive = !VOICESCAN_ENABLED;
+  return (
+    <View
+      testID="home-voicescan-coming-soon"
+      style={[styles.voiceScanPill, inactive && styles.voiceScanPillInactive]}
+      accessibilityRole="text"
+      accessibilityLabel="Voice Scan. Coming Soon."
+    >
+      <Text style={[styles.voiceScanPillTitle, inactive && styles.voiceScanPillTextMuted]}>
+        VOICE SCAN
+      </Text>
+      <Text style={[styles.voiceScanPillSubtitle, inactive && styles.voiceScanPillTextMuted]}>
+        COMING SOON
+      </Text>
+    </View>
+  );
+}
 
 export default function Home() {
   const { isAuthenticated, signOut, user, loading } = useAuthSession();
@@ -59,6 +87,9 @@ export default function Home() {
         >
           <Text style={styles.scanNowText}>SCAN NOW</Text>
         </Pressable>
+
+        {/* 4a. VoiceScan placeholder — planned but inactive for this launch */}
+        <VoiceScanPlaceholderPill />
 
         {/* 5. Resume placeholder — hidden for Beta 4.2 */}
 
@@ -222,6 +253,41 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 3,
     textTransform: 'uppercase',
+  },
+
+  // ── VoiceScan placeholder ─────────────────────────────────────────────────
+  voiceScanPill: {
+    borderRadius: RADIUS.lg,
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    backgroundColor: COLORS.surfaceCard,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.chromeLine,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.editorialSmall,
+  },
+  voiceScanPillInactive: {
+    opacity: 0.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceRaised,
+  },
+  voiceScanPillTitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.accent,
+    letterSpacing: 2.2,
+  },
+  voiceScanPillSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: COLORS.editorialTextSecondary,
+    marginTop: SPACING.xs,
+  },
+  voiceScanPillTextMuted: {
+    color: COLORS.textTertiary,
   },
 
   // ── Cards ─────────────────────────────────────────────────────────────────

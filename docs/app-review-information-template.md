@@ -24,14 +24,15 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ## Review Notes
 
 ```text
-The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not part of this build. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
+The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
 
 To review the app:
 1. Sign in with the reviewer email/password above.
 2. Allow camera access when prompted.
 3. Capture a clothing item or outfit for scan analysis.
-4. Save a result to the local library, then delete it from the library.
-5. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.
+4. Observe the VoiceScan "Coming Soon" placeholder on the home screen; confirm it is inactive and does not request microphone access.
+5. Save a result to the local library, then delete it from the library.
+6. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.
 
 Users can request account deletion in the app from Privacy > Delete Account. Once a request is submitted, the app marks the account as pending deletion, limits normal app access, and provides a clear sign-out path. Requests are processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.
 ```
@@ -42,7 +43,7 @@ Users can request account deletion in the app from Privacy > Delete Account. Onc
 - [ ] Reviewer account has completed email confirmation if Supabase requires it.
 - [ ] Reviewer account is not already in `pending_deletion`.
 - [ ] Camera permission prompt appears with the expected purpose text.
-- [ ] No location, microphone, ATT, push, payment, subscription, or ad prompt appears.
+- [ ] No location, microphone, ATT, push, payment, subscription, or ad prompt appears. VoiceScan displays "Coming Soon" on the home screen and does not trigger a microphone prompt.
 - [ ] Privacy URL works: `https://kscan.app/legal/privacy`.
 - [ ] Support URL works: `https://kscan.app/support`.
 - [ ] Account deletion URL works: `https://kscan.app/legal/delete-account`.
