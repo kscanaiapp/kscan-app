@@ -178,7 +178,7 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.
-- In a shared room with chat enabled, post a room message, tap **Report**, confirm **Report & Hide**, and verify the message is hidden locally and a prefilled email to `kscanai.app@gmail.com` is offered.
+- In a shared room with chat enabled, post a room message, tap **Report**, confirm **Report & Hide**, and verify the message is hidden locally. If server reporting is unavailable or fails, verify the fallback report email targets `kscanai.app@gmail.com`.
 - Confirm live pages return 200:
   - `https://kscan.app/legal/privacy`
   - `https://kscan.app/privacy`
