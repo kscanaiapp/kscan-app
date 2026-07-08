@@ -46,9 +46,9 @@ Users can request account deletion in the app from Privacy > Delete Account. Onc
 - [ ] Reviewer account has completed email confirmation if Supabase requires it.
 - [ ] Reviewer account is not already in `pending_deletion`.
 - [ ] Camera permission prompt appears with the expected purpose text.
-- [ ] Microphone permission appears only from a user-initiated VoiceScan / wearable voice input path; no background listening, biometric voice ID, or ad use exists.
+- [ ] Microphone permission does not appear; VoiceScan is inactive and no background listening, biometric voice ID, or ad use exists.
 - [ ] No ATT, push, payment, subscription, or ad prompt appears.
-- [ ] Camera, microphone, photo library, and coarse foreground location prompts may appear; their purpose strings are in `app.json`.
+- [ ] Camera, photo library, and coarse foreground location prompts may appear; their purpose strings are in `app.json`.
 - [ ] Privacy URL works: `https://kscan.app/legal/privacy`.
 - [ ] Support URL works: `https://kscan.app/support`.
 - [ ] Account deletion URL works: `https://kscan.app/legal/delete-account`.
