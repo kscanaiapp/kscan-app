@@ -32,7 +32,7 @@ import {
   PermissionsStepV1,
 } from '../../components/account-home';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import { ACCOUNT_HOME_UX_V1_ENABLED } from '../../constants/featureFlags';
+import { ACCOUNT_HOME_UX_V1_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import { TERMS_VERSION, PRIVACY_VERSION, AGE_VERSION } from '../../constants/legal';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { recordLegalAcceptances } from '../../services/legalAcceptance';
@@ -96,7 +96,7 @@ export default function OnboardingScreen() {
     savePreferences,
     requestMicrophonePermission,
   } = usePermissionPreferences();
-  const [microphoneMessage, setMicrophoneMessage] = useState<string | null>(null);
+  const microphoneDisabled = !VOICESCAN_ENABLED;
 
   const navigationRef = useNavigationContainerRef();
   const replaceHomeOnce = useCallback(() => {
@@ -766,7 +766,7 @@ export default function OnboardingScreen() {
     <View style={styles.stepContent} testID="onboarding-permissions-screen">
       <Text style={styles.stepTitle}>Permissions</Text>
       <Text style={styles.stepBody}>
-        You can change these anytime in device settings. On Android, tapping the Microphone toggle will request microphone access for VoiceScan.
+        You can change these anytime in device settings. VoiceScan is coming soon and is not active in this release.
       </Text>
 
       {/* Camera */}
@@ -799,40 +799,28 @@ export default function OnboardingScreen() {
         />
       </View>
 
-      {/* Microphone */}
-      <View style={styles.permissionRow}>
+      {/* Microphone — VoiceScan is planned but inactive for this launch. */}
+      <View
+        style={[styles.permissionRow, microphoneDisabled && styles.permissionRowDisabled]}
+        accessibilityLabel="Microphone permission, coming soon, disabled"
+        accessibilityState={{ disabled: microphoneDisabled }}
+      >
         <View style={styles.permissionInfo}>
           <Text style={styles.permissionLabel}>Microphone</Text>
-          <Text style={styles.permissionStatus}>
-            VoiceScan uses your microphone only when you start a voice or wearable input action.
-          </Text>
+          <Text style={styles.permissionStatus}>Coming Soon</Text>
+          <Text style={styles.permissionSubtext}>VoiceScan is coming soon.</Text>
         </View>
         <Switch
           testID="onboarding-microphone-toggle"
-          value={permissionPrefs.microphone}
-          onValueChange={async (value) => {
-            setMicrophoneMessage(null);
-            if (value && Platform.OS === 'android') {
-              const { granted } = await requestMicrophonePermission();
-              if (granted) {
-                setPermissionPreference('microphone', true);
-              } else {
-                setPermissionPreference('microphone', false);
-                setMicrophoneMessage(
-                  'Microphone access denied. Please enable microphone permissions in your Android App Settings to use VoiceScan.'
-                );
-              }
-            } else {
-              setPermissionPreference('microphone', value);
-            }
-          }}
+          value={false}
+          onValueChange={() => {}}
+          disabled={microphoneDisabled}
           trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor={permissionPrefs.microphone ? LUXURY.colors.plum : '#f4f3f4'}
+          thumbColor="#f4f3f4"
+          accessibilityLabel="Toggle Microphone"
+          accessibilityState={{ disabled: microphoneDisabled, checked: false }}
         />
       </View>
-      {microphoneMessage ? (
-        <Text style={styles.microphoneMessage}>{microphoneMessage}</Text>
-      ) : null}
 
       {/* Notifications */}
       <View style={styles.permissionRow}>
@@ -1118,11 +1106,15 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     color: LUXURY.colors.graphite,
   },
-  microphoneMessage: {
+  permissionRowDisabled: {
+    opacity: 0.5,
+  },
+  permissionSubtext: {
     ...LUXURY.typography.caption,
-    color: LUXURY.colors.error,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
+    textTransform: 'none',
+    letterSpacing: 0.2,
+    lineHeight: 18,
+    color: LUXURY.colors.graphite,
+    marginTop: SPACING.xs,
   },
 });

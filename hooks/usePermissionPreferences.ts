@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
 
+import { VOICESCAN_ENABLED } from '../constants/featureFlags';
+
 export type PermissionKey = 'camera' | 'photos' | 'microphone' | 'notifications';
 
 export type PermissionPreferencesStatus =
@@ -99,7 +101,7 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
   }, []);
 
   const requestMicrophonePermission = useCallback(async (): Promise<MicrophonePermissionResult> => {
-    if (Platform.OS !== 'android') {
+    if (Platform.OS !== 'android' || !VOICESCAN_ENABLED) {
       return { granted: false, canAskAgain: false, error: null };
     }
 

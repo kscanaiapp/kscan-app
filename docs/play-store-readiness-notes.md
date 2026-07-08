@@ -18,7 +18,7 @@ The shipping build includes:
 - Privacy controls, data export/correction request entry points
 - In-app account deletion request intake
 - Weather-aware StyleChat using coarse foreground location
-- VoiceScan / wearable microphone input posture for foreground, user-initiated voice features
+- VoiceScan placeholder only (planned / coming soon; no active microphone use, recording, upload, or backend processing in this release)
 
 ## 2. Location / Data Safety
 
@@ -45,7 +45,7 @@ The shipping build includes:
 | Approximate location | Yes | No | Weather-aware style advice (coarse, foreground, transient) |
 | Precise location | No | No | Fine location is not requested |
 | Photos and videos | Yes (user-submitted scans and inspiration uploads) | Yes — images are sent to Google Gemini for AI analysis | App functionality |
-| Audio / microphone | Yes | No | Foreground VoiceScan and wearable voice input while the user uses those features |
+| Audio / microphone | No | No | VoiceScan is a visible "Coming Soon" placeholder only; no microphone access, recording, collection, transmission, storage, or processing in this release |
 | Email address | Yes | No | Account management |
 | User ID | Yes | No | Account management / app functionality |
 | Style chats / messages | Yes | No | App functionality (Dressing Rooms, StyleChat) |
@@ -63,13 +63,11 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 
 ## 3. Microphone / VoiceScan / Wearables
 
-- **Android permission:** `android.permission.RECORD_AUDIO`.
-- **Expo camera plugin:** `recordAudioAndroid` is enabled and the microphone permission string is populated.
-- Purpose: foreground VoiceScan and wearable voice input while the user is using those features.
-- The permission is not for continuous background listening, screen-off recording, biometric voice identification, targeted advertising, or ad measurement.
-- No Android foreground-service microphone permission is currently required because no background/foreground-service recording path was found in this branch.
-- Runtime path: On Android, the onboarding permissions screen (Step 5) exposes a **Microphone** toggle. Tapping the toggle on triggers `PermissionsAndroid.request(RECORD_AUDIO)` and shows the OS microphone prompt. If the user denies, a non-blocking message explains how to enable microphone access in Android App Settings.
-- This pass wires the permission request only; it does not record, upload, store, or transcribe audio. VoiceScan transcription and wearable audio input remain future implementation.
+- **VoiceScan status:** Planned but inactive for the current launch. The onboarding permissions screen shows a **Microphone** card labeled **Coming Soon** with the description **"VoiceScan is coming soon."** The toggle is disabled and visually off; tapping it is a no-op.
+- **Android permission:** `android.permission.RECORD_AUDIO` is **not requested** in this release. It is removed from `app.json` `android.permissions`, removed from `AndroidManifest.xml`, and added to `android.blockedPermissions`.
+- **Expo camera plugin:** `recordAudioAndroid` is `false` and `microphonePermission` is disabled so the plugin does not inject microphone permission declarations.
+- **No audio collection, transmission, storage, or processing.** There is no active VoiceScan flow, no wearable audio input, no background listening, no screen-off recording, no biometric voice identification, no targeted advertising use, and no ad measurement use of audio.
+- **Runtime path:** There is no user-initiated microphone permission prompt in this release. The `requestMicrophonePermission()` helper is gated behind `VOICESCAN_ENABLED === true` and returns `granted: false` while VoiceScan remains inactive.
 
 ## 4. Account Deletion
 
@@ -112,7 +110,7 @@ Before Play submission, publish website/legal copy that matches this Android bra
 
 - Camera scans, user-submitted photos/videos, and optional photo-library inspiration uploads.
 - Google Gemini / AI-provider image processing for app functionality.
-- Foreground microphone/audio use for VoiceScan and wearable voice input.
+- VoiceScan is a visible "Coming Soon" placeholder only; no microphone/audio collection, recording, transmission, storage, or processing in this release.
 - No background listening, no biometric voice identification, no Advertising ID, no targeted ads.
 - Coarse foreground location for weather-aware StyleChat only.
 - Auth/account identifiers, email, privacy settings, deletion/export/correction requests, StyleChat, Dressing Rooms, shared rooms, messages, reactions, and other UGC.
@@ -128,7 +126,8 @@ Known live mismatch to fix: the privacy page still references the older iOS subm
 - [x] Public account deletion URL verified
 - [x] Minimum UGC report/local-hide path (no DB schema)
 - [x] Supabase production project renamed
-- [x] Foreground Android microphone permission request path wired through onboarding permissions screen
-- [ ] Final Android VoiceScan/wearable microphone prompt verified on a physical device/AAB
+- [ ] VoiceScan "Coming Soon" placeholder verified on onboarding permissions screen and home screen
+- [ ] Confirm no Android microphone permission prompt appears anywhere in the release build
+- [x] `RECORD_AUDIO` removed/blocked from Android manifest and Expo config
 - [ ] Live privacy/legal/support pages updated to match the Android Data Safety scope
 - [ ] Production AAB built and uploaded

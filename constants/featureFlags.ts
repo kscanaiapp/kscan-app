@@ -73,6 +73,16 @@ export const TEXTSCAN_VOICE_PLACEHOLDER_ENABLED =
 export const TEXTSCAN_BACKEND_ENABLED =
   process.env.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED === 'true';
 
+// ── VoiceScan placeholder flag ───────────────────────────────────────────────
+/**
+ * Master switch for VoiceScan interactivity. VoiceScan is planned but inactive
+ * for the current launch; the flag is permanently false here so the UI only
+ * renders a non-interactive "Coming Soon" placeholder. No microphone permission
+ * request, recording, backend call, or local state mutation should occur while
+ * this flag is false.
+ */
+export const VOICESCAN_ENABLED = false;
+
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';

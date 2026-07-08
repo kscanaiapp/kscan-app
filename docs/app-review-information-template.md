@@ -24,7 +24,7 @@ Use this template when filling store reviewer instructions. Do not commit real r
 ## Review Notes
 
 ```text
-The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared rooms, photo-library inspiration upload, privacy controls, data export/correction request entry points, in-app account deletion request intake, and Android microphone permission for foreground VoiceScan / wearable voice input. Voice input is user-initiated while the app is in use. The app does not perform background listening, screen-off recording, biometric voice identification, targeted advertising, push notifications, ads, subscriptions, or in-app purchases. When-In-Use approximate location is requested only for weather-aware StyleChat suggestions, after a prominent in-app disclosure. Location is optional, and raw coordinates are not stored.
+The current build includes Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, shared rooms, photo-library inspiration upload, privacy controls, data export/correction request entry points, and in-app account deletion request intake. VoiceScan is visible as an inactive "Coming Soon" placeholder only; it does not request microphone permission, record audio, or call backend services in this release. The app does not perform background listening, screen-off recording, biometric voice identification, targeted advertising, push notifications, ads, subscriptions, or in-app purchases. When-In-Use approximate location is requested only for weather-aware StyleChat suggestions, after a prominent in-app disclosure. Location is optional, and raw coordinates are not stored.
 
 Shared Dressing Rooms and room chat contain user-generated content. Each room message includes a Report action that opens a prefilled email to kscanai.app@gmail.com and hides the message locally on the device. Server-side moderation, reporting storage, and user blocking are not implemented in this build.
 
@@ -32,7 +32,7 @@ To review the app:
 1. Sign in with the reviewer email/password above.
 2. Allow camera access when prompted.
 3. Capture a clothing item or outfit for scan analysis.
-4. Exercise VoiceScan / wearable voice input only from its in-app point of use if it is enabled in the submitted Android build.
+4. VoiceScan is inactive in this build and displays "Coming Soon" on the onboarding permissions screen and home screen. No microphone prompt should appear.
 5. Save a result to the local library, then delete it from the library.
 6. Open a Dressing Room message, use Report, and confirm the message hides locally.
 7. Open Privacy controls to review privacy settings, export/correction request entry points, and Delete Account.

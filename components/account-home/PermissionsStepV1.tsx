@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, Pressable, Switch, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { PrimaryButton, TertiaryButton } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermissionPreferences';
 
 interface PermissionsStepV1Props {
@@ -24,8 +25,9 @@ interface PermissionsStepV1Props {
  * - Toggle switches for Microphone/Notifications
  * - Continue to Home CTA and Not now link
  *
- * Native permission requests are triggered here only for the Android
- * microphone toggle (VoiceScan / wearable voice input). Camera, photos,
+ * VoiceScan is planned but inactive for the current launch. The Microphone
+ * card is therefore rendered as a disabled "Coming Soon" placeholder and does
+ * not request microphone permission or mutate local state. Camera, photos,
  * and notifications remain point-of-use in Scan / Upload flows.
  */
 export function PermissionsStepV1({
@@ -38,7 +40,7 @@ export function PermissionsStepV1({
   onNotNow,
 }: PermissionsStepV1Props) {
   const { camera, photos, microphone, notifications } = preferences;
-  const [microphoneMessage, setMicrophoneMessage] = useState<string | null>(null);
+  const microphoneDisabled = !VOICESCAN_ENABLED;
 
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
@@ -75,35 +77,34 @@ export function PermissionsStepV1({
           onActionChange={() => togglePreference('photos')}
         />
 
-        {/* Microphone */}
+        {/* Microphone — VoiceScan is planned but inactive for this launch. */}
         <PermissionCard
           icon="◉"
           title="Microphone"
-          badge="OPTIONAL"
-          description="VoiceScan uses your microphone only when you start a voice or wearable input action. K Scan AI does not listen in the background."
+          badge={microphoneDisabled ? 'Coming Soon' : 'OPTIONAL'}
+          description={
+            microphoneDisabled
+              ? 'VoiceScan is coming soon.'
+              : 'VoiceScan uses your microphone only when you start a voice or wearable input action. K Scan AI does not listen in the background.'
+          }
           actionType="toggle"
-          actionValue={microphone}
-          onActionChange={async (value) => {
-            setMicrophoneMessage(null);
-            if (value && Platform.OS === 'android') {
-              const { granted } = await requestMicrophonePermission();
-              if (granted) {
-                setPreference('microphone', true);
-              } else {
-                setPreference('microphone', false);
-                setMicrophoneMessage(
-                  'Microphone access denied. Please enable microphone permissions in your Android App Settings to use VoiceScan.'
-                );
-              }
-            } else {
-              setPreference('microphone', value);
-            }
-          }}
+          actionValue={microphoneDisabled ? false : microphone}
+          onActionChange={
+            microphoneDisabled
+              ? () => {}
+              : async (value) => {
+                  if (value && Platform.OS === 'android') {
+                    const { granted } = await requestMicrophonePermission();
+                    setPreference('microphone', granted);
+                  } else {
+                    setPreference('microphone', value);
+                  }
+                }
+          }
+          disabled={microphoneDisabled}
           recommendation="Recommended"
+          accessibilityLabel="Microphone permission, coming soon, disabled"
         />
-        {microphoneMessage ? (
-          <Text style={styles.microphoneMessage}>{microphoneMessage}</Text>
-        ) : null}
 
         {/* Notifications */}
         <PermissionCard
@@ -150,6 +151,8 @@ interface PermissionCardProps {
   actionValue: boolean;
   onActionChange: (value: boolean) => void;
   recommendation?: string;
+  disabled?: boolean;
+  accessibilityLabel?: string;
 }
 
 function PermissionCard({
@@ -161,9 +164,15 @@ function PermissionCard({
   actionValue,
   onActionChange,
   recommendation,
+  disabled = false,
+  accessibilityLabel,
 }: PermissionCardProps) {
   return (
-    <View style={styles.card}>
+    <View
+      style={[styles.card, disabled && styles.cardDisabled]}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+    >
       <View style={styles.cardRow}>
         <View style={styles.cardIconWrap}>
           <Text style={styles.cardIcon}>{icon}</Text>
@@ -190,25 +199,31 @@ function PermissionCard({
         <View style={styles.cardAction}>
           {actionType === 'allow' ? (
             <Pressable
-              onPress={() => onActionChange(!actionValue)}
+              onPress={() => !disabled && onActionChange(!actionValue)}
+              disabled={disabled}
               style={({ pressed }) => [
                 styles.allowButton,
-                pressed && styles.allowButtonPressed,
+                disabled && styles.allowButtonDisabled,
+                pressed && !disabled && styles.allowButtonPressed,
                 actionValue && styles.allowButtonActive,
               ]}
               accessibilityRole="button"
               accessibilityLabel={`Allow ${title}`}
-              accessibilityState={{ selected: actionValue }}
+              accessibilityState={{ selected: actionValue, disabled }}
             >
-              <Text style={styles.allowButtonText}>ALLOW</Text>
+              <Text style={[styles.allowButtonText, disabled && styles.allowButtonTextDisabled]}>
+                ALLOW
+              </Text>
             </Pressable>
           ) : (
             <Switch
               value={actionValue}
-              onValueChange={onActionChange}
+              onValueChange={disabled ? undefined : onActionChange}
+              disabled={disabled}
               trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
               thumbColor={actionValue ? LUXURY.colors.plum : '#f4f3f4'}
               accessibilityLabel={`Toggle ${title}`}
+              accessibilityState={{ disabled, checked: actionValue }}
             />
           )}
         </View>
@@ -342,13 +357,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: LUXURY.colors.plum,
   },
-  microphoneMessage: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.error,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
+  allowButtonDisabled: {
+    borderColor: LUXURY.colors.border,
   },
+  allowButtonTextDisabled: {
+    color: LUXURY.colors.stone,
+  },
+  cardDisabled: {
+    opacity: 0.5,
+  },
+
   actions: {
     gap: SPACING.md,
     marginTop: SPACING.lg,

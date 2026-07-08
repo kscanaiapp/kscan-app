@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
+  ViewStyle,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -27,7 +28,7 @@ import {
   StatusPill,
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
 
 
 function formatDateLabel(iso: string): string {
@@ -69,6 +70,37 @@ function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, a
       <Text style={styles.chipTitle}>{title}</Text>
       <Text style={styles.chipBody}>{body}</Text>
     </Pressable>
+  );
+}
+
+/**
+ * Inactive VoiceScan placeholder pill.
+ *
+ * VoiceScan is planned but inactive for the current launch. This pill is
+ * intentionally visible so users know the feature is coming, but it is a
+ * silent no-op: no navigation, no microphone request, no backend call, and
+ * no local state mutation.
+ */
+interface VoiceScanPlaceholderPillProps {
+  style?: ViewStyle;
+}
+
+function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
+  const inactive = !VOICESCAN_ENABLED;
+  return (
+    <View
+      testID="home-luxury-voicescan-coming-soon"
+      style={[styles.voiceScanPill, inactive && styles.voiceScanPillInactive, style]}
+      accessibilityRole="text"
+      accessibilityLabel="Voice Scan. Coming Soon."
+    >
+      <Text style={[styles.voiceScanPillTitle, inactive && styles.voiceScanPillTextMuted]}>
+        VOICE SCAN
+      </Text>
+      <Text style={[styles.voiceScanPillSubtitle, inactive && styles.voiceScanPillTextMuted]}>
+        COMING SOON
+      </Text>
+    </View>
   );
 }
 
@@ -328,17 +360,20 @@ export default function HomeLuxuryTechV1() {
         />
       </View>
 
-      {/* Secondary entry: TextScan if enabled */}
-      {textScanEnabled && (
-        <SecondaryButton
-          testID="home-luxury-textscan"
-          title="✧ TextScan"
-          onPress={() => router.push('/text-scan')}
-          accessibilityLabel="Open TextScan"
-          accessibilityHint="Describe a look with text instead of the camera"
-          style={styles.textScanButton}
-        />
-      )}
+      {/* Secondary entries: TextScan if enabled, VoiceScan placeholder */}
+      <View style={styles.secondaryActionsRow}>
+        {textScanEnabled && (
+          <SecondaryButton
+            testID="home-luxury-textscan"
+            title="✧ TextScan"
+            onPress={() => router.push('/text-scan')}
+            accessibilityLabel="Open TextScan"
+            accessibilityHint="Describe a look with text instead of the camera"
+            style={styles.secondaryActionButton}
+          />
+        )}
+        <VoiceScanPlaceholderPill style={textScanEnabled ? styles.secondaryActionHalf : styles.secondaryActionFull} />
+      </View>
 
       {/* Trust footer */}
       <PrivacyFooter
@@ -543,9 +578,55 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.graphite,
     textAlign: 'center',
   },
-  textScanButton: {
+  secondaryActionsRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  secondaryActionButton: {
+    flex: 1,
     alignSelf: 'stretch',
     minWidth: undefined,
-    marginBottom: SPACING.xl,
+  },
+  secondaryActionHalf: {
+    flex: 1,
+  },
+  secondaryActionFull: {
+    flex: 1,
+  },
+  voiceScanPill: {
+    alignSelf: 'stretch',
+    minHeight: 44,
+    borderRadius: LUXURY.buttons.secondary.borderRadius,
+    backgroundColor: LUXURY.buttons.secondary.backgroundColor,
+    borderWidth: LUXURY.buttons.secondary.borderWidth,
+    borderColor: LUXURY.buttons.secondary.borderColor,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  voiceScanPillInactive: {
+    opacity: 0.5,
+    borderColor: LUXURY.colors.border,
+  },
+  voiceScanPillTitle: {
+    ...LUXURY.typography.cta,
+    fontSize: LUXURY.buttons.secondary.fontSize,
+    letterSpacing: LUXURY.buttons.secondary.letterSpacing,
+    fontWeight: LUXURY.buttons.secondary.fontWeight,
+    color: LUXURY.buttons.secondary.color,
+    textAlign: 'center',
+  },
+  voiceScanPillSubtitle: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    letterSpacing: 0.5,
+    color: LUXURY.colors.graphite,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  voiceScanPillTextMuted: {
+    color: LUXURY.colors.stone,
   },
 });
