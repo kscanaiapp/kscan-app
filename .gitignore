@@ -1,97 +1,108 @@
-node_modules
-.env
-.env.local
+node_modules/
+.expo/
+.expo-shared/
+.metro-cache/
+coverage/
+
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+/android/app/.cxx/
+
 /archive/
 /.claude/
+/.cursor/
 /.gradle-user-home/
 /.idea/
-/*.png
+/.maestro/
+/maestro/
+
 /KScan-selected-files.zip
 /test-*.js
 /metro.log
 /server.log
 
-.expo/
+# Root-level QA screenshots / local captures
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
 
-API Keys.docx
-
-# K Scan QA/runtime/build artifacts
-qa/*.png
-qa/*.jpg
-qa/*.jpeg
-qa/*.webp
-qa/*.xml
-qa/*.log
-qa/*.zip
-qa/*.aab
-qa/*.apk
-qa/**/*.png
-qa/**/*.jpg
-qa/**/*.jpeg
-qa/**/*.webp
-qa/**/*.xml
-qa/**/*.log
-qa/**/*.zip
-qa/**/*.aab
-qa/**/*.apk
-qa/**/aab-unpacked/
-qa/**/ui-dumps/
-
-# Local release-candidate runtime/build artifacts
-qa/v5-release-candidate/
-
-# Supabase local CLI state
-supabase/.branches/
-
-# Local root audit scratch files
-# Anchored to repo root by leading slash
-/release-candidate-audit-*.md
-
-*Keys*.docx
-
-*keys*.docx
-
+# Secrets / signing material
+*API*Keys*
+*api*keys*
+*.jks
+*.keystore
+android/app/debug.keystore
+android/app/release-keystore/
+android/local.properties
+*.p12
+*.pem
+*.key
+*.p8
 *.secret.*
+.env
+.env.local
+.env.e2e
+.env.*
+!.env.example
+!.env.local.example
+!.env.e2e.example
+
+# Build artifacts
+*.aab
+*.apk
+*.apks
+*.ipa
+*.tar
+*.zip
+
+# Local QA / smoke / debug artifacts
+2026-*/
+physical-*
+qa/
+qa-*.xml
+qa-*.json
+qa-*.err
+qa-*.err.log
+qa-*.out.log
+qa-*.log
+qa-*.txt
+qa-*.png
+qa-metro.err
+kscan-*.xml
+logcat.pid
+*.log
+*.csv
+*.tmp
+.maestro/flows/smoke/
+scripts/textscan-live-smoke.ps1
+
+# Local audit/docs not needed in Git
+*.docx
+*.pdf
+/release-candidate-audit-*.md
+/FRONTEND_*REPORT*.md
+/HOME_NAVIGATION_*.md
+/KSCAN_*.md
+/KScan_Website_Audit_*.md
+/ONBOARDING_*.md
+/kscan-presubmission-audit.md
+/deletion-fix.patch
+/apple-audit-assets/
+/kscan-google-glasses/
+/qa-*.json
 
 # Local App Store / reviewer artifacts
 store.config.json
-apple-audit-assets/
 
-# Apple private keys / signing material
-*.p8
-
-# Android signing material — never commit keystore or credential files
-*.keystore
-*.jks
-android/app/release-keystore/
-android/local.properties
-
-# Physical device debug logs
-physical-*
-
-# local/editor
-.cursor/
-.claude/
+# Supabase local CLI state
 supabase/.temp/
+supabase/.branches/
 
-# QA logs and generated files
-qa-*.log
-qa-*.err.log
-qa-*.out.log
-qa-*.xml
-qa-*.png
-qa/screenshots/
-qa/**/screenshots/
-*.log
-
-# local test payloads
+# Local test payloads
 kickscrew-test.json
 nike-shoe-test*.json
 product-search-test.json
 product-search-response.json
-
-# secrets
-.env
-.env.local
-.env.*
-API Keys.docx
