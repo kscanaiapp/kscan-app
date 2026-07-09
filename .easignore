@@ -2,60 +2,103 @@ node_modules/
 .expo/
 .expo-shared/
 .metro-cache/
+.cxx/
+**/.cxx/
+**/.cxx/**
+coverage/
 
 android/.gradle/
 android/build/
 android/app/build/
+android/app/.cxx/
+/android/app/.cxx/
+/android/app/.cxx/**
+android/local.properties
 
 .git/
 .vscode/
 .idea/
 
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+/archive/
+/.claude/
+/.cursor/
+/.gradle-user-home/
+/.maestro/
+/maestro/
 
-maestro/screenshots/
-maestro/reports/
-coverage/
+# Secrets / signing / credentials
+*.jks
+*.keystore
+android/app/debug.keystore
+android/app/release-keystore/
+*.p12
+*.pem
+*.key
+*.p8
+*API*Keys*
+*api*keys*
+*.secret.*
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.e2e.example
 
+# Build artifacts
+*.aab
+*.apk
+*.apks
+*.ipa
+*.tar
+*.zip
 *.mp4
 *.mov
 *.avi
-*.zip
-
-.env
-.env.*
 
 # Local QA / debug artifacts
-physical-*.txt
-physical-*.log
+2026-*/
+physical-*
 qa-*.xml
+qa-*.json
 qa-*.err
 qa-*.log
 qa-*.txt
+qa-metro.err
 kscan-*.xml
 qa/
 qa/**
+logcat.pid
+*.log
+*.csv
 *.tmp
 
-# Local tool/workspace metadata
-.cursor/
+# Local docs and generated submission files not needed for app build
+*.docx
+*.pdf
+/release-candidate-audit-*.md
+/FRONTEND_*REPORT*.md
+/HOME_NAVIGATION_*.md
+/KSCAN_*.md
+/KScan_Website_Audit_*.md
+/ONBOARDING_*.md
+/kscan-presubmission-audit.md
+/deletion-fix.patch
+/AGENTS.md
+/apple-audit-assets/
+/store.config.json
+/kscan-google-glasses/
+/kickscrew-test.json
+/nike-shoe-test*.json
+/product-search-test.json
+/product-search-response.json
+/qa-*.json
+
+# Root-level screenshots and QA images only
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+
+# Local tool/workspace state
 supabase/.temp/
 supabase/.branches/
-
-# Local audit/docs not needed for app build
-KScan_Website_Audit_*.md
-release-candidate-audit-*.md
-kscan-presubmission-audit.md
-AGENTS.md
-deletion-fix.patch
-kscan-google-glasses/
-
-# Local App Store / reviewer artifacts
-store.config.json
-apple-audit-assets/
-
-# Apple private keys / signing material
-*.p8

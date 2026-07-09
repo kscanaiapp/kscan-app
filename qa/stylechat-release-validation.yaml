@@ -1,9 +1,0 @@
-appId: host.exp.exponent
----
-- tapOn:
-    id: "style-chat-home-button"
-- tapOn: "ASK STYLECHAT"
-- tapOn:
-    id: "style-chat-new-session-button"
-- assertVisible:
-    id: "style-chat-input"
