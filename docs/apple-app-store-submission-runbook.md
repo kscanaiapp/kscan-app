@@ -19,6 +19,13 @@ Last updated: 2026-07-08
 
 > Note: StyleChat/weather-aware styling is present in code but guarded off on iOS in this build (`app/style-chat/[sessionId].tsx`). It does not run on iOS and therefore does not request or collect location.
 
+## Backend Target
+
+- **iOS mobile backend:** Supabase project `wyyuqfdxucjksghsmhry` (`https://wyyuqfdxucjksghsmhry.supabase.co`), configured via `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `eas.json`.
+- **Legacy backend:** Project `yzqjvdfgefveprobvvyw` remains active for website/waitlist/privacy/opt-out flows and is intentionally preserved; it is not the iOS mobile runtime target.
+- **Session invalidation:** Existing users signed in against `yzq` will need to sign in again after the app is repointed to `wyy`; persisted `yzq` JWTs are not valid on `wyy`.
+- The iOS app uses the same `services/supabaseClient.ts` client as Android; there is no platform-specific backend branching.
+
 ## Local Submission Readiness
 
 - `app.json` contains App Store bundle metadata, camera purpose text, `ios.buildNumber`, `ios.supportsTablet: false`, export encryption config, and privacy manifest declarations.
