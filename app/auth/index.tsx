@@ -360,51 +360,49 @@ export default function AuthScreen() {
               : 'Create an account to sync your privacy preferences and manage your K Scan data.'}
           </Text>
 
-          {Platform.OS !== 'ios' ? (
-            <>
+          <>
+            <Pressable
+              testID="auth-google-button"
+              style={[styles.googleButton, busy && styles.googleButtonDisabled]}
+              onPress={handleGoogleSignIn}
+              disabled={busy}
+            >
+              {googleBusy ? (
+                <ActivityIndicator size="small" color={COLORS.textPrimary} />
+              ) : (
+                <>
+                  <View style={styles.googleIcon}>
+                    <Text style={styles.googleIconText}>G</Text>
+                  </View>
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </>
+              )}
+            </Pressable>
+
+            {appleAuthAvailable && Platform.OS === 'ios' ? (
               <Pressable
-                testID="auth-google-button"
-                style={[styles.googleButton, busy && styles.googleButtonDisabled]}
-                onPress={handleGoogleSignIn}
+                testID="auth-apple-button"
+                style={[styles.appleButton, busy && styles.appleButtonDisabled]}
+                onPress={handleAppleSignIn}
                 disabled={busy}
               >
-                {googleBusy ? (
-                  <ActivityIndicator size="small" color={COLORS.textPrimary} />
+                {appleBusy ? (
+                  <ActivityIndicator size="small" color={COLORS.black} />
                 ) : (
                   <>
-                    <View style={styles.googleIcon}>
-                      <Text style={styles.googleIconText}>G</Text>
-                    </View>
-                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                    <Text style={styles.appleIconText}>Apple</Text>
+                    <Text style={styles.appleButtonText}>Continue with Apple</Text>
                   </>
                 )}
               </Pressable>
+            ) : null}
 
-              {appleAuthAvailable ? (
-                <Pressable
-                  testID="auth-apple-button"
-                  style={[styles.appleButton, busy && styles.appleButtonDisabled]}
-                  onPress={handleAppleSignIn}
-                  disabled={busy}
-                >
-                  {appleBusy ? (
-                    <ActivityIndicator size="small" color={COLORS.black} />
-                  ) : (
-                    <>
-                      <Text style={styles.appleIconText}>Apple</Text>
-                      <Text style={styles.appleButtonText}>Continue with Apple</Text>
-                    </>
-                  )}
-                </Pressable>
-              ) : null}
-
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-            </>
-          ) : null}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          </>
 
           {error ? (
             <View style={styles.errorBanner}>

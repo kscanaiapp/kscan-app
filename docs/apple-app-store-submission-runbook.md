@@ -12,8 +12,8 @@ Last updated: 2026-07-08
 - iOS build number in repo: `2`
 - EAS project: `@ams2dad/kscan`
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
-- Included for this iOS release source surface: welcome/onboarding, email/password account access, onboarding Google OAuth, camera scan, photo-library upload, local library, privacy controls, data export/correction request entry points, and account deletion request intake.
-- Still not included for this release as active functionality: Apple OAuth entry points, StyleChat, Dressing Rooms, location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio.
+- Included for this iOS release source surface: welcome/onboarding, email/password account access, onboarding Google OAuth, onboarding Apple Sign-In, camera scan, photo-library upload, local library, privacy controls, data export/correction request entry points, and account deletion request intake.
+- Still not included for this release as active functionality: StyleChat, Dressing Rooms, location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. Apple Sign-In and Google OAuth are both active on iOS.
 - **Audio/Microphone collection: No.** No microphone permission is requested in this build. Voice input is not available.
 - **Welcome / onboarding tree restored.** New users see the full welcome flow: Welcome, Auth Choice, Account Setup, Terms + Privacy, Permissions, and a completion/home handoff state. The Permissions page shows Camera and Photos as preference choices, while Microphone and Notifications are disabled and show only "Coming Soon". No microphone or location permission is requested from this page.
 

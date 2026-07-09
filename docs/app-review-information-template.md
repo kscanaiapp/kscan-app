@@ -24,7 +24,7 @@ Use this template when filling App Store Connect App Review Information. Do not 
 ## Review Notes
 
 ```text
-The current iOS build includes the restored welcome/onboarding flow, email/password account access, onboarding Google OAuth, camera scan, photo-library upload, local library, privacy controls, data export/correction request entry points, and in-app account deletion request intake. Apple OAuth entry points, StyleChat, Dressing Rooms, subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
+The current iOS build includes the restored welcome/onboarding flow, email/password account access, onboarding Google OAuth, onboarding Apple Sign-In, camera scan, photo-library upload, local library, privacy controls, data export/correction request entry points, and in-app account deletion request intake. StyleChat, Dressing Rooms, subscriptions, in-app purchases, ads, tracking, push notifications, location, and microphone access are not active in this build. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. StyleChat/weather-aware styling is guarded off on iOS and does not request or collect location.
 
 Audio/Microphone collection: No. No microphone permission is requested in this build. Voice input is not available.
 
