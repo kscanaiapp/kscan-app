@@ -163,6 +163,30 @@ export default function LibraryScreen() {
     setSelectedInspirationUri(null);
   };
 
+  const handleDeleteScan = (id: string) => {
+    Alert.alert(
+      'Delete Scan?',
+      'This will remove the scan from your Style Closet.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await remove(id);
+            } catch (err: any) {
+              if (__DEV__) {
+                console.warn('Delete scan failed', err);
+              }
+              Alert.alert('Could not delete', 'Could not delete this scan. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Tapping a Closet/Inspiration item opens the room picker so it can be added
   // to a Dressing Room. Gated by the dressingRooms feature flag.
   const handleAddInspirationToRoom = (item: InspirationItem) => {
@@ -242,7 +266,7 @@ export default function LibraryScreen() {
               date={formatDate(scans[0].createdAt)}
               status="Scan"
               onPress={() => handleOpenScan(scans[0])}
-              onDelete={() => remove(scans[0].id)}
+              onDelete={() => handleDeleteScan(scans[0].id)}
               style={{ width: SINGLE_CARD_W }}
             />
           </View>
@@ -259,7 +283,7 @@ export default function LibraryScreen() {
                   date={formatDate(a.createdAt)}
                   status="Scan"
                   onPress={() => handleOpenScan(a)}
-                  onDelete={() => remove(a.id)}
+                  onDelete={() => handleDeleteScan(a.id)}
                   style={{ width: CARD_W }}
                 />
                 {b ? (
@@ -271,7 +295,7 @@ export default function LibraryScreen() {
                     date={formatDate(b.createdAt)}
                     status="Scan"
                     onPress={() => handleOpenScan(b)}
-                    onDelete={() => remove(b.id)}
+                    onDelete={() => handleDeleteScan(b.id)}
                     style={{ width: CARD_W }}
                   />
                 ) : (
