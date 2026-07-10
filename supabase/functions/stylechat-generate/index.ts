@@ -2,19 +2,23 @@
 //
 // Architecture:
 //   Mobile StyleChat UI → supabase.functions.invoke() → this function → Gemini Flash
+//   Optional additive context (weather, Style DNA, active scan/upload/TextScan) is
+//   sent by the client but validated and consumed server-side.
 //
 // Security guarantees:
 //   - JWT verified via auth.getUser() before any data access
 //   - User identity derived from token, never from request body
 //   - Daily quota enforced atomically via increment_stylechat_daily_usage() RPC
 //   - Gemini API key never leaves this function
-//   - Context assembled server-side; mobile sends only { sessionId, message }
+//   - Core payload is { sessionId, message }; optional context fields are additive.
 //   - Response sanitized before returning to mobile
 //
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
 // Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-1.5-flash).
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
+import { parseActiveContext, buildActiveContextBlock } from './activeContext.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +40,27 @@ const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/m
 // Stable GA default; operator should set STYLECHAT_GEMINI_MODEL at deployment.
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Local rollback switch for the explainable-recommendation slice (Option A). Setting this
+// to false restores plain replies: the prompt stops requesting an explanation and the
+// parser/response stop emitting why_this_works. No other code change is required.
+const STYLECHAT_EXPLANATIONS_ENABLED = true;
+const WHY_THIS_WORKS_MAX_CHARS = 200;
+
+// Appended to the system prompt only when explanations are enabled. Instructs Gemini to
+// wrap concrete recommendations so the explanation can be split out non-destructively.
+const EXPLANATION_INSTRUCTIONS = `FORMAT FOR RECOMMENDATIONS:
+When your reply contains a concrete outfit or styling recommendation, wrap it exactly like this:
+<content>
+Your normal styling reply goes here, in plain text.
+</content>
+<why_this_works>
+One short sentence (aim for 120 characters or less) on why this recommendation works.
+</why_this_works>
+
+Only include the <why_this_works> block for concrete recommendations. For greetings, clarifying questions, refusals, or "I need more information" replies, respond in plain text with NO tags.
+Keep the explanation to a single mobile-friendly sentence. Do not overclaim personalization and do not invent wardrobe items you were not given. If you have little style history for this user, keep it cautious, e.g. "Based on your available items…" or "as a starting point.".
+These two tags are the only markup permitted; everything inside them stays plain text.`;
 
 // ── System prompt (server-side only) ──────────────────────────────────────────
 
@@ -266,6 +291,7 @@ interface GeminiCallResult {
   text: string;
   tokenEstimate: number;
   finishReason: string;
+  whyThisWorks?: string;
 }
 
 function buildGeminiBody(systemText: string, contents: GeminiTurn[]): GeminiBody {
@@ -312,6 +338,34 @@ function extractGeminiText(candidate: GeminiCandidate | undefined): string {
       .filter(Boolean)
       .join(' '),
   );
+}
+
+// Splits raw Gemini output into the recommendation text and the optional explanation.
+// Extraction is non-destructive: text without tags returns { content: <original> } so the
+// existing pipeline behaves exactly as before, and malformed/truncated tags never leak.
+function parseStyleChatOutput(rawText: string): { content: string; whyThisWorks?: string } {
+  const text = typeof rawText === 'string' ? rawText : '';
+
+  const whyMatch = text.match(/<why_this_works>([\s\S]*?)<\/why_this_works>/i);
+  const rawWhy = whyMatch ? normalizeAssistantText(whyMatch[1]) : '';
+  const whyThisWorks = rawWhy
+    ? (rawWhy.length > WHY_THIS_WORKS_MAX_CHARS ? rawWhy.slice(0, WHY_THIS_WORKS_MAX_CHARS).trim() : rawWhy)
+    : undefined;
+
+  const contentMatch = text.match(/<content>([\s\S]*?)<\/content>/i);
+  let content = contentMatch
+    ? contentMatch[1]
+    : text.replace(/<why_this_works>[\s\S]*?<\/why_this_works>/gi, ' ');
+
+  // Drop any stray/orphan tags (e.g. a block left unterminated by MAX_TOKENS truncation).
+  content = content.replace(/<\/?(?:content|why_this_works)>/gi, ' ').trim();
+
+  return {
+    content: content.length > 0
+      ? content
+      : text.replace(/<\/?(?:content|why_this_works)>/gi, ' ').replace(/\s+/g, ' ').trim(),
+    whyThisWorks,
+  };
 }
 
 function incompleteReasonFor(text: string, userMessage: string, finishReason: string): string | null {
@@ -377,7 +431,20 @@ async function callGemini(
     const finishReason = typeof candidate?.finishReason === 'string' ? candidate.finishReason : '';
     const blockReason  = geminiData.promptFeedback?.blockReason;
     const totalTokens  = geminiData.usageMetadata?.totalTokenCount;
-    const candidateText = extractGeminiText(candidate);
+    let candidateText: string;
+    let whyThisWorks: string | undefined;
+    if (STYLECHAT_EXPLANATIONS_ENABLED) {
+      const rawCandidateText = (candidate?.content?.parts ?? [])
+        .map((part) => (typeof part.text === 'string' ? part.text : ''))
+        .filter(Boolean)
+        .join(' ');
+      const parsedOutput = parseStyleChatOutput(rawCandidateText);
+      candidateText = normalizeAssistantText(parsedOutput.content);
+      whyThisWorks = parsedOutput.whyThisWorks;
+    } else {
+      candidateText = extractGeminiText(candidate);
+      whyThisWorks = undefined;
+    }
 
     if (!candidateText) {
       console.warn(
@@ -428,6 +495,7 @@ async function callGemini(
       text: assistantText,
       tokenEstimate,
       finishReason,
+      whyThisWorks,
     };
   } finally {
     clearTimeout(timer);
@@ -456,6 +524,157 @@ function buildMemoryText(
 
   const text = parts.join('. ');
   return text.length > MAX_MEMORY_CHARS ? text.slice(0, MAX_MEMORY_CHARS) : text;
+}
+
+// ── Weather-aware styling (Phase 0) ─────────────────────────────────────────────
+// Optional, additive. The client sends a rounded foreground location; we fetch a
+// compact current-weather read from Open-Meteo (no API key) and expose it to the
+// model as optional context. Weather never blocks a reply: a 1.5s timeout or any
+// failure yields null and generation proceeds without weather. No raw GPS is logged.
+
+const WEATHER_FETCH_TIMEOUT_MS = 1_500;
+const WEATHER_CACHE_TTL_MS     = 15 * 60 * 1_000;
+const OPEN_METEO_BASE          = 'https://api.open-meteo.com/v1/forecast';
+
+type WeatherCondition = 'hot' | 'cold' | 'rain' | 'snow' | 'windy' | 'clear' | 'unknown';
+
+interface WeatherLocationInput {
+  enabled: boolean;
+  source: 'gps_foreground';
+  roundedLat: number;
+  roundedLon: number;
+  requestedAt: string;
+  locale?: string;
+}
+
+interface WeatherStylingContext {
+  enabled: boolean;
+  source: 'gps_foreground';
+  temperatureF?: number;
+  temperatureC?: number;
+  preferredUnit?: 'F' | 'C';
+  condition?: WeatherCondition;
+  observedAt: string;
+  expiresAt: string;
+}
+
+// Opportunistic in-memory cache keyed by ROUNDED coordinates. Best-effort only
+// (edge instances are ephemeral); correctness never depends on it. Durable edge
+// caching (Web Cache API) is deferred pending confirmation of Supabase Edge runtime
+// support. No raw/un-rounded GPS is ever cached.
+const weatherCache = new Map<string, { context: WeatherStylingContext; cachedAt: number }>();
+
+function parseWeatherLocationInput(raw: unknown): WeatherLocationInput | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (r.enabled !== true) return null;
+  if (r.source !== 'gps_foreground') return null;
+  const lat = typeof r.roundedLat === 'number' ? r.roundedLat : NaN;
+  const lon = typeof r.roundedLon === 'number' ? r.roundedLon : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+  return {
+    enabled: true,
+    source: 'gps_foreground',
+    roundedLat: lat,
+    roundedLon: lon,
+    requestedAt: typeof r.requestedAt === 'string' ? r.requestedAt : new Date().toISOString(),
+    locale: typeof r.locale === 'string' ? r.locale : undefined,
+  };
+}
+
+const SNOW_CODES  = new Set([71, 73, 75, 77, 85, 86]);
+const RAIN_CODES  = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
+const CLEAR_CODES = new Set([0, 1, 2, 3, 45, 48]);
+
+function resolveCondition(weatherCode: number, tempF: number, windMph: number): WeatherCondition {
+  if (SNOW_CODES.has(weatherCode)) return 'snow';
+  if (RAIN_CODES.has(weatherCode)) return 'rain';
+  if (Number.isFinite(windMph) && windMph >= 25) return 'windy';
+  if (Number.isFinite(tempF) && tempF >= 80) return 'hot';
+  if (Number.isFinite(tempF) && tempF <= 45) return 'cold';
+  if (CLEAR_CODES.has(weatherCode)) return 'clear';
+  return 'unknown';
+}
+
+async function fetchWeatherStylingContext(
+  input: WeatherLocationInput | null,
+): Promise<WeatherStylingContext | null> {
+  if (!input) return null;
+
+  const cacheKey = input.roundedLat + ',' + input.roundedLon;
+  const cached = weatherCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt < WEATHER_CACHE_TTL_MS) {
+    return cached.context;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEATHER_FETCH_TIMEOUT_MS);
+  try {
+    const url = new URL(OPEN_METEO_BASE);
+    url.searchParams.set('latitude', String(input.roundedLat));
+    url.searchParams.set('longitude', String(input.roundedLon));
+    url.searchParams.set('current', 'temperature_2m,weather_code,wind_speed_10m');
+    url.searchParams.set('temperature_unit', 'fahrenheit');
+    url.searchParams.set('wind_speed_unit', 'mph');
+
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    if (!res.ok) {
+      console.warn('[stylechat-generate] weather_http_error status=%d', res.status);
+      return null;
+    }
+    const data = await res.json() as { current?: Record<string, unknown> };
+    const current = data.current ?? {};
+    const rawTempF = typeof current.temperature_2m === 'number' ? current.temperature_2m : NaN;
+    const weatherCode = typeof current.weather_code === 'number' ? current.weather_code : -1;
+    const windMph = typeof current.wind_speed_10m === 'number' ? current.wind_speed_10m : NaN;
+    if (!Number.isFinite(rawTempF)) {
+      console.warn('[stylechat-generate] weather_parse_incomplete');
+      return null;
+    }
+    const temperatureF = Math.round(rawTempF);
+    const temperatureC = Math.round((rawTempF - 32) * 5 / 9);
+    const condition = resolveCondition(weatherCode, rawTempF, windMph);
+    const now = Date.now();
+    const context: WeatherStylingContext = {
+      enabled: true,
+      source: 'gps_foreground',
+      temperatureF,
+      temperatureC,
+      // Phase 0: default to Fahrenheit. TODO: localize preferred unit via device locale.
+      preferredUnit: 'F',
+      condition,
+      observedAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + WEATHER_CACHE_TTL_MS).toISOString(),
+    };
+    weatherCache.set(cacheKey, { context, cachedAt: now });
+    // Metadata-only log — never coordinates.
+    console.log('[stylechat-generate] weather_ok condition=%s tempF=%d', condition, temperatureF);
+    return context;
+  } catch (err) {
+    const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+    console.warn('[stylechat-generate] weather_%s', isTimeout ? 'timeout' : 'error');
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const WEATHER_STYLING_INSTRUCTION =
+  'Consider local weather context if provided, but only when it materially affects outfit comfort, footwear, layers, outerwear, or practicality. Do not fabricate weather. Do not mention the user\'s location. Do not state the exact temperature unless the user asks or it materially improves the answer; prefer general wording like "It\'s warm today." If no weather context is provided, do not mention weather.';
+
+function buildWeatherContextBlock(ctx: WeatherStylingContext): string {
+  const unit = ctx.preferredUnit ?? 'F';
+  const temp = unit === 'C' ? ctx.temperatureC : ctx.temperatureF;
+  const tempLine = typeof temp === 'number' ? 'Temperature: ' + temp + '°' + unit : 'Temperature: unknown';
+  const condition = ctx.condition ?? 'unknown';
+  return [
+    '[Optional Context: Weather]',
+    tempLine,
+    'Condition: ' + condition,
+    'Use only if relevant to the styling request.',
+    '[/Optional Context]',
+  ].join('\n');
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────────
@@ -499,6 +718,9 @@ Deno.serve(async (req) => {
   let body: {
     sessionId?: unknown;
     message?: unknown;
+    weatherLocation?: unknown;
+    styleDnaContext?: unknown;
+    activeContext?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -527,6 +749,17 @@ Deno.serve(async (req) => {
   if (message.length > MAX_MESSAGE_CHARS) {
     return json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters` }, 400);
   }
+
+  // Optional, additive weather-aware styling input. Unknown/absent -> null (older clients).
+  const weatherLocation = parseWeatherLocationInput(body.weatherLocation);
+
+  // Optional, additive Style DNA personalization signal. Unknown/absent/malformed -> null
+  // (older app builds send nothing and behave exactly as before).
+  const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
+
+  // Optional, additive active scan/upload/TextScan context for grounding. Malformed or
+  // unknown-source input is dropped so old clients and bad payloads are harmless.
+  const activeContext = parseActiveContext(body.activeContext);
 
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
 
@@ -698,6 +931,10 @@ Deno.serve(async (req) => {
 
   const startedAt = Date.now();
 
+  // Kick off weather fetch now so it runs in parallel with context assembly and adds
+  // no sequential latency before Gemini. Resolves to null on timeout/failure.
+  const weatherContextPromise = fetchWeatherStylingContext(weatherLocation);
+
   // Fetch last MAX_RECENT_MESSAGES messages for this session (most recent first).
   const { data: recentMsgs } = await userClient
     .from('style_chat_messages')
@@ -799,9 +1036,31 @@ Deno.serve(async (req) => {
 
   // ── 7. Build Gemini request payload ──────────────────────────────────────────
 
-  const systemText = memoryText
-    ? `${SYSTEM_PROMPT}\n\nUser style context (use as background only):\n${memoryText}`
+  const baseSystemPrompt = STYLECHAT_EXPLANATIONS_ENABLED
+    ? `${SYSTEM_PROMPT}\n\n${EXPLANATION_INSTRUCTIONS}`
     : SYSTEM_PROMPT;
+
+  const systemText = memoryText
+    ? `${baseSystemPrompt}\n\nUser style context (use as background only):\n${memoryText}`
+    : baseSystemPrompt;
+
+  // Await the parallel weather fetch and, when present, append the optional weather
+  // instruction + compact context block. Absent weather leaves the prompt unchanged.
+  const weatherContext = await weatherContextPromise;
+  const systemTextWithWeather = weatherContext
+    ? `${systemText}\n\n${WEATHER_STYLING_INSTRUCTION}\n\n${buildWeatherContextBlock(weatherContext)}`
+    : systemText;
+  // Style DNA is additive and independent of weather: appended only when a valid,
+  // above-threshold context is present. Absent/malformed leaves the prompt unchanged.
+  const systemTextWithStyleDna = styleDnaContext
+    ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
+    : systemTextWithWeather;
+
+  // Active reference context is appended last so it is the freshest grounding signal.
+  // It is only included when the client sent a valid, known source (camera/upload/text-scan).
+  const systemTextForModel = activeContext
+    ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
+    : systemTextWithStyleDna;
 
   // Map history to Gemini conversation turns.
   // Gemini requires alternating user/model turns; merge consecutive same-role messages.
@@ -827,7 +1086,7 @@ Deno.serve(async (req) => {
     turns.unshift({ role: 'user', parts: [{ text: '[session start]' }] });
   }
 
-  const geminiBody = buildGeminiBody(systemText, turns);
+  const geminiBody = buildGeminiBody(systemTextForModel, turns);
 
   // ── 8. Call Gemini ────────────────────────────────────────────────────────────
 
@@ -835,6 +1094,7 @@ Deno.serve(async (req) => {
 
   let assistantText  = '';
   let tokenEstimate  = 0;
+  let whyThisWorks: string | undefined;
   let wasRetried     = false;
   let usedFallback   = false;
 
@@ -842,6 +1102,7 @@ Deno.serve(async (req) => {
     const initial = await callGemini(geminiUrl, geminiBody, 'initial', modelName);
     assistantText = initial.text;
     tokenEstimate = initial.tokenEstimate;
+    whyThisWorks  = initial.whyThisWorks;
 
     const incompleteReason = incompleteReasonFor(
       assistantText,
@@ -869,7 +1130,7 @@ Deno.serve(async (req) => {
         initial.finishReason || 'none',
       );
 
-      const retryBody = buildGeminiBody(systemText, buildRetryTurns(turns));
+      const retryBody = buildGeminiBody(systemTextForModel, buildRetryTurns(turns));
 
       try {
         const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName);
@@ -896,11 +1157,13 @@ Deno.serve(async (req) => {
           // Retry produced a complete answer — use it.
           assistantText = retry.text;
           tokenEstimate = retry.tokenEstimate;
+          whyThisWorks  = retry.whyThisWorks;
         } else if (retryIncompleteReason !== 'max_tokens' && retryHasText) {
           // Best-effort: retry text is non-empty and was NOT truncated by MAX_TOKENS, but
           // the heuristic still flags it. Prefer real Gemini guidance over a generic fallback.
           assistantText = retry.text;
           tokenEstimate = retry.tokenEstimate;
+          whyThisWorks  = retry.whyThisWorks;
           usedFallback = false;
           console.warn(
             '[stylechat-generate] returned_best_effort_after_retry reason=%s responseChars=%d finishReason=%s retried=true model=%s elapsedMs=%d',
@@ -915,6 +1178,7 @@ Deno.serve(async (req) => {
           usedFallback = true;
           assistantText = buildStyleChatFallback();
           tokenEstimate = 0;
+          whyThisWorks  = undefined;
           console.warn(
             '[stylechat-generate] retry remained incomplete reason=%s responseChars=%d finishReason=%s',
             retryIncompleteReason,
@@ -931,6 +1195,7 @@ Deno.serve(async (req) => {
           // MAX_TOKENS. Return it as best-effort rather than discarding real guidance.
           assistantText = initial.text;
           tokenEstimate = initial.tokenEstimate;
+          whyThisWorks  = initial.whyThisWorks;
           usedFallback = false;
           console.warn(
             '[stylechat-generate] returned_best_effort_initial_after_retry_failure reason=%s responseChars=%d finishReason=%s retried=true model=%s elapsedMs=%d',
@@ -945,6 +1210,7 @@ Deno.serve(async (req) => {
           usedFallback = true;
           assistantText = buildStyleChatFallback();
           tokenEstimate = 0;
+          whyThisWorks  = undefined;
           console.warn(
             '[stylechat-generate] retry %s elapsedMs=%d',
             retryTimedOut ? 'timeout' : 'error',
@@ -988,6 +1254,7 @@ Deno.serve(async (req) => {
     usedFallback = true;
     assistantText = buildStyleChatFallback();
     tokenEstimate = 0;
+    whyThisWorks  = undefined;
     console.warn(
       '[stylechat-generate] empty_final_text_fallback model=%s elapsedMs=%d',
       modelName,
@@ -1022,14 +1289,33 @@ Deno.serve(async (req) => {
   // When a fallback message was substituted (Gemini failed, retry failed, or retry was
   // truncated/empty), surface status "error" while preserving the message shape. Real
   // and best-effort Gemini text return status "success".
+  // Additive, optional explanation. Included only on a real/best-effort success path with a
+  // non-empty parsed explanation; older clients that ignore the field are unaffected.
+  const responseMessage: {
+    sender: 'assistant';
+    content: string;
+    model: string;
+    tokenEstimate: number;
+    why_this_works?: string;
+  } = {
+    sender: 'assistant',
+    content: assistantText,
+    model: modelName,
+    tokenEstimate: finalTokenEstimate,
+  };
+
+  if (
+    STYLECHAT_EXPLANATIONS_ENABLED &&
+    !usedFallback &&
+    typeof whyThisWorks === 'string' &&
+    whyThisWorks.trim().length > 0
+  ) {
+    responseMessage.why_this_works = whyThisWorks.trim();
+  }
+
   return json({
     status: usedFallback ? 'error' : 'success',
-    message: {
-      sender: 'assistant',
-      content: assistantText,
-      model: modelName,
-      tokenEstimate: finalTokenEstimate,
-    },
+    message: responseMessage,
     usage: { messagesUsed, messagesLimit, resetAt },
   });
 });
