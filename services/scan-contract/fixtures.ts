@@ -227,8 +227,12 @@ export const fixtureLegacyResponse: Record<string, unknown> = {
       retailer: 'Mock Retailer',
       price: 78,
       currency: '$',
-      imageUrl: 'https://example.com/placeholder.jpg',
-      productUrl: 'https://example.com/product/legacy-001',
+      // FIX (glasses-foundation-audit): example.com is a live, resolvable
+      // domain. Fixtures must use a reserved, guaranteed-non-resolving
+      // placeholder (RFC 2606 / RFC 6761 .invalid TLD) so no fixture can
+      // ever accidentally cause a real network request.
+      imageUrl: 'https://example.invalid/placeholder.jpg',
+      productUrl: 'https://example.invalid/product/legacy-001',
     },
   ],
 };

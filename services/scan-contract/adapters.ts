@@ -3,7 +3,8 @@ import { buildScanRequest, createScanRequestId } from './request';
 import { buildScanResponse } from './response';
 import { normalizeLegacyAttributes, sanitizeUserMessage } from './normalize';
 import { createScanError } from './errors';
-import type { ScanRequest, ScanSource, ScanPrivacyContext, ScanDeviceContext } from './request';
+import { formatProductPrice } from './productMatch';
+import type { ScanRequest, ScanSource, ScanImageInput, ScanPrivacyContext, ScanDeviceContext } from './request';
 import type { ScanResponse, ScanStatus } from './response';
 import type { FashionAttributes } from './fashionAttributes';
 import type { ProductMatch } from './productMatch';
@@ -57,8 +58,13 @@ function extractImage(input: Record<string, unknown>): ScanRequest['image'] | un
   if (!trimmed) return undefined;
 
   const mimeMatch = trimmed.match(/^data:(image\/(?:jpeg|png|webp));base64,/i);
-  const mimeType: ScanRequest['image']['mimeType'] = mimeMatch
-    ? (mimeMatch[1] as ScanRequest['image']['mimeType'])
+  // FIX (glasses-foundation-audit): `ScanRequest['image']` resolves to
+  // `ScanImageInput | undefined` because `image` is an optional property.
+  // Indexing `['mimeType']` directly on that union fails to compile under
+  // `tsc --noEmit`. Using the non-optional `ScanImageInput` type directly
+  // fixes the type error without changing runtime behavior.
+  const mimeType: ScanImageInput['mimeType'] = mimeMatch
+    ? (mimeMatch[1] as ScanImageInput['mimeType'])
     : 'image/jpeg';
   const base64 = trimmed.replace(/^data:[^;]+;base64,/, '');
 
@@ -166,7 +172,11 @@ export function toLegacyCompatibleResult(response: ScanResponse): Record<string,
       id: p.id ?? '',
       name: p.title,
       retailer: p.retailer,
-      price: typeof p.price === 'number' ? `$${p.price.toFixed(2)}` : 'Price unavailable',
+      // FIX (glasses-foundation-audit): previously hardcoded a '$' prefix,
+      // ignoring `p.currency`. `formatProductPrice` already implements
+      // currency-aware formatting (falling back to '$' when currency is
+      // absent), so reuse it instead of duplicating and diverging logic.
+      price: formatProductPrice(p) ?? 'Price unavailable',
       imageUrl: p.imageUrl ?? null,
       productUrl: p.productUrl ?? null,
       purchaseUrl: p.productUrl ?? null,

@@ -15,6 +15,8 @@ const VALID_DEVICE_CLASSES: Array<ScanDeviceContext['deviceClass']> = [
   'wearable_mock',
 ];
 const VALID_STATUSES: ScanStatus[] = ['success', 'non_fashion', 'partial', 'error'];
+// FIX (glasses-foundation-audit): bound for image.width / image.height validation.
+const MAX_IMAGE_DIMENSION_PX = 8192;
 const VALID_ERROR_CODES: ScanErrorCode[] = [
   'INVALID_REQUEST',
   'IMAGE_TOO_LARGE',
@@ -88,11 +90,22 @@ function validateImageInput(value: unknown, errors: string[], required: boolean)
   if (!VALID_IMAGE_MIME_TYPES.includes(img.mimeType as typeof VALID_IMAGE_MIME_TYPES[number])) {
     addError(errors, `image.mimeType must be one of: ${VALID_IMAGE_MIME_TYPES.join(', ')}.`);
   }
-  if (img.width !== undefined && (typeof img.width !== 'number' || !Number.isInteger(img.width) || img.width <= 0)) {
-    addError(errors, 'image.width must be a positive integer.');
+  // FIX (glasses-foundation-audit): width/height previously had no upper
+  // bound, allowing unbounded numeric values (e.g. Number.MAX_SAFE_INTEGER)
+  // through validation. MAX_IMAGE_DIMENSION_PX is a generous bound well above
+  // any real camera/glasses sensor resolution, added purely to close this
+  // unbounded-data gap inside the new isolated contract code.
+  if (
+    img.width !== undefined &&
+    (typeof img.width !== 'number' || !Number.isInteger(img.width) || img.width <= 0 || img.width > MAX_IMAGE_DIMENSION_PX)
+  ) {
+    addError(errors, `image.width must be a positive integer no greater than ${MAX_IMAGE_DIMENSION_PX}.`);
   }
-  if (img.height !== undefined && (typeof img.height !== 'number' || !Number.isInteger(img.height) || img.height <= 0)) {
-    addError(errors, 'image.height must be a positive integer.');
+  if (
+    img.height !== undefined &&
+    (typeof img.height !== 'number' || !Number.isInteger(img.height) || img.height <= 0 || img.height > MAX_IMAGE_DIMENSION_PX)
+  ) {
+    addError(errors, `image.height must be a positive integer no greater than ${MAX_IMAGE_DIMENSION_PX}.`);
   }
   return true;
 }
@@ -114,6 +127,16 @@ function validatePrivacyContext(value: unknown, errors: string[]): void {
   }
   if (typeof privacy.faceMaskApplied !== 'boolean') {
     addError(errors, 'privacy.faceMaskApplied must be a boolean.');
+  }
+  // FIX (glasses-foundation-audit): plateDetectionPerformed/plateMaskApplied
+  // are optional on the type, but when present they were previously never
+  // type-checked, so a malformed value (e.g. a string) would silently pass
+  // validation.
+  if (privacy.plateDetectionPerformed !== undefined && typeof privacy.plateDetectionPerformed !== 'boolean') {
+    addError(errors, 'privacy.plateDetectionPerformed must be a boolean when provided.');
+  }
+  if (privacy.plateMaskApplied !== undefined && typeof privacy.plateMaskApplied !== 'boolean') {
+    addError(errors, 'privacy.plateMaskApplied must be a boolean when provided.');
   }
 }
 
