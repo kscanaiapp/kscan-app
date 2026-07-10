@@ -130,7 +130,13 @@ export async function runDecodedRgbaPrivacyPipeline(input: DecodedPipelineInput)
   // Deduplicate only same-type overlaps; cross-type overlaps are preserved.
   const regions = deduplicateRegions(rawRegions, 0.5);
 
-  const masking = maskRgbaRegions(input.rgba, regions);
+  let masking: MaskingResult;
+  try {
+    masking = maskRgbaRegions(input.rgba, regions);
+  } catch (err) {
+    failureReasons.push(`Masking failed: ${err instanceof Error ? err.message : String(err)}`);
+    return buildFailureResult(faceRun.result, plateRun.result, failureReasons);
+  }
 
   if (masking.output) {
     const verification = verifyMasking(input.rgba, masking.output, regions);
@@ -140,7 +146,17 @@ export async function runDecodedRgbaPrivacyPipeline(input: DecodedPipelineInput)
   }
 
   const noRegions = regions.length === 0;
-  const cleanAllowed = !!input.policy.allowCleanNoDetection && noRegions;
+
+  // A "clean, nothing detected" result may only be trusted for the required
+  // detector types, and only when those detectors are real (supported: true).
+  // A synthetic or unsupported detector reporting zero regions has not
+  // actually inspected the image — it must never be able to satisfy the
+  // clean-passthrough policy, or a non-functional detector could silently
+  // approve raw PII for transmission by doing nothing.
+  const requiredDetectorsAreReal =
+    (!input.policy.requireFaceDetection || faceRun.result.supported) &&
+    (!input.policy.requirePlateDetection || plateRun.result.supported);
+  const cleanAllowed = !!input.policy.allowCleanNoDetection && noRegions && requiredDetectorsAreReal;
 
   // A no-region result is only safe when explicitly allowed and all required detectors completed.
   const safeForTransmission =
