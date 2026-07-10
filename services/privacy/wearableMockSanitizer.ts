@@ -16,12 +16,16 @@ export const wearableMockSanitizer: PrivacySanitizer = {
     if (!input?.base64 && !input?.imageUri) {
       warnings.push('No image input provided; using synthetic metadata only.');
     }
+    // FIX (glasses-foundation-audit): No real pixel-level masking is performed
+    // here. Returning the caller's original, unmodified image bytes while
+    // claiming faceMaskApplied/mode: 'masked' would be a false privacy claim
+    // if this result were ever consumed downstream. This mock therefore never
+    // returns image bytes -- it only simulates the metadata shape a future
+    // real masking implementation would produce.
+    warnings.push('No real pixel-level face or plate masking was performed; this is a synthetic mock result for contract testing only.');
     return {
-      // In a real masked flow the sanitized output would be a new image. This
-      // mock returns the original input unchanged and labels the mode masked
-      // purely for contract testing.
-      sanitizedImageUri: input?.imageUri,
-      sanitizedBase64: input?.base64,
+      sanitizedImageUri: undefined,
+      sanitizedBase64: undefined,
       sanitizerVersion: SANITIZER_VERSION,
       mode: 'masked',
       faceDetectionPerformed: true,

@@ -44,6 +44,14 @@ export function assertPrivacyPolicySatisfied(
       if (privacy.faceMaskApplied || privacy.plateMaskApplied) {
         throw new PrivacyPolicyError('Current mobile compatibility does not claim masking.');
       }
+      // FIX (glasses-foundation-audit): a request could previously claim
+      // faceDetectionPerformed/plateDetectionPerformed = true while masking
+      // flags were false. That is a "detection happened but nothing was
+      // masked" claim, which is not an honest description of current mobile
+      // behavior (no detection is performed at all today).
+      if (privacy.faceDetectionPerformed || privacy.plateDetectionPerformed) {
+        throw new PrivacyPolicyError('Current mobile compatibility does not perform detection.');
+      }
       return;
 
     case 'WEARABLE_MOCK':
@@ -55,6 +63,13 @@ export function assertPrivacyPolicySatisfied(
     case 'WEARABLE_PRODUCTION_REQUIRED_MASKING':
       if (privacy.mode === 'passthrough') {
         throw new PrivacyPolicyError('Production wearable policy rejects passthrough input.');
+      }
+      // FIX (glasses-foundation-audit): the spec requires this policy to
+      // reject requests with a missing sanitizer version. This was previously
+      // unchecked, allowing an unversioned/untraceable privacy context to
+      // pass the strictest policy.
+      if (!privacy.sanitizerVersion || !privacy.sanitizerVersion.trim()) {
+        throw new PrivacyPolicyError('Production wearable policy requires a sanitizer version.');
       }
       if (!privacy.faceDetectionPerformed || !privacy.faceMaskApplied) {
         throw new PrivacyPolicyError('Production wearable policy requires face masking.');
@@ -72,7 +87,13 @@ export function assertPrivacyPolicySatisfied(
       if (request.image?.base64) {
         throw new PrivacyPolicyError('Metadata-only policy must not include image data.');
       }
-      // Allow either text or future pre-computed attributes; image must be absent.
+      // FIX (glasses-foundation-audit): previously this branch only checked
+      // that image data was absent, so a passthrough-labeled, image-less
+      // request would incorrectly satisfy METADATA_ONLY. The privacy mode
+      // must itself be honestly labeled metadata_only.
+      if (privacy.mode !== 'metadata_only') {
+        throw new PrivacyPolicyError('Metadata-only policy requires privacy.mode to be metadata_only.');
+      }
       return;
 
     default:
