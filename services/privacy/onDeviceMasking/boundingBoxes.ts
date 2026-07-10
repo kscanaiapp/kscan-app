@@ -33,10 +33,19 @@ export function validateBox(box: BoundingBox, imageWidth: number, imageHeight: n
     return { box, area: 0, valid: false, reason: 'Image dimensions must be positive.' };
   }
 
-  const x2 = Math.min(box.x + box.width, imageWidth);
-  const y2 = Math.min(box.y + box.height, imageHeight);
-  const x1 = Math.max(box.x, 0);
-  const y1 = Math.max(box.y, 0);
+  // Rounding policy: round outward to whole pixels. The start edge is
+  // floored and the end edge is ceiled, so the resulting integer box is
+  // always a superset of the requested fractional box. This is a privacy
+  // redaction primitive, so under-covering a region (leaving PII pixels
+  // unmasked because they fell on a fractional coordinate) is unacceptable;
+  // over-covering by at most one pixel per edge is not. Pixel array
+  // indexing requires integer coordinates — a fractional box passed through
+  // unrounded would silently fail to write some in-box pixels, since
+  // non-integer indices on a Uint8Array do not address the backing buffer.
+  const x2 = Math.min(Math.ceil(box.x + box.width), imageWidth);
+  const y2 = Math.min(Math.ceil(box.y + box.height), imageHeight);
+  const x1 = Math.max(Math.floor(box.x), 0);
+  const y1 = Math.max(Math.floor(box.y), 0);
 
   const width = x2 - x1;
   const height = y2 - y1;
@@ -79,8 +88,16 @@ export function boxIoU(a: BoundingBox, b: BoundingBox): number {
  * Deduplicate same-type regions using IoU >= 0.5.
  * - Keep higher confidence.
  * - If confidence is equal or absent, keep larger area.
- * - If still tied, keep the earlier input.
+ * - If still tied, keep the earlier input (relies on Array.prototype.sort
+ *   being stable, guaranteed by the JS spec since ES2019 / Node 11+).
  * Cross-type overlaps are preserved.
+ *
+ * This is a greedy algorithm, not cluster-based: candidates are visited in
+ * confidence order and kept only if they don't overlap anything already
+ * kept. For a transitive chain A-B, B-C (where A and C do not overlap each
+ * other), this can keep both A and C while dropping B, rather than
+ * clustering all three into one region. That is intentional — A and C are
+ * not duplicates of each other, so both surviving is correct.
  */
 export function deduplicateRegions<T extends { box: BoundingBox; confidence?: number; type: string }>(
   regions: T[],
