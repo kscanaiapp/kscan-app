@@ -257,6 +257,14 @@ test('unknown fields are ignored during response validation', () => {
   assert.strictEqual(result.valid, true);
 });
 
+test('non-object response fails validation safely', () => {
+  // FIX (glasses-foundation-audit): malformed-response handling was tested
+  // for requests (null) but not for responses. Adding the mirror case.
+  assert.strictEqual(validateScanResponse(null).valid, false);
+  assert.strictEqual(validateScanResponse('not an object').valid, false);
+  assert.strictEqual(validateScanResponse(undefined).valid, false);
+});
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Fashion attributes normalization
 // ───────────────────────────────────────────────────────────────────────────────
@@ -315,6 +323,18 @@ test('normalizeLegacyAnalyzeResponse handles non-fashion response', () => {
   assert.match(resp.message, /plant/i);
 });
 
+test('normalizeLegacyAnalyzeResponse handles null/missing products safely', () => {
+  // FIX (glasses-foundation-audit): required negative-case coverage for the
+  // legacy adapter -- null, undefined, and non-array products must not throw
+  // and must normalize to an empty array.
+  for (const productsValue of [null, undefined, 'not-an-array', 42]) {
+    const legacy = { type: 'fashion', metadata: { category: 'Tops' }, products: productsValue };
+    const resp = normalizeLegacyAnalyzeResponse(legacy, 'legacy-req');
+    assert.strictEqual(Array.isArray(resp.products), true);
+    assert.strictEqual(resp.products.length, 0);
+  }
+});
+
 test('toLegacyCompatibleResult preserves non-fashion shape', () => {
   const legacy = toLegacyCompatibleResult(fixtureNonFashionObject);
   assert.strictEqual(legacy.type, 'non-fashion');
@@ -370,8 +390,57 @@ test('strict wearable production policy accepts masked mock request', () => {
 });
 
 test('metadata-only policy passes without image', () => {
-  const req = buildScanRequest('text_scan', { textQuery: 'test' });
+  // FIX (glasses-foundation-audit): this test previously built a request
+  // with the default 'passthrough' privacy mode and asserted it satisfied
+  // METADATA_ONLY. That only exercised the "no image" check, not the
+  // "actually labeled metadata_only" requirement -- a gap closed in
+  // services/privacy/policy.ts. The request must be honestly labeled.
+  const req = buildScanRequest('text_scan', {
+    textQuery: 'test',
+    privacy: {
+      sanitizerVersion: '1.0.0',
+      mode: 'metadata_only',
+      faceDetectionPerformed: false,
+      faceMaskApplied: false,
+      plateDetectionPerformed: false,
+      plateMaskApplied: false,
+    },
+  });
   assert.doesNotThrow(() => assertPrivacyPolicySatisfied(req, 'METADATA_ONLY'));
+});
+
+test('metadata-only policy rejects mislabeled passthrough request even without image', () => {
+  // FIX (glasses-foundation-audit): regression test for the closed loophole
+  // -- a passthrough-labeled, image-less request must NOT satisfy
+  // METADATA_ONLY, since that would let mislabeled data pass as metadata-only.
+  const req = buildScanRequest('text_scan', { textQuery: 'test' });
+  assert.throws(() => assertPrivacyPolicySatisfied(req, 'METADATA_ONLY'), PrivacyPolicyError);
+});
+
+test('strict wearable production policy rejects missing sanitizer version', () => {
+  const req = { ...fixtureWearableMockRequest, privacy: { ...fixtureWearableMockRequest.privacy, sanitizerVersion: '' } };
+  assert.throws(
+    () => assertPrivacyPolicySatisfied(req, 'WEARABLE_PRODUCTION_REQUIRED_MASKING'),
+    PrivacyPolicyError,
+  );
+});
+
+test('current mobile compatibility policy rejects a false detection claim', () => {
+  const req = buildScanRequest('mobile_camera', {
+    textQuery: 'test',
+    privacy: {
+      sanitizerVersion: '1.0.0',
+      mode: 'passthrough',
+      faceDetectionPerformed: true,
+      faceMaskApplied: false,
+      plateDetectionPerformed: false,
+      plateMaskApplied: false,
+    },
+  });
+  assert.throws(
+    () => assertPrivacyPolicySatisfied(req, 'CURRENT_MOBILE_COMPATIBILITY'),
+    PrivacyPolicyError,
+  );
 });
 
 test('metadata-only policy rejects image data', () => {
@@ -433,6 +502,62 @@ test('mock transport returns error when not connected', async () => {
   const resp = await transport.sendScanRequest(req);
   assert.strictEqual(resp.status, 'error');
   assert.strictEqual(resp.error?.code, 'AUTH_REQUIRED');
+});
+
+test('mock transport returns error when sending after disconnect', async () => {
+  // FIX (glasses-foundation-audit): required negative-case coverage --
+  // "send after disconnect" was implemented (sendScanRequest checks
+  // this.connected) but never actually exercised by a test.
+  const transport = new MockWearableTransport();
+  await transport.connect();
+  await transport.disconnect();
+  const req = buildScanRequest('wearable_mock', { textQuery: 'jacket' });
+  const resp = await transport.sendScanRequest(req);
+  assert.strictEqual(resp.status, 'error');
+  assert.strictEqual(resp.error?.code, 'AUTH_REQUIRED');
+});
+
+test('mock transport never calls a global network function', async () => {
+  // FIX (glasses-foundation-audit): required per Phase 9 network-isolation
+  // audit -- add a test that fails if the mock transport attempts to use a
+  // global network function. Patches every plausible global network entry
+  // point for the duration of the test and restores them afterward.
+  const networkGlobalNames = ['fetch', 'XMLHttpRequest', 'WebSocket'];
+  const originals = {};
+  let networkCallAttempted = false;
+
+  for (const name of networkGlobalNames) {
+    originals[name] = globalThis[name];
+    globalThis[name] = new Proxy(function () {}, {
+      apply() {
+        networkCallAttempted = true;
+        throw new Error(`Unexpected network call via global ${name}`);
+      },
+      construct() {
+        networkCallAttempted = true;
+        throw new Error(`Unexpected network call via global ${name}`);
+      },
+    });
+  }
+
+  try {
+    const transport = new MockWearableTransport();
+    await transport.connect();
+    const req = buildScanRequest('wearable_mock', { textQuery: 'jacket' });
+    const resp = await transport.sendScanRequest(req);
+    assert.strictEqual(resp.status, 'success');
+    await transport.disconnect();
+  } finally {
+    for (const name of networkGlobalNames) {
+      if (originals[name] === undefined) {
+        delete globalThis[name];
+      } else {
+        globalThis[name] = originals[name];
+      }
+    }
+  }
+
+  assert.strictEqual(networkCallAttempted, false, 'mock transport attempted a network call');
 });
 
 test('mock transport returns empty product list for empty trigger', async () => {
