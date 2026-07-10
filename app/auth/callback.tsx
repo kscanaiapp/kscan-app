@@ -2,17 +2,18 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { supabase } from '../../services/supabaseClient';
+import { isOnboardingComplete } from '../../services/onboardingCompletion';
 import {
   buildAuthCallbackUrlFromParams,
   getAuthCallbackRedirect,
@@ -29,14 +30,39 @@ export default function AuthCallbackScreen() {
   const router = useRouter();
   const warmUrl = Linking.useURL();
   const routeParams = useLocalSearchParams();
-  const hasHandledDeepLink = useRef(false);
+  const handledRef = useRef(false);
+  const routedRef = useRef(false);
   const [state, setState] = useState<CallbackState>('loading');
   const [message, setMessage] = useState('Finishing secure sign-in...');
 
+  const replaceOnce = useCallback(
+    (target: string) => {
+      if (routedRef.current) return;
+      routedRef.current = true;
+      router.replace(target);
+    },
+    [router],
+  );
+
+  const routeAfterSession = useCallback(
+    async (parsed?: ReturnType<typeof parseAuthCallbackUrl>) => {
+      if (parsed?.isRecovery) {
+        replaceOnce(getAuthCallbackRedirect(parsed));
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user?.id ?? null;
+      const complete = userId ? await isOnboardingComplete(userId) : false;
+      replaceOnce(complete ? '/' : '/onboarding?resume=terms');
+    },
+    [replaceOnce],
+  );
+
   const handleUrl = useCallback(
     async (url: string | null) => {
-      if (!url || hasHandledDeepLink.current) return;
-      hasHandledDeepLink.current = true;
+      if (!url || handledRef.current) return;
+      handledRef.current = true;
 
       const parsed = parseAuthCallbackUrl(url);
       try {
@@ -55,7 +81,7 @@ export default function AuthCallbackScreen() {
             setState('error');
             return;
           }
-          router.replace(getAuthCallbackRedirect(parsed));
+          await routeAfterSession(parsed);
           return;
         }
 
@@ -70,7 +96,7 @@ export default function AuthCallbackScreen() {
             setState('error');
             return;
           }
-          router.replace(getAuthCallbackRedirect(parsed));
+          await routeAfterSession(parsed);
           return;
         }
 
@@ -91,7 +117,7 @@ export default function AuthCallbackScreen() {
           setState('error');
           return;
         }
-        router.replace(getAuthCallbackRedirect(parsed));
+        await routeAfterSession(parsed);
         return;
       } catch (error) {
         console.error('Auth callback failed unexpectedly', error);
@@ -99,7 +125,7 @@ export default function AuthCallbackScreen() {
         setState('error');
       }
     },
-    [router],
+    [routeAfterSession],
   );
 
   useEffect(() => {
@@ -116,11 +142,11 @@ export default function AuthCallbackScreen() {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (hasHandledDeepLink.current) return;
-      hasHandledDeepLink.current = true;
+      if (handledRef.current) return;
+      handledRef.current = true;
       void supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
-          router.replace('/');
+          void routeAfterSession();
           return;
         }
         setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
@@ -129,9 +155,9 @@ export default function AuthCallbackScreen() {
     }, 10000);
 
     return () => clearTimeout(timeout);
-  }, [router]);
+  }, [routeAfterSession]);
 
-  const openAuth = () => router.replace('/auth');
+  const openAuth = () => replaceOnce('/auth');
 
   return (
     <View style={styles.root}>

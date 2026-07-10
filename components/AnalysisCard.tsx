@@ -14,11 +14,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataChip } from './MetadataChip';
 import { ProductShelf, type Product } from './ProductShelf';
+import { ScanResultCard } from './scan/ScanResultCard';
 import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import {
   COLORS,
+  LUXURY,
   LAYOUT,
   MOTION,
   RADIUS,
@@ -29,6 +31,9 @@ import {
 } from '../constants/theme';
 import type { VintedSecondhandSearchResponse } from '../types/scan';
 import type { SneakerReference } from '../services/sneakers/types';
+import type { ScanResultObject } from '../types/scanResultObject';
+import { SavedItemUtilityPanel } from './free-tier/SavedItemUtilityPanel';
+import { normalizeItem, normalizeItems } from '../services/free-tier/itemNormalization';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y     = SCREEN_HEIGHT * 0.36;
@@ -36,13 +41,25 @@ const EMPTY_VALUE = '—';
 
 export interface AnalysisCardProps {
   result:    string;
-  metadata:  { category: string; color: string; silhouette: string };
+  metadata:  {
+    category: string;
+    color: string;
+    silhouette: string;
+    confidenceScore?: number;
+    scanQualityNote?: string | null;
+    stylingSuggestions?: string[];
+  };
   products?: Product[];
+  /** Optional structured Scan Result Object (Part 2). When present, an additive
+   *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
+  scanResultObject?: ScanResultObject | null;
   secondhand?: VintedSecondhandSearchResponse | null;
   sneakerReference?: SneakerReference[] | null;
   scanImageUri?: string | null;
   scanSourceId?: string | null;
   scanSourceType?: 'live_scan' | 'style_library_scan';
+  /** Optional raw saved scans so the free-tier utility panel can show pairings. */
+  relatedSavedScans?: unknown[];
   onDismiss: () => void;
   onAddToDressingRoom?: () => void;
 }
@@ -55,11 +72,13 @@ export function AnalysisCard({
   result,
   metadata,
   products = [],
+  scanResultObject,
   secondhand,
   sneakerReference,
   scanImageUri,
   scanSourceId,
   scanSourceType = 'live_scan',
+  relatedSavedScans,
   onDismiss,
   onAddToDressingRoom,
 }: AnalysisCardProps) {
@@ -144,6 +163,9 @@ export function AnalysisCard({
   const category   = sanitizeText(meta.category);
   const color      = sanitizeText(meta.color);
   const silhouette = sanitizeText(meta.silhouette);
+  const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
+  const scanQualityNote = meta.scanQualityNote ?? undefined;
+  const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
 
   return (
     <Modal transparent animationType="none" onRequestClose={runExit}>
@@ -183,6 +205,14 @@ export function AnalysisCard({
               {/* AI result body */}
               <Text style={styles.body}>{resultText}</Text>
 
+              {/* Match summary */}
+              <View style={styles.matchSummary}>
+                <Text style={styles.matchSummaryLabel}>K Scan understood:</Text>
+                <Text style={styles.matchSummaryValue} numberOfLines={2}>
+                  {category} · {color} · {silhouette}
+                </Text>
+              </View>
+
               {/* Metadata chips */}
               <View style={styles.chipRow}>
                 <Animated.View style={{ opacity: chip1Opacity }}>
@@ -196,12 +226,25 @@ export function AnalysisCard({
                 </Animated.View>
               </View>
 
+              {/* Low-confidence / scan quality guidance */}
+              {(showLowConfidence || scanQualityNote) && (
+                <View style={styles.guidanceBox}>
+                  <Text style={styles.guidanceTitle}>Scan tip</Text>
+                  {scanQualityNote ? (
+                    <Text style={styles.guidanceText}>{scanQualityNote}</Text>
+                  ) : (
+                    <Text style={styles.guidanceText}>Try a clearer photo with better lighting. Move closer to the garment and try a straight-on front view.</Text>
+                  )}
+                </View>
+              )}
+
               {scanImageUri && onAddToDressingRoom ? (
                 <TouchableOpacity
                   style={styles.scanRoomCta}
                   onPress={onAddToDressingRoom}
                   activeOpacity={0.86}
-                  accessibilityLabel="Add Scan to Dressing Room"
+                  accessibilityRole="button"
+                  accessibilityLabel="Add this scan to a Dressing Room"
                 >
                   <Text style={styles.scanRoomCtaText}>Add Scan to Dressing Room</Text>
                 </TouchableOpacity>
@@ -212,11 +255,16 @@ export function AnalysisCard({
                 <SneakerMatchCard matches={sneakerReference} />
               ) : null}
 
-              {/* Products or empty state */}
-              {priceDiscoveryEnabled ? (
-                products.length > 0
-                  ? <ProductShelf products={products} />
-                  : <Text style={styles.noMatchNote}>No close catalog matches found.</Text>
+              {/* Scan Result Object summary card (Part 2). Additive — only when
+                  the structured object is present; otherwise UI is unchanged. */}
+              {scanResultObject ? (
+                <ScanResultCard scanResultObject={scanResultObject} />
+              ) : null}
+
+              {/* Catalog similarity matches: hide the entire section unless there
+                  are at least 2 meaningful matches. */}
+              {priceDiscoveryEnabled && products.length >= 2 ? (
+                <ProductShelf products={products} />
               ) : null}
 
               {resaleValuationEnabled && secondhand?.enabled && secondhand.items.length > 0 ? (
@@ -224,9 +272,35 @@ export function AnalysisCard({
               ) : null}
 
               {/* Primary CTA */}
-              <TouchableOpacity style={styles.cta} onPress={runExit} activeOpacity={0.86}>
+              <TouchableOpacity
+                style={styles.cta}
+                onPress={runExit}
+                activeOpacity={0.86}
+                accessibilityRole="button"
+                accessibilityLabel="Scan another item"
+              >
                 <Text style={styles.ctaText}>Scan Again</Text>
               </TouchableOpacity>
+
+              {/* Free-tier per-item utilities for saved library scans */}
+              {scanSourceType === 'style_library_scan' ? (
+                <SavedItemUtilityPanel
+                  item={normalizeItem({
+                    id: scanSourceId,
+                    title: result,
+                    attributes: {
+                      category: metadata.category,
+                      color_palette: metadata.color,
+                      silhouette: metadata.silhouette,
+                    },
+                    imageUri: scanImageUri,
+                    createdAt: new Date().toISOString(),
+                    source: 'library',
+                  })}
+                  relatedItems={normalizeItems(relatedSavedScans ?? [], 'library')}
+                  context="library"
+                />
+              ) : null}
             </ScrollView>
           </View>
         </Animated.View>
@@ -238,7 +312,7 @@ export function AnalysisCard({
 const styles = StyleSheet.create({
   backdrop: {
     flex:               1,
-    backgroundColor:    'rgba(9, 9, 11, 0.44)',
+    backgroundColor:    COLORS.backdrop,
     justifyContent:     'flex-end',
     paddingHorizontal:  SPACING.xl,
   },
@@ -259,14 +333,14 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius:     card.borderRadius,
-    borderWidth:      StyleSheet.hairlineWidth,
-    borderColor:      COLORS.borderHairline,
+    borderWidth:      1,
+    borderColor:      LUXURY.colors.border,
     overflow:         'hidden',
-    backgroundColor:  COLORS.surfaceCard,
+    backgroundColor:  LUXURY.colors.pearl,
     maxHeight:        SCREEN_HEIGHT * 0.86,
   },
   cardInner: {
-    backgroundColor:   COLORS.surfaceCard,
+    backgroundColor:   LUXURY.colors.pearl,
     paddingHorizontal: card.paddingHorizontal,
     paddingVertical:   card.paddingVertical,
   },
@@ -275,24 +349,36 @@ const styles = StyleSheet.create({
     width:           card.gripWidth,
     height:          card.gripHeight,
     borderRadius:    RADIUS.pill,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.border,
     marginBottom:    SPACING.lg,
   },
   categoryLabel: {
-    ...TYPOGRAPHY.categoryLabel,
-    color: COLORS.goldPressed,
-    textTransform: 'uppercase',
+    ...LUXURY.typography.sectionLabel,
     marginBottom:  SPACING.xs,
   },
   headline: {
-    ...TYPOGRAPHY.headline,
+    ...LUXURY.typography.displayTitle,
     marginTop: SPACING.xs,
-    color: COLORS.editorialTextPrimary,
   },
   body: {
-    ...TYPOGRAPHY.body,
+    ...LUXURY.typography.body,
     marginTop: SPACING.lg,
-    color: COLORS.editorialTextSecondary,
+  },
+  matchSummary: {
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: LUXURY.colors.cream,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+  },
+  matchSummaryLabel: {
+    ...LUXURY.typography.caption,
+    marginBottom: SPACING.xs,
+  },
+  matchSummaryValue: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
   },
   chipRow: {
     flexDirection: 'row',
@@ -300,42 +386,71 @@ const styles = StyleSheet.create({
     gap:           SPACING.sm,
     marginTop:     SPACING.xl,
   },
+  guidanceBox: {
+    marginTop: SPACING.xl,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: LUXURY.colors.cream,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+  },
+  guidanceTitle: {
+    ...LUXURY.typography.caption,
+    marginBottom: SPACING.xs,
+  },
+  guidanceText: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+  },
+  emptyState: {
+    marginTop: SPACING.xl,
+    alignItems: 'center',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.cream,
+    padding: SPACING.lg,
+  },
   noMatchNote: {
-    fontSize:      12,
-    fontWeight:    '400' as const,
-    color:         COLORS.editorialTextMuted,
+    ...LUXURY.typography.bodyStrong,
     textAlign:     'center' as const,
-    marginTop:     SPACING.xl,
-    letterSpacing: 0.6,
-    fontStyle:     'italic' as const,
+    color: LUXURY.colors.ink,
+  },
+  noMatchSub: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center' as const,
+    marginTop: SPACING.sm,
+    color: LUXURY.colors.graphite,
   },
   scanRoomCta: {
     width: '100%',
-    minHeight: 46,
+    minHeight: 52,
     borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.xl,
   },
   scanRoomCtaText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.ctaSecondary,
     textAlign: 'center',
   },
   cta: {
     width:          '100%',
     minHeight:      card.ctaMinHeight,
     borderRadius:   RADIUS.pill,
-    backgroundColor: COLORS.gold,
+    backgroundColor: LUXURY.colors.plum,
     justifyContent: 'center',
     alignItems:     'center',
     marginTop:      SPACING.xl,
+    ...SHADOWS.editorialSmall,
   },
   ctaText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.textInverse,
+    ...LUXURY.typography.cta,
+    textAlign: 'center',
   },
 });

@@ -1,92 +1,107 @@
 import React from 'react';
 import {
-  Image,
-  Platform,
+  ActivityIndicator,
+  Dimensions,
+  Linking,
   ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
-import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
 import {
-  EmptyState,
-  Header,
-  LoadingOrError,
-  styleObjectStyles,
-} from '../../components/StyleObjectCards';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+  LuxuryScreen,
+  KScanHeader,
+  SectionHeader,
+  SavedLookCard,
+  EmptyStateCard,
+  InlineNotice,
+  PrivacyFooter,
+} from '../../components/luxury';
+import { LUXURY, SPACING } from '../../constants/theme';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useLooks } from '../../hooks/useStyleObjects';
 import type { Look } from '../../types/styleObjects';
 
-function LookCard({ look }: { look: Look }) {
-  const cover = look.coverImageUrl || look.coverFallbackUrl;
-  return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => router.push(`/looks/${look.id}`)}
-      activeOpacity={0.84}
-    >
-      {cover ? (
-        <Image source={{ uri: cover }} style={styles.cover} resizeMode="cover" />
-      ) : (
-        <View style={[styles.cover, styles.coverFallback]}>
-          <Text style={styles.coverFallbackText}>LOOK</Text>
-        </View>
-      )}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{look.title}</Text>
-        {look.dressingRoomTitle ? (
-          <Text style={styles.roomName} numberOfLines={1}>{look.dressingRoomTitle}</Text>
-        ) : (
-          <Text style={styles.roomName}>STANDALONE</Text>
-        )}
-        {look.description ? (
-          <Text style={styles.cardDescription} numberOfLines={2}>{look.description}</Text>
-        ) : null}
-        <Text style={styles.cardMeta}>{look.itemCount ?? 0} ITEMS</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
+const { width: SCREEN_W } = Dimensions.get('window');
+const CARD_GAP = SPACING.md;
+const H_PAD = SPACING.xl;
+const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
 
 function LooksContent() {
   const { looks, loading, error, reload } = useLooks();
   const blocking = loading || !!error;
 
   return (
-    <View style={styleObjectStyles.screen}>
+    <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
-      <Header title="Looks" eyebrow="Outfit Compositions" onBack={() => router.back()} />
+      <KScanHeader
+        title="Looks"
+        subtitle="OUTFIT COMPOSITIONS"
+        onBack={() => router.back()}
+        backLabel="Back"
+      />
+
       {blocking ? (
-        <LoadingOrError loading={loading} error={error} onRetry={reload} />
+        <View style={styles.centeredFill}>
+          {loading ? (
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          ) : (
+            <InlineNotice
+              variant="error"
+              title="Unable to load Looks"
+              body={error || 'Something went wrong. Please try again.'}
+              action={{ label: 'Retry', onPress: reload, accessibilityLabel: 'Retry loading looks' }}
+            />
+          )}
+        </View>
       ) : (
-        <ScrollView contentContainerStyle={styleObjectStyles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <SectionHeader
+            title="Your Looks"
+            subtitle="Saved outfit compositions from Dressing Rooms"
+          />
+
           {looks.length === 0 ? (
-            <EmptyState
-              title="No Looks yet."
-              body="Open a Dressing Room, select one or more items, and create your first Look."
+            <EmptyStateCard
+              title="Curate Your First Look"
+              subtitle="Open a Dressing Room, select one or more items, and create your first outfit composition."
             />
           ) : (
             <View style={styles.grid}>
-              {looks.map((look) => <LookCard key={look.id} look={look} />)}
+              {looks.map((look) => (
+                <SavedLookCard
+                  key={look.id}
+                  imageUrl={look.coverImageUrl || look.coverFallbackUrl}
+                  title={look.title}
+                  subtitle={look.dressingRoomTitle || 'Standalone Look'}
+                  tags={look.description ? [look.description] : [`${look.itemCount ?? 0} items`]}
+                  status="Look"
+                  onPress={() => router.push(`/looks/${look.id}`)}
+                  accessibilityLabel={`${look.title} look`}
+                  style={{ width: CARD_W }}
+                />
+              ))}
             </View>
           )}
         </ScrollView>
       )}
-    </View>
+
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
+      />
+    </LuxuryScreen>
   );
 }
 
 export default function LooksScreen() {
-  // Looks (Outfit Remix composition surface) are not part of the iOS release.
-  if (Platform.OS === 'ios') {
-    return <SafeUnavailableScreen />;
-  }
   const { isFeatureEnabled, isLoading } = useFeatureFreeze();
   if (isLoading) {
     return <FeatureFreezeFallback cta="closet" loading />;
@@ -99,50 +114,22 @@ export default function LooksScreen() {
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    gap: SPACING.md,
-  },
-  card: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
-    overflow: 'hidden',
-    ...SHADOWS.editorialSmall,
-  },
-  cover: {
-    width: '100%',
-    aspectRatio: 1.8,
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  coverFallback: {
-    alignItems: 'center',
+  centeredFill: {
+    flex: 1,
     justifyContent: 'center',
+    padding: SPACING.xl,
   },
-  coverFallbackText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+  scrollView: {
+    flex: 1,
   },
-  cardBody: {
-    padding: SPACING.lg,
-    gap: SPACING.xs,
+  scrollContent: {
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
+    gap: SPACING.lg,
   },
-  cardTitle: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
-  },
-  roomName: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
-  },
-  cardDescription: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextSecondary,
-    fontSize: 13,
-  },
-  cardMeta: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
-    marginTop: SPACING.xs,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CARD_GAP,
   },
 });

@@ -8,7 +8,7 @@ export const STYLE_CHAT_DAILY_MESSAGE_LIMIT = 25;
 export const STYLE_CHAT_COPY = {
   header: 'STYLECHAT',
   subtitle: 'PRIVATE AI STYLING PREVIEW',
-  premiumBadge: 'FOUNDER PREMIUM PREVIEW',
+  premiumBadge: 'FOUNDER PREVIEW',
   emptySessionList:
     'Start a private styling session to compare scans, saved looks, or Dressing Room feedback.',
   emptyChat:

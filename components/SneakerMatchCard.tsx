@@ -8,7 +8,7 @@ import {
   Linking,
 } from 'react-native';
 import type { SneakerReference } from '../services/sneakers/types';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 interface Props {
   matches: SneakerReference[];
@@ -34,7 +34,7 @@ export function SneakerMatchCard({ matches }: Props) {
     <View style={styles.container}>
       <Text style={styles.sectionLabel}>SNEAKER MATCH</Text>
 
-      <View style={styles.card}>
+      <View style={styles.card} accessible accessibilityLabel={`Sneaker match: ${primary.name}`}>
         {/* Image */}
         {primary.imageUrl ? (
           <Image
@@ -101,6 +101,8 @@ export function SneakerMatchCard({ matches }: Props) {
                   onPress={() => openUrl(primary.marketplaceLinks?.stockx)}
                   style={styles.linkChip}
                   activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel="Open StockX listing"
                 >
                   <Text style={styles.linkText}>StockX</Text>
                 </TouchableOpacity>
@@ -110,6 +112,8 @@ export function SneakerMatchCard({ matches }: Props) {
                   onPress={() => openUrl(primary.marketplaceLinks?.goat)}
                   style={styles.linkChip}
                   activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel="Open GOAT listing"
                 >
                   <Text style={styles.linkText}>GOAT</Text>
                 </TouchableOpacity>
@@ -119,6 +123,8 @@ export function SneakerMatchCard({ matches }: Props) {
                   onPress={() => openUrl(primary.marketplaceLinks?.flightClub)}
                   style={styles.linkChip}
                   activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel="Open Flight Club listing"
                 >
                   <Text style={styles.linkText}>Flight Club</Text>
                 </TouchableOpacity>
@@ -138,26 +144,25 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xl,
   },
   sectionLabel: {
-    ...(TYPOGRAPHY.categoryLabel as object),
-    color:         COLORS.goldPressed,
-    textTransform: 'uppercase',
+    ...LUXURY.typography.sectionLabel,
     marginBottom:  SPACING.sm,
   },
   card: {
     flexDirection:   'row',
-    borderRadius:    RADIUS.md,
-    borderWidth:     StyleSheet.hairlineWidth,
-    borderColor:     COLORS.borderSubtle,
-    backgroundColor: COLORS.surfaceRaised,
+    borderRadius:    RADIUS.lg,
+    borderWidth:     1,
+    borderColor:     LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     overflow:        'hidden',
     padding:         SPACING.md,
     gap:             SPACING.md,
+    ...SHADOWS.editorialSmall,
   },
   image: {
-    width:        80,
-    height:       80,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.surfaceMuted,
+    width:        88,
+    height:       88,
+    borderRadius: RADIUS.md,
+    backgroundColor: LUXURY.colors.champagne,
     flexShrink:   0,
   },
   info: {
@@ -165,27 +170,25 @@ const styles = StyleSheet.create({
     gap:     SPACING.xs,
   },
   name: {
-    fontSize:    14,
-    fontWeight:  '600' as const,
-    color:       COLORS.editorialTextPrimary,
-    lineHeight:  19,
+    ...LUXURY.typography.bodyStrong,
+    fontSize:    15,
+    lineHeight:  21,
   },
   brand: {
-    fontSize:    12,
-    fontWeight:  '500' as const,
-    color:       COLORS.editorialTextSecondary,
+    ...LUXURY.typography.body,
+    fontSize:    13,
     letterSpacing: 0.4,
   },
   sku: {
-    fontSize:    11,
-    fontWeight:  '400' as const,
-    color:       COLORS.editorialTextMuted,
-    letterSpacing: 0.6,
+    ...LUXURY.typography.caption,
     fontFamily:  'monospace' as const,
+    textTransform: 'none',
+    letterSpacing: 0.6,
   },
   detail: {
-    fontSize:  11,
-    color:     COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    textTransform: 'none',
+    letterSpacing: 0.4,
   },
   prices: {
     flexDirection: 'row',
@@ -197,19 +200,17 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   priceLabel: {
-    fontSize:      10,
-    fontWeight:    '500' as const,
-    color:         COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    fontSize:      11,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.8,
   },
   priceValue: {
-    fontSize:   13,
-    fontWeight: '600' as const,
-    color:      COLORS.editorialTextPrimary,
+    ...LUXURY.typography.bodyStrong,
+    fontSize:   14,
   },
   marketPrice: {
-    color: COLORS.goldPressed,
+    color: LUXURY.colors.plum,
   },
   linkRow: {
     flexDirection: 'row',
@@ -218,22 +219,25 @@ const styles = StyleSheet.create({
     marginTop:     SPACING.xs,
   },
   linkChip: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical:   3,
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.xs,
     borderRadius:      RADIUS.pill,
-    borderWidth:       StyleSheet.hairlineWidth,
-    borderColor:       COLORS.borderSubtle,
-    backgroundColor:   COLORS.surfaceMuted,
+    borderWidth:       1,
+    borderColor:       LUXURY.colors.border,
+    backgroundColor:   LUXURY.colors.cream,
+    minHeight:         32,
+    justifyContent:    'center',
   },
   linkText: {
-    fontSize:   10,
-    fontWeight: '500' as const,
-    color:      COLORS.editorialTextSecondary,
+    ...LUXURY.typography.caption,
+    color:      LUXURY.colors.plum,
+    textTransform: 'none',
+    letterSpacing: 0.5,
   },
   source: {
-    fontSize:    10,
-    color:       COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
     marginTop:   SPACING.xs,
     fontStyle:   'italic' as const,
+    textTransform: 'none',
   },
 });

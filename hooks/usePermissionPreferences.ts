@@ -1,4 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
+import { Platform, PermissionsAndroid } from 'react-native';
+
+import { VOICESCAN_ENABLED } from '../constants/featureFlags';
 
 export type PermissionKey = 'camera' | 'photos' | 'microphone' | 'notifications';
 
@@ -98,8 +101,34 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
   }, []);
 
   const requestMicrophonePermission = useCallback(async (): Promise<MicrophonePermissionResult> => {
-    // VoiceScan is inactive in this build; never request microphone permission.
-    return { granted: false, canAskAgain: false, error: null };
+    if (Platform.OS !== 'android' || !VOICESCAN_ENABLED) {
+      return { granted: false, canAskAgain: false, error: null };
+    }
+
+    try {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: 'Enable VoiceScan microphone',
+          message:
+            'VoiceScan uses your microphone only when you start a voice or wearable input action. K Scan AI does not listen in the background.',
+          buttonPositive: 'Allow',
+        }
+      );
+
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        return { granted: true, canAskAgain: true, error: null };
+      }
+
+      const blocked = result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN;
+      return { granted: false, canAskAgain: !blocked, error: null };
+    } catch (err) {
+      return {
+        granted: false,
+        canAskAgain: false,
+        error: err instanceof Error ? err.message : 'Microphone permission request failed',
+      };
+    }
   }, []);
 
   return {

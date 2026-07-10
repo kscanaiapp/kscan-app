@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Image,
   Pressable,
@@ -12,6 +12,7 @@ import {
   BUTTONS,
   COLORS,
   LAYOUT,
+  LUXURY,
   RADIUS,
   SHADOWS,
   SPACING,
@@ -157,15 +158,46 @@ export function ItemTile({
   selected,
   onPress,
   onRemove,
+  onViewDetail,
   footer,
 }: {
   item: DressingRoomItem | LookItem;
   selected?: boolean;
   onPress?: () => void;
   onRemove?: () => void;
+  onViewDetail?: () => void;
   footer?: React.ReactNode;
 }) {
   const versionOk = canRenderSnapshotVersion(item.snapshotVersion);
+
+  const sourceBadge = useMemo(() => {
+    const sourceType = (item as DressingRoomItem).sourceType ?? null;
+    let label: string;
+    switch (sourceType) {
+      case 'live_scan':
+        label = 'Camera Scan';
+        break;
+      case 'upload_inspiration':
+        label = 'Upload';
+        break;
+      case 'style_library_scan':
+        label = 'Closet';
+        break;
+      case 'text-scan':
+      case 'textScan':
+        label = 'TextScan';
+        break;
+      case null:
+      case undefined:
+      case '':
+        label = 'Saved Item';
+        break;
+      default:
+        label = 'Saved Item';
+    }
+    return label;
+  }, [(item as DressingRoomItem).sourceType]);
+
   const content = (
     <View style={[styles.itemTile, selected ? styles.itemSelected : null]}>
       {versionOk && item.imageUrl ? (
@@ -177,9 +209,15 @@ export function ItemTile({
       )}
       <View style={styles.itemBody}>
         <Text style={styles.itemBrand} numberOfLines={1}>{item.brand || item.category || 'K-SCAN'}</Text>
+        <Text style={styles.itemSourceBadge}>{sourceBadge}</Text>
         <Text style={styles.itemTitle} numberOfLines={2}>
           {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}
         </Text>
+        {onViewDetail ? (
+          <TouchableOpacity style={styles.viewDetailButton} onPress={onViewDetail}>
+            <Text style={styles.viewDetailText}>View Detail</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       {footer ? <View style={styles.itemFooter}>{footer}</View> : null}
       {selected ? <Text style={styles.selectedMark}>SELECTED</Text> : null}
@@ -198,7 +236,7 @@ export function ItemTile({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.canvasWarm,
+    backgroundColor: LUXURY.colors.ivory,
   },
   content: {
     padding: LAYOUT.screenPadding,
@@ -211,17 +249,18 @@ const styles = StyleSheet.create({
     paddingTop: LAYOUT.safeTop,
     paddingBottom: SPACING.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderHairline,
-    backgroundColor: COLORS.canvasWarm,
+    borderBottomColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.ivory,
   },
   backButton: {
-    width: 42,
-    minHeight: 42,
+    width: 44,
+    minHeight: 44,
     justifyContent: 'center',
   },
   backText: {
-    color: COLORS.goldPressed,
-    fontSize: 24,
+    color: LUXURY.colors.plum,
+    fontSize: 28,
+    fontWeight: '300',
   },
   headerCenter: {
     flex: 1,
@@ -229,21 +268,22 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   brand: {
-    ...TYPOGRAPHY.brand,
-    fontSize: 15,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.sectionLabel,
+    fontSize: 13,
+    color: LUXURY.colors.ink,
   },
   eyebrow: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldBrushed,
+    letterSpacing: 2.2,
   },
   headerTitle: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
     textAlign: 'center',
   },
   headerRight: {
-    width: 42,
+    width: 44,
     alignItems: 'flex-end',
   },
   button: {
@@ -255,33 +295,33 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   primaryButton: {
-    backgroundColor: COLORS.gold,
+    backgroundColor: LUXURY.colors.plum,
   },
   secondaryButton: {
-    backgroundColor: COLORS.surfaceCard,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
+    backgroundColor: LUXURY.colors.pearl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.gold,
   },
   dangerButton: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 107, 107, 0.35)',
+    backgroundColor: 'rgba(130, 48, 56, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(130, 48, 56, 0.35)',
   },
   disabled: {
-    opacity: 0.48,
+    opacity: 0.5,
   },
   buttonText: {
-    ...TYPOGRAPHY.cta,
+    ...LUXURY.typography.cta,
     textAlign: 'center',
   },
   primaryButtonText: {
-    color: COLORS.textInverse,
+    color: LUXURY.colors.inverse,
   },
   secondaryButtonText: {
-    color: COLORS.editorialTextSecondary,
+    color: LUXURY.colors.plum,
   },
   dangerButtonText: {
-    color: COLORS.error,
+    color: LUXURY.colors.error,
   },
   empty: {
     alignItems: 'center',
@@ -291,13 +331,13 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   emptyTitle: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
     textAlign: 'center',
   },
   emptyBody: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.stone,
     textAlign: 'center',
   },
   centerPanel: {
@@ -308,12 +348,12 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   centerText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   errorText: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.error,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
     textAlign: 'center',
   },
   field: {
@@ -321,74 +361,100 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   fieldLabel: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   input: {
-    minHeight: 52,
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    color: COLORS.editorialTextPrimary,
-    paddingHorizontal: SPACING.lg,
+    minHeight: LUXURY.inputs.field.height,
+    borderRadius: LUXURY.inputs.field.borderRadius,
+    borderWidth: LUXURY.inputs.field.borderWidth,
+    borderColor: LUXURY.inputs.field.borderColor,
+    backgroundColor: LUXURY.inputs.field.backgroundColor,
+    color: LUXURY.inputs.field.color,
+    paddingHorizontal: LUXURY.inputs.field.paddingHorizontal,
     paddingVertical: SPACING.md,
-    fontSize: 15,
+    fontSize: LUXURY.inputs.field.fontSize,
+    fontWeight: LUXURY.inputs.field.fontWeight,
   },
   textArea: {
     minHeight: 104,
     textAlignVertical: 'top',
   },
   itemTile: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     overflow: 'hidden',
     marginBottom: SPACING.md,
     ...SHADOWS.editorialSmall,
   },
   itemSelected: {
-    borderColor: COLORS.gold,
-    backgroundColor: COLORS.accentSoft,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: LUXURY.colors.plumMuted,
+  },
+  itemSourceBadge: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  viewDetailButton: {
+    alignSelf: 'flex-start',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.ivory,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+  },
+  viewDetailText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 10,
+    letterSpacing: 1.2,
   },
   itemImage: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.champagne,
   },
   itemFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   unavailableText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   itemBody: {
     padding: SPACING.md,
     gap: SPACING.xs,
   },
   itemFooter: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.borderHairline,
+    borderTopWidth: 1,
+    borderTopColor: LUXURY.colors.border,
   },
   itemBrand: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldBrushed,
     fontSize: 10,
+    letterSpacing: 1.4,
   },
   itemTitle: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
   },
   selectedMark: {
-    ...TYPOGRAPHY.caption,
+    ...LUXURY.typography.caption,
     position: 'absolute',
     top: SPACING.sm,
     left: SPACING.sm,
-    color: COLORS.textInverse,
-    backgroundColor: COLORS.gold,
+    color: LUXURY.colors.inverse,
+    backgroundColor: LUXURY.colors.plum,
     borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
@@ -398,18 +464,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: SPACING.sm,
     right: SPACING.sm,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
   },
   removeText: {
-    color: COLORS.editorialTextSecondary,
+    color: LUXURY.colors.graphite,
     fontSize: 14,
+    lineHeight: 18,
   },
 });
 

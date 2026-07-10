@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY, chip } from '../constants/theme';
+import { COLORS, LUXURY, SPACING, TYPOGRAPHY, chip } from '../constants/theme';
 
 const EMPTY_VALUE = '—';
 
@@ -38,22 +38,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: chip.paddingHorizontal,
     paddingVertical:   chip.paddingVertical,
     borderRadius:      chip.borderRadius,
-    // Chrome left accent + standard border on remaining sides
-    borderWidth:       StyleSheet.hairlineWidth,
-    borderColor:       COLORS.borderHairline,
-    borderLeftWidth:   2,
-    borderLeftColor:   COLORS.gold,
-    backgroundColor:   COLORS.surfaceRaised,
+    borderWidth:       1,
+    borderColor:       LUXURY.colors.border,
+    borderLeftWidth:   3,
+    borderLeftColor:   LUXURY.colors.gold,
+    backgroundColor:   LUXURY.colors.cream,
     justifyContent:    'center',
   },
   label: {
-    ...TYPOGRAPHY.chipLabel,
+    ...LUXURY.typography.caption,
     marginBottom: chip.labelMarginBottom,
-    color: COLORS.editorialTextMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
   },
   value: {
-    ...TYPOGRAPHY.chipValue,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
     paddingRight: SPACING.xs,
   },
 });

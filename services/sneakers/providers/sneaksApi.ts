@@ -16,9 +16,7 @@ const MAX_ITEMS  = 3;
 // The URL itself is not secret — check EXPO_PUBLIC_ first for Expo client,
 // then fall back to the server-side bare name.
 const BASE_URL: string | undefined =
-  typeof process !== 'undefined'
-    ? (process.env.EXPO_PUBLIC_SNEAKS_API_BASE_URL ?? process.env.SNEAKS_API_BASE_URL)
-    : undefined;
+  process.env.EXPO_PUBLIC_SNEAKS_API_BASE_URL ?? process.env.SNEAKS_API_BASE_URL;
 
 type RawItem = Record<string, any>;
 

@@ -14,8 +14,7 @@ const PROVIDER   = 'hosea-sneaker-api';
 const TIMEOUT_MS = 4000;
 const MAX_ITEMS  = 3;
 
-const BASE_URL: string | undefined =
-  typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_HOSEA_API_BASE_URL : undefined;
+const BASE_URL: string | undefined = process.env.EXPO_PUBLIC_HOSEA_API_BASE_URL;
 
 type RawItem = Record<string, any>;
 

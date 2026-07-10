@@ -200,7 +200,18 @@ async function resolveSignedImageUrlsForItems<T extends { imageUrl?: string | nu
 }
 
 export function buildProductMatchSnapshot(source: ProductMatchSnapshotSource) {
-  const imageUrl = cleanText(source.imageUrl);
+  // Resolve fields accepting BOTH camelCase and snake_case so the snapshot
+  // builder accepts exactly what ProductShelf considers saveable: its
+  // eligibility gate (getProductImageUrl/getPurchaseUrl/getProductTitle) reads
+  // both shapes. Without this, a catalog row carrying only `image_url` (no
+  // `imageUrl` alias) would pass the UI gate yet throw here.
+  const imageUrl =
+    cleanText(source.imageUrl) ||
+    cleanText(source.image_url) ||
+    cleanText(source.thumbnail) ||
+    cleanText(source.thumbnailUrl) ||
+    cleanText(source.image_src) ||
+    cleanText(source.product_image_url);
   if (!isRemoteImageUrl(imageUrl)) {
     throw new UnsupportedStyleObjectItemError();
   }
@@ -208,11 +219,23 @@ export function buildProductMatchSnapshot(source: ProductMatchSnapshotSource) {
   const productUrl =
     cleanText(source.affiliateUrl) ||
     cleanText(source.productUrl) ||
-    cleanText(source.purchaseUrl);
+    cleanText(source.purchaseUrl) ||
+    cleanText(source.product_url) ||
+    cleanText(source.purchase_url) ||
+    cleanText(source.url) ||
+    cleanText(source.link);
   const price = parsePrice(source.price);
-  const title = cleanText(source.title) || cleanText(source.name) || 'Untitled item';
-  const brand = cleanText(source.retailer);
-  const category = cleanText(source.imageCategory);
+  const title =
+    cleanText(source.title) ||
+    cleanText(source.name) ||
+    cleanText(source.displayName) ||
+    cleanText(source.product_name) ||
+    'Untitled item';
+  const brand = cleanText(source.retailer) || cleanText(source.brand);
+  const category =
+    cleanText(source.imageCategory) ||
+    cleanText(source.category) ||
+    cleanText(source.canonical_category);
 
   return {
     sourceType: 'product_match',
@@ -1024,6 +1047,46 @@ export async function removeInspirationFromDressingRoom(roomId: string, inspirat
     .eq('room_id', roomId)
     .eq('inspiration_id', inspirationId);
   if (error) throw safeError(error, 'Unable to remove inspiration from room.');
+}
+
+// Attaches an EXISTING Closet/Inspiration item (already stored) to a Dressing
+// Room. The stored image is reused — no re-upload is performed. Ownership is
+// enforced by RLS: the link row must have user_id = auth.uid() and the target
+// room must belong to the caller. The upsert revives a previously removed
+// (soft-deleted) link so re-adding an item is idempotent.
+export async function addInspirationToDressingRoom(input: {
+  roomId: string;
+  inspirationId: string;
+  userId?: string | null;
+}): Promise<void> {
+  const userId = requireAuthUserId(input.userId);
+  const roomId = String(input.roomId || '').trim();
+  const inspirationId = String(input.inspirationId || '').trim();
+  if (!roomId || !inspirationId) {
+    throw new Error('Missing Dressing Room or Closet item.');
+  }
+
+  const { data: roomRow } = await supabase
+    .from('dressing_rooms')
+    .select('id')
+    .eq('id', roomId)
+    .single();
+  if (!roomRow) {
+    throw new Error('Dressing Room not found or access denied.');
+  }
+
+  const { error } = await supabase
+    .from('dressing_room_inspiration_items')
+    .upsert(
+      {
+        room_id: roomId,
+        inspiration_id: inspirationId,
+        user_id: userId,
+        deleted_at: null,
+      },
+      { onConflict: 'room_id,inspiration_id' },
+    );
+  if (error) throw safeError(error, 'Unable to add item to Dressing Room.');
 }
 
 // Satisfies DressingRoomInspirationLink type reference without unused-import error

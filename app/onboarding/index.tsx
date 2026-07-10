@@ -8,8 +8,8 @@ import {
   Switch,
   BackHandler,
   ActivityIndicator,
-  Linking,
   Platform,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router';
@@ -38,8 +38,6 @@ import { TERMS_VERSION, PRIVACY_VERSION, AGE_VERSION } from '../../constants/leg
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { recordLegalAcceptances } from '../../services/legalAcceptance';
 import { usePermissionPreferences } from '../../hooks/usePermissionPreferences';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
@@ -78,8 +76,6 @@ export default function OnboardingScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
-  const [appleBusy, setAppleBusy] = useState(false);
-  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const resumeHandledRef = useRef(false);
   const authResumeKeyRef = useRef<string | null>(null);
@@ -99,6 +95,7 @@ export default function OnboardingScreen() {
     setPreference: setPermissionPreference,
     isSaving: permissionSaving,
     savePreferences,
+    requestMicrophonePermission,
   } = usePermissionPreferences();
   const microphoneDisabled = !VOICESCAN_ENABLED;
 
@@ -161,17 +158,7 @@ export default function OnboardingScreen() {
     };
   }, [authLoading, isAuthenticated, user?.id, moveToTermsOnce, replaceHomeOnce, resumeParam, shouldResumeTerms]);
 
-  // Apple Sign-In availability check (iOS only)
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    let mounted = true;
-    void AppleAuthentication.isAvailableAsync().then((available) => {
-      if (mounted) setAppleAuthAvailable(available);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Android hardware back handler
   useEffect(() => {
     const backAction = () => {
       if (step > 1) {
@@ -261,74 +248,6 @@ export default function OnboardingScreen() {
       setCreateBusy(false);
     }
   }, [email, password, confirmPassword, signUp, continueAuthenticatedFlow]);
-
-  // ── Apple OAuth handler (used from onboarding auth-choice step) ─────────────
-
-  function createRawNonce(length = 32) {
-    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
-    const randomBytes = Crypto.getRandomBytes(length);
-    return Array.from(randomBytes, (byte) => charset[byte % charset.length]).join('');
-  }
-
-  const handleAppleSignIn = useCallback(async () => {
-    if (Platform.OS !== 'ios') {
-      setCreateError('Apple sign-in is available on iOS devices.');
-      return;
-    }
-
-    setCreateError(null);
-    setConfirmationEmail(null);
-    setAppleBusy(true);
-
-    try {
-      const rawNonce = createRawNonce();
-      const hashedNonce = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        rawNonce,
-      );
-
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-        nonce: hashedNonce,
-      });
-
-      if (!credential.identityToken) {
-        setCreateError('We could not complete Apple sign-in. Please try again.');
-        setAppleBusy(false);
-        return;
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: credential.identityToken,
-        nonce: rawNonce,
-      });
-
-      if (signInError) {
-        setCreateError('We could not complete Apple sign-in. Please try again.');
-        setAppleBusy(false);
-        return;
-      }
-
-      await continueAuthenticatedFlow();
-    } catch (err) {
-      const code = typeof err === 'object' && err && 'code' in err ? String(err.code) : '';
-      const message = err instanceof Error ? err.message : '';
-      const lowerMessage = message.toLowerCase();
-
-      if (code === 'ERR_REQUEST_CANCELED') {
-        setCreateError('Sign-in cancelled.');
-      } else if (lowerMessage.includes('network')) {
-        setCreateError('Network error. Please try again.');
-      } else {
-        setCreateError('We could not complete Apple sign-in. Please try again.');
-      }
-      setAppleBusy(false);
-    }
-  }, [continueAuthenticatedFlow]);
 
   // ── Google OAuth handler (used from onboarding auth-choice step) ─────────────
 
@@ -502,9 +421,9 @@ export default function OnboardingScreen() {
         <AccountSetupStepV1
           onContinueEmail={goToNext}
           onContinueGoogle={handleGoogleSignIn}
-          onContinueApple={handleAppleSignIn}
+          onContinueApple={goToAuth}
           onGoToLogin={goToAuth}
-          appleAvailable={appleAuthAvailable}
+          appleAvailable={Platform.OS === 'ios'}
           error={createError}
           googleBusy={googleBusy}
         />
@@ -537,13 +456,14 @@ export default function OnboardingScreen() {
         style={styles.wideButton}
       />
 
-      {appleAuthAvailable && Platform.OS === 'ios' && (
+      {Platform.OS === 'ios' && (
         <SecondaryButton
           testID="onboarding-continue-apple-button"
           title="Continue with Apple"
-          onPress={handleAppleSignIn}
-          loading={appleBusy}
-          disabled={appleBusy}
+          onPress={() => {
+            // Redirect to existing auth screen for Apple OAuth
+            goToAuth();
+          }}
           style={styles.wideButton}
         />
       )}
@@ -855,6 +775,7 @@ export default function OnboardingScreen() {
           preferences={permissionPrefs}
           togglePreference={togglePermission}
           setPreference={setPermissionPreference}
+          requestMicrophonePermission={requestMicrophonePermission}
           isSaving={permissionSaving}
           onContinueToHome={handlePermissionsContinue}
           onNotNow={goToHome}

@@ -12,7 +12,7 @@ import {
   TextInput,
   type ImageStyle,
 } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { selectionTick } from '../services/haptics';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
@@ -23,18 +23,40 @@ import {
   isRemoteImageUrl,
   UnsupportedStyleObjectItemError,
 } from '../services/styleObjects';
+import type { ProductMatchSnapshotSource } from '../types/styleObjects';
+import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnapshot';
 
 export interface Product {
   id?:         string;
+  displayName?: string;
   title?:      string;
   name?:       string;
+  product_name?: string;
   retailer?:   string;
-  price?:      string;
+  brand?:      string;
+  source?:     string;
+  merchant?:   string;
+  store?:      string;
+  price?:      string | number | null;
+  currency?:   string;
   imageUrl?:   string | null;
+  image_url?:  string | null;
+  thumbnail?:  string | null;
+  thumbnailUrl?: string | null;
+  image_src?:  string | null;
+  product_image_url?: string | null;
   imageCategory?: string | null;
+  category?:   string | null;
   productUrl?: string | null;
   purchaseUrl?: string | null;
+  purchase_url?: string | null;
+  product_url?: string | null;
+  url?:        string | null;
+  link?:       string | null;
   affiliateUrl?: string | null;
+  availability?: string | null;
+  matchScore?: number;
+  similarityPercentage?: number;
 }
 
 interface ProductShelfProps {
@@ -57,12 +79,78 @@ function normalizeImageCategory(category: string | null | undefined) {
   return PLACEHOLDER_CATEGORIES.has(normalized) ? normalized : 'accessories';
 }
 
-function getProductTitle(product: Product | null | undefined) {
-  return String(product?.title || product?.name || '').trim();
+function getProductTitle(product: Product | null | undefined): string {
+  if (!product) return '';
+  return (
+    String(product.displayName || product.name || product.title || product.product_name || '').trim()
+  );
+}
+
+function getProductImageUrl(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const candidates = [
+    product.imageUrl,
+    product.image_url,
+    product.thumbnail,
+    product.thumbnailUrl,
+    product.image_src,
+    product.product_image_url,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+  }
+  return null;
+}
+
+function getPurchaseUrl(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const candidates = [
+    product.purchaseUrl,
+    product.productUrl,
+    product.affiliateUrl,
+    product.product_url,
+    product.purchase_url,
+    product.url,
+    product.link,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+  }
+  return null;
+}
+
+function getRetailer(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const candidates = [product.retailer, product.brand, product.source, product.merchant, product.store];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  return null;
+}
+
+function formatPrice(product: Product | null | undefined): string | null {
+  if (!product) return null;
+  const price = product.price;
+  if (price === null || price === undefined) return null;
+  if (typeof price === 'number') {
+    if (price <= 0 || !Number.isFinite(price)) return null;
+    const currency = String(product.currency || 'USD').toUpperCase();
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price);
+    } catch {
+      return `$${price.toFixed(2)}`;
+    }
+  }
+  if (typeof price === 'string') {
+    const trimmed = price.trim();
+    if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return null;
+    return trimmed;
+  }
+  return null;
 }
 
 export function canAddProductToDressingRoom(product: Product | null | undefined) {
-  return getProductTitle(product).length > 0 && isRemoteImageUrl(product?.imageUrl);
+  return getProductTitle(product).length > 0 && isRemoteImageUrl(getProductImageUrl(product));
 }
 
 function ProductImagePlaceholder({ category }: { category: string }) {
@@ -178,7 +266,23 @@ export function ProductShelf({ products }: ProductShelfProps) {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
-  if (!products || products.length === 0) return null;
+  if (!products || products.length === 0) {
+    return (
+      <View testID="product-shelf-empty" style={styles.emptyShelf}>
+        <Text style={styles.emptyShelfTitle}>No similar items yet.</Text>
+        <Text style={styles.emptyShelfBody}>
+          Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.
+        </Text>
+      </View>
+    );
+  }
+
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    const missingImage = products.filter((p) => !getProductImageUrl(p)).length;
+    const missingLink = products.filter((p) => !getPurchaseUrl(p)).length;
+    console.log('[K-SCAN ProductShelf] rendering products=' + products.length +
+      ' missingImageUrl=' + missingImage + ' missingProductUrl=' + missingLink);
+  }
 
   const handleLinkPress = (url: string | null | undefined) => {
     if (!url) return;
@@ -192,7 +296,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
   return (
     <View testID="product-shelf" style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>CATALOG MATCHES</Text>
+        <Text style={styles.label}>SIMILAR ITEMS</Text>
         <View style={styles.labelLine} />
       </View>
 
@@ -202,19 +306,24 @@ export function ProductShelf({ products }: ProductShelfProps) {
         contentContainerStyle={styles.scrollContent}
       >
         {products.map((p, i) => {
-          const purchaseUrl = p.affiliateUrl || p.productUrl || p.purchaseUrl || null;
+          const productImageUrl = getProductImageUrl(p);
+          const purchaseUrl = getPurchaseUrl(p);
           const hasLink = !!purchaseUrl;
           const productKey = p.id ?? String(i);
           const productTitle = getProductTitle(p) || 'Unknown Product';
           const canSaveToRoom = canAddProductToDressingRoom(p);
-          const imageCategory = normalizeImageCategory(p.imageCategory);
-          const showImage = !!p.imageUrl && !failedImages[productKey];
+          const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
+          const showImage = !!productImageUrl && !failedImages[productKey];
+          const retailer = getRetailer(p);
+          const priceText = formatPrice(p);
+          const availability = typeof p.availability === 'string' ? p.availability.toLowerCase() : null;
+          const isOutOfStock = availability === 'out_of_stock' || availability === 'out of stock';
           if (typeof __DEV__ !== 'undefined' && __DEV__ && !showImage) {
             console.log(
               '[K-SCAN ProductShelf] fallback',
               JSON.stringify({
-                name: p.name || 'Unknown Product',
-                hasImageUrl: !!p.imageUrl,
+                name: productTitle,
+                hasImageUrl: !!productImageUrl,
                 category: imageCategory,
               }),
             );
@@ -228,32 +337,51 @@ export function ProductShelf({ products }: ProductShelfProps) {
                 onPress={() => handleLinkPress(purchaseUrl)}
                 activeOpacity={hasLink ? 0.78 : 1}
                 disabled={!hasLink}
-                accessibilityLabel={hasLink ? `Open ${productTitle}` : productTitle}
+                accessibilityRole={hasLink ? 'link' : 'button'}
+                accessibilityLabel={hasLink ? `Open ${productTitle} product page` : `${productTitle} product image`}
+                accessibilityHint={hasLink ? 'Opens the retailer product page' : undefined}
               >
                 {showImage ? (
                   <CatalogProductImage
-                    uri={p.imageUrl}
+                    uri={productImageUrl}
                     productKey={productKey}
                     imageCategory={imageCategory}
                     onError={() => setFailedImages((current) => ({ ...current, [productKey]: true }))}
                   />
                 ) : (
-                  <View style={[styles.image, styles.imagePlaceholder]}>
+                  <View
+                    style={[styles.image, styles.imagePlaceholder]}
+                    accessible
+                    accessibilityRole="image"
+                    accessibilityLabel={`Catalog image unavailable for ${productTitle}`}
+                  >
                     <ProductImagePlaceholder category={imageCategory} />
+                    <Text style={styles.placeholderLabel} numberOfLines={1}>
+                      Image pending
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
 
               <View style={styles.cardBody}>
-                {p.retailer ? (
+                {retailer ? (
                   <Text style={styles.retailer} numberOfLines={1}>
-                    {p.retailer.toUpperCase()}
+                    {retailer.toUpperCase()}
                   </Text>
                 ) : null}
                 <Text style={styles.name} numberOfLines={2}>
                   {productTitle}
                 </Text>
-                <Text style={styles.price}>{p.price || '—'}</Text>
+                {priceText ? (
+                  <Text style={styles.price} numberOfLines={1}>
+                    {priceText}
+                  </Text>
+                ) : null}
+                {isOutOfStock ? (
+                  <Text style={styles.availabilityLabel} numberOfLines={1}>
+                    Out of stock
+                  </Text>
+                ) : null}
                 {dressingRoomsEnabled ? (
                   <TouchableOpacity
                     testID="add-to-dressing-room-button"
@@ -269,14 +397,16 @@ export function ProductShelf({ products }: ProductShelfProps) {
                     }}
                     activeOpacity={0.82}
                   >
-                    <Text style={styles.addToRoomText}>
+                    <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
                       {canSaveToRoom ? 'Add to Dressing Room' : "Can't Save Yet"}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
 
-              {hasLink && <View style={styles.linkDot} />}
+              {hasLink && (
+                <View style={styles.linkDot} accessibilityLabel="Has product link" />
+              )}
 
             </View>
           );
@@ -298,7 +428,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
   );
 }
 
-function AddToRoomModal({
+export function AddToRoomModal({
   product,
   visible,
   onClose,
@@ -318,9 +448,9 @@ function AddToRoomModal({
     setSaving(true);
     setMessage(null);
     try {
-      await addProductToDressingRoom(roomId, product);
+      await addProductToDressingRoom(roomId, normalizeForSnapshot(product));
       const roomName = rooms.find((room) => room.id === roomId)?.title || 'Dressing Room';
-      setMessage(`Saved to ${roomName}.`);
+      setMessage(`Saved to ${roomName}. You can revisit it from Dressing Rooms.`);
       setTimeout(onClose, 900);
     } catch (err: any) {
       setMessage(
@@ -343,9 +473,9 @@ function AddToRoomModal({
         title: newRoomTitle,
         description: null,
       });
-      await addProductToDressingRoom(room.id, product);
+      await addProductToDressingRoom(room.id, normalizeForSnapshot(product));
       setNewRoomTitle('');
-      setMessage(`Saved to ${room.title}.`);
+      setMessage(`Saved to ${room.title}. You can revisit it from Dressing Rooms.`);
       await reload();
       setTimeout(onClose, 900);
     } catch (err: any) {
@@ -369,14 +499,22 @@ function AddToRoomModal({
           {unsupported ? (
             <Text style={styles.modalMessage}>This item can't be saved to a Dressing Room yet.</Text>
           ) : loading ? (
-            <ActivityIndicator color={COLORS.accent} />
+            <View style={styles.modalLoading}>
+              <ActivityIndicator color={COLORS.accent} />
+              <Text style={styles.modalMessage}>Loading Dressing Rooms...</Text>
+            </View>
           ) : error ? (
             <Text style={styles.modalMessage}>{error}</Text>
           ) : (
             <>
               <ScrollView style={styles.roomList} contentContainerStyle={styles.roomListContent}>
                 {rooms.length === 0 ? (
-                  <Text style={styles.modalMessage}>Create your first Dressing Room.</Text>
+                  <View style={styles.modalEmptyState}>
+                    <Text style={styles.modalMessage}>No Dressing Rooms yet.</Text>
+                    <Text style={styles.modalSubMessage}>
+                      Create one below to save this item and revisit it later.
+                    </Text>
+                  </View>
                 ) : (
                   rooms.map((room) => (
                     <TouchableOpacity
@@ -436,6 +574,28 @@ const styles = StyleSheet.create({
   container: {
     marginTop: SPACING.xl,
   },
+  emptyShelf: {
+    marginTop: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.cream,
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
+  emptyShelfTitle: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
+    textAlign: 'center',
+  },
+  emptyShelfBody: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    lineHeight: 18,
+    textTransform: 'none',
+  },
   labelRow: {
     flexDirection: 'row',
     alignItems:    'center',
@@ -443,14 +603,12 @@ const styles = StyleSheet.create({
     marginBottom:  SPACING.md,
   },
   label: {
-    ...TYPOGRAPHY.sectionLabel,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.sectionLabel,
   },
   labelLine: {
     flex:            1,
     height:          1,
-    backgroundColor: COLORS.borderHairline,
-    opacity:         0.5,
+    backgroundColor: LUXURY.colors.border,
   },
   scrollContent: {
     gap:            SPACING.md,
@@ -458,10 +616,10 @@ const styles = StyleSheet.create({
   },
   card: {
     width:           CARD_WIDTH,
-    borderRadius:    RADIUS.md,
-    borderWidth:     StyleSheet.hairlineWidth,
-    borderColor:     COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius:    RADIUS.lg,
+    borderWidth:     1,
+    borderColor:     LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     overflow:        'hidden',
     ...SHADOWS.editorialSmall,
   },
@@ -480,14 +638,17 @@ const styles = StyleSheet.create({
     left: 0,
   },
   imagePlaceholder: {
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: LUXURY.colors.champagne,
     alignItems:      'center',
     justifyContent:  'center',
+    gap:             SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.border,
   },
   imageSkeleton: {
-    backgroundColor: COLORS.surfaceMuted,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderHairline,
+    backgroundColor: LUXURY.colors.champagne,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.border,
   },
   placeholderMark: {
     width:          72,
@@ -509,6 +670,14 @@ const styles = StyleSheet.create({
   },
   placeholderCyanFill: {
     backgroundColor: COLORS.arBlue,
+  },
+  placeholderLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    maxWidth: IMAGE_SIZE - SPACING.lg,
+    textAlign: 'center',
   },
   footwearUpper: {
     position:     'absolute',
@@ -671,23 +840,27 @@ const styles = StyleSheet.create({
     gap:     SPACING.xxs,
   },
   retailer: {
-    fontSize:      9,
-    fontWeight:    '600' as const,
-    letterSpacing: 1.8,
-    color:         COLORS.editorialTextMuted,
+    ...LUXURY.typography.caption,
+    fontSize:      10,
+    letterSpacing: 1.4,
+    color:         LUXURY.colors.stone,
     textTransform: 'uppercase' as const,
   },
   name: {
-    fontSize:   12,
-    fontWeight: '500' as const,
-    color:      COLORS.editorialTextPrimary,
-    lineHeight: 17,
+    ...LUXURY.typography.bodyStrong,
+    fontSize:   13,
+    lineHeight: 18,
   },
   price: {
-    fontSize:   13,
-    fontWeight: '600' as const,
-    color:      COLORS.goldPressed,
+    ...LUXURY.typography.bodyStrong,
+    color:      LUXURY.colors.plum,
     marginTop:  SPACING.xxs,
+  },
+  availabilityLabel: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.xxs,
   },
   linkDot: {
     position:        'absolute',
@@ -706,11 +879,11 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   addToRoomButton: {
-    minHeight: 34,
-    borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    minHeight: 36,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plumMuted,
+    backgroundColor: LUXURY.colors.plumMuted,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
@@ -718,14 +891,16 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   addToRoomButtonDisabled: {
-    opacity: 0.58,
+    opacity: 0.5,
   },
   addToRoomText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextPrimary,
-    fontSize: 10,
-    letterSpacing: 1.2,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 11,
+    letterSpacing: 0.8,
     textAlign: 'center',
+    textTransform: 'none',
+    flexShrink: 1,
   },
   modalBackdrop: {
     flex: 1,
@@ -734,20 +909,19 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   modalCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceCard,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     maxHeight: '82%',
   },
   modalTitle: {
-    ...TYPOGRAPHY.title,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.displayTitle,
+    fontSize: 22,
   },
   modalItemName: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.body,
     marginTop: SPACING.xs,
     marginBottom: SPACING.md,
   },
@@ -757,76 +931,89 @@ const styles = StyleSheet.create({
   roomListContent: {
     gap: SPACING.sm,
   },
+  modalLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.lg,
+  },
+  modalEmptyState: {
+    paddingVertical: SPACING.md,
+  },
   roomChoice: {
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.cream,
     padding: SPACING.md,
     gap: SPACING.xs,
   },
   roomChoiceTitle: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextPrimary,
+    ...LUXURY.typography.bodyStrong,
   },
   roomChoiceMeta: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.goldPressed,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldText,
   },
   quickCreate: {
     marginTop: SPACING.lg,
     gap: SPACING.sm,
   },
   quickCreateLabel: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.editorialTextMuted,
+    ...LUXURY.typography.sectionLabel,
+    fontSize: 11,
   },
   quickCreateInput: {
-    minHeight: 48,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    color: COLORS.editorialTextPrimary,
-    paddingHorizontal: SPACING.md,
+    minHeight: LUXURY.inputs.field.height,
+    borderRadius: LUXURY.inputs.field.borderRadius,
+    borderWidth: LUXURY.inputs.field.borderWidth,
+    borderColor: LUXURY.inputs.field.borderColor,
+    backgroundColor: LUXURY.colors.cream,
+    color: LUXURY.inputs.field.color,
+    paddingHorizontal: LUXURY.inputs.field.paddingHorizontal,
     paddingVertical: SPACING.sm,
-    fontSize: 14,
+    fontSize: LUXURY.inputs.field.fontSize,
   },
   newRoomControls: {
     marginTop: SPACING.md,
   },
   modalPrimaryButton: {
-    minHeight: 48,
+    minHeight: 52,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.gold,
+    backgroundColor: LUXURY.colors.plum,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
+    ...SHADOWS.editorialSmall,
   },
   modalPrimaryText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.textInverse,
+    ...LUXURY.typography.cta,
   },
   modalSecondaryButton: {
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.md,
   },
   modalSecondaryText: {
-    ...TYPOGRAPHY.cta,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.ctaSecondary,
   },
   modalButtonDisabled: {
     opacity: 0.48,
   },
   modalMessage: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.editorialTextSecondary,
+    ...LUXURY.typography.bodyStrong,
     textAlign: 'center',
     marginTop: SPACING.md,
+  },
+  modalSubMessage: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    lineHeight: 18,
+    textTransform: 'none',
   },
 });

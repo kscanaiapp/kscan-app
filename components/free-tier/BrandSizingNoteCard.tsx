@@ -1,0 +1,120 @@
+/**
+ * Free Tier Utility Expansion — brand sizing memory card.
+ * User-entered fit notes only; never infers body size.
+ */
+
+import React, { useState } from 'react';
+import { StyleSheet, TextInput } from 'react-native';
+import {
+  FREE_TIER_BRAND_SIZING_ENABLED,
+  isFreeTierFeatureEnabled,
+} from '../../constants/freeTierUtilityFlags';
+import { useBrandSizingMemory } from '../../hooks/useBrandSizingMemory';
+import { FT_COLORS, UtilityBody, UtilityButton, UtilityCard, UtilityChip, UtilityRow, UtilityTitle } from './freeTierUi';
+
+export function BrandSizingNoteCard(props: { brand?: string }) {
+  const enabled = isFreeTierFeatureEnabled(FREE_TIER_BRAND_SIZING_ENABLED);
+  const { entry, loading, saveNote, removeNote } = useBrandSizingMemory(props.brand);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftSize, setDraftSize] = useState('');
+  const [draftNote, setDraftNote] = useState('');
+  if (!enabled || !props.brand || loading) return null;
+
+  const brand = props.brand;
+
+  const startEdit = () => {
+    setDraftSize(entry?.usualSize ?? '');
+    setDraftNote(entry?.fitNote ?? '');
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setDraftSize('');
+    setDraftNote('');
+  };
+
+  const submit = () => {
+    saveNote(brand, {
+      usualSize: draftSize.trim() || undefined,
+      fitNote: draftNote.trim() || undefined,
+    });
+    setIsEditing(false);
+    setDraftSize('');
+    setDraftNote('');
+  };
+
+  if (entry && !isEditing) {
+    return (
+      <UtilityCard>
+        <UtilityTitle kicker="Sizing memory">{brand}</UtilityTitle>
+        <UtilityBody>
+          {[
+            entry.usualSize ? 'Usual size: ' + entry.usualSize : null,
+            entry.fitNote,
+          ]
+            .filter(Boolean)
+            .join(' · ') || 'You marked this brand before.'}
+        </UtilityBody>
+        <UtilityRow>
+          {entry.runsSmall ? <UtilityChip label="Runs small — size up" /> : null}
+          {entry.runsLarge ? <UtilityChip label="Runs large — size down" /> : null}
+          <UtilityButton label="Edit" subtle onPress={startEdit} />
+          <UtilityButton label="Delete" subtle onPress={() => removeNote(brand)} />
+        </UtilityRow>
+      </UtilityCard>
+    );
+  }
+
+  return (
+    <UtilityCard>
+      <UtilityTitle kicker="Sizing memory">{brand}</UtilityTitle>
+      <UtilityBody>
+        Remember how this brand fits — e.g. "size up" or "shoes run narrow."
+      </UtilityBody>
+      <TextInput
+        style={styles.input}
+        placeholder="Usual size (e.g. M, 42, 8.5)"
+        placeholderTextColor={FT_COLORS.textMuted}
+        value={draftSize}
+        onChangeText={setDraftSize}
+        returnKeyType="next"
+        blurOnSubmit={false}
+        maxLength={40}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Fit note (optional)"
+        placeholderTextColor={FT_COLORS.textMuted}
+        value={draftNote}
+        onChangeText={setDraftNote}
+        returnKeyType="done"
+        blurOnSubmit={true}
+        maxLength={200}
+        multiline
+      />
+      <UtilityRow>
+        <UtilityButton
+          label={entry ? 'Update sizing note' : 'Save sizing note'}
+          disabled={!draftSize.trim() && !draftNote.trim()}
+          onPress={submit}
+        />
+        {entry ? <UtilityButton label="Cancel" subtle onPress={cancelEdit} /> : null}
+      </UtilityRow>
+    </UtilityCard>
+  );
+}
+
+const styles = StyleSheet.create({
+  input: {
+    borderWidth: 1,
+    borderColor: FT_COLORS.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: FT_COLORS.plum,
+    backgroundColor: '#FFFFFF',
+    marginTop: 8,
+  },
+});

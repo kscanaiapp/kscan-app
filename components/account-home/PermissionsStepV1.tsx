@@ -9,6 +9,7 @@ interface PermissionsStepV1Props {
   preferences: PermissionPreferences;
   togglePreference: (key: PermissionKey) => void;
   setPreference: (key: PermissionKey, value: boolean) => void;
+  requestMicrophonePermission: () => Promise<{ granted: boolean; canAskAgain: boolean; error: string | null }>;
   isSaving: boolean;
   onContinueToHome: () => void;
   onNotNow: () => void;
@@ -33,6 +34,7 @@ export function PermissionsStepV1({
   preferences,
   togglePreference,
   setPreference,
+  requestMicrophonePermission,
   isSaving,
   onContinueToHome,
   onNotNow,

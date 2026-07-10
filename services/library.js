@@ -11,6 +11,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { saveScanToCloud, softDeleteCloudSavedScan } from './savedScansCloud';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
 const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
@@ -96,9 +97,10 @@ export async function loadLibrary() {
  * @param {object} opts
  * @param {string} opts.photoUri   - original capture URI (may be temp cache)
  * @param {object} opts.analysis   - { result, metadata, products } from useKScan
+ * @param {string} [opts.source]   - source identifier ('scan', 'camera', 'upload', 'fixture')
  * @returns {SavedScan|null}  the saved object, or null on complete failure
  */
-export async function saveScan({ photoUri, analysis }) {
+export async function saveScan({ photoUri, analysis, source }) {
   try {
     const id = 'scan_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
 
@@ -123,7 +125,7 @@ export async function saveScan({ photoUri, analysis }) {
       },
       result:   analysis.result   ?? '',
       products: Array.isArray(analysis.products) ? analysis.products : [],
-      source:   'scan',
+      source:   source || 'scan',
     };
 
     const existing = await loadLibrary();
@@ -149,6 +151,9 @@ export async function saveScan({ photoUri, analysis }) {
     }
 
     await persistLibrary(updated);
+    // Fire-and-forget cloud metadata sync. Local save is already committed;
+    // cloud failure must never rollback the local scan.
+    saveScanToCloud(scan).catch(() => null);
     return scan;
   } catch {
     return null;
@@ -169,6 +174,9 @@ export async function deleteScan(id) {
       await FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => null);
     }
     await persistLibrary(library.filter(s => s.id !== id));
+    // Fire-and-forget cloud soft-delete. Uses local_id lookup so it works
+    // even when the local scan has not been updated with a cloudId.
+    softDeleteCloudSavedScan({ localId: id }).catch(() => null);
     return true;
   } catch {
     return false;

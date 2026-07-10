@@ -1,18 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   View,
   Text,
   Pressable,
   ActivityIndicator,
-  Platform,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { buildStyleMemorySummary } from '../../services/style-chat/buildStyleMemorySummary';
 import { invalidateMemoryCache } from '../../services/style-chat/styleMemoryCache';
@@ -21,10 +19,6 @@ import type { StyleMemorySummary } from '../../services/style-chat/styleMemoryTy
 // Development-only memory debug screen. This route still exists in the Expo
 // file router, so keep it out of broad public builds or add a stronger flag.
 export default function StyleChatDebugMemoryScreen() {
-  // StyleChat (and its debug surfaces) are not part of the iOS release.
-  if (Platform.OS === 'ios') {
-    return <SafeUnavailableScreen />;
-  }
   if (!__DEV__) {
     return <DebugUnavailableScreen />;
   }

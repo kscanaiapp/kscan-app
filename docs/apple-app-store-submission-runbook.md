@@ -1,30 +1,19 @@
 # K Scan Apple App Store Submission Runbook
 
-Last updated: 2026-07-08
+Last updated: 2026-07-07
 
 > Release-scope warning: This runbook contains Apple/App Store preparation notes from an earlier candidate and must not be reused as Google Play/Data Safety source-of-truth. The Android RC on `release/android-1.0.0` includes StyleChat, Dressing Rooms, Google OAuth, Apple OAuth, and account deletion lifecycle work. Use the current QA release notes instead.
 
 ## Current Release Scope
 
 - Mobile candidate: earlier Apple candidate; not the current Android RC source of truth
-- App version: `1.0.0`
+- App version: `1.0.1`
 - iOS bundle ID: `com.kscanai.app`
-- iOS build number in repo: `2`
+- iOS build number in repo: `13`
 - EAS project: `@ams2dad/kscan`
 - Current Android RC includes: Google OAuth, Apple OAuth, StyleChat, Dressing Rooms, Share by Link, photo library inspiration upload, privacy controls, data export/correction request entry points, and account deletion lifecycle work.
-- Included for this iOS release source surface: welcome/onboarding, email/password account access, onboarding Google OAuth, onboarding Apple Sign-In, camera scan, photo-library upload, local library, privacy controls, data export/correction request entry points, and account deletion request intake.
-- Still not included for this release as active functionality: StyleChat, Dressing Rooms, location, microphone, tracking, push notifications, ads, subscriptions, or in-app purchases. VoiceScan is visible on the home screen as an inactive "Coming Soon" placeholder only; it does not request microphone permission or record audio. Apple Sign-In and Google OAuth are both active on iOS.
-- **Audio/Microphone collection: No.** No microphone permission is requested in this build. Voice input is not available.
-- **Welcome / onboarding tree restored.** New users see the full welcome flow: Welcome, Auth Choice, Account Setup, Terms + Privacy, Permissions, and a completion/home handoff state. The Permissions page shows Camera and Photos as preference choices, while Microphone and Notifications are disabled and show only "Coming Soon". No microphone or location permission is requested from this page.
-
-> Note: StyleChat/weather-aware styling is present in code but guarded off on iOS in this build (`app/style-chat/[sessionId].tsx`). It does not run on iOS and therefore does not request or collect location.
-
-## Backend Target
-
-- **iOS mobile backend:** Supabase project `wyyuqfdxucjksghsmhry` (`https://wyyuqfdxucjksghsmhry.supabase.co`), configured via `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `eas.json`.
-- **Legacy backend:** Project `yzqjvdfgefveprobvvyw` remains active for website/waitlist/privacy/opt-out flows and is intentionally preserved; it is not the iOS mobile runtime target.
-- **Session invalidation:** Existing users signed in against `yzq` will need to sign in again after the app is repointed to `wyy`; persisted `yzq` JWTs are not valid on `wyy`.
-- The iOS app uses the same `services/supabaseClient.ts` client as Android; there is no platform-specific backend branching.
+- Included for this release: photo-library inspiration upload, StyleChat, Dressing Rooms, shared rooms, Google Sign-In, Sign in with Apple, and coarse foreground location for weather-aware StyleChat.
+- Still not included for this release: microphone, tracking, push notifications, ads, subscriptions, or in-app purchases.
 
 ## Local Submission Readiness
 
@@ -106,7 +95,7 @@ Create or verify the App Store Connect app record before submission:
 - Release option: manual release after approval
 - Age rating: not Made for Kids. EAS Metadata currently supports `NONE`, `SEVENTEEN_PLUS`, and `UNRATED` for `ageRatingOverride`; it does not encode a 13+ override. Leave `ageRatingOverride: "NONE"` unless App Store Connect review requires a manual higher rating.
 
-If App Store Connect already has build number `2` for version `1.0.0`, bump `ios.buildNumber` before building again.
+If App Store Connect already has build number `13` for version `1.0.1`, bump `ios.buildNumber` before building again.
 
 After the App Store Connect app record exists, add the numeric App Store Connect app ID to:
 
@@ -139,10 +128,10 @@ npx --yes eas-cli@latest metadata:push --non-interactive
 
 ## UGC / Report and Local Hide
 
-- Shared Dressing Rooms and room chat are not exposed from the iOS home surface in this branch.
-- If a reviewer reaches an existing UGC route, each room message has a **Report** action that opens a confirmation with **Report & Hide**.
+- Shared Dressing Rooms and room chat are the primary UGC surfaces in this build.
+- Each room message has a **Report** action that opens a confirmation with **Report & Hide**.
 - Confirming immediately hides the message locally on the device using `kscan.hidden_content_ids.v1` and filters content from the reported sender using `kscan.hidden_user_ids.v1` when the sender id is known.
-- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin moderation remains a future enhancement.
+- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full server-side moderation, reporting storage, and user blocking remain future enhancements.
 
 ## App Privacy Defaults
 
@@ -154,18 +143,24 @@ Use these as the App Store Connect App Privacy baseline for the current build:
 - Diagnostics: declare only if retained in production logs
 - Tracking: no
 - Data used for tracking: no
-- Location: not requested or collected on iOS in this build. StyleChat/weather is guarded off on iOS.
+- Approximate/When-In-Use location: yes for weather-aware StyleChat only (coarse, transient, optional, not stored or linked to user)
 - Contacts, audio, payment, purchases, health, fitness, sensitive info, browsing history, search history, advertising data: no for this build
 
 ## Location / Prominent Disclosure
 
-This iOS submission does **not** request location permission and does **not** collect location data. StyleChat/weather-aware styling is guarded off on iOS in `app/style-chat/[sessionId].tsx`, so the prominent location disclosure and OS permission request do not appear.
+The app requests only `NSLocationWhenInUseUsageDescription` approximate location for weather-aware StyleChat. A prominent in-app disclosure is shown before the OS permission prompt. The disclosure explains that location is optional, used only while the app is in use, and that raw coordinates are not stored.
 
-If StyleChat/weather is enabled for iOS later, reintroduce the cross-platform location disclosure and the `NSLocationWhenInUseUsageDescription` / `NSPrivacyCollectedDataTypeLocation` declarations before requesting location permission.
+Reviewer-facing wording:
+
+```text
+K Scan AI requests When-In-Use approximate location only to tailor StyleChat suggestions to local weather. Location is optional, and raw coordinates are not stored.
+```
 
 ## App Review Notes
 
 Use `docs/app-review-information-template.md` when filling App Store Connect. Enter real reviewer credentials directly in App Store Connect or a secure secret manager, not in git.
+
+Include the UGC note from the Review Notes section of `docs/app-review-information-template.md` so reviewers understand the no-DB report + local-hide behavior.
 
 Use this operational deletion statement only after the service-role process in `docs/account-deletion-operations.md` has been accepted by the release owner:
 
@@ -179,10 +174,11 @@ Users can request account deletion in the app from Privacy > Delete Account. The
 - Sign in with a pre-verified reviewer account.
 - Allow camera permission and complete one scan.
 - Save and delete a local library item.
-- Verify no location, microphone, push, ATT, or payment prompts appear. VoiceScan displays "Coming Soon" on the home screen and does not trigger a microphone prompt.
+- Verify no microphone, push, ATT, or payment prompts appear. Camera, photo library, and contextual approximate-location prompts may appear when their feature flows are exercised.
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation appears before sign-out.
 - Re-login to a pending-deletion account and verify access is limited to Privacy controls.
+- In a shared room with chat enabled, post a room message, tap **Report**, confirm **Report & Hide**, and verify the message is hidden locally. If server reporting is unavailable or fails, verify the fallback report email targets `kscanai.app@gmail.com`.
 - Confirm live pages return 200:
   - `https://kscan.app/legal/privacy`
   - `https://kscan.app/privacy`

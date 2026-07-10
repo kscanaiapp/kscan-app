@@ -1,41 +1,74 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
   Image,
+  KeyboardAvoidingView,
   Linking,
   Platform,
-  Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import SafeUnavailableScreen from '../../../components/SafeUnavailableScreen';
+
 import {
-  COLORS,
-  LAYOUT,
-  RADIUS,
-  SHADOWS,
-  SPACING,
-  TYPOGRAPHY,
-} from '../../../constants/theme';
-import { getItemReactionCounts } from '../../../services/styleObjects';
+  LuxuryScreen,
+  KScanHeader,
+  SectionHeader,
+  StatusPill,
+  InlineNotice,
+  EmptyStateCard,
+  PrimaryButton,
+  SharedScanCard,
+  SecondaryButton,
+  TertiaryButton,
+  PrivacyFooter,
+} from '../../../components/luxury';
+import { LUXURY, SPACING } from '../../../constants/theme';
+import { ROOM_CHAT_ENABLED } from '../../../constants/featureFlags';
+import { useAuthSession } from '../../../contexts/AuthSessionContext';
+import {
+  getItemReactionCounts,
+  getMyItemReaction,
+  removeItemReaction,
+  setItemReaction,
+} from '../../../services/styleObjects';
+import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
+import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
+  type DressingRoomReactionType,
   isActiveDressingRoomReactionType,
   type ItemReactionCount,
 } from '../../../types/styleObjects';
+import {
+  KSCAN_PUBLIC_BASE_URL,
+  KSCAN_ROOM_API_BASE_URL,
+  ROOM_OPEN_APP_TIMEOUT_MS,
+  buildRoomAppUrl,
+  buildRoomWebUrl,
+  getRoomInstallUrl,
+  isLikelyInAppBrowser,
+  logRoomLinkEvent,
+  normalizeRoomShareToken,
+} from '../../../services/roomDeepLinks';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const ITEM_GRID_GAP = SPACING.md;
+const ITEM_GRID_H_PAD = SPACING.xl;
+const ITEM_GRID_CELL_W = Math.floor((SCREEN_W - ITEM_GRID_H_PAD * 2 - ITEM_GRID_GAP) / 2);
 
 // ─── Feature flag ────────────────────────────────────────────────────────────
 // Set to false to disable without removing the route. Shows a browser fallback.
 const ENABLE_IN_APP_SHARED_ROOMS = true;
 
 // ─── API ─────────────────────────────────────────────────────────────────────
-const API_BASE = 'https://www.kscan.app/api/rooms';
+const API_BASE = KSCAN_ROOM_API_BASE_URL;
 const FETCH_TIMEOUT_MS = 10_000;
 const BG_REFETCH_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -81,6 +114,7 @@ const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
 };
 
 type ReactionCountsByItem = Record<string, ReactionCountsForItem>;
+type SelectedReactionsByItem = Record<string, DressingRoomReactionType | null>;
 
 function createEmptyReactionCounts() {
   return { ...EMPTY_REACTION_COUNTS };
@@ -146,167 +180,246 @@ function formatSharedDate(iso: string | null): string | null {
   }
 }
 
+type OpenAppStatus = 'idle' | 'attempting' | 'failed';
+
+function getWebUserAgent() {
+  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return '';
+  return navigator.userAgent || '';
+}
+
 // ─── Components ───────────────────────────────────────────────────────────────
-function RoomHeader({ onBack }: { onBack: () => void }) {
+interface SharedRoomPreviewCardProps {
+  preview: ApiPreview;
+}
+
+function SharedRoomPreviewCard({ preview }: SharedRoomPreviewCardProps) {
+  const [coverError, setCoverError] = useState(false);
+  const date = formatSharedDate(preview.sharedAt);
+  const hasCover = Boolean(preview.coverImageUrl) && !coverError;
+
   return (
-    <View style={styles.header}>
-      <TouchableOpacity style={styles.backButton} onPress={onBack} hitSlop={12}>
-        <Text style={styles.backChevron}>‹</Text>
-      </TouchableOpacity>
-      <View style={styles.headerCenter}>
-        <Text style={styles.brand}>K-SCAN</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Shared Room</Text>
+    <View style={styles.previewCard}>
+      <View style={styles.previewHeader}>
+        <StatusPill label="Shared" variant="gold" />
+        <View style={styles.metaPills}>
+          <StatusPill
+            label={`${preview.itemCount} ${preview.itemCount === 1 ? 'item' : 'items'}`}
+            variant="neutral"
+          />
+          {date ? <StatusPill label={date} variant="neutral" /> : null}
         </View>
       </View>
-      <View style={styles.headerSpacer} />
-    </View>
-  );
-}
 
-function MetaRow({ itemCount, sharedAt }: { itemCount: number; sharedAt: string | null }) {
-  const date = formatSharedDate(sharedAt);
-  return (
-    <View style={styles.metaRow}>
-      <View style={styles.metaChip}>
-        <Text style={styles.metaChipText}>
-          {itemCount} {itemCount === 1 ? 'item' : 'items'}
-        </Text>
-      </View>
-      {date ? (
-        <View style={styles.metaChip}>
-          <Text style={styles.metaChipText}>{date}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
+      <Text style={styles.previewTitle}>{preview.title || 'Shared Dressing Room'}</Text>
 
-function CoverCard({ uri }: { uri: string }) {
-  const [errored, setErrored] = useState(false);
-  return (
-    <View style={styles.coverCard}>
-      {!errored ? (
-        <Image
-          source={{ uri }}
-          style={styles.coverImage}
-          resizeMode="cover"
-          onError={() => setErrored(true)}
-        />
-      ) : (
-        <View style={[styles.coverImage, styles.imageFallback]}>
-          <Text style={styles.imageFallbackText}>Preview unavailable</Text>
-        </View>
-      )}
-    </View>
-  );
-}
+      {preview.note ? <Text style={styles.previewNote}>{preview.note}</Text> : null}
 
-function RoomNote({ note }: { note: string }) {
-  return (
-    <View style={styles.noteCard}>
-      <Text style={styles.noteText}>{note}</Text>
-    </View>
-  );
-}
-
-function ItemCard({
-  item,
-  index,
-  counts,
-}: {
-  item: ApiItem;
-  index: number;
-  counts: ReactionCountsForItem;
-}) {
-  const [errored, setErrored] = useState(false);
-  const label = item.title || item.category || `Item ${index + 1}`;
-  const chips = [item.category, item.color, item.silhouette].filter(Boolean) as string[];
-
-  return (
-    <View style={styles.itemCard}>
-      <View style={styles.itemImageWrap}>
-        {item.imageUrl && !errored ? (
+      {hasCover ? (
+        <View style={styles.coverWrap}>
           <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.itemImage}
+            source={{ uri: preview.coverImageUrl! }}
+            style={styles.coverImage}
             resizeMode="cover"
-            onError={() => setErrored(true)}
-          />
-        ) : (
-          <View style={[styles.itemImage, styles.imageFallback]}>
-            <Text style={styles.imageFallbackText}>Preview{'\n'}unavailable</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.itemBody}>
-        <Text style={styles.itemLabel} numberOfLines={2}>{label}</Text>
-        {chips.length > 0 ? (
-          <View style={styles.chipRow}>
-            {chips.map((chip) => (
-              <View key={chip} style={styles.chip}>
-                <Text style={styles.chipText}>{chip}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </View>
-      {item.id ? (
-        <View style={styles.itemReactions}>
-          <ItemReactions
-            itemId={item.id}
-            counts={counts}
-            selectedReaction={null}
-            disabled
+            onError={() => setCoverError(true)}
+            accessibilityLabel="Room cover image"
           />
         </View>
       ) : null}
+
+      <Text style={styles.previewBody}>
+        This is a preview of a private K Scan Dressing Room. Access is controlled by the share
+        token. Only items the owner chose to share are visible here.
+      </Text>
     </View>
   );
 }
 
-function RetryButton({ onPress, label = 'Try Again' }: { onPress: () => void; label?: string }) {
-  return (
-    <TouchableOpacity style={styles.retryButton} onPress={onPress} activeOpacity={0.8}>
-      <Text style={styles.retryButtonText}>{label.toUpperCase()}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function CenteredMessage({
-  eyebrow,
+function ErrorState({
   title,
   body,
-  children,
+  onRetry,
 }: {
-  eyebrow: string;
   title: string;
   body: string;
-  children?: React.ReactNode;
+  onRetry: () => void;
 }) {
   return (
-    <View style={styles.centeredMessage}>
-      <Text style={styles.centeredEyebrow}>{eyebrow.toUpperCase()}</Text>
-      <Text style={styles.centeredTitle}>{title}</Text>
-      <Text style={styles.centeredBody}>{body}</Text>
-      {children}
+    <InlineNotice
+      variant="error"
+      title={title}
+      body={body}
+      action={{ label: 'Try Again', onPress: onRetry, accessibilityLabel: 'Retry loading shared room' }}
+      style={styles.notice}
+    />
+  );
+}
+
+function WebFallbackActions({
+  token,
+  openAppStatus,
+  webSelected,
+  likelyInAppBrowser,
+  installUrl,
+  onOpenInApp,
+  onOpenWeb,
+  onGetApp,
+}: {
+  token: string;
+  openAppStatus: OpenAppStatus;
+  webSelected: boolean;
+  likelyInAppBrowser: boolean;
+  installUrl: string | null;
+  onOpenInApp: () => void;
+  onOpenWeb: () => void;
+  onGetApp: () => void;
+}) {
+  if (Platform.OS !== 'web' || !normalizeRoomShareToken(token)) return null;
+
+  return (
+    <View style={styles.fallbackCard}>
+      <View style={styles.fallbackCopy}>
+        <StatusPill label="App-first link" variant="gold" />
+        <Text style={styles.fallbackTitle}>Open this Dressing Room in K Scan</Text>
+        <Text style={styles.fallbackBody}>
+          The native app is the primary room experience. This page is here when app links
+          cannot hand off automatically.
+        </Text>
+      </View>
+
+      <View style={styles.fallbackActions}>
+        <PrimaryButton
+          title={openAppStatus === 'attempting' ? 'Opening App' : 'Open in App'}
+          onPress={onOpenInApp}
+          loading={openAppStatus === 'attempting'}
+          accessibilityLabel="Open this Dressing Room in the K Scan app"
+          testID="room-open-in-app-button"
+        />
+        <SecondaryButton
+          title="Open in Web"
+          onPress={onOpenWeb}
+          accessibilityLabel="Continue viewing this Dressing Room in the browser"
+          testID="room-open-in-web-button"
+        />
+        {installUrl ? (
+          <TertiaryButton
+            title="Get the App"
+            onPress={onGetApp}
+            accessibilityLabel="Get the K Scan app"
+            testID="room-get-app-button"
+          />
+        ) : null}
+      </View>
+
+      {likelyInAppBrowser ? (
+        <InlineNotice
+          variant="info"
+          body="If this does not open the app, tap the menu and choose Open in Safari or Open in Chrome."
+          style={styles.notice}
+        />
+      ) : null}
+
+      {openAppStatus === 'failed' ? (
+        <InlineNotice
+          variant="warning"
+          title="App did not open"
+          body="You can keep viewing the safe web preview here, or install K Scan on a supported device."
+          style={styles.notice}
+        />
+      ) : null}
+
+      {webSelected ? (
+        <InlineNotice
+          variant="success"
+          body="You are viewing the safe web preview."
+          style={styles.notice}
+        />
+      ) : null}
     </View>
   );
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
-export default function SharedRoomScreen() {
-  // Shared rooms (Share by Link) are not part of the iOS release. Guard the
-  // route so a shared deep link surfaces a calm placeholder and never fetches.
-  if (Platform.OS === 'ios') {
-    return <SafeUnavailableScreen />;
+// Authenticated participant chat entry. Renders nothing for anonymous viewers
+// or when the chat flag is off, so the public read-only preview is unchanged.
+// An authenticated user joins via the existing share token, then sees the same
+// backend-backed RoomMessagesPanel used on the owner's room detail screen.
+function SharedRoomChatSection({
+  token,
+  roomId,
+  onJoined,
+}: {
+  token: string;
+  roomId: string | null;
+  onJoined: (roomId: string) => void;
+}) {
+  const { isAuthenticated } = useAuthSession();
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const joinInFlight = useRef(false);
+
+  const handleJoin = useCallback(async () => {
+    if (joinInFlight.current) return;
+    joinInFlight.current = true;
+    setJoining(true);
+    setJoinError(null);
+    try {
+      const joinedRoomId = await joinSharedRoom(token);
+      onJoined(joinedRoomId);
+    } catch (err: any) {
+      // err.message is a friendly string from services/roomMessages — never a
+      // raw Supabase/RLS error and never a token.
+      setJoinError(typeof err?.message === 'string' ? err.message : ROOM_JOIN_ERROR);
+    } finally {
+      joinInFlight.current = false;
+      setJoining(false);
+    }
+  }, [onJoined, token]);
+
+  if (!ROOM_CHAT_ENABLED || !isAuthenticated) {
+    return null;
   }
+
+  if (roomId) {
+    return <RoomMessagesPanel roomId={roomId} />;
+  }
+
+  return (
+    <View style={styles.chatJoinCard}>
+      <SectionHeader title="Room Chat" subtitle="Shared conversation" />
+      <Text style={styles.chatJoinBody}>
+        Join this shared room to chat with the owner and other participants.
+      </Text>
+      {joinError ? <Text style={styles.chatJoinError}>{joinError}</Text> : null}
+      <SecondaryButton
+        title={joining ? 'Opening Chat' : 'Join the Conversation'}
+        onPress={handleJoin}
+        disabled={joining}
+        loading={joining}
+        accessibilityLabel="Join the shared room conversation"
+        accessibilityHint="Opens in-room chat with the room owner and participants"
+      />
+    </View>
+  );
+}
+
+export default function SharedRoomScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
+  const { isAuthenticated, loading: authLoading } = useAuthSession();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
-  const analyticsGuard = useRef(false);
+  const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
+  const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
+  const [joinedRoomId, setJoinedRoomId] = useState<string | null>(null);
+  const [openAppStatus, setOpenAppStatus] = useState<OpenAppStatus>('idle');
+  const [webSelected, setWebSelected] = useState(false);
+  const linkOpenedGuard = useRef<string | null>(null);
+  const outcomeAnalyticsGuard = useRef<string | null>(null);
   const lastFetchedAt = useRef<number | null>(null);
+
+  const rawToken = typeof token === 'string' ? token.trim() : '';
+  const webUserAgent = getWebUserAgent();
+  const installUrl = getRoomInstallUrl(webUserAgent);
+  const likelyInAppBrowser = isLikelyInAppBrowser(webUserAgent);
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -318,9 +431,7 @@ export default function SharedRoomScreen() {
 
   const load = useCallback(
     async (silent = false) => {
-      const rawToken = typeof token === 'string' ? token.trim() : '';
-
-      if (!rawToken) {
+      if (!normalizeRoomShareToken(rawToken)) {
         setState({ phase: 'malformed' });
         return;
       }
@@ -331,8 +442,80 @@ export default function SharedRoomScreen() {
       lastFetchedAt.current = Date.now();
       setState(result);
     },
-    [token]
+    [rawToken]
   );
+
+  const handleOpenInApp = useCallback(() => {
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken) {
+      setOpenAppStatus('failed');
+      logRoomLinkEvent('room_token_invalid', { surface: 'web_fallback' });
+      return;
+    }
+
+    const appUrl = buildRoomAppUrl(shareToken);
+    setOpenAppStatus('attempting');
+    logRoomLinkEvent('room_open_app_cta_clicked', { surface: 'web_fallback' });
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.href = appUrl;
+      window.setTimeout(() => {
+        setOpenAppStatus('failed');
+        logRoomLinkEvent('room_open_app_cta_failed', { surface: 'web_fallback' });
+      }, ROOM_OPEN_APP_TIMEOUT_MS);
+      return;
+    }
+
+    void Linking.openURL(appUrl).catch(() => {
+      setOpenAppStatus('failed');
+      logRoomLinkEvent('room_open_app_cta_failed', { surface: Platform.OS });
+    });
+  }, [rawToken]);
+
+  useEffect(() => {
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken || state.phase === 'loading') return;
+
+    const key = `${shareToken}:${state.phase}:${Platform.OS}`;
+    if (outcomeAnalyticsGuard.current === key) return;
+    outcomeAnalyticsGuard.current = key;
+
+    if (state.phase === 'available' || state.phase === 'empty') {
+      logRoomLinkEvent(Platform.OS === 'web' ? 'room_link_opened_web' : 'room_link_opened_native', {
+        surface: Platform.OS === 'web' ? 'web_fallback' : 'native',
+      });
+      return;
+    }
+
+    if (state.phase === 'malformed') {
+      logRoomLinkEvent('room_token_invalid', { surface: Platform.OS });
+      return;
+    }
+
+    if (state.phase === 'unavailable') {
+      logRoomLinkEvent('room_token_revoked', { surface: Platform.OS, reason: 'unavailable' });
+    }
+  }, [rawToken, state.phase]);
+
+  const handleOpenWeb = useCallback(() => {
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken) return;
+
+    logRoomLinkEvent('room_link_opened_web', {
+      surface: Platform.OS === 'web' ? 'web_fallback' : 'native',
+    });
+    if (Platform.OS === 'web') {
+      setWebSelected(true);
+      return;
+    }
+
+    void Linking.openURL(buildRoomWebUrl(shareToken));
+  }, [rawToken]);
+
+  const handleGetApp = useCallback(() => {
+    if (!installUrl) return;
+    void Linking.openURL(installUrl);
+  }, [installUrl]);
 
   // Initial load
   useEffect(() => {
@@ -352,12 +535,15 @@ export default function SharedRoomScreen() {
     return () => sub.remove();
   }, [load]);
 
-  // Analytics guard — fire only once per successful load
+  // Deep-link analytics: safe event names only, no token or user data.
   useEffect(() => {
-    if (state.phase !== 'available' || analyticsGuard.current) return;
-    analyticsGuard.current = true;
-    // room_shared_view_opened — no token, no title, no item data
-  }, [state.phase]);
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken || linkOpenedGuard.current === shareToken) return;
+    linkOpenedGuard.current = shareToken;
+    logRoomLinkEvent('room_share_link_opened', {
+      surface: Platform.OS === 'web' ? 'web_fallback' : 'native',
+    });
+  }, [rawToken]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -366,9 +552,18 @@ export default function SharedRoomScreen() {
   }, [load]);
 
   useEffect(() => {
+    setJoinedRoomId(null);
+    setSelectedReactions({});
+    setMutatingReactionItemId(null);
+    setOpenAppStatus('idle');
+    setWebSelected(false);
+  }, [rawToken]);
+
+  useEffect(() => {
     if (state.phase !== 'available') {
       if (state.phase !== 'empty') {
         setReactionCounts({});
+        setSelectedReactions({});
       }
       return;
     }
@@ -377,18 +572,19 @@ export default function SharedRoomScreen() {
       ...new Set(
         state.preview.items
           .map((item) => String(item.id || '').trim())
-          .filter(Boolean),
+          .filter(Boolean)
       ),
     ];
 
     if (itemIds.length === 0) {
       setReactionCounts({});
+      setSelectedReactions({});
       return;
     }
 
     let cancelled = false;
 
-    const loadReactionCounts = async () => {
+    const loadReactions = async () => {
       try {
         const counts = await getItemReactionCounts(itemIds);
         if (!cancelled) {
@@ -399,52 +595,139 @@ export default function SharedRoomScreen() {
           setReactionCounts(buildReactionCountsByItem(itemIds, []));
         }
       }
+
+      if (!isAuthenticated || !joinedRoomId) {
+        if (!cancelled) {
+          setSelectedReactions(
+            Object.fromEntries(itemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
+          );
+        }
+        return;
+      }
+
+      try {
+        const mine = await getMyItemReaction(itemIds);
+        if (!cancelled) {
+          setSelectedReactions(mine);
+        }
+      } catch {
+        if (!cancelled) {
+          setSelectedReactions(
+            Object.fromEntries(itemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
+          );
+        }
+      }
     };
 
-    void loadReactionCounts();
+    void loadReactions();
 
     return () => {
       cancelled = true;
     };
-  }, [state]);
+  }, [isAuthenticated, joinedRoomId, state]);
+
+  const refreshItemReactions = useCallback(async (itemIds: string[]) => {
+    const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
+    if (normalizedItemIds.length === 0) return;
+
+    try {
+      const counts = await getItemReactionCounts(normalizedItemIds);
+      setReactionCounts((current) => ({
+        ...current,
+        ...buildReactionCountsByItem(normalizedItemIds, counts),
+      }));
+    } catch {
+      setReactionCounts((current) => ({
+        ...current,
+        ...buildReactionCountsByItem(normalizedItemIds, []),
+      }));
+    }
+
+    if (!isAuthenticated || !joinedRoomId) {
+      setSelectedReactions((current) => ({
+        ...current,
+        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
+      }));
+      return;
+    }
+
+    try {
+      const mine = await getMyItemReaction(normalizedItemIds);
+      setSelectedReactions((current) => ({ ...current, ...mine }));
+    } catch {
+      setSelectedReactions((current) => ({
+        ...current,
+        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
+      }));
+    }
+  }, [isAuthenticated, joinedRoomId]);
+
+  const handleReact = useCallback(async (itemId: string, reactionType: DressingRoomReactionType) => {
+    if (!isAuthenticated || !joinedRoomId || mutatingReactionItemId === itemId) return;
+
+    const currentReaction = selectedReactions[itemId] ?? null;
+    setMutatingReactionItemId(itemId);
+    try {
+      if (currentReaction === reactionType) {
+        await removeItemReaction(itemId);
+      } else {
+        await setItemReaction(itemId, reactionType);
+      }
+      await refreshItemReactions([itemId]);
+    } catch {
+      Alert.alert('Unable to save reaction.', 'Please try again.');
+    } finally {
+      setMutatingReactionItemId((current) => (current === itemId ? null : current));
+    }
+  }, [
+    isAuthenticated,
+    joinedRoomId,
+    mutatingReactionItemId,
+    refreshItemReactions,
+    selectedReactions,
+  ]);
 
   // ── Feature flag fallback ──────────────────────────────────────────────────
   if (!ENABLE_IN_APP_SHARED_ROOMS) {
-    const rawToken = typeof token === 'string' ? token.trim() : '';
-    const browserUrl = rawToken
-      ? `https://www.kscan.app/rooms/${encodeURIComponent(rawToken)}`
-      : 'https://www.kscan.app';
-
     return (
-      <View style={styles.root}>
+      <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
         <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeTop} />
-        <RoomHeader onBack={handleBack} />
+        <KScanHeader title="Shared Room" subtitle="PREVIEW" onBack={handleBack} backLabel="Back" />
         <View style={styles.centeredFill}>
-          <CenteredMessage
-            eyebrow="Shared Room"
+          <EmptyStateCard
             title="Shared rooms are coming soon."
-            body="This feature is being prepared for the next release."
-          >
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={() => void Linking.openURL(browserUrl)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.retryButtonText}>VIEW IN BROWSER</Text>
-            </TouchableOpacity>
-          </CenteredMessage>
+            subtitle="This feature is being prepared for the next release."
+            action={{
+              label: 'View in Browser',
+              onPress: () => void Linking.openURL(buildRoomWebUrl(rawToken) || KSCAN_PUBLIC_BASE_URL),
+              accessibilityLabel: 'View shared room in browser',
+            }}
+          />
         </View>
-      </View>
+        <PrivacyFooter
+          onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+          onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
+        />
+      </LuxuryScreen>
     );
   }
 
   // ── States ────────────────────────────────────────────────────────────────
   const renderContent = () => {
+    if (Platform.OS !== 'web' && authLoading) {
+      return (
+        <View style={styles.centeredFill}>
+          <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          <Text style={styles.loadingLabel}>Opening native Dressing Room...</Text>
+        </View>
+      );
+    }
+
     switch (state.phase) {
       case 'loading':
         return (
           <View style={styles.centeredFill}>
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
             <Text style={styles.loadingLabel}>Opening shared room…</Text>
           </View>
         );
@@ -452,10 +735,10 @@ export default function SharedRoomScreen() {
       case 'malformed':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Invalid Link"
-              title="This room link appears invalid."
-              body="Check the link and try again. Nothing private was accessed."
+            <ErrorState
+              title="Invalid Link"
+              body="This room link appears invalid. Check the link and try again. Nothing private was accessed."
+              onRetry={() => void load()}
             />
           </View>
         );
@@ -463,10 +746,10 @@ export default function SharedRoomScreen() {
       case 'unavailable':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Shared Room"
-              title="This shared room is no longer available."
-              body="The link may have been disabled or expired."
+            <ErrorState
+              title="Room Unavailable"
+              body="This shared room is no longer available. The link may have been disabled or expired."
+              onRetry={() => void load()}
             />
           </View>
         );
@@ -474,39 +757,33 @@ export default function SharedRoomScreen() {
       case 'rate_limited':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Shared Room"
-              title="Too many requests."
+            <ErrorState
+              title="Too Many Requests"
               body="Please try again shortly."
-            >
-              <RetryButton onPress={() => void load()} />
-            </CenteredMessage>
+              onRetry={() => void load()}
+            />
           </View>
         );
 
       case 'network_error':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Connection Error"
-              title="Unable to load shared room."
-              body="Check your connection and try again."
-            >
-              <RetryButton onPress={() => void load()} />
-            </CenteredMessage>
+            <ErrorState
+              title="Connection Error"
+              body="Unable to load shared room. Check your connection and try again."
+              onRetry={() => void load()}
+            />
           </View>
         );
 
       case 'timeout':
         return (
           <View style={styles.centeredFill}>
-            <CenteredMessage
-              eyebrow="Request Timed Out"
-              title="Unable to load shared room."
-              body="Please try again."
-            >
-              <RetryButton onPress={() => void load()} />
-            </CenteredMessage>
+            <ErrorState
+              title="Request Timed Out"
+              body="Unable to load shared room. Please try again."
+              onRetry={() => void load()}
+            />
           </View>
         );
 
@@ -515,22 +792,31 @@ export default function SharedRoomScreen() {
         return (
           <ScrollView
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={COLORS.gold}
+                tintColor={LUXURY.colors.gold}
               />
             }
           >
-            <Text style={styles.roomTitle}>
-              {emptyPreview?.title ?? 'Shared Dressing Room'}
-            </Text>
-            {emptyPreview.note ? <RoomNote note={emptyPreview.note} /> : null}
-            <MetaRow itemCount={0} sharedAt={emptyPreview?.sharedAt ?? null} />
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>This shared room does not have any visible items.</Text>
-            </View>
+            <WebFallbackActions
+              token={rawToken}
+              openAppStatus={openAppStatus}
+              webSelected={webSelected}
+              likelyInAppBrowser={likelyInAppBrowser}
+              installUrl={installUrl}
+              onOpenInApp={handleOpenInApp}
+              onOpenWeb={handleOpenWeb}
+              onGetApp={handleGetApp}
+            />
+            <SharedRoomPreviewCard preview={emptyPreview} />
+            <EmptyStateCard
+              title="No visible items"
+              subtitle="This shared room does not have any visible items right now."
+            />
+            <SharedRoomChatSection token={rawToken} roomId={joinedRoomId} onJoined={setJoinedRoomId} />
           </ScrollView>
         );
       }
@@ -540,45 +826,80 @@ export default function SharedRoomScreen() {
         return (
           <ScrollView
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={COLORS.gold}
+                tintColor={LUXURY.colors.gold}
               />
             }
           >
-            <Text style={styles.roomTitle}>{preview.title || 'Shared Dressing Room'}</Text>
-            {preview.note ? <RoomNote note={preview.note} /> : null}
-            <MetaRow itemCount={preview.itemCount} sharedAt={preview.sharedAt} />
-
-            {preview.coverImageUrl ? (
-              <CoverCard uri={preview.coverImageUrl} />
-            ) : null}
+            <WebFallbackActions
+              token={rawToken}
+              openAppStatus={openAppStatus}
+              webSelected={webSelected}
+              likelyInAppBrowser={likelyInAppBrowser}
+              installUrl={installUrl}
+              onOpenInApp={handleOpenInApp}
+              onOpenWeb={handleOpenWeb}
+              onGetApp={handleGetApp}
+            />
+            <SharedRoomPreviewCard preview={preview} />
 
             {preview.items.length > 0 ? (
-              <View style={styles.itemGrid}>
-                {preview.items.map((item, index) => (
-                  <Pressable
-                    key={item.id ?? `item-${index}`}
-                    style={styles.itemGridCell}
-                    onPress={() => {}}
-                  >
-                    <ItemCard
-                      item={item}
-                      index={index}
-                      counts={item.id ? (reactionCounts[item.id] ?? createEmptyReactionCounts()) : createEmptyReactionCounts()}
-                    />
-                  </Pressable>
-                ))}
-              </View>
+              <>
+                <SectionHeader title="Items" />
+                <View style={styles.itemGrid}>
+                  {preview.items.map((item, index) => {
+                    const label = item.title || item.category || `Item ${index + 1}`;
+                    const chips = [item.category, item.color, item.silhouette].filter(Boolean) as string[];
+                    const canReact = Boolean(isAuthenticated && joinedRoomId && item.id);
+                    return (
+                      <SharedScanCard
+                        key={item.id ?? `item-${index}`}
+                        imageUrl={item.imageUrl}
+                        title={label}
+                        subtitle="Shared item"
+                        chips={chips}
+                        status="Shared"
+                        accessibilityLabel={`${label} shared item`}
+                        style={{ width: ITEM_GRID_CELL_W }}
+                        footer={
+                          item.id ? (
+                            <ItemReactions
+                              itemId={item.id}
+                              counts={reactionCounts[item.id] ?? createEmptyReactionCounts()}
+                              selectedReaction={selectedReactions[item.id] ?? null}
+                              disabled={!canReact || mutatingReactionItemId === item.id}
+                              isMutating={mutatingReactionItemId === item.id}
+                              onReact={canReact ? handleReact : undefined}
+                            />
+                          ) : null
+                        }
+                      />
+                    );
+                  })}
+                </View>
+              </>
             ) : null}
 
             {preview.isCapped ? (
-              <Text style={styles.cappedNote}>
-                Showing first {preview.maxItemsReturned} items.
-              </Text>
+              <InlineNotice
+                variant="info"
+                body={`Showing first ${preview.maxItemsReturned} items.`}
+                style={styles.notice}
+              />
             ) : null}
+
+            <SharedRoomChatSection token={rawToken} roomId={joinedRoomId} onJoined={setJoinedRoomId} />
+
+            <SecondaryButton
+              title="View in Browser"
+              onPress={() => void Linking.openURL(buildRoomWebUrl(preview.token))}
+              accessibilityLabel="View shared room in browser"
+              style={styles.browserButton}
+            />
           </ScrollView>
         );
       }
@@ -589,283 +910,146 @@ export default function SharedRoomScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
-      <SafeAreaView style={styles.safeTop} />
-      <RoomHeader onBack={handleBack} />
-      {renderContent()}
-    </View>
+      <KScanHeader
+        title={Platform.OS === 'web' ? 'Shared Room' : 'Dressing Room'}
+        subtitle={Platform.OS === 'web' ? 'WEB FALLBACK' : 'SHARED ROOM'}
+        onBack={handleBack}
+        backLabel="Back"
+      />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        {renderContent()}
+      </KeyboardAvoidingView>
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
+      />
+    </LuxuryScreen>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
+  flex: {
     flex: 1,
-    backgroundColor: COLORS.canvasWarm,
-  },
-  safeTop: {
-    backgroundColor: COLORS.canvasWarm,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: LAYOUT.screenPadding,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderHairline,
-    backgroundColor: COLORS.canvasWarm,
-  },
-  backButton: {
-    width: 42,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  backChevron: {
-    fontSize: 30,
-    color: COLORS.goldPressed,
-    lineHeight: 34,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  headerSpacer: {
-    width: 42,
-  },
-  brand: {
-    ...TYPOGRAPHY.brand,
-    fontSize: 15,
-    color: COLORS.editorialTextPrimary,
-  },
-  badge: {
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.goldMuted,
-    backgroundColor: COLORS.accentSoft,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xxs,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    color: COLORS.goldPressed,
-  },
-  scrollContent: {
-    padding: LAYOUT.screenPadding,
-    paddingBottom: 80,
-  },
-  roomTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    color: COLORS.editorialTextPrimary,
-    marginBottom: SPACING.md,
-    lineHeight: 36,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xl,
-  },
-  noteCard: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.white,
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-    ...SHADOWS.editorialSmall,
-  },
-  noteText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: COLORS.editorialTextSecondary,
-  },
-  metaChip: {
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderSubtle,
-    backgroundColor: COLORS.white,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  metaChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: COLORS.editorialTextSecondary,
-  },
-  coverCard: {
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    marginBottom: SPACING.xxl,
-    ...SHADOWS.editorialRaised,
-  },
-  coverImage: {
-    width: '100%',
-    aspectRatio: 4 / 5,
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  itemGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.md,
-  },
-  itemGridCell: {
-    width: '47%',
-  },
-  itemCard: {
-    borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.white,
-    overflow: 'hidden',
-    ...SHADOWS.editorialSmall,
-  },
-  itemImageWrap: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: COLORS.surfaceMuted,
-  },
-  itemImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageFallbackText: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    color: COLORS.editorialTextMuted,
-  },
-  itemBody: {
-    padding: SPACING.md,
-    gap: SPACING.xs,
-  },
-  itemReactions: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.borderHairline,
-  },
-  itemLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-    color: COLORS.editorialTextPrimary,
-    lineHeight: 18,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
-    marginTop: SPACING.xs,
-  },
-  chip: {
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.surfaceRaised,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-  },
-  chipText: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.8,
-    color: COLORS.editorialTextSecondary,
-  },
-  cappedNote: {
-    marginTop: SPACING.xl,
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: COLORS.editorialTextMuted,
-    textAlign: 'center',
-  },
-  emptyCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.borderHairline,
-    backgroundColor: COLORS.white,
-    padding: SPACING.xl,
-    marginTop: SPACING.xl,
-    alignItems: 'center',
-    ...SHADOWS.editorialSmall,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: COLORS.editorialTextSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
   },
   centeredFill: {
     flex: 1,
     justifyContent: 'center',
-    padding: LAYOUT.screenPadding,
-  },
-  centeredMessage: {
+    alignItems: 'center',
+    padding: SPACING.xl,
     gap: SPACING.md,
+  },
+  fallbackCard: {
+    borderRadius: LUXURY.cards.product.borderRadius,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+    ...LUXURY.cards.product.shadow,
+  },
+  fallbackCopy: {
+    gap: SPACING.sm,
+  },
+  fallbackTitle: {
+    ...LUXURY.typography.displayTitle,
+    fontSize: 21,
+    color: LUXURY.colors.ink,
+  },
+  fallbackBody: {
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: LUXURY.colors.graphite,
+  },
+  fallbackActions: {
+    gap: SPACING.sm,
     alignItems: 'center',
   },
-  centeredEyebrow: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 2.4,
-    textTransform: 'uppercase',
-    color: COLORS.goldPressed,
-    textAlign: 'center',
+  chatJoinCard: {
+    borderRadius: LUXURY.cards.product.borderRadius,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+    ...LUXURY.cards.product.shadow,
   },
-  centeredTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    color: COLORS.editorialTextPrimary,
-    textAlign: 'center',
-    lineHeight: 30,
-  },
-  centeredBody: {
+  chatJoinBody: {
+    ...LUXURY.typography.body,
     fontSize: 14,
-    fontWeight: '400',
-    color: COLORS.editorialTextSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 300,
+    lineHeight: 20,
+    color: LUXURY.colors.graphite,
+  },
+  chatJoinError: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.error,
   },
   loadingLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+  },
+  scrollContent: {
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
+    gap: SPACING.lg,
+  },
+  previewCard: {
+    ...LUXURY.cards.hero,
+    gap: SPACING.md,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  metaPills: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  previewTitle: {
+    ...LUXURY.typography.displayHeadline,
+    fontSize: 24,
+    color: LUXURY.colors.ink,
+  },
+  previewNote: {
+    ...LUXURY.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    color: LUXURY.colors.graphite,
+  },
+  coverWrap: {
+    borderRadius: LUXURY.cards.product.borderRadius,
+    overflow: 'hidden',
+    ...LUXURY.cards.product.shadow,
+  },
+  coverImage: {
+    width: '100%',
+    aspectRatio: 4 / 5,
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  previewBody: {
+    ...LUXURY.typography.body,
     fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: COLORS.editorialTextMuted,
-    textAlign: 'center',
+    lineHeight: 20,
+    color: LUXURY.colors.graphite,
   },
-  retryButton: {
-    marginTop: SPACING.lg,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.goldMuted,
-    backgroundColor: COLORS.accentSoft,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
+  itemGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: ITEM_GRID_GAP,
   },
-  retryButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: COLORS.goldPressed,
+  notice: {
+    marginBottom: 0,
+  },
+  browserButton: {
+    alignSelf: 'center',
   },
 });

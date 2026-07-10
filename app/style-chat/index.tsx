@@ -1,41 +1,34 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Platform,
-  ScrollView,
+  Linking,
   StyleSheet,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS } from '../../constants/theme';
-import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
-import {
-  StyleChatHeader,
-  useStyleChatHomeBackHandler,
-} from '../../components/style-chat/StyleChatHeader';
+import { StyleChatHeader, useStyleChatHomeBackHandler } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatSessionList } from '../../components/style-chat/StyleChatSessionList';
+import { LuxuryScreen, PrivacyFooter } from '../../components/luxury';
+import { LUXURY } from '../../constants/theme';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
+import { getStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 export default function StyleChatIndexScreen() {
-  // StyleChat is not part of the iOS release. Guard the route so a deep link
-  // surfaces a calm placeholder instead of the feature or its backend calls.
-  if (Platform.OS === 'ios') {
-    return <SafeUnavailableScreen />;
-  }
-
   const isDeleteDialogOpenRef = useRef(false);
+  const handoffAutoStartAttemptedRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessions, loading, error, createSession, deleteSession } = useStyleChatSessions();
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleNewSession = async () => {
+  const handleNewSession = useCallback(async () => {
     if (isCreating) return;
     setIsCreating(true);
     try {
       const session = await createSession();
+      if (!session?.id) return;
       router.push(`/style-chat/${session.id}`);
     } catch {
       // createSession throws on auth failure; the session list will show an
@@ -43,7 +36,15 @@ export default function StyleChatIndexScreen() {
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [createSession, isCreating]);
+
+  useEffect(() => {
+    if (handoffAutoStartAttemptedRef.current || loading || isCreating || error) return;
+    const handoff = getStyleChatHandoffContext();
+    handoffAutoStartAttemptedRef.current = true;
+    if (!handoff) return;
+    void handleNewSession();
+  }, [error, handleNewSession, isCreating, loading]);
 
   const handleDeleteSession = (session: StyleChatSession) => {
     const clearDialog = () => { isDeleteDialogOpenRef.current = false; };
@@ -74,14 +75,16 @@ export default function StyleChatIndexScreen() {
   };
 
   return (
-    <SafeAreaView testID="style-chat-screen" style={styles.safe}>
+    <LuxuryScreen
+      testID="style-chat-screen"
+      scrollable={false}
+      safeArea={false}
+      backgroundColor={LUXURY.colors.ivory}
+      accessibilityLabel="StyleChat sessions"
+    >
       <StatusBar style="dark" />
       <StyleChatHeader />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.listWrap}>
         <StyleChatSessionList
           sessions={sessions}
           loading={loading}
@@ -91,21 +94,18 @@ export default function StyleChatIndexScreen() {
           onDeleteSession={handleDeleteSession}
           newSessionDisabled={isCreating}
         />
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+      <PrivacyFooter
+        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+        onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
+      />
+    </LuxuryScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  listWrap: {
     flex: 1,
-    backgroundColor: COLORS.chatScreenBg,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: COLORS.chatPanelBg,
-  },
-  scrollContent: {
-    flexGrow: 1,
+    backgroundColor: LUXURY.colors.ivory,
   },
 });

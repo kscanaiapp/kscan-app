@@ -31,6 +31,10 @@ async function submitAccountDeletionRequest(supabase, _session) {
     };
   }
 
+  if (data.status !== 'pending' || !data.request_id || !data.requested_at) {
+    throw new Error('Unexpected response from deletion service.');
+  }
+
   return {
     status: 'submitted',
     request: {

@@ -1,7 +1,8 @@
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
+import { EmptyStateCard } from '../luxury';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 interface StyleChatSessionListProps {
@@ -31,52 +32,82 @@ export function StyleChatSessionList({
   };
 
   return (
-    <View testID="style-chat-session-list" style={[styles.container, safeContainerPadding]}>
+    <ScrollView
+      testID="style-chat-session-list"
+      style={styles.container}
+      contentContainerStyle={[styles.content, safeContainerPadding]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {loading ? (
         <View style={styles.centred}>
-          <ActivityIndicator size="small" color={COLORS.accent} />
+          <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+          <Text style={styles.statusText}>Loading sessions…</Text>
         </View>
       ) : error ? (
         <View style={styles.centred}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : safeSessions.length === 0 ? (
-        <View testID="style-chat-empty-state" style={styles.centred}>
-          <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptySessionList}</Text>
-        </View>
+        <EmptyStateCard
+          testID="style-chat-empty-state"
+          title="Ask Your AI Stylist"
+          subtitle="Start a session for outfit ideas, product comparisons, or styling advice."
+          action={{
+            label: STYLE_CHAT_COPY.newSessionCta,
+            onPress: onNewSession,
+            accessibilityLabel: 'New StyleChat session',
+            testID: 'style-chat-new-session-button',
+          }}
+        />
       ) : (
-        safeSessions.map(session => {
-          const title = typeof session.title === 'string' && session.title.trim()
-            ? session.title
-            : 'New Styling Session';
-          const mode = typeof session.mode === 'string'
-            ? session.mode.replace(/_/g, ' ').toUpperCase()
-            : 'GENERAL';
+        <View style={styles.list}>
+          <Text style={styles.sectionLabel} accessibilityRole="header">
+            Recent Sessions
+          </Text>
+          {safeSessions.map(session => {
+            const title = typeof session.title === 'string' && session.title.trim()
+              ? session.title
+              : 'New Styling Session';
+            const mode = typeof session.mode === 'string'
+              ? session.mode.replace(/_/g, ' ').toUpperCase()
+              : 'GENERAL';
+            const updatedAt = typeof session.updatedAt === 'string'
+              ? new Date(session.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+              : '';
 
-          return (
-            <View key={session.id} style={styles.sessionRowContainer}>
-              <Pressable
-                style={({ pressed }) => [styles.sessionRowContent, pressed ? styles.sessionRowPressed : null]}
-                onPress={() => onSelectSession?.(session)}
-                accessibilityRole="button"
-                accessibilityLabel={title}
-              >
-                <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
-                <Text style={styles.sessionMode} numberOfLines={1}>{mode}</Text>
-              </Pressable>
-              <Pressable
-                testID="style-chat-delete-button"
-                style={({ pressed }) => [styles.deleteBtn, pressed ? styles.deleteBtnPressed : null]}
-                onPress={() => onDeleteSession?.(session)}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${title}`}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={styles.deleteBtnText}>✕</Text>
-              </Pressable>
-            </View>
-          );
-        })
+            return (
+              <View key={session.id} style={styles.sessionRowContainer}>
+                <View style={styles.sessionCard}>
+                  <Pressable
+                    style={({ pressed }) => [styles.sessionRowContent, pressed ? styles.sessionRowPressed : null]}
+                    onPress={() => onSelectSession?.(session)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${title}, ${mode}${updatedAt ? `, last active ${updatedAt}` : ''}`}
+                    accessibilityHint="Open this StyleChat session"
+                  >
+                    <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
+                    <View style={styles.sessionMetaRow}>
+                      <Text style={styles.sessionMode} numberOfLines={1}>{mode}</Text>
+                      {updatedAt ? <Text style={styles.sessionDate}>{updatedAt}</Text> : null}
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    testID="style-chat-delete-button"
+                    style={({ pressed }) => [styles.deleteBtn, pressed ? styles.deleteBtnPressed : null]}
+                    onPress={() => onDeleteSession?.(session)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${title}`}
+                    accessibilityHint="Permanently remove this conversation"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.deleteBtnText}>✕</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+        </View>
       )}
 
       <Pressable
@@ -88,20 +119,25 @@ export function StyleChatSessionList({
         ]}
         onPress={onNewSession}
         accessibilityLabel="New StyleChat session"
+        accessibilityHint="Start a new styling conversation"
         accessibilityRole="button"
+        accessibilityState={{ disabled: loading || newSessionDisabled, busy: loading }}
         disabled={loading || newSessionDisabled}
       >
         <Text style={[styles.newBtnText, loading || newSessionDisabled ? styles.newBtnTextDisabled : null]}>
           {STYLE_CHAT_COPY.newSessionCta}
         </Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     padding: SPACING.xl,
   },
   centred: {
@@ -110,97 +146,112 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxl,
     minHeight: 160,
   },
-  emptyText: {
-    ...TYPOGRAPHY.body,
-    textAlign: 'center',
-    color: COLORS.textSecondary,
-    lineHeight: 24,
-  },
+
   errorText: {
-    ...TYPOGRAPHY.body,
+    ...LUXURY.typography.body,
     textAlign: 'center',
-    color: COLORS.chatErrorText,
-    fontSize: 13,
-    lineHeight: 21,
+    color: LUXURY.colors.error,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  statusText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.sm,
+  },
+  list: {
+    flex: 1,
+  },
+  sectionLabel: {
+    ...LUXURY.typography.sectionLabel,
+    color: LUXURY.colors.stone,
+    marginBottom: SPACING.md,
   },
   sessionRowContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     minWidth: 0,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  sessionCard: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    minWidth: 0,
+    minHeight: 64,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    overflow: 'hidden',
+    ...LUXURY.cards.product.shadow,
   },
   sessionRowContent: {
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
     padding: SPACING.md,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.chatHairline,
-    backgroundColor: COLORS.chatSessionCardBg,
   },
   sessionRowPressed: {
-    backgroundColor: COLORS.chatPressTint,
+    backgroundColor: LUXURY.colors.cream,
   },
   sessionTitle: {
-    ...TYPOGRAPHY.bodyStrong,
-    color: COLORS.textPrimary,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
     flexShrink: 1,
     minWidth: 0,
+  },
+  sessionMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.xs,
   },
   sessionMode: {
-    ...TYPOGRAPHY.chipLabel,
-    color: COLORS.accent,
-    marginTop: 4,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
     flexShrink: 1,
     minWidth: 0,
   },
-  deleteBtn: {
+  sessionDate: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
     marginLeft: SPACING.sm,
-    width: 44,
-    height: 44,
+  },
+  deleteBtn: {
+    width: 48,
     flexShrink: 0,
-    borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(130, 48, 56, 0.28)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(130, 48, 56, 0.05)',
+    borderLeftWidth: 1,
+    borderLeftColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.warmWhite,
   },
   deleteBtnPressed: {
-    backgroundColor: 'rgba(130, 48, 56, 0.14)',
+    backgroundColor: LUXURY.colors.cream,
   },
   deleteBtnText: {
-    fontSize: 13,
-    color: COLORS.error,
-    fontWeight: '600' as const,
+    fontSize: 14,
+    color: LUXURY.colors.error,
+    fontWeight: '600',
   },
   newBtn: {
-    height: 52,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.champagneGold,
-    borderTopColor: COLORS.chatGlossTop,
-    backgroundColor: COLORS.chatSendBg,
+    height: 56,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plum,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.lg,
+    ...LUXURY.buttons.primary.shadow,
   },
   newBtnPressed: {
-    backgroundColor: COLORS.chatSendPressed,
+    backgroundColor: LUXURY.colors.plumCore,
   },
   newBtnDisabled: {
-    backgroundColor: 'rgba(116, 36, 94, 0.18)',
-    borderColor: COLORS.champagneGold,
-    borderTopColor: COLORS.champagneGold,
+    backgroundColor: LUXURY.colors.plumMuted,
   },
   newBtnText: {
-    ...TYPOGRAPHY.cta,
-    fontSize: 13,
-    letterSpacing: 3,
-    color: COLORS.textInverse,
+    ...LUXURY.typography.cta,
+    color: LUXURY.colors.inverse,
   },
   newBtnTextDisabled: {
-    color: COLORS.accent,
+    color: LUXURY.colors.stone,
   },
 });

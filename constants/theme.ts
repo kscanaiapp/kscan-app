@@ -328,12 +328,10 @@ export const CAPTURE_BUTTON = {
   borderWidth: 2,
 };
 
-export const api = {
-  retryPorts:      [8081, 8082],
-  healthTimeoutMs: 1200,
-  timeoutMs:       8000,
-};
-
+// ── Cross-platform font fallbacks ─────────────────────────────────────────────
+// No custom font assets are added in this polish pass. We rely on system serif
+// on iOS (Georgia) and generic serif on Android to suggest editorial luxury
+// without increasing bundle size or risking asset loading failures.
 export const FONTS = {
   serif: Platform.select({
     ios: 'Georgia',
@@ -631,3 +629,9 @@ export const LUXURY = {
     captionColor: COLORS.textTertiary,
   },
 } as const;
+
+export const api = {
+  retryPorts:      [8081, 8082],
+  healthTimeoutMs: 1200,
+  timeoutMs:       8000,
+};

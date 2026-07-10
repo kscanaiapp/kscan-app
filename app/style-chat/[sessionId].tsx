@@ -1,7 +1,6 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Alert,
-  SafeAreaView,
   View,
   Text,
   FlatList,
@@ -15,8 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import SafeUnavailableScreen from '../../components/SafeUnavailableScreen';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import {
   StyleChatHeader,
@@ -24,22 +22,66 @@ import {
 } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
+import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
+import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
+import {
+  getStyleChatHandoffContext,
+  clearStyleChatHandoffContext,
+} from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatMessage } from '../../services/style-chat/types';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { useWeatherStyling } from '../../hooks/useWeatherStyling';
+import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
+import { WEATHER_COPY } from '../../constants/weatherStyling';
+import {
+  buildStyleDnaSummaryText,
+  getStyleDnaProfileSummary,
+  resetLocalStyleDnaProfile,
+  type LocalStyleDnaProfileSummary,
+} from '../../services/style-dna/localStyleDnaProfile';
+import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
+import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
 
 export default function StyleChatSessionScreen() {
-  // StyleChat is not part of the iOS release. Guard the route so a deep link
-  // surfaces a calm placeholder instead of the feature or its backend calls.
-  if (Platform.OS === 'ios') {
-    return <SafeUnavailableScreen />;
-  }
-
   const isDeleteDialogOpenRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const { user } = useAuthSession();
+  // Style DNA Phase 0 local feedback key. StyleChat is auth-only, so this is
+  // populated whenever messages exist; null hides the local feedback UI.
+  const userKey = user ? `user:${user.id}` : null;
+  const weather = useWeatherStyling(sessionId ?? '');
+  // Phase 2: build a data-only Style DNA context per send. Reads the local profile
+  // fresh each time and self-gates on EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED + the
+  // >=3-signal threshold (returns null otherwise). Reading fresh means a reset — which
+  // clears local feedback — immediately produces a neutral request with no memoized ctx.
+  const getStyleDnaContext = useCallback(async () => {
+    if (!userKey) return null;
+    try {
+      const summary = await getStyleDnaProfileSummary({ userKey });
+      return buildStyleDnaContext(summary);
+    } catch {
+      return null;
+    }
+  }, [userKey]);
+
+  const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
+
+  // Consume handoff context on mount and clear it when leaving the session.
+  useEffect(() => {
+    const ctx = getStyleChatHandoffContext();
+    if (ctx) {
+      setHandoffContext(ctx);
+    }
+    return () => {
+      clearStyleChatHandoffContext();
+    };
+  }, []);
+
   const {
     session,
     messages,
@@ -51,9 +93,17 @@ export default function StyleChatSessionScreen() {
     sendMessage,
     retryLastMessage,
     clearError,
-  } = useStyleChat(sessionId ?? '');
+  } = useStyleChat(sessionId ?? '', {
+    getWeatherLocation: weather.getWeatherLocation,
+    getStyleDnaContext,
+    activeContext: handoffContext ?? null,
+  });
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [styleDnaSummary, setStyleDnaSummary] = useState<LocalStyleDnaProfileSummary | null>(null);
+  const [isLoadingStyleDna, setIsLoadingStyleDna] = useState(false);
+  const [isResettingStyleDna, setIsResettingStyleDna] = useState(false);
+  const [styleDnaRefreshTick, setStyleDnaRefreshTick] = useState(0);
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -62,6 +112,34 @@ export default function StyleChatSessionScreen() {
     paddingLeft: Math.max(SPACING.xl, insets.left),
     paddingRight: Math.max(SPACING.xl, insets.right),
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!STYLE_DNA_ENABLED || !userKey) {
+      setStyleDnaSummary(null);
+      setIsLoadingStyleDna(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIsLoadingStyleDna(true);
+    void (async () => {
+      try {
+        const nextSummary = await getStyleDnaProfileSummary({ userKey });
+        if (!cancelled) setStyleDnaSummary(nextSummary);
+      } catch {
+        if (!cancelled) setStyleDnaSummary(null);
+      } finally {
+        if (!cancelled) setIsLoadingStyleDna(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userKey, styleDnaRefreshTick]);
 
   // Scroll to bottom when messages arrive or update
   useEffect(() => {
@@ -103,26 +181,72 @@ export default function StyleChatSessionScreen() {
     );
   };
 
+  const refreshStyleDnaSummary = () => {
+    setStyleDnaRefreshTick((value) => value + 1);
+  };
+
+  const handleResetStyleDna = () => {
+    if (!userKey || !styleDnaSummary || styleDnaSummary.totalSignals === 0 || isResettingStyleDna) {
+      return;
+    }
+    Alert.alert(
+      'Reset local Style DNA?',
+      'This clears Helpful and Not my style feedback for this account on this device only. It cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResettingStyleDna(true);
+            try {
+              await resetLocalStyleDnaProfile(userKey);
+              refreshStyleDnaSummary();
+            } catch {
+              Alert.alert(
+                'Could not reset local Style DNA',
+                "We couldn't clear the local profile right now. Please try again.",
+              );
+            } finally {
+              setIsResettingStyleDna(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const isLoading = loadingSession || loadingMessages;
 
   const renderMessage = ({ item }: { item: StyleChatMessage }) => (
-    <StyleChatBubble message={item} />
+    <StyleChatBubble
+      message={item}
+      userKey={userKey}
+      onStyleDnaFeedbackSaved={refreshStyleDnaSummary}
+    />
   );
 
   const ListEmpty = isLoading ? (
     <View style={styles.centred}>
-      <ActivityIndicator size="small" color={COLORS.accent} />
+      <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+      <Text style={styles.statusText}>Loading conversation…</Text>
     </View>
   ) : (
     <View testID="style-chat-empty-state" style={styles.centred}>
+      <Text style={styles.emptyTitle}>New styling session</Text>
       <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptyChat}</Text>
     </View>
   );
 
   const ThinkingIndicator = isSending ? (
     <View testID="style-chat-thinking-indicator" style={styles.thinking}>
-      <ActivityIndicator size="small" color={COLORS.accent} />
-      <Text style={styles.thinkingText}>Styling…</Text>
+      <View style={styles.thinkingSpinner}>
+        <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+      </View>
+      <View style={styles.thinkingCopy}>
+        <Text style={styles.thinkingText}>StyleChat is thinking...</Text>
+        <Text style={styles.thinkingSubtext}>Reading the conversation context before it answers.</Text>
+      </View>
     </View>
   ) : null;
 
@@ -130,23 +254,88 @@ export default function StyleChatSessionScreen() {
     || error === STYLE_CHAT_COPY.burstLimitNotice;
   const friendlyError = getFriendlyStyleChatError(error);
   const ErrorBanner = error ? (
-    <View testID="style-chat-error-state" style={styles.errorBanner}>
-      <Text style={styles.errorText}>{friendlyError}</Text>
+    <View
+      testID="style-chat-error-state"
+      style={[styles.errorBanner, isLimitNotice ? styles.limitBanner : null]}
+      accessibilityRole="alert"
+    >
+      <Text style={[styles.errorText, isLimitNotice ? styles.limitText : null]}>{friendlyError}</Text>
       {!isLimitNotice ? (
         <Pressable
           onPress={() => { clearError(); retryLastMessage(); }}
           style={styles.retryLink}
           accessibilityRole="button"
           accessibilityLabel="Retry"
+          accessibilityHint="Resend the last message"
         >
-          <Text style={styles.retryLinkText}>RETRY</Text>
+          <Text style={styles.retryLinkText}>Retry</Text>
         </Pressable>
       ) : null}
     </View>
   ) : null;
 
+  const ContextPreviewHeader = handoffContext ? (
+    <StyleChatContextPreview
+      context={handoffContext}
+      onDismiss={() => setHandoffContext(null)}
+    />
+  ) : null;
+
+  const styleDnaSummaryText = styleDnaSummary ? buildStyleDnaSummaryText(styleDnaSummary) : null;
+
+  const ChatBody = (
+    <>
+      <FlatList
+        ref={listRef}
+        data={messages}
+        extraData={userKey}
+        keyExtractor={item => item.id}
+        renderItem={renderMessage}
+        ListEmptyComponent={ListEmpty}
+        ListHeaderComponent={ContextPreviewHeader}
+        ListFooterComponent={ThinkingIndicator}
+        style={[styles.messageList, isLandscape ? styles.messageListLandscape : null]}
+        contentContainerStyle={[
+          messages.length === 0 ? styles.listContentEmpty : styles.listContent,
+          isLandscape ? styles.listContentLandscape : null,
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        onContentSizeChange={() => {
+          if (messages.length > 0) {
+            listRef.current?.scrollToEnd({ animated: true });
+          }
+        }}
+      />
+      {weather.enabled ? (
+        weather.promptVisible ? (
+          <StyleChatWeatherPrompt
+            onUseWeather={() => { void weather.acceptWeather(); }}
+            onNotNow={() => { void weather.dismissPrompt(); }}
+            requesting={weather.requesting}
+          />
+        ) : weather.chipState === 'active' ? (
+          <StyleChatWeatherChip label={WEATHER_COPY.active} />
+        ) : weather.chipState === 'denied' ? (
+          <Text style={styles.weatherDenied}>{WEATHER_COPY.denied}</Text>
+        ) : null
+      ) : null}
+      {ErrorBanner}
+      <View style={styles.composerWrap}>
+        <StyleChatInput
+          onSend={text => {
+            weather.markStylingIntent();
+            void sendMessage(text);
+          }}
+          disabled={!canSend}
+        />
+      </View>
+    </>
+  );
+
   return (
-    <SafeAreaView testID="style-chat-screen" style={styles.safe}>
+    <View testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="dark" />
       <StyleChatHeader showBadge={false} />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
@@ -163,46 +352,41 @@ export default function StyleChatSessionScreen() {
           disabled={isDeleting}
           accessibilityRole="button"
           accessibilityLabel="Delete this conversation"
+          accessibilityHint="Permanently remove this session and its messages"
+          accessibilityState={{ disabled: isDeleting, busy: isDeleting }}
           hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
         >
           {isDeleting ? (
-            <ActivityIndicator size="small" color={COLORS.error} />
+            <ActivityIndicator size="small" color={LUXURY.colors.error} />
           ) : (
-            <Text style={styles.sessionDeleteText} testID="style-chat-delete-confirm">DELETE</Text>
+            <Text style={styles.sessionDeleteText} testID="style-chat-delete-confirm">Delete</Text>
           )}
         </Pressable>
       </View>
+      {STYLE_DNA_ENABLED && userKey ? (
+        <StyleChatStyleDnaCard
+          summary={styleDnaSummary}
+          summaryText={styleDnaSummaryText}
+          loading={isLoadingStyleDna}
+          resetting={isResettingStyleDna}
+          onReset={handleResetStyleDna}
+        />
+      ) : null}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={renderMessage}
-          ListEmptyComponent={ListEmpty}
-          ListFooterComponent={ThinkingIndicator}
-          style={[styles.messageList, isLandscape ? styles.messageListLandscape : null]}
-          contentContainerStyle={[
-            messages.length === 0 ? styles.listContentEmpty : styles.listContent,
-            isLandscape ? styles.listContentLandscape : null,
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        />
-        {ErrorBanner}
-        <StyleChatInput onSend={text => { void sendMessage(text); }} disabled={!canSend} />
+        {ChatBody}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.chatScreenBg,
+    backgroundColor: LUXURY.colors.ivory,
   },
   flex: {
     flex: 1,
@@ -214,17 +398,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.chatHairline,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.ivory,
   },
   sessionLabel: {
-    ...TYPOGRAPHY.chipLabel,
-    color: COLORS.textSecondary,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
     fontSize: 11,
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
     paddingRight: SPACING.sm,
+    letterSpacing: 1.4,
   },
   sessionDeleteBtn: {
     minHeight: 44,
@@ -237,10 +423,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   sessionDeleteText: {
-    ...TYPOGRAPHY.chipLabel,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: COLORS.error,
+    ...LUXURY.typography.caption,
+    fontSize: 12,
+    letterSpacing: 1.4,
+    color: LUXURY.colors.error,
+    fontWeight: '600',
   },
   listContent: {
     paddingTop: SPACING.xl,
@@ -249,7 +436,10 @@ const styles = StyleSheet.create({
   messageList: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: COLORS.chatPanelBg,
+    backgroundColor: LUXURY.colors.ivory,
+  },
+  composerWrap: {
+    flexShrink: 0,
   },
   messageListLandscape: {
     minHeight: 80,
@@ -271,23 +461,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxl,
     minHeight: 120,
   },
-  emptyText: {
-    ...TYPOGRAPHY.body,
+  emptyTitle: {
+    ...LUXURY.typography.bodyStrong,
     textAlign: 'center',
-    color: COLORS.textSecondary,
+    color: LUXURY.colors.ink,
+    marginBottom: SPACING.sm,
+  },
+  emptyText: {
+    ...LUXURY.typography.body,
+    textAlign: 'center',
+    color: LUXURY.colors.graphite,
     lineHeight: 24,
+  },
+  statusText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.sm,
   },
   thinking: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.sm,
+    alignItems: 'flex-start',
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.pearl,
     gap: SPACING.sm,
   },
+  thinkingSpinner: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  thinkingCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
   thinkingText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.accent,
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  thinkingSubtext: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
     fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 0.4,
+    marginTop: SPACING.xxs,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -297,16 +525,23 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
     borderColor: 'rgba(130, 48, 56, 0.28)',
     backgroundColor: 'rgba(130, 48, 56, 0.07)',
   },
+  limitBanner: {
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: 'rgba(198, 161, 91, 0.10)',
+  },
   errorText: {
-    ...TYPOGRAPHY.body,
+    ...LUXURY.typography.body,
     fontSize: 13,
-    color: COLORS.error,
+    color: LUXURY.colors.error,
     flex: 1,
+  },
+  limitText: {
+    color: LUXURY.colors.goldText,
   },
   retryLink: {
     marginLeft: SPACING.sm,
@@ -314,7 +549,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryLinkText: {
-    ...TYPOGRAPHY.chipLabel,
-    color: COLORS.accent,
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
+  },
+  weatherDenied: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    marginHorizontal: SPACING.xl,
+    marginBottom: SPACING.xs,
+    letterSpacing: 0.6,
   },
 });

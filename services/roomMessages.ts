@@ -1,11 +1,15 @@
 import { supabase } from './supabaseClient';
 
-// Private In-App Room Messaging v1 (owner-only).
+// Shared In-App Room Messaging v1.
 //
-// Backed by public.dressing_room_messages (RLS: room owner only).
-// Intentionally separate from public link-share previews: nothing in this
-// module may be called from public preview routes, and the table is never
-// selected, joined, counted, or returned by get_public_room_preview.
+// Backed by public.dressing_room_messages. RLS grants read/write to the room
+// OWNER and to AUTHORIZED PARTICIPANTS who joined via an active share token
+// (see public.can_access_room_messages / public.join_room_via_share_token).
+// This is real shared-room collaboration: every authorized participant can read
+// and send, with backend persistence (not a single-user or device-local store).
+//
+// Message bodies are never exposed by the public link-share preview: the table
+// is never selected, joined, counted, or returned by get_public_room_preview.
 //
 // Privacy rules for this module:
 //   * Never log message bodies, auth tokens, sender IDs, or share tokens.
@@ -20,6 +24,7 @@ export const ROOM_MESSAGES_ACCESS_ERROR = 'You no longer have access to this roo
 export const ROOM_MESSAGE_SIGN_IN_ERROR = 'Sign in to view and send room messages.';
 export const ROOM_MESSAGE_EMPTY_ERROR = 'Message cannot be empty.';
 export const ROOM_MESSAGE_TOO_LONG_ERROR = `Messages must be ${ROOM_MESSAGE_MAX_LENGTH} characters or fewer.`;
+export const ROOM_JOIN_ERROR = "We couldn't open that shared room. The link may be invalid or no longer active.";
 const ROOM_MESSAGES_REALTIME_UNAVAILABLE = 'Live message updates are not available yet.';
 
 export type RoomMessage = {
@@ -142,6 +147,37 @@ export async function sendRoomMessage(roomId: string, body: string): Promise<Roo
   }
 
   return toRoomMessage(data as MessageRow, currentUserId);
+}
+
+/**
+ * Join a shared Dressing Room as an authenticated participant using an active
+ * share token, then return the room id so the caller can open in-room chat.
+ *
+ * Membership is created server-side by the SECURITY DEFINER RPC, which validates
+ * the token. Authentication is required (anonymous guests cannot join). The
+ * share token is never logged.
+ */
+export async function joinSharedRoom(shareToken: string): Promise<string> {
+  const normalizedToken = String(shareToken ?? '').trim();
+  if (!normalizedToken) {
+    throw new Error(ROOM_JOIN_ERROR);
+  }
+
+  const currentUserId = await getCurrentSessionUserId();
+  if (!currentUserId) {
+    throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
+  }
+
+  const { data, error } = await supabase.rpc('join_room_via_share_token', {
+    p_share_token: normalizedToken,
+  });
+
+  if (error || !data) {
+    devLog('join failed', error?.code);
+    throw new Error(isPermissionError(error) ? ROOM_MESSAGES_ACCESS_ERROR : ROOM_JOIN_ERROR);
+  }
+
+  return String(data);
 }
 
 /**

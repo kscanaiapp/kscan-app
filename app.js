@@ -10,18 +10,25 @@ import {
   Animated,
   BackHandler,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 
 import { useRouter } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
 import { saveScan } from './services/library';
-import { getApiBaseUrl } from './services/api';
+import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
+import { ScanResultV2 } from './components/scan-results/ScanResultV2';
+import { ScanLanding } from './components/scan-room/ScanLanding';
+import { LiveScanCamera } from './components/scan-room/LiveScanCamera';
+import { CaptureReview } from './components/scan-room/CaptureReview';
+import { AnalyzingScan } from './components/scan-room/AnalyzingScan';
 import { AddScanToDressingRoomModal } from './components/AddScanToDressingRoomModal';
 import { PerceptionLayer } from './components/PerceptionLayer';
 import { ScanButton } from './components/ScanButton';
@@ -31,12 +38,14 @@ import {
   DEV_FALLBACK_STATUS,
   QA_TOOLS_ENABLED,
 } from './constants/build';
+import { TEXTSCAN_UI_ENABLED, SCAN_RESULTS_V2_UI_ENABLED, SCAN_ROOM_V2_UI_ENABLED } from './constants/featureFlags';
 import { QA_FIXTURES } from './constants/qaFixtures';
 import {
   BUTTONS,
   COLORS,
   LAYOUT,
   LOADING,
+  LUXURY,
   RADIUS,
   SHADOWS,
   SPACING,
@@ -50,6 +59,46 @@ const EMPTY_METADATA = {
   color: '',
   silhouette: '',
 };
+
+const VOICE_UI_ENABLED = false;
+
+/**
+ * TextScan entry point inside the Scan surface.
+ *
+ * - Rendered as a subtle pill above the capture button.
+ * - Uses the existing dark Scan HUD styling (ivory text, champagne/gold border).
+ * - Tapping pushes /text-scan and leaves the camera view completely.
+ */
+function TextScanEntryPoint({ enabled }) {
+  const router = useRouter();
+
+  if (!enabled) return null;
+
+  return (
+    <TouchableOpacity
+      testID="textscan-entry-button"
+      style={styles.textScanEntry}
+      onPress={() => router.push('/text-scan')}
+      activeOpacity={0.86}
+      accessibilityRole="button"
+      accessibilityLabel="Open TextScan"
+      accessibilityHint="Describes a fashion item with text instead of the camera"
+    >
+      <Text style={styles.textScanEntryText}>✧ TextScan</Text>
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * FUTURE: Voice input entry point.
+ * When microphone permission, privacy disclosures, and backend voice contract
+ * are ready, mount a voice input affordance near the capture controls. Keep
+ * disabled until approved.
+ */
+function VoiceInputPlaceholder() {
+  if (!VOICE_UI_ENABLED) return null;
+  return null;
+}
 
 function ErrorToast({ message, onDismiss }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -96,7 +145,7 @@ function SavedToast({ onDismiss }) {
 
   return (
     <Animated.View style={[styles.savedToast, { opacity }]}>
-      <Text style={styles.savedToastText}>Saved to Style Library</Text>
+      <Text style={styles.savedToastText}>Saved to Style Closet</Text>
     </Animated.View>
   );
 }
@@ -127,6 +176,7 @@ function ActionButton({ label, onPress, variant = 'primary', disabled = false })
           isSecondary ? styles.secondaryButtonText : null,
           isTertiary ? styles.tertiaryButtonText : null,
         ]}
+        numberOfLines={2}
       >
         {label}
       </Text>
@@ -173,7 +223,6 @@ function QAPanel({ status, onSelectFixture }) {
     <View style={styles.qaPanel} testID="qa-panel">
       <Text style={styles.qaTitle}>QA</Text>
       <Text style={styles.qaText}>Build: {APP_BUILD_LABEL}</Text>
-      <Text style={styles.qaText}>API: {getApiBaseUrl()}</Text>
       <Text style={styles.qaText}>DEV_FALLBACK: {DEV_FALLBACK_STATUS}</Text>
       <Text style={styles.qaText}>Static QA: enabled</Text>
       <Text style={styles.qaText}>State: {status}</Text>
@@ -203,6 +252,9 @@ export default function App() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
+  const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
+  const textScanEnabled =
+    TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
 
   const {
     status,
@@ -216,11 +268,43 @@ export default function App() {
     dismissResult,
     retry,
     selectStaticFixture,
+    uploadPhoto,
   } = useKScan();
 
   const router = useRouter();
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
   const qaTapRef = useRef({ count: 0, lastTap: 0 });
+
+  // Scan Room V2 state
+  const [v2CameraVisible, setV2CameraVisible] = useState(false);
+  const [v2AnalyzingMinComplete, setV2AnalyzingMinComplete] = useState(false);
+
+  const handleHome = useCallback(() => {
+    router.replace('/');
+  }, [router]);
+
+  const handleUploadImage = useCallback(async () => {
+    const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permStatus !== 'granted') {
+      Alert.alert(
+        'Photo Access Required',
+        'Allow K Scan to access your photo library to upload a scan image.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+      allowsEditing: false,
+      allowsMultipleSelection: false,
+    });
+
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      uploadPhoto(result.assets[0].uri);
+    }
+  }, [uploadPhoto]);
 
   useEffect(() => {
     if (!permission?.granted || isCameraReady) return undefined;
@@ -236,8 +320,20 @@ export default function App() {
     console.log('[K-SCAN] __DEV__:', true);
     console.log(`[K-SCAN] DEV_FALLBACK: ${DEV_FALLBACK_STATUS}`);
     console.log(`[K-SCAN] Static QA path enabled: ${QA_TOOLS_ENABLED}`);
-    if (QA_TOOLS_ENABLED) console.log('[K-SCAN] API URL:', getApiBaseUrl());
+    if (QA_TOOLS_ENABLED) console.log('[K-SCAN] QA tools active');
   }, []);
+
+  useEffect(() => {
+    if (status === 'processing') {
+      setV2AnalyzingMinComplete(false);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!v2CameraVisible) {
+      setIsCameraReady(false);
+    }
+  }, [v2CameraVisible]);
 
   const handleBrandPress = useCallback(() => {
     if (!QA_TOOLS_ENABLED) return;
@@ -277,6 +373,7 @@ export default function App() {
   // Reset to false when a new analysis starts (status → processing).
   const hasSavedRef = useRef(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [savedScanId, setSavedScanId] = useState(null);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
 
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
@@ -295,13 +392,19 @@ export default function App() {
       // New analysis: reset post-result HUD and mount a fresh processing HUD
       setPerceiving(false);
       setProcHudKey(k => k + 1);
+      setV2AnalyzingMinComplete(false);
+      setSavedScanId(null);
       hasSavedRef.current = false; // arm save for the next result
       return;
     }
     // When processing succeeds, briefly show the HUD with real metadata
     // before revealing the AnalysisCard (the cinematic reveal moment).
+    // The post-result PerceptionLayer HUD only mounts when the legacy
+    // (non-V2) scan room UI is active, so only gate on it there --
+    // otherwise `perceiving` would stay true forever and the V2 result
+    // Modal (ScanResultV2 / AnalysisCard) would never be allowed to render.
     if (prev === 'processing' && status === 'result') {
-      setPerceiving(true);
+      setPerceiving(!SCAN_ROOM_V2_UI_ENABLED);
       return;
     }
     // Clear on any reset path
@@ -317,8 +420,11 @@ export default function App() {
     if (status !== 'result' || !photo?.uri || !analysis || hasSavedRef.current) return;
     hasSavedRef.current = true;
     let live = true;
-    saveScan({ photoUri: photo.uri, analysis }).then(saved => {
-      if (live && saved) setSavedToast(true);
+    saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' }).then(saved => {
+      if (live && saved) {
+        setSavedScanId(saved.id);
+        setSavedToast(true);
+      }
     });
     return () => { live = false; };
   }, [status, photo, analysis]);
@@ -437,6 +543,16 @@ export default function App() {
             </View>
           </SafeAreaView>
 
+          <Pressable
+            onPress={handleHome}
+            style={styles.homeButtonV1}
+            accessibilityRole="button"
+            accessibilityLabel="Go Home"
+            accessibilityHint="Returns to the K Scan home screen"
+          >
+            <Text style={styles.homeButtonV1Text}>Home</Text>
+          </Pressable>
+
           {status === 'idle' && (
             <TouchableOpacity
               testID="library-button"
@@ -444,7 +560,7 @@ export default function App() {
               onPress={() => router.push('/library')}
               activeOpacity={0.8}
             >
-              <Text style={styles.libraryButtonText}>LIBRARY</Text>
+              <Text style={styles.libraryButtonText}>CLOSET</Text>
             </TouchableOpacity>
           )}
 
@@ -473,6 +589,9 @@ export default function App() {
           {renderViewfinder(false)}
 
           <View style={styles.bottomBar}>
+            {/* Future TextScan / voice affordances — invisible while gated. */}
+            <TextScanEntryPoint enabled={textScanEnabled} />
+            <VoiceInputPlaceholder />
             {status === 'capturing' ? (
               <ActivityIndicator
                 testID="capturing-indicator"
@@ -574,10 +693,20 @@ export default function App() {
     }
 
     if (status === 'error') {
+      // A failed scan has no usable analysis to save. Guard on concrete fields --
+      // an empty object ({}) is truthy -- so we never offer to save a scan the
+      // app just told the user failed.
+      const hasUsableAnalysis = Boolean(
+        analysis &&
+          (analysis.result ||
+            analysis.metadata?.category ||
+            (Array.isArray(analysis.products) && analysis.products.length) ||
+            analysis.type === 'non-fashion'),
+      );
       return (
         <View style={styles.actionsContainer}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {photo?.uri && dressingRoomsEnabled ? (
+          {photo?.uri && dressingRoomsEnabled && hasUsableAnalysis ? (
             <ActionButton
               label="Add Scan to Dressing Room"
               onPress={() => setScanRoomModalVisible(true)}
@@ -596,7 +725,20 @@ export default function App() {
   const renderPreviewScreen = () => (
     <SafeAreaView style={styles.previewScreen}>
       <View style={styles.previewHeader}>
-        {renderBrandTitle()}
+        <View style={styles.previewHeaderRow}>
+          <View style={styles.previewHeaderLeft}>
+            {renderBrandTitle()}
+          </View>
+          <Pressable
+            onPress={handleHome}
+            style={styles.homeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go Home"
+            accessibilityHint="Returns to the K Scan home screen"
+          >
+            <Text style={styles.homeButtonText}>Home</Text>
+          </Pressable>
+        </View>
         <Text style={styles.subtitle}>Look Analyzer</Text>
       </View>
 
@@ -610,6 +752,145 @@ export default function App() {
   );
 
   const renderContent = () => {
+    if (SCAN_ROOM_V2_UI_ENABLED) {
+      switch (status) {
+        case 'idle':
+          if (!v2CameraVisible) {
+            return (
+              <ScanLanding
+                onOpenCamera={() => setV2CameraVisible(true)}
+                onUploadImage={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onHome={handleHome}
+                textScanEnabled={textScanEnabled}
+              />
+            );
+          }
+          return (
+            <LiveScanCamera
+              cameraRef={cameraRef}
+              isCameraReady={isCameraReady}
+              onCapture={() => capturePhoto(cameraRef)}
+              onCameraReady={() => setIsCameraReady(true)}
+              onUpload={handleUploadImage}
+              onTextScan={() => router.push('/text-scan')}
+              onBack={() => setV2CameraVisible(false)}
+              onHome={handleHome}
+              textScanEnabled={textScanEnabled}
+            />
+          );
+
+        case 'capturing':
+          return (
+            <LiveScanCamera
+              cameraRef={cameraRef}
+              isCameraReady={isCameraReady}
+              isCapturing
+              onCapture={() => capturePhoto(cameraRef)}
+              onCameraReady={() => setIsCameraReady(true)}
+              onUpload={handleUploadImage}
+              onTextScan={() => router.push('/text-scan')}
+              onBack={() => setV2CameraVisible(false)}
+              onHome={handleHome}
+              textScanEnabled={textScanEnabled}
+            />
+          );
+
+        case 'preview':
+          if (!photo?.uri) {
+            // Stay inside V2 UI if preview state exists without a valid image URI.
+            return v2CameraVisible ? (
+              <LiveScanCamera
+                cameraRef={cameraRef}
+                isCameraReady={isCameraReady}
+                onCapture={() => capturePhoto(cameraRef)}
+                onCameraReady={() => setIsCameraReady(true)}
+                onUpload={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onBack={() => setV2CameraVisible(false)}
+                onHome={handleHome}
+                textScanEnabled={textScanEnabled}
+              />
+            ) : (
+              <ScanLanding
+                onOpenCamera={() => setV2CameraVisible(true)}
+                onUploadImage={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onHome={handleHome}
+                textScanEnabled={textScanEnabled}
+              />
+            );
+          }
+          return (
+            <CaptureReview
+              imageUri={photo.uri}
+              source={photo.source || 'camera'}
+              onRetake={photo.source === 'upload' ? handleUploadImage : retake}
+              onAnalyze={runAnalysis}
+              onHome={handleHome}
+            />
+          );
+
+        case 'processing':
+          return (
+            <AnalyzingScan
+              imageUri={photo?.uri}
+              isComplete={false}
+              hasError={false}
+              onMinimumDisplayComplete={() => setV2AnalyzingMinComplete(true)}
+              onHome={handleHome}
+            />
+          );
+
+        case 'result':
+          // Hold the analyzing screen until the minimum display time has elapsed,
+          // then reveal the result via the existing preview/result surface.
+          if (!v2AnalyzingMinComplete) {
+            return (
+              <AnalyzingScan
+                imageUri={photo?.uri}
+                isComplete={true}
+                hasError={false}
+                onMinimumDisplayComplete={() => setV2AnalyzingMinComplete(true)}
+                onHome={handleHome}
+              />
+            );
+          }
+          return renderPreviewScreen();
+
+        case 'non-fashion':
+        case 'error':
+          if (!photo?.uri) {
+            return v2CameraVisible ? (
+              <LiveScanCamera
+                cameraRef={cameraRef}
+                isCameraReady={isCameraReady}
+                onCapture={() => capturePhoto(cameraRef)}
+                onCameraReady={() => setIsCameraReady(true)}
+                onUpload={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onBack={() => setV2CameraVisible(false)}
+                onHome={handleHome}
+                textScanEnabled={textScanEnabled}
+              />
+            ) : (
+              <ScanLanding
+                onOpenCamera={() => setV2CameraVisible(true)}
+                onUploadImage={handleUploadImage}
+                onTextScan={() => router.push('/text-scan')}
+                onHome={handleHome}
+                textScanEnabled={textScanEnabled}
+              />
+            );
+          }
+          return renderPreviewScreen();
+
+        default:
+          return renderCameraScreen();
+      }
+    }
+
+    // Existing flow (flag disabled)
     switch (status) {
       case 'idle':
       case 'capturing':
@@ -631,7 +912,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style={SCAN_ROOM_V2_UI_ENABLED && status !== 'result' && status !== 'error' ? 'dark' : 'light'} />
       {renderContent()}
 
       {QA_TOOLS_ENABLED && (
@@ -645,8 +926,8 @@ export default function App() {
         </Modal>
       )}
 
-      {/* Processing HUD — onComplete is a no-op: bumping procHudKey here caused an infinite remount loop → ANR */}
-      {status === 'processing' && (
+      {/* Processing HUD — only show old HUD when V2 is disabled */}
+      {status === 'processing' && !SCAN_ROOM_V2_UI_ENABLED && (
         <PerceptionLayer
           key={procHudKey}
           metadata={null}
@@ -656,8 +937,12 @@ export default function App() {
 
       {savedToast && <SavedToast onDismiss={() => setSavedToast(false)} />}
 
+      {SCAN_ROOM_V2_UI_ENABLED && status === 'error' && error && !photo?.uri && (
+        <ErrorToast message={error} onDismiss={dismissResult} />
+      )}
+
       {/* Post-result HUD: briefly shows real metadata before AnalysisCard slides up */}
-      {status === 'result' && perceiving && (
+      {status === 'result' && perceiving && !SCAN_ROOM_V2_UI_ENABLED && (
         <PerceptionLayer
           metadata={analysis?.metadata ?? EMPTY_METADATA}
           onComplete={() => setPerceiving(false)}
@@ -665,18 +950,47 @@ export default function App() {
       )}
 
       {status === 'result' && !perceiving && (
-        <AnalysisCard
-          result={analysis?.result ?? ''}
-          metadata={analysis?.metadata ?? EMPTY_METADATA}
-          products={analysis?.products ?? []}
-          secondhand={analysis?.secondhand ?? null}
-          sneakerReference={analysis?.sneakerReference ?? null}
-          scanImageUri={photo?.uri ?? null}
-          scanSourceId={photo?.qaFixtureName ?? null}
-          scanSourceType="live_scan"
-          onDismiss={dismissResult}
-          onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
-        />
+        SCAN_RESULTS_V2_UI_ENABLED ? (
+          <ScanResultV2
+            analysis={analysis}
+            scanImageUri={photo?.uri ?? null}
+            scanSourceId={photo?.qaFixtureName ?? null}
+            onDismiss={dismissResult}
+            onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
+            saveActionLabel={savedScanId ? 'View Closet' : undefined}
+            onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            onAskStyleChat={styleChatEnabled ? () => {
+              const source = photo?.source === 'upload' ? 'upload' : 'camera';
+              const meta = analysis?.metadata ?? {};
+              setStyleChatHandoffContext({
+                source,
+                imageUri: photo?.uri ?? null,
+                category: meta.category || null,
+                color: meta.color || null,
+                silhouette: meta.silhouette || null,
+                material: meta.material || null,
+                descriptors: Array.isArray(meta.styleTags) ? meta.styleTags : undefined,
+                analysisText: analysis?.result || null,
+                createdAt: new Date().toISOString(),
+              });
+              router.push('/style-chat');
+            } : undefined}
+          />
+        ) : (
+          <AnalysisCard
+            result={analysis?.result ?? ''}
+            metadata={analysis?.metadata ?? EMPTY_METADATA}
+            products={analysis?.products ?? []}
+            scanResultObject={analysis?.scanResultObject ?? null}
+            secondhand={analysis?.secondhand ?? null}
+            sneakerReference={analysis?.sneakerReference ?? null}
+            scanImageUri={photo?.uri ?? null}
+            scanSourceId={photo?.qaFixtureName ?? null}
+            scanSourceType="live_scan"
+            onDismiss={dismissResult}
+            onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+          />
+        )
       )}
 
       {dressingRoomsEnabled ? (
@@ -684,7 +998,7 @@ export default function App() {
           visible={scanRoomModalVisible}
           localImageUri={photo?.uri ?? null}
           scan={{
-            sourceType: 'live_scan',
+            sourceType: photo?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
             sourceId: photo?.qaFixtureName ?? null,
             result: analysis?.result ?? null,
             metadata: analysis?.metadata ?? null,
@@ -783,6 +1097,7 @@ const styles = StyleSheet.create({
   actionButtonBase: {
     minWidth: BUTTONS.minWidth,
     minHeight: BUTTONS.height,
+    maxWidth: '100%',
     paddingHorizontal: BUTTONS.horizontalPadding,
     borderRadius: RADIUS.pill,
     alignItems: 'center',
@@ -791,6 +1106,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     ...TYPOGRAPHY.cta,
+    textAlign: 'center',
   },
   primaryButton: {
     backgroundColor: COLORS.accent,
@@ -915,6 +1231,24 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.darkOverlayBorder,
   },
+  textScanEntry: {
+    alignSelf: 'center',
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: COLORS.champagneGold,
+    backgroundColor: 'rgba(9, 7, 13, 0.42)',
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  textScanEntryText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    letterSpacing: 1.6,
+    color: COLORS.textInverse,
+  },
   privacyFooter: {
     position: 'absolute',
     left: 0,
@@ -948,6 +1282,52 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.darkOverlayBorder,
     backgroundColor: COLORS.obsidian,
     marginBottom: SPACING.sm,
+  },
+  previewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  previewHeaderLeft: {
+    flex: 1,
+  },
+  homeButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.goldBrushed,
+    backgroundColor: LUXURY.colors.pearl,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.editorialSmall,
+  },
+  homeButtonText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: LUXURY.colors.plumDeep,
+    textTransform: 'uppercase',
+  },
+  homeButtonV1: {
+    position: 'absolute',
+    top: LAYOUT.safeTop + SPACING.lg,
+    left: LAYOUT.screenPadding,
+    zIndex: 30,
+    elevation: 30,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.darkOverlay,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.goldBrushed,
+    ...SHADOWS.darkFloat,
+  },
+  homeButtonV1Text: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textInverse,
   },
   previewContainer: {
     flex: 1,
@@ -1154,5 +1534,16 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.darkOverlayBorder,
     ...SHADOWS.darkFloat,
+  },
+  v2CapturingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: LUXURY.colors.ivory,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  v2CapturingText: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.plum,
   },
 });

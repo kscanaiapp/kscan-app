@@ -11,6 +11,9 @@
 import { supabase } from '../../supabaseClient';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
+import type { WeatherLocationInput } from '../../../constants/weatherStyling';
+import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
+import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
 
 const EDGE_FN      = 'stylechat-generate';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
@@ -27,6 +30,9 @@ export interface EdgeChatMessage {
   content: string;
   model: string;
   tokenEstimate: number;
+  // Optional, additive explanation for concrete recommendations. Absent for
+  // greetings, refusals, fallbacks, and older backend responses.
+  whyThisWorks?: string;
 }
 
 export interface EdgeChatUsage {
@@ -84,6 +90,11 @@ function normalizeMessage(value: unknown, fallbackContent: string): EdgeChatMess
     ? raw.content
     : fallbackContent;
 
+  // Additive, optional. Only surfaced when the backend sends a non-empty string.
+  const whyThisWorks = typeof raw.why_this_works === 'string' && raw.why_this_works.trim().length > 0
+    ? raw.why_this_works.trim()
+    : undefined;
+
   return {
     sender: raw.sender === 'system' ? 'system' : 'assistant',
     content,
@@ -91,6 +102,7 @@ function normalizeMessage(value: unknown, fallbackContent: string): EdgeChatMess
     tokenEstimate: typeof raw.tokenEstimate === 'number' && Number.isFinite(raw.tokenEstimate)
       ? raw.tokenEstimate
       : 0,
+    ...(whyThisWorks ? { whyThisWorks } : {}),
   };
 }
 
@@ -140,13 +152,33 @@ export class EdgeStyleChatProvider {
   async generateReply(input: {
     sessionId: string;
     message: string;
+    weatherLocation?: WeatherLocationInput | null;
+    styleDnaContext?: StyleDnaContext | null;
+    activeContext?: StyleChatHandoffContext | null;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), TIMEOUT_MS);
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
-        body: { sessionId: input.sessionId, message: input.message },
+        body: {
+          sessionId: input.sessionId,
+          message: input.message,
+          // Additive/optional: sent only when weather-aware styling is enabled and a
+          // rounded foreground fix is available. Requests without it stay valid.
+          ...(input.weatherLocation && input.weatherLocation.enabled
+            ? { weatherLocation: input.weatherLocation }
+            : {}),
+          // Additive/optional Style DNA personalization signal (Phase 2). Sent only
+          // when the client built a flag-on, above-threshold context. Requests without
+          // it stay valid; the Edge Function treats a missing field as pre-Phase 2.
+          ...(input.styleDnaContext && input.styleDnaContext.enabled
+            ? { styleDnaContext: input.styleDnaContext }
+            : {}),
+          // Additive/optional active scan/upload/TextScan context. Sent while the user
+          // has a visible context card in StyleChat. Requests without it stay valid.
+          ...(input.activeContext ? { activeContext: input.activeContext } : {}),
+        },
         signal: ac.signal,
       });
 
