@@ -21,9 +21,39 @@ test('launch without an active session redirects to /auth', () => {
 });
 
 test('launch with a valid active session allows authenticated app entry', () => {
-  const state = getRoutingGuardState({ pathname: '/', loading: false, session: validSession, nowSeconds: NOW });
+  const state = getRoutingGuardState({
+    pathname: '/',
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+    onboardingComplete: true,
+  });
   assert.equal(state.action, 'allow');
   assert.equal(state.redirectTo, null);
+});
+
+test('authenticated app entry waits for onboarding completion lookup', () => {
+  const state = getRoutingGuardState({
+    pathname: '/',
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+    onboardingComplete: null,
+  });
+  assert.equal(state.action, 'loading');
+  assert.equal(state.redirectTo, null);
+});
+
+test('authenticated users with incomplete onboarding resume terms before app entry', () => {
+  const state = getRoutingGuardState({
+    pathname: '/',
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+    onboardingComplete: false,
+  });
+  assert.equal(state.action, 'redirect');
+  assert.equal(state.redirectTo, '/onboarding?resume=terms');
 });
 
 test('bootstrap loading renders loading policy before any route content', () => {
@@ -71,6 +101,7 @@ test('successful callback session establishment can proceed to authenticated des
     loading: false,
     session: validSession,
     nowSeconds: NOW,
+    onboardingComplete: true,
   });
   assert.equal(state.action, 'allow');
 });
@@ -81,6 +112,7 @@ test('clearing session routes protected screens to /auth', () => {
     loading: false,
     session: validSession,
     nowSeconds: NOW,
+    onboardingComplete: true,
   });
   const signedOut = getRoutingGuardState({
     pathname: '/privacy',
@@ -100,6 +132,7 @@ test('authenticated users on auth entry are replaced to app entry', () => {
     loading: false,
     session: validSession,
     nowSeconds: NOW,
+    onboardingComplete: true,
   });
   assert.equal(state.action, 'redirect');
   assert.equal(state.redirectTo, '/');
