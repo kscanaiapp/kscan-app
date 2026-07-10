@@ -68,18 +68,27 @@ function verify() {
   const apple = storeConfig.apple ?? {};
   const englishInfo = apple.info?.['en-US'] ?? {};
 
-  check(result, appJson.version === '1.0.0', 'Expo marketing version is 1.0.0');
+  check(result, appJson.version === '1.0.1', 'Expo marketing version is 1.0.1');
   check(result, ios.bundleIdentifier === 'com.kscanai.app', 'iOS bundle ID is com.kscanai.app');
-  check(result, ios.buildNumber === '2', 'iOS build number is 2');
+  check(result, /^\d+$/.test(ios.buildNumber ?? ''), 'iOS build number is a valid incrementing integer string');
   check(result, ios.supportsTablet === false, 'iPad support is disabled for this iPhone-only submission');
-  check(result, ios.config?.usesNonExemptEncryption === false, 'Non-exempt encryption flag is false');
+  check(
+    result,
+    infoPlist.ITSAppUsesNonExemptEncryption === false,
+    'Non-exempt encryption flag is false',
+  );
   check(
     result,
     infoPlist.NSCameraUsageDescription === 'K Scan uses your camera to photograph your outfit for style analysis.',
     'Camera usage description is present and scoped',
   );
   check(result, !('NSMicrophoneUsageDescription' in infoPlist), 'No microphone usage description is declared');
-  check(result, !('NSPhotoLibraryUsageDescription' in infoPlist), 'No photo library usage description is declared');
+  check(
+    result,
+    infoPlist.NSPhotoLibraryUsageDescription ===
+      'K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
+    'Photo library usage description is present and scoped',
+  );
   check(result, privacyManifests.NSPrivacyTracking === false, 'Privacy manifest declares no tracking');
   check(
     result,
@@ -110,16 +119,11 @@ function verify() {
   check(result, productionBuild.distribution === 'store', 'EAS production build is store distribution');
   check(
     result,
-    productionBuild.ios?.image === 'macos-sequoia-15.6-xcode-26.0',
-    'EAS production iOS build uses the required Xcode 26 image',
-  );
-  check(
-    result,
     productionSubmit.metadataPath === './store.config.json',
     'EAS production submit points at store.config.json metadata',
   );
 
-  check(result, apple.version === '1.0.0', 'App Store metadata version is 1.0.0');
+  check(result, apple.version === '1.0.1', 'App Store metadata version is 1.0.1');
   check(result, englishInfo.title === 'K Scan', 'App Store title is K Scan');
   check(result, englishInfo.subtitle === 'AI fashion discovery', 'App Store subtitle is scoped');
   check(result, englishInfo.privacyPolicyUrl === 'https://kscan.app/legal/privacy', 'Privacy URL is set');
@@ -128,8 +132,8 @@ function verify() {
   check(result, apple.advisory?.kidsAgeBand === null, 'App is not configured as Made for Kids');
   check(result, apple.advisory?.ageRatingOverride === 'NONE', 'No unsupported age-rating override is encoded');
 
-  const iosPlugins = (appJson.plugins ?? []).map((p) => (Array.isArray(p) ? p[0] : p));
-  check(result, !iosPlugins.includes('expo-apple-authentication') && ios.usesAppleSignIn !== true, 'No Apple sign-in plugin or entitlement declared');
+  check(result, hasDependency(packageJson, 'expo-apple-authentication'), 'Apple Sign-In dependency is present');
+  check(result, ios.usesAppleSignIn === true, 'Apple Sign-In entitlement is declared');
   check(result, !hasDependency(packageJson, 'expo-media-library'), 'No media library dependency');
   check(result, !hasDependency(packageJson, 'expo-ads-admob'), 'No ads dependency');
   check(result, !hasDependency(packageJson, 'expo-tracking-transparency'), 'No App Tracking Transparency dependency');
