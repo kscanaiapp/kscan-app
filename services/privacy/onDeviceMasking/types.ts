@@ -41,7 +41,13 @@ export interface MaskingResult {
   completed: boolean;
   regionsRequested: number;
   regionsMasked: number;
+  /**
+   * Non-cryptographic, dependency-free checksum of the input buffer (see
+   * `checksumBuffer` in rgbaMasking.ts). Suitable for change detection in
+   * this POC only — not a security or integrity guarantee.
+   */
   inputHash: string;
+  /** Non-cryptographic checksum of the output buffer. See `inputHash`. */
   outputHash: string;
   pixelsChanged: boolean;
   output?: RgbaImageBuffer;
