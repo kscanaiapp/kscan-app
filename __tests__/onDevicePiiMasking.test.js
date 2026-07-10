@@ -149,6 +149,38 @@ test('maskRgbaRegions does not mutate the input buffer', () => {
   assert.deepStrictEqual(input.pixels, original);
 });
 
+test('maskRgbaRegions does not mutate a frozen input buffer object', () => {
+  const input = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
+  Object.freeze(input);
+  // Uint8Array contents are not frozen by Object.freeze on the container,
+  // so also snapshot bytes to detect any in-place write attempt.
+  const originalPixels = new Uint8Array(input.pixels);
+  assert.doesNotThrow(() =>
+    maskRgbaRegions(input, [{ type: 'face', box: { x: 0, y: 0, width: 2, height: 2 }, detectorVersion: 'test' }]),
+  );
+  assert.deepStrictEqual(input.pixels, originalPixels);
+});
+
+test('maskRgbaRegions does not mutate the supplied regions array or region objects', () => {
+  const input = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
+  const region = Object.freeze({
+    type: 'face',
+    box: Object.freeze({ x: 0, y: 0, width: 2, height: 2 }),
+    detectorVersion: 'test',
+  });
+  const regions = Object.freeze([region]);
+  assert.doesNotThrow(() => maskRgbaRegions(input, regions));
+});
+
+test('maskRgbaRegions rejects dimensions above the maximum bound', () => {
+  const size = 8193;
+  // Use a Proxy-free approach: length mismatch would mask the dimension
+  // check, so construct a buffer whose declared length matches (would be
+  // ~256MB+ if real) by only checking the dimension guard triggers first.
+  const input = { width: size, height: 1, pixels: new Uint8Array(size * 4) };
+  assert.throws(() => maskRgbaRegions(input, []), /exceed the maximum/);
+});
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Bounding boxes
 // ───────────────────────────────────────────────────────────────────────────────
@@ -189,6 +221,96 @@ test('validateBox rejects Infinity', () => {
 test('validateBox rejects completely outside image', () => {
   const result = validateBox({ x: 10, y: 10, width: 2, height: 2 }, 4, 4);
   assert.strictEqual(result.valid, false);
+});
+
+test('validateBox rejects fully negative box', () => {
+  const result = validateBox({ x: -10, y: -10, width: 2, height: 2 }, 4, 4);
+  assert.strictEqual(result.valid, false);
+});
+
+test('validateBox clamps partially negative box to the visible region', () => {
+  const result = validateBox({ x: -1, y: -1, width: 3, height: 3 }, 4, 4);
+  assert.strictEqual(result.valid, true);
+  assert.strictEqual(result.box.x, 0);
+  assert.strictEqual(result.box.y, 0);
+  assert.strictEqual(result.box.width, 2);
+  assert.strictEqual(result.box.height, 2);
+});
+
+test('validateBox handles a box that exactly touches the right/bottom boundary', () => {
+  const result = validateBox({ x: 2, y: 2, width: 2, height: 2 }, 4, 4);
+  assert.strictEqual(result.valid, true);
+  assert.strictEqual(result.box.width, 2);
+  assert.strictEqual(result.box.height, 2);
+});
+
+test('validateBox accepts a one-pixel box', () => {
+  const result = validateBox({ x: 0, y: 0, width: 1, height: 1 }, 4, 4);
+  assert.strictEqual(result.valid, true);
+  assert.strictEqual(result.area, 1);
+});
+
+test('validateBox rounds fractional coordinates outward (floor start, ceil end)', () => {
+  const result = validateBox({ x: 0.3, y: 0.3, width: 1.4, height: 1.4 }, 4, 4);
+  assert.strictEqual(result.valid, true);
+  // start floors to 0, end ceils to ceil(1.7) = 2 -> width/height = 2
+  assert.strictEqual(result.box.x, 0);
+  assert.strictEqual(result.box.y, 0);
+  assert.strictEqual(result.box.width, 2);
+  assert.strictEqual(result.box.height, 2);
+  assert.ok(Number.isInteger(result.box.x));
+  assert.ok(Number.isInteger(result.box.y));
+  assert.ok(Number.isInteger(result.box.width));
+  assert.ok(Number.isInteger(result.box.height));
+});
+
+test('maskRgbaRegions fully redacts a fractional-coordinate box with no missed pixels', () => {
+  // Regression for the silent-partial-mask bug: fractional array indices
+  // (e.g. pixels[3.6]) do not write into a Uint8Array's backing buffer, so
+  // an unrounded fractional box could leave some in-box pixels unmasked
+  // while still being counted as fully masked.
+  const input = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
+  const region = { type: 'face', box: { x: 0.3, y: 0.3, width: 1.4, height: 1.4 }, detectorVersion: 'test' };
+  const result = maskRgbaRegions(input, [region]);
+  assert.strictEqual(result.regionsMasked, 1);
+  const verification = verifyMasking(input, result.output, [region]);
+  assert.strictEqual(verification.passed, true, JSON.stringify(verification.failures));
+});
+
+test('boxIoU is exactly 0.5 for a constructed pair, and the >= 0.5 threshold dedupes it', () => {
+  // A: 4x2 (area 8). B: 2x2 (area 4), fully inside A's left half.
+  // intersection = area(B) = 4 (B is a subset of A). union = 8 + 4 - 4 = 8.
+  // IoU = 4 / 8 = 0.5 exactly.
+  const a = { x: 0, y: 0, width: 4, height: 2 };
+  const b = { x: 0, y: 0, width: 2, height: 2 };
+  assert.strictEqual(boxIoU(a, b), 0.5);
+
+  const regions = [
+    { type: 'face', box: a, confidence: 0.9 },
+    { type: 'face', box: b, confidence: 0.8 },
+  ];
+  const result = deduplicateRegions(regions, 0.5);
+  assert.strictEqual(result.length, 1, 'IoU exactly at the 0.5 threshold must be treated as a duplicate (>=)');
+});
+
+test('deduplicateRegions resolves transitive overlap (A-B, B-C, not A-C) deterministically', () => {
+  // A and C do not overlap each other but both overlap B. Greedy,
+  // confidence-sorted dedup may drop B (the bridge) while keeping both A
+  // and C, since A and C are not duplicates of each other.
+  const a = { type: 'face', box: { x: 0, y: 0, width: 4, height: 2 }, confidence: 0.9 };
+  const b = { type: 'face', box: { x: 1, y: 0, width: 4, height: 2 }, confidence: 0.8 };
+  const c = { type: 'face', box: { x: 2, y: 0, width: 4, height: 2 }, confidence: 0.7 };
+  assert.ok(boxIoU(a.box, b.box) >= 0.5, 'A-B must overlap for this scenario');
+  assert.ok(boxIoU(b.box, c.box) >= 0.5, 'B-C must overlap for this scenario');
+  assert.ok(boxIoU(a.box, c.box) < 0.5, 'A-C must not overlap for this scenario');
+
+  const result = deduplicateRegions([a, b, c]);
+  // Deterministic: highest-confidence A always survives; C never overlaps
+  // A so it always survives too; B is always dropped as A's duplicate.
+  assert.strictEqual(result.length, 2);
+  assert.ok(result.some((r) => r === a));
+  assert.ok(result.some((r) => r === c));
+  assert.ok(!result.some((r) => r === b));
 });
 
 test('boxIoU is 1.0 for identical boxes', () => {
@@ -295,12 +417,46 @@ test('maskRgbaRegions no-region output does not claim masking', () => {
   assert.strictEqual(result.inputHash, result.outputHash);
 });
 
+test('checksum (inputHash/outputHash) is deterministic and content-sensitive', () => {
+  const bufferA = createBuffer(4, 4, () => ({ r: 10, g: 20, b: 30, a: 255 }));
+  const bufferB = createBuffer(4, 4, () => ({ r: 10, g: 20, b: 30, a: 255 }));
+  const resultA = maskRgbaRegions(bufferA, []);
+  const resultB = maskRgbaRegions(bufferB, []);
+  assert.strictEqual(resultA.inputHash, resultB.inputHash, 'identical content must produce identical checksums');
+
+  const bufferC = createBuffer(4, 4, () => ({ r: 11, g: 20, b: 30, a: 255 }));
+  const resultC = maskRgbaRegions(bufferC, []);
+  assert.notStrictEqual(resultA.inputHash, resultC.inputHash, 'different content must produce different checksums');
+});
+
 test('maskRgbaRegions does not return the original input object', () => {
   const input = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
   const region = { type: 'face', box: { x: 0, y: 0, width: 2, height: 2 }, detectorVersion: 'test' };
   const result = maskRgbaRegions(input, [region]);
   assert.notStrictEqual(result.output, input);
   assert.notStrictEqual(result.output.pixels, input.pixels);
+});
+
+test('maskRgbaRegions throws (fails conservative) when the only region is already fully redacted', () => {
+  // If a requested region's pixels already equal the redaction color, the
+  // masking loop writes identical bytes and pixelsChanged ends up false
+  // for a call where regionsMasked > 0. The masking-invariant guard must
+  // reject this outright rather than silently returning a false "success".
+  const input = createBuffer(4, 4, () => ({ r: 0, g: 0, b: 0, a: 255 })); // already black
+  const region = { type: 'face', box: { x: 0, y: 0, width: 2, height: 2 }, detectorVersion: 'test' };
+  assert.throws(() => maskRgbaRegions(input, [region]), /Masking invariant violated/);
+});
+
+test('pipeline converts an already-redacted-region masking failure into a clean failure result, not a crash', async () => {
+  const rgba = createBuffer(4, 4, () => ({ r: 0, g: 0, b: 0, a: 255 })); // already black
+  const regions = [{ type: 'face', box: { x: 0, y: 0, width: 2, height: 2 }, detectorVersion: 'synthetic' }];
+  const result = await runDecodedRgbaPrivacyPipeline({
+    rgba,
+    detectors: { face: syntheticFaceDetector({ regions }) },
+    policy: { requireFaceDetection: true, allowCleanNoDetection: false },
+  });
+  assert.strictEqual(result.safeForTransmission, false);
+  assert.ok(result.failureReasons.some((r) => r.includes('Masking failed')));
 });
 
 test('verifyMasking detects unchanged region', () => {
@@ -469,7 +625,12 @@ test('no-region conservative result is not safe by default', async () => {
   assert.ok(result.failureReasons.some((r) => r.includes('No PII regions detected')));
 });
 
-test('no-region result can pass when policy explicitly allows clean passthrough', async () => {
+test('synthetic detector cannot satisfy clean-passthrough policy even with allowCleanNoDetection', async () => {
+  // A synthetic detector never inspects the image. If it were allowed to
+  // grant clean-passthrough by reporting zero regions, a non-functional or
+  // misconfigured detector could silently approve raw, un-inspected PII for
+  // transmission by doing nothing. Only a real (supported: true) detector
+  // may satisfy allowCleanNoDetection.
   const rgba = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
   const result = await runDecodedRgbaPrivacyPipeline({
     rgba,
@@ -477,7 +638,64 @@ test('no-region result can pass when policy explicitly allows clean passthrough'
     policy: { requireFaceDetection: true, allowCleanNoDetection: true },
   });
   assert.strictEqual(result.masking.pixelsChanged, false);
+  assert.strictEqual(result.safeForTransmission, false);
+  assert.ok(result.failureReasons.some((r) => r.includes('No PII regions detected')));
+});
+
+test('unsupported detector cannot satisfy clean-passthrough policy', async () => {
+  const rgba = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
+  const result = await runDecodedRgbaPrivacyPipeline({
+    rgba,
+    detectors: { face: unsupportedFaceDetector },
+    policy: { requireFaceDetection: true, allowCleanNoDetection: true },
+  });
+  assert.strictEqual(result.safeForTransmission, false);
+});
+
+test('a real (supported) detector reporting zero regions can satisfy clean-passthrough policy', async () => {
+  // Simulates a future real detector: supported: true, genuinely completed,
+  // zero regions found. This is the only case allowCleanNoDetection should
+  // ever approve.
+  const realNoOpDetector = {
+    detectorVersion: 'real-face-mock-1.0.0',
+    regionType: 'face',
+    supported: true,
+    async detect() {
+      return { attempted: true, completed: true, supported: true, regions: [], warnings: [] };
+    },
+  };
+  const rgba = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
+  const result = await runDecodedRgbaPrivacyPipeline({
+    rgba,
+    detectors: { face: realNoOpDetector },
+    policy: { requireFaceDetection: true, allowCleanNoDetection: true },
+  });
+  assert.strictEqual(result.masking.pixelsChanged, false);
   assert.strictEqual(result.safeForTransmission, true);
+});
+
+test('one real required detector plus one synthetic required detector cannot satisfy clean-passthrough', async () => {
+  // Both required detector types must be real; a mix of real + synthetic
+  // must not be treated as fully real.
+  const realNoOpDetector = {
+    detectorVersion: 'real-face-mock-1.0.0',
+    regionType: 'face',
+    supported: true,
+    async detect() {
+      return { attempted: true, completed: true, supported: true, regions: [], warnings: [] };
+    },
+  };
+  const rgba = createBuffer(4, 4, () => ({ r: 255, g: 0, b: 0, a: 255 }));
+  const result = await runDecodedRgbaPrivacyPipeline({
+    rgba,
+    detectors: { face: realNoOpDetector, plate: syntheticLicensePlateDetector({ regions: [] }) },
+    policy: {
+      requireFaceDetection: true,
+      requirePlateDetection: true,
+      allowCleanNoDetection: true,
+    },
+  });
+  assert.strictEqual(result.safeForTransmission, false);
 });
 
 // ───────────────────────────────────────────────────────────────────────────────
