@@ -28,6 +28,7 @@ interface LiveScanCameraProps {
   onHome?: () => void;
   onCameraReady?: () => void;
   isCapturing?: boolean;
+  isAnalyzing?: boolean;
   textScanEnabled?: boolean;
   testID?: string;
 }
@@ -52,6 +53,7 @@ export function LiveScanCamera({
   onHome,
   onCameraReady,
   isCapturing = false,
+  isAnalyzing = false,
   textScanEnabled = false,
   testID,
 }: LiveScanCameraProps) {
@@ -95,6 +97,7 @@ export function LiveScanCamera({
               title="Upload Image"
               variant="secondary"
               onPress={onUpload}
+              disabled={isAnalyzing}
               accessibilityLabel="Upload an image instead"
             />
             <LuxuryButton
@@ -146,19 +149,21 @@ export function LiveScanCamera({
       <View style={styles.controls}>
         <ScanButton
           onPress={onCapture}
-          disabled={!isCameraReady || isCapturing}
+          disabled={!isCameraReady || isCapturing || isAnalyzing}
           testID="scan-room-capture-button"
         />
 
         <View style={styles.secondaryControls}>
           <TouchableOpacity
             onPress={onUpload}
-            activeOpacity={0.78}
+            disabled={isAnalyzing}
+            activeOpacity={isAnalyzing ? 1 : 0.78}
             accessibilityRole="button"
             accessibilityLabel="Upload image from library"
-            style={styles.controlPill}
+            accessibilityState={{ disabled: isAnalyzing }}
+            style={[styles.controlPill, isAnalyzing && styles.controlPillDisabled]}
           >
-            <Text style={styles.controlPillText}>Upload Image</Text>
+            <Text style={[styles.controlPillText, isAnalyzing && styles.controlPillTextDisabled]}>Upload Image</Text>
           </TouchableOpacity>
 
           {textScanEnabled && (
@@ -185,10 +190,10 @@ export function LiveScanCamera({
         </View>
       </View>
 
-      {isCapturing && (
+      {(isCapturing || isAnalyzing) && (
         <View style={styles.capturingOverlay}>
           <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-          <Text style={styles.capturingText}>Capturing...</Text>
+          <Text style={styles.capturingText}>{isAnalyzing ? 'Analyzing your look…' : 'Capturing…'}</Text>
         </View>
       )}
     </View>
@@ -306,6 +311,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: LUXURY.colors.plum,
     textTransform: 'uppercase',
+  },
+  controlPillDisabled: {
+    borderColor: LUXURY.colors.border,
+  },
+  controlPillTextDisabled: {
+    color: LUXURY.colors.stone,
   },
   permissionContainer: {
     flex: 1,

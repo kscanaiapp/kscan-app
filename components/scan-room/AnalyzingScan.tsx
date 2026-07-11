@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Animated,
   Image,
+  ActivityIndicator,
   useWindowDimensions,
   Pressable,
 } from 'react-native';
@@ -24,22 +25,15 @@ interface AnalyzingScanProps {
   testID?: string;
 }
 
-const STEPS = [
-  { label: 'Detecting item', sub: 'Identifying key features' },
-  { label: 'Extracting details', sub: 'Reading color, silhouette, material' },
-  { label: 'Preparing results', sub: 'Building your scan analysis' },
-];
-
-const STEP_DURATION_MS = 1800;
 const MIN_DISPLAY_MS = 1500;
 
 /**
  * Analyzing Scan state for Scan Room V2.
  *
  * - Light luxury pearl canvas.
- * - Deterministic 3-step visual progression.
+ * - Image-first layout with compact honest loading copy.
+ * - One stable "Analyzing your look…" message (no fake steps or percentages).
  * - Minimum 1.5s display, fast-forwards when `isComplete` becomes true.
- * - Shows captured image thumbnail.
  * - Error state with Retry / Retake if analysis fails.
  */
 export function AnalyzingScan({
@@ -54,28 +48,11 @@ export function AnalyzingScan({
   testID,
 }: AnalyzingScanProps) {
   const { width: screenWidth } = useWindowDimensions();
-  const [activeStep, setActiveStep] = useState(0);
   const startTime = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const imageWidth = Math.min(screenWidth - SPACING.xl * 2, 280);
   const imageHeight = imageWidth * 1.25;
-
-  // Step progression
-  useEffect(() => {
-    if (hasError) return;
-    if (activeStep >= STEPS.length) return;
-
-    timerRef.current = setTimeout(() => {
-      if (!isComplete) {
-        setActiveStep((prev) => Math.min(prev + 1, STEPS.length));
-      }
-    }, STEP_DURATION_MS);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [activeStep, isComplete, hasError]);
 
   // Fast-forward when complete
   useEffect(() => {
@@ -84,31 +61,16 @@ export function AnalyzingScan({
     const elapsed = Date.now() - startTime.current;
     if (elapsed < MIN_DISPLAY_MS) {
       timerRef.current = setTimeout(() => {
-        setActiveStep(STEPS.length);
+        onMinimumDisplayComplete?.();
       }, MIN_DISPLAY_MS - elapsed);
     } else {
-      setActiveStep(STEPS.length);
+      onMinimumDisplayComplete?.();
     }
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isComplete, hasError]);
-
-  // Notify parent when minimum display time has elapsed.
-  useEffect(() => {
-    if (hasError) return;
-
-    const elapsed = Date.now() - startTime.current;
-    const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
-    timerRef.current = setTimeout(() => {
-      onMinimumDisplayComplete?.();
-    }, remaining);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [hasError, onMinimumDisplayComplete]);
+  }, [isComplete, hasError, onMinimumDisplayComplete]);
 
   const homeButton = onHome ? (
     <Pressable
@@ -160,8 +122,6 @@ export function AnalyzingScan({
     <View style={styles.root} testID={testID}>
       <ScanRoomHeader rightAction={homeButton} />
 
-      <Text style={styles.title}>Analyzing your scan</Text>
-
       {/* Thumbnail */}
       {imageUri && (
         <View style={[styles.thumbnailCard, { width: imageWidth, height: imageHeight }]}>
@@ -173,40 +133,14 @@ export function AnalyzingScan({
         </View>
       )}
 
-      {/* Progress steps */}
-      <View style={styles.stepsCard}>
-        {STEPS.map((step, index) => {
-          const isActive = index === activeStep;
-          const isDone = index < activeStep;
-          return (
-            <View
-              key={step.label}
-              style={[
-                styles.stepRow,
-                index > 0 && styles.stepBorder,
-              ]}
-            >
-              <View style={[styles.stepDot, isDone && styles.stepDotDone, isActive && styles.stepDotActive]} />
-              <View style={styles.stepText}>
-                <Text style={[styles.stepLabel, isActive && styles.stepLabelActive]}>
-                  {step.label}
-                </Text>
-                <Text style={styles.stepSub}>{step.sub}</Text>
-              </View>
-              {isDone && <Text style={styles.stepCheck}>✓</Text>}
-              {isActive && (
-                <Animated.View style={styles.stepSpinner}>
-                  <Text style={styles.stepSpinnerText}>◌</Text>
-                </Animated.View>
-              )}
-            </View>
-          );
-        })}
+      {/* Compact processing card */}
+      <View style={styles.processingCard}>
+        <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+        <Text style={styles.processingTitle}>Analyzing your look…</Text>
+        <View style={styles.analyzingButton}>
+          <Text style={styles.analyzingButtonText}>ANALYZING…</Text>
+        </View>
       </View>
-
-      {activeStep >= STEPS.length && !isComplete && (
-        <Text style={styles.stillAnalyzing}>Still analyzing your scan...</Text>
-      )}
     </View>
   );
 }
@@ -216,12 +150,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: LUXURY.colors.ivory,
     alignItems: 'center',
-  },
-  title: {
-    ...LUXURY.typography.displayTitle,
-    fontSize: 24,
-    marginTop: SPACING.lg,
-    textAlign: 'center',
   },
   thumbnailCard: {
     alignSelf: 'center',
@@ -236,7 +164,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  stepsCard: {
+  processingCard: {
     borderRadius: RADIUS.xl,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,
@@ -245,69 +173,33 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     marginHorizontal: SPACING.xl,
     alignSelf: 'stretch',
+    alignItems: 'center',
+    gap: SPACING.md,
     ...SHADOWS.editorialSmall,
   },
-  stepRow: {
-    flexDirection: 'row',
+  processingTitle: {
+    ...LUXURY.typography.displayTitle,
+    fontSize: 20,
+    textAlign: 'center',
+  },
+  analyzingButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: 'transparent',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+    minHeight: 40,
+    minWidth: 160,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
-    gap: SPACING.md,
   },
-  stepBorder: {
-    borderTopWidth: 1,
-    borderTopColor: LUXURY.colors.hairline,
-  },
-  stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: LUXURY.colors.border,
-    flexShrink: 0,
-  },
-  stepDotDone: {
-    backgroundColor: LUXURY.colors.success,
-  },
-  stepDotActive: {
-    backgroundColor: LUXURY.colors.plum,
-  },
-  stepText: {
-    flex: 1,
-  },
-  stepLabel: {
-    ...LUXURY.typography.bodyStrong,
-    fontSize: 14,
-    color: LUXURY.colors.stone,
-  },
-  stepLabelActive: {
-    color: LUXURY.colors.plum,
-  },
-  stepSub: {
+  analyzingButtonText: {
     ...LUXURY.typography.caption,
     fontSize: 11,
-    letterSpacing: 0.4,
-    textTransform: 'none',
-    marginTop: 2,
-  },
-  stepCheck: {
-    fontSize: 14,
-    color: LUXURY.colors.success,
-    fontWeight: '700',
-  },
-  stepSpinner: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepSpinnerText: {
-    fontSize: 14,
-    color: LUXURY.colors.plum,
-  },
-  stillAnalyzing: {
-    ...LUXURY.typography.body,
-    color: LUXURY.colors.graphite,
-    marginTop: SPACING.lg,
-    textAlign: 'center',
+    letterSpacing: 1.2,
+    color: LUXURY.colors.stone,
+    textTransform: 'uppercase',
   },
   errorContainer: {
     flex: 1,

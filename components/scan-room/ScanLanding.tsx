@@ -18,6 +18,7 @@ interface ScanLandingProps {
   onUploadImage: () => void;
   onTextScan: () => void;
   onHome?: () => void;
+  disabled?: boolean;
   textScanEnabled?: boolean;
   testID?: string;
 }
@@ -37,6 +38,7 @@ export function ScanLanding({
   onUploadImage,
   onTextScan,
   onHome,
+  disabled = false,
   textScanEnabled = false,
   testID,
 }: ScanLandingProps) {
@@ -92,6 +94,7 @@ export function ScanLanding({
           title="Open Camera"
           variant="primary"
           onPress={onOpenCamera}
+          disabled={disabled}
           accessibilityLabel="Open camera to scan a fashion item"
           accessibilityHint="Starts the camera for a live scan"
           testID="scan-room-open-camera"
@@ -100,6 +103,7 @@ export function ScanLanding({
           title="Upload Image"
           variant="secondary"
           onPress={onUploadImage}
+          disabled={disabled}
           accessibilityLabel="Upload an image from your library"
           accessibilityHint="Opens the image picker for an uploaded scan"
           testID="scan-room-upload-image"
@@ -107,10 +111,12 @@ export function ScanLanding({
         {textScanEnabled && (
           <TouchableOpacity
             onPress={onTextScan}
-            activeOpacity={0.78}
+            disabled={disabled}
+            activeOpacity={disabled ? 1 : 0.78}
             accessibilityRole="button"
             accessibilityLabel="Describe an item with TextScan"
-            style={styles.textScanButton}
+            accessibilityState={{ disabled }}
+            style={[styles.textScanButton, disabled && styles.textScanButtonDisabled]}
             testID="scan-room-textscan"
           >
             <Text style={styles.textScanText}>✧ Describe an item</Text>
@@ -205,6 +211,9 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.plum,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
+  },
+  textScanButtonDisabled: {
+    opacity: 0.5,
   },
   privacyFooter: {
     marginTop: SPACING.xxl,

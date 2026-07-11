@@ -20,6 +20,7 @@ interface CaptureReviewProps {
   onRetake: () => void;
   onAnalyze: () => void;
   onHome?: () => void;
+  isAnalyzing?: boolean;
   testID?: string;
 }
 
@@ -39,6 +40,7 @@ export function CaptureReview({
   onRetake,
   onAnalyze,
   onHome,
+  isAnalyzing = false,
   testID,
 }: CaptureReviewProps) {
   const insets = useSafeAreaInsets();
@@ -131,15 +133,17 @@ export function CaptureReview({
           title={secondaryLabel}
           variant="secondary"
           onPress={onRetake}
+          disabled={isAnalyzing}
           accessibilityLabel={secondaryLabel}
           accessibilityHint={secondaryHint}
           testID={isUpload ? 'scan-room-replace-image' : 'scan-room-retake'}
         />
         <LuxuryButton
-          title="Analyze Scan"
+          title={isAnalyzing ? 'ANALYZING…' : 'Analyze Scan'}
           variant="primary"
           onPress={onAnalyze}
-          accessibilityLabel="Analyze scan style"
+          disabled={isAnalyzing}
+          accessibilityLabel={isAnalyzing ? 'Analysis in progress' : 'Analyze scan style'}
           accessibilityHint="Start AI style analysis on this photo"
           testID="scan-room-analyze"
         />
