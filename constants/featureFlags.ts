@@ -33,6 +33,10 @@ export const NON_CORE_FEATURE_KEYS = [
   'outfitRemixLooks',
   // TextScan is a non-core companion mode until backend matching is verified.
   'textScan',
+  // AI Stylist expansion: owned-closet manual builder, AI outfit suggestions,
+  // and Dressing Room outfit decisions. Coexists with outfitRemixLooks; the
+  // legacy Dressing Room → Looks flow is unchanged.
+  'aiStylist',
 ] as const;
 
 export type CoreFeatureKey = (typeof CORE_FEATURE_KEYS)[number];
@@ -130,3 +134,24 @@ export const CLOUD_SAVED_SCANS_ENABLED =
  */
 export const SCAN_IDENTIFY_BACKEND_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true';
+
+// ── AI Stylist expansion (inactive rollout) ──────────────────────────────────
+/**
+ * Master switch for the AI Stylist expansion UI: Library MY LOOKS sub-nav,
+ * owned-item manual Look builder, Style This / Style for Event flows, and
+ * Dressing Room outfit decisions (voting, winner, "I'm wearing this").
+ * Default false: the feature ships dark and stays inactive in the current
+ * production configuration. Enable locally with
+ * EXPO_PUBLIC_AI_STYLIST_ENABLED=true. It additionally respects the remote
+ * non-core feature freeze via the 'aiStylist' key.
+ */
+export const AI_STYLIST_UI_ENABLED =
+  process.env.EXPO_PUBLIC_AI_STYLIST_ENABLED === 'true';
+
+/**
+ * Separate switch for invoking the style-outfit-generate Edge Function. Kept
+ * apart from the UI switch so the manual builder and room decisions can be
+ * tested before the AI backend is deployed. Default false.
+ */
+export const AI_STYLIST_BACKEND_ENABLED =
+  process.env.EXPO_PUBLIC_AI_STYLIST_BACKEND_ENABLED === 'true';

@@ -315,6 +315,15 @@ function mapLook(row: any): Look {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     dressingRoomTitle: row.dressing_rooms?.title ?? null,
+    // AI Stylist expansion columns; legacy databases/rows return undefined/null.
+    source: row.source ?? null,
+    occasion: row.occasion ?? null,
+    dressCode: row.dress_code ?? null,
+    setting: row.setting ?? null,
+    contextNote: row.context_note ?? null,
+    explanation: row.explanation ?? null,
+    promptVersion: row.prompt_version ?? null,
+    contractVersion: row.contract_version ?? null,
   };
 }
 
@@ -337,6 +346,9 @@ function mapLookItem(row: any): LookItem {
     layoutPayload: row.layout_payload,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    sourceType: row.source_type ?? null,
+    sourceSavedScanId: row.source_saved_scan_id ?? null,
+    sourceInspirationItemId: row.source_inspiration_item_id ?? null,
   };
 }
 
@@ -816,7 +828,127 @@ export async function deleteLook(lookId: string): Promise<void> {
 }
 
 export function canRenderSnapshotVersion(version?: number | null) {
-  return version === SNAPSHOT_VERSION;
+  return version === SNAPSHOT_VERSION || version === OWNED_ITEM_SNAPSHOT_VERSION;
+}
+
+// ── Owned-item Looks (AI Stylist expansion) ───────────────────────────────────
+// Snapshot version 2 is used by owned-item (manual/AI) Look items; snapshots
+// are built server-side inside the atomic RPCs and never duplicate binaries.
+
+export const OWNED_ITEM_SNAPSHOT_VERSION = 2;
+export const LOOK_MIN_ITEMS = 2;
+export const LOOK_MAX_ITEMS = 6;
+
+export type OwnedLookItemInput = {
+  sourceType: 'saved_scan' | 'inspiration_item';
+  sourceId: string;
+  role?: string | null;
+};
+
+function validateOwnedLookItems(items: OwnedLookItemInput[]) {
+  if (!Array.isArray(items) || items.length < LOOK_MIN_ITEMS) {
+    throw new Error(`Select at least ${LOOK_MIN_ITEMS} items for a Look.`);
+  }
+  if (items.length > LOOK_MAX_ITEMS) {
+    throw new Error(`A Look can hold up to ${LOOK_MAX_ITEMS} items.`);
+  }
+  const keys = new Set(items.map((item) => `${item.sourceType}:${item.sourceId}`));
+  if (keys.size !== items.length) {
+    throw new Error('Each item can only appear once in a Look.');
+  }
+  for (const item of items) {
+    if (item.sourceType !== 'saved_scan' && item.sourceType !== 'inspiration_item') {
+      throw new Error('This item cannot be added to a Look yet.');
+    }
+    if (!item.sourceId || typeof item.sourceId !== 'string') {
+      throw new Error('This item cannot be added to a Look yet.');
+    }
+  }
+}
+
+function toOwnedItemsPayload(items: OwnedLookItemInput[]) {
+  return items.map((item) => ({
+    sourceType: item.sourceType,
+    sourceId: item.sourceId,
+    role: cleanText(item.role) ?? null,
+  }));
+}
+
+/**
+ * Atomically creates a manual or AI Look from owned-closet items via the
+ * create_look_from_owned_items RPC. Server validates ownership/availability of
+ * every source row and builds bounded snapshots; a partial insert never leaves
+ * an empty Look.
+ */
+export async function createLookFromOwnedItems(input: {
+  title: string;
+  description?: string | null;
+  source: 'manual' | 'ai';
+  occasion?: string | null;
+  dressCode?: string | null;
+  setting?: string | null;
+  contextNote?: string | null;
+  explanation?: string | null;
+  promptVersion?: string | null;
+  contractVersion?: string | null;
+  items: OwnedLookItemInput[];
+}): Promise<Look> {
+  const title = cleanText(input.title);
+  if (!title) throw new Error('Look title is required.');
+  validateOwnedLookItems(input.items);
+
+  const { data, error } = await supabase.rpc('create_look_from_owned_items', {
+    p_title: title,
+    p_description: cleanText(input.description),
+    p_source: input.source,
+    p_occasion: cleanText(input.occasion),
+    p_dress_code: cleanText(input.dressCode),
+    p_setting: cleanText(input.setting),
+    p_context_note: cleanText(input.contextNote),
+    p_explanation: cleanText(input.explanation),
+    p_prompt_version: cleanText(input.promptVersion),
+    p_contract_version: cleanText(input.contractVersion),
+    p_items: toOwnedItemsPayload(input.items),
+  });
+  if (error) throw safeError(error, 'Unable to save this Look.');
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('Unable to save this Look.');
+  return mapLook(row);
+}
+
+/**
+ * Atomically updates an owned-item Look's metadata and replaces its items via
+ * the update_look_owned_items RPC. Dressing Room-derived Looks keep their
+ * existing edit path (updateLook) and cannot be edited here.
+ */
+export async function updateLookOwnedItems(input: {
+  lookId: string;
+  title: string;
+  description?: string | null;
+  occasion?: string | null;
+  dressCode?: string | null;
+  setting?: string | null;
+  contextNote?: string | null;
+  items: OwnedLookItemInput[];
+}): Promise<Look> {
+  const title = cleanText(input.title);
+  if (!title) throw new Error('Look title is required.');
+  validateOwnedLookItems(input.items);
+
+  const { data, error } = await supabase.rpc('update_look_owned_items', {
+    p_look_id: input.lookId,
+    p_title: title,
+    p_description: cleanText(input.description),
+    p_occasion: cleanText(input.occasion),
+    p_dress_code: cleanText(input.dressCode),
+    p_setting: cleanText(input.setting),
+    p_context_note: cleanText(input.contextNote),
+    p_items: toOwnedItemsPayload(input.items),
+  });
+  if (error) throw safeError(error, 'Unable to update this Look.');
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('Unable to update this Look.');
+  return mapLook(row);
 }
 
 // ── Inspiration Uploads ────────────────────────────────────────────────────────

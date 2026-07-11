@@ -53,6 +53,9 @@ export type DressingRoomItem = {
   updatedAt: string;
 };
 
+/** Look origin. Legacy rows have a NULL source and are treated as dressing_room. */
+export type LookSource = 'dressing_room' | 'manual' | 'ai';
+
 export type Look = {
   id: string;
   userId: string;
@@ -65,7 +68,18 @@ export type Look = {
   itemCount?: number;
   coverFallbackUrl?: string | null;
   dressingRoomTitle?: string | null;
+  // AI Stylist expansion (all optional; legacy rows return null)
+  source?: LookSource | null;
+  occasion?: string | null;
+  dressCode?: string | null;
+  setting?: string | null;
+  contextNote?: string | null;
+  explanation?: string | null;
+  promptVersion?: string | null;
+  contractVersion?: string | null;
 };
+
+export type LookItemSourceType = 'dressing_room_item' | 'saved_scan' | 'inspiration_item';
 
 export type LookItem = {
   id: string;
@@ -85,6 +99,10 @@ export type LookItem = {
   layoutPayload?: SnapshotPayload | null;
   createdAt: string;
   updatedAt: string;
+  // AI Stylist expansion (legacy rows: null → dressing_room_item)
+  sourceType?: LookItemSourceType | null;
+  sourceSavedScanId?: string | null;
+  sourceInspirationItemId?: string | null;
 };
 
 export type ProductMatchSnapshotSource = {
@@ -168,4 +186,61 @@ export type RoomDetail = {
 export type LookDetail = {
   look: Look;
   items: LookItem[];
+};
+
+// ── Outfit decisions (AI Stylist expansion) ───────────────────────────────────
+
+export type OutfitDecisionStatus = 'open' | 'decided' | 'closed';
+
+export type OutfitDecisionGroup = {
+  id: string;
+  dressingRoomId: string;
+  createdBy?: string | null;
+  title?: string | null;
+  question: string;
+  occasion?: string | null;
+  status: OutfitDecisionStatus;
+  chosenOptionId?: string | null;
+  wearingConfirmedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OutfitDecisionOption = {
+  id: string;
+  groupId: string;
+  sourceType: 'manual_look' | 'ai_suggestion';
+  sourceLookId?: string | null;
+  title?: string | null;
+  explanation?: string | null;
+  variation?: string | null;
+  sortOrder: number;
+  snapshotVersion: number;
+  createdAt: string;
+};
+
+export type OutfitDecisionOptionItem = {
+  id: string;
+  optionId: string;
+  sourceType?: string | null;
+  itemRole?: string | null;
+  sortOrder: number;
+  snapshotVersion: number;
+  snapshotPayload: SnapshotPayload;
+  imageUrl?: string | null;
+  storageBucket?: string | null;
+  storagePath?: string | null;
+  createdAt: string;
+};
+
+export type OutfitDecisionOptionWithItems = OutfitDecisionOption & {
+  items: OutfitDecisionOptionItem[];
+  voteCount?: number;
+};
+
+export type OutfitDecisionDetail = {
+  group: OutfitDecisionGroup;
+  options: OutfitDecisionOptionWithItems[];
+  /** The current user's voted option id, when signed in and voted. */
+  myVoteOptionId?: string | null;
 };
