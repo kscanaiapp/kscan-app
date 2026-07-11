@@ -260,10 +260,10 @@ export function AnalysisCard({
                   onPress={onAskStyleChat}
                   activeOpacity={0.86}
                   accessibilityRole="button"
-                  accessibilityLabel="Ask StyleChat about this item"
+                  accessibilityLabel="Ask Elise about this item"
                   testID="ask-stylechat-item"
                 >
-                  <Text style={styles.scanRoomCtaText}>Ask StyleChat</Text>
+                  <Text style={styles.scanRoomCtaText}>Ask Elise</Text>
                 </TouchableOpacity>
               ) : null}
 

@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
+import { ELISE_IDENTITY } from '../../constants/elise';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -34,7 +35,12 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View testID="style-chat-header" style={styles.container}>
+    <View
+      testID="style-chat-header"
+      style={styles.container}
+      accessibilityRole="header"
+      accessibilityLabel={ELISE_IDENTITY.headerAccessibilityLabel}
+    >
       <View
         style={[
           styles.topRow,
@@ -54,7 +60,14 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
         </Pressable>
 
         <View style={styles.titleWrap}>
-          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.2}>
+          <Text
+            style={styles.title}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            maxFontSizeMultiplier={1.2}
+            accessibilityLabel={ELISE_IDENTITY.headerAccessibilityLabel}
+          >
             {STYLE_CHAT_COPY.header}
           </Text>
         </View>

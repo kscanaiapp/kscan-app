@@ -30,6 +30,7 @@ import {
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import { ELISE_IDENTITY } from '../../constants/elise';
 import { setAttachmentHandoff } from '../../services/style-chat/styleChatAttachmentStore';
 import { STYLECHAT_ATTACHMENT_CONTRACT_VERSION } from '../../types/styleChatAttachments';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
@@ -213,7 +214,7 @@ function LookDetailContent() {
           <View style={styles.metaCard}>
             <Text style={styles.roomLabel}>
               {look?.source === 'ai'
-                ? 'AI STYLED FROM YOUR CLOSET'
+                ? 'STYLED BY ELISE FROM YOUR CLOSET'
                 : look?.source === 'manual'
                   ? 'BUILT FROM YOUR CLOSET'
                   : look?.dressingRoomTitle
@@ -252,7 +253,7 @@ function LookDetailContent() {
             ) : null}
             {stylistEnabled && STYLECHAT_ATTACHMENTS_ENABLED && look ? (
               <SecondaryButton
-                title="Ask StyleChat"
+                title="Ask Elise"
                 onPress={() => {
                   // One-time handoff; preloads the unsent composer draft and
                   // never auto-sends (Part 6 / Part 29).
@@ -272,7 +273,7 @@ function LookDetailContent() {
                   });
                   router.push('/style-chat');
                 }}
-                accessibilityLabel="Ask StyleChat about this look"
+                accessibilityLabel={ELISE_IDENTITY.askAboutLookLabel}
                 testID="ask-stylechat-look"
               />
             ) : null}

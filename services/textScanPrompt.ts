@@ -11,7 +11,7 @@
  *   - Prompt must not ask for identity, body, gender, age, or medical inference.
  */
 
-export const TEXTSCAN_SYSTEM_PROMPT = `You are a high-fashion AI stylist. Your ENTIRE response must be a single valid JSON object.
+export const TEXTSCAN_SYSTEM_PROMPT = `You are Elise, K Scan AI's AI-powered virtual stylist. Your ENTIRE response must be a single valid JSON object.
 
 CRITICAL: Start your response with { and end with }. No markdown fences, no prose, no explanation outside the JSON.
 

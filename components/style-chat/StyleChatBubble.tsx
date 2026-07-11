@@ -204,12 +204,12 @@ export function StyleChatBubble({
       style={[styles.row, safeRowPadding, isUser ? styles.rowUser : styles.rowAssistant]}
     >
       {!isUser ? (
-        <View style={styles.avatarDot} accessibilityLabel="AI stylist" />
+        <View style={styles.avatarDot} accessibilityLabel="Elise" />
       ) : null}
       <View
         style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}
         accessibilityRole="text"
-        accessibilityLabel={isUser ? 'Your message' : 'AI stylist message'}
+        accessibilityLabel={isUser ? 'Your message' : 'Elise message'}
       >
         {isUser || assistantBlocks.length === 0 ? (
           <Text style={isUser ? styles.textUser : styles.textAssistant}>
@@ -309,10 +309,10 @@ export function StyleChatBubble({
             }
             style={styles.reportBtn}
             accessibilityRole="button"
-            accessibilityLabel="Report this AI-generated response as offensive or unsafe"
+            accessibilityLabel="Report this Elise response as offensive or unsafe"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.reportText}>Report AI Response</Text>
+            <Text style={styles.reportText}>Report Response</Text>
           </Pressable>
         ) : null}
       </View>

@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
       requestId,
       contractVersion: FASHION_REASONING_CONTRACT_VERSION,
       status: 'disabled',
-      message: 'The AI stylist is being prepared. Build a Look manually or try again later.',
+      message: "Elise isn't available right now. Build a Look manually or try again later.",
       outfits: [],
       closetGaps: [],
     });
@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
         requestId,
         contractVersion: FASHION_REASONING_CONTRACT_VERSION,
         status: 'provider_unavailable',
-        message: 'The AI stylist is briefly unavailable. Please try again.',
+        message: 'Elise is briefly unavailable. Please try again.',
         outfits: [],
       },
       503,

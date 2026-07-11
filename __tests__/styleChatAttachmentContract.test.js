@@ -243,7 +243,7 @@ test('client capability handling: unsupported v2 preserves the draft, never stri
   assert.match(provider, /attachments_unsupported/);
   assert.match(provider, /raw\.contractVersion !== STYLECHAT_ATTACHMENT_CONTRACT_VERSION/);
   const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
-  assert.match(hook, /Closet-aware StyleChat isn't available yet\. Your attachments are still here\./);
+  assert.match(hook, /Closet-aware messaging isn't available yet\. Your attachments are still here\./);
   assert.match(hook, /deferUserPersistence = skipUserPersistence \|\| hasAttachments/);
 });
 
@@ -282,7 +282,7 @@ test('context is bounded to 4000 chars with whole-line truncation; hint bounded 
   const block = context.buildAttachmentContextBlock(resolution.resolved);
   assert.ok(block.length <= 4000);
   assert.ok(block.endsWith('[/Attached]')); // structure never broken
-  const hint = context.normalizeContextHint(`<b>hi</b> ${'x'.repeat(500)} `);
+  const hint = context.normalizeContextHint(`<b>hi</b> ${'x'.repeat(500)}\u0000`);
   assert.ok(hint.length <= 200);
   assert.ok(!hint.includes('<'));
 });

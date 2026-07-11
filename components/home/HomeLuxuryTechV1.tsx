@@ -151,7 +151,7 @@ export default function HomeLuxuryTechV1() {
         showBrandMark
         brandLabel="K Scan AI"
         brandMarkStyle={styles.homeBrandMark}
-        subtitle="AI STYLIST • VISUAL SHOPPING"
+        subtitle="ELISE • VISUAL SHOPPING"
         rightAction={
           isAuthenticated ? (
             <Pressable
@@ -324,12 +324,12 @@ export default function HomeLuxuryTechV1() {
       <View style={styles.featuresRow}>
         <FeatureChip
           icon="✦"
-          title="AI STYLIST"
-          body="Smart style insights just for you."
+          title="ASK ELISE"
+          body="Ask Elise for styling help."
           onPress={() => router.push('/style-chat')}
           testID="home-luxury-feature-stylechat"
-          accessibilityLabel="Open AI Stylist"
-          accessibilityHint="Navigate to StyleChat"
+          accessibilityLabel="Ask Elise"
+          accessibilityHint="Navigate to Elise, your AI-powered virtual stylist"
         />
         <FeatureChip
           icon="◈"

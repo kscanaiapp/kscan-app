@@ -46,13 +46,13 @@ export type ValidatedStyleChatAction = {
 
 /** Default app-controlled labels; model copy is normalized against these. */
 const DEFAULT_LABELS: Record<StyleChatActionType, string> = {
-  open_stylist: 'Open the Stylist',
-  style_anchor_item: 'Create outfits with this',
-  style_for_event: 'Style me for this',
-  restyle_outfit: 'Restyle this outfit',
-  swap_item: 'Swap a piece',
-  open_look: 'Open this Look',
-  ask_my_room: 'Ask my room',
+  open_stylist: 'CREATE OUTFITS WITH ELISE',
+  style_anchor_item: 'STYLE THIS WITH ELISE',
+  style_for_event: 'ASK ELISE TO STYLE THIS EVENT',
+  restyle_outfit: 'ASK ELISE TO RESTYLE',
+  swap_item: 'ASK ELISE TO SWAP THIS ITEM',
+  open_look: 'OPEN THIS LOOK',
+  ask_my_room: 'ASK MY ROOM',
 };
 
 /**

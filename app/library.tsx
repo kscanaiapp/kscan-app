@@ -38,6 +38,7 @@ import {
   PrivacyFooter,
 } from '../components/luxury';
 import { LUXURY, SPACING } from '../constants/theme';
+import { ELISE_IDENTITY } from '../constants/elise';
 import { FREE_TIER_UTILITY_ENABLED } from '../constants/freeTierUtilityFlags';
 import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
@@ -273,9 +274,9 @@ export default function LibraryScreen() {
       >
         <SectionHeader
           title="Saved Looks"
-          actionLabel={aiStylistEnabled ? 'Style Me' : undefined}
+          actionLabel={aiStylistEnabled ? ELISE_IDENTITY.styleWithEliseLabel : undefined}
           onAction={aiStylistEnabled ? () => router.push('/stylist') : undefined}
-          actionAccessibilityLabel="Style me from my closet"
+          actionAccessibilityLabel="Style with Elise from my closet"
         />
 
         {loading ? (

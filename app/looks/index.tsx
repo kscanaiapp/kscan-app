@@ -36,7 +36,7 @@ const OCCASION_LABELS: Record<string, string> = {
 };
 
 function lookSubtitle(look: Look): string {
-  if (look.source === 'ai') return 'AI styled from your closet';
+  if (look.source === 'ai') return 'Styled by Elise from your closet';
   if (look.source === 'manual') return 'Built from your closet';
   return look.dressingRoomTitle || 'Standalone Look';
 }

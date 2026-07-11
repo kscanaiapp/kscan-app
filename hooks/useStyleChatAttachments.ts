@@ -33,7 +33,7 @@ import {
 } from '../services/ownedClosetItems';
 import { ensureSavedScanMediaBacking } from '../services/savedScanMedia';
 import { recordAiStylistEvent } from '../services/styleMemoryEvents';
-import type { OwnedClosetItem } from '../types/ownedClosetItem';
+import type { OwnedClosetItem, OwnedItemSourceType } from '../types/ownedClosetItem';
 import type { OutfitVariation } from '../types/fashionReasoning';
 import type { SavedScanModel } from '../services/savedScansCloud';
 import type { Look } from '../types/styleObjects';
@@ -101,6 +101,7 @@ export function useStyleChatAttachments(sessionId: string) {
     async (draft: DraftAttachment, item: OwnedClosetItem, localScan?: SavedScanModel | null) => {
       if (resolvingDraftIds.has(draft.draftId)) return;
       resolvingDraftIds.add(draft.draftId);
+      let remoteSource: { sourceType: OwnedItemSourceType; sourceId: string } | null = null;
       try {
         let current = item;
 
@@ -110,13 +111,19 @@ export function useStyleChatAttachments(sessionId: string) {
           current = await ensureRemoteBackedOwnedItem(current, { localScan: localScan ?? undefined });
         }
         if (!current.sourceId) throw new Error('sync');
+        remoteSource = { sourceType: current.sourceType, sourceId: current.sourceId };
+        const remoteSelection = {
+          ...draft.selection,
+          remoteSourceType: remoteSource.sourceType,
+          remoteSourceId: remoteSource.sourceId,
+        };
 
         // Step 2: private media backing for saved scans (idempotent saga).
         if (current.sourceType === 'saved_scan' && current.mediaStatus !== 'ready') {
           upsertDraftAttachment(sessionId, {
             ...draft,
             state: 'uploading_media',
-            selection: { ...draft.selection, updatedAt: now() },
+            selection: { ...remoteSelection, updatedAt: now() },
           });
           const media = await ensureSavedScanMediaBacking({
             savedScanId: current.sourceId,
@@ -130,7 +137,7 @@ export function useStyleChatAttachments(sessionId: string) {
             upsertDraftAttachment(sessionId, {
               ...draft,
               state: 'rejected',
-              selection: { ...draft.selection, lastErrorCode: media.errorCode, updatedAt: now() },
+              selection: { ...remoteSelection, lastErrorCode: media.errorCode, updatedAt: now() },
             });
             return;
           }
@@ -146,7 +153,7 @@ export function useStyleChatAttachments(sessionId: string) {
             sourceId: current.sourceId,
             contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
           },
-          selection: { ...draft.selection, lastErrorCode: null, updatedAt: now() },
+          selection: { ...remoteSelection, lastErrorCode: null, updatedAt: now() },
         });
         void recordAiStylistEvent({
           eventType: 'stylechat_item_attached',
@@ -161,6 +168,8 @@ export function useStyleChatAttachments(sessionId: string) {
           state: 'failed_retryable',
           selection: {
             ...draft.selection,
+            remoteSourceType: remoteSource?.sourceType ?? draft.selection.remoteSourceType ?? null,
+            remoteSourceId: remoteSource?.sourceId ?? draft.selection.remoteSourceId ?? null,
             retryCount: draft.selection.retryCount + 1,
             lastErrorCode: 'MEDIA_UPLOAD_FAILED',
             updatedAt: now(),
@@ -304,7 +313,77 @@ export function useStyleChatAttachments(sessionId: string) {
           (draft.selection.localScanId && candidate.localId === draft.selection.localScanId) ||
           (draft.resolved?.attachmentType === 'owned_item' && candidate.sourceId === draft.resolved.sourceId),
       );
-      if (!item) return;
+      if (!item) {
+        const savedScanId =
+          draft.selection.remoteSourceType === 'saved_scan'
+            ? draft.selection.remoteSourceId
+            : draft.resolved?.attachmentType === 'owned_item' && draft.resolved.sourceType === 'saved_scan'
+              ? draft.resolved.sourceId
+              : null;
+        if (!savedScanId || resolvingDraftIds.has(draft.draftId)) return;
+        resolvingDraftIds.add(draft.draftId);
+        const retrySelection = {
+          ...draft.selection,
+          remoteSourceType: 'saved_scan' as const,
+          remoteSourceId: savedScanId,
+          updatedAt: now(),
+        };
+        upsertDraftAttachment(sessionId, {
+          ...draft,
+          state: 'uploading_media',
+          selection: retrySelection,
+        });
+        void (async () => {
+          try {
+            const media = await ensureSavedScanMediaBacking({
+              savedScanId,
+              localImageUri: draft.selection.localImageUri,
+            });
+            if (!media.ok && media.retryable) throw new Error('media');
+            if (!media.ok) {
+              upsertDraftAttachment(sessionId, {
+                ...draft,
+                state: 'rejected',
+                selection: {
+                  ...retrySelection,
+                  lastErrorCode: media.errorCode,
+                  updatedAt: now(),
+                },
+              });
+              return;
+            }
+            upsertDraftAttachment(sessionId, {
+              ...draft,
+              state: 'ready',
+              resolved: {
+                attachmentType: 'owned_item',
+                sourceType: 'saved_scan',
+                sourceId: savedScanId,
+                contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+              },
+              selection: {
+                ...retrySelection,
+                lastErrorCode: null,
+                updatedAt: now(),
+              },
+            });
+          } catch {
+            upsertDraftAttachment(sessionId, {
+              ...draft,
+              state: 'failed_retryable',
+              selection: {
+                ...retrySelection,
+                retryCount: draft.selection.retryCount + 1,
+                lastErrorCode: 'MEDIA_UPLOAD_FAILED',
+                updatedAt: now(),
+              },
+            });
+          } finally {
+            resolvingDraftIds.delete(draft.draftId);
+          }
+        })();
+        return;
+      }
       const localScan = (localScans ?? []).find((scan) => scan.id === draft.selection.localScanId);
       void resolveOwnedItemDraft({ ...draft, state: 'selected' }, item, localScan);
     },

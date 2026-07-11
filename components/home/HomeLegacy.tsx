@@ -185,13 +185,13 @@ export default function HomeLegacy() {
         onPress={() => router.push('/style-chat')}
         style={({ pressed }) => [styles.styleChatCard, pressed && styles.styleChatCardPressed]}
         accessibilityRole="button"
-        accessibilityLabel="Ask StyleChat"
+        accessibilityLabel="Ask Elise"
       >
         <View style={styles.styleChatRow}>
           <View style={styles.styleChatText}>
-            <Text style={styles.styleChatLabel}>ASK STYLECHAT</Text>
+            <Text style={styles.styleChatLabel}>ASK ELISE</Text>
             <Text style={styles.styleChatBody}>
-              Style a scan, compare looks, or choose from a Dressing Room.
+              Style a scan, compare Looks, or choose from a Dressing Room.
             </Text>
           </View>
           <View style={styles.styleChatSparkle}>

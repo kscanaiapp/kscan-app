@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { STYLE_MEMORY_COPY } from '../../constants/elise';
 import type { LocalStyleDnaProfileSummary } from '../../services/style-dna/localStyleDnaProfile';
 
 interface StyleChatStyleDnaCardProps {
@@ -18,7 +19,7 @@ function formatRatio(summary: LocalStyleDnaProfileSummary | null): string | null
 
 // Compact collapsed status row (default) + on-demand details sheet. Keeps the chat
 // window visible: the row is a fixed ~48px band, and full stats/reset live behind a
-// tap in a modal sheet so Style DNA supports the conversation rather than replacing it.
+// tap in a modal sheet so Style Memory supports the conversation rather than replacing it.
 export function StyleChatStyleDnaCard({
   summary,
   summaryText,
@@ -32,10 +33,10 @@ export function StyleChatStyleDnaCard({
   const ratioLabel = formatRatio(summary);
 
   const collapsedLabel = loading
-    ? 'Style DNA · On-device'
+    ? STYLE_MEMORY_COPY.onDeviceLabel
     : hasSignals
-      ? `Style DNA · ${totalSignals} signal${totalSignals === 1 ? '' : 's'} · On-device`
-      : 'Style DNA is learning · Rate a few replies';
+      ? `Style Memory · ${totalSignals} signal${totalSignals === 1 ? '' : 's'} · On-device`
+      : STYLE_MEMORY_COPY.learningLabel;
 
   return (
     <>
@@ -44,8 +45,8 @@ export function StyleChatStyleDnaCard({
         testID="style-chat-style-dna-card"
         onPress={() => setDetailsOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel="Style DNA details"
-        accessibilityHint="Opens your on-device Style DNA summary and reset option"
+        accessibilityLabel={STYLE_MEMORY_COPY.detailsAccessibilityLabel}
+        accessibilityHint={STYLE_MEMORY_COPY.detailsHint}
         hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
       >
         <View style={styles.rowLeft}>
@@ -71,7 +72,7 @@ export function StyleChatStyleDnaCard({
             <View style={styles.sheetHandle} />
             <View style={styles.headerRow}>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>LOCAL STYLE DNA</Text>
+                <Text style={styles.badgeText}>{STYLE_MEMORY_COPY.localBadge}</Text>
               </View>
               <Text style={styles.privacyText}>On this device only</Text>
             </View>
@@ -126,7 +127,7 @@ export function StyleChatStyleDnaCard({
                   pressed && hasSignals && !resetting ? styles.resetButtonPressed : null,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Reset local Style DNA signals"
+                accessibilityLabel="Reset local Style Memory signals"
                 accessibilityHint="Clears device-local Helpful and Not my style feedback for this account on this device"
                 accessibilityState={{ disabled: !hasSignals || resetting, busy: resetting }}
               >
@@ -142,7 +143,7 @@ export function StyleChatStyleDnaCard({
                 onPress={() => setDetailsOpen(false)}
                 style={({ pressed }) => [styles.doneButton, pressed ? styles.doneButtonPressed : null]}
                 accessibilityRole="button"
-                accessibilityLabel="Close Style DNA details"
+                accessibilityLabel="Close Style Memory details"
               >
                 <Text style={styles.doneText}>Done</Text>
               </Pressable>

@@ -19,9 +19,9 @@ import {
 } from '../types/styleChatAttachments';
 
 export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
-  "Closet-aware StyleChat isn't available yet. Your attachments are still here.";
+  "Closet-aware messaging isn't available yet. Your attachments are still here.";
 export const STYLECHAT_ATTACHMENTS_REJECTED_COPY =
-  "One of your attachments couldn't be verified. Remove it and try again.";
+  "Elise couldn't verify that Closet item. Remove it and try again.";
 
 export type SendAttachmentsInput = {
   /** Immutable snapshot captured at send time (ready resolved refs only). */

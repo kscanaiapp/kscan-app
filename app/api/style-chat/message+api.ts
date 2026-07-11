@@ -42,7 +42,7 @@ export async function POST(request: Request): Promise<Response> {
       id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       sender: 'assistant',
       content:
-        "StyleChat is in preview mode. Once the AI stylist layer is connected, I'll use your scans, saved items, Dressing Rooms, and style preferences to help you compare looks and build retailer-neutral recommendations.",
+        "Elise is in preview mode. Once the full styling layer is connected, she'll use your scans, saved items, Dressing Rooms, and style preferences to help you compare looks and build retailer-neutral recommendations.",
       referencedScanIds: [],
       referencedSavedItemIds: [],
       referencedDressingRoomIds: [],

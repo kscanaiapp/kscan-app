@@ -38,6 +38,7 @@ import {
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import { ELISE_IDENTITY, ELISE_LOADING_COPY } from '../../constants/elise';
 import { setAttachmentHandoff } from '../../services/style-chat/styleChatAttachmentStore';
 import { STYLECHAT_ATTACHMENT_CONTRACT_VERSION } from '../../types/styleChatAttachments';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
@@ -420,7 +421,7 @@ function StylistContent() {
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
       <KScanHeader
-        title={anchorItem ? 'Style This' : 'Style Me'}
+        title={anchorItem ? 'Style This' : 'Style With Elise'}
         subtitle="FROM YOUR CLOSET"
         onBack={generating ? undefined : () => router.back()}
         backLabel="Back"
@@ -516,7 +517,7 @@ function StylistContent() {
         <TextField label="Note (optional)" value={note} onChangeText={setNote} multiline />
 
         <PrimaryButton
-          title={generating ? 'Styling' : anchorItem ? 'Style This' : 'Style Me'}
+          title={generating ? 'Styling' : anchorItem ? 'Style This' : 'Style With Elise'}
           onPress={() => void runGenerate()}
           disabled={generating || closetLoading}
           accessibilityLabel="Generate outfit options"
@@ -533,14 +534,14 @@ function StylistContent() {
         {generating ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-            <Text style={styles.loadingText}>Styling from your closet…</Text>
+            <Text style={styles.loadingText}>{ELISE_LOADING_COPY.stylingFromCloset}</Text>
           </View>
         ) : null}
 
         {!generating && result && result.status !== 'success' ? (
           <InlineNotice
             variant={result.status === 'no_result' ? 'info' : 'error'}
-            title={result.status === 'no_result' ? 'Not enough to work with yet' : 'AI Stylist'}
+            title={result.status === 'no_result' ? 'Not enough to work with yet' : 'Elise'}
             body={'message' in result ? result.message : ''}
           />
         ) : null}
@@ -550,7 +551,7 @@ function StylistContent() {
         {!generating && visibleSuggestions.length > 0 ? (
           <>
             <SectionHeader
-              title="Your options"
+              title={ELISE_IDENTITY.suggestionsHeading}
               subtitle={`${visibleSuggestions.length} option${visibleSuggestions.length === 1 ? '' : 's'} from your closet`}
             />
             {visibleSuggestions.map((suggestion) => (
@@ -568,7 +569,7 @@ function StylistContent() {
                 <View style={styles.resultActions}>
                   {STYLECHAT_ATTACHMENTS_ENABLED ? (
                     <SecondaryButton
-                      title="Ask About This Outfit"
+                      title="Ask Elise"
                       onPress={() => {
                         // Outfit-draft attachment from validated suggestion
                         // refs — no Look save required, never auto-sends.
@@ -597,7 +598,7 @@ function StylistContent() {
                         });
                         router.push('/style-chat');
                       }}
-                      accessibilityLabel="Ask StyleChat about this outfit"
+                      accessibilityLabel={ELISE_IDENTITY.askAboutOutfitLabel}
                       testID="ask-about-outfit-button"
                     />
                   ) : null}
@@ -644,7 +645,7 @@ function StylistContent() {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Swap this piece</Text>
+            <Text style={styles.modalTitle}>Ask Elise to swap this piece</Text>
             {swapTarget ? (
               <>
                 <SecondaryButton

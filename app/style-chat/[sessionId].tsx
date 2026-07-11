@@ -16,6 +16,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
+import { ELISE_IDENTITY, ELISE_LOADING_COPY, STYLE_MEMORY_COPY } from '../../constants/elise';
 import {
   StyleChatHeader,
   useStyleChatHomeBackHandler,
@@ -50,18 +51,23 @@ import { matchOccasionFromText } from '../../types/fashionReasoning';
 import { StyleChatAttachmentBar } from '../../components/style-chat/StyleChatAttachmentBar';
 import { StyleChatPhotoIntake } from '../../components/style-chat/StyleChatPhotoIntake';
 import { useStyleChatAttachments } from '../../hooks/useStyleChatAttachments';
+import {
+  getDraftComposerText,
+  setDraftComposerText,
+} from '../../services/style-chat/styleChatAttachmentStore';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const stableSessionId = sessionId ?? '';
   const { user } = useAuthSession();
-  // Style DNA Phase 0 local feedback key. StyleChat is auth-only, so this is
+  // Style Memory Phase 0 local feedback key. StyleChat is auth-only, so this is
   // populated whenever messages exist; null hides the local feedback UI.
   const userKey = user ? `user:${user.id}` : null;
   const weather = useWeatherStyling(sessionId ?? '');
-  // Phase 2: build a data-only Style DNA context per send. Reads the local profile
+  // Phase 2: build a data-only Style Memory context per send. Reads the local profile
   // fresh each time and self-gates on EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED + the
   // >=3-signal threshold (returns null otherwise). Reading fresh means a reset — which
   // clears local feedback — immediately produces a neutral request with no memoized ctx.
@@ -76,6 +82,19 @@ export default function StyleChatSessionScreen() {
   }, [userKey]);
 
   const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
+  const [composerText, setComposerTextState] = useState(() => getDraftComposerText(stableSessionId));
+
+  useEffect(() => {
+    setComposerTextState(getDraftComposerText(stableSessionId));
+  }, [stableSessionId]);
+
+  const setComposerText = useCallback(
+    (next: string) => {
+      setComposerTextState(next);
+      setDraftComposerText(stableSessionId, next);
+    },
+    [stableSessionId],
+  );
 
   // Consume handoff context on mount and clear it when leaving the session.
   useEffect(() => {
@@ -158,7 +177,7 @@ export default function StyleChatSessionScreen() {
     const clearDialog = () => { isDeleteDialogOpenRef.current = false; };
     isDeleteDialogOpenRef.current = true;
     Alert.alert(
-      'Delete this StyleChat conversation?',
+      'Delete this conversation?',
       'This will remove the conversation and its messages. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel', onPress: clearDialog },
@@ -196,8 +215,8 @@ export default function StyleChatSessionScreen() {
       return;
     }
     Alert.alert(
-      'Reset local Style DNA?',
-      'This clears Helpful and Not my style feedback for this account on this device only. It cannot be undone.',
+      STYLE_MEMORY_COPY.resetAlertTitle,
+      STYLE_MEMORY_COPY.resetAlertMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -210,8 +229,8 @@ export default function StyleChatSessionScreen() {
               refreshStyleDnaSummary();
             } catch {
               Alert.alert(
-                'Could not reset local Style DNA',
-                "We couldn't clear the local profile right now. Please try again.",
+                STYLE_MEMORY_COPY.resetErrorAlertTitle,
+                STYLE_MEMORY_COPY.resetErrorAlertMessage,
               );
             } finally {
               setIsResettingStyleDna(false);
@@ -239,8 +258,8 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : (
     <View testID="style-chat-empty-state" style={styles.centred}>
-      <Text style={styles.emptyTitle}>New styling session</Text>
-      <Text style={styles.emptyText}>{STYLE_CHAT_COPY.emptyChat}</Text>
+      <Text style={styles.emptyTitle}>{ELISE_IDENTITY.introTitle}</Text>
+      <Text style={styles.emptyText}>{ELISE_IDENTITY.introDescription}</Text>
     </View>
   );
 
@@ -250,8 +269,8 @@ export default function StyleChatSessionScreen() {
         <ActivityIndicator size="small" color={LUXURY.colors.plum} />
       </View>
       <View style={styles.thinkingCopy}>
-        <Text style={styles.thinkingText}>StyleChat is thinking...</Text>
-        <Text style={styles.thinkingSubtext}>Reading the conversation context before it answers.</Text>
+        <Text style={styles.thinkingText}>{ELISE_LOADING_COPY.thinking}</Text>
+        <Text style={styles.thinkingSubtext}>{ELISE_LOADING_COPY.thinkingSubtext}</Text>
       </View>
     </View>
   ) : null;
@@ -324,11 +343,11 @@ export default function StyleChatSessionScreen() {
       <Pressable
         onPress={handleStyleMeForThis}
         accessibilityRole="button"
-        accessibilityLabel="Style me for this"
+        accessibilityLabel="Ask Elise to style this"
         style={styles.styleMeChip}
         testID="style-me-for-this"
       >
-        <Text style={styles.styleMeChipText}>STYLE ME FOR THIS</Text>
+        <Text style={styles.styleMeChipText}>STYLE THIS WITH ELISE</Text>
       </Pressable>
     </View>
   ) : null;
@@ -380,12 +399,14 @@ export default function StyleChatSessionScreen() {
           onAddLook={(look) => chatAttachments.addLook(look)}
           onUploadPhoto={() => setPhotoIntakeVisible(true)}
           onRemove={chatAttachments.removeAttachment}
-          onRetry={(draftId) => chatAttachments.retryAttachment(draftId, [])}
+          onRetry={(draftId, items, localScans) => chatAttachments.retryAttachment(draftId, items, localScans)}
           disabled={isSending}
         />
       ) : null}
       <View style={styles.composerWrap}>
         <StyleChatInput
+          value={composerText}
+          onChangeText={setComposerText}
           onSend={text => {
             weather.markStylingIntent();
             if (attachmentsEnabled && chatAttachments.attachments.length > 0) {
@@ -398,12 +419,16 @@ export default function StyleChatSessionScreen() {
                 attachments: {
                   references: snapshot.references,
                   drafts: snapshot.drafts,
-                  onSent: () => chatAttachments.clearAttachments({ keepText: true }),
+                  onSent: () => {
+                    chatAttachments.clearAttachments();
+                    setComposerText('');
+                  },
                 },
               });
               return;
             }
             void sendMessage(text);
+            setComposerText('');
           }}
           disabled={
             !canSend ||
@@ -542,14 +567,14 @@ const styles = StyleSheet.create({
   styleMeChip: {
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: LUXURY.colors.plum,
+    borderColor: LUXURY.colors.gold,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xs,
     backgroundColor: LUXURY.colors.pearl,
   },
   styleMeChipText: {
     ...LUXURY.typography.caption,
-    color: LUXURY.colors.plum,
+    color: LUXURY.colors.goldText,
     letterSpacing: 1.6,
   },
   messageListLandscape: {

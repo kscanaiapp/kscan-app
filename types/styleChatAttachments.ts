@@ -116,6 +116,9 @@ export type DraftAttachment = {
     localScanId?: string | null;
     localImageUri?: string | null;
     sanitizedImageUri?: string | null;
+    /** Stable remote row acquired during resolution; client-only until ready. */
+    remoteSourceType?: OwnedItemSourceType | null;
+    remoteSourceId?: string | null;
     retryCount: number;
     lastErrorCode?: string | null;
     updatedAt: string;

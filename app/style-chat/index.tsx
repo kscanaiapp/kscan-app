@@ -50,7 +50,7 @@ export default function StyleChatIndexScreen() {
     const clearDialog = () => { isDeleteDialogOpenRef.current = false; };
     isDeleteDialogOpenRef.current = true;
     Alert.alert(
-      'Delete this StyleChat conversation?',
+      'Delete this conversation?',
       'This will remove the conversation and its messages. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel', onPress: clearDialog },
@@ -80,7 +80,7 @@ export default function StyleChatIndexScreen() {
       scrollable={false}
       safeArea={false}
       backgroundColor={LUXURY.colors.ivory}
-      accessibilityLabel="StyleChat sessions"
+      accessibilityLabel="Elise conversations"
     >
       <StatusBar style="dark" />
       <StyleChatHeader />

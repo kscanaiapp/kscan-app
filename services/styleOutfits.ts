@@ -39,11 +39,11 @@ export const STYLE_OUTFIT_FUNCTION_NAME = 'style-outfit-generate';
 export const UNAVAILABLE_COOLDOWN_MS = 30_000;
 
 export const AI_UNAVAILABLE_MESSAGE =
-  'The AI stylist is being prepared. Build a Look manually or try again later.';
+  "Elise isn't available right now. Build a Look manually or try again later.";
 export const AI_QUOTA_MESSAGE =
   "You've reached today's styling limit. Try again tomorrow or build a Look manually.";
 export const AI_BURST_MESSAGE = 'A moment between requests, please — try again shortly.';
-export const AI_NO_RESULT_MESSAGE = "I couldn't build a complete option from your closet yet.";
+export const AI_NO_RESULT_MESSAGE = "Elise couldn't build a complete option from your closet yet.";
 
 export type StyleOutfitEvent = {
   occasion?: OutfitOccasion | null;

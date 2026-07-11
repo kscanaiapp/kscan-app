@@ -13,16 +13,9 @@ import { router } from 'expo-router';
 
 import { LUXURY, SPACING } from '../../constants/theme';
 import { recordAiStylistEvent } from '../../services/styleMemoryEvents';
+import { ELISE_STRUCTURED_ACTION_LABELS } from '../../constants/elise';
 
-const APP_LABELS: Record<string, string> = {
-  open_stylist: 'Open the Stylist',
-  style_anchor_item: 'Create Outfits With This',
-  style_for_event: 'Style Me For This',
-  restyle_outfit: 'Restyle This Outfit',
-  swap_item: 'Swap a Piece',
-  open_look: 'Open This Look',
-  ask_my_room: 'Ask My Room',
-};
+const APP_LABELS = ELISE_STRUCTURED_ACTION_LABELS;
 
 export type StyleChatActionBlockAction = {
   type: string;
@@ -162,13 +155,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: LUXURY.colors.plum,
+    borderColor: LUXURY.colors.gold,
     backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
   },
   cardDisabled: { opacity: 0.5 },
-  cardText: { ...LUXURY.typography.caption, color: LUXURY.colors.plum, letterSpacing: 1.4 },
+  cardText: { ...LUXURY.typography.caption, color: LUXURY.colors.goldText, letterSpacing: 1.4 },
   cardTextDisabled: { color: LUXURY.colors.graphite },
   error: { ...LUXURY.typography.caption, color: LUXURY.colors.error },
 });

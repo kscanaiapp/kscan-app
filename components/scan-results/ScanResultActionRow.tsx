@@ -37,7 +37,7 @@ export function ScanResultActionRow({
   onAddToDressingRoom,
   saveLabel = 'Save to Closet',
   findSimilarLabel = 'Find Similar',
-  askStyleChatLabel = 'Ask StyleChat',
+  askStyleChatLabel = 'Ask Elise',
   addToDressingRoomLabel = 'Add to Dressing Room',
   testID,
   onLayout,

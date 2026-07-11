@@ -127,6 +127,8 @@ test('attachment lifecycle covers required states; failed is retryable and remov
   // Failed resolution never sends a local-only reference.
   assert.match(hookSource, /'failed_retryable'/);
   assert.doesNotMatch(hookSource, /localImageUri[^\n]*resolved:/);
+  assert.match(hookSource, /remoteSourceId/);
+  assert.match(hookSource, /ensureSavedScanMediaBacking\(\{[\s\S]*savedScanId/);
 });
 
 test('resolution saga order: remote row first, then media backing; no invented UUIDs', () => {
@@ -166,6 +168,12 @@ test('scanner core is untouched (duplicate guard, operation ids, abort handling)
 test('send path: immutable snapshot per send, deferred persistence, draft restored on rejection', () => {
   assert.match(screenSource, /snapshotForSend/);
   assert.match(screenSource, /canSendWithAttachments/);
+  assert.match(screenSource, /getDraftComposerText/);
+  assert.match(screenSource, /setDraftComposerText/);
+  assert.match(screenSource, /value=\{composerText\}/);
+  assert.match(screenSource, /onChangeText=\{setComposerText\}/);
+  assert.match(screenSource, /onSent:\s*\(\)\s*=>\s*\{[\s\S]*setComposerText\(''\)/);
+  assert.match(screenSource, /retryAttachment\(draftId,\s*items,\s*localScans\)/);
   assert.match(chatHookSource, /deferUserPersistence/);
   assert.match(chatHookSource, /attachments_unsupported/);
   assert.match(chatHookSource, /attachments_rejected|ATTACHMENT_NOT_OWNED|LOOK_NOT_AVAILABLE/);
@@ -178,6 +186,7 @@ test('send path: immutable snapshot per send, deferred persistence, draft restor
 test('attachment bar reuses Closet/Look sources; no second outfit engine in StyleChat', () => {
   assert.match(barSource, /useOwnedClosetItems|listOwnedClosetItems/);
   assert.match(barSource, /useLooks|listLooks/);
+  assert.match(barSource, /onRetry\(draft\.draftId,\s*closet\.items,\s*closet\.localScans/);
   // StyleChat never generates outfits itself — it routes to the shared stylist.
   for (const source of [barSource, screenSource, chatHookSource, hookSource]) {
     assert.ok(!source.includes('style-outfit-generate'), 'StyleChat must not call the outfit engine directly');

@@ -19,24 +19,15 @@ import {
 
 import { LUXURY, SPACING } from '../../constants/theme';
 import { EmptyStateCard, InlineNotice, SecondaryButton } from '../luxury';
+import { ELISE_IDENTITY, ELISE_ATTACHMENT_COPY } from '../../constants/elise';
 import { useOwnedClosetItems } from '../../hooks/useOwnedClosetItems';
 import { useLooks } from '../../hooks/useStyleObjects';
 import { ownedItemKey, type OwnedClosetItem } from '../../types/ownedClosetItem';
 import type { DraftAttachment } from '../../types/styleChatAttachments';
 import type { Look } from '../../types/styleObjects';
+import type { SavedScanModel } from '../../services/savedScansCloud';
 
-const STATE_COPY: Record<string, string> = {
-  selected: 'Preparing…',
-  sanitizing: 'Checking image…',
-  identifying: 'Identifying…',
-  awaiting_review: 'Review needed',
-  creating_record: 'Syncing item…',
-  uploading_media: 'Uploading image…',
-  finalizing: 'Finishing…',
-  failed_retryable: "Couldn't sync. Tap to retry or remove.",
-  rejected: 'Item unavailable',
-  unavailable: 'Item unavailable',
-};
+const STATE_COPY: Record<string, string> = ELISE_ATTACHMENT_COPY;
 
 function AttachmentChip({
   draft,
@@ -55,7 +46,7 @@ function AttachmentChip({
   return (
     <View
       style={[styles.chip, unavailable && styles.chipUnavailable]}
-      accessibilityLabel={`Attachment: ${draft.summary.title}${stateCopy ? `, ${stateCopy}` : ''}`}
+      accessibilityLabel={`Attachment for Elise: ${draft.summary.title}${stateCopy ? `, ${stateCopy}` : ''}`}
     >
       {!unavailable && draft.summary.imageUri ? (
         <Image source={{ uri: draft.summary.imageUri }} style={styles.chipImage} resizeMode="cover" />
@@ -84,7 +75,7 @@ function AttachmentChip({
         <TouchableOpacity
           onPress={onRetry}
           accessibilityRole="button"
-          accessibilityLabel={`Retry ${draft.summary.title}`}
+          accessibilityLabel={`${ELISE_IDENTITY.retryAttachmentAccessibilityLabel}: ${draft.summary.title}`}
           style={styles.chipAction}
         >
           <Text style={styles.chipActionText}>↻</Text>
@@ -93,7 +84,7 @@ function AttachmentChip({
       <TouchableOpacity
         onPress={onRemove}
         accessibilityRole="button"
-        accessibilityLabel={`Remove ${draft.summary.title}`}
+        accessibilityLabel={`${ELISE_IDENTITY.removeAttachmentAccessibilityLabel}: ${draft.summary.title}`}
         style={styles.chipAction}
       >
         <Text style={styles.chipActionText}>✕</Text>
@@ -116,9 +107,10 @@ export function StyleChatAttachmentBar({
   onAddLook: (look: Look) => { ok: boolean; message?: string };
   onUploadPhoto: () => void;
   onRemove: (draftId: string) => void;
-  onRetry: (draftId: string) => void;
+  onRetry: (draftId: string, items: OwnedClosetItem[], localScans?: SavedScanModel[]) => void;
   disabled?: boolean;
 }) {
+  const closet = useOwnedClosetItems();
   const [menuOpen, setMenuOpen] = useState(false);
   const [picker, setPicker] = useState<'closet' | 'look' | null>(null);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
@@ -134,7 +126,7 @@ export function StyleChatAttachmentBar({
           onPress={() => setMenuOpen(true)}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel="Attach from your closet"
+          accessibilityLabel={ELISE_IDENTITY.attachAccessibilityLabel}
           testID="stylechat-attach-button"
         >
           <Text style={styles.attachButtonText}>＋</Text>
@@ -145,7 +137,7 @@ export function StyleChatAttachmentBar({
               key={draft.draftId}
               draft={draft}
               onRemove={() => onRemove(draft.draftId)}
-              onRetry={() => onRetry(draft.draftId)}
+              onRetry={() => onRetry(draft.draftId, closet.items, closet.localScans as SavedScanModel[])}
             />
           ))}
         </ScrollView>
@@ -155,14 +147,14 @@ export function StyleChatAttachmentBar({
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.backdrop}>
           <View style={styles.menuCard}>
-            <Text style={styles.menuTitle}>Attach</Text>
+            <Text style={styles.menuTitle}>Add for Elise</Text>
             <SecondaryButton
               title="Add From Closet"
               onPress={() => {
                 setMenuOpen(false);
                 setPicker('closet');
               }}
-              accessibilityLabel="Add from closet"
+              accessibilityLabel="Add a Closet item for Elise"
             />
             <SecondaryButton
               title="Add a Look"
@@ -170,7 +162,7 @@ export function StyleChatAttachmentBar({
                 setMenuOpen(false);
                 setPicker('look');
               }}
-              accessibilityLabel="Add a look"
+              accessibilityLabel="Add a Look for Elise"
             />
             <SecondaryButton
               title="Upload a Photo"
@@ -178,7 +170,7 @@ export function StyleChatAttachmentBar({
                 setMenuOpen(false);
                 onUploadPhoto();
               }}
-              accessibilityLabel="Upload a photo"
+              accessibilityLabel="Upload a photo for Elise"
             />
             <SecondaryButton title="Cancel" onPress={() => setMenuOpen(false)} />
           </View>
@@ -187,6 +179,9 @@ export function StyleChatAttachmentBar({
 
       {picker === 'closet' ? (
         <ClosetPickerModal
+          items={closet.items}
+          loading={closet.loading}
+          error={closet.error}
           onClose={() => setPicker(null)}
           onSelect={(item) => {
             const result = onAddOwnedItem(item);
@@ -210,18 +205,23 @@ export function StyleChatAttachmentBar({
 }
 
 function ClosetPickerModal({
+  items,
+  loading,
+  error,
   onClose,
   onSelect,
 }: {
+  items: OwnedClosetItem[];
+  loading: boolean;
+  error: string | null;
   onClose: () => void;
   onSelect: (item: OwnedClosetItem) => void;
 }) {
-  const { items, loading, error } = useOwnedClosetItems();
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.pickerCard}>
-          <Text style={styles.menuTitle}>Add From Closet</Text>
+          <Text style={styles.menuTitle}>Add From Closet for Elise</Text>
           {loading ? (
             <ActivityIndicator color={LUXURY.colors.plum} />
           ) : error ? (
@@ -276,7 +276,7 @@ function LookPickerModal({
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.pickerCard}>
-          <Text style={styles.menuTitle}>Add a Look</Text>
+          <Text style={styles.menuTitle}>Add a Look for Elise</Text>
           {loading ? (
             <ActivityIndicator color={LUXURY.colors.plum} />
           ) : error ? (

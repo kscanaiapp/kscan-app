@@ -51,7 +51,7 @@ export function StyleChatContextPreview({ context, onDismiss }: StyleChatContext
         ? 'Reference details from this item are shown below.'
         : 'Only limited item details are available right now. Ask a broader styling question or rescan for more specifics.';
   const microcopy = hasDetailSignals
-    ? 'Keep this reference in view while you chat. If details are missing, StyleChat may keep the guidance general.'
+    ? 'Keep this reference in view while you chat. If details are missing, Elise may keep the guidance general.'
     : 'This item came through with limited detail, so the next reply may stay broad until you add more context.';
 
   return (

@@ -23,7 +23,7 @@ const NEGATIVE_REACTIONS = new Set<string>(STYLE_MEMORY_NEGATIVE_REACTION_TYPES)
 export async function requireUserId(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user?.id ?? null;
-  if (!id) throw new Error('Sign in to use StyleChat.');
+  if (!id) throw new Error('Sign in to chat with Elise.');
   return id;
 }
 

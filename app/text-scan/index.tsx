@@ -441,7 +441,7 @@ export default function TextScanScreen() {
             )}
             {styleChatEnabled && !textScanError && !isNonFashion && (
               <SecondaryButton
-                title="Ask StyleChat"
+                title="Ask Elise"
                 onPress={() => {
                   const attrs = textScanResult?.metadata?.attributes;
                   setStyleChatHandoffContext({
@@ -458,7 +458,7 @@ export default function TextScanScreen() {
                   });
                   router.push('/style-chat');
                 }}
-                accessibilityLabel="Ask StyleChat about this request"
+                accessibilityLabel="Ask Elise about this request"
                 testID="textscan-ask-stylechat"
               />
             )}
@@ -598,7 +598,7 @@ export default function TextScanScreen() {
         <View style={styles.actionStack}>
           {styleChatEnabled && (
             <SecondaryButton
-              title="Ask StyleChat"
+              title="Ask Elise"
               onPress={() => {
                 setStyleChatHandoffContext({
                   source: 'text-scan',
@@ -614,7 +614,7 @@ export default function TextScanScreen() {
                 });
                 router.push('/style-chat');
               }}
-              accessibilityLabel="Ask StyleChat about this request"
+              accessibilityLabel="Ask Elise about this request"
               testID="textscan-ask-stylechat"
             />
           )}

@@ -13,7 +13,7 @@ import type {
 async function requireUserId(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user?.id ?? null;
-  if (!id) throw new Error('Sign in to use StyleChat.');
+  if (!id) throw new Error('Sign in to chat with Elise.');
   return id;
 }
 

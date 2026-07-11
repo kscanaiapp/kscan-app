@@ -2,6 +2,7 @@ import { ScrollView, View, Text, Pressable, ActivityIndicator, StyleSheet } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
+import { ELISE_IDENTITY, ELISE_LOADING_COPY } from '../../constants/elise';
 import { EmptyStateCard } from '../luxury';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
@@ -42,7 +43,7 @@ export function StyleChatSessionList({
       {loading ? (
         <View style={styles.centred}>
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-          <Text style={styles.statusText}>Loading sessions…</Text>
+          <Text style={styles.statusText}>{ELISE_LOADING_COPY.loadingSessions}</Text>
         </View>
       ) : error ? (
         <View style={styles.centred}>
@@ -51,12 +52,12 @@ export function StyleChatSessionList({
       ) : safeSessions.length === 0 ? (
         <EmptyStateCard
           testID="style-chat-empty-state"
-          title="Ask Your AI Stylist"
-          subtitle="Start a session for outfit ideas, product comparisons, or styling advice."
+          title={ELISE_IDENTITY.introTitle}
+          subtitle={ELISE_IDENTITY.introDescription}
           action={{
             label: STYLE_CHAT_COPY.newSessionCta,
             onPress: onNewSession,
-            accessibilityLabel: 'New StyleChat session',
+            accessibilityLabel: 'Start a new conversation with Elise',
             testID: 'style-chat-new-session-button',
           }}
         />
@@ -84,7 +85,7 @@ export function StyleChatSessionList({
                     onPress={() => onSelectSession?.(session)}
                     accessibilityRole="button"
                     accessibilityLabel={`${title}, ${mode}${updatedAt ? `, last active ${updatedAt}` : ''}`}
-                    accessibilityHint="Open this StyleChat session"
+                    accessibilityHint="Open this conversation with Elise"
                   >
                     <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
                     <View style={styles.sessionMetaRow}>
@@ -118,8 +119,8 @@ export function StyleChatSessionList({
           pressed && !loading && !newSessionDisabled ? styles.newBtnPressed : null,
         ]}
         onPress={onNewSession}
-        accessibilityLabel="New StyleChat session"
-        accessibilityHint="Start a new styling conversation"
+        accessibilityLabel="Start a new conversation with Elise"
+        accessibilityHint="Start a new styling conversation with Elise"
         accessibilityRole="button"
         accessibilityState={{ disabled: loading || newSessionDisabled, busy: loading }}
         disabled={loading || newSessionDisabled}

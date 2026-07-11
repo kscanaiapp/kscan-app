@@ -16,14 +16,24 @@ function VoiceInputPlaceholder() {
 }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { ELISE_IDENTITY } from '../../constants/elise';
 
 interface StyleChatInputProps {
   onSend: (text: string) => void;
+  value?: string;
+  onChangeText?: (text: string) => void;
   disabled?: boolean;
 }
 
-export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps) {
-  const [text, setText] = useState('');
+export function StyleChatInput({
+  onSend,
+  value,
+  onChangeText,
+  disabled = false,
+}: StyleChatInputProps) {
+  const [internalText, setInternalText] = useState('');
+  const isControlled = typeof value === 'string';
+  const text = isControlled ? value : internalText;
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isLandscape = width > height;
@@ -39,10 +49,15 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
 
   const canSubmit = text.trim().length > 0 && !disabled;
 
+  const handleTextChange = (next: string) => {
+    if (!isControlled) setInternalText(next);
+    onChangeText?.(next);
+  };
+
   const handleSend = () => {
     if (!canSubmit) return;
     onSend(text.trim());
-    setText('');
+    if (!isControlled) setInternalText('');
   };
 
   return (
@@ -53,8 +68,8 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         testID="style-chat-input"
         style={[styles.input, isLandscape ? styles.inputLandscape : null]}
         value={text}
-        onChangeText={setText}
-        placeholder="Ask about this look, your Closet, or what to wear next"
+        onChangeText={handleTextChange}
+        placeholder="Ask Elise about this look, your Closet, or what to wear next"
         placeholderTextColor={LUXURY.colors.stone}
         selectionColor={LUXURY.colors.gold}
         cursorColor={LUXURY.colors.gold}
@@ -66,7 +81,7 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         editable={!disabled}
         textAlignVertical="top"
         accessibilityLabel="Message composer"
-        accessibilityHint="Type a styling question for the AI"
+        accessibilityHint="Type a styling question for Elise"
       />
       <Pressable
         testID="style-chat-send-button"
@@ -77,8 +92,8 @@ export function StyleChatInput({ onSend, disabled = false }: StyleChatInputProps
         ]}
         onPress={handleSend}
         disabled={!canSubmit}
-        accessibilityLabel="Send message"
-        accessibilityHint="Send your styling question"
+        accessibilityLabel={ELISE_IDENTITY.sendAccessibilityLabel}
+        accessibilityHint="Send your styling question to Elise"
         accessibilityRole="button"
         accessibilityState={{ disabled: !canSubmit, busy: disabled }}
       >

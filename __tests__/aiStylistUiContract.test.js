@@ -130,7 +130,7 @@ test('stylist screen renders result cards with variation label, why-it-works, an
 
 test('stylist generate has a rapid-tap guard and a loading state', () => {
   assert.match(stylistScreen, /if \(generatingRef\.current \|\| isGenerationInFlight\(\)\) return/);
-  assert.match(stylistScreen, /Styling from your closet…/);
+  assert.match(stylistScreen, /ELISE_LOADING_COPY\.stylingFromCloset/);
 });
 
 test('swap flow offers swap-in, keep-and-restyle, and per-request exclusion', () => {
@@ -188,7 +188,7 @@ test('gate off → unavailable fallback without invoking the function', async ()
   });
   const result = await service.generateOutfits({ mode: 'style_event' });
   assert.equal(result.status, 'unavailable');
-  assert.match(result.message, /The AI stylist is being prepared/);
+  assert.match(result.message, /Elise isn't available right now/);
   assert.equal(invoked, 0);
 });
 

@@ -43,7 +43,7 @@ export function getFriendlyStyleChatError(error: unknown): string {
     normalized.includes('timed out') ||
     normalized.includes('abort')
   ) {
-    return 'StyleChat took too long to respond. Try again in a moment.';
+    return 'Elise took too long to respond. Try again in a moment.';
   }
 
   if (
@@ -52,7 +52,7 @@ export function getFriendlyStyleChatError(error: unknown): string {
     normalized.includes('quota') ||
     normalized.includes('burst')
   ) {
-    return "You've reached the current StyleChat limit. Try again later.";
+    return "You've reached the current Elise limit. Try again later.";
   }
 
   if (
@@ -60,8 +60,8 @@ export function getFriendlyStyleChatError(error: unknown): string {
     normalized.includes('not authenticated') ||
     normalized.includes('authentication')
   ) {
-    return 'Sign in to use StyleChat.';
+    return 'Sign in to use Elise.';
   }
 
-  return 'StyleChat had trouble responding. Try again.';
+  return 'Elise had trouble responding. Try again.';
 }

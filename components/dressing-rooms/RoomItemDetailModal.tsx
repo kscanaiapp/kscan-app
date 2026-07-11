@@ -145,9 +145,9 @@ export function RoomItemDetailModal({
                 onPress={handleAskStyleChat}
                 activeOpacity={0.84}
                 accessibilityRole="button"
-                accessibilityLabel="Ask StyleChat about this item"
+                accessibilityLabel="Ask Elise about this item"
               >
-                <Text style={styles.primaryButtonText}>Ask StyleChat</Text>
+                <Text style={styles.primaryButtonText}>Ask Elise</Text>
               </TouchableOpacity>
 
               {onToggleSelected ? (

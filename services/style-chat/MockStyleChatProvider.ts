@@ -1,7 +1,7 @@
 import type { StyleChatInput, StyleChatProvider, StyleChatResult } from './types';
 
 const PREVIEW_REPLY =
-  "StyleChat is in preview mode. Once the AI stylist layer is connected, I'll use your scans, saved items, Dressing Rooms, and style preferences to help you compare looks and build retailer-neutral recommendations.";
+  "Elise is in preview mode. Once the full styling layer is connected, she'll use your scans, saved items, Dressing Rooms, and style preferences to help you compare looks and build retailer-neutral recommendations.";
 
 const PREVIEW_UI_BLOCKS = [
   {
