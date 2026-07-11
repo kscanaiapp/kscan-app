@@ -42,29 +42,35 @@ object AndroidOutputVerifier {
             )
 
         if (bitmap.width != expectedWidth || bitmap.height != expectedHeight) {
+            val actualWidth = bitmap.width
+            val actualHeight = bitmap.height
             bitmap.recycle()
             return VerificationResult.Failure(
                 NativePrivacyErrorCode.VERIFICATION_FAILED,
-                "Output dimensions ${bitmap.width}x${bitmap.height} do not match expected ${expectedWidth}x$expectedHeight.",
+                "Output dimensions ${actualWidth}x$actualHeight do not match expected ${expectedWidth}x$expectedHeight.",
             )
         }
 
-        val pixels = IntArray(bitmap.width * bitmap.height)
-        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        // Dimensions must be captured before recycle() -- a recycled Bitmap's
+        // width/height are no longer safe to read.
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
         bitmap.recycle()
 
         val opaqueBlack = Color.argb(255, 0, 0, 0)
         for (region in regions) {
-            val x1 = region.x.coerceIn(0, bitmap.width)
-            val y1 = region.y.coerceIn(0, bitmap.height)
-            val x2 = (region.x + region.width).coerceIn(0, bitmap.width)
-            val y2 = (region.y + region.height).coerceIn(0, bitmap.height)
+            val x1 = region.x.coerceIn(0, width)
+            val y1 = region.y.coerceIn(0, height)
+            val x2 = (region.x + region.width).coerceIn(0, width)
+            val y2 = (region.y + region.height).coerceIn(0, height)
 
             if (x2 <= x1 || y2 <= y1) continue
 
             for (y in y1 until y2) {
                 for (x in x1 until x2) {
-                    if (pixels[y * bitmap.width + x] != opaqueBlack) {
+                    if (pixels[y * width + x] != opaqueBlack) {
                         return VerificationResult.Failure(
                             NativePrivacyErrorCode.VERIFICATION_FAILED,
                             "Redacted region at ($x1,$y1,${x2 - x1},${y2 - y1}) is not opaque black.",
@@ -78,8 +84,8 @@ object AndroidOutputVerifier {
         val checksum = checksumBuffer(argbBytes)
 
         return VerificationResult.Success(
-            outputWidth = bitmap.width,
-            outputHeight = bitmap.height,
+            outputWidth = width,
+            outputHeight = height,
             outputChecksum = checksum,
             durationMs = System.currentTimeMillis() - startedAt,
         )
