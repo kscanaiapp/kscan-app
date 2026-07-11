@@ -38,7 +38,8 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { ROOM_CHAT_ENABLED } from '../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, ROOM_CHAT_ENABLED } from '../../constants/featureFlags';
+import { OutfitDecisionSection } from '../../components/dressing-rooms/OutfitDecisionSection';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import {
@@ -411,6 +412,16 @@ function DressingRoomDetailContent() {
   const { isFeatureEnabled } = useFeatureFreeze();
   const canShareRoom = Boolean(
     isFeatureEnabled('shareRooms') &&
+    isAuthenticated &&
+    user?.id &&
+    room?.userId &&
+    room.userId === user.id,
+  );
+  // HELP ME CHOOSE renders only for the room owner here; participants vote
+  // from the shared-room screen. Gated by the inactive aiStylist rollout.
+  const aiStylistDecisionsEnabled = Boolean(
+    AI_STYLIST_UI_ENABLED &&
+    isFeatureEnabled('aiStylist') &&
     isAuthenticated &&
     user?.id &&
     room?.userId &&
@@ -790,6 +801,11 @@ function DressingRoomDetailContent() {
                 </>
               ) : null}
             </View>
+
+            {/* Outfit decisions (HELP ME CHOOSE) — aiStylist-gated */}
+            {aiStylistDecisionsEnabled && roomId ? (
+              <OutfitDecisionSection roomId={roomId} role="owner" />
+            ) : null}
 
             {/* Create Look */}
             <View style={styles.lookSection}>

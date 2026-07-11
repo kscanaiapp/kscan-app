@@ -30,7 +30,9 @@ import {
   PrivacyFooter,
 } from '../../../components/luxury';
 import { LUXURY, SPACING } from '../../../constants/theme';
-import { ROOM_CHAT_ENABLED } from '../../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, ROOM_CHAT_ENABLED } from '../../../constants/featureFlags';
+import { OutfitDecisionSection } from '../../../components/dressing-rooms/OutfitDecisionSection';
+import { getPublicRoomDecisionPreview } from '../../../services/outfitDecisions';
 import { useAuthSession } from '../../../contexts/AuthSessionContext';
 import {
   getItemReactionCounts,
@@ -230,6 +232,78 @@ function SharedRoomPreviewCard({ preview }: SharedRoomPreviewCardProps) {
         This is a preview of a private K Scan Dressing Room. Access is controlled by the share
         token. Only items the owner chose to share are visible here.
       </Text>
+    </View>
+  );
+}
+
+// Read-only sanitized decision preview for public (non-joined) visitors.
+// Backed by get_public_room_decision_preview: aggregate counts only, no voter
+// or owner identities, no vote controls of any kind.
+function PublicDecisionPreview({ token }: { token: string }) {
+  const [decisions, setDecisions] = useState<
+    Awaited<ReturnType<typeof getPublicRoomDecisionPreview>>['decisions']
+  >([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const preview = await getPublicRoomDecisionPreview(token);
+        if (!cancelled && preview.status === 'available') {
+          setDecisions(preview.decisions);
+        }
+      } catch {
+        // Read-only enrichment: failures degrade silently to no section.
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  if (!loaded || decisions.length === 0) return null;
+
+  return (
+    <View style={styles.decisionPreviewSection} testID="public-decision-preview">
+      <SectionHeader title="Help Me Choose" subtitle="Sign in and join to vote" />
+      {decisions.map((decision) => (
+        <View key={decision.groupId} style={styles.decisionPreviewCard}>
+          <Text style={styles.decisionQuestion}>{decision.question}</Text>
+          {decision.options.map((option, index) => {
+            const chosen = decision.chosenOptionId === option.optionId;
+            return (
+              <View key={option.optionId} style={styles.decisionOptionRow}>
+                <View style={styles.decisionOptionImages}>
+                  {option.items
+                    .filter((item) => !!item.imageUrl)
+                    .slice(0, 3)
+                    .map((item, itemIndex) => (
+                      <Image
+                        key={`${option.optionId}-${itemIndex}`}
+                        source={{ uri: item.imageUrl as string }}
+                        style={styles.decisionOptionImage}
+                        resizeMode="cover"
+                      />
+                    ))}
+                </View>
+                <View style={styles.decisionOptionMeta}>
+                  <Text style={styles.decisionOptionTitle} numberOfLines={1}>
+                    LOOK {index + 1}
+                    {option.title ? ` · ${option.title}` : ''}
+                  </Text>
+                  <Text style={styles.decisionOptionVotes}>
+                    {option.voteCount} vote{option.voteCount === 1 ? '' : 's'}
+                    {chosen ? (decision.wearingConfirmed ? ' · CHOSEN · Wearing this' : ' · CHOSEN') : ''}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
@@ -847,6 +921,16 @@ export default function SharedRoomScreen() {
             />
             <SharedRoomPreviewCard preview={preview} />
 
+            {/* Outfit decisions: interactive voting for joined participants,
+                sanitized read-only preview for public visitors. */}
+            {AI_STYLIST_UI_ENABLED ? (
+              isAuthenticated && joinedRoomId ? (
+                <OutfitDecisionSection roomId={joinedRoomId} role="participant" />
+              ) : (
+                <PublicDecisionPreview token={rawToken} />
+              )
+            ) : null}
+
             {preview.items.length > 0 ? (
               <>
                 <SectionHeader title="Items" />
@@ -1039,6 +1123,49 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.body,
     fontSize: 13,
     lineHeight: 20,
+    color: LUXURY.colors.graphite,
+  },
+  decisionPreviewSection: {
+    gap: SPACING.md,
+  },
+  decisionPreviewCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+  },
+  decisionQuestion: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
+  },
+  decisionOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  decisionOptionImages: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  decisionOptionImage: {
+    width: 44,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: LUXURY.colors.ivory,
+  },
+  decisionOptionMeta: {
+    flex: 1,
+    gap: 2,
+  },
+  decisionOptionTitle: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldBrushed,
+    letterSpacing: 1.6,
+  },
+  decisionOptionVotes: {
+    ...LUXURY.typography.body,
     color: LUXURY.colors.graphite,
   },
   itemGrid: {
