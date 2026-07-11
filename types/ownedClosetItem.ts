@@ -58,6 +58,12 @@ export type OwnedClosetItem = {
   /** True when a stable remote row exists (sourceId is a real UUID). */
   remoteBacked: boolean;
   /**
+   * Remote media backing state for saved scans (Phase 2). null = never
+   * requested (legacy local-only media). Remote-media-backed means status
+   * 'ready' AND a private storage reference exists.
+   */
+  mediaStatus?: 'pending' | 'ready' | 'failed' | null;
+  /**
    * True when the item carries enough structured metadata to participate in
    * AI outfit generation. Inspiration uploads have no garment metadata today
    * and are manual-builder-only until categorization exists.

@@ -983,6 +983,13 @@ function mapInspirationItem(row: any): InspirationItem {
     imageUrl: null,
     createdAt: row.created_at,
     deletedAt: row.deleted_at ?? null,
+    // Phase 2 additive styling metadata; absent columns read as null.
+    category: row.category ?? null,
+    color: row.color ?? null,
+    pattern: row.pattern ?? null,
+    material: row.material ?? null,
+    silhouette: row.silhouette ?? null,
+    garmentRole: row.garment_role ?? null,
   };
 }
 

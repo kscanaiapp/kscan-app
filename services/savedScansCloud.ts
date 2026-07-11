@@ -31,6 +31,11 @@ export interface SavedScanRow {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  // Phase 2 additive remote media backing (may be absent on older schemas).
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+  media_status?: 'pending' | 'ready' | 'failed' | null;
+  media_uploaded_at?: string | null;
 }
 
 /**

@@ -70,7 +70,13 @@ const SHARED_ROOM_TRANSFER_POLICY = 'transfer_to_earliest_active_participant';
 const STORAGE_RESOURCES = [
   {
     bucket: 'style-library-images',
-    prefixesForUser: (userId) => [`${userId}/scans`, `${userId}/inspirations`],
+    // saved-scans: Phase 2 remote media backing for saved_scans rows
+    // ({userId}/saved-scans/{savedScanId}.jpg).
+    prefixesForUser: (userId) => [
+      `${userId}/scans`,
+      `${userId}/inspirations`,
+      `${userId}/saved-scans`,
+    ],
   },
 ];
 

@@ -96,6 +96,10 @@ export function normalizeSavedScanRow(row: SavedScanRow): OwnedClosetItem {
   const unavailable = row.deleted_at != null;
   const remoteBacked = isServerVerifiableUuid(row.id);
   const category = meta.category;
+  // Remote-media-backed (Phase 2): only a 'ready' status with a full private
+  // storage reference exposes the storage fields for signed resolution.
+  const mediaReady =
+    row.media_status === 'ready' && !!cleanText(row.storage_bucket) && !!cleanText(row.storage_path);
 
   return {
     sourceType: 'saved_scan',
@@ -103,8 +107,9 @@ export function normalizeSavedScanRow(row: SavedScanRow): OwnedClosetItem {
     localId: cleanText(row.local_id),
     title: cleanText(row.title) || category || 'Saved scan',
     imageUri: cleanText(row.thumbnail_uri) || cleanText(row.image_uri),
-    storageBucket: null,
-    storagePath: null,
+    storageBucket: mediaReady ? cleanText(row.storage_bucket) : null,
+    storagePath: mediaReady ? cleanText(row.storage_path) : null,
+    mediaStatus: row.media_status ?? null,
     category,
     subcategory: meta.subcategory,
     color: meta.color,
@@ -169,33 +174,42 @@ export function normalizeLocalSavedScan(scan: SavedScanModel): OwnedClosetItem {
 export function normalizeInspirationItem(item: InspirationItem): OwnedClosetItem {
   const unavailable = item.deletedAt != null;
   const remoteBacked = isServerVerifiableUuid(item.id);
+  // Phase 2 additive styling metadata (null until explicit enrichment).
+  const category = cleanText(item.category);
+  const color = cleanText(item.color);
+  const pattern = cleanText(item.pattern);
+  const material = cleanText(item.material);
+  const silhouette = cleanText(item.silhouette);
+  const hasAttribute = !!(color || pattern || material || silhouette);
 
   return {
     sourceType: 'inspiration_item',
     sourceId: remoteBacked ? item.id : null,
     localId: null,
-    title: cleanText(item.note) || 'Inspiration',
+    title: cleanText(item.note) || category || 'Inspiration',
     imageUri: cleanText(item.imageUrl),
     storageBucket: cleanText(item.storageBucket),
     storagePath: cleanText(item.storagePath),
-    category: null,
+    mediaStatus: 'ready',
+    category,
     subcategory: null,
-    color: null,
-    pattern: null,
-    material: null,
-    silhouette: null,
+    color,
+    pattern,
+    material,
+    silhouette,
     fit: null,
     brand: null,
     styleTags: [],
-    normalizedAttributes: {},
+    normalizedAttributes: item.garmentRole ? { garmentRole: item.garmentRole } : {},
     sourceMetadata: {
       savedAt: cleanText(item.createdAt),
       note: cleanText(item.note),
     },
     unavailable,
     remoteBacked,
-    // Inspiration uploads carry no garment metadata today: manual-builder only.
-    aiEligible: false,
+    // AI-eligible only once explicitly enriched: category + ≥1 attribute
+    // (mirrors the server-side inspiration eligibility gate).
+    aiEligible: remoteBacked && !unavailable && !!category && hasAttribute,
     contractVersion: OWNED_ITEM_CONTRACT_VERSION,
   };
 }
@@ -249,6 +263,12 @@ export async function listOwnedClosetItems(input?: {
       imageUrl: null,
       createdAt: String(raw.created_at ?? ''),
       deletedAt: (raw.deleted_at as string | null) ?? null,
+      category: (raw.category as string | null) ?? null,
+      color: (raw.color as string | null) ?? null,
+      pattern: (raw.pattern as string | null) ?? null,
+      material: (raw.material as string | null) ?? null,
+      silhouette: (raw.silhouette as string | null) ?? null,
+      garmentRole: (raw.garment_role as string | null) ?? null,
     });
     const key = ownedItemKey(item);
     if (seen.has(key)) continue;

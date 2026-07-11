@@ -166,6 +166,13 @@ export type InspirationItem = {
   imageUrl?: string | null;
   createdAt: string;
   deletedAt?: string | null;
+  // Phase 2 additive styling metadata (null until explicit enrichment).
+  category?: string | null;
+  color?: string | null;
+  pattern?: string | null;
+  material?: string | null;
+  silhouette?: string | null;
+  garmentRole?: string | null;
 };
 
 export type DressingRoomInspirationLink = {

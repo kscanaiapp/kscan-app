@@ -668,11 +668,13 @@ test('deleteOwnedStorageObjects returns sanitized prefixes without full user id'
   const storage = createStorageMock({
     [`${userId}/scans`]: [{ name: 'scan.jpg' }],
     [`${userId}/inspirations`]: [{ name: 'inspiration.jpg' }],
+    // Phase 2: saved-scan remote media backing prefix.
+    [`${userId}/saved-scans`]: [{ name: 'saved-scan.jpg' }],
   });
 
   const results = await deleteOwnedStorageObjects(storage.client, userId);
 
-  assert.equal(results.length, 2);
+  assert.equal(results.length, 3);
   for (const entry of results) {
     assert.ok(!entry.prefix.includes(userId), 'storage prefix must not contain full user id');
     assert.ok(entry.prefix.includes(shortUserId(userId)), 'storage prefix must contain partial user id');
