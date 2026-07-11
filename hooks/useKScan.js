@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { AccessibilityInfo } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
 import { identifyScanImage } from '../services/scanIdentification';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
@@ -22,6 +24,11 @@ import {
 // Minimum time to stay in 'processing' so the PerceptionLayer HUD has time to
 // complete its entry animation (~730ms) before the result card appears.
 const MIN_ANALYSIS_MS = 600;
+
+// Fallback ceiling for the entire capture-to-result attempt. The backend edge
+// function uses ~20 s; compression + sanitizer + network overhead needs a bit
+// more room. A late result after this window is treated as a timeout.
+const ATTEMPT_TIMEOUT_MS = 32_000;
 
 function logAnalyzeDiag(payload) {
   if (typeof __DEV__ === 'undefined' || !__DEV__) return;
@@ -69,22 +76,82 @@ export function useKScan() {
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState(null);
   const [nonFashionMessage, setNonFashionMessage] = useState(null);
-  const isMounted = useRef(true);
-  // Synchronous locks — read before state updates propagate, so rapid taps that
+  // Render-only flag that mirrors the imperative scanInFlightRef. It stays true
+  // from the first synchronous guard activation until the attempt fully settles
+  // (success, failure, timeout, abort, or picker cancellation).
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const isMountedRef = useRef(true);
+  // Synchronous lock — read before state updates propagate, so rapid taps that
   // arrive in the same event loop tick before React re-renders cannot trigger
-  // duplicate captures or duplicate API calls.
-  const captureInProgressRef = useRef(false);
-  const analysisInProgressRef = useRef(false);
+  // duplicate captures, picker opens, compressions, or API calls.
+  const scanInFlightRef = useRef(false);
+  // Monotonic operation ID. A completed/timed-out/superseded attempt must not
+  // update state, navigate, or replace a newer image.
+  const operationIdRef = useRef(0);
+  const activeAbortControllerRef = useRef(null);
   const secondhandRequestRef = useRef(0);
+  const prevIsAnalyzingRef = useRef(false);
 
   useEffect(() => {
-    isMounted.current = true;
-    return () => { isMounted.current = false; };
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Invalidate any in-flight attempt so late results are discarded.
+      operationIdRef.current += 1;
+      activeAbortControllerRef.current?.abort();
+      scanInFlightRef.current = false;
+    };
   }, []);
+
+  // Announce the start of analysis exactly once per true in-flight window.
+  useEffect(() => {
+    if (isAnalyzing && !prevIsAnalyzingRef.current) {
+      AccessibilityInfo.announceForAccessibility('Scan analysis in progress');
+    }
+    prevIsAnalyzingRef.current = isAnalyzing;
+  }, [isAnalyzing]);
+
+  const clearInFlight = useCallback((operationId) => {
+    // Only the current attempt may clear the guard it created. Incrementing the
+    // operation ID here also prevents a late background completion from this
+    // attempt from overwriting newer state.
+    if (operationId !== operationIdRef.current) return;
+    operationIdRef.current += 1;
+    scanInFlightRef.current = false;
+    activeAbortControllerRef.current = null;
+    if (isMountedRef.current) {
+      setIsAnalyzing(false);
+    }
+  }, []);
+
+  const startInFlight = useCallback(() => {
+    if (scanInFlightRef.current) return null;
+    scanInFlightRef.current = true;
+    const operationId = ++operationIdRef.current;
+    // Replace any previous controller for this hook instance; this is the
+    // single active attempt boundary.
+    activeAbortControllerRef.current?.abort();
+    activeAbortControllerRef.current = new AbortController();
+    if (isMountedRef.current) {
+      setIsAnalyzing(true);
+    }
+    return operationId;
+  }, []);
+
+  const isOperationValid = useCallback((operationId) => (
+    isMountedRef.current && operationId === operationIdRef.current
+  ), []);
 
   const capturePhoto = useCallback(
     async (cameraRef) => {
-      if (captureInProgressRef.current || status !== 'idle') {
+      if (scanInFlightRef.current || status !== 'idle') {
+        logAnalyzeDiag({
+          event: 'scan_duplicate_blocked',
+          source: 'capturePhoto',
+          reason: 'scan_in_flight_or_invalid_status',
+          status,
+        });
         warnInvalidTransition(status, 'capturing');
         return;
       }
@@ -94,7 +161,9 @@ export function useKScan() {
         return;
       }
 
-      captureInProgressRef.current = true;
+      const operationId = startInFlight();
+      if (operationId === null) return;
+
       setStatus('capturing');
       softImpact();
 
@@ -105,19 +174,113 @@ export function useKScan() {
         if (!result || typeof result.uri !== 'string' || result.uri.length === 0) {
           throw new Error('Camera returned an invalid photo.');
         }
-        setPhoto({ ...result, source: 'camera' });
-        setError(null);
-        setStatus('preview');
+        if (isOperationValid(operationId)) {
+          setPhoto({ ...result, source: 'camera' });
+          setError(null);
+          setStatus('preview');
+        }
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.error('Capture failed:', err);
         }
-        setPhoto(null);
-        setError('We could not take the photo. Please try again.');
-        setStatus('error');
+        if (isOperationValid(operationId)) {
+          setPhoto(null);
+          setError('We could not take the photo. Please try again.');
+          setStatus('error');
+        }
       } finally {
-        captureInProgressRef.current = false;
+        clearInFlight(operationId);
       }
+    },
+    [status, startInFlight, clearInFlight, isOperationValid]
+  );
+
+  const selectGalleryPhoto = useCallback(
+    async () => {
+      if (scanInFlightRef.current) {
+        logAnalyzeDiag({
+          event: 'scan_duplicate_blocked',
+          source: 'selectGalleryPhoto',
+          reason: 'scan_in_flight',
+          status,
+        });
+        warnInvalidTransition(status, 'capturing');
+        return;
+      }
+
+      const operationId = startInFlight();
+      if (operationId === null) return;
+
+      try {
+        const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permStatus !== 'granted') {
+          // Permission denial is a controlled outcome, not an error.
+          clearInFlight(operationId);
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 1,
+          allowsEditing: false,
+          allowsMultipleSelection: false,
+        });
+
+        if (isOperationValid(operationId)) {
+          if (!result.canceled && result.assets?.[0]?.uri) {
+            setPhoto({ uri: result.assets[0].uri, source: 'upload' });
+            setError(null);
+            setAnalysis(null);
+            setNonFashionMessage(null);
+            secondhandRequestRef.current += 1;
+            setStatus('preview');
+          }
+        }
+      } catch (err) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.error('Gallery selection failed:', err);
+        }
+        if (isOperationValid(operationId)) {
+          setError('Uploaded image could not be loaded.');
+          setStatus('error');
+        }
+      } finally {
+        clearInFlight(operationId);
+      }
+    },
+    [status, startInFlight, clearInFlight, isOperationValid]
+  );
+
+  const uploadPhoto = useCallback(
+    (uri) => {
+      if (scanInFlightRef.current) {
+        logAnalyzeDiag({
+          event: 'scan_duplicate_blocked',
+          source: 'uploadPhoto',
+          reason: 'scan_in_flight',
+          status,
+        });
+        warnInvalidTransition(status, 'capturing');
+        return;
+      }
+
+      if (status !== 'idle' && status !== 'preview') {
+        warnInvalidTransition(status, 'capturing');
+        return;
+      }
+
+      if (!uri || typeof uri !== 'string') {
+        setError('Uploaded image could not be loaded.');
+        setStatus('error');
+        return;
+      }
+
+      setPhoto({ uri, source: 'upload' });
+      setError(null);
+      setAnalysis(null);
+      setNonFashionMessage(null);
+      secondhandRequestRef.current += 1;
+      setStatus('preview');
     },
     [status]
   );
@@ -126,11 +289,11 @@ export function useKScan() {
     async () => {
       if (__DEV__) console.log('[DEBUG] ANALYZE_TAP status=' + status);
 
-      if (analysisInProgressRef.current) {
+      if (scanInFlightRef.current) {
         logAnalyzeDiag({
-          event: 'duplicate_analyze_blocked',
+          event: 'scan_duplicate_blocked',
           source: 'runAnalysis',
-          reason: 'analysis_in_flight',
+          reason: 'scan_in_flight',
           status,
         });
         warnInvalidTransition(status, 'processing');
@@ -139,7 +302,7 @@ export function useKScan() {
 
       if (status !== 'preview') {
         logAnalyzeDiag({
-          event: 'analyze_trigger_rejected',
+          event: 'scan_analyze_rejected',
           source: 'runAnalysis',
           reason: 'invalid_status',
           status,
@@ -149,7 +312,7 @@ export function useKScan() {
       }
       if (!photo?.uri || typeof photo.uri !== 'string') {
         logAnalyzeDiag({
-          event: 'analyze_trigger_rejected',
+          event: 'scan_analyze_rejected',
           source: 'runAnalysis',
           reason: 'missing_photo_uri',
           status,
@@ -159,11 +322,14 @@ export function useKScan() {
         return;
       }
 
-      analysisInProgressRef.current = true;
+      const operationId = startInFlight();
+      if (operationId === null) return;
+
       logAnalyzeDiag({
-        event: 'analyze_trigger_accepted',
+        event: 'scan_analyze_accepted',
         source: 'runAnalysis',
         status,
+        operationId,
       });
       setStatus('processing');
       setError(null);
@@ -171,11 +337,18 @@ export function useKScan() {
       secondhandRequestRef.current += 1;
       const secondhandRequestId = secondhandRequestRef.current;
 
-      // Shared completion path for both the primary scan-identify path and the
-      // legacy /api/analyze fallback. Keeps status transitions, enrichment, and
-      // minimum-HUD timing identical regardless of which backend answered.
+      // Shared completion path for the scan-identify backend.
       const finishAnalysis = async (data, processingStart) => {
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
+
+        if (!isOperationValid(operationId)) {
+          logAnalyzeDiag({
+            event: 'scan_stale_result_discarded',
+            source: 'finishAnalysis',
+            operationId,
+          });
+          return;
+        }
 
         // Enforce minimum HUD display time so PerceptionLayer completes its entry
         // animation before we transition to result. Only effective for very fast
@@ -185,7 +358,14 @@ export function useKScan() {
           await new Promise(r => setTimeout(r, MIN_ANALYSIS_MS - elapsed));
         }
 
-        if (!isMounted.current) return;
+        if (!isOperationValid(operationId)) {
+          logAnalyzeDiag({
+            event: 'scan_stale_result_discarded',
+            source: 'finishAnalysis_after_min_delay',
+            operationId,
+          });
+          return;
+        }
 
         if (data.type === 'non-fashion') {
           // Graceful non-fashion path — not an error
@@ -207,7 +387,7 @@ export function useKScan() {
         if (secondhandRequest) {
           searchVintedSecondhand(secondhandRequest)
             .then((secondhand) => {
-              if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+              if (!isMountedRef.current || secondhandRequestRef.current !== secondhandRequestId) return;
               if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
               setAnalysis((current) => {
                 if (!current || current.type === 'non-fashion') return current;
@@ -230,7 +410,7 @@ export function useKScan() {
         if (shouldEnrichSneakers(sneakerInput)) {
           searchSneakers(sneakerInput)
             .then((sneakerReference) => {
-              if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+              if (!isMountedRef.current || secondhandRequestRef.current !== secondhandRequestId) return;
               if (!sneakerReference || sneakerReference.length === 0) return;
               setAnalysis((current) => {
                 if (!current || current.type === 'non-fashion') return current;
@@ -254,8 +434,9 @@ export function useKScan() {
       let processingStart;
       let sanitized;
       let usedScanIdentify = false;
+      let attemptTimeoutId = null;
 
-      try {
+      const executeScanAttempt = async () => {
         processingStart = Date.now();
 
         if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS uri=' + photo.uri.slice(0, 80));
@@ -291,25 +472,48 @@ export function useKScan() {
           );
         }
         usedScanIdentify = true;
+
         const identifyResponse = await identifyScanImage(sanitized, {
           source: photo.source === 'upload' ? 'upload' : 'camera',
           localPrivacyFiltered: true,
+          signal: activeAbortControllerRef.current?.signal,
         });
+
         // Throws a user-safe error on 'failed' → handled by the catch below.
         const data = mapScanIdentifyToAnalysis(identifyResponse);
         await finishAnalysis(data, processingStart);
+      };
+
+      const attemptTimeoutPromise = new Promise((_, reject) => {
+        attemptTimeoutId = setTimeout(() => {
+          logAnalyzeDiag({
+            event: 'scan_timeout',
+            source: 'runAnalysis',
+            operationId,
+          });
+          activeAbortControllerRef.current?.abort();
+          reject(userSafeError(
+            'scan attempt timed out',
+            'Analysis is taking longer than expected. Please try again.',
+          ));
+        }, ATTEMPT_TIMEOUT_MS);
+      });
+
+      try {
+        await Promise.race([executeScanAttempt(), attemptTimeoutPromise]);
       } catch (err) {
         logAnalyzeDiag({
           event: 'scan_identify_failed',
           source: 'runAnalysis',
           usedScanIdentify,
+          operationId,
           errorMessage: err?.message ?? null,
         });
         if (__DEV__) {
           console.warn('[useKScan] scan-identify path failed', err?.message);
         }
 
-        if (isMounted.current) {
+        if (isOperationValid(operationId)) {
           errorPulse();
           setError(
             err?.userMessage ||
@@ -318,13 +522,26 @@ export function useKScan() {
           setStatus('error');
         }
       } finally {
-        analysisInProgressRef.current = false;
+        if (attemptTimeoutId !== null) {
+          clearTimeout(attemptTimeoutId);
+        }
+        clearInFlight(operationId);
       }
     },
-    [status, photo]
+    [status, photo, startInFlight, clearInFlight, isOperationValid]
   );
 
   const retake = useCallback(() => {
+    if (scanInFlightRef.current) {
+      logAnalyzeDiag({
+        event: 'scan_retake_blocked',
+        source: 'retake',
+        status,
+      });
+      warnInvalidTransition(status, 'idle');
+      return;
+    }
+
     const canRetakeFromPreview = status === 'preview';
     const canRetakeFromError = status === 'error' && !!photo;
 
@@ -345,6 +562,16 @@ export function useKScan() {
     (uri, fixtureName) => {
       if (typeof __DEV__ === 'undefined' || !__DEV__) return;
 
+      if (scanInFlightRef.current) {
+        logAnalyzeDiag({
+          event: 'scan_fixture_blocked',
+          source: 'selectStaticFixture',
+          status,
+        });
+        warnInvalidTransition(status, 'capturing');
+        return;
+      }
+
       if (status !== 'idle') {
         warnInvalidTransition(status, 'capturing');
         return;
@@ -364,36 +591,23 @@ export function useKScan() {
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
       requestAnimationFrame(() => {
-        if (isMounted.current) setStatus('preview');
+        if (isMountedRef.current) setStatus('preview');
       });
     },
     [status]
   );
 
-  const uploadPhoto = useCallback(
-    (uri) => {
-      if (status !== 'idle' && status !== 'preview') {
-        warnInvalidTransition(status, 'capturing');
-        return;
-      }
-
-      if (!uri || typeof uri !== 'string') {
-        setError('Uploaded image could not be loaded.');
-        setStatus('error');
-        return;
-      }
-
-      setPhoto({ uri, source: 'upload' });
-      setError(null);
-      setAnalysis(null);
-      setNonFashionMessage(null);
-      secondhandRequestRef.current += 1;
-      setStatus('preview');
-    },
-    [status]
-  );
-
   const dismissResult = useCallback(() => {
+    if (scanInFlightRef.current) {
+      logAnalyzeDiag({
+        event: 'scan_dismiss_blocked',
+        source: 'dismissResult',
+        status,
+      });
+      warnInvalidTransition(status, 'idle');
+      return;
+    }
+
     if (status !== 'result' && status !== 'error' && status !== 'non-fashion') {
       warnInvalidTransition(status, 'idle');
       return;
@@ -408,6 +622,16 @@ export function useKScan() {
   }, [status]);
 
   const retry = useCallback(() => {
+    if (scanInFlightRef.current) {
+      logAnalyzeDiag({
+        event: 'scan_retry_duplicate_blocked',
+        source: 'retry',
+        status,
+      });
+      warnInvalidTransition(status, 'preview');
+      return;
+    }
+
     if (status !== 'error') {
       warnInvalidTransition(status, 'preview');
       return;
@@ -433,6 +657,7 @@ export function useKScan() {
     analysis,
     error,
     nonFashionMessage,
+    isAnalyzing,
     capturePhoto,
     runAnalysis,
     retake,
@@ -440,5 +665,6 @@ export function useKScan() {
     retry,
     selectStaticFixture,
     uploadPhoto,
+    selectGalleryPhoto,
   };
 }

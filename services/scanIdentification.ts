@@ -54,6 +54,8 @@ const NON_FASHION_MESSAGE =
 export type IdentifyScanOptions = {
   source?: 'camera' | 'upload';
   localPrivacyFiltered?: boolean;
+  /** Optional abort signal for request cancellation. */
+  signal?: AbortSignal;
 };
 
 function failed(userMessage = NEUTRAL_FAILED_MESSAGE): ScanIdentifyResponse {
@@ -331,6 +333,11 @@ export async function identifyScanImage(
   };
 
   const ac = new AbortController();
+  if (options.signal) {
+    // Propagate an external cancellation into the local controller. Do not let
+    // the caller's signal replace the local timeout; both must be able to abort.
+    options.signal.addEventListener('abort', () => ac.abort(), { once: true });
+  }
   const timeoutId = setTimeout(() => ac.abort(), INVOKE_TIMEOUT_MS);
 
   try {
