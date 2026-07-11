@@ -68,6 +68,7 @@ function loadUseKScanWithMocks({
   attemptTimeoutMs = 50,
   initialStatus = 'preview',
   initialPhoto = { uri: 'file://test.jpg' },
+  mediaPermissionStatus = 'granted',
 } = {}) {
   const hookPath = path.join(__dirname, '..', 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
@@ -90,6 +91,7 @@ function loadUseKScanWithMocks({
   ];
 
   const accessibilityAnnouncements = [];
+  const alertCalls = [];
   const effectCleanups = [];
   const effectEntries = [];
 
@@ -112,9 +114,14 @@ function loadUseKScanWithMocks({
         accessibilityAnnouncements.push(message);
       },
     },
+    Alert: {
+      alert: (...args) => {
+        alertCalls.push(args);
+      },
+    },
     ImagePicker: {
       MediaTypeOptions: { Images: 'Images' },
-      requestMediaLibraryPermissionsAsync: async () => ({ status: 'granted' }),
+      requestMediaLibraryPermissionsAsync: async () => ({ status: mediaPermissionStatus }),
       launchImageLibraryAsync: launchImageLibraryAsync ?? (async () => imagePickerResult),
     },
     useState: (initialValue) => {
@@ -181,6 +188,7 @@ function loadUseKScanWithMocks({
     selectStaticFixture: hook.selectStaticFixture,
     uploadPhoto: hook.uploadPhoto,
     accessibilityAnnouncements,
+    alertCalls,
     unmount: () => {
       effectCleanups.forEach((cleanup) => cleanup());
     },
@@ -464,6 +472,60 @@ test('picker cancellation clears the guard', async () => {
 
   assert.equal(hook.status, 'idle', 'status stays idle when picker is cancelled');
   assert.equal(hook.isAnalyzing, false, 'guard clears after picker cancellation');
+});
+
+test('gallery selection reaches preview with the uploaded image', async () => {
+  const hook = loadUseKScanWithMocks({
+    initialStatus: 'idle',
+    imagePickerResult: { canceled: false, assets: [{ uri: 'file://picked.jpg' }] },
+  });
+
+  await hook.selectGalleryPhoto();
+
+  assert.equal(hook.status, 'preview', 'accepted gallery selection lands on preview');
+  assert.equal(hook.photo?.uri, 'file://picked.jpg');
+  assert.equal(hook.photo?.source, 'upload');
+  assert.equal(hook.isAnalyzing, false, 'guard clears after a completed selection');
+});
+
+test('rapid gallery taps produce one picker', async () => {
+  let pickerCalls = 0;
+  let resolvePicker;
+  const pickerPromise = new Promise((resolve) => { resolvePicker = resolve; });
+
+  const hook = loadUseKScanWithMocks({
+    initialStatus: 'idle',
+    launchImageLibraryAsync: async () => {
+      pickerCalls += 1;
+      return pickerPromise;
+    },
+  });
+
+  const runs = [
+    hook.selectGalleryPhoto(),
+    hook.selectGalleryPhoto(),
+    hook.selectGalleryPhoto(),
+  ];
+  await shortDelay(5);
+
+  assert.equal(pickerCalls, 1, 'rapid gallery taps must open exactly one picker');
+
+  resolvePicker({ canceled: false, assets: [{ uri: 'file://picked.jpg' }] });
+  await Promise.all(runs);
+});
+
+test('gallery permission denial clears the guard and surfaces guidance', async () => {
+  const hook = loadUseKScanWithMocks({
+    initialStatus: 'idle',
+    mediaPermissionStatus: 'denied',
+  });
+
+  await hook.selectGalleryPhoto();
+
+  assert.equal(hook.status, 'idle', 'status stays idle on permission denial');
+  assert.equal(hook.isAnalyzing, false, 'guard must clear on permission denial');
+  assert.equal(hook.alertCalls.length, 1, 'user must be told how to enable photo access');
+  assert.match(hook.alertCalls[0][0], /Photo Access Required/);
 });
 
 // ── Analysis lifecycle ───────────────────────────────────────────────────────

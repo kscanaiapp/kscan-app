@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
 import { identifyScanImage } from '../services/scanIdentification';
@@ -214,8 +214,15 @@ export function useKScan() {
       try {
         const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (permStatus !== 'granted') {
-          // Permission denial is a controlled outcome, not an error.
+          // Permission denial is a controlled outcome, not an error. Release the
+          // guard first, then restore the guidance alert that the prior app.js
+          // upload flow showed — without it, tapping Upload silently does nothing.
           clearInFlight(operationId);
+          Alert.alert(
+            'Photo Access Required',
+            'Allow K Scan to access your photo library to upload a scan image.',
+            [{ text: 'OK' }],
+          );
           return;
         }
 
