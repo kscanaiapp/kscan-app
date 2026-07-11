@@ -29,9 +29,46 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { deleteLook, getLookDetail, updateLook } from '../../services/styleObjects';
+import { AskMyRoomModal } from '../../components/looks/AskMyRoomModal';
 import type { Look, LookItem } from '../../types/styleObjects';
+
+const OCCASION_LABELS: Record<string, string> = {
+  casual: 'Casual',
+  work: 'Work',
+  date: 'Date',
+  event: 'Event',
+  travel: 'Travel',
+  other: 'Other',
+};
+
+const DRESS_CODE_LABELS: Record<string, string> = {
+  relaxed: 'Relaxed',
+  smart_casual: 'Smart Casual',
+  dressy: 'Dressy',
+  formal: 'Formal',
+};
+
+const SETTING_LABELS: Record<string, string> = {
+  indoor: 'Indoor',
+  outdoor: 'Outdoor',
+  both: 'Indoor & Outdoor',
+};
+
+function isOwnedItemLook(look: Look | null): boolean {
+  return look?.source === 'manual' || look?.source === 'ai';
+}
+
+function contextLine(look: Look): string | null {
+  const parts = [
+    look.occasion ? OCCASION_LABELS[look.occasion] : null,
+    look.dressCode ? DRESS_CODE_LABELS[look.dressCode] : null,
+    look.setting ? SETTING_LABELS[look.setting] : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
 
 function EditLookModal({
   look,
@@ -98,6 +135,9 @@ function LookDetailContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [askingRoom, setAskingRoom] = useState(false);
+  const { isFeatureEnabled } = useFeatureFreeze();
+  const stylistEnabled = AI_STYLIST_UI_ENABLED && isFeatureEnabled('aiStylist');
 
   const reload = useCallback(async () => {
     if (!lookId) return;
@@ -120,7 +160,7 @@ function LookDetailContent() {
 
   const handleDelete = () => {
     if (!look) return;
-    Alert.alert('Delete Look?', 'This removes the Look and its copied item snapshots.', [
+    Alert.alert('Delete this Look?', 'The items in your closet will not be affected.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -170,14 +210,55 @@ function LookDetailContent() {
         >
           <View style={styles.metaCard}>
             <Text style={styles.roomLabel}>
-              {look?.dressingRoomTitle ? `ROOM: ${look.dressingRoomTitle}` : 'STANDALONE LOOK'}
+              {look?.source === 'ai'
+                ? 'AI STYLED FROM YOUR CLOSET'
+                : look?.source === 'manual'
+                  ? 'BUILT FROM YOUR CLOSET'
+                  : look?.dressingRoomTitle
+                    ? `ROOM: ${look.dressingRoomTitle}`
+                    : 'STANDALONE LOOK'}
             </Text>
+            {look && contextLine(look) ? (
+              <Text style={styles.contextLine}>{contextLine(look)}</Text>
+            ) : null}
+            {look?.contextNote ? <Text style={styles.description}>{look.contextNote}</Text> : null}
             {look?.description ? <Text style={styles.description}>{look.description}</Text> : null}
+            {look?.source === 'ai' && look.explanation ? (
+              <View style={styles.whyCard}>
+                <Text style={styles.whyLabel}>WHY IT WORKS</Text>
+                <Text style={styles.whyText}>{look.explanation}</Text>
+              </View>
+            ) : null}
             <SecondaryButton
               title="Edit Look"
-              onPress={() => setEditing(true)}
+              onPress={() => {
+                if (isOwnedItemLook(look) && stylistEnabled) {
+                  router.push(`/looks/create?lookId=${look?.id}`);
+                } else {
+                  setEditing(true);
+                }
+              }}
               accessibilityLabel="Edit look"
             />
+            {stylistEnabled && look ? (
+              <PrimaryButton
+                title="Ask My Room"
+                onPress={() => setAskingRoom(true)}
+                accessibilityLabel="Ask my room"
+                testID="ask-my-room-button"
+              />
+            ) : null}
+            {stylistEnabled && isOwnedItemLook(look) ? (
+              <SecondaryButton
+                title="Style Again"
+                onPress={() =>
+                  router.push(
+                    `/stylist?occasion=${encodeURIComponent(look?.occasion ?? '')}&dressCode=${encodeURIComponent(look?.dressCode ?? '')}`,
+                  )
+                }
+                accessibilityLabel="Style again"
+              />
+            ) : null}
           </View>
 
           <SectionHeader title="Items" subtitle={`${items.length} saved item${items.length === 1 ? '' : 's'}`} />
@@ -207,6 +288,17 @@ function LookDetailContent() {
       )}
 
       <EditLookModal look={look} visible={editing} onClose={() => setEditing(false)} onSaved={reload} />
+
+      {look ? (
+        <AskMyRoomModal
+          visible={askingRoom}
+          lookIds={[look.id]}
+          onClose={() => setAskingRoom(false)}
+          onShared={({ roomId }) => {
+            router.push(`/dressing-rooms/${roomId}`);
+          }}
+        />
+      ) : null}
 
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
@@ -250,6 +342,27 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.goldBrushed,
     letterSpacing: 2.2,
+  },
+  contextLine: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
+  },
+  whyCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.md,
+    gap: SPACING.xs,
+  },
+  whyLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldBrushed,
+    letterSpacing: 2.2,
+  },
+  whyText: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.graphite,
   },
   description: {
     ...LUXURY.typography.body,

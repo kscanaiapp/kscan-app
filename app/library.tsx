@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -38,6 +39,7 @@ import {
 } from '../components/luxury';
 import { LUXURY, SPACING } from '../constants/theme';
 import { FREE_TIER_UTILITY_ENABLED } from '../constants/freeTierUtilityFlags';
+import { AI_STYLIST_UI_ENABLED } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -103,6 +105,11 @@ export default function LibraryScreen() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { isAuthenticated, user } = useAuthSession();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
+  const aiStylistEnabled =
+    AI_STYLIST_UI_ENABLED &&
+    !featureFreezeLoading &&
+    isFeatureEnabled('aiStylist') &&
+    isFeatureEnabled('outfitRemixLooks');
 
   const [selectedScan, setSelectedScan] = useState<SavedScan | null>(null);
   const [dressingRoomModalVisible, setDressingRoomModalVisible] = useState(false);
@@ -239,12 +246,35 @@ export default function LibraryScreen() {
         backLabel="Back"
       />
 
+      {aiStylistEnabled ? (
+        <View style={styles.subNav} accessibilityRole="tablist">
+          <View style={[styles.subNavTab, styles.subNavTabActive]} accessibilityRole="tab" accessibilityState={{ selected: true }}>
+            <Text style={[styles.subNavText, styles.subNavTextActive]}>MY CLOSET</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.subNavTab}
+            onPress={() => router.push('/looks')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: false }}
+            accessibilityLabel="My Looks"
+            testID="library-my-looks-tab"
+          >
+            <Text style={styles.subNavText}>MY LOOKS</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SectionHeader title="Saved Looks" />
+        <SectionHeader
+          title="Saved Looks"
+          actionLabel={aiStylistEnabled ? 'Style Me' : undefined}
+          onAction={aiStylistEnabled ? () => router.push('/stylist') : undefined}
+          actionAccessibilityLabel="Style me from my closet"
+        />
 
         {loading ? (
           <View style={styles.loadingWrap}>
@@ -465,6 +495,32 @@ export default function LibraryScreen() {
 }
 
 const styles = StyleSheet.create({
+  subNav: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.sm,
+  },
+  subNavTab: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs,
+  },
+  subNavTabActive: {
+    borderColor: LUXURY.colors.plum,
+    backgroundColor: LUXURY.colors.plum,
+  },
+  subNavText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    letterSpacing: 1.6,
+  },
+  subNavTextActive: {
+    color: LUXURY.colors.pearl,
+  },
   scrollView: {
     flex: 1,
   },

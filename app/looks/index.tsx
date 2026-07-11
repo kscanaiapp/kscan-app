@@ -21,9 +21,33 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useLooks } from '../../hooks/useStyleObjects';
 import type { Look } from '../../types/styleObjects';
+
+const OCCASION_LABELS: Record<string, string> = {
+  casual: 'Casual',
+  work: 'Work',
+  date: 'Date',
+  event: 'Event',
+  travel: 'Travel',
+  other: 'Other',
+};
+
+function lookSubtitle(look: Look): string {
+  if (look.source === 'ai') return 'AI styled from your closet';
+  if (look.source === 'manual') return 'Built from your closet';
+  return look.dressingRoomTitle || 'Standalone Look';
+}
+
+function lookTags(look: Look): string[] {
+  const tags: string[] = [];
+  if (look.occasion && OCCASION_LABELS[look.occasion]) tags.push(OCCASION_LABELS[look.occasion]);
+  if (tags.length === 0 && look.description) tags.push(look.description);
+  if (tags.length === 0) tags.push(`${look.itemCount ?? 0} items`);
+  return tags;
+}
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = SPACING.md;
@@ -32,7 +56,9 @@ const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
 
 function LooksContent() {
   const { looks, loading, error, reload } = useLooks();
+  const { isFeatureEnabled } = useFeatureFreeze();
   const blocking = loading || !!error;
+  const builderEnabled = AI_STYLIST_UI_ENABLED && isFeatureEnabled('aiStylist');
 
   return (
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
@@ -65,14 +91,30 @@ function LooksContent() {
         >
           <SectionHeader
             title="Your Looks"
-            subtitle="Saved outfit compositions from Dressing Rooms"
+            subtitle={builderEnabled ? 'Outfits built from what you own' : 'Saved outfit compositions from Dressing Rooms'}
+            actionLabel={builderEnabled ? 'Create' : undefined}
+            onAction={builderEnabled ? () => router.push('/looks/create') : undefined}
+            actionAccessibilityLabel="Create a Look"
           />
 
           {looks.length === 0 ? (
-            <EmptyStateCard
-              title="Curate Your First Look"
-              subtitle="Open a Dressing Room, select one or more items, and create your first outfit composition."
-            />
+            builderEnabled ? (
+              <EmptyStateCard
+                title="Build outfits from the pieces you already own."
+                subtitle="Pick two to six closet items and save your first Look."
+                action={{
+                  label: 'CREATE A LOOK',
+                  onPress: () => router.push('/looks/create'),
+                  accessibilityLabel: 'Create a Look',
+                  testID: 'create-look-button',
+                }}
+              />
+            ) : (
+              <EmptyStateCard
+                title="Curate Your First Look"
+                subtitle="Open a Dressing Room, select one or more items, and create your first outfit composition."
+              />
+            )
           ) : (
             <View style={styles.grid}>
               {looks.map((look) => (
@@ -80,8 +122,8 @@ function LooksContent() {
                   key={look.id}
                   imageUrl={look.coverImageUrl || look.coverFallbackUrl}
                   title={look.title}
-                  subtitle={look.dressingRoomTitle || 'Standalone Look'}
-                  tags={look.description ? [look.description] : [`${look.itemCount ?? 0} items`]}
+                  subtitle={lookSubtitle(look)}
+                  tags={lookTags(look)}
                   status="Look"
                   onPress={() => router.push(`/looks/${look.id}`)}
                   accessibilityLabel={`${look.title} look`}
