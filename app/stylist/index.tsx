@@ -490,9 +490,27 @@ function StylistContent() {
 
         {/* Event context */}
         <SectionHeader title="What are you dressing for?" subtitle="All optional" />
-        <Chips label="OCCASION" options={OCCASIONS} value={occasion} onChange={setOccasion} disabled={generating} />
-        <Chips label="DRESS CODE" options={DRESS_CODES} value={dressCode} onChange={setDressCode} disabled={generating} />
-        <Chips label="SETTING" options={SETTINGS} value={setting} onChange={setSetting} disabled={generating} />
+        <Chips
+          label="OCCASION"
+          options={OCCASIONS}
+          value={occasion}
+          onChange={(next) => setOccasion(next)}
+          disabled={generating}
+        />
+        <Chips
+          label="DRESS CODE"
+          options={DRESS_CODES}
+          value={dressCode}
+          onChange={(next) => setDressCode(next)}
+          disabled={generating}
+        />
+        <Chips
+          label="SETTING"
+          options={SETTINGS}
+          value={setting}
+          onChange={(next) => setSetting(next)}
+          disabled={generating}
+        />
         <TextField label="Note (optional)" value={note} onChangeText={setNote} multiline />
 
         <PrimaryButton
