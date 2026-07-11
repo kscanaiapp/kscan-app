@@ -22,6 +22,7 @@ import {
   OUTFIT_VARIATIONS,
 } from './reasoningContract.ts';
 import {
+  buildCandidatesFromInspirationItems,
   buildCandidatesFromSavedScans,
   finalizeCandidatePool,
   parseStyleOutfitRequest,
@@ -358,20 +359,37 @@ Deno.serve(async (req) => {
   //    (RLS also scopes this query; the explicit user filter is belt-and-braces.)
   //    Inspiration items carry no garment metadata today and are not
   //    AI-eligible, matching the mobile owned-item contract.
-  const { data: scanRows, error: scanError } = await userClient
-    .from('saved_scans')
-    .select('id,user_id,title,analysis_result,deleted_at')
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .order('saved_at', { ascending: false })
-    .limit(400);
+  const [scanResult, inspirationResult] = await Promise.all([
+    userClient
+      .from('saved_scans')
+      .select('id,user_id,title,analysis_result,deleted_at')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('saved_at', { ascending: false })
+      .limit(400),
+    // Inspiration items (Phase 2): the eligibility gate in validation.ts keeps
+    // un-enriched rows (no category/attributes/role) out of the pool.
+    userClient
+      .from('inspiration_items')
+      .select('id,user_id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path,deleted_at')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(100),
+  ]);
 
-  if (scanError) {
+  if (scanResult.error) {
     console.error('[style-outfit-generate] closet query failed');
     return json({ error: 'Unable to load closet' }, 500);
   }
 
-  const candidates = buildCandidatesFromSavedScans((scanRows ?? []) as Array<Record<string, unknown>>);
+  const candidates = [
+    ...buildCandidatesFromSavedScans((scanResult.data ?? []) as Array<Record<string, unknown>>),
+    // Inspiration query failure degrades gracefully to saved scans only.
+    ...buildCandidatesFromInspirationItems(
+      ((inspirationResult.error ? [] : inspirationResult.data) ?? []) as Array<Record<string, unknown>>,
+    ),
+  ];
   const poolResult = finalizeCandidatePool(candidates, request);
 
   if (!poolResult.ok) {

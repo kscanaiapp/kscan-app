@@ -223,6 +223,68 @@ export function buildCandidatesFromSavedScans(rows: Array<Record<string, unknown
   return candidates;
 }
 
+/**
+ * Builds AI candidates from server-fetched inspiration_items rows (Phase 2).
+ * An inspiration item is eligible ONLY when every condition holds:
+ *   - active (deleted_at null) and a real UUID (ownership enforced by query)
+ *   - a private image reference exists (storage_bucket + storage_path)
+ *   - non-empty normalized category that is not 'unknown'
+ *   - inferred role is not 'other', OR a valid explicit garment_role override
+ *   - at least one of color/pattern/material/silhouette present
+ * Ineligible rows never enter the pool and never get a model-invented role.
+ */
+export function buildCandidatesFromInspirationItems(
+  rows: Array<Record<string, unknown>>,
+): CandidateItem[] {
+  const candidates: CandidateItem[] = [];
+  const validRoles = ['top', 'bottom', 'dress', 'jumpsuit', 'outerwear', 'shoes', 'accessory', 'bag'];
+
+  for (const row of rows ?? []) {
+    if (!row || typeof row !== 'object') continue;
+    if (row.deleted_at != null) continue;
+    if (!isValidUuid(row.id)) continue;
+
+    const hasImage =
+      typeof row.storage_bucket === 'string' && !!row.storage_bucket &&
+      typeof row.storage_path === 'string' && !!row.storage_path;
+    if (!hasImage) continue;
+
+    const category = cleanString(row.category, 60);
+    if (!category || category.toLowerCase() === 'unknown') continue;
+
+    const color = cleanString(row.color, 40);
+    const pattern = cleanString(row.pattern, 40);
+    const material = cleanString(row.material, 40);
+    const silhouette = cleanString(row.silhouette, 40);
+    if (!color && !pattern && !material && !silhouette) continue;
+
+    const inferredRole = inferGarmentRole(category, null);
+    const override = cleanString(row.garment_role, 20);
+    const role = inferredRole !== 'other'
+      ? inferredRole
+      : override && validRoles.includes(override)
+        ? (override as GarmentRole)
+        : null;
+    if (!role) continue; // role 'other' without a valid explicit override
+
+    candidates.push({
+      sourceType: 'inspiration_item',
+      sourceId: String(row.id).toLowerCase(),
+      title: cleanString(row.note, 80) ?? category,
+      role,
+      category,
+      subcategory: null,
+      color,
+      pattern,
+      material,
+      silhouette,
+      brand: null,
+      styleTags: [],
+    });
+  }
+  return candidates;
+}
+
 export type PoolValidationResult =
   | { ok: true; pool: Map<string, CandidateItem>; anchor: CandidateItem | null }
   | { ok: false; error: string; reason: 'anchor_not_owned' | 'insufficient_closet' };

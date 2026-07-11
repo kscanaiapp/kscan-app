@@ -19,6 +19,27 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
 import { parseActiveContext, buildActiveContextBlock } from './activeContext.ts';
+// v2 (Closet Intelligence) modules — used only on the v2 request path.
+import {
+  isV2StyleChatRequest,
+  parseStyleChatAttachments,
+  STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+  type ParsedAttachment,
+} from './attachments.ts';
+import {
+  buildAttachmentContextBlock,
+  normalizeContextHint,
+  resolveStyleChatAttachments,
+  type AttachmentDataSource,
+  type ResolvedAttachment,
+} from './attachmentContext.ts';
+import { extractActionsBlock, validateStyleChatActions } from './actions.ts';
+import {
+  isAllowedMultimodalMime,
+  MAX_MULTIMODAL_TOTAL_BYTES,
+  requiresImageInspection,
+  selectImagesForInspection,
+} from './multimodal.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +105,17 @@ RULES — strictly follow all:
 11. If uncertain, frame suggestions as styling guidance rather than fact.
 
 SCOPE: Clothing only. Outfits. Wardrobe building. Style combinations. Brand-neutral shopping guidance. Color matching. Occasion dressing.`;
+
+// Appended to the system prompt ONLY when verified attachments are present
+// (v2). Never alters attachment-free conversations.
+const ATTACHMENT_INSTRUCTIONS = `ATTACHED CLOSET CONTEXT RULES:
+1. The [Attached] block lists the ONLY verified items for this message. Discuss, compare, and critique these items freely (formality, color coordination, practicality, occasion fit, styling direction).
+2. Never claim other specific closet items were selected or exist. Do not invent item names, brands, or colors you were not given.
+3. If image inspection was not provided, do not describe visual details beyond the listed metadata; say when you cannot see the item.
+4. When the user asks to BUILD a real outfit from their closet (e.g. "build an outfit with this", "give me three options", "change the shoes", "keep this and restyle the rest"), reply conversationally in one or two sentences and append an actions block:
+<actions>[{"type":"style_anchor_item","anchor":{"sourceType":"saved_scan","sourceId":"<ref id from the Attached block>"},"label":"Create outfits with this"}]</actions>
+Allowed action types: open_stylist, style_anchor_item, style_for_event, restyle_outfit, swap_item, open_look, ask_my_room. Use only ref ids that appear in the Attached block. At most 2 actions. The <actions> tags must wrap valid JSON and appear after your reply text.
+5. Actions are suggestions the user must tap; never state that you already built, saved, shared, or changed anything.`;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -227,11 +259,27 @@ function buildGeminiUrl(modelName: string, geminiKey: string): string {
   return url.toString();
 }
 
+// Chunked base64 encoding for bounded image payloads (avoids call-stack limits).
+function encodeBytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 type GeminiRole = 'user' | 'model';
+
+interface GeminiPart {
+  text?: string;
+  // v2 multimodal inspection: bounded, authorized, private media bytes only.
+  inline_data?: { mime_type: string; data: string };
+}
 
 interface GeminiTurn {
   role: GeminiRole;
-  parts: { text: string }[];
+  parts: GeminiPart[];
 }
 
 interface GeminiBody {
@@ -306,9 +354,11 @@ function buildGeminiBody(systemText: string, contents: GeminiTurn[]): GeminiBody
 }
 
 function cloneGeminiTurns(turns: GeminiTurn[]): GeminiTurn[] {
+  // Shallow-copy every part so retry turns preserve non-text parts (e.g. v2
+  // inline image data) without mutation. Text-only v1 behavior is unchanged.
   return turns.map((turn) => ({
     role: turn.role,
-    parts: turn.parts.map((part) => ({ text: part.text })),
+    parts: turn.parts.map((part) => ({ ...part })),
   }));
 }
 
@@ -721,6 +771,10 @@ Deno.serve(async (req) => {
     weatherLocation?: unknown;
     styleDnaContext?: unknown;
     activeContext?: unknown;
+    // v2 (Closet Intelligence) — absent on v1 requests.
+    attachments?: unknown;
+    contractVersion?: unknown;
+    contextHint?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -760,6 +814,29 @@ Deno.serve(async (req) => {
   // Optional, additive active scan/upload/TextScan context for grounding. Malformed or
   // unknown-source input is dropped so old clients and bad payloads are harmless.
   const activeContext = parseActiveContext(body.activeContext);
+
+  // ── V1/V2 routing (Closet Intelligence) ───────────────────────────────────────
+  // V1 (attachment-free, no contractVersion) takes the existing path unchanged:
+  // no new required fields, no prompt change, same response meaning. V2 is used
+  // only when contractVersion === "2" or attachments are present.
+  const isV2Request = isV2StyleChatRequest(body as Record<string, unknown>);
+  let parsedAttachments: ParsedAttachment[] = [];
+  let contextHint: string | null = null;
+  if (isV2Request) {
+    const parsedResult = parseStyleChatAttachments(body.attachments);
+    if (!parsedResult.ok) {
+      return json(
+        {
+          error: 'Attachments could not be accepted',
+          errorCode: parsedResult.errorCode,
+          contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+        },
+        400,
+      );
+    }
+    parsedAttachments = parsedResult.attachments;
+    contextHint = normalizeContextHint(body.contextHint);
+  }
 
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
 
@@ -869,6 +946,72 @@ Deno.serve(async (req) => {
         },
       },
     );
+  }
+
+  // ── 4c. V2 attachment resolution (after burst guard, before daily quota) ─────
+  // Every reference is independently verified against the caller's own rows.
+  // Bounded id lists keep the query surface fixed; a single safe error covers
+  // foreign, deleted, and nonexistent records so existence never leaks. A
+  // rejected attachment set costs no daily quota.
+  let resolvedAttachments: ResolvedAttachment[] = [];
+  if (isV2Request && parsedAttachments.length > 0) {
+    const attachmentData: AttachmentDataSource = {
+      fetchSavedScans: async (ids) => {
+        const { data } = await userClient
+          .from('saved_scans')
+          .select('id,title,analysis_result,storage_bucket,storage_path,media_status')
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .in('id', ids.slice(0, 12));
+        return (data ?? []) as Array<Record<string, unknown>>;
+      },
+      fetchInspirationItems: async (ids) => {
+        const { data } = await userClient
+          .from('inspiration_items')
+          .select('id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path')
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .in('id', ids.slice(0, 12));
+        return (data ?? []) as Array<Record<string, unknown>>;
+      },
+      fetchLook: async (lookId) => {
+        const { data } = await userClient
+          .from('looks')
+          .select('id,title,occasion,dress_code,setting')
+          .eq('id', lookId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchLookItems: async (lookId) => {
+        const { data } = await userClient
+          .from('look_items')
+          .select('id,title,category,brand,item_role,sort_order,snapshot_payload,storage_bucket,storage_path,source_saved_scan_id,source_inspiration_item_id')
+          .eq('look_id', lookId)
+          .order('sort_order', { ascending: true })
+          .limit(6);
+        return (data ?? []) as Array<Record<string, unknown>>;
+      },
+    };
+
+    const resolution = await resolveStyleChatAttachments(parsedAttachments, attachmentData);
+    if (!resolution.ok) {
+      console.log(
+        '[stylechat-generate] attachment_rejected uid=%s code=%s count=%d',
+        userId.slice(0, 8),
+        resolution.errorCode,
+        parsedAttachments.length,
+      );
+      return json(
+        {
+          error: 'Attachment unavailable',
+          errorCode: resolution.errorCode,
+          contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+        },
+        resolution.errorCode === 'ATTACHMENT_NOT_OWNED' ? 403 : 404,
+      );
+    }
+    resolvedAttachments = resolution.resolved;
   }
 
   // ── 5. Atomic daily quota reservation ────────────────────────────────────────
@@ -1062,6 +1205,22 @@ Deno.serve(async (req) => {
     ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
     : systemTextWithStyleDna;
 
+  // ── V2: verified attachment context + structured-action instructions ─────────
+  // Attachment-free messages (v1 AND v2-without-attachments) keep the exact v1
+  // prompt: this block is appended only when verified attachments exist.
+  const attachmentContextBlock =
+    resolvedAttachments.length > 0 ? buildAttachmentContextBlock(resolvedAttachments) : null;
+  const systemTextWithAttachments = attachmentContextBlock
+    ? [
+        systemTextForModel,
+        ATTACHMENT_INSTRUCTIONS,
+        attachmentContextBlock,
+        contextHint ? `[Context hint from the user's flow: ${contextHint}]` : null,
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+    : systemTextForModel;
+
   // Map history to Gemini conversation turns.
   // Gemini requires alternating user/model turns; merge consecutive same-role messages.
   const turns: GeminiTurn[] = [];
@@ -1086,7 +1245,48 @@ Deno.serve(async (req) => {
     turns.unshift({ role: 'user', parts: [{ text: '[session start]' }] });
   }
 
-  const geminiBody = buildGeminiBody(systemTextForModel, turns);
+  // ── V2: optional multimodal inspection of authorized private media ───────────
+  // Only for visually grounded questions, only ≤2 authorized ready-media items,
+  // bounded bytes, approved MIME types, downloaded server-side under the
+  // caller's own storage authorization. Bytes are never logged, never persisted
+  // in chat history, and no signed URL ever reaches the client or the logs.
+  let inspectedImageCount = 0;
+  if (resolvedAttachments.length > 0 && requiresImageInspection(message)) {
+    const selections = selectImagesForInspection(resolvedAttachments);
+    let totalImageBytes = 0;
+    const imageParts: GeminiPart[] = [];
+    for (const selection of selections) {
+      try {
+        const { data: blob, error: downloadError } = await userClient.storage
+          .from(selection.bucket)
+          .download(selection.path);
+        if (downloadError || !blob) continue;
+        const mime = blob.type && blob.type !== '' ? blob.type : 'image/jpeg';
+        if (!isAllowedMultimodalMime(mime)) continue;
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        if (bytes.byteLength === 0 || totalImageBytes + bytes.byteLength > MAX_MULTIMODAL_TOTAL_BYTES) {
+          continue;
+        }
+        totalImageBytes += bytes.byteLength;
+        imageParts.push({ inline_data: { mime_type: mime, data: encodeBytesToBase64(bytes) } });
+        inspectedImageCount += 1;
+      } catch {
+        // Metadata fallback: the reply must acknowledge, not fabricate, visuals.
+      }
+    }
+    if (imageParts.length > 0 && turns.length > 0 && turns[turns.length - 1].role === 'user') {
+      turns[turns.length - 1].parts.push(...imageParts);
+    }
+    console.log(
+      '[stylechat-generate] multimodal uid=%s requested=%d attached=%d bytes=%d',
+      userId.slice(0, 8),
+      selections.length,
+      inspectedImageCount,
+      totalImageBytes,
+    );
+  }
+
+  const geminiBody = buildGeminiBody(systemTextWithAttachments, turns);
 
   // ── 8. Call Gemini ────────────────────────────────────────────────────────────
 
@@ -1130,7 +1330,7 @@ Deno.serve(async (req) => {
         initial.finishReason || 'none',
       );
 
-      const retryBody = buildGeminiBody(systemTextForModel, buildRetryTurns(turns));
+      const retryBody = buildGeminiBody(systemTextWithAttachments, buildRetryTurns(turns));
 
       try {
         const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName);
@@ -1248,6 +1448,20 @@ Deno.serve(async (req) => {
 
   const elapsedMs = Date.now() - startedAt;
 
+  // ── V2: extract and validate structured actions ───────────────────────────────
+  // The <actions> block is stripped from the visible reply, parsed strictly,
+  // and validated against the authenticated resolved attachment set. Invalid
+  // actions are dropped entirely; the text reply is always preserved. On the
+  // v1 path this whole step is skipped and the text is untouched.
+  let validatedActions: ReturnType<typeof validateStyleChatActions> = [];
+  if (isV2Request && !usedFallback) {
+    const extracted = extractActionsBlock(assistantText);
+    if (extracted.text.trim().length > 0) {
+      assistantText = extracted.text;
+    }
+    validatedActions = validateStyleChatActions(extracted.rawActions, resolvedAttachments);
+  }
+
   // Final safety net: if no usable text survived (e.g. an empty best-effort path),
   // substitute the generic fallback so we never return whitespace as success.
   if (!usedFallback && assistantText.trim().length === 0) {
@@ -1313,9 +1527,26 @@ Deno.serve(async (req) => {
     responseMessage.why_this_works = whyThisWorks.trim();
   }
 
+  // V1 responses keep the exact existing shape. V2 responses additively carry
+  // the contract version, a capability signal (so clients can detect that a
+  // deployed function does NOT support attachments and avoid attachment-blind
+  // answers), validated actions, and resolution metadata (never content).
+  if (!isV2Request) {
+    return json({
+      status: usedFallback ? 'error' : 'success',
+      message: responseMessage,
+      usage: { messagesUsed, messagesLimit, resetAt },
+    });
+  }
+
   return json({
     status: usedFallback ? 'error' : 'success',
     message: responseMessage,
     usage: { messagesUsed, messagesLimit, resetAt },
+    contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+    capabilities: ['attachments', 'structured_actions'],
+    actions: validatedActions,
+    attachmentsResolved: resolvedAttachments.length,
+    imagesInspected: inspectedImageCount,
   });
 });
