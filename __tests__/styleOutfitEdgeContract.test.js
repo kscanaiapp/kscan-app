@@ -363,6 +363,7 @@ test('duplicate suggestion item-sets are dropped instead of filling slots', () =
 // ── index.ts security pattern (static) ────────────────────────────────────────
 
 test('edge function derives identity from JWT and never from the body', () => {
+  assert.match(indexSource, /npm:@supabase\/supabase-js@2\.105\.4/);
   assert.match(indexSource, /auth\.getUser\(\)/);
   assert.match(indexSource, /const userId = user\.id/);
   assert.doesNotMatch(indexSource, /body\.(userId|user_id)/);

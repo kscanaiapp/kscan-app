@@ -17,6 +17,13 @@ const auditMigrationFile = fs.readdirSync(path.join(ROOT, 'supabase', 'migration
   .find((file) => file.endsWith('_audit_hardening_ai_stylist_stylechat.sql'));
 assert.ok(auditMigrationFile, 'audit hardening migration missing');
 const auditMigration = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', auditMigrationFile), 'utf8');
+const rolePrivilegeMigrationFile = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations'))
+  .find((file) => file.endsWith('_harden_app_role_privileges.sql'));
+assert.ok(rolePrivilegeMigrationFile, 'role privilege hardening migration missing');
+const rolePrivilegeMigration = fs.readFileSync(
+  path.join(ROOT, 'supabase', 'migrations', rolePrivilegeMigrationFile),
+  'utf8',
+);
 const service = fs.readFileSync(path.join(ROOT, 'services', 'outfitDecisions.ts'), 'utf8');
 const section = fs.readFileSync(
   path.join(ROOT, 'components', 'dressing-rooms', 'OutfitDecisionSection.tsx'),
@@ -133,6 +140,17 @@ test('public preview is read-only, token-gated, and excludes voter identity', ()
   assert.match(auditMigration, /limit 10/);
   assert.match(auditMigration, /limit 3/);
   assert.match(auditMigration, /limit 6/);
+});
+
+test('share-token redemption limit is enforced in the join RPC', () => {
+  assert.match(rolePrivilegeMigration, /add column if not exists max_redemptions integer not null default 10/);
+  assert.match(rolePrivilegeMigration, /room_shares_max_redemptions_check/);
+  assert.match(rolePrivilegeMigration, /create or replace function public\.join_room_via_share_token/);
+  assert.match(rolePrivilegeMigration, /for update of rs/);
+  assert.match(rolePrivilegeMigration, /target_max_redemptions/);
+  assert.match(rolePrivilegeMigration, /current_redemptions >= target_max_redemptions/);
+  assert.match(rolePrivilegeMigration, /Shared room is full/);
+  assert.match(rolePrivilegeMigration, /Reopening an already-joined room is idempotent/);
 });
 
 test('deletion semantics: room cascade, voter-only cascade, creator SET NULL', () => {

@@ -57,6 +57,11 @@ const auditMigrationFile = fs.readdirSync(path.join(ROOT, 'supabase', 'migration
   .find((file) => file.endsWith('_audit_hardening_ai_stylist_stylechat.sql'));
 assert.ok(auditMigrationFile, 'audit hardening migration missing');
 const auditMigration = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', auditMigrationFile), 'utf8');
+const rolePrivilegeMigrationFile = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations'))
+  .find((file) => file.endsWith('_harden_app_role_privileges.sql'));
+assert.ok(rolePrivilegeMigrationFile, 'role privilege hardening migration missing');
+const rolePrivilegeMigration = fs.readFileSync(
+  path.join(ROOT, 'supabase', 'migrations', rolePrivilegeMigrationFile), 'utf8');
 const mediaService = fs.readFileSync(path.join(ROOT, 'services', 'savedScanMedia.ts'), 'utf8');
 const deletionScript = fs.readFileSync(path.join(ROOT, 'scripts', 'process-deletion-request.js'), 'utf8');
 
@@ -219,6 +224,7 @@ test('request-body user id is never read by the v2 modules or handler', () => {
 // ── V1/V2 compatibility ───────────────────────────────────────────────────────
 
 test('v1 requests: no contractVersion required; attachment-free prompt unchanged; v2 detection exact', () => {
+  assert.match(indexSource, /npm:@supabase\/supabase-js@2\.105\.4/);
   assert.equal(attachments.isV2StyleChatRequest({ sessionId: 's', message: 'hello' }), false);
   assert.equal(attachments.isV2StyleChatRequest({ sessionId: 's', message: 'hi', attachments: [] }), false);
   assert.equal(attachments.isV2StyleChatRequest({ contractVersion: '2', message: 'hi' }), true);
@@ -370,6 +376,17 @@ test('audit migration enforces media path authority and immutable inspiration me
   assert.match(auditMigration, /prevent_inspiration_item_media_rewrite/);
   assert.match(auditMigration, /new\.storage_path is distinct from old\.storage_path/);
   assert.match(auditMigration, /old\.deleted_at is not null and new\.deleted_at is null/);
+});
+
+test('final role privilege migration removes unsafe grants and gates quota lifecycle', () => {
+  assert.match(rolePrivilegeMigration, /revoke truncate, references, trigger, maintain on all tables in schema public/);
+  assert.match(rolePrivilegeMigration, /revoke all privileges on all sequences in schema public/);
+  assert.match(rolePrivilegeMigration, /grant select, insert, update, delete on all tables in schema public\s+to service_role/);
+  assert.match(rolePrivilegeMigration, /account_status in \('pending_deletion', 'locked'\)/);
+  assert.match(rolePrivilegeMigration, /increment_stylechat_daily_usage/);
+  assert.match(rolePrivilegeMigration, /check_and_increment_stylechat_burst/);
+  assert.match(rolePrivilegeMigration, /increment_style_outfit_daily_usage/);
+  assert.match(rolePrivilegeMigration, /check_and_increment_style_outfit_burst/);
 });
 
 test('media saga: deterministic path, no duplicate upload, finalize-first retry, exact-path orphan cleanup', () => {

@@ -16,7 +16,7 @@
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
 // Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-1.5-flash).
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
 import { parseActiveContext, buildActiveContextBlock } from './activeContext.ts';
 // v2 (Closet Intelligence) modules — used only on the v2 request path.

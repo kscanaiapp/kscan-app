@@ -15,7 +15,7 @@
 // variation order reliable → elevated → something_different; no numeric
 // user-facing scores; no retailer products; anchor preserved in every outfit.
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import {
   FASHION_REASONING_CONTRACT_VERSION,
   STYLE_OUTFIT_PROMPT_VERSION,
