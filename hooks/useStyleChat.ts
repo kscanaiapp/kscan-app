@@ -69,6 +69,8 @@ export interface UseStyleChatReturn {
 type FailedSendState = {
   content: string;
   userMessageId: string | null;
+  /** v2: preserve the ready attachment snapshot so retry is not text-only. */
+  attachments?: SendAttachmentsInput | null;
 };
 
 export interface UseStyleChatOptions {
@@ -397,6 +399,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         failedSendRef.current = {
           content: trimmed,
           userMessageId: persistedUserMessageId,
+          // Preserve attachments so the error-banner retry resends them.
+          attachments: hasAttachments ? sendAttachments : null,
         };
         setError(getFriendlyStyleChatError(err));
       } finally {
@@ -414,6 +418,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       void sendMessage(failedSend.content, {
         skipUserPersistence: Boolean(failedSend.userMessageId),
         existingUserMessageId: failedSend.userMessageId,
+        attachments: failedSend.attachments,
       });
       return;
     }

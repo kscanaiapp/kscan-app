@@ -14,6 +14,7 @@ import {
   clearDraftAttachments,
   consumeAttachmentHandoff,
   getDraftAttachments,
+  registerAttachmentSagaReset,
   removeDraftAttachment,
   snapshotReadyAttachments,
   subscribeToAttachmentDrafts,
@@ -72,6 +73,9 @@ export function useStyleChatAttachments(sessionId: string) {
 
   const validateAddition = useCallback(
     (candidate: StyleChatAttachment, candidateItemCount: number): AddAttachmentResult => {
+      // Use a unique placeholder per unresolved draft entry so multiple
+      // pending local selections do not collide as duplicates.
+      let pendingIndex = 0;
       const proposed = [
         ...getDraftAttachments(sessionId)
           .filter((entry) => entry.resolved || entry.state !== 'cancelled')
@@ -82,7 +86,7 @@ export function useStyleChatAttachments(sessionId: string) {
               ({
                 attachmentType: 'owned_item',
                 sourceType: 'saved_scan',
-                sourceId: '00000000-0000-4000-8000-000000000000',
+                sourceId: `00000000-0000-4000-8000-${String(pendingIndex++).padStart(12, '0')}`,
                 contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
               } as StyleChatAttachment),
             itemCount: entry.summary.itemCount ?? 1,
@@ -422,8 +426,10 @@ export function useStyleChatAttachments(sessionId: string) {
 
   const snapshotForSend = useCallback(() => snapshotReadyAttachments(sessionId), [sessionId]);
 
-  // One-time entry handoff consumption (Case 2 navigation). Never auto-sends:
-  // the attachment only lands in the unsent composer draft.
+  // One-time entry handoff consumption (Case 2 navigation). Re-evaluate when
+  // the session id changes so a handoff set while the screen was mounted for
+  // another session is still consumed. Never auto-sends: the attachment only
+  // lands in the unsent composer draft.
   useEffect(() => {
     const handoff = consumeAttachmentHandoff();
     if (!handoff) return;
@@ -436,7 +442,12 @@ export function useStyleChatAttachments(sessionId: string) {
         (handoff.localScan as SavedScanModel | null) ?? null,
       );
     }
-  }, [addResolvedOwnedItem, addOwnedItem]);
+  }, [sessionId, addResolvedOwnedItem, addOwnedItem]);
+
+  // Register the store-reset callback so sign-out also clears in-flight saga
+  // guards. The cleanup only unregisters this component's callback if it is
+  // still the active one; module-level guards remain otherwise.
+  useEffect(() => registerAttachmentSagaReset(() => resolvingDraftIds.clear()), []);
 
   return {
     attachments,

@@ -8,14 +8,14 @@
 
 grant usage on schema public to service_role;
 
-grant all privileges on all tables in schema public to service_role;
-grant all privileges on all sequences in schema public to service_role;
+-- Restore the minimum Data API privileges service-role clients need.
+-- Edge Functions and deletion tooling read, insert, update, and delete rows;
+-- they do not need TRUNCATE, REFERENCES, or TRIGGER on app tables, and the
+-- current schema uses gen_random_uuid() rather than sequences.
+grant select, insert, update, delete on all tables in schema public to service_role;
 
 alter default privileges in schema public
-  grant all privileges on tables to service_role;
-
-alter default privileges in schema public
-  grant all privileges on sequences to service_role;
+  grant select, insert, update, delete on tables to service_role;
 
 -- The share-link QA migration writes this column when creating links, but the
 -- canonical local schema never defined it. Add it idempotently so replayed

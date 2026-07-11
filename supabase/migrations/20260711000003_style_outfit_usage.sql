@@ -70,17 +70,14 @@ begin
     raise exception 'Not authenticated' using errcode = '28000';
   end if;
 
+  -- Atomic create-or-reserve: the UPDATE branch only fires while under the limit.
   insert into public.style_outfit_daily_usage (user_id, usage_date, generations_used)
-    values (v_user_id, current_date, 0)
-  on conflict (user_id, usage_date) do nothing;
-
-  update public.style_outfit_daily_usage u
-    set generations_used = u.generations_used + 1,
+    values (v_user_id, current_date, 1)
+  on conflict (user_id, usage_date) do update
+    set generations_used = style_outfit_daily_usage.generations_used + 1,
         updated_at = now()
-    where u.user_id = v_user_id
-      and u.usage_date = current_date
-      and u.generations_used < v_limit
-  returning u.generations_used into v_used;
+    where style_outfit_daily_usage.generations_used < v_limit
+  returning style_outfit_daily_usage.generations_used into v_used;
 
   if v_used is null then
     select u.generations_used into v_used
@@ -122,17 +119,15 @@ begin
     raise exception 'Not authenticated' using errcode = '28000';
   end if;
 
+  -- Atomic create-or-increment burst attempt. PostgreSQL serializes on the
+  -- (user_id, window_start) unique row, so parallel requests cannot oversubscribe.
   insert into public.style_outfit_burst_usage (user_id, window_start, attempts)
-    values (v_user_id, v_window, 0)
-  on conflict (user_id, window_start) do nothing;
-
-  update public.style_outfit_burst_usage b
-    set attempts = b.attempts + 1,
+    values (v_user_id, v_window, 1)
+  on conflict (user_id, window_start) do update
+    set attempts = style_outfit_burst_usage.attempts + 1,
         updated_at = now()
-    where b.user_id = v_user_id
-      and b.window_start = v_window
-      and b.attempts < v_limit
-  returning b.attempts into v_attempts;
+    where style_outfit_burst_usage.attempts < v_limit
+  returning style_outfit_burst_usage.attempts into v_attempts;
 
   if v_attempts is null then
     return query select

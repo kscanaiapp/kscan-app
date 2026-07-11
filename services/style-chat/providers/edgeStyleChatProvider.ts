@@ -89,6 +89,8 @@ function normalizeStatus(status: unknown): EdgeChatStatus | null {
     || status === 'limit_reached'
     || status === 'burst_limit'
     || status === 'error'
+    || status === 'attachments_unsupported'
+    || status === 'attachments_rejected'
     ? status
     : null;
 }

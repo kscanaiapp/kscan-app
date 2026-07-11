@@ -42,6 +42,7 @@ type PendingAttachmentHandoff = {
 const drafts = new Map<string, SessionDraft>();
 let pendingHandoff: PendingAttachmentHandoff | null = null;
 const listeners = new Set<() => void>();
+let resetSagaGuardsCallback: (() => void) | null = null;
 
 function notify() {
   for (const listener of [...listeners]) {
@@ -130,9 +131,17 @@ export function clearDraftAttachments(sessionId: string, options?: { keepText?: 
   notify();
 }
 
+function attachmentKey(ref: StyleChatAttachment): string {
+  if (ref.attachmentType === 'owned_item') return `owned:${ref.sourceType}:${ref.sourceId}`;
+  if (ref.attachmentType === 'look') return `look:${ref.lookId}`;
+  return `outfit:${ref.itemRefs.map((r) => `${r.sourceType}:${r.sourceId}`).sort().join('|')}`;
+}
+
 /**
  * Immutable snapshot of READY attachments for one outgoing message operation.
- * Later draft mutations can never touch an in-flight request.
+ * Duplicate resolved references are collapsed to a single entry so the server
+ * never receives the same source id twice. Later draft mutations can never
+ * touch an in-flight request.
  */
 export function snapshotReadyAttachments(sessionId: string): {
   references: StyleChatAttachment[];
@@ -141,9 +150,17 @@ export function snapshotReadyAttachments(sessionId: string): {
   const ready = getDraftAttachments(sessionId).filter(
     (entry) => entry.state === 'ready' && entry.resolved,
   );
+  const seen = new Set<string>();
+  const unique: DraftAttachment[] = [];
+  for (const entry of ready) {
+    const key = attachmentKey(entry.resolved as StyleChatAttachment);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(entry);
+  }
   return {
-    references: ready.map((entry) => JSON.parse(JSON.stringify(entry.resolved)) as StyleChatAttachment),
-    drafts: ready.map((entry) => JSON.parse(JSON.stringify(entry)) as DraftAttachment),
+    references: unique.map((entry) => JSON.parse(JSON.stringify(entry.resolved)) as StyleChatAttachment),
+    drafts: unique.map((entry) => JSON.parse(JSON.stringify(entry)) as DraftAttachment),
   };
 }
 
@@ -156,7 +173,20 @@ export function snapshotReadyAttachments(sessionId: string): {
 export function resetAttachmentStore(): void {
   drafts.clear();
   pendingHandoff = null;
+  resetSagaGuardsCallback?.();
   notify();
+}
+
+/**
+ * Register a callback that clears any in-flight attachment saga guards when
+ * the store is reset (e.g., on sign-out). The resolution hook registers this
+ * so a stale per-draftId guard cannot leak across account switches.
+ */
+export function registerAttachmentSagaReset(callback: () => void): () => void {
+  resetSagaGuardsCallback = callback;
+  return () => {
+    if (resetSagaGuardsCallback === callback) resetSagaGuardsCallback = null;
+  };
 }
 
 // ── One-time entry handoff ────────────────────────────────────────────────────
