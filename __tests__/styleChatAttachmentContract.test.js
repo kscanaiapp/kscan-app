@@ -35,6 +35,7 @@ const B = '22222222-2222-4222-8222-222222222222';
 const C = '33333333-3333-4333-8333-333333333333';
 const LOOK = '44444444-4444-4444-8444-444444444444';
 const FOREIGN = '99999999-9999-4999-8999-999999999999';
+const USER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 const mobileContract = loadTsModule('types/styleChatAttachments.ts', {
   './fashionReasoning': {}, './ownedClosetItem': {},
@@ -52,6 +53,10 @@ const multimodal = loadTsModule(path.join(FN, 'multimodal.ts'), {
 const indexSource = fs.readFileSync(path.join(ROOT, FN, 'index.ts'), 'utf8');
 const mediaMigration = fs.readFileSync(
   path.join(ROOT, 'supabase', 'migrations', '20260712000001_saved_scan_media_backing.sql'), 'utf8');
+const auditMigrationFile = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations'))
+  .find((file) => file.endsWith('_audit_hardening_ai_stylist_stylechat.sql'));
+assert.ok(auditMigrationFile, 'audit hardening migration missing');
+const auditMigration = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', auditMigrationFile), 'utf8');
 const mediaService = fs.readFileSync(path.join(ROOT, 'services', 'savedScanMedia.ts'), 'utf8');
 const deletionScript = fs.readFileSync(path.join(ROOT, 'scripts', 'process-deletion-request.js'), 'utf8');
 
@@ -136,7 +141,11 @@ function makeDataSource(rows = {}) {
 
 const scanRow = (id, extra = {}) => ({
   id, title: 'Blazer', analysis_result: { metadata: { category: 'Blazer', color: 'Navy' } },
-  storage_bucket: 'style-library-images', storage_path: `u/saved-scans/${id}.jpg`, media_status: 'ready', ...extra,
+  user_id: USER,
+  storage_bucket: 'style-library-images',
+  storage_path: `${USER}/saved-scans/${id}.jpg`,
+  media_status: 'ready',
+  ...extra,
 });
 
 test('owned item accepted; foreign/deleted/missing rejected with one safe error', async () => {
@@ -153,6 +162,20 @@ test('owned item accepted; foreign/deleted/missing rejected with one safe error'
   );
   assert.equal(foreign.ok, false);
   assert.equal(foreign.errorCode, 'ATTACHMENT_NOT_OWNED');
+});
+
+test('saved-scan ready media is ignored unless bucket/path match the owner contract', async () => {
+  const parse = attachments.parseStyleChatAttachments([
+    { attachmentType: 'owned_item', sourceType: 'saved_scan', sourceId: A }]);
+  const poisoned = await context.resolveStyleChatAttachments(
+    parse.attachments,
+    makeDataSource({
+      scans: [scanRow(A, { storage_path: `${FOREIGN}/saved-scans/${A}.jpg` })],
+    }),
+  );
+  assert.equal(poisoned.ok, true);
+  assert.equal(poisoned.resolved[0].items[0].media, null);
+  assert.equal(multimodal.selectImagesForInspection(poisoned.resolved).length, 0);
 });
 
 test('foreign/missing Look rejected; valid Look resolves ordered items', async () => {
@@ -205,6 +228,8 @@ test('v1 requests: no contractVersion required; attachment-free prompt unchanged
   // V1 response shape untouched; v2 adds capabilities signal.
   assert.match(indexSource, /if \(!isV2Request\) \{\s*return json\(\{\s*status: usedFallback/);
   assert.match(indexSource, /capabilities: \['attachments', 'structured_actions'\]/);
+  assert.match(indexSource, /select\('id,user_id,title,analysis_result,storage_bucket,storage_path,media_status'\)/);
+  assert.match(indexSource, /select\('id,user_id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path'\)/);
   // Attachment resolution sits after the burst guard, before daily quota.
   assert.ok(indexSource.indexOf('check_and_increment_stylechat_burst') <
     indexSource.indexOf('4c. V2 attachment resolution'));
@@ -337,9 +362,22 @@ test('media migration is additive, private-bucket only, ready-requires-path', ()
   assert.match(mediaMigration, /garment_role/);
 });
 
+test('audit migration enforces media path authority and immutable inspiration media fields', () => {
+  assert.match(auditMigration, /saved_scans_media_path_owner_contract/);
+  assert.match(auditMigration, /user_id::text \|\| '\/saved-scans\/' \|\| id::text \|\| '[.]jpg'/);
+  assert.match(auditMigration, /inspiration_items_media_path_owner_contract/);
+  assert.match(auditMigration, /\/inspirations\/\[A-Za-z0-9\._-\]\+\[.\]jpg/);
+  assert.match(auditMigration, /prevent_inspiration_item_media_rewrite/);
+  assert.match(auditMigration, /new\.storage_path is distinct from old\.storage_path/);
+  assert.match(auditMigration, /old\.deleted_at is not null and new\.deleted_at is null/);
+});
+
 test('media saga: deterministic path, no duplicate upload, finalize-first retry, exact-path orphan cleanup', () => {
   assert.match(mediaService, /buildSavedScanMediaPath/);
   assert.match(mediaService, /\$\{userId\}\/saved-scans\/\$\{savedScanId\}\.jpg/);
+  assert.doesNotMatch(mediaService, /row\.storage_path[\s\S]{0,80}\?[\s\S]{0,80}row\.storage_path/);
+  assert.match(mediaService, /row\.storage_path === path/);
+  assert.match(mediaService, /await verifyObjectExists\(bucket, path\)/);
   assert.match(mediaService, /upsert: false/);
   assert.match(mediaService, /isAlreadyExistsError/);
   assert.match(mediaService, /verifyObjectExists\(bucket, path\)\) \{\s*\n?\s*return finalizeMediaRow/);
@@ -364,10 +402,17 @@ test('inspiration eligibility gate: category, attributes, role, image all requir
     './reasoningContract.ts': reasoning,
   });
   const base = {
-    id: A, deleted_at: null, storage_bucket: 'b', storage_path: 'p',
+    id: A,
+    user_id: USER,
+    deleted_at: null,
+    storage_bucket: 'style-library-images',
+    storage_path: `${USER}/inspirations/ref.jpg`,
     category: 'Blazer', color: 'Navy', note: 'ref',
   };
   assert.equal(validation.buildCandidatesFromInspirationItems([base]).length, 1);
+  assert.equal(validation.buildCandidatesFromInspirationItems([
+    { ...base, storage_path: `${FOREIGN}/inspirations/ref.jpg` },
+  ]).length, 0);
   assert.equal(validation.buildCandidatesFromInspirationItems([{ ...base, category: 'unknown' }]).length, 0);
   assert.equal(validation.buildCandidatesFromInspirationItems([{ ...base, category: null }]).length, 0);
   assert.equal(validation.buildCandidatesFromInspirationItems([{ ...base, color: null }]).length, 0);

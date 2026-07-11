@@ -35,6 +35,7 @@ import {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOTE_MAX_CHARS = 280;
 const REASON_MAX_CHARS = 240;
+const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 
 export type OwnedSourceType = 'saved_scan' | 'inspiration_item';
 
@@ -71,6 +72,16 @@ function cleanString(value: unknown, maxLength: number): string | null {
 
 function isValidUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value.trim());
+}
+
+function hasUserOwnedInspirationMedia(row: Record<string, unknown>): boolean {
+  const userId = typeof row.user_id === 'string' ? row.user_id.trim().toLowerCase() : '';
+  const bucket = typeof row.storage_bucket === 'string' ? row.storage_bucket.trim() : '';
+  const path = typeof row.storage_path === 'string' ? row.storage_path.trim() : '';
+  if (!userId || bucket !== STYLE_LIBRARY_IMAGES_BUCKET) return false;
+  const prefix = `${userId}/inspirations/`;
+  if (!path.startsWith(prefix)) return false;
+  return /^[A-Za-z0-9._-]+[.]jpg$/.test(path.slice(prefix.length));
 }
 
 function parseItemRef(raw: unknown): ItemRef | null {
@@ -227,7 +238,7 @@ export function buildCandidatesFromSavedScans(rows: Array<Record<string, unknown
  * Builds AI candidates from server-fetched inspiration_items rows (Phase 2).
  * An inspiration item is eligible ONLY when every condition holds:
  *   - active (deleted_at null) and a real UUID (ownership enforced by query)
- *   - a private image reference exists (storage_bucket + storage_path)
+ *   - a private image reference exists at the caller's user-prefixed path
  *   - non-empty normalized category that is not 'unknown'
  *   - inferred role is not 'other', OR a valid explicit garment_role override
  *   - at least one of color/pattern/material/silhouette present
@@ -244,10 +255,7 @@ export function buildCandidatesFromInspirationItems(
     if (row.deleted_at != null) continue;
     if (!isValidUuid(row.id)) continue;
 
-    const hasImage =
-      typeof row.storage_bucket === 'string' && !!row.storage_bucket &&
-      typeof row.storage_path === 'string' && !!row.storage_path;
-    if (!hasImage) continue;
+    if (!hasUserOwnedInspirationMedia(row)) continue;
 
     const category = cleanString(row.category, 60);
     if (!category || category.toLowerCase() === 'unknown') continue;

@@ -324,7 +324,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  // 5. Daily quota (successful generations per day; limit env-configurable).
+  // 5. Daily quota (reserved attempts per day; limit env-configurable).
   const dailyLimit = readIntEnv('STYLE_OUTFIT_DAILY_LIMIT', DEFAULT_DAILY_LIMIT);
   const { data: dailyData, error: dailyError } = await userClient.rpc(
     'increment_style_outfit_daily_usage',

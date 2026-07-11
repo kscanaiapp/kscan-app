@@ -30,7 +30,9 @@ export function parseActiveContext(raw: unknown): ActiveContextInput | null {
   if (!VALID_SOURCES.includes(source as ActiveContextSource)) return null;
 
   const descriptors = Array.isArray(r.descriptors)
-    ? (r.descriptors as unknown[]).filter((d): d is string => typeof d === 'string' && d.trim()).map((d) => d.trim())
+    ? (r.descriptors as unknown[])
+        .filter((d): d is string => typeof d === 'string' && d.trim().length > 0)
+        .map((d) => d.trim())
     : null;
 
   return {

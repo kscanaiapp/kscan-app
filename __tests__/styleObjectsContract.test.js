@@ -28,6 +28,14 @@ const publicPreviewItemIdMigration = fs.readFileSync(
   'utf8',
 );
 
+const auditMigrationFile = fs.readdirSync(path.join(__dirname, '..', 'supabase', 'migrations'))
+  .find((file) => file.endsWith('_audit_hardening_ai_stylist_stylechat.sql'));
+assert.ok(auditMigrationFile, 'audit hardening migration missing');
+const auditMigration = fs.readFileSync(
+  path.join(__dirname, '..', 'supabase', 'migrations', auditMigrationFile),
+  'utf8',
+);
+
 const service = fs.readFileSync(
   path.join(__dirname, '..', 'services', 'styleObjects.ts'),
   'utf8',
@@ -197,6 +205,17 @@ test('public room preview exposes item ids and gates reactions: anonymous read-o
   assert.match(publicRoomScreen, /onReact=\{canReact \? handleReact : undefined\}/);
   // handleReact itself refuses to mutate when not signed-in/joined.
   assert.match(publicRoomScreen, /if \(!isAuthenticated \|\| !joinedRoomId \|\| mutatingReactionItemId === itemId\) return;/);
+});
+
+test('audit migration hardens legacy public room preview storage and response bounds', () => {
+  const previewFn = auditMigration.slice(auditMigration.indexOf('create or replace function public.get_public_room_preview'));
+  assert.match(previewFn, /preview_item_limit integer := 24/);
+  assert.match(previewFn, /limit preview_item_limit/);
+  assert.match(previewFn, /'imageStorageBucket', null/);
+  assert.match(previewFn, /'imageStoragePath', null/);
+  assert.match(previewFn, /'coverImageStorageBucket', null/);
+  assert.match(previewFn, /'coverImageStoragePath', null/);
+  assert.match(previewFn, /'isCapped', public_item_count > preview_item_limit/);
 });
 
 test('inspiration_items migration creates tables with RLS and soft-delete support', () => {

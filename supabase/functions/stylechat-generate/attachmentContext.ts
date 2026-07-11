@@ -16,6 +16,7 @@ import { MAX_TOTAL_RESOLVED_ITEMS } from './attachments.ts';
 export const MAX_ATTACHMENT_CONTEXT_CHARS = 4000;
 export const MAX_CONTEXT_HINT_CHARS = 200;
 const MAX_FIELD_CHARS = 60;
+const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 
 // ── Resolved shapes ───────────────────────────────────────────────────────────
 
@@ -93,6 +94,35 @@ function inferRole(category?: string | null, subcategory?: string | null): strin
   return 'other';
 }
 
+function cleanId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim().toLowerCase();
+  return text ? text : null;
+}
+
+function mediaRefForSavedScan(row: Record<string, unknown>): { bucket: string; path: string } | null {
+  const userId = cleanId(row.user_id);
+  const sourceId = cleanId(row.id);
+  const bucket = typeof row.storage_bucket === 'string' ? row.storage_bucket.trim() : '';
+  const path = typeof row.storage_path === 'string' ? row.storage_path.trim() : '';
+  if (!userId || !sourceId || row.media_status !== 'ready') return null;
+  if (bucket !== STYLE_LIBRARY_IMAGES_BUCKET) return null;
+  if (path !== `${userId}/saved-scans/${sourceId}.jpg`) return null;
+  return { bucket, path };
+}
+
+function mediaRefForInspiration(row: Record<string, unknown>): { bucket: string; path: string } | null {
+  const userId = cleanId(row.user_id);
+  const bucket = typeof row.storage_bucket === 'string' ? row.storage_bucket.trim() : '';
+  const path = typeof row.storage_path === 'string' ? row.storage_path.trim() : '';
+  if (!userId || bucket !== STYLE_LIBRARY_IMAGES_BUCKET) return null;
+  const prefix = `${userId}/inspirations/`;
+  if (!path.startsWith(prefix)) return null;
+  const filename = path.slice(prefix.length);
+  if (!/^[A-Za-z0-9._-]+[.]jpg$/.test(filename)) return null;
+  return { bucket, path };
+}
+
 function savedScanToItem(row: Record<string, unknown>): ResolvedAttachmentItem {
   const analysis =
     row.analysis_result && typeof row.analysis_result === 'object'
@@ -104,10 +134,7 @@ function savedScanToItem(row: Record<string, unknown>): ResolvedAttachmentItem {
       : {};
   const category = bound(meta.category);
   const subcategory = bound(meta.subcategory) ?? bound(meta.itemType);
-  const mediaReady =
-    row.media_status === 'ready' &&
-    typeof row.storage_bucket === 'string' && row.storage_bucket &&
-    typeof row.storage_path === 'string' && row.storage_path;
+  const media = mediaRefForSavedScan(row);
 
   return {
     ref: { sourceType: 'saved_scan', sourceId: String(row.id).toLowerCase() },
@@ -123,15 +150,14 @@ function savedScanToItem(row: Record<string, unknown>): ResolvedAttachmentItem {
     styleTags: Array.isArray(meta.style_tags)
       ? (meta.style_tags as unknown[]).map((tag) => bound(tag, 24)).filter((tag): tag is string => !!tag).slice(0, 6)
       : [],
-    media: mediaReady ? { bucket: String(row.storage_bucket), path: String(row.storage_path) } : null,
+    media,
   };
 }
 
 function inspirationToItem(row: Record<string, unknown>): ResolvedAttachmentItem {
   const category = bound(row.category);
   const explicitRole = bound(row.garment_role, 20);
-  const hasMedia = typeof row.storage_bucket === 'string' && !!row.storage_bucket
-    && typeof row.storage_path === 'string' && !!row.storage_path;
+  const media = mediaRefForInspiration(row);
   return {
     ref: { sourceType: 'inspiration_item', sourceId: String(row.id).toLowerCase() },
     title: bound(row.note, 80) ?? category ?? 'Inspiration item',
@@ -144,7 +170,7 @@ function inspirationToItem(row: Record<string, unknown>): ResolvedAttachmentItem
     fit: null,
     brand: null,
     styleTags: [],
-    media: hasMedia ? { bucket: String(row.storage_bucket), path: String(row.storage_path) } : null,
+    media,
   };
 }
 

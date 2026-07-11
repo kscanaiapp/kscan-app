@@ -13,6 +13,10 @@ const migration = fs.readFileSync(
   path.join(ROOT, 'supabase', 'migrations', '20260711000002_outfit_decision_rooms.sql'),
   'utf8',
 );
+const auditMigrationFile = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations'))
+  .find((file) => file.endsWith('_audit_hardening_ai_stylist_stylechat.sql'));
+assert.ok(auditMigrationFile, 'audit hardening migration missing');
+const auditMigration = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', auditMigrationFile), 'utf8');
 const service = fs.readFileSync(path.join(ROOT, 'services', 'outfitDecisions.ts'), 'utf8');
 const section = fs.readFileSync(
   path.join(ROOT, 'components', 'dressing-rooms', 'OutfitDecisionSection.tsx'),
@@ -104,6 +108,8 @@ test('voting requires room access and an open decision; closed decisions reject 
   assert.match(migration, /can_access_room_messages\(group_row\.dressing_room_id\)/);
   assert.match(migration, /group_row\.status <> 'open'/);
   assert.match(migration, /This decision is closed/);
+  assert.match(auditMigration, /create or replace function public\.cast_outfit_decision_vote/);
+  assert.match(auditMigration, /where id = p_group_id\s*\n\s*for update/);
 });
 
 test('public preview is read-only, token-gated, and excludes voter identity', () => {
@@ -123,6 +129,10 @@ test('public preview is read-only, token-gated, and excludes voter identity', ()
     publicScreen.slice(publicScreen.indexOf('function PublicDecisionPreview'), publicScreen.indexOf('function ErrorState')),
     /castOutfitDecisionVote|VOTE/,
   );
+  assert.match(auditMigration, /create or replace function public\.get_public_room_decision_preview/);
+  assert.match(auditMigration, /limit 10/);
+  assert.match(auditMigration, /limit 3/);
+  assert.match(auditMigration, /limit 6/);
 });
 
 test('deletion semantics: room cascade, voter-only cascade, creator SET NULL', () => {

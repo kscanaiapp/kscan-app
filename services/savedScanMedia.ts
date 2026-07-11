@@ -124,13 +124,16 @@ export async function ensureSavedScanMediaBacking(input: {
   if (rowError || !row) return { ok: false, errorCode: 'ATTACHMENT_NOT_OWNED', retryable: false };
 
   const bucket = SAVED_SCAN_MEDIA_BUCKET;
-  const path = typeof row.storage_path === 'string' && row.storage_path
-    ? row.storage_path
-    : buildSavedScanMediaPath(userId, input.savedScanId);
+  const path = buildSavedScanMediaPath(userId, input.savedScanId);
 
   // Already fully backed → reuse (no duplicate upload).
-  if (isRemoteMediaBacked(row)) {
-    return { ok: true, bucket: row.storage_bucket as string, path: row.storage_path as string };
+  if (
+    isRemoteMediaBacked(row) &&
+    row.storage_bucket === bucket &&
+    row.storage_path === path &&
+    await verifyObjectExists(bucket, path)
+  ) {
+    return { ok: true, bucket, path };
   }
 
   // Finalization-first retry: if the object already exists, never re-upload.

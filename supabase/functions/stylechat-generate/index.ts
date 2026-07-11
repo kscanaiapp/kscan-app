@@ -959,7 +959,7 @@ Deno.serve(async (req) => {
       fetchSavedScans: async (ids) => {
         const { data } = await userClient
           .from('saved_scans')
-          .select('id,title,analysis_result,storage_bucket,storage_path,media_status')
+          .select('id,user_id,title,analysis_result,storage_bucket,storage_path,media_status')
           .eq('user_id', userId)
           .is('deleted_at', null)
           .in('id', ids.slice(0, 12));
@@ -968,7 +968,7 @@ Deno.serve(async (req) => {
       fetchInspirationItems: async (ids) => {
         const { data } = await userClient
           .from('inspiration_items')
-          .select('id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path')
+          .select('id,user_id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path')
           .eq('user_id', userId)
           .is('deleted_at', null)
           .in('id', ids.slice(0, 12));
