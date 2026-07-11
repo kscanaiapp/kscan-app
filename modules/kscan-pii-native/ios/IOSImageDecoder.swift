@@ -112,6 +112,10 @@ struct IOSImageDecoder {
         return context.makeImage() ?? image
     }
 
+    // NOTE: .left/.right rotation direction corrected in source (previously
+    // swapped). This correction has not yet been validated against a real
+    // rotated-EXIF image on macOS/Xcode -- pending compilation and XCTest on
+    // that platform, since no macOS toolchain is available here.
     private static func transformForOrientation(_ orientation: CGImagePropertyOrientation) -> (CGFloat, Bool) {
         switch orientation {
         case .up:
@@ -123,11 +127,11 @@ struct IOSImageDecoder {
         case .downMirrored:
             return (.pi, true)
         case .left:
-            return (.pi / 2, false)
+            return (-.pi / 2, false)
         case .leftMirrored:
             return (.pi / 2, true)
         case .right:
-            return (-.pi / 2, false)
+            return (.pi / 2, false)
         case .rightMirrored:
             return (-.pi / 2, true)
         @unknown default:
