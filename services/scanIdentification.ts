@@ -333,11 +333,27 @@ export async function identifyScanImage(
   };
 
   const ac = new AbortController();
-  if (options.signal) {
+  const externalSignal = options.signal;
+  const forwardAbort = () => ac.abort();
+  if (externalSignal) {
     // Propagate an external cancellation into the local controller. Do not let
     // the caller's signal replace the local timeout; both must be able to abort.
-    options.signal.addEventListener('abort', () => ac.abort(), { once: true });
+    if (externalSignal.aborted) {
+      // addEventListener('abort') never fires for an already-aborted signal, so
+      // mirror the aborted state immediately instead of silently ignoring it.
+      ac.abort();
+    } else {
+      externalSignal.addEventListener('abort', forwardAbort, { once: true });
+    }
   }
+
+  // A caller that handed us an already-aborted signal (unmount / supersession /
+  // outer attempt timeout) wants no network call at all — short-circuit before
+  // invoke so we never spend a backend scan on a result that will be discarded.
+  if (ac.signal.aborted) {
+    return failed(TIMEOUT_MESSAGE);
+  }
+
   const timeoutId = setTimeout(() => ac.abort(), INVOKE_TIMEOUT_MS);
 
   try {
@@ -372,5 +388,7 @@ export async function identifyScanImage(
     return failed(isAbort ? TIMEOUT_MESSAGE : NETWORK_MESSAGE);
   } finally {
     clearTimeout(timeoutId);
+    // Never leave an external abort listener retained after settlement.
+    externalSignal?.removeEventListener('abort', forwardAbort);
   }
 }

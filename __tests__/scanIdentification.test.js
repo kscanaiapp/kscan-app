@@ -241,6 +241,98 @@ test('identifyScanImage: invoke error → failed', async () => {
   assert.equal(out.status, 'failed');
 });
 
+// ── Abort signal lifecycle (KC05 audit F1) ─────────────────────────────────────
+
+test('identifyScanImage: already-aborted external signal short-circuits before invoke', async () => {
+  let invoked = false;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: async () => {
+        invoked = true;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Tops' } },
+          error: null,
+        };
+      },
+    },
+  });
+
+  const controller = new AbortController();
+  controller.abort();
+
+  const out = await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'camera',
+    signal: controller.signal,
+  });
+
+  assert.equal(invoked, false, 'must not invoke the edge function for an already-aborted signal');
+  assert.equal(out.status, 'failed');
+  assert.match(out.userMessage, /taking longer/i);
+});
+
+test('identifyScanImage: external abort during request cancels the invoke', async () => {
+  let receivedSignal = null;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: (_fn, opts) =>
+        new Promise((_resolve, reject) => {
+          receivedSignal = opts.signal;
+          opts.signal.addEventListener('abort', () => {
+            const err = new Error('The operation was aborted.');
+            err.name = 'AbortError';
+            reject(err);
+          });
+        }),
+    },
+  });
+
+  const controller = new AbortController();
+  const pending = adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'camera',
+    signal: controller.signal,
+  });
+  // Let execution reach the invoke call (auth getSession + controller setup run
+  // first) before aborting, so this exercises abort-during-request, not the
+  // already-aborted short-circuit above.
+  await new Promise((r) => setTimeout(r, 10));
+  controller.abort();
+  const out = await pending;
+
+  assert.ok(receivedSignal, 'invoke must receive an abort signal');
+  assert.equal(receivedSignal.aborted, true, 'external abort must propagate to the invoke signal');
+  assert.equal(out.status, 'failed');
+  assert.match(out.userMessage, /taking longer/i);
+});
+
+test('identifyScanImage: successful request with external signal still completes', async () => {
+  let invoked = false;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: async () => {
+        invoked = true;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Footwear' } },
+          error: null,
+        };
+      },
+    },
+  });
+
+  const controller = new AbortController();
+  const out = await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'camera',
+    signal: controller.signal,
+  });
+
+  assert.equal(invoked, true);
+  assert.equal(out.status, 'completed');
+  // A late abort after settlement must be harmless (listener already removed).
+  controller.abort();
+});
+
 // ── New identification mapping tests (Day-1 prompt upgrade) ───────────────────
 
 test('mapper: identification.visual_observation preferred for result', () => {
