@@ -44,6 +44,9 @@ import {
 } from '../../services/style-dna/localStyleDnaProfile';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
+import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
+import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { matchOccasionFromText } from '../../types/fashionReasoning';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -283,6 +286,42 @@ export default function StyleChatSessionScreen() {
 
   const styleDnaSummaryText = styleDnaSummary ? buildStyleDnaSummaryText(styleDnaSummary) : null;
 
+  // StyleChat → visual stylist bridge. Passes ONLY the latest user message as
+  // a contextHint (never chat history); a conservative local matcher may
+  // preselect an occasion, and the raw hint lands in the optional note field.
+  // No outfit generation happens inside the chat response.
+  const { isFeatureEnabled: isStylistFeatureEnabled } = useFeatureFreeze();
+  const latestUserMessage = [...messages].reverse().find((message) => message.sender === 'user');
+  const showStyleMeForThis = Boolean(
+    AI_STYLIST_UI_ENABLED &&
+    isStylistFeatureEnabled('aiStylist') &&
+    latestUserMessage?.content?.trim(),
+  );
+  const handleStyleMeForThis = () => {
+    const contextHint = String(latestUserMessage?.content ?? '').trim().slice(0, 280);
+    const matchedOccasion = matchOccasionFromText(contextHint);
+    const query = [
+      matchedOccasion ? `occasion=${encodeURIComponent(matchedOccasion)}` : null,
+      contextHint ? `note=${encodeURIComponent(contextHint)}` : null,
+    ]
+      .filter(Boolean)
+      .join('&');
+    router.push(query ? `/stylist?${query}` : '/stylist');
+  };
+  const StyleMeForThisChip = showStyleMeForThis ? (
+    <View style={styles.styleMeWrap}>
+      <Pressable
+        onPress={handleStyleMeForThis}
+        accessibilityRole="button"
+        accessibilityLabel="Style me for this"
+        style={styles.styleMeChip}
+        testID="style-me-for-this"
+      >
+        <Text style={styles.styleMeChipText}>STYLE ME FOR THIS</Text>
+      </Pressable>
+    </View>
+  ) : null;
+
   const ChatBody = (
     <>
       <FlatList
@@ -321,6 +360,7 @@ export default function StyleChatSessionScreen() {
           <Text style={styles.weatherDenied}>{WEATHER_COPY.denied}</Text>
         ) : null
       ) : null}
+      {StyleMeForThisChip}
       {ErrorBanner}
       <View style={styles.composerWrap}>
         <StyleChatInput
@@ -440,6 +480,23 @@ const styles = StyleSheet.create({
   },
   composerWrap: {
     flexShrink: 0,
+  },
+  styleMeWrap: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+  },
+  styleMeChip: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plum,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  styleMeChipText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    letterSpacing: 1.6,
   },
   messageListLandscape: {
     minHeight: 80,

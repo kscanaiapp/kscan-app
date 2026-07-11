@@ -125,6 +125,22 @@ export function inferGarmentRole(category?: string | null, subcategory?: string 
 }
 
 /**
+ * Conservative local occasion matcher for the StyleChat → visual stylist
+ * bridge. Only unambiguous keywords map to an occasion; everything else
+ * returns null so the normal picker shows and the text lands in the note.
+ */
+export function matchOccasionFromText(text?: string | null): OutfitOccasion | null {
+  const lower = String(text ?? '').toLowerCase();
+  if (!lower.trim()) return null;
+  if (/\b(wedding|party|gala|concert|celebration|birthday|event)\b/.test(lower)) return 'event';
+  if (/\b(work|office|meeting|interview|presentation)\b/.test(lower)) return 'work';
+  if (/\b(date|dinner date|anniversary)\b/.test(lower)) return 'date';
+  if (/\b(travel|trip|vacation|flight|airport|holiday)\b/.test(lower)) return 'travel';
+  if (/\b(casual|weekend|errands|brunch|hang ?out)\b/.test(lower)) return 'casual';
+  return null;
+}
+
+/**
  * Checks that a set of roles satisfies at least one canonical outfit structure.
  * Extra roles beyond a satisfied structure (accessory, bag, other) are allowed;
  * conflicting base garments (e.g. dress + bottom) are rejected.
