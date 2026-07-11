@@ -6,6 +6,7 @@ import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 sealed class DetectionResult {
@@ -53,7 +54,7 @@ object AndroidFaceDetector {
             val faces = suspendCoroutine<List<Face>> { continuation ->
                 detector.process(inputImage)
                     .addOnSuccessListener { continuation.resume(it) }
-                    .addOnFailureListener { throw it }
+                    .addOnFailureListener { continuation.resumeWithException(it) }
             }
             val durationMs = System.currentTimeMillis() - startedAt
             DetectionResult.Success(
