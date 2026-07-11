@@ -16,10 +16,15 @@ struct IOSCacheManager {
         guard let url = URL(string: uriString), url.scheme == "file" else {
             return false
         }
-        let path = url.path
-        let cacheDir = cacheDirectory().path
-        let resolvedPath = (try? FileManager.default.destinationOfSymbolicLink(atPath: path)) ?? path
-        return resolvedPath.hasPrefix(cacheDir)
+        // Resolve symlinks and standardize (collapsing "." and ".." segments)
+        // on BOTH the candidate path and the cache directory before
+        // comparing. A bare hasPrefix on unresolved paths would incorrectly
+        // accept a sibling directory such as "kscan-pii-native-evil/" (same
+        // string prefix, different directory) and would not reliably reject
+        // ".." traversal.
+        let resolvedPath = url.resolvingSymlinksInPath().standardizedFileURL.path
+        let cacheDir = cacheDirectory().resolvingSymlinksInPath().standardizedFileURL.path
+        return resolvedPath == cacheDir || resolvedPath.hasPrefix(cacheDir + "/")
     }
 
     static func cleanupUri(_ uriString: String) -> NativeCleanupResult {

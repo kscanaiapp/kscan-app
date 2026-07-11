@@ -97,4 +97,39 @@ class KScanPiiNativeTests: XCTestCase {
         XCTAssertFalse(result.rejected)
         XCTAssertFalse(FileManager.default.fileExists(atPath: outputFile.path))
     }
+
+    func testCleanupRejectsSamePrefixedSiblingDirectory() {
+        // A sibling directory whose name starts with the cache namespace's
+        // name must not be accepted by a bare string-prefix check.
+        let cacheDir = IOSCacheManager.cacheDirectory()
+        let siblingDir = cacheDir.deletingLastPathComponent()
+            .appendingPathComponent("\(cacheDir.lastPathComponent)-evil", isDirectory: true)
+        try? FileManager.default.createDirectory(at: siblingDir, withIntermediateDirectories: true)
+        let siblingFile = siblingDir.appendingPathComponent("output.png")
+        try? "test".write(toFile: siblingFile.path, atomically: true, encoding: .utf8)
+        let result = IOSCacheManager.cleanupUri(siblingFile.absoluteString)
+        XCTAssertFalse(result.deleted)
+        XCTAssertTrue(result.rejected)
+        try? FileManager.default.removeItem(at: siblingDir)
+    }
+
+    func testCleanupRejectsRelativeTraversalOutsideCache() {
+        let cacheDir = IOSCacheManager.cacheDirectory()
+        let traversalUri = "file://\(cacheDir.path)/../outside-cache-traversal.png"
+        let result = IOSCacheManager.cleanupUri(traversalUri)
+        XCTAssertFalse(result.deleted)
+        XCTAssertTrue(result.rejected)
+    }
+
+    func testCleanupRejectsArbitraryFilePath() {
+        let result = IOSCacheManager.cleanupUri("file:///var/mobile/Containers/Data/Application/app.db")
+        XCTAssertFalse(result.deleted)
+        XCTAssertTrue(result.rejected)
+    }
+
+    func testCleanupRejectsNetworkUri() {
+        let result = IOSCacheManager.cleanupUri("https://example.invalid/output.png")
+        XCTAssertFalse(result.deleted)
+        XCTAssertTrue(result.rejected)
+    }
 }

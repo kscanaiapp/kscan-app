@@ -69,7 +69,7 @@ class NativePrivacyInstrumentationTests {
 
     @Test
     fun decodeHttpsUriFailsWithUnsupportedScheme() {
-        val result = AndroidImageDecoder.decodeFileUri("https://example.com/image.jpg")
+        val result = AndroidImageDecoder.decodeFileUri("https://example.invalid/image.jpg")
         assertTrue(result is DecodeResult.Failure)
         assertEquals(NativePrivacyErrorCode.UNSUPPORTED_SCHEME, (result as DecodeResult.Failure).errorCode)
     }
@@ -171,6 +171,45 @@ class NativePrivacyInstrumentationTests {
         assertTrue(result.deleted)
         assertFalse(result.rejected)
         assertFalse(outputFile.exists())
+    }
+
+    @Test
+    fun cleanupRejectsSamePrefixedSiblingDirectory() {
+        // A sibling directory whose name starts with the cache namespace's
+        // name (e.g. "kscan-pii-native-evil") must not be accepted by a bare
+        // string-prefix check.
+        val cacheDir = AndroidCacheManager.getCacheDirectory(context)
+        val siblingDir = File(cacheDir.parentFile, "${cacheDir.name}-evil")
+        siblingDir.mkdirs()
+        val siblingFile = File(siblingDir, "output.png")
+        siblingFile.writeText("test")
+        val result = AndroidCacheManager.cleanupUri(context, "file://${siblingFile.absolutePath}")
+        assertFalse(result.deleted)
+        assertTrue(result.rejected)
+        siblingDir.deleteRecursively()
+    }
+
+    @Test
+    fun cleanupRejectsRelativeTraversalOutsideCache() {
+        val cacheDir = AndroidCacheManager.getCacheDirectory(context)
+        val traversalUri = "file://${cacheDir.absolutePath}/../outside-cache-traversal.png"
+        val result = AndroidCacheManager.cleanupUri(context, traversalUri)
+        assertFalse(result.deleted)
+        assertTrue(result.rejected)
+    }
+
+    @Test
+    fun cleanupRejectsArbitraryFilePath() {
+        val result = AndroidCacheManager.cleanupUri(context, "file:///data/data/com.kscanai.app/databases/app.db")
+        assertFalse(result.deleted)
+        assertTrue(result.rejected)
+    }
+
+    @Test
+    fun cleanupRejectsNetworkUri() {
+        val result = AndroidCacheManager.cleanupUri(context, "https://example.invalid/output.png")
+        assertFalse(result.deleted)
+        assertTrue(result.rejected)
     }
 
     @Test

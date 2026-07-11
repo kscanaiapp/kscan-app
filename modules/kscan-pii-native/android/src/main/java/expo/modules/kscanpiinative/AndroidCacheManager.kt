@@ -25,7 +25,11 @@ object AndroidCacheManager {
         } catch (e: Exception) {
             return false
         }
-        return canonicalPath.startsWith(cacheDir)
+        // A bare prefix comparison would incorrectly accept a sibling
+        // directory such as "kscan-pii-native-evil/" as owned, since that
+        // string also starts with cacheDir. Require an exact match or a
+        // path separator immediately after the prefix.
+        return canonicalPath == cacheDir || canonicalPath.startsWith(cacheDir + File.separator)
     }
 
     fun cleanupUri(context: Context, uriString: String): NativeCleanupResult {
