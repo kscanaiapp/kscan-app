@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const ts = require('typescript');
+const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const FIXTURES_PATH = path.join(ROOT, 'modules/kscan-pii-native/test-vectors/parity-fixtures.json');
@@ -11,6 +13,89 @@ const constants = fixtures.constants;
 
 function moduleExists(modulePath) {
   return fs.existsSync(path.join(ROOT, modulePath));
+}
+
+// Established TypeScript-module-loading pattern (matches __tests__/onDevicePiiMasking.test.js).
+function resolveRelative(request, fromDir) {
+  const resolved = path.resolve(fromDir, request);
+  const candidates = [
+    resolved,
+    `${resolved}.ts`,
+    `${resolved}.js`,
+    path.join(resolved, 'index.ts'),
+    path.join(resolved, 'index.js'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  throw new Error(`Cannot resolve relative module ${request} from ${fromDir}`);
+}
+
+const moduleCache = new Map();
+
+function loadTsModule(relativeOrAbsolutePath) {
+  const absolutePath = path.isAbsolute(relativeOrAbsolutePath)
+    ? relativeOrAbsolutePath
+    : path.join(ROOT, relativeOrAbsolutePath);
+
+  if (moduleCache.has(absolutePath)) return moduleCache.get(absolutePath);
+
+  const source = fs.readFileSync(absolutePath, 'utf8');
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const moduleObj = { exports: {} };
+  const dir = path.dirname(absolutePath);
+
+  const sandbox = {
+    console,
+    setTimeout,
+    exports: moduleObj.exports,
+    module: moduleObj,
+    require: (id) => {
+      if (id.startsWith('.')) {
+        const resolved = resolveRelative(id, dir);
+        if (resolved.endsWith('.ts')) {
+          return loadTsModule(resolved);
+        }
+        return require(resolved);
+      }
+      return require(id);
+    },
+    __filename: absolutePath,
+    __dirname: dir,
+  };
+
+  vm.runInNewContext(output, sandbox, { filename: absolutePath });
+  moduleCache.set(absolutePath, moduleObj.exports);
+  return moduleObj.exports;
+}
+
+const nativeAdapter = loadTsModule('services/privacy/onDeviceMasking/nativeAdapter.ts');
+const { nativeResultToPrivacySanitizerResult, isNativeResultSafeForTransmission } = nativeAdapter;
+
+function baseNativeResult(overrides = {}) {
+  return {
+    status: 'success',
+    platform: 'ios',
+    detectorImplementation: 'apple_vision',
+    detectorVersion: 'test-1.0.0',
+    sanitizerVersion: 'native-face-mask-poc-1.0.0',
+    facesDetected: 1,
+    facesAccepted: 1,
+    facesMasked: 1,
+    regionsChanged: 1,
+    regionsAlreadyRedacted: 0,
+    pixelsChanged: true,
+    sanitizedUri: 'file:///cache/kscan-pii-native/output-test.png',
+    warnings: [],
+    ...overrides,
+  };
 }
 
 test('Android module source exists', () => {
@@ -114,6 +199,76 @@ test('Web fallback reports unsupported and does not fabricate sanitized URI', ()
   assert.ok(webSource.includes('status: \'unsupported\''));
   assert.ok(!webSource.includes('sanitizedUri'));
   assert.ok(webSource.includes('supported: false'));
+});
+
+test('adapter: newly masked success maps to masked and safe', () => {
+  const result = baseNativeResult({ regionsChanged: 1, regionsAlreadyRedacted: 0, pixelsChanged: true });
+  const adapted = nativeResultToPrivacySanitizerResult(result);
+  assert.strictEqual(adapted.mode, 'masked');
+  assert.strictEqual(adapted.faceMaskApplied, true);
+  assert.strictEqual(isNativeResultSafeForTransmission(result), true);
+});
+
+test('adapter: already-black success (pixelsChanged: false) still maps to masked and safe', () => {
+  // Regression: pixelsChanged must not be the transmission gate. An
+  // already-fully-redacted region is a legitimate masked result.
+  const result = baseNativeResult({
+    regionsChanged: 0,
+    regionsAlreadyRedacted: 1,
+    pixelsChanged: false,
+    facesMasked: 1,
+  });
+  const adapted = nativeResultToPrivacySanitizerResult(result);
+  assert.strictEqual(adapted.mode, 'masked');
+  assert.strictEqual(adapted.faceMaskApplied, true);
+  assert.strictEqual(isNativeResultSafeForTransmission(result), true);
+});
+
+test('adapter: success without a sanitizedUri is not safe', () => {
+  const result = baseNativeResult({ sanitizedUri: undefined });
+  const adapted = nativeResultToPrivacySanitizerResult(result);
+  assert.strictEqual(adapted.mode, 'passthrough');
+  assert.strictEqual(isNativeResultSafeForTransmission(result), false);
+});
+
+test('adapter: success with facesMasked = 0 is not safe', () => {
+  const result = baseNativeResult({ facesMasked: 0, regionsChanged: 0, regionsAlreadyRedacted: 0, pixelsChanged: false });
+  const adapted = nativeResultToPrivacySanitizerResult(result);
+  assert.strictEqual(adapted.mode, 'passthrough');
+  assert.strictEqual(adapted.faceMaskApplied, false);
+  assert.strictEqual(isNativeResultSafeForTransmission(result), false);
+});
+
+test('adapter: failed result maps to passthrough and not safe', () => {
+  const result = baseNativeResult({
+    status: 'failed',
+    facesMasked: 0,
+    regionsChanged: 0,
+    pixelsChanged: false,
+    sanitizedUri: undefined,
+    errorCode: 'MASKING_FAILED',
+    failureReason: 'Masking invariant violated: 1 regions needed changes but no pixels changed.',
+  });
+  const adapted = nativeResultToPrivacySanitizerResult(result);
+  assert.strictEqual(adapted.mode, 'passthrough');
+  assert.strictEqual(isNativeResultSafeForTransmission(result), false);
+  assert.ok(adapted.warnings.some((w) => w.includes('Masking invariant violated')));
+});
+
+test('adapter: no-faces result maps to passthrough and not safe', () => {
+  const result = baseNativeResult({
+    status: 'no_faces',
+    facesDetected: 0,
+    facesAccepted: 0,
+    facesMasked: 0,
+    regionsChanged: 0,
+    pixelsChanged: false,
+    sanitizedUri: undefined,
+  });
+  const adapted = nativeResultToPrivacySanitizerResult(result);
+  assert.strictEqual(adapted.mode, 'passthrough');
+  assert.strictEqual(adapted.faceDetectionPerformed, true);
+  assert.strictEqual(isNativeResultSafeForTransmission(result), false);
 });
 
 test('No active app imports reference the native module', () => {
