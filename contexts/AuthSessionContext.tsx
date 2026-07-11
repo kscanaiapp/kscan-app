@@ -11,6 +11,7 @@ import { supabase } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
+import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -66,6 +67,10 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         setIsRefreshing(false);
       } else {
         invalidateAllMemoryCache();
+        // Actor change (sign-in / sign-out / user update): drop any composer
+        // attachment drafts and un-consumed handoff so this device's local
+        // image URIs and resolved references never cross between accounts.
+        resetAttachmentStore();
       }
       setSession(usableSession);
     });
@@ -96,6 +101,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
   const signOut = useCallback(async () => {
     invalidateAllMemoryCache();
+    resetAttachmentStore();
     setSession(null);
     await supabase.auth.signOut();
   }, []);

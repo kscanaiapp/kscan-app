@@ -17,6 +17,7 @@ import {
   removeDraftAttachment,
   snapshotReadyAttachments,
   subscribeToAttachmentDrafts,
+  updateDraftAttachment,
   upsertDraftAttachment,
 } from '../services/style-chat/styleChatAttachmentStore';
 import {
@@ -107,7 +108,9 @@ export function useStyleChatAttachments(sessionId: string) {
 
         // Step 1: stable remote row (existing cloud-sync path; never invents ids).
         if (!current.remoteBacked || !current.sourceId) {
-          upsertDraftAttachment(sessionId, { ...draft, state: 'creating_record' });
+          // Update-only: if the user removed this attachment mid-resolution, the
+          // transition no-ops instead of resurrecting a ghost draft.
+          if (!updateDraftAttachment(sessionId, { ...draft, state: 'creating_record' })) return;
           current = await ensureRemoteBackedOwnedItem(current, { localScan: localScan ?? undefined });
         }
         if (!current.sourceId) throw new Error('sync');
@@ -120,11 +123,15 @@ export function useStyleChatAttachments(sessionId: string) {
 
         // Step 2: private media backing for saved scans (idempotent saga).
         if (current.sourceType === 'saved_scan' && current.mediaStatus !== 'ready') {
-          upsertDraftAttachment(sessionId, {
-            ...draft,
-            state: 'uploading_media',
-            selection: { ...remoteSelection, updatedAt: now() },
-          });
+          if (
+            !updateDraftAttachment(sessionId, {
+              ...draft,
+              state: 'uploading_media',
+              selection: { ...remoteSelection, updatedAt: now() },
+            })
+          ) {
+            return;
+          }
           const media = await ensureSavedScanMediaBacking({
             savedScanId: current.sourceId,
             localImageUri: draft.selection.localImageUri ?? item.imageUri,
@@ -134,7 +141,7 @@ export function useStyleChatAttachments(sessionId: string) {
           // to masquerade as image-aware; keep it attachable (metadata) only
           // when media was never required — here we mark rejected.
           if (!media.ok) {
-            upsertDraftAttachment(sessionId, {
+            updateDraftAttachment(sessionId, {
               ...draft,
               state: 'rejected',
               selection: { ...remoteSelection, lastErrorCode: media.errorCode, updatedAt: now() },
@@ -143,8 +150,9 @@ export function useStyleChatAttachments(sessionId: string) {
           }
         }
 
-        // Step 3: resolved contract replaces the local selection.
-        upsertDraftAttachment(sessionId, {
+        // Step 3: resolved contract replaces the local selection. Update-only:
+        // a removal during resolution invalidates this late completion.
+        const applied = updateDraftAttachment(sessionId, {
           ...draft,
           state: 'ready',
           resolved: {
@@ -155,15 +163,20 @@ export function useStyleChatAttachments(sessionId: string) {
           },
           selection: { ...remoteSelection, lastErrorCode: null, updatedAt: now() },
         });
-        void recordAiStylistEvent({
-          eventType: 'stylechat_item_attached',
-          signalKey: `${current.sourceType}:${current.sourceId}`,
-          payload: { category: current.category ?? null },
-        });
+        // Only record the "attached" signal when the attachment actually landed
+        // in the live composer (not when it was removed mid-resolution).
+        if (applied) {
+          void recordAiStylistEvent({
+            eventType: 'stylechat_item_attached',
+            signalKey: `${current.sourceType}:${current.sourceId}`,
+            payload: { category: current.category ?? null },
+          });
+        }
       } catch {
         // Failure preserves the local selection for retry; never invents ids,
-        // never silently removes, never sends local ids.
-        upsertDraftAttachment(sessionId, {
+        // never silently removes, never sends local ids. Update-only: a removal
+        // during resolution is not resurrected as a ghost failed attachment.
+        updateDraftAttachment(sessionId, {
           ...draft,
           state: 'failed_retryable',
           selection: {
@@ -328,11 +341,18 @@ export function useStyleChatAttachments(sessionId: string) {
           remoteSourceId: savedScanId,
           updatedAt: now(),
         };
-        upsertDraftAttachment(sessionId, {
-          ...draft,
-          state: 'uploading_media',
-          selection: retrySelection,
-        });
+        // Update-only: if the attachment was removed between the failed state
+        // and this retry tap, do not resurrect it — release the guard and stop.
+        if (
+          !updateDraftAttachment(sessionId, {
+            ...draft,
+            state: 'uploading_media',
+            selection: retrySelection,
+          })
+        ) {
+          resolvingDraftIds.delete(draft.draftId);
+          return;
+        }
         void (async () => {
           try {
             const media = await ensureSavedScanMediaBacking({
@@ -341,7 +361,7 @@ export function useStyleChatAttachments(sessionId: string) {
             });
             if (!media.ok && media.retryable) throw new Error('media');
             if (!media.ok) {
-              upsertDraftAttachment(sessionId, {
+              updateDraftAttachment(sessionId, {
                 ...draft,
                 state: 'rejected',
                 selection: {
@@ -352,7 +372,7 @@ export function useStyleChatAttachments(sessionId: string) {
               });
               return;
             }
-            upsertDraftAttachment(sessionId, {
+            updateDraftAttachment(sessionId, {
               ...draft,
               state: 'ready',
               resolved: {
@@ -368,7 +388,7 @@ export function useStyleChatAttachments(sessionId: string) {
               },
             });
           } catch {
-            upsertDraftAttachment(sessionId, {
+            updateDraftAttachment(sessionId, {
               ...draft,
               state: 'failed_retryable',
               selection: {

@@ -92,6 +92,28 @@ export function upsertDraftAttachment(sessionId: string, attachment: DraftAttach
   notify();
 }
 
+/**
+ * Update-only saga transition: applies a new draft snapshot ONLY if the draftId
+ * still exists in the session. A removed (or session-cleared) draft is NEVER
+ * resurrected — a late resolution/upload/finalization completion that lands
+ * after the user removed the attachment (or after the send cleared the draft)
+ * becomes a no-op rather than a "ghost" attachment reappearing. Returns true
+ * when the transition was applied.
+ *
+ * The resolution saga owns per-draftId serialization (one operation at a time),
+ * and removal deletes the draftId while re-adding mints a fresh draftId, so an
+ * obsolete operation can never overwrite the current state through this path.
+ */
+export function updateDraftAttachment(sessionId: string, attachment: DraftAttachment): boolean {
+  const draft = drafts.get(sessionId);
+  if (!draft) return false;
+  const index = draft.attachments.findIndex((entry) => entry.draftId === attachment.draftId);
+  if (index < 0) return false;
+  draft.attachments[index] = attachment;
+  notify();
+  return true;
+}
+
 export function removeDraftAttachment(sessionId: string, draftId: string): void {
   const draft = drafts.get(sessionId);
   if (!draft) return;
@@ -123,6 +145,18 @@ export function snapshotReadyAttachments(sessionId: string): {
     references: ready.map((entry) => JSON.parse(JSON.stringify(entry.resolved)) as StyleChatAttachment),
     drafts: ready.map((entry) => JSON.parse(JSON.stringify(entry)) as DraftAttachment),
   };
+}
+
+/**
+ * Full store reset for actor changes (sign-out / a different account signing
+ * in). Composer drafts hold this device's local image URIs and selection
+ * metadata; they must never survive across users. Also drops any un-consumed
+ * entry handoff so it cannot leak into the next account's composer.
+ */
+export function resetAttachmentStore(): void {
+  drafts.clear();
+  pendingHandoff = null;
+  notify();
 }
 
 // ── One-time entry handoff ────────────────────────────────────────────────────
