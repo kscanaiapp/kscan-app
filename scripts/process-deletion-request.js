@@ -22,6 +22,15 @@ const USER_DATA_RESOURCES = [
   { table: 'room_shares', column: 'owner_id', action: 'auth_delete_cascade' },
   { table: 'looks', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'look_items', column: null, action: 'parent_look_cascade', count: false },
+  // Outfit decisions (AI Stylist expansion): groups live under the dressing
+  // room boundary; a deleted creator only nullifies created_by. Votes cast by
+  // the deleted user in OTHER users' rooms are removed by the user_id cascade.
+  { table: 'outfit_decision_groups', column: 'created_by', action: 'auth_delete_set_null', optional: true },
+  { table: 'outfit_decision_options', column: null, action: 'parent_room_cascade', count: false, optional: true },
+  { table: 'outfit_decision_option_items', column: null, action: 'parent_room_cascade', count: false, optional: true },
+  { table: 'outfit_decision_votes', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'style_outfit_daily_usage', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'style_outfit_burst_usage', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'inspiration_items', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_sessions', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_messages', column: 'user_id', action: 'auth_delete_cascade' },
