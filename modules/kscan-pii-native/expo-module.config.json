@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["KScanPiiNativeModule"],
+    "podspec": "ios/KScanPiiNative.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.kscanpiinative.KScanPiiNativeModule"]
+  }
+}
