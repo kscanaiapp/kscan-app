@@ -14,6 +14,10 @@ import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
+import {
+  STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+  type StyleChatAttachment,
+} from '../../../types/styleChatAttachments';
 
 const EDGE_FN      = 'stylechat-generate';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
@@ -23,7 +27,25 @@ const TIMEOUT_MS   = 20_000;
 
 // ── Response contract ─────────────────────────────────────────────────────────
 
-export type EdgeChatStatus = 'success' | 'limit_reached' | 'burst_limit' | 'error';
+export type EdgeChatStatus =
+  | 'success'
+  | 'limit_reached'
+  | 'burst_limit'
+  | 'error'
+  // Phase 2: the deployed backend did not acknowledge the v2 attachment
+  // contract (or rejected the attachments). The caller must preserve the
+  // draft (text + attachments) and must NOT display an attachment-blind reply
+  // as though the model saw the attachments.
+  | 'attachments_unsupported'
+  | 'attachments_rejected';
+
+/** Validated structured action passed through from the v2 backend. */
+export interface EdgeChatAction {
+  type: string;
+  label: string;
+  contractVersion: string;
+  payload: Record<string, unknown>;
+}
 
 export interface EdgeChatMessage {
   sender: 'assistant' | 'system';
@@ -45,6 +67,10 @@ export interface EdgeChatResult {
   status: EdgeChatStatus;
   message: EdgeChatMessage;
   usage: EdgeChatUsage;
+  /** v2 only: validated structured actions (allowlisted server-side). */
+  actions?: EdgeChatAction[];
+  /** v2 only: safe error code for attachment failures. */
+  errorCode?: string;
 }
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
@@ -155,9 +181,13 @@ export class EdgeStyleChatProvider {
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
     activeContext?: StyleChatHandoffContext | null;
+    /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
+    attachments?: StyleChatAttachment[] | null;
+    contextHint?: string | null;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), TIMEOUT_MS);
+    const hasAttachments = Array.isArray(input.attachments) && input.attachments.length > 0;
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
@@ -178,6 +208,15 @@ export class EdgeStyleChatProvider {
           // Additive/optional active scan/upload/TextScan context. Sent while the user
           // has a visible context card in StyleChat. Requests without it stay valid.
           ...(input.activeContext ? { activeContext: input.activeContext } : {}),
+          // v2 Closet attachments: contractVersion is sent ONLY with attachments so
+          // attachment-free requests remain exact v1 shapes.
+          ...(hasAttachments
+            ? {
+                attachments: input.attachments,
+                contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+                ...(input.contextHint ? { contextHint: input.contextHint } : {}),
+              }
+            : {}),
         },
         signal: ac.signal,
       });
@@ -194,6 +233,20 @@ export class EdgeStyleChatProvider {
               const status = normalizeStatus(body.status);
               const bodyMessage = isRecord(body.message) ? body.message : {};
               const bodyContent = typeof bodyMessage.content === 'string' ? bodyMessage.content : '';
+              // v2: safe structured attachment failures (400/403/404 with errorCode).
+              if (hasAttachments && typeof body.errorCode === 'string' && body.errorCode.length > 0) {
+                return {
+                  status: 'attachments_rejected',
+                  errorCode: body.errorCode,
+                  message: {
+                    sender: 'assistant',
+                    content: '',
+                    model: '',
+                    tokenEstimate: 0,
+                  },
+                  usage: DEFAULT_USAGE,
+                };
+              }
               if (status === 'burst_limit') {
                 return burstLimitResult(bodyContent || STYLE_CHAT_COPY.burstLimitNotice, body.usage);
               }
@@ -209,6 +262,16 @@ export class EdgeStyleChatProvider {
           }
         }
         if (__DEV__) console.warn('[EdgeStyleChatProvider] invoke error:', (error as Error).message);
+        // Attachment-bearing sends must never degrade into an attachment-blind
+        // answer: function-unavailable / 404 / 503 / network failures become an
+        // explicit unsupported result so the caller preserves the draft.
+        if (hasAttachments) {
+          return {
+            status: 'attachments_unsupported',
+            message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+            usage: DEFAULT_USAGE,
+          };
+        }
         return fallbackResult({ content: getFriendlyStyleChatError(error) });
       }
 
@@ -246,17 +309,59 @@ export class EdgeStyleChatProvider {
       }
       const message = normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric);
 
+      // v2 capability detection: when attachments were sent, the backend must
+      // acknowledge the contract. An older deployed function silently ignores
+      // unknown fields and answers attachment-blind — that reply must NOT be
+      // shown as attachment-aware.
+      if (hasAttachments) {
+        const raw = data as unknown as Record<string, unknown>;
+        if (raw.contractVersion !== STYLECHAT_ATTACHMENT_CONTRACT_VERSION) {
+          if (__DEV__) console.warn('[EdgeStyleChatProvider] backend lacks attachment capability');
+          return {
+            status: 'attachments_unsupported',
+            message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+            usage: normalizeUsage(data.usage),
+          };
+        }
+      }
+
+      // v2 actions: pass through only well-shaped entries (server validated).
+      const rawActions = (data as unknown as Record<string, unknown>).actions;
+      const actions: EdgeChatAction[] = Array.isArray(rawActions)
+        ? rawActions
+            .filter(
+              (entry): entry is Record<string, unknown> =>
+                isRecord(entry) && typeof entry.type === 'string' && typeof entry.label === 'string',
+            )
+            .map((entry) => ({
+              type: String(entry.type),
+              label: String(entry.label),
+              contractVersion: typeof entry.contractVersion === 'string' ? entry.contractVersion : '2',
+              payload: isRecord(entry.payload) ? entry.payload : {},
+            }))
+        : [];
+
       // Validate and pass through the typed response.
       return {
         status,
         message,
         usage: normalizeUsage(data.usage),
+        ...(actions.length > 0 ? { actions } : {}),
       };
 
     } catch (err: unknown) {
       const isAbort = (err as { name?: string })?.name === 'AbortError';
       if (__DEV__) {
         console.warn('[EdgeStyleChatProvider]', isAbort ? 'request timed out' : (err as Error)?.message);
+      }
+      if (hasAttachments) {
+        // Timeout/network with attachments: preserve the draft, never pretend
+        // the model saw the attachments.
+        return {
+          status: 'attachments_unsupported',
+          message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+          usage: DEFAULT_USAGE,
+        };
       }
       return fallbackResult({ content: getFriendlyStyleChatError(err) });
     } finally {

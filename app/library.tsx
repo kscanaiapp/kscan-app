@@ -39,8 +39,10 @@ import {
 } from '../components/luxury';
 import { LUXURY, SPACING } from '../constants/theme';
 import { FREE_TIER_UTILITY_ENABLED } from '../constants/freeTierUtilityFlags';
-import { AI_STYLIST_UI_ENABLED } from '../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
+import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
+import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -446,6 +448,30 @@ export default function LibraryScreen() {
           onAddToDressingRoom={
             dressingRoomsEnabled && selectedScan.imageUri
               ? () => setDressingRoomModalVisible(true)
+              : undefined
+          }
+          onAskStyleChat={
+            aiStylistEnabled && STYLECHAT_ATTACHMENTS_ENABLED
+              ? () => {
+                  // One-time handoff into the unsent StyleChat draft (never
+                  // auto-sends). Local-only scans run the full resolution
+                  // saga (row + private media) inside the composer.
+                  const item = normalizeLocalSavedScan(selectedScan as never);
+                  setAttachmentHandoff({
+                    resolved: null,
+                    ownedItem: item,
+                    localScan: selectedScan,
+                    summary: {
+                      title: item.title,
+                      subtitle: item.category ?? null,
+                      imageUri: item.imageUri ?? null,
+                      itemCount: 1,
+                    },
+                    createdAt: new Date().toISOString(),
+                  });
+                  handleCloseScan();
+                  router.push('/style-chat');
+                }
               : undefined
           }
         />

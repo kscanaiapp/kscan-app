@@ -37,7 +37,9 @@ import {
   SecondaryButton,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
-import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import { setAttachmentHandoff } from '../../services/style-chat/styleChatAttachmentStore';
+import { STYLECHAT_ATTACHMENT_CONTRACT_VERSION } from '../../types/styleChatAttachments';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useOwnedClosetItems } from '../../hooks/useOwnedClosetItems';
 import {
@@ -564,6 +566,41 @@ function StylistContent() {
                   <Text style={styles.whyText}>{suggestion.reason}</Text>
                 </View>
                 <View style={styles.resultActions}>
+                  {STYLECHAT_ATTACHMENTS_ENABLED ? (
+                    <SecondaryButton
+                      title="Ask About This Outfit"
+                      onPress={() => {
+                        // Outfit-draft attachment from validated suggestion
+                        // refs — no Look save required, never auto-sends.
+                        setAttachmentHandoff({
+                          resolved: {
+                            attachmentType: 'outfit_draft',
+                            itemRefs: suggestion.itemRefs.map((ref) => ({
+                              sourceType: ref.sourceType,
+                              sourceId: ref.sourceId,
+                              role: ref.role,
+                              position: ref.position,
+                            })),
+                            variation: suggestion.variation,
+                            reason: suggestion.reason.slice(0, 240),
+                            contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+                          },
+                          summary: {
+                            title: `${VARIATION_LABELS[suggestion.variation] ?? 'Styled'} outfit`,
+                            subtitle: null,
+                            imageUri: itemByKey.get(
+                              `${suggestion.itemRefs[0]?.sourceType}:${suggestion.itemRefs[0]?.sourceId}`,
+                            )?.imageUri ?? null,
+                            itemCount: suggestion.itemRefs.length,
+                          },
+                          createdAt: new Date().toISOString(),
+                        });
+                        router.push('/style-chat');
+                      }}
+                      accessibilityLabel="Ask StyleChat about this outfit"
+                      testID="ask-about-outfit-button"
+                    />
+                  ) : null}
                   <SecondaryButton
                     title="Not for Me"
                     onPress={() => setRejectTarget({ suggestion })}

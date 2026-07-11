@@ -12,6 +12,25 @@ import type { WeatherLocationInput } from '../constants/weatherStyling';
 import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
+import {
+  buildAttachmentUiBlock,
+  type DraftAttachment,
+  type StyleChatAttachment,
+} from '../types/styleChatAttachments';
+
+export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
+  "Closet-aware StyleChat isn't available yet. Your attachments are still here.";
+export const STYLECHAT_ATTACHMENTS_REJECTED_COPY =
+  "One of your attachments couldn't be verified. Remove it and try again.";
+
+export type SendAttachmentsInput = {
+  /** Immutable snapshot captured at send time (ready resolved refs only). */
+  references: StyleChatAttachment[];
+  drafts: DraftAttachment[];
+  contextHint?: string | null;
+  /** Called only after a successful attachment-aware send. */
+  onSent?: () => void;
+};
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
 // MockStyleChatProvider remains available in edgeStyleChatProvider's fallback chain.
@@ -35,7 +54,14 @@ export interface UseStyleChatReturn {
   messagesUsed: number;
   messagesLimit: number;
   canSend: boolean;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (
+    text: string,
+    options?: {
+      skipUserPersistence?: boolean;
+      existingUserMessageId?: string | null;
+      attachments?: SendAttachmentsInput | null;
+    },
+  ) => Promise<void>;
   retryLastMessage: () => void;
   clearError: () => void;
 }
@@ -135,6 +161,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       options?: {
         skipUserPersistence?: boolean;
         existingUserMessageId?: string | null;
+        /** v2 (Closet Intelligence): ready resolved attachments for this send. */
+        attachments?: SendAttachmentsInput | null;
       },
     ) => {
       const trimmed = text.trim();
@@ -151,7 +179,20 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       isSendingRef.current = true;
       failedSendRef.current = null;
 
+      // Attachment-bearing sends defer user-message persistence until the
+      // backend acknowledges the v2 contract: an unsupported/rejected outcome
+      // must leave the composer draft (text + attachments) fully intact and
+      // must never present an attachment-blind reply as attachment-aware.
+      const sendAttachments = options?.attachments ?? null;
+      const hasAttachments = !!sendAttachments && sendAttachments.references.length > 0;
+      const attachmentUiBlocks: StyleChatUiBlock[] = hasAttachments
+        ? [buildAttachmentUiBlock(sendAttachments.drafts) as unknown as StyleChatUiBlock]
+        : [];
+
       const skipUserPersistence = options?.skipUserPersistence === true;
+      // Attachment sends defer persistence until backend v2 acknowledgement,
+      // but still render an optimistic bubble.
+      const deferUserPersistence = skipUserPersistence || hasAttachments;
       let persistedUserMessageId = options?.existingUserMessageId ?? null;
 
       // 1. Optimistic user bubble
@@ -166,7 +207,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             referencedSavedItemIds: [],
             referencedDressingRoomIds: [],
             referencedCatalogItems: [],
-            uiBlocks: [],
+            uiBlocks: attachmentUiBlocks,
             provider: 'client',
             tokenEstimate: 0,
             createdAt: new Date().toISOString(),
@@ -180,7 +221,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
 
       try {
         // 2. Persist user message; replace optimistic entry with real row.
-        if (!skipUserPersistence) {
+        //    (Attachment sends persist AFTER the backend acknowledges v2.)
+        if (!deferUserPersistence) {
           const savedUser = await saveStyleChatMessage({
             sessionId,
             sender: 'user',
@@ -210,7 +252,34 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         // Active scan/upload/TextScan context is held in a ref so it is included on
         // every send while the context card is visible, without recreating sendMessage.
         const activeContext = activeContextRef.current ?? null;
-        const result = await provider.generateReply({ sessionId, message: trimmed, weatherLocation, styleDnaContext, activeContext });
+        const result = await provider.generateReply({
+          sessionId,
+          message: trimmed,
+          weatherLocation,
+          styleDnaContext,
+          activeContext,
+          ...(hasAttachments
+            ? {
+                attachments: sendAttachments!.references,
+                contextHint: sendAttachments!.contextHint ?? null,
+              }
+            : {}),
+        });
+
+        // v2 capability outcomes: preserve the composer draft (text stays in
+        // the composer because nothing was persisted) and never show an
+        // attachment-blind reply as attachment-aware.
+        if (result.status === 'attachments_unsupported' || result.status === 'attachments_rejected') {
+          setMessages(prev =>
+            prev.filter(m => m.id !== optimisticUser?.id && !m.id.startsWith('optimistic-assistant-')),
+          );
+          setError(
+            result.status === 'attachments_rejected'
+              ? STYLECHAT_ATTACHMENTS_REJECTED_COPY
+              : STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY,
+          );
+          return;
+        }
 
         if (result.status === 'burst_limit') {
           // Burst limit: transient per-minute cap. Do not persist, do not update daily usage.
@@ -245,7 +314,25 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           return;
         }
 
-        // 4. success — optimistic assistant bubble, then persist.
+        // 4. success — persist the deferred attachment-bearing user message
+        //    now that the backend acknowledged the v2 contract. Bounded
+        //    attachment summaries persist in the existing ui_blocks column
+        //    (stable references + display fields only; never image bytes).
+        if (hasAttachments) {
+          const savedUser = await saveStyleChatMessage({
+            sessionId,
+            sender: 'user',
+            content: trimmed,
+            uiBlocks: attachmentUiBlocks,
+          });
+          persistedUserMessageId = savedUser.id;
+          setMessages(prev =>
+            prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
+          );
+          sendAttachments?.onSent?.();
+        }
+
+        // optimistic assistant bubble, then persist.
         const assistantContent = result.message.content.trim() || STYLE_CHAT_COPY.errorGeneric;
 
         // Optional "Why this works" explanation for concrete recommendations. Stored in
@@ -255,6 +342,15 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           ENABLE_STYLECHAT_EXPLANATIONS && result.message.whyThisWorks
             ? [{ type: 'why_this_works', title: 'Why this works', body: result.message.whyThisWorks }]
             : [];
+
+        // v2 validated structured actions persist alongside the assistant
+        // message (app-controlled rendering; never raw JSON in the bubble).
+        if (Array.isArray(result.actions) && result.actions.length > 0) {
+          explanationBlocks.push({
+            type: 'stylechat_actions',
+            actions: result.actions,
+          } as unknown as StyleChatUiBlock);
+        }
 
         const optimisticAssistant: StyleChatMessage = {
           id: `optimistic-assistant-${Date.now()}`,

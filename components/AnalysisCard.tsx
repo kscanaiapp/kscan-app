@@ -62,6 +62,9 @@ export interface AnalysisCardProps {
   relatedSavedScans?: unknown[];
   onDismiss: () => void;
   onAddToDressingRoom?: () => void;
+  // Phase 2 (additive, optional): Ask StyleChat about this saved item.
+  // Undefined leaves rendering and behavior unchanged.
+  onAskStyleChat?: () => void;
 }
 
 function sanitizeText(value?: string) {
@@ -81,6 +84,7 @@ export function AnalysisCard({
   relatedSavedScans,
   onDismiss,
   onAddToDressingRoom,
+  onAskStyleChat,
 }: AnalysisCardProps) {
   const insets = useSafeAreaInsets();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
@@ -247,6 +251,19 @@ export function AnalysisCard({
                   accessibilityLabel="Add this scan to a Dressing Room"
                 >
                   <Text style={styles.scanRoomCtaText}>Add Scan to Dressing Room</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {onAskStyleChat ? (
+                <TouchableOpacity
+                  style={styles.scanRoomCta}
+                  onPress={onAskStyleChat}
+                  activeOpacity={0.86}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ask StyleChat about this item"
+                  testID="ask-stylechat-item"
+                >
+                  <Text style={styles.scanRoomCtaText}>Ask StyleChat</Text>
                 </TouchableOpacity>
               ) : null}
 

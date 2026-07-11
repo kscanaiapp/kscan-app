@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
+import { StyleChatActionCards } from './StyleChatActionCards';
 import { useStyleDnaFeedback } from '../../hooks/useStyleDnaFeedback';
 import { StyleChatReasonChips } from './StyleChatReasonChips';
 import {
@@ -242,11 +243,41 @@ export function StyleChatBubble({
             })}
           </View>
         )}
+        {/* Phase 2: bounded attachment summaries on user messages. */}
+        {isUser
+          ? uiBlocks
+              .filter((block) => block?.type === 'stylechat_attachments')
+              .map((block, i) => (
+                <View key={`att-${i}`} style={styles.attachmentSummaryWrap}>
+                  {(Array.isArray((block as { items?: unknown }).items)
+                    ? ((block as unknown as { items: Array<Record<string, unknown>> }).items)
+                    : []
+                  ).map((item, j) => (
+                    <View key={j} style={styles.attachmentSummaryChip}>
+                      <Text style={styles.attachmentSummaryText} numberOfLines={1}>
+                        {String(item.title ?? 'Attachment')}
+                        {typeof item.itemCount === 'number' && item.itemCount > 1
+                          ? ` · ${item.itemCount} items`
+                          : ''}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))
+          : null}
         {!isUser && uiBlocks.length > 0 ? (
           <View style={styles.uiBlocks}>
-            {uiBlocks.map((block, i) => (
-              <StyleChatUiBlockView key={i} block={block} />
-            ))}
+            {uiBlocks.map((block, i) => {
+              // Phase 2: validated structured actions render as app-controlled
+              // action cards, never as raw JSON or generic blocks.
+              if (block?.type === 'stylechat_actions') {
+                const actions = Array.isArray((block as { actions?: unknown }).actions)
+                  ? ((block as unknown as { actions: never[] }).actions)
+                  : [];
+                return <StyleChatActionCards key={`actions-${i}`} actions={actions} />;
+              }
+              return <StyleChatUiBlockView key={i} block={block} />;
+            })}
           </View>
         ) : null}
         {showFeedback ? (
@@ -381,6 +412,25 @@ const styles = StyleSheet.create({
   uiBlocks: {
     marginTop: SPACING.sm,
     minWidth: 0,
+  },
+  attachmentSummaryWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+    marginTop: SPACING.xs,
+  },
+  attachmentSummaryChip: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    maxWidth: 200,
+  },
+  attachmentSummaryText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.inverse,
+    fontSize: 11,
   },
   feedbackRow: {
     marginTop: SPACING.sm,

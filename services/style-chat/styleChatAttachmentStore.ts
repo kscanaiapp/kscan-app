@@ -1,0 +1,142 @@
+// StyleChat attachment draft store (Phase 2 — Closet Intelligence).
+//
+// In-memory module store following the styleChatHandoffContext pattern (no new
+// dependency). Two responsibilities:
+//
+//   1. Per-session composer drafts (attachments + preserved typed text) that
+//      survive navigation, scanner round-trips, screen remounts, orientation
+//      changes, and brief backgrounding. Cleared only by explicit user discard
+//      or successful send. (Full app-restart persistence is deferred — P2.)
+//   2. A one-time entry handoff so Closet / Look Detail / Stylist entry points
+//      can preload an attachment into the StyleChat composer without
+//      auto-sending and without touching older sent messages.
+//
+// The selection layer here may hold local ids/URIs; ONLY resolved contracts
+// (state === 'ready') ever leave through snapshotReadyAttachments, which
+// returns an immutable copy bound to one outgoing message operation.
+
+import type {
+  DraftAttachment,
+  StyleChatAttachment,
+  StyleChatAttachmentSummary,
+} from '../../types/styleChatAttachments';
+
+type SessionDraft = {
+  attachments: DraftAttachment[];
+  /** Preserved composer text across remounts/round-trips. */
+  composerText: string;
+};
+
+type PendingAttachmentHandoff = {
+  resolved?: StyleChatAttachment | null;
+  /** For local-only items that still need the resolution saga. */
+  localScanId?: string | null;
+  localImageUri?: string | null;
+  /** Owned item + local scan passed through so the composer can resolve. */
+  ownedItem?: unknown | null;
+  localScan?: unknown | null;
+  summary: StyleChatAttachmentSummary;
+  createdAt: string;
+};
+
+const drafts = new Map<string, SessionDraft>();
+let pendingHandoff: PendingAttachmentHandoff | null = null;
+const listeners = new Set<() => void>();
+
+function notify() {
+  for (const listener of [...listeners]) {
+    try {
+      listener();
+    } catch {
+      // Listener failures never corrupt the store.
+    }
+  }
+}
+
+export function subscribeToAttachmentDrafts(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getOrCreateDraft(sessionId: string): SessionDraft {
+  let draft = drafts.get(sessionId);
+  if (!draft) {
+    draft = { attachments: [], composerText: '' };
+    drafts.set(sessionId, draft);
+  }
+  return draft;
+}
+
+export function getDraftAttachments(sessionId: string): DraftAttachment[] {
+  return drafts.get(sessionId)?.attachments ?? [];
+}
+
+export function getDraftComposerText(sessionId: string): string {
+  return drafts.get(sessionId)?.composerText ?? '';
+}
+
+export function setDraftComposerText(sessionId: string, text: string): void {
+  getOrCreateDraft(sessionId).composerText = text;
+  // Text changes don't need re-render fan-out; the composer owns its state and
+  // this store is its recovery source after remount.
+}
+
+export function upsertDraftAttachment(sessionId: string, attachment: DraftAttachment): void {
+  const draft = getOrCreateDraft(sessionId);
+  const index = draft.attachments.findIndex((entry) => entry.draftId === attachment.draftId);
+  if (index >= 0) {
+    draft.attachments[index] = attachment;
+  } else {
+    draft.attachments.push(attachment);
+  }
+  notify();
+}
+
+export function removeDraftAttachment(sessionId: string, draftId: string): void {
+  const draft = drafts.get(sessionId);
+  if (!draft) return;
+  draft.attachments = draft.attachments.filter((entry) => entry.draftId !== draftId);
+  notify();
+}
+
+/** Explicit discard or successful send: clears attachments (and optionally text). */
+export function clearDraftAttachments(sessionId: string, options?: { keepText?: boolean }): void {
+  const draft = drafts.get(sessionId);
+  if (!draft) return;
+  draft.attachments = [];
+  if (!options?.keepText) draft.composerText = '';
+  notify();
+}
+
+/**
+ * Immutable snapshot of READY attachments for one outgoing message operation.
+ * Later draft mutations can never touch an in-flight request.
+ */
+export function snapshotReadyAttachments(sessionId: string): {
+  references: StyleChatAttachment[];
+  drafts: DraftAttachment[];
+} {
+  const ready = getDraftAttachments(sessionId).filter(
+    (entry) => entry.state === 'ready' && entry.resolved,
+  );
+  return {
+    references: ready.map((entry) => JSON.parse(JSON.stringify(entry.resolved)) as StyleChatAttachment),
+    drafts: ready.map((entry) => JSON.parse(JSON.stringify(entry)) as DraftAttachment),
+  };
+}
+
+// ── One-time entry handoff ────────────────────────────────────────────────────
+
+export function setAttachmentHandoff(handoff: PendingAttachmentHandoff): void {
+  pendingHandoff = handoff;
+}
+
+export function consumeAttachmentHandoff(): PendingAttachmentHandoff | null {
+  const handoff = pendingHandoff;
+  pendingHandoff = null;
+  return handoff;
+}
+
+export function peekAttachmentHandoff(): PendingAttachmentHandoff | null {
+  return pendingHandoff;
+}

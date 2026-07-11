@@ -134,9 +134,12 @@ function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value.trim());
 }
 
-export type AttachmentValidationResult =
-  | { ok: true; resolvedItemCount: number }
-  | { ok: false; errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' | 'ATTACHMENT_INVALID' | 'ATTACHMENT_AMBIGUOUS'; message: string };
+export type AttachmentValidationResult = {
+  ok: boolean;
+  resolvedItemCount?: number;
+  errorCode?: 'ATTACHMENT_LIMIT_EXCEEDED' | 'ATTACHMENT_INVALID' | 'ATTACHMENT_AMBIGUOUS';
+  message?: string;
+};
 
 /**
  * Validates a proposed attachment combination against the Part 2 limits.

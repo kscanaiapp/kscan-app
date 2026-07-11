@@ -32,6 +32,13 @@ export const AI_STYLIST_EVENT_TYPES = [
   'owner_overrode_vote_leader',
   'owner_wearing_confirmed',
   'ai_look_edited',
+  // Phase 2 — StyleChat Closet Intelligence (bounded; a question never
+  // becomes a permanent preference):
+  'stylechat_item_attached',
+  'stylechat_look_attached',
+  'stylechat_outfit_attached',
+  'stylechat_stylist_action_opened',
+  'stylechat_image_saved_and_attached',
 ] as const;
 export type AiStylistEventType = (typeof AI_STYLIST_EVENT_TYPES)[number];
 
@@ -66,6 +73,13 @@ const EVENT_CONFIDENCE: Record<AiStylistEventType, number> = {
   ai_suggestion_shared: 0.4,
   ai_suggestion_viewed: 0.2,
   room_option_voted: 0.25,
+  // Conversational signals stay low-confidence: attaching or asking is
+  // curiosity, not preference.
+  stylechat_item_attached: 0.2,
+  stylechat_look_attached: 0.2,
+  stylechat_outfit_attached: 0.2,
+  stylechat_stylist_action_opened: 0.3,
+  stylechat_image_saved_and_attached: 0.35,
 };
 
 type BoundedPayload = Record<string, string | number | boolean | string[] | null>;

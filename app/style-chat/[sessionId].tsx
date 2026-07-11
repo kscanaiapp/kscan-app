@@ -44,9 +44,12 @@ import {
 } from '../../services/style-dna/localStyleDnaProfile';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
-import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
+import { StyleChatAttachmentBar } from '../../components/style-chat/StyleChatAttachmentBar';
+import { StyleChatPhotoIntake } from '../../components/style-chat/StyleChatPhotoIntake';
+import { useStyleChatAttachments } from '../../hooks/useStyleChatAttachments';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -291,6 +294,14 @@ export default function StyleChatSessionScreen() {
   // preselect an occasion, and the raw hint lands in the optional note field.
   // No outfit generation happens inside the chat response.
   const { isFeatureEnabled: isStylistFeatureEnabled } = useFeatureFreeze();
+  // Phase 2 Closet attachments: subordinate capability under aiStylist.
+  // Disabled → controls hidden, v2 never sent, v1 StyleChat unchanged.
+  const attachmentsEnabled =
+    AI_STYLIST_UI_ENABLED &&
+    STYLECHAT_ATTACHMENTS_ENABLED &&
+    isStylistFeatureEnabled('aiStylist');
+  const chatAttachments = useStyleChatAttachments(sessionId ?? '');
+  const [photoIntakeVisible, setPhotoIntakeVisible] = useState(false);
   const latestUserMessage = [...messages].reverse().find((message) => message.sender === 'user');
   const showStyleMeForThis = Boolean(
     AI_STYLIST_UI_ENABLED &&
@@ -362,15 +373,58 @@ export default function StyleChatSessionScreen() {
       ) : null}
       {StyleMeForThisChip}
       {ErrorBanner}
+      {attachmentsEnabled ? (
+        <StyleChatAttachmentBar
+          attachments={chatAttachments.attachments}
+          onAddOwnedItem={(item) => chatAttachments.addOwnedItem(item)}
+          onAddLook={(look) => chatAttachments.addLook(look)}
+          onUploadPhoto={() => setPhotoIntakeVisible(true)}
+          onRemove={chatAttachments.removeAttachment}
+          onRetry={(draftId) => chatAttachments.retryAttachment(draftId, [])}
+          disabled={isSending}
+        />
+      ) : null}
       <View style={styles.composerWrap}>
         <StyleChatInput
           onSend={text => {
             weather.markStylingIntent();
+            if (attachmentsEnabled && chatAttachments.attachments.length > 0) {
+              // Send rule: attachment-bearing sends require every attachment
+              // ready; pending/failed chips block the send (remove to send
+              // text only). The snapshot is immutable for this operation.
+              if (!chatAttachments.canSendWithAttachments) return;
+              const snapshot = chatAttachments.snapshotForSend();
+              void sendMessage(text, {
+                attachments: {
+                  references: snapshot.references,
+                  drafts: snapshot.drafts,
+                  onSent: () => chatAttachments.clearAttachments({ keepText: true }),
+                },
+              });
+              return;
+            }
             void sendMessage(text);
           }}
-          disabled={!canSend}
+          disabled={
+            !canSend ||
+            (attachmentsEnabled &&
+              chatAttachments.attachments.length > 0 &&
+              !chatAttachments.canSendWithAttachments)
+          }
         />
       </View>
+      {attachmentsEnabled ? (
+        <StyleChatPhotoIntake
+          visible={photoIntakeVisible}
+          onClose={() => setPhotoIntakeVisible(false)}
+          onAttached={(resolved, summary) => {
+            const result = chatAttachments.addResolvedOwnedItem(resolved, summary);
+            if (!result.ok) {
+              Alert.alert('Attachment', result.message);
+            }
+          }}
+        />
+      ) : null}
     </>
   );
 

@@ -155,3 +155,14 @@ export const AI_STYLIST_UI_ENABLED =
  */
 export const AI_STYLIST_BACKEND_ENABLED =
   process.env.EXPO_PUBLIC_AI_STYLIST_BACKEND_ENABLED === 'true';
+
+/**
+ * Subordinate capability boundary for StyleChat Closet attachments (Phase 2).
+ * Independent rollout is materially necessary here: the aiStylist UI family
+ * can be enabled while the v2-capable stylechat-generate deployment is not
+ * yet live. Requires aiStylist; default false. When disabled, attachment
+ * controls are hidden and v2 requests are never sent — v1 StyleChat is
+ * unchanged.
+ */
+export const STYLECHAT_ATTACHMENTS_ENABLED =
+  process.env.EXPO_PUBLIC_STYLECHAT_ATTACHMENTS_ENABLED === 'true';

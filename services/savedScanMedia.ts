@@ -34,9 +34,13 @@ export const SAVED_SCAN_MEDIA_CONTENT_TYPE = 'image/jpeg';
 
 export type SavedScanMediaStatus = 'pending' | 'ready' | 'failed' | null;
 
-export type SavedScanMediaResult =
-  | { ok: true; bucket: string; path: string }
-  | { ok: false; errorCode: 'MEDIA_UPLOAD_FAILED' | 'MEDIA_FINALIZATION_FAILED' | 'IMAGE_REJECTED' | 'ATTACHMENT_NOT_OWNED'; retryable: boolean };
+export type SavedScanMediaResult = {
+  ok: boolean;
+  bucket?: string;
+  path?: string;
+  errorCode?: 'MEDIA_UPLOAD_FAILED' | 'MEDIA_FINALIZATION_FAILED' | 'IMAGE_REJECTED' | 'ATTACHMENT_NOT_OWNED';
+  retryable?: boolean;
+};
 
 /** Deterministic, user-scoped object path. Not user-controllable. */
 export function buildSavedScanMediaPath(userId: string, savedScanId: string): string {

@@ -29,7 +29,9 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
-import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import { setAttachmentHandoff } from '../../services/style-chat/styleChatAttachmentStore';
+import { STYLECHAT_ATTACHMENT_CONTRACT_VERSION } from '../../types/styleChatAttachments';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { deleteLook, getLookDetail, updateLook } from '../../services/styleObjects';
 import { AskMyRoomModal } from '../../components/looks/AskMyRoomModal';
@@ -246,6 +248,32 @@ function LookDetailContent() {
                 onPress={() => setAskingRoom(true)}
                 accessibilityLabel="Ask my room"
                 testID="ask-my-room-button"
+              />
+            ) : null}
+            {stylistEnabled && STYLECHAT_ATTACHMENTS_ENABLED && look ? (
+              <SecondaryButton
+                title="Ask StyleChat"
+                onPress={() => {
+                  // One-time handoff; preloads the unsent composer draft and
+                  // never auto-sends (Part 6 / Part 29).
+                  setAttachmentHandoff({
+                    resolved: {
+                      attachmentType: 'look',
+                      lookId: look.id,
+                      contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+                    },
+                    summary: {
+                      title: look.title,
+                      subtitle: look.occasion ?? null,
+                      imageUri: look.coverImageUrl ?? null,
+                      itemCount: items.length || 1,
+                    },
+                    createdAt: new Date().toISOString(),
+                  });
+                  router.push('/style-chat');
+                }}
+                accessibilityLabel="Ask StyleChat about this look"
+                testID="ask-stylechat-look"
               />
             ) : null}
             {stylistEnabled && isOwnedItemLook(look) ? (
