@@ -112,7 +112,7 @@
     },
     {
       "name": "https-uri",
-      "imageUri": "https://example.com/image.jpg",
+      "imageUri": "https://example.invalid/image.jpg",
       "errorCode": "UNSUPPORTED_SCHEME"
     },
     {
