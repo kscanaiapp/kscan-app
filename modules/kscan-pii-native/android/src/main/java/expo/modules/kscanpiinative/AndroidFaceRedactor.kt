@@ -78,12 +78,15 @@ object AndroidFaceRedactor {
         output.getPixels(outputPixels, 0, output.width, 0, 0, output.width, output.height)
         val pixelsChanged = !inputPixels.contentEquals(outputPixels)
 
-        val acceptedCount = regions.size
-        if (acceptedCount > 0 && !pixelsChanged) {
+        // An accepted region that was already fully opaque black is a valid
+        // masked state -- it must not fail just because its own bytes did
+        // not change. Only regions that actually needed a change
+        // (regionsChanged) are required to have produced a byte difference.
+        if (regionsChanged > 0 && !pixelsChanged) {
             output.recycle()
             return RedactionResult.Failure(
                 NativePrivacyErrorCode.MASKING_FAILED,
-                "Masking invariant violated: $acceptedCount regions were accepted but no pixels changed.",
+                "Masking invariant violated: $regionsChanged regions needed changes but no pixels changed.",
             )
         }
 

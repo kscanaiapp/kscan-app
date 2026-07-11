@@ -64,9 +64,12 @@ struct IOSFaceRedactor {
             return input != output
         }()
 
-        let acceptedCount = regions.count
-        if acceptedCount > 0 && !pixelsChanged {
-            return .failure(errorCode: .maskingFailed, reason: "Masking invariant violated: \(acceptedCount) regions were accepted but no pixels changed.")
+        // An accepted region that was already fully opaque black is a valid
+        // masked state -- it must not fail just because its own bytes did
+        // not change. Only regions that actually needed a change
+        // (regionsChanged) are required to have produced a byte difference.
+        if regionsChanged > 0 && !pixelsChanged {
+            return .failure(errorCode: .maskingFailed, reason: "Masking invariant violated: \(regionsChanged) regions needed changes but no pixels changed.")
         }
 
         let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
@@ -74,14 +77,14 @@ struct IOSFaceRedactor {
     }
 
     private static func isRegionAlreadyBlack(pixels: Data, width: Int, region: IOSNormalizedFaceBox) -> Bool {
+        let height = pixels.count / (width * 4)
         let x1 = max(0, region.x)
         let y1 = max(0, region.y)
         let x2 = min(width, region.x + region.width)
-        let y2 = min(width * 1000000, region.y + region.height) // height bound not needed, row stride is width
-        guard x2 > x1 else { return false }
+        let y2 = min(height, region.y + region.height)
+        guard x2 > x1, y2 > y1 else { return false }
 
-        for y in y1..<region.y + region.height {
-            guard y >= 0, y < pixels.count / (width * 4) else { continue }
+        for y in y1..<y2 {
             for x in x1..<x2 {
                 let idx = (y * width + x) * 4
                 let r = pixels[idx]

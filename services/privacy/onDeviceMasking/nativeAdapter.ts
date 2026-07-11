@@ -16,8 +16,12 @@ export function nativeResultToPrivacySanitizerResult(
     warnings.push(result.failureReason);
   }
 
+  // A region that was already fully redacted is a valid masked result even
+  // though pixelsChanged is false -- pixelsChanged must not be the gate.
+  // facesMasked > 0 with a real sanitizedUri is what actually indicates a
+  // successfully masked (newly or already) output.
   let mode: PrivacySanitizerResult['mode'] = 'passthrough';
-  if (result.status === 'success' && result.pixelsChanged && result.sanitizedUri) {
+  if (result.status === 'success' && !!result.sanitizedUri && result.facesMasked > 0) {
     mode = 'masked';
   }
 
@@ -42,5 +46,5 @@ export function nativeResultToPrivacySanitizerResult(
  */
 export function isNativeResultSafeForTransmission(result: NativeFaceMaskResult): boolean {
   if (result.status !== 'success') return false;
-  return result.pixelsChanged && !!result.sanitizedUri && result.facesMasked > 0;
+  return !!result.sanitizedUri && result.facesMasked > 0;
 }
