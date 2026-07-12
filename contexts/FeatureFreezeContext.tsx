@@ -41,20 +41,25 @@ export function FeatureFreezeProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     let mounted = true;
 
-    readCachedFeatureFreezeConfig()
-      .then((cached) => {
-        if (mounted && cached) {
-          setConfig(applyDevFeatureFreezeOverride(cached));
-        }
-      })
-      .finally(() => {
-        void refresh();
-      });
+    const initialize = async () => {
+      const cached = await readCachedFeatureFreezeConfig();
+      if (mounted && cached) {
+        setConfig(applyDevFeatureFreezeOverride(cached));
+      }
+
+      const result = await loadFeatureFreezeConfig();
+      if (mounted) {
+        setConfig(result.config);
+        setIsLoading(false);
+      }
+    };
+
+    void initialize();
 
     return () => {
       mounted = false;
     };
-  }, [refresh]);
+  }, []);
 
   const value = useMemo<FeatureFreezeContextValue>(() => {
     const isFrozen = config.featureFreeze;
