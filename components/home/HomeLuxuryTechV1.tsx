@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useStylePicks } from '../../hooks/useStylePicks';
+import { useStylistIdentity } from '../../hooks/useStylistIdentity';
+import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 import type { StylePick } from '../../types/stylePicks';
 import {
   LuxuryScreen,
@@ -27,6 +29,8 @@ import {
   SavedLookCard,
   StatusPill,
 } from '../../components/luxury';
+import { HomeStylistCard } from './HomeStylistCard';
+import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
 
@@ -54,9 +58,10 @@ interface FeatureChipProps {
   testID?: string;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  children?: React.ReactNode;
 }
 
-function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, accessibilityHint }: FeatureChipProps) {
+function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, accessibilityHint, children }: FeatureChipProps) {
   return (
     <Pressable
       testID={testID}
@@ -69,6 +74,7 @@ function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, a
       <Text style={styles.chipIcon}>{icon}</Text>
       <Text style={styles.chipTitle}>{title}</Text>
       <Text style={styles.chipBody}>{body}</Text>
+      {children}
     </Pressable>
   );
 }
@@ -110,20 +116,26 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
  * Matches the home-page-v1 mockup direction without fake commerce:
  * - Hero with "See it. Scan it. Style it." and fashion placeholder
  * - Start Scan primary CTA
- * - Real recent scans from useLibrary (or empty state)
- * - Style Picks editorial placeholder (no fake prices / retailers)
- * - Feature explanation row
- * - No bottom tab navigator
+ * - Unified "Your Stylist / Ask Elise" section
+ * - Feature grid with Recent Scans as the live-data tile
+ * - Full Recent Scans carousel below the grid
+ * - TextScan / Voice Scan secondary entries
+ * - Trust footer
  */
 export default function HomeLuxuryTechV1() {
   const { isAuthenticated, user, loading: authLoading } = useAuthSession();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { scans, loading: scansLoading } = useLibrary();
   const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
+  const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
+  const { sessions: styleChatSessions, loading: sessionsLoading } = useStyleChatSessions();
+
+  const [personalizeVisible, setPersonalizeVisible] = useState(false);
 
   const textScanEnabled =
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
+  const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
 
   const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
   const profileName =
@@ -132,10 +144,50 @@ export default function HomeLuxuryTechV1() {
 
   const recentScans = scans.slice(0, 4);
   const hasRecentScans = recentScans.length > 0;
-  const showRecentSection = scansLoading || hasRecentScans;
+  const latestScan = scans[0] ?? null;
 
   const showStylePicks = stylePicksStatus !== 'backend_not_connected' || picks.length > 0;
   const hasStylePicks = picks.length > 0;
+
+  const hasStyleChatSessions = styleChatSessions.length > 0;
+
+  const handleOpenStyleChat = useCallback(() => {
+    router.push('/style-chat');
+  }, []);
+
+  const handleStartConversation = useCallback(() => {
+    router.push('/style-chat');
+  }, []);
+
+  const handlePersonalize = useCallback(() => {
+    setPersonalizeVisible(true);
+  }, []);
+
+  const handleClosePersonalize = useCallback(() => {
+    setPersonalizeVisible(false);
+  }, []);
+
+  const handleSaveIdentity = useCallback(
+    async (next: { displayName?: string; avatarId?: string }) => {
+      await updateIdentity(next);
+      setPersonalizeVisible(false);
+    },
+    [updateIdentity],
+  );
+
+  const handleResetIdentity = useCallback(async () => {
+    await resetIdentity();
+    setPersonalizeVisible(false);
+  }, [resetIdentity]);
+
+  const recentScansTileImage = latestScan?.thumbnailUri ? (
+    <Image
+      source={{ uri: latestScan.thumbnailUri }}
+      style={styles.recentTileImage}
+      resizeMode="cover"
+      accessibilityLabel="Most recent scan preview"
+    />
+  ) : null;
 
   return (
     <LuxuryScreen
@@ -185,7 +237,7 @@ export default function HomeLuxuryTechV1() {
       <View style={styles.heroCard}>
         <View style={styles.heroText}>
           <Text style={styles.heroHeadline} accessibilityRole="header">
-            See it.{'\n'}Scan it.{' '}
+            See it.{ '\n'}Scan it.{' '}
             <Text style={styles.heroHeadlineGold}>Style it.</Text>
           </Text>
           <Text style={styles.heroBody}>
@@ -210,60 +262,16 @@ export default function HomeLuxuryTechV1() {
         </View>
       </View>
 
-      {/* Recent Scans */}
-      {showRecentSection && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <SectionHeader title="RECENT SCANS" style={styles.sectionHeaderTitle} />
-            {hasRecentScans && (
-              <Pressable
-                testID="home-luxury-view-all-scans"
-                onPress={() => router.push('/library')}
-                accessibilityRole="button"
-                style={styles.sectionHeaderAction}
-              >
-                <Text
-                  style={styles.viewAll}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  View all ›
-                </Text>
-              </Pressable>
-            )}
-          </View>
-
-          {scansLoading ? (
-            <View style={styles.recentPlaceholder}>
-              <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-            </View>
-          ) : hasRecentScans ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.recentScrollContent}
-            >
-              {recentScans.map((scan) => (
-                <SavedLookCard
-                  key={scan.id}
-                  testID={`home-luxury-recent-scan-${scan.id}`}
-                  imageUrl={scan.thumbnailUri}
-                  title={scan.attributes?.category || 'Scan'}
-                  subtitle={scan.result}
-                  tags={[
-                    scan.attributes?.color_palette,
-                    scan.attributes?.silhouette,
-                  ].filter(Boolean) as string[]}
-                  date={formatDateLabel(scan.createdAt)}
-                  status="Scan"
-                  onPress={() => router.push('/library')}
-                  accessibilityLabel={`Recent scan: ${scan.attributes?.category || 'Scan'}`}
-                  style={{ width: 160, marginRight: SPACING.md }}
-                />
-              ))}
-            </ScrollView>
-          ) : null}
-        </View>
+      {/* Your Stylist */}
+      {styleChatEnabled && (
+        <HomeStylistCard
+          identity={identity}
+          hasSessions={hasStyleChatSessions}
+          onStartConversation={handleStartConversation}
+          onOpenConversations={handleOpenStyleChat}
+          onPersonalize={handlePersonalize}
+          disabled={identityLoading}
+        />
       )}
 
       {/* Style Picks — hook-driven with backend-safe placeholder states */}
@@ -324,13 +332,15 @@ export default function HomeLuxuryTechV1() {
       <View style={styles.featuresRow}>
         <FeatureChip
           icon="✦"
-          title="ASK ELISE"
-          body="Ask Elise for styling help."
-          onPress={() => router.push('/style-chat')}
-          testID="home-luxury-feature-stylechat"
-          accessibilityLabel="Ask Elise"
-          accessibilityHint="Navigate to Elise, your AI-powered virtual stylist"
-        />
+          title="RECENT SCANS"
+          body={latestScan ? 'View your recently scanned items.' : 'No recent scans yet.'}
+          onPress={() => router.push('/library')}
+          testID="home-luxury-feature-recent-scans"
+          accessibilityLabel="Recent Scans"
+          accessibilityHint="Navigate to your scan history"
+        >
+          {recentScansTileImage}
+        </FeatureChip>
         <FeatureChip
           icon="◈"
           title="VISUAL SEARCH"
@@ -360,6 +370,67 @@ export default function HomeLuxuryTechV1() {
         />
       </View>
 
+      {/* Recent Scans carousel */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <SectionHeader title="RECENT SCANS" style={styles.sectionHeaderTitle} />
+          {hasRecentScans && (
+            <Pressable
+              testID="home-luxury-view-all-scans"
+              onPress={() => router.push('/library')}
+              accessibilityRole="button"
+              style={styles.sectionHeaderAction}
+            >
+              <Text
+                style={styles.viewAll}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                View all ›
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {scansLoading ? (
+          <View style={styles.recentPlaceholder}>
+            <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+          </View>
+        ) : hasRecentScans ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.recentScrollContent}
+          >
+            {recentScans.map((scan) => (
+              <SavedLookCard
+                key={scan.id}
+                testID={`home-luxury-recent-scan-${scan.id}`}
+                imageUrl={scan.thumbnailUri}
+                title={scan.attributes?.category || 'Scan'}
+                subtitle={scan.result}
+                tags={[
+                  scan.attributes?.color_palette,
+                  scan.attributes?.silhouette,
+                ].filter(Boolean) as string[]}
+                date={formatDateLabel(scan.createdAt)}
+                status="Scan"
+                onPress={() => router.push('/library')}
+                accessibilityLabel={`Recent scan: ${scan.attributes?.category || 'Scan'}`}
+                style={{ width: 160, marginRight: SPACING.md }}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.recentEmptyState}>
+            <Text style={styles.recentEmptyTitle}>No scans yet</Text>
+            <Text style={styles.recentEmptyBody}>
+              Tap START SCAN to add your first item.
+            </Text>
+          </View>
+        )}
+      </View>
+
       {/* Secondary entries: TextScan if enabled, VoiceScan placeholder */}
       <View style={styles.secondaryActionsRow}>
         {textScanEnabled && (
@@ -381,6 +452,16 @@ export default function HomeLuxuryTechV1() {
         onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
         trustCopy="Private by design. K Scan is not designed for facial recognition or identifying people."
         privacyTestID="home-luxury-privacy-button"
+      />
+
+      <PersonalizeStylistModal
+        visible={personalizeVisible}
+        identity={identity}
+        onClose={handleClosePersonalize}
+        onSave={handleSaveIdentity}
+        onRestoreDefault={handleResetIdentity}
+        isSaving={identityLoading}
+        error={identityError}
       />
     </LuxuryScreen>
   );
@@ -494,8 +575,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  recentEmptyState: {
+    backgroundColor: LUXURY.colors.pearl,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  recentEmptyTitle: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 15,
+    color: LUXURY.colors.ink,
+  },
+  recentEmptyBody: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.graphite,
+    textAlign: 'center',
+  },
   recentScrollContent: {
     paddingRight: SPACING.lg,
+  },
+  recentTileImage: {
+    width: '100%',
+    height: 72,
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.sm,
   },
   stylePicksPlaceholder: {
     backgroundColor: LUXURY.colors.cream,
