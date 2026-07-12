@@ -6,8 +6,11 @@
 
 import { supabase } from './supabaseClient';
 import {
+  assertPersistableAvatarId,
   DEFAULT_STYLIST_IDENTITY,
   normalizeStylistIdentity,
+  sanitizeStylistName,
+  StylistIdentityValidationError,
   type StylistIdentity,
 } from '../constants/stylistIdentity';
 
@@ -62,13 +65,34 @@ export async function fetchStylistIdentity(expectedUserId?: string): Promise<Sty
  * Invalid values are normalized before persistence so the row never stores
  * unsafe data. The user_id column is fixed to the current session and cannot
  * be changed through this path.
+ *
+ * Portrait placeholder IDs are rejected before any Supabase request; only
+ * persistable avatar IDs can be written to the allowlisted column.
  */
 export async function saveStylistIdentity(
   identity: Partial<StylistIdentity>,
   expectedUserId?: string,
 ): Promise<StylistIdentity> {
+  // Validate raw caller input before auth or table access. Normalization is for
+  // untrusted stored rows; using it here would silently turn an unknown avatar
+  // into the default and write an unintended value.
+  const avatarId = identity.avatarId ?? DEFAULT_STYLIST_IDENTITY.avatarId;
+  assertPersistableAvatarId(avatarId);
+  const nameResult = sanitizeStylistName(
+    identity.displayName ?? DEFAULT_STYLIST_IDENTITY.displayName,
+  );
+  if (!nameResult.valid) {
+    throw new StylistIdentityValidationError(
+      'invalid_identity_input',
+      'Enter a valid stylist name before saving.',
+    );
+  }
+
+  const normalized = normalizeStylistIdentity({
+    displayName: nameResult.value,
+    avatarId,
+  });
   const userId = await requireUserId(expectedUserId);
-  const normalized = normalizeStylistIdentity(identity);
 
   const { data, error } = await supabase
     .from('user_stylist_preferences')

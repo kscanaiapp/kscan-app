@@ -4,6 +4,7 @@
 // unit-tested without mounting React components.
 
 import {
+  assertPersistableAvatarId,
   DEFAULT_STYLIST_IDENTITY,
   normalizeStylistIdentity,
   resolveAvatarId,
@@ -102,11 +103,16 @@ export async function hydrateStylistIdentityForUser(userId: string): Promise<voi
     return hydratePromise;
   }
 
+  const actorChanged = activeUserId !== userId;
   activeUserId = userId;
   lastHydratedUserId = userId;
   const requestVersion = hydrateRequestVersion + 1;
   hydrateRequestVersion = requestVersion;
-  setStylistIdentityState({ isLoading: true, error: null });
+  setStylistIdentityState({
+    identity: actorChanged ? DEFAULT_STYLIST_IDENTITY : state.identity,
+    isLoading: true,
+    error: null,
+  });
 
   hydratePromise = (async () => {
     try {
@@ -124,6 +130,16 @@ export async function hydrateStylistIdentityForUser(userId: string): Promise<voi
 }
 
 export async function updateStylistIdentity(input: Partial<StylistIdentity>): Promise<void> {
+  if (input.avatarId !== undefined) {
+    try {
+      assertPersistableAvatarId(input.avatarId);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not save stylist identity.';
+      setStylistIdentityState({ error: message });
+      return;
+    }
+  }
+
   const displayName =
     input.displayName !== undefined
       ? sanitizeStylistName(input.displayName).value
@@ -150,6 +166,9 @@ export async function updateStylistIdentity(input: Partial<StylistIdentity>): Pr
   setStylistIdentityState({ isLoading: false, error: null });
 
   try {
+    // Reject placeholder/future avatar IDs before any network request. The
+    // catch block below restores the previous identity and surfaces the error.
+    assertPersistableAvatarId(nextIdentity.avatarId);
     const saved = await saveStylistIdentity(nextIdentity, actorUserId ?? undefined);
     if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return;
     const normalized = normalizeStylistIdentity(saved);
