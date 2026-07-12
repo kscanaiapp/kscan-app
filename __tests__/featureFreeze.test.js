@@ -7,6 +7,18 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
+test('app_config grants mobile roles table read access before RLS filtering', () => {
+  const migration = fs.readFileSync(
+    path.join(ROOT, 'supabase/migrations/20260714000002_app_config_read_grants.sql'),
+    'utf8',
+  );
+
+  assert.match(
+    migration,
+    /grant\s+select\s+on\s+table\s+public\.app_config\s+to\s+anon\s*,\s*authenticated\s*;/i,
+  );
+});
+
 function loadTsModule(relativePath, requireMap = {}) {
   const filename = path.join(ROOT, relativePath);
   const source = fs.readFileSync(filename, 'utf8');
