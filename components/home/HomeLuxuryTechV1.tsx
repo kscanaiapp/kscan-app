@@ -270,7 +270,6 @@ export default function HomeLuxuryTechV1() {
           onStartConversation={handleStartConversation}
           onOpenConversations={handleOpenStyleChat}
           onPersonalize={handlePersonalize}
-          disabled={identityLoading}
         />
       )}
 

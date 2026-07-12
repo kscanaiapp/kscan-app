@@ -42,6 +42,16 @@ const edgeStyleDnaContext = fs.readFileSync(path.join(ROOT, 'supabase', 'functio
 const edgeStyleOutfit = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'style-outfit-generate', 'index.ts'), 'utf8');
 
 const featureFlags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
+const stylistIdentityConstants = fs.readFileSync(path.join(ROOT, 'constants', 'stylistIdentity.ts'), 'utf8');
+const stylistIdentityHook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStylistIdentity.ts'), 'utf8');
+const stylistIdentityService = fs.readFileSync(path.join(ROOT, 'services', 'stylistIdentityService.ts'), 'utf8');
+const homeStylistCard = fs.readFileSync(path.join(ROOT, 'components', 'home', 'HomeStylistCard.tsx'), 'utf8');
+const stylistAvatar = fs.readFileSync(path.join(ROOT, 'components', 'stylist', 'StylistAvatar.tsx'), 'utf8');
+const personalizeModal = fs.readFileSync(path.join(ROOT, 'components', 'stylist', 'PersonalizeStylistModal.tsx'), 'utf8');
+const userStylistPreferencesMigration = fs.readFileSync(
+  path.join(ROOT, 'supabase', 'migrations', '20260713000001_user_stylist_preferences.sql'),
+  'utf8',
+);
 const packageJson = fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8');
 
 // ── Identity constants ───────────────────────────────────────────────────────
@@ -64,21 +74,27 @@ test('centralized Style Memory copy replaces Style DNA user-facing strings', () 
 
 // ── Header and conversational surface ────────────────────────────────────────
 
-test('StyleChat header identifies Elise', () => {
+test('StyleChat header renders the selected stylist identity dynamically', () => {
   assert.match(styleChatConstants, /header:\s*'Elise'/);
   assert.match(styleChatConstants, /subtitle:\s*'YOUR AI-POWERED VIRTUAL STYLIST'/);
-  assert.match(styleChatHeader, /accessibilityLabel=\{ELISE_IDENTITY\.headerAccessibilityLabel\}/);
+  assert.match(styleChatHeader, /useStylistIdentity\(\)/);
+  assert.match(styleChatHeader, /const displayName = identity\.displayName/);
+  assert.match(styleChatHeader, /const headerAccessibilityLabel = `\$\{displayName\}, \$\{ELISE_IDENTITY\.role\}`/);
+  assert.match(styleChatHeader, /accessibilityLabel=\{headerAccessibilityLabel\}/);
+  assert.match(styleChatHeader, /\{displayName\}/);
 });
 
-test('session list empty state uses Elise introduction', () => {
-  assert.match(styleChatSessionList, /title=\{ELISE_IDENTITY\.introTitle\}/);
-  assert.match(styleChatSessionList, /subtitle=\{ELISE_IDENTITY\.introDescription\}/);
+test('session list empty state uses dynamic Elise introduction', () => {
+  assert.match(styleChatSessionList, /useStylistIdentity\(\)/);
+  assert.match(styleChatSessionList, /const displayName = identity\.displayName/);
+  assert.match(styleChatSessionList, /const introTitle = `Meet \$\{displayName\}`/);
   assert.doesNotMatch(styleChatSessionList, /Ask Your AI Stylist/);
 });
 
-test('session screen empty state replaces generic state with Elise intro', () => {
-  assert.match(styleChatSessionScreen, /styles\.emptyTitle\}>\{ELISE_IDENTITY\.introTitle\}/);
-  assert.match(styleChatSessionScreen, /styles\.emptyText\}>\{ELISE_IDENTITY\.introDescription\}/);
+test('session screen empty state replaces generic state with dynamic Elise intro', () => {
+  assert.match(styleChatSessionScreen, /const \{ identity \} = useStylistIdentity\(\)/);
+  assert.match(styleChatSessionScreen, /const stylistDisplayName = identity\.displayName/);
+  assert.match(styleChatSessionScreen, /styles\.emptyTitle\}>Meet \{stylistDisplayName\}</);
   assert.doesNotMatch(styleChatSessionScreen, /New styling session/);
 });
 
@@ -134,8 +150,10 @@ test('internal Style DNA identifiers are preserved in code', () => {
 
 // ── System prompt identity ───────────────────────────────────────────────────
 
-test('Edge Function system prompt identifies Elise and role', () => {
-  assert.match(edgeIndex, /You are Elise, K Scan AI's AI-powered virtual stylist/);
+test('Edge Function system prompt is name-neutral and does not hardcode Elise', () => {
+  assert.doesNotMatch(edgeIndex, /You are Elise/);
+  assert.doesNotMatch(edgeIndex, /My name is Elise/);
+  assert.match(edgeIndex, /You are K Scan's personal AI fashion stylist/);
   assert.match(edgeIndex, /AI, not a human/);
   assert.match(edgeIndex, /not a licensed fashion professional/);
   assert.match(edgeIndex, /not physically present/);
@@ -201,8 +219,11 @@ test('AI outfit result entry uses Ask Elise', () => {
 
 test('Library and home entry labels use Elise', () => {
   assert.match(libraryScreen, /ELISE_IDENTITY\.styleWithEliseLabel/);
-  assert.match(homeV1, /title="ASK ELISE"/);
+  assert.match(homeV1, /<HomeStylistCard/);
+  assert.match(homeV1, /RECENT SCANS/);
+  assert.doesNotMatch(homeV1, /title="ASK ELISE"/);
   assert.match(homeLegacy, /ASK ELISE</);
+  assert.match(homeStylistCard, /Ask \{displayName\}/);
 });
 
 test('TextScan entry uses Ask Elise', () => {
@@ -229,12 +250,13 @@ test('AI Stylist loading and unavailable states use Elise', () => {
 
 // ── Accessibility ────────────────────────────────────────────────────────────
 
-test('accessible labels use Elise language', () => {
-  assert.match(styleChatHeader, /ELISE_IDENTITY\.headerAccessibilityLabel/);
+test('accessible labels use dynamic Elise language', () => {
   assert.match(styleChatInput, /ELISE_IDENTITY\.sendAccessibilityLabel/);
   assert.match(styleChatAttachmentBar, /ELISE_IDENTITY\.attachAccessibilityLabel/);
-  assert.match(styleChatBubble, /accessibilityLabel="Elise"/);
-  assert.match(styleChatBubble, /accessibilityLabel=\{isUser \? 'Your message' : 'Elise message'\}/);
+  assert.match(styleChatBubble, /useStylistIdentity\(\)/);
+  assert.match(styleChatBubble, /const stylistDisplayName = identity\.displayName/);
+  assert.match(styleChatBubble, /accessibilityLabel=\{stylistDisplayName\}/);
+  assert.match(styleChatBubble, /accessibilityLabel=\{isUser \? 'Your message' : `\$\{stylistDisplayName\} message`\}/);
 });
 
 // ── Error and prompt constants ───────────────────────────────────────────────
