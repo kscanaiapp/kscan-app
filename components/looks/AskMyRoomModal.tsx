@@ -6,7 +6,7 @@
 // share is atomic server-side (share_looks_to_outfit_decision) and produces
 // immutable snapshots; an in-flight guard prevents duplicate decision groups.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -31,6 +31,7 @@ import {
 import { recordAiStylistEvent } from '../../services/styleMemoryEvents';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import type { DressingRoom } from '../../types/styleObjects';
+import { createAskMyRoomShareGuard } from './askMyRoomShareGuard';
 
 const CUSTOM_QUESTION = 'Custom';
 
@@ -56,6 +57,10 @@ export function AskMyRoomModal({
   const [customQuestion, setCustomQuestion] = useState('');
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const shareGuardRef = useRef<ReturnType<typeof createAskMyRoomShareGuard> | null>(null);
+  if (!shareGuardRef.current) {
+    shareGuardRef.current = createAskMyRoomShareGuard();
+  }
 
   const loadRooms = useCallback(async () => {
     setLoadingRooms(true);
@@ -71,6 +76,7 @@ export function AskMyRoomModal({
 
   useEffect(() => {
     if (visible) {
+      shareGuardRef.current?.reset();
       setSharing(false);
       setError(null);
       setCreatingNewRoom(false);
@@ -88,14 +94,20 @@ export function AskMyRoomModal({
     (creatingNewRoom ? newRoomTitle.trim().length > 0 : !!selectedRoomId);
 
   const handleShare = async () => {
-    if (!canShare || sharing) return;
+    const guard = shareGuardRef.current;
+    if (!canShare || !guard?.tryBegin()) return;
     setSharing(true);
     setError(null);
     try {
       let roomId = selectedRoomId;
       if (creatingNewRoom) {
-        const room = await createDressingRoom({ userId: user?.id, title: newRoomTitle });
-        roomId = room.id;
+        const normalizedTitle = newRoomTitle.trim();
+        roomId = guard.getCreatedRoomId(normalizedTitle);
+        if (!roomId) {
+          const room = await createDressingRoom({ userId: user?.id, title: normalizedTitle });
+          roomId = room.id;
+          guard.rememberCreatedRoom(normalizedTitle, room.id);
+        }
       }
       if (!roomId) throw new Error('Choose a Dressing Room first.');
 
@@ -105,13 +117,18 @@ export function AskMyRoomModal({
         signalKey: groupId,
         payload: { optionCount: lookIds.length },
       });
-      onShared?.({ roomId, groupId });
+      try {
+        onShared?.({ roomId, groupId });
+      } catch {
+        // The server share succeeded. A parent callback must not turn success
+        // into a retry that creates another decision group.
+      }
       onClose();
     } catch (err: any) {
       // Draft state (room choice, question) is preserved for retry.
-      setError(err?.message || 'Unable to share to this Dressing Room. Please try again.');
-    } finally {
+      guard.releaseForRetry();
       setSharing(false);
+      setError(err?.message || 'Unable to share to this Dressing Room. Please try again.');
     }
   };
 

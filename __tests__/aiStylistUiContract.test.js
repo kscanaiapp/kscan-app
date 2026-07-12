@@ -163,6 +163,9 @@ test('multi-option room share preserves canonical order and uses saved AI Looks'
   assert.match(stylistScreen, /suggestions\.slice\(0, 3\)/);
   assert.match(stylistScreen, /saveSuggestionAsLook/);
   assert.match(askRoomModal, /shareLooksToRoom/);
+  assert.match(askRoomModal, /shareGuardRef/);
+  assert.match(askRoomModal, /guard\?\.tryBegin\(\)/);
+  assert.match(askRoomModal, /guard\.rememberCreatedRoom/);
 });
 
 test('AI suggestion save is idempotent per suggestion during rapid taps', () => {
