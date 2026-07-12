@@ -14,7 +14,7 @@
 //   - Response sanitized before returning to mobile
 //
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
-// Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-1.5-flash).
+// Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-2.5-flash).
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
@@ -59,7 +59,7 @@ const GEMINI_TIMEOUT_MS    = 12_000;
 const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Stable GA default; operator should set STYLECHAT_GEMINI_MODEL at deployment.
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Local rollback switch for the explainable-recommendation slice (Option A). Setting this
@@ -773,7 +773,28 @@ Deno.serve(async (req) => {
 
   const userId = user.id;
 
-  // ── 2. Parse and validate request body ──────────────────────────────────────
+  // ── 2. Lifecycle gate (before ownership, quota, or provider) ─────────────────
+  // A valid JWT can outlive the client routing that blocks locked / pending-
+  // deletion accounts, so deny them here with a stable, non-retryable contract
+  // (403 + ACCOUNT_PENDING_DELETION) instead of surfacing the RPC guard as an
+  // opaque 500. No quota is reserved and no provider is reached. The quota RPCs
+  // keep their own guard as defense in depth.
+  {
+    const { data: lifecycleRow } = await userClient
+      .from('profiles')
+      .select('account_status')
+      .eq('id', userId)
+      .maybeSingle();
+    const accountStatus = lifecycleRow?.account_status;
+    if (accountStatus === 'pending_deletion' || accountStatus === 'locked') {
+      return json(
+        { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+        403,
+      );
+    }
+  }
+
+  // ── 3. Parse and validate request body ──────────────────────────────────────
 
   let body: {
     sessionId?: unknown;
@@ -901,6 +922,15 @@ Deno.serve(async (req) => {
     .rpc('check_and_increment_stylechat_burst', { p_limit: burstLimitPerMinute });
 
   if (burstError) {
+    // Defense in depth: if the RPC lifecycle guard fires (a valid JWT that
+    // slipped past the explicit gate above), surface the same deliberate,
+    // non-retryable 403 rather than an opaque 500.
+    if (typeof burstError.message === 'string' && /not available for Elise/i.test(burstError.message)) {
+      return json(
+        { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+        403,
+      );
+    }
     console.error('[stylechat-generate] burst RPC error:', burstError.message);
     return json({ error: 'Usage check failed' }, 500);
   }

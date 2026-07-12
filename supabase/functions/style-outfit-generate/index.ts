@@ -38,7 +38,7 @@ const CORS_HEADERS = {
 };
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const GEMINI_TIMEOUT_MS = 15_000;
 const MAX_PROMPT_CANDIDATES = 60;
 const DEFAULT_DAILY_LIMIT = 10;
@@ -165,7 +165,11 @@ async function callGeminiJson(
         system_instruction: { parts: [{ text: systemText }] },
         contents: [{ role: 'user', parts: [{ text: userText }] }],
         generationConfig: {
-          maxOutputTokens: 1024,
+          // gemini-2.5-flash is a reasoning model: hidden thinking tokens draw
+          // from this same budget. 1024 truncated multi-outfit JSON (the default
+          // request asks for up to 3 outfits), yielding provider_unavailable.
+          // 4096 leaves room for thinking plus the full structured response.
+          maxOutputTokens: 4096,
           temperature: 0.6,
           responseMimeType: 'application/json',
         },
@@ -260,7 +264,27 @@ Deno.serve(async (req) => {
   const userId = user.id;
   const requestId = crypto.randomUUID();
 
-  // 2. Parse and bound the request. Client candidate arrays are never read.
+  // 2. Lifecycle gate (before parsing, ownership, quota, or provider).
+  // A valid JWT can outlive the client routing that blocks locked / pending-
+  // deletion accounts, so deny them here with a stable, non-retryable contract
+  // (403 + ACCOUNT_PENDING_DELETION) instead of surfacing the RPC guard as an
+  // opaque 500. No quota is reserved, no provider is reached, no Look is created.
+  {
+    const { data: lifecycleRow } = await userClient
+      .from('profiles')
+      .select('account_status')
+      .eq('id', userId)
+      .maybeSingle();
+    const accountStatus = lifecycleRow?.account_status;
+    if (accountStatus === 'pending_deletion' || accountStatus === 'locked') {
+      return json(
+        { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+        403,
+      );
+    }
+  }
+
+  // 3. Parse and bound the request. Client candidate arrays are never read.
   let body: unknown = {};
   try {
     body = await req.json();
@@ -296,13 +320,71 @@ Deno.serve(async (req) => {
   const modelName =
     readTrimmedEnv('STYLE_OUTFIT_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
 
-  // 4. Burst quota BEFORE daily quota (a burst-limited attempt costs no daily use).
+  // 4. Ownership + sufficiency validation BEFORE any quota reservation.
+  //    Deterministic rejections (foreign / unowned anchor, insufficient owned
+  //    closet) must never consume a generation. The candidate pool is built
+  //    only from the caller's own active saved_scans (RLS also scopes this;
+  //    the explicit user filter is belt-and-braces). Client candidate arrays
+  //    are never read.
+  const [scanResult, inspirationResult] = await Promise.all([
+    userClient
+      .from('saved_scans')
+      .select('id,user_id,title,analysis_result,deleted_at')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('saved_at', { ascending: false })
+      .limit(400),
+    userClient
+      .from('inspiration_items')
+      .select('id,user_id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path,deleted_at')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(100),
+  ]);
+
+  if (scanResult.error) {
+    console.error('[style-outfit-generate] closet query failed');
+    return json({ error: 'Unable to load closet' }, 500);
+  }
+
+  const candidates = [
+    ...buildCandidatesFromSavedScans((scanResult.data ?? []) as Array<Record<string, unknown>>),
+    // Inspiration query failure degrades gracefully to saved scans only.
+    ...buildCandidatesFromInspirationItems(
+      ((inspirationResult.error ? [] : inspirationResult.data) ?? []) as Array<Record<string, unknown>>,
+    ),
+  ];
+  const poolResult = finalizeCandidatePool(candidates, request);
+
+  if (!poolResult.ok) {
+    if (poolResult.reason === 'anchor_not_owned') {
+      return json({ error: 'Anchor item is not available for styling' }, 403);
+    }
+    console.log(
+      '[style-outfit-generate] insufficient_closet uid=%s candidateCount=%d',
+      userId.slice(0, 8),
+      candidates.length,
+    );
+    return noResultResponse(requestId, 'insufficient_closet');
+  }
+
+  // 5. Burst quota BEFORE daily quota (a burst-limited attempt costs no daily use).
   const burstLimit = readIntEnv('STYLE_OUTFIT_BURST_LIMIT_PER_MINUTE', DEFAULT_BURST_LIMIT);
   const { data: burstData, error: burstError } = await userClient.rpc(
     'check_and_increment_style_outfit_burst',
     { p_limit: burstLimit },
   );
   if (burstError) {
+    // Defense in depth: if the RPC lifecycle guard fires (a valid JWT that
+    // slipped past the explicit gate above), surface the same deliberate,
+    // non-retryable 403 rather than an opaque 500.
+    if (typeof burstError.message === 'string' && /not available for Elise/i.test(burstError.message)) {
+      return json(
+        { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+        403,
+      );
+    }
     console.error('[style-outfit-generate] burst RPC error');
     return json({ error: 'Usage check failed' }, 500);
   }
@@ -355,55 +437,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  // 6. Exclusive server candidate pool: the caller's own active saved_scans.
-  //    (RLS also scopes this query; the explicit user filter is belt-and-braces.)
-  //    Inspiration items carry no garment metadata today and are not
-  //    AI-eligible, matching the mobile owned-item contract.
-  const [scanResult, inspirationResult] = await Promise.all([
-    userClient
-      .from('saved_scans')
-      .select('id,user_id,title,analysis_result,deleted_at')
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .order('saved_at', { ascending: false })
-      .limit(400),
-    // Inspiration items (Phase 2): the eligibility gate in validation.ts keeps
-    // un-enriched rows (no category/attributes/role) out of the pool.
-    userClient
-      .from('inspiration_items')
-      .select('id,user_id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path,deleted_at')
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(100),
-  ]);
-
-  if (scanResult.error) {
-    console.error('[style-outfit-generate] closet query failed');
-    return json({ error: 'Unable to load closet' }, 500);
-  }
-
-  const candidates = [
-    ...buildCandidatesFromSavedScans((scanResult.data ?? []) as Array<Record<string, unknown>>),
-    // Inspiration query failure degrades gracefully to saved scans only.
-    ...buildCandidatesFromInspirationItems(
-      ((inspirationResult.error ? [] : inspirationResult.data) ?? []) as Array<Record<string, unknown>>,
-    ),
-  ];
-  const poolResult = finalizeCandidatePool(candidates, request);
-
-  if (!poolResult.ok) {
-    if (poolResult.reason === 'anchor_not_owned') {
-      return json({ error: 'Anchor item is not available for styling' }, 403);
-    }
-    console.log(
-      '[style-outfit-generate] insufficient_closet uid=%s candidateCount=%d',
-      userId.slice(0, 8),
-      candidates.length,
-    );
-    return noResultResponse(requestId, 'insufficient_closet');
-  }
-
+  // 7. Build the prompt from the pre-validated, owner-scoped candidate pool.
   const { pool, anchor } = poolResult;
   const poolItems = Array.from(pool.values());
 
