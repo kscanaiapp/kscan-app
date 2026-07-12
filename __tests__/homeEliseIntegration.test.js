@@ -63,14 +63,12 @@ test('Style Picks is not fabricated when absent', () => {
 
 // ── Latest Scan / Recent Scans tile wiring ───────────────────────────────────
 
-test('Recent Scans tile resolves newest owned scan from useLibrary', () => {
-  assert.match(homeV1, /const latestScan = scans\[0\] \?\? null/);
-  assert.match(homeV1, /recentScansTileImage/);
+test('Recent Scans tile routes to library without a Home-only library query', () => {
+  assert.doesNotMatch(homeV1, /useLibrary\(\)/);
+  assert.doesNotMatch(homeV1, /const latestScan = scans\[0\] \?\? null/);
+  assert.doesNotMatch(homeV1, /recentScansTileImage/);
+  assert.match(homeV1, /body="Open your scan history\."/);
   assert.match(homeV1, /onPress=\{\(\) => router\.push\('\/library'\)\}/);
-});
-
-test('Recent Scans tile shows honest empty state when no scans exist', () => {
-  assert.match(homeV1, /No recent scans yet/);
 });
 
 // ── Four-box feature grid ────────────────────────────────────────────────────

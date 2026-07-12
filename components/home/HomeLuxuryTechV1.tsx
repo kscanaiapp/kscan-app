@@ -14,7 +14,6 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
-import { useLibrary } from '../../hooks/useLibrary';
 import { useStylePicks } from '../../hooks/useStylePicks';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
@@ -101,14 +100,13 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
  * - Hero with "See it. Scan it. Style it." and fashion placeholder
  * - Start Scan primary CTA
  * - Unified "Your Stylist / Ask Elise" section
- * - Feature grid with Recent Scans as the live-data tile
+ * - Feature grid with Recent Scans routing to the canonical library
  * - TextScan / Voice Scan secondary entries
  * - Trust footer
  */
 export default function HomeLuxuryTechV1() {
   const { isAuthenticated, user, loading: authLoading } = useAuthSession();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
-  const { scans } = useLibrary();
   const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
   const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
   const { sessions: styleChatSessions, loading: sessionsLoading } = useStyleChatSessions();
@@ -124,8 +122,6 @@ export default function HomeLuxuryTechV1() {
   const profileName =
     (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
   const firstName = profileName?.split(' ')[0] ?? null;
-
-  const latestScan = scans[0] ?? null;
 
   const showStylePicks = stylePicksStatus !== 'backend_not_connected' || picks.length > 0;
   const hasStylePicks = picks.length > 0;
@@ -160,15 +156,6 @@ export default function HomeLuxuryTechV1() {
     await resetIdentity();
     setPersonalizeVisible(false);
   }, [resetIdentity]);
-
-  const recentScansTileImage = latestScan?.thumbnailUri ? (
-    <Image
-      source={{ uri: latestScan.thumbnailUri }}
-      style={styles.recentTileImage}
-      resizeMode="cover"
-      accessibilityLabel="Most recent scan preview"
-    />
-  ) : null;
 
   return (
     <LuxuryScreen
@@ -313,14 +300,12 @@ export default function HomeLuxuryTechV1() {
         <FeatureChip
           icon="✦"
           title="RECENT SCANS"
-          body={latestScan ? 'View your recently scanned items.' : 'No recent scans yet.'}
+          body="Open your scan history."
           onPress={() => router.push('/library')}
           testID="home-luxury-feature-recent-scans"
           accessibilityLabel="Recent Scans"
           accessibilityHint="Navigate to your scan history"
-        >
-          {recentScansTileImage}
-        </FeatureChip>
+        />
         <FeatureChip
           icon="◈"
           title="VISUAL SEARCH"
@@ -470,12 +455,6 @@ const styles = StyleSheet.create({
   },
   recentScrollContent: {
     paddingRight: SPACING.lg,
-  },
-  recentTileImage: {
-    width: '100%',
-    height: 72,
-    borderRadius: RADIUS.md,
-    marginTop: SPACING.sm,
   },
   stylePicksPlaceholder: {
     backgroundColor: LUXURY.colors.cream,
