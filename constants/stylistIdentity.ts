@@ -11,7 +11,17 @@ export type StylistIdentity = {
   avatarId: string;
 };
 
-export type StylistAvatarPreset = {
+// ── Discriminated avatar preset union ─────────────────────────────────────────
+//
+// `kind` separates abstract vector treatments from photorealistic portraits.
+// `availability` separates shipped presets from placeholder slots so invalid
+// states are unrepresentable: a placeholder cannot carry a `source`, and a
+// ready portrait must carry a `source`. Only presets with `persistable: true`
+// may be written to `user_stylist_preferences.avatar_id`.
+
+export type StylistAvatarPresetAbstract = {
+  kind: 'abstract';
+  availability: 'ready';
   id: string;
   accessibilityLabel: string;
   /** Primary background color (React Native color string). */
@@ -22,7 +32,58 @@ export type StylistAvatarPreset = {
   symbol: string;
   /** Symbol color. */
   symbolColor: string;
+  source?: never;
+  selectable: true;
+  persistable: true;
 };
+
+export type StylistAvatarPresetPortraitPlaceholder = {
+  kind: 'portrait';
+  availability: 'placeholder';
+  id: string;
+  accessibilityLabel: string;
+  source?: never;
+  selectable: false;
+  persistable: false;
+};
+
+export type StylistAvatarPresetPortraitReady = {
+  kind: 'portrait';
+  availability: 'ready';
+  id: string;
+  accessibilityLabel: string;
+  /** Numeric Metro module reference returned by a static local `require(...)`. */
+  source: number;
+  selectable: true;
+  persistable: true;
+};
+
+export type StylistAvatarPreset =
+  | StylistAvatarPresetAbstract
+  | StylistAvatarPresetPortraitPlaceholder
+  | StylistAvatarPresetPortraitReady;
+
+export function getStylistAvatarSection(
+  preset: Pick<StylistAvatarPreset, 'kind'>,
+): 'abstract' | 'people' {
+  return preset.kind === 'portrait' ? 'people' : 'abstract';
+}
+
+export function isRenderablePortraitPreset(
+  value: unknown,
+): value is StylistAvatarPresetPortraitReady {
+  if (!value || typeof value !== 'object') return false;
+  const preset = value as Record<string, unknown>;
+  return (
+    preset.kind === 'portrait' &&
+    preset.availability === 'ready' &&
+    preset.selectable === true &&
+    preset.persistable === true &&
+    typeof preset.source === 'number' &&
+    Number.isFinite(preset.source) &&
+    preset.source > 0
+  );
+}
 
 /** Stable default identity. Never mutate at runtime. */
 export const DEFAULT_STYLIST_IDENTITY: StylistIdentity = Object.freeze({
@@ -37,69 +98,346 @@ export const STYLIST_NAME_MAX_LENGTH = 24;
 export const STYLIST_NAME_MIN_LENGTH = 2;
 
 /**
- * Static registry of bundled local avatar presets. These are abstract,
- * non-photographic vector treatments rendered by the StylistAvatar component.
- * No remote URLs, no user uploads, and no dynamic require() paths are used.
+ * Abstract, non-photographic vector treatments rendered by the StylistAvatar
+ * component. These are fully selectable and persistable today.
  */
-export const STYLIST_AVATAR_PRESETS: StylistAvatarPreset[] = [
+const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
   {
     id: 'elise_default',
+    kind: 'abstract',
+    availability: 'ready',
     accessibilityLabel: 'Elise default avatar',
     backgroundColor: '#F5F0E8',
     accentColor: '#C6A15B',
     symbol: '✦',
     symbolColor: '#52103E',
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'editorial_plum',
+    kind: 'abstract',
+    availability: 'ready',
     accessibilityLabel: 'Editorial plum stylist avatar',
     backgroundColor: '#EEE4EC',
     accentColor: '#52103E',
     symbol: '◆',
     symbolColor: '#52103E',
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'chrome_muse',
+    kind: 'abstract',
+    availability: 'ready',
     accessibilityLabel: 'Chrome muse stylist avatar',
     backgroundColor: '#E8E1EC',
     accentColor: '#8A8178',
     symbol: '◇',
     symbolColor: '#5E5650',
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'deep_space',
+    kind: 'abstract',
+    availability: 'ready',
     accessibilityLabel: 'Deep space stylist avatar',
     backgroundColor: '#26041D',
     accentColor: '#22D3EE',
     symbol: '✧',
     symbolColor: '#FFFDF9',
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'cream_gold',
+    kind: 'abstract',
+    availability: 'ready',
     accessibilityLabel: 'Cream and gold stylist avatar',
     backgroundColor: '#FFFDF9',
     accentColor: '#C6A15B',
     symbol: '✶',
     symbolColor: '#B08D4B',
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'obsidian_orchid',
+    kind: 'abstract',
+    availability: 'ready',
     accessibilityLabel: 'Obsidian orchid stylist avatar',
     backgroundColor: '#09070D',
     accentColor: '#7A3A68',
     symbol: '✿',
     symbolColor: '#E7D4A8',
+    selectable: true,
+    persistable: true,
   },
 ];
 
-const PRESET_ID_SET = new Set(STYLIST_AVATAR_PRESETS.map((p) => p.id));
+/**
+ * Reserved portrait slots for Phase 2. They are visible in the personalization
+ * modal as a disabled "People" section but can never be selected or persisted
+ * until their assets and Supabase allowlist are added.
+ */
+const PORTRAIT_PRESET_DEFINITIONS: (
+  | StylistAvatarPresetPortraitPlaceholder
+  | StylistAvatarPresetPortraitReady
+)[] = [
+  {
+    id: 'stylist_portrait_01',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 1, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_02',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 2, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_03',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 3, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_04',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 4, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_05',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 5, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_06',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 6, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_07',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 7, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_08',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 8, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_09',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 9, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+  {
+    id: 'stylist_portrait_10',
+    kind: 'portrait',
+    availability: 'placeholder',
+    accessibilityLabel: 'Portrait option 10, coming soon',
+    selectable: false,
+    persistable: false,
+  },
+];
+
+const ABSTRACT_PRESETS: readonly StylistAvatarPresetAbstract[] = Object.freeze(
+  ABSTRACT_PRESET_DEFINITIONS.map((preset) => Object.freeze(preset)),
+);
+
+const PORTRAIT_PRESETS: readonly (
+  | StylistAvatarPresetPortraitPlaceholder
+  | StylistAvatarPresetPortraitReady
+)[] = Object.freeze(PORTRAIT_PRESET_DEFINITIONS.map((preset) => Object.freeze(preset)));
+
+/** Stable Abstract section used by the selector. */
+export const STYLIST_ABSTRACT_PRESETS = ABSTRACT_PRESETS;
+
+/** Stable People section. Ready portraits remain here after Phase 2 conversion. */
+export const STYLIST_PORTRAIT_PRESETS: readonly (
+  | StylistAvatarPresetPortraitPlaceholder
+  | StylistAvatarPresetPortraitReady
+)[] = PORTRAIT_PRESETS;
+
+/** Full registry of bundled avatar presets. */
+export const STYLIST_AVATAR_PRESETS: readonly StylistAvatarPreset[] = Object.freeze([
+  ...STYLIST_ABSTRACT_PRESETS,
+  ...STYLIST_PORTRAIT_PRESETS,
+]);
+
+function createReadonlySet<T>(values: Iterable<T>): ReadonlySet<T> {
+  const backing = new Set(values);
+  let facade: ReadonlySet<T>;
+  facade = Object.freeze({
+    get size() {
+      return backing.size;
+    },
+    has(value: T) {
+      return backing.has(value);
+    },
+    entries() {
+      return backing.entries();
+    },
+    keys() {
+      return backing.keys();
+    },
+    values() {
+      return backing.values();
+    },
+    union<U>(other: ReadonlySetLike<U>) {
+      return backing.union(other);
+    },
+    intersection<U>(other: ReadonlySetLike<U>) {
+      return backing.intersection(other);
+    },
+    difference<U>(other: ReadonlySetLike<U>) {
+      return backing.difference(other);
+    },
+    symmetricDifference<U>(other: ReadonlySetLike<U>) {
+      return backing.symmetricDifference(other);
+    },
+    isSubsetOf(other: ReadonlySetLike<unknown>) {
+      return backing.isSubsetOf(other);
+    },
+    isSupersetOf(other: ReadonlySetLike<unknown>) {
+      return backing.isSupersetOf(other);
+    },
+    isDisjointFrom(other: ReadonlySetLike<unknown>) {
+      return backing.isDisjointFrom(other);
+    },
+    forEach(callback: (value: T, value2: T, set: ReadonlySet<T>) => void, thisArg?: unknown) {
+      backing.forEach((value) => callback.call(thisArg, value, value, facade));
+    },
+    [Symbol.iterator]() {
+      return backing[Symbol.iterator]();
+    },
+  });
+  return facade;
+}
+
+function createReadonlyMap<K, V>(entries: Iterable<readonly [K, V]>): ReadonlyMap<K, V> {
+  const backing = new Map(entries);
+  let facade: ReadonlyMap<K, V>;
+  facade = Object.freeze({
+    get size() {
+      return backing.size;
+    },
+    get(key: K) {
+      return backing.get(key);
+    },
+    has(key: K) {
+      return backing.has(key);
+    },
+    entries() {
+      return backing.entries();
+    },
+    keys() {
+      return backing.keys();
+    },
+    values() {
+      return backing.values();
+    },
+    forEach(callback: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown) {
+      backing.forEach((value, key) => callback.call(thisArg, value, key, facade));
+    },
+    [Symbol.iterator]() {
+      return backing[Symbol.iterator]();
+    },
+  });
+  return facade;
+}
+
+/** Presets that are selectable in the personalization UI. */
+export const STYLIST_SELECTABLE_PRESETS: readonly StylistAvatarPreset[] = Object.freeze(
+  STYLIST_AVATAR_PRESETS.filter((p): p is StylistAvatarPreset & { selectable: true } => p.selectable),
+);
+
+/** Preset IDs that are allowed to be stored in `user_stylist_preferences.avatar_id`. */
+export const STYLIST_PERSISTABLE_AVATAR_IDS: ReadonlySet<string> = Object.freeze(
+  createReadonlySet(STYLIST_AVATAR_PRESETS.filter((p) => p.persistable).map((p) => p.id)),
+);
+
+/** O(1) preset lookup by id. */
+export const STYLIST_AVATAR_PRESET_BY_ID: ReadonlyMap<string, StylistAvatarPreset> = Object.freeze(
+  createReadonlyMap(STYLIST_AVATAR_PRESETS.map((p) => [p.id, p] as const)),
+);
+
+/** IDs reserved for Phase 2 photorealistic portrait presets. */
+export const STYLIST_PORTRAIT_PLACEHOLDER_IDS: readonly string[] = Object.freeze(
+  STYLIST_PORTRAIT_PRESETS
+    .filter((p): p is StylistAvatarPresetPortraitPlaceholder => p.availability === 'placeholder')
+    .map((p) => p.id),
+);
+
+export type StylistIdentityValidationReason =
+  | 'unknown_avatar_id'
+  | 'unavailable_avatar_id'
+  | 'invalid_identity_input';
+
+export class StylistIdentityValidationError extends Error {
+  readonly code = 'STYLIST_IDENTITY_VALIDATION_ERROR' as const;
+  readonly reason: StylistIdentityValidationReason;
+  constructor(
+    reason: StylistIdentityValidationReason,
+    message: string,
+  ) {
+    super(message);
+    this.reason = reason;
+    this.name = 'StylistIdentityValidationError';
+  }
+}
 
 export function isValidAvatarId(id: string | null | undefined): boolean {
-  return typeof id === 'string' && id.length > 0 && PRESET_ID_SET.has(id);
+  return typeof id === 'string' && id.length > 0 && STYLIST_AVATAR_PRESET_BY_ID.has(id);
+}
+
+export function isPersistableAvatarId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && id.length > 0 && STYLIST_PERSISTABLE_AVATAR_IDS.has(id);
+}
+
+export function assertPersistableAvatarId(id: string): asserts id is string {
+  if (!isValidAvatarId(id)) {
+    throw new StylistIdentityValidationError(
+      'unknown_avatar_id',
+      'That stylist avatar is not recognized.',
+    );
+  }
+  if (!isPersistableAvatarId(id)) {
+    throw new StylistIdentityValidationError(
+      'unavailable_avatar_id',
+      'That stylist avatar is not available for selection yet.',
+    );
+  }
 }
 
 export function resolveAvatarId(id: string | null | undefined): string {
-  return isValidAvatarId(id) ? id! : DEFAULT_STYLIST_IDENTITY.avatarId;
+  return isPersistableAvatarId(id) ? id! : DEFAULT_STYLIST_IDENTITY.avatarId;
 }
 
 /**

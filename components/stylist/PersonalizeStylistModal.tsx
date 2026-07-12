@@ -15,9 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   DEFAULT_STYLIST_IDENTITY,
-  STYLIST_AVATAR_PRESETS,
+  isPersistableAvatarId,
+  STYLIST_ABSTRACT_PRESETS,
   STYLIST_NAME_MAX_LENGTH,
   STYLIST_NAME_MIN_LENGTH,
+  STYLIST_PORTRAIT_PRESETS,
   type StylistIdentity,
 } from '../../constants/stylistIdentity';
 import { StylistAvatar } from './StylistAvatar';
@@ -78,6 +80,7 @@ export function PersonalizeStylistModal({
     if (trimmed.length < STYLIST_NAME_MIN_LENGTH || trimmed.length > STYLIST_NAME_MAX_LENGTH) {
       return false;
     }
+    if (!isPersistableAvatarId(draftAvatarId)) return false;
     return (
       trimmed !== identity.displayName || draftAvatarId !== identity.avatarId
     );
@@ -156,9 +159,9 @@ export function PersonalizeStylistModal({
               </View>
 
               <View style={styles.avatarSection}>
-                <Text style={styles.label}>AVATAR</Text>
+                <Text style={styles.label}>ABSTRACT</Text>
                 <View style={styles.avatarGrid}>
-                  {STYLIST_AVATAR_PRESETS.map((preset) => {
+                  {STYLIST_ABSTRACT_PRESETS.map((preset) => {
                     const selected = preset.id === draftAvatarId;
                     return (
                       <Pressable
@@ -168,6 +171,46 @@ export function PersonalizeStylistModal({
                         style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
                         accessibilityRole="radio"
                         accessibilityState={{ selected }}
+                        accessibilityLabel={preset.accessibilityLabel}
+                      >
+                        <StylistAvatar avatarId={preset.id} size={56} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.peopleSection}>
+                <Text style={styles.label}>PEOPLE</Text>
+                <Text style={styles.peopleHelper}>
+                  Photorealistic stylist portraits are coming soon.
+                </Text>
+                <View style={styles.avatarGrid}>
+                  {STYLIST_PORTRAIT_PRESETS.map((preset) => {
+                    if (preset.availability === 'placeholder') {
+                      return (
+                        <View
+                          key={preset.id}
+                          accessible
+                          style={[styles.avatarButton, styles.avatarButtonDisabled]}
+                          accessibilityRole="image"
+                          accessibilityState={{ disabled: true }}
+                          accessibilityLabel={preset.accessibilityLabel}
+                        >
+                          <StylistAvatar avatarId={preset.id} size={56} />
+                        </View>
+                      );
+                    }
+
+                    const selected = preset.id === draftAvatarId;
+                    return (
+                      <Pressable
+                        key={preset.id}
+                        onPress={() => setDraftAvatarId(preset.id)}
+                        disabled={isSaving}
+                        style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ disabled: isSaving, selected }}
                         accessibilityLabel={preset.accessibilityLabel}
                       >
                         <StylistAvatar avatarId={preset.id} size={56} />
@@ -313,6 +356,19 @@ const styles = StyleSheet.create({
   avatarButtonSelected: {
     borderColor: LUXURY.colors.plum,
     backgroundColor: 'rgba(82, 16, 62, 0.06)',
+  },
+  avatarButtonDisabled: {
+    opacity: 0.5,
+  },
+  peopleSection: {
+    marginBottom: SPACING.xl,
+  },
+  peopleHelper: {
+    ...LUXURY.typography.caption,
+    fontSize: 12,
+    lineHeight: 18,
+    color: LUXURY.colors.stone,
+    marginBottom: SPACING.md,
   },
   saveError: {
     ...LUXURY.typography.caption,
