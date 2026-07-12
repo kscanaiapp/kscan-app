@@ -516,8 +516,8 @@ function buildSecondaryReasons(
 
 function buildCardCtaLabel(matchCount: number): string {
   return matchCount > 0
-    ? 'Save this scan to your Style Memory.'
-    : 'Create an account to save this scan to your Style Memory.';
+    ? 'Save this scan to your Signature Style.'
+    : 'Create an account to save this scan to your Signature Style.';
 }
 
 function buildVisual(

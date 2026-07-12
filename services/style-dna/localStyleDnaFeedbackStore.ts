@@ -177,10 +177,10 @@ export async function setFeedbackForMessage(params: {
 }): Promise<LocalStyleDnaFeedback> {
   const { userKey, sessionId, messageId, feedback } = params;
   if (!userKey || !sessionId || !messageId) {
-    throw new Error('Style Memory feedback requires userKey, sessionId, and messageId.');
+    throw new Error('Signature Style feedback requires userKey, sessionId, and messageId.');
   }
   if (!isFeedbackValue(feedback)) {
-    throw new Error('Invalid Style Memory feedback value.');
+    throw new Error('Invalid Signature Style feedback value.');
   }
 
   const key = sessionKey(userKey, sessionId);

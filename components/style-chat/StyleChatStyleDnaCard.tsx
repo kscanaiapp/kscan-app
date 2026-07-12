@@ -32,10 +32,17 @@ export function StyleChatStyleDnaCard({
   const hasSignals = totalSignals > 0;
   const ratioLabel = formatRatio(summary);
 
+  const progressLabel = hasSignals
+    ? totalSignals <= 2
+      ? 'Learning'
+      : totalSignals <= 5
+        ? 'Emerging'
+        : 'Established'
+    : null;
   const collapsedLabel = loading
     ? STYLE_MEMORY_COPY.onDeviceLabel
-    : hasSignals
-      ? `Style Memory · ${totalSignals} signal${totalSignals === 1 ? '' : 's'} · On-device`
+    : hasSignals && progressLabel
+      ? `Signature Style · ${progressLabel} · On-device`
       : STYLE_MEMORY_COPY.learningLabel;
 
   return (
@@ -78,13 +85,13 @@ export function StyleChatStyleDnaCard({
             </View>
 
             <Text style={styles.title}>
-              {hasSignals ? 'StyleChat is learning from your feedback.' : 'No local style signal yet.'}
+              {hasSignals ? 'Elise is learning your Signature Style.' : 'Your Signature Style is just getting started.'}
             </Text>
 
             <Text style={styles.body}>
               {hasSignals
-                ? 'Helpful and Not my style taps shape a cautious local summary without storing message text.'
-                : 'Tap Helpful or Not my style on assistant replies to build a grounded local signal for future chats.'}
+                ? 'Signature Style evolves as Elise learns from what you scan, save, wear, and love.'
+                : 'Your Signature Style helps Elise recommend outfits, discover complementary pieces, and understand your personal aesthetic over time.'}
             </Text>
 
             {hasSignals && summary ? (
@@ -113,8 +120,8 @@ export function StyleChatStyleDnaCard({
             <Text style={styles.microcopy}>
               {summaryText ??
                 (hasSignals
-                  ? 'StyleChat keeps this signal light-touch so it does not invent preferences or overstate personalization.'
-                  : 'Once you react to a few replies, this summary will reflect what has resonated locally.')}
+                  ? 'Signature Style stays light-touch and private: it learns from your feedback without storing message text or inventing preferences.'
+                  : 'Tap Helpful or Not my style on replies and your Signature Style will begin to reflect what resonates with you.')}
             </Text>
 
             <View style={styles.sheetActions}>
@@ -127,7 +134,7 @@ export function StyleChatStyleDnaCard({
                   pressed && hasSignals && !resetting ? styles.resetButtonPressed : null,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Reset local Style Memory signals"
+                accessibilityLabel="Reset local Signature Style signals"
                 accessibilityHint="Clears device-local Helpful and Not my style feedback for this account on this device"
                 accessibilityState={{ disabled: !hasSignals || resetting, busy: resetting }}
               >
@@ -143,7 +150,7 @@ export function StyleChatStyleDnaCard({
                 onPress={() => setDetailsOpen(false)}
                 style={({ pressed }) => [styles.doneButton, pressed ? styles.doneButtonPressed : null]}
                 accessibilityRole="button"
-                accessibilityLabel="Close Style Memory details"
+                accessibilityLabel="Close Signature Style details"
               >
                 <Text style={styles.doneText}>Done</Text>
               </Pressable>

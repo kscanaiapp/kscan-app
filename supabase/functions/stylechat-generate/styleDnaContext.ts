@@ -1,4 +1,4 @@
-// ── Style Memory context (Phase 2) — server-side consumption ────────────────────
+// ── Signature Style context (Phase 2) — server-side consumption ────────────────
 // Pure helpers, no Deno/network imports, so they are unit-testable from node too.
 //
 // Backward-compatibility contract:
@@ -53,14 +53,14 @@ export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
   const body =
     ctx.confidence === 'medium'
       ? [
-          'The user has given several local StyleChat feedback signals for their Style Memory.',
+          'The user has given several local StyleChat feedback signals for their Signature Style.',
           'Lightly adapt recommendations toward what has received helpful feedback and away from suggestions marked not-my-style.',
           'Do not claim certainty or invent specific preferences.',
         ]
       : [
-          'The user has given a small number of local StyleChat feedback signals for their Style Memory.',
+          'The user has given a small number of local StyleChat feedback signals for their Signature Style.',
           'Use this only as a light personalization signal.',
           'Do not overstate preferences or claim a defined style identity.',
         ];
-  return ['[Optional Style Memory Context]', ...body, '[/Optional Style Memory Context]'].join('\n');
+  return ['[Optional Signature Style Context]', ...body, '[/Optional Signature Style Context]'].join('\n');
 }

@@ -1,4 +1,4 @@
-// Elise identity, Style Memory terminology, and UX contract tests.
+// Elise identity, Signature Style terminology, and UX contract tests.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -65,11 +65,11 @@ test('centralized Elise identity exports required copy', () => {
   assert.match(eliseConstants, /headerAccessibilityLabel:\s*'Elise, AI-powered virtual stylist'/);
 });
 
-test('centralized Style Memory copy replaces Style DNA user-facing strings', () => {
-  assert.match(eliseConstants, /featureName:\s*'Style Memory'/);
-  assert.match(eliseConstants, /onDeviceLabel:\s*'Style Memory · On-device'/);
-  assert.match(eliseConstants, /learningLabel:\s*'Style Memory is learning · Rate a few replies'/);
-  assert.match(eliseConstants, /localBadge:\s*'LOCAL STYLE MEMORY'/);
+test('centralized Signature Style copy replaces Style DNA user-facing strings', () => {
+  assert.match(eliseConstants, /featureName:\s*'Signature Style'/);
+  assert.match(eliseConstants, /onDeviceLabel:\s*'Signature Style · On-device'/);
+  assert.match(eliseConstants, /learningLabel:\s*'Signature Style is learning · Rate a few replies'/);
+  assert.match(eliseConstants, /localBadge:\s*'LOCAL SIGNATURE STYLE'/);
 });
 
 // ── Header and conversational surface ────────────────────────────────────────
@@ -123,7 +123,7 @@ test('Edge Function action defaults are app-controlled Elise labels', () => {
   assert.match(edgeActions, /swap_item:\s*'ASK ELISE TO SWAP THIS ITEM'/);
 });
 
-// ── Style Memory terminology ─────────────────────────────────────────────────
+// ── Signature Style terminology ──────────────────────────────────────────────
 
 test('user-facing Style DNA strings are absent from audited surfaces', () => {
   const surfaces = [
@@ -136,10 +136,10 @@ test('user-facing Style DNA strings are absent from audited surfaces', () => {
   }
 });
 
-test('Style Memory strings are present where appropriate', () => {
-  assert.match(styleChatStyleDnaCard, /Style Memory/);
-  assert.match(eliseConstants, /Style Memory/);
-  assert.match(edgeStyleDnaContext, /Style Memory/);
+test('Signature Style strings are present where appropriate', () => {
+  assert.match(styleChatStyleDnaCard, /Signature Style/);
+  assert.match(eliseConstants, /Signature Style/);
+  assert.match(edgeStyleDnaContext, /Signature Style/);
 });
 
 test('internal Style DNA identifiers are preserved in code', () => {
@@ -184,9 +184,9 @@ test('system prompt distinguishes v1 and v2 attachment behavior', () => {
   assert.match(edgeIndex, /multimodal inspection actually occurred/);
 });
 
-test('Style Memory context block uses Style Memory terminology', () => {
-  assert.match(edgeStyleDnaContext, /\[Optional Style Memory Context\]/);
-  assert.match(edgeStyleDnaContext, /\[\/Optional Style Memory Context\]/);
+test('Signature Style context block uses Signature Style terminology', () => {
+  assert.match(edgeStyleDnaContext, /\[Optional Signature Style Context\]/);
+  assert.match(edgeStyleDnaContext, /\[\/Optional Signature Style Context\]/);
 });
 
 // ── Internal identifier stability ────────────────────────────────────────────

@@ -65,7 +65,7 @@ export function ScanResultCard({ scanResultObject, compareSource = null }: ScanR
 
   return (
     <View testID="scan-result-card" style={styles.card}>
-      <Text style={styles.sectionLabel}>STYLE MEMORY</Text>
+      <Text style={styles.sectionLabel}>SIGNATURE STYLE</Text>
 
       {vm.heroImageUrl ? (
         <Image
@@ -197,7 +197,7 @@ export function ScanResultCard({ scanResultObject, compareSource = null }: ScanR
         <Text style={styles.helperText}>
           {isAuthenticated
             ? 'Save unlocks after a safe catalog match is found.'
-            : 'Create an account to save this scan to your Style Memory.'}
+            : 'Create an account to save this scan to your Signature Style.'}
         </Text>
       ) : (
         <Text style={styles.helperText}>{vm.cardCtaLabel}</Text>

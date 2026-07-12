@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         'derived fashion metadata where linked to the user and legally exportable',
       ],
       excludes_pending_legal_review: [
-        'Style DNA vectors or embeddings',
+        'Signature Style vectors or embeddings',
         'security logs exempt from access where permitted',
         'aggregated or deidentified trend reports not linked to the user',
       ],

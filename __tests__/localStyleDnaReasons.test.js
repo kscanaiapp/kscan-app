@@ -81,7 +81,7 @@ test('invalid reason code is rejected (throws)', async () => {
   const { reasons } = load(makeStorage());
   await assert.rejects(
     () => reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful', reasonCode: 'nonsense' }),
-    /Invalid Style Memory reason code/,
+    /Invalid Signature Style reason code/,
   );
 });
 
@@ -89,7 +89,7 @@ test('polarity-mismatched reason is rejected (helpful reason on not_my_style)', 
   const { reasons } = load(makeStorage());
   await assert.rejects(
     () => reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'not_my_style', reasonCode: 'practical' }),
-    /Invalid Style Memory reason code/,
+    /Invalid Signature Style reason code/,
   );
 });
 
@@ -153,7 +153,7 @@ test('clearReasonForMessage removes a stored reason', async () => {
   assert.equal(await reasons.getReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1' }), null);
 });
 
-test('Style Memory context (derived from feedback) is unaffected by reason saves', async () => {
+test('Signature Style context (derived from feedback) is unaffected by reason saves', async () => {
   const { store, reasons, profile } = load(makeStorage());
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful' });
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'b', feedback: 'helpful' });

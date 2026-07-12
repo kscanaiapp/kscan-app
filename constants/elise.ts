@@ -27,18 +27,18 @@ export const ELISE_IDENTITY = {
 } as const;
 
 export const STYLE_MEMORY_COPY = {
-  featureName: 'Style Memory',
-  onDeviceLabel: 'Style Memory · On-device',
-  learningLabel: 'Style Memory is learning · Rate a few replies',
-  detailsAccessibilityLabel: 'Style Memory details',
-  detailsHint: 'Opens your on-device Style Memory summary and reset option',
-  resetAlertTitle: 'Reset local Style Memory?',
+  featureName: 'Signature Style',
+  onDeviceLabel: 'Signature Style · On-device',
+  learningLabel: 'Signature Style is learning · Rate a few replies',
+  detailsAccessibilityLabel: 'Signature Style details',
+  detailsHint: 'Opens your on-device Signature Style summary and reset option',
+  resetAlertTitle: 'Reset local Signature Style?',
   resetAlertMessage:
     'This clears Helpful and Not my style feedback for this account on this device only. It cannot be undone.',
-  resetErrorAlertTitle: 'Could not reset local Style Memory',
+  resetErrorAlertTitle: 'Could not reset local Signature Style',
   resetErrorAlertMessage:
     "We couldn't clear the local profile right now. Please try again.",
-  localBadge: 'LOCAL STYLE MEMORY',
+  localBadge: 'LOCAL SIGNATURE STYLE',
 } as const;
 
 export const ELISE_LOADING_COPY = {

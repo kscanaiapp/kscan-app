@@ -200,13 +200,13 @@ export async function setReasonForMessage(params: {
 }): Promise<LocalStyleDnaReason> {
   const { userKey, sessionId, messageId, feedback, reasonCode } = params;
   if (!userKey || !sessionId || !messageId) {
-    throw new Error('Style Memory reason requires userKey, sessionId, and messageId.');
+    throw new Error('Signature Style reason requires userKey, sessionId, and messageId.');
   }
   if (!isFeedbackValue(feedback)) {
-    throw new Error('Invalid Style Memory feedback value.');
+    throw new Error('Invalid Signature Style feedback value.');
   }
   if (!isReasonValidForFeedback(reasonCode, feedback)) {
-    throw new Error('Invalid Style Memory reason code for the given feedback.');
+    throw new Error('Invalid Signature Style reason code for the given feedback.');
   }
 
   const key = sessionKey(userKey, sessionId);
