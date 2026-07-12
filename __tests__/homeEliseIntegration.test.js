@@ -92,6 +92,28 @@ test('no saved-scan card list renders on Home', () => {
   assert.doesNotMatch(homeV1, /home-luxury-recent-scan-/);
 });
 
+// ── TextScan / Voice Scan footer pills ───────────────────────────────────────
+
+test('TextScan pill is rendered and routes to the text-scan screen', () => {
+  assert.match(homeV1, /testID="home-luxury-textscan"/);
+  assert.match(homeV1, /title="TEXTSCAN"/);
+  assert.match(homeV1, /router\.push\('\/text-scan'\)/);
+  assert.match(homeV1, /handleOpenTextScan/);
+  assert.match(homeV1, /textScanNavigating/);
+});
+
+test('Voice Scan pill remains non-interactive and shows Coming Soon', () => {
+  assert.match(homeV1, /testID="home-luxury-voicescan-coming-soon"/);
+  assert.match(homeV1, /VOICE SCAN/);
+  assert.match(homeV1, /COMING SOON/);
+  assert.doesNotMatch(homeV1, /onPress=\{[^}]*\}\s*\n\s*<VoiceScanPlaceholderPill/);
+  assert.match(homeV1, /accessibilityRole="text"/);
+});
+
+test('TextScan UI flag defaults to enabled', () => {
+  assert.match(featureFlags, /EXPO_PUBLIC_ENABLE_TEXTSCAN !== 'false'/);
+});
+
 // ── Navigation primitives ────────────────────────────────────────────────────
 
 test('Ask Elise CTA routes to existing StyleChat session list', () => {

@@ -61,9 +61,10 @@ export const DEV_FEATURE_FREEZE_OVERRIDE: boolean | null = __DEV__ ? null : null
 // These are intentionally environment-driven so the TextScan UI can be built and
 // reviewed without affecting release builds. Defaults are all false.
 
-/** Master switch for TextScan UI entry points and the /text-scan route affordance. */
+/** Master switch for TextScan UI entry points and the /text-scan route affordance.
+ *  Defaults to enabled; set EXPO_PUBLIC_ENABLE_TEXTSCAN=false to hide TextScan. */
 export const TEXTSCAN_UI_ENABLED =
-  process.env.EXPO_PUBLIC_ENABLE_TEXTSCAN === 'true';
+  process.env.EXPO_PUBLIC_ENABLE_TEXTSCAN !== 'false';
 
 /** Enables demo/preview result data on the TextScan results state. Off by default. */
 export const TEXTSCAN_DEMO_RESULTS_ENABLED =

@@ -112,6 +112,7 @@ export default function HomeLuxuryTechV1() {
   const { sessions: styleChatSessions, loading: sessionsLoading } = useStyleChatSessions();
 
   const [personalizeVisible, setPersonalizeVisible] = useState(false);
+  const [textScanNavigating, setTextScanNavigating] = useState(false);
 
   const textScanEnabled =
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
@@ -156,6 +157,14 @@ export default function HomeLuxuryTechV1() {
     await resetIdentity();
     setPersonalizeVisible(false);
   }, [resetIdentity]);
+
+  const handleOpenTextScan = useCallback(() => {
+    if (textScanNavigating) return;
+    setTextScanNavigating(true);
+    router.push('/text-scan');
+    // Re-enable the button after the navigation transition has started.
+    setTimeout(() => setTextScanNavigating(false), 500);
+  }, [textScanNavigating]);
 
   return (
     <LuxuryScreen
@@ -340,8 +349,11 @@ export default function HomeLuxuryTechV1() {
         {textScanEnabled && (
           <SecondaryButton
             testID="home-luxury-textscan"
-            title="✧ TextScan"
-            onPress={() => router.push('/text-scan')}
+            title="TEXTSCAN"
+            icon={<Text style={styles.secondaryPillIcon}>✧</Text>}
+            onPress={handleOpenTextScan}
+            loading={textScanNavigating}
+            disabled={textScanNavigating}
             accessibilityLabel="Open TextScan"
             accessibilityHint="Describe a look with text instead of the camera"
             style={styles.secondaryActionButton}
@@ -587,5 +599,10 @@ const styles = StyleSheet.create({
   },
   voiceScanPillTextMuted: {
     color: LUXURY.colors.stone,
+  },
+  secondaryPillIcon: {
+    fontSize: 14,
+    color: LUXURY.colors.plum,
+    marginRight: SPACING.xs,
   },
 });
