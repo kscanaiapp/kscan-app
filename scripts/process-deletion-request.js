@@ -8,6 +8,7 @@ const OPEN_STATUSES = ['pending', 'processing'];
 const USER_DATA_RESOURCES = [
   { table: 'profiles', column: 'id', action: 'auth_delete_cascade' },
   { table: 'privacy_settings', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'user_stylist_preferences', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'privacy_export_requests', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'privacy_correction_requests', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'deletion_requests', column: 'user_id', action: 'auth_delete_cascade' },

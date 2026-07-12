@@ -1,0 +1,357 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  Modal,
+  TextInput,
+  StyleSheet,
+  useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import {
+  DEFAULT_STYLIST_IDENTITY,
+  STYLIST_AVATAR_PRESETS,
+  STYLIST_NAME_MAX_LENGTH,
+  STYLIST_NAME_MIN_LENGTH,
+  type StylistIdentity,
+} from '../../constants/stylistIdentity';
+import { StylistAvatar } from './StylistAvatar';
+
+interface PersonalizeStylistModalProps {
+  visible: boolean;
+  identity: StylistIdentity;
+  onClose: () => void;
+  onSave: (identity: Partial<StylistIdentity>) => void;
+  onRestoreDefault: () => void;
+  isSaving?: boolean;
+  error?: string | null;
+}
+
+export function PersonalizeStylistModal({
+  visible,
+  identity,
+  onClose,
+  onSave,
+  onRestoreDefault,
+  isSaving = false,
+  error = null,
+}: PersonalizeStylistModalProps) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [draftName, setDraftName] = useState(identity.displayName);
+  const [draftAvatarId, setDraftAvatarId] = useState(identity.avatarId);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setDraftName(identity.displayName);
+      setDraftAvatarId(identity.avatarId);
+      setNameError(null);
+    }
+  }, [visible, identity.displayName, identity.avatarId]);
+
+  const validateName = useCallback((value: string): string | null => {
+    const trimmed = value.trim().replace(/[\x00-\x1F\x7F]/g, '');
+    if (trimmed.length < STYLIST_NAME_MIN_LENGTH) {
+      return `Name must be at least ${STYLIST_NAME_MIN_LENGTH} characters.`;
+    }
+    if (trimmed.length > STYLIST_NAME_MAX_LENGTH) {
+      return `Name must be ${STYLIST_NAME_MAX_LENGTH} characters or fewer.`;
+    }
+    return null;
+  }, []);
+
+  const handleNameChange = useCallback((text: string) => {
+    // Prevent control characters and enforce max length at input level.
+    const cleaned = text.replace(/[\x00-\x1F\x7F]/g, '').slice(0, STYLIST_NAME_MAX_LENGTH);
+    setDraftName(cleaned);
+    setNameError(validateName(cleaned));
+  }, [validateName]);
+
+  const canSave = useMemo(() => {
+    const trimmed = draftName.trim().replace(/[\x00-\x1F\x7F]/g, '');
+    if (trimmed.length < STYLIST_NAME_MIN_LENGTH || trimmed.length > STYLIST_NAME_MAX_LENGTH) {
+      return false;
+    }
+    return (
+      trimmed !== identity.displayName || draftAvatarId !== identity.avatarId
+    );
+  }, [draftName, draftAvatarId, identity]);
+
+  const handleSave = useCallback(() => {
+    const trimmed = draftName.trim().replace(/[\x00-\x1F\x7F]/g, '');
+    const validation = validateName(trimmed);
+    if (validation) {
+      setNameError(validation);
+      return;
+    }
+    onSave({ displayName: trimmed, avatarId: draftAvatarId });
+  }, [draftName, draftAvatarId, validateName, onSave]);
+
+  const handleRestore = useCallback(() => {
+    setDraftName(DEFAULT_STYLIST_IDENTITY.displayName);
+    setDraftAvatarId(DEFAULT_STYLIST_IDENTITY.avatarId);
+    setNameError(null);
+    onRestoreDefault();
+  }, [onRestoreDefault]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      accessibilityViewIsModal
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <View style={styles.backdrop}>
+          <View
+            style={[
+              styles.sheet,
+              {
+                paddingBottom: Math.max(SPACING.xl, insets.bottom + SPACING.md),
+                maxWidth: Math.min(width - SPACING.xl * 2, 420),
+              },
+            ]}
+          >
+            <View style={styles.handle} />
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
+              <Text style={styles.title} accessibilityRole="header">
+                PERSONALIZE YOUR STYLIST
+              </Text>
+              <Text style={styles.subtitle}>
+                Choose the name and avatar you see across K Scan.
+              </Text>
+
+              <View style={styles.nameSection}>
+                <Text style={styles.label}>DISPLAY NAME</Text>
+                <TextInput
+                  value={draftName}
+                  onChangeText={handleNameChange}
+                  placeholder={DEFAULT_STYLIST_IDENTITY.displayName}
+                  maxLength={STYLIST_NAME_MAX_LENGTH}
+                  editable={!isSaving}
+                  style={styles.input}
+                  placeholderTextColor={LUXURY.colors.stone}
+                  accessibilityLabel="Stylist display name"
+                  accessibilityHint="Enter a name between 2 and 24 characters"
+                  autoCorrect={false}
+                  autoCapitalize="words"
+                  returnKeyType="done"
+                />
+                {nameError ? <Text style={styles.fieldError}>{nameError}</Text> : null}
+              </View>
+
+              <View style={styles.avatarSection}>
+                <Text style={styles.label}>AVATAR</Text>
+                <View style={styles.avatarGrid}>
+                  {STYLIST_AVATAR_PRESETS.map((preset) => {
+                    const selected = preset.id === draftAvatarId;
+                    return (
+                      <Pressable
+                        key={preset.id}
+                        onPress={() => setDraftAvatarId(preset.id)}
+                        disabled={isSaving}
+                        style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={preset.accessibilityLabel}
+                      >
+                        <StylistAvatar avatarId={preset.id} size={56} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {error ? <Text style={styles.saveError}>{error}</Text> : null}
+
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={handleSave}
+                  disabled={!canSave || isSaving}
+                  style={({ pressed }) => [
+                    styles.saveButton,
+                    (!canSave || isSaving) && styles.saveButtonDisabled,
+                    pressed && canSave && !isSaving && styles.saveButtonPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save stylist identity"
+                  accessibilityState={{ disabled: !canSave || isSaving }}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {isSaving ? 'SAVING…' : 'SAVE'}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleRestore}
+                  disabled={isSaving}
+                  style={({ pressed }) => [styles.textButton, pressed && styles.textButtonPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Restore default stylist identity"
+                >
+                  <Text style={styles.textButtonLabel}>RESTORE DEFAULT</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={onClose}
+                  disabled={isSaving}
+                  style={({ pressed }) => [styles.textButton, pressed && styles.textButtonPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel personalizing stylist"
+                >
+                  <Text style={styles.textButtonLabel}>CANCEL</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(9, 7, 13, 0.60)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  sheet: {
+    width: '100%',
+    backgroundColor: LUXURY.colors.cream,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    paddingTop: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    maxHeight: '92%',
+    ...LUXURY.cards?.product?.shadow,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: LUXURY.colors.border,
+    alignSelf: 'center',
+    marginBottom: SPACING.md,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.lg,
+  },
+  title: {
+    ...LUXURY.typography.sectionLabel,
+    fontSize: 14,
+    color: LUXURY.colors.ink,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  subtitle: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: LUXURY.colors.graphite,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+  },
+  nameSection: {
+    marginBottom: SPACING.xl,
+  },
+  label: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 1.6,
+    color: LUXURY.colors.stone,
+    marginBottom: SPACING.sm,
+  },
+  input: {
+    ...LUXURY.typography.body,
+    backgroundColor: LUXURY.colors.pearl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    color: LUXURY.colors.ink,
+  },
+  fieldError: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
+    marginTop: SPACING.xs,
+  },
+  avatarSection: {
+    marginBottom: SPACING.xl,
+  },
+  avatarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  avatarButton: {
+    borderRadius: 999,
+    padding: SPACING.xs,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  avatarButtonSelected: {
+    borderColor: LUXURY.colors.plum,
+    backgroundColor: 'rgba(82, 16, 62, 0.06)',
+  },
+  saveError: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  actions: {
+    gap: SPACING.md,
+  },
+  saveButton: {
+    backgroundColor: LUXURY.colors.plum,
+    borderRadius: RADIUS.pill,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: LUXURY.colors.plumMuted,
+  },
+  saveButtonPressed: {
+    backgroundColor: LUXURY.colors.plumCore,
+  },
+  saveButtonText: {
+    ...LUXURY.typography.cta,
+    color: LUXURY.colors.inverse,
+  },
+  textButton: {
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  textButtonPressed: {
+    opacity: 0.7,
+  },
+  textButtonLabel: {
+    ...LUXURY.typography.caption,
+    fontWeight: '600',
+    color: LUXURY.colors.plum,
+    letterSpacing: 1.4,
+  },
+});
