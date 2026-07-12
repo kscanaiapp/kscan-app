@@ -43,6 +43,7 @@ const drafts = new Map<string, SessionDraft>();
 let pendingHandoff: PendingAttachmentHandoff | null = null;
 const listeners = new Set<() => void>();
 let resetSagaGuardsCallback: (() => void) | null = null;
+const EMPTY_ATTACHMENTS = Object.freeze([]) as DraftAttachment[];
 
 function notify() {
   for (const listener of [...listeners]) {
@@ -69,7 +70,7 @@ function getOrCreateDraft(sessionId: string): SessionDraft {
 }
 
 export function getDraftAttachments(sessionId: string): DraftAttachment[] {
-  return drafts.get(sessionId)?.attachments ?? [];
+  return drafts.get(sessionId)?.attachments ?? EMPTY_ATTACHMENTS;
 }
 
 export function getDraftComposerText(sessionId: string): string {

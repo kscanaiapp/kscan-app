@@ -53,6 +53,19 @@ const readyDraft = (draftId, sourceId) => ({
 
 // ── Draft store ───────────────────────────────────────────────────────────────
 
+test('empty attachment snapshots are stable for useSyncExternalStore', () => {
+  store.resetAttachmentStore();
+  const first = store.getDraftAttachments('empty-session');
+  const second = store.getDraftAttachments('empty-session');
+
+  assert.equal(first.length, 0);
+  assert.equal(second.length, 0);
+  assert.equal(first, second, 'empty sessions must not return a fresh array per snapshot read');
+
+  store.clearDraftAttachments('empty-session');
+  assert.equal(store.getDraftAttachments('empty-session'), first);
+});
+
 test('drafts survive by session; snapshot returns only ready, immutable copies', () => {
   store.clearDraftAttachments(S);
   store.upsertDraftAttachment(S, readyDraft('d1', '11111111-1111-4111-8111-111111111111'));
