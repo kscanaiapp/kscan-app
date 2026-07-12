@@ -47,6 +47,7 @@ import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbac
 import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
 import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
 import { StyleChatAttachmentBar } from '../../components/style-chat/StyleChatAttachmentBar';
 import { StyleChatPhotoIntake } from '../../components/style-chat/StyleChatPhotoIntake';
@@ -63,6 +64,8 @@ export default function StyleChatSessionScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const stableSessionId = sessionId ?? '';
   const { user } = useAuthSession();
+  const { identity } = useStylistIdentity();
+  const stylistDisplayName = identity.displayName;
   // Style Memory Phase 0 local feedback key. StyleChat is auth-only, so this is
   // populated whenever messages exist; null hides the local feedback UI.
   const userKey = user ? `user:${user.id}` : null;
@@ -258,8 +261,10 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : (
     <View testID="style-chat-empty-state" style={styles.centred}>
-      <Text style={styles.emptyTitle}>{ELISE_IDENTITY.introTitle}</Text>
-      <Text style={styles.emptyText}>{ELISE_IDENTITY.introDescription}</Text>
+      <Text style={styles.emptyTitle}>Meet {stylistDisplayName}</Text>
+      <Text style={styles.emptyText}>
+        Your personal AI stylist, built around the clothes you already own.
+      </Text>
     </View>
   );
 

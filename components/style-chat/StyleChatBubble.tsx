@@ -6,6 +6,7 @@ import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { StyleChatActionCards } from './StyleChatActionCards';
 import { useStyleDnaFeedback } from '../../hooks/useStyleDnaFeedback';
+import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { StyleChatReasonChips } from './StyleChatReasonChips';
 import {
   STYLE_DNA_ENABLED,
@@ -177,6 +178,8 @@ export function StyleChatBubble({
   onStyleDnaFeedbackSaved,
 }: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
+  const { identity } = useStylistIdentity();
+  const stylistDisplayName = identity.displayName;
   const content = typeof message.content === 'string' ? message.content : '';
   const uiBlocks = Array.isArray(message.uiBlocks) ? message.uiBlocks : [];
   const assistantBlocks = !isUser ? parseAssistantContent(content) : [];
@@ -204,12 +207,12 @@ export function StyleChatBubble({
       style={[styles.row, safeRowPadding, isUser ? styles.rowUser : styles.rowAssistant]}
     >
       {!isUser ? (
-        <View style={styles.avatarDot} accessibilityLabel="Elise" />
+        <View style={styles.avatarDot} accessibilityLabel={stylistDisplayName} />
       ) : null}
       <View
         style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}
         accessibilityRole="text"
-        accessibilityLabel={isUser ? 'Your message' : 'Elise message'}
+        accessibilityLabel={isUser ? 'Your message' : `${stylistDisplayName} message`}
       >
         {isUser || assistantBlocks.length === 0 ? (
           <Text style={isUser ? styles.textUser : styles.textAssistant}>

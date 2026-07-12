@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import { ELISE_IDENTITY } from '../../constants/elise';
+import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -33,13 +34,16 @@ export function useStyleChatHomeBackHandler(bypassRef?: { current: boolean }) {
 
 export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
   const insets = useSafeAreaInsets();
+  const { identity } = useStylistIdentity();
+  const displayName = identity.displayName;
+  const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
   return (
     <View
       testID="style-chat-header"
       style={styles.container}
       accessibilityRole="header"
-      accessibilityLabel={ELISE_IDENTITY.headerAccessibilityLabel}
+      accessibilityLabel={headerAccessibilityLabel}
     >
       <View
         style={[
@@ -66,9 +70,9 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
             adjustsFontSizeToFit
             minimumFontScale={0.85}
             maxFontSizeMultiplier={1.2}
-            accessibilityLabel={ELISE_IDENTITY.headerAccessibilityLabel}
+            accessibilityLabel={headerAccessibilityLabel}
           >
-            {STYLE_CHAT_COPY.header}
+            {displayName}
           </Text>
         </View>
 

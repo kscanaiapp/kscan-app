@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import { ELISE_IDENTITY, ELISE_LOADING_COPY } from '../../constants/elise';
+import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { EmptyStateCard } from '../luxury';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
@@ -26,6 +27,10 @@ export function StyleChatSessionList({
   newSessionDisabled = false,
 }: StyleChatSessionListProps) {
   const insets = useSafeAreaInsets();
+  const { identity } = useStylistIdentity();
+  const displayName = identity.displayName;
+  const introTitle = `Meet ${displayName}`;
+  const introDescription = `Your personal AI stylist, built around the clothes you already own.`;
   const safeSessions = Array.isArray(sessions) ? sessions : [];
   const safeContainerPadding = {
     paddingLeft: Math.max(SPACING.xl, insets.left),
@@ -52,8 +57,8 @@ export function StyleChatSessionList({
       ) : safeSessions.length === 0 ? (
         <EmptyStateCard
           testID="style-chat-empty-state"
-          title={ELISE_IDENTITY.introTitle}
-          subtitle={ELISE_IDENTITY.introDescription}
+          title={introTitle}
+          subtitle={introDescription}
           action={{
             label: STYLE_CHAT_COPY.newSessionCta,
             onPress: onNewSession,
