@@ -139,12 +139,55 @@ test('service derives user from session and normalizes identity', () => {
   assert.match(stylistIdentityService, /import\s*\{\s*supabase\s*\}\s*from/);
   assert.match(stylistIdentityService, /from ['"]\.\/supabaseClient['"]/);
   assert.match(stylistIdentityService, /async function requireUserId/);
+  assert.match(stylistIdentityService, /expectedUserId/);
   assert.match(stylistIdentityService, /export async function fetchStylistIdentity/);
   assert.match(stylistIdentityService, /export async function saveStylistIdentity/);
   assert.match(stylistIdentityService, /normalizeStylistIdentity\(data\)/);
 });
 
 // ── Store reference stability ────────────────────────────────────────────────
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+function loadStylistIdentityStoreWithMocks(fetchMock, saveMock) {
+  const storeModulePath = path.join(ROOT, 'stores', 'stylistIdentityStore.ts');
+  const ts = require('typescript');
+  const source = fs.readFileSync(storeModulePath, 'utf8')
+    .replace("import { fetchStylistIdentity, saveStylistIdentity } from '../services/stylistIdentityService';", '')
+    .replace(/fetchStylistIdentity/g, 'fetchMock')
+    .replace(/saveStylistIdentity/g, 'saveMock');
+
+  const output = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
+  }).outputText;
+
+  const mod = { exports: {} };
+  const vm = require('node:vm');
+  const constantsModule = require('../constants/stylistIdentity.ts');
+  const sandbox = {
+    __DEV__: false, console, Date, exports: mod.exports, module: mod,
+    fetchMock,
+    saveMock,
+    require: (spec) => {
+      if (spec === '../constants/stylistIdentity') return constantsModule;
+      if (spec === '../services/stylistIdentityService') {
+        return { fetchMock, saveMock, fetchStylistIdentity: fetchMock, saveStylistIdentity: saveMock };
+      }
+      throw new Error(`Unexpected import in store test: ${spec}`);
+    },
+  };
+  vm.createContext(sandbox);
+  new vm.Script(output, { filename: storeModulePath }).runInContext(sandbox);
+  return mod.exports;
+}
 
 test('store snapshot reference is stable when identity data is unchanged', async () => {
   const storeModulePath = path.join(ROOT, 'stores', 'stylistIdentityStore.ts');
@@ -217,6 +260,55 @@ test('store snapshot reference is stable when identity data is unchanged', async
 });
 
 // ── Hook integration ─────────────────────────────────────────────────────────
+
+test('store ignores stale hydration after authenticated actor changes', async () => {
+  const pendingHydrations = new Map();
+  const fetchMock = (expectedUserId) => {
+    const pending = deferred();
+    pendingHydrations.set(expectedUserId, pending);
+    return pending.promise;
+  };
+  const saveMock = () => Promise.resolve(DEFAULT_STYLIST_IDENTITY);
+  const store = loadStylistIdentityStoreWithMocks(fetchMock, saveMock);
+
+  const userAIdentity = Object.freeze({ displayName: 'Sofia', avatarId: 'editorial_plum' });
+  const userBIdentity = Object.freeze({ displayName: 'Maya', avatarId: 'deep_space' });
+
+  const hydrateA = store.hydrateStylistIdentityForUser('user-a');
+  const hydrateB = store.hydrateStylistIdentityForUser('user-b');
+
+  pendingHydrations.get('user-b').resolve(userBIdentity);
+  await hydrateB;
+  assert.equal(store.getStylistIdentitySnapshot(), userBIdentity);
+
+  pendingHydrations.get('user-a').resolve(userAIdentity);
+  await hydrateA;
+  assert.equal(store.getStylistIdentitySnapshot(), userBIdentity);
+});
+
+test('store keeps the latest identity when overlapping saves resolve out of order', async () => {
+  const fetchMock = () => Promise.resolve(DEFAULT_STYLIST_IDENTITY);
+  const pendingSaves = new Map();
+  const saveMock = (identity) => {
+    const pending = deferred();
+    pendingSaves.set(identity.displayName, pending);
+    return pending.promise;
+  };
+  const store = loadStylistIdentityStoreWithMocks(fetchMock, saveMock);
+
+  const firstSave = store.updateStylistIdentity({ displayName: 'Sofia', avatarId: 'editorial_plum' });
+  const secondSave = store.updateStylistIdentity({ displayName: 'Maya', avatarId: 'deep_space' });
+
+  pendingSaves.get('Maya').resolve({ displayName: 'Maya', avatarId: 'deep_space' });
+  await secondSave;
+  assert.equal(store.getStylistIdentitySnapshot().displayName, 'Maya');
+  assert.equal(store.getStylistIdentitySnapshot().avatarId, 'deep_space');
+
+  pendingSaves.get('Sofia').resolve({ displayName: 'Sofia', avatarId: 'editorial_plum' });
+  await firstSave;
+  assert.equal(store.getStylistIdentitySnapshot().displayName, 'Maya');
+  assert.equal(store.getStylistIdentitySnapshot().avatarId, 'deep_space');
+});
 
 test('identity hook uses useSyncExternalStore for stable snapshots', () => {
   assert.match(stylistIdentityHook, /useSyncExternalStore/);

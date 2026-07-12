@@ -19,22 +19,27 @@ interface UserStylistPreferenceRow {
   updated_at: string;
 }
 
-async function requireUserId(): Promise<string> {
+async function requireUserId(expectedUserId?: string): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user?.id ?? null;
   if (!id) throw new Error('Sign in to personalize your stylist.');
+  if (expectedUserId && id !== expectedUserId) {
+    throw new Error('Authenticated user changed while loading stylist preferences.');
+  }
   return id;
 }
 
 /**
  * Fetch the authenticated user's stylist identity preference.
- * Returns the default identity when no row exists or when unauthenticated.
+ * Returns the default identity when no row exists or when unauthenticated
+ * without an actor boundary.
  */
-export async function fetchStylistIdentity(): Promise<StylistIdentity> {
+export async function fetchStylistIdentity(expectedUserId?: string): Promise<StylistIdentity> {
   let userId: string;
   try {
-    userId = await requireUserId();
-  } catch {
+    userId = await requireUserId(expectedUserId);
+  } catch (err) {
+    if (expectedUserId) throw err;
     return DEFAULT_STYLIST_IDENTITY;
   }
 
@@ -60,8 +65,9 @@ export async function fetchStylistIdentity(): Promise<StylistIdentity> {
  */
 export async function saveStylistIdentity(
   identity: Partial<StylistIdentity>,
+  expectedUserId?: string,
 ): Promise<StylistIdentity> {
-  const userId = await requireUserId();
+  const userId = await requireUserId(expectedUserId);
   const normalized = normalizeStylistIdentity(identity);
 
   const { data, error } = await supabase

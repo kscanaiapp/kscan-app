@@ -33,6 +33,9 @@ let state: StoreState = DEFAULT_STYLIST_STORE_STATE;
 const listeners = new Set<Listener>();
 let hydratePromise: Promise<void> | null = null;
 let lastHydratedUserId: string | null = null;
+let activeUserId: string | null = null;
+let hydrateRequestVersion = 0;
+let saveRequestVersion = 0;
 
 export function getStylistIdentityState(): StoreState {
   return state;
@@ -88,6 +91,9 @@ export function resetStylistIdentityStore() {
   state = DEFAULT_STYLIST_STORE_STATE;
   hydratePromise = null;
   lastHydratedUserId = null;
+  activeUserId = null;
+  hydrateRequestVersion += 1;
+  saveRequestVersion += 1;
   emit();
 }
 
@@ -96,14 +102,19 @@ export async function hydrateStylistIdentityForUser(userId: string): Promise<voi
     return hydratePromise;
   }
 
+  activeUserId = userId;
   lastHydratedUserId = userId;
+  const requestVersion = hydrateRequestVersion + 1;
+  hydrateRequestVersion = requestVersion;
   setStylistIdentityState({ isLoading: true, error: null });
 
   hydratePromise = (async () => {
     try {
-      const identity = await fetchStylistIdentity();
+      const identity = await fetchStylistIdentity(userId);
+      if (activeUserId !== userId || hydrateRequestVersion !== requestVersion) return;
       setStylistIdentityState({ identity, isLoading: false, error: null });
     } catch (err: unknown) {
+      if (activeUserId !== userId || hydrateRequestVersion !== requestVersion) return;
       const message = err instanceof Error ? err.message : 'Could not load stylist identity.';
       setStylistIdentityState({ isLoading: false, error: message });
     }
@@ -129,11 +140,18 @@ export async function updateStylistIdentity(input: Partial<StylistIdentity>): Pr
 
   if (nextIdentity === state.identity) return;
 
+  const actorUserId = activeUserId;
+  const requestVersion = saveRequestVersion + 1;
+  saveRequestVersion = requestVersion;
+  hydrateRequestVersion += 1;
+  hydratePromise = null;
+
   const previousIdentity = state.identity;
-  setStylistIdentityState({ error: null });
+  setStylistIdentityState({ isLoading: false, error: null });
 
   try {
-    const saved = await saveStylistIdentity(nextIdentity);
+    const saved = await saveStylistIdentity(nextIdentity, actorUserId ?? undefined);
+    if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return;
     const normalized = normalizeStylistIdentity(saved);
     let identityToSet: StylistIdentity = normalized;
     if (
@@ -149,6 +167,7 @@ export async function updateStylistIdentity(input: Partial<StylistIdentity>): Pr
     }
     setStylistIdentityState({ identity: identityToSet, error: null });
   } catch (err: unknown) {
+    if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return;
     setStylistIdentityState({ identity: previousIdentity, error: null });
     const message = err instanceof Error ? err.message : 'Could not save stylist identity.';
     setStylistIdentityState({ error: message });
@@ -158,13 +177,21 @@ export async function updateStylistIdentity(input: Partial<StylistIdentity>): Pr
 export async function resetStylistIdentity(): Promise<void> {
   if (state.identity === DEFAULT_STYLIST_IDENTITY) return;
 
+  const actorUserId = activeUserId;
+  const requestVersion = saveRequestVersion + 1;
+  saveRequestVersion = requestVersion;
+  hydrateRequestVersion += 1;
+  hydratePromise = null;
+
   const previousIdentity = state.identity;
-  setStylistIdentityState({ error: null });
+  setStylistIdentityState({ isLoading: false, error: null });
 
   try {
-    await saveStylistIdentity(DEFAULT_STYLIST_IDENTITY);
+    await saveStylistIdentity(DEFAULT_STYLIST_IDENTITY, actorUserId ?? undefined);
+    if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return;
     setStylistIdentityState({ identity: DEFAULT_STYLIST_IDENTITY, error: null });
   } catch (err: unknown) {
+    if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return;
     setStylistIdentityState({ identity: previousIdentity, error: null });
     const message = err instanceof Error ? err.message : 'Could not reset stylist identity.';
     setStylistIdentityState({ error: message });
