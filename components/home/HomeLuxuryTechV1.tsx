@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,6 @@ import {
   SecondaryButton,
   SectionHeader,
   PrivacyFooter,
-  SavedLookCard,
   StatusPill,
 } from '../../components/luxury';
 import { HomeStylistCard } from './HomeStylistCard';
@@ -34,21 +33,6 @@ import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
 
-
-function formatDateLabel(iso: string): string {
-  try {
-    const date = new Date(iso);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[date.getMonth()]} ${date.getDate()}`;
-  } catch {
-    return '';
-  }
-}
 
 interface FeatureChipProps {
   icon: string;
@@ -118,14 +102,13 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
  * - Start Scan primary CTA
  * - Unified "Your Stylist / Ask Elise" section
  * - Feature grid with Recent Scans as the live-data tile
- * - Full Recent Scans carousel below the grid
  * - TextScan / Voice Scan secondary entries
  * - Trust footer
  */
 export default function HomeLuxuryTechV1() {
   const { isAuthenticated, user, loading: authLoading } = useAuthSession();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
-  const { scans, loading: scansLoading } = useLibrary();
+  const { scans } = useLibrary();
   const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
   const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
   const { sessions: styleChatSessions, loading: sessionsLoading } = useStyleChatSessions();
@@ -142,8 +125,6 @@ export default function HomeLuxuryTechV1() {
     (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
   const firstName = profileName?.split(' ')[0] ?? null;
 
-  const recentScans = scans.slice(0, 4);
-  const hasRecentScans = recentScans.length > 0;
   const latestScan = scans[0] ?? null;
 
   const showStylePicks = stylePicksStatus !== 'backend_not_connected' || picks.length > 0;
@@ -369,67 +350,6 @@ export default function HomeLuxuryTechV1() {
         />
       </View>
 
-      {/* Recent Scans carousel */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <SectionHeader title="RECENT SCANS" style={styles.sectionHeaderTitle} />
-          {hasRecentScans && (
-            <Pressable
-              testID="home-luxury-view-all-scans"
-              onPress={() => router.push('/library')}
-              accessibilityRole="button"
-              style={styles.sectionHeaderAction}
-            >
-              <Text
-                style={styles.viewAll}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                View all ›
-              </Text>
-            </Pressable>
-          )}
-        </View>
-
-        {scansLoading ? (
-          <View style={styles.recentPlaceholder}>
-            <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-          </View>
-        ) : hasRecentScans ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recentScrollContent}
-          >
-            {recentScans.map((scan) => (
-              <SavedLookCard
-                key={scan.id}
-                testID={`home-luxury-recent-scan-${scan.id}`}
-                imageUrl={scan.thumbnailUri}
-                title={scan.attributes?.category || 'Scan'}
-                subtitle={scan.result}
-                tags={[
-                  scan.attributes?.color_palette,
-                  scan.attributes?.silhouette,
-                ].filter(Boolean) as string[]}
-                date={formatDateLabel(scan.createdAt)}
-                status="Scan"
-                onPress={() => router.push('/library')}
-                accessibilityLabel={`Recent scan: ${scan.attributes?.category || 'Scan'}`}
-                style={{ width: 160, marginRight: SPACING.md }}
-              />
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.recentEmptyState}>
-            <Text style={styles.recentEmptyTitle}>No scans yet</Text>
-            <Text style={styles.recentEmptyBody}>
-              Tap START SCAN to add your first item.
-            </Text>
-          </View>
-        )}
-      </View>
-
       {/* Secondary entries: TextScan if enabled, VoiceScan placeholder */}
       <View style={styles.secondaryActionsRow}>
         {textScanEnabled && (
@@ -547,52 +467,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: SPACING.xxl,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  sectionHeaderTitle: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sectionHeaderAction: {
-    flexShrink: 0,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  viewAll: {
-    ...LUXURY.typography.bodyStrong,
-    fontSize: 13,
-    color: LUXURY.colors.plum,
-  },
-  recentPlaceholder: {
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recentEmptyState: {
-    backgroundColor: LUXURY.colors.pearl,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    padding: SPACING.xl,
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  recentEmptyTitle: {
-    ...LUXURY.typography.bodyStrong,
-    fontSize: 15,
-    color: LUXURY.colors.ink,
-  },
-  recentEmptyBody: {
-    ...LUXURY.typography.body,
-    fontSize: 13,
-    color: LUXURY.colors.graphite,
-    textAlign: 'center',
   },
   recentScrollContent: {
     paddingRight: SPACING.lg,

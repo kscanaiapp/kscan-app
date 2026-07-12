@@ -242,18 +242,17 @@ test('Home stylist card receives identity props and supports personalization', (
   assert.match(homeStylistCard, /CONTINUE CONVERSATION/);
 });
 
-test('Home integrates stylist card, Recent Scans tile, and full carousel', () => {
+test('Home integrates stylist card, Recent Scans tile, and no carousel', () => {
   const heroIndex = homeV1.indexOf('<View style={styles.heroCard}>');
   const stylistIndex = homeV1.indexOf('<HomeStylistCard');
   const stylePicksIndex = homeV1.indexOf('STYLE PICKS FOR YOU');
   const featureGridIndex = homeV1.indexOf('featuresRow');
-  const recentCarouselIndex = homeV1.indexOf('<SavedLookCard');
 
   assert.ok(heroIndex > 0);
   assert.ok(stylistIndex > heroIndex, 'stylist card must follow scan hero');
   assert.ok(stylePicksIndex > stylistIndex, 'style picks must follow stylist card');
   assert.ok(featureGridIndex > stylePicksIndex, 'feature grid must follow style picks');
-  assert.ok(recentCarouselIndex > featureGridIndex, 'recent scans carousel must follow feature grid');
+  assert.doesNotMatch(homeV1, /<SavedLookCard/, 'full Recent Scans carousel must be absent from Home');
 
   assert.match(homeV1, /home-luxury-feature-recent-scans/);
   assert.doesNotMatch(homeV1, /title="ASK ELISE"/);

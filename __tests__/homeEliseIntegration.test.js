@@ -16,6 +16,13 @@ const useStyleChatSessions = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleC
 
 // ── Layout hierarchy ─────────────────────────────────────────────────────────
 
+test('Ask Elise / Your Stylist section remains', () => {
+  assert.match(homeV1, /<HomeStylistCard/);
+  assert.match(homeV1, /styleChatEnabled/);
+  assert.match(homeV1, /handleStartConversation/);
+  assert.match(homeV1, /handleOpenStyleChat/);
+});
+
 test('Scan hero remains first and visually dominant', () => {
   const heroIndex = homeV1.indexOf('<View style={styles.heroCard}>');
   const stylistIndex = homeV1.indexOf('<HomeStylistCard');
@@ -26,14 +33,13 @@ test('Scan hero remains first and visually dominant', () => {
   assert.match(homeV1, /START SCAN/);
 });
 
-test('stylist card replaces the old top Recent Scans position', () => {
+test('stylist card appears before the feature grid and no carousel follows it', () => {
   const stylistIndex = homeV1.indexOf('<HomeStylistCard');
   const featureGridIndex = homeV1.indexOf('featuresRow');
-  const recentCarouselIndex = homeV1.indexOf('<SavedLookCard');
 
   assert.ok(stylistIndex > 0);
   assert.ok(featureGridIndex > stylistIndex);
-  assert.ok(recentCarouselIndex > featureGridIndex);
+  assert.doesNotMatch(homeV1, /<SavedLookCard/);
 });
 
 test('AI Stylist tile is removed and replaced with Recent Scans tile', () => {
@@ -43,10 +49,10 @@ test('AI Stylist tile is removed and replaced with Recent Scans tile', () => {
   assert.match(homeV1, /home-luxury-feature-recent-scans/);
 });
 
-test('Recent Scans carousel is rendered below the feature grid', () => {
-  const carouselIndex = homeV1.indexOf('<SavedLookCard');
-  const gridIndex = homeV1.indexOf('featuresRow');
-  assert.ok(carouselIndex > gridIndex);
+test('full Recent Scans carousel is absent from Home', () => {
+  assert.doesNotMatch(homeV1, /<SavedLookCard/);
+  assert.doesNotMatch(homeV1, /home-luxury-recent-scan-/);
+  assert.doesNotMatch(homeV1, /home-luxury-view-all-scans/);
 });
 
 test('Style Picks is not fabricated when absent', () => {
@@ -65,8 +71,27 @@ test('Recent Scans tile resolves newest owned scan from useLibrary', () => {
 
 test('Recent Scans tile shows honest empty state when no scans exist', () => {
   assert.match(homeV1, /No recent scans yet/);
-  assert.match(homeV1, /No scans yet/);
-  assert.match(homeV1, /Tap START SCAN to add your first item/);
+});
+
+// ── Four-box feature grid ────────────────────────────────────────────────────
+
+test('four-box feature grid remains with the required boxes', () => {
+  assert.match(homeV1, /title="RECENT SCANS"/);
+  assert.match(homeV1, /title="VISUAL SEARCH"/);
+  assert.match(homeV1, /title="SAVE & ORGANIZE"/);
+  assert.match(homeV1, /title="DRESSING ROOMS"/);
+});
+
+test('Recent Scans box routes to the existing library/history experience', () => {
+  const recentScansBox = homeV1.indexOf('testID="home-luxury-feature-recent-scans"');
+  const libraryRoute = homeV1.indexOf("router.push('/library')", recentScansBox);
+  assert.ok(recentScansBox > 0);
+  assert.ok(libraryRoute > recentScansBox);
+});
+
+test('no saved-scan card list renders on Home', () => {
+  assert.doesNotMatch(homeV1, /recentScans\.map\(/);
+  assert.doesNotMatch(homeV1, /home-luxury-recent-scan-/);
 });
 
 // ── Navigation primitives ────────────────────────────────────────────────────
