@@ -190,6 +190,7 @@ test('send path: immutable snapshot per send, deferred persistence, draft restor
   assert.match(chatHookSource, /deferUserPersistence/);
   assert.match(chatHookSource, /attachments_unsupported/);
   assert.match(chatHookSource, /attachments_rejected|ATTACHMENT_NOT_OWNED|LOOK_NOT_AVAILABLE/);
+  assert.match(chatHookSource, /retryStateRef\.current\?\.remember\(\{[\s\S]*?attachments:\s*sendAttachments/);
   // Feature flag gates the attachment UI without touching baseline chat.
   assert.match(screenSource, /STYLECHAT_ATTACHMENTS_ENABLED|attachmentsEnabled/);
   const flags = read('constants/featureFlags.ts');

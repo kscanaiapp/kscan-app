@@ -17,6 +17,7 @@ import {
   type DraftAttachment,
   type StyleChatAttachment,
 } from '../types/styleChatAttachments';
+import { createStyleChatRetryState } from '../services/style-chat/styleChatRetryState';
 
 export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
   "Closet-aware messaging isn't available yet. Your attachments are still here.";
@@ -66,13 +67,6 @@ export interface UseStyleChatReturn {
   clearError: () => void;
 }
 
-type FailedSendState = {
-  content: string;
-  userMessageId: string | null;
-  /** v2: preserve the ready attachment snapshot so retry is not text-only. */
-  attachments?: SendAttachmentsInput | null;
-};
-
 export interface UseStyleChatOptions {
   // Awaited before each send; returns a rounded weather location or null to skip.
   getWeatherLocation?: () => Promise<WeatherLocationInput | null>;
@@ -90,7 +84,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
-  const failedSendRef = useRef<FailedSendState | null>(null);
+  const retryStateRef = useRef<ReturnType<typeof createStyleChatRetryState<SendAttachmentsInput>> | null>(null);
+  if (!retryStateRef.current) {
+    retryStateRef.current = createStyleChatRetryState<SendAttachmentsInput>();
+  }
   // Held in a ref so passing an inline getter does not churn sendMessage/retry identity.
   const getWeatherLocationRef = useRef(opts?.getWeatherLocation);
   getWeatherLocationRef.current = opts?.getWeatherLocation;
@@ -103,7 +100,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
 
   useEffect(() => {
-    failedSendRef.current = null;
+    retryStateRef.current?.clear();
   }, [sessionId]);
 
   // Load session, messages, and today's daily usage on mount.
@@ -179,7 +176,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         return;
       }
       isSendingRef.current = true;
-      failedSendRef.current = null;
+      retryStateRef.current?.clear();
 
       // Attachment-bearing sends defer user-message persistence until the
       // backend acknowledges the v2 contract: an unsupported/rejected outcome
@@ -275,6 +272,11 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           setMessages(prev =>
             prev.filter(m => m.id !== optimisticUser?.id && !m.id.startsWith('optimistic-assistant-')),
           );
+          retryStateRef.current?.remember({
+            content: trimmed,
+            userMessageId: null,
+            attachments: sendAttachments,
+          });
           setError(
             result.status === 'attachments_rejected'
               ? STYLECHAT_ATTACHMENTS_REJECTED_COPY
@@ -396,12 +398,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             ? prev.filter(m => m.id !== optimisticUser.id && !m.id.startsWith('optimistic-assistant-'))
             : prev.filter(m => !m.id.startsWith('optimistic-assistant-')),
         );
-        failedSendRef.current = {
+        retryStateRef.current?.remember({
           content: trimmed,
           userMessageId: persistedUserMessageId,
           // Preserve attachments so the error-banner retry resends them.
           attachments: hasAttachments ? sendAttachments : null,
-        };
+        });
         setError(getFriendlyStyleChatError(err));
       } finally {
         isSendingRef.current = false;
@@ -412,9 +414,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   );
 
   const retryLastMessage = useCallback(() => {
-    const failedSend = failedSendRef.current;
+    const failedSend = retryStateRef.current?.consume() ?? null;
     if (failedSend) {
-      failedSendRef.current = null;
       void sendMessage(failedSend.content, {
         skipUserPersistence: Boolean(failedSend.userMessageId),
         existingUserMessageId: failedSend.userMessageId,
