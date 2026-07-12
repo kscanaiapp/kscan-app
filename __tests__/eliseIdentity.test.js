@@ -91,11 +91,12 @@ test('session list empty state uses dynamic Elise introduction', () => {
   assert.doesNotMatch(styleChatSessionList, /Ask Your AI Stylist/);
 });
 
-test('new StyleChat session creation has a synchronous duplicate guard', () => {
-  assert.match(styleChatIndex, /const createSessionInFlightRef = useRef\(false\)/);
-  assert.match(styleChatIndex, /if \(createSessionInFlightRef\.current\) return/);
-  assert.match(styleChatIndex, /createSessionInFlightRef\.current = true/);
-  assert.match(styleChatIndex, /createSessionInFlightRef\.current = false/);
+test('new StyleChat session creation retains its guard through navigation', () => {
+  assert.match(styleChatIndex, /createStyleChatSessionLaunchGuard\(\)/);
+  assert.match(styleChatIndex, /guard\?\.tryBegin\(\)/);
+  assert.match(styleChatIndex, /guard\.rememberSession\(sessionId\)/);
+  assert.match(styleChatIndex, /sessionLaunchGuardRef\.current\?\.resetOnFocus\(\)/);
+  assert.doesNotMatch(styleChatIndex, /finally\s*\{[^}]*setIsCreating\(false\)/s);
   assert.doesNotMatch(styleChatIndex, /if \(isCreating\) return/);
 });
 
