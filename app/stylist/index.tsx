@@ -188,6 +188,8 @@ function StylistContent() {
   const [rejectTarget, setRejectTarget] = useState<RejectTarget | null>(null);
   const [savingSuggestionId, setSavingSuggestionId] = useState<string | null>(null);
   const [savedLookIdBySuggestion, setSavedLookIdBySuggestion] = useState<Record<string, string>>({});
+  const savedLookIdBySuggestionRef = useRef<Record<string, string>>({});
+  const savingSuggestionIdsRef = useRef(new Set<string>());
   const [askRoomLookIds, setAskRoomLookIds] = useState<string[] | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const generatingRef = useRef(false);
@@ -202,6 +204,7 @@ function StylistContent() {
       setActionError(null);
       setDismissedSuggestionIds([]);
       setSavedLookIdBySuggestion({});
+      savedLookIdBySuggestionRef.current = {};
 
       try {
         const anchorRef: OwnedItemRef | null =
@@ -312,10 +315,13 @@ function StylistContent() {
 
   const saveSuggestionAsLook = useCallback(
     async (suggestion: OutfitSuggestion): Promise<string | null> => {
-      const existing = savedLookIdBySuggestion[suggestion.suggestionId];
+      const existing =
+        savedLookIdBySuggestionRef.current[suggestion.suggestionId] ??
+        savedLookIdBySuggestion[suggestion.suggestionId];
       if (existing) return existing;
-      if (savingSuggestionId) return null; // in-flight guard
+      if (savingSuggestionIdsRef.current.has(suggestion.suggestionId)) return null; // in-flight guard
 
+      savingSuggestionIdsRef.current.add(suggestion.suggestionId);
       setSavingSuggestionId(suggestion.suggestionId);
       setActionError(null);
       try {
@@ -339,6 +345,10 @@ function StylistContent() {
             role: ref.role,
           })),
         });
+        savedLookIdBySuggestionRef.current = {
+          ...savedLookIdBySuggestionRef.current,
+          [suggestion.suggestionId]: look.id,
+        };
         setSavedLookIdBySuggestion((current) => ({
           ...current,
           [suggestion.suggestionId]: look.id,
@@ -353,10 +363,11 @@ function StylistContent() {
         setActionError(err?.message || 'Unable to save this Look. Please try again.');
         return null;
       } finally {
+        savingSuggestionIdsRef.current.delete(suggestion.suggestionId);
         setSavingSuggestionId(null);
       }
     },
-    [savedLookIdBySuggestion, savingSuggestionId, occasion, dressCode, setting, note],
+    [savedLookIdBySuggestion, occasion, dressCode, setting, note],
   );
 
   const handleSaveLook = async (suggestion: OutfitSuggestion) => {

@@ -18,13 +18,15 @@ import type { StyleChatSession } from '../../services/style-chat/types';
 export default function StyleChatIndexScreen() {
   const isDeleteDialogOpenRef = useRef(false);
   const handoffAutoStartAttemptedRef = useRef(false);
+  const createSessionInFlightRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessions, loading, error, createSession, deleteSession } = useStyleChatSessions();
   const [isCreating, setIsCreating] = useState(false);
 
   const handleNewSession = useCallback(async () => {
-    if (isCreating) return;
+    if (createSessionInFlightRef.current) return;
+    createSessionInFlightRef.current = true;
     setIsCreating(true);
     try {
       const session = await createSession();
@@ -34,9 +36,10 @@ export default function StyleChatIndexScreen() {
       // createSession throws on auth failure; the session list will show an
       // error on reload, and the user can sign in from the main flow
     } finally {
+      createSessionInFlightRef.current = false;
       setIsCreating(false);
     }
-  }, [createSession, isCreating]);
+  }, [createSession]);
 
   useEffect(() => {
     if (handoffAutoStartAttemptedRef.current || loading || isCreating || error) return;

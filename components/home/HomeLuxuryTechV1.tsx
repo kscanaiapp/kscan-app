@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Linking,
   ViewStyle,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
@@ -113,6 +113,7 @@ export default function HomeLuxuryTechV1() {
 
   const [personalizeVisible, setPersonalizeVisible] = useState(false);
   const [textScanNavigating, setTextScanNavigating] = useState(false);
+  const textScanNavigationInFlightRef = useRef(false);
 
   const textScanEnabled =
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
@@ -158,13 +159,25 @@ export default function HomeLuxuryTechV1() {
     setPersonalizeVisible(false);
   }, [resetIdentity]);
 
+  useFocusEffect(
+    useCallback(() => {
+      textScanNavigationInFlightRef.current = false;
+      setTextScanNavigating(false);
+    }, []),
+  );
+
   const handleOpenTextScan = useCallback(() => {
-    if (textScanNavigating) return;
+    if (textScanNavigationInFlightRef.current) return;
+    textScanNavigationInFlightRef.current = true;
     setTextScanNavigating(true);
-    router.push('/text-scan');
-    // Re-enable the button after the navigation transition has started.
-    setTimeout(() => setTextScanNavigating(false), 500);
-  }, [textScanNavigating]);
+    try {
+      router.push('/text-scan');
+    } catch (error) {
+      textScanNavigationInFlightRef.current = false;
+      setTextScanNavigating(false);
+      throw error;
+    }
+  }, []);
 
   return (
     <LuxuryScreen

@@ -91,6 +91,14 @@ test('session list empty state uses dynamic Elise introduction', () => {
   assert.doesNotMatch(styleChatSessionList, /Ask Your AI Stylist/);
 });
 
+test('new StyleChat session creation has a synchronous duplicate guard', () => {
+  assert.match(styleChatIndex, /const createSessionInFlightRef = useRef\(false\)/);
+  assert.match(styleChatIndex, /if \(createSessionInFlightRef\.current\) return/);
+  assert.match(styleChatIndex, /createSessionInFlightRef\.current = true/);
+  assert.match(styleChatIndex, /createSessionInFlightRef\.current = false/);
+  assert.doesNotMatch(styleChatIndex, /if \(isCreating\) return/);
+});
+
 test('session screen empty state replaces generic state with dynamic Elise intro', () => {
   assert.match(styleChatSessionScreen, /const \{ identity \} = useStylistIdentity\(\)/);
   assert.match(styleChatSessionScreen, /const stylistDisplayName = identity\.displayName/);

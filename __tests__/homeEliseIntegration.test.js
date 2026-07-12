@@ -13,6 +13,10 @@ const homeStylistCard = fs.readFileSync(path.join(ROOT, 'components', 'home', 'H
 const stylistIdentityConstants = fs.readFileSync(path.join(ROOT, 'constants', 'stylistIdentity.ts'), 'utf8');
 const useStylistIdentity = fs.readFileSync(path.join(ROOT, 'hooks', 'useStylistIdentity.ts'), 'utf8');
 const useStyleChatSessions = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChatSessions.ts'), 'utf8');
+const androidManifest = fs.readFileSync(
+  path.join(ROOT, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+  'utf8',
+);
 
 // ── Layout hierarchy ─────────────────────────────────────────────────────────
 
@@ -102,6 +106,16 @@ test('TextScan pill is rendered and routes to the text-scan screen', () => {
   assert.match(homeV1, /textScanNavigating/);
 });
 
+test('TextScan navigation guard prevents rapid duplicates and releases on focus', () => {
+  assert.match(homeV1, /useRef\(false\)/);
+  assert.match(homeV1, /textScanNavigationInFlightRef\.current/);
+  assert.match(homeV1, /if \(textScanNavigationInFlightRef\.current\) return/);
+  assert.match(homeV1, /textScanNavigationInFlightRef\.current = true/);
+  assert.match(homeV1, /useFocusEffect\(/);
+  assert.match(homeV1, /textScanNavigationInFlightRef\.current = false/);
+  assert.doesNotMatch(homeV1, /setTimeout\(\(\) => setTextScanNavigating\(false\)/);
+});
+
 test('Voice Scan pill remains non-interactive and shows Coming Soon', () => {
   assert.match(homeV1, /testID="home-luxury-voicescan-coming-soon"/);
   assert.match(homeV1, /VOICE SCAN/);
@@ -110,8 +124,25 @@ test('Voice Scan pill remains non-interactive and shows Coming Soon', () => {
   assert.match(homeV1, /accessibilityRole="text"/);
 });
 
+test('Android manifest removes mic, fine-location, and storage permissions from dependency merges', () => {
+  for (const permission of [
+    'android.permission.RECORD_AUDIO',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+  ]) {
+    const pattern = new RegExp(`<uses-permission android:name="${permission}" tools:node="remove"\\/>`);
+    assert.match(androidManifest, pattern);
+  }
+});
+
 test('TextScan UI flag defaults to enabled', () => {
   assert.match(featureFlags, /EXPO_PUBLIC_ENABLE_TEXTSCAN !== 'false'/);
+  assert.doesNotMatch(featureFlags, /EXPO_PUBLIC_ENABLE_TEXTSCAN === 'true'/);
+  const flagFor = (value) => value !== 'false';
+  assert.equal(flagFor(undefined), true);
+  assert.equal(flagFor('true'), true);
+  assert.equal(flagFor('false'), false);
 });
 
 // ── Navigation primitives ────────────────────────────────────────────────────

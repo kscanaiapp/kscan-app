@@ -165,6 +165,15 @@ test('multi-option room share preserves canonical order and uses saved AI Looks'
   assert.match(askRoomModal, /shareLooksToRoom/);
 });
 
+test('AI suggestion save is idempotent per suggestion during rapid taps', () => {
+  assert.match(stylistScreen, /savedLookIdBySuggestionRef = useRef<Record<string, string>>\(\{\}\)/);
+  assert.match(stylistScreen, /savingSuggestionIdsRef = useRef\(new Set<string>\(\)\)/);
+  assert.match(stylistScreen, /savingSuggestionIdsRef\.current\.has\(suggestion\.suggestionId\)/);
+  assert.match(stylistScreen, /savingSuggestionIdsRef\.current\.add\(suggestion\.suggestionId\)/);
+  assert.match(stylistScreen, /savedLookIdBySuggestionRef\.current = \{/);
+  assert.match(stylistScreen, /savingSuggestionIdsRef\.current\.delete\(suggestion\.suggestionId\)/);
+});
+
 test('feature gates: aiStylist non-core key exists and screens check gates before AI use', () => {
   assert.match(flags, /'aiStylist',/);
   assert.match(flags, /AI_STYLIST_UI_ENABLED/);
