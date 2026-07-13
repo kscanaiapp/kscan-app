@@ -51,6 +51,14 @@ const phase2SupabasePlan = fs.readFileSync(
   path.join(ROOT, 'docs', 'elise', 'phase2-stylist-portrait-supabase-plan.md'),
   'utf8',
 );
+const portraitAssetManifest = fs.readFileSync(
+  path.join(ROOT, 'docs', 'elise', 'stylist-portrait-asset-manifest.md'),
+  'utf8',
+);
+const portraitProcessingScript = fs.readFileSync(
+  path.join(ROOT, 'scripts', 'process-portrait-avatars.py'),
+  'utf8',
+);
 
 const {
   DEFAULT_STYLIST_IDENTITY,
@@ -536,7 +544,26 @@ test('store keeps the latest identity when overlapping saves resolve out of orde
   assert.equal(store.getStylistIdentitySnapshot().avatarId, 'deep_space');
 });
 
-test('store preserves the prior abstract identity when remote persistence fails', async () => {
+test('store exposes pending state and reports successful persistence', async () => {
+  const pending = deferred();
+  const store = loadStylistIdentityStoreWithMocks(
+    () => Promise.resolve(DEFAULT_STYLIST_IDENTITY),
+    () => pending.promise,
+  );
+
+  const save = store.updateStylistIdentity({
+    displayName: 'Sofia',
+    avatarId: 'stylist_portrait_01',
+  });
+  assert.equal(store.getStylistIdentityLoadingSnapshot(), true);
+
+  pending.resolve({ displayName: 'Sofia', avatarId: 'stylist_portrait_01' });
+  assert.equal(await save, true);
+  assert.equal(store.getStylistIdentityLoadingSnapshot(), false);
+  assert.equal(store.getStylistIdentitySnapshot().avatarId, 'stylist_portrait_01');
+});
+
+test('store preserves the prior abstract identity and clears pending state when persistence fails', async () => {
   const store = loadStylistIdentityStoreWithMocks(
     () => Promise.resolve(DEFAULT_STYLIST_IDENTITY),
     () => Promise.reject(new Error('Could not save stylist preferences.')),
@@ -544,9 +571,11 @@ test('store preserves the prior abstract identity when remote persistence fails'
   const previous = Object.freeze({ displayName: 'Sofia', avatarId: 'editorial_plum' });
   store.setStylistIdentityState({ identity: previous });
 
-  await store.updateStylistIdentity({ displayName: 'Maya', avatarId: 'deep_space' });
+  const result = await store.updateStylistIdentity({ displayName: 'Maya', avatarId: 'deep_space' });
 
+  assert.equal(result, false);
   assert.equal(store.getStylistIdentitySnapshot(), previous);
+  assert.equal(store.getStylistIdentityLoadingSnapshot(), false);
   assert.match(store.getStylistIdentityErrorSnapshot(), /could not save/i);
 });
 
@@ -653,11 +682,17 @@ test('personalize modal shows an enabled People section with ten ready portraits
   assert.match(personalizeModal, /STYLIST_PORTRAIT_PRESETS\.map/);
   assert.match(personalizeModal, /onPress=\{\(\) => setDraftAvatarId\(preset\.id\)\}/);
   assert.match(personalizeModal, /accessibilityRole="radio"/);
-  assert.match(personalizeModal, /accessibilityState=\{\{\s*disabled:\s*isSaving,\s*selected\s*\}\}/);
+  assert.match(personalizeModal, /Choose the portrait that best fits your stylist\./);
+  assert.match(personalizeModal, /accessibilityState=\{\{\s*disabled:\s*saving,\s*selected\s*\}\}/);
   assert.match(personalizeModal, /selected\s*&&\s*styles\.avatarButtonSelected/);
   assert.match(personalizeModal, /<ScrollView[\s\S]*?styles\.actions[\s\S]*?<\/ScrollView>/);
   assert.match(personalizeModal, /KeyboardAvoidingView/);
   assert.match(personalizeModal, /useSafeAreaInsets/);
+  assert.match(personalizeModal, /submissionInFlightRef\.current/);
+  assert.match(personalizeModal, /busy:\s*saving/);
+  assert.match(homeV1, /if \(didSave\) setPersonalizeVisible\(false\)/);
+  assert.match(homeV1, /if \(didReset\) setPersonalizeVisible\(false\)/);
+  assert.doesNotMatch(stylistIdentityService, /console\.warn/);
 });
 
 test('StylistAvatar supports placeholder, ready-image, and load-failure paths', () => {
@@ -680,6 +715,11 @@ test('shipped portrait assets exist, are square JPEGs, and have unique hashes', 
   assert.ok(fs.existsSync(portraitDir), 'portrait output directory must exist');
 
   const expectedIds = STYLIST_PORTRAIT_PRESETS.map((preset) => preset.id);
+  const expectedFiles = expectedIds.map((id) => `${id}.jpg`);
+  const productionFiles = fs.readdirSync(portraitDir)
+    .filter((name) => fs.statSync(path.join(portraitDir, name)).isFile())
+    .sort();
+  assert.deepEqual(productionFiles, expectedFiles, 'production directory must contain exactly ten portraits');
   const hashes = new Set();
 
   for (const id of expectedIds) {
@@ -695,6 +735,61 @@ test('shipped portrait assets exist, are square JPEGs, and have unique hashes', 
     assert.equal(hashes.has(hash), false, 'each portrait asset must have a unique hash');
     hashes.add(hash);
   }
+});
+
+test('portrait manifest matches exact shipped hashes and sizes', () => {
+  const portraitDir = path.join(ROOT, 'assets', 'stylist-avatars', 'portraits');
+  assert.match(portraitAssetManifest, /7 women and 3 men/);
+  assert.match(portraitAssetManifest, /quality 90/);
+  assert.match(portraitAssetManifest, /AI-generated, fictional people/);
+
+  for (const preset of STYLIST_PORTRAIT_PRESETS) {
+    const filename = `${preset.id}.jpg`;
+    const filePath = path.join(portraitDir, filename);
+    const bytes = fs.readFileSync(filePath);
+    const hash = crypto.createHash('sha256').update(bytes).digest('hex');
+    const row = portraitAssetManifest
+      .split(/\r?\n/)
+      .find((line) => line.includes(`| \`${filename}\` |`));
+    assert.ok(row, `manifest row missing for ${filename}`);
+    const cells = row.split('|').map((cell) => cell.trim());
+    assert.match(cells[2], /^1024.+1024$/);
+    assert.equal(cells[3], 'sRGB/RGB');
+    assert.equal(Number(cells[4].replaceAll(',', '')), bytes.length);
+    assert.equal(cells[5].replaceAll('`', ''), hash);
+  }
+});
+
+test('portrait registry is shared, case-safe, and platform-neutral', () => {
+  const portraitBlock = stylistIdentityConstants.match(
+    /const PORTRAIT_PRESET_DEFINITIONS[\s\S]*?\];/,
+  )?.[0];
+  assert.ok(portraitBlock);
+  assert.doesNotMatch(portraitBlock, /Platform\.|\.android\.|\.ios\.|https?:|file:|\\\\/);
+  const sourcePaths = [...portraitBlock.matchAll(/require\(['"]([^'"]+\.jpg)['"]\)/g)]
+    .map((match) => match[1]);
+  assert.equal(sourcePaths.length, 10);
+  assert.equal(new Set(sourcePaths).size, 10);
+  for (const sourcePath of sourcePaths) {
+    const filename = path.posix.basename(sourcePath);
+    assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'stylist-avatars', 'portraits', filename)));
+  }
+  assert.equal(new Set(STYLIST_PORTRAIT_PRESETS.map((preset) => preset.accessibilityLabel)).size, 10);
+});
+
+test('portrait processor enforces the canonical set and safe replacement behavior', () => {
+  assert.match(portraitProcessingScript, /EXPECTED_STEMS/);
+  assert.match(portraitProcessingScript, /stylist_portrait_\{index:02d\}/);
+  assert.match(portraitProcessingScript, /TARGET_SIZE = 1024/);
+  assert.match(portraitProcessingScript, /JPEG_QUALITY = 90/);
+  assert.match(portraitProcessingScript, /ImageOps\.exif_transpose/);
+  assert.match(portraitProcessingScript, /ImageCms\.profileToProfile/);
+  assert.match(portraitProcessingScript, /Refusing to overwrite existing asset/);
+  assert.match(portraitProcessingScript, /--overwrite/);
+  assert.match(portraitProcessingScript, /Unexpected portrait source IDs/);
+  assert.match(portraitProcessingScript, /Missing portrait source IDs/);
+  assert.doesNotMatch(portraitProcessingScript, /\b(requests|urllib|httpx|socket)\b/);
+  assert.doesNotMatch(portraitProcessingScript, /unlink\(|rmtree\(|remove\(/);
 });
 
 // ── Phase 2 Supabase plan ────────────────────────────────────────────────────
