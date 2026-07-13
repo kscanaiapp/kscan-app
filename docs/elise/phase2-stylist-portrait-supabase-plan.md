@@ -19,6 +19,62 @@ and verified all sixteen values, invalid-value rejection, owner isolation,
 anonymous denial, grants, RLS, cascade deletion, and updated-at trigger
 behavior.
 
+### Backend-target verification
+
+- Release `.env` configuration and every EAS build profile target the same
+  abbreviated Supabase project: `wyyu...mhry`.
+- The Supabase CLI is linked to `wyyu...mhry`.
+- The Android audit APK intentionally targets local Supabase through
+  `10.0.2.2:54321`; it is not evidence of a different release project.
+- The older working phone build was not connected for binary inspection, so
+  its embedded project remains unresolved. No repository or EAS evidence points
+  to a second intended release project.
+
+Release configuration and the CLI therefore match. If later inspection of the
+working phone identifies a different project, stop before deployment and
+reconcile the target explicitly.
+
+### Minimal remote prerequisite set
+
+Apply only this dependency chain, in order, after separate authorization:
+
+1. `20260713000001_user_stylist_preferences.sql` - creates only
+   `public.user_stylist_preferences`, its PK/auth-user cascade FK, name checks,
+   three owner-scoped RLS policies, the updated-at function/trigger, and the
+   service-role table grant.
+2. `20260714000001_user_stylist_preferences_rls_grants.sql` - grants only
+   SELECT/INSERT/UPDATE on that table to `authenticated`; it creates no object
+   and changes no policy.
+3. `20260714000003_add_user_stylist_preferences_avatar_allowlist.sql` - adds
+   only the six-ID Phase 1 CHECK after its non-destructive row precheck.
+4. `20260715000001_expand_stylist_portrait_avatar_allowlist.sql` - replaces
+   only that named CHECK with the sixteen-ID definition after its precheck.
+
+Deletion coverage is also declared in `scripts/process-deletion-request.js`;
+the database deletion guarantee itself comes from the auth-user FK cascade.
+
+The other remotely pending repository migrations are not prerequisites and
+must not be bundled: `20260711000001`, `20260711000002`, `20260711000003`,
+`20260711195508`, `20260712000001`, `20260712010000`, `20260712020000`, and
+`20260714000002`. Remote history also contains `20260709130346` without a
+matching local migration file; this drift must not be rewritten as part of the
+stylist-identity deployment.
+
+The connected Supabase migration interface supports applying each exact SQL
+file as a separately named migration, so targeted deployment is supported once
+the four filenames above are explicitly authorized. A broad CLI migration push
+would include unrelated pending files and must not be used.
+
+Remote catalog inspection found no differently named stylist/preference table,
+equivalent RPC, alternate-schema object, or manually created equivalent. The
+minimal chain does not duplicate an existing remote persistence architecture.
+
+An isolated disposable Postgres database bootstrapped from the remote
+prerequisite boundary accepted the four-file sequence. It produced one table,
+one sixteen-ID constraint, three policies, three authenticated grants, no anon
+grant, RLS enabled, the cascade FK, and the updated-at trigger; cross-actor read
+and arbitrary avatar-ID checks were rejected.
+
 ## Verified Phase 1 contract
 
 Source migrations:
