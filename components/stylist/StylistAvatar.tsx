@@ -122,6 +122,8 @@ function PortraitAvatar({
     <Image
       source={preset.source}
       resizeMode="cover"
+      resizeMethod="resize"
+      fadeDuration={0}
       onError={() => setLoadFailed(true)}
       style={[
         styles.container,

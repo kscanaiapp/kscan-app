@@ -707,6 +707,8 @@ test('StylistAvatar supports placeholder, ready-image, and load-failure paths', 
   assert.match(stylistAvatar, /<Image/);
   assert.match(stylistAvatar, /source=\{preset\.source\}/);
   assert.match(stylistAvatar, /resizeMode="cover"/);
+  assert.match(stylistAvatar, /resizeMethod="resize"/);
+  assert.match(stylistAvatar, /fadeDuration=\{0\}/);
   assert.match(stylistAvatar, /onError=\{\(\) => setLoadFailed\(true\)\}/);
   assert.match(stylistAvatar, /if \(loadFailed\)[\s\S]*?<AbstractAvatar/);
 });
