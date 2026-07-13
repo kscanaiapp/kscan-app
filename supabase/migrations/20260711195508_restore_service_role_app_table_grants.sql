@@ -17,29 +17,8 @@ grant select, insert, update, delete on all tables in schema public to service_r
 alter default privileges in schema public
   grant select, insert, update, delete on tables to service_role;
 
--- The share-link QA migration writes this column when creating links, but the
--- canonical local schema never defined it. Add it idempotently so replayed
--- migrations match the runtime function contract.
-alter table public.room_shares
-  add column if not exists max_redemptions integer not null default 10;
-
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'room_shares_max_redemptions_check'
-      and conrelid = 'public.room_shares'::regclass
-  ) then
-    alter table public.room_shares
-      add constraint room_shares_max_redemptions_check
-      check (max_redemptions between 1 and 100);
-  end if;
-end;
-$$;
-
-comment on column public.room_shares.max_redemptions is
-  'Maximum permitted redemptions for a room share link.';
+-- The preceding room-share remediation migration owns the complete nullable
+-- redemption contract. Do not restate or narrow it in this grant repair.
 
 -- Expose existing RLS-protected Look tables to authenticated REST clients.
 -- The policies already restrict every operation to rows owned by auth.uid().

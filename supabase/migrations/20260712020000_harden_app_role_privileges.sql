@@ -37,30 +37,8 @@ alter default privileges in schema public
   grant select, insert, update, delete on tables
   to service_role;
 
--- Later-ledger safety: 20260711195508 originally introduced this column, but
--- targets that already recorded later July 12 migrations can miss that earlier
--- file unless operators explicitly include it. Keep the latest migration
--- self-healing for the runtime room-share contract.
-alter table public.room_shares
-  add column if not exists max_redemptions integer not null default 10;
-
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'room_shares_max_redemptions_check'
-      and conrelid = 'public.room_shares'::regclass
-  ) then
-    alter table public.room_shares
-      add constraint room_shares_max_redemptions_check
-      check (max_redemptions between 1 and 100);
-  end if;
-end;
-$$;
-
-comment on column public.room_shares.max_redemptions is
-  'Maximum permitted redemptions for a room share link.';
+-- The earlier room-share remediation migration owns the complete nullable
+-- redemption contract. This privilege migration must not narrow that schema.
 
 -- Quota RPCs must not keep accepting requests from actors whose account is
 -- already locked or pending deletion. Existing client routing blocks those
@@ -350,17 +328,16 @@ begin
     return target_room_id;
   end if;
 
-  if coalesce(target_max_redemptions, 0) <= 0 then
-    raise exception 'Shared room is unavailable' using errcode = '42501';
-  end if;
+  -- NULL is the preserved unlimited sentinel. Numeric caps alone are counted.
+  if target_max_redemptions is not null then
+    select count(*)
+    into current_redemptions
+    from public.dressing_room_participants p
+    where p.joined_via_share_id = target_share_id;
 
-  select count(*)
-  into current_redemptions
-  from public.dressing_room_participants p
-  where p.joined_via_share_id = target_share_id;
-
-  if current_redemptions >= target_max_redemptions then
-    raise exception 'Shared room is full' using errcode = '42501';
+    if current_redemptions >= target_max_redemptions then
+      raise exception 'Shared room is full' using errcode = '42501';
+    end if;
   end if;
 
   insert into public.dressing_room_participants (dressing_room_id, user_id, role, joined_via_share_id)
