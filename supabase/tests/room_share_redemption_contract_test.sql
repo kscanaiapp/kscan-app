@@ -1,6 +1,6 @@
 begin;
 
-select plan(40);
+select plan(43);
 
 -- Disposable identities and rooms for runtime RPC verification. The enclosing
 -- transaction is rolled back by this test file.
@@ -11,16 +11,24 @@ values
   ('00000000-0000-0000-0000-000000000003', 'room-share-p2@example.invalid'),
   ('00000000-0000-0000-0000-000000000004', 'room-share-p3@example.invalid');
 
+insert into auth.users (id, email)
+select
+  ('00000000-0000-0000-0000-' || lpad(participant_number::text, 12, '0'))::uuid,
+  'room-share-p' || participant_number::text || '@example.invalid'
+from generate_series(5, 12) as participant_number;
+
 insert into public.dressing_rooms (id, user_id, title)
 values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'Unlimited contract fixture'),
   ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'Cap two contract fixture'),
-  ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'Schema contract fixture');
+  ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'Schema contract fixture'),
+  ('10000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001', 'Cap ten contract fixture');
 
 insert into public.room_shares (id, room_id, owner_id, share_token, max_redemptions)
 values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'pgtap_unlimited', null),
-  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'pgtap_cap_2', 2);
+  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'pgtap_cap_2', 2),
+  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001', 'pgtap_cap_10', 10);
 
 select ok(
   exists (
@@ -260,6 +268,39 @@ select is(
    where joined_via_share_id = '20000000-0000-0000-0000-000000000002'),
   2::bigint,
   'cap-2 share remains capped at exactly two participants'
+);
+
+select lives_ok(
+  $$do $test$
+    declare
+      participant_number integer;
+    begin
+      for participant_number in 2..11 loop
+        perform set_config(
+          'request.jwt.claim.sub',
+          '00000000-0000-0000-0000-' || lpad(participant_number::text, 12, '0'),
+          true
+        );
+        perform public.join_room_via_share_token('pgtap_cap_10');
+      end loop;
+    end
+  $test$;$$,
+  'the first ten cap-10 redemptions succeed'
+);
+
+select is(
+  (select count(*) from public.dressing_room_participants
+   where joined_via_share_id = '20000000-0000-0000-0000-000000000003'),
+  10::bigint,
+  'cap-10 share records exactly ten participants'
+);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', true);
+select throws_ok(
+  $$select public.join_room_via_share_token('pgtap_cap_10')$$,
+  '42501',
+  'Shared room is full',
+  'the eleventh cap-10 redemption is rejected'
 );
 
 select is(
