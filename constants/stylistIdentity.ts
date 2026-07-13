@@ -376,6 +376,65 @@ function createReadonlyMap<K, V>(entries: Iterable<readonly [K, V]>): ReadonlyMa
   return facade;
 }
 
+// ── Optional speech configuration ─────────────────────────────────────────────
+//
+// Speech metadata is keyed by existing preset IDs so the authoritative registry
+// is never bypassed. Missing entries mean speech is disabled for that preset.
+// This map may be extended after portrait visual inspection and owner-approved
+// voice assignment.
+
+export type StylistVoiceProfile = 'female' | 'male';
+
+export type StylistSpeechMotionMode = 'mouth_overlay' | 'none';
+
+export interface StylistSpeechConfiguration {
+  speechEnabled?: boolean;
+  voiceProfile?: StylistVoiceProfile;
+  mouthRegion?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  speakingMotionMode?: StylistSpeechMotionMode;
+}
+
+const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
+  // Proposed speech configurations for lip-movement proof.
+  // Voice profiles are proposed and require owner approval before production.
+  [
+    'stylist_portrait_02',
+    {
+      speechEnabled: true,
+      voiceProfile: 'male',
+      speakingMotionMode: 'mouth_overlay',
+      mouthRegion: { x: 0.42, y: 0.65, width: 0.16, height: 0.07 },
+    },
+  ],
+  [
+    'stylist_portrait_05',
+    {
+      speechEnabled: true,
+      voiceProfile: 'female',
+      speakingMotionMode: 'mouth_overlay',
+      mouthRegion: { x: 0.42, y: 0.64, width: 0.16, height: 0.07 },
+    },
+  ],
+  [
+    'stylist_portrait_08',
+    {
+      speechEnabled: true,
+      voiceProfile: 'male',
+      speakingMotionMode: 'mouth_overlay',
+      mouthRegion: { x: 0.42, y: 0.64, width: 0.16, height: 0.07 },
+    },
+  ],
+]);
+
+/** Speech configuration keyed by existing avatar preset ID. */
+export const STYLIST_SPEECH_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
+  createReadonlyMap(SPEECH_CONFIG_ENTRIES);
+
 /** Presets that are selectable in the personalization UI. */
 export const STYLIST_SELECTABLE_PRESETS: readonly StylistAvatarPreset[] = Object.freeze(
   STYLIST_AVATAR_PRESETS.filter((p): p is StylistAvatarPreset & { selectable: true } => p.selectable),
@@ -442,6 +501,27 @@ export function assertPersistableAvatarId(id: string): asserts id is string {
 
 export function resolveAvatarId(id: string | null | undefined): string {
   return isPersistableAvatarId(id) ? id! : DEFAULT_STYLIST_IDENTITY.avatarId;
+}
+
+/**
+ * Return the speech configuration for an avatar preset, or `undefined` when
+ * the preset has no approved speech configuration. Missing metadata always
+ * resolves to speech disabled.
+ */
+export function getStylistSpeechConfig(
+  avatarId: string | null | undefined,
+): StylistSpeechConfiguration | undefined {
+  if (!avatarId) return undefined;
+  return STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId);
+}
+
+/**
+ * Determine whether a preset is configured for speaking motion.
+ * Abstract avatars and placeholders always return false.
+ */
+export function isSpeechEnabledAvatar(avatarId: string | null | undefined): boolean {
+  const config = getStylistSpeechConfig(avatarId);
+  return config?.speechEnabled === true && config.voiceProfile != null;
 }
 
 /**
