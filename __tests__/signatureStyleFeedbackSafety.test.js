@@ -9,6 +9,10 @@ const controlsSource = fs.readFileSync(
   path.join(ROOT, 'components', 'style-chat', 'StyleChatFeedbackControls.tsx'),
   'utf8',
 );
+const sessionSource = fs.readFileSync(
+  path.join(ROOT, 'app', 'style-chat', '[sessionId].tsx'),
+  'utf8',
+);
 
 test('feedback hook gates direct writes and rapid repeated submissions', () => {
   assert.match(hookSource, /activeRef\.current/);
@@ -50,4 +54,10 @@ test('overflow menu is toggle-dismissible and exposes expanded accessibility sta
   assert.match(controlsSource, /current === 'open' \? 'closed' : 'open'/);
   assert.match(controlsSource, /accessibilityRole="menu"/);
   assert.match(controlsSource, /accessibilityState=\{\{ expanded: menuState === 'open' \}\}/);
+});
+
+test('opening a menu scrolls the exact recommendation clear of the composer', () => {
+  assert.match(controlsSource, /if \(menuState === 'open'\) onMenuOpened\?\.\(\)/);
+  assert.match(sessionSource, /renderMessage = \(\{ item, index \}/);
+  assert.match(sessionSource, /scrollToIndex\(\{ index, animated: true, viewPosition: 0 \}\)/);
 });

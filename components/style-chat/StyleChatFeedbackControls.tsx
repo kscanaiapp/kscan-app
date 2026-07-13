@@ -28,6 +28,7 @@ interface StyleChatFeedbackControlsProps {
   showFeedbackControls: boolean;
   feedbackEducationDismissed: boolean;
   onDismissEducation: () => void;
+  onMenuOpened?: () => void;
   onSaved?: () => void;
 }
 
@@ -42,6 +43,7 @@ export function StyleChatFeedbackControls({
   showFeedbackControls,
   feedbackEducationDismissed,
   onDismissEducation,
+  onMenuOpened,
   onSaved,
 }: StyleChatFeedbackControlsProps) {
   const [menuState, setMenuState] = useState<MenuState>('closed');
@@ -111,6 +113,10 @@ export function StyleChatFeedbackControls({
   useEffect(() => {
     if (feedbackError) submissionPendingRef.current = false;
   }, [feedbackError]);
+
+  useEffect(() => {
+    if (menuState === 'open') onMenuOpened?.();
+  }, [menuState, onMenuOpened]);
 
   const handlePositive = useCallback(() => {
     if (

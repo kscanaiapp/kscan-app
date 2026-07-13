@@ -255,7 +255,7 @@ export default function StyleChatSessionScreen() {
     });
   }, [updateStyleDnaPreferences]);
 
-  const renderMessage = ({ item }: { item: StyleChatMessage }) => (
+  const renderMessage = ({ item, index }: { item: StyleChatMessage; index: number }) => (
     <StyleChatBubble
       message={item}
       userKey={userKey}
@@ -263,6 +263,9 @@ export default function StyleChatSessionScreen() {
       showFeedbackControls={styleDnaPreferences.showFeedbackControls}
       feedbackEducationDismissed={styleDnaPreferences.feedbackEducationDismissed}
       onDismissFeedbackEducation={handleDismissFeedbackEducation}
+      onFeedbackMenuOpened={() => {
+        listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
+      }}
       onStyleDnaFeedbackSaved={refreshStyleDnaSummary}
     />
   );

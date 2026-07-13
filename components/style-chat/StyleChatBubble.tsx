@@ -38,6 +38,7 @@ interface StyleChatBubbleProps {
    * Called when the user dismisses the one-time education banner.
    */
   onDismissFeedbackEducation?: () => void;
+  onFeedbackMenuOpened?: () => void;
   onStyleDnaFeedbackSaved?: () => void;
 }
 
@@ -115,6 +116,7 @@ export function StyleChatBubble({
   showFeedbackControls = false,
   feedbackEducationDismissed = false,
   onDismissFeedbackEducation,
+  onFeedbackMenuOpened,
   onStyleDnaFeedbackSaved,
 }: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
@@ -232,6 +234,7 @@ export function StyleChatBubble({
             showFeedbackControls={showFeedbackControls}
             feedbackEducationDismissed={feedbackEducationDismissed}
             onDismissEducation={onDismissFeedbackEducation ?? (() => {})}
+            onMenuOpened={onFeedbackMenuOpened}
             onSaved={onStyleDnaFeedbackSaved}
           />
         ) : null}
