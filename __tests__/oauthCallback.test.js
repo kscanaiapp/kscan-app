@@ -39,6 +39,9 @@ const callbackSource = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'auth', 'callback.tsx'),
   'utf8',
 );
+const appConfig = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8'),
+).expo;
 
 // -- 1. AUTH_CALLBACK_URL matches the kscan:// scheme in app.json ------------
 test('AUTH_CALLBACK_URL uses the kscan:// deep-link scheme registered in app.json', () => {
@@ -149,6 +152,21 @@ test('Apple sign-in stays separate from the Google deep-link browser flow', () =
   assert.match(authScreenSource, /AppleAuthentication\.signInAsync/);
   assert.match(authScreenSource, /signInWithIdToken\(\{[\s\S]*?provider: 'apple'/);
   assert.doesNotMatch(authScreenSource, /provider: 'apple'[\s\S]{0,240}openAuthSessionAsync/);
+});
+
+test('native Apple sign-in retains the nonce and CNG capability contract', () => {
+  const pluginNames = appConfig.plugins.map((plugin) =>
+    Array.isArray(plugin) ? plugin[0] : plugin,
+  );
+
+  assert.equal(appConfig.ios.bundleIdentifier, 'com.kscanai.app');
+  assert.equal(appConfig.ios.usesAppleSignIn, true);
+  assert.ok(pluginNames.includes('expo-apple-authentication'));
+  assert.match(authScreenSource, /Crypto\.getRandomBytes\(length\)/);
+  assert.match(authScreenSource, /Crypto\.CryptoDigestAlgorithm\.SHA256,[\s\S]*rawNonce/);
+  assert.match(authScreenSource, /AppleAuthentication\.signInAsync\(\{[\s\S]*nonce: hashedNonce/);
+  assert.match(authScreenSource, /signInWithIdToken\(\{[\s\S]*token: credential\.identityToken,[\s\S]*nonce: rawNonce/);
+  assert.match(authScreenSource, /code === 'ERR_REQUEST_CANCELED'[\s\S]*setError\('Sign-in cancelled\.'\)/);
 });
 
 test('all Google callback consumers use the shared idempotent session completion path', () => {

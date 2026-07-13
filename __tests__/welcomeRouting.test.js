@@ -43,6 +43,14 @@ const accountSetupStepSource = fs.readFileSync(
   path.join(__dirname, '..', 'components', 'account-home', 'AccountSetupStepV1.tsx'),
   'utf8',
 );
+const onboardingShellSource = fs.readFileSync(
+  path.join(__dirname, '..', 'components', 'onboarding', 'OnboardingShell.tsx'),
+  'utf8',
+);
+const onboardingStepIndicatorSource = fs.readFileSync(
+  path.join(__dirname, '..', 'components', 'onboarding', 'OnboardingStepIndicator.tsx'),
+  'utf8',
+);
 
 // -- The remap formula from _layout.tsx (post-fix) --------------------------
 // Duplicated here so this test breaks loudly if the formula regresses.
@@ -163,6 +171,20 @@ test('canonical onboarding components are unconditional and no simplified altern
   assert.match(onboardingSource, /const renderWelcome = \(\) => \(/);
   assert.match(onboardingSource, /const renderAuthChoice = \(\) => \(/);
   assert.match(onboardingSource, /<PermissionsStepV1/);
+});
+
+test('canonical six-step welcome source is shared by Android and iOS', () => {
+  const accountHomeDir = path.join(__dirname, '..', 'components', 'account-home');
+  const platformWelcomeOverrides = fs.readdirSync(accountHomeDir).filter((name) =>
+    /^WelcomeStepV1\.(?:android|ios)\./.test(name),
+  );
+
+  assert.deepEqual(platformWelcomeOverrides, []);
+  assert.doesNotMatch(welcomeStepSource, /Platform\.(?:OS|select)/);
+  assert.doesNotMatch(onboardingSource, /Platform\.OS\s*===\s*['"]android['"][\s\S]{0,240}WelcomeStepV1/);
+  assert.match(onboardingShellSource, /totalSteps = 6/);
+  assert.match(onboardingStepIndicatorSource, /STEP \{step\} OF \{totalSteps\}/);
+  assert.match(onboardingSource, /type OnboardingStep\s*=[\s\S]*\| 6;/);
 });
 
 // -- 9. Step 4 is reserved for resume/authenticated incomplete flows ----------

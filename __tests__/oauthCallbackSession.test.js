@@ -7,7 +7,7 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
-function loadService(defaultClient) {
+function loadService(defaultClient, DateImplementation = Date) {
   const filename = path.join(ROOT, 'services/oauthCallbackSession.ts');
   const source = fs.readFileSync(filename, 'utf8');
   const output = ts.transpileModule(source, {
@@ -18,6 +18,7 @@ function loadService(defaultClient) {
   }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(output, {
+    Date: DateImplementation,
     Error,
     Math,
     Promise,
@@ -128,4 +129,32 @@ test('a sequential duplicate reuses the accepted stored session without exchangi
   assert.equal(replay.error, null);
   assert.equal(exchangeCount, 1);
   assert.equal(getSessionCount, 1);
+});
+
+test('callback deduplication expires and does not block a valid future callback', async () => {
+  let now = 1000;
+  class TestDate extends Date {
+    static now() {
+      return now;
+    }
+  }
+  let exchangeCount = 0;
+  const client = {
+    auth: {
+      exchangeCodeForSession: async () => ({
+        data: { session: { access_token: `opaque-${++exchangeCount}` } },
+        error: null,
+      }),
+      getSession: async () => ({ data: { session: null }, error: null }),
+      setSession: async () => ({ data: { session: null }, error: null }),
+    },
+  };
+  const { completeOAuthCallbackSession } = loadService(client, TestDate);
+  const parsed = { code: 'reused-after-window' };
+
+  await completeOAuthCallbackSession(parsed, client);
+  now += 10001;
+  await completeOAuthCallbackSession(parsed, client);
+
+  assert.equal(exchangeCount, 2);
 });
