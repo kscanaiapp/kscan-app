@@ -19,13 +19,43 @@ const userStylistPreferencesMigration = fs.readFileSync(
   path.join(ROOT, 'supabase', 'migrations', '20260713000001_user_stylist_preferences.sql'),
   'utf8',
 );
+const userStylistPreferencesGrantsMigration = fs.readFileSync(
+  path.join(ROOT, 'supabase', 'migrations', '20260714000001_user_stylist_preferences_rls_grants.sql'),
+  'utf8',
+);
+const phase1AvatarAllowlistMigrationPath = path.join(
+  ROOT,
+  'supabase',
+  'migrations',
+  '20260714000003_add_user_stylist_preferences_avatar_allowlist.sql',
+);
+const phase1AvatarAllowlistMigration = fs.readFileSync(phase1AvatarAllowlistMigrationPath, 'utf8');
+const deletionScript = fs.readFileSync(
+  path.join(ROOT, 'scripts', 'process-deletion-request.js'),
+  'utf8',
+);
+const phase2SupabasePlan = fs.readFileSync(
+  path.join(ROOT, 'docs', 'elise', 'phase2-stylist-portrait-supabase-plan.md'),
+  'utf8',
+);
 
 const {
   DEFAULT_STYLIST_IDENTITY,
+  STYLIST_ABSTRACT_PRESETS,
   STYLIST_AVATAR_PRESETS,
+  STYLIST_AVATAR_PRESET_BY_ID,
+  STYLIST_PORTRAIT_PRESETS,
+  STYLIST_SELECTABLE_PRESETS,
+  STYLIST_PERSISTABLE_AVATAR_IDS,
+  STYLIST_PORTRAIT_PLACEHOLDER_IDS,
+  getStylistAvatarSection,
+  isRenderablePortraitPreset,
   sanitizeStylistName,
   normalizeStylistIdentity,
   resolveAvatarId,
+  assertPersistableAvatarId,
+  isPersistableAvatarId,
+  StylistIdentityValidationError,
   STYLIST_NAME_MAX_LENGTH,
   STYLIST_NAME_MIN_LENGTH,
 } = require('../constants/stylistIdentity.ts');
@@ -38,25 +68,113 @@ test('default stylist identity is stable and frozen', () => {
   assert.ok(Object.isFrozen(DEFAULT_STYLIST_IDENTITY));
 });
 
-test('avatar preset registry contains diverse local presets', () => {
+test('avatar preset registry contains six abstract presets and ten portrait placeholders', () => {
   assert.ok(Array.isArray(STYLIST_AVATAR_PRESETS));
-  assert.ok(STYLIST_AVATAR_PRESETS.length >= 4);
+  const abstract = STYLIST_AVATAR_PRESETS.filter((p) => p.kind === 'abstract');
+  const portraitPlaceholders = STYLIST_AVATAR_PRESETS.filter(
+    (p) => p.kind === 'portrait' && p.availability === 'placeholder',
+  );
+  assert.equal(abstract.length, 6, 'expected six abstract presets');
+  assert.equal(portraitPlaceholders.length, 10, 'expected ten portrait placeholder presets');
+  assert.equal(STYLIST_AVATAR_PRESETS.length, 16);
+
+  assert.deepEqual(
+    abstract.map((preset) => preset.id),
+    [
+      'elise_default',
+      'editorial_plum',
+      'chrome_muse',
+      'deep_space',
+      'cream_gold',
+      'obsidian_orchid',
+    ],
+  );
+  assert.deepEqual(
+    portraitPlaceholders.map((preset) => preset.id),
+    Array.from({ length: 10 }, (_, index) => `stylist_portrait_${String(index + 1).padStart(2, '0')}`),
+  );
+
   const ids = STYLIST_AVATAR_PRESETS.map((p) => p.id);
   assert.equal(new Set(ids).size, ids.length, 'avatar IDs must be unique');
   assert.ok(STYLIST_AVATAR_PRESETS.some((p) => p.id === 'elise_default'));
-  for (const preset of STYLIST_AVATAR_PRESETS) {
+
+  for (const preset of abstract) {
+    assert.equal(preset.availability, 'ready');
     assert.ok(typeof preset.accessibilityLabel === 'string' && preset.accessibilityLabel.length > 0);
     assert.ok(typeof preset.backgroundColor === 'string');
     assert.ok(typeof preset.accentColor === 'string');
     assert.ok(typeof preset.symbol === 'string');
     assert.ok(typeof preset.symbolColor === 'string');
+    assert.equal(preset.selectable, true);
+    assert.equal(preset.persistable, true);
   }
+
+  for (const preset of portraitPlaceholders) {
+    assert.ok(typeof preset.accessibilityLabel === 'string' && preset.accessibilityLabel.length > 0);
+    assert.equal(preset.selectable, false);
+    assert.equal(preset.persistable, false);
+    assert.equal('source' in preset, false, 'placeholder must not carry a source');
+    assert.ok(Object.isFrozen(preset));
+  }
+});
+
+test('registry discriminated union keeps invalid states unrepresentable', () => {
+  assert.match(stylistIdentityConstants, /kind:\s*['"]abstract['"]/);
+  assert.match(stylistIdentityConstants, /kind:\s*['"]portrait['"]/);
+  assert.match(stylistIdentityConstants, /availability:\s*['"]placeholder['"]/);
+  assert.match(stylistIdentityConstants, /availability:\s*['"]ready['"]/);
+  assert.match(stylistIdentityConstants, /source:\s*number/);
+  assert.match(stylistIdentityConstants, /source\?:\s*never/);
+  // Placeholder presets explicitly omit `source`.
+  const placeholderBlock = stylistIdentityConstants.match(
+    /const PORTRAIT_PRESET_DEFINITIONS[\s\S]*?\];/,
+  )?.[0];
+  assert.ok(placeholderBlock);
+  assert.doesNotMatch(placeholderBlock, /source:/);
+});
+
+test('test-only ready portrait stays in People and satisfies the image render contract', () => {
+  const readyPortrait = Object.freeze({
+    kind: 'portrait',
+    availability: 'ready',
+    id: 'test_ready_portrait',
+    accessibilityLabel: 'Test ready portrait',
+    source: 1,
+    selectable: true,
+    persistable: true,
+  });
+  assert.equal(getStylistAvatarSection(readyPortrait), 'people');
+  assert.equal(isRenderablePortraitPreset(readyPortrait), true);
+  assert.equal(isRenderablePortraitPreset({ ...readyPortrait, source: undefined }), false);
+  assert.equal(isRenderablePortraitPreset({ ...readyPortrait, source: 'remote-url' }), false);
+});
+
+test('selectable and persistable collections are precomputed at module scope', () => {
+  assert.equal(STYLIST_ABSTRACT_PRESETS.length, 6);
+  assert.equal(STYLIST_PORTRAIT_PRESETS.length, 10);
+  assert.equal(STYLIST_SELECTABLE_PRESETS.length, 6);
+  assert.equal(STYLIST_PERSISTABLE_AVATAR_IDS.size, 6);
+  for (const preset of STYLIST_SELECTABLE_PRESETS) {
+    assert.equal(preset.selectable, true);
+    assert.ok(STYLIST_PERSISTABLE_AVATAR_IDS.has(preset.id));
+  }
+  for (const id of STYLIST_PORTRAIT_PLACEHOLDER_IDS) {
+    assert.equal(STYLIST_PERSISTABLE_AVATAR_IDS.has(id), false);
+  }
+  assert.equal(STYLIST_AVATAR_PRESET_BY_ID.size, 16);
+  assert.equal(STYLIST_ABSTRACT_PRESETS, STYLIST_ABSTRACT_PRESETS);
+  assert.equal(STYLIST_PORTRAIT_PRESETS, STYLIST_PORTRAIT_PRESETS);
+  assert.ok(Object.isFrozen(STYLIST_AVATAR_PRESETS));
+  assert.ok(Object.isFrozen(STYLIST_ABSTRACT_PRESETS));
+  assert.ok(Object.isFrozen(STYLIST_PORTRAIT_PRESETS));
+  assert.equal(STYLIST_PERSISTABLE_AVATAR_IDS.add, undefined);
+  assert.equal(STYLIST_AVATAR_PRESET_BY_ID.set, undefined);
 });
 
 test('registry uses static preset references and no dynamic require', () => {
   assert.doesNotMatch(stylistAvatar, /require\s*\(\s*`/);
   assert.doesNotMatch(stylistAvatar, /require\s*\(\s*['"]\.\.\/assets\/stylist\//);
-  assert.match(stylistAvatar, /STYLIST_AVATAR_PRESETS\.find/);
+  assert.match(stylistAvatar, /STYLIST_AVATAR_PRESET_BY_ID\.get/);
 });
 
 test('avatar resolution falls back to default for unknown or missing IDs', () => {
@@ -64,6 +182,22 @@ test('avatar resolution falls back to default for unknown or missing IDs', () =>
   assert.equal(resolveAvatarId('unknown_avatar'), 'elise_default');
   assert.equal(resolveAvatarId(null), 'elise_default');
   assert.equal(resolveAvatarId(''), 'elise_default');
+});
+
+test('placeholder avatar IDs resolve to the safe default and are not persistable', () => {
+  const placeholderId = STYLIST_PORTRAIT_PLACEHOLDER_IDS[0];
+  assert.equal(resolveAvatarId(placeholderId), DEFAULT_STYLIST_IDENTITY.avatarId);
+  assert.equal(isPersistableAvatarId(placeholderId), false);
+  assert.equal(isPersistableAvatarId('elise_default'), true);
+  assert.throws(
+    () => assertPersistableAvatarId(placeholderId),
+    (error) =>
+      error instanceof StylistIdentityValidationError && error.reason === 'unavailable_avatar_id',
+  );
+  assert.throws(
+    () => assertPersistableAvatarId('unknown_avatar'),
+    (error) => error instanceof StylistIdentityValidationError && error.reason === 'unknown_avatar_id',
+  );
 });
 
 // ── Name validation ──────────────────────────────────────────────────────────
@@ -90,6 +224,12 @@ test('normalizeStylistIdentity returns default for invalid or missing data', () 
   assert.equal(normalizeStylistIdentity({}), DEFAULT_STYLIST_IDENTITY);
   assert.equal(normalizeStylistIdentity({ display_name: 'A' }), DEFAULT_STYLIST_IDENTITY);
   assert.equal(normalizeStylistIdentity({ avatar_id: 'unknown' }), DEFAULT_STYLIST_IDENTITY);
+  const placeholderRow = normalizeStylistIdentity({
+    display_name: 'Other User',
+    avatar_id: STYLIST_PORTRAIT_PLACEHOLDER_IDS[0],
+  });
+  assert.equal(placeholderRow.displayName, 'Other User');
+  assert.equal(placeholderRow.avatarId, DEFAULT_STYLIST_IDENTITY.avatarId);
   assert.equal(normalizeStylistIdentity({ display_name: '', avatar_id: '' }), DEFAULT_STYLIST_IDENTITY);
 });
 
@@ -118,6 +258,16 @@ test('migration creates user_stylist_preferences with RLS and constraints', () =
   assert.match(userStylistPreferencesMigration, /create policy "Users can select own stylist preferences"/);
   assert.match(userStylistPreferencesMigration, /create policy "Users can insert own stylist preferences"/);
   assert.match(userStylistPreferencesMigration, /create policy "Users can update own stylist preferences"/);
+  assert.doesNotMatch(
+    userStylistPreferencesMigration,
+    /constraint\s+\w*avatar\w*\s+check/i,
+    'Phase 1 source schema currently has no avatar allowlist constraint',
+  );
+  assert.match(
+    userStylistPreferencesGrantsMigration,
+    /grant select, insert, update on public\.user_stylist_preferences to authenticated/,
+  );
+  assert.match(deletionScript, /table:\s*['"]user_stylist_preferences['"][\s\S]*?auth_delete_cascade/);
 });
 
 test('migration policies restrict access to the authenticated owner', () => {
@@ -135,7 +285,7 @@ test('migration policies restrict access to the authenticated owner', () => {
   assert.match(updatePolicy, /with check \(auth\.uid\(\) = user_id\)/);
 });
 
-test('service derives user from session and normalizes identity', () => {
+test('service derives user from session, normalizes identity, and validates persistability', () => {
   assert.match(stylistIdentityService, /import\s*\{\s*supabase\s*\}\s*from/);
   assert.match(stylistIdentityService, /from ['"]\.\/supabaseClient['"]/);
   assert.match(stylistIdentityService, /async function requireUserId/);
@@ -143,6 +293,57 @@ test('service derives user from session and normalizes identity', () => {
   assert.match(stylistIdentityService, /export async function fetchStylistIdentity/);
   assert.match(stylistIdentityService, /export async function saveStylistIdentity/);
   assert.match(stylistIdentityService, /normalizeStylistIdentity\(data\)/);
+  assert.match(stylistIdentityService, /assertPersistableAvatarId\(avatarId\)/);
+});
+
+function loadStylistIdentityServiceWithSupabase(supabase) {
+  const ts = require('typescript');
+  const source = stylistIdentityService.replace("import { supabase } from './supabaseClient';", '');
+  const output = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const mod = { exports: {} };
+  const evaluate = new Function('require', 'module', 'exports', 'supabase', '__DEV__', output);
+  const localRequire = (specifier) =>
+    specifier === '../constants/stylistIdentity'
+      ? require('../constants/stylistIdentity.ts')
+      : require(specifier);
+  evaluate(localRequire, mod, mod.exports, supabase, false);
+  return mod.exports;
+}
+
+test('service rejects placeholder and unknown IDs before any Supabase call', async () => {
+  let authCalls = 0;
+  let tableCalls = 0;
+  const supabase = {
+    auth: {
+      getSession: async () => {
+        authCalls += 1;
+        return { data: { session: { user: { id: 'user-a' } } } };
+      },
+    },
+    from: () => {
+      tableCalls += 1;
+      throw new Error('table access must not occur');
+    },
+  };
+  const service = loadStylistIdentityServiceWithSupabase(supabase);
+
+  await assert.rejects(
+    service.saveStylistIdentity({
+      displayName: 'Elise',
+      avatarId: STYLIST_PORTRAIT_PLACEHOLDER_IDS[0],
+    }),
+    (error) =>
+      error instanceof StylistIdentityValidationError && error.reason === 'unavailable_avatar_id',
+  );
+  await assert.rejects(
+    service.saveStylistIdentity({ displayName: 'Elise', avatarId: 'unknown_avatar' }),
+    (error) => error instanceof StylistIdentityValidationError && error.reason === 'unknown_avatar_id',
+  );
+
+  assert.equal(authCalls, 0);
+  assert.equal(tableCalls, 0);
 });
 
 // ── Store reference stability ────────────────────────────────────────────────
@@ -173,7 +374,7 @@ function loadStylistIdentityStoreWithMocks(fetchMock, saveMock) {
   const vm = require('node:vm');
   const constantsModule = require('../constants/stylistIdentity.ts');
   const sandbox = {
-    __DEV__: false, console, Date, exports: mod.exports, module: mod,
+    __DEV__: false, console, Date, Error, exports: mod.exports, module: mod,
     fetchMock,
     saveMock,
     require: (spec) => {
@@ -195,15 +396,6 @@ test('store snapshot reference is stable when identity data is unchanged', async
   // Mock the service layer so the store can run in Node without React Native deps.
   const fetchMock = () => Promise.resolve(DEFAULT_STYLIST_IDENTITY);
   const saveMock = () => Promise.resolve(DEFAULT_STYLIST_IDENTITY);
-
-  const module = {
-    mock: {
-      '../services/stylistIdentityService': {
-        fetchStylistIdentity: fetchMock,
-        saveStylistIdentity: saveMock,
-      },
-    },
-  };
 
   const ts = require('typescript');
   const source = fs.readFileSync(storeModulePath, 'utf8')
@@ -259,7 +451,7 @@ test('store snapshot reference is stable when identity data is unchanged', async
   unsubscribe();
 });
 
-// ── Hook integration ─────────────────────────────────────────────────────────
+// ── Store actor safety and persistence guard ─────────────────────────────────
 
 test('store ignores stale hydration after authenticated actor changes', async () => {
   const pendingHydrations = new Map();
@@ -286,6 +478,23 @@ test('store ignores stale hydration after authenticated actor changes', async ()
   assert.equal(store.getStylistIdentitySnapshot(), userBIdentity);
 });
 
+test('store clears the prior actor identity before hydrating a new account', async () => {
+  const pending = deferred();
+  const store = loadStylistIdentityStoreWithMocks(
+    () => pending.promise,
+    () => Promise.resolve(DEFAULT_STYLIST_IDENTITY),
+  );
+  store.setStylistIdentityState({
+    identity: Object.freeze({ displayName: 'User A Stylist', avatarId: 'editorial_plum' }),
+  });
+
+  const hydration = store.hydrateStylistIdentityForUser('user-b');
+  assert.equal(store.getStylistIdentitySnapshot(), DEFAULT_STYLIST_IDENTITY);
+  pending.resolve(Object.freeze({ displayName: 'User B Stylist', avatarId: 'deep_space' }));
+  await hydration;
+  assert.equal(store.getStylistIdentitySnapshot().displayName, 'User B Stylist');
+});
+
 test('store keeps the latest identity when overlapping saves resolve out of order', async () => {
   const fetchMock = () => Promise.resolve(DEFAULT_STYLIST_IDENTITY);
   const pendingSaves = new Map();
@@ -309,6 +518,50 @@ test('store keeps the latest identity when overlapping saves resolve out of orde
   assert.equal(store.getStylistIdentitySnapshot().displayName, 'Maya');
   assert.equal(store.getStylistIdentitySnapshot().avatarId, 'deep_space');
 });
+
+test('store preserves the prior abstract identity when remote persistence fails', async () => {
+  const store = loadStylistIdentityStoreWithMocks(
+    () => Promise.resolve(DEFAULT_STYLIST_IDENTITY),
+    () => Promise.reject(new Error('Could not save stylist preferences.')),
+  );
+  const previous = Object.freeze({ displayName: 'Sofia', avatarId: 'editorial_plum' });
+  store.setStylistIdentityState({ identity: previous });
+
+  await store.updateStylistIdentity({ displayName: 'Maya', avatarId: 'deep_space' });
+
+  assert.equal(store.getStylistIdentitySnapshot(), previous);
+  assert.match(store.getStylistIdentityErrorSnapshot(), /could not save/i);
+});
+
+test('store rejects portrait placeholder avatars before saving and rolls back', async () => {
+  const fetchMock = () => Promise.resolve(DEFAULT_STYLIST_IDENTITY);
+  const saveCalls = [];
+  const saveMock = (identity) => {
+    saveCalls.push(identity);
+    return Promise.resolve(identity);
+  };
+  const store = loadStylistIdentityStoreWithMocks(fetchMock, saveMock);
+
+  // Establish a known previous identity.
+  store.setStylistIdentityState({
+    identity: Object.freeze({ displayName: 'Sofia', avatarId: 'editorial_plum' }),
+  });
+  const previous = store.getStylistIdentitySnapshot();
+
+  const placeholderId = STYLIST_PORTRAIT_PLACEHOLDER_IDS[0];
+  await store.updateStylistIdentity({ avatarId: placeholderId });
+
+  assert.equal(saveCalls.length, 0, 'save must not be called for placeholder IDs');
+  assert.equal(store.getStylistIdentitySnapshot(), previous, 'identity must roll back to previous value');
+  assert.ok(store.getStylistIdentityErrorSnapshot(), 'store must surface an error');
+
+  await store.updateStylistIdentity({ avatarId: 'unknown_avatar' });
+  assert.equal(saveCalls.length, 0, 'save must not be called for unknown IDs');
+  assert.equal(store.getStylistIdentitySnapshot(), previous);
+  assert.match(store.getStylistIdentityErrorSnapshot(), /not recognized/i);
+});
+
+// ── Hook integration ─────────────────────────────────────────────────────────
 
 test('identity hook uses useSyncExternalStore for stable snapshots', () => {
   assert.match(stylistIdentityHook, /useSyncExternalStore/);
@@ -354,10 +607,99 @@ test('Home integrates stylist card, Recent Scans tile, and no carousel', () => {
 test('personalize modal allows editing display name and avatar', () => {
   assert.match(personalizeModal, /PERSONALIZE YOUR STYLIST/);
   assert.match(personalizeModal, /DISPLAY NAME/);
-  assert.match(personalizeModal, /AVATAR/);
+  assert.match(personalizeModal, /ABSTRACT/);
   assert.match(personalizeModal, /SAVE/);
   assert.match(personalizeModal, /RESTORE DEFAULT/);
   assert.match(personalizeModal, /CANCEL/);
-  assert.match(personalizeModal, /STYLIST_AVATAR_PRESETS/);
+  assert.match(personalizeModal, /STYLIST_ABSTRACT_PRESETS/);
+  assert.match(personalizeModal, /STYLIST_PORTRAIT_PRESETS/);
   assert.match(personalizeModal, /StylistAvatar/);
+});
+
+test('personalize modal shows a disabled People section with ten placeholders', () => {
+  assert.match(personalizeModal, /PEOPLE/);
+  assert.match(personalizeModal, /Photorealistic stylist portraits are coming soon\./);
+  assert.equal(
+    personalizeModal.split('Photorealistic stylist portraits are coming soon.').length - 1,
+    1,
+  );
+  assert.match(personalizeModal, /preset\.availability\s*===\s*['"]placeholder['"]/);
+  assert.match(personalizeModal, /accessibilityRole="image"/);
+  assert.match(personalizeModal, /accessibilityState=\{\{\s*disabled:\s*true\s*\}\}/);
+  assert.match(personalizeModal, /styles\.avatarButtonDisabled/);
+  assert.match(personalizeModal, /preset\.availability[\s\S]*?onPress=\{\(\) => setDraftAvatarId\(preset\.id\)\}/);
+  assert.match(personalizeModal, /<ScrollView[\s\S]*?styles\.actions[\s\S]*?<\/ScrollView>/);
+  assert.match(personalizeModal, /KeyboardAvoidingView/);
+  assert.match(personalizeModal, /useSafeAreaInsets/);
+});
+
+test('StylistAvatar supports placeholder, ready-image, and load-failure paths', () => {
+  assert.match(stylistAvatar, /reducedOpacity\s*\?\s*0\.35/);
+  assert.match(stylistAvatar, /preset\.kind\s*===\s*['"]portrait['"]\s*&&\s*preset\.availability\s*===\s*['"]placeholder['"]/);
+  assert.match(stylistAvatar, /AbstractAvatar/);
+  assert.match(stylistAvatar, /isRenderablePortraitPreset\(preset\)/);
+  assert.match(stylistAvatar, /<PortraitAvatar/);
+  assert.match(stylistAvatar, /<Image/);
+  assert.match(stylistAvatar, /source=\{preset\.source\}/);
+  assert.match(stylistAvatar, /resizeMode="cover"/);
+  assert.match(stylistAvatar, /onError=\{\(\) => setLoadFailed\(true\)\}/);
+  assert.match(stylistAvatar, /if \(loadFailed\)[\s\S]*?<AbstractAvatar/);
+});
+
+// ── Phase 2 Supabase plan ────────────────────────────────────────────────────
+
+test('Phase 1 migration adds exactly the six abstract IDs without changing security contracts', () => {
+  const expectedAbstractIds = STYLIST_ABSTRACT_PRESETS.map((preset) => preset.id);
+  const quotedIds = [...phase1AvatarAllowlistMigration.matchAll(/'([a-z0-9_]+)'/g)]
+    .map((match) => match[1])
+    .filter((value) => expectedAbstractIds.includes(value));
+  assert.deepEqual([...new Set(quotedIds)].sort(), [...expectedAbstractIds].sort());
+  assert.equal(quotedIds.length, expectedAbstractIds.length * 2, 'precheck and CHECK must agree');
+  const checkBlock = phase1AvatarAllowlistMigration.match(
+    /add constraint user_stylist_preferences_avatar_id_check[\s\S]*$/,
+  )?.[0];
+  assert.ok(checkBlock);
+  const allowedIds = [...checkBlock.matchAll(/'([a-z0-9_]+)'/g)].map((match) => match[1]);
+  assert.deepEqual(allowedIds, expectedAbstractIds);
+  for (const portraitId of STYLIST_PORTRAIT_PLACEHOLDER_IDS) {
+    assert.equal(allowedIds.includes(portraitId), false);
+  }
+  assert.equal(allowedIds.includes('arbitrary_avatar'), false);
+  assert.doesNotMatch(phase1AvatarAllowlistMigration, /stylist_portrait_\d{2}/);
+  assert.match(
+    phase1AvatarAllowlistMigration,
+    /add constraint user_stylist_preferences_avatar_id_check/,
+  );
+  assert.match(phase1AvatarAllowlistMigration, /unsupported_row_count/);
+  assert.doesNotMatch(phase1AvatarAllowlistMigration, /\b(delete|update|insert)\b/i);
+  assert.doesNotMatch(phase1AvatarAllowlistMigration, /\b(policy|grant|trigger|foreign key)\b/i);
+  const avatarAllowlistMigrations = fs
+    .readdirSync(path.join(ROOT, 'supabase', 'migrations'))
+    .filter((name) => /stylist.*avatar.*allowlist\.sql$/.test(name));
+  assert.deepEqual(avatarAllowlistMigrations, [path.basename(phase1AvatarAllowlistMigrationPath)]);
+  assert.equal(fs.existsSync(path.join(ROOT, 'assets', 'stylist-avatars', 'portraits')), false);
+});
+
+test('Phase 2 Supabase plan reflects history and expands the exact constraint to sixteen IDs', () => {
+  assert.match(phase2SupabasePlan, /no database `avatar_id` CHECK constraint existed/i);
+  assert.match(phase2SupabasePlan, /20260714000003_add_user_stylist_preferences_avatar_allowlist\.sql/);
+  assert.match(phase2SupabasePlan, /user_stylist_preferences_avatar_id_check/);
+  assert.match(phase2SupabasePlan, /20260715\d+_expand_stylist_portrait_avatar_allowlist\.sql/);
+  assert.match(phase2SupabasePlan, /forward-only/);
+  assert.match(phase2SupabasePlan, /RLS/);
+  assert.match(phase2SupabasePlan, /user_stylist_preferences_updated_at/);
+  assert.match(phase2SupabasePlan, /User A[\s\S]*User B/);
+  assert.match(phase2SupabasePlan, /unknown_avatar_id[\s\S]*CHECK-constraint violation/);
+  const replacementBlock = phase2SupabasePlan.match(
+    /drop constraint user_stylist_preferences_avatar_id_check,[\s\S]*?\n\s*\);\n```/,
+  )?.[0];
+  assert.ok(replacementBlock, 'sixteen-ID replacement CHECK must be documented');
+  const plannedIds = [...replacementBlock.matchAll(/'([a-z0-9_]+)'/g)].map((match) => match[1]);
+  const registryIds = STYLIST_AVATAR_PRESETS.map((preset) => preset.id);
+  assert.deepEqual(plannedIds, registryIds);
+  assert.equal(new Set(plannedIds).size, 16);
+
+  assert.match(phase2SupabasePlan, /validation queries/i);
+  assert.match(phase2SupabasePlan, /rollout order/i);
+  assert.match(phase2SupabasePlan, /recovery guidance/i);
 });
