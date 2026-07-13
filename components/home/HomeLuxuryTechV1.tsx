@@ -148,15 +148,17 @@ export default function HomeLuxuryTechV1() {
 
   const handleSaveIdentity = useCallback(
     async (next: { displayName?: string; avatarId?: string }) => {
-      await updateIdentity(next);
-      setPersonalizeVisible(false);
+      const didSave = await updateIdentity(next);
+      if (didSave) setPersonalizeVisible(false);
+      return didSave;
     },
     [updateIdentity],
   );
 
   const handleResetIdentity = useCallback(async () => {
-    await resetIdentity();
-    setPersonalizeVisible(false);
+    const didReset = await resetIdentity();
+    if (didReset) setPersonalizeVisible(false);
+    return didReset;
   }, [resetIdentity]);
 
   useFocusEffect(

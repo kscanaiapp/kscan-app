@@ -53,7 +53,7 @@ export async function fetchStylistIdentity(expectedUserId?: string): Promise<Sty
     .maybeSingle();
 
   if (error) {
-    if (__DEV__) console.warn('[fetchStylistIdentity] query error:', error.message);
+    if (__DEV__) console.info('[stylistIdentity] load unavailable');
     throw new Error('Could not load stylist preferences.');
   }
 
@@ -109,7 +109,7 @@ export async function saveStylistIdentity(
     .single();
 
   if (error) {
-    if (__DEV__) console.warn('[saveStylistIdentity] upsert error:', error.message);
+    if (__DEV__) console.info('[stylistIdentity] save unavailable');
     throw new Error('Could not save stylist preferences.');
   }
 

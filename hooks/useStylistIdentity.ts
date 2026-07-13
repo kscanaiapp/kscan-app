@@ -85,11 +85,11 @@ export function useStylistIdentity() {
   }, [isAuthenticated, userId]);
 
   const update = useCallback(async (input: Partial<StylistIdentity>) => {
-    await updateStylistIdentity(input);
+    return updateStylistIdentity(input);
   }, []);
 
   const reset = useCallback(async () => {
-    await resetStylistIdentity();
+    return resetStylistIdentity();
   }, []);
 
   return useMemo(

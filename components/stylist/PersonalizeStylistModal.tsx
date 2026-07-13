@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -28,8 +28,8 @@ interface PersonalizeStylistModalProps {
   visible: boolean;
   identity: StylistIdentity;
   onClose: () => void;
-  onSave: (identity: Partial<StylistIdentity>) => void;
-  onRestoreDefault: () => void;
+  onSave: (identity: Partial<StylistIdentity>) => Promise<boolean> | boolean;
+  onRestoreDefault: () => Promise<boolean> | boolean;
   isSaving?: boolean;
   error?: string | null;
 }
@@ -48,12 +48,17 @@ export function PersonalizeStylistModal({
   const [draftName, setDraftName] = useState(identity.displayName);
   const [draftAvatarId, setDraftAvatarId] = useState(identity.avatarId);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInFlightRef = useRef(false);
+  const saving = isSaving || isSubmitting;
 
   useEffect(() => {
     if (visible) {
       setDraftName(identity.displayName);
       setDraftAvatarId(identity.avatarId);
       setNameError(null);
+      setIsSubmitting(false);
+      submissionInFlightRef.current = false;
     }
   }, [visible, identity.displayName, identity.avatarId]);
 
@@ -86,21 +91,37 @@ export function PersonalizeStylistModal({
     );
   }, [draftName, draftAvatarId, identity]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (submissionInFlightRef.current) return;
     const trimmed = draftName.trim().replace(/[\x00-\x1F\x7F]/g, '');
     const validation = validateName(trimmed);
     if (validation) {
       setNameError(validation);
       return;
     }
-    onSave({ displayName: trimmed, avatarId: draftAvatarId });
+    submissionInFlightRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onSave({ displayName: trimmed, avatarId: draftAvatarId });
+    } finally {
+      submissionInFlightRef.current = false;
+      setIsSubmitting(false);
+    }
   }, [draftName, draftAvatarId, validateName, onSave]);
 
-  const handleRestore = useCallback(() => {
+  const handleRestore = useCallback(async () => {
+    if (submissionInFlightRef.current) return;
     setDraftName(DEFAULT_STYLIST_IDENTITY.displayName);
     setDraftAvatarId(DEFAULT_STYLIST_IDENTITY.avatarId);
     setNameError(null);
-    onRestoreDefault();
+    submissionInFlightRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await onRestoreDefault();
+    } finally {
+      submissionInFlightRef.current = false;
+      setIsSubmitting(false);
+    }
   }, [onRestoreDefault]);
 
   return (
@@ -108,7 +129,9 @@ export function PersonalizeStylistModal({
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (!saving) onClose();
+      }}
       accessibilityViewIsModal
     >
       <KeyboardAvoidingView
@@ -146,7 +169,7 @@ export function PersonalizeStylistModal({
                   onChangeText={handleNameChange}
                   placeholder={DEFAULT_STYLIST_IDENTITY.displayName}
                   maxLength={STYLIST_NAME_MAX_LENGTH}
-                  editable={!isSaving}
+                  editable={!saving}
                   style={styles.input}
                   placeholderTextColor={LUXURY.colors.stone}
                   accessibilityLabel="Stylist display name"
@@ -159,7 +182,7 @@ export function PersonalizeStylistModal({
               </View>
 
               <View style={styles.avatarSection}>
-                <Text style={styles.label}>ABSTRACT</Text>
+                <Text style={styles.label} accessibilityRole="header">ABSTRACT</Text>
                 <View style={styles.avatarGrid}>
                   {STYLIST_ABSTRACT_PRESETS.map((preset) => {
                     const selected = preset.id === draftAvatarId;
@@ -167,10 +190,10 @@ export function PersonalizeStylistModal({
                       <Pressable
                         key={preset.id}
                         onPress={() => setDraftAvatarId(preset.id)}
-                        disabled={isSaving}
+                        disabled={saving}
                         style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
                         accessibilityRole="radio"
-                        accessibilityState={{ selected }}
+                        accessibilityState={{ disabled: saving, selected }}
                         accessibilityLabel={preset.accessibilityLabel}
                       >
                         <StylistAvatar avatarId={preset.id} size={56} />
@@ -181,7 +204,10 @@ export function PersonalizeStylistModal({
               </View>
 
               <View style={styles.peopleSection}>
-                <Text style={styles.label}>PEOPLE</Text>
+                <Text style={styles.label} accessibilityRole="header">PEOPLE</Text>
+                <Text style={styles.peopleHelper}>
+                  Choose the portrait that best fits your stylist.
+                </Text>
                 <View style={styles.avatarGrid}>
                   {STYLIST_PORTRAIT_PRESETS.map((preset) => {
                     const selected = preset.id === draftAvatarId;
@@ -189,10 +215,10 @@ export function PersonalizeStylistModal({
                       <Pressable
                         key={preset.id}
                         onPress={() => setDraftAvatarId(preset.id)}
-                        disabled={isSaving}
+                        disabled={saving}
                         style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
                         accessibilityRole="radio"
-                        accessibilityState={{ disabled: isSaving, selected }}
+                        accessibilityState={{ disabled: saving, selected }}
                         accessibilityLabel={preset.accessibilityLabel}
                       >
                         <StylistAvatar avatarId={preset.id} size={56} />
@@ -207,24 +233,24 @@ export function PersonalizeStylistModal({
               <View style={styles.actions}>
                 <Pressable
                   onPress={handleSave}
-                  disabled={!canSave || isSaving}
+                  disabled={!canSave || saving}
                   style={({ pressed }) => [
                     styles.saveButton,
-                    (!canSave || isSaving) && styles.saveButtonDisabled,
-                    pressed && canSave && !isSaving && styles.saveButtonPressed,
+                    (!canSave || saving) && styles.saveButtonDisabled,
+                    pressed && canSave && !saving && styles.saveButtonPressed,
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Save stylist identity"
-                  accessibilityState={{ disabled: !canSave || isSaving }}
+                  accessibilityState={{ disabled: !canSave || saving, busy: saving }}
                 >
                   <Text style={styles.saveButtonText}>
-                    {isSaving ? 'SAVING…' : 'SAVE'}
+                    {saving ? 'SAVING…' : 'SAVE'}
                   </Text>
                 </Pressable>
 
                 <Pressable
                   onPress={handleRestore}
-                  disabled={isSaving}
+                  disabled={saving}
                   style={({ pressed }) => [styles.textButton, pressed && styles.textButtonPressed]}
                   accessibilityRole="button"
                   accessibilityLabel="Restore default stylist identity"
@@ -234,7 +260,7 @@ export function PersonalizeStylistModal({
 
                 <Pressable
                   onPress={onClose}
-                  disabled={isSaving}
+                  disabled={saving}
                   style={({ pressed }) => [styles.textButton, pressed && styles.textButtonPressed]}
                   accessibilityRole="button"
                   accessibilityLabel="Cancel personalizing stylist"
