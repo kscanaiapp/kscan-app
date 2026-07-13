@@ -122,8 +122,10 @@ function PortraitAvatar({
     <Image
       source={preset.source}
       resizeMode="cover"
+      // Android bundled resources otherwise bypass Fresco's target-size decode.
+      // The shared `size` remains the hint on both platforms: Android receives
+      // native view pixels and iOS combines the point size with screen scale.
       resizeMethod="resize"
-      fadeDuration={0}
       onError={() => setLoadFailed(true)}
       style={[
         styles.container,
