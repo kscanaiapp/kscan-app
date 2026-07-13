@@ -2,9 +2,9 @@
 
 Outcome:
 
-`PREREQUISITE_MIGRATION_SAFETY_UNRESOLVED — DEPLOYMENT HALTED`
+`PREREQUISITE MIGRATION DEPLOYMENT: HALTED`
 
-`REMOTE_SCHEMA_DIRTY — DEPLOYMENT HALTED`
+`REMOTE_SCHEMA_DIRTY — ROOM_SHARE_REDEMPTION_CONTRACT_INCOMPLETE`
 
 `REMOTE PORTRAIT ENABLEMENT: FAIL — FEATURE MUST REMAIN DISABLED`
 
@@ -15,3 +15,7 @@ with the declared contract of `20260711195508` and the behavior introduced by
 
 No remote migration, ledger repair, Edge Function, seed, application release,
 or Android build was deployed.
+
+Follow-up evidence: `05-room-share-remediation-investigation.md` records the
+read-only provenance and legacy-`NULL` semantics investigation that blocks an
+automatic backfill.
