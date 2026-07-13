@@ -24,6 +24,13 @@ const rolePrivilegeMigration = fs.readFileSync(
   path.join(ROOT, 'supabase', 'migrations', rolePrivilegeMigrationFile),
   'utf8',
 );
+const roomShareRemediationMigrationFile = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations'))
+  .find((file) => file.endsWith('_room_share_redemption_contract_remediation.sql'));
+assert.ok(roomShareRemediationMigrationFile, 'room-share redemption remediation migration missing');
+const roomShareRemediationMigration = fs.readFileSync(
+  path.join(ROOT, 'supabase', 'migrations', roomShareRemediationMigrationFile),
+  'utf8',
+);
 const service = fs.readFileSync(path.join(ROOT, 'services', 'outfitDecisions.ts'), 'utf8');
 const section = fs.readFileSync(
   path.join(ROOT, 'components', 'dressing-rooms', 'OutfitDecisionSection.tsx'),
@@ -143,14 +150,21 @@ test('public preview is read-only, token-gated, and excludes voter identity', ()
 });
 
 test('share-token redemption limit is enforced in the join RPC', () => {
-  assert.match(rolePrivilegeMigration, /add column if not exists max_redemptions integer not null default 10/);
-  assert.match(rolePrivilegeMigration, /room_shares_max_redemptions_check/);
-  assert.match(rolePrivilegeMigration, /create or replace function public\.join_room_via_share_token/);
-  assert.match(rolePrivilegeMigration, /for update of rs/);
-  assert.match(rolePrivilegeMigration, /target_max_redemptions/);
-  assert.match(rolePrivilegeMigration, /current_redemptions >= target_max_redemptions/);
-  assert.match(rolePrivilegeMigration, /Shared room is full/);
-  assert.match(rolePrivilegeMigration, /Reopening an already-joined room is idempotent/);
+  // Remediation precedes the prerequisite chain, which must preserve the final
+  // nullable/unlimited contract.
+  assert.doesNotMatch(rolePrivilegeMigration, /max_redemptions integer not null/);
+  assert.doesNotMatch(rolePrivilegeMigration, /coalesce\(target_max_redemptions,\s*0\)/);
+  assert.match(rolePrivilegeMigration, /if target_max_redemptions is not null then/);
+  assert.match(roomShareRemediationMigration, /alter column max_redemptions drop not null/);
+  assert.match(roomShareRemediationMigration, /alter column max_redemptions set default 10/);
+  assert.match(roomShareRemediationMigration, /max_redemptions is null or max_redemptions > 0/);
+  assert.match(roomShareRemediationMigration, /create or replace function public\.join_room_via_share_token/);
+  assert.match(roomShareRemediationMigration, /for update of rs/);
+  assert.match(roomShareRemediationMigration, /if target_max_redemptions is not null then/);
+  assert.match(roomShareRemediationMigration, /current_redemptions >= target_max_redemptions/);
+  assert.match(roomShareRemediationMigration, /Shared room is full/);
+  assert.match(roomShareRemediationMigration, /Reopening an already-joined room is idempotent/);
+  assert.doesNotMatch(roomShareRemediationMigration, /coalesce\(target_max_redemptions,\s*0\)/);
 });
 
 test('deletion semantics: room cascade, voter-only cascade, creator SET NULL', () => {
