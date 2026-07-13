@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hasCurrentLegalAcceptances } from './legalAcceptance';
 
 const STORAGE_KEY_PREFIX = 'onboardingComplete';
 type CompletionListener = (userId: string) => void;
@@ -42,6 +43,22 @@ export async function isOnboardingComplete(userId: string): Promise<boolean> {
   if (!userId) return false;
   const value = await AsyncStorage.getItem(getKey(userId));
   return value === 'true';
+}
+
+/**
+ * Uses the local fast path, then restores it from the owner-scoped immutable
+ * legal ledger after a reinstall/app-data clear. This does not infer completion
+ * for a brand-new OAuth identity.
+ */
+export async function resolveOnboardingCompletion(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  if (await isOnboardingComplete(userId)) return true;
+
+  const remotelyComplete = await hasCurrentLegalAcceptances(userId);
+  if (remotelyComplete) {
+    await markOnboardingComplete(userId);
+  }
+  return remotelyComplete;
 }
 
 /**

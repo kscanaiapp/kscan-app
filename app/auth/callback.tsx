@@ -13,12 +13,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { supabase } from '../../services/supabaseClient';
-import { isOnboardingComplete } from '../../services/onboardingCompletion';
+import { resolveOnboardingCompletion } from '../../services/onboardingCompletion';
 import {
   buildAuthCallbackUrlFromParams,
   getAuthCallbackRedirect,
   parseAuthCallbackUrl,
 } from '../../services/authDeepLink';
+import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
+import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 
 type CallbackState = 'loading' | 'error';
 
@@ -53,8 +55,15 @@ export default function AuthCallbackScreen() {
 
       const { data } = await supabase.auth.getSession();
       const userId = data.session?.user?.id ?? null;
-      const complete = userId ? await isOnboardingComplete(userId) : false;
-      replaceOnce(complete ? '/' : '/onboarding?resume=terms');
+      const complete = userId ? await resolveOnboardingCompletion(userId) : false;
+      const redirectTo = complete ? '/' : '/onboarding?resume=terms';
+      traceAuthLifecycle('callback-route-navigation', {
+        onboardingState: complete ? 'complete' : 'incomplete',
+        outcome: 'replace',
+        redirectTo,
+        sessionPresent: Boolean(data.session),
+      });
+      replaceOnce(redirectTo);
     },
     [replaceOnce],
   );
@@ -65,23 +74,20 @@ export default function AuthCallbackScreen() {
       handledRef.current = true;
 
       const parsed = parseAuthCallbackUrl(url);
+      traceAuthLifecycle('callback-route-parsed', {
+        callbackKind: parsed.code
+          ? 'code'
+          : parsed.hasSessionTokens
+            ? 'tokens'
+            : parsed.hasTokenHash
+              ? 'otp'
+              : 'missing',
+      });
       try {
         if (parsed.error) {
           console.error('Auth callback returned an error', parsed.error);
           setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
           setState('error');
-          return;
-        }
-
-        if (parsed.code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(parsed.code);
-          if (error) {
-            console.error('Auth callback code exchange failed', error);
-            setMessage(AUTH_SESSION_FAILED_MESSAGE);
-            setState('error');
-            return;
-          }
-          await routeAfterSession(parsed);
           return;
         }
 
@@ -100,19 +106,20 @@ export default function AuthCallbackScreen() {
           return;
         }
 
-        if (!parsed.hasSessionTokens) {
+        if (!parsed.code && !parsed.hasSessionTokens) {
           setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
           setState('error');
           return;
         }
 
-        const { error } = await supabase.auth.setSession({
-          access_token: parsed.accessToken,
-          refresh_token: parsed.refreshToken,
+        const callbackResult = await completeOAuthCallbackSession(parsed);
+        traceAuthLifecycle('callback-route-session-establishment', {
+          callbackKind: callbackResult.source,
+          outcome: callbackResult.error || !callbackResult.session ? 'failed' : 'accepted',
+          sessionPresent: Boolean(callbackResult.session),
         });
-
-        if (error) {
-          console.error('Auth callback session start failed', error);
+        if (callbackResult.error || !callbackResult.session) {
+          console.error('Auth callback session start failed', callbackResult.error);
           setMessage(AUTH_SESSION_FAILED_MESSAGE);
           setState('error');
           return;

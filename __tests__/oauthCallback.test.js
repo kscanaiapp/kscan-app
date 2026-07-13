@@ -10,7 +10,7 @@
  *     -> Android: launchMode=singleTask delivers intent to MainActivity
  *     -> Expo Router cold-start: Linking.getInitialURL() captures it
  *     -> AuthGate.waitingForAuthCallbackRoute === true -> Stack renders immediately
- *     -> /auth/callback route handles: parseAuthCallbackUrl -> exchangeCodeForSession
+ *     -> browser caller and /auth/callback share one idempotent session exchange
  *     -> session set -> auth effect -> redirect to / or /onboarding?resume=terms
  *
  * Apple sign-in uses a separate native flow (ASAuthorizationAppleIDProvider)
@@ -33,6 +33,10 @@ const authScreenSource = fs.readFileSync(
 );
 const onboardingSource = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'onboarding', 'index.tsx'),
+  'utf8',
+);
+const callbackSource = fs.readFileSync(
+  path.join(__dirname, '..', 'app', 'auth', 'callback.tsx'),
   'utf8',
 );
 
@@ -145,4 +149,13 @@ test('Apple sign-in stays separate from the Google deep-link browser flow', () =
   assert.match(authScreenSource, /AppleAuthentication\.signInAsync/);
   assert.match(authScreenSource, /signInWithIdToken\(\{[\s\S]*?provider: 'apple'/);
   assert.doesNotMatch(authScreenSource, /provider: 'apple'[\s\S]{0,240}openAuthSessionAsync/);
+});
+
+test('all Google callback consumers use the shared idempotent session completion path', () => {
+  assert.match(authScreenSource, /completeOAuthCallbackSession\(parsed\)/);
+  assert.match(onboardingSource, /completeOAuthCallbackSession\(parsed\)/);
+  assert.match(callbackSource, /completeOAuthCallbackSession\(parsed\)/);
+  assert.doesNotMatch(authScreenSource, /exchangeCodeForSession\(parsed\.code\)/);
+  assert.doesNotMatch(onboardingSource, /exchangeCodeForSession\(parsed\.code\)/);
+  assert.doesNotMatch(callbackSource, /exchangeCodeForSession\(parsed\.code\)/);
 });

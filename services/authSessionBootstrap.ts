@@ -12,6 +12,28 @@ const STALE_REFRESH_TOKEN_CODES = new Set([
 ]);
 
 /**
+ * Tracks whether an auth-state event has made an in-flight bootstrap result
+ * obsolete. A newer SIGNED_IN/TOKEN_REFRESHED event is authoritative and must
+ * never be overwritten by the older getSession() result that started first.
+ */
+export function createAuthBootstrapGenerationGuard() {
+  let authEventGeneration = 0;
+
+  return {
+    beginBootstrap(): number {
+      return authEventGeneration;
+    },
+    noteAuthEvent(): number {
+      authEventGeneration += 1;
+      return authEventGeneration;
+    },
+    isBootstrapCurrent(startGeneration: number): boolean {
+      return startGeneration === authEventGeneration;
+    },
+  };
+}
+
+/**
  * Supabase removes a non-retryable stale refresh token from local storage
  * before returning the bootstrap error. This classifier keeps that expected
  * recovery path quiet while allowing every other auth failure to be reported.

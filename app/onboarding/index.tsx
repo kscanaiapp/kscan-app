@@ -16,7 +16,7 @@ import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import {
   markOnboardingComplete,
-  isOnboardingComplete,
+  resolveOnboardingCompletion,
 } from '../../services/onboardingCompletion';
 import {
   LuxuryScreen,
@@ -39,6 +39,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
+import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
+import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -130,7 +132,7 @@ export default function OnboardingScreen() {
     authResumeKeyRef.current = resumeKey;
 
     let active = true;
-    isOnboardingComplete(user.id)
+    resolveOnboardingCompletion(user.id)
       .then((complete) => {
         if (!active) return;
         if (complete) {
@@ -195,7 +197,7 @@ export default function OnboardingScreen() {
         return;
       }
 
-      const complete = await isOnboardingComplete(resolvedUserId);
+      const complete = await resolveOnboardingCompletion(resolvedUserId);
       if (complete) {
         replaceHomeOnce();
         return;
@@ -270,6 +272,7 @@ export default function OnboardingScreen() {
       }
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, AUTH_CALLBACK_URL);
+      traceAuthLifecycle('onboarding-oauth-browser-result', { outcome: result.type });
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
         setCreateError('Sign-in cancelled.');
@@ -284,6 +287,9 @@ export default function OnboardingScreen() {
       }
 
       const parsed = parseAuthCallbackUrl(result.url);
+      traceAuthLifecycle('onboarding-oauth-callback-parsed', {
+        callbackKind: parsed.code ? 'code' : parsed.hasSessionTokens ? 'tokens' : 'missing',
+      });
 
       if (parsed.error) {
         const lowerError = String(parsed.error).toLowerCase();
@@ -296,34 +302,18 @@ export default function OnboardingScreen() {
         return;
       }
 
-      if (parsed.code) {
-        const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(parsed.code);
-        if (error) {
-          setCreateError('We could not complete Google sign-in. Please try again.');
-          setGoogleBusy(false);
-          return;
-        }
-        await continueAuthenticatedFlow(sessionData.session?.user?.id ?? null);
+      const callbackResult = await completeOAuthCallbackSession(parsed);
+      traceAuthLifecycle('onboarding-oauth-session-establishment', {
+        callbackKind: callbackResult.source,
+        outcome: callbackResult.error || !callbackResult.session ? 'failed' : 'accepted',
+        sessionPresent: Boolean(callbackResult.session),
+      });
+      if (callbackResult.error || !callbackResult.session) {
+        setCreateError('We could not complete Google sign-in. Please try again.');
         setGoogleBusy(false);
         return;
       }
-
-      if (parsed.hasSessionTokens) {
-        const { data: sessionData, error } = await supabase.auth.setSession({
-          access_token: parsed.accessToken,
-          refresh_token: parsed.refreshToken,
-        });
-        if (error) {
-          setCreateError('We could not complete Google sign-in. Please try again.');
-          setGoogleBusy(false);
-          return;
-        }
-        await continueAuthenticatedFlow(sessionData.session?.user?.id ?? null);
-        setGoogleBusy(false);
-        return;
-      }
-
-      setCreateError('We could not complete Google sign-in. Please try again.');
+      await continueAuthenticatedFlow(callbackResult.session.user?.id ?? null);
       setGoogleBusy(false);
     } catch (err) {
       const raw = err instanceof Error ? err.message : '';

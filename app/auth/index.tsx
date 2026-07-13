@@ -25,6 +25,8 @@ import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { supabase } from '../../services/supabaseClient';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
+import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
+import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -125,6 +127,7 @@ export default function AuthScreen() {
       }
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, AUTH_CALLBACK_URL);
+      traceAuthLifecycle('oauth-browser-result', { outcome: result.type });
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
         setError('Sign-in cancelled.');
@@ -139,6 +142,9 @@ export default function AuthScreen() {
       }
 
       const parsed = parseAuthCallbackUrl(result.url);
+      traceAuthLifecycle('oauth-callback-parsed', {
+        callbackKind: parsed.code ? 'code' : parsed.hasSessionTokens ? 'tokens' : 'missing',
+      });
 
       if (parsed.error) {
         const lowerError = String(parsed.error).toLowerCase();
@@ -151,31 +157,16 @@ export default function AuthScreen() {
         return;
       }
 
-      if (parsed.code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(parsed.code);
-        if (error) {
-          setError('We could not complete Google sign-in. Please try again.');
-          setStep('idle');
-          return;
-        }
-        return;
+      const callbackResult = await completeOAuthCallbackSession(parsed);
+      traceAuthLifecycle('oauth-session-establishment', {
+        callbackKind: callbackResult.source,
+        outcome: callbackResult.error || !callbackResult.session ? 'failed' : 'accepted',
+        sessionPresent: Boolean(callbackResult.session),
+      });
+      if (callbackResult.error || !callbackResult.session) {
+        setError('We could not complete Google sign-in. Please try again.');
+        setStep('idle');
       }
-
-      if (parsed.hasSessionTokens) {
-        const { error } = await supabase.auth.setSession({
-          access_token: parsed.accessToken,
-          refresh_token: parsed.refreshToken,
-        });
-        if (error) {
-          setError('We could not complete Google sign-in. Please try again.');
-          setStep('idle');
-          return;
-        }
-        return;
-      }
-
-      setError('We could not complete Google sign-in. Please try again.');
-      setStep('idle');
     } catch (err) {
       const raw = err instanceof Error ? err.message : '';
       setError(
@@ -229,6 +220,10 @@ export default function AuthScreen() {
         return;
       }
 
+      traceAuthLifecycle('apple-session-establishment', {
+        outcome: 'accepted',
+        sessionPresent: true,
+      });
       return;
     } catch (err) {
       const code = typeof err === 'object' && err && 'code' in err ? String(err.code) : '';

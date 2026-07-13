@@ -21,9 +21,25 @@ function loadTsModule(relativePath) {
   return module.exports;
 }
 
-const { isHandledStaleRefreshTokenError } = loadTsModule(
+const { createAuthBootstrapGenerationGuard, isHandledStaleRefreshTokenError } = loadTsModule(
   'services/authSessionBootstrap.ts',
 );
+
+test('a newer auth event makes an older bootstrap result ineligible to update session state', () => {
+  const guard = createAuthBootstrapGenerationGuard();
+  const bootstrapGeneration = guard.beginBootstrap();
+
+  guard.noteAuthEvent();
+
+  assert.equal(guard.isBootstrapCurrent(bootstrapGeneration), false);
+});
+
+test('a bootstrap result remains current when no auth event arrived after it started', () => {
+  const guard = createAuthBootstrapGenerationGuard();
+  const bootstrapGeneration = guard.beginBootstrap();
+
+  assert.equal(guard.isBootstrapCurrent(bootstrapGeneration), true);
+});
 
 test('expected stale refresh token errors are handled quietly', () => {
   assert.equal(
@@ -72,7 +88,14 @@ test('auth bootstrap defers background refresh until handled session recovery co
   assert.match(contextSource, /await supabase\.auth\.getSession\(\)/);
   assert.match(contextSource, /isHandledStaleRefreshTokenError\(error\)/);
   assert.match(contextSource, /await supabase\.auth\.startAutoRefresh\(\)/);
-  assert.match(contextSource, /signOut\(\{ scope: 'local' \}\)/);
+  assert.match(contextSource, /isBootstrapCurrent\(startGeneration\)/);
+  assert.doesNotMatch(contextSource, /signOut\(\{ scope: 'local' \}\)/);
+});
+
+test('auth lifecycle trace schema cannot accept secret-bearing fields from callers', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services/authLifecycleTrace.ts'), 'utf8');
+  assert.match(source, /Development-only auth trace/);
+  assert.doesNotMatch(source, /^\s*(?:accessToken|refreshToken|authorizationCode|email|userId)\??:/m);
 });
 
 test('expected feature-freeze fallback remains observable without a warning badge', () => {

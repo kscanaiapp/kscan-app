@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
@@ -12,7 +13,11 @@ import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
-import { isHandledStaleRefreshTokenError } from '../services/authSessionBootstrap';
+import {
+  createAuthBootstrapGenerationGuard,
+  isHandledStaleRefreshTokenError,
+} from '../services/authSessionBootstrap';
+import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import { logError } from '../src/utils/errorLogger';
 
 /**
@@ -45,6 +50,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const authEventGenerationGuardRef = useRef(createAuthBootstrapGenerationGuard());
 
   useEffect(() => {
     let mounted = true;
@@ -52,7 +58,14 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!mounted) return;
+      authEventGenerationGuardRef.current.noteAuthEvent();
       const usableSession = isSessionUsable(newSession) ? newSession : null;
+      traceAuthLifecycle('auth-state-event', {
+        authEvent: event,
+        sessionPresent: Boolean(newSession),
+        sessionUsable: Boolean(usableSession),
+      });
       if (event === 'TOKEN_REFRESHED') {
         setIsRefreshing(false);
       } else {
@@ -63,17 +76,29 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         resetAttachmentStore();
       }
       setSession(usableSession);
+      if (event === 'SIGNED_IN') {
+        setLoading(false);
+      }
     });
 
     const initializeSession = async () => {
+      const startGeneration = authEventGenerationGuardRef.current.beginBootstrap();
+      traceAuthLifecycle('bootstrap-start', { loading: true });
       try {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          if (!isHandledStaleRefreshTokenError(error)) {
+          const handledStaleRefreshToken = isHandledStaleRefreshTokenError(error);
+          if (!handledStaleRefreshToken) {
             logError('Unable to restore auth session', error);
           }
-          if (mounted) setSession(null);
+          const bootstrapIsCurrent = authEventGenerationGuardRef.current.isBootstrapCurrent(startGeneration);
+          traceAuthLifecycle('bootstrap-result', {
+            ignoredAsStale: !bootstrapIsCurrent,
+            outcome: handledStaleRefreshToken ? 'stale-refresh-cleared' : 'error',
+            sessionPresent: false,
+          });
+          if (mounted && bootstrapIsCurrent) setSession(null);
           return;
         }
 
@@ -81,19 +106,34 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         const usableSession = isSessionUsable(bootSession) ? bootSession : null;
         if (bootSession && !usableSession) {
           invalidateAllMemoryCache();
-          await supabase.auth.signOut({ scope: 'local' });
         }
-        if (mounted) setSession(usableSession);
+        const bootstrapIsCurrent = authEventGenerationGuardRef.current.isBootstrapCurrent(startGeneration);
+        traceAuthLifecycle('bootstrap-result', {
+          ignoredAsStale: !bootstrapIsCurrent,
+          outcome: usableSession ? 'session-restored' : 'no-usable-session',
+          sessionPresent: Boolean(bootSession),
+          sessionUsable: Boolean(usableSession),
+        });
+        if (mounted && bootstrapIsCurrent) setSession(usableSession);
       } catch (error) {
         logError('Unable to initialize auth session', error);
-        if (mounted) setSession(null);
+        const bootstrapIsCurrent = authEventGenerationGuardRef.current.isBootstrapCurrent(startGeneration);
+        traceAuthLifecycle('bootstrap-result', {
+          ignoredAsStale: !bootstrapIsCurrent,
+          outcome: 'unexpected-error',
+          sessionPresent: false,
+        });
+        if (mounted && bootstrapIsCurrent) setSession(null);
       } finally {
         try {
           await supabase.auth.startAutoRefresh();
         } catch (error) {
           logError('Unable to start auth session refresh', error);
         }
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          traceAuthLifecycle('bootstrap-finished', { loading: false });
+        }
       }
     };
 

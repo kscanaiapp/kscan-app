@@ -9,8 +9,9 @@ import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContex
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
-import { isOnboardingComplete, subscribeOnboardingCompletion } from '../services/onboardingCompletion';
+import { resolveOnboardingCompletion, subscribeOnboardingCompletion } from '../services/onboardingCompletion';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
+import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
 
@@ -47,6 +48,7 @@ function AuthGate() {
   const lastRedirectRef = useRef<string | null>(null);
   const navigationRef = useNavigationContainerRef();
   const [navReady, setNavReady] = useState(false);
+  const lastAuthTraceRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -75,12 +77,12 @@ function AuthGate() {
     }
 
     setOnboardingComplete(null);
-    isOnboardingComplete(userId)
+    resolveOnboardingCompletion(userId)
       .then((complete) => {
         if (mounted) setOnboardingComplete(complete);
       })
       .catch((error) => {
-        logError('Unable to read onboarding completion flag', error, { userId });
+        logError('Unable to resolve onboarding completion', error);
         if (mounted) setOnboardingComplete(false);
       });
 
@@ -136,6 +138,32 @@ function AuthGate() {
   });
 
   useEffect(() => {
+    const onboardingState = onboardingComplete === null
+      ? 'pending'
+      : onboardingComplete
+        ? 'complete'
+        : 'incomplete';
+    const signature = [
+      pathname,
+      loading,
+      Boolean(session),
+      guardState.action,
+      guardState.redirectTo,
+      onboardingState,
+    ].join('|');
+    if (lastAuthTraceRef.current === signature) return;
+    lastAuthTraceRef.current = signature;
+    traceAuthLifecycle('auth-gate-state', {
+      guardAction: guardState.action,
+      loading,
+      onboardingState,
+      redirectTo: guardState.redirectTo,
+      route: pathname,
+      sessionPresent: Boolean(session),
+    });
+  }, [guardState.action, guardState.redirectTo, loading, onboardingComplete, pathname, session]);
+
+  useEffect(() => {
     if (waitingForAuthCallbackRoute || guardState.action !== 'redirect' || !guardState.redirectTo || !navReady) {
       return;
     }
@@ -153,6 +181,11 @@ function AuthGate() {
     lastRedirectRef.current = redirectTo;
     // Defer slightly so the Stack navigator has time to register its routes.
     const timer = setTimeout(() => {
+      traceAuthLifecycle('auth-gate-navigation', {
+        outcome: 'replace',
+        redirectTo,
+        route: pathname,
+      });
       router.replace(redirectTo);
     }, 150);
     return () => clearTimeout(timer);

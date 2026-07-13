@@ -56,8 +56,56 @@ function createMockClient({ session = null, upsertError = null } = {}) {
 function loadService(mockClient) {
   return loadTsModule('services/legalAcceptance.ts', {
     './supabaseClient': { supabase: mockClient },
+    '../constants/legal': {
+      TERMS_VERSION: '1.0',
+      PRIVACY_VERSION: '1.0',
+      AGE_VERSION: '1.0',
+    },
+    '../src/utils/errorLogger': { logError: () => {} },
   });
 }
+
+function createAcceptanceReadClient(rows, error = null) {
+  const calls = [];
+  return {
+    _calls: calls,
+    from: (tableName) => ({
+      select: (columns) => ({
+        eq: async (column, value) => {
+          calls.push({ tableName, columns, column, value });
+          return { data: rows, error };
+        },
+      }),
+    }),
+  };
+}
+
+test('recognizes an existing account only when all current legal versions are present', async () => {
+  const client = createAcceptanceReadClient([
+    { acceptance_type: 'terms', policy_version: '1.0' },
+    { acceptance_type: 'privacy', policy_version: '1.0' },
+    { acceptance_type: 'minimum_age', policy_version: '1.0' },
+  ]);
+  const { hasCurrentLegalAcceptances } = loadService(client);
+
+  assert.equal(await hasCurrentLegalAcceptances('private-user', client), true);
+  assert.deepEqual(client._calls[0], {
+    tableName: 'legal_acceptances',
+    columns: 'acceptance_type, policy_version',
+    column: 'user_id',
+    value: 'private-user',
+  });
+});
+
+test('does not skip onboarding for a new or partially accepted OAuth identity', async () => {
+  const client = createAcceptanceReadClient([
+    { acceptance_type: 'terms', policy_version: '1.0' },
+    { acceptance_type: 'privacy', policy_version: '1.0' },
+  ]);
+  const { hasCurrentLegalAcceptances } = loadService(client);
+
+  assert.equal(await hasCurrentLegalAcceptances('private-user', client), false);
+});
 
 // ─── Input validation ───────────────────────────────────────────────────────
 

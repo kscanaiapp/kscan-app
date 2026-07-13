@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient';
 import type { User } from '@supabase/supabase-js';
+import { AGE_VERSION, PRIVACY_VERSION, TERMS_VERSION } from '../constants/legal';
+import { logError } from '../src/utils/errorLogger';
 
 export interface RecordLegalAcceptancesInput {
   termsVersion: string;
@@ -11,6 +13,45 @@ export interface RecordLegalAcceptancesInput {
 export interface RecordLegalAcceptancesResult {
   ok: boolean;
   error?: string;
+}
+
+type LegalAcceptanceRow = {
+  acceptance_type?: unknown;
+  policy_version?: unknown;
+};
+
+/**
+ * Restores onboarding completion after an app-data clear only when the remote,
+ * owner-scoped ledger proves that all current legal versions were accepted.
+ * A new OAuth identity with no ledger rows still proceeds through Terms.
+ */
+export async function hasCurrentLegalAcceptances(
+  userId: string,
+  client = supabase,
+): Promise<boolean> {
+  if (!userId) return false;
+
+  const { data, error } = await client
+    .from('legal_acceptances')
+    .select('acceptance_type, policy_version')
+    .eq('user_id', userId);
+
+  if (error) {
+    logError('Unable to verify current legal acceptances', error);
+    return false;
+  }
+
+  const accepted = new Set(
+    ((data ?? []) as LegalAcceptanceRow[]).map((row) => (
+      `${String(row.acceptance_type ?? '')}:${String(row.policy_version ?? '')}`
+    )),
+  );
+
+  return (
+    accepted.has(`terms:${TERMS_VERSION}`) &&
+    accepted.has(`privacy:${PRIVACY_VERSION}`) &&
+    accepted.has(`minimum_age:${AGE_VERSION}`)
+  );
 }
 
 /**
