@@ -26,8 +26,8 @@ interface StyleChatBubbleProps {
    */
   learnFromFeedback?: boolean;
   /**
-   * When true, a compact inline positive/negative feedback row is shown in
-   * addition to the overflow menu. When false, only the overflow menu remains.
+   * When true, compact inline feedback actions and their overflow menu are
+   * available on eligible recommendations. Learning must also be enabled.
    */
   showFeedbackControls?: boolean;
   /**
@@ -224,14 +224,13 @@ export function StyleChatBubble({
             })}
           </View>
         ) : null}
-        {showFeedback && learnFromFeedback ? (
+        {showFeedback && learnFromFeedback && showFeedbackControls ? (
           <StyleChatFeedbackControls
             userKey={userKey as string}
             sessionId={message.sessionId}
             messageId={message.id}
             whyThisWorks={findWhyThisWorks(message)}
-            learnFromFeedback={learnFromFeedback}
-            showFeedbackControls={showFeedbackControls}
+            feedbackEnabled={learnFromFeedback && showFeedbackControls}
             feedbackEducationDismissed={feedbackEducationDismissed}
             onDismissEducation={onDismissFeedbackEducation ?? (() => {})}
             onMenuOpened={onFeedbackMenuOpened}

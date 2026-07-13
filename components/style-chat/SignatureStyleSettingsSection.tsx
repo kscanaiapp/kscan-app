@@ -79,7 +79,7 @@ export function SignatureStyleSettingsSection({ userKey }: SignatureStyleSetting
         <>
           <PrivacyToggle
             title="Learn from my feedback"
-            body="Allow Elise to update your Signature Style when you choose This fits my style or Not my style."
+            body="Allow Elise to learn when you choose to rate a recommendation."
             value={preferences.learnFromFeedback}
             disabled={loading}
             onChange={(value) => {
@@ -89,9 +89,13 @@ export function SignatureStyleSettingsSection({ userKey }: SignatureStyleSetting
 
           <PrivacyToggle
             title="Show feedback controls in conversations"
-            body="Show a compact inline feedback row on eligible recommendations. Feedback is always available from the overflow menu while learning is on."
+            body={
+              preferences.learnFromFeedback
+                ? 'Display optional feedback actions on eligible recommendations.'
+                : 'Available when feedback learning is turned on.'
+            }
             value={preferences.showFeedbackControls}
-            disabled={loading}
+            disabled={loading || !preferences.learnFromFeedback}
             onChange={(value) => {
               void handlePreferenceChange({ showFeedbackControls: value });
             }}

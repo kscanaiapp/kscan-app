@@ -13,6 +13,18 @@ const sessionSource = fs.readFileSync(
   path.join(ROOT, 'app', 'style-chat', '[sessionId].tsx'),
   'utf8',
 );
+const bubbleSource = fs.readFileSync(
+  path.join(ROOT, 'components', 'style-chat', 'StyleChatBubble.tsx'),
+  'utf8',
+);
+const statusRowSource = fs.readFileSync(
+  path.join(ROOT, 'components', 'style-chat', 'StyleChatStyleDnaCard.tsx'),
+  'utf8',
+);
+const settingsSource = fs.readFileSync(
+  path.join(ROOT, 'components', 'style-chat', 'SignatureStyleSettingsSection.tsx'),
+  'utf8',
+);
 
 test('feedback hook gates direct writes and rapid repeated submissions', () => {
   assert.match(hookSource, /activeRef\.current/);
@@ -29,14 +41,44 @@ test('feedback hydration and completions are scoped to the exact actor and messa
 });
 
 test('controls announce success only from the durable-save callback', () => {
-  assert.match(controlsSource, /enabled: learnFromFeedback/);
+  assert.match(controlsSource, /enabled: feedbackEnabled/);
   assert.match(controlsSource, /onSaved: handleFeedbackSaved/);
   assert.match(controlsSource, /const handleFeedbackSaved = useCallback/);
   assert.match(controlsSource, /void saveFeedback\('helpful'\)/);
   assert.match(controlsSource, /void saveFeedback\('not_my_style'\)/);
-  assert.match(controlsSource, /mountedRef\.current && learningEnabledRef\.current/);
+  assert.match(controlsSource, /mountedRef\.current && feedbackEnabledRef\.current/);
   assert.doesNotMatch(controlsSource, /saveFeedback\('helpful'\);\s*showConfirmation/);
   assert.doesNotMatch(controlsSource, /saveFeedback\('not_my_style'\);\s*showConfirmation/);
+});
+
+test('conversation feedback UI and writes use the same explicit two-part gate', () => {
+  assert.match(
+    bubbleSource,
+    /showFeedback && learnFromFeedback && showFeedbackControls \? \(/,
+  );
+  assert.match(
+    bubbleSource,
+    /feedbackEnabled=\{learnFromFeedback && showFeedbackControls\}/,
+  );
+  assert.match(controlsSource, /if \(\s*!feedbackEnabledRef\.current \|\|/);
+  assert.match(controlsSource, /feedbackEnabledRef\.current = false/);
+  assert.match(settingsSource, /disabled=\{loading \|\| !preferences\.learnFromFeedback\}/);
+});
+
+test('compact status row remains while feedback education is menu-only', () => {
+  assert.match(sessionSource, /<StyleChatStyleDnaCard/);
+  assert.match(statusRowSource, /testID="style-chat-style-dna-card"/);
+  assert.match(statusRowSource, /<Text style=\{styles\.detailsText\}>Details<\/Text>/);
+  assert.match(controlsSource, /const menu = menuState === 'open' \? \(/);
+  assert.match(controlsSource, /!feedbackEducationDismissed \? \(/);
+  assert.match(controlsSource, /<Text style=\{styles\.educationText\}>\{EDUCATION_COPY\}<\/Text>/);
+});
+
+test('feedback visibility is opt-in without removing ordinary recommendation reasoning', () => {
+  assert.match(bubbleSource, /showFeedbackControls = false/);
+  assert.match(bubbleSource, /b\.type === 'why_this_works'/);
+  assert.match(controlsSource, /testID="style-chat-inline-feedback-row"/);
+  assert.match(controlsSource, /testID="style-chat-feedback-menu"/);
 });
 
 test('explanation is local metadata display and does not write or call a provider', () => {

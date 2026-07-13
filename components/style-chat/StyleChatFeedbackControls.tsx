@@ -24,8 +24,7 @@ interface StyleChatFeedbackControlsProps {
   sessionId: string;
   messageId: string;
   whyThisWorks?: string | null;
-  learnFromFeedback: boolean;
-  showFeedbackControls: boolean;
+  feedbackEnabled: boolean;
   feedbackEducationDismissed: boolean;
   onDismissEducation: () => void;
   onMenuOpened?: () => void;
@@ -39,8 +38,7 @@ export function StyleChatFeedbackControls({
   sessionId,
   messageId,
   whyThisWorks,
-  learnFromFeedback,
-  showFeedbackControls,
+  feedbackEnabled,
   feedbackEducationDismissed,
   onDismissEducation,
   onMenuOpened,
@@ -54,14 +52,15 @@ export function StyleChatFeedbackControls({
   });
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
-  const learningEnabledRef = useRef(learnFromFeedback);
+  const feedbackEnabledRef = useRef(feedbackEnabled);
   const submissionPendingRef = useRef(false);
-  learningEnabledRef.current = learnFromFeedback;
+  feedbackEnabledRef.current = feedbackEnabled;
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      feedbackEnabledRef.current = false;
     };
   }, []);
 
@@ -83,7 +82,7 @@ export function StyleChatFeedbackControls({
   const handleFeedbackSaved = useCallback(
     (value: LocalStyleDnaFeedbackValue) => {
       submissionPendingRef.current = false;
-      if (mountedRef.current && learningEnabledRef.current) {
+      if (mountedRef.current && feedbackEnabledRef.current) {
         showConfirmation(
           value === 'helpful' ? 'Added to Signature Style' : 'Noted for Signature Style',
         );
@@ -106,7 +105,7 @@ export function StyleChatFeedbackControls({
     userKey,
     sessionId,
     messageId,
-    enabled: learnFromFeedback,
+    enabled: feedbackEnabled,
     onSaved: handleFeedbackSaved,
   });
 
@@ -116,7 +115,7 @@ export function StyleChatFeedbackControls({
 
   const handlePositive = useCallback(() => {
     if (
-      !learningEnabledRef.current ||
+      !feedbackEnabledRef.current ||
       submissionPendingRef.current ||
       selectedFeedback === 'helpful'
     ) {
@@ -130,7 +129,7 @@ export function StyleChatFeedbackControls({
 
   const handleNegative = useCallback(() => {
     if (
-      !learningEnabledRef.current ||
+      !feedbackEnabledRef.current ||
       submissionPendingRef.current ||
       selectedFeedback === 'not_my_style'
     ) {
@@ -158,7 +157,7 @@ export function StyleChatFeedbackControls({
   const positiveSelected = selectedFeedback === 'helpful';
   const negativeSelected = selectedFeedback === 'not_my_style';
 
-  const inlineRow = showFeedbackControls ? (
+  const inlineRow = (
     <View style={styles.inlineRow} testID="style-chat-inline-feedback-row">
       <Pressable
         onPress={handlePositive}
@@ -199,7 +198,7 @@ export function StyleChatFeedbackControls({
         </Text>
       </Pressable>
     </View>
-  ) : null;
+  );
 
   const menu = menuState === 'open' ? (
     <View
@@ -277,34 +276,20 @@ export function StyleChatFeedbackControls({
 
   return (
     <View style={styles.container} testID="style-chat-feedback-controls">
-      {showFeedbackControls ? (
-        <View style={styles.inlineWrap}>
-          {inlineRow}
-          <Pressable
-            onPress={toggleMenu}
-            style={({ pressed }) => [styles.overflowButton, pressed ? styles.overflowButtonPressed : null]}
-            accessibilityRole="button"
-            accessibilityLabel="More feedback options"
-            accessibilityHint="Opens feedback options for this recommendation"
-            accessibilityState={{ expanded: menuState === 'open' }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.overflowIcon}>⋯</Text>
-          </Pressable>
-        </View>
-      ) : (
+      <View style={styles.inlineWrap}>
+        {inlineRow}
         <Pressable
           onPress={toggleMenu}
           style={({ pressed }) => [styles.overflowButton, pressed ? styles.overflowButtonPressed : null]}
           accessibilityRole="button"
-          accessibilityLabel="Feedback options"
-          accessibilityHint="Opens feedback options for this recommendation"
+          accessibilityLabel="More feedback options"
+          accessibilityHint="Opens optional feedback actions for this recommendation"
           accessibilityState={{ expanded: menuState === 'open' }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={styles.overflowIcon}>⋯</Text>
         </Pressable>
-      )}
+      </View>
       {menu}
       {reasonEnabled && selectedFeedback != null ? (
         <StyleChatReasonChips

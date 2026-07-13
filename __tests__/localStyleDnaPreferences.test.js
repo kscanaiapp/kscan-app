@@ -81,6 +81,22 @@ test('partial update preserves other fields', async () => {
   assert.equal(result.feedbackEducationDismissed, true);
 });
 
+test('visibility and learning changes preserve existing learned feedback data', async () => {
+  const feedbackKey = '@style_dna_v1/sessions/user:abc/session-1';
+  const learnedData = JSON.stringify({ feedbackByMessageId: { message1: { feedback: 'helpful' } } });
+  const storage = makeStorage({ [feedbackKey]: learnedData });
+  const prefs = loadPreferences(storage);
+
+  await prefs.setStyleDnaPreferences(U, { showFeedbackControls: true });
+  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: false });
+  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: true });
+
+  assert.equal(await storage.getItem(feedbackKey), learnedData);
+  const result = await prefs.getStyleDnaPreferences(U);
+  assert.equal(result.learnFromFeedback, true);
+  assert.equal(result.showFeedbackControls, true);
+});
+
 test('preferences persist across reads', async () => {
   const storage = makeStorage();
   const prefs = loadPreferences(storage);
