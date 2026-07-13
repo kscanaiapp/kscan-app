@@ -166,19 +166,21 @@ export function useStyleDnaFeedback({
       setIsSavingFeedback(true);
       setFeedbackError(null);
 
-      // Polarity changed: any prior reason is now incompatible. Clear it locally and in
-      // storage so the profile/aggregation never keeps a mismatched reason.
+      // Polarity changed: any prior reason is now incompatible. Keep enough state to
+      // restore it if either durable write fails.
       if (previousReason !== null) {
         selectedReasonRef.current = null;
         setSelectedReason(null);
-        void clearReasonForMessage({
-          userKey: userKey as string,
-          sessionId,
-          messageId,
-        }).catch(() => {});
       }
 
       try {
+        if (previousReason !== null) {
+          await clearReasonForMessage({
+            userKey: userKey as string,
+            sessionId,
+            messageId,
+          });
+        }
         await setFeedbackForMessage({
           userKey: userKey as string,
           sessionId,
@@ -192,6 +194,19 @@ export function useStyleDnaFeedback({
         }
         return true;
       } catch {
+        if (previous !== null && previousReason !== null) {
+          try {
+            await setReasonForMessage({
+              userKey: userKey as string,
+              sessionId,
+              messageId,
+              feedback: previous,
+              reasonCode: previousReason,
+            });
+          } catch {
+            // The feedback error remains visible; a later hydration reconciles storage.
+          }
+        }
         // Revert optimistic state on write failure, but never repaint a newer
         // actor/message scope with the previous scope's state.
         if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
@@ -218,6 +233,7 @@ export function useStyleDnaFeedback({
 
       // Tapping the current reason again clears it (fully optional, easy to undo).
       if (code === selectedReasonRef.current) {
+        const previous = selectedReasonRef.current;
         selectedReasonRef.current = null;
         savingReasonRef.current = true;
         setSelectedReason(null);
@@ -227,7 +243,10 @@ export function useStyleDnaFeedback({
           try {
             await clearReasonForMessage({ userKey: userKey as string, sessionId, messageId });
           } catch {
-            // best-effort; leave UI cleared
+            if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
+              selectedReasonRef.current = previous;
+              setSelectedReason(previous);
+            }
           } finally {
             if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
               savingReasonRef.current = false;

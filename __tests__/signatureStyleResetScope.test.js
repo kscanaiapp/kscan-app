@@ -78,7 +78,7 @@ test('reset preserves UI preferences for current actor', async () => {
   const { feedback, profile, preferences } = load(storage);
   await feedback.setFeedbackForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
   await preferences.setStyleDnaPreferences(U, {
-    learnFromFeedback: false,
+    learnFromFeedback: true,
     showFeedbackControls: true,
     feedbackEducationDismissed: true,
   });
@@ -88,7 +88,7 @@ test('reset preserves UI preferences for current actor', async () => {
   assert.equal((await profile.getStyleDnaProfileSummary({ userKey: U })).totalSignals, 0);
 
   const prefs = await preferences.getStyleDnaPreferences(U);
-  assert.equal(prefs.learnFromFeedback, false);
+  assert.equal(prefs.learnFromFeedback, true);
   assert.equal(prefs.showFeedbackControls, true);
   assert.equal(prefs.feedbackEducationDismissed, true);
 });

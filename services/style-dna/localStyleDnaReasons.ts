@@ -167,6 +167,14 @@ async function readSessionMap(userKey: string, sessionId: string): Promise<Reaso
   }
 }
 
+async function readSessionMapForWrite(
+  userKey: string,
+  sessionId: string,
+): Promise<ReasonSessionMap> {
+  const raw = await AsyncStorage.getItem(sessionKey(userKey, sessionId));
+  return normalizeMap(raw, userKey, sessionId);
+}
+
 // One in-flight write chain per storage key (mirrors the feedback store).
 const writeChains = new Map<string, Promise<unknown>>();
 function enqueueWrite<T>(key: string, task: () => Promise<T>): Promise<T> {
@@ -211,7 +219,7 @@ export async function setReasonForMessage(params: {
 
   const key = sessionKey(userKey, sessionId);
   return enqueueWrite(key, async () => {
-    const map = await readSessionMap(userKey, sessionId);
+    const map = await readSessionMapForWrite(userKey, sessionId);
     const now = new Date().toISOString();
     const existing = map.reasonByMessageId[messageId];
     const record: LocalStyleDnaReason = {
@@ -241,7 +249,7 @@ export async function clearReasonForMessage(params: {
   if (!userKey || !sessionId || !messageId) return;
   const key = sessionKey(userKey, sessionId);
   await enqueueWrite(key, async () => {
-    const map = await readSessionMap(userKey, sessionId);
+    const map = await readSessionMapForWrite(userKey, sessionId);
     if (map.reasonByMessageId[messageId]) {
       delete map.reasonByMessageId[messageId];
       map.updatedAt = new Date().toISOString();

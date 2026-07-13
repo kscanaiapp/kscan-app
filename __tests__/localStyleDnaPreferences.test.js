@@ -63,7 +63,7 @@ test('preferences are actor-scoped', async () => {
 
   const a = await prefs.getStyleDnaPreferences(U);
   assert.equal(a.learnFromFeedback, false);
-  assert.equal(a.showFeedbackControls, true);
+  assert.equal(a.showFeedbackControls, false);
   assert.equal(a.feedbackEducationDismissed, false);
 
   const b = await prefs.getStyleDnaPreferences(U2);
@@ -94,7 +94,7 @@ test('visibility and learning changes preserve existing learned feedback data', 
   assert.equal(await storage.getItem(feedbackKey), learnedData);
   const result = await prefs.getStyleDnaPreferences(U);
   assert.equal(result.learnFromFeedback, true);
-  assert.equal(result.showFeedbackControls, true);
+  assert.equal(result.showFeedbackControls, false);
 });
 
 test('preferences persist across reads', async () => {
@@ -168,7 +168,7 @@ test('cold-launch hydration publishes the persisted actor snapshot', async () =>
   await prefs.hydrateStyleDnaPreferences(U);
   const hydrated = prefs.getStyleDnaPreferencesSnapshot(U);
   assert.equal(hydrated.learnFromFeedback, false);
-  assert.equal(hydrated.showFeedbackControls, true);
+  assert.equal(hydrated.showFeedbackControls, false);
   assert.equal(hydrated.feedbackEducationDismissed, true);
 });
 
@@ -225,7 +225,29 @@ test('serialized rapid partial updates preserve both selections', async () => {
   ]);
   const result = await prefs.getStyleDnaPreferences(U);
   assert.equal(result.learnFromFeedback, false);
-  assert.equal(result.showFeedbackControls, true);
+  assert.equal(result.showFeedbackControls, false);
+});
+
+test('read failure rejects an update without overwriting stored preferences', async () => {
+  const key = '@style_dna_v1/preferences/user:abc';
+  const stored = JSON.stringify({
+    learnFromFeedback: true,
+    showFeedbackControls: true,
+    feedbackEducationDismissed: true,
+  });
+  const storage = makeStorage({ [key]: stored });
+  storage.getItem = async () => { throw new Error('read unavailable'); };
+  const prefs = loadPreferences(storage);
+
+  await assert.rejects(
+    prefs.setStyleDnaPreferences(U, { feedbackEducationDismissed: false }),
+    /read unavailable/,
+  );
+  assert.equal(storage.map.get(key), stored);
+  assert.strictEqual(
+    prefs.getStyleDnaPreferencesSnapshot(U),
+    prefs.DEFAULT_STYLE_DNA_PREFERENCES,
+  );
 });
 
 test('persistence rejection does not publish a false selection', async () => {
@@ -237,6 +259,27 @@ test('persistence rejection does not publish a false selection', async () => {
     /disk full/,
   );
   assert.equal(prefs.getStyleDnaPreferencesSnapshot(U).learnFromFeedback, true);
+});
+
+test('a later failed update does not suppress an earlier durable snapshot', async () => {
+  const storage = makeStorage();
+  let writes = 0;
+  const originalSet = storage.setItem;
+  storage.setItem = async (key, value) => {
+    writes += 1;
+    if (writes === 2) throw new Error('disk full');
+    return originalSet(key, value);
+  };
+  const prefs = loadPreferences(storage);
+
+  const first = prefs.setStyleDnaPreferences(U, { showFeedbackControls: true });
+  const second = prefs.setStyleDnaPreferences(U, { feedbackEducationDismissed: true });
+  await first;
+  await assert.rejects(second, /disk full/);
+
+  const snapshot = prefs.getStyleDnaPreferencesSnapshot(U);
+  assert.equal(snapshot.showFeedbackControls, true);
+  assert.equal(snapshot.feedbackEducationDismissed, false);
 });
 
 test('snapshots are referentially stable and duplicate subscriptions notify once', async () => {

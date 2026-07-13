@@ -53,6 +53,7 @@ function normalizePreferences(raw: string | null): LocalStyleDnaPreferences {
   if (isBoolean(p.learnFromFeedback)) prefs.learnFromFeedback = p.learnFromFeedback;
   if (isBoolean(p.showFeedbackControls)) prefs.showFeedbackControls = p.showFeedbackControls;
   if (isBoolean(p.feedbackEducationDismissed)) prefs.feedbackEducationDismissed = p.feedbackEducationDismissed;
+  if (!prefs.learnFromFeedback) prefs.showFeedbackControls = false;
 
   return prefs;
 }
@@ -90,6 +91,12 @@ async function readStoredPreferences(userKey: string): Promise<LocalStyleDnaPref
   } catch {
     return DEFAULT_STYLE_DNA_PREFERENCES;
   }
+}
+
+async function readStoredPreferencesForWrite(
+  userKey: string,
+): Promise<LocalStyleDnaPreferences> {
+  return normalizePreferences(await AsyncStorage.getItem(preferencesKey(userKey)));
 }
 
 function enqueueWrite<T>(userKey: string, task: () => Promise<T>): Promise<T> {
@@ -156,16 +163,19 @@ export async function setStyleDnaPreferences(
 ): Promise<LocalStyleDnaPreferences> {
   if (!userKey) throw new Error('Style DNA preferences require a userKey.');
 
-  const operationRevision = advanceRevision(userKey);
+  advanceRevision(userKey);
   return enqueueWrite(userKey, async () => {
-    const current = await readStoredPreferences(userKey);
+    const current = await readStoredPreferencesForWrite(userKey);
+    const learnFromFeedback = isBoolean(update.learnFromFeedback)
+      ? update.learnFromFeedback
+      : current.learnFromFeedback;
     const next: LocalStyleDnaPreferences = {
-      learnFromFeedback: isBoolean(update.learnFromFeedback)
-        ? update.learnFromFeedback
-        : current.learnFromFeedback,
-      showFeedbackControls: isBoolean(update.showFeedbackControls)
-        ? update.showFeedbackControls
-        : current.showFeedbackControls,
+      learnFromFeedback,
+      showFeedbackControls: learnFromFeedback
+        ? isBoolean(update.showFeedbackControls)
+          ? update.showFeedbackControls
+          : current.showFeedbackControls
+        : false,
       feedbackEducationDismissed: isBoolean(update.feedbackEducationDismissed)
         ? update.feedbackEducationDismissed
         : current.feedbackEducationDismissed,
@@ -173,7 +183,7 @@ export async function setStyleDnaPreferences(
 
     await AsyncStorage.setItem(preferencesKey(userKey), JSON.stringify(next));
     hydratedUsers.add(userKey);
-    if (currentRevision(userKey) === operationRevision) publishSnapshot(userKey, next);
+    publishSnapshot(userKey, next);
     return next;
   });
 }

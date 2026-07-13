@@ -127,6 +127,14 @@ async function readSessionMap(
   }
 }
 
+async function readSessionMapForWrite(
+  userKey: string,
+  sessionId: string,
+): Promise<LocalStyleDnaSessionFeedbackMap> {
+  const raw = await AsyncStorage.getItem(sessionKey(userKey, sessionId));
+  return normalizeMap(raw, userKey, sessionId);
+}
+
 // ── Write serialization ───────────────────────────────────────────────────────
 // One in-flight write chain per storage key. Reads may run optimistically in the
 // UI; persisted writes for the same session map never race.
@@ -185,7 +193,7 @@ export async function setFeedbackForMessage(params: {
 
   const key = sessionKey(userKey, sessionId);
   return enqueueWrite(key, async () => {
-    const map = await readSessionMap(userKey, sessionId);
+    const map = await readSessionMapForWrite(userKey, sessionId);
     const now = new Date().toISOString();
     const existing = map.feedbackByMessageId[messageId];
 

@@ -77,6 +77,21 @@ test('valid reason codes persist locally', async () => {
   assert.equal(r.feedback, 'helpful');
 });
 
+test('reason write read failure rejects without replacing existing reasons', async () => {
+  const storage = makeStorage();
+  const { reasons } = load(storage);
+  await reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful', reasonCode: 'practical' });
+  const key = '@style_dna_v1/reasons/user:abc/s1';
+  const stored = storage.map.get(key);
+  storage.getItem = async () => { throw new Error('read unavailable'); };
+
+  await assert.rejects(
+    reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm2', feedback: 'helpful', reasonCode: 'would_try' }),
+    /read unavailable/,
+  );
+  assert.equal(storage.map.get(key), stored);
+});
+
 test('invalid reason code is rejected (throws)', async () => {
   const { reasons } = load(makeStorage());
   await assert.rejects(
@@ -151,6 +166,21 @@ test('clearReasonForMessage removes a stored reason', async () => {
   await reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful', reasonCode: 'practical' });
   await reasons.clearReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1' });
   assert.equal(await reasons.getReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1' }), null);
+});
+
+test('reason clear read failure rejects without deleting the stored reason', async () => {
+  const storage = makeStorage();
+  const { reasons } = load(storage);
+  await reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful', reasonCode: 'practical' });
+  const key = '@style_dna_v1/reasons/user:abc/s1';
+  const stored = storage.map.get(key);
+  storage.getItem = async () => { throw new Error('read unavailable'); };
+
+  await assert.rejects(
+    reasons.clearReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1' }),
+    /read unavailable/,
+  );
+  assert.equal(storage.map.get(key), stored);
 });
 
 test('Signature Style context (derived from feedback) is unaffected by reason saves', async () => {

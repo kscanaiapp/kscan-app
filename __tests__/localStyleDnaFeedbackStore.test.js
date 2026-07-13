@@ -101,6 +101,26 @@ test('serialized concurrent writes do not corrupt (last write wins, single recor
   assert.ok(['helpful', 'not_my_style'].includes(map[M].feedback));
 });
 
+test('write read failure rejects without replacing existing session feedback', async () => {
+  const storage = makeStorage();
+  const store = loadStore(storage);
+  await store.setFeedbackForMessage({ userKey: U, sessionId: S, messageId: M, feedback: 'helpful' });
+  const key = '@style_dna_v1/sessions/user:abc-123/session-1';
+  const stored = storage.map.get(key);
+  storage.getItem = async () => { throw new Error('read unavailable'); };
+
+  await assert.rejects(
+    store.setFeedbackForMessage({
+      userKey: U,
+      sessionId: S,
+      messageId: 'msg-uuid-2',
+      feedback: 'not_my_style',
+    }),
+    /read unavailable/,
+  );
+  assert.equal(storage.map.get(key), stored);
+});
+
 test('corrupted JSON recovers to empty (returns null)', async () => {
   const storage = makeStorage({ '@style_dna_v1/sessions/user:abc-123/session-1': '{not valid json' });
   const store = loadStore(storage);

@@ -55,6 +55,21 @@ test('controls announce success only from the durable-save callback', () => {
   assert.doesNotMatch(controlsSource, /saveFeedback\('not_my_style'\);\s*showConfirmation/);
 });
 
+test('reason changes fail closed and restore optimistic state on persistence errors', () => {
+  assert.match(
+    hookSource,
+    /await clearReasonForMessage\([\s\S]*?await setFeedbackForMessage\(/,
+  );
+  assert.match(
+    hookSource,
+    /await setReasonForMessage\([\s\S]*?feedback: previous,[\s\S]*?reasonCode: previousReason/,
+  );
+  assert.match(
+    hookSource,
+    /catch \{[\s\S]*?selectedReasonRef\.current = previous;[\s\S]*?setSelectedReason\(previous\);/,
+  );
+});
+
 test('conversation feedback UI and writes use the same explicit two-part gate', () => {
   assert.match(
     bubbleSource,
@@ -92,8 +107,13 @@ test('runtime polish keeps the status row quiet and the Home Elise CTA readable'
 test('feedback visibility is opt-in without removing ordinary recommendation reasoning', () => {
   assert.match(bubbleSource, /showFeedbackControls = false/);
   assert.match(bubbleSource, /b\.type === 'why_this_works'/);
-  assert.match(controlsSource, /testID="style-chat-inline-feedback-row"/);
+  assert.doesNotMatch(controlsSource, /testID="style-chat-inline-feedback-row"/);
+  assert.match(controlsSource, /accessibilityLabel="More feedback options"/);
   assert.match(controlsSource, /testID="style-chat-feedback-menu"/);
+  assert.match(
+    controlsSource,
+    /const menu = menuState === 'open' \?[\s\S]*?<StyleChatReasonChips/,
+  );
 });
 
 test('explanation is local metadata display and does not write or call a provider', () => {

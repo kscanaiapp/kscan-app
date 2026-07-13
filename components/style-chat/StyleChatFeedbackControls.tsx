@@ -157,49 +157,6 @@ export function StyleChatFeedbackControls({
   const positiveSelected = selectedFeedback === 'helpful';
   const negativeSelected = selectedFeedback === 'not_my_style';
 
-  const inlineRow = (
-    <View style={styles.inlineRow} testID="style-chat-inline-feedback-row">
-      <Pressable
-        onPress={handlePositive}
-        disabled={isSavingFeedback}
-        style={({ pressed }) => [
-          styles.inlineChip,
-          positiveSelected ? styles.inlineChipSelected : null,
-          pressed && !positiveSelected ? styles.inlineChipPressed : null,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="This fits my style"
-        accessibilityState={{ selected: positiveSelected, disabled: isSavingFeedback }}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Text
-          style={[styles.inlineChipText, positiveSelected ? styles.inlineChipTextSelected : null]}
-        >
-          This fits my style
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={handleNegative}
-        disabled={isSavingFeedback}
-        style={({ pressed }) => [
-          styles.inlineChip,
-          negativeSelected ? styles.inlineChipSelected : null,
-          pressed && !negativeSelected ? styles.inlineChipPressed : null,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="Not my style"
-        accessibilityState={{ selected: negativeSelected, disabled: isSavingFeedback }}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Text
-          style={[styles.inlineChipText, negativeSelected ? styles.inlineChipTextSelected : null]}
-        >
-          Not my style
-        </Text>
-      </Pressable>
-    </View>
-  );
-
   const menu = menuState === 'open' ? (
     <View
       style={styles.menu}
@@ -254,6 +211,16 @@ export function StyleChatFeedbackControls({
       >
         <Text style={styles.menuItemText}>Why this recommendation?</Text>
       </Pressable>
+      {reasonEnabled && selectedFeedback != null ? (
+        <View style={styles.menuReasons}>
+          <StyleChatReasonChips
+            feedback={selectedFeedback}
+            selectedReason={selectedReason}
+            isSaving={isSavingReason}
+            onPick={saveReason}
+          />
+        </View>
+      ) : null}
     </View>
   ) : null;
 
@@ -277,7 +244,6 @@ export function StyleChatFeedbackControls({
   return (
     <View style={styles.container} testID="style-chat-feedback-controls">
       <View style={styles.inlineWrap}>
-        {inlineRow}
         <Pressable
           onPress={toggleMenu}
           style={({ pressed }) => [styles.overflowButton, pressed ? styles.overflowButtonPressed : null]}
@@ -291,14 +257,6 @@ export function StyleChatFeedbackControls({
         </Pressable>
       </View>
       {menu}
-      {reasonEnabled && selectedFeedback != null ? (
-        <StyleChatReasonChips
-          feedback={selectedFeedback}
-          selectedReason={selectedReason}
-          isSaving={isSavingReason}
-          onPick={saveReason}
-        />
-      ) : null}
       {feedbackError ? (
         <Text style={styles.errorText} accessibilityLiveRegion="polite">
           {feedbackError}
@@ -330,42 +288,7 @@ const styles = StyleSheet.create({
   inlineWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
-  },
-  inlineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    flex: 1,
-    flexWrap: 'wrap',
-  },
-  inlineChip: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    backgroundColor: LUXURY.colors.ivory,
-  },
-  inlineChipPressed: {
-    backgroundColor: LUXURY.colors.pearl,
-  },
-  inlineChipSelected: {
-    borderColor: LUXURY.colors.gold,
-    backgroundColor: 'rgba(198, 161, 91, 0.14)',
-  },
-  inlineChipText: {
-    ...LUXURY.typography.caption,
-    fontSize: 11,
-    color: LUXURY.colors.graphite,
-    letterSpacing: 0.4,
-  },
-  inlineChipTextSelected: {
-    color: LUXURY.colors.plum,
-    fontWeight: '600',
+    justifyContent: 'flex-end',
   },
   overflowButton: {
     width: 36,
@@ -439,6 +362,10 @@ const styles = StyleSheet.create({
   menuItemTextSelected: {
     color: LUXURY.colors.plum,
     fontWeight: '600',
+  },
+  menuReasons: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
   },
   explanationPanel: {
     marginTop: SPACING.sm,
