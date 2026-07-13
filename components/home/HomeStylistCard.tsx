@@ -35,6 +35,7 @@ export function HomeStylistCard({
 }: HomeStylistCardProps) {
   const displayName = identity.displayName || DEFAULT_STYLIST_IDENTITY.displayName;
   const ctaLabel = hasSessions ? 'CONTINUE CONVERSATION' : 'START A CONVERSATION';
+  const ctaButtonLabel = hasSessions ? 'Continue chat' : 'Start chat';
 
   const handleCta = useCallback(() => {
     if (hasSessions) {
@@ -105,7 +106,7 @@ export function HomeStylistCard({
             Your personal AI stylist for outfit ideas, closet insights, and style decisions.
           </Text>
           <PrimaryButton
-            title={`✉ ${ctaLabel}`}
+            title={ctaButtonLabel}
             onPress={handleCta}
             disabled={disabled}
             accessibilityLabel={ctaLabel}
@@ -228,15 +229,18 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.graphite,
   },
   ctaButton: {
-    alignSelf: 'flex-start',
-    minWidth: undefined,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    alignSelf: 'stretch',
+    minWidth: 0,
+    minHeight: 48,
+    paddingHorizontal: SPACING.md,
     marginTop: SPACING.xs,
   },
   ctaButtonText: {
-    fontSize: 11,
-    letterSpacing: 1.2,
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: 0.2,
+    textTransform: 'none',
+    textAlign: 'center',
   },
   cardRight: {
     width: 130,

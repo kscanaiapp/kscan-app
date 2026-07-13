@@ -19,7 +19,7 @@ function formatRatio(summary: LocalStyleDnaProfileSummary | null): string | null
 }
 
 // Compact collapsed status row (default) + on-demand details sheet. Keeps the chat
-// window visible: the row is a fixed ~48px band, and full stats/reset live behind a
+// window visible: the row is a quiet utility band, and full stats/reset live behind a
 // tap in a modal sheet so Style Memory supports the conversation rather than replacing it.
 export function StyleChatStyleDnaCard({
   summary,
@@ -174,37 +174,37 @@ export function StyleChatStyleDnaCard({
 }
 
 const styles = StyleSheet.create({
-  // Compact collapsed row (enforced ~44–64px band).
+  // Compact collapsed row. Hit slop preserves a >= 48dp touch target.
   row: {
-    minHeight: 44,
-    maxHeight: 64,
+    minHeight: 36,
+    maxHeight: 40,
     marginHorizontal: SPACING.xl,
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    backgroundColor: LUXURY.colors.warmWhite,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: 'transparent',
   },
   rowLeft: {
     flex: 1,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
-    paddingRight: SPACING.sm,
+    gap: SPACING.xs,
+    paddingRight: SPACING.xs,
   },
   rowLabel: {
     ...LUXURY.typography.caption,
     flexShrink: 1,
     minWidth: 0,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    color: LUXURY.colors.graphite,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: LUXURY.colors.stone,
   },
   rowRight: {
     flexDirection: 'row',
@@ -214,16 +214,16 @@ const styles = StyleSheet.create({
   },
   detailsText: {
     ...LUXURY.typography.caption,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    color: LUXURY.colors.plum,
-    fontWeight: '600',
+    fontSize: 10,
+    letterSpacing: 0.4,
+    color: LUXURY.colors.graphite,
+    fontWeight: '500',
   },
   chevron: {
-    fontSize: 18,
-    lineHeight: 18,
-    color: LUXURY.colors.plum,
-    marginTop: -2,
+    fontSize: 15,
+    lineHeight: 16,
+    color: LUXURY.colors.graphite,
+    marginTop: -1,
   },
   // Details sheet
   backdrop: {

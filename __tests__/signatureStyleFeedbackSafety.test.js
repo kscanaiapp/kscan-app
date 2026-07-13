@@ -25,6 +25,10 @@ const settingsSource = fs.readFileSync(
   path.join(ROOT, 'components', 'style-chat', 'SignatureStyleSettingsSection.tsx'),
   'utf8',
 );
+const homeStylistSource = fs.readFileSync(
+  path.join(ROOT, 'components', 'home', 'HomeStylistCard.tsx'),
+  'utf8',
+);
 
 test('feedback hook gates direct writes and rapid repeated submissions', () => {
   assert.match(hookSource, /activeRef\.current/);
@@ -72,6 +76,17 @@ test('compact status row remains while feedback education is menu-only', () => {
   assert.match(controlsSource, /const menu = menuState === 'open' \? \(/);
   assert.match(controlsSource, /!feedbackEducationDismissed \? \(/);
   assert.match(controlsSource, /<Text style=\{styles\.educationText\}>\{EDUCATION_COPY\}<\/Text>/);
+});
+
+test('runtime polish keeps the status row quiet and the Home Elise CTA readable', () => {
+  assert.match(statusRowSource, /minHeight: 36/);
+  assert.match(statusRowSource, /borderColor: LUXURY\.colors\.hairline/);
+  assert.match(statusRowSource, /backgroundColor: 'transparent'/);
+  assert.match(homeStylistSource, /hasSessions \? 'Continue chat' : 'Start chat'/);
+  assert.match(homeStylistSource, /fontSize: 14/);
+  assert.match(homeStylistSource, /letterSpacing: 0\.2/);
+  assert.match(homeStylistSource, /textTransform: 'none'/);
+  assert.match(homeStylistSource, /textAlign: 'center'/);
 });
 
 test('feedback visibility is opt-in without removing ordinary recommendation reasoning', () => {
