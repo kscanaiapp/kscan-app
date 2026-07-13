@@ -4,7 +4,7 @@
 **Branch:** `fix/animated-avatar-architecture-recovery`  
 **Recovery worktree:** `C:\src\KScan-animated-avatar-recovery-20260713`  
 **Source branch:** `feature/elise-home-layer` (`659330b4f6a71d991f7d027d072048e13a60422e`)  
-**Recovery HEAD:** `56eb84c`
+**Recovery HEAD:** `a510a66`
 
 ---
 
@@ -38,6 +38,7 @@ The Android debug APK builds cleanly, the app launches, and the full test suite 
 ## Commits on the recovery branch
 
 ```
+a510a66 docs(avatar): add architecture recovery report
 56eb84c test(avatar): add testIDs to HomeStylistCard for smoke tests
 eec4c8d test(avatar): cover identity and speech recovery
 6edd9fe feat(avatar): integrate animated avatar and greeting into Home and StyleChat
@@ -91,7 +92,7 @@ b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
 
 ### What was run
 
-- Built `android/app/build/outputs/apk/debug/app-debug.apk` from `56eb84c`.
+- Built `android/app/build/outputs/apk/debug/app-debug.apk` from `a510a66`.
 - Uninstalled the previous emulator build (signature mismatch) and installed the new APK on `emulator-5554`.
 - Launched the app; captured launch screenshot (`qa/kscan_launch.png`) — app opened on the onboarding welcome screen without crashing.
 - Ran the existing `.maestro/flows/smoke/critical-path.yaml`; it failed on the expected `scan-button` assertion because a fresh install lands on onboarding, not the scan camera.
@@ -189,7 +190,7 @@ $ git diff --stat 659330b..56eb84c
  ... (truncated for brevity; full diff available in the branch)
 ```
 
-*(Run `git diff --stat 659330b..56eb84c` in the worktree for the complete picture.)*
+*(Run `git diff --stat 659330b..a510a66` in the worktree for the complete picture.)*
 
 ---
 
