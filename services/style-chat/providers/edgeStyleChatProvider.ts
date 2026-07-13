@@ -134,7 +134,10 @@ function normalizeMessage(value: unknown, fallbackContent: string): EdgeChatMess
   };
 }
 
-function fallbackResult(overrides?: Partial<EdgeChatMessage>): EdgeChatResult {
+function fallbackResult(
+  overrides?: Partial<EdgeChatMessage>,
+  errorCode = 'STYLECHAT_OPERATIONAL_FAILURE',
+): EdgeChatResult {
   return {
     status: 'error',
     message: {
@@ -145,7 +148,32 @@ function fallbackResult(overrides?: Partial<EdgeChatMessage>): EdgeChatResult {
       ...overrides,
     },
     usage: DEFAULT_USAGE,
+    errorCode,
   };
+}
+
+function getFunctionHttpStatus(error: unknown): number | null {
+  if (!isRecord(error)) return null;
+  const context = error.context;
+  if (!isRecord(context)) return null;
+  return typeof context.status === 'number' && Number.isFinite(context.status)
+    ? context.status
+    : null;
+}
+
+function logHandledOperationalFailure(category: string) {
+  if (__DEV__) console.info('[EdgeStyleChatProvider] handled operational failure:', category);
+}
+
+function isExpectedNetworkFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  return (
+    message.includes('network request failed') ||
+    message.includes('failed to fetch') ||
+    message.includes('networkerror') ||
+    message.includes('offline') ||
+    message.includes('internet')
+  );
 }
 
 function limitResult(message: string, usage: unknown): EdgeChatResult {
@@ -177,6 +205,12 @@ function burstLimitResult(message: string, usage: unknown): EdgeChatResult {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export class EdgeStyleChatProvider {
+  private readonly timeoutMs: number;
+
+  constructor(timeoutMs = TIMEOUT_MS) {
+    this.timeoutMs = timeoutMs;
+  }
+
   async generateReply(input: {
     sessionId: string;
     message: string;
@@ -188,7 +222,7 @@ export class EdgeStyleChatProvider {
     contextHint?: string | null;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
-    const timeoutId = setTimeout(() => ac.abort(), TIMEOUT_MS);
+    const timeoutId = setTimeout(() => ac.abort(), this.timeoutMs);
     const hasAttachments = Array.isArray(input.attachments) && input.attachments.length > 0;
 
     try {
@@ -224,6 +258,7 @@ export class EdgeStyleChatProvider {
       });
 
       if (error) {
+        const httpStatus = getFunctionHttpStatus(error);
         // The Supabase functions-js SDK wraps non-2xx responses as FunctionsHttpError
         // with the raw (unconsumed) Response in error.context. Attempt to parse a
         // structured burst_limit body from a 429 before falling back to generic error.
@@ -256,14 +291,26 @@ export class EdgeStyleChatProvider {
                 return limitResult(bodyContent || STYLE_CHAT_COPY.systemLimitNotice, body.usage);
               }
               if (status === 'error') {
-                return fallbackResult(normalizeMessage(bodyMessage, STYLE_CHAT_COPY.errorGeneric));
+                return fallbackResult(
+                  normalizeMessage(bodyMessage, STYLE_CHAT_COPY.errorGeneric),
+                  typeof body.errorCode === 'string' ? body.errorCode : 'EDGE_ERROR_RESPONSE',
+                );
               }
             }
           } catch {
             // fall through to generic fallback
           }
         }
-        if (__DEV__) console.warn('[EdgeStyleChatProvider] invoke error:', (error as Error).message);
+        if (httpStatus != null && (httpStatus >= 500 || httpStatus === 408 || httpStatus === 429)) {
+          logHandledOperationalFailure(`http_${httpStatus}`);
+        } else if (__DEV__) {
+          // Client/auth/schema 4xx responses are not expected operational
+          // outages. Keep their safe status visible to developers.
+          console.warn(
+            '[EdgeStyleChatProvider] unexpected function failure status:',
+            httpStatus ?? 'unknown',
+          );
+        }
         // Attachment-bearing sends must never degrade into an attachment-blind
         // answer: function-unavailable / 404 / 503 / network failures become an
         // explicit unsupported result so the caller preserves the draft.
@@ -274,18 +321,21 @@ export class EdgeStyleChatProvider {
             usage: DEFAULT_USAGE,
           };
         }
-        return fallbackResult({ content: getFriendlyStyleChatError(error) });
+        return fallbackResult(
+          { content: getFriendlyStyleChatError(error) },
+          httpStatus != null ? `EDGE_HTTP_${httpStatus}` : 'EDGE_INVOKE_ERROR',
+        );
       }
 
       if (!data || typeof data.status !== 'string') {
         if (__DEV__) console.warn('[EdgeStyleChatProvider] unexpected response shape');
-        return fallbackResult();
+        return fallbackResult(undefined, 'MALFORMED_EDGE_RESPONSE');
       }
 
       const status = normalizeStatus(data.status);
       if (!status) {
         if (__DEV__) console.warn('[EdgeStyleChatProvider] unexpected response status:', data.status);
-        return fallbackResult();
+        return fallbackResult(undefined, 'UNKNOWN_EDGE_STATUS');
       }
 
       if (status === 'burst_limit') {
@@ -303,11 +353,14 @@ export class EdgeStyleChatProvider {
       }
 
       if (status === 'error') {
-        return fallbackResult(normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric));
+        return fallbackResult(
+          normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric),
+          data.errorCode || 'EDGE_ERROR_RESPONSE',
+        );
       }
 
       if (typeof data.message?.content !== 'string' || data.message.content.trim().length === 0) {
-        return fallbackResult();
+        return fallbackResult(undefined, 'EMPTY_EDGE_RESPONSE');
       }
       const message = normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric);
 
@@ -353,8 +406,12 @@ export class EdgeStyleChatProvider {
 
     } catch (err: unknown) {
       const isAbort = (err as { name?: string })?.name === 'AbortError';
-      if (__DEV__) {
-        console.warn('[EdgeStyleChatProvider]', isAbort ? 'request timed out' : (err as Error)?.message);
+      if (isAbort) {
+        logHandledOperationalFailure('client_timeout');
+      } else if (isExpectedNetworkFailure(err)) {
+        logHandledOperationalFailure('network_failure');
+      } else if (__DEV__) {
+        console.warn('[EdgeStyleChatProvider] unexpected client failure');
       }
       if (hasAttachments) {
         // Timeout/network with attachments: preserve the draft, never pretend
@@ -365,7 +422,10 @@ export class EdgeStyleChatProvider {
           usage: DEFAULT_USAGE,
         };
       }
-      return fallbackResult({ content: getFriendlyStyleChatError(err) });
+      return fallbackResult(
+        { content: getFriendlyStyleChatError(err) },
+        isAbort ? 'CLIENT_TIMEOUT' : 'NETWORK_OR_CLIENT_FAILURE',
+      );
     } finally {
       clearTimeout(timeoutId);
     }

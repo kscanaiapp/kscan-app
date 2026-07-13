@@ -13,6 +13,7 @@ import {
   type LocalStyleDnaFeedbackValue,
 } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { reportAiOutput } from '../../services/reportAiOutput';
+import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
 
 interface StyleChatBubbleProps {
   message: StyleChatMessage;
@@ -182,6 +183,7 @@ export function StyleChatBubble({
   const stylistDisplayName = identity.displayName;
   const content = typeof message.content === 'string' ? message.content : '';
   const uiBlocks = Array.isArray(message.uiBlocks) ? message.uiBlocks : [];
+  const isSyntheticFailure = isSyntheticStyleChatFailure(message);
   const assistantBlocks = !isUser ? parseAssistantContent(content) : [];
   const insets = useSafeAreaInsets();
   const safeRowPadding = insets.left || insets.right
@@ -197,6 +199,7 @@ export function StyleChatBubble({
     STYLE_DNA_ENABLED &&
     !isUser &&
     !isError &&
+    !isSyntheticFailure &&
     Boolean(userKey) &&
     content.trim().length > 0 &&
     isStablePersistedId(message.id);
@@ -302,7 +305,7 @@ export function StyleChatBubble({
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
         ) : null}
-        {message.sender === 'assistant' ? (
+        {message.sender === 'assistant' && !isSyntheticFailure ? (
           <Pressable
             onPress={() =>
               reportAiOutput('StyleChat', {

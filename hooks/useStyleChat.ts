@@ -18,6 +18,7 @@ import {
   type StyleChatAttachment,
 } from '../types/styleChatAttachments';
 import { createStyleChatRetryState } from '../services/style-chat/styleChatRetryState';
+import { classifyStyleChatOperationalFailure } from '../services/style-chat/styleChatOutcome';
 
 export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
   "Closet-aware messaging isn't available yet. Your attachments are still here.";
@@ -299,17 +300,21 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           return;
         }
 
-        if (result.status === 'error') {
-          // Persist a safe fallback assistant row so the conversation remains coherent
-          // on reload, then surface the content to the user.
-          const fallbackMsg = await saveStyleChatMessage({
-            sessionId,
-            sender: 'assistant',
-            content: result.message.content.trim() || STYLE_CHAT_COPY.errorGeneric,
-            provider: result.message.model || 'fallback',
-            model: result.message.model || undefined,
+        const operationalFailure = classifyStyleChatOperationalFailure(result);
+        if (operationalFailure) {
+          // An operational failure is not an assistant answer. Keep the one
+          // persisted text-only user row, preserve the exact send for one-shot
+          // retry, and render the existing actionable error banner instead of
+          // writing synthetic assistant content or exposing feedback controls.
+          if (hasAttachments) {
+            setMessages(prev => prev.filter(m => m.id !== optimisticUser?.id));
+          }
+          retryStateRef.current?.remember({
+            content: trimmed,
+            userMessageId: persistedUserMessageId,
+            attachments: hasAttachments ? sendAttachments : null,
           });
-          setMessages(prev => [...prev, fallbackMsg]);
+          setError(operationalFailure.message);
           // Update usage if the server returned a count.
           if (result.usage.messagesUsed > 0) {
             setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed));
