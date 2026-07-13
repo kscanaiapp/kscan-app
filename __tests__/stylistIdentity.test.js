@@ -744,7 +744,10 @@ test('shipped portrait assets exist, are square JPEGs, and have unique hashes', 
 
 test('portrait manifest matches exact shipped hashes and sizes', () => {
   const portraitDir = path.join(ROOT, 'assets', 'stylist-avatars', 'portraits');
-  assert.match(portraitAssetManifest, /7 women and 3 men/);
+  assert.match(portraitAssetManifest, /6 women and 4 men/);
+  assert.match(portraitAssetManifest, /reprocessed on 2026-07-12/);
+  assert.match(portraitAssetManifest, /braided updo and cream blazer/);
+  assert.match(portraitAssetManifest, /short hair, glasses, and a red polo/);
   assert.match(portraitAssetManifest, /quality 90/);
   assert.match(portraitAssetManifest, /AI-generated, fictional people/);
 

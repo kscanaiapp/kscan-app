@@ -17,7 +17,7 @@ approved to contain:
 
 ## Gender distribution
 
-The shipped set intentionally contains **7 women and 3 men**. K Scan's primary
+The shipped set intentionally contains **6 women and 4 men**. K Scan's primary
 audience is women, and this distribution was approved as a deliberate,
 non-blocking deviation from an even split.
 
@@ -28,8 +28,8 @@ statically by `constants/stylistIdentity.ts`.
 
 | File | Dimensions | Mode | Size (bytes) | SHA-256 |
 |------|------------|------|--------------|---------|
-| `stylist_portrait_01.jpg` | 1024×1024 | sRGB/RGB | 167,929 | `dabe4f690d13f9ea5f594f3a9df259668f36e94615b69e693bc0bab667a28eed` |
-| `stylist_portrait_02.jpg` | 1024×1024 | sRGB/RGB | 128,882 | `780c590a2c9d56f368d0b42d8f559c8da843311c5bef2aca19dee974f4172dbf` |
+| `stylist_portrait_01.jpg` | 1024×1024 | sRGB/RGB | 128,525 | `ec0f49c164ab7685a00b4308c1aa897bc755e6bc129620ef7278cc853ace4101` |
+| `stylist_portrait_02.jpg` | 1024×1024 | sRGB/RGB | 154,033 | `7383215a8f5dbc3a4b484e5352e51ba6e97a0074e029ffb09286cb3624142c79` |
 | `stylist_portrait_03.jpg` | 1024×1024 | sRGB/RGB | 159,677 | `75228a74da3044759365f21befe40bdb0d1d4be9b33f8abbfad02af484740ca8` |
 | `stylist_portrait_04.jpg` | 1024×1024 | sRGB/RGB | 154,128 | `70cb206e8cae88fd36cc6ec7fc0afcbb7f41eaf331d98b0e2cd5f0377ffb5163` |
 | `stylist_portrait_05.jpg` | 1024×1024 | sRGB/RGB | 190,375 | `5240c79b3206afd5ac04be986a3990e490aba55bcc17cc1c067605cf3eef33e5` |
@@ -53,6 +53,16 @@ The processor accepts only the ten canonical filenames, refuses missing,
 duplicate, or unrelated inputs, and requires `--overwrite` before replacing an
 existing processed asset. Reprocessing the preserved approved raw set produces
 the exact hashes recorded above.
+
+## Approved replacement record
+
+Portraits 01 and 02 were reprocessed on 2026-07-12 from owner-supplied,
+approved replacement PNG sources while retaining their stable IDs. Portrait 01
+shows a braided updo and cream blazer against a warm neutral background.
+Portrait 02 shows short hair, glasses, and a red polo against a neutral
+background. Both replacements retain centered facial features and
+circular-crop-safe spacing. Portraits 03 through 10 were reproduced
+byte-for-byte unchanged.
 
 ## Registry mapping
 
