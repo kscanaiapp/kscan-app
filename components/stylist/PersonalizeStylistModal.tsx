@@ -204,9 +204,9 @@ export function PersonalizeStylistModal({
               </View>
 
               <View style={styles.peopleSection}>
-                <Text style={styles.label} accessibilityRole="header">PEOPLE</Text>
+                <Text style={styles.label} accessibilityRole="header">STYLIST</Text>
                 <Text style={styles.peopleHelper}>
-                  Choose the portrait that best fits your stylist.
+                  Choose your personal stylist avatar.
                 </Text>
                 <View style={styles.avatarGrid}>
                   {STYLIST_PORTRAIT_PRESETS.map((preset) => {

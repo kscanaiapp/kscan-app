@@ -679,13 +679,13 @@ test('personalize modal allows editing display name and avatar', () => {
   assert.match(personalizeModal, /StylistAvatar/);
 });
 
-test('personalize modal shows an enabled People section with ten ready portraits', () => {
-  assert.match(personalizeModal, /PEOPLE/);
+test('personalize modal shows an enabled Stylist section with ten ready portraits', () => {
+  assert.match(personalizeModal, />STYLIST<\/Text>/);
   assert.doesNotMatch(personalizeModal, /Photorealistic stylist portraits are coming soon\./);
   assert.match(personalizeModal, /STYLIST_PORTRAIT_PRESETS\.map/);
   assert.match(personalizeModal, /onPress=\{\(\) => setDraftAvatarId\(preset\.id\)\}/);
   assert.match(personalizeModal, /accessibilityRole="radio"/);
-  assert.match(personalizeModal, /Choose the portrait that best fits your stylist\./);
+  assert.match(personalizeModal, /Choose your personal stylist avatar\./);
   assert.match(personalizeModal, /accessibilityState=\{\{\s*disabled:\s*saving,\s*selected\s*\}\}/);
   assert.match(personalizeModal, /selected\s*&&\s*styles\.avatarButtonSelected/);
   assert.match(personalizeModal, /<ScrollView[\s\S]*?styles\.actions[\s\S]*?<\/ScrollView>/);
