@@ -31,7 +31,7 @@ export interface UseStyleDnaFeedbackReturn {
   selectedFeedback: LocalStyleDnaFeedbackValue | null;
   isSavingFeedback: boolean;
   feedbackError: string | null;
-  saveFeedback: (value: LocalStyleDnaFeedbackValue) => void;
+  saveFeedback: (value: LocalStyleDnaFeedbackValue) => Promise<boolean>;
   // Phase 3 (optional reason enrichment)
   reasonEnabled: boolean;
   selectedReason: StyleDnaReasonCode | null;
@@ -52,9 +52,26 @@ export function useStyleDnaFeedback({
   const [selectedReason, setSelectedReason] = useState<StyleDnaReasonCode | null>(null);
   const [isSavingReason, setIsSavingReason] = useState(false);
   const mountedRef = useRef(true);
+  const activeRef = useRef(false);
+  const selectedFeedbackRef = useRef<LocalStyleDnaFeedbackValue | null>(null);
+  const selectedReasonRef = useRef<StyleDnaReasonCode | null>(null);
+  const savingFeedbackRef = useRef(false);
+  const savingReasonRef = useRef(false);
+  const scopeVersionRef = useRef(0);
+  const hydrationVersionRef = useRef(0);
+  const scopeKeyRef = useRef('');
 
   const active = Boolean(enabled && userKey && sessionId && messageId);
   const reasonEnabled = STYLE_DNA_REASON_FEEDBACK_ENABLED;
+  const scopeKey = `${userKey ?? ''}\u0000${sessionId}\u0000${messageId}`;
+  if (scopeKeyRef.current !== scopeKey) {
+    scopeKeyRef.current = scopeKey;
+    scopeVersionRef.current += 1;
+    hydrationVersionRef.current += 1;
+    savingFeedbackRef.current = false;
+    savingReasonRef.current = false;
+  }
+  activeRef.current = active;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -67,9 +84,16 @@ export function useStyleDnaFeedback({
   // then updates — avoids blocking the bubble on AsyncStorage.
   useEffect(() => {
     let cancelled = false;
+    const scopeVersion = scopeVersionRef.current;
+    const hydrationVersion = ++hydrationVersionRef.current;
     if (!active) {
+      selectedFeedbackRef.current = null;
+      selectedReasonRef.current = null;
       setSelectedFeedback(null);
       setSelectedReason(null);
+      setIsSavingFeedback(false);
+      setIsSavingReason(false);
+      setFeedbackError(null);
       return;
     }
     void (async () => {
@@ -79,11 +103,17 @@ export function useStyleDnaFeedback({
           sessionId,
           messageId,
         });
-        if (cancelled) return;
+        if (
+          cancelled ||
+          scopeVersionRef.current !== scopeVersion ||
+          hydrationVersionRef.current !== hydrationVersion
+        ) return;
         const feedback = record?.feedback ?? null;
+        selectedFeedbackRef.current = feedback;
         setSelectedFeedback(feedback);
 
         if (!reasonEnabled || !feedback) {
+          selectedReasonRef.current = null;
           setSelectedReason(null);
           return;
         }
@@ -92,12 +122,24 @@ export function useStyleDnaFeedback({
           sessionId,
           messageId,
         });
-        if (cancelled) return;
+        if (
+          cancelled ||
+          scopeVersionRef.current !== scopeVersion ||
+          hydrationVersionRef.current !== hydrationVersion
+        ) return;
         // Defensive: only surface a stored reason that still matches the stored polarity.
         const code = reasonRecord?.reasonCode ?? null;
-        setSelectedReason(code && isReasonValidForFeedback(code, feedback) ? code : null);
+        const nextReason = code && isReasonValidForFeedback(code, feedback) ? code : null;
+        selectedReasonRef.current = nextReason;
+        setSelectedReason(nextReason);
       } catch {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          scopeVersionRef.current === scopeVersion &&
+          hydrationVersionRef.current === hydrationVersion
+        ) {
+          selectedFeedbackRef.current = null;
+          selectedReasonRef.current = null;
           setSelectedFeedback(null);
           setSelectedReason(null);
         }
@@ -109,19 +151,25 @@ export function useStyleDnaFeedback({
   }, [active, reasonEnabled, userKey, sessionId, messageId]);
 
   const saveFeedback = useCallback(
-    (value: LocalStyleDnaFeedbackValue) => {
-      if (!active) return;
+    async (value: LocalStyleDnaFeedbackValue): Promise<boolean> => {
+      if (!activeRef.current || savingFeedbackRef.current) return false;
       // Re-tapping the current selection is a no-op (no write, no confirmation spam).
-      if (value === selectedFeedback) return;
+      if (value === selectedFeedbackRef.current) return false;
 
-      const previous = selectedFeedback;
+      const operationScopeVersion = scopeVersionRef.current;
+      const previous = selectedFeedbackRef.current;
+      const previousReason = selectedReasonRef.current;
+      hydrationVersionRef.current += 1;
+      savingFeedbackRef.current = true;
+      selectedFeedbackRef.current = value;
       setSelectedFeedback(value); // optimistic
       setIsSavingFeedback(true);
       setFeedbackError(null);
 
       // Polarity changed: any prior reason is now incompatible. Clear it locally and in
       // storage so the profile/aggregation never keeps a mismatched reason.
-      if (selectedReason !== null) {
+      if (previousReason !== null) {
+        selectedReasonRef.current = null;
         setSelectedReason(null);
         void clearReasonForMessage({
           userKey: userKey as string,
@@ -130,55 +178,70 @@ export function useStyleDnaFeedback({
         }).catch(() => {});
       }
 
-      void (async () => {
-        try {
-          await setFeedbackForMessage({
-            userKey: userKey as string,
-            sessionId,
-            messageId,
-            feedback: value,
-          });
-          if (mountedRef.current) {
-            setIsSavingFeedback(false);
-            onSaved?.(value);
-          }
-        } catch {
-          // Revert optimistic state on write failure.
-          if (mountedRef.current) {
-            setSelectedFeedback(previous);
-            setIsSavingFeedback(false);
-            setFeedbackError("Couldn't save feedback");
-          }
+      try {
+        await setFeedbackForMessage({
+          userKey: userKey as string,
+          sessionId,
+          messageId,
+          feedback: value,
+        });
+        if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
+          savingFeedbackRef.current = false;
+          setIsSavingFeedback(false);
+          onSaved?.(value);
         }
-      })();
+        return true;
+      } catch {
+        // Revert optimistic state on write failure, but never repaint a newer
+        // actor/message scope with the previous scope's state.
+        if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
+          savingFeedbackRef.current = false;
+          selectedFeedbackRef.current = previous;
+          selectedReasonRef.current = previousReason;
+          setSelectedFeedback(previous);
+          setSelectedReason(previousReason);
+          setIsSavingFeedback(false);
+          setFeedbackError("Couldn't save feedback");
+        }
+        return false;
+      }
     },
-    [active, selectedFeedback, selectedReason, userKey, sessionId, messageId, onSaved],
+    [userKey, sessionId, messageId, onSaved],
   );
 
   const saveReason = useCallback(
     (code: StyleDnaReasonCode) => {
-      if (!active || !reasonEnabled) return;
-      const feedback = selectedFeedback;
+      if (!activeRef.current || !reasonEnabled || savingReasonRef.current) return;
+      const feedback = selectedFeedbackRef.current;
       // Reason requires a current feedback selection and must match its polarity.
       if (!feedback || !isReasonValidForFeedback(code, feedback)) return;
 
       // Tapping the current reason again clears it (fully optional, easy to undo).
-      if (code === selectedReason) {
+      if (code === selectedReasonRef.current) {
+        selectedReasonRef.current = null;
+        savingReasonRef.current = true;
         setSelectedReason(null);
         setIsSavingReason(true);
+        const operationScopeVersion = scopeVersionRef.current;
         void (async () => {
           try {
             await clearReasonForMessage({ userKey: userKey as string, sessionId, messageId });
           } catch {
             // best-effort; leave UI cleared
           } finally {
-            if (mountedRef.current) setIsSavingReason(false);
+            if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
+              savingReasonRef.current = false;
+              setIsSavingReason(false);
+            }
           }
         })();
         return;
       }
 
-      const previous = selectedReason;
+      const operationScopeVersion = scopeVersionRef.current;
+      const previous = selectedReasonRef.current;
+      selectedReasonRef.current = code;
+      savingReasonRef.current = true;
       setSelectedReason(code); // optimistic
       setIsSavingReason(true);
       void (async () => {
@@ -190,16 +253,21 @@ export function useStyleDnaFeedback({
             feedback,
             reasonCode: code,
           });
-          if (mountedRef.current) setIsSavingReason(false);
+          if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
+            savingReasonRef.current = false;
+            setIsSavingReason(false);
+          }
         } catch {
-          if (mountedRef.current) {
+          if (mountedRef.current && scopeVersionRef.current === operationScopeVersion) {
+            savingReasonRef.current = false;
+            selectedReasonRef.current = previous;
             setSelectedReason(previous);
             setIsSavingReason(false);
           }
         }
       })();
     },
-    [active, reasonEnabled, selectedFeedback, selectedReason, userKey, sessionId, messageId],
+    [reasonEnabled, userKey, sessionId, messageId],
   );
 
   return {
