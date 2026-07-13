@@ -127,7 +127,9 @@ export async function loadFeatureFreezeConfig(): Promise<{
     return { config: applyDevFeatureFreezeOverride(remote), source: 'remote' };
   } catch {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.warn('[K-SCAN FeatureFreeze] remote fetch failed; using cache/default');
+      // The cache/default path is an expected, non-blocking startup fallback.
+      // Keep it observable without creating a React Native LogBox badge.
+      console.info('[K-SCAN FeatureFreeze] remote fetch failed; using cache/default');
     }
     if (cached) {
       return { config: applyDevFeatureFreezeOverride(cached), source: 'cache' };

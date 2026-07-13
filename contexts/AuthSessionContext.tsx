@@ -12,6 +12,8 @@ import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
+import { isHandledStaleRefreshTokenError } from '../services/authSessionBootstrap';
+import { logError } from '../src/utils/errorLogger';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -47,18 +49,6 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const bootSession = data.session ?? null;
-      const usableSession = isSessionUsable(bootSession) ? bootSession : null;
-      if (bootSession && !usableSession) {
-        invalidateAllMemoryCache();
-        await supabase.auth.signOut();
-      }
-      if (!mounted) return;
-      setSession(usableSession);
-      setLoading(false);
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
@@ -74,6 +64,40 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       }
       setSession(usableSession);
     });
+
+    const initializeSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          if (!isHandledStaleRefreshTokenError(error)) {
+            logError('Unable to restore auth session', error);
+          }
+          if (mounted) setSession(null);
+          return;
+        }
+
+        const bootSession = data.session ?? null;
+        const usableSession = isSessionUsable(bootSession) ? bootSession : null;
+        if (bootSession && !usableSession) {
+          invalidateAllMemoryCache();
+          await supabase.auth.signOut({ scope: 'local' });
+        }
+        if (mounted) setSession(usableSession);
+      } catch (error) {
+        logError('Unable to initialize auth session', error);
+        if (mounted) setSession(null);
+      } finally {
+        try {
+          await supabase.auth.startAutoRefresh();
+        } catch (error) {
+          logError('Unable to start auth session refresh', error);
+        }
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void initializeSession();
 
     return () => {
       mounted = false;

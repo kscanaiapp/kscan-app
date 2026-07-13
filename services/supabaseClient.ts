@@ -20,7 +20,10 @@ export const supabase = createClient(url, anonKey, {
   auth: {
     storage: AsyncStorage,
     persistSession: true,
-    autoRefreshToken: true,
+    // Bootstrap explicitly before starting the background refresher so a
+    // handled stale refresh token can be cleared without auth-js emitting a
+    // React Native LogBox error during client construction.
+    autoRefreshToken: false,
     detectSessionInUrl: false,
   },
 });
