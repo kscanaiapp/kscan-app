@@ -9,6 +9,7 @@ interface StyleChatStyleDnaCardProps {
   summaryText?: string | null;
   loading?: boolean;
   resetting?: boolean;
+  learnFromFeedback?: boolean;
   onReset?: () => void;
 }
 
@@ -25,6 +26,7 @@ export function StyleChatStyleDnaCard({
   summaryText,
   loading = false,
   resetting = false,
+  learnFromFeedback = true,
   onReset,
 }: StyleChatStyleDnaCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -43,7 +45,9 @@ export function StyleChatStyleDnaCard({
     ? STYLE_MEMORY_COPY.onDeviceLabel
     : hasSignals && progressLabel
       ? `Signature Style · ${progressLabel} · On-device`
-      : STYLE_MEMORY_COPY.learningLabel;
+      : learnFromFeedback
+        ? STYLE_MEMORY_COPY.learningLabel
+        : 'Signature Style learning is off';
 
   return (
     <>
@@ -93,6 +97,13 @@ export function StyleChatStyleDnaCard({
                 ? 'Signature Style evolves as Elise learns from what you scan, save, wear, and love.'
                 : 'Your Signature Style helps Elise recommend outfits, discover complementary pieces, and understand your personal aesthetic over time.'}
             </Text>
+
+            {!learnFromFeedback && !hasSignals ? (
+              <Text style={styles.body}>
+                Turn on &quot;Learn from my feedback&quot; in Settings to let Elise build a local
+                Signature Style from your taps.
+              </Text>
+            ) : null}
 
             {hasSignals && summary ? (
               <View style={styles.statsWrap}>

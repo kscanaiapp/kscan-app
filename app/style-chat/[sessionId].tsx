@@ -34,6 +34,7 @@ import {
 } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { useStyleDnaPreferences } from '../../hooks/useStyleDnaPreferences';
 import { useWeatherStyling } from '../../hooks/useWeatherStyling';
 import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
 import { WEATHER_COPY } from '../../constants/weatherStyling';
@@ -69,6 +70,8 @@ export default function StyleChatSessionScreen() {
   // Style Memory Phase 0 local feedback key. StyleChat is auth-only, so this is
   // populated whenever messages exist; null hides the local feedback UI.
   const userKey = user ? `user:${user.id}` : null;
+  const { preferences: styleDnaPreferences, updatePreferences: updateStyleDnaPreferences } =
+    useStyleDnaPreferences({ userKey });
   const weather = useWeatherStyling(sessionId ?? '');
   // Phase 2: build a data-only Style Memory context per send. Reads the local profile
   // fresh each time and self-gates on EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED + the
@@ -246,10 +249,20 @@ export default function StyleChatSessionScreen() {
 
   const isLoading = loadingSession || loadingMessages;
 
+  const handleDismissFeedbackEducation = useCallback(() => {
+    void updateStyleDnaPreferences({ feedbackEducationDismissed: true }).catch(() => {
+      // Keep education visible when local persistence fails; avoid a false dismissal.
+    });
+  }, [updateStyleDnaPreferences]);
+
   const renderMessage = ({ item }: { item: StyleChatMessage }) => (
     <StyleChatBubble
       message={item}
       userKey={userKey}
+      learnFromFeedback={styleDnaPreferences.learnFromFeedback}
+      showFeedbackControls={styleDnaPreferences.showFeedbackControls}
+      feedbackEducationDismissed={styleDnaPreferences.feedbackEducationDismissed}
+      onDismissFeedbackEducation={handleDismissFeedbackEducation}
       onStyleDnaFeedbackSaved={refreshStyleDnaSummary}
     />
   );
@@ -362,7 +375,7 @@ export default function StyleChatSessionScreen() {
       <FlatList
         ref={listRef}
         data={messages}
-        extraData={userKey}
+        extraData={[userKey, styleDnaPreferences.learnFromFeedback, styleDnaPreferences.showFeedbackControls, styleDnaPreferences.feedbackEducationDismissed]}
         keyExtractor={item => item.id}
         renderItem={renderMessage}
         ListEmptyComponent={ListEmpty}
@@ -493,6 +506,7 @@ export default function StyleChatSessionScreen() {
           summaryText={styleDnaSummaryText}
           loading={isLoadingStyleDna}
           resetting={isResettingStyleDna}
+          learnFromFeedback={styleDnaPreferences.learnFromFeedback}
           onReset={handleResetStyleDna}
         />
       ) : null}

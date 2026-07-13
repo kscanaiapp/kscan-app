@@ -1,19 +1,15 @@
-import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { StyleChatActionCards } from './StyleChatActionCards';
-import { useStyleDnaFeedback } from '../../hooks/useStyleDnaFeedback';
+import { StyleChatFeedbackControls } from './StyleChatFeedbackControls';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
-import { StyleChatReasonChips } from './StyleChatReasonChips';
-import {
-  STYLE_DNA_ENABLED,
-  type LocalStyleDnaFeedbackValue,
-} from '../../services/style-dna/localStyleDnaFeedbackStore';
+import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { reportAiOutput } from '../../services/reportAiOutput';
 import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
+import { isEligibleForStyleFeedback } from '../../services/style-dna/styleDnaEligibility';
 
 interface StyleChatBubbleProps {
   message: StyleChatMessage;
@@ -24,6 +20,24 @@ interface StyleChatBubbleProps {
    * the session screen. When absent, local feedback UI is not rendered.
    */
   userKey?: string | null;
+  /**
+   * When false, no new Signature Style signals are recorded and no success
+   * confirmation is shown. Existing learned data remains intact.
+   */
+  learnFromFeedback?: boolean;
+  /**
+   * When true, a compact inline positive/negative feedback row is shown in
+   * addition to the overflow menu. When false, only the overflow menu remains.
+   */
+  showFeedbackControls?: boolean;
+  /**
+   * When false, the one-time menu education banner is shown on first menu open.
+   */
+  feedbackEducationDismissed?: boolean;
+  /**
+   * Called when the user dismisses the one-time education banner.
+   */
+  onDismissFeedbackEducation?: () => void;
   onStyleDnaFeedbackSaved?: () => void;
 }
 
@@ -86,89 +100,10 @@ function isStablePersistedId(id: string): boolean {
   return typeof id === 'string' && id.length > 0 && !id.startsWith('optimistic-');
 }
 
-function StyleDnaFeedbackRow({
-  userKey,
-  sessionId,
-  messageId,
-  onSaved,
-}: {
-  userKey: string;
-  sessionId: string;
-  messageId: string;
-  onSaved?: () => void;
-}) {
-  const {
-    selectedFeedback,
-    isSavingFeedback,
-    feedbackError,
-    saveFeedback,
-    reasonEnabled,
-    selectedReason,
-    isSavingReason,
-    saveReason,
-  } = useStyleDnaFeedback({
-    userKey,
-    sessionId,
-    messageId,
-    onSaved,
-  });
-  const [didInteract, setDidInteract] = useState(false);
-
-  const onPick = (value: LocalStyleDnaFeedbackValue) => {
-    setDidInteract(true);
-    saveFeedback(value);
-  };
-
-  const showConfirmation =
-    didInteract && !isSavingFeedback && !feedbackError && selectedFeedback != null;
-
-  const options: Array<{ value: LocalStyleDnaFeedbackValue; label: string; a11y: string }> = [
-    { value: 'helpful', label: 'Helpful', a11y: 'Mark response as helpful' },
-    { value: 'not_my_style', label: 'Not my style', a11y: 'Mark response as not my style' },
-  ];
-
-  return (
-    <View style={styles.feedbackRow}>
-      <View style={styles.feedbackOptions}>
-        {options.map(opt => {
-          const selected = selectedFeedback === opt.value;
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => onPick(opt.value)}
-              disabled={isSavingFeedback}
-              style={[styles.feedbackChip, selected ? styles.feedbackChipSelected : null]}
-              accessibilityRole="button"
-              accessibilityLabel={opt.a11y}
-              accessibilityState={{ selected, disabled: isSavingFeedback, busy: isSavingFeedback }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={[styles.feedbackChipText, selected ? styles.feedbackChipTextSelected : null]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      {reasonEnabled && selectedFeedback != null ? (
-        <StyleChatReasonChips
-          feedback={selectedFeedback}
-          selectedReason={selectedReason}
-          isSaving={isSavingReason}
-          onPick={saveReason}
-        />
-      ) : null}
-      {feedbackError ? (
-        <Text style={styles.feedbackError} accessibilityLiveRegion="polite">
-          {feedbackError}
-        </Text>
-      ) : showConfirmation ? (
-        <Text style={styles.feedbackConfirm} accessibilityLiveRegion="polite">
-          Feedback saved
-        </Text>
-      ) : null}
-    </View>
-  );
+function findWhyThisWorks(message: StyleChatMessage): string | undefined {
+  if (!Array.isArray(message.uiBlocks)) return undefined;
+  const block = message.uiBlocks.find((b) => b.type === 'why_this_works');
+  return typeof block?.body === 'string' ? block.body : undefined;
 }
 
 export function StyleChatBubble({
@@ -176,6 +111,10 @@ export function StyleChatBubble({
   onRetry,
   isError,
   userKey,
+  learnFromFeedback = true,
+  showFeedbackControls = false,
+  feedbackEducationDismissed = false,
+  onDismissFeedbackEducation,
   onStyleDnaFeedbackSaved,
 }: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
@@ -197,12 +136,9 @@ export function StyleChatBubble({
   // stable persisted id, and only when we have an authenticated user key.
   const showFeedback =
     STYLE_DNA_ENABLED &&
-    !isUser &&
-    !isError &&
     !isSyntheticFailure &&
-    Boolean(userKey) &&
-    content.trim().length > 0 &&
-    isStablePersistedId(message.id);
+    isStablePersistedId(message.id) &&
+    isEligibleForStyleFeedback({ message, userKey, isError });
 
   return (
     <View
@@ -286,11 +222,16 @@ export function StyleChatBubble({
             })}
           </View>
         ) : null}
-        {showFeedback ? (
-          <StyleDnaFeedbackRow
+        {showFeedback && learnFromFeedback ? (
+          <StyleChatFeedbackControls
             userKey={userKey as string}
             sessionId={message.sessionId}
             messageId={message.id}
+            whyThisWorks={findWhyThisWorks(message)}
+            learnFromFeedback={learnFromFeedback}
+            showFeedbackControls={showFeedbackControls}
+            feedbackEducationDismissed={feedbackEducationDismissed}
+            onDismissEducation={onDismissFeedbackEducation ?? (() => {})}
             onSaved={onStyleDnaFeedbackSaved}
           />
         ) : null}
@@ -437,59 +378,6 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.inverse,
     fontSize: 11,
-  },
-  feedbackRow: {
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: LUXURY.colors.hairline,
-    // Reserve consistent height so hydrating the persisted selection does not
-    // shift the bubble layout.
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  feedbackOptions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  feedbackChip: {
-    minHeight: 32,
-    justifyContent: 'center',
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.border,
-    backgroundColor: LUXURY.colors.ivory,
-  },
-  feedbackChipSelected: {
-    borderColor: LUXURY.colors.gold,
-    backgroundColor: 'rgba(198, 161, 91, 0.14)',
-  },
-  feedbackChipText: {
-    ...LUXURY.typography.caption,
-    fontSize: 12,
-    color: LUXURY.colors.graphite,
-    letterSpacing: 0.4,
-  },
-  feedbackChipTextSelected: {
-    color: LUXURY.colors.plum,
-    fontWeight: '600',
-  },
-  feedbackConfirm: {
-    ...LUXURY.typography.caption,
-    fontSize: 11,
-    color: LUXURY.colors.stone,
-    marginTop: SPACING.xs,
-    letterSpacing: 0.6,
-  },
-  feedbackError: {
-    ...LUXURY.typography.caption,
-    fontSize: 11,
-    color: LUXURY.colors.error,
-    marginTop: SPACING.xs,
-    letterSpacing: 0.6,
   },
   retryBtn: {
     marginTop: SPACING.sm,

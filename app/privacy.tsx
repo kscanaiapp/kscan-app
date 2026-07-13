@@ -38,6 +38,7 @@ import { submitAccountDeletionRequest } from '../services/accountDeletion';
 import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
+import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
 
 const PRIVACY_COPY = {
   saleRemote:
@@ -512,6 +513,8 @@ export default function PrivacyScreen() {
                 }}
               />
             </View>
+
+            <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
 
             <TrustCenterCard
               title="How K Scan Handles Your Data"
