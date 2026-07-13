@@ -51,7 +51,7 @@ export function HomeStylistCard({
   }, [hasSessions, onOpenConversations, onStartConversation]);
 
   return (
-    <View style={styles.section}>
+    <View testID="home-stylist-card" style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <View style={styles.sectionHeaderLeft}>
           <Text style={styles.sparkle}>✦</Text>
@@ -109,7 +109,7 @@ export function HomeStylistCard({
           <Text style={styles.cardTitle} accessibilityRole="header">
             Ask {displayName}
           </Text>
-          <Text style={styles.cardGreeting} numberOfLines={2}>
+          <Text testID="home-stylist-greeting" style={styles.cardGreeting} numberOfLines={2}>
             {greetingText}
           </Text>
           {canSpeak ? (
