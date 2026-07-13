@@ -29,6 +29,7 @@
                                      }
                                  ],
                                  "expo-router",
+                                 "expo-apple-authentication",
                                  "expo-font",
                                  [
                                      "expo-location",

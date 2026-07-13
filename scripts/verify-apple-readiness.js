@@ -13,6 +13,12 @@ function hasDependency(packageJson, name) {
   return Boolean(packageJson.dependencies?.[name] || packageJson.devDependencies?.[name]);
 }
 
+function hasPlugin(appJson, name) {
+  return (appJson.plugins ?? []).some((plugin) =>
+    Array.isArray(plugin) ? plugin[0] === name : plugin === name,
+  );
+}
+
 function createResult() {
   return {
     checks: [],
@@ -133,6 +139,11 @@ function verify() {
   check(result, apple.advisory?.ageRatingOverride === 'NONE', 'No unsupported age-rating override is encoded');
 
   check(result, hasDependency(packageJson, 'expo-apple-authentication'), 'Apple Sign-In dependency is present');
+  check(
+    result,
+    hasPlugin(appJson, 'expo-apple-authentication'),
+    'Apple Sign-In config plugin is present',
+  );
   check(result, ios.usesAppleSignIn === true, 'Apple Sign-In entitlement is declared');
   check(result, !hasDependency(packageJson, 'expo-media-library'), 'No media library dependency');
   check(result, !hasDependency(packageJson, 'expo-ads-admob'), 'No ads dependency');
