@@ -1,6 +1,23 @@
 # Phase 2 — Stylist Portrait Avatar Supabase Plan
 
-This is the forward-only database sequence for enabling the ten local portrait presets. It records the pre-audit gap, the local Phase 1 hardening migration, and the later Phase 2 expansion. Neither migration is deployed by this audit.
+This is the forward-only database sequence for enabling the ten local portrait presets. It records the pre-audit gap, the Phase 1 hardening migration, the Phase 2 expansion, and the final audit deployment state.
+
+## Final audit deployment state
+
+The intended remote project was confirmed safely as `wyyu...mhry`. At final-audit
+preflight, that project did not contain `public.user_stylist_preferences`, and
+neither avatar migration was recorded remotely. Several earlier repository
+migrations were also pending, including the table-creation and grants
+prerequisites. Because the audit authorized deployment of only the two avatar
+allowlist migrations, no remote migration was deployed and no unrelated
+pending migration was applied.
+
+The local test database already contained the preference table. The audit
+applied the exact Phase 1 and Phase 2 files locally through Postgres with
+stop-on-error, recorded their local history only after successful execution,
+and verified all sixteen values, invalid-value rejection, owner isolation,
+anonymous denial, grants, RLS, cascade deletion, and updated-at trigger
+behavior.
 
 ## Verified Phase 1 contract
 
@@ -27,17 +44,17 @@ No database `avatar_id` CHECK constraint existed. The original source migration 
 - `cream_gold`
 - `obsidian_orchid`
 
-The migration counts unsupported existing rows and aborts without exposing values, deleting rows, or coercing data. It is created locally and **not deployed by this audit**. It must be reviewed and applied in the authorized backend deployment step before Phase 2 begins.
+The migration counts unsupported existing rows and aborts without exposing values, deleting rows, or coercing data. It is committed and locally verified. Remote deployment remains blocked until the table and grants prerequisites are explicitly authorized and applied.
 
 RLS is enabled. The three policies are `Users can select own stylist preferences`, `Users can insert own stylist preferences`, and `Users can update own stylist preferences`; each is scoped to `authenticated` and `auth.uid() = user_id`, with both `USING` and `WITH CHECK` on update. `authenticated` has SELECT/INSERT/UPDATE, `service_role` has CRUD, and `anon` has no table grant. The `user_stylist_preferences_updated_at` trigger calls `set_user_stylist_preferences_updated_at()`. Account deletion is covered both by the foreign-key cascade and `scripts/process-deletion-request.js`.
 
-## Proposed Phase 2 migration
+## Phase 2 migration
 
-Proposed forward-only filename:
+Forward-only filename:
 
 `supabase/migrations/20260715000001_expand_stylist_portrait_avatar_allowlist.sql`
 
-At implementation time, create it with `supabase migration new expand_stylist_portrait_avatar_allowlist` and use the CLI-generated timestamp if it differs; do not hand-create migration history.
+The migration was created for Phase 2 and is committed at the exact filename above. Do not rename it or edit applied migration history.
 
 First verify the Phase 1 migration is applied and the six-ID constraint exists. Phase 2 intentionally replaces that same named constraint with the sixteen-ID definition below.
 
@@ -112,14 +129,15 @@ The final allowlist is exactly six abstract IDs plus ten portrait IDs. The repla
 
 ## Rollout order
 
-1. Review and apply the Phase 1 six-ID migration to the intended project in an authorized backend deployment step. Verify its exact constraint definition and invalid-ID rejection.
-2. Add and validate the ten static local assets in the client, but keep portrait presets non-selectable and non-persistable.
-3. Create the Phase 2 forward migration with `supabase migration new expand_stylist_portrait_avatar_allowlist`; review the generated filename and SQL.
-4. Verify the six-ID constraint exists, then run the sixteen-ID invalid-row precheck. Investigate invalid rows individually; do not silently coerce them.
-5. Deploy the Phase 2 migration first. Verify the sixteen-ID constraint, RLS, grants, cascade, and trigger.
-6. Verify an abstract write and a portrait write on a non-production test user, plus invalid-ID rejection and User A/User B isolation.
-7. Only after backend acceptance is proven, change each shipped portrait registry entry from placeholder to ready with its static source and enable client persistence. Release the compatible client.
-8. Monitor persistence failures. Older clients remain compatible because all six abstract IDs stay allowed.
+1. Explicitly authorize and apply the existing preference-table creation and grants prerequisites to the intended project. Do not bundle unrelated pending migrations.
+2. Verify the table, RLS policies, grants, cascade, trigger, and unsupported-row count.
+3. Apply `20260714000003_add_user_stylist_preferences_avatar_allowlist.sql` and record its migration history only after successful execution.
+4. Verify the exact six-ID constraint and invalid-ID rejection.
+5. Apply `20260715000001_expand_stylist_portrait_avatar_allowlist.sql` and record its migration history only after successful execution.
+6. Verify the exact sixteen-ID constraint, RLS, grants, cascade, and trigger.
+7. Verify an abstract write and a portrait write on disposable test users, plus invalid-ID rejection and User A/User B isolation.
+8. Only then distribute a portrait-enabled client. The Phase 2 client source is already enabled, so it must not be released ahead of this backend gate.
+9. Monitor persistence failures. Older clients remain compatible because all six abstract IDs stay allowed.
 
 Never ship a portrait-enabled client before the backend constraint and portrait acceptance are verified.
 
