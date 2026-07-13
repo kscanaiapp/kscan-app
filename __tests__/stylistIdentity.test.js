@@ -636,6 +636,9 @@ test('Home stylist card receives identity props and supports personalization', (
   assert.match(homeStylistCard, /identity\.avatarId/);
   assert.match(homeStylistCard, /onPersonalize/);
   assert.match(homeStylistCard, /Personalize/);
+  assert.match(homeStylistCard, /numberOfLines=\{1\}/);
+  assert.match(homeStylistCard, /adjustsFontSizeToFit/);
+  assert.match(homeStylistCard, /minimumFontScale=\{0\.85\}/);
   assert.match(homeStylistCard, /YOUR STYLIST/);
   assert.match(homeStylistCard, /Ask \{displayName\}/);
   assert.match(homeStylistCard, /START A CONVERSATION/);

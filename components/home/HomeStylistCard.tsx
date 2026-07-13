@@ -86,7 +86,14 @@ export function HomeStylistCard({
             accessibilityRole="button"
             accessibilityLabel={`Personalize ${displayName}`}
           >
-            <Text style={styles.personalizeLinkText}>Personalize</Text>
+            <Text
+              style={styles.personalizeLinkText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              Personalize
+            </Text>
           </Pressable>
         </View>
 
@@ -195,11 +202,11 @@ const styles = StyleSheet.create({
   personalizeLink: {
     minHeight: 28,
     justifyContent: 'center',
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
   },
   personalizeLinkText: {
     ...LUXURY.typography.caption,
-    fontSize: 11,
+    fontSize: 10,
     color: LUXURY.colors.plum,
     textDecorationLine: 'underline',
   },
