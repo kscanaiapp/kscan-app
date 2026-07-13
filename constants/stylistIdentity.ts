@@ -177,93 +177,100 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
 ];
 
 /**
- * Reserved portrait slots for Phase 2. They are visible in the personalization
- * modal as a disabled "People" section but can never be selected or persisted
- * until their assets and Supabase allowlist are added.
+ * Shipped photorealistic portrait presets for the People section. Each preset
+ * carries a static local asset reference so Metro can bundle it and the
+ * StylistAvatar component can render a native <Image>.
  */
-const PORTRAIT_PRESET_DEFINITIONS: (
-  | StylistAvatarPresetPortraitPlaceholder
-  | StylistAvatarPresetPortraitReady
-)[] = [
+const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
   {
     id: 'stylist_portrait_01',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 1, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 1',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_01.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_02',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 2, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 2',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_02.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_03',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 3, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 3',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_03.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_04',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 4, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 4',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_04.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_05',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 5, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 5',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_05.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_06',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 6, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 6',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_06.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_07',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 7, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 7',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_07.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_08',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 8, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 8',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_08.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_09',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 9, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 9',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_09.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
   {
     id: 'stylist_portrait_10',
     kind: 'portrait',
-    availability: 'placeholder',
-    accessibilityLabel: 'Portrait option 10, coming soon',
-    selectable: false,
-    persistable: false,
+    availability: 'ready',
+    accessibilityLabel: 'Stylist portrait 10',
+    source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_10.jpg') : 1,
+    selectable: true,
+    persistable: true,
   },
 ];
 
@@ -271,19 +278,15 @@ const ABSTRACT_PRESETS: readonly StylistAvatarPresetAbstract[] = Object.freeze(
   ABSTRACT_PRESET_DEFINITIONS.map((preset) => Object.freeze(preset)),
 );
 
-const PORTRAIT_PRESETS: readonly (
-  | StylistAvatarPresetPortraitPlaceholder
-  | StylistAvatarPresetPortraitReady
-)[] = Object.freeze(PORTRAIT_PRESET_DEFINITIONS.map((preset) => Object.freeze(preset)));
+const PORTRAIT_PRESETS: readonly StylistAvatarPresetPortraitReady[] = Object.freeze(
+  PORTRAIT_PRESET_DEFINITIONS.map((preset) => Object.freeze(preset)),
+);
 
 /** Stable Abstract section used by the selector. */
 export const STYLIST_ABSTRACT_PRESETS = ABSTRACT_PRESETS;
 
 /** Stable People section. Ready portraits remain here after Phase 2 conversion. */
-export const STYLIST_PORTRAIT_PRESETS: readonly (
-  | StylistAvatarPresetPortraitPlaceholder
-  | StylistAvatarPresetPortraitReady
-)[] = PORTRAIT_PRESETS;
+export const STYLIST_PORTRAIT_PRESETS: readonly StylistAvatarPresetPortraitReady[] = PORTRAIT_PRESETS;
 
 /** Full registry of bundled avatar presets. */
 export const STYLIST_AVATAR_PRESETS: readonly StylistAvatarPreset[] = Object.freeze([
@@ -388,11 +391,12 @@ export const STYLIST_AVATAR_PRESET_BY_ID: ReadonlyMap<string, StylistAvatarPrese
   createReadonlyMap(STYLIST_AVATAR_PRESETS.map((p) => [p.id, p] as const)),
 );
 
-/** IDs reserved for Phase 2 photorealistic portrait presets. */
+/** IDs reserved for future photorealistic portrait presets. */
 export const STYLIST_PORTRAIT_PLACEHOLDER_IDS: readonly string[] = Object.freeze(
-  STYLIST_PORTRAIT_PRESETS
-    .filter((p): p is StylistAvatarPresetPortraitPlaceholder => p.availability === 'placeholder')
-    .map((p) => p.id),
+  STYLIST_AVATAR_PRESETS.filter(
+    (p): p is StylistAvatarPresetPortraitPlaceholder =>
+      p.kind === 'portrait' && p.availability === 'placeholder',
+  ).map((p) => p.id),
 );
 
 export type StylistIdentityValidationReason =

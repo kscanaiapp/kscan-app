@@ -182,26 +182,8 @@ export function PersonalizeStylistModal({
 
               <View style={styles.peopleSection}>
                 <Text style={styles.label}>PEOPLE</Text>
-                <Text style={styles.peopleHelper}>
-                  Photorealistic stylist portraits are coming soon.
-                </Text>
                 <View style={styles.avatarGrid}>
                   {STYLIST_PORTRAIT_PRESETS.map((preset) => {
-                    if (preset.availability === 'placeholder') {
-                      return (
-                        <View
-                          key={preset.id}
-                          accessible
-                          style={[styles.avatarButton, styles.avatarButtonDisabled]}
-                          accessibilityRole="image"
-                          accessibilityState={{ disabled: true }}
-                          accessibilityLabel={preset.accessibilityLabel}
-                        >
-                          <StylistAvatar avatarId={preset.id} size={56} />
-                        </View>
-                      );
-                    }
-
                     const selected = preset.id === draftAvatarId;
                     return (
                       <Pressable

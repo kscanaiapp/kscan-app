@@ -111,3 +111,9 @@ kickscrew-test.json
 nike-shoe-test*.json
 product-search-test.json
 product-search-response.json
+
+# Avatar processor virtual environment
+.venv-avatars/
+
+# Raw portrait source files (processed JPEGs are bundled)
+assets/stylist-avatars/portraits/raw/
