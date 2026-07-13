@@ -47,7 +47,12 @@ processed by `scripts/process-portrait-avatars.py` using Pillow 12.3.0:
 1. Convert to RGB.
 2. Strip EXIF metadata.
 3. Resize to 1024×1024 pixels with Lanczos resampling.
-4. Export as baseline JPEG, quality 82, optimized.
+4. Export as baseline JPEG, quality 90, optimized.
+
+The processor accepts only the ten canonical filenames, refuses missing,
+duplicate, or unrelated inputs, and requires `--overwrite` before replacing an
+existing processed asset. Reprocessing the preserved approved raw set produces
+the exact hashes recorded above.
 
 ## Registry mapping
 
