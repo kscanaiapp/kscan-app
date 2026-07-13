@@ -114,10 +114,6 @@ export function StyleChatFeedbackControls({
     if (feedbackError) submissionPendingRef.current = false;
   }, [feedbackError]);
 
-  useEffect(() => {
-    if (menuState === 'open') onMenuOpened?.();
-  }, [menuState, onMenuOpened]);
-
   const handlePositive = useCallback(() => {
     if (
       !learningEnabledRef.current ||
@@ -209,6 +205,7 @@ export function StyleChatFeedbackControls({
     <View
       style={styles.menu}
       testID="style-chat-feedback-menu"
+      onLayout={onMenuOpened}
       accessibilityRole="menu"
       accessibilityLabel="Signature Style feedback options"
     >

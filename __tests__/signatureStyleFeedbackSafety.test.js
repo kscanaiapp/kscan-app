@@ -57,7 +57,7 @@ test('overflow menu is toggle-dismissible and exposes expanded accessibility sta
 });
 
 test('opening a menu scrolls the exact recommendation clear of the composer', () => {
-  assert.match(controlsSource, /if \(menuState === 'open'\) onMenuOpened\?\.\(\)/);
+  assert.match(controlsSource, /testID="style-chat-feedback-menu"[\s\S]*?onLayout=\{onMenuOpened\}/);
   assert.match(sessionSource, /renderMessage = \(\{ item, index \}/);
   assert.match(sessionSource, /scrollToIndex\(\{ index, animated: true, viewPosition: 0 \}\)/);
 });
