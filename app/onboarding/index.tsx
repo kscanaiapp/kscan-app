@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Pressable,
   TextInput,
-  Switch,
   BackHandler,
   ActivityIndicator,
   Platform,
@@ -23,7 +22,6 @@ import {
   LuxuryScreen,
   KScanHeader,
   PrimaryButton,
-  SecondaryButton,
   TertiaryButton,
 } from '../../components/luxury';
 import { OnboardingShell } from '../../components/onboarding';
@@ -33,7 +31,6 @@ import {
   PermissionsStepV1,
 } from '../../components/account-home';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import { ACCOUNT_HOME_UX_V1_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import { TERMS_VERSION, PRIVACY_VERSION, AGE_VERSION } from '../../constants/legal';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { recordLegalAcceptances } from '../../services/legalAcceptance';
@@ -97,7 +94,6 @@ export default function OnboardingScreen() {
     savePreferences,
     requestMicrophonePermission,
   } = usePermissionPreferences();
-  const microphoneDisabled = !VOICESCAN_ENABLED;
 
   const navigationRef = useNavigationContainerRef();
   const replaceHomeOnce = useCallback(() => {
@@ -374,113 +370,24 @@ export default function OnboardingScreen() {
 
   // ── Render helpers ───────────────────────────────────────────────────────
 
-  const renderWelcome = () => {
-    if (ACCOUNT_HOME_UX_V1_ENABLED) {
-      return (
-        <WelcomeStepV1
-          onGetStarted={goToNext}
-          onAlreadyHaveAccount={goToAuth}
-        />
-      );
-    }
-    return (
-    <View style={styles.stepContent} testID="onboarding-welcome-screen">
-      <View style={styles.heroArea}>
-        <Text style={styles.brandMark}>K Scan</Text>
-        <Text style={styles.sparkAccent}>✦</Text>
-        <Text style={styles.heroHeadline}>Welcome to your AI style world</Text>
-        <Text style={styles.heroBody}>
-          Scan outfits, get AI styling inspiration, discover similar looks, and shop smarter.
-        </Text>
-      </View>
-
-      <PrimaryButton
-        testID="onboarding-get-started-button"
-        title="Get Started"
-        onPress={goToNext}
-        style={styles.wideButton}
-      />
-
-      <Pressable
-        testID="onboarding-login-link"
-        onPress={goToAuth}
-        accessibilityRole="button"
-        accessibilityLabel="Already a member? Log in"
-      >
-        <Text style={styles.footerLink}>
-          Already a member? <Text style={styles.footerLinkAction}>Log in</Text>
-        </Text>
-      </Pressable>
-    </View>
+  const renderWelcome = () => (
+    <WelcomeStepV1
+      onGetStarted={goToNext}
+      onAlreadyHaveAccount={goToAuth}
+    />
   );
-  };
 
-  const renderAuthChoice = () => {
-    if (ACCOUNT_HOME_UX_V1_ENABLED) {
-      return (
-        <AccountSetupStepV1
-          onContinueEmail={goToNext}
-          onContinueGoogle={handleGoogleSignIn}
-          onContinueApple={goToAuth}
-          onGoToLogin={goToAuth}
-          appleAvailable={Platform.OS === 'ios'}
-          error={createError}
-          googleBusy={googleBusy}
-        />
-      );
-    }
-    return (
-    <View style={styles.stepContent} testID="onboarding-auth-choice-screen">
-      <Text style={styles.stepTitle}>Account Access</Text>
-      <Text style={styles.stepBody}>Choose how you want to continue.</Text>
-
-      {createError ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{createError}</Text>
-        </View>
-      ) : null}
-
-      <PrimaryButton
-        testID="onboarding-continue-email-button"
-        title="Continue with Email"
-        onPress={goToNext}
-        style={styles.wideButton}
-      />
-
-      <SecondaryButton
-        testID="onboarding-continue-google-button"
-        title="Continue with Google"
-        onPress={handleGoogleSignIn}
-        loading={googleBusy}
-        disabled={googleBusy}
-        style={styles.wideButton}
-      />
-
-      {Platform.OS === 'ios' && (
-        <SecondaryButton
-          testID="onboarding-continue-apple-button"
-          title="Continue with Apple"
-          onPress={() => {
-            // Redirect to existing auth screen for Apple OAuth
-            goToAuth();
-          }}
-          style={styles.wideButton}
-        />
-      )}
-
-      <Pressable
-        testID="onboarding-auth-login-link"
-        onPress={goToAuth}
-        accessibilityRole="button"
-        accessibilityLabel="Already a member? Log in"
-      >
-        <Text style={styles.footerLink}>
-          Already a member? <Text style={styles.footerLinkAction}>Log in</Text>
-        </Text>
-      </Pressable>
-    </View>
+  const renderAuthChoice = () => (
+    <AccountSetupStepV1
+      onContinueEmail={goToNext}
+      onContinueGoogle={handleGoogleSignIn}
+      onContinueApple={goToAuth}
+      onGoToLogin={goToAuth}
+      appleAvailable={Platform.OS === 'ios'}
+      error={createError}
+      googleBusy={googleBusy}
+    />
   );
-  };
 
   const renderCreateAccount = () => {
     if (confirmationEmail) {
@@ -765,121 +672,22 @@ export default function OnboardingScreen() {
   );
 
   const renderPermissions = () => {
-    if (ACCOUNT_HOME_UX_V1_ENABLED) {
-      const handlePermissionsContinue = async () => {
-        await savePreferences();
-        await goToHome();
-      };
-      return (
-        <PermissionsStepV1
-          preferences={permissionPrefs}
-          togglePreference={togglePermission}
-          setPreference={setPermissionPreference}
-          requestMicrophonePermission={requestMicrophonePermission}
-          isSaving={permissionSaving}
-          onContinueToHome={handlePermissionsContinue}
-          onNotNow={goToHome}
-        />
-      );
-    }
+    const handlePermissionsContinue = async () => {
+      await savePreferences();
+      await goToHome();
+    };
+
     return (
-    <View style={styles.stepContent} testID="onboarding-permissions-screen">
-      <Text style={styles.stepTitle}>Permissions</Text>
-      <Text style={styles.stepBody}>
-        You can change these anytime in device settings. VoiceScan is coming soon and is not active in this release.
-      </Text>
-
-      {/* Camera */}
-      <View style={styles.permissionRow}>
-        <View style={styles.permissionInfo}>
-          <Text style={styles.permissionLabel}>Camera</Text>
-          <Text style={styles.permissionStatus}>Requested when you enter Scan.</Text>
-        </View>
-        <Switch
-          testID="onboarding-camera-toggle"
-          value={permissionPrefs.camera}
-          onValueChange={() => togglePermission('camera')}
-          trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor={permissionPrefs.camera ? LUXURY.colors.plum : '#f4f3f4'}
-        />
-      </View>
-
-      {/* Photos */}
-      <View style={styles.permissionRow}>
-        <View style={styles.permissionInfo}>
-          <Text style={styles.permissionLabel}>Photos</Text>
-          <Text style={styles.permissionStatus}>Requested when you choose Upload Image.</Text>
-        </View>
-        <Switch
-          testID="onboarding-photos-toggle"
-          value={permissionPrefs.photos}
-          onValueChange={() => togglePermission('photos')}
-          trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor={permissionPrefs.photos ? LUXURY.colors.plum : '#f4f3f4'}
-        />
-      </View>
-
-      {/* Microphone — VoiceScan is planned but inactive for this launch. */}
-      <View
-        style={[styles.permissionRow, microphoneDisabled && styles.permissionRowDisabled]}
-        accessibilityLabel="Microphone permission, coming soon, disabled"
-        accessibilityState={{ disabled: microphoneDisabled }}
-      >
-        <View style={styles.permissionInfo}>
-          <Text style={styles.permissionLabel}>Microphone</Text>
-          <Text style={styles.permissionStatus}>Coming Soon</Text>
-          <Text style={styles.permissionSubtext}>VoiceScan is coming soon and is not active in this build.</Text>
-        </View>
-        <Switch
-          testID="onboarding-microphone-toggle"
-          value={false}
-          onValueChange={() => {}}
-          disabled={microphoneDisabled}
-          trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor="#f4f3f4"
-          accessibilityLabel="Toggle Microphone"
-          accessibilityState={{ disabled: microphoneDisabled, checked: false }}
-        />
-      </View>
-
-      {/* Notifications */}
-      <View
-        style={[styles.permissionRow, styles.permissionRowDisabled]}
-        accessibilityLabel="Notifications permission, coming soon, disabled"
-        accessibilityState={{ disabled: true }}
-      >
-        <View style={styles.permissionInfo}>
-          <Text style={styles.permissionLabel}>Notifications</Text>
-          <Text style={styles.permissionStatus}>Coming Soon</Text>
-          <Text style={styles.permissionSubtext}>Notifications are coming soon and are not active in this build.</Text>
-        </View>
-        <Switch
-          testID="onboarding-notifications-toggle"
-          value={false}
-          onValueChange={() => {}}
-          disabled={true}
-          trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-          thumbColor="#f4f3f4"
-          accessibilityLabel="Toggle Notifications"
-          accessibilityState={{ disabled: true, checked: false }}
-        />
-      </View>
-
-      <PrimaryButton
-        testID="onboarding-permissions-continue-button"
-        title="Continue to Home"
-        onPress={goToHome}
-        style={styles.wideButton}
+      <PermissionsStepV1
+        preferences={permissionPrefs}
+        togglePreference={togglePermission}
+        setPreference={setPermissionPreference}
+        requestMicrophonePermission={requestMicrophonePermission}
+        isSaving={permissionSaving}
+        onContinueToHome={handlePermissionsContinue}
+        onNotNow={goToHome}
       />
-
-      <TertiaryButton
-        testID="onboarding-permissions-not-now-button"
-        title="Not Now"
-        onPress={goToHome}
-        style={styles.wideButton}
-      />
-    </View>
-  );
+    );
   };
 
   const renderHomeHandoff = () => (
@@ -926,33 +734,6 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.xl,
-  },
-  heroArea: {
-    alignItems: 'center',
-    gap: SPACING.md,
-    marginBottom: SPACING.xl,
-  },
-  brandMark: {
-    ...LUXURY.typography.brandMark,
-    fontSize: 28,
-    color: LUXURY.colors.ink,
-  },
-  sparkAccent: {
-    fontSize: 32,
-    color: LUXURY.colors.gold,
-    marginTop: SPACING.xs,
-  },
-  heroHeadline: {
-    ...LUXURY.typography.displayHeadline,
-    textAlign: 'center',
-    color: LUXURY.colors.ink,
-    marginTop: SPACING.sm,
-  },
-  heroBody: {
-    ...LUXURY.typography.body,
-    textAlign: 'center',
-    color: LUXURY.colors.graphite,
-    paddingHorizontal: SPACING.lg,
   },
   stepTitle: {
     ...LUXURY.typography.displayTitle,
@@ -1129,41 +910,5 @@ const styles = StyleSheet.create({
   legalLinkSep: {
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
-  },
-  // Permissions
-  permissionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: LUXURY.colors.border,
-  },
-  permissionInfo: {
-    flex: 1,
-    marginRight: SPACING.md,
-  },
-  permissionLabel: {
-    ...LUXURY.typography.bodyStrong,
-    fontSize: 16,
-    color: LUXURY.colors.ink,
-  },
-  permissionStatus: {
-    ...LUXURY.typography.caption,
-    textTransform: 'none',
-    letterSpacing: 0.2,
-    marginTop: SPACING.xs,
-    color: LUXURY.colors.graphite,
-  },
-  permissionRowDisabled: {
-    opacity: 0.5,
-  },
-  permissionSubtext: {
-    ...LUXURY.typography.caption,
-    textTransform: 'none',
-    letterSpacing: 0.2,
-    lineHeight: 18,
-    color: LUXURY.colors.graphite,
-    marginTop: SPACING.xs,
   },
 });

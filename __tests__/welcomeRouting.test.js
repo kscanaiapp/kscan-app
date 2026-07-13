@@ -131,10 +131,17 @@ test('authenticated user with complete onboarding on /onboarding is redirected t
 test('Welcome Step 1 is the fresh-user first screen and wires Get Started to Step 2', () => {
   assert.match(onboardingSource, /const \[step, setStep\] = useState<OnboardingStep>\(1\)/);
   assert.match(onboardingSource, /<WelcomeStepV1[\s\S]*onGetStarted=\{goToNext\}[\s\S]*onAlreadyHaveAccount=\{goToAuth\}/);
+  assert.doesNotMatch(onboardingSource, /ACCOUNT_HOME_UX_V1_ENABLED/);
+  assert.doesNotMatch(onboardingSource, /Welcome to your AI style world/);
+  assert.doesNotMatch(onboardingSource, /shop smarter/);
   assert.match(welcomeStepSource, /onboarding-welcome-screen-v1/);
+  assert.match(welcomeStepSource, /require\('\.\.\/\.\.\/assets\/images\/welcome-hero\.png'\)/);
   assert.match(welcomeStepSource, /See it\. Scan it\./);
   assert.match(welcomeStepSource, /Style it\./);
+  assert.match(welcomeStepSource, /Unlock smart style inspiration\. Scan any outfit, discover similar looks, and/);
+  assert.match(welcomeStepSource, /shop pieces you.*love.*all with AI\./s);
   assert.match(welcomeStepSource, /onboarding-get-started-button-v1/);
+  assert.match(welcomeStepSource, /I ALREADY HAVE AN ACCOUNT/);
 });
 
 // -- 8. Welcome Step 2 exposes the expected auth choices ----------------------
@@ -146,6 +153,16 @@ test('Welcome Step 2 exposes Email, Google, and existing-member actions', () => 
   assert.match(accountSetupStepSource, /onboarding-continue-email-button-v1/);
   assert.match(accountSetupStepSource, /onboarding-continue-google-button-v1/);
   assert.match(accountSetupStepSource, /Already a member\?/);
+});
+
+test('canonical onboarding components are unconditional and no simplified alternate remains', () => {
+  assert.doesNotMatch(onboardingSource, /if \(ACCOUNT_HOME_UX_V1_ENABLED\)/);
+  assert.doesNotMatch(onboardingSource, /testID="onboarding-welcome-screen"/);
+  assert.doesNotMatch(onboardingSource, /testID="onboarding-auth-choice-screen"/);
+  assert.doesNotMatch(onboardingSource, /testID="onboarding-permissions-screen"/);
+  assert.match(onboardingSource, /const renderWelcome = \(\) => \(/);
+  assert.match(onboardingSource, /const renderAuthChoice = \(\) => \(/);
+  assert.match(onboardingSource, /<PermissionsStepV1/);
 });
 
 // -- 9. Step 4 is reserved for resume/authenticated incomplete flows ----------
