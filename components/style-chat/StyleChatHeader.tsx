@@ -7,9 +7,13 @@ import { COLORS, LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import { ELISE_IDENTITY } from '../../constants/elise';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
+import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useStylistGreeting } from '../../hooks/useStylistGreeting';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
+  isThinking?: boolean;
 }
 
 export function navigateStyleChatHome() {
@@ -32,11 +36,20 @@ export function useStyleChatHomeBackHandler(bypassRef?: { current: boolean }) {
   );
 }
 
-export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
+export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleChatHeaderProps) {
   const insets = useSafeAreaInsets();
   const { identity } = useStylistIdentity();
+  const reducedMotion = useReducedMotion();
+  const { greetingText, isSpeaking, canSpeak } = useStylistGreeting();
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
+
+  let avatarState: 'idle' | 'thinking' | 'speaking' = 'idle';
+  if (isSpeaking) {
+    avatarState = 'speaking';
+  } else if (isThinking) {
+    avatarState = 'thinking';
+  }
 
   return (
     <View
@@ -79,19 +92,41 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
         <View style={styles.rightSpacer} />
       </View>
 
-      <View style={styles.subtitleRow}>
-        <Text style={styles.subtitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-          {STYLE_CHAT_COPY.subtitle}
-        </Text>
-      </View>
-
-      {showBadge ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>
-            {STYLE_CHAT_COPY.premiumBadge}
+      <View style={styles.stylistRow}>
+        <AnimatedStylistAvatar
+          avatarId={identity.avatarId}
+          size={40}
+          state={avatarState}
+          reducedMotion={reducedMotion}
+          accessibilityLabel={`${displayName} avatar`}
+        />
+        <View style={styles.stylistText}>
+          <Text style={styles.stylistName} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            {displayName}
+          </Text>
+          <Text style={styles.stylistGreeting} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            {greetingText}
           </Text>
         </View>
-      ) : null}
+        <View
+          style={[
+            styles.statusDot,
+            isSpeaking && styles.statusDotActive,
+            isThinking && !isSpeaking && styles.statusDotThinking,
+          ]}
+          accessibilityLabel={
+            isSpeaking ? `${displayName} is speaking` : isThinking ? `${displayName} is thinking` : `${displayName} is idle`
+          }
+        />
+        {showBadge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>
+              {STYLE_CHAT_COPY.premiumBadge}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
     </View>
   );
 }
@@ -141,6 +176,42 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.ink,
     textAlign: 'center',
     width: '100%',
+  },
+  stylistRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    marginTop: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  stylistText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  stylistName: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 14,
+    color: LUXURY.colors.ink,
+  },
+  stylistGreeting: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.graphite,
+    marginTop: 2,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: LUXURY.colors.borderStrong,
+    flexShrink: 0,
+  },
+  statusDotActive: {
+    backgroundColor: LUXURY.colors.success,
+  },
+  statusDotThinking: {
+    backgroundColor: LUXURY.colors.gold,
   },
   subtitleRow: {
     width: '100%',

@@ -477,7 +477,7 @@ export default function StyleChatSessionScreen() {
   return (
     <View testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="dark" />
-      <StyleChatHeader showBadge={false} />
+      <StyleChatHeader showBadge={false} isThinking={isSending} />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
         <Text style={styles.sessionLabel} numberOfLines={1}>
           {session?.title ?? 'SESSION'} · {sessionId?.slice(-8).toUpperCase()}

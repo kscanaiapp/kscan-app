@@ -5,7 +5,9 @@ import {
   DEFAULT_STYLIST_IDENTITY,
   type StylistIdentity,
 } from '../../constants/stylistIdentity';
-import { StylistAvatar } from '../stylist/StylistAvatar';
+import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useStylistGreeting } from '../../hooks/useStylistGreeting';
 import { PrimaryButton } from '../luxury';
 
 const DEFAULT_SUGGESTIONS = [
@@ -36,6 +38,9 @@ export function HomeStylistCard({
   const displayName = identity.displayName || DEFAULT_STYLIST_IDENTITY.displayName;
   const ctaLabel = hasSessions ? 'CONTINUE CONVERSATION' : 'START A CONVERSATION';
   const ctaButtonLabel = hasSessions ? 'Continue chat' : 'Start chat';
+  const reducedMotion = useReducedMotion();
+  const { greetingText, isSpeaking, canSpeak, dismiss, replay, stop } =
+    useStylistGreeting();
 
   const handleCta = useCallback(() => {
     if (hasSessions) {
@@ -74,9 +79,11 @@ export function HomeStylistCard({
       <View style={styles.card}>
         <View style={styles.cardLeft}>
           <View style={styles.avatarWrap}>
-            <StylistAvatar
+            <AnimatedStylistAvatar
               avatarId={identity.avatarId}
               size={72}
+              state={isSpeaking ? 'speaking' : 'idle'}
+              reducedMotion={reducedMotion}
               accessibilityLabel={`${displayName} avatar`}
             />
           </View>
@@ -102,9 +109,51 @@ export function HomeStylistCard({
           <Text style={styles.cardTitle} accessibilityRole="header">
             Ask {displayName}
           </Text>
-          <Text style={styles.cardBody}>
-            Your personal AI stylist for outfit ideas, closet insights, and style decisions.
+          <Text style={styles.cardGreeting} numberOfLines={2}>
+            {greetingText}
           </Text>
+          {canSpeak ? (
+            <View style={styles.speechControls}>
+              {isSpeaking ? (
+                <>
+                  <Pressable
+                    onPress={stop}
+                    style={({ pressed }) => [
+                      styles.speechButton,
+                      pressed && styles.speechButtonPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Stop greeting"
+                  >
+                    <Text style={styles.speechButtonText}>■</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={dismiss}
+                    style={({ pressed }) => [
+                      styles.speechButton,
+                      pressed && styles.speechButtonPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Dismiss greeting"
+                  >
+                    <Text style={styles.speechButtonText}>✕</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <Pressable
+                  onPress={replay}
+                  style={({ pressed }) => [
+                    styles.speechButton,
+                    pressed && styles.speechButtonPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Replay greeting"
+                >
+                  <Text style={styles.speechButtonText}>▶</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : null}
           <PrimaryButton
             title={ctaButtonLabel}
             onPress={handleCta}
@@ -222,11 +271,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: LUXURY.colors.ink,
   },
-  cardBody: {
+  cardGreeting: {
     ...LUXURY.typography.body,
     fontSize: 13,
     lineHeight: 20,
     color: LUXURY.colors.graphite,
+  },
+  speechControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  speechButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: LUXURY.colors.plumMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  speechButtonPressed: {
+    opacity: 0.8,
+  },
+  speechButtonText: {
+    fontSize: 11,
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
   },
   ctaButton: {
     alignSelf: 'stretch',
