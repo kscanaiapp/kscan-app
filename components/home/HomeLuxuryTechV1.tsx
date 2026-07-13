@@ -193,7 +193,7 @@ export default function HomeLuxuryTechV1() {
         showBrandMark
         brandLabel="K Scan AI"
         brandMarkStyle={styles.homeBrandMark}
-        subtitle="ELISE • VISUAL SHOPPING"
+        subtitle="AI STYLIST • VISUAL SHOPPING"
         rightAction={
           isAuthenticated ? (
             <Pressable

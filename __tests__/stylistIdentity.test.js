@@ -627,7 +627,12 @@ test('Home integrates stylist card, Recent Scans tile, and no carousel', () => {
 
   assert.match(homeV1, /home-luxury-feature-recent-scans/);
   assert.doesNotMatch(homeV1, /title="ASK ELISE"/);
-  assert.doesNotMatch(homeV1, /AI STYLIST/);
+  assert.doesNotMatch(homeV1, /title="AI STYLIST"/);
+});
+
+test('Home brand header subtitle reads AI STYLIST • VISUAL SHOPPING', () => {
+  assert.match(homeV1, /subtitle="AI STYLIST • VISUAL SHOPPING"/);
+  assert.doesNotMatch(homeV1, /subtitle="ELISE • VISUAL SHOPPING"/);
 });
 
 test('personalize modal allows editing display name and avatar', () => {

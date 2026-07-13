@@ -48,7 +48,7 @@ test('stylist card appears before the feature grid and no carousel follows it', 
 
 test('AI Stylist tile is removed and replaced with Recent Scans tile', () => {
   assert.doesNotMatch(homeV1, /title="ASK ELISE"/);
-  assert.doesNotMatch(homeV1, /AI STYLIST/);
+  assert.doesNotMatch(homeV1, /title="AI STYLIST"/);
   assert.match(homeV1, /title="RECENT SCANS"/);
   assert.match(homeV1, /home-luxury-feature-recent-scans/);
 });

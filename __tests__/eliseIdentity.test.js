@@ -298,7 +298,7 @@ test('Edge Function user-facing fallback and limit copy uses Elise identity', ()
 // ── No duplicate or competing assistant identities ───────────────────────────
 
 test('audited surfaces do not present multiple competing assistant identities', () => {
-  assert.doesNotMatch(homeV1, /AI STYLIST/);
+  assert.doesNotMatch(homeV1, /title="AI STYLIST"/);
   assert.doesNotMatch(homeLegacy, /ASK STYLECHAT/);
   assert.doesNotMatch(styleChatSessionList, /Ask Your AI Stylist/);
 });
