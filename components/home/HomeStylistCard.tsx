@@ -117,6 +117,7 @@ export function HomeStylistCard({
               {isSpeaking ? (
                 <>
                   <Pressable
+                    testID="home-stylist-stop-button"
                     onPress={stop}
                     style={({ pressed }) => [
                       styles.speechButton,
@@ -141,6 +142,7 @@ export function HomeStylistCard({
                 </>
               ) : (
                 <Pressable
+                  testID="home-stylist-replay-button"
                   onPress={replay}
                   style={({ pressed }) => [
                     styles.speechButton,

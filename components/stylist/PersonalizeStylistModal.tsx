@@ -189,6 +189,7 @@ export function PersonalizeStylistModal({
                     return (
                       <Pressable
                         key={preset.id}
+                        testID={`personalize-avatar-${preset.id}`}
                         onPress={() => setDraftAvatarId(preset.id)}
                         disabled={saving}
                         style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
@@ -214,6 +215,7 @@ export function PersonalizeStylistModal({
                     return (
                       <Pressable
                         key={preset.id}
+                        testID={`personalize-avatar-${preset.id}`}
                         onPress={() => setDraftAvatarId(preset.id)}
                         disabled={saving}
                         style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
