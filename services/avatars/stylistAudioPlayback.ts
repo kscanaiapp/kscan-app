@@ -67,6 +67,14 @@ export async function playStylistAudio(
     });
     subscription = player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
       if (disposed) return;
+      const terminalPlaybackFailure =
+        status.playbackState === 'failed' ||
+        (started && status.playbackState === 'idle' && !status.didJustFinish);
+      if (terminalPlaybackFailure) {
+        dispose();
+        callbacks.onPlaybackError();
+        return;
+      }
       if (status.playing) {
         if (!started) {
           started = true;

@@ -215,6 +215,49 @@ test('native playback start timeout releases a player that never begins', async 
   assert.equal(removes, 1);
 });
 
+test('terminal native playback failures release the player and close speech once', async () => {
+  for (const terminalStatus of [
+    { playbackState: 'failed', playing: false, didJustFinish: false, currentTime: 0 },
+    { playbackState: 'idle', playing: false, didJustFinish: false, currentTime: 0.2 },
+  ]) {
+    let listener;
+    let removes = 0;
+    let errors = 0;
+    const player = {
+      addListener: (_event, callback) => {
+        listener = callback;
+        return { remove: () => {} };
+      },
+      play: () => {},
+      pause: () => {},
+      remove: () => { removes += 1; },
+    };
+    const playback = load('services/avatars/stylistAudioPlayback.ts', {
+      'expo-audio': {
+        setAudioModeAsync: async () => {},
+        createAudioPlayer: () => player,
+      },
+    });
+    await playback.playStylistAudio('file://speech.mp3', {
+      onPlaybackStarted: () => {},
+      onPlaybackProgress: () => {},
+      onPlaybackFinished: () => {},
+      onPlaybackError: () => { errors += 1; },
+    }, 1_000);
+
+    if (terminalStatus.playbackState === 'idle') {
+      listener({
+        playbackState: 'ready', playing: true, didJustFinish: false, currentTime: 0.1,
+      });
+    }
+    listener(terminalStatus);
+    listener(terminalStatus);
+
+    assert.equal(errors, 1);
+    assert.equal(removes, 1);
+  }
+});
+
 test('voice preference defaults off and fails closed during actor switches', async () => {
   const values = new Map([['@kscan/stylist-voice/v1/hash-actor-a', 'on']]);
   const preference = load('stores/stylistVoicePreferenceStore.ts', {
