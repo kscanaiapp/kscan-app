@@ -3,7 +3,7 @@ import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import { ELISE_IDENTITY } from '../../constants/elise';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
@@ -15,6 +15,7 @@ import { useAuthSession } from '../../contexts/AuthSessionContext';
 interface StyleChatHeaderProps {
   showBadge?: boolean;
   isThinking?: boolean;
+  sessionId?: string;
 }
 
 export function navigateStyleChatHome() {
@@ -37,7 +38,11 @@ export function useStyleChatHomeBackHandler(bypassRef?: { current: boolean }) {
   );
 }
 
-export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleChatHeaderProps) {
+export function StyleChatHeader({
+  showBadge = false,
+  isThinking = false,
+  sessionId,
+}: StyleChatHeaderProps) {
   const insets = useSafeAreaInsets();
   const { identity } = useStylistIdentity();
   const { user } = useAuthSession();
@@ -45,7 +50,10 @@ export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleC
   const speechState = useAvatarSpeechState();
   const actorKey = user?.id ?? 'guest';
   const isSpeaking =
+    Boolean(sessionId) &&
     speechState.actorKey === actorKey &&
+    speechState.sessionId === sessionId &&
+    speechState.avatarId === identity.avatarId &&
     (speechState.status === 'starting' || speechState.status === 'speaking');
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
@@ -61,8 +69,6 @@ export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleC
     <View
       testID="style-chat-header"
       style={styles.container}
-      accessibilityRole="header"
-      accessibilityLabel={headerAccessibilityLabel}
     >
       <View
         style={[
@@ -70,6 +76,52 @@ export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleC
           { paddingTop: Math.max(SPACING.xl, insets.top + SPACING.sm) },
         ]}
       >
+        <View
+          style={styles.avatarWrap}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <AnimatedStylistAvatar
+            avatarId={identity.avatarId}
+            size={42}
+            state={avatarState}
+            reducedMotion={reducedMotion}
+            accessibilityLabel={`${displayName} avatar`}
+          />
+        </View>
+
+        <View
+          style={styles.stylistText}
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel={headerAccessibilityLabel}
+        >
+          <Text style={styles.stylistName} numberOfLines={1} maxFontSizeMultiplier={1.4}>
+            {displayName}
+          </Text>
+          <Text style={styles.stylistGreeting} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            {ELISE_IDENTITY.role}
+          </Text>
+        </View>
+        {isSpeaking || isThinking ? (
+          <View
+            style={[
+              styles.statusDot,
+              isSpeaking && styles.statusDotActive,
+              isThinking && !isSpeaking && styles.statusDotThinking,
+            ]}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        ) : null}
+        {showBadge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>
+              {STYLE_CHAT_COPY.premiumBadge}
+            </Text>
+          </View>
+        ) : null}
+
         <Pressable
           testID="style-chat-home-button"
           accessibilityRole="button"
@@ -81,71 +133,14 @@ export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleC
         >
           <Text style={styles.homeButtonText} maxFontSizeMultiplier={1.2}>Home</Text>
         </Pressable>
-
-        <View style={styles.titleWrap}>
-          <Text
-            style={styles.title}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.85}
-            maxFontSizeMultiplier={1.2}
-            accessibilityLabel={headerAccessibilityLabel}
-          >
-            {displayName}
-          </Text>
-        </View>
-
-        <View style={styles.rightSpacer} />
       </View>
-
-      <View style={styles.stylistRow}>
-        <AnimatedStylistAvatar
-          avatarId={identity.avatarId}
-          size={40}
-          state={avatarState}
-          reducedMotion={reducedMotion}
-          accessibilityLabel={`${displayName} avatar`}
-        />
-        <View style={styles.stylistText}>
-          <Text style={styles.stylistName} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-            {displayName}
-          </Text>
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            <Text style={styles.stylistGreeting} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-              {ELISE_IDENTITY.role}
-            </Text>
-          </View>
-        </View>
-        <View
-          style={[
-            styles.statusDot,
-            isSpeaking && styles.statusDotActive,
-            isThinking && !isSpeaking && styles.statusDotThinking,
-          ]}
-          accessibilityLabel={
-            isSpeaking ? `${displayName} is speaking` : isThinking ? `${displayName} is thinking` : `${displayName} is idle`
-          }
-        />
-        {showBadge ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText} maxFontSizeMultiplier={1.2}>
-              {STYLE_CHAT_COPY.premiumBadge}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    paddingBottom: SPACING.lg,
+    paddingBottom: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: LUXURY.colors.hairline,
     backgroundColor: LUXURY.colors.ivory,
@@ -157,10 +152,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
+    gap: SPACING.sm,
   },
   homeButton: {
     minHeight: 44,
-    minWidth: 60,
+    minWidth: 52,
     justifyContent: 'center',
   },
   homeButtonPressed: {
@@ -172,38 +168,19 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: 'none',
   },
-  titleWrap: {
-    flex: 1,
-    alignItems: 'center',
-    minWidth: 0,
-  },
-  rightSpacer: {
-    width: 60,
-  },
-  title: {
-    ...LUXURY.typography.brandMark,
-    fontSize: 18,
-    letterSpacing: 2,
-    color: LUXURY.colors.ink,
-    textAlign: 'center',
-    width: '100%',
-  },
-  stylistRow: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-    marginTop: SPACING.sm,
-    gap: SPACING.sm,
+  avatarWrap: {
+    flexShrink: 0,
   },
   stylistText: {
     flex: 1,
+    flexShrink: 1,
     minWidth: 0,
   },
   stylistName: {
     ...LUXURY.typography.bodyStrong,
     fontSize: 14,
     color: LUXURY.colors.ink,
+    flexShrink: 1,
   },
   stylistGreeting: {
     ...LUXURY.typography.caption,
@@ -224,21 +201,7 @@ const styles = StyleSheet.create({
   statusDotThinking: {
     backgroundColor: LUXURY.colors.gold,
   },
-  subtitleRow: {
-    width: '100%',
-    paddingHorizontal: SPACING.xl,
-    marginTop: SPACING.xs,
-    alignItems: 'center',
-  },
-  subtitle: {
-    ...LUXURY.typography.caption,
-    letterSpacing: 1.6,
-    fontSize: 10,
-    color: LUXURY.colors.goldBrushed,
-    textAlign: 'center',
-  },
   badge: {
-    marginTop: SPACING.sm,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
     borderRadius: RADIUS.sm,

@@ -426,6 +426,7 @@ export default function StyleChatSessionScreen() {
       ) : null}
       <View style={styles.composerWrap}>
         <StyleChatInput
+          stylistDisplayName={stylistDisplayName}
           value={composerText}
           onChangeText={setComposerText}
           onSend={text => {
@@ -448,8 +449,9 @@ export default function StyleChatSessionScreen() {
               });
               return;
             }
-            void sendMessage(text);
-            setComposerText('');
+            void sendMessage(text, {
+              onUserMessagePersisted: () => setComposerText(''),
+            });
           }}
           disabled={
             !canSend ||
@@ -477,7 +479,11 @@ export default function StyleChatSessionScreen() {
   return (
     <View testID="style-chat-screen" style={styles.safe}>
       <StatusBar style="dark" />
-      <StyleChatHeader showBadge={false} isThinking={isSending} />
+      <StyleChatHeader
+        showBadge={false}
+        isThinking={isSending}
+        sessionId={stableSessionId}
+      />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
         <Text style={styles.sessionLabel} numberOfLines={1}>
           {session?.title ?? 'SESSION'} · {sessionId?.slice(-8).toUpperCase()}

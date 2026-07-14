@@ -12,8 +12,10 @@ export type AvatarSpeechSource = 'greeting' | 'message';
 export interface AvatarSpeechState {
   status: AvatarSpeechStatus;
   actorKey: string | null;
+  sessionId: string | null;
   avatarId: string | null;
   utteranceKey: string | null;
+  generation: number | null;
   source: AvatarSpeechSource | null;
   error: string | null;
 }
@@ -23,8 +25,10 @@ type Listener = () => void;
 export const DEFAULT_AVATAR_SPEECH_STATE: AvatarSpeechState = Object.freeze({
   status: 'idle',
   actorKey: null,
+  sessionId: null,
   avatarId: null,
   utteranceKey: null,
+  generation: null,
   source: null,
   error: null,
 });
@@ -44,19 +48,23 @@ function emit() {
 
 function setState(next: Partial<AvatarSpeechState>) {
   const nextState: AvatarSpeechState = {
-    status: next.status ?? state.status,
-    actorKey: next.actorKey ?? state.actorKey,
-    avatarId: next.avatarId ?? state.avatarId,
-    utteranceKey: next.utteranceKey ?? state.utteranceKey,
-    source: next.source ?? state.source,
-    error: next.error ?? state.error,
+    status: 'status' in next ? next.status! : state.status,
+    actorKey: 'actorKey' in next ? next.actorKey! : state.actorKey,
+    sessionId: 'sessionId' in next ? next.sessionId! : state.sessionId,
+    avatarId: 'avatarId' in next ? next.avatarId! : state.avatarId,
+    utteranceKey: 'utteranceKey' in next ? next.utteranceKey! : state.utteranceKey,
+    generation: 'generation' in next ? next.generation! : state.generation,
+    source: 'source' in next ? next.source! : state.source,
+    error: 'error' in next ? next.error! : state.error,
   };
 
   if (
     nextState.status === state.status &&
     nextState.actorKey === state.actorKey &&
+    nextState.sessionId === state.sessionId &&
     nextState.avatarId === state.avatarId &&
     nextState.utteranceKey === state.utteranceKey &&
+    nextState.generation === state.generation &&
     nextState.source === state.source &&
     nextState.error === state.error
   ) {
@@ -87,15 +95,19 @@ export function resetAvatarSpeechStore(): void {
 
 export function startAvatarSpeech(payload: {
   actorKey: string;
+  sessionId: string;
   avatarId: string;
   utteranceKey: string;
+  generation: number;
   source: AvatarSpeechSource;
 }): void {
   setState({
     status: 'starting',
     actorKey: payload.actorKey,
+    sessionId: payload.sessionId,
     avatarId: payload.avatarId,
     utteranceKey: payload.utteranceKey,
+    generation: payload.generation,
     source: payload.source,
     error: null,
   });
@@ -113,8 +125,10 @@ export function stopAvatarSpeech(): void {
   setState({
     status: 'idle',
     actorKey: null,
+    sessionId: null,
     avatarId: null,
     utteranceKey: null,
+    generation: null,
     source: null,
     error: null,
   });
@@ -132,6 +146,12 @@ export function resetAvatarSpeechForActor(actorKey: string): void {
 
 export function resetAvatarSpeechForAvatar(avatarId: string): void {
   if (state.avatarId === avatarId) {
+    stopAvatarSpeech();
+  }
+}
+
+export function resetAvatarSpeechForSession(sessionId: string): void {
+  if (state.sessionId === sessionId) {
     stopAvatarSpeech();
   }
 }

@@ -30,7 +30,7 @@ function normalizeName(value: unknown): string | null {
  * Build a stylist greeting.
  *
  * With a trustworthy first name:
- *   "Hi, Kathleen. I am Elise. How can I help style you today?"
+ *   "Hi, Kathleen. I’m Elise. How can I help style you today?"
  *
  * Without one:
  *   "Hi, I’m Elise. How can I style you today?"
@@ -41,7 +41,7 @@ export function buildStylistGreeting(input: StylistGreetingInput): StylistGreeti
 
   if (firstName) {
     return {
-      text: `Hi, ${firstName}. I am ${stylistName}. How can I help style you today?`,
+      text: `Hi, ${firstName}. I’m ${stylistName}. How can I help style you today?`,
       userFirstName: firstName,
       stylistName,
       genericFallback: false,

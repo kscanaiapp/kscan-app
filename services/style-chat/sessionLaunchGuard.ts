@@ -6,6 +6,45 @@ export type StyleChatSessionLaunchGuard = {
   resetOnFocus: () => void;
 };
 
+export type StyleChatSessionLaunchResult =
+  | { status: 'navigated'; sessionId: string }
+  | { status: 'ignored' }
+  | { status: 'cancelled'; sessionId: string }
+  | { status: 'failed'; error: unknown };
+
+export async function launchStyleChatSession(input: {
+  guard: StyleChatSessionLaunchGuard;
+  createSession: () => Promise<{ id?: string | null }>;
+  navigate: (sessionId: string) => void;
+  isCurrent?: () => boolean;
+}): Promise<StyleChatSessionLaunchResult> {
+  const { guard } = input;
+  if (!guard.tryBegin()) return { status: 'ignored' };
+
+  try {
+    let sessionId = guard.getPendingSessionId();
+    if (!sessionId) {
+      const session = await input.createSession();
+      if (!session?.id) throw new Error('StyleChat session creation returned no session ID.');
+      sessionId = session.id;
+      guard.rememberSession(sessionId);
+    }
+
+    if (input.isCurrent && !input.isCurrent()) {
+      guard.resetOnFocus();
+      return { status: 'cancelled', sessionId };
+    }
+
+    input.navigate(sessionId);
+    return { status: 'navigated', sessionId };
+  } catch (error: unknown) {
+    // A navigation failure retains the remembered ID, so retry opens the
+    // already-created session instead of creating an orphan duplicate.
+    guard.releaseForRetry();
+    return { status: 'failed', error };
+  }
+}
+
 export function createStyleChatSessionLaunchGuard(): StyleChatSessionLaunchGuard {
   let inFlight = false;
   let pendingSessionId: string | null = null;

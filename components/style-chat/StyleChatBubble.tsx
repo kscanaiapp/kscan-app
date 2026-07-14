@@ -151,12 +151,22 @@ export function StyleChatBubble({
       style={[styles.row, safeRowPadding, isUser ? styles.rowUser : styles.rowAssistant]}
     >
       {!isUser ? (
-        <View style={styles.avatarDot} accessibilityLabel={stylistDisplayName} />
+        <View
+          style={styles.avatarDot}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
       ) : null}
       <View
         style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}
         accessibilityRole="text"
-        accessibilityLabel={isUser ? 'Your message' : `${stylistDisplayName} message`}
+        accessibilityLabel={
+          isUser
+            ? `Your message: ${content}`
+            : isGreeting
+              ? `${stylistDisplayName}: ${content}`
+              : `${stylistDisplayName} message: ${content}`
+        }
       >
         {isUser || assistantBlocks.length === 0 ? (
           <Text style={isUser ? styles.textUser : styles.textAssistant}>
@@ -255,7 +265,7 @@ export function StyleChatBubble({
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
         ) : null}
-        {message.sender === 'assistant' && !isSyntheticFailure ? (
+        {message.sender === 'assistant' && !isSyntheticFailure && !isGreeting ? (
           <Pressable
             onPress={() =>
               reportAiOutput('StyleChat', {

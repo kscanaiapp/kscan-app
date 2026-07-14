@@ -13,7 +13,10 @@ import { LuxuryScreen, PrivacyFooter } from '../../components/luxury';
 import { LUXURY } from '../../constants/theme';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
 import { getStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
-import { createStyleChatSessionLaunchGuard } from '../../services/style-chat/sessionLaunchGuard';
+import {
+  createStyleChatSessionLaunchGuard,
+  launchStyleChatSession,
+} from '../../services/style-chat/sessionLaunchGuard';
 import type { StyleChatSession } from '../../services/style-chat/types';
 
 export default function StyleChatIndexScreen() {
@@ -27,39 +30,31 @@ export default function StyleChatIndexScreen() {
 
   const { sessions, loading, error, createSession, deleteSession } = useStyleChatSessions();
   const [isCreating, setIsCreating] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       sessionLaunchGuardRef.current?.resetOnFocus();
       setIsCreating(false);
+      setLaunchError(null);
     }, []),
   );
 
   const handleNewSession = useCallback(async () => {
     const guard = sessionLaunchGuardRef.current;
-    if (!guard?.tryBegin()) return;
+    if (!guard) return;
     setIsCreating(true);
-    try {
-      let sessionId = guard.getPendingSessionId();
-      if (!sessionId) {
-        const session = await createSession();
-        if (!session?.id) {
-          guard.releaseForRetry();
-          setIsCreating(false);
-          return;
-        }
-        sessionId = session.id;
-        guard.rememberSession(sessionId);
-      }
-      router.push(`/style-chat/${sessionId}`);
-    } catch {
-      // createSession throws on auth failure; the session list will show an
-      // error on reload, and the user can sign in from the main flow
-      // If navigation failed after creation, retain the session ID so retrying
-      // opens the same session instead of inserting another one.
-      guard.releaseForRetry();
-      setIsCreating(false);
+    setLaunchError(null);
+    const result = await launchStyleChatSession({
+      guard,
+      createSession,
+      navigate: (sessionId) => router.push(`/style-chat/${sessionId}`),
+    });
+    if (result.status === 'ignored') return;
+    if (result.status === 'failed') {
+      setLaunchError("We couldn't start a conversation. Please try again.");
     }
+    if (result.status !== 'navigated') setIsCreating(false);
   }, [createSession]);
 
   useEffect(() => {
@@ -112,7 +107,7 @@ export default function StyleChatIndexScreen() {
         <StyleChatSessionList
           sessions={sessions}
           loading={loading}
-          error={error}
+          error={launchError ?? error}
           onNewSession={() => { void handleNewSession(); }}
           onSelectSession={session => router.push(`/style-chat/${session.id}`)}
           onDeleteSession={handleDeleteSession}

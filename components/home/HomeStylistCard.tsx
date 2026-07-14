@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   DEFAULT_STYLIST_IDENTITY,
@@ -7,8 +7,6 @@ import {
 } from '../../constants/stylistIdentity';
 import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { useAuthSession } from '../../contexts/AuthSessionContext';
-import { getGreetingTextForUser } from '../../services/style-chat/styleChatGreeting';
 import { PrimaryButton } from '../luxury';
 
 const DEFAULT_SUGGESTIONS = [
@@ -19,40 +17,31 @@ const DEFAULT_SUGGESTIONS = [
 
 interface HomeStylistCardProps {
   identity: StylistIdentity;
-  hasSessions?: boolean;
   onStartConversation: () => void;
   onOpenConversations: () => void;
   onPersonalize: () => void;
   suggestions?: string[];
   disabled?: boolean;
+  startError?: string | null;
 }
 
 export function HomeStylistCard({
   identity,
-  hasSessions = false,
   onStartConversation,
   onOpenConversations,
   onPersonalize,
   suggestions = DEFAULT_SUGGESTIONS,
   disabled = false,
+  startError = null,
 }: HomeStylistCardProps) {
   const displayName = identity.displayName || DEFAULT_STYLIST_IDENTITY.displayName;
-  const ctaLabel = hasSessions ? 'CONTINUE CONVERSATION' : 'START A CONVERSATION';
-  const ctaButtonLabel = hasSessions ? 'Continue chat' : 'Start chat';
   const reducedMotion = useReducedMotion();
-  const { user } = useAuthSession();
-  const greetingText = useMemo(
-    () => getGreetingTextForUser(user, identity),
-    [user, identity],
-  );
+  const { width } = useWindowDimensions();
+  const compact = width < 430;
 
   const handleCta = useCallback(() => {
-    if (hasSessions) {
-      onOpenConversations();
-    } else {
-      onStartConversation();
-    }
-  }, [hasSessions, onOpenConversations, onStartConversation]);
+    onStartConversation();
+  }, [onStartConversation]);
 
   return (
     <View testID="home-stylist-card" style={styles.section}>
@@ -85,7 +74,7 @@ export function HomeStylistCard({
           <View style={styles.avatarWrap}>
             <AnimatedStylistAvatar
               avatarId={identity.avatarId}
-              size={72}
+              size={compact ? 60 : 72}
               state="idle"
               reducedMotion={reducedMotion}
               accessibilityLabel={`${displayName} avatar`}
@@ -110,26 +99,29 @@ export function HomeStylistCard({
         </View>
 
         <View style={styles.cardCenter}>
-          <Text style={styles.cardTitle} accessibilityRole="header">
+          <Text style={styles.cardTitle} accessibilityRole="header" numberOfLines={1}>
             Ask {displayName}
           </Text>
-          <Text testID="home-stylist-greeting" style={styles.cardGreeting} numberOfLines={2}>
-            {greetingText}
+          <Text testID="home-stylist-invitation" style={styles.cardGreeting} numberOfLines={2}>
+            Start a conversation about what to wear, how to style it, or what to shop next.
           </Text>
           <PrimaryButton
-            title={ctaButtonLabel}
+            title="Start Chat"
             onPress={handleCta}
             disabled={disabled}
-            accessibilityLabel={ctaLabel}
-            accessibilityHint={
-              hasSessions ? 'Continue your current conversation' : 'Start a new conversation'
-            }
+            accessibilityLabel={`Start a new chat with ${displayName}`}
+            accessibilityHint="Creates a new styling conversation"
             style={styles.ctaButton}
             textStyle={styles.ctaButtonText}
           />
+          {startError ? (
+            <Text testID="home-stylist-start-error" style={styles.startError} accessibilityRole="alert">
+              {startError}
+            </Text>
+          ) : null}
         </View>
 
-        <View style={styles.cardRight}>
+        {!compact ? <View style={styles.cardRight}>
           {suggestions.slice(0, 3).map((prompt) => (
             <Pressable
               key={prompt}
@@ -147,7 +139,7 @@ export function HomeStylistCard({
               </Text>
             </Pressable>
           ))}
-        </View>
+        </View> : null}
       </View>
     </View>
   );
@@ -232,6 +224,7 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.displayTitle,
     fontSize: 20,
     color: LUXURY.colors.ink,
+    flexShrink: 1,
   },
   cardGreeting: {
     ...LUXURY.typography.body,
@@ -252,6 +245,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textTransform: 'none',
     textAlign: 'center',
+  },
+  startError: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
+    fontSize: 12,
+    lineHeight: 17,
   },
   cardRight: {
     width: 130,

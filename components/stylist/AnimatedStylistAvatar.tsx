@@ -129,7 +129,10 @@ export function AnimatedStylistAvatar({
   const speechConfig = useMemo(() => getStylistSpeechConfig(avatarId), [avatarId]);
 
   const effectiveState = reducedMotion ? 'static' : state;
-  const isSpeaking = effectiveState === 'speaking';
+  const isSpeaking =
+    effectiveState === 'speaking' &&
+    speechConfig?.speechEnabled === true &&
+    speechConfig.voiceProfile != null;
   const isThinking = effectiveState === 'thinking';
   const isIdle = effectiveState === 'idle';
 

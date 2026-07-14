@@ -29,6 +29,7 @@ import {
   getGreetingTextForUser,
   isSessionGreeted,
   markSessionGreeted,
+  waitForSessionGreeting,
 } from '../services/style-chat/styleChatGreeting';
 
 export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
@@ -73,6 +74,7 @@ export interface UseStyleChatReturn {
       skipUserPersistence?: boolean;
       existingUserMessageId?: string | null;
       attachments?: SendAttachmentsInput | null;
+      onUserMessagePersisted?: () => void;
     },
   ) => Promise<void>;
   retryLastMessage: () => void;
@@ -96,6 +98,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
+  const sendScopeVersionRef = useRef(0);
   const retryStateRef = useRef<ReturnType<typeof createStyleChatRetryState<SendAttachmentsInput>> | null>(null);
   if (!retryStateRef.current) {
     retryStateRef.current = createStyleChatRetryState<SendAttachmentsInput>();
@@ -114,8 +117,9 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   // Identity and greeting state for the automatic session entry greeting.
   const { user } = useAuthSession();
   const { identity, isLoading: identityLoading } = useStylistIdentity();
-  const actorKey = user?.id ?? 'guest';
+  const actorId = user?.id ?? null;
   const screenReaderEnabled = useScreenReaderEnabled();
+  const [identityReady, setIdentityReady] = useState(!identityLoading);
   const greetingText = useMemo(
     () => getGreetingTextForUser(user, identity),
     [user, identity],
@@ -130,18 +134,52 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     return speechConfig.voiceProfile != null;
   }, [screenReaderEnabled, speechConfig]);
 
+  // Identity hydration is normally quick, but an unavailable preferences read
+  // must not leave a brand-new conversation empty forever. After a bounded
+  // wait, the store's safe default identity becomes the greeting fallback.
   useEffect(() => {
+    if (!identityLoading) {
+      setIdentityReady(true);
+      return;
+    }
+    setIdentityReady(false);
+    const timeout = setTimeout(() => setIdentityReady(true), 1_500);
+    return () => clearTimeout(timeout);
+  }, [actorId, identityLoading]);
+
+  useEffect(() => {
+    const scopeVersion = sendScopeVersionRef.current + 1;
+    sendScopeVersionRef.current = scopeVersion;
+    isSendingRef.current = false;
+    setIsSending(false);
+    setError(null);
     retryStateRef.current?.clear();
-  }, [sessionId]);
+    return () => {
+      if (sendScopeVersionRef.current === scopeVersion) {
+        sendScopeVersionRef.current += 1;
+      }
+    };
+  }, [actorId, sessionId]);
 
   // Load session, messages, and today's daily usage on mount.
   useEffect(() => {
     let cancelled = false;
 
+    setSession(null);
+    setMessages([]);
+
+    if (!actorId || !sessionId) {
+      setLoadingSession(false);
+      setLoadingMessages(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     async function loadSession() {
       setLoadingSession(true);
       try {
-        const s = await getStyleChatSession(sessionId);
+        const s = await getStyleChatSession(sessionId, actorId);
         if (!cancelled) setSession(s);
       } catch (err: unknown) {
         if (!cancelled) setError(getFriendlyStyleChatError(err));
@@ -153,7 +191,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     async function loadMessages() {
       setLoadingMessages(true);
       try {
-        const msgs = await listStyleChatMessages(sessionId);
+        const msgs = await listStyleChatMessages(sessionId, actorId);
         if (!cancelled) setMessages(msgs);
       } catch (err: unknown) {
         if (!cancelled) setError(getFriendlyStyleChatError(err));
@@ -181,34 +219,44 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [actorId, sessionId]);
 
   // Insert a single persisted greeting into brand-new sessions and speak it once
   // when an approved voice is configured. Durable dedupe is provided by the
   // greeting uiBlocks marker; in-flight dedupe is provided by the service.
   useEffect(() => {
-    if (!sessionId || loadingSession || loadingMessages || identityLoading) return;
+    if (
+      !actorId ||
+      !sessionId ||
+      session?.id !== sessionId ||
+      loadingSession ||
+      loadingMessages ||
+      !identityReady
+    ) return;
     if (messages.length > 0) return;
-    if (isSessionGreeted(sessionId)) return;
+    if (isSessionGreeted(actorId, sessionId)) return;
 
     let cancelled = false;
 
     async function insertGreeting() {
       try {
-        const saved = await ensureSessionGreeting(sessionId, greetingText);
+        const result = await ensureSessionGreeting(actorId, sessionId, greetingText);
         if (cancelled) return;
 
-        markSessionGreeted(sessionId);
+        markSessionGreeted(actorId, sessionId);
 
-        if (saved) {
+        if (result.message) {
           setMessages((prev) =>
-            prev.some((m) => m.id === saved.id) ? prev : [...prev, saved],
+            prev.some((m) => m.id === result.message!.id)
+              ? prev
+              : [...prev, result.message!],
           );
 
-          if (canSpeakGreeting && speechConfig?.voiceProfile) {
+          if (result.inserted && canSpeakGreeting && speechConfig?.voiceProfile) {
             void speakAvatarText({
-              text: saved.content,
-              actorKey,
+              text: result.message.content,
+              actorKey: actorId,
+              sessionId,
               avatarId: identity.avatarId,
               utteranceKey: `greeting:${sessionId}:${Date.now()}`,
               source: 'greeting',
@@ -216,8 +264,9 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             });
           }
         }
-      } catch (err: unknown) {
-        if (!cancelled) setError(getFriendlyStyleChatError(err));
+      } catch {
+        // Greeting persistence is best-effort here. A user send retries the same
+        // transaction and must remain usable even while the network is down.
       }
     }
 
@@ -228,25 +277,34 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     };
   }, [
     sessionId,
+    session?.id,
+    actorId,
     loadingSession,
     loadingMessages,
-    identityLoading,
+    identityReady,
     messages.length,
     greetingText,
     canSpeakGreeting,
-    actorKey,
     identity.avatarId,
     speechConfig,
   ]);
 
   // Stop any active avatar speech when leaving this session or switching actors.
   useEffect(() => {
-    return () => {
-      void stopAvatarSpeechPlayback();
+    if (!actorId || !sessionId) return;
+    const speechScope = {
+      actorKey: actorId,
+      sessionId,
+      avatarId: identity.avatarId,
     };
-  }, [sessionId, actorKey]);
+    return () => {
+      void stopAvatarSpeechPlayback(speechScope);
+    };
+  }, [sessionId, actorId, identity.avatarId]);
 
-  const canSend = Boolean(sessionId) && messagesUsed < messagesLimit && !isSending;
+  const canSend = Boolean(actorId && sessionId && session?.id === sessionId) &&
+    messagesUsed < messagesLimit &&
+    !isSending;
 
   const sendMessage = useCallback(
     async (
@@ -256,11 +314,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         existingUserMessageId?: string | null;
         /** v2 (Closet Intelligence): ready resolved attachments for this send. */
         attachments?: SendAttachmentsInput | null;
+        onUserMessagePersisted?: () => void;
       },
     ) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      if (!sessionId) {
+      if (!actorId || !sessionId || session?.id !== sessionId) {
         setError(STYLE_CHAT_COPY.errorGeneric);
         return;
       }
@@ -270,24 +329,35 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         return;
       }
       isSendingRef.current = true;
+      setIsSending(true);
       retryStateRef.current?.clear();
+      const sendScopeVersion = sendScopeVersionRef.current;
+      const isCurrentSend = () => sendScopeVersionRef.current === sendScopeVersion;
 
       // For the very first message in a new session, make sure the assistant
-      // greeting is persisted before the user message so the conversation
-      // ordering is always correct.
+      // greeting is persisted before the user message when the transaction
+      // settles within the bounded wait. A slow greeting can never deadlock or
+      // discard the user's message.
       if (messages.length === 0) {
         try {
-          const greetingMessage = await ensureSessionGreeting(sessionId, greetingText);
-          markSessionGreeted(sessionId);
-          if (greetingMessage) {
+          const greetingResult = await waitForSessionGreeting(
+            ensureSessionGreeting(actorId, sessionId, greetingText),
+          );
+          if (greetingResult) {
+            markSessionGreeted(actorId, sessionId);
+          }
+          if (greetingResult?.message) {
             setMessages((prev) =>
-              prev.some((m) => m.id === greetingMessage.id) ? prev : [...prev, greetingMessage],
+              prev.some((m) => m.id === greetingResult.message!.id)
+                ? prev
+                : [...prev, greetingResult.message!],
             );
           }
         } catch {
           // Non-fatal: proceed without the greeting if persistence is unavailable.
         }
       }
+      if (!isCurrentSend()) return;
 
       // Attachment-bearing sends defer user-message persistence until the
       // backend acknowledges the v2 contract: an unsupported/rejected outcome
@@ -326,7 +396,6 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       if (optimisticUser) {
         setMessages(prev => [...prev, optimisticUser]);
       }
-      setIsSending(true);
       setError(null);
 
       try {
@@ -337,11 +406,13 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             sessionId,
             sender: 'user',
             content: trimmed,
-          });
+          }, actorId);
+          if (!isCurrentSend()) return;
           persistedUserMessageId = savedUser.id;
           setMessages(prev =>
             prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
           );
+          options?.onUserMessagePersisted?.();
         }
 
         // 3. Call the secure Edge Function proxy. Server enforces quota, assembles
@@ -359,6 +430,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         const styleDnaContext = resolveStyleDna
           ? await resolveStyleDna().catch(() => null)
           : null;
+        if (!isCurrentSend()) return;
         // Active scan/upload/TextScan context is held in a ref so it is included on
         // every send while the context card is visible, without recreating sendMessage.
         const activeContext = activeContextRef.current ?? null;
@@ -375,6 +447,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
               }
             : {}),
         });
+        if (!isCurrentSend()) return;
 
         // v2 capability outcomes: preserve the composer draft (text stays in
         // the composer because nothing was persisted) and never show an
@@ -443,7 +516,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             sender: 'user',
             content: trimmed,
             uiBlocks: attachmentUiBlocks,
-          });
+          }, actorId);
+          if (!isCurrentSend()) return;
           persistedUserMessageId = savedUser.id;
           setMessages(prev =>
             prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
@@ -497,7 +571,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           provider: 'gemini',
           model: result.message.model || undefined,
           tokenEstimate: result.message.tokenEstimate,
-        });
+        }, actorId);
+        if (!isCurrentSend()) return;
         setMessages(prev =>
           prev.map(m => (m.id === optimisticAssistant.id ? savedAssistant : m)),
         );
@@ -507,6 +582,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
 
       } catch (err: unknown) {
+        if (!isCurrentSend()) return;
         // Remove optimistic entries on failure so retry is clean.
         setMessages(prev =>
           optimisticUser
@@ -521,11 +597,13 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         });
         setError(getFriendlyStyleChatError(err));
       } finally {
-        isSendingRef.current = false;
-        setIsSending(false);
+        if (isCurrentSend()) {
+          isSendingRef.current = false;
+          setIsSending(false);
+        }
       }
     },
-    [sessionId, messagesUsed, messagesLimit, greetingText, messages],
+    [actorId, session?.id, sessionId, messagesUsed, messagesLimit, greetingText, messages],
   );
 
   const retryLastMessage = useCallback(() => {
