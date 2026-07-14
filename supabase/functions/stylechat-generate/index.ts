@@ -35,6 +35,11 @@ import {
 } from './attachmentContext.ts';
 import { extractActionsBlock, validateStyleChatActions } from './actions.ts';
 import {
+  hasGreetingUiBlock,
+  selectRecentModelContextMessages,
+  type ContextMessageRow,
+} from './contextMessages.ts';
+import {
   isAllowedMultimodalMime,
   MAX_MULTIMODAL_TOTAL_BYTES,
   requiresImageInspection,
@@ -54,8 +59,9 @@ const MAX_MESSAGE_CHARS    = 500;
 const MAX_RESPONSE_CHARS   = 1000;
 const MAX_OUTPUT_TOKENS    = 512;
 const MAX_MEMORY_CHARS     = 500;
-const MAX_RECENT_MESSAGES  = 6;
-const GEMINI_TIMEOUT_MS    = 12_000;
+const MAX_RECENT_MESSAGES        = 6;
+const GREETING_HISTORY_BUFFER    = 3;
+const GEMINI_TIMEOUT_MS          = 12_000;
 const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Stable GA default; operator should set STYLECHAT_GEMINI_MODEL at deployment.
@@ -1118,17 +1124,24 @@ Deno.serve(async (req) => {
   // no sequential latency before Gemini. Resolves to null on timeout/failure.
   const weatherContextPromise = fetchWeatherStylingContext(weatherLocation);
 
-  // Fetch last MAX_RECENT_MESSAGES messages for this session (most recent first).
+  // Fetch the recent message window plus a small greeting buffer. Greetings are
+  // persisted as assistant rows but must not consume model-context slots, so we
+  // filter them out after fetch and keep the newest MAX_RECENT_MESSAGES genuine
+  // messages. The buffer tolerates unexpected legacy duplicates without an
+  // unbounded history read.
   const { data: recentMsgs } = await userClient
     .from('style_chat_messages')
-    .select('sender, content')
+    .select('sender, content, ui_blocks')
     .eq('session_id', sessionId)
     .eq('user_id', userId)
     .in('sender', ['user', 'assistant'])
     .order('created_at', { ascending: false })
-    .limit(MAX_RECENT_MESSAGES);
+    .limit(MAX_RECENT_MESSAGES + GREETING_HISTORY_BUFFER);
 
-  const historyMessages = (recentMsgs ?? []).reverse();
+  const historyMessages = selectRecentModelContextMessages(
+    (recentMsgs ?? []) as ContextMessageRow[],
+    MAX_RECENT_MESSAGES,
+  );
 
   // Fetch compact style signals for memory text.
   const [itemsResult, reactionsResult] = await Promise.allSettled([
