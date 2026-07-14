@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
@@ -23,6 +24,7 @@ import {
   type StylistIdentity,
 } from '../../constants/stylistIdentity';
 import { StylistAvatar } from './StylistAvatar';
+import { useVoiceResponsesPreference } from '../../hooks/useVoiceResponsesPreference';
 
 interface PersonalizeStylistModalProps {
   visible: boolean;
@@ -51,6 +53,7 @@ export function PersonalizeStylistModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
   const saving = isSaving || isSubmitting;
+  const voicePreference = useVoiceResponsesPreference();
 
   useEffect(() => {
     if (visible) {
@@ -179,6 +182,34 @@ export function PersonalizeStylistModal({
                   returnKeyType="done"
                 />
                 {nameError ? <Text style={styles.fieldError}>{nameError}</Text> : null}
+              </View>
+
+              <View style={styles.voicePreferenceRow}>
+                <View style={styles.voicePreferenceCopy}>
+                  <Text style={styles.label}>VOICE RESPONSES</Text>
+                  <Text style={styles.voicePreferenceHelper}>
+                    Speak new stylist replies automatically. Existing messages never replay.
+                  </Text>
+                </View>
+                <Switch
+                  testID="voice-responses-switch"
+                  value={voicePreference.enabled}
+                  onValueChange={(enabled) => {
+                    void voicePreference.setEnabled(enabled).catch(() => undefined);
+                  }}
+                  disabled={voicePreference.loading || saving}
+                  trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
+                  thumbColor={voicePreference.enabled ? LUXURY.colors.plum : LUXURY.colors.pearl}
+                  accessibilityLabel="Voice responses"
+                  accessibilityHint="Controls automatic speech for new stylist replies"
+                  accessibilityState={{
+                    checked: voicePreference.enabled,
+                    disabled: voicePreference.loading || saving,
+                  }}
+                />
+                <Text style={styles.voicePreferenceValue}>
+                  {voicePreference.enabled ? 'On' : 'Off'}
+                </Text>
               </View>
 
               <View style={styles.avatarSection}>
@@ -326,6 +357,27 @@ const styles = StyleSheet.create({
   },
   nameSection: {
     marginBottom: SPACING.xl,
+  },
+  voicePreferenceRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  voicePreferenceCopy: {
+    flex: 1,
+  },
+  voicePreferenceHelper: {
+    ...LUXURY.typography.caption,
+    fontSize: 12,
+    lineHeight: 18,
+    color: LUXURY.colors.stone,
+  },
+  voicePreferenceValue: {
+    ...LUXURY.typography.caption,
+    minWidth: 22,
+    color: LUXURY.colors.graphite,
   },
   label: {
     ...LUXURY.typography.caption,
