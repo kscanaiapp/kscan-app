@@ -11,6 +11,7 @@ import {
   STYLIST_AVATAR_PRESET_BY_ID,
   type StylistAvatarPreset,
   type StylistAvatarPresetPortraitReady,
+  type StylistSpeechConfiguration,
 } from '../../constants/stylistIdentity';
 import type { AvatarMouthState } from '../../services/avatarSpeechMotion';
 import { StylistAvatar } from './StylistAvatar';
@@ -61,6 +62,19 @@ function useLoopAnimation(
   return value;
 }
 
+function resolveMouthStateSource(
+  sources: NonNullable<StylistSpeechConfiguration['mouthStateSources']>,
+  target: AvatarMouthState,
+): number | null {
+  if (target === 'closed') return sources.closed ?? null;
+  if (target === 'halfOpen') return sources.halfOpen ?? sources.closed ?? null;
+  if (target === 'open') return sources.open ?? sources.halfOpen ?? sources.closed ?? null;
+  if (target === 'round') {
+    return sources.round ?? sources.open ?? sources.halfOpen ?? sources.closed ?? null;
+  }
+  return null;
+}
+
 function isReadyPortraitPreset(
   preset: StylistAvatarPreset,
 ): preset is StylistAvatarPresetPortraitReady {
@@ -83,12 +97,16 @@ function MouthStateLayer({
   return (
     <View
       pointerEvents="none"
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       style={{ position: 'absolute', left, top, width, height, overflow: 'hidden' }}
     >
       <Image
         source={source}
         style={{ position: 'absolute', width: size, height: size, left: -left, top: -top }}
         resizeMode="cover"
+        resizeMethod="resize"
       />
     </View>
   );
@@ -123,11 +141,11 @@ export function AnimatedStylistAvatar({
     isReadyPortraitPreset(preset) &&
     speechConfig?.speakingMotionMode === 'mouth_states' &&
     speechConfig.mouthRegion != null &&
-    speechConfig.mouthStateSources != null;
+    speechConfig.mouthStateSources != null &&
+    speechConfig.mouthStateSources.closed != null;
 
-  // Current approved JPEG portraits have no aligned mouth-state assets. They
-  // therefore remain visually neutral during speech; a same-JPEG crop or
-  // whole-face pulse is never presented as lip animation.
+  // Presets without an approved, statically bundled mouth-state set remain
+  // visually neutral; a whole-face pulse is never presented as lip animation.
   if (!canRenderMouthStates) {
     return (
       <Animated.View style={[{ transform: [{ scale: pulse }] }, style]}>
@@ -140,8 +158,20 @@ export function AnimatedStylistAvatar({
     );
   }
 
-  const portraitPreset = preset as StylistAvatarPresetPortraitReady;
   const mouthSources = speechConfig!.mouthStateSources!;
+  const mouthSource = resolveMouthStateSource(mouthSources, mouthState);
+  if (mouthSource == null) {
+    // The asset set is incomplete (missing closed). Fall back to the static portrait.
+    return (
+      <Animated.View style={[{ transform: [{ scale: pulse }] }, style]}>
+        <StylistAvatar
+          avatarId={avatarId}
+          size={size}
+          accessibilityLabel={accessibilityLabel}
+        />
+      </Animated.View>
+    );
+  }
   return (
     <View
       style={[
@@ -150,15 +180,13 @@ export function AnimatedStylistAvatar({
         style,
       ]}
     >
-      <Image
-        source={portraitPreset.source}
-        style={{ width: size, height: size }}
-        resizeMode="cover"
-        accessibilityRole="image"
-        accessibilityLabel={accessibilityLabel ?? portraitPreset.accessibilityLabel}
+      <StylistAvatar
+        avatarId={avatarId}
+        size={size}
+        accessibilityLabel={accessibilityLabel ?? preset.accessibilityLabel}
       />
       <MouthStateLayer
-        source={mouthSources[mouthState]}
+        source={mouthSource}
         size={size}
         mouthRegion={speechConfig!.mouthRegion!}
       />
