@@ -1,201 +1,237 @@
-# Animated Speaking Avatar — Architecture Recovery Report
+# K Scan AI — Animated Avatar and StyleChat Entry Recovery Audit
 
-**Date:** 2026-07-13  
-**Branch:** `fix/animated-avatar-architecture-recovery`  
-**Recovery worktree:** `C:\src\KScan-animated-avatar-recovery-20260713`  
-**Source branch:** `feature/elise-home-layer` (`659330b4f6a71d991f7d027d072048e13a60422e`)  
-**Recovery code state:** `60a77c4`
-
----
+Date: 2026-07-14
+Workspace: `C:\src\KScan-animated-avatar-recovery-20260713`
+Branch: `fix/animated-avatar-architecture-recovery`
+Starting HEAD: `2073737384ad174a66a0e8b72d0b67a13b0e2aed`
+Audited implementation/test HEAD: `54a7ae7`
+Report commit: created after this document is written; the final handoff records the exact ending HEAD.
 
 ## Executive verdict
 
-**PASS — architecture restored and recovery complete.**
+**AVATAR AND STYLECHAT ENTRY AUDIT: PASS WITH VOICE PENDING**
 
-The rejected parallel `services/avatars/registry.ts` architecture has been removed and replaced with a single-source-of-truth implementation that reuses the existing `useStylistIdentity` system. The greeting, speech, and animated-avatar foundations are integrated into `HomeStylistCard` and `StyleChatHeader` without breaking the existing identity registry, abstract presets, or portrait presets.
+The current text, identity, session, navigation, persistence, context, accessibility, Android runtime, and fail-closed speech layers pass. Home now always starts a genuinely new guarded conversation, the new-session greeting is persisted exactly once, the first user message cannot be stranded behind greeting initialization, and stale actor/session work cannot leak into a later conversation. The compact StyleChat header, assistant greeting bubble, custom-name composer, and small-screen Home card were verified on Android.
 
-The Android debug APK builds cleanly, the app launches, and the full test suite (1,246 tests) passes. Onboarding sign-up, the authenticated Home avatar card, and the StyleChat header avatar all passed runtime smoke tests on the fixed emulator. Lip-movement visual QA and actual voice playback remain pending because no owner-approved voice IDs are configured; speech is intentionally fail-closed (silent) until those IDs are provided.
+No voice provider was built. No approved production voice IDs are configured, so audio and lip-movement runtime proof remain intentionally pending. Missing voice configuration is silent, does not enter a fake speaking state, and does not expose replay controls.
 
----
+## Repository and scope integrity
 
-## What was recovered
+- The expected branch and minimum ancestor were verified before editing.
+- Initial tracked and staged diffs were empty. The only initial worktree item was an untracked `deno.lock`; it predated this audit and remains untouched and unstaged.
+- Ignored `.env`, `.env.production`, `android/local.properties`, and `supabase/.temp/project-ref` were preserved. No values, keys, or tokens were printed.
+- Sanitized linked-target evidence matched project reference `wyyuqfdxucjksghsmhry`.
+- The APK present at the start was stale: its timestamp predated the audited HEAD. It was not trusted or installed as current evidence.
+- No unrelated tracked owner work was encountered.
 
-- **Authoritative registry preserved:** `constants/stylistIdentity.ts` remains the only preset registry. 6 abstract presets + 10 portrait presets are unchanged; no parallel `services/avatars/registry.ts` remains.
-- **Identity source of truth preserved:** `useStylistIdentity` is still the only consumer-facing identity hook. `AnimatedStylistAvatar`, greeting, and speech services read the selected identity from it.
-- **Speech metadata added as an extension:** `STYLIST_SPEECH_CONFIG_BY_ID` maps optional speech config onto existing preset IDs without changing the discriminated union or persistence allowlist.
-- **Animated avatar wrapper:** `components/stylist/AnimatedStylistAvatar.tsx` adds `idle | thinking | speaking | static` states and a mouth-overlay lip-movement implementation for configured portraits.
-- **Greeting lifecycle:** `services/stylistGreeting.ts` + `services/userFirstName.ts` build a safe, screen-reader-aware greeting from trustworthy auth metadata only. The new `services/style-chat/styleChatGreeting.ts` service persists the greeting as the first assistant message in a new StyleChat session and deduplicates across rerender, remount, refocus, and session-resume via the persisted `uiBlocks` marker.
-- **Actor-safe speech store/service:** `stores/avatarSpeechStore.ts` + `services/avatarSpeech.ts` provide generation-token-based mutex protection, stop-before-speak serialization, and navigation/actor-change cleanup.
-- **Fail-closed voice resolver:** `services/avatarSpeechVoice.ts` requires owner-approved `EXPO_PUBLIC_APPROVED_FEMALE_VOICE_ID` / `EXPO_PUBLIC_APPROVED_MALE_VOICE_ID`; missing config silently disables speech.
-- **Home & StyleChat integration:**
-  - `HomeStylistCard` now wraps the static avatar with `AnimatedStylistAvatar` and shows the greeting; the replay/stop/dismiss controls have been removed from the customer-facing UI.
-  - Home `Start Chat` creates a new StyleChat session and navigates directly to it.
-  - `useStyleChat` inserts a persisted assistant greeting message when a new session is entered and speaks it once when an approved voice is configured.
-  - `StyleChatHeader` shows the animated avatar, stylist name, a concise identity label, and status dot (idle/thinking/speaking).
-  - `StyleChatBubble` skips rendering the internal `greeting` uiBlocks marker and does not show feedback controls on the greeting bubble.
-  - `app/style-chat/[sessionId].tsx` passes `isThinking` to the header; speech is stopped when the hook unmounts or the actor changes.
-- **Tests:** Added `__tests__/stylistSpeechRecovery.test.js` (19 focused assertions), added `testID`s to `HomeStylistCard` and `PersonalizeStylistModal`, and added Maestro avatar smoke flows under `.maestro/flows/avatar/`.
+## Authoritative architecture
 
----
+| Responsibility | Authoritative path |
+|---|---|
+| Stylist preset registry | `constants/stylistIdentity.ts` |
+| Identity persistence/hydration | `services/stylistIdentityService.ts`, coordinated by `stores/stylistIdentityStore.ts` |
+| Consumer identity hook | `hooks/useStylistIdentity.ts` |
+| Static avatar renderer | `components/stylist/StylistAvatar.tsx` |
+| Animated wrapper | `components/stylist/AnimatedStylistAvatar.tsx` |
+| Speech state/service | `stores/avatarSpeechStore.ts`, `services/avatarSpeech.ts`, `services/avatarSpeechVoice.ts` |
+| Greeting builder | `services/stylistGreeting.ts`, trusted first-name input from `services/userFirstName.ts` |
+| Greeting transaction | `services/style-chat/styleChatGreeting.ts` |
+| Session launch guard | `services/style-chat/sessionLaunchGuard.ts` |
+| Session/message ownership | `hooks/useStyleChat.ts`, `services/style-chat/styleChatRepository.ts` |
+| Request provider | `services/style-chat/providers/edgeStyleChatProvider.ts` |
+| Header/bubble | `components/style-chat/StyleChatHeader.tsx`, `components/style-chat/StyleChatBubble.tsx` |
+| Home surface | `components/home/HomeStylistCard.tsx`, `components/home/HomeLuxuryTechV1.tsx` |
 
-## Commits on the recovery branch
+No parallel preset registry, identity store, greeting builder, speech store, or launch-guard architecture was found. Home and StyleChat consume the same selected identity.
 
-```
-60a77c4 test(avatar): add smoke testIDs to HomeStylistCard and PersonalizeStylistModal
-a510a66 docs(avatar): add architecture recovery report
-56eb84c test(avatar): add testIDs to HomeStylistCard for smoke tests
-eec4c8d test(avatar): cover identity and speech recovery
-6edd9fe feat(avatar): integrate animated avatar and greeting into Home and StyleChat
-b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
-7f01e8b feat(avatar): add optional speech metadata and animated stylist wrapper
-659330b fix(signature-style): enforce safe feedback interactions  <-- source base
-```
+## Findings and fixes
 
----
+### Blockers found and fixed
 
-## Files changed
+1. Greeting initialization could wait indefinitely in the first-send path, risking a stranded user message. The greeting wait is now bounded and shares the same actor/session transaction.
+2. The controlled composer cleared its draft before the first user row was confirmed persisted. It now clears only from the persistence callback.
+3. Stale in-flight sends could update a later actor/session. A send-scope generation invalidates work on actor change, session change, and unmount; repository calls also verify the expected owner.
+4. The prior APK was stale relative to the audited source. It was deleted and rebuilt; the final APK contains a fresh bundled JavaScript asset.
 
-| Path | Change |
-|------|--------|
-| `components/stylist/AnimatedStylistAvatar.tsx` | New animated wrapper with mouth-overlay lip movement |
-| `constants/stylistIdentity.ts` | Added optional `StylistSpeechConfiguration`; preserved all 16 presets |
-| `components/home/HomeStylistCard.tsx` | Integrated animated avatar and greeting; removed production speech controls |
-| `components/home/HomeLuxuryTechV1.tsx` | Home `Start Chat` now creates a new StyleChat session directly |
-| `hooks/useStyleChat.ts` | Greets new sessions on entry and stops speech on exit/actor change |
-| `components/style-chat/StyleChatBubble.tsx` | Hides internal greeting marker from UI and feedback controls |
-| `components/stylist/PersonalizeStylistModal.tsx` | Added `testID`s to avatar selection buttons for smoke tests |
-| `components/style-chat/StyleChatHeader.tsx` | Integrated animated avatar, greeting, and status dot |
-| `app/style-chat/[sessionId].tsx` | Wired thinking state and speech cleanup |
-| `services/style-chat/styleChatGreeting.ts` | New session-scoped greeting persistence and dedupe service |
-| `services/stylistGreeting.ts` | New pure greeting builder |
-| `services/userFirstName.ts` | New trustworthy first-name resolver |
-| `stores/avatarSpeechStore.ts` | New module-level speech state store |
-| `services/avatarSpeech.ts` | New speech service with mutex and generation tokens |
-| `services/avatarSpeechVoice.ts` | New fail-closed voice resolver |
-| `hooks/useReducedMotion.ts` | New accessibility hook |
-| `hooks/useScreenReaderEnabled.ts` | New accessibility hook |
-| `__tests__/stylistSpeechRecovery.test.js` | Updated recovery tests for new component wiring |
-| `__tests__/styleChatSessionGreeting.test.js` | New tests covering session-scoped greeting lifecycle |
-| `.maestro/flows/avatar/*.yaml` | Maestro runtime smoke flows for Home, StyleChat, and onboarding sign-up |
-| `package.json` / `package-lock.json` | Added `expo-speech@14.0.8` and `image-size` dev dependency |
+### P1 findings found and fixed
 
----
+1. Home could resume history instead of always creating a new session, and its guard did not reset after returning focus. Home now uses the existing guard through one `launchStyleChatSession` transaction and resets safely on focus.
+2. Greeting process state was session-only rather than actor+session scoped. Locks and completion state now include the actor and always release in `finally`.
+3. Identity/session hydration was not reloaded safely after actor changes. `useStyleChat` now binds session/message/send readiness to the resolved actor and owned session.
+4. Speech state lacked session/generation scope, and null updates could not clear stale fields. State now scopes actor, session, avatar, and generation; stale cleanup/callbacks cannot stop a newer utterance.
+5. Speech entered a starting state before an approved voice resolved. Voice resolution now occurs first; missing approval returns silently and leaves the avatar idle.
 
-## Validation matrix
+### P2 and polish findings found and fixed
 
-| Check | Command / method | Result |
-|-------|------------------|--------|
-| Focused recovery tests | `node --test __tests__/stylistSpeechRecovery.test.js` | **21/21 pass** |
-| Session greeting tests | `node --test __tests__/styleChatSessionGreeting.test.js` | **8/8 pass** |
-| Stylist identity tests | `node --test __tests__/stylistIdentity.test.js` | **38/38 pass** |
-| Full test suite | `node --test $(find __tests__ -name '*.test.js')` | **1,261/1,261 pass** |
-| TypeScript | `npx tsc --noEmit` | **OK** |
-| iOS export | `npx expo export --platform ios` | **OK** |
-| Android export | `npx expo export --platform android` | **OK** |
-| Apple readiness | `node scripts/verify-apple-readiness.js` | **OK** |
-| Git whitespace | `git diff --check` | **OK** |
-| Android debug APK | `cd android && ./gradlew assembleDebug` | **BUILD SUCCESSFUL** |
-| APK install & launch | `adb install -r` + Maestro launch | **App launches; authenticated Home/StyleChat reachable** |
+- Session-creation failure was invisible. Home now shows a concise retryable inline error.
+- Home repeated the full greeting immediately before StyleChat. It now uses a concise invitation; the full greeting lives in the transcript.
+- Greeting copy drifted from the canonical contraction. The builder now produces `I’m` and supports trusted-first-name and fallback forms.
+- The header consumed excessive vertical space, duplicated identity copy, and showed idle status chrome. It is now one compact row with upper-left avatar, one-line name/supporting copy, Home action, and status only while thinking/speaking.
+- Greeting accessibility omitted the full message and exposed decorative avatar detail. The bubble is now the primary full greeting announcement and the decorative dot is hidden from accessibility.
+- Greeting bubbles could expose response feedback affordances. Greeting UI markers and feedback controls remain hidden.
+- Prompt chips compressed the Home card at narrow widths. They hide below 430 dp while avatar, invitation, Personalize, and Start Chat remain reachable by scrolling.
+- Runtime custom-name testing found the composer placeholder/send label still hardcoded to Elise. They now follow `stylistDisplayName` and were verified live with `Maya`.
+- Maestro cold-start timeouts were too short for a clean Metro/auth hydration. The updated flows use bounded 30-second launch/header waits.
+- Context-filter fixtures were ordered in a way that could validate the wrong provider order. Fixtures and source-integration assertions now prove newest-genuine selection and chronological mapping.
 
----
+## Start Chat and greeting transaction
 
-## Runtime smoke / QA results
+- Single tap: one create, one navigation, one owned session.
+- Rapid double tap/repeated pending tap: one create and one route transition.
+- Creation failure: visible error, guard releases, retry works.
+- Navigation failure: the created session ID is remembered and retried without creating an orphan second session.
+- Actor change/unmount: route transition is cancelled without leaking state.
+- New empty session: identity reaches a bounded fallback, one greeting is inserted with its persisted ID, then local state renders it first.
+- Existing session with greeting: persisted row is reused; no insertion and no speech replay.
+- Existing nonempty legacy session without marker: no retroactive greeting rewrite.
+- Malformed markers and two legacy greetings: handled without inserting a third row.
+- Greeting failure/timeout: first user message continues; speech does not begin for an unpersisted greeting.
 
-All runtime smoke tests were executed on `emulator-5554` against the APK built from `60a77c4`.
+Canonical copy:
 
-### Maestro flows run
+- Trusted first name: `Hi, [first name]. I’m [selected stylist name]. How can I help style you today?`
+- Fallback: `Hi, I’m [selected stylist name]. How can I style you today?`
 
-- `.maestro/flows/avatar/avatar-onboarding-signup.yaml` — creates a new account and reaches Home.
-- `.maestro/flows/avatar/avatar-home-smoke.yaml` — verifies Home stylist card, greeting, personalization, and speech-enabled portrait selection.
-- `.maestro/flows/avatar/avatar-stylechat-smoke.yaml` — verifies StyleChat header avatar, name, and greeting.
+## Android runtime evidence
 
-### Results
+Device: `emulator-5554`, Pixel 8 Pro emulator, Android 17, physical 1344×2992 at density 480 (448 dp width). A temporary 1080×1920 override exercised a 360 dp small-screen layout and was reset afterward.
 
-| Smoke | Status | Notes |
-|-------|--------|-------|
-| Onboarding sign-up | **PASS** | New account created; reached Home with `YOUR STYLIST` visible |
-| Authenticated Home avatar card | **PASS** | Greeting rendered; personalization selected `stylist_portrait_02`; no replay control visible |
-| StyleChat header avatar | **PASS** | Header rendered with portrait avatar, `Elise`, and greeting line |
-| Lip movement visual QA | **PENDING** | Requires a speaking state triggered at runtime; speech is currently silent because no approved voice is configured |
-| Voice playback QA | **PENDING** | No owner-approved voice IDs configured; speech fails closed by design |
+Authenticated smoke results:
 
-### Observations
+- Home portrait identity: `Elise` + `stylist_portrait_02` rendered; no replay/play control.
+- Default/custom identity: default abstract avatar + `Maya` rendered consistently on Home, header, greeting, composer placeholder, and send accessibility label. The original `Elise` + portrait preference was restored after testing.
+- Updated Home Maestro flow: PASS in 1m 6s.
+- Updated rapid-entry StyleChat Maestro flow: PASS in 50s.
+- Rapid Start Chat double tap: session history contained exactly one row and the session contained exactly one greeting.
+- New greeting: first assistant row was `Hi, I’m Elise. How can I style you today?`; portrait and name matched Home; no report/replay control or fake speaking state appeared.
+- Existing reopen: history reopened the same transcript with one greeting and no replay.
+- Process restart: force-stop/relaunch/reopen preserved greeting, user message, and assistant response; greeting count remained one.
+- Keyboard/typed conversation: long prompt remained visible above the keyboard, persisted as a user bubble, and received a real assistant response; header remained compact with no overlap.
+- Failure posture: Android airplane mode produced `We couldn't start a conversation. Please try again.`; after connectivity returned, retry created and opened one usable session.
+- Small screen: prompt chips were absent at 360 dp; after scrolling, avatar, invitation, Personalize, and Start Chat were all visible and reachable.
+- Final post-install check: APK launched authenticated with Metro stopped and port 8081 not listening, proving the bundled current-tree JavaScript was used.
 
-- Without approved voice IDs, the automatic StyleChat greeting does not produce audio and does not show a play/replay button. This is the intended fail-closed behavior.
-- The StyleChat greeting is truncated to one line due to the `Founder Preview` badge; the full greeting is still rendered in `HomeStylistCard`.
-- The existing `.maestro/flows/smoke/critical-path.yaml` expects the app to land on the scan camera on launch. On a fresh install it lands on onboarding, so that flow remains a fixture for an already-onboarded test account.
+Normal end-user smoke actions created test-account sessions/messages and temporarily saved/restored the stylist preference. No SQL, admin API, schema, auth, policy, migration, or production-setting mutation was performed.
 
----
+## Speech and accessibility
 
-## Portrait inspection results
+- Speech state is scoped by actor, session, avatar identity, and utterance generation.
+- Actor/route changes clear matching active state only; stale callbacks and old cleanup cannot stop a newer utterance.
+- Unsupported avatars remain idle.
+- Approved female/male voice IDs were absent in both ignored environments; no values were printed. Missing configuration stayed silent without a visible error or fake speaking state.
+- Screen-reader enabled state suppresses automatic speech; reduced motion disables decorative animation.
+- The header announces concise identity information. The greeting bubble is the primary full-copy announcement, preventing full-greeting duplication.
+- No customer-facing speech control exists on Home or StyleChat.
+- Audio quality and lip movement were not claimed or runtime-tested because no approved production voice path exists.
 
-All 10 shipped portrait presets are present in `assets/stylist-avatars/portraits/` and are referenced by the authoritative registry.
+## Model-context evidence
 
-| Preset ID | Asset | Dimensions | Speech config | Voice profile | Lip mode |
-|-----------|-------|------------|---------------|---------------|----------|
-| `stylist_portrait_01` | `stylist_portrait_01.jpg` | 1024x1024 | — | — | — |
-| `stylist_portrait_02` | `stylist_portrait_02.jpg` | 1024x1024 | `speechEnabled: true` | `male` | `mouth_overlay` |
-| `stylist_portrait_03` | `stylist_portrait_03.jpg` | 1024x1024 | — | — | — |
-| `stylist_portrait_04` | `stylist_portrait_04.jpg` | 1024x1024 | — | — | — |
-| `stylist_portrait_05` | `stylist_portrait_05.jpg` | 1024x1024 | `speechEnabled: true` | `female` | `mouth_overlay` |
-| `stylist_portrait_06` | `stylist_portrait_06.jpg` | 1024x1024 | — | — | — |
-| `stylist_portrait_07` | `stylist_portrait_07.jpg` | 1024x1024 | — | — | — |
-| `stylist_portrait_08` | `stylist_portrait_08.jpg` | 1024x1024 | `speechEnabled: true` | `male` | `mouth_overlay` |
-| `stylist_portrait_09` | `stylist_portrait_09.jpg` | 1024x1024 | — | — | — |
-| `stylist_portrait_10` | `stylist_portrait_10.jpg` | 1024x1024 | — | — | — |
+Local implementation and tests prove:
 
-The `LIP_PROOF_PORTRAITS` are `stylist_portrait_02`, `stylist_portrait_05`, and `stylist_portrait_08`. Their mouth regions are configured in normalized coordinates in `STYLIST_SPEECH_CONFIG_BY_ID`.
+- `ui_blocks` is selected.
+- Every block is checked for the greeting marker.
+- The bounded fetch is `MAX_RECENT_MESSAGES + GREETING_HISTORY_BUFFER`.
+- Greeting rows are removed before applying the effective recent-message limit.
+- The newest genuine messages are preserved and then mapped into the established chronological provider order.
+- Source rows are not mutated; transcripts without greetings behave as before.
 
----
+Read-only remote inspection:
 
-## Lip movement proof status
+- Project reference: `wyyuqfdxucjksghsmhry`.
+- Remote `stylechat-generate`: ACTIVE, version 51, updated `2026-07-14T03:09:16.949Z`.
+- The downloaded remote `contextMessages.ts` SHA-256 matched local exactly.
+- The downloaded remote `index.ts` selects `ui_blocks`, uses the buffered limit, and calls `selectRecentModelContextMessages`.
+- Therefore remote context-filter deployment is proven for version 51. No deployment was performed during this audit.
 
-- **Implementation:** `AnimatedStylistAvatar` renders a clipped mouth-overlay duplicate of the portrait when `speakingMotionMode === 'mouth_overlay'`, using the configured `mouthRegion` geometry.
-- **Runtime visual proof:** **PENDING**. Could not be verified because the smoke emulator could not reach a state with a selected speech-enabled portrait and active speaking state.
-- **Next step:** On a device or emulator with a signed-in session, select portrait 02/05/08, tap the replay control, and visually confirm mouth-region motion. Screenshots should be captured and attached to close this gap.
+## Platform parity and build evidence
 
----
+- Android export: PASS, isolated export with 46 files.
+- iOS export: PASS, isolated export with 45 files.
+- iOS static parity: PASS for shared Home/header/bubble/composer/safe-area/keyboard/reduced-motion/accessibility sources and absence of microphone usage description.
+- iOS runtime: NOT RUN.
+- Expo public config: PASS; app `K Scan`, slug `kscan`, package/bundle ID `com.kscanai.app`; no secrets printed.
+- Apple readiness: PASS with expected external warnings for App Store ID/review contact/EAS credentials.
+- Apple submission static verifier: PASS.
 
-## Voice quality gate status
+Final Android debug APK:
 
-- **Resolver:** `services/avatarSpeechVoice.ts` reads `EXPO_PUBLIC_APPROVED_FEMALE_VOICE_ID` and `EXPO_PUBLIC_APPROVED_MALE_VOICE_ID`.
-- **Current config:** Neither environment variable is set in the build environment.
-- **Behavior:** The resolver returns `owner_review_required`; `services/avatarSpeech.ts` sets an error state and does **not** call `Speech.speak`. No robotic system voice is used as a production fallback.
-- **Runtime result:** Speech controls render, but tapping replay will be silent (fail-closed).
-- **Owner action required:** Provide approved Expo Speech voice identifiers for the configured female/male profiles, then re-run the voice smoke test.
+- Path: `C:\src\KScan-animated-avatar-recovery-20260713\android\app\build\outputs\apk\debug\app-debug.apk`
+- Size: 162,908,416 bytes
+- Modified: `2026-07-14T14:07:43Z`
+- SHA-256: `07BB972B0E99B2A8AB0BE570D38CC1F86A9DCA39E50B30877D85361C11FFB3BF`
+- Package: `com.kscanai.app`, versionCode 23, versionName 1.0.1
+- INTERNET: present
+- RECORD_AUDIO: absent from the effective APK manifest
+- Build: `BUILD SUCCESSFUL`; APK path was deleted before the final packaging pass.
 
----
+## Validation results
 
-## Security & permissions
+| Check | Result |
+|---|---|
+| Focused avatar/session/greeting tests | PASS — 103/103 |
+| Full JavaScript suite | PASS — 1,273/1,273, 2 suites |
+| Context Deno tests | PASS — 10/10 with `--allow-read` |
+| `deno check stylechat-generate/index.ts` | PASS |
+| `npx tsc --noEmit` | PASS |
+| `git diff --check` | PASS |
+| Android export | PASS |
+| iOS export | PASS |
+| Expo public config | PASS, sanitized |
+| Apple readiness/submission static checks | PASS |
+| Android debug build | PASS |
+| Android authenticated runtime | PASS |
+| Updated Maestro Home flow | PASS |
+| Updated Maestro StyleChat flow | PASS |
 
-- **No microphone permission introduced.** `app.json` still blocks `android.permission.RECORD_AUDIO` and `expo-camera` has `microphonePermission: false` / `recordAudioAndroid: false`.
-- **VoiceScan remains disabled.** `VOICESCAN_ENABLED` is still `false` in `constants/featureFlags.ts`.
-- **No backend migration or Supabase schema change.** Speech state is in-memory only.
-- **No hardcoded secrets.** Approved voice IDs are expected via `EXPO_PUBLIC_*` env vars; debug signing material was generated locally and is ignored by `.gitignore`.
+## Files changed in this audit
 
----
+Implementation:
 
-## Known limitations & recommended next steps
+- `app/style-chat/[sessionId].tsx`
+- `app/style-chat/index.tsx`
+- `components/home/HomeLuxuryTechV1.tsx`
+- `components/home/HomeStylistCard.tsx`
+- `components/style-chat/StyleChatBubble.tsx`
+- `components/style-chat/StyleChatHeader.tsx`
+- `components/style-chat/StyleChatInput.tsx`
+- `components/stylist/AnimatedStylistAvatar.tsx`
+- `hooks/useStyleChat.ts`
+- `services/avatarSpeech.ts`
+- `services/style-chat/sessionLaunchGuard.ts`
+- `services/style-chat/styleChatGreeting.ts`
+- `services/style-chat/styleChatRepository.ts`
+- `services/stylistGreeting.ts`
+- `stores/avatarSpeechStore.ts`
 
-1. **Lip movement proof:** Complete the visual QA step on a speech-enabled portrait and capture before/during/after screenshots. A signed-in smoke account and an approved voice ID are required to drive the speaking state.
-2. **Voice quality gate:** Provide owner-approved voice IDs, rebuild, and verify audible playback.
-3. **Critical path smoke:** The existing `.maestro/flows/smoke/critical-path.yaml` expects a scan-camera landing on launch; it will only pass when run against an authenticated/fully-onboarded test fixture.
+Coverage and audit evidence:
 
----
+- `.maestro/flows/avatar/avatar-home-smoke.yaml`
+- `.maestro/flows/avatar/avatar-stylechat-smoke.yaml`
+- `__tests__/eliseIdentity.test.js`
+- `__tests__/homeEliseIntegration.test.js`
+- `__tests__/signatureStyleFeedbackSafety.test.js`
+- `__tests__/styleChatSessionGreeting.test.js`
+- `__tests__/styleChatSessionLaunchGuard.test.js`
+- `__tests__/stylistIdentity.test.js`
+- `__tests__/stylistSpeechRecovery.test.js`
+- `supabase/functions/stylechat-generate/contextMessages.test.ts`
+- `docs/audits/animated-avatar-recovery-report.md`
 
-## Diff summary (since source base)
+## Prohibited-action ledger
 
-```text
-$ git diff --stat 659330b..60a77c4
- __tests__/stylistSpeechRecovery.test.js  | 316 +++++++++++++++++++++++++
- components/home/HomeStylistCard.tsx       |  36 +++-
- components/style-chat/StyleChatHeader.tsx |  53 +++--
- ... (truncated for brevity; full diff available in the branch)
-```
+- ElevenLabs/voice-provider build: NOT PERFORMED
+- Edge Function deployment: NOT PERFORMED
+- Migration deployment: NOT PERFORMED
+- Direct/admin database mutation: NOT PERFORMED
+- Auth/storage/policy/project-setting mutation: NOT PERFORMED
+- Microphone permission: NOT ADDED; effective APK contains no `RECORD_AUDIO`
+- Push: NOT PERFORMED
+- Merge/rebase/amend: NOT PERFORMED
 
-*(Run `git diff --stat 659330b..60a77c4` in the worktree for the complete picture.)*
+## Remaining work
 
----
-
-**Prepared by:** Kimi Code CLI  
-**Conclusion:** The architecture recovery is complete and safe to merge. Authenticated Home and StyleChat runtime smoke tests pass; only lip-movement visual QA and owner-approved voice playback remain to be verified.
+- Remaining blockers: none.
+- Remaining P1 findings: none.
+- Voice: build and approve the production transport/voice identities in a separately authorized phase, then perform audible quality, interruption, screen-reader, and device QA.
+- Lip movement: validate visually only after an approved speaking path exists; no lip-sync claim is made here.
+- iOS runtime: run on an iOS simulator/device in a future runtime pass; current evidence is static/export parity only.
