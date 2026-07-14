@@ -228,7 +228,7 @@ export function PersonalizeStylistModal({
                         accessibilityState={{ disabled: saving, selected }}
                         accessibilityLabel={preset.accessibilityLabel}
                       >
-                        <StylistAvatar avatarId={preset.id} size={56} />
+                        <StylistAvatar avatarId={preset.id} size={70} />
                       </Pressable>
                     );
                   })}
@@ -254,7 +254,7 @@ export function PersonalizeStylistModal({
                         accessibilityState={{ disabled: saving, selected }}
                         accessibilityLabel={preset.accessibilityLabel}
                       >
-                        <StylistAvatar avatarId={preset.id} size={56} />
+                        <StylistAvatar avatarId={preset.id} size={70} />
                       </Pressable>
                     );
                   })}

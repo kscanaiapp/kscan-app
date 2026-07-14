@@ -59,11 +59,11 @@ const packageJson = fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8');
 
 test('centralized Elise identity exports required copy', () => {
   assert.match(eliseConstants, /displayName:\s*'Elise'/);
-  assert.match(eliseConstants, /role:\s*'AI-powered virtual stylist'/);
+  assert.match(eliseConstants, /role:\s*'your AI-powered virtual stylist'/);
   assert.match(eliseConstants, /introTitle:\s*'Meet Elise'/);
   assert.match(eliseConstants, /suggestionsHeading:\s*"Elise's Suggestions"/);
   assert.match(eliseConstants, /askLabel:\s*'ASK ELISE'/);
-  assert.match(eliseConstants, /headerAccessibilityLabel:\s*'Elise, AI-powered virtual stylist'/);
+  assert.match(eliseConstants, /headerAccessibilityLabel:\s*'Elise, your AI-powered virtual stylist'/);
 });
 
 test('centralized Signature Style copy replaces Style DNA user-facing strings', () => {

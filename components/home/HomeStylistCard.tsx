@@ -70,11 +70,11 @@ export function HomeStylistCard({
       </View>
 
       <View style={styles.card}>
-        <View style={styles.cardLeft}>
+        <View style={[styles.cardLeft, { width: compact ? 96 : 108 }]}>
           <View style={styles.avatarWrap}>
             <AnimatedStylistAvatar
               avatarId={identity.avatarId}
-              size={compact ? 60 : 72}
+              size={compact ? 75 : 90}
               state="idle"
               reducedMotion={reducedMotion}
               accessibilityLabel={`${displayName} avatar`}

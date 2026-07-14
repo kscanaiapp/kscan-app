@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -57,13 +57,15 @@ export function StyleChatHeader({
     speechState.stylistId === identity.avatarId &&
     speechState.avatarId === identity.avatarId &&
     speechState.phase === 'playing';
-  const mouthState = isSpeaking
-    ? deriveAvatarMouthState({
-        phase: speechState.phase,
-        playbackSeconds: speechState.playbackSeconds,
-        alignment: speechState.alignment,
-      })
-    : 'closed';
+  const mouthState = useMemo(() => {
+    if (!isSpeaking) return 'closed';
+    return deriveAvatarMouthState({
+      phase: speechState.phase,
+      playbackSeconds: speechState.playbackSeconds,
+      alignment: speechState.alignment,
+      reducedMotion,
+    });
+  }, [isSpeaking, speechState.phase, speechState.playbackSeconds, speechState.alignment, reducedMotion]);
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
@@ -92,7 +94,7 @@ export function StyleChatHeader({
         >
           <AnimatedStylistAvatar
             avatarId={identity.avatarId}
-            size={42}
+            size={67}
             state={avatarState}
             mouthState={mouthState}
             reducedMotion={reducedMotion}
