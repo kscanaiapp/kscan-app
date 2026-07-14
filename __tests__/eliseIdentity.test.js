@@ -277,6 +277,13 @@ test('accessible labels use dynamic Elise language', () => {
   assert.match(styleChatBubble, /`\$\{stylistDisplayName\} message: \$\{content\}`/);
 });
 
+test('voice preference persistence failure is surfaced accessibly', () => {
+  assert.match(personalizeModal, /Voice setting could not be saved\. Try again\./);
+  assert.match(personalizeModal, /setVoicePreferenceError/);
+  assert.match(personalizeModal, /accessibilityRole="alert"/);
+  assert.doesNotMatch(personalizeModal, /setEnabled\(enabled\)\.catch\(\(\) => undefined\)/);
+});
+
 // ── Error and prompt constants ───────────────────────────────────────────────
 
 test('StyleChat prompt constants use Elise language', () => {

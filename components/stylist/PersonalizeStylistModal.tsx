@@ -50,6 +50,7 @@ export function PersonalizeStylistModal({
   const [draftName, setDraftName] = useState(identity.displayName);
   const [draftAvatarId, setDraftAvatarId] = useState(identity.avatarId);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [voicePreferenceError, setVoicePreferenceError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
   const saving = isSaving || isSubmitting;
@@ -60,6 +61,7 @@ export function PersonalizeStylistModal({
       setDraftName(identity.displayName);
       setDraftAvatarId(identity.avatarId);
       setNameError(null);
+      setVoicePreferenceError(null);
       setIsSubmitting(false);
       submissionInFlightRef.current = false;
     }
@@ -195,7 +197,10 @@ export function PersonalizeStylistModal({
                   testID="voice-responses-switch"
                   value={voicePreference.enabled}
                   onValueChange={(enabled) => {
-                    void voicePreference.setEnabled(enabled).catch(() => undefined);
+                    setVoicePreferenceError(null);
+                    void voicePreference.setEnabled(enabled).catch(() => {
+                      setVoicePreferenceError('Voice setting could not be saved. Try again.');
+                    });
                   }}
                   disabled={voicePreference.loading || saving}
                   trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
@@ -211,6 +216,11 @@ export function PersonalizeStylistModal({
                   {voicePreference.enabled ? 'On' : 'Off'}
                 </Text>
               </View>
+              {voicePreferenceError ? (
+                <Text style={styles.fieldError} accessibilityRole="alert">
+                  {voicePreferenceError}
+                </Text>
+              ) : null}
 
               <View style={styles.avatarSection}>
                 <Text style={styles.label} accessibilityRole="header">ABSTRACT</Text>
