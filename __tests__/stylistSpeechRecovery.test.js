@@ -278,16 +278,32 @@ test('AnimatedStylistAvatar delegates to StylistAvatar and does not read a paral
   assert.doesNotMatch(source, /elise-placeholder/);
 });
 
-test('StyleChatHeader consumes useStylistIdentity and AnimatedStylistAvatar', () => {
+test('StyleChatHeader consumes useStylistIdentity, AnimatedStylistAvatar, and avatar speech state', () => {
   const source = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'), 'utf8');
   assert.match(source, /useStylistIdentity/);
   assert.match(source, /AnimatedStylistAvatar/);
-  assert.match(source, /useStylistGreeting/);
+  assert.match(source, /useAvatarSpeechState/);
+  assert.doesNotMatch(source, /useStylistGreeting/);
 });
 
-test('HomeStylistCard consumes AnimatedStylistAvatar and useStylistGreeting', () => {
+test('HomeStylistCard consumes AnimatedStylistAvatar and the shared greeting builder', () => {
   const source = fs.readFileSync(path.join(ROOT, 'components', 'home', 'HomeStylistCard.tsx'), 'utf8');
   assert.match(source, /AnimatedStylistAvatar/);
-  assert.match(source, /useStylistGreeting/);
+  assert.match(source, /getGreetingTextForUser/);
+  assert.doesNotMatch(source, /useStylistGreeting/);
   assert.doesNotMatch(source, /services\/avatars\/registry/);
+});
+
+test('useStyleChat delegates greeting lifecycle to the style-chat greeting service', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
+  assert.match(source, /ensureSessionGreeting/);
+  assert.match(source, /getGreetingTextForUser/);
+  assert.match(source, /markSessionGreeted/);
+  assert.match(source, /isSessionGreeted/);
+  assert.match(source, /stopAvatarSpeechPlayback/);
+});
+
+test('StyleChatBubble skips rendering the internal greeting uiBlocks marker', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatBubble.tsx'), 'utf8');
+  assert.match(source, /type === 'greeting'/);
 });

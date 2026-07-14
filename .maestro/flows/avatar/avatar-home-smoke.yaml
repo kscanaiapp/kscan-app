@@ -1,8 +1,7 @@
 # TC-AVATAR-001: Animated avatar Home smoke
-# Verifies the Home stylist card renders the greeting, the personalization
-# flow opens, and a speech-enabled portrait can be selected.
-# Note: Voice playback requires owner-approved voice IDs; without them the
-# replay control is present but speech fails closed (silent/no state change).
+# Verifies the Home stylist card renders the greeting and the personalization
+# flow opens. There is no customer-facing replay/play control; voice playback is
+# automatic in StyleChat only when an owner-approved voice is configured.
 appId: com.kscanai.app
 name: "Smoke — Animated Avatar Home"
 tags:
@@ -42,23 +41,11 @@ tags:
     visible: "YOUR STYLIST"
     timeout: 8000
 
-# The replay control appears for speech-enabled portraits.
+# The production card no longer exposes a replay/play button.
 - assertVisible:
     id: "home-stylist-card"
 - assertVisible:
     id: "home-stylist-greeting"
-- assertVisible:
+- assertNotVisible:
     id: "home-stylist-replay-button"
 - takeScreenshot: "avatar-home-portrait"
-
-# Tapping replay should not crash. Without approved voices speech fails closed,
-# so the control remains a replay button rather than switching to stop.
-- tapOn:
-    id: "home-stylist-replay-button"
-
-- extendedWaitUntil:
-    visible:
-      id: "home-stylist-replay-button"
-    timeout: 5000
-
-- takeScreenshot: "avatar-home-replay-fail-closed"
