@@ -174,7 +174,7 @@ test('startup orphan cleanup is bounded to fifty speech files', async () => {
   assert.ok(deleted.every((uri) => uri.includes('/speech-')));
 });
 
-test('timing-driven mouth state closes for idle, punctuation, and pauses', () => {
+test('timing-driven mouth state closes for idle and meaningful pauses', () => {
   const motion = load('services/avatarSpeechMotion.ts', {});
   const alignment = {
     characters: ['H', 'i', '.', 'N'],
@@ -183,7 +183,8 @@ test('timing-driven mouth state closes for idle, punctuation, and pauses', () =>
   };
   assert.equal(motion.deriveAvatarMouthState({ phase: 'idle', playbackSeconds: 0.05, alignment }), 'closed');
   assert.notEqual(motion.deriveAvatarMouthState({ phase: 'playing', playbackSeconds: 0.05, alignment }), 'closed');
-  assert.equal(motion.deriveAvatarMouthState({ phase: 'playing', playbackSeconds: 0.22, alignment }), 'closed');
+  // Short punctuation gaps are merged into surrounding speech; the authoritative pause is the 350 ms gap.
+  assert.notEqual(motion.deriveAvatarMouthState({ phase: 'playing', playbackSeconds: 0.22, alignment }), 'closed');
   assert.equal(motion.deriveAvatarMouthState({ phase: 'playing', playbackSeconds: 0.4, alignment }), 'closed');
   assert.notEqual(motion.deriveAvatarMouthState({ phase: 'playing', playbackSeconds: 0.65, alignment }), 'closed');
 });

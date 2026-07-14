@@ -69,17 +69,46 @@ test('abstract avatars are silent and approved portraits have explicit profiles'
   });
 });
 
-test('current static portraits have no fake mouth-overlay configuration', () => {
-  assert.equal(STYLIST_SPEECH_CONFIG_BY_ID.size, 0);
+test('priority portraits have explicit mouth-state configuration and fallback wiring', () => {
+  assert.equal(STYLIST_SPEECH_CONFIG_BY_ID.size, 3);
+  const regionY = new Set();
   for (const id of ['stylist_portrait_02', 'stylist_portrait_05', 'stylist_portrait_08']) {
-    assert.equal(STYLIST_SPEECH_CONFIG_BY_ID.has(id), false);
+    const config = STYLIST_SPEECH_CONFIG_BY_ID.get(id);
+    assert.ok(config, `${id} must have speech config`);
+    assert.equal(config.speakingMotionMode, 'mouth_states');
+    assert.ok(config.mouthRegion);
+    assert.ok(config.mouthRegion.y < 0.6, `${id} crop must cover the mouth, not the chin`);
+    regionY.add(config.mouthRegion.y);
+    assert.ok(config.mouthStateSources);
+    assert.equal(typeof config.mouthStateSources.closed, 'number');
+    assert.equal(typeof config.mouthStateSources.halfOpen, 'number');
+    assert.equal(typeof config.mouthStateSources.open, 'number');
   }
+  assert.equal(regionY.size, 3, 'priority portraits require individually calibrated crops');
   const source = fs.readFileSync(
     path.join(ROOT, 'components', 'stylist', 'AnimatedStylistAvatar.tsx'),
     'utf8',
   );
   assert.doesNotMatch(source, /mouth_overlay|scaleY|translateY/);
   assert.match(source, /mouthStateSources/);
+  assert.match(source, /resolveMouthStateSource/);
+  assert.doesNotMatch(source, /portraitPreset\.source/);
+  assert.match(source, /<StylistAvatar[\s\S]*<MouthStateLayer/);
+  assert.match(source, /importantForAccessibility="no-hide-descendants"/);
+  assert.match(source, /resizeMethod="resize"/);
+});
+
+test('priority mouth-state asset manifest contains static square PNG frames', () => {
+  const animatedDir = path.join(ROOT, 'assets', 'stylist-avatars', 'portraits', 'animated');
+  for (const stylist of ['02', '05', '08']) {
+    for (const state of ['closed', 'half_open', 'open']) {
+      const filename = path.join(animatedDir, `avatar_stylist_${stylist}_mouth_${state}.png`);
+      const bytes = fs.readFileSync(filename);
+      assert.deepEqual([...bytes.subarray(1, 4)], [0x50, 0x4e, 0x47]);
+      assert.equal(bytes.readUInt32BE(16), 1024);
+      assert.equal(bytes.readUInt32BE(20), 1024);
+    }
+  }
 });
 
 test('buildStylistGreeting preserves the accepted personalized and fallback copy', () => {
