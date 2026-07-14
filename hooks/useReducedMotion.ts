@@ -1,7 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
-let reducedMotion = false;
+// Keep motion disabled until the asynchronous native preference is known so a
+// Reduce Motion user never sees an animated first frame during hydration.
+let reducedMotion = true;
 const listeners = new Set<() => void>();
 let subscription: ReturnType<typeof AccessibilityInfo.addEventListener> | null = null;
 
@@ -38,7 +40,7 @@ function getSnapshot(): boolean {
 }
 
 function getServerSnapshot(): boolean {
-  return false;
+  return true;
 }
 
 /**

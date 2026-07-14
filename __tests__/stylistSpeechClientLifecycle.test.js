@@ -258,6 +258,28 @@ test('terminal native playback failures release the player and close speech once
   }
 });
 
+test('assistive settings fail closed before native hydration resolves', () => {
+  const react = {
+    useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
+  };
+  const accessibilityInfo = {
+    addEventListener: () => ({ remove: () => {} }),
+    isScreenReaderEnabled: () => new Promise(() => {}),
+    isReduceMotionEnabled: () => new Promise(() => {}),
+  };
+  const screenReader = load('hooks/useScreenReaderEnabled.ts', {
+    react,
+    'react-native': { AccessibilityInfo: accessibilityInfo },
+  });
+  const reducedMotion = load('hooks/useReducedMotion.ts', {
+    react,
+    'react-native': { AccessibilityInfo: accessibilityInfo },
+  });
+
+  assert.equal(screenReader.useScreenReaderEnabled(), true);
+  assert.equal(reducedMotion.useReducedMotion(), true);
+});
+
 test('voice preference defaults off and fails closed during actor switches', async () => {
   const values = new Map([['@kscan/stylist-voice/v1/hash-actor-a', 'on']]);
   const preference = load('stores/stylistVoicePreferenceStore.ts', {

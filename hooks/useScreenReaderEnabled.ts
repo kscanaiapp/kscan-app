@@ -1,7 +1,10 @@
 import { useSyncExternalStore } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
-let screenReaderEnabled = false;
+// Fail closed until the asynchronous native query resolves. Otherwise an
+// enabled voice preference can start automatic speech during the first-render
+// window before a running screen reader has been detected.
+let screenReaderEnabled = true;
 const listeners = new Set<() => void>();
 let subscription: ReturnType<typeof AccessibilityInfo.addEventListener> | null = null;
 
@@ -38,7 +41,7 @@ function getSnapshot(): boolean {
 }
 
 function getServerSnapshot(): boolean {
-  return false;
+  return true;
 }
 
 /**
