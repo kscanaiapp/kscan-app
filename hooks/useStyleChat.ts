@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { EdgeStyleChatProvider } from '../services/style-chat/providers/edgeStyleChatProvider';
 import {
   getStyleChatSession,
@@ -19,6 +19,17 @@ import {
 } from '../types/styleChatAttachments';
 import { createStyleChatRetryState } from '../services/style-chat/styleChatRetryState';
 import { classifyStyleChatOperationalFailure } from '../services/style-chat/styleChatOutcome';
+import { useAuthSession } from '../contexts/AuthSessionContext';
+import { useStylistIdentity } from './useStylistIdentity';
+import { useScreenReaderEnabled } from './useScreenReaderEnabled';
+import { getStylistSpeechConfig } from '../constants/stylistIdentity';
+import { speakAvatarText, stopAvatarSpeechPlayback } from '../services/avatarSpeech';
+import {
+  ensureSessionGreeting,
+  getGreetingTextForUser,
+  isSessionGreeted,
+  markSessionGreeted,
+} from '../services/style-chat/styleChatGreeting';
 
 export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
   "Closet-aware messaging isn't available yet. Your attachments are still here.";
@@ -100,6 +111,25 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
 
+  // Identity and greeting state for the automatic session entry greeting.
+  const { user } = useAuthSession();
+  const { identity, isLoading: identityLoading } = useStylistIdentity();
+  const actorKey = user?.id ?? 'guest';
+  const screenReaderEnabled = useScreenReaderEnabled();
+  const greetingText = useMemo(
+    () => getGreetingTextForUser(user, identity),
+    [user, identity],
+  );
+  const speechConfig = useMemo(
+    () => getStylistSpeechConfig(identity.avatarId),
+    [identity.avatarId],
+  );
+  const canSpeakGreeting = useMemo(() => {
+    if (screenReaderEnabled) return false;
+    if (!speechConfig || speechConfig.speechEnabled !== true) return false;
+    return speechConfig.voiceProfile != null;
+  }, [screenReaderEnabled, speechConfig]);
+
   useEffect(() => {
     retryStateRef.current?.clear();
   }, [sessionId]);
@@ -153,6 +183,69 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     };
   }, [sessionId]);
 
+  // Insert a single persisted greeting into brand-new sessions and speak it once
+  // when an approved voice is configured. Durable dedupe is provided by the
+  // greeting uiBlocks marker; in-flight dedupe is provided by the service.
+  useEffect(() => {
+    if (!sessionId || loadingSession || loadingMessages || identityLoading) return;
+    if (messages.length > 0) return;
+    if (isSessionGreeted(sessionId)) return;
+
+    let cancelled = false;
+
+    async function insertGreeting() {
+      try {
+        const saved = await ensureSessionGreeting(sessionId, greetingText);
+        if (cancelled) return;
+
+        markSessionGreeted(sessionId);
+
+        if (saved) {
+          setMessages((prev) =>
+            prev.some((m) => m.id === saved.id) ? prev : [...prev, saved],
+          );
+
+          if (canSpeakGreeting && speechConfig?.voiceProfile) {
+            void speakAvatarText({
+              text: saved.content,
+              actorKey,
+              avatarId: identity.avatarId,
+              utteranceKey: `greeting:${sessionId}:${Date.now()}`,
+              source: 'greeting',
+              voiceProfile: speechConfig.voiceProfile,
+            });
+          }
+        }
+      } catch (err: unknown) {
+        if (!cancelled) setError(getFriendlyStyleChatError(err));
+      }
+    }
+
+    void insertGreeting();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    sessionId,
+    loadingSession,
+    loadingMessages,
+    identityLoading,
+    messages.length,
+    greetingText,
+    canSpeakGreeting,
+    actorKey,
+    identity.avatarId,
+    speechConfig,
+  ]);
+
+  // Stop any active avatar speech when leaving this session or switching actors.
+  useEffect(() => {
+    return () => {
+      void stopAvatarSpeechPlayback();
+    };
+  }, [sessionId, actorKey]);
+
   const canSend = Boolean(sessionId) && messagesUsed < messagesLimit && !isSending;
 
   const sendMessage = useCallback(
@@ -178,6 +271,23 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       }
       isSendingRef.current = true;
       retryStateRef.current?.clear();
+
+      // For the very first message in a new session, make sure the assistant
+      // greeting is persisted before the user message so the conversation
+      // ordering is always correct.
+      if (messages.length === 0) {
+        try {
+          const greetingMessage = await ensureSessionGreeting(sessionId, greetingText);
+          markSessionGreeted(sessionId);
+          if (greetingMessage) {
+            setMessages((prev) =>
+              prev.some((m) => m.id === greetingMessage.id) ? prev : [...prev, greetingMessage],
+            );
+          }
+        } catch {
+          // Non-fatal: proceed without the greeting if persistence is unavailable.
+        }
+      }
 
       // Attachment-bearing sends defer user-message persistence until the
       // backend acknowledges the v2 contract: an unsupported/rejected outcome
@@ -415,7 +525,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         setIsSending(false);
       }
     },
-    [sessionId, messagesUsed, messagesLimit],
+    [sessionId, messagesUsed, messagesLimit, greetingText, messages],
   );
 
   const retryLastMessage = useCallback(() => {

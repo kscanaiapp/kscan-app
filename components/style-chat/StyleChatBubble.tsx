@@ -136,9 +136,12 @@ export function StyleChatBubble({
 
   // Style DNA Phase 0: local feedback only on completed assistant messages with a
   // stable persisted id, and only when we have an authenticated user key.
+  const isGreeting = !isUser && uiBlocks.some((block) => block?.type === 'greeting');
+
   const showFeedback =
     STYLE_DNA_ENABLED &&
     !isSyntheticFailure &&
+    !isGreeting &&
     isStablePersistedId(message.id) &&
     isEligibleForStyleFeedback({ message, userKey, isError });
 
@@ -214,6 +217,10 @@ export function StyleChatBubble({
             {uiBlocks.map((block, i) => {
               // Phase 2: validated structured actions render as app-controlled
               // action cards, never as raw JSON or generic blocks.
+              if (block?.type === 'greeting') {
+                return null;
+              }
+
               if (block?.type === 'stylechat_actions') {
                 const actions = Array.isArray((block as { actions?: unknown }).actions)
                   ? ((block as unknown as { actions: never[] }).actions)

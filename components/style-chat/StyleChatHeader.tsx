@@ -9,7 +9,8 @@ import { ELISE_IDENTITY } from '../../constants/elise';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { useStylistGreeting } from '../../hooks/useStylistGreeting';
+import { useAvatarSpeechState } from '../../stores/avatarSpeechStore';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -39,8 +40,13 @@ export function useStyleChatHomeBackHandler(bypassRef?: { current: boolean }) {
 export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleChatHeaderProps) {
   const insets = useSafeAreaInsets();
   const { identity } = useStylistIdentity();
+  const { user } = useAuthSession();
   const reducedMotion = useReducedMotion();
-  const { greetingText, isSpeaking, canSpeak } = useStylistGreeting();
+  const speechState = useAvatarSpeechState();
+  const actorKey = user?.id ?? 'guest';
+  const isSpeaking =
+    speechState.actorKey === actorKey &&
+    (speechState.status === 'starting' || speechState.status === 'speaking');
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
@@ -104,9 +110,14 @@ export function StyleChatHeader({ showBadge = true, isThinking = false }: StyleC
           <Text style={styles.stylistName} numberOfLines={1} maxFontSizeMultiplier={1.2}>
             {displayName}
           </Text>
-          <Text style={styles.stylistGreeting} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-            {greetingText}
-          </Text>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Text style={styles.stylistGreeting} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+              {ELISE_IDENTITY.role}
+            </Text>
+          </View>
         </View>
         <View
           style={[

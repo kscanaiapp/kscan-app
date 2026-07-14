@@ -17,6 +17,7 @@ import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useStylePicks } from '../../hooks/useStylePicks';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
+import { createStyleChatSessionLaunchGuard } from '../../services/style-chat/sessionLaunchGuard';
 import type { StylePick } from '../../types/stylePicks';
 import {
   LuxuryScreen,
@@ -109,11 +110,19 @@ export default function HomeLuxuryTechV1() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
   const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
-  const { sessions: styleChatSessions, loading: sessionsLoading } = useStyleChatSessions();
+  const { sessions: styleChatSessions, loading: sessionsLoading, createSession } =
+    useStyleChatSessions();
 
   const [personalizeVisible, setPersonalizeVisible] = useState(false);
   const [textScanNavigating, setTextScanNavigating] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
   const textScanNavigationInFlightRef = useRef(false);
+  const sessionLaunchGuardRef = useRef<ReturnType<
+    typeof createStyleChatSessionLaunchGuard
+  > | null>(null);
+  if (!sessionLaunchGuardRef.current) {
+    sessionLaunchGuardRef.current = createStyleChatSessionLaunchGuard();
+  }
 
   const textScanEnabled =
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
@@ -134,9 +143,29 @@ export default function HomeLuxuryTechV1() {
     router.push('/style-chat');
   }, []);
 
-  const handleStartConversation = useCallback(() => {
-    router.push('/style-chat');
-  }, []);
+  const handleStartConversation = useCallback(async () => {
+    const guard = sessionLaunchGuardRef.current;
+    if (!guard?.tryBegin()) return;
+    setIsCreatingSession(true);
+    try {
+      let sessionId = guard.getPendingSessionId();
+      if (!sessionId) {
+        const session = await createSession();
+        if (!session?.id) {
+          guard.releaseForRetry();
+          return;
+        }
+        sessionId = session.id;
+        guard.rememberSession(sessionId);
+      }
+      router.push(`/style-chat/${sessionId}`);
+    } catch (err: unknown) {
+      guard.releaseForRetry();
+      console.error('Start conversation failed', err);
+    } finally {
+      setIsCreatingSession(false);
+    }
+  }, [createSession]);
 
   const handlePersonalize = useCallback(() => {
     setPersonalizeVisible(true);
@@ -262,6 +291,7 @@ export default function HomeLuxuryTechV1() {
           onStartConversation={handleStartConversation}
           onOpenConversations={handleOpenStyleChat}
           onPersonalize={handlePersonalize}
+          disabled={isCreatingSession}
         />
       )}
 

@@ -24,13 +24,16 @@ The Android debug APK builds cleanly, the app launches, and the full test suite 
 - **Identity source of truth preserved:** `useStylistIdentity` is still the only consumer-facing identity hook. `AnimatedStylistAvatar`, greeting, and speech services read the selected identity from it.
 - **Speech metadata added as an extension:** `STYLIST_SPEECH_CONFIG_BY_ID` maps optional speech config onto existing preset IDs without changing the discriminated union or persistence allowlist.
 - **Animated avatar wrapper:** `components/stylist/AnimatedStylistAvatar.tsx` adds `idle | thinking | speaking | static` states and a mouth-overlay lip-movement implementation for configured portraits.
-- **Greeting lifecycle:** `services/stylistGreeting.ts` + `services/userFirstName.ts` build a safe, screen-reader-aware greeting from trustworthy auth metadata only.
+- **Greeting lifecycle:** `services/stylistGreeting.ts` + `services/userFirstName.ts` build a safe, screen-reader-aware greeting from trustworthy auth metadata only. The new `services/style-chat/styleChatGreeting.ts` service persists the greeting as the first assistant message in a new StyleChat session and deduplicates across rerender, remount, refocus, and session-resume via the persisted `uiBlocks` marker.
 - **Actor-safe speech store/service:** `stores/avatarSpeechStore.ts` + `services/avatarSpeech.ts` provide generation-token-based mutex protection, stop-before-speak serialization, and navigation/actor-change cleanup.
 - **Fail-closed voice resolver:** `services/avatarSpeechVoice.ts` requires owner-approved `EXPO_PUBLIC_APPROVED_FEMALE_VOICE_ID` / `EXPO_PUBLIC_APPROVED_MALE_VOICE_ID`; missing config silently disables speech.
 - **Home & StyleChat integration:**
-  - `HomeStylistCard` now wraps the static avatar with `AnimatedStylistAvatar`, shows the greeting, and exposes compact replay/stop/dismiss controls.
-  - `StyleChatHeader` shows the animated avatar, stylist name, greeting, and status dot (idle/thinking/speaking).
-  - `app/style-chat/[sessionId].tsx` passes `isThinking` to the header and stops speech on unmount/actor change.
+  - `HomeStylistCard` now wraps the static avatar with `AnimatedStylistAvatar` and shows the greeting; the replay/stop/dismiss controls have been removed from the customer-facing UI.
+  - Home `Start Chat` creates a new StyleChat session and navigates directly to it.
+  - `useStyleChat` inserts a persisted assistant greeting message when a new session is entered and speaks it once when an approved voice is configured.
+  - `StyleChatHeader` shows the animated avatar, stylist name, a concise identity label, and status dot (idle/thinking/speaking).
+  - `StyleChatBubble` skips rendering the internal `greeting` uiBlocks marker and does not show feedback controls on the greeting bubble.
+  - `app/style-chat/[sessionId].tsx` passes `isThinking` to the header; speech is stopped when the hook unmounts or the actor changes.
 - **Tests:** Added `__tests__/stylistSpeechRecovery.test.js` (19 focused assertions), added `testID`s to `HomeStylistCard` and `PersonalizeStylistModal`, and added Maestro avatar smoke flows under `.maestro/flows/avatar/`.
 
 ---
@@ -56,11 +59,14 @@ b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
 |------|--------|
 | `components/stylist/AnimatedStylistAvatar.tsx` | New animated wrapper with mouth-overlay lip movement |
 | `constants/stylistIdentity.ts` | Added optional `StylistSpeechConfiguration`; preserved all 16 presets |
-| `components/home/HomeStylistCard.tsx` | Integrated animated avatar, greeting, and speech controls; added `testID`s |
+| `components/home/HomeStylistCard.tsx` | Integrated animated avatar and greeting; removed production speech controls |
+| `components/home/HomeLuxuryTechV1.tsx` | Home `Start Chat` now creates a new StyleChat session directly |
+| `hooks/useStyleChat.ts` | Greets new sessions on entry and stops speech on exit/actor change |
+| `components/style-chat/StyleChatBubble.tsx` | Hides internal greeting marker from UI and feedback controls |
 | `components/stylist/PersonalizeStylistModal.tsx` | Added `testID`s to avatar selection buttons for smoke tests |
 | `components/style-chat/StyleChatHeader.tsx` | Integrated animated avatar, greeting, and status dot |
 | `app/style-chat/[sessionId].tsx` | Wired thinking state and speech cleanup |
-| `hooks/useStylistGreeting.ts` | New greeting hook with once-per-process claim guard |
+| `services/style-chat/styleChatGreeting.ts` | New session-scoped greeting persistence and dedupe service |
 | `services/stylistGreeting.ts` | New pure greeting builder |
 | `services/userFirstName.ts` | New trustworthy first-name resolver |
 | `stores/avatarSpeechStore.ts` | New module-level speech state store |
@@ -68,7 +74,8 @@ b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
 | `services/avatarSpeechVoice.ts` | New fail-closed voice resolver |
 | `hooks/useReducedMotion.ts` | New accessibility hook |
 | `hooks/useScreenReaderEnabled.ts` | New accessibility hook |
-| `__tests__/stylistSpeechRecovery.test.js` | New focused recovery tests |
+| `__tests__/stylistSpeechRecovery.test.js` | Updated recovery tests for new component wiring |
+| `__tests__/styleChatSessionGreeting.test.js` | New tests covering session-scoped greeting lifecycle |
 | `.maestro/flows/avatar/*.yaml` | Maestro runtime smoke flows for Home, StyleChat, and onboarding sign-up |
 | `package.json` / `package-lock.json` | Added `expo-speech@14.0.8` and `image-size` dev dependency |
 
@@ -78,9 +85,10 @@ b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
 
 | Check | Command / method | Result |
 |-------|------------------|--------|
-| Focused recovery tests | `node --test __tests__/stylistSpeechRecovery.test.js` | **19/19 pass** |
+| Focused recovery tests | `node --test __tests__/stylistSpeechRecovery.test.js` | **21/21 pass** |
+| Session greeting tests | `node --test __tests__/styleChatSessionGreeting.test.js` | **8/8 pass** |
 | Stylist identity tests | `node --test __tests__/stylistIdentity.test.js` | **38/38 pass** |
-| Full test suite | `node --test __tests__/*.test.js` | **1,246/1,246 pass** |
+| Full test suite | `node --test $(find __tests__ -name '*.test.js')` | **1,261/1,261 pass** |
 | TypeScript | `npx tsc --noEmit` | **OK** |
 | iOS export | `npx expo export --platform ios` | **OK** |
 | Android export | `npx expo export --platform android` | **OK** |
@@ -106,14 +114,14 @@ All runtime smoke tests were executed on `emulator-5554` against the APK built f
 | Smoke | Status | Notes |
 |-------|--------|-------|
 | Onboarding sign-up | **PASS** | New account created; reached Home with `YOUR STYLIST` visible |
-| Authenticated Home avatar card | **PASS** | Greeting rendered; personalization selected `stylist_portrait_02`; replay control visible |
+| Authenticated Home avatar card | **PASS** | Greeting rendered; personalization selected `stylist_portrait_02`; no replay control visible |
 | StyleChat header avatar | **PASS** | Header rendered with portrait avatar, `Elise`, and greeting line |
 | Lip movement visual QA | **PENDING** | Requires a speaking state triggered at runtime; speech is currently silent because no approved voice is configured |
 | Voice playback QA | **PENDING** | No owner-approved voice IDs configured; speech fails closed by design |
 
 ### Observations
 
-- Without approved voice IDs, tapping **Replay** does not produce audio and does not transition the UI to a stop state. This is the intended fail-closed behavior.
+- Without approved voice IDs, the automatic StyleChat greeting does not produce audio and does not show a play/replay button. This is the intended fail-closed behavior.
 - The StyleChat greeting is truncated to one line due to the `Founder Preview` badge; the full greeting is still rendered in `HomeStylistCard`.
 - The existing `.maestro/flows/smoke/critical-path.yaml` expects the app to land on the scan camera on launch. On a fresh install it lands on onboarding, so that flow remains a fixture for an already-onboarded test account.
 
