@@ -12,6 +12,7 @@ import {
   type StylistAvatarPreset,
   type StylistAvatarPresetPortraitReady,
 } from '../../constants/stylistIdentity';
+import type { AvatarMouthState } from '../../services/avatarSpeechMotion';
 import { StylistAvatar } from './StylistAvatar';
 
 export type AnimatedStylistAvatarState = 'idle' | 'thinking' | 'speaking' | 'static';
@@ -20,6 +21,7 @@ export interface AnimatedStylistAvatarProps {
   avatarId?: string;
   size?: number;
   state?: AnimatedStylistAvatarState;
+  mouthState?: AvatarMouthState;
   reducedMotion?: boolean;
   accessibilityLabel?: string;
   style?: ViewStyle;
@@ -53,59 +55,10 @@ function useLoopAnimation(
       ]),
     );
     animation.start();
-    return () => {
-      animation.stop();
-    };
+    return () => animation.stop();
   }, [active, config.duration, config.max, config.min, value]);
 
   return value;
-}
-
-function MouthOverlay({
-  source,
-  size,
-  mouthRegion,
-}: {
-  source: number;
-  size: number;
-  mouthRegion: { x: number; y: number; width: number; height: number };
-}) {
-  const scaleY = useLoopAnimation(true, { min: 0.94, max: 1.0, duration: 240 });
-  const translateY = useLoopAnimation(true, { min: -0.5, max: 0.5, duration: 260 });
-  const opacity = useLoopAnimation(true, { min: 0.92, max: 1.0, duration: 220 });
-
-  const left = mouthRegion.x * size;
-  const top = mouthRegion.y * size;
-  const width = mouthRegion.width * size;
-  const height = mouthRegion.height * size;
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left,
-        top,
-        width,
-        height,
-        overflow: 'hidden',
-        transform: [{ scaleY }, { translateY }],
-        opacity,
-      }}
-    >
-      <Image
-        source={source}
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          left: -left,
-          top: -top,
-        }}
-        resizeMode="cover"
-      />
-    </Animated.View>
-  );
 }
 
 function isReadyPortraitPreset(
@@ -114,10 +67,38 @@ function isReadyPortraitPreset(
   return preset.kind === 'portrait' && preset.availability === 'ready' && 'source' in preset;
 }
 
+function MouthStateLayer({
+  source,
+  size,
+  mouthRegion,
+}: {
+  source: number;
+  size: number;
+  mouthRegion: { x: number; y: number; width: number; height: number };
+}) {
+  const left = mouthRegion.x * size;
+  const top = mouthRegion.y * size;
+  const width = mouthRegion.width * size;
+  const height = mouthRegion.height * size;
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', left, top, width, height, overflow: 'hidden' }}
+    >
+      <Image
+        source={source}
+        style={{ position: 'absolute', width: size, height: size, left: -left, top: -top }}
+        resizeMode="cover"
+      />
+    </View>
+  );
+}
+
 export function AnimatedStylistAvatar({
   avatarId,
   size = DEFAULT_SIZE,
   state = 'idle',
+  mouthState = 'closed',
   reducedMotion = false,
   accessibilityLabel,
   style,
@@ -127,45 +108,29 @@ export function AnimatedStylistAvatar({
     [avatarId],
   );
   const speechConfig = useMemo(() => getStylistSpeechConfig(avatarId), [avatarId]);
-
   const effectiveState = reducedMotion ? 'static' : state;
-  const isSpeaking =
-    effectiveState === 'speaking' &&
-    speechConfig?.speechEnabled === true &&
-    speechConfig.voiceProfile != null;
   const isThinking = effectiveState === 'thinking';
   const isIdle = effectiveState === 'idle';
+  const pulse = useLoopAnimation(isThinking || isIdle, {
+    min: 0.98,
+    max: 1,
+    duration: isThinking ? 1200 : 2800,
+  });
 
-  const pulse = useLoopAnimation(
-    (isSpeaking || isThinking || isIdle),
-    {
-      min: isSpeaking ? 0.985 : 0.98,
-      max: isSpeaking ? 1.015 : 1.0,
-      duration: isSpeaking ? 320 : isThinking ? 1200 : 2800,
-    },
-  );
-
-  const showMouthOverlay =
-    isSpeaking &&
-    preset &&
+  const canRenderMouthStates =
+    effectiveState === 'speaking' &&
+    preset != null &&
     isReadyPortraitPreset(preset) &&
-    speechConfig?.speechEnabled === true &&
-    speechConfig.speakingMotionMode === 'mouth_overlay' &&
-    speechConfig.mouthRegion != null;
+    speechConfig?.speakingMotionMode === 'mouth_states' &&
+    speechConfig.mouthRegion != null &&
+    speechConfig.mouthStateSources != null;
 
-  // For abstract avatars, placeholders, or portraits without approved mouth
-  // configuration, delegate to the existing avatar renderer and add only a
-  // safe whole-face pulse when motion is allowed.
-  const shouldDelegate = !showMouthOverlay;
-
-  if (shouldDelegate) {
+  // Current approved JPEG portraits have no aligned mouth-state assets. They
+  // therefore remain visually neutral during speech; a same-JPEG crop or
+  // whole-face pulse is never presented as lip animation.
+  if (!canRenderMouthStates) {
     return (
-      <Animated.View
-        style={[
-          { transform: [{ scale: pulse }] },
-          style,
-        ]}
-      >
+      <Animated.View style={[{ transform: [{ scale: pulse }] }, style]}>
         <StylistAvatar
           avatarId={avatarId}
           size={size}
@@ -176,19 +141,12 @@ export function AnimatedStylistAvatar({
   }
 
   const portraitPreset = preset as StylistAvatarPresetPortraitReady;
-  const label = accessibilityLabel ?? portraitPreset.accessibilityLabel;
-  const mouthRegion = speechConfig!.mouthRegion!;
-
+  const mouthSources = speechConfig!.mouthStateSources!;
   return (
-    <Animated.View
+    <View
       style={[
         styles.container,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          transform: [{ scale: pulse }],
-        },
+        { width: size, height: size, borderRadius: size / 2 },
         style,
       ]}
     >
@@ -197,22 +155,15 @@ export function AnimatedStylistAvatar({
         style={{ width: size, height: size }}
         resizeMode="cover"
         accessibilityRole="image"
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel ?? portraitPreset.accessibilityLabel}
       />
-      <MouthOverlay
-        source={portraitPreset.source}
+      <MouthStateLayer
+        source={mouthSources[mouthState]}
         size={size}
-        mouthRegion={mouthRegion}
+        mouthRegion={speechConfig!.mouthRegion!}
       />
-      {isThinking ? (
-        <View
-          style={[
-            styles.thinkingRing,
-            { borderRadius: size / 2 },
-          ]}
-        />
-      ) : null}
-    </Animated.View>
+      {isThinking ? <View style={[styles.thinkingRing, { borderRadius: size / 2 }]} /> : null}
+    </View>
   );
 }
 
