@@ -14,6 +14,7 @@ const styleChatHeader = fs.readFileSync(path.join(ROOT, 'components', 'style-cha
 const styleChatSessionList = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatSessionList.tsx'), 'utf8');
 const styleChatSessionScreen = fs.readFileSync(path.join(ROOT, 'app', 'style-chat', '[sessionId].tsx'), 'utf8');
 const styleChatIndex = fs.readFileSync(path.join(ROOT, 'app', 'style-chat', 'index.tsx'), 'utf8');
+const styleChatSessionLaunchGuard = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'sessionLaunchGuard.ts'), 'utf8');
 const styleChatActionCards = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatActionCards.tsx'), 'utf8');
 const styleChatInput = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatInput.tsx'), 'utf8');
 const styleChatAttachmentBar = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatAttachmentBar.tsx'), 'utf8');
@@ -93,8 +94,9 @@ test('session list empty state uses dynamic Elise introduction', () => {
 
 test('new StyleChat session creation retains its guard through navigation', () => {
   assert.match(styleChatIndex, /createStyleChatSessionLaunchGuard\(\)/);
-  assert.match(styleChatIndex, /guard\?\.tryBegin\(\)/);
-  assert.match(styleChatIndex, /guard\.rememberSession\(sessionId\)/);
+  assert.match(styleChatIndex, /launchStyleChatSession\(\{/);
+  assert.match(styleChatSessionLaunchGuard, /if \(!guard\.tryBegin\(\)\) return \{ status: 'ignored' \}/);
+  assert.match(styleChatSessionLaunchGuard, /guard\.rememberSession\(sessionId\)/);
   assert.match(styleChatIndex, /sessionLaunchGuardRef\.current\?\.resetOnFocus\(\)/);
   assert.doesNotMatch(styleChatIndex, /finally\s*\{[^}]*setIsCreating\(false\)/s);
   assert.doesNotMatch(styleChatIndex, /if \(isCreating\) return/);
@@ -259,13 +261,20 @@ test('AI Stylist loading and unavailable states use Elise', () => {
 
 // ── Accessibility ────────────────────────────────────────────────────────────
 
+test('StyleChat composer follows the selected stylist display name', () => {
+  assert.match(styleChatInput, /stylistDisplayName: string/);
+  assert.match(styleChatInput, /`Ask \$\{stylistDisplayName\} about this look/);
+  assert.match(styleChatInput, /`Send message to \$\{stylistDisplayName\}`/);
+  assert.match(styleChatSessionScreen, /stylistDisplayName=\{stylistDisplayName\}/);
+});
+
 test('accessible labels use dynamic Elise language', () => {
-  assert.match(styleChatInput, /ELISE_IDENTITY\.sendAccessibilityLabel/);
   assert.match(styleChatAttachmentBar, /ELISE_IDENTITY\.attachAccessibilityLabel/);
   assert.match(styleChatBubble, /useStylistIdentity\(\)/);
   assert.match(styleChatBubble, /const stylistDisplayName = identity\.displayName/);
-  assert.match(styleChatBubble, /accessibilityLabel=\{stylistDisplayName\}/);
-  assert.match(styleChatBubble, /accessibilityLabel=\{isUser \? 'Your message' : `\$\{stylistDisplayName\} message`\}/);
+  assert.match(styleChatBubble, /importantForAccessibility="no-hide-descendants"/);
+  assert.match(styleChatBubble, /`\$\{stylistDisplayName\}: \$\{content\}`/);
+  assert.match(styleChatBubble, /`\$\{stylistDisplayName\} message: \$\{content\}`/);
 });
 
 // ── Error and prompt constants ───────────────────────────────────────────────

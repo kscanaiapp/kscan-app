@@ -97,7 +97,8 @@ test('runtime polish keeps the status row quiet and the Home Elise CTA readable'
   assert.match(statusRowSource, /minHeight: 36/);
   assert.match(statusRowSource, /borderColor: LUXURY\.colors\.hairline/);
   assert.match(statusRowSource, /backgroundColor: 'transparent'/);
-  assert.match(homeStylistSource, /hasSessions \? 'Continue chat' : 'Start chat'/);
+  assert.match(homeStylistSource, /title="Start Chat"/);
+  assert.doesNotMatch(homeStylistSource, /Continue chat/);
   assert.match(homeStylistSource, /fontSize: 14/);
   assert.match(homeStylistSource, /letterSpacing: 0\.2/);
   assert.match(homeStylistSource, /textTransform: 'none'/);

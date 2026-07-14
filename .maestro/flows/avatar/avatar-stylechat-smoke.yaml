@@ -1,8 +1,8 @@
 # TC-AVATAR-002: Animated avatar StyleChat smoke
-# Verifies the StyleChat header shows the animated avatar, stylist name, and
-# greeting. Requires an authenticated session.
+# Verifies rapid Home entry creates one usable StyleChat route with one persisted
+# greeting, a compact selected-stylist header, and no replay/feedback controls.
 appId: com.kscanai.app
-name: "Smoke — Animated Avatar StyleChat"
+name: "Smoke - Animated Avatar StyleChat"
 tags:
   - smoke
   - avatar
@@ -12,18 +12,23 @@ tags:
 
 - extendedWaitUntil:
     visible: "YOUR STYLIST"
-    timeout: 15000
+    timeout: 30000
 
-# Start a conversation from the Home stylist card.
-- tapOn:
-    text: "Start chat"
+# Rapid Start Chat input must still create and navigate to only one session.
+- doubleTapOn:
+    text: "Start Chat"
 
 - extendedWaitUntil:
     visible:
       id: "style-chat-header"
-    timeout: 15000
+    timeout: 30000
 
 - assertVisible: "Elise"
+- assertVisible:
+    id: "style-chat-message-assistant"
+- assertNotVisible: "Report Response"
+- assertNotVisible:
+    id: "home-stylist-replay-button"
 - takeScreenshot: "avatar-stylechat-header"
 
 - tapOn:

@@ -641,8 +641,8 @@ test('Home stylist card receives identity props and supports personalization', (
   assert.match(homeStylistCard, /minimumFontScale=\{0\.85\}/);
   assert.match(homeStylistCard, /YOUR STYLIST/);
   assert.match(homeStylistCard, /Ask \{displayName\}/);
-  assert.match(homeStylistCard, /START A CONVERSATION/);
-  assert.match(homeStylistCard, /CONTINUE CONVERSATION/);
+  assert.match(homeStylistCard, /title="Start Chat"/);
+  assert.doesNotMatch(homeStylistCard, /Continue chat|CONTINUE CONVERSATION/);
 });
 
 test('Home integrates stylist card, Recent Scans tile, and no carousel', () => {
