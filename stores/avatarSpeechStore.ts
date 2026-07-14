@@ -1,21 +1,31 @@
 import { useSyncExternalStore } from 'react';
 
-export type AvatarSpeechStatus =
+export type AvatarSpeechPhase =
   | 'idle'
-  | 'starting'
-  | 'speaking'
+  | 'requesting'
+  | 'ready'
+  | 'playing'
   | 'stopping'
   | 'error';
 
 export type AvatarSpeechSource = 'greeting' | 'message';
 
+export interface AvatarSpeechAlignment {
+  characters: string[];
+  characterStartTimesSeconds: number[];
+  characterEndTimesSeconds: number[];
+}
+
 export interface AvatarSpeechState {
-  status: AvatarSpeechStatus;
-  actorKey: string | null;
+  actorId: string | null;
   sessionId: string | null;
+  messageId: string | null;
+  stylistId: string | null;
   avatarId: string | null;
-  utteranceKey: string | null;
-  generation: number | null;
+  generation: number;
+  phase: AvatarSpeechPhase;
+  playbackSeconds: number;
+  alignment: AvatarSpeechAlignment | null;
   source: AvatarSpeechSource | null;
   error: string | null;
 }
@@ -23,12 +33,15 @@ export interface AvatarSpeechState {
 type Listener = () => void;
 
 export const DEFAULT_AVATAR_SPEECH_STATE: AvatarSpeechState = Object.freeze({
-  status: 'idle',
-  actorKey: null,
+  actorId: null,
   sessionId: null,
+  messageId: null,
+  stylistId: null,
   avatarId: null,
-  utteranceKey: null,
-  generation: null,
+  generation: 0,
+  phase: 'idle',
+  playbackSeconds: 0,
+  alignment: null,
   source: null,
   error: null,
 });
@@ -41,45 +54,40 @@ function emit() {
     try {
       listener();
     } catch {
-      // Store listeners must never corrupt the store.
+      // A subscriber cannot be allowed to corrupt the shared lifecycle state.
     }
   }
 }
 
-function setState(next: Partial<AvatarSpeechState>) {
-  const nextState: AvatarSpeechState = {
-    status: 'status' in next ? next.status! : state.status,
-    actorKey: 'actorKey' in next ? next.actorKey! : state.actorKey,
-    sessionId: 'sessionId' in next ? next.sessionId! : state.sessionId,
-    avatarId: 'avatarId' in next ? next.avatarId! : state.avatarId,
-    utteranceKey: 'utteranceKey' in next ? next.utteranceKey! : state.utteranceKey,
-    generation: 'generation' in next ? next.generation! : state.generation,
-    source: 'source' in next ? next.source! : state.source,
-    error: 'error' in next ? next.error! : state.error,
-  };
-
+function replaceState(next: AvatarSpeechState) {
   if (
-    nextState.status === state.status &&
-    nextState.actorKey === state.actorKey &&
-    nextState.sessionId === state.sessionId &&
-    nextState.avatarId === state.avatarId &&
-    nextState.utteranceKey === state.utteranceKey &&
-    nextState.generation === state.generation &&
-    nextState.source === state.source &&
-    nextState.error === state.error
-  ) {
-    return;
-  }
+    next.actorId === state.actorId &&
+    next.sessionId === state.sessionId &&
+    next.messageId === state.messageId &&
+    next.stylistId === state.stylistId &&
+    next.avatarId === state.avatarId &&
+    next.generation === state.generation &&
+    next.phase === state.phase &&
+    next.playbackSeconds === state.playbackSeconds &&
+    next.alignment === state.alignment &&
+    next.source === state.source &&
+    next.error === state.error
+  ) return;
 
-  state = Object.freeze(nextState);
+  state = Object.freeze(next);
   emit();
 }
 
-export function getAvatarSpeechState(): AvatarSpeechState {
-  return state;
+function updateCurrentGeneration(
+  generation: number,
+  update: Partial<AvatarSpeechState>,
+): boolean {
+  if (state.generation !== generation || state.phase === 'idle') return false;
+  replaceState({ ...state, ...update });
+  return true;
 }
 
-export function getAvatarSpeechStatusSnapshot(): AvatarSpeechState {
+export function getAvatarSpeechState(): AvatarSpeechState {
   return state;
 }
 
@@ -88,81 +96,96 @@ export function subscribeToAvatarSpeech(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-export function resetAvatarSpeechStore(): void {
-  state = DEFAULT_AVATAR_SPEECH_STATE;
-  emit();
+export function resetAvatarSpeechStore(generation = state.generation): void {
+  replaceState({ ...DEFAULT_AVATAR_SPEECH_STATE, generation });
 }
 
-export function startAvatarSpeech(payload: {
-  actorKey: string;
+export function beginAvatarSpeech(payload: {
+  actorId: string;
   sessionId: string;
+  messageId: string;
+  stylistId: string;
   avatarId: string;
-  utteranceKey: string;
   generation: number;
   source: AvatarSpeechSource;
 }): void {
-  setState({
-    status: 'starting',
-    actorKey: payload.actorKey,
+  replaceState({
+    actorId: payload.actorId,
     sessionId: payload.sessionId,
+    messageId: payload.messageId,
+    stylistId: payload.stylistId,
     avatarId: payload.avatarId,
-    utteranceKey: payload.utteranceKey,
     generation: payload.generation,
+    phase: 'requesting',
+    playbackSeconds: 0,
+    alignment: null,
     source: payload.source,
     error: null,
   });
 }
 
-export function markAvatarSpeechStopping(): void {
-  setState({ status: 'stopping', error: null });
-}
-
-export function markAvatarSpeechSpeaking(): void {
-  setState({ status: 'speaking', error: null });
-}
-
-export function stopAvatarSpeech(): void {
-  setState({
-    status: 'idle',
-    actorKey: null,
-    sessionId: null,
-    avatarId: null,
-    utteranceKey: null,
-    generation: null,
-    source: null,
+export function markAvatarSpeechReady(
+  generation: number,
+  alignment: AvatarSpeechAlignment | null,
+): boolean {
+  return updateCurrentGeneration(generation, {
+    phase: 'ready',
+    playbackSeconds: 0,
+    alignment,
     error: null,
   });
 }
 
-export function setAvatarSpeechError(error: string): void {
-  setState({ status: 'error', error });
+export function markAvatarSpeechPlaying(generation: number): boolean {
+  return updateCurrentGeneration(generation, { phase: 'playing', error: null });
 }
 
-export function resetAvatarSpeechForActor(actorKey: string): void {
-  if (state.actorKey === actorKey) {
-    stopAvatarSpeech();
-  }
+export function updateAvatarSpeechPlayback(
+  generation: number,
+  playbackSeconds: number,
+): boolean {
+  if (!Number.isFinite(playbackSeconds) || playbackSeconds < 0) return false;
+  if (state.generation !== generation || state.phase !== 'playing') return false;
+  const bounded = Math.round(playbackSeconds * 1000) / 1000;
+  if (bounded === state.playbackSeconds) return false;
+  replaceState({ ...state, playbackSeconds: bounded });
+  return true;
 }
 
-export function resetAvatarSpeechForAvatar(avatarId: string): void {
-  if (state.avatarId === avatarId) {
-    stopAvatarSpeech();
-  }
+export function markAvatarSpeechStopping(generation: number): boolean {
+  return updateCurrentGeneration(generation, { phase: 'stopping', error: null });
 }
 
-export function resetAvatarSpeechForSession(sessionId: string): void {
-  if (state.sessionId === sessionId) {
-    stopAvatarSpeech();
-  }
+export function setAvatarSpeechError(generation: number, error: string): boolean {
+  return updateCurrentGeneration(generation, {
+    phase: 'error',
+    playbackSeconds: 0,
+    alignment: null,
+    error,
+  });
 }
 
-/**
- * React hook exposing the global avatar speech state.
- */
+export function finishAvatarSpeech(generation: number): boolean {
+  if (state.generation !== generation) return false;
+  resetAvatarSpeechStore(generation);
+  return true;
+}
+
+export function isAvatarSpeechScopeActive(scope: {
+  actorId: string;
+  sessionId: string;
+  avatarId: string;
+}): boolean {
+  return state.phase !== 'idle' &&
+    state.actorId === scope.actorId &&
+    state.sessionId === scope.sessionId &&
+    state.avatarId === scope.avatarId;
+}
+
 export function useAvatarSpeechState(): AvatarSpeechState {
   return useSyncExternalStore(
     subscribeToAvatarSpeech,
-    getAvatarSpeechStatusSnapshot,
-    getAvatarSpeechStatusSnapshot,
+    getAvatarSpeechState,
+    getAvatarSpeechState,
   );
 }

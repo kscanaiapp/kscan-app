@@ -14,6 +14,7 @@ import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuar
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
+import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSpeechFiles';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -220,6 +221,10 @@ function AuthGate() {
 }
 
 export default function Layout() {
+  useEffect(() => {
+    void cleanupOrphanedStylistSpeechFiles();
+  }, []);
+
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
