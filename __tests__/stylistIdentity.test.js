@@ -773,7 +773,7 @@ test('portrait registry is shared, case-safe, and platform-neutral', () => {
     /const PORTRAIT_PRESET_DEFINITIONS[\s\S]*?\];/,
   )?.[0];
   assert.ok(portraitBlock);
-  assert.doesNotMatch(portraitBlock, /Platform\.|\.android\.|\.ios\.|https?:|file:|\\\\/);
+  assert.doesNotMatch(portraitBlock, /Platform\.|\.android\.|\.ios\.|https?:\/\/|file:\/\/|\\\\/);
   const sourcePaths = [...portraitBlock.matchAll(/require\(['"]([^'"]+\.jpg)['"]\)/g)]
     .map((match) => match[1]);
   assert.equal(sourcePaths.length, 10);

@@ -12,6 +12,7 @@ export const readyPortraitFixture: StylistAvatarPresetPortraitReady = {
   source: 1,
   selectable: true,
   persistable: true,
+  voiceProfile: 'feminine',
 };
 
 // @ts-expect-error A ready portrait requires a static numeric source.
