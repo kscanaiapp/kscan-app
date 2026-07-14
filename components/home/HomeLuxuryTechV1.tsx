@@ -17,6 +17,10 @@ import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useStylePicks } from '../../hooks/useStylePicks';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
+import {
+  createStyleChatSessionLaunchGuard,
+  launchStyleChatSession,
+} from '../../services/style-chat/sessionLaunchGuard';
 import type { StylePick } from '../../types/stylePicks';
 import {
   LuxuryScreen,
@@ -109,11 +113,22 @@ export default function HomeLuxuryTechV1() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
   const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
-  const { sessions: styleChatSessions, loading: sessionsLoading } = useStyleChatSessions();
+  const { createSession } = useStyleChatSessions();
 
   const [personalizeVisible, setPersonalizeVisible] = useState(false);
   const [textScanNavigating, setTextScanNavigating] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [sessionLaunchError, setSessionLaunchError] = useState<string | null>(null);
   const textScanNavigationInFlightRef = useRef(false);
+  const screenActiveRef = useRef(false);
+  const actorIdRef = useRef(user?.id ?? null);
+  actorIdRef.current = user?.id ?? null;
+  const sessionLaunchGuardRef = useRef<ReturnType<
+    typeof createStyleChatSessionLaunchGuard
+  > | null>(null);
+  if (!sessionLaunchGuardRef.current) {
+    sessionLaunchGuardRef.current = createStyleChatSessionLaunchGuard();
+  }
 
   const textScanEnabled =
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
@@ -128,15 +143,35 @@ export default function HomeLuxuryTechV1() {
   const showStylePicks = stylePicksStatus !== 'backend_not_connected' || picks.length > 0;
   const hasStylePicks = picks.length > 0;
 
-  const hasStyleChatSessions = styleChatSessions.length > 0;
-
   const handleOpenStyleChat = useCallback(() => {
     router.push('/style-chat');
   }, []);
 
-  const handleStartConversation = useCallback(() => {
-    router.push('/style-chat');
-  }, []);
+  const handleStartConversation = useCallback(async () => {
+    const guard = sessionLaunchGuardRef.current;
+    if (!guard) return;
+    const launchActorId = actorIdRef.current;
+    if (!launchActorId) {
+      setSessionLaunchError('Sign in to start a styling conversation.');
+      return;
+    }
+    setSessionLaunchError(null);
+    setIsCreatingSession(true);
+    const result = await launchStyleChatSession({
+      guard,
+      createSession,
+      navigate: (sessionId) => router.push(`/style-chat/${sessionId}`),
+      isCurrent: () => screenActiveRef.current && actorIdRef.current === launchActorId,
+    });
+    if (result.status === 'ignored') return;
+    if (result.status === 'failed') {
+      console.error('Start conversation failed', result.error);
+      if (screenActiveRef.current) {
+        setSessionLaunchError("We couldn't start a conversation. Please try again.");
+      }
+    }
+    if (screenActiveRef.current) setIsCreatingSession(false);
+  }, [createSession]);
 
   const handlePersonalize = useCallback(() => {
     setPersonalizeVisible(true);
@@ -163,8 +198,14 @@ export default function HomeLuxuryTechV1() {
 
   useFocusEffect(
     useCallback(() => {
+      screenActiveRef.current = true;
       textScanNavigationInFlightRef.current = false;
       setTextScanNavigating(false);
+      sessionLaunchGuardRef.current?.resetOnFocus();
+      setIsCreatingSession(false);
+      return () => {
+        screenActiveRef.current = false;
+      };
     }, []),
   );
 
@@ -258,10 +299,11 @@ export default function HomeLuxuryTechV1() {
       {styleChatEnabled && (
         <HomeStylistCard
           identity={identity}
-          hasSessions={hasStyleChatSessions}
           onStartConversation={handleStartConversation}
           onOpenConversations={handleOpenStyleChat}
           onPersonalize={handlePersonalize}
+          disabled={isCreatingSession}
+          startError={sessionLaunchError}
         />
       )}
 

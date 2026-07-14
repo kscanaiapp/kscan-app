@@ -11,6 +11,8 @@ export type StylistIdentity = {
   avatarId: string;
 };
 
+export type StylistVoiceProfile = 'feminine' | 'masculine' | 'silent';
+
 // ── Discriminated avatar preset union ─────────────────────────────────────────
 //
 // `kind` separates abstract vector treatments from photorealistic portraits.
@@ -35,6 +37,7 @@ export type StylistAvatarPresetAbstract = {
   source?: never;
   selectable: true;
   persistable: true;
+  voiceProfile: 'silent';
 };
 
 export type StylistAvatarPresetPortraitPlaceholder = {
@@ -45,6 +48,7 @@ export type StylistAvatarPresetPortraitPlaceholder = {
   source?: never;
   selectable: false;
   persistable: false;
+  voiceProfile: 'silent';
 };
 
 export type StylistAvatarPresetPortraitReady = {
@@ -56,6 +60,7 @@ export type StylistAvatarPresetPortraitReady = {
   source: number;
   selectable: true;
   persistable: true;
+  voiceProfile: Exclude<StylistVoiceProfile, 'silent'>;
 };
 
 export type StylistAvatarPreset =
@@ -113,6 +118,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#52103E',
     selectable: true,
     persistable: true,
+    voiceProfile: 'silent',
   },
   {
     id: 'editorial_plum',
@@ -125,6 +131,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#52103E',
     selectable: true,
     persistable: true,
+    voiceProfile: 'silent',
   },
   {
     id: 'chrome_muse',
@@ -137,6 +144,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#5E5650',
     selectable: true,
     persistable: true,
+    voiceProfile: 'silent',
   },
   {
     id: 'deep_space',
@@ -149,6 +157,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#FFFDF9',
     selectable: true,
     persistable: true,
+    voiceProfile: 'silent',
   },
   {
     id: 'cream_gold',
@@ -161,6 +170,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#B08D4B',
     selectable: true,
     persistable: true,
+    voiceProfile: 'silent',
   },
   {
     id: 'obsidian_orchid',
@@ -173,6 +183,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#E7D4A8',
     selectable: true,
     persistable: true,
+    voiceProfile: 'silent',
   },
 ];
 
@@ -190,6 +201,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_01.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'feminine',
   },
   {
     id: 'stylist_portrait_02',
@@ -199,6 +211,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_02.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'masculine',
   },
   {
     id: 'stylist_portrait_03',
@@ -208,6 +221,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_03.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'feminine',
   },
   {
     id: 'stylist_portrait_04',
@@ -217,6 +231,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_04.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'masculine',
   },
   {
     id: 'stylist_portrait_05',
@@ -226,6 +241,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_05.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'feminine',
   },
   {
     id: 'stylist_portrait_06',
@@ -235,6 +251,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_06.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'masculine',
   },
   {
     id: 'stylist_portrait_07',
@@ -244,6 +261,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_07.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'feminine',
   },
   {
     id: 'stylist_portrait_08',
@@ -253,6 +271,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_08.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'masculine',
   },
   {
     id: 'stylist_portrait_09',
@@ -262,6 +281,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_09.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'feminine',
   },
   {
     id: 'stylist_portrait_10',
@@ -271,6 +291,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_10.jpg') : 1,
     selectable: true,
     persistable: true,
+    voiceProfile: 'masculine',
   },
 ];
 
@@ -376,6 +397,75 @@ function createReadonlyMap<K, V>(entries: Iterable<readonly [K, V]>): ReadonlyMa
   return facade;
 }
 
+// ── Optional animation-ready mouth assets ─────────────────────────────────────
+//
+// Voice assignment lives directly on the authoritative preset. Mouth-state
+// assets remain a separate optional capability because the current approved
+// portraits are static JPEGs and must not be distorted to imitate lip sync.
+
+export type StylistSpeechMotionMode = 'mouth_states' | 'none';
+
+export interface StylistSpeechConfiguration {
+  mouthRegion?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  speakingMotionMode?: StylistSpeechMotionMode;
+  mouthStateSources?: {
+    closed: number;
+    halfOpen: number;
+    open: number;
+    round?: number;
+  };
+}
+
+const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
+  // Approved mouth-state assets for priority portrait presets.
+  // Round states are not yet available; the renderer falls back open → halfOpen → closed.
+  [
+    'stylist_portrait_02',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.42, y: 0.49, width: 0.18, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_open.png') : 1,
+      },
+    },
+  ],
+  [
+    'stylist_portrait_05',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.43, y: 0.5, width: 0.16, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_05_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_05_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_05_mouth_open.png') : 1,
+      },
+    },
+  ],
+  [
+    'stylist_portrait_08',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.42, y: 0.45, width: 0.17, height: 0.1 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_08_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_08_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_08_mouth_open.png') : 1,
+      },
+    },
+  ],
+]);
+
+/** Speech configuration keyed by existing avatar preset ID. */
+export const STYLIST_SPEECH_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
+  createReadonlyMap(SPEECH_CONFIG_ENTRIES);
+
 /** Presets that are selectable in the personalization UI. */
 export const STYLIST_SELECTABLE_PRESETS: readonly StylistAvatarPreset[] = Object.freeze(
   STYLIST_AVATAR_PRESETS.filter((p): p is StylistAvatarPreset & { selectable: true } => p.selectable),
@@ -442,6 +532,34 @@ export function assertPersistableAvatarId(id: string): asserts id is string {
 
 export function resolveAvatarId(id: string | null | undefined): string {
   return isPersistableAvatarId(id) ? id! : DEFAULT_STYLIST_IDENTITY.avatarId;
+}
+
+/**
+ * Return the speech configuration for an avatar preset, or `undefined` when
+ * the preset has no approved speech configuration. Missing metadata always
+ * resolves to speech disabled.
+ */
+export function getStylistSpeechConfig(
+  avatarId: string | null | undefined,
+): StylistSpeechConfiguration | undefined {
+  if (!avatarId) return undefined;
+  return STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId);
+}
+
+/**
+ * Determine whether a preset is configured for speaking motion.
+ * Abstract avatars and placeholders always return false.
+ */
+export function isSpeechEnabledAvatar(avatarId: string | null | undefined): boolean {
+  if (!avatarId) return false;
+  return STYLIST_AVATAR_PRESET_BY_ID.get(avatarId)?.voiceProfile !== 'silent';
+}
+
+export function getStylistVoiceProfile(
+  avatarId: string | null | undefined,
+): StylistVoiceProfile {
+  if (!avatarId) return 'silent';
+  return STYLIST_AVATAR_PRESET_BY_ID.get(avatarId)?.voiceProfile ?? 'silent';
 }
 
 /**

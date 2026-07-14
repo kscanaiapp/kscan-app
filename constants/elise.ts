@@ -5,7 +5,7 @@
 
 export const ELISE_IDENTITY = {
   displayName: 'Elise',
-  role: 'AI-powered virtual stylist',
+  role: 'your AI-powered virtual stylist',
   fullRole: 'Elise, your AI-powered virtual stylist',
   introTitle: 'Meet Elise',
   introDescription:
@@ -19,7 +19,7 @@ export const ELISE_IDENTITY = {
   buildOutfitsLabel: 'BUILD OUTFITS WITH ELISE',
   unavailableTitle: "Elise isn't available right now",
   unavailableMessage: 'You can build a Look manually or try again later.',
-  headerAccessibilityLabel: 'Elise, AI-powered virtual stylist',
+  headerAccessibilityLabel: 'Elise, your AI-powered virtual stylist',
   sendAccessibilityLabel: 'Send message to Elise',
   attachAccessibilityLabel: 'Open Elise attachment menu',
   removeAttachmentAccessibilityLabel: 'Remove item before sending to Elise',

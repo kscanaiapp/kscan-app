@@ -1,0 +1,52 @@
+# TC-AVATAR-001: Animated avatar Home smoke
+# Verifies the Home stylist card renders a concise invitation and the personalization
+# flow opens. There is no customer-facing replay/play control; voice playback is
+# automatic in StyleChat only when an owner-approved voice is configured.
+appId: com.kscanai.app
+name: "Smoke - Animated Avatar Home"
+tags:
+  - smoke
+  - avatar
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "YOUR STYLIST"
+    timeout: 30000
+
+- assertVisible: "Ask Elise"
+- assertVisible:
+    id: "home-stylist-invitation"
+- assertVisible: "Start Chat"
+- takeScreenshot: "avatar-home-default"
+
+# Open personalization to select a speech-enabled portrait.
+- tapOn:
+    text: "Personalize"
+
+- extendedWaitUntil:
+    visible: "PERSONALIZE YOUR STYLIST"
+    timeout: 8000
+
+- takeScreenshot: "avatar-personalize-modal"
+
+# stylist_portrait_02 is configured for speech in constants/stylistIdentity.ts.
+- tapOn:
+    id: "personalize-avatar-stylist_portrait_02"
+
+- tapOn:
+    text: "SAVE"
+
+- extendedWaitUntil:
+    visible: "YOUR STYLIST"
+    timeout: 8000
+
+# The production card no longer exposes a replay/play button.
+- assertVisible:
+    id: "home-stylist-card"
+- assertVisible:
+    id: "home-stylist-invitation"
+- assertNotVisible:
+    id: "home-stylist-replay-button"
+- takeScreenshot: "avatar-home-portrait"

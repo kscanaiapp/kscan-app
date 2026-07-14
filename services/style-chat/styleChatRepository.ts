@@ -10,10 +10,13 @@ import type {
 // Mirrors getCurrentSessionUserId() in styleObjects.ts — never trust a
 // user_id from the UI; always derive from the live Supabase session.
 
-async function requireUserId(): Promise<string> {
+async function requireUserId(expectedUserId?: string): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user?.id ?? null;
   if (!id) throw new Error('Sign in to chat with Elise.');
+  if (expectedUserId && id !== expectedUserId) {
+    throw new Error('Authenticated user changed while accessing this conversation.');
+  }
   return id;
 }
 
@@ -148,8 +151,11 @@ export async function createStyleChatSession(input: {
   return toSession(data as SessionRow);
 }
 
-export async function getStyleChatSession(sessionId: string): Promise<StyleChatSession | null> {
-  const userId = await requireUserId();
+export async function getStyleChatSession(
+  sessionId: string,
+  expectedUserId?: string,
+): Promise<StyleChatSession | null> {
+  const userId = await requireUserId(expectedUserId);
 
   const { data, error } = await supabase
     .from('style_chat_sessions')
@@ -173,8 +179,11 @@ async function touchSession(sessionId: string): Promise<void> {
 
 // ── Messages ──────────────────────────────────────────────────────────────────
 
-export async function listStyleChatMessages(sessionId: string): Promise<StyleChatMessage[]> {
-  const userId = await requireUserId();
+export async function listStyleChatMessages(
+  sessionId: string,
+  expectedUserId?: string,
+): Promise<StyleChatMessage[]> {
+  const userId = await requireUserId(expectedUserId);
 
   const { data, error } = await supabase
     .from('style_chat_messages')
@@ -201,8 +210,8 @@ export async function saveStyleChatMessage(input: {
   referencedSavedItemIds?: string[];
   referencedDressingRoomIds?: string[];
   referencedCatalogItems?: string[];
-}): Promise<StyleChatMessage> {
-  const userId = await requireUserId();
+}, expectedUserId?: string): Promise<StyleChatMessage> {
+  const userId = await requireUserId(expectedUserId);
 
   const { data, error } = await supabase
     .from('style_chat_messages')

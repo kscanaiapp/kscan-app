@@ -19,6 +19,7 @@ import {
 } from '../services/authSessionBootstrap';
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import { logError } from '../src/utils/errorLogger';
+import { stopAvatarSpeechPlayback } from '../services/avatarSpeech';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -69,6 +70,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       if (event === 'TOKEN_REFRESHED') {
         setIsRefreshing(false);
       } else {
+        // Any actor boundary invalidates pending generation and native playback
+        // before the new auth state can become visible to app consumers.
+        void stopAvatarSpeechPlayback();
         invalidateAllMemoryCache();
         // Actor change (sign-in / sign-out / user update): drop any composer
         // attachment drafts and un-consumed handoff so this device's local
@@ -164,6 +168,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signOut = useCallback(async () => {
+    await stopAvatarSpeechPlayback();
     invalidateAllMemoryCache();
     resetAttachmentStore();
     setSession(null);

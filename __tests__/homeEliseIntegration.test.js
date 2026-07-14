@@ -196,8 +196,9 @@ test('identity hook hydrates once per authenticated actor', () => {
   assert.match(useStylistIdentity, /resetStylistIdentityStore\(\)/);
 });
 
-test('sessions hook provides continue/start conversation state', () => {
+test('Home sessions hook creates a new conversation without conditional resume copy', () => {
   assert.match(useStyleChatSessions, /listStyleChatSessions/);
-  assert.match(homeV1, /const \{ sessions: styleChatSessions/);
-  assert.match(homeV1, /hasStyleChatSessions = styleChatSessions\.length > 0/);
+  assert.match(homeV1, /const \{ createSession \} = useStyleChatSessions\(\)/);
+  assert.match(homeV1, /launchStyleChatSession/);
+  assert.doesNotMatch(homeV1, /hasStyleChatSessions/);
 });

@@ -136,9 +136,12 @@ export function StyleChatBubble({
 
   // Style DNA Phase 0: local feedback only on completed assistant messages with a
   // stable persisted id, and only when we have an authenticated user key.
+  const isGreeting = !isUser && uiBlocks.some((block) => block?.type === 'greeting');
+
   const showFeedback =
     STYLE_DNA_ENABLED &&
     !isSyntheticFailure &&
+    !isGreeting &&
     isStablePersistedId(message.id) &&
     isEligibleForStyleFeedback({ message, userKey, isError });
 
@@ -148,12 +151,22 @@ export function StyleChatBubble({
       style={[styles.row, safeRowPadding, isUser ? styles.rowUser : styles.rowAssistant]}
     >
       {!isUser ? (
-        <View style={styles.avatarDot} accessibilityLabel={stylistDisplayName} />
+        <View
+          style={styles.avatarDot}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
       ) : null}
       <View
         style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}
         accessibilityRole="text"
-        accessibilityLabel={isUser ? 'Your message' : `${stylistDisplayName} message`}
+        accessibilityLabel={
+          isUser
+            ? `Your message: ${content}`
+            : isGreeting
+              ? `${stylistDisplayName}: ${content}`
+              : `${stylistDisplayName} message: ${content}`
+        }
       >
         {isUser || assistantBlocks.length === 0 ? (
           <Text style={isUser ? styles.textUser : styles.textAssistant}>
@@ -214,6 +227,10 @@ export function StyleChatBubble({
             {uiBlocks.map((block, i) => {
               // Phase 2: validated structured actions render as app-controlled
               // action cards, never as raw JSON or generic blocks.
+              if (block?.type === 'greeting') {
+                return null;
+              }
+
               if (block?.type === 'stylechat_actions') {
                 const actions = Array.isArray((block as { actions?: unknown }).actions)
                   ? ((block as unknown as { actions: never[] }).actions)
@@ -248,7 +265,7 @@ export function StyleChatBubble({
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
         ) : null}
-        {message.sender === 'assistant' && !isSyntheticFailure ? (
+        {message.sender === 'assistant' && !isSyntheticFailure && !isGreeting ? (
           <Pressable
             onPress={() =>
               reportAiOutput('StyleChat', {

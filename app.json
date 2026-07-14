@@ -38,6 +38,13 @@
                                          "isIosBackgroundLocationEnabled":  false,
                                          "isAndroidBackgroundLocationEnabled":  false
                                      }
+                                 ],
+                                 [
+                                     "expo-audio",
+                                     {
+                                         "microphonePermission":  false,
+                                         "recordAudioAndroid":  false
+                                     }
                                  ]
                              ],
                  "android":  {

@@ -16,10 +16,10 @@ function VoiceInputPlaceholder() {
 }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
-import { ELISE_IDENTITY } from '../../constants/elise';
 
 interface StyleChatInputProps {
   onSend: (text: string) => void;
+  stylistDisplayName: string;
   value?: string;
   onChangeText?: (text: string) => void;
   disabled?: boolean;
@@ -27,6 +27,7 @@ interface StyleChatInputProps {
 
 export function StyleChatInput({
   onSend,
+  stylistDisplayName,
   value,
   onChangeText,
   disabled = false,
@@ -69,7 +70,7 @@ export function StyleChatInput({
         style={[styles.input, isLandscape ? styles.inputLandscape : null]}
         value={text}
         onChangeText={handleTextChange}
-        placeholder="Ask Elise about this look, your Closet, or what to wear next"
+        placeholder={`Ask ${stylistDisplayName} about this look, your Closet, or what to wear next`}
         placeholderTextColor={LUXURY.colors.stone}
         selectionColor={LUXURY.colors.gold}
         cursorColor={LUXURY.colors.gold}
@@ -81,7 +82,7 @@ export function StyleChatInput({
         editable={!disabled}
         textAlignVertical="top"
         accessibilityLabel="Message composer"
-        accessibilityHint="Type a styling question for Elise"
+        accessibilityHint={`Type a styling question for ${stylistDisplayName}`}
       />
       <Pressable
         testID="style-chat-send-button"
@@ -92,8 +93,8 @@ export function StyleChatInput({
         ]}
         onPress={handleSend}
         disabled={!canSubmit}
-        accessibilityLabel={ELISE_IDENTITY.sendAccessibilityLabel}
-        accessibilityHint="Send your styling question to Elise"
+        accessibilityLabel={`Send message to ${stylistDisplayName}`}
+        accessibilityHint={`Send your styling question to ${stylistDisplayName}`}
         accessibilityRole="button"
         accessibilityState={{ disabled: !canSubmit, busy: disabled }}
       >
