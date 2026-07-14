@@ -27,6 +27,16 @@ test('remote tester and release profiles target one non-local Supabase project',
   assert.equal(new Set(projectHosts).size, 1);
 });
 
+test('remote tester and release profiles enable canonical scan-identify wiring', () => {
+  for (const profileName of ['development', 'preview', 'production']) {
+    const env = easConfig.build[profileName].env;
+
+    assert.equal(env.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED, 'true', profileName);
+    assert.equal(env.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED, 'true', profileName);
+    assert.equal(env.EXPO_PUBLIC_API_URL, undefined, profileName);
+  }
+});
+
 test('mobile auth scheme and package are shared across build profiles', () => {
   assert.equal(appConfig.scheme, 'kscan');
   assert.equal(appConfig.android.package, 'com.kscanai.app');
