@@ -17,6 +17,9 @@ android/app/.cxx/
 /.gradle-user-home/
 /.idea/
 /.maestro/
+!/.maestro/
+!/.maestro/flows/
+!/.maestro/flows/avatar/
 /maestro/
 
 /KScan-selected-files.zip

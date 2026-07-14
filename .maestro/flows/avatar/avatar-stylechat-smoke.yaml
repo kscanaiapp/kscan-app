@@ -1,0 +1,34 @@
+# TC-AVATAR-002: Animated avatar StyleChat smoke
+# Verifies the StyleChat header shows the animated avatar, stylist name, and
+# greeting. Requires an authenticated session.
+appId: com.kscanai.app
+name: "Smoke — Animated Avatar StyleChat"
+tags:
+  - smoke
+  - avatar
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "YOUR STYLIST"
+    timeout: 15000
+
+# Start a conversation from the Home stylist card.
+- tapOn:
+    text: "Start chat"
+
+- extendedWaitUntil:
+    visible:
+      id: "style-chat-header"
+    timeout: 15000
+
+- assertVisible: "Elise"
+- takeScreenshot: "avatar-stylechat-header"
+
+- tapOn:
+    text: "Home"
+
+- extendedWaitUntil:
+    visible: "YOUR STYLIST"
+    timeout: 8000

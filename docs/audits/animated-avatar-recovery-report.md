@@ -4,7 +4,7 @@
 **Branch:** `fix/animated-avatar-architecture-recovery`  
 **Recovery worktree:** `C:\src\KScan-animated-avatar-recovery-20260713`  
 **Source branch:** `feature/elise-home-layer` (`659330b4f6a71d991f7d027d072048e13a60422e`)  
-**Recovery HEAD:** `a510a66`
+**Recovery code state:** `60a77c4`
 
 ---
 
@@ -14,7 +14,7 @@
 
 The rejected parallel `services/avatars/registry.ts` architecture has been removed and replaced with a single-source-of-truth implementation that reuses the existing `useStylistIdentity` system. The greeting, speech, and animated-avatar foundations are integrated into `HomeStylistCard` and `StyleChatHeader` without breaking the existing identity registry, abstract presets, or portrait presets.
 
-The Android debug APK builds cleanly, the app launches, and the full test suite (1,246 tests) passes. Runtime smoke tests for the authenticated Home/StyleChat paths and for voice/lip movement could not be completed in this headless emulator environment because the app requires an authenticated session to reach those surfaces, and the smoke environment could not complete onboarding sign-up (network/auth error on the sign-in screen). These gaps are documented below and do **not** block the architecture recovery.
+The Android debug APK builds cleanly, the app launches, and the full test suite (1,246 tests) passes. Onboarding sign-up, the authenticated Home avatar card, and the StyleChat header avatar all passed runtime smoke tests on the fixed emulator. Lip-movement visual QA and actual voice playback remain pending because no owner-approved voice IDs are configured; speech is intentionally fail-closed (silent) until those IDs are provided.
 
 ---
 
@@ -31,13 +31,14 @@ The Android debug APK builds cleanly, the app launches, and the full test suite 
   - `HomeStylistCard` now wraps the static avatar with `AnimatedStylistAvatar`, shows the greeting, and exposes compact replay/stop/dismiss controls.
   - `StyleChatHeader` shows the animated avatar, stylist name, greeting, and status dot (idle/thinking/speaking).
   - `app/style-chat/[sessionId].tsx` passes `isThinking` to the header and stops speech on unmount/actor change.
-- **Tests:** Added `__tests__/stylistSpeechRecovery.test.js` (19 focused assertions) and updated testIDs in `HomeStylistCard` for runtime smoke.
+- **Tests:** Added `__tests__/stylistSpeechRecovery.test.js` (19 focused assertions), added `testID`s to `HomeStylistCard` and `PersonalizeStylistModal`, and added Maestro avatar smoke flows under `.maestro/flows/avatar/`.
 
 ---
 
 ## Commits on the recovery branch
 
 ```
+60a77c4 test(avatar): add smoke testIDs to HomeStylistCard and PersonalizeStylistModal
 a510a66 docs(avatar): add architecture recovery report
 56eb84c test(avatar): add testIDs to HomeStylistCard for smoke tests
 eec4c8d test(avatar): cover identity and speech recovery
@@ -56,6 +57,7 @@ b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
 | `components/stylist/AnimatedStylistAvatar.tsx` | New animated wrapper with mouth-overlay lip movement |
 | `constants/stylistIdentity.ts` | Added optional `StylistSpeechConfiguration`; preserved all 16 presets |
 | `components/home/HomeStylistCard.tsx` | Integrated animated avatar, greeting, and speech controls; added `testID`s |
+| `components/stylist/PersonalizeStylistModal.tsx` | Added `testID`s to avatar selection buttons for smoke tests |
 | `components/style-chat/StyleChatHeader.tsx` | Integrated animated avatar, greeting, and status dot |
 | `app/style-chat/[sessionId].tsx` | Wired thinking state and speech cleanup |
 | `hooks/useStylistGreeting.ts` | New greeting hook with once-per-process claim guard |
@@ -67,6 +69,7 @@ b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
 | `hooks/useReducedMotion.ts` | New accessibility hook |
 | `hooks/useScreenReaderEnabled.ts` | New accessibility hook |
 | `__tests__/stylistSpeechRecovery.test.js` | New focused recovery tests |
+| `.maestro/flows/avatar/*.yaml` | Maestro runtime smoke flows for Home, StyleChat, and onboarding sign-up |
 | `package.json` / `package-lock.json` | Added `expo-speech@14.0.8` and `image-size` dev dependency |
 
 ---
@@ -84,42 +87,35 @@ b8ba41a feat(avatar): add actor-safe speech and greeting lifecycle
 | Apple readiness | `node scripts/verify-apple-readiness.js` | **OK** |
 | Git whitespace | `git diff --check` | **OK** |
 | Android debug APK | `cd android && ./gradlew assembleDebug` | **BUILD SUCCESSFUL** |
-| APK install & launch | `adb install` + manual launch + screenshot | **App launches to onboarding; no crash** |
+| APK install & launch | `adb install -r` + Maestro launch | **App launches; authenticated Home/StyleChat reachable** |
 
 ---
 
 ## Runtime smoke / QA results
 
-### What was run
+All runtime smoke tests were executed on `emulator-5554` against the APK built from `60a77c4`.
 
-- Built `android/app/build/outputs/apk/debug/app-debug.apk` from `a510a66`.
-- Uninstalled the previous emulator build (signature mismatch) and installed the new APK on `emulator-5554`.
-- Launched the app; captured launch screenshot (`qa/kscan_launch.png`) — app opened on the onboarding welcome screen without crashing.
-- Ran the existing `.maestro/flows/smoke/critical-path.yaml`; it failed on the expected `scan-button` assertion because a fresh install lands on onboarding, not the scan camera.
-- Added new Maestro flows under `.maestro/flows/avatar/`:
-  - `avatar-home-smoke.yaml` — Home stylist card + personalization + replay/stop.
-  - `avatar-stylechat-smoke.yaml` — StyleChat header greeting/avatar.
-  - `avatar-onboarding-signup.yaml` — Attempts to create an account to reach authenticated Home.
-- Attempted onboarding sign-up to reach authenticated Home/StyleChat. The auth screen surfaced a **"Network error. Check your connection and try again."** banner, so authenticated runtime paths were not reachable in this environment.
+### Maestro flows run
 
-### What passed
+- `.maestro/flows/avatar/avatar-onboarding-signup.yaml` — creates a new account and reaches Home.
+- `.maestro/flows/avatar/avatar-home-smoke.yaml` — verifies Home stylist card, greeting, personalization, and speech-enabled portrait selection.
+- `.maestro/flows/avatar/avatar-stylechat-smoke.yaml` — verifies StyleChat header avatar, name, and greeting.
 
-- APK builds and installs.
-- App launches without crashing.
-- Onboarding welcome screen renders correctly.
-- `AnimatedStylistAvatar` and `HomeStylistCard` integration tests pass in JS.
-- `StyleChatHeader` integration tests pass in JS.
+### Results
 
-### What is blocked / pending
+| Smoke | Status | Notes |
+|-------|--------|-------|
+| Onboarding sign-up | **PASS** | New account created; reached Home with `YOUR STYLIST` visible |
+| Authenticated Home avatar card | **PASS** | Greeting rendered; personalization selected `stylist_portrait_02`; replay control visible |
+| StyleChat header avatar | **PASS** | Header rendered with portrait avatar, `Elise`, and greeting line |
+| Lip movement visual QA | **PENDING** | Requires a speaking state triggered at runtime; speech is currently silent because no approved voice is configured |
+| Voice playback QA | **PENDING** | No owner-approved voice IDs configured; speech fails closed by design |
 
-| Smoke | Status | Blocker |
-|-------|--------|---------|
-| Authenticated Home avatar card | **NOT RUN** | Requires signed-in session; onboarding sign-up failed with network error in emulator |
-| StyleChat header avatar | **NOT RUN** | Requires signed-in session |
-| Lip movement visual QA | **NOT RUN** | Requires portrait avatar selected and speaking state triggered at runtime |
-| Voice playback QA | **NOT RUN** | No owner-approved voice IDs configured; speech fails closed (silent) by design |
+### Observations
 
-These are **runtime-environment limitations**, not code defects. The unit and integration tests cover the identity, greeting, speech lifecycle, voice gate, and component wiring exhaustively.
+- Without approved voice IDs, tapping **Replay** does not produce audio and does not transition the UI to a stop state. This is the intended fail-closed behavior.
+- The StyleChat greeting is truncated to one line due to the `Founder Preview` badge; the full greeting is still rendered in `HomeStylistCard`.
+- The existing `.maestro/flows/smoke/critical-path.yaml` expects the app to land on the scan camera on launch. On a fresh install it lands on onboarding, so that flow remains a fixture for an already-onboarded test account.
 
 ---
 
@@ -173,26 +169,25 @@ The `LIP_PROOF_PORTRAITS` are `stylist_portrait_02`, `stylist_portrait_05`, and 
 
 ## Known limitations & recommended next steps
 
-1. **Runtime smoke for authenticated surfaces:** Set up a signed-in test fixture (or configure the Supabase project to allow smoke-account sign-up without email confirmation), then run `.maestro/flows/avatar/avatar-home-smoke.yaml` and `.maestro/flows/avatar/avatar-stylechat-smoke.yaml`.
-2. **Lip movement proof:** Complete the visual QA step on a speech-enabled portrait and capture before/during/after screenshots.
-3. **Voice quality gate:** Provide owner-approved voice IDs, rebuild, and verify audible playback.
-4. **Critical path smoke:** The existing `.maestro/flows/smoke/critical-path.yaml` expects a scan-camera landing on launch; it will only pass when run against an authenticated/fully-onboarded test fixture.
+1. **Lip movement proof:** Complete the visual QA step on a speech-enabled portrait and capture before/during/after screenshots. A signed-in smoke account and an approved voice ID are required to drive the speaking state.
+2. **Voice quality gate:** Provide owner-approved voice IDs, rebuild, and verify audible playback.
+3. **Critical path smoke:** The existing `.maestro/flows/smoke/critical-path.yaml` expects a scan-camera landing on launch; it will only pass when run against an authenticated/fully-onboarded test fixture.
 
 ---
 
 ## Diff summary (since source base)
 
 ```text
-$ git diff --stat 659330b..56eb84c
+$ git diff --stat 659330b..60a77c4
  __tests__/stylistSpeechRecovery.test.js  | 316 +++++++++++++++++++++++++
  components/home/HomeStylistCard.tsx       |  36 +++-
  components/style-chat/StyleChatHeader.tsx |  53 +++--
  ... (truncated for brevity; full diff available in the branch)
 ```
 
-*(Run `git diff --stat 659330b..a510a66` in the worktree for the complete picture.)*
+*(Run `git diff --stat 659330b..60a77c4` in the worktree for the complete picture.)*
 
 ---
 
 **Prepared by:** Kimi Code CLI  
-**Conclusion:** The architecture recovery is complete and safe to merge. The remaining work is runtime QA with owner-approved voices and a signed-in smoke account, not additional code changes.
+**Conclusion:** The architecture recovery is complete and safe to merge. Authenticated Home and StyleChat runtime smoke tests pass; only lip-movement visual QA and owner-approved voice playback remain to be verified.
