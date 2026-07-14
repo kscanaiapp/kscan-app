@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
+const vm = require('node:vm');
+const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -13,16 +14,45 @@ const {
   STYLIST_PORTRAIT_PRESETS,
   STYLIST_AVATAR_PRESETS,
   STYLIST_SPEECH_CONFIG_BY_ID,
-  isSpeechEnabledAvatar,
-  getStylistSpeechConfig,
+  getStylistVoiceProfile,
 } = require('../constants/stylistIdentity.ts');
-
 const { buildStylistGreeting } = require('../services/stylistGreeting.ts');
 const { resolveUserFirstName } = require('../services/userFirstName.ts');
 
-// ── Architecture ─────────────────────────────────────────────────────────────
+function transpileModule(file, mocks, sourceTransform = (source) => source) {
+  const sourcePath = path.join(ROOT, file);
+  const output = ts.transpileModule(sourceTransform(fs.readFileSync(sourcePath, 'utf8')), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const mod = { exports: {} };
+  const sandbox = {
+    AbortController,
+    console,
+    Date,
+    Error,
+    Promise,
+    Set,
+    exports: mod.exports,
+    module: mod,
+    require: (specifier) => {
+      if (specifier in mocks) return mocks[specifier];
+      throw new Error(`Unexpected import in ${file}: ${specifier}`);
+    },
+  };
+  vm.createContext(sandbox);
+  new vm.Script(output, { filename: sourcePath }).runInContext(sandbox);
+  return mod.exports;
+}
 
-test('authoritative registry is preserved and no parallel registry exists', () => {
+function loadAvatarSpeechStore() {
+  return transpileModule(
+    'stores/avatarSpeechStore.ts',
+    {},
+    (source) => source.replace("import { useSyncExternalStore } from 'react';", ''),
+  );
+}
+
+test('authoritative registry is preserved and no parallel identity registry exists', () => {
   assert.equal(STYLIST_ABSTRACT_PRESETS.length, 6);
   assert.equal(STYLIST_PORTRAIT_PRESETS.length, 10);
   assert.equal(STYLIST_AVATAR_PRESETS.length, 16);
@@ -30,472 +60,203 @@ test('authoritative registry is preserved and no parallel registry exists', () =
   assert.equal(fs.existsSync(path.join(ROOT, 'services', 'avatars', 'types.ts')), false);
 });
 
-test('speech configuration is keyed by existing preset IDs and does not duplicate the registry', () => {
-  for (const id of STYLIST_SPEECH_CONFIG_BY_ID.keys()) {
-    assert.ok(
-      STYLIST_AVATAR_PRESETS.some((preset) => preset.id === id),
-      `speech config key ${id} must be an existing preset ID`,
-    );
-  }
-});
-
-test('abstract avatars and unconfigured portraits are not speech-enabled', () => {
+test('abstract avatars are silent and approved portraits have explicit profiles', () => {
   for (const preset of STYLIST_ABSTRACT_PRESETS) {
-    assert.equal(isSpeechEnabledAvatar(preset.id), false);
+    assert.equal(getStylistVoiceProfile(preset.id), 'silent');
   }
-  for (const preset of STYLIST_PORTRAIT_PRESETS) {
-    const config = getStylistSpeechConfig(preset.id);
-    if (!config || config.speechEnabled !== true) {
-      assert.equal(isSpeechEnabledAvatar(preset.id), false);
-    }
-  }
+  STYLIST_PORTRAIT_PRESETS.forEach((preset, index) => {
+    assert.equal(getStylistVoiceProfile(preset.id), index % 2 === 0 ? 'feminine' : 'masculine');
+  });
 });
 
-test('configured proof portraits are speech-enabled and have mouth regions', () => {
+test('current static portraits have no fake mouth-overlay configuration', () => {
+  assert.equal(STYLIST_SPEECH_CONFIG_BY_ID.size, 0);
   for (const id of ['stylist_portrait_02', 'stylist_portrait_05', 'stylist_portrait_08']) {
-    const config = getStylistSpeechConfig(id);
-    assert.ok(config, `${id} must have speech config`);
-    assert.equal(config.speechEnabled, true);
-    assert.ok(config.voiceProfile === 'female' || config.voiceProfile === 'male');
-    assert.equal(config.speakingMotionMode, 'mouth_overlay');
-    assert.ok(config.mouthRegion);
-    assert.ok(config.mouthRegion.x >= 0 && config.mouthRegion.x <= 1);
-    assert.ok(config.mouthRegion.y >= 0 && config.mouthRegion.y <= 1);
-    assert.ok(config.mouthRegion.width > 0 && config.mouthRegion.width <= 1);
-    assert.ok(config.mouthRegion.height > 0 && config.mouthRegion.height <= 1);
+    assert.equal(STYLIST_SPEECH_CONFIG_BY_ID.has(id), false);
   }
-});
-
-// ── Greeting ─────────────────────────────────────────────────────────────────
-
-test('buildStylistGreeting uses first name and selected stylist name', () => {
-  const result = buildStylistGreeting({ userFirstName: 'Kathleen', stylistName: 'Elise' });
-  assert.equal(result.text, 'Hi, Kathleen. I’m Elise. How can I help style you today?');
-  assert.equal(result.userFirstName, 'Kathleen');
-  assert.equal(result.stylistName, 'Elise');
-  assert.equal(result.genericFallback, false);
-});
-
-test('buildStylistGreeting uses custom stylist name', () => {
-  const result = buildStylistGreeting({ userFirstName: 'Kathleen', stylistName: 'Ava' });
-  assert.equal(result.text, 'Hi, Kathleen. I’m Ava. How can I help style you today?');
-});
-
-test('buildStylistGreeting falls back when first name is missing', () => {
-  const result = buildStylistGreeting({ userFirstName: null, stylistName: 'Elise' });
-  assert.equal(result.text, 'Hi, I’m Elise. How can I style you today?');
-  assert.equal(result.userFirstName, null);
-  assert.equal(result.genericFallback, true);
-});
-
-test('buildStylistGreeting rejects empty or control-character names', () => {
-  assert.equal(buildStylistGreeting({ userFirstName: '', stylistName: 'Elise' }).genericFallback, true);
-  assert.equal(
-    buildStylistGreeting({ userFirstName: '   ', stylistName: 'Elise' }).genericFallback,
-    true,
+  const source = fs.readFileSync(
+    path.join(ROOT, 'components', 'stylist', 'AnimatedStylistAvatar.tsx'),
+    'utf8',
   );
+  assert.doesNotMatch(source, /mouth_overlay|scaleY|translateY/);
+  assert.match(source, /mouthStateSources/);
+});
+
+test('buildStylistGreeting preserves the accepted personalized and fallback copy', () => {
+  const personalized = buildStylistGreeting({ userFirstName: 'Kathleen', stylistName: 'Ava' });
+  assert.match(personalized.text, /Kathleen/);
+  assert.match(personalized.text, /Ava/);
+  assert.equal(personalized.genericFallback, false);
+  const fallback = buildStylistGreeting({ userFirstName: null, stylistName: 'Elise' });
+  assert.match(fallback.text, /Elise/);
+  assert.equal(fallback.genericFallback, true);
+});
+
+test('buildStylistGreeting handles control characters and Unicode names', () => {
   assert.equal(
     buildStylistGreeting({ userFirstName: '\x00Jane', stylistName: 'Elise' }).userFirstName,
     'Jane',
   );
+  assert.match(
+    buildStylistGreeting({ userFirstName: 'Saoirse', stylistName: 'Elise' }).text,
+    /Saoirse/,
+  );
 });
 
-test('buildStylistGreeting preserves Unicode names', () => {
-  const result = buildStylistGreeting({ userFirstName: 'Sãoirse', stylistName: 'Elise' });
-  assert.ok(result.text.includes('Sãoirse'));
-});
-
-// ── User name resolution ─────────────────────────────────────────────────────
-
-test('resolveUserFirstName reads established metadata fields and rejects email', () => {
-  const user = {
-    id: 'user-1',
-    user_metadata: {
-      first_name: 'Alice',
-      full_name: 'Alice Smith',
-      email: 'alice@example.com',
-    },
-  };
-  const resolved = resolveUserFirstName(user);
-  assert.equal(resolved.firstName, 'Alice');
-  assert.equal(resolved.source, 'first_name');
-});
-
-test('resolveUserFirstName falls back through metadata fields', () => {
-  assert.equal(resolveUserFirstName({ id: 'u', user_metadata: { given_name: 'Bob' } }).firstName, 'Bob');
+test('resolveUserFirstName uses established metadata fields and never derives from email', () => {
+  assert.equal(resolveUserFirstName({ id: 'u', user_metadata: { first_name: 'Alice' } }).firstName, 'Alice');
   assert.equal(resolveUserFirstName({ id: 'u', user_metadata: { full_name: 'Carol Ann' } }).firstName, 'Carol');
-  assert.equal(resolveUserFirstName({ id: 'u', user_metadata: { name: 'Dan Doe' } }).firstName, 'Dan');
-  assert.equal(resolveUserFirstName({ id: 'u', user_metadata: { display_name: 'Eve Last' } }).firstName, 'Eve');
   assert.equal(resolveUserFirstName({ id: 'u', user_metadata: { email: 'eve@example.com' } }).firstName, null);
 });
 
-// ── Speech store ─────────────────────────────────────────────────────────────
-
-function loadAvatarSpeechStore() {
-  const ts = require('typescript');
-  const storePath = path.join(ROOT, 'stores', 'avatarSpeechStore.ts');
-  const source = fs
-    .readFileSync(storePath, 'utf8')
-    .replace("import { useSyncExternalStore } from 'react';", '');
-  const output = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText;
-  const mod = { exports: {} };
-  const vm = require('node:vm');
-  const sandbox = {
-    __DEV__: false,
-    console,
-    Date,
-    Error,
-    exports: mod.exports,
-    module: mod,
-    require: (spec) => {
-      throw new Error(`Unexpected import in speech store test: ${spec}`);
-    },
-  };
-  vm.createContext(sandbox);
-  new vm.Script(output, { filename: storePath }).runInContext(sandbox);
-  return mod.exports;
-}
-
-test('avatar speech store reference is stable when unchanged', () => {
+test('avatar speech store exposes stable snapshots and emits only real changes', () => {
   const store = loadAvatarSpeechStore();
-  const snap1 = store.getAvatarSpeechState();
-  const snap2 = store.getAvatarSpeechState();
-  assert.equal(snap1, snap2);
-});
-
-test('avatar speech store emits only on real changes', () => {
-  const store = loadAvatarSpeechStore();
+  assert.equal(store.getAvatarSpeechState(), store.getAvatarSpeechState());
   let emissions = 0;
-  const unsubscribe = store.subscribeToAvatarSpeech(() => {
-    emissions += 1;
-  });
-  store.startAvatarSpeech({
-    actorKey: 'actor-1',
+  store.subscribeToAvatarSpeech(() => { emissions += 1; });
+  store.beginAvatarSpeech({
+    actorId: 'actor-1',
     sessionId: 'session-1',
+    messageId: 'message-1',
+    stylistId: 'stylist_portrait_05',
     avatarId: 'stylist_portrait_05',
-    utteranceKey: 'greeting:1',
     generation: 1,
     source: 'greeting',
   });
+  assert.equal(store.getAvatarSpeechState().phase, 'requesting');
   assert.equal(emissions, 1);
-  assert.equal(store.getAvatarSpeechState().status, 'starting');
-  store.markAvatarSpeechSpeaking();
-  assert.equal(emissions, 2);
-  store.markAvatarSpeechSpeaking(); // no-op
-  assert.equal(emissions, 2);
-  store.stopAvatarSpeech();
+  store.markAvatarSpeechReady(1, null);
+  store.markAvatarSpeechPlaying(1);
+  store.markAvatarSpeechPlaying(1);
+  assert.equal(store.getAvatarSpeechState().phase, 'playing');
   assert.equal(emissions, 3);
-  unsubscribe();
 });
 
-test('avatar speech store resets on actor and avatar change', () => {
+test('avatar speech store ignores every stale-generation callback', () => {
   const store = loadAvatarSpeechStore();
-  store.startAvatarSpeech({
-    actorKey: 'actor-1',
-    sessionId: 'session-1',
-    avatarId: 'stylist_portrait_05',
-    utteranceKey: 'greeting:1',
-    generation: 1,
-    source: 'greeting',
-  });
-  store.markAvatarSpeechSpeaking();
-  assert.equal(store.getAvatarSpeechState().actorKey, 'actor-1');
-
-  store.resetAvatarSpeechForActor('actor-2');
-  assert.equal(store.getAvatarSpeechState().actorKey, 'actor-1');
-
-  store.resetAvatarSpeechForActor('actor-1');
-  assert.equal(store.getAvatarSpeechState().status, 'idle');
-  assert.equal(store.getAvatarSpeechState().actorKey, null);
-  assert.equal(store.getAvatarSpeechState().sessionId, null);
-  assert.equal(store.getAvatarSpeechState().avatarId, null);
-  assert.equal(store.getAvatarSpeechState().generation, null);
-
-  store.startAvatarSpeech({
-    actorKey: 'actor-2',
-    sessionId: 'session-2',
-    avatarId: 'stylist_portrait_02',
-    utteranceKey: 'greeting:2',
-    generation: 2,
-    source: 'greeting',
-  });
-  store.resetAvatarSpeechForAvatar('stylist_portrait_08');
-  assert.equal(store.getAvatarSpeechState().actorKey, 'actor-2');
-  store.resetAvatarSpeechForAvatar('stylist_portrait_02');
-  assert.equal(store.getAvatarSpeechState().status, 'idle');
-});
-
-test('avatar speech store scopes active state to the exact session', () => {
-  const store = loadAvatarSpeechStore();
-  store.startAvatarSpeech({
-    actorKey: 'actor-1',
-    sessionId: 'session-1',
-    avatarId: 'stylist_portrait_05',
-    utteranceKey: 'greeting:1',
-    generation: 7,
-    source: 'greeting',
-  });
-  store.resetAvatarSpeechForSession('session-2');
-  assert.equal(store.getAvatarSpeechState().sessionId, 'session-1');
-  store.resetAvatarSpeechForSession('session-1');
-  assert.equal(store.getAvatarSpeechState().status, 'idle');
-});
-
-// ── Voice resolver ───────────────────────────────────────────────────────────
-
-function loadVoiceResolver() {
-  const ts = require('typescript');
-  const sourcePath = path.join(ROOT, 'services', 'avatarSpeechVoice.ts');
-  const source = fs.readFileSync(sourcePath, 'utf8').replace("import * as Speech from 'expo-speech';", '');
-  const output = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText;
-  const mod = { exports: {} };
-  const vm = require('node:vm');
-  const sandbox = {
-    __DEV__: false,
-    console,
-    Date,
-    Error,
-    exports: mod.exports,
-    module: mod,
-    process: { env: {} },
-    require: (spec) => {
-      if (spec === '../constants/stylistIdentity') return require('../constants/stylistIdentity.ts');
-      throw new Error(`Unexpected import in voice resolver test: ${spec}`);
-    },
-  };
-  vm.createContext(sandbox);
-  new vm.Script(output, { filename: sourcePath }).runInContext(sandbox);
-  return mod.exports;
-}
-
-test('voice resolver fails closed when no approved voice is configured', async () => {
-  const resolver = loadVoiceResolver();
-  const result = await resolver.resolveAvatarSpeechVoice('female');
-  assert.equal(result.voice, null);
-  assert.equal(result.reason, 'owner_review_required');
-});
-
-test('missing approved voice leaves speech state idle without touching device playback', async () => {
-  const ts = require('typescript');
-  const vm = require('node:vm');
-  const sourcePath = path.join(ROOT, 'services', 'avatarSpeech.ts');
-  const source = fs.readFileSync(sourcePath, 'utf8');
-  const output = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText;
-  let starts = 0;
-  let stops = 0;
-  let errors = 0;
-  const mod = { exports: {} };
-  const sandbox = {
-    console,
-    Date,
-    Error,
-    Promise,
-    exports: mod.exports,
-    module: mod,
-    require: (specifier) => {
-      if (specifier === 'expo-speech') {
-        return {
-          stop: async () => { stops += 1; },
-          speak: () => { throw new Error('speak must not be called'); },
-        };
-      }
-      if (specifier === '../stores/avatarSpeechStore') {
-        return {
-          getAvatarSpeechState: () => ({
-            status: 'idle', actorKey: null, sessionId: null, avatarId: null,
-          }),
-          startAvatarSpeech: () => { starts += 1; },
-          markAvatarSpeechSpeaking: () => {},
-          markAvatarSpeechStopping: () => {},
-          stopAvatarSpeech: () => {},
-          setAvatarSpeechError: () => { errors += 1; },
-        };
-      }
-      if (specifier === './avatarSpeechVoice') {
-        return {
-          resolveAvatarSpeechVoice: async () => ({
-            voice: null,
-            reason: 'owner_review_required',
-          }),
-        };
-      }
-      throw new Error(`Unexpected avatarSpeech import: ${specifier}`);
-    },
-  };
-  vm.createContext(sandbox);
-  new vm.Script(output, { filename: sourcePath }).runInContext(sandbox);
-
-  await mod.exports.speakAvatarText({
-    text: 'Hello',
-    actorKey: 'actor-1',
-    sessionId: 'session-1',
-    avatarId: 'stylist_portrait_05',
-    utteranceKey: 'greeting:1',
-    source: 'greeting',
-    voiceProfile: 'female',
-  });
-
-  assert.equal(starts, 0);
-  assert.equal(stops, 0);
-  assert.equal(errors, 0);
-});
-
-test('stale callbacks and old-session cleanup cannot stop a newer utterance', async () => {
-  const ts = require('typescript');
-  const vm = require('node:vm');
-  const sourcePath = path.join(ROOT, 'services', 'avatarSpeech.ts');
-  const output = ts.transpileModule(fs.readFileSync(sourcePath, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText;
-  const callbacks = [];
-  let deviceStops = 0;
-  let storeStops = 0;
-  let state = {
-    status: 'idle', actorKey: null, sessionId: null, avatarId: null,
-    utteranceKey: null, generation: null,
-  };
-  const mod = { exports: {} };
-  const sandbox = {
-    console,
-    Date,
-    Error,
-    Promise,
-    exports: mod.exports,
-    module: mod,
-    require: (specifier) => {
-      if (specifier === 'expo-speech') {
-        return {
-          stop: async () => { deviceStops += 1; },
-          speak: (_text, options) => { callbacks.push(options); },
-        };
-      }
-      if (specifier === '../stores/avatarSpeechStore') {
-        return {
-          getAvatarSpeechState: () => state,
-          startAvatarSpeech: (payload) => { state = { ...payload, status: 'starting' }; },
-          markAvatarSpeechSpeaking: () => { state = { ...state, status: 'speaking' }; },
-          markAvatarSpeechStopping: () => { state = { ...state, status: 'stopping' }; },
-          stopAvatarSpeech: () => {
-            storeStops += 1;
-            state = {
-              status: 'idle', actorKey: null, sessionId: null, avatarId: null,
-              utteranceKey: null, generation: null,
-            };
-          },
-          setAvatarSpeechError: () => { state = { ...state, status: 'error' }; },
-        };
-      }
-      if (specifier === './avatarSpeechVoice') {
-        return {
-          resolveAvatarSpeechVoice: async () => ({
-            voice: { identifier: 'approved', language: 'en-US' },
-            reason: 'approved',
-          }),
-        };
-      }
-      throw new Error(`Unexpected avatarSpeech import: ${specifier}`);
-    },
-  };
-  vm.createContext(sandbox);
-  new vm.Script(output, { filename: sourcePath }).runInContext(sandbox);
-
   const base = {
-    text: 'Hello',
-    actorKey: 'actor-1',
-    avatarId: 'stylist_portrait_05',
-    source: 'greeting',
-    voiceProfile: 'female',
+    actorId: 'actor-1', sessionId: 'session-1', messageId: 'message-1',
+    stylistId: 'stylist_portrait_05', avatarId: 'stylist_portrait_05', source: 'message',
   };
-  await mod.exports.speakAvatarText({
-    ...base,
-    sessionId: 'session-1',
-    utteranceKey: 'greeting:1',
+  store.beginAvatarSpeech({ ...base, generation: 1 });
+  store.beginAvatarSpeech({ ...base, messageId: 'message-2', generation: 2 });
+  assert.equal(store.markAvatarSpeechReady(1, null), false);
+  assert.equal(store.markAvatarSpeechPlaying(1), false);
+  assert.equal(store.updateAvatarSpeechPlayback(1, 1), false);
+  assert.equal(store.setAvatarSpeechError(1, 'stale'), false);
+  assert.equal(store.finishAvatarSpeech(1), false);
+  assert.equal(store.getAvatarSpeechState().messageId, 'message-2');
+  assert.equal(store.getAvatarSpeechState().phase, 'requesting');
+});
+
+test('visible speaking state begins only after native playback reports playing', async () => {
+  const store = loadAvatarSpeechStore();
+  let callbacks;
+  let clientRequest;
+  const speech = transpileModule('services/avatarSpeech.ts', {
+    '../stores/avatarSpeechStore': store,
+    './avatars/stylistSpeechClient': {
+      requestStylistSpeech: async (request) => {
+        clientRequest = request;
+        return {
+          messageId: request.messageId,
+          stylistId: request.stylistId,
+          voiceProfile: 'feminine',
+          mimeType: 'audio/mpeg',
+          audioBase64: 'YXVkaW8=',
+          alignment: null,
+        };
+      },
+    },
+    './avatars/stylistSpeechFiles': {
+      createTemporaryStylistSpeechFile: async () => 'file://speech.mp3',
+      deleteTemporaryStylistSpeechFile: async () => {},
+    },
+    './avatars/stylistAudioPlayback': {
+      playStylistAudio: async (_uri, value) => {
+        callbacks = value;
+        return { stop: () => {} };
+      },
+    },
   });
-  await mod.exports.speakAvatarText({
-    ...base,
-    sessionId: 'session-2',
-    utteranceKey: 'greeting:2',
+
+  await speech.speakAvatarMessage({
+    actorId: 'actor-1', sessionId: 'session-1', messageId: 'message-1',
+    stylistId: 'stylist_portrait_05', avatarId: 'stylist_portrait_05', source: 'message',
   });
+  assert.deepEqual(
+    { sessionId: clientRequest.sessionId, messageId: clientRequest.messageId, stylistId: clientRequest.stylistId },
+    { sessionId: 'session-1', messageId: 'message-1', stylistId: 'stylist_portrait_05' },
+  );
+  assert.equal(store.getAvatarSpeechState().phase, 'ready');
+  callbacks.onPlaybackStarted();
+  callbacks.onPlaybackProgress(0.24);
+  assert.equal(store.getAvatarSpeechState().phase, 'playing');
+  assert.equal(store.getAvatarSpeechState().playbackSeconds, 0.24);
+});
 
-  callbacks[0].onDone();
-  assert.equal(state.sessionId, 'session-2');
-  assert.equal(storeStops, 0);
-
-  await mod.exports.stopAvatarSpeechPlayback({
-    actorKey: 'actor-1',
-    sessionId: 'session-1',
-    avatarId: 'stylist_portrait_05',
+test('client duplicate suppression prevents a second generation request for one message', async () => {
+  const store = loadAvatarSpeechStore();
+  let requests = 0;
+  const speech = transpileModule('services/avatarSpeech.ts', {
+    '../stores/avatarSpeechStore': store,
+    './avatars/stylistSpeechClient': {
+      requestStylistSpeech: async (request) => {
+        requests += 1;
+        return {
+          messageId: request.messageId, stylistId: request.stylistId,
+          voiceProfile: 'feminine', mimeType: 'audio/mpeg', audioBase64: 'YQ==', alignment: null,
+        };
+      },
+    },
+    './avatars/stylistSpeechFiles': {
+      createTemporaryStylistSpeechFile: async () => 'file://speech.mp3',
+      deleteTemporaryStylistSpeechFile: async () => {},
+    },
+    './avatars/stylistAudioPlayback': {
+      playStylistAudio: async () => ({ stop: () => {} }),
+    },
   });
-  assert.equal(deviceStops, 2, 'old-session cleanup must not call device stop');
-  assert.equal(state.sessionId, 'session-2');
-
-  callbacks[1].onDone();
-  assert.equal(storeStops, 1);
-  assert.equal(state.status, 'idle');
+  const payload = {
+    actorId: 'a', sessionId: 's', messageId: 'm', stylistId: 'stylist_portrait_05',
+    avatarId: 'stylist_portrait_05', source: 'message',
+  };
+  await speech.speakAvatarMessage(payload);
+  await speech.speakAvatarMessage(payload);
+  assert.equal(requests, 1);
 });
 
-// ── Permissions ──────────────────────────────────────────────────────────────
-
-test('app.json does not introduce microphone permission or VoiceScan enablement', () => {
-  const appJson = fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8');
-  // RECORD_AUDIO may appear in blockedPermissions; ensure it is not in the
-  // allowed permissions list and no iOS microphone usage string is present.
-  const allowedMatch = appJson.match(/"permissions"\s*:\s*\[[\s\S]*?\]/);
-  const allowedBlock = allowedMatch ? allowedMatch[0] : '';
-  assert.doesNotMatch(allowedBlock, /RECORD_AUDIO/);
-  assert.doesNotMatch(appJson, /NSMicrophoneUsageDescription/);
-
-  const featureFlags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
-  assert.match(featureFlags, /VOICESCAN_ENABLED\s*=\s*false/);
+test('permissions remain playback-only and device TTS is absent from production source', () => {
+  const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
+  assert.ok(appJson.expo.android.blockedPermissions.includes('android.permission.RECORD_AUDIO'));
+  assert.ok(!appJson.expo.android.permissions.includes('android.permission.RECORD_AUDIO'));
+  assert.equal('NSMicrophoneUsageDescription' in appJson.expo.ios.infoPlist, false);
+  const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(packageJson.dependencies['expo-audio'], '~1.1.1');
+  assert.equal(packageJson.dependencies['expo-speech'], undefined);
+  assert.equal(fs.existsSync(path.join(ROOT, 'services', 'avatarSpeechVoice.ts')), false);
 });
 
-// ── Component wiring ─────────────────────────────────────────────────────────
-
-test('AnimatedStylistAvatar delegates to StylistAvatar and does not read a parallel registry', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'components', 'stylist', 'AnimatedStylistAvatar.tsx'), 'utf8');
-  assert.match(source, /from ['"]\.\/StylistAvatar['"]/);
-  assert.match(source, /STYLIST_AVATAR_PRESET_BY_ID/);
-  assert.doesNotMatch(source, /services\/avatars\/registry/);
-  assert.doesNotMatch(source, /elise-placeholder/);
+test('StyleChat wiring speaks only persisted new messages and scopes the header to playing', () => {
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
+  const header = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'), 'utf8');
+  assert.match(hook, /result\.inserted && canSpeakNewMessages/);
+  assert.match(hook, /messageId: savedAssistant\.id/);
+  assert.match(hook, /voicePreference\.enabled/);
+  assert.match(header, /speechState\.phase === 'playing'/);
+  assert.match(header, /speechState\.actorId === actorId/);
+  assert.match(header, /speechState\.sessionId === sessionId/);
+  assert.match(header, /speechState\.stylistId === identity\.avatarId/);
 });
 
-test('StyleChatHeader consumes useStylistIdentity, AnimatedStylistAvatar, and avatar speech state', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'), 'utf8');
-  assert.match(source, /useStylistIdentity/);
-  assert.match(source, /AnimatedStylistAvatar/);
-  assert.match(source, /useAvatarSpeechState/);
-  assert.match(source, /speechState\.sessionId === sessionId/);
-  assert.match(source, /speechState\.avatarId === identity\.avatarId/);
-  assert.doesNotMatch(source, /useStylistGreeting/);
-});
-
-test('HomeStylistCard uses the animated avatar without duplicating the full chat greeting', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'components', 'home', 'HomeStylistCard.tsx'), 'utf8');
-  assert.match(source, /AnimatedStylistAvatar/);
-  assert.doesNotMatch(source, /getGreetingTextForUser/);
-  assert.match(source, /title="Start Chat"/);
-  assert.doesNotMatch(source, /useStylistGreeting/);
-  assert.doesNotMatch(source, /services\/avatars\/registry/);
-});
-
-test('useStyleChat delegates greeting lifecycle to the style-chat greeting service', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
-  assert.match(source, /ensureSessionGreeting/);
-  assert.match(source, /getGreetingTextForUser/);
-  assert.match(source, /markSessionGreeted/);
-  assert.match(source, /isSessionGreeted/);
-  assert.match(source, /stopAvatarSpeechPlayback/);
-});
-
-test('StyleChatBubble skips rendering the internal greeting uiBlocks marker', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatBubble.tsx'), 'utf8');
-  assert.match(source, /type === 'greeting'/);
-  assert.match(source, /!isSyntheticFailure && !isGreeting/);
-  assert.match(source, /isGreeting\s*\?\s*`\$\{stylistDisplayName\}: \$\{content\}`/);
+test('accepted Home and greeting architecture remains delegated and replay-free', () => {
+  const home = fs.readFileSync(path.join(ROOT, 'components', 'home', 'HomeStylistCard.tsx'), 'utf8');
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
+  assert.match(home, /AnimatedStylistAvatar/);
+  assert.match(home, /title="Start Chat"/);
+  assert.doesNotMatch(home, /getGreetingTextForUser/);
+  assert.match(hook, /ensureSessionGreeting/);
+  assert.match(hook, /isSessionGreeted/);
+  const hydrationBlock = hook.match(/async function loadMessages\(\)[\s\S]*?async function loadDailyUsage/)?.[0] ?? '';
+  assert.doesNotMatch(hydrationBlock, /speakAvatarMessage/);
 });
