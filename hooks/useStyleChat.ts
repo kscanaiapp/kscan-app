@@ -22,8 +22,9 @@ import { classifyStyleChatOperationalFailure } from '../services/style-chat/styl
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useStylistIdentity } from './useStylistIdentity';
 import { useScreenReaderEnabled } from './useScreenReaderEnabled';
-import { getStylistSpeechConfig } from '../constants/stylistIdentity';
-import { speakAvatarText, stopAvatarSpeechPlayback } from '../services/avatarSpeech';
+import { getStylistVoiceProfile } from '../constants/stylistIdentity';
+import { speakAvatarMessage, stopAvatarSpeechPlayback } from '../services/avatarSpeech';
+import { useVoiceResponsesPreference } from './useVoiceResponsesPreference';
 import {
   ensureSessionGreeting,
   getGreetingTextForUser,
@@ -119,20 +120,21 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const { identity, isLoading: identityLoading } = useStylistIdentity();
   const actorId = user?.id ?? null;
   const screenReaderEnabled = useScreenReaderEnabled();
+  const voicePreference = useVoiceResponsesPreference();
   const [identityReady, setIdentityReady] = useState(!identityLoading);
   const greetingText = useMemo(
     () => getGreetingTextForUser(user, identity),
     [user, identity],
   );
-  const speechConfig = useMemo(
-    () => getStylistSpeechConfig(identity.avatarId),
+  const voiceProfile = useMemo(
+    () => getStylistVoiceProfile(identity.avatarId),
     [identity.avatarId],
   );
-  const canSpeakGreeting = useMemo(() => {
-    if (screenReaderEnabled) return false;
-    if (!speechConfig || speechConfig.speechEnabled !== true) return false;
-    return speechConfig.voiceProfile != null;
-  }, [screenReaderEnabled, speechConfig]);
+  const canSpeakNewMessages =
+    voicePreference.enabled &&
+    !voicePreference.loading &&
+    !screenReaderEnabled &&
+    voiceProfile !== 'silent';
 
   // Identity hydration is normally quick, but an unavailable preferences read
   // must not leave a brand-new conversation empty forever. After a bounded
@@ -231,7 +233,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       session?.id !== sessionId ||
       loadingSession ||
       loadingMessages ||
-      !identityReady
+      !identityReady ||
+      voicePreference.loading
     ) return;
     if (messages.length > 0) return;
     if (isSessionGreeted(actorId, sessionId)) return;
@@ -252,15 +255,14 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
               : [...prev, result.message!],
           );
 
-          if (result.inserted && canSpeakGreeting && speechConfig?.voiceProfile) {
-            void speakAvatarText({
-              text: result.message.content,
-              actorKey: actorId,
+          if (result.inserted && canSpeakNewMessages) {
+            void speakAvatarMessage({
+              actorId,
               sessionId,
+              messageId: result.message.id,
+              stylistId: identity.avatarId,
               avatarId: identity.avatarId,
-              utteranceKey: `greeting:${sessionId}:${Date.now()}`,
               source: 'greeting',
-              voiceProfile: speechConfig.voiceProfile,
             });
           }
         }
@@ -284,16 +286,16 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     identityReady,
     messages.length,
     greetingText,
-    canSpeakGreeting,
+    canSpeakNewMessages,
     identity.avatarId,
-    speechConfig,
+    voicePreference.loading,
   ]);
 
   // Stop any active avatar speech when leaving this session or switching actors.
   useEffect(() => {
     if (!actorId || !sessionId) return;
     const speechScope = {
-      actorKey: actorId,
+      actorId,
       sessionId,
       avatarId: identity.avatarId,
     };
@@ -301,6 +303,13 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       void stopAvatarSpeechPlayback(speechScope);
     };
   }, [sessionId, actorId, identity.avatarId]);
+
+  // Turning voice responses off is an immediate interruption and never causes
+  // an old message to replay if the preference is enabled again later.
+  useEffect(() => {
+    if (!actorId || voicePreference.loading || voicePreference.enabled) return;
+    void stopAvatarSpeechPlayback({ actorId, sessionId, avatarId: identity.avatarId });
+  }, [actorId, sessionId, identity.avatarId, voicePreference.enabled, voicePreference.loading]);
 
   const canSend = Boolean(actorId && sessionId && session?.id === sessionId) &&
     messagesUsed < messagesLimit &&
@@ -330,6 +339,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       }
       isSendingRef.current = true;
       setIsSending(true);
+      void stopAvatarSpeechPlayback({ actorId, sessionId, avatarId: identity.avatarId });
       retryStateRef.current?.clear();
       const sendScopeVersion = sendScopeVersionRef.current;
       const isCurrentSend = () => sendScopeVersionRef.current === sendScopeVersion;
@@ -577,6 +587,17 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           prev.map(m => (m.id === optimisticAssistant.id ? savedAssistant : m)),
         );
 
+        if (canSpeakNewMessages) {
+          void speakAvatarMessage({
+            actorId,
+            sessionId,
+            messageId: savedAssistant.id,
+            stylistId: identity.avatarId,
+            avatarId: identity.avatarId,
+            source: 'message',
+          });
+        }
+
         // 6. Update displayed daily usage from server response.
         setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed + 1));
         setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
@@ -603,7 +624,17 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         }
       }
     },
-    [actorId, session?.id, sessionId, messagesUsed, messagesLimit, greetingText, messages],
+    [
+      actorId,
+      session?.id,
+      sessionId,
+      messagesUsed,
+      messagesLimit,
+      greetingText,
+      messages,
+      identity.avatarId,
+      canSpeakNewMessages,
+    ],
   );
 
   const retryLastMessage = useCallback(() => {

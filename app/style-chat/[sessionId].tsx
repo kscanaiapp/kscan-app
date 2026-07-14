@@ -57,6 +57,7 @@ import {
   getDraftComposerText,
   setDraftComposerText,
 } from '../../services/style-chat/styleChatAttachmentStore';
+import { stopAvatarSpeechPlayback } from '../../services/avatarSpeech';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -98,8 +99,15 @@ export default function StyleChatSessionScreen() {
     (next: string) => {
       setComposerTextState(next);
       setDraftComposerText(stableSessionId, next);
+      if (next.trim().length > 0 && user?.id) {
+        void stopAvatarSpeechPlayback({
+          actorId: user.id,
+          sessionId: stableSessionId,
+          avatarId: identity.avatarId,
+        });
+      }
     },
-    [stableSessionId],
+    [stableSessionId, user?.id, identity.avatarId],
   );
 
   // Consume handoff context on mount and clear it when leaving the session.

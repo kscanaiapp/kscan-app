@@ -11,6 +11,7 @@ import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAvatarSpeechState } from '../../stores/avatarSpeechStore';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { deriveAvatarMouthState } from '../../services/avatarSpeechMotion';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -48,13 +49,21 @@ export function StyleChatHeader({
   const { user } = useAuthSession();
   const reducedMotion = useReducedMotion();
   const speechState = useAvatarSpeechState();
-  const actorKey = user?.id ?? 'guest';
+  const actorId = user?.id ?? null;
   const isSpeaking =
-    Boolean(sessionId) &&
-    speechState.actorKey === actorKey &&
+    Boolean(actorId && sessionId) &&
+    speechState.actorId === actorId &&
     speechState.sessionId === sessionId &&
+    speechState.stylistId === identity.avatarId &&
     speechState.avatarId === identity.avatarId &&
-    (speechState.status === 'starting' || speechState.status === 'speaking');
+    speechState.phase === 'playing';
+  const mouthState = isSpeaking
+    ? deriveAvatarMouthState({
+        phase: speechState.phase,
+        playbackSeconds: speechState.playbackSeconds,
+        alignment: speechState.alignment,
+      })
+    : 'closed';
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
@@ -85,6 +94,7 @@ export function StyleChatHeader({
             avatarId={identity.avatarId}
             size={42}
             state={avatarState}
+            mouthState={mouthState}
             reducedMotion={reducedMotion}
             accessibilityLabel={`${displayName} avatar`}
           />
