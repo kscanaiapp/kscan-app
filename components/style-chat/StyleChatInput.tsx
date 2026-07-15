@@ -22,7 +22,10 @@ interface StyleChatInputProps {
   onSend: (text: string) => void;
   value?: string;
   onChangeText?: (text: string) => void;
+  /** Locks editing (for example while the current message is being sent). */
   disabled?: boolean;
+  /** Keeps the draft editable while temporarily preventing submission. */
+  sendDisabled?: boolean;
 }
 
 export function StyleChatInput({
@@ -30,6 +33,7 @@ export function StyleChatInput({
   value,
   onChangeText,
   disabled = false,
+  sendDisabled = false,
 }: StyleChatInputProps) {
   const [internalText, setInternalText] = useState('');
   const isControlled = typeof value === 'string';
@@ -47,7 +51,7 @@ export function StyleChatInput({
     paddingBottom: composerBottomPadding,
   };
 
-  const canSubmit = text.trim().length > 0 && !disabled;
+  const canSubmit = text.trim().length > 0 && !disabled && !sendDisabled;
 
   const handleTextChange = (next: string) => {
     if (!isControlled) setInternalText(next);

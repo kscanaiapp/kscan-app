@@ -548,8 +548,8 @@ export default function StyleChatSessionScreen() {
             if (!sent) return;
             setComposerText('');
           }}
-          disabled={
-            !canSend ||
+          disabled={!canSend}
+          sendDisabled={
             visualContextProcessing ||
             (visualContextEntries.length > 0 && hasUnsendableEntry) ||
             (attachmentsEnabled &&

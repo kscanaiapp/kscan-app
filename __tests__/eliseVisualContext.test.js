@@ -703,9 +703,18 @@ test('StyleChat session screen integrates the visual context collection tray', (
   assert.doesNotMatch(screen, /const readyEntry\s*=/);
   assert.match(screen, /mode="actions"[\s\S]*?<FlatList/);
   assert.match(screen, /<FlatList[\s\S]*?mode="tray"[\s\S]*?<StyleChatInput/);
+  assert.match(screen, /disabled=\{!canSend\}/);
+  assert.match(screen, /sendDisabled=\{[\s\S]*?hasUnsendableEntry/);
   const bar = read('components/style-chat/EliseVisualContextBar.tsx');
   assert.match(bar, /Pending for next message/);
   assert.match(bar, /mode === 'tray' && count === 0/);
+});
+
+test('pending evidence blocks Send without disabling draft editing', () => {
+  const input = read('components/style-chat/StyleChatInput.tsx');
+  assert.match(input, /sendDisabled\?: boolean/);
+  assert.match(input, /editable=\{!disabled\}/);
+  assert.match(input, /!disabled && !sendDisabled/);
 });
 
 test('Elise upload path wires expo-image-picker with multi-selection and never calls identify', () => {
