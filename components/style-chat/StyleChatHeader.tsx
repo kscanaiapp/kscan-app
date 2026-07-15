@@ -103,7 +103,7 @@ export function StyleChatHeader({
               scanDisabled ? styles.navButtonDisabled : null,
             ]}
           >
-            <Text style={styles.navButtonText} maxFontSizeMultiplier={1.2}>SCAN</Text>
+            <Text style={styles.navButtonText} maxFontSizeMultiplier={1.2}>Scan</Text>
           </Pressable>
         ) : (
           <View style={styles.rightSpacer} />
