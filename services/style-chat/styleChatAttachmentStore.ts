@@ -60,31 +60,40 @@ export function subscribeToAttachmentDrafts(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function getOrCreateDraft(sessionId: string): SessionDraft {
-  let draft = drafts.get(sessionId);
+function compositeKey(sessionId: string, actorKey?: string | null): string {
+  return actorKey ? `${actorKey}:${sessionId}` : sessionId;
+}
+
+function getOrCreateDraft(sessionId: string, actorKey?: string | null): SessionDraft {
+  const k = compositeKey(sessionId, actorKey);
+  let draft = drafts.get(k);
   if (!draft) {
     draft = { attachments: [], composerText: '' };
-    drafts.set(sessionId, draft);
+    drafts.set(k, draft);
   }
   return draft;
 }
 
-export function getDraftAttachments(sessionId: string): DraftAttachment[] {
-  return drafts.get(sessionId)?.attachments ?? EMPTY_ATTACHMENTS;
+export function getDraftAttachments(sessionId: string, actorKey?: string | null): DraftAttachment[] {
+  return drafts.get(compositeKey(sessionId, actorKey))?.attachments ?? EMPTY_ATTACHMENTS;
 }
 
-export function getDraftComposerText(sessionId: string): string {
-  return drafts.get(sessionId)?.composerText ?? '';
+export function getDraftComposerText(sessionId: string, actorKey?: string | null): string {
+  return drafts.get(compositeKey(sessionId, actorKey))?.composerText ?? '';
 }
 
-export function setDraftComposerText(sessionId: string, text: string): void {
-  getOrCreateDraft(sessionId).composerText = text;
+export function setDraftComposerText(sessionId: string, text: string, actorKey?: string | null): void {
+  getOrCreateDraft(sessionId, actorKey).composerText = text;
   // Text changes don't need re-render fan-out; the composer owns its state and
   // this store is its recovery source after remount.
 }
 
-export function upsertDraftAttachment(sessionId: string, attachment: DraftAttachment): void {
-  const draft = getOrCreateDraft(sessionId);
+export function upsertDraftAttachment(
+  sessionId: string,
+  attachment: DraftAttachment,
+  actorKey?: string | null,
+): void {
+  const draft = getOrCreateDraft(sessionId, actorKey);
   const index = draft.attachments.findIndex((entry) => entry.draftId === attachment.draftId);
   if (index >= 0) {
     draft.attachments[index] = attachment;
@@ -106,8 +115,12 @@ export function upsertDraftAttachment(sessionId: string, attachment: DraftAttach
  * and removal deletes the draftId while re-adding mints a fresh draftId, so an
  * obsolete operation can never overwrite the current state through this path.
  */
-export function updateDraftAttachment(sessionId: string, attachment: DraftAttachment): boolean {
-  const draft = drafts.get(sessionId);
+export function updateDraftAttachment(
+  sessionId: string,
+  attachment: DraftAttachment,
+  actorKey?: string | null,
+): boolean {
+  const draft = drafts.get(compositeKey(sessionId, actorKey));
   if (!draft) return false;
   const index = draft.attachments.findIndex((entry) => entry.draftId === attachment.draftId);
   if (index < 0) return false;
@@ -116,16 +129,23 @@ export function updateDraftAttachment(sessionId: string, attachment: DraftAttach
   return true;
 }
 
-export function removeDraftAttachment(sessionId: string, draftId: string): void {
-  const draft = drafts.get(sessionId);
+export function removeDraftAttachment(
+  sessionId: string,
+  draftId: string,
+  actorKey?: string | null,
+): void {
+  const draft = drafts.get(compositeKey(sessionId, actorKey));
   if (!draft) return;
   draft.attachments = draft.attachments.filter((entry) => entry.draftId !== draftId);
   notify();
 }
 
 /** Explicit discard or successful send: clears attachments (and optionally text). */
-export function clearDraftAttachments(sessionId: string, options?: { keepText?: boolean }): void {
-  const draft = drafts.get(sessionId);
+export function clearDraftAttachments(
+  sessionId: string,
+  options?: { keepText?: boolean; actorKey?: string | null },
+): void {
+  const draft = drafts.get(compositeKey(sessionId, options?.actorKey));
   if (!draft) return;
   draft.attachments = [];
   if (!options?.keepText) draft.composerText = '';
@@ -144,11 +164,14 @@ function attachmentKey(ref: StyleChatAttachment): string {
  * never receives the same source id twice. Later draft mutations can never
  * touch an in-flight request.
  */
-export function snapshotReadyAttachments(sessionId: string): {
+export function snapshotReadyAttachments(
+  sessionId: string,
+  actorKey?: string | null,
+): {
   references: StyleChatAttachment[];
   drafts: DraftAttachment[];
 } {
-  const ready = getDraftAttachments(sessionId).filter(
+  const ready = getDraftAttachments(sessionId, actorKey).filter(
     (entry) => entry.state === 'ready' && entry.resolved,
   );
   const seen = new Set<string>();

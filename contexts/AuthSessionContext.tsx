@@ -13,6 +13,7 @@ import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
+import { resetVisualContextStore } from '../services/style-chat/eliseVisualContextStore';
 import {
   createAuthBootstrapGenerationGuard,
   createAuthActorBoundaryGuard,
@@ -55,6 +56,11 @@ const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 function resetActorScopedRuntimeState(): void {
   invalidateAllMemoryCache();
   resetAttachmentStore();
+  // Actor change (sign-in / sign-out / user update): drop any composer
+  // attachment drafts, pending visual context, and un-consumed handoff so
+  // this device's local image URIs and resolved references never cross
+  // between accounts.
+  resetVisualContextStore();
   clearStyleChatHandoffContext();
   resetStyleChatGreetingState();
   resetStylistIdentityStore();
