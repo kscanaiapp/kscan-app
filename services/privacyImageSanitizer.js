@@ -35,5 +35,8 @@ export async function sanitizeImageBeforeUpload(input, options = {}) {
   // Fail closed. A pass-through or metadata-only transform is not sufficient
   // for the app's Zero-Knowledge image boundary and must never be represented
   // as safe for remote transmission.
-  throw new Error(PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE);
+  const error = new Error(PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE);
+  error.name = 'PrivacySanitizerUnavailableError';
+  error.userMessage = PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE;
+  throw error;
 }
