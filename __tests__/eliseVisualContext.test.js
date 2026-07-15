@@ -723,7 +723,8 @@ test('top header presents Home, a truly centered Elise identity, and navigation-
 
   assert.ok(homeIndex >= 0 && homeIndex < titleIndex && titleIndex < scanIndex);
   assert.match(header, /<Text style=\{styles\.navButtonText\}[^>]*>Home<\/Text>/);
-  assert.match(header, /<Text style=\{styles\.navButtonText\}[^>]*>SCAN<\/Text>/);
+  assert.match(header, /<Text style=\{styles\.navButtonText\}[^>]*>Scan<\/Text>/);
+  assert.equal((header.match(/style=\{styles\.navButtonText\}/g) ?? []).length, 2);
   assert.match(header, /titleWrap:\s*\{[\s\S]*?position: 'absolute'[\s\S]*?left: 96[\s\S]*?right: 96/);
   assert.match(header, /navButton:\s*\{[\s\S]*?minHeight: 44[\s\S]*?width: 72/);
   assert.match(header, /accessibilityLabel="Add visual context"/);
