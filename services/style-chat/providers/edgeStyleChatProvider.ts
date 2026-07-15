@@ -84,6 +84,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/** Copy only descriptive fields that are safe to send to StyleChat. */
+export function toServerSafeActiveContext(
+  context: StyleChatHandoffContext,
+): Omit<StyleChatHandoffContext, 'imageUri' | 'textScanId' | 'createdAt'> {
+  const visual = context.visualContext;
+  return {
+    source: context.source,
+    ...(context.query != null ? { query: context.query } : {}),
+    ...(context.category != null ? { category: context.category } : {}),
+    ...(context.color != null ? { color: context.color } : {}),
+    ...(context.silhouette != null ? { silhouette: context.silhouette } : {}),
+    ...(context.material != null ? { material: context.material } : {}),
+    ...(Array.isArray(context.descriptors) ? { descriptors: [...context.descriptors] } : {}),
+    ...(context.analysisText != null ? { analysisText: context.analysisText } : {}),
+    ...(visual
+      ? {
+          visualContext: {
+            source: visual.source,
+            title: visual.title,
+            summary: visual.summary ?? null,
+            category: visual.category ?? null,
+            colors: visual.colors ? [...visual.colors] : null,
+            materials: visual.materials ? [...visual.materials] : null,
+            silhouette: visual.silhouette ?? null,
+            styleAttributes: visual.styleAttributes ? [...visual.styleAttributes] : null,
+            brand: visual.brand ?? null,
+            confidence: visual.confidence ?? null,
+          },
+        }
+      : {}),
+  };
+}
+
 function normalizeStatus(status: unknown): EdgeChatStatus | null {
   return status === 'success'
     || status === 'limit_reached'
@@ -243,7 +276,9 @@ export class EdgeStyleChatProvider {
             : {}),
           // Additive/optional active scan/upload/TextScan context. Sent while the user
           // has a visible context card in StyleChat. Requests without it stay valid.
-          ...(input.activeContext ? { activeContext: input.activeContext } : {}),
+          ...(input.activeContext
+            ? { activeContext: toServerSafeActiveContext(input.activeContext) }
+            : {}),
           // v2 Closet attachments: contractVersion is sent ONLY with attachments so
           // attachment-free requests remain exact v1 shapes.
           ...(hasAttachments
