@@ -53,10 +53,35 @@ const NON_FASHION_MESSAGE =
 
 export type IdentifyScanOptions = {
   source?: 'camera' | 'upload';
-  localPrivacyFiltered?: boolean;
+  /** Evidence produced by the approved on-device pixel sanitizer. */
+  privacyProof?: {
+    sanitizerVersion: string;
+    faceDetectionPerformed: boolean;
+    faceMaskApplied: boolean;
+    plateDetectionPerformed: boolean;
+    plateMaskApplied: boolean;
+    metadataStripped: boolean;
+  };
   /** Optional abort signal for request cancellation. */
   signal?: AbortSignal;
 };
+
+const PRIVACY_PROTECTION_REQUIRED_MESSAGE =
+  'Image analysis is unavailable until on-device privacy masking is ready.';
+
+function hasCompleteLocalPrivacyProof(options: IdentifyScanOptions): boolean {
+  const proof = options.privacyProof;
+  return Boolean(
+    proof &&
+      typeof proof.sanitizerVersion === 'string' &&
+      proof.sanitizerVersion.trim() &&
+      proof.faceDetectionPerformed === true &&
+      proof.faceMaskApplied === true &&
+      proof.plateDetectionPerformed === true &&
+      proof.plateMaskApplied === true &&
+      proof.metadataStripped === true,
+  );
+}
 
 function failed(userMessage = NEUTRAL_FAILED_MESSAGE): ScanIdentifyResponse {
   return { status: 'failed', recommendedProducts: [], userMessage };
@@ -325,10 +350,17 @@ export async function identifyScanImage(
     return failed(SIGN_IN_REQUIRED_MESSAGE);
   }
 
+  // Final client-side remote boundary. UI and sanitizer guards are defense in
+  // depth; no image bytes may reach scan-identify without complete local face
+  // and plate masking evidence.
+  if (!hasCompleteLocalPrivacyProof(options)) {
+    return failed(PRIVACY_PROTECTION_REQUIRED_MESSAGE);
+  }
+
   const requestBody: ScanIdentifyRequest = {
     imageBase64,
     source: options.source === 'upload' ? 'upload' : 'camera',
-    localPrivacyFiltered: options.localPrivacyFiltered ?? false,
+    localPrivacyFiltered: true,
     clientTimestamp: new Date().toISOString(),
   };
 

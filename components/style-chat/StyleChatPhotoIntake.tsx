@@ -147,7 +147,6 @@ export function StyleChatPhotoIntake({
       const identification = prepared.base64
         ? await identifyScanImage(prepared.base64, {
             source: 'upload',
-            localPrivacyFiltered: true,
             signal: abortRef.current?.signal,
           })
         : null;

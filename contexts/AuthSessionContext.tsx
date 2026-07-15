@@ -14,6 +14,7 @@ import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
 import { resetVisualContextStore } from '../services/style-chat/eliseVisualContextStore';
+import { cleanupSanitizedImage } from '../services/privacyImageUpload';
 import {
   createAuthBootstrapGenerationGuard,
   createAuthActorBoundaryGuard,
@@ -60,7 +61,9 @@ function resetActorScopedRuntimeState(): void {
   // attachment drafts, pending visual context, and un-consumed handoff so
   // this device's local image URIs and resolved references never cross
   // between accounts.
-  resetVisualContextStore();
+  for (const uri of resetVisualContextStore()) {
+    void cleanupSanitizedImage(uri);
+  }
   clearStyleChatHandoffContext();
   resetStyleChatGreetingState();
   resetStylistIdentityStore();

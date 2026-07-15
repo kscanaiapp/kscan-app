@@ -14,6 +14,8 @@ interface EliseVisualContextBarProps {
   onRemove: () => void;
   onRetry: () => void;
   disabled?: boolean;
+  uploadDisabled?: boolean;
+  uploadUnavailableReason?: string;
 }
 
 export function EliseVisualContextBar({
@@ -25,6 +27,8 @@ export function EliseVisualContextBar({
   onRemove,
   onRetry,
   disabled = false,
+  uploadDisabled = false,
+  uploadUnavailableReason,
 }: EliseVisualContextBarProps) {
   if (isProcessing || context?.status === 'failed') {
     const label = isProcessing
@@ -115,18 +119,21 @@ export function EliseVisualContextBar({
         </Pressable>
         <Pressable
           onPress={onUpload}
-          disabled={disabled}
+          disabled={disabled || uploadDisabled}
           style={({ pressed }) => [
             styles.smallBtn,
             styles.smallBtnSecondary,
-            pressed && !disabled ? styles.smallBtnPressed : null,
-            disabled ? styles.smallBtnDisabled : null,
+            pressed && !disabled && !uploadDisabled ? styles.smallBtnPressed : null,
+            disabled || uploadDisabled ? styles.smallBtnDisabled : null,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Upload a photo"
-          accessibilityHint="Choose a photo from your library"
+          accessibilityState={{ disabled: disabled || uploadDisabled }}
+          accessibilityLabel={uploadDisabled ? 'Upload unavailable' : 'Upload a photo'}
+          accessibilityHint={uploadDisabled ? uploadUnavailableReason : 'Choose a photo from your library'}
         >
-          <Text style={[styles.smallBtnLabel, styles.smallBtnSecondaryLabel]}>{UPLOAD_LABEL}</Text>
+          <Text style={[styles.smallBtnLabel, styles.smallBtnSecondaryLabel]}>
+            {uploadDisabled ? 'Upload unavailable' : UPLOAD_LABEL}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -168,7 +175,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     backgroundColor: LUXURY.colors.plum,
     minWidth: 64,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   smallBtnSecondary: {
     backgroundColor: 'transparent',
@@ -241,9 +250,9 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.stone,
   },
   removeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
