@@ -1,5 +1,6 @@
 import type {
-  EliseVisualContext,
+  EliseVisualContextEntry,
+  EliseVisualContextPrivacyPolicy,
   EliseVisualContextSource,
   EliseVisualContextStatus,
 } from '../../types/eliseVisualContext';
@@ -23,17 +24,20 @@ export type BuildEliseVisualContextInput = {
   confidence?: number;
   savedScanId?: string;
   sanitizedPreviewUri?: string;
-  privacyPolicy?: EliseVisualContext['privacyPolicy'];
+  rawImageUri?: string;
+  privacyPolicy?: EliseVisualContextEntry['privacyPolicy'];
+  order?: number;
   revision?: number;
 };
 
-export function buildEliseVisualContext(input: BuildEliseVisualContextInput): EliseVisualContext {
+export function buildEliseVisualContext(input: BuildEliseVisualContextInput): EliseVisualContextEntry {
   return {
     id: `elise-vc-${Date.now()}-${++idCounter}`,
     actorKey: input.actorKey,
     sessionId: input.sessionId,
     source: input.source,
     status: input.status,
+    order: input.order ?? 0,
     title: input.title,
     summary: input.summary,
     category: input.category,
@@ -45,6 +49,7 @@ export function buildEliseVisualContext(input: BuildEliseVisualContextInput): El
     confidence: input.confidence,
     savedScanId: input.savedScanId,
     sanitizedPreviewUri: input.sanitizedPreviewUri,
+    rawImageUri: input.rawImageUri,
     privacyPolicy: input.privacyPolicy,
     createdAt: Date.now(),
     revision: input.revision ?? 0,
@@ -52,13 +57,25 @@ export function buildEliseVisualContext(input: BuildEliseVisualContextInput): El
 }
 
 /**
- * Build a ready visual context from a normalized scan-identify response.
+ * Build a ready visual context entry from a normalized scan-identify response.
  * Never fabricates fields: only evidence provided by the response is used.
  */
 export function buildEliseVisualContextFromScanIdentify(
   response: ScanIdentifyResponse,
-  input: Omit<BuildEliseVisualContextInput, 'status' | 'title' | 'summary' | 'category' | 'colors' | 'materials' | 'silhouette' | 'styleAttributes' | 'brand' | 'confidence'>,
-): EliseVisualContext {
+  input: Omit<
+    BuildEliseVisualContextInput,
+    | 'status'
+    | 'title'
+    | 'summary'
+    | 'category'
+    | 'colors'
+    | 'materials'
+    | 'silhouette'
+    | 'styleAttributes'
+    | 'brand'
+    | 'confidence'
+  >,
+): EliseVisualContextEntry {
   const id = response.identification;
   const attr = response.attributes;
 

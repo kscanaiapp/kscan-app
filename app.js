@@ -19,9 +19,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
 import {
+  appendVisualContextEntry,
   consumeVisualContextScanIntent,
   isVisualContextRevisionCurrent,
-  setVisualContext,
 } from './services/style-chat/eliseVisualContextStore';
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
@@ -454,7 +454,7 @@ export default function App() {
       const meta = analysis?.metadata ?? {};
       const source = photo?.source === 'upload' ? 'upload' : 'scan';
 
-      setVisualContext(actorKey, returnToSessionId, buildEliseVisualContext({
+      appendVisualContextEntry(actorKey, returnToSessionId, buildEliseVisualContext({
         actorKey,
         sessionId: returnToSessionId,
         source,

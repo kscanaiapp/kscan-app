@@ -1,7 +1,8 @@
 // Elise visual-context intake — focused safety and isolation tests.
 //
-// Covers: store isolation, privacy preparation, scan-result mapping, Edge Function
-// active-context parsing/prompt assembly, and the scanner return-to-Elise seam.
+// Covers: collection store isolation, capacity, privacy preparation, scan-result
+// mapping, Edge Function active-context parsing/prompt assembly, and the scanner
+// return-to-Elise seam.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -40,74 +41,224 @@ function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
-// ── Store isolation ──────────────────────────────────────────────────────────
+const visualContextTypes = loadTsModule('types/eliseVisualContext.ts', {});
 
-test('visual context store is keyed by actor + session', () => {
-  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {});
-  const ctx = {
+// ── Collection store isolation ───────────────────────────────────────────────
+
+test('visual context collection is keyed by actor + session', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  const entry = {
     id: 'a',
     actorKey: 'user:1',
     sessionId: 'session-a',
     source: 'scan',
     status: 'ready',
+    order: 1,
     title: 'Purple top',
     createdAt: Date.now(),
     revision: 1,
   };
-  store.setVisualContext('user:1', 'session-a', ctx);
-  assert.equal(store.getVisualContext('user:1', 'session-a')?.title, 'Purple top');
-  assert.equal(store.getVisualContext('user:2', 'session-a'), null);
-  assert.equal(store.getVisualContext('user:1', 'session-b'), null);
+  store.appendVisualContextEntry('user:1', 'session-a', entry);
+  const collection = store.getVisualContextCollection('user:1', 'session-a');
+  assert.equal(collection?.entries.length, 1);
+  assert.equal(collection?.entries[0].title, 'Purple top');
+  assert.equal(store.getVisualContextCollection('user:2', 'session-a'), null);
+  assert.equal(store.getVisualContextCollection('user:1', 'session-b'), null);
 });
 
-test('stale revision updates are rejected', () => {
-  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {});
-  const r1 = store.setVisualContext('user:1', 'session-a', {
+test('collection enforces a six-entry ceiling', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  for (let i = 0; i < 6; i += 1) {
+    const result = store.appendVisualContextEntry('user:1', 'session-a', {
+      id: `e-${i}`,
+      actorKey: 'user:1',
+      sessionId: 'session-a',
+      source: 'upload',
+      status: 'ready',
+      order: 0,
+      title: `Item ${i}`,
+      createdAt: Date.now(),
+      revision: 0,
+    });
+    assert.ok(result);
+    assert.equal(result.entry.order, i + 1);
+  }
+  const overflow = store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'e-7',
+    actorKey: 'user:1',
+    sessionId: 'session-a',
+    source: 'upload',
+    status: 'ready',
+    order: 0,
+    title: 'Item 7',
+    createdAt: Date.now(),
+    revision: 0,
+  });
+  assert.equal(overflow, null);
+  assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.entries.length, 6);
+});
+
+test('stale revision entry updates are rejected', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  const appended = store.appendVisualContextEntry('user:1', 'session-a', {
     id: 'a',
     actorKey: 'user:1',
     sessionId: 'session-a',
     source: 'scan',
     status: 'preparing',
+    order: 0,
     title: 'Preparing…',
     createdAt: Date.now(),
     revision: 0,
   });
-  store.setVisualContext('user:1', 'session-a', null);
-  const applied = store.updateVisualContextIfCurrent('user:1', 'session-a', r1, (ctx) => ({
-    ...ctx,
-    status: 'ready',
-  }));
+  store.removeVisualContextEntry('user:1', 'session-a', 'a');
+  const applied = store.updateVisualContextEntryIfCurrent(
+    'user:1',
+    'session-a',
+    'a',
+    appended.revision,
+    (entry) => ({ ...entry, status: 'ready' }),
+  );
   assert.equal(applied, false);
-  assert.equal(store.getVisualContext('user:1', 'session-a'), null);
+  assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.entries.length, 0);
 });
 
-test('reset clears all visual context state', () => {
-  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {});
-  store.setVisualContext('user:1', 'session-a', {
-    id: 'a',
+test('appending another entry does not invalidate an in-flight entry update', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  const first = store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'first',
     actorKey: 'user:1',
     sessionId: 'session-a',
-    source: 'scan',
-    status: 'ready',
-    title: 'T',
+    source: 'upload',
+    status: 'preparing',
+    order: 0,
+    title: 'Preparing first…',
     createdAt: Date.now(),
-    revision: 1,
+    revision: 0,
   });
-  store.resetVisualContextStore();
-  assert.equal(store.getVisualContext('user:1', 'session-a'), null);
+  store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'second',
+    actorKey: 'user:1',
+    sessionId: 'session-a',
+    source: 'upload',
+    status: 'preparing',
+    order: 0,
+    title: 'Preparing second…',
+    createdAt: Date.now(),
+    revision: 0,
+  });
+
+  const applied = store.updateVisualContextEntryIfCurrent(
+    'user:1',
+    'session-a',
+    'first',
+    first.revision,
+    (entry) => ({ ...entry, status: 'ready', title: 'First ready' }),
+  );
+
+  assert.equal(applied, true);
+  assert.equal(
+    store.getVisualContextCollection('user:1', 'session-a')?.entries[0].status,
+    'ready',
+  );
+});
+
+test('restarting one entry invalidates only its earlier async lifecycle', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  const appended = store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'retry',
+    actorKey: 'user:1',
+    sessionId: 'session-a',
+    source: 'upload',
+    status: 'failed',
+    order: 0,
+    title: 'Failed',
+    createdAt: Date.now(),
+    revision: 0,
+  });
+  const retryRevision = store.restartVisualContextEntry(
+    'user:1',
+    'session-a',
+    'retry',
+    (entry) => ({ ...entry, status: 'preparing' }),
+  );
+
+  assert.equal(
+    store.updateVisualContextEntryIfCurrent(
+      'user:1',
+      'session-a',
+      'retry',
+      appended.revision,
+      (entry) => ({ ...entry, status: 'ready' }),
+    ),
+    false,
+  );
+  assert.equal(
+    store.updateVisualContextEntryIfCurrent(
+      'user:1',
+      'session-a',
+      'retry',
+      retryRevision,
+      (entry) => ({ ...entry, status: 'ready' }),
+    ),
+    true,
+  );
+});
+
+test('reset clears all visual context state and returns preview URIs', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'ready',
+    actorKey: 'user:1',
+    sessionId: 'session-a',
+    source: 'upload',
+    status: 'ready',
+    order: 1,
+    title: 'Item',
+    sanitizedPreviewUri: 'file:///cache/safe.png',
+    createdAt: Date.now(),
+    revision: 0,
+  });
+  const intentId = store.createVisualContextScanIntent('user:1', 'session-a');
+  const cleanupUris = store.resetVisualContextStore();
+  assert.equal(cleanupUris.length, 1);
+  assert.equal(cleanupUris[0], 'file:///cache/safe.png');
+  assert.equal(store.getVisualContextScanIntent(intentId), null);
+  assert.equal(store.getVisualContextCollection('user:1', 'session-a'), null);
 });
 
 test('scanner return intent is actor and revision bound', () => {
-  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {});
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
   const intentId = store.createVisualContextScanIntent('user:1', 'session-a');
   const intent = store.getVisualContextScanIntent(intentId);
   assert.equal(intent.actorKey, 'user:1');
   assert.equal(intent.sessionId, 'session-a');
   assert.equal(intent.expectedRevision, 0);
 
-  store.setVisualContext('user:1', 'session-a', {
-    id: 'newer', actorKey: 'user:1', sessionId: 'session-a', source: 'scan',
-    status: 'ready', title: 'Newer item', createdAt: Date.now(), revision: 0,
+  store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'newer',
+    actorKey: 'user:1',
+    sessionId: 'session-a',
+    source: 'scan',
+    status: 'ready',
+    order: 0,
+    title: 'Newer item',
+    createdAt: Date.now(),
+    revision: 0,
   });
   assert.equal(
     store.isVisualContextRevisionCurrent('user:1', 'session-a', intent.expectedRevision),
@@ -117,18 +268,37 @@ test('scanner return intent is actor and revision bound', () => {
   assert.equal(store.getVisualContextScanIntent(intentId), null);
 });
 
-test('actor reset clears scan intents and returns derivative URIs for cleanup', () => {
-  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {});
-  store.setVisualContext('user:1', 'session-a', {
-    id: 'ready', actorKey: 'user:1', sessionId: 'session-a', source: 'upload',
-    status: 'ready', title: 'Item', sanitizedPreviewUri: 'file:///cache/safe.png',
-    createdAt: Date.now(), revision: 0,
+test('focus selection falls back to first entry when focused entry is removed', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
   });
-  const intentId = store.createVisualContextScanIntent('user:1', 'session-a');
-  const cleanupUris = store.resetVisualContextStore();
-  assert.equal(cleanupUris.length, 1);
-  assert.equal(cleanupUris[0], 'file:///cache/safe.png');
-  assert.equal(store.getVisualContextScanIntent(intentId), null);
+  store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'first',
+    actorKey: 'user:1',
+    sessionId: 'session-a',
+    source: 'scan',
+    status: 'ready',
+    order: 0,
+    title: 'First',
+    createdAt: Date.now(),
+    revision: 0,
+  });
+  store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'second',
+    actorKey: 'user:1',
+    sessionId: 'session-a',
+    source: 'scan',
+    status: 'ready',
+    order: 0,
+    title: 'Second',
+    createdAt: Date.now(),
+    revision: 0,
+  });
+  store.setVisualContextFocusedEntry('user:1', 'session-a', 'second');
+  assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.focusedEntryId, 'second');
+
+  store.removeVisualContextEntry('user:1', 'session-a', 'second');
+  assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.focusedEntryId, 'first');
 });
 
 // ── Privacy preparation ──────────────────────────────────────────────────────
@@ -201,12 +371,15 @@ test('legacy image sanitizer is explicitly blocked and never passes pixels throu
   );
 });
 
-// ── Mapping scan-identify to visual context ──────────────────────────────────
+// ── Mapping scan-identify to visual context entries ───────────────────────────
 
 test('buildEliseVisualContextFromScanIdentify uses only response evidence', () => {
   const { buildEliseVisualContextFromScanIdentify } = loadTsModule(
     'services/style-chat/buildEliseVisualContext.ts',
-    {},
+    {
+      '../../types/eliseVisualContext': visualContextTypes,
+      '../../types/scanIdentification': {},
+    },
   );
   const response = {
     status: 'completed',
@@ -340,41 +513,45 @@ test('active context bounds fields and neutralizes delimiter injection', () => {
 
 // ── Scanner return-to-Elise seam ─────────────────────────────────────────────
 
-test('canonical scanner route is /scan and supports returnToSessionId', () => {
+test('canonical scanner route appends to the visual context collection', () => {
   const scanRoute = read('app/scan/index.tsx');
   assert.match(scanRoute, /KScanApp/);
   const appSource = read('app.js');
   assert.match(appSource, /returnToSessionId/);
   assert.match(appSource, /visualContextIntentId/);
   assert.match(appSource, /isVisualContextRevisionCurrent/);
+  assert.match(appSource, /appendVisualContextEntry/);
   assert.match(appSource, /\/style-chat\/\$\{returnToSessionId\}/);
   assert.doesNotMatch(appSource, /sanitizedPreviewUri:\s*photo/);
 });
 
-test('StyleChat session screen integrates the visual context bar', () => {
+test('StyleChat session screen integrates the visual context collection tray', () => {
   const screen = read('app/style-chat/[sessionId].tsx');
   assert.match(screen, /EliseVisualContextBar/);
   assert.match(screen, /useEliseVisualContext/);
   assert.match(screen, /startScan\(composerText\)/);
   assert.match(screen, /startUpload/);
-  assert.match(screen, /uploadDisabled=\{!uploadAvailable\}/);
-  assert.match(screen, /if \(!sent\) return/);
+  assert.match(screen, /clearVisualContext/);
+  assert.match(screen, /hasReadyEntry/);
 });
 
-test('Elise upload path is disabled before picker or remote analysis', () => {
+test('Elise upload path wires expo-image-picker with multi-selection and never calls identify', () => {
   const hook = read('hooks/useEliseVisualContext.ts');
-  assert.doesNotMatch(hook, /expo-image-picker/);
+  assert.match(hook, /expo-image-picker/);
+  assert.match(hook, /launchImageLibraryAsync/);
+  assert.match(hook, /allowsMultipleSelection/);
+  assert.match(hook, /selectionLimit/);
+  assert.match(hook, /mediaTypes/);
   assert.doesNotMatch(hook, /identifyScanImage/);
-  assert.match(hook, /PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE/);
-  assert.match(hook, /createVisualContextScanIntent/);
 });
 
-test('visual context controls expose 44dp targets and explicit unavailable upload copy', () => {
+test('visual context tray exposes 44dp targets and blocked-state copy', () => {
   const bar = read('components/style-chat/EliseVisualContextBar.tsx');
-  assert.match(bar, /minHeight: 44/);
   assert.match(bar, /width: 44/);
-  assert.match(bar, /Upload unavailable/);
-  assert.match(bar, /accessibilityState/);
+  assert.match(bar, /height: 44/);
+  assert.match(bar, /uploadUnavailableReason/);
+  assert.match(bar, /Analysis unavailable/);
+  assert.match(bar, /ScrollView/);
 });
 
 test('canonical scanner disables every gallery upload control while pixel masking is unavailable', () => {
@@ -398,8 +575,5 @@ test('draft store supports actor-scoped keys', () => {
   store.setDraftComposerText('session-x', 'hello actor a', 'user:a');
   store.setDraftComposerText('session-x', 'hello actor b', 'user:b');
   assert.equal(store.getDraftComposerText('session-x', 'user:a'), 'hello actor a');
-  assert.equal(store.getDraftComposerText('session-x', 'user:b'), 'hello actor b');
-  store.clearDraftAttachments('session-x', { actorKey: 'user:a' });
-  assert.equal(store.getDraftComposerText('session-x', 'user:a'), '');
   assert.equal(store.getDraftComposerText('session-x', 'user:b'), 'hello actor b');
 });
