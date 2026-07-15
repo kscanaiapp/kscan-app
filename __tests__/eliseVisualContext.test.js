@@ -699,22 +699,137 @@ test('StyleChat session screen integrates the visual context collection tray', (
   assert.match(screen, /hasReadyEntry/);
   assert.match(screen, /readyEntries\.map/);
   assert.match(screen, /visualCollection/);
-  assert.match(screen, /hasUnsendableEntry/);
+  assert.match(screen, /hasQueuedEvidence:[\s\S]*?hasFailedEvidence:/);
   assert.doesNotMatch(screen, /const readyEntry\s*=/);
-  assert.match(screen, /mode="actions"[\s\S]*?<FlatList/);
-  assert.match(screen, /<FlatList[\s\S]*?mode="tray"[\s\S]*?<StyleChatInput/);
-  assert.match(screen, /disabled=\{!canSend\}/);
-  assert.match(screen, /sendDisabled=\{[\s\S]*?hasUnsendableEntry/);
+  assert.match(screen, /<FlatList[\s\S]*?<EliseVisualContextBar[\s\S]*?<StyleChatInput/);
+  assert.equal((screen.match(/<EliseVisualContextBar/g) ?? []).length, 1);
+  assert.doesNotMatch(screen, /mode="actions"|mode="tray"/);
+  assert.match(screen, /getStyleChatComposerControls/);
+  assert.match(screen, /inputEditable=\{composerControls\.inputEditable\}/);
+  assert.match(screen, /sendDisabled=\{composerControls\.sendDisabled\}/);
+  assert.doesNotMatch(screen, /disabled=\{!canSend\}/);
   const bar = read('components/style-chat/EliseVisualContextBar.tsx');
   assert.match(bar, /Pending for next message/);
-  assert.match(bar, /mode === 'tray' && count === 0/);
+  assert.match(bar, /if \(count === 0\) return null/);
+  assert.match(bar, /onClear/);
+  assert.doesNotMatch(bar, /Visual references|Scan an item|Upload another photo/);
 });
 
-test('pending evidence blocks Send without disabling draft editing', () => {
+test('top header presents Home, a truly centered Elise identity, and navigation-style SCAN', () => {
+  const header = read('components/style-chat/StyleChatHeader.tsx');
+  const homeIndex = header.indexOf('testID="style-chat-home-button"');
+  const titleIndex = header.indexOf('style={styles.titleWrap}');
+  const scanIndex = header.indexOf('testID="style-chat-scan-button"');
+
+  assert.ok(homeIndex >= 0 && homeIndex < titleIndex && titleIndex < scanIndex);
+  assert.match(header, /<Text style=\{styles\.navButtonText\}[^>]*>Home<\/Text>/);
+  assert.match(header, /<Text style=\{styles\.navButtonText\}[^>]*>SCAN<\/Text>/);
+  assert.match(header, /titleWrap:\s*\{[\s\S]*?position: 'absolute'[\s\S]*?left: 96[\s\S]*?right: 96/);
+  assert.match(header, /navButton:\s*\{[\s\S]*?minHeight: 44[\s\S]*?width: 72/);
+  assert.match(header, /accessibilityLabel="Add visual context"/);
+  assert.match(header, /Choose the camera or upload images from your photo library/);
+  assert.match(header, /Remove an image before adding another\./);
+});
+
+test('top SCAN opens one guarded source menu and disables at collection capacity', () => {
+  const screen = read('app/style-chat/[sessionId].tsx');
+  assert.equal((screen.match(/<EliseVisualSourceMenu/g) ?? []).length, 1);
+  assert.match(screen, /visualSourceMenuOpenRef\.current/);
+  assert.match(screen, /getRemainingCapacity\(\) === 0/);
+  assert.match(screen, /setVisualSourceMenuVisible\(true\)/);
+  assert.match(screen, /Keyboard\.dismiss\(\)/);
+  assert.match(screen, /scanActionDisabled = visualCollectionFull \|\| !composerControls\.inputEditable/);
+  assert.match(screen, /scanDisabled=\{scanActionDisabled\}/);
+  assert.match(screen, /onScan=\{\(\) => startScan\(composerText\)\}/);
+  assert.match(screen, /onUpload=\{startUpload\}/);
+});
+
+test('visual source menu offers canonical camera, native photos, and state-neutral cancellation', () => {
+  const menu = read('components/style-chat/EliseVisualSourceMenu.tsx');
+  assert.match(menu, /Show Elise what you're styling/);
+  assert.match(menu, /accessibilityLabel="Scan with camera"/);
+  assert.match(menu, /accessibilityLabel="Upload from photos"/);
+  assert.match(menu, /accessibilityLabel="Cancel"/);
+  assert.match(menu, /choiceInFlightRef\.current/);
+  assert.match(menu, /pendingActionRef\.current = action/);
+  assert.match(menu, /onDismiss=\{runPendingAction\}/);
+  assert.match(menu, /Platform\.OS !== 'ios'/);
+  assert.match(menu, /setTimeout\(runPendingAction, 0\)/);
+  assert.match(menu, /if \(disabled \|\| choiceInFlightRef\.current\) return/);
+  assert.match(menu, /const cancel = useCallback\(\(\) => \{[\s\S]*?onClose\(\)/);
+  assert.doesNotMatch(menu, /router|launchImageLibraryAsync|setDraftComposerText/);
+});
+
+test('StyleChat input exposes independent editing, send-disabled, and send-busy controls', () => {
   const input = read('components/style-chat/StyleChatInput.tsx');
+  assert.match(input, /inputEditable\?: boolean/);
   assert.match(input, /sendDisabled\?: boolean/);
-  assert.match(input, /editable=\{!disabled\}/);
-  assert.match(input, /!disabled && !sendDisabled/);
+  assert.match(input, /sendBusy\?: boolean/);
+  assert.match(input, /editable=\{inputEditable\}/);
+  assert.match(input, /inputEditable && !sendDisabled/);
+  assert.doesNotMatch(input, /disabled\?: boolean/);
+});
+
+const { getStyleChatComposerControls } = loadTsModule(
+  'services/style-chat/styleChatComposerControls.ts',
+  {},
+);
+
+function composerState(overrides = {}) {
+  return getStyleChatComposerControls({
+    hasValidDraft: true,
+    isSessionUnavailable: false,
+    isDeletingSession: false,
+    isSubmitting: false,
+    hasQueuedEvidence: false,
+    hasPreparingEvidence: false,
+    hasBlockedEvidence: false,
+    hasFailedEvidence: false,
+    hasAdditionalSendBlock: false,
+    ...overrides,
+  });
+}
+
+function assertComposerState(actual, inputEditable, sendDisabled, label) {
+  assert.equal(actual.inputEditable, inputEditable, `${label}: inputEditable`);
+  assert.equal(actual.sendDisabled, sendDisabled, `${label}: sendDisabled`);
+}
+
+test('blocked, queued, preparing, and failed evidence disable Send but preserve typing', () => {
+  for (const gate of [
+    'hasBlockedEvidence',
+    'hasQueuedEvidence',
+    'hasPreparingEvidence',
+    'hasFailedEvidence',
+  ]) {
+    assertComposerState(composerState({ [gate]: true }), true, true, gate);
+  }
+});
+
+test('removing blocked evidence restores Send when the draft is otherwise valid', () => {
+  assert.equal(composerState({ hasBlockedEvidence: true }).sendDisabled, true);
+  assertComposerState(composerState(), true, false, 'blocked evidence removed');
+});
+
+test('text-only and submitting states keep draft editing independent from Send', () => {
+  assertComposerState(composerState(), true, false, 'valid text-only draft');
+  assertComposerState(composerState({ isSubmitting: true }), true, true, 'submitting');
+  assertComposerState(composerState({ hasValidDraft: false }), true, true, 'empty draft');
+});
+
+test('session unavailability and deletion may disable both editing and Send', () => {
+  assertComposerState(
+    composerState({ isSessionUnavailable: true }),
+    false,
+    true,
+    'session unavailable',
+  );
+  assertComposerState(
+    composerState({ isDeletingSession: true }),
+    false,
+    true,
+    'session deleting',
+  );
 });
 
 test('Elise upload path wires expo-image-picker with multi-selection and never calls identify', () => {
@@ -723,7 +838,12 @@ test('Elise upload path wires expo-image-picker with multi-selection and never c
   assert.match(hook, /launchImageLibraryAsync/);
   assert.match(hook, /allowsMultipleSelection/);
   assert.match(hook, /selectionLimit/);
+  assert.match(hook, /selectionLimit: slots/);
   assert.match(hook, /mediaTypes/);
+  assert.match(hook, /if \(result\.canceled \|\| !result\.assets\?\.length\) return/);
+  assert.match(hook, /appendVisualContextEntry/);
+  assert.match(hook, /getRemainingCapacity/);
+  assert.match(hook, /Remove an image before adding another\./);
   assert.doesNotMatch(hook, /identifyScanImage/);
   assert.doesNotMatch(hook, /sanitizedPreviewUri:\s*asset\.uri/);
 });
@@ -739,14 +859,14 @@ test('blocked picker originals are previewed but never passed to temporary-file 
 test('visual context tray exposes 44dp targets and blocked-state copy', () => {
   const bar = read('components/style-chat/EliseVisualContextBar.tsx');
   const signatureStyle = read('components/style-chat/StyleChatStyleDnaCard.tsx');
-  assert.match(bar, /width: 44/);
+  assert.match(bar, /minWidth: 44/);
   assert.match(bar, /height: 44/);
   assert.match(bar, /uploadUnavailableReason/);
   assert.match(bar, /Analysis unavailable/);
   assert.match(bar, /ScrollView/);
-  assert.match(bar, /SHADOWS\.editorialSmall/);
   assert.match(bar, /OBSIDIAN_VIOLET = '#2D1F5E'/);
-  assert.match(bar, /smallBtnSecondary:[\s\S]*?backgroundColor: OBSIDIAN_VIOLET/);
+  assert.match(bar, /accessibilityLabel="Clear visual collection"/);
+  assert.doesNotMatch(bar, /smallBtn|addChip|SCAN_LABEL|UPLOAD_LABEL/);
   assert.match(signatureStyle, /SHADOWS\.editorialSmall/);
   assert.match(signatureStyle, /backgroundColor: 'rgba\(232, 228, 240, 0\.46\)'/);
 });

@@ -10,6 +10,7 @@ import {
   Pressable,
   StyleSheet,
   useWindowDimensions,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -36,6 +37,7 @@ import type { StyleChatMessage } from '../../services/style-chat/types';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useEliseVisualContext } from '../../hooks/useEliseVisualContext';
 import { EliseVisualContextBar } from '../../components/style-chat/EliseVisualContextBar';
+import { EliseVisualSourceMenu } from '../../components/style-chat/EliseVisualSourceMenu';
 import { useStyleDnaPreferences } from '../../hooks/useStyleDnaPreferences';
 import { useWeatherStyling } from '../../hooks/useWeatherStyling';
 import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
@@ -61,9 +63,11 @@ import {
   clearDraftAttachments,
 } from '../../services/style-chat/styleChatAttachmentStore';
 import { stopAvatarSpeechPlayback } from '../../services/avatarSpeech';
+import { getStyleChatComposerControls } from '../../services/style-chat/styleChatComposerControls';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
+  const visualSourceMenuOpenRef = useRef(false);
   useStyleChatHomeBackHandler(isDeleteDialogOpenRef);
 
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -94,6 +98,7 @@ export default function StyleChatSessionScreen() {
 
   const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
   const [composerText, setComposerTextState] = useState(() => getDraftComposerText(stableSessionId, actorKey));
+  const [visualSourceMenuVisible, setVisualSourceMenuVisible] = useState(false);
 
   useEffect(() => {
     setComposerTextState(getDraftComposerText(stableSessionId, actorKey));
@@ -131,8 +136,8 @@ export default function StyleChatSessionScreen() {
     isProcessing: visualContextProcessing,
     hasReadyEntry,
     hasBlockedEntry,
-    hasUnsendableEntry,
     remainingSlots,
+    getRemainingCapacity,
     startScan,
     startUpload,
     remove: removeVisualContextEntry,
@@ -438,23 +443,45 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : null;
 
+  const composerControls = getStyleChatComposerControls({
+    hasValidDraft: composerText.trim().length > 0,
+    isSessionUnavailable: !stableSessionId || (!loadingSession && !session),
+    isDeletingSession: isDeleting,
+    isSubmitting: isSending,
+    hasQueuedEvidence: visualContextEntries.some((entry) => entry.status === 'preparing'),
+    hasPreparingEvidence: visualContextEntries.some((entry) => entry.status === 'analyzing'),
+    hasBlockedEvidence: visualContextEntries.some((entry) => entry.status === 'blocked'),
+    hasFailedEvidence: visualContextEntries.some((entry) => entry.status === 'failed'),
+    hasAdditionalSendBlock:
+      !canSend ||
+      (attachmentsEnabled &&
+        chatAttachments.attachments.length > 0 &&
+        !chatAttachments.canSendWithAttachments),
+  });
+
+  const closeVisualSourceMenu = useCallback(() => {
+    visualSourceMenuOpenRef.current = false;
+    setVisualSourceMenuVisible(false);
+  }, []);
+
+  const openVisualSourceMenu = useCallback(() => {
+    if (
+      visualSourceMenuOpenRef.current ||
+      !composerControls.inputEditable ||
+      getRemainingCapacity() === 0
+    ) {
+      return;
+    }
+    visualSourceMenuOpenRef.current = true;
+    Keyboard.dismiss();
+    setVisualSourceMenuVisible(true);
+  }, [composerControls.inputEditable, getRemainingCapacity]);
+
+  const visualCollectionFull = remainingSlots === 0;
+  const scanActionDisabled = visualCollectionFull || !composerControls.inputEditable;
+
   const ChatBody = (
     <>
-      <EliseVisualContextBar
-        mode="actions"
-        entries={visualContextEntries}
-        focusedEntryId={collection?.focusedEntryId ?? null}
-        isProcessing={visualContextProcessing}
-        hasBlockedEntry={hasBlockedEntry}
-        remainingSlots={remainingSlots}
-        onScan={() => startScan(composerText)}
-        onUpload={startUpload}
-        onRemove={removeVisualContextEntry}
-        onRetry={retryVisualContextEntry}
-        onFocus={setFocusedEntry}
-        disabled={isSending || visualContextProcessing}
-        uploadUnavailableReason={uploadUnavailableReason}
-      />
       <FlatList
         ref={listRef}
         data={messages}
@@ -493,18 +520,13 @@ export default function StyleChatSessionScreen() {
       ) : null}
       {StyleMeForThisChip}
       <EliseVisualContextBar
-        mode="tray"
         entries={visualContextEntries}
         focusedEntryId={collection?.focusedEntryId ?? null}
-        isProcessing={visualContextProcessing}
         hasBlockedEntry={hasBlockedEntry}
-        remainingSlots={remainingSlots}
-        onScan={() => startScan(composerText)}
-        onUpload={startUpload}
         onRemove={removeVisualContextEntry}
         onRetry={retryVisualContextEntry}
         onFocus={setFocusedEntry}
-        disabled={isSending || visualContextProcessing}
+        onClear={clearVisualContext}
         uploadUnavailableReason={uploadUnavailableReason}
       />
       {ErrorBanner}
@@ -557,14 +579,9 @@ export default function StyleChatSessionScreen() {
             if (!sent) return;
             setComposerText('');
           }}
-          disabled={!canSend}
-          sendDisabled={
-            visualContextProcessing ||
-            (visualContextEntries.length > 0 && hasUnsendableEntry) ||
-            (attachmentsEnabled &&
-              chatAttachments.attachments.length > 0 &&
-              !chatAttachments.canSendWithAttachments)
-          }
+          inputEditable={composerControls.inputEditable}
+          sendDisabled={composerControls.sendDisabled}
+          sendBusy={isSending}
         />
       </View>
       {attachmentsEnabled ? (
@@ -589,6 +606,13 @@ export default function StyleChatSessionScreen() {
         showBadge={false}
         isThinking={isSending}
         sessionId={stableSessionId}
+        onScanPress={openVisualSourceMenu}
+        scanDisabled={scanActionDisabled}
+        scanDisabledHint={
+          visualCollectionFull
+            ? 'Remove an image before adding another.'
+            : 'This session is unavailable.'
+        }
       />
       <View style={[styles.sessionMeta, horizontalSafePadding]}>
         <Text style={styles.sessionLabel} numberOfLines={1}>
@@ -632,6 +656,14 @@ export default function StyleChatSessionScreen() {
       >
         {ChatBody}
       </KeyboardAvoidingView>
+      <EliseVisualSourceMenu
+        visible={visualSourceMenuVisible}
+        onClose={closeVisualSourceMenu}
+        onScan={() => startScan(composerText)}
+        onUpload={startUpload}
+        cameraDisabled={visualCollectionFull}
+        uploadDisabled={visualCollectionFull}
+      />
     </View>
   );
 }
