@@ -36,7 +36,6 @@ import type { StyleChatMessage } from '../../services/style-chat/types';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useEliseVisualContext } from '../../hooks/useEliseVisualContext';
 import { EliseVisualContextBar } from '../../components/style-chat/EliseVisualContextBar';
-import { cleanupSanitizedImage } from '../../services/privacyImageUpload';
 import { useStyleDnaPreferences } from '../../hooks/useStyleDnaPreferences';
 import { useWeatherStyling } from '../../hooks/useWeatherStyling';
 import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
@@ -119,38 +118,48 @@ export default function StyleChatSessionScreen() {
   }, []);
 
   const {
-    context: visualContext,
+    collection,
+    entries: visualContextEntries,
     isProcessing: visualContextProcessing,
-    error: visualContextError,
+    hasReadyEntry,
+    hasBlockedEntry,
+    remainingSlots,
     startScan,
     startUpload,
-    remove: removeVisualContext,
-    retry: retryVisualContext,
-    uploadAvailable,
+    remove: removeVisualContextEntry,
+    retry: retryVisualContextEntry,
+    setFocusedEntry,
+    clear: clearVisualContext,
     uploadUnavailableReason,
   } = useEliseVisualContext(stableSessionId, actorKey);
 
   const activeContextForGeneration = useMemo(() => {
-    if (visualContext?.status === 'ready') {
-      const source: 'camera' | 'upload' = visualContext.source === 'scan' ? 'camera' : 'upload';
+    const readyEntry =
+      visualContextEntries.find(
+        (entry) => entry.id === collection?.focusedEntryId && entry.status === 'ready',
+      ) ??
+      visualContextEntries.find((entry) => entry.status === 'ready') ??
+      null;
+    if (readyEntry) {
+      const source: 'camera' | 'upload' = readyEntry.source === 'scan' ? 'camera' : 'upload';
       return {
         source,
         visualContext: {
-          source: visualContext.source,
-          title: visualContext.title,
-          summary: visualContext.summary ?? null,
-          category: visualContext.category ?? null,
-          colors: visualContext.colors ?? null,
-          materials: visualContext.materials ?? null,
-          silhouette: visualContext.silhouette ?? null,
-          styleAttributes: visualContext.styleAttributes ?? null,
-          brand: visualContext.brand ?? null,
-          confidence: visualContext.confidence ?? null,
+          source: readyEntry.source,
+          title: readyEntry.title,
+          summary: readyEntry.summary ?? null,
+          category: readyEntry.category ?? null,
+          colors: readyEntry.colors ?? null,
+          materials: readyEntry.materials ?? null,
+          silhouette: readyEntry.silhouette ?? null,
+          styleAttributes: readyEntry.styleAttributes ?? null,
+          brand: readyEntry.brand ?? null,
+          confidence: readyEntry.confidence ?? null,
         },
       };
     }
     return handoffContext ?? null;
-  }, [visualContext, handoffContext]);
+  }, [visualContextEntries, collection?.focusedEntryId, handoffContext]);
 
   const {
     session,
@@ -235,7 +244,7 @@ export default function StyleChatSessionScreen() {
             setIsDeleting(true);
             try {
               await deleteStyleChatSession(sessionId);
-              removeVisualContext();
+              clearVisualContext();
               clearDraftAttachments(sessionId, { actorKey });
               router.replace('/style-chat');
             } catch (err: unknown) {
@@ -361,7 +370,7 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : null;
 
-  const ContextPreviewHeader = handoffContext && (!visualContext || visualContext.status !== 'ready') ? (
+  const ContextPreviewHeader = handoffContext && !hasReadyEntry ? (
     <StyleChatContextPreview
       context={handoffContext}
       onDismiss={() => setHandoffContext(null)}
@@ -417,15 +426,17 @@ export default function StyleChatSessionScreen() {
   const ChatBody = (
     <>
       <EliseVisualContextBar
-        context={visualContext}
+        entries={visualContextEntries}
+        focusedEntryId={collection?.focusedEntryId ?? null}
         isProcessing={visualContextProcessing}
-        error={visualContextError}
+        hasBlockedEntry={hasBlockedEntry}
+        remainingSlots={remainingSlots}
         onScan={() => startScan(composerText)}
         onUpload={startUpload}
-        onRemove={removeVisualContext}
-        onRetry={retryVisualContext}
+        onRemove={removeVisualContextEntry}
+        onRetry={retryVisualContextEntry}
+        onFocus={setFocusedEntry}
         disabled={isSending || visualContextProcessing}
-        uploadDisabled={!uploadAvailable}
         uploadUnavailableReason={uploadUnavailableReason}
       />
       <FlatList
@@ -501,16 +512,12 @@ export default function StyleChatSessionScreen() {
               });
               return;
             }
-            if (visualContext?.status === 'ready') {
+            if (hasReadyEntry) {
               const sent = await sendMessage(text);
               if (!sent) return;
               // Only clear the visual context and draft after a successful send.
-              if (visualContext?.status === 'ready') {
-                const uri = visualContext.sanitizedPreviewUri;
-                removeVisualContext();
-                setComposerText('');
-                if (uri) void cleanupSanitizedImage(uri);
-              }
+              clearVisualContext();
+              setComposerText('');
               return;
             }
             const sent = await sendMessage(text);
