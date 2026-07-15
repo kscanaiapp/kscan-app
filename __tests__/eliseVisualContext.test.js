@@ -372,6 +372,20 @@ test('visual context controls expose 44dp targets and explicit unavailable uploa
   assert.match(bar, /accessibilityState/);
 });
 
+test('canonical scanner disables every gallery upload control while pixel masking is unavailable', () => {
+  const landing = read('components/scan-room/ScanLanding.tsx');
+  const camera = read('components/scan-room/LiveScanCamera.tsx');
+
+  for (const source of [landing, camera]) {
+    assert.match(source, /isPrivateImageUploadAvailable/);
+    assert.match(source, /Upload Unavailable/);
+    assert.match(source, /PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE/);
+  }
+  assert.match(landing, /disabled=\{disabled \|\| !uploadAvailable\}/);
+  assert.match(camera, /disabled=\{isAnalyzing \|\| !uploadAvailable\}/);
+  assert.match(camera, /accessibilityState=\{\{ disabled: isAnalyzing \|\| !uploadAvailable \}\}/);
+});
+
 test('draft store supports actor-scoped keys', () => {
   const store = loadTsModule('services/style-chat/styleChatAttachmentStore.ts', {
     '../../types/styleChatAttachments': {},
