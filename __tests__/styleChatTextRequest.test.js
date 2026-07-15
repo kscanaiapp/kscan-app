@@ -113,6 +113,45 @@ test('text-only request sends one exact actor-neutral v1 payload and parses succ
   assert.equal(logs.warn.length, 0);
 });
 
+test('active visual context strips local URI and client-only identity fields before invoke', async () => {
+  const calls = [];
+  const { Provider } = loadProvider(async (name, options) => {
+    calls.push({ name, options });
+    return {
+      data: {
+        status: 'success',
+        message: { sender: 'assistant', content: 'Style it with charcoal trousers.', model: 'test', tokenEstimate: 10 },
+        usage: { messagesUsed: 1, messagesLimit: 50 },
+      },
+      error: null,
+    };
+  });
+
+  await new Provider().generateReply({
+    sessionId: SESSION_ID,
+    message: PROMPT,
+    activeContext: {
+      source: 'upload',
+      imageUri: 'file:///private/raw-picker.jpg',
+      textScanId: 'local-only-id',
+      createdAt: '2026-07-15T00:00:00.000Z',
+      visualContext: {
+        source: 'upload',
+        title: 'Purple lace top',
+        colors: ['purple'],
+      },
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  const activeContext = calls[0].options.body.activeContext;
+  assert.equal(activeContext.visualContext.title, 'Purple lace top');
+  assert.equal('imageUri' in activeContext, false);
+  assert.equal('textScanId' in activeContext, false);
+  assert.equal('createdAt' in activeContext, false);
+  assert.doesNotMatch(JSON.stringify(calls[0].options.body), /file:\/\/|raw-picker/);
+});
+
 test('structured HTTP error is parsed without a development warning', async () => {
   const response = new Response(
     JSON.stringify({
