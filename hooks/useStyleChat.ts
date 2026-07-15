@@ -77,7 +77,7 @@ export interface UseStyleChatReturn {
       attachments?: SendAttachmentsInput | null;
       onUserMessagePersisted?: () => void;
     },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   retryLastMessage: () => void;
   clearError: () => void;
 }
@@ -327,15 +327,15 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       },
     ) => {
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed) return false;
       if (!actorId || !sessionId || session?.id !== sessionId) {
         setError(STYLE_CHAT_COPY.errorGeneric);
-        return;
+        return false;
       }
-      if (isSendingRef.current) return;
+      if (isSendingRef.current) return false;
       if (messagesUsed >= messagesLimit) {
         setError(STYLE_CHAT_COPY.systemLimitNotice);
-        return;
+        return false;
       }
       isSendingRef.current = true;
       setIsSending(true);
@@ -476,13 +476,13 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
               ? STYLECHAT_ATTACHMENTS_REJECTED_COPY
               : STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY,
           );
-          return;
+          return false;
         }
 
         if (result.status === 'burst_limit') {
           // Burst limit: transient per-minute cap. Do not persist, do not update daily usage.
           setError(STYLE_CHAT_COPY.burstLimitNotice);
-          return;
+          return false;
         }
 
         if (result.status === 'limit_reached') {
@@ -490,7 +490,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           setError(STYLE_CHAT_COPY.systemLimitNotice);
           setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed));
           setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
-          return;
+          return false;
         }
 
         const operationalFailure = classifyStyleChatOperationalFailure(result);
@@ -513,7 +513,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed));
             setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
           }
-          return;
+          return false;
         }
 
         // 4. success — persist the deferred attachment-bearing user message
@@ -602,6 +602,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed + 1));
         setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
 
+        return true;
+
       } catch (err: unknown) {
         if (!isCurrentSend()) return;
         // Remove optimistic entries on failure so retry is clean.
@@ -617,6 +619,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           attachments: hasAttachments ? sendAttachments : null,
         });
         setError(getFriendlyStyleChatError(err));
+        return false;
       } finally {
         if (isCurrentSend()) {
           isSendingRef.current = false;

@@ -134,6 +134,8 @@ export default function StyleChatSessionScreen() {
     startUpload,
     remove: removeVisualContext,
     retry: retryVisualContext,
+    uploadAvailable,
+    uploadUnavailableReason,
   } = useEliseVisualContext(stableSessionId, actorKey);
 
   const activeContextForGeneration = useMemo(() => {
@@ -431,6 +433,8 @@ export default function StyleChatSessionScreen() {
         onRemove={removeVisualContext}
         onRetry={retryVisualContext}
         disabled={isSending || visualContextProcessing}
+        uploadDisabled={!uploadAvailable}
+        uploadUnavailableReason={uploadUnavailableReason}
       />
       <FlatList
         ref={listRef}
@@ -507,19 +511,20 @@ export default function StyleChatSessionScreen() {
               return;
             }
             if (visualContext?.status === 'ready') {
-              const uri = visualContext.sanitizedPreviewUri;
-              void sendMessage(text, {
-                onUserMessagePersisted: () => {
-                  removeVisualContext();
-                  setComposerText('');
-                  if (uri) void cleanupSanitizedImage(uri);
-                },
-              });
+              const sent = await sendMessage(text);
+              if (!sent) return;
+              // Only clear the visual context and draft after a successful send.
+              if (visualContext?.status === 'ready') {
+                const uri = visualContext.sanitizedPreviewUri;
+                removeVisualContext();
+                setComposerText('');
+                if (uri) void cleanupSanitizedImage(uri);
+              }
               return;
             }
-            void sendMessage(text, {
-              onUserMessagePersisted: () => setComposerText(''),
-            });
+            const sent = await sendMessage(text);
+            if (!sent) return;
+            setComposerText('');
           }}
           disabled={
             !canSend ||
