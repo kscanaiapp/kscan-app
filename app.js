@@ -15,9 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
+import { setVisualContext } from './services/style-chat/eliseVisualContextStore';
+import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
+import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
 import { saveScan } from './services/library';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
@@ -271,6 +274,9 @@ export default function App() {
   } = useKScan();
 
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnToSessionId = params?.returnToSessionId ? String(params.returnToSessionId) : null;
+  const isReturningToElise = Boolean(returnToSessionId);
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
   const qaTapRef = useRef({ count: 0, lastTap: 0 });
 
@@ -279,8 +285,12 @@ export default function App() {
   const [v2AnalyzingMinComplete, setV2AnalyzingMinComplete] = useState(false);
 
   const handleHome = useCallback(() => {
+    if (returnToSessionId) {
+      router.replace(`/style-chat/${returnToSessionId}`);
+      return;
+    }
     router.replace('/');
-  }, [router]);
+  }, [router, returnToSessionId]);
 
   useEffect(() => {
     if (!permission?.granted || isCameraReady) return undefined;
@@ -303,7 +313,7 @@ export default function App() {
     if (status === 'processing') {
       setV2AnalyzingMinComplete(false);
     }
-  }, [status]);
+  }, [status, isReturningToElise]);
 
   useEffect(() => {
     if (!v2CameraVisible) {
@@ -380,7 +390,7 @@ export default function App() {
     // otherwise `perceiving` would stay true forever and the V2 result
     // Modal (ScanResultV2 / AnalysisCard) would never be allowed to render.
     if (prev === 'processing' && status === 'result') {
-      setPerceiving(!SCAN_ROOM_V2_UI_ENABLED);
+      setPerceiving(!SCAN_ROOM_V2_UI_ENABLED && !isReturningToElise);
       return;
     }
     // Clear on any reset path
@@ -405,12 +415,53 @@ export default function App() {
     return () => { live = false; };
   }, [status, photo, analysis]);
 
+  // When the scanner was opened from Elise, automatically return the structured
+  // visual context to the originating session once analysis completes.
+  const hasReturnedRef = useRef(false);
+  useEffect(() => {
+    if (status !== 'result' || !returnToSessionId || !analysis || hasReturnedRef.current) return;
+    hasReturnedRef.current = true;
+
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+      if (!user) return;
+      const actorKey = `user:${user.id}`;
+      const meta = analysis?.metadata ?? {};
+      const source = photo?.source === 'upload' ? 'upload' : 'scan';
+
+      setVisualContext(actorKey, returnToSessionId, buildEliseVisualContext({
+        actorKey,
+        sessionId: returnToSessionId,
+        source,
+        status: 'ready',
+        title: analysis.title || meta.displayCategory || meta.category || 'Fashion item',
+        summary: analysis.result || null,
+        category: meta.category || meta.displayCategory || null,
+        colors: meta.color ? meta.color.split(', ').map((s) => s.trim()).filter(Boolean) : undefined,
+        materials: meta.material || meta.materialEstimate ? [meta.material || meta.materialEstimate] : undefined,
+        silhouette: meta.silhouette || null,
+        styleAttributes: meta.styleTags || meta.styleDescriptors || undefined,
+        brand: meta.brand || null,
+        confidence: typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined,
+        sanitizedPreviewUri: photo?.uri || null,
+      }));
+
+      router.replace(`/style-chat/${returnToSessionId}`);
+    })();
+  }, [status, analysis, returnToSessionId, photo?.uri, photo?.source, router]);
+
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.
   // The result Modal already handles back via onRequestClose, so we only need
   // to intercept the states that render plain screens (no Modal).
   useEffect(() => {
     const onBack = () => {
+      // When opened from Elise, back always returns to the originating session.
+      if (returnToSessionId && status !== 'processing') {
+        router.replace(`/style-chat/${returnToSessionId}`);
+        return true;
+      }
       // Block back during active analysis: aborting here would leave the
       // network request orphaned and the state machine in an undefined position.
       if (status === 'processing') return true;
@@ -432,7 +483,7 @@ export default function App() {
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
     return () => sub.remove();
-  }, [status, perceiving, photo, retake, dismissResult]);
+  }, [status, perceiving, photo, retake, dismissResult, returnToSessionId, router]);
 
   const scanAnim = useScanAnimation(status === 'processing');
 
@@ -935,7 +986,7 @@ export default function App() {
         />
       )}
 
-      {status === 'result' && !perceiving && (
+      {status === 'result' && !perceiving && !isReturningToElise && (
         SCAN_RESULTS_V2_UI_ENABLED ? (
           <ScanResultV2
             analysis={analysis}
@@ -977,6 +1028,13 @@ export default function App() {
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
           />
         )
+      )}
+
+      {status === 'result' && isReturningToElise && (
+        <View style={styles.returningOverlay}>
+          <ActivityIndicator size="small" color={COLORS.activeVision} />
+          <Text style={styles.returningText}>Returning to Elise…</Text>
+        </View>
       )}
 
       {dressingRoomsEnabled ? (
@@ -1529,6 +1587,17 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   v2CapturingText: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.plum,
+  },
+  returningOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: LUXURY.colors.ivory,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  returningText: {
     ...LUXURY.typography.body,
     color: LUXURY.colors.plum,
   },
