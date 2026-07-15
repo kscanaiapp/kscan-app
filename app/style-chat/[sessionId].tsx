@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Alert,
   View,
@@ -34,6 +34,9 @@ import {
 } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { useEliseVisualContext } from '../../hooks/useEliseVisualContext';
+import { EliseVisualContextBar } from '../../components/style-chat/EliseVisualContextBar';
+import { cleanupSanitizedImage } from '../../services/privacyImageUpload';
 import { useStyleDnaPreferences } from '../../hooks/useStyleDnaPreferences';
 import { useWeatherStyling } from '../../hooks/useWeatherStyling';
 import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
@@ -56,6 +59,7 @@ import { useStyleChatAttachments } from '../../hooks/useStyleChatAttachments';
 import {
   getDraftComposerText,
   setDraftComposerText,
+  clearDraftAttachments,
 } from '../../services/style-chat/styleChatAttachmentStore';
 
 export default function StyleChatSessionScreen() {
@@ -70,6 +74,7 @@ export default function StyleChatSessionScreen() {
   // Style Memory Phase 0 local feedback key. StyleChat is auth-only, so this is
   // populated whenever messages exist; null hides the local feedback UI.
   const userKey = user ? `user:${user.id}` : null;
+  const actorKey = userKey;
   const { preferences: styleDnaPreferences, updatePreferences: updateStyleDnaPreferences } =
     useStyleDnaPreferences({ userKey });
   const weather = useWeatherStyling(sessionId ?? '');
@@ -88,18 +93,18 @@ export default function StyleChatSessionScreen() {
   }, [userKey]);
 
   const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
-  const [composerText, setComposerTextState] = useState(() => getDraftComposerText(stableSessionId));
+  const [composerText, setComposerTextState] = useState(() => getDraftComposerText(stableSessionId, actorKey));
 
   useEffect(() => {
-    setComposerTextState(getDraftComposerText(stableSessionId));
-  }, [stableSessionId]);
+    setComposerTextState(getDraftComposerText(stableSessionId, actorKey));
+  }, [stableSessionId, actorKey]);
 
   const setComposerText = useCallback(
     (next: string) => {
       setComposerTextState(next);
-      setDraftComposerText(stableSessionId, next);
+      setDraftComposerText(stableSessionId, next, actorKey);
     },
-    [stableSessionId],
+    [stableSessionId, actorKey],
   );
 
   // Consume handoff context on mount and clear it when leaving the session.
@@ -112,6 +117,38 @@ export default function StyleChatSessionScreen() {
       clearStyleChatHandoffContext();
     };
   }, []);
+
+  const {
+    context: visualContext,
+    isProcessing: visualContextProcessing,
+    error: visualContextError,
+    startScan,
+    startUpload,
+    remove: removeVisualContext,
+    retry: retryVisualContext,
+  } = useEliseVisualContext(stableSessionId, actorKey);
+
+  const activeContextForGeneration = useMemo(() => {
+    if (visualContext?.status === 'ready') {
+      const source: 'camera' | 'upload' = visualContext.source === 'scan' ? 'camera' : 'upload';
+      return {
+        source,
+        visualContext: {
+          source: visualContext.source,
+          title: visualContext.title,
+          summary: visualContext.summary ?? null,
+          category: visualContext.category ?? null,
+          colors: visualContext.colors ?? null,
+          materials: visualContext.materials ?? null,
+          silhouette: visualContext.silhouette ?? null,
+          styleAttributes: visualContext.styleAttributes ?? null,
+          brand: visualContext.brand ?? null,
+          confidence: visualContext.confidence ?? null,
+        },
+      };
+    }
+    return handoffContext ?? null;
+  }, [visualContext, handoffContext]);
 
   const {
     session,
@@ -127,7 +164,7 @@ export default function StyleChatSessionScreen() {
   } = useStyleChat(sessionId ?? '', {
     getWeatherLocation: weather.getWeatherLocation,
     getStyleDnaContext,
-    activeContext: handoffContext ?? null,
+    activeContext: activeContextForGeneration,
   });
 
   const [isDeleting, setIsDeleting] = useState(false);
@@ -196,6 +233,8 @@ export default function StyleChatSessionScreen() {
             setIsDeleting(true);
             try {
               await deleteStyleChatSession(sessionId);
+              removeVisualContext();
+              clearDraftAttachments(sessionId, { actorKey });
               router.replace('/style-chat');
             } catch (err: unknown) {
               console.error('Delete StyleChat session failed', err);
@@ -320,7 +359,7 @@ export default function StyleChatSessionScreen() {
     </View>
   ) : null;
 
-  const ContextPreviewHeader = handoffContext ? (
+  const ContextPreviewHeader = handoffContext && (!visualContext || visualContext.status !== 'ready') ? (
     <StyleChatContextPreview
       context={handoffContext}
       onDismiss={() => setHandoffContext(null)}
@@ -375,6 +414,16 @@ export default function StyleChatSessionScreen() {
 
   const ChatBody = (
     <>
+      <EliseVisualContextBar
+        context={visualContext}
+        isProcessing={visualContextProcessing}
+        error={visualContextError}
+        onScan={() => startScan(composerText)}
+        onUpload={startUpload}
+        onRemove={removeVisualContext}
+        onRetry={retryVisualContext}
+        disabled={isSending || visualContextProcessing}
+      />
       <FlatList
         ref={listRef}
         data={messages}
@@ -428,7 +477,7 @@ export default function StyleChatSessionScreen() {
         <StyleChatInput
           value={composerText}
           onChangeText={setComposerText}
-          onSend={text => {
+          onSend={async text => {
             weather.markStylingIntent();
             if (attachmentsEnabled && chatAttachments.attachments.length > 0) {
               // Send rule: attachment-bearing sends require every attachment
@@ -436,7 +485,7 @@ export default function StyleChatSessionScreen() {
               // text only). The snapshot is immutable for this operation.
               if (!chatAttachments.canSendWithAttachments) return;
               const snapshot = chatAttachments.snapshotForSend();
-              void sendMessage(text, {
+              await sendMessage(text, {
                 attachments: {
                   references: snapshot.references,
                   drafts: snapshot.drafts,
@@ -448,11 +497,23 @@ export default function StyleChatSessionScreen() {
               });
               return;
             }
-            void sendMessage(text);
+            if (visualContext?.status === 'ready') {
+              await sendMessage(text);
+              // Only clear the visual context and draft after a successful send.
+              if (visualContext?.status === 'ready') {
+                const uri = visualContext.sanitizedPreviewUri;
+                removeVisualContext();
+                setComposerText('');
+                if (uri) void cleanupSanitizedImage(uri);
+              }
+              return;
+            }
+            await sendMessage(text);
             setComposerText('');
           }}
           disabled={
             !canSend ||
+            visualContextProcessing ||
             (attachmentsEnabled &&
               chatAttachments.attachments.length > 0 &&
               !chatAttachments.canSendWithAttachments)
