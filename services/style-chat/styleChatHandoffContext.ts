@@ -6,7 +6,10 @@
 // - Do not pass large image data or base64 through here; imageUri is a local URI reference only.
 // - Do not store PII, facial data, or biometrics.
 
-import type { EliseVisualContextInput } from '../../types/eliseVisualContext';
+import type {
+  EliseVisualCollectionInput,
+  EliseVisualContextInput,
+} from '../../types/eliseVisualContext';
 
 export type StyleChatHandoffSource = 'camera' | 'upload' | 'text-scan';
 
@@ -24,6 +27,8 @@ export type StyleChatHandoffContext = {
   createdAt?: string;
   /** Structured visual context for Elise. Client-local preview URIs must never be included here. */
   visualContext?: EliseVisualContextInput | null;
+  /** Bounded ordered collection for multi-reference reasoning. */
+  visualCollection?: EliseVisualCollectionInput | null;
 };
 
 let currentHandoff: StyleChatHandoffContext | null = null;

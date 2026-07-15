@@ -131,6 +131,7 @@ export default function StyleChatSessionScreen() {
     isProcessing: visualContextProcessing,
     hasReadyEntry,
     hasBlockedEntry,
+    hasUnsendableEntry,
     remainingSlots,
     startScan,
     startUpload,
@@ -142,27 +143,33 @@ export default function StyleChatSessionScreen() {
   } = useEliseVisualContext(stableSessionId, actorKey);
 
   const activeContextForGeneration = useMemo(() => {
-    const readyEntry =
-      visualContextEntries.find(
-        (entry) => entry.id === collection?.focusedEntryId && entry.status === 'ready',
-      ) ??
-      visualContextEntries.find((entry) => entry.status === 'ready') ??
-      null;
-    if (readyEntry) {
-      const source: 'camera' | 'upload' = readyEntry.source === 'scan' ? 'camera' : 'upload';
+    const readyEntries = visualContextEntries
+      .filter((entry) => entry.status === 'ready')
+      .sort((left, right) => left.order - right.order);
+    if (readyEntries.length > 0) {
+      const focusedReadyEntry = readyEntries.find(
+        (entry) => entry.id === collection?.focusedEntryId,
+      ) ?? null;
+      const sourceEntry = focusedReadyEntry ?? readyEntries[0];
+      const source: 'camera' | 'upload' = sourceEntry.source === 'scan' ? 'camera' : 'upload';
       return {
         source,
-        visualContext: {
-          source: readyEntry.source,
-          title: readyEntry.title,
-          summary: readyEntry.summary ?? null,
-          category: readyEntry.category ?? null,
-          colors: readyEntry.colors ?? null,
-          materials: readyEntry.materials ?? null,
-          silhouette: readyEntry.silhouette ?? null,
-          styleAttributes: readyEntry.styleAttributes ?? null,
-          brand: readyEntry.brand ?? null,
-          confidence: readyEntry.confidence ?? null,
+        visualCollection: {
+          evidence: readyEntries.map((entry) => ({
+            id: entry.id,
+            order: entry.order,
+            source: entry.source,
+            title: entry.title,
+            summary: entry.summary ?? null,
+            category: entry.category ?? null,
+            colors: entry.colors ?? null,
+            materials: entry.materials ?? null,
+            silhouette: entry.silhouette ?? null,
+            styleAttributes: entry.styleAttributes ?? null,
+            brand: entry.brand ?? null,
+            confidence: entry.confidence ?? null,
+          })),
+          ...(focusedReadyEntry ? { focusEvidenceId: focusedReadyEntry.id } : {}),
         },
       };
     }
@@ -515,6 +522,7 @@ export default function StyleChatSessionScreen() {
                   drafts: snapshot.drafts,
                   onSent: () => {
                     chatAttachments.clearAttachments();
+                    if (hasReadyEntry) clearVisualContext();
                     setComposerText('');
                   },
                 },
@@ -536,6 +544,7 @@ export default function StyleChatSessionScreen() {
           disabled={
             !canSend ||
             visualContextProcessing ||
+            (visualContextEntries.length > 0 && hasUnsendableEntry) ||
             (attachmentsEnabled &&
               chatAttachments.attachments.length > 0 &&
               !chatAttachments.canSendWithAttachments)

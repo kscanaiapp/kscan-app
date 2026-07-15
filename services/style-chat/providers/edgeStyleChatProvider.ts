@@ -20,6 +20,7 @@ import {
 } from '../../../types/styleChatAttachments';
 
 const EDGE_FN      = 'stylechat-generate';
+export const ELISE_VISUAL_COLLECTION_CONTRACT_VERSION = '1';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
 // before Gemini starts. Client must wait longer than the worst-case server budget
 // so it does not abort while the backend is still succeeding.
@@ -37,7 +38,9 @@ export type EdgeChatStatus =
   // draft (text + attachments) and must NOT display an attachment-blind reply
   // as though the model saw the attachments.
   | 'attachments_unsupported'
-  | 'attachments_rejected';
+  | 'attachments_rejected'
+  | 'visual_collection_unsupported'
+  | 'visual_collection_rejected';
 
 /** Validated structured action passed through from the v2 backend. */
 export interface EdgeChatAction {
@@ -89,6 +92,7 @@ export function toServerSafeActiveContext(
   context: StyleChatHandoffContext,
 ): Omit<StyleChatHandoffContext, 'imageUri' | 'textScanId' | 'createdAt'> {
   const visual = context.visualContext;
+  const visualCollection = context.visualCollection;
   return {
     source: context.source,
     ...(context.query != null ? { query: context.query } : {}),
@@ -114,6 +118,29 @@ export function toServerSafeActiveContext(
           },
         }
       : {}),
+    ...(visualCollection?.evidence?.length
+      ? {
+          visualCollection: {
+            evidence: visualCollection.evidence.map((entry) => ({
+              id: entry.id,
+              order: entry.order,
+              source: entry.source,
+              title: entry.title,
+              summary: entry.summary ?? null,
+              category: entry.category ?? null,
+              colors: entry.colors ? [...entry.colors] : null,
+              materials: entry.materials ? [...entry.materials] : null,
+              silhouette: entry.silhouette ?? null,
+              styleAttributes: entry.styleAttributes ? [...entry.styleAttributes] : null,
+              brand: entry.brand ?? null,
+              confidence: entry.confidence ?? null,
+            })),
+            ...(visualCollection.focusEvidenceId
+              ? { focusEvidenceId: visualCollection.focusEvidenceId }
+              : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -124,6 +151,8 @@ function normalizeStatus(status: unknown): EdgeChatStatus | null {
     || status === 'error'
     || status === 'attachments_unsupported'
     || status === 'attachments_rejected'
+    || status === 'visual_collection_unsupported'
+    || status === 'visual_collection_rejected'
     ? status
     : null;
 }
@@ -257,6 +286,7 @@ export class EdgeStyleChatProvider {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), this.timeoutMs);
     const hasAttachments = Array.isArray(input.attachments) && input.attachments.length > 0;
+    const hasVisualCollection = Boolean(input.activeContext?.visualCollection?.evidence?.length);
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
@@ -305,6 +335,18 @@ export class EdgeStyleChatProvider {
               const status = normalizeStatus(body.status);
               const bodyMessage = isRecord(body.message) ? body.message : {};
               const bodyContent = typeof bodyMessage.content === 'string' ? bodyMessage.content : '';
+              if (
+                hasVisualCollection &&
+                typeof body.errorCode === 'string' &&
+                body.errorCode.startsWith('VISUAL_COLLECTION_')
+              ) {
+                return {
+                  status: 'visual_collection_rejected',
+                  errorCode: body.errorCode,
+                  message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+                  usage: DEFAULT_USAGE,
+                };
+              }
               // v2: safe structured attachment failures (400/403/404 with errorCode).
               if (hasAttachments && typeof body.errorCode === 'string' && body.errorCode.length > 0) {
                 return {
@@ -349,9 +391,9 @@ export class EdgeStyleChatProvider {
         // Attachment-bearing sends must never degrade into an attachment-blind
         // answer: function-unavailable / 404 / 503 / network failures become an
         // explicit unsupported result so the caller preserves the draft.
-        if (hasAttachments) {
+        if (hasAttachments || hasVisualCollection) {
           return {
-            status: 'attachments_unsupported',
+            status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
             message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
             usage: DEFAULT_USAGE,
           };
@@ -398,6 +440,18 @@ export class EdgeStyleChatProvider {
         return fallbackResult(undefined, 'EMPTY_EDGE_RESPONSE');
       }
       const message = normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric);
+
+      if (hasVisualCollection) {
+        const raw = data as unknown as Record<string, unknown>;
+        if (raw.visualCollectionContractVersion !== ELISE_VISUAL_COLLECTION_CONTRACT_VERSION) {
+          if (__DEV__) console.warn('[EdgeStyleChatProvider] backend lacks visual collection capability');
+          return {
+            status: 'visual_collection_unsupported',
+            message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+            usage: normalizeUsage(data.usage),
+          };
+        }
+      }
 
       // v2 capability detection: when attachments were sent, the backend must
       // acknowledge the contract. An older deployed function silently ignores
@@ -448,11 +502,11 @@ export class EdgeStyleChatProvider {
       } else if (__DEV__) {
         console.warn('[EdgeStyleChatProvider] unexpected client failure');
       }
-      if (hasAttachments) {
-        // Timeout/network with attachments: preserve the draft, never pretend
-        // the model saw the attachments.
+      if (hasAttachments || hasVisualCollection) {
+        // Timeout/network with evidence: preserve the draft, never pretend
+        // the model saw the collection or attachments.
         return {
-          status: 'attachments_unsupported',
+          status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
           message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
           usage: DEFAULT_USAGE,
         };
