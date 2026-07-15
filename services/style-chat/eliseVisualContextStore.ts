@@ -70,11 +70,10 @@ function currentRevision(actorKey: string, sessionId: string): number {
   return store.get(key(actorKey, sessionId))?.revision ?? 0;
 }
 
-function bumpRevision(actorKey: string, sessionId: string): number {
-  const entry = getEntry(actorKey, sessionId);
-  entry.revision = ++revisionCounter;
-  entry.collection.revision = entry.revision;
-  return entry.revision;
+function mintRevision(entry: StoreEntry, invalidateScanIntent: boolean): number {
+  const revision = ++revisionCounter;
+  if (invalidateScanIntent) entry.revision = revision;
+  return revision;
 }
 
 function pruneScanIntents(now = Date.now(), reserveSlot = false): void {
@@ -144,8 +143,16 @@ export function setVisualContextCollection(
   collection: Omit<EliseVisualContextCollection, 'revision'>,
 ): number {
   const entry = getEntry(actorKey, sessionId);
-  const revision = bumpRevision(actorKey, sessionId);
-  entry.collection = { ...collection, revision };
+  if (collection.entries.length > ELISE_VISUAL_CONTEXT_MAX_ENTRIES) {
+    throw new Error('Visual context collection exceeds capacity');
+  }
+  const revision = mintRevision(entry, true);
+  entry.collection = {
+    ...collection,
+    entries: [...collection.entries],
+    maxEntries: ELISE_VISUAL_CONTEXT_MAX_ENTRIES,
+    revision,
+  };
   notify();
   return revision;
 }
@@ -155,16 +162,8 @@ function nextOrder(collection: EliseVisualContextCollection): number {
   return Math.max(...collection.entries.map((e) => e.order)) + 1;
 }
 
-function chooseFocusAfterRemove(collection: EliseVisualContextCollection): string | null {
-  if (collection.focusedEntryId && collection.entries.some((e) => e.id === collection.focusedEntryId)) {
-    return collection.focusedEntryId;
-  }
-  return collection.entries[0]?.id ?? null;
-}
-
 /**
  * Append a new entry if the collection has room.
- * Auto-focuses the first entry added to an empty collection.
  * Returns the appended entry and the new revision, or null when at capacity.
  */
 export function appendVisualContextEntry(
@@ -174,18 +173,21 @@ export function appendVisualContextEntry(
 ): { entry: EliseVisualContextEntry; revision: number } | null {
   const entryState = getEntry(actorKey, sessionId);
   const collection = entryState.collection;
-  if (collection.entries.length >= collection.maxEntries) return null;
+  if (collection.entries.length >= ELISE_VISUAL_CONTEXT_MAX_ENTRIES) return null;
+  if (collection.entries.some((existing) => existing.id === entry.id)) return null;
 
-  const revision = bumpRevision(actorKey, sessionId);
+  const revision = mintRevision(entryState, true);
   const orderedEntry = {
     ...entry,
     order: entry.order || nextOrder(collection),
     revision,
   };
-  collection.entries.push(orderedEntry);
-  if (!collection.focusedEntryId) {
-    collection.focusedEntryId = orderedEntry.id;
-  }
+  entryState.collection = {
+    ...collection,
+    entries: [...collection.entries, orderedEntry],
+    maxEntries: ELISE_VISUAL_CONTEXT_MAX_ENTRIES,
+    revision,
+  };
   notify();
   return { entry: orderedEntry, revision };
 }
@@ -197,12 +199,16 @@ export function removeVisualContextEntry(
 ): boolean {
   const entryState = getEntry(actorKey, sessionId);
   const collection = entryState.collection;
-  const before = collection.entries.length;
-  collection.entries = collection.entries.filter((e) => e.id !== entryId);
-  if (collection.entries.length === before) return false;
+  const entries = collection.entries.filter((e) => e.id !== entryId);
+  if (entries.length === collection.entries.length) return false;
 
-  bumpRevision(actorKey, sessionId);
-  collection.focusedEntryId = chooseFocusAfterRemove(collection);
+  const revision = mintRevision(entryState, true);
+  entryState.collection = {
+    ...collection,
+    entries,
+    focusedEntryId: collection.focusedEntryId === entryId ? null : collection.focusedEntryId,
+    revision,
+  };
   notify();
   return true;
 }
@@ -224,9 +230,30 @@ export function updateVisualContextEntryIfCurrent(
   if (index === -1) return false;
   if (entryState.collection.entries[index].revision !== revision) return false;
 
-  entryState.collection.entries[index] = updater(entryState.collection.entries[index]);
+  const nextRevision = mintRevision(entryState, false);
+  const entries = [...entryState.collection.entries];
+  entries[index] = {
+    ...updater(entries[index]),
+    revision: nextRevision,
+  };
+  entryState.collection = {
+    ...entryState.collection,
+    entries,
+    revision: nextRevision,
+  };
   notify();
   return true;
+}
+
+export function isVisualContextEntryRevisionCurrent(
+  actorKey: string,
+  sessionId: string,
+  entryId: string,
+  revision: number,
+): boolean {
+  return getVisualContextCollection(actorKey, sessionId)?.entries.some(
+    (entry) => entry.id === entryId && entry.revision === revision,
+  ) ?? false;
 }
 
 /**
@@ -243,11 +270,13 @@ export function restartVisualContextEntry(
   const index = entryState.collection.entries.findIndex((e) => e.id === entryId);
   if (index === -1) return null;
 
-  const revision = bumpRevision(actorKey, sessionId);
-  entryState.collection.entries[index] = {
-    ...updater(entryState.collection.entries[index]),
+  const revision = mintRevision(entryState, false);
+  const entries = [...entryState.collection.entries];
+  entries[index] = {
+    ...updater(entries[index]),
     revision,
   };
+  entryState.collection = { ...entryState.collection, entries, revision };
   notify();
   return revision;
 }
@@ -255,19 +284,24 @@ export function restartVisualContextEntry(
 export function setVisualContextFocusedEntry(
   actorKey: string,
   sessionId: string,
-  entryId: string,
+  entryId: string | null,
 ): boolean {
   const entryState = getEntry(actorKey, sessionId);
-  if (!entryState.collection.entries.some((e) => e.id === entryId)) return false;
-  bumpRevision(actorKey, sessionId);
-  entryState.collection.focusedEntryId = entryId;
+  if (entryId && !entryState.collection.entries.some((e) => e.id === entryId)) return false;
+  if (entryState.collection.focusedEntryId === entryId) return true;
+  const revision = mintRevision(entryState, false);
+  entryState.collection = {
+    ...entryState.collection,
+    focusedEntryId: entryId,
+    revision,
+  };
   notify();
   return true;
 }
 
 export function clearVisualContextCollection(actorKey: string, sessionId: string): number {
   const entryState = getEntry(actorKey, sessionId);
-  const revision = bumpRevision(actorKey, sessionId);
+  const revision = mintRevision(entryState, true);
   entryState.collection = {
     entries: [],
     focusedEntryId: null,
@@ -308,7 +342,7 @@ export function isVisualContextRevisionCurrent(
 }
 
 /**
- * Build a memory-candidate projection from the focused ready entry, if any.
+ * Build a memory-candidate projection from an explicitly focused ready entry.
  * Only metadata fields supported by actual evidence are included.
  */
 export function getVisualContextMemoryCandidate(
@@ -317,10 +351,10 @@ export function getVisualContextMemoryCandidate(
 ): VisualContextMemoryCandidateInput | null {
   const collection = getVisualContextCollection(actorKey, sessionId);
   if (!collection) return null;
-  const entry =
-    collection.entries.find((e) => e.id === collection.focusedEntryId && e.status === 'ready') ??
-    collection.entries.find((e) => e.status === 'ready') ??
-    null;
+  if (!collection.focusedEntryId) return null;
+  const entry = collection.entries.find(
+    (e) => e.id === collection.focusedEntryId && e.status === 'ready',
+  ) ?? null;
   if (!entry) return null;
   return {
     source: entry.source,

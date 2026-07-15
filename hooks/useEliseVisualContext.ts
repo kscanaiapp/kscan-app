@@ -13,20 +13,23 @@ import {
   clearVisualContextCollection,
   createVisualContextScanIntent,
   getVisualContextCollection,
+  isVisualContextEntryRevisionCurrent,
   removeVisualContextEntry,
   restartVisualContextEntry,
   setVisualContextFocusedEntry,
   subscribeToVisualContextCollection,
   updateVisualContextEntryIfCurrent,
 } from '../services/style-chat/eliseVisualContextStore';
+import {
+  createEliseVisualContextQueue,
+  type EliseVisualPreparationJob,
+} from '../services/style-chat/eliseVisualContextQueue';
 import { buildEliseVisualContext } from '../services/style-chat/buildEliseVisualContext';
 import { setDraftComposerText } from '../services/style-chat/styleChatAttachmentStore';
 import {
   ELISE_VISUAL_CONTEXT_MAX_ENTRIES,
   type EliseVisualContextEntry,
 } from '../types/eliseVisualContext';
-
-const MAX_CONCURRENT_PREP = 2;
 
 function blockedPrivacyPolicy(): EliseVisualContextEntry['privacyPolicy'] {
   return {
@@ -61,8 +64,21 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
   const router = useRouter();
   const [, setTick] = useState(0);
   const inFlightRef = useRef(false);
-  const runningRef = useRef<Set<string>>(new Set());
-  const queueRef = useRef<Array<{ entryId: string; rawUri: string; revision: number }>>([]);
+  const pickerInFlightRef = useRef(false);
+  const processEntryRef = useRef<(job: EliseVisualPreparationJob) => Promise<void>>(async () => {});
+  const preparationQueueRef = useRef<ReturnType<typeof createEliseVisualContextQueue> | null>(null);
+  if (!preparationQueueRef.current) {
+    preparationQueueRef.current = createEliseVisualContextQueue({
+      maxConcurrency: 2,
+      run: (job) => processEntryRef.current(job),
+      isCurrent: (job) => isVisualContextEntryRevisionCurrent(
+        job.actorKey,
+        job.sessionId,
+        job.entryId,
+        job.revision,
+      ),
+    });
+  }
 
   const refresh = useCallback(() => setTick((value) => value + 1), []);
 
@@ -75,6 +91,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
   );
   const hasReadyEntry = entries.some((entry) => entry.status === 'ready');
   const hasBlockedEntry = entries.some((entry) => entry.status === 'blocked');
+  const hasUnsendableEntry = entries.some((entry) => entry.status !== 'ready');
   const remainingSlots = Math.max(0, ELISE_VISUAL_CONTEXT_MAX_ENTRIES - entries.length);
 
   const startScan = useCallback(
@@ -99,13 +116,13 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
   );
 
   const processEntry = useCallback(
-    async (entryId: string, rawUri: string, revision: number) => {
-      if (!actorKey) return;
+    async (job: EliseVisualPreparationJob) => {
+      const { actorKey: jobActorKey, sessionId: jobSessionId, entryId, rawUri, revision } = job;
 
       if (!isPrivateImageUploadAvailable()) {
         updateVisualContextEntryIfCurrent(
-          actorKey,
-          sessionId,
+          jobActorKey,
+          jobSessionId,
           entryId,
           revision,
           (entry) => ({
@@ -121,8 +138,8 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
         const prepared = await prepareImageForPrivacyUpload(rawUri);
         sanitizedUri = prepared.sanitizedUri;
         const applied = updateVisualContextEntryIfCurrent(
-          actorKey,
-          sessionId,
+          jobActorKey,
+          jobSessionId,
           entryId,
           revision,
           (entry) => ({
@@ -140,8 +157,8 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
         if (sanitizedUri) void cleanupSanitizedImage(sanitizedUri);
         const message = error instanceof Error ? error.message : 'Upload failed';
         updateVisualContextEntryIfCurrent(
-          actorKey,
-          sessionId,
+          jobActorKey,
+          jobSessionId,
           entryId,
           revision,
           (entry) => ({
@@ -152,31 +169,23 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
         );
       }
     },
-    [actorKey, sessionId],
+    [],
   );
-
-  const startNextJobs = useCallback(() => {
-    while (runningRef.current.size < MAX_CONCURRENT_PREP && queueRef.current.length > 0) {
-      const next = queueRef.current.shift();
-      if (!next) break;
-      if (runningRef.current.has(next.entryId)) continue;
-      runningRef.current.add(next.entryId);
-      void processEntry(next.entryId, next.rawUri, next.revision).finally(() => {
-        runningRef.current.delete(next.entryId);
-        startNextJobs();
-      });
-    }
-  }, [processEntry]);
+  processEntryRef.current = processEntry;
 
   const enqueuePreparation = useCallback(
-    (entryId: string, rawUri: string, revision: number) => {
-      queueRef.current.push({ entryId, rawUri, revision });
-      startNextJobs();
+    (job: EliseVisualPreparationJob) => {
+      preparationQueueRef.current?.enqueue(job);
     },
-    [startNextJobs],
+    [],
   );
 
+  useEffect(() => () => {
+    if (actorKey) preparationQueueRef.current?.cancelScope(actorKey, sessionId);
+  }, [actorKey, sessionId]);
+
   const startUpload = useCallback(async () => {
+    if (pickerInFlightRef.current) return;
     if (!actorKey) {
       Alert.alert('Sign in required', 'Please sign in to use visual context.');
       return;
@@ -192,31 +201,53 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      selectionLimit: slots,
-      quality: 1,
-    });
+    pickerInFlightRef.current = true;
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: slots,
+        quality: 1,
+      });
+    } catch {
+      Alert.alert('Photos unavailable', 'K Scan could not open your photo library. Try again.');
+      return;
+    } finally {
+      pickerInFlightRef.current = false;
+    }
 
     if (result.canceled || !result.assets?.length) return;
 
-    const assets = result.assets.slice(0, slots);
-    for (const asset of assets) {
+    let skipped = 0;
+    for (const asset of result.assets) {
       const entry = buildEliseVisualContext({
         actorKey,
         sessionId,
         source: 'upload',
         status: 'preparing',
         title: 'Preparing upload…',
-        sanitizedPreviewUri: asset.uri,
         rawImageUri: asset.uri,
         privacyPolicy: blockedPrivacyPolicy(),
       });
       const appended = appendVisualContextEntry(actorKey, sessionId, entry);
       if (appended) {
-        enqueuePreparation(appended.entry.id, asset.uri, appended.revision);
+        enqueuePreparation({
+          actorKey,
+          sessionId,
+          entryId: appended.entry.id,
+          rawUri: asset.uri,
+          revision: appended.revision,
+        });
+      } else {
+        skipped += 1;
       }
+    }
+    if (skipped > 0) {
+      Alert.alert(
+        'Collection updated',
+        `${skipped} selected ${skipped === 1 ? 'image was' : 'images were'} not added because the 6-reference limit was reached.`,
+      );
     }
   }, [actorKey, sessionId, enqueuePreparation]);
 
@@ -225,6 +256,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
       if (!actorKey) return;
       const current = getVisualContextCollection(actorKey, sessionId);
       const entry = current?.entries.find((e) => e.id === entryId);
+      preparationQueueRef.current?.cancelEntry(actorKey, sessionId, entryId);
       if (entry?.sanitizedPreviewUri) {
         void cleanupSanitizedImage(entry.sanitizedPreviewUri);
       }
@@ -249,7 +281,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
         (e) => ({ ...e, status: 'preparing', title: 'Preparing upload…' }) as EliseVisualContextEntry,
       );
       if (revision !== null) {
-        enqueuePreparation(entryId, rawUri, revision);
+        enqueuePreparation({ actorKey, sessionId, entryId, rawUri, revision });
       }
     },
     [actorKey, sessionId, enqueuePreparation],
@@ -258,13 +290,19 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
   const setFocusedEntry = useCallback(
     (entryId: string) => {
       if (!actorKey) return;
-      setVisualContextFocusedEntry(actorKey, sessionId, entryId);
+      const current = getVisualContextCollection(actorKey, sessionId);
+      setVisualContextFocusedEntry(
+        actorKey,
+        sessionId,
+        current?.focusedEntryId === entryId ? null : entryId,
+      );
     },
     [actorKey, sessionId],
   );
 
   const clear = useCallback(() => {
     if (!actorKey) return;
+    preparationQueueRef.current?.cancelScope(actorKey, sessionId);
     const current = getVisualContextCollection(actorKey, sessionId);
     for (const entry of current?.entries ?? []) {
       if (entry.sanitizedPreviewUri) {
@@ -280,6 +318,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
     isProcessing,
     hasReadyEntry,
     hasBlockedEntry,
+    hasUnsendableEntry,
     remainingSlots,
     startScan,
     startUpload,

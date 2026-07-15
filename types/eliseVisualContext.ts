@@ -38,6 +38,18 @@ export type EliseVisualContextInput = {
   confidence?: number | null;
 };
 
+/** Bounded, server-safe evidence entry sent to StyleChat generation. */
+export type EliseVisualEvidenceInput = EliseVisualContextInput & {
+  id: string;
+  order: number;
+};
+
+/** All ready evidence intended for one StyleChat message. */
+export type EliseVisualCollectionInput = {
+  evidence: EliseVisualEvidenceInput[];
+  focusEvidenceId?: string | null;
+};
+
 export type EliseVisualContextEntry = EliseVisualContextInput & {
   /** Stable client-generated id for this pending entry. */
   id: string;
@@ -70,7 +82,7 @@ export const ELISE_VISUAL_CONTEXT_MAX_ENTRIES = 6;
 
 export type EliseVisualContextCollection = {
   entries: EliseVisualContextEntry[];
-  /** Currently selected entry; its descriptive facts are sent to generation. */
+  /** Optional user-selected emphasis; every ready entry is still sent. */
   focusedEntryId: string | null;
   maxEntries: number;
   revision: number;
