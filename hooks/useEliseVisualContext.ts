@@ -94,11 +94,24 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
   const hasUnsendableEntry = entries.some((entry) => entry.status !== 'ready');
   const remainingSlots = Math.max(0, ELISE_VISUAL_CONTEXT_MAX_ENTRIES - entries.length);
 
+  const getRemainingCapacity = useCallback(() => {
+    if (!actorKey) return 0;
+    const latest = getVisualContextCollection(actorKey, sessionId);
+    return Math.max(
+      0,
+      ELISE_VISUAL_CONTEXT_MAX_ENTRIES - (latest?.entries.length ?? 0),
+    );
+  }, [actorKey, sessionId]);
+
   const startScan = useCallback(
     (currentDraftText: string) => {
       if (inFlightRef.current) return;
       if (!actorKey) {
         Alert.alert('Sign in required', 'Please sign in to use visual context.');
+        return;
+      }
+      if (getRemainingCapacity() === 0) {
+        Alert.alert('Collection full', 'Remove an image before adding another.');
         return;
       }
 
@@ -112,7 +125,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
         inFlightRef.current = false;
       }, 500);
     },
-    [actorKey, router, sessionId],
+    [actorKey, getRemainingCapacity, router, sessionId],
   );
 
   const processEntry = useCallback(
@@ -320,6 +333,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
     hasBlockedEntry,
     hasUnsendableEntry,
     remainingSlots,
+    getRemainingCapacity,
     startScan,
     startUpload,
     remove,

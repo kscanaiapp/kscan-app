@@ -22,18 +22,21 @@ interface StyleChatInputProps {
   onSend: (text: string) => void;
   value?: string;
   onChangeText?: (text: string) => void;
-  /** Locks editing (for example while the current message is being sent). */
-  disabled?: boolean;
-  /** Keeps the draft editable while temporarily preventing submission. */
+  /** Editing remains available unless the session itself is unavailable. */
+  inputEditable?: boolean;
+  /** Prevents submission without freezing draft editing. */
   sendDisabled?: boolean;
+  /** Announces an in-flight send without coupling it to input editability. */
+  sendBusy?: boolean;
 }
 
 export function StyleChatInput({
   onSend,
   value,
   onChangeText,
-  disabled = false,
+  inputEditable = true,
   sendDisabled = false,
+  sendBusy = false,
 }: StyleChatInputProps) {
   const [internalText, setInternalText] = useState('');
   const isControlled = typeof value === 'string';
@@ -51,7 +54,7 @@ export function StyleChatInput({
     paddingBottom: composerBottomPadding,
   };
 
-  const canSubmit = text.trim().length > 0 && !disabled && !sendDisabled;
+  const canSubmit = text.trim().length > 0 && inputEditable && !sendDisabled;
 
   const handleTextChange = (next: string) => {
     if (!isControlled) setInternalText(next);
@@ -82,7 +85,7 @@ export function StyleChatInput({
         returnKeyType="send"
         onSubmitEditing={handleSend}
         blurOnSubmit={false}
-        editable={!disabled}
+        editable={inputEditable}
         textAlignVertical="top"
         accessibilityLabel="Message composer"
         accessibilityHint="Type a styling question for Elise"
@@ -99,7 +102,7 @@ export function StyleChatInput({
         accessibilityLabel={ELISE_IDENTITY.sendAccessibilityLabel}
         accessibilityHint="Send your styling question to Elise"
         accessibilityRole="button"
-        accessibilityState={{ disabled: !canSubmit, busy: disabled }}
+        accessibilityState={{ disabled: !canSubmit, busy: sendBusy }}
       >
         <Text style={[styles.sendText, !canSubmit ? styles.sendTextDisabled : null]}>
           Send

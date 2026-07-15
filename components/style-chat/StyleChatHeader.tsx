@@ -10,6 +10,9 @@ import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
+  onScanPress?: () => void;
+  scanDisabled?: boolean;
+  scanDisabledHint?: string;
 }
 
 export function navigateStyleChatHome() {
@@ -32,7 +35,12 @@ export function useStyleChatHomeBackHandler(bypassRef?: { current: boolean }) {
   );
 }
 
-export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
+export function StyleChatHeader({
+  showBadge = true,
+  onScanPress,
+  scanDisabled = false,
+  scanDisabledHint,
+}: StyleChatHeaderProps) {
   const insets = useSafeAreaInsets();
   const { identity } = useStylistIdentity();
   const displayName = identity.displayName;
@@ -42,8 +50,6 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
     <View
       testID="style-chat-header"
       style={styles.container}
-      accessibilityRole="header"
-      accessibilityLabel={headerAccessibilityLabel}
     >
       <View
         style={[
@@ -58,9 +64,9 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
           accessibilityHint="Closes StyleChat and returns to the Home screen"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           onPress={navigateStyleChatHome}
-          style={({ pressed }) => [styles.homeButton, pressed ? styles.homeButtonPressed : null]}
+          style={({ pressed }) => [styles.navButton, styles.navButtonLeft, pressed ? styles.navButtonPressed : null]}
         >
-          <Text style={styles.homeButtonText} maxFontSizeMultiplier={1.2}>Home</Text>
+          <Text style={styles.navButtonText} maxFontSizeMultiplier={1.2}>Home</Text>
         </Pressable>
 
         <View style={styles.titleWrap}>
@@ -76,7 +82,32 @@ export function StyleChatHeader({ showBadge = true }: StyleChatHeaderProps) {
           </Text>
         </View>
 
-        <View style={styles.rightSpacer} />
+        {onScanPress ? (
+          <Pressable
+            testID="style-chat-scan-button"
+            accessibilityRole="button"
+            accessibilityLabel="Add visual context"
+            accessibilityHint={
+              scanDisabled
+                ? scanDisabledHint ?? 'Remove an image before adding another.'
+                : 'Choose the camera or upload images from your photo library'
+            }
+            accessibilityState={{ disabled: scanDisabled }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={onScanPress}
+            disabled={scanDisabled}
+            style={({ pressed }) => [
+              styles.navButton,
+              styles.navButtonRight,
+              pressed && !scanDisabled ? styles.navButtonPressed : null,
+              scanDisabled ? styles.navButtonDisabled : null,
+            ]}
+          >
+            <Text style={styles.navButtonText} maxFontSizeMultiplier={1.2}>SCAN</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.rightSpacer} />
+        )}
       </View>
 
       <View style={styles.subtitleRow}>
@@ -108,31 +139,44 @@ const styles = StyleSheet.create({
   },
   topRow: {
     width: '100%',
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    position: 'relative',
     paddingHorizontal: SPACING.xl,
   },
-  homeButton: {
+  navButton: {
     minHeight: 44,
-    minWidth: 60,
+    width: 72,
     justifyContent: 'center',
   },
-  homeButtonPressed: {
+  navButtonLeft: {
+    alignItems: 'flex-start',
+  },
+  navButtonRight: {
+    alignItems: 'flex-end',
+  },
+  navButtonPressed: {
     opacity: 0.72,
   },
-  homeButtonText: {
+  navButtonDisabled: {
+    opacity: 0.38,
+  },
+  navButtonText: {
     ...LUXURY.typography.caption,
     color: LUXURY.colors.plum,
     letterSpacing: 1.4,
-    textTransform: 'none',
   },
   titleWrap: {
-    flex: 1,
+    position: 'absolute',
+    left: 96,
+    right: 96,
     alignItems: 'center',
     minWidth: 0,
   },
   rightSpacer: {
-    width: 60,
+    width: 72,
   },
   title: {
     ...LUXURY.typography.brandMark,
