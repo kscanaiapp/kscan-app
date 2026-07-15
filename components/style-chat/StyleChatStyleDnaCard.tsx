@@ -187,8 +187,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: LUXURY.colors.hairline,
-    backgroundColor: 'transparent',
+    borderColor: 'rgba(45, 31, 94, 0.18)',
+    backgroundColor: 'rgba(232, 228, 240, 0.46)',
+    ...SHADOWS.editorialSmall,
   },
   rowLeft: {
     flex: 1,
