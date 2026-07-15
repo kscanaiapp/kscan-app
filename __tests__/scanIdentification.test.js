@@ -178,6 +178,14 @@ test('normalizeScanIdentifyResponse: drops out-of-range confidence to clamp', ()
 // ── Adapter network behavior (stubbed Supabase) ────────────────────────────────
 
 const TINY_DATA_URI = 'data:image/jpeg;base64,QUJD'; // "ABC"
+const COMPLETE_PRIVACY_PROOF = Object.freeze({
+  sanitizerVersion: 'test-pixel-mask-1.0.0',
+  faceDetectionPerformed: true,
+  faceMaskApplied: true,
+  plateDetectionPerformed: true,
+  plateMaskApplied: true,
+  metadataStripped: true,
+});
 
 test('identifyScanImage: no session → sign-in failure, no invoke', async () => {
   let invoked = false;
@@ -220,7 +228,10 @@ test('identifyScanImage: success path returns normalized completed', async () =>
       },
     },
   });
-  const out = await adapter.identifyScanImage(TINY_DATA_URI, { source: 'upload', localPrivacyFiltered: true });
+  const out = await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'upload',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
+  });
   assert.equal(out.status, 'completed');
   assert.equal(out.attributes.category, 'Footwear');
   assertEmptyArray(out.recommendedProducts);
@@ -237,8 +248,37 @@ test('identifyScanImage: invoke error → failed', async () => {
     auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
     functions: { invoke: async () => ({ data: null, error: { message: 'boom' } }) },
   });
+  const out = await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'camera',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
+  });
+  assert.equal(out.status, 'failed');
+});
+
+test('identifyScanImage: missing pixel-masking proof fails closed before invoke', async () => {
+  let invoked = false;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
+  });
   const out = await adapter.identifyScanImage(TINY_DATA_URI, { source: 'camera' });
   assert.equal(out.status, 'failed');
+  assert.match(out.userMessage, /privacy masking/i);
+  assert.equal(invoked, false);
+});
+
+test('identifyScanImage: metadata-only proof fails closed before invoke', async () => {
+  let invoked = false;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
+  });
+  const out = await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'upload',
+    privacyProof: { ...COMPLETE_PRIVACY_PROOF, faceMaskApplied: false, plateMaskApplied: false },
+  });
+  assert.equal(out.status, 'failed');
+  assert.equal(invoked, false);
 });
 
 // ── Abort signal lifecycle (KC05 audit F1) ─────────────────────────────────────
@@ -263,6 +303,7 @@ test('identifyScanImage: already-aborted external signal short-circuits before i
 
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
     signal: controller.signal,
   });
 
@@ -291,6 +332,7 @@ test('identifyScanImage: external abort during request cancels the invoke', asyn
   const controller = new AbortController();
   const pending = adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
     signal: controller.signal,
   });
   // Let execution reach the invoke call (auth getSession + controller setup run
@@ -324,6 +366,7 @@ test('identifyScanImage: successful request with external signal still completes
   const controller = new AbortController();
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
     signal: controller.signal,
   });
 
