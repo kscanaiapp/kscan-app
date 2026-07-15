@@ -8,18 +8,23 @@ import React, {
   useState,
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../services/supabaseClient';
+import { supabase, takeAuthBootstrapStorageError } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
 import {
   createAuthBootstrapGenerationGuard,
+  createAuthActorBoundaryGuard,
   isHandledStaleRefreshTokenError,
 } from '../services/authSessionBootstrap';
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import { logError } from '../src/utils/errorLogger';
 import { stopAvatarSpeechPlayback } from '../services/avatarSpeech';
+import { resetStylistIdentityStore } from '../stores/stylistIdentityStore';
+import { resetStylistVoicePreferenceState } from '../stores/stylistVoicePreferenceStore';
+import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
+import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -47,11 +52,21 @@ export interface AuthSessionContextValue {
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
+function resetActorScopedRuntimeState(): void {
+  invalidateAllMemoryCache();
+  resetAttachmentStore();
+  clearStyleChatHandoffContext();
+  resetStyleChatGreetingState();
+  resetStylistIdentityStore();
+  resetStylistVoicePreferenceState();
+}
+
 export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const authEventGenerationGuardRef = useRef(createAuthBootstrapGenerationGuard());
+  const authActorBoundaryGuardRef = useRef(createAuthActorBoundaryGuard());
 
   useEffect(() => {
     let mounted = true;
@@ -69,15 +84,12 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       });
       if (event === 'TOKEN_REFRESHED') {
         setIsRefreshing(false);
-      } else {
+      }
+      if (authActorBoundaryGuardRef.current.noteActor(usableSession?.user.id ?? null)) {
         // Any actor boundary invalidates pending generation and native playback
         // before the new auth state can become visible to app consumers.
         void stopAvatarSpeechPlayback();
-        invalidateAllMemoryCache();
-        // Actor change (sign-in / sign-out / user update): drop any composer
-        // attachment drafts and un-consumed handoff so this device's local
-        // image URIs and resolved references never cross between accounts.
-        resetAttachmentStore();
+        resetActorScopedRuntimeState();
       }
       setSession(usableSession);
       if (event === 'SIGNED_IN') {
@@ -90,6 +102,30 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       traceAuthLifecycle('bootstrap-start', { loading: true });
       try {
         const { data, error } = await supabase.auth.getSession();
+        const storageRecoveryError = takeAuthBootstrapStorageError();
+
+        if (storageRecoveryError) {
+          const handledStaleRefreshToken = isHandledStaleRefreshTokenError(storageRecoveryError);
+          const bootstrapIsCurrent = authEventGenerationGuardRef.current.isBootstrapCurrent(
+            startGeneration,
+          );
+          if (!handledStaleRefreshToken) {
+            logError('Unable to restore auth session', storageRecoveryError);
+          } else if (
+            bootstrapIsCurrent &&
+            authActorBoundaryGuardRef.current.noteActor(null)
+          ) {
+            void stopAvatarSpeechPlayback();
+            resetActorScopedRuntimeState();
+          }
+          traceAuthLifecycle('bootstrap-result', {
+            ignoredAsStale: !bootstrapIsCurrent,
+            outcome: handledStaleRefreshToken ? 'stale-refresh-cleared' : 'error',
+            sessionPresent: false,
+          });
+          if (mounted && bootstrapIsCurrent) setSession(null);
+          return;
+        }
 
         if (error) {
           const handledStaleRefreshToken = isHandledStaleRefreshTokenError(error);
@@ -169,8 +205,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
   const signOut = useCallback(async () => {
     await stopAvatarSpeechPlayback();
-    invalidateAllMemoryCache();
-    resetAttachmentStore();
+    resetActorScopedRuntimeState();
     setSession(null);
     await supabase.auth.signOut();
   }, []);

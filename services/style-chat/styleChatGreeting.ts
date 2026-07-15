@@ -126,10 +126,10 @@ export function isSessionGreeted(actorId: string, sessionId: string): boolean {
   return greetedSessions.has(greetingScopeKey(actorId, sessionId));
 }
 
-/**
- * Reset in-memory dedupe state. Intended for tests only.
- */
-export function resetGreetingDedupeForTests(): void {
+/** Clear actor-scoped greeting work and playback dedupe at an auth boundary. */
+export function resetStyleChatGreetingState(): void {
   pendingInserts.clear();
   greetedSessions.clear();
 }
+
+export const resetGreetingDedupeForTests = resetStyleChatGreetingState;

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { createAuthBootstrapStorage } from './authSessionBootstrap';
 
 const configuredUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const configuredAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -16,9 +17,45 @@ if (supabaseConfigError && typeof __DEV__ !== 'undefined' && __DEV__) {
 const url = configuredUrl || 'https://missing-supabase-url.supabase.co';
 const anonKey = configuredAnonKey || 'missing-supabase-anon-key';
 
+let authBootstrapStorageError: unknown = null;
+let bootstrapRefreshClient: ReturnType<typeof createClient> | null = null;
+
+function getBootstrapRefreshClient() {
+  if (!bootstrapRefreshClient) {
+    bootstrapRefreshClient = createClient(url, anonKey, {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: false,
+        storageKey: 'kscan-auth-bootstrap-refresh',
+      },
+    });
+  }
+  return bootstrapRefreshClient;
+}
+
+const authStorage = createAuthBootstrapStorage({
+  storage: AsyncStorage,
+  refreshSession: async (refreshToken) => {
+    const { data, error } = await getBootstrapRefreshClient().auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+    return { session: data.session, error };
+  },
+  onRecoveryError: (error) => {
+    authBootstrapStorageError = error;
+  },
+});
+
+export function takeAuthBootstrapStorageError(): unknown {
+  const error = authBootstrapStorageError;
+  authBootstrapStorageError = null;
+  return error;
+}
+
 export const supabase = createClient(url, anonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: authStorage,
     persistSession: true,
     // Bootstrap explicitly before starting the background refresher so a
     // handled stale refresh token can be cleared without auth-js emitting a
