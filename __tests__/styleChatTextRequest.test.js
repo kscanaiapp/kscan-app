@@ -152,6 +152,67 @@ test('active visual context strips local URI and client-only identity fields bef
   assert.doesNotMatch(JSON.stringify(calls[0].options.body), /file:\/\/|raw-picker/);
 });
 
+test('ordered visual collection sends every safe entry and requires backend acknowledgement', async () => {
+  const calls = [];
+  const { Provider } = loadProvider(async (name, options) => {
+    calls.push({ name, options });
+    return {
+      data: {
+        status: 'success',
+        visualCollectionContractVersion: '1',
+        message: { sender: 'assistant', content: 'All three references work together.', model: 'test', tokenEstimate: 12 },
+        usage: { messagesUsed: 1, messagesLimit: 50 },
+      },
+      error: null,
+    };
+  });
+  const evidence = [1, 2, 3].map((order) => ({
+    id: `e-${order}`,
+    order,
+    source: order === 1 ? 'scan' : 'upload',
+    title: `Item ${order}`,
+    colors: [`color-${order}`],
+    rawImageUri: `file:///private/${order}.jpg`,
+    actorKey: 'user:secret',
+  }));
+  const result = await new Provider().generateReply({
+    sessionId: SESSION_ID,
+    message: PROMPT,
+    activeContext: {
+      source: 'camera',
+      visualCollection: { evidence, focusEvidenceId: 'e-2' },
+    },
+  });
+  const sent = calls[0].options.body.activeContext.visualCollection;
+  assert.equal(sent.evidence.length, 3);
+  assert.deepEqual(sent.evidence.map((entry) => entry.id), ['e-1', 'e-2', 'e-3']);
+  assert.equal(sent.focusEvidenceId, 'e-2');
+  assert.doesNotMatch(JSON.stringify(sent), /rawImageUri|file:\/\/|actorKey|user:secret/);
+  assert.equal(result.status, 'success');
+});
+
+test('visual collection success without capability acknowledgement is rejected client-side', async () => {
+  const { Provider } = loadProvider(async () => ({
+    data: {
+      status: 'success',
+      message: { sender: 'assistant', content: 'Attachment-blind answer', model: 'old', tokenEstimate: 5 },
+      usage: { messagesUsed: 1, messagesLimit: 50 },
+    },
+    error: null,
+  }));
+  const result = await new Provider().generateReply({
+    sessionId: SESSION_ID,
+    message: PROMPT,
+    activeContext: {
+      source: 'camera',
+      visualCollection: {
+        evidence: [{ id: 'e-1', order: 1, source: 'scan', title: 'Item 1' }],
+      },
+    },
+  });
+  assert.equal(result.status, 'visual_collection_unsupported');
+});
+
 test('structured HTTP error is parsed without a development warning', async () => {
   const response = new Response(
     JSON.stringify({
@@ -271,6 +332,18 @@ test('hook retains exact text for one-shot retry and never persists an error res
   assert.doesNotMatch(failureBranch, /saveStyleChatMessage/);
   assert.match(hookSource, /skipUserPersistence:\s*Boolean\(failedSend\.userMessageId\)/);
   assert.match(hookSource, /const failedSend = retryStateRef\.current\?\.consume\(\)/);
+});
+
+test('hook defers persistence for visual collections and preserves unsupported sends', () => {
+  assert.match(hookSource, /hasVisualCollection/);
+  assert.match(hookSource, /requiresContextAcknowledgement/);
+  assert.match(hookSource, /visual_collection_unsupported/);
+  assert.match(hookSource, /visual_collection_rejected/);
+  assert.match(hookSource, /deferUserPersistence = skipUserPersistence \|\| requiresContextAcknowledgement/);
+  const burstBranch = hookSource.match(/if \(result\.status === 'burst_limit'\)[\s\S]*?return false;/)?.[0];
+  const limitBranch = hookSource.match(/if \(result\.status === 'limit_reached'\)[\s\S]*?return false;/)?.[0];
+  assert.match(burstBranch, /requiresContextAcknowledgement[\s\S]*?optimisticUser/);
+  assert.match(limitBranch, /requiresContextAcknowledgement[\s\S]*?optimisticUser/);
 });
 
 test('synthetic historical failures have no feedback or report controls', () => {

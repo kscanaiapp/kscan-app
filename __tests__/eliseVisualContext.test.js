@@ -268,7 +268,7 @@ test('scanner return intent is actor and revision bound', () => {
   assert.equal(store.getVisualContextScanIntent(intentId), null);
 });
 
-test('focus selection falls back to first entry when focused entry is removed', () => {
+test('focus is optional and clears when the focused entry is removed', () => {
   const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
     '../../types/eliseVisualContext': visualContextTypes,
   });
@@ -294,14 +294,104 @@ test('focus selection falls back to first entry when focused entry is removed', 
     createdAt: Date.now(),
     revision: 0,
   });
+  assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.focusedEntryId, null);
   store.setVisualContextFocusedEntry('user:1', 'session-a', 'second');
   assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.focusedEntryId, 'second');
 
   store.removeVisualContextEntry('user:1', 'session-a', 'second');
-  assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.focusedEntryId, 'first');
+  assert.equal(store.getVisualContextCollection('user:1', 'session-a')?.focusedEntryId, null);
+});
+
+test('collection snapshots are immutable and duplicate ids are rejected', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  const entry = {
+    id: 'stable', actorKey: 'user:1', sessionId: 'session-a', source: 'scan',
+    status: 'ready', order: 0, title: 'Stable', createdAt: Date.now(), revision: 0,
+  };
+  assert.ok(store.appendVisualContextEntry('user:1', 'session-a', entry));
+  const before = store.getVisualContextCollection('user:1', 'session-a');
+  assert.equal(store.appendVisualContextEntry('user:1', 'session-a', entry), null);
+  store.setVisualContextFocusedEntry('user:1', 'session-a', 'stable');
+  const after = store.getVisualContextCollection('user:1', 'session-a');
+  assert.notEqual(after, before);
+  assert.equal(before.focusedEntryId, null);
+  assert.equal(after.focusedEntryId, 'stable');
+});
+
+test('an async lifecycle completion can apply only once', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  const appended = store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'once', actorKey: 'user:1', sessionId: 'session-a', source: 'upload',
+    status: 'preparing', order: 0, title: 'Preparing', createdAt: Date.now(), revision: 0,
+  });
+  const finish = () => store.updateVisualContextEntryIfCurrent(
+    'user:1', 'session-a', 'once', appended.revision,
+    (entry) => ({ ...entry, status: 'ready' }),
+  );
+  assert.equal(finish(), true);
+  assert.equal(finish(), false);
+});
+
+test('focus and status updates do not invalidate an in-flight scanner return intent', () => {
+  const store = loadTsModule('services/style-chat/eliseVisualContextStore.ts', {
+    '../../types/eliseVisualContext': visualContextTypes,
+  });
+  const appended = store.appendVisualContextEntry('user:1', 'session-a', {
+    id: 'existing', actorKey: 'user:1', sessionId: 'session-a', source: 'upload',
+    status: 'preparing', order: 0, title: 'Preparing', createdAt: Date.now(), revision: 0,
+  });
+  const intentId = store.createVisualContextScanIntent('user:1', 'session-a');
+  const expected = store.getVisualContextScanIntent(intentId).expectedRevision;
+  store.setVisualContextFocusedEntry('user:1', 'session-a', 'existing');
+  store.updateVisualContextEntryIfCurrent(
+    'user:1', 'session-a', 'existing', appended.revision,
+    (entry) => ({ ...entry, status: 'ready' }),
+  );
+  assert.equal(store.isVisualContextRevisionCurrent('user:1', 'session-a', expected), true);
 });
 
 // ── Privacy preparation ──────────────────────────────────────────────────────
+
+test('preparation queue is FIFO, capped at two, skips removed jobs, and survives failure', async () => {
+  const { createEliseVisualContextQueue } = loadTsModule(
+    'services/style-chat/eliseVisualContextQueue.ts',
+    {},
+  );
+  const started = [];
+  const resolvers = new Map();
+  const current = new Set(['one', 'two', 'three', 'four']);
+  const queue = createEliseVisualContextQueue({
+    maxConcurrency: 2,
+    isCurrent: (job) => current.has(job.entryId),
+    run: (job) => new Promise((resolve, reject) => {
+      started.push(job.entryId);
+      resolvers.set(job.entryId, job.entryId === 'two' ? () => reject(new Error('failed')) : resolve);
+    }),
+  });
+  const job = (entryId, revision) => ({
+    actorKey: 'user:1', sessionId: 'session-a', entryId,
+    rawUri: `file:///${entryId}.jpg`, revision,
+  });
+  queue.enqueue(job('one', 1));
+  queue.enqueue(job('two', 2));
+  queue.enqueue(job('three', 3));
+  queue.enqueue(job('four', 4));
+  assert.deepEqual(started, ['one', 'two']);
+  assert.equal(queue.snapshot().active, 2);
+  queue.cancelEntry('user:1', 'session-a', 'three');
+  resolvers.get('two')();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(started, ['one', 'two', 'four']);
+  resolvers.get('one')();
+  resolvers.get('four')();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(queue.snapshot().active, 0);
+  assert.equal(queue.snapshot().pending.length, 0);
+});
 
 test('metadata-only preparation is blocked before any re-encode', async () => {
   const manipResult = { uri: 'file:///cache/sanitized.jpg', width: 1024, height: 768 };
@@ -447,6 +537,8 @@ test('parseActiveContext accepts structured visual context', () => {
   assert.equal(parsed?.visualContext?.title, 'Purple lace corset top');
   assert.equal(parsed.visualContext.colors.length, 1);
   assert.equal(parsed.visualContext.colors[0], 'deep plum');
+  assert.equal(parsed.visualCollection.evidence.length, 1);
+  assert.equal(parsed.visualCollection.evidence[0].id, 'legacy-visual-1');
 });
 
 test('buildActiveContextBlock includes visual context without local URIs', () => {
@@ -478,10 +570,18 @@ test('active context rejects raw URI and image-byte fields', () => {
   assert.equal(parseActiveContext({
     source: 'upload',
     visualContext: { title: 'file:///private/raw.jpg', source: 'upload' },
-  })?.visualContext, null);
+  }), null);
   assert.equal(parseActiveContext({
     source: 'upload',
     visualContext: { title: 'Item', source: 'upload', imageUri: 'file:///private/raw.jpg' },
+  }), null);
+  assert.equal(parseActiveContext({
+    source: 'upload',
+    arbitrary: { nested: { imageBytes: [1, 2, 3] } },
+  }), null);
+  assert.equal(parseActiveContext({
+    source: 'upload',
+    visualContext: { title: 'Item', source: 'upload', arbitrary: { nested: true } },
   }), null);
 });
 
@@ -505,13 +605,77 @@ test('active context bounds fields and neutralizes delimiter injection', () => {
   assert.equal(parsed.visualContext.colors.length, 8);
   assert.equal(parsed.visualContext.confidence, 1);
   const block = buildActiveContextBlock(parsed);
-  assert.equal((block.match(/\[\/Active Reference Item\]/g) || []).length, 1);
+  assert.equal((block.match(/\[\/Active Visual Collection\]/g) || []).length, 1);
   assert.doesNotMatch(block, /<system>/);
   assert.match(block, /untrusted descriptive fashion data/i);
-  assert.match(block, /［\/Active Reference Item］/);
+  assert.doesNotMatch(block, /\[\/Active Reference Item\]/);
 });
 
 // ── Scanner return-to-Elise seam ─────────────────────────────────────────────
+
+test('six-entry visual collection is accepted, ordered, and kept distinct in the prompt', () => {
+  const { buildActiveContextBlock, parseActiveContext } = loadTsModule(
+    'supabase/functions/stylechat-generate/activeContext.ts',
+    {},
+  );
+  const evidence = Array.from({ length: 6 }, (_, index) => ({
+    id: `item-${index + 1}`,
+    order: 6 - index,
+    source: index % 2 ? 'upload' : 'scan',
+    title: `Distinct item ${index + 1}`,
+    colors: [`color-${index + 1}`],
+  }));
+  const parsed = parseActiveContext({
+    source: 'camera',
+    visualCollection: { evidence, focusEvidenceId: 'item-3' },
+  });
+  assert.equal(parsed.visualCollection.evidence.length, 6);
+  assert.equal(parsed.visualCollection.evidence.map((entry) => entry.order).join(','), '1,2,3,4,5,6');
+  const block = buildActiveContextBlock(parsed);
+  assert.equal((block.match(/\.title:/g) || []).length, 6);
+  for (let index = 1; index <= 6; index += 1) assert.match(block, new RegExp(`Distinct item ${index}`));
+  assert.match(block, /focusEvidenceId: "item-3"/);
+});
+
+test('visual collection rejects seven entries, duplicate ids/orders, local fields, and base64-like data', () => {
+  const { parseActiveContext } = loadTsModule(
+    'supabase/functions/stylechat-generate/activeContext.ts',
+    {},
+  );
+  const make = (count) => Array.from({ length: count }, (_, index) => ({
+    id: `e-${index + 1}`, order: index + 1, source: 'scan', title: `Item ${index + 1}`,
+  }));
+  assert.equal(parseActiveContext({ source: 'camera', visualCollection: { evidence: make(7) } }), null);
+  const duplicateId = make(2); duplicateId[1].id = duplicateId[0].id;
+  assert.equal(parseActiveContext({ source: 'camera', visualCollection: { evidence: duplicateId } }), null);
+  const duplicateOrder = make(2); duplicateOrder[1].order = duplicateOrder[0].order;
+  assert.equal(parseActiveContext({ source: 'camera', visualCollection: { evidence: duplicateOrder } }), null);
+  const raw = make(1); raw[0].rawImageUri = 'file:///private/raw.jpg';
+  assert.equal(parseActiveContext({ source: 'camera', visualCollection: { evidence: raw } }), null);
+  const encoded = make(1); encoded[0].title = 'A'.repeat(80);
+  assert.equal(parseActiveContext({ source: 'camera', visualCollection: { evidence: encoded } }), null);
+});
+
+test('text-only active context remains valid without visual evidence', () => {
+  const { parseActiveContext, buildActiveContextBlock } = loadTsModule(
+    'supabase/functions/stylechat-generate/activeContext.ts',
+    {},
+  );
+  const parsed = parseActiveContext({ source: 'text-scan', query: 'navy blazer' });
+  assert.equal(parsed.visualCollection, null);
+  const block = buildActiveContextBlock(parsed);
+  assert.match(block, /Active Reference Item/);
+  assert.match(block, /Use only the descriptive fashion facts in the Active Reference Item/);
+  assert.match(block, /grounded search phrase/);
+});
+
+test('Edge handler rejects malformed collections and acknowledges accepted collection prompts', () => {
+  const edge = read('supabase/functions/stylechat-generate/index.ts');
+  assert.match(edge, /VISUAL_COLLECTION_INVALID/);
+  assert.match(edge, /visualCollectionContractVersion/);
+  assert.match(edge, /VISUAL_COLLECTION_CONTRACT_VERSION/);
+  assert.match(edge, /buildActiveContextBlock\(activeContext\)/);
+});
 
 test('canonical scanner route appends to the visual context collection', () => {
   const scanRoute = read('app/scan/index.tsx');
@@ -533,6 +697,15 @@ test('StyleChat session screen integrates the visual context collection tray', (
   assert.match(screen, /startUpload/);
   assert.match(screen, /clearVisualContext/);
   assert.match(screen, /hasReadyEntry/);
+  assert.match(screen, /readyEntries\.map/);
+  assert.match(screen, /visualCollection/);
+  assert.match(screen, /hasUnsendableEntry/);
+  assert.doesNotMatch(screen, /const readyEntry\s*=/);
+  assert.match(screen, /mode="actions"[\s\S]*?<FlatList/);
+  assert.match(screen, /<FlatList[\s\S]*?mode="tray"[\s\S]*?<StyleChatInput/);
+  const bar = read('components/style-chat/EliseVisualContextBar.tsx');
+  assert.match(bar, /Pending for next message/);
+  assert.match(bar, /mode === 'tray' && count === 0/);
 });
 
 test('Elise upload path wires expo-image-picker with multi-selection and never calls identify', () => {
@@ -543,15 +716,30 @@ test('Elise upload path wires expo-image-picker with multi-selection and never c
   assert.match(hook, /selectionLimit/);
   assert.match(hook, /mediaTypes/);
   assert.doesNotMatch(hook, /identifyScanImage/);
+  assert.doesNotMatch(hook, /sanitizedPreviewUri:\s*asset\.uri/);
+});
+
+test('blocked picker originals are previewed but never passed to temporary-file cleanup', () => {
+  const hook = read('hooks/useEliseVisualContext.ts');
+  const bar = read('components/style-chat/EliseVisualContextBar.tsx');
+  assert.match(hook, /rawImageUri:\s*asset\.uri/);
+  assert.match(bar, /sanitizedPreviewUri \?\? entry\.rawImageUri/);
+  assert.doesNotMatch(hook, /cleanupSanitizedImage\(entry\.rawImageUri/);
 });
 
 test('visual context tray exposes 44dp targets and blocked-state copy', () => {
   const bar = read('components/style-chat/EliseVisualContextBar.tsx');
+  const signatureStyle = read('components/style-chat/StyleChatStyleDnaCard.tsx');
   assert.match(bar, /width: 44/);
   assert.match(bar, /height: 44/);
   assert.match(bar, /uploadUnavailableReason/);
   assert.match(bar, /Analysis unavailable/);
   assert.match(bar, /ScrollView/);
+  assert.match(bar, /SHADOWS\.editorialSmall/);
+  assert.match(bar, /OBSIDIAN_VIOLET = '#2D1F5E'/);
+  assert.match(bar, /smallBtnSecondary:[\s\S]*?backgroundColor: OBSIDIAN_VIOLET/);
+  assert.match(signatureStyle, /SHADOWS\.editorialSmall/);
+  assert.match(signatureStyle, /backgroundColor: 'rgba\(232, 228, 240, 0\.46\)'/);
 });
 
 test('canonical scanner disables every gallery upload control while pixel masking is unavailable', () => {

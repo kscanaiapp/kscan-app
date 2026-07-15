@@ -250,7 +250,10 @@ test('client capability handling: unsupported v2 preserves the draft, never stri
   assert.match(provider, /raw\.contractVersion !== STYLECHAT_ATTACHMENT_CONTRACT_VERSION/);
   const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
   assert.match(hook, /Closet-aware messaging isn't available yet\. Your attachments are still here\./);
-  assert.match(hook, /deferUserPersistence = skipUserPersistence \|\| hasAttachments/);
+  assert.match(
+    hook,
+    /deferUserPersistence = skipUserPersistence \|\| requiresContextAcknowledgement/,
+  );
 });
 
 // ── Context builder redaction + bounds ────────────────────────────────────────
