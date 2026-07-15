@@ -13,7 +13,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { supabase } from '../../services/supabaseClient';
-import { resolveOnboardingCompletion } from '../../services/onboardingCompletion';
 import {
   buildAuthCallbackUrlFromParams,
   getAuthCallbackRedirect,
@@ -46,24 +45,10 @@ export default function AuthCallbackScreen() {
     [router],
   );
 
-  const routeAfterSession = useCallback(
-    async (parsed?: ReturnType<typeof parseAuthCallbackUrl>) => {
-      if (parsed?.isRecovery) {
-        replaceOnce(getAuthCallbackRedirect(parsed));
-        return;
-      }
-
-      const { data } = await supabase.auth.getSession();
-      const userId = data.session?.user?.id ?? null;
-      const complete = userId ? await resolveOnboardingCompletion(userId) : false;
-      const redirectTo = complete ? '/' : '/onboarding?resume=terms';
-      traceAuthLifecycle('callback-route-navigation', {
-        onboardingState: complete ? 'complete' : 'incomplete',
-        outcome: 'replace',
-        redirectTo,
-        sessionPresent: Boolean(data.session),
-      });
-      replaceOnce(redirectTo);
+  const routeRecoveryOnce = useCallback(
+    (parsed: ReturnType<typeof parseAuthCallbackUrl>) => {
+      if (!parsed.isRecovery) return;
+      replaceOnce(getAuthCallbackRedirect(parsed));
     },
     [replaceOnce],
   );
@@ -102,7 +87,7 @@ export default function AuthCallbackScreen() {
             setState('error');
             return;
           }
-          await routeAfterSession(parsed);
+          routeRecoveryOnce(parsed);
           return;
         }
 
@@ -124,7 +109,7 @@ export default function AuthCallbackScreen() {
           setState('error');
           return;
         }
-        await routeAfterSession(parsed);
+        routeRecoveryOnce(parsed);
         return;
       } catch (error) {
         console.error('Auth callback failed unexpectedly', error);
@@ -132,7 +117,7 @@ export default function AuthCallbackScreen() {
         setState('error');
       }
     },
-    [routeAfterSession],
+    [routeRecoveryOnce],
   );
 
   useEffect(() => {
@@ -153,7 +138,6 @@ export default function AuthCallbackScreen() {
       handledRef.current = true;
       void supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
-          void routeAfterSession();
           return;
         }
         setMessage(AUTH_CALLBACK_FAILED_MESSAGE);
@@ -162,7 +146,7 @@ export default function AuthCallbackScreen() {
     }, 10000);
 
     return () => clearTimeout(timeout);
-  }, [routeAfterSession]);
+  }, []);
 
   const openAuth = () => replaceOnce('/auth');
 

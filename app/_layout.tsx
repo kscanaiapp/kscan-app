@@ -10,7 +10,12 @@ import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { resolveOnboardingCompletion, subscribeOnboardingCompletion } from '../services/onboardingCompletion';
-import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
+import {
+  getRoutingGuardState,
+  isAuthCallbackUrl,
+  shouldCommitRouteNavigation,
+  shouldPreserveAuthNavigatorDuringLoading,
+} from '../services/routingGuard';
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
@@ -47,6 +52,7 @@ function AuthGate() {
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const lastRedirectRef = useRef<string | null>(null);
+  const authCallbackSeenRef = useRef(false);
   const navigationRef = useNavigationContainerRef();
   const [navReady, setNavReady] = useState(false);
   const lastAuthTraceRef = useRef<string | null>(null);
@@ -103,10 +109,6 @@ function AuthGate() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    lastRedirectRef.current = null;
-  }, [pathname]);
-
-  useEffect(() => {
     if (!navigationRef) return;
     if (navigationRef.isReady()) {
       setNavReady(true);
@@ -136,6 +138,20 @@ function AuthGate() {
     profileLoading: Boolean(session && bootStatus !== 'ready'),
     onboardingComplete,
     nowSeconds: undefined,
+  });
+
+  useEffect(() => {
+    if (pathname === '/auth/callback') {
+      authCallbackSeenRef.current = true;
+    } else if (!session || guardState.action !== 'loading') {
+      authCallbackSeenRef.current = false;
+    }
+  }, [guardState.action, pathname, session]);
+
+  const preserveNavigatorDuringLoading = shouldPreserveAuthNavigatorDuringLoading({
+    authCallbackSeen: authCallbackSeenRef.current,
+    guardAction: guardState.action,
+    session,
   });
 
   useEffect(() => {
@@ -173,30 +189,44 @@ function AuthGate() {
       guardState.redirectTo === '/auth'
         ? '/onboarding'
         : guardState.redirectTo;
-    if (pathname === '/onboarding' && redirectTo.startsWith('/onboarding')) {
-      return;
-    }
-    if (lastRedirectRef.current === redirectTo) {
+    if (!shouldCommitRouteNavigation({
+      pathname,
+      previousRequestedDestination: lastRedirectRef.current,
+      requestedDestination: redirectTo,
+    })) {
       return;
     }
     lastRedirectRef.current = redirectTo;
-    // Defer slightly so the Stack navigator has time to register its routes.
-    const timer = setTimeout(() => {
-      traceAuthLifecycle('auth-gate-navigation', {
-        outcome: 'replace',
-        redirectTo,
-        route: pathname,
-      });
-      router.replace(redirectTo);
-    }, 150);
-    return () => clearTimeout(timer);
+    traceAuthLifecycle('auth-gate-navigation', {
+      outcome: 'replace',
+      redirectTo,
+      route: pathname,
+    });
+    router.replace(redirectTo);
   }, [guardState.action, guardState.redirectTo, pathname, waitingForAuthCallbackRoute, navReady]);
+
+  useEffect(() => {
+    if (guardState.action !== 'redirect') {
+      lastRedirectRef.current = null;
+    }
+  }, [guardState.action]);
 
   if (waitingForAuthCallbackRoute) {
     return <Stack screenOptions={{ headerShown: false }} />;
   }
 
   if (guardState.action === 'loading') {
+    if (preserveNavigatorDuringLoading) {
+      return (
+        <>
+          <Stack screenOptions={{ headerShown: false }} />
+          <View testID="auth-gate-loading" style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadingText}>K-SCAN</Text>
+          </View>
+        </>
+      );
+    }
     return (
       <View testID="auth-gate-loading" style={styles.loadingRoot}>
         <ActivityIndicator size="large" color={COLORS.accent} />

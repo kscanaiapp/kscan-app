@@ -11,7 +11,7 @@ import {
   Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import {
@@ -78,7 +78,6 @@ export default function OnboardingScreen() {
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const resumeHandledRef = useRef(false);
   const authResumeKeyRef = useRef<string | null>(null);
-  const routedHomeRef = useRef(false);
 
   // Step 4: Terms
   const [termsChecked, setTermsChecked] = useState(false);
@@ -96,20 +95,6 @@ export default function OnboardingScreen() {
     savePreferences,
     requestMicrophonePermission,
   } = usePermissionPreferences();
-
-  const navigationRef = useNavigationContainerRef();
-  const replaceHomeOnce = useCallback(() => {
-    if (routedHomeRef.current) return;
-    routedHomeRef.current = true;
-    const performReplace = () => {
-      if (navigationRef.isReady?.()) {
-        router.replace('/');
-        return;
-      }
-      setTimeout(performReplace, 50);
-    };
-    performReplace();
-  }, [router, navigationRef]);
 
   const moveToTermsOnce = useCallback(() => {
     setStep((current) => (current === 4 ? current : 4));
@@ -135,9 +120,7 @@ export default function OnboardingScreen() {
     resolveOnboardingCompletion(user.id)
       .then((complete) => {
         if (!active) return;
-        if (complete) {
-          replaceHomeOnce();
-        } else {
+        if (!complete) {
           setStep((current) => {
             if (current === 4) return current;
             return shouldResumeTerms || current <= 2 ? 4 : current;
@@ -154,7 +137,7 @@ export default function OnboardingScreen() {
     return () => {
       active = false;
     };
-  }, [authLoading, isAuthenticated, user?.id, moveToTermsOnce, replaceHomeOnce, resumeParam, shouldResumeTerms]);
+  }, [authLoading, isAuthenticated, user?.id, moveToTermsOnce, resumeParam, shouldResumeTerms]);
 
   // Android hardware back handler
   useEffect(() => {
@@ -198,14 +181,11 @@ export default function OnboardingScreen() {
       }
 
       const complete = await resolveOnboardingCompletion(resolvedUserId);
-      if (complete) {
-        replaceHomeOnce();
-        return;
-      }
+      if (complete) return;
 
       moveToTermsOnce();
     },
-    [moveToTermsOnce, replaceHomeOnce, user?.id],
+    [moveToTermsOnce, user?.id],
   );
 
   const goToHome = useCallback(async () => {
@@ -213,8 +193,7 @@ export default function OnboardingScreen() {
     if (user?.id) {
       await markOnboardingComplete(user.id);
     }
-    replaceHomeOnce();
-  }, [replaceHomeOnce, user?.id]);
+  }, [user?.id]);
 
   const goToAuth = useCallback(() => {
     router.push('/auth');

@@ -34,9 +34,26 @@ function isAuthCallbackUrl(url) {
   return /(^|\/)auth\/callback($|[?#/])/.test(String(url || ''));
 }
 
-function isAuthSessionRoute(pathname) {
-  const normalized = normalizePathname(pathname);
-  return normalized === '/auth/callback' || normalized === '/auth/update-password';
+function isPasswordRecoveryRoute(pathname) {
+  return normalizePathname(pathname) === '/auth/update-password';
+}
+
+function shouldPreserveAuthNavigatorDuringLoading({
+  authCallbackSeen,
+  guardAction,
+  session,
+}) {
+  return Boolean(authCallbackSeen && session && guardAction === 'loading');
+}
+
+function shouldCommitRouteNavigation({
+  pathname,
+  previousRequestedDestination,
+  requestedDestination,
+}) {
+  if (!requestedDestination) return false;
+  if (normalizePathname(pathname) === normalizePathname(requestedDestination)) return false;
+  return previousRequestedDestination !== requestedDestination;
 }
 
 function isLimitedAccountRoute(pathname) {
@@ -71,7 +88,7 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/auth' };
   }
 
-  if (isAuthSessionRoute(normalizedPathname)) {
+  if (isPasswordRecoveryRoute(normalizedPathname)) {
     return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
   }
 
@@ -101,7 +118,11 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
     };
   }
 
-  if (isAuthEntryRoute(normalizedPathname) || isOnboardingRoute(normalizedPathname)) {
+  if (
+    isAuthEntryRoute(normalizedPathname) ||
+    normalizedPathname === '/auth/callback' ||
+    isOnboardingRoute(normalizedPathname)
+  ) {
     return { action: 'redirect', pathname: normalizedPathname, redirectTo: '/' };
   }
 
@@ -114,10 +135,12 @@ module.exports = {
   getRoutingGuardState,
   hasPendingDeletionProfile,
   isAuthCallbackUrl,
-  isAuthSessionRoute,
+  isPasswordRecoveryRoute,
   isLimitedAccountRoute,
   isOnboardingRoute,
   isPublicRoute,
   isSessionUsable,
   normalizePathname,
+  shouldCommitRouteNavigation,
+  shouldPreserveAuthNavigatorDuringLoading,
 };

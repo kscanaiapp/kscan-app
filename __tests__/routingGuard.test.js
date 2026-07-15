@@ -6,6 +6,8 @@ const {
   isAuthCallbackUrl,
   isPublicRoute,
   isSessionUsable,
+  shouldCommitRouteNavigation,
+  shouldPreserveAuthNavigatorDuringLoading,
 } = require('../services/routingGuard');
 
 const NOW = 1000;
@@ -95,15 +97,135 @@ test('implemented auth callback deep-link URL is detected for cold-start passthr
   assert.equal(isAuthCallbackUrl('kscan://scan'), false);
 });
 
-test('successful callback session establishment can proceed to authenticated destination', () => {
-  const state = getRoutingGuardState({
-    pathname: '/',
+test('AuthGate owns the destination after callback session establishment', () => {
+  const hydrating = getRoutingGuardState({
+    pathname: '/auth/callback',
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+    onboardingComplete: null,
+  });
+  const complete = getRoutingGuardState({
+    pathname: '/auth/callback',
     loading: false,
     session: validSession,
     nowSeconds: NOW,
     onboardingComplete: true,
   });
-  assert.equal(state.action, 'allow');
+  const incomplete = getRoutingGuardState({
+    pathname: '/auth/callback',
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+    onboardingComplete: false,
+  });
+
+  assert.deepEqual(hydrating, {
+    action: 'loading',
+    pathname: '/auth/callback',
+    redirectTo: null,
+  });
+  assert.equal(complete.action, 'redirect');
+  assert.equal(complete.redirectTo, '/');
+  assert.equal(incomplete.action, 'redirect');
+  assert.equal(incomplete.redirectTo, '/onboarding?resume=terms');
+});
+
+test('repeated callback guard evaluation is stable and does not oscillate', () => {
+  const input = {
+    pathname: '/auth/callback',
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+    onboardingComplete: true,
+  };
+  assert.deepEqual(getRoutingGuardState(input), getRoutingGuardState(input));
+});
+
+test('route commitment skips the current route and a duplicate requested destination', () => {
+  assert.equal(
+    shouldCommitRouteNavigation({
+      pathname: '/',
+      previousRequestedDestination: null,
+      requestedDestination: '/',
+    }),
+    false,
+  );
+  assert.equal(
+    shouldCommitRouteNavigation({
+      pathname: '/auth/callback',
+      previousRequestedDestination: '/',
+      requestedDestination: '/',
+    }),
+    false,
+  );
+  assert.equal(
+    shouldCommitRouteNavigation({
+      pathname: '/auth/callback',
+      previousRequestedDestination: null,
+      requestedDestination: '/',
+    }),
+    true,
+  );
+});
+
+test('five repeated OAuth routing cycles produce one stable destination per cycle', () => {
+  for (let cycle = 0; cycle < 5; cycle += 1) {
+    const pending = getRoutingGuardState({
+      pathname: '/auth/callback',
+      loading: false,
+      session: validSession,
+      nowSeconds: NOW,
+      onboardingComplete: null,
+    });
+    const resolved = getRoutingGuardState({
+      pathname: '/auth/callback',
+      loading: false,
+      session: validSession,
+      nowSeconds: NOW,
+      onboardingComplete: true,
+    });
+    const stable = getRoutingGuardState({
+      pathname: '/',
+      loading: false,
+      session: validSession,
+      nowSeconds: NOW,
+      onboardingComplete: true,
+    });
+
+    assert.equal(pending.action, 'loading', `cycle ${cycle + 1}`);
+    assert.equal(resolved.redirectTo, '/', `cycle ${cycle + 1}`);
+    assert.equal(stable.action, 'allow', `cycle ${cycle + 1}`);
+  }
+});
+
+test('post-OAuth hydration keeps the navigator mounted so Android cannot replay the callback', () => {
+  assert.equal(
+    shouldPreserveAuthNavigatorDuringLoading({
+      authCallbackSeen: true,
+      guardAction: 'loading',
+      session: validSession,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldPreserveAuthNavigatorDuringLoading({
+      authCallbackSeen: false,
+      guardAction: 'loading',
+      session: validSession,
+    }),
+    false,
+    'ordinary authenticated bootstrap retains the existing loading policy',
+  );
+  assert.equal(
+    shouldPreserveAuthNavigatorDuringLoading({
+      authCallbackSeen: true,
+      guardAction: 'loading',
+      session: null,
+    }),
+    false,
+    'a callback without an authenticated session never exposes the navigator',
+  );
 });
 
 test('clearing session routes protected screens to /auth', () => {

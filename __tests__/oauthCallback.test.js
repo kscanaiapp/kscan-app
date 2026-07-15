@@ -11,7 +11,7 @@
  *     -> Expo Router cold-start: Linking.getInitialURL() captures it
  *     -> AuthGate.waitingForAuthCallbackRoute === true -> Stack renders immediately
  *     -> browser caller and /auth/callback share one idempotent session exchange
- *     -> session set -> auth effect -> redirect to / or /onboarding?resume=terms
+ *     -> session set -> AuthGate -> redirect to / or /onboarding?resume=terms
  *
  * Apple sign-in uses a separate native flow (ASAuthorizationAppleIDProvider)
  * and is not routed through the deep-link path - untouched by this fix.
@@ -37,6 +37,10 @@ const onboardingSource = fs.readFileSync(
 );
 const callbackSource = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'auth', 'callback.tsx'),
+  'utf8',
+);
+const authGateSource = fs.readFileSync(
+  path.join(__dirname, '..', 'app', '_layout.tsx'),
   'utf8',
 );
 const appConfig = JSON.parse(
@@ -176,4 +180,32 @@ test('all Google callback consumers use the shared idempotent session completion
   assert.doesNotMatch(authScreenSource, /exchangeCodeForSession\(parsed\.code\)/);
   assert.doesNotMatch(onboardingSource, /exchangeCodeForSession\(parsed\.code\)/);
   assert.doesNotMatch(callbackSource, /exchangeCodeForSession\(parsed\.code\)/);
+});
+
+test('successful Google callback hydration preserves navigator state instead of replaying the deep link', () => {
+  assert.match(authGateSource, /pathname === '\/auth\/callback'[\s\S]*authCallbackSeenRef\.current = true/);
+  assert.match(authGateSource, /shouldPreserveAuthNavigatorDuringLoading/);
+  assert.match(
+    authGateSource,
+    /if \(preserveNavigatorDuringLoading\)[\s\S]*<Stack screenOptions=\{\{ headerShown: false \}\} \/>[\s\S]*auth-gate-loading/,
+  );
+});
+
+test('callback establishes the session while AuthGate exclusively owns normal post-auth navigation', () => {
+  assert.doesNotMatch(callbackSource, /resolveOnboardingCompletion/);
+  assert.doesNotMatch(callbackSource, /callback-route-navigation/);
+  assert.doesNotMatch(callbackSource, /replaceOnce\(complete \? '\/'/);
+  assert.match(callbackSource, /routeRecoveryOnce/);
+
+  const completeState = getRoutingGuardState({
+    pathname: '/auth/callback',
+    loading: false,
+    session: { access_token: 'token', expires_at: NOW + 3600 },
+    nowSeconds: NOW,
+    onboardingComplete: true,
+  });
+  assert.equal(completeState.action, 'redirect');
+  assert.equal(completeState.redirectTo, '/');
+  assert.doesNotMatch(onboardingSource, /router\.replace\('\/'\)/);
+  assert.doesNotMatch(authGateSource, /setTimeout\([\s\S]{0,220}router\.replace/);
 });

@@ -85,6 +85,33 @@ test('a distinct later callback is exchanged independently', async () => {
   assert.equal(exchangeCount, 2);
 });
 
+test('five OAuth cycles accept each callback exactly once despite duplicate consumers', async () => {
+  let exchangeCount = 0;
+  const client = {
+    auth: {
+      exchangeCodeForSession: async () => ({
+        data: { session: { access_token: `opaque-${++exchangeCount}` } },
+        error: null,
+      }),
+      getSession: async () => ({ data: { session: { access_token: 'opaque-stored' } }, error: null }),
+      setSession: async () => ({ data: { session: null }, error: null }),
+    },
+  };
+  const { completeOAuthCallbackSession } = loadService(client);
+
+  for (let cycle = 0; cycle < 5; cycle += 1) {
+    const parsed = { code: `cycle-${cycle}` };
+    const results = await Promise.all([
+      completeOAuthCallbackSession(parsed, client),
+      completeOAuthCallbackSession(parsed, client),
+    ]);
+    assert.equal(results[0].error, null);
+    assert.equal(results[1].error, null);
+  }
+
+  assert.equal(exchangeCount, 5);
+});
+
 test('a callback without code or complete tokens is rejected without touching auth', async () => {
   let calls = 0;
   const client = {
