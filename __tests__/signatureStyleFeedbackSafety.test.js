@@ -93,10 +93,11 @@ test('compact status row remains while feedback education is menu-only', () => {
   assert.match(controlsSource, /<Text style=\{styles\.educationText\}>\{EDUCATION_COPY\}<\/Text>/);
 });
 
-test('runtime polish keeps the status row quiet and the Home Elise CTA readable', () => {
+test('runtime polish keeps the status row compact, utility-like, and the Home Elise CTA readable', () => {
   assert.match(statusRowSource, /minHeight: 36/);
-  assert.match(statusRowSource, /borderColor: LUXURY\.colors\.hairline/);
-  assert.match(statusRowSource, /backgroundColor: 'transparent'/);
+  assert.match(statusRowSource, /borderColor: 'rgba\(45, 31, 94, 0\.18\)'/);
+  assert.match(statusRowSource, /backgroundColor: 'rgba\(232, 228, 240, 0\.46\)'/);
+  assert.match(statusRowSource, /SHADOWS\.editorialSmall/);
   assert.match(homeStylistSource, /title="Start Chat"/);
   assert.doesNotMatch(homeStylistSource, /Continue chat/);
   assert.match(homeStylistSource, /fontSize: 14/);
