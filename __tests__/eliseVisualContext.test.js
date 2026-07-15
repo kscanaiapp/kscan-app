@@ -192,7 +192,12 @@ test('legacy image sanitizer is explicitly blocked and never passes pixels throu
   assert.equal(status.plateDetectionAvailable, false);
   await assert.rejects(
     () => sanitizer.sanitizeImageBeforeUpload('data:image/jpeg;base64,RAW'),
-    /masking is not installed/i,
+    (error) => {
+      assert.match(error.message, /masking is not installed/i);
+      assert.equal(error.name, 'PrivacySanitizerUnavailableError');
+      assert.equal(error.userMessage, sanitizer.PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE);
+      return true;
+    },
   );
 });
 
