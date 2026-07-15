@@ -26,6 +26,10 @@ import {
   deleteInspirationItem,
   listInspirationItems,
 } from '../services/styleObjects';
+import {
+  hasUsableDressingRoomImageSource,
+  describeMissingImageReason,
+} from '../services/dressingRoomItemContract';
 import type { InspirationItem } from '../types/styleObjects';
 import {
   LuxuryScreen,
@@ -68,6 +72,11 @@ interface SavedScan {
   createdAt: string;
   imageUri?: string | null;
   thumbnailUri: string | null;
+  // Phase 2 additive durable media reference (cloud-synced scans only). May
+  // be present even when imageUri is null — see
+  // services/dressingRoomItemContract.ts for source resolution order.
+  storageBucket?: string | null;
+  storagePath?: string | null;
   attributes: ScanAttributes;
   result: string;
   products: Product[];
@@ -447,9 +456,22 @@ export default function LibraryScreen() {
           relatedSavedScans={scans}
           onDismiss={handleCloseScan}
           onAddToDressingRoom={
-            dressingRoomsEnabled && selectedScan.imageUri
+            dressingRoomsEnabled && hasUsableDressingRoomImageSource({
+              localUri: selectedScan.imageUri,
+              storageBucket: selectedScan.storageBucket,
+              storagePath: selectedScan.storagePath,
+            })
               ? () => setDressingRoomModalVisible(true)
               : undefined
+          }
+          addToDressingRoomUnavailableReason={
+            dressingRoomsEnabled && !hasUsableDressingRoomImageSource({
+              localUri: selectedScan.imageUri,
+              storageBucket: selectedScan.storageBucket,
+              storagePath: selectedScan.storagePath,
+            })
+              ? describeMissingImageReason()
+              : null
           }
           onAskStyleChat={
             aiStylistEnabled && STYLECHAT_ATTACHMENTS_ENABLED
@@ -478,11 +500,21 @@ export default function LibraryScreen() {
         />
       )}
 
-      {/* Top-level modal — never nested inside AnalysisCard's Modal */}
-      {dressingRoomsEnabled && selectedScan && selectedScan.imageUri ? (
+      {/* Top-level modal — never nested inside AnalysisCard's Modal.
+          Gated by the same canonical contract as the Add CTA above, not bare
+          imageUri truthiness, so a cloud-synced scan with a durable storage
+          reference (but no local file left on this device) still opens the
+          modal instead of being silently excluded. */}
+      {dressingRoomsEnabled && selectedScan && hasUsableDressingRoomImageSource({
+        localUri: selectedScan.imageUri,
+        storageBucket: selectedScan.storageBucket,
+        storagePath: selectedScan.storagePath,
+      }) ? (
         <AddScanToDressingRoomModal
           visible={dressingRoomModalVisible}
           localImageUri={selectedScan.imageUri}
+          storageBucket={selectedScan.storageBucket}
+          storagePath={selectedScan.storagePath}
           scan={{
             sourceType: 'style_library_scan',
             sourceId: selectedScan.id,

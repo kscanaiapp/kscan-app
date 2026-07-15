@@ -20,11 +20,18 @@ import {
   createDressingRoom,
   listDressingRooms,
 } from '../services/styleObjects';
+import { hasUsableDressingRoomImageSource } from '../services/dressingRoomItemContract';
 import type { DressingRoom, ScanImageSnapshotSource } from '../types/styleObjects';
 
 type Props = {
   visible: boolean;
   localImageUri?: string | null;
+  // Durable storage reference / remote URL for this scan's image, when the
+  // local device URI is absent or was never the source of truth (e.g. a
+  // cloud-synced saved scan). See services/dressingRoomItemContract.ts.
+  storageBucket?: string | null;
+  storagePath?: string | null;
+  imageUrl?: string | null;
   scan?: Partial<ScanImageSnapshotSource> | null;
   onClose: () => void;
 };
@@ -32,6 +39,9 @@ type Props = {
 export function AddScanToDressingRoomModal({
   visible,
   localImageUri,
+  storageBucket,
+  storagePath,
+  imageUrl,
   scan,
   onClose,
 }: Props) {
@@ -69,6 +79,9 @@ export function AddScanToDressingRoomModal({
   const buildScan = (): ScanImageSnapshotSource => ({
     userId: user?.id,
     localImageUri,
+    storageBucket,
+    storagePath,
+    imageUrl,
     sourceType: scan?.sourceType ?? 'live_scan',
     sourceId: scan?.sourceId ?? null,
     createdAt: scan?.createdAt ?? new Date().toISOString(),
@@ -125,7 +138,11 @@ export function AddScanToDressingRoomModal({
     router.push('/dressing-rooms');
   };
 
-  const missingImage = !localImageUri;
+  // Uses the same canonical contract as the rest of the Dressing Room add
+  // pipeline (storage > remote URL > local URI), not bare localImageUri
+  // truthiness — a cloud-synced scan with no local file left on this device
+  // can still be added when it has a durable storage reference or URL.
+  const missingImage = !hasUsableDressingRoomImageSource({ localUri: localImageUri, storageBucket, storagePath, imageUrl });
   const successState = !!savedRoomId;
 
   return (
@@ -148,7 +165,7 @@ export function AddScanToDressingRoomModal({
               </Text>
 
               {missingImage ? (
-                <Text style={styles.message}>No local scan image is available.</Text>
+                <Text style={styles.message}>This scan doesn't have a usable image yet, so it can't be added to a Dressing Room.</Text>
               ) : successState ? (
                 <>
                   <Text style={styles.successTitle}>Added to Dressing Room</Text>

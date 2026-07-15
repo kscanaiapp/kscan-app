@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   StyleSheet,
@@ -50,19 +51,41 @@ export function SharedScanCard({
   style,
 }: SharedScanCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
   const hasImage = Boolean(imageUrl) && !imageError;
+
+  useEffect(() => {
+    setImageError(false);
+    setImageLoading(false);
+  }, [imageUrl]);
 
   const cardContent = (
     <>
       <View style={styles.imageWrap}>
         {hasImage ? (
-          <Image
-            source={{ uri: imageUrl! }}
-            style={styles.image}
-            resizeMode="cover"
-            onError={() => setImageError(true)}
-            accessibilityLabel={`${title} image`}
-          />
+          <>
+            <Image
+              source={{ uri: imageUrl! }}
+              style={styles.image}
+              resizeMode="cover"
+              onLoadStart={() => setImageLoading(true)}
+              onLoadEnd={() => setImageLoading(false)}
+              onError={(event) => {
+                setImageLoading(false);
+                setImageError(true);
+                if (typeof __DEV__ !== 'undefined' && __DEV__) {
+                  console.error('[SharedScanCard] image load error', event.nativeEvent?.error);
+                }
+              }}
+              accessibilityLabel={`${title} image`}
+            />
+            {imageLoading && (
+              <ActivityIndicator
+                style={styles.loader}
+                color={LUXURY.colors.goldBrushed}
+              />
+            )}
+          </>
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderText}>K</Text>
@@ -150,6 +173,13 @@ const styles = StyleSheet.create({
     fontFamily: LUXURY.typography.brandMark.fontFamily,
     fontSize: 28,
     color: LUXURY.colors.goldBrushed,
+  },
+  loader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   statusPill: {
     position: 'absolute',

@@ -137,6 +137,15 @@ export type ProductMatchSnapshotSource = {
 export type ScanImageSnapshotSource = {
   userId?: string | null;
   localImageUri?: string | null;
+  // Durable storage reference, when this scan's image has already been
+  // uploaded (e.g. a cloud-synced saved scan whose local device file may no
+  // longer exist). Preferred over localImageUri; see
+  // services/dressingRoomItemContract.ts for the full resolution order.
+  storageBucket?: string | null;
+  storagePath?: string | null;
+  // A public/remote HTTPS URL for this scan's image, when one exists and no
+  // durable storage reference is available.
+  imageUrl?: string | null;
   sourceId?: string | null;
   sourceType?: 'live_scan' | 'style_library_scan' | 'upload_inspiration' | 'text-scan' | 'textScan' | null;
   createdAt?: string | null;

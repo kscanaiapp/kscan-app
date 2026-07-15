@@ -52,6 +52,18 @@ function loadStyleObjects() {
       if (id === './supabaseClient') return { supabase: {} };
       if (id === 'expo-file-system/legacy') return {};
       if (id === 'expo-image-manipulator') return {};
+      if (id === './dressingRoomItemContract') {
+        // Stub the canonical image-source contract so buildProductMatchSnapshot
+        // can run in this isolated VM. Only isRemoteImageUrl is exercised here;
+        // the rest are no-ops sufficient for module load.
+        return {
+          isRemoteImageUrl: (value) => /^https?:\/\//i.test(String(value ?? '').trim()),
+          isLocalImageUri: () => false,
+          resolveDressingRoomImageSource: () => ({ kind: 'none' }),
+          hasUsableDressingRoomImageSource: () => false,
+          describeMissingImageReason: () => "This item's image isn't available right now.",
+        };
+      }
       throw new Error(`Unexpected require: ${id}`);
     },
   };

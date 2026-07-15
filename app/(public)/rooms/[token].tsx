@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   LuxuryScreen,
@@ -60,6 +61,8 @@ import {
   normalizeRoomShareToken,
 } from '../../../services/roomDeepLinks';
 import { computeItemGridCellWidth } from '../../../services/sharedRoomLayout';
+import { normalizeSharedRoomPreview } from '../../../services/sharedRoomPreview';
+import { resolveSharedRoomImageUrls } from '../../../services/sharedRoomImageResolver';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const ITEM_GRID_GAP = SPACING.md;
@@ -81,6 +84,12 @@ const BG_REFETCH_THRESHOLD_MS = 5 * 60 * 1000;
 type ApiItem = {
   // ApiItem.id === public.dressing_room_items.id
   id: string | null;
+  // Public HTTPS URL only. When absent, the screen asks
+  // shared-room-image-url (a service-role Edge Function, not this client)
+  // to resolve the item's private storage reference into a short-lived
+  // signed URL, keyed by item id in resolvedImageUrls below. This type
+  // intentionally has no bucket/path fields: this client never receives,
+  // stores, or reasons about private storage coordinates directly.
   imageUrl: string | null;
   category: string | null;
   color: string | null;
@@ -153,13 +162,15 @@ async function fetchRoomPreview(token: string): Promise<FetchState> {
     if (response.status === 404) return { phase: 'unavailable' };
     if (!response.ok) return { phase: 'unavailable' };
 
-    const json: { status: string; preview?: ApiPreview } = await response.json();
+    const json = (await response.json()) as { status?: string; preview?: unknown };
 
     if (json.status === 'malformed') return { phase: 'malformed' };
     if (json.status === 'rate_limited') return { phase: 'rate_limited' };
-    if (json.status !== 'available' || !json.preview) return { phase: 'unavailable' };
+    if (json.status !== 'available') return { phase: 'unavailable' };
 
-    const preview = json.preview;
+    const preview = normalizeSharedRoomPreview(json);
+    if (!preview) return { phase: 'unavailable' };
+
     if (preview.itemCount === 0 && preview.items.length === 0) {
       return { phase: 'empty', preview };
     }
@@ -443,7 +454,7 @@ function SharedRoomChatSection({
       const joinedRoomId = await joinSharedRoom(token);
       onJoined(joinedRoomId);
     } catch (err: any) {
-      // err.message is a friendly string from services/roomMessages — never a
+      // err.message is a friendly string from services/roomMessages - never a
       // raw Supabase/RLS error and never a token.
       setJoinError(typeof err?.message === 'string' ? err.message : ROOM_JOIN_ERROR);
     } finally {
@@ -493,6 +504,26 @@ export default function SharedRoomScreen() {
   const linkOpenedGuard = useRef<string | null>(null);
   const outcomeAnalyticsGuard = useRef<string | null>(null);
   const lastFetchedAt = useRef<number | null>(null);
+  const imageResolutionGuard = useRef<string | null>(null);
+
+  const insets = useSafeAreaInsets();
+  const [resolvedImageUrls, setResolvedImageUrls] = useState<Record<string, string | null>>({});
+
+  // The PrivacyFooter below is a normal-flow sibling of the ScrollView (not
+  // absolutely positioned, not sticky) inside a flex column, so once the
+  // ScrollView itself has `flex: 1` (see styles.flex usage below) it is
+  // already correctly bounded above the footer by layout, with no overlap.
+  // A static bottom padding is enough; there is no need to measure the
+  // footer's height and add it again, which would only create a dead blank
+  // gap under the last card equal to the footer's own height.
+  const scrollContentStyle = styles.scrollContent;
+
+  // Note on insets.bottom: this screen renders <LuxuryScreen safeArea={false}
+  // scrollable={false}>, so LuxuryScreen itself contributes 0 for both
+  // insets.top and insets.bottom (see components/luxury/LuxuryScreen.tsx:
+  // paddingBottom is `(safeArea ? insets.bottom : 0) + bottomPadding`). The
+  // View wrapping PrivacyFooter below is therefore the ONLY place
+  // insets.bottom is applied on this screen; it is not double-counted.
 
   const rawToken = typeof token === 'string' ? token.trim() : '';
   const webUserAgent = getWebUserAgent();
@@ -635,7 +666,52 @@ export default function SharedRoomScreen() {
     setMutatingReactionItemId(null);
     setOpenAppStatus('idle');
     setWebSelected(false);
+    setResolvedImageUrls({});
+    imageResolutionGuard.current = null;
   }, [rawToken]);
+
+  // Resolve signed image URLs for items that have no public HTTPS imageUrl.
+  // The share token and item ids are the only inputs; the Edge Function looks
+  // up each private storage path, validates access, and signs if valid.
+  //
+  // Read-side mirror of services/dressingRoomItemContract.ts's storage > remote
+  // priority: addScanImageToDressingRoom / addProductToDressingRoom write
+  // EITHER image_url (remote) OR storage_bucket+storage_path (storage) for a
+  // given item, never both, so "no imageUrl -> resolve via storage" here is
+  // equivalent to that contract's resolution order, not a competing one. The
+  // Edge Function (supabase/functions/shared-room-image-url) cannot import
+  // this RN module directly (separate Deno runtime/deployment), so its
+  // validation.ts#resolveStorageRefFromRow re-implements just the storage-ref
+  // half of the same contract; keep the two in sync if the write-side
+  // priority or the mutual-exclusivity assumption ever changes.
+  useEffect(() => {
+    const shareToken = normalizeRoomShareToken(rawToken);
+    if (!shareToken || state.phase !== 'available') return;
+
+    const key = `${shareToken}:${state.preview.items.length}`;
+    if (imageResolutionGuard.current === key) return;
+    imageResolutionGuard.current = key;
+
+    const itemIdsNeedingResolution = state.preview.items
+      .filter((item) => item.id && !item.imageUrl)
+      .map((item) => item.id!);
+    if (itemIdsNeedingResolution.length === 0) return;
+
+    let cancelled = false;
+
+    const resolve = async () => {
+      const next = await resolveSharedRoomImageUrls(shareToken, itemIdsNeedingResolution);
+      if (!cancelled) {
+        setResolvedImageUrls((current) => ({ ...current, ...next }));
+      }
+    };
+
+    void resolve();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rawToken, state]);
 
   useEffect(() => {
     if (state.phase !== 'available') {
@@ -869,7 +945,8 @@ export default function SharedRoomScreen() {
         const { preview: emptyPreview } = state;
         return (
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            style={styles.flex}
+            contentContainerStyle={scrollContentStyle}
             keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
@@ -903,7 +980,8 @@ export default function SharedRoomScreen() {
         const { preview } = state;
         return (
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            style={styles.flex}
+            contentContainerStyle={scrollContentStyle}
             keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
@@ -946,7 +1024,7 @@ export default function SharedRoomScreen() {
                     return (
                       <SharedScanCard
                         key={item.id ?? `item-${index}`}
-                        imageUrl={item.imageUrl}
+                        imageUrl={item.imageUrl ?? resolvedImageUrls[item.id ?? ''] ?? null}
                         title={label}
                         subtitle="Shared item"
                         chips={chips}
@@ -1013,10 +1091,12 @@ export default function SharedRoomScreen() {
       >
         {renderContent()}
       </KeyboardAvoidingView>
-      <PrivacyFooter
-        onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
-        onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
-      />
+      <View style={{ paddingBottom: insets.bottom }}>
+        <PrivacyFooter
+          onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
+          onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
+        />
+      </View>
     </LuxuryScreen>
   );
 }

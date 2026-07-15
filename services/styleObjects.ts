@@ -1,6 +1,11 @@
 import { supabase } from './supabaseClient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
+import {
+  isLocalImageUri as contractIsLocalImageUri,
+  isRemoteImageUrl as contractIsRemoteImageUrl,
+  resolveDressingRoomImageSource,
+} from './dressingRoomItemContract';
 import type {
   DressingRoom,
   DressingRoomItem,
@@ -40,12 +45,22 @@ function requireAuthUserId(userId?: string | null) {
   return userId;
 }
 
-export function isRemoteImageUrl(value?: string | null) {
-  return /^https?:\/\//i.test(String(value || '').trim());
-}
+// Delegates to the canonical Dressing Room item contract so URL/URI
+// classification lives in exactly one place (services/dressingRoomItemContract).
+export const isRemoteImageUrl = contractIsRemoteImageUrl;
+const isLocalImageUri = contractIsLocalImageUri;
 
-function isLocalImageUri(value?: string | null) {
-  return /^(file|content|asset):\/\//i.test(String(value || '').trim());
+function devLog(event: string, details: Record<string, unknown>) {
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    // Structured, privacy-safe tracing for the Add-to-Dressing-Room pipeline.
+    // `details` must only ever carry: entry point / source type, image
+    // source kind ('storage' | 'remote' | 'local' | 'none'), pipeline stage,
+    // success/failure booleans, and a safe error code (error.code, never
+    // error.message). Never include tokens, signed URLs, owner/user ids,
+    // dressing room ids, item ids, or storage bucket/path values.
+    // eslint-disable-next-line no-console
+    console.info(`[DressingRoomAdd] ${event}`, details);
+  }
 }
 
 function cleanText(value?: string | null) {
@@ -508,7 +523,9 @@ export async function addProductToDressingRoom(
   dressingRoomId: string,
   source: ProductMatchSnapshotSource,
 ): Promise<DressingRoomItem> {
+  devLog('add:start', { entryPoint: 'product_match' });
   const snapshot = buildProductMatchSnapshot(source);
+  devLog('add:normalized', { entryPoint: 'product_match', imageSourceKind: 'remote' });
 
   const { count } = await supabase
     .from('dressing_room_items')
@@ -534,19 +551,71 @@ export async function addProductToDressingRoom(
     })
     .select('*')
     .single();
-  if (error) throw safeError(error, 'Unable to add item to Dressing Room.');
+  if (error) {
+    devLog('add:insert_failed', { entryPoint: 'product_match', code: error.code ?? null });
+    throw safeError(error, 'Unable to add item to Dressing Room.');
+  }
+  devLog('add:insert_succeeded', { entryPoint: 'product_match', success: true });
   return mapDressingRoomItem(data);
 }
 
+/**
+ * Adds a scan-backed item to a Dressing Room.
+ *
+ * Reuses an existing durable storage reference when the caller already has
+ * one (e.g. re-adding an item whose image was previously uploaded) instead of
+ * re-uploading. Only uploads when the only available source is a device-local
+ * URI. Throws a clear, user-facing error up front if the item has no usable
+ * image source at all, rather than persisting a null/unusable reference.
+ */
 export async function addScanImageToDressingRoom(input: {
   dressingRoomId: string;
   userId?: string | null;
   scan: ScanImageSnapshotSource;
 }): Promise<DressingRoomItem> {
-  const upload = await uploadLocalScanImage({
-    userId: input.userId,
-    localImageUri: input.scan.localImageUri,
+  devLog('add:start', { entryPoint: 'scan_image' });
+
+  const imageSource = resolveDressingRoomImageSource({
+    localUri: input.scan.localImageUri,
+    storageBucket: input.scan.storageBucket,
+    storagePath: input.scan.storagePath,
+    imageUrl: input.scan.imageUrl,
   });
+
+  if (imageSource.kind === 'none') {
+    devLog('add:no_usable_image_source', { entryPoint: 'scan_image' });
+    throw new UnsupportedStyleObjectItemError(
+      "This scan doesn't have a usable image yet, so it can't be added to a Dressing Room.",
+    );
+  }
+
+  devLog('add:normalized', { entryPoint: 'scan_image', imageSourceKind: imageSource.kind });
+
+  let resolvedImageUrl: string | null = null;
+  let storageBucket: string | null = null;
+  let storagePath: string | null = null;
+  let imageWidth: number | null = null;
+  let imageHeight: number | null = null;
+
+  if (imageSource.kind === 'storage') {
+    // Already durably stored (e.g. re-adding a previously uploaded item) - no re-upload.
+    storageBucket = imageSource.storageBucket;
+    storagePath = imageSource.storagePath;
+  } else if (imageSource.kind === 'remote') {
+    resolvedImageUrl = imageSource.imageUrl;
+  } else {
+    devLog('add:upload_start', { entryPoint: 'scan_image' });
+    const upload = await uploadLocalScanImage({
+      userId: input.userId,
+      localImageUri: imageSource.localUri,
+    });
+    storageBucket = upload.bucket;
+    storagePath = upload.path;
+    imageWidth = upload.width;
+    imageHeight = upload.height;
+    devLog('add:upload_succeeded', { entryPoint: 'scan_image' });
+  }
+
   const metadata = input.scan.metadata ?? {};
   const title =
     cleanText(metadata.category)
@@ -559,11 +628,11 @@ export async function addScanImageToDressingRoom(input: {
     sourceId: cleanText(input.scan.sourceId),
     title,
     image: {
-      storageBucket: upload.bucket,
-      storagePath: upload.path,
-      width: upload.width,
-      height: upload.height,
-      contentType: 'image/jpeg',
+      storageBucket,
+      storagePath,
+      width: imageWidth,
+      height: imageHeight,
+      contentType: storageBucket ? 'image/jpeg' : null,
     },
     result: cleanText(input.scan.result),
     metadata: {
@@ -582,6 +651,8 @@ export async function addScanImageToDressingRoom(input: {
     .select('id', { count: 'exact', head: true })
     .eq('dressing_room_id', input.dressingRoomId);
 
+  devLog('add:insert_start', { entryPoint: 'scan_image', imageSourceKind: imageSource.kind });
+
   const { data, error } = await supabase
     .from('dressing_room_items')
     .insert({
@@ -591,18 +662,23 @@ export async function addScanImageToDressingRoom(input: {
       snapshot_version: SNAPSHOT_VERSION,
       snapshot_payload: snapshotPayload,
       title,
-      image_url: null,
-      storage_bucket: upload.bucket,
-      storage_path: upload.path,
+      image_url: resolvedImageUrl,
+      storage_bucket: storageBucket,
+      storage_path: storagePath,
       category: cleanText(metadata.category),
       sort_order: count ?? 0,
     })
     .select('*')
     .single();
-  if (error) throw safeError(error, 'Unable to add scan to Dressing Room.');
+  if (error) {
+    devLog('add:insert_failed', { entryPoint: 'scan_image', code: error.code ?? null });
+    throw safeError(error, 'Unable to add scan to Dressing Room.');
+  }
+  devLog('add:insert_succeeded', { entryPoint: 'scan_image', success: true });
 
   const item = mapDressingRoomItem(data);
   const [resolved] = await resolveSignedImageUrlsForItems([item]);
+  devLog('add:refresh_resolved', { entryPoint: 'scan_image', hasRenderableImage: Boolean(resolved.imageUrl) });
   return resolved;
 }
 
@@ -1189,7 +1265,7 @@ export async function removeInspirationFromDressingRoom(roomId: string, inspirat
 }
 
 // Attaches an EXISTING Closet/Inspiration item (already stored) to a Dressing
-// Room. The stored image is reused — no re-upload is performed. Ownership is
+// Room. The stored image is reused - no re-upload is performed. Ownership is
 // enforced by RLS: the link row must have user_id = auth.uid() and the target
 // room must belong to the caller. The upsert revives a previously removed
 // (soft-deleted) link so re-adding an item is idempotent.

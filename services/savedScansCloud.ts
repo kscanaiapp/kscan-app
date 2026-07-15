@@ -48,6 +48,12 @@ export interface SavedScanModel {
   createdAt: string;
   imageUri?: string | null;
   thumbnailUri: string | null;
+  // Phase 2 additive durable media reference. May be present even when
+  // imageUri is null (e.g. the local device file no longer exists but the
+  // scan's image was already uploaded). See services/dressingRoomItemContract.ts
+  // for how callers should resolve which image source to use.
+  storageBucket?: string | null;
+  storagePath?: string | null;
   attributes: {
     category: string;
     silhouette: string;
@@ -146,6 +152,8 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
     createdAt: row.created_at,
     imageUri: row.image_uri,
     thumbnailUri: row.thumbnail_uri,
+    storageBucket: row.storage_bucket ?? null,
+    storagePath: row.storage_path ?? null,
     attributes: {
       category: typeof meta.category === 'string' ? meta.category : '',
       silhouette: typeof meta.silhouette === 'string' ? meta.silhouette : '',

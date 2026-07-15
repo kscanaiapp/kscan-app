@@ -71,8 +71,28 @@ const itemReactions = fs.readFileSync(
   'utf8',
 );
 
+const dressingRoomItemContract = fs.readFileSync(
+  path.join(__dirname, '..', 'services', 'dressingRoomItemContract.ts'),
+  'utf8',
+);
+
+const libraryScreen = fs.readFileSync(
+  path.join(__dirname, '..', 'app', 'library.tsx'),
+  'utf8',
+);
+
 const thumbsDownReactionMigration = fs.readFileSync(
   path.join(__dirname, '..', 'supabase', 'migrations', '202606060001_replace_fire_with_thumbs_down_reaction.sql'),
+  'utf8',
+);
+
+const savedScansCloud = fs.readFileSync(
+  path.join(__dirname, '..', 'services', 'savedScansCloud.ts'),
+  'utf8',
+);
+
+const sharedRoomPreviewService = fs.readFileSync(
+  path.join(__dirname, '..', 'services', 'sharedRoomPreview.js'),
   'utf8',
 );
 
@@ -242,6 +262,56 @@ test('dressing_room_inspiration_items link table enforces room ownership', () =>
   assert.match(inspirationMigration, /references public\.inspiration_items\(id\) on delete cascade/);
 });
 
+test('styleObjects delegates URL/URI classification to the canonical contract module instead of duplicating it', () => {
+  assert.match(service, /from '\.\/dressingRoomItemContract'/);
+  assert.match(service, /export const isRemoteImageUrl = contractIsRemoteImageUrl/);
+  // The old inline regex definitions must be gone, not just shadowed.
+  assert.doesNotMatch(service, /function isLocalImageUri\(value/);
+});
+
+test('addScanImageToDressingRoom resolves the image source via the canonical contract before deciding to upload', () => {
+  assert.match(service, /resolveDressingRoomImageSource\(\{/);
+  assert.match(service, /imageSource\.kind === 'none'/);
+  assert.match(service, /imageSource\.kind === 'storage'/);
+  assert.match(service, /imageSource\.kind === 'remote'/);
+  // Reusing an existing durable reference must not force a re-upload.
+  assert.match(service, /Already durably stored.*no re-upload/);
+});
+
+test('addScanImageToDressingRoom throws a clear, user-facing error instead of persisting an unusable item', () => {
+  assert.match(service, /add:no_usable_image_source/);
+  assert.match(service, /doesn't have a usable image yet/);
+  assert.match(service, /can't be added to a Dressing Room/);
+});
+
+test('Add-to-Dressing-Room pipeline logs structured, privacy-safe events in dev only', () => {
+  assert.match(service, /function devLog\(/);
+  assert.match(service, /typeof __DEV__ !== 'undefined' && __DEV__/);
+  assert.match(service, /add:insert_failed/);
+  assert.match(service, /add:insert_succeeded/);
+  // Must never log sensitive values.
+  assert.doesNotMatch(service, /devLog\([^)]*storagePath[^)]*storagePath/);
+  assert.doesNotMatch(service, /devLog\('[^']*',\s*\{[^}]*signedUrl/i);
+});
+
+test('AnalysisCard never silently hides the Add-to-Dressing-Room action — shows a disabled reason instead', () => {
+  assert.match(analysisCard, /addToDressingRoomUnavailableReason/);
+  assert.match(analysisCard, /onAddToDressingRoom \? \(/);
+  assert.match(analysisCard, /accessibilityState=\{\{ disabled: true \}\}/);
+});
+
+test('Library screen gates Add-to-Dressing-Room through the canonical image-source contract, not bare imageUri truthiness', () => {
+  assert.match(libraryScreen, /hasUsableDressingRoomImageSource/);
+  assert.match(libraryScreen, /describeMissingImageReason/);
+  assert.match(libraryScreen, /addToDressingRoomUnavailableReason=\{/);
+});
+
+test('canonical contract module documents the imageUrl:null pitfall it fixes and distinguishes durable vs. temporary sources', () => {
+  assert.match(dressingRoomItemContract, /does NOT mean "no image"/);
+  assert.match(dressingRoomItemContract, /storageBucket.*storagePath/s);
+  assert.match(dressingRoomItemContract, /never a signed URL/i);
+});
+
 test('inspiration service functions enforce soft-delete and note length', () => {
   assert.match(service, /INSPIRATION_NOTE_MAX_LENGTH = 200/);
   assert.match(service, /normalizeInspirationNote/);
@@ -294,4 +364,70 @@ test('dressing room title is validated with 60-character max and newline normali
 test('public shared room screen displays room title with fallback', () => {
   assert.match(publicRoomScreen, /preview\.title/);
   assert.match(publicRoomScreen, /Shared Dressing Room/);
+});
+
+test('dev-only logs never carry raw dressing room ids or item ids', () => {
+  // Every devLog(...) call site in the service, verbatim.
+  const devLogCalls = service.match(/devLog\('[^']*',\s*\{[^}]*\}\)/g) ?? [];
+  assert.ok(devLogCalls.length >= 8, 'expected multiple devLog call sites');
+  for (const call of devLogCalls) {
+    assert.doesNotMatch(call, /dressingRoomId/);
+    assert.doesNotMatch(call, /itemId/);
+  }
+});
+
+test('AddScanToDressingRoomModal gates on the canonical image-source contract, not bare localImageUri', () => {
+  assert.match(addScanModal, /from '\.\.\/services\/dressingRoomItemContract'/);
+  assert.match(addScanModal, /hasUsableDressingRoomImageSource\(\{ localUri: localImageUri, storageBucket, storagePath, imageUrl \}\)/);
+  assert.doesNotMatch(addScanModal, /const missingImage = !localImageUri/);
+  // storageBucket/storagePath/imageUrl are accepted as props and forwarded
+  // into the scan snapshot passed to addScanImageToDressingRoom.
+  assert.match(addScanModal, /storageBucket\?: string \| null;/);
+  assert.match(addScanModal, /storagePath\?: string \| null;/);
+  assert.match(addScanModal, /storageBucket,\s+storagePath,\s+imageUrl,/);
+});
+
+test('Library screen carries a Library item\'s durable storage reference through to the Add modal, not just its local URI', () => {
+  assert.match(libraryScreen, /storageBucket\?: string \| null;/);
+  assert.match(libraryScreen, /storagePath\?: string \| null;/);
+  // The Add CTA and the modal-visibility gate both check the full candidate.
+  assert.match(libraryScreen, /storageBucket: selectedScan\.storageBucket,\s+storagePath: selectedScan\.storagePath,/);
+  assert.match(libraryScreen, /<AddScanToDressingRoomModal/);
+  assert.match(libraryScreen, /storageBucket=\{selectedScan\.storageBucket\}/);
+  assert.match(libraryScreen, /storagePath=\{selectedScan\.storagePath\}/);
+});
+
+test('cloud saved-scan mapping preserves the durable storage reference instead of dropping it', () => {
+  assert.match(savedScansCloud, /storage_bucket\?: string \| null;/);
+  assert.match(savedScansCloud, /storage_path\?: string \| null;/);
+  assert.match(savedScansCloud, /storageBucket: row\.storage_bucket \?\? null,/);
+  assert.match(savedScansCloud, /storagePath: row\.storage_path \?\? null,/);
+});
+
+test('shared-room preview client never carries private storage fields, even a null one', () => {
+  assert.doesNotMatch(sharedRoomPreviewService, /imageStorageBucket/);
+  assert.doesNotMatch(sharedRoomPreviewService, /imageStoragePath/);
+  assert.doesNotMatch(publicRoomScreen, /imageStorageBucket/);
+  assert.doesNotMatch(publicRoomScreen, /imageStoragePath/);
+});
+
+test('addScanImageToDressingRoom writes image_url XOR storage_bucket+storage_path, never both, so the shared-room read-side priority cannot conflict', () => {
+  // This is the assumption the Edge Function's validation.ts explicitly
+  // documents relying on (see its resolveStorageRefFromRow doc comment) and
+  // the shared-room screen's `!item.imageUrl` filter relies on implicitly.
+  assert.match(service, /image_url: resolvedImageUrl,\s+storage_bucket: storageBucket,\s+storage_path: storagePath,/);
+  // resolvedImageUrl is only ever assigned in the 'remote' branch; storageBucket
+  // /storagePath are only ever assigned in the 'storage' or 'local' (post-upload)
+  // branches - never in the same branch.
+  assert.match(service, /else if \(imageSource\.kind === 'remote'\) \{\s+resolvedImageUrl = imageSource\.imageUrl;/);
+});
+
+test('the read-side (Edge Function + shared-room screen) documents its dependency on the write-side (dressingRoomItemContract) priority', () => {
+  const edgeFnValidation = fs.readFileSync(
+    path.join(__dirname, '..', 'supabase', 'functions', 'shared-room-image-url', 'validation.ts'),
+    'utf8',
+  );
+  assert.match(edgeFnValidation, /read-side counterpart of the write-side priority/);
+  assert.match(edgeFnValidation, /dressingRoomItemContract\.ts#resolveDressingRoomImageSource/);
+  assert.match(publicRoomScreen, /Read-side mirror of services\/dressingRoomItemContract\.ts/);
 });

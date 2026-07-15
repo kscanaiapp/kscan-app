@@ -62,6 +62,14 @@ export interface AnalysisCardProps {
   relatedSavedScans?: unknown[];
   onDismiss: () => void;
   onAddToDressingRoom?: () => void;
+  /**
+   * When Dressing Rooms is available but this specific item has no usable
+   * image source yet (canonical contract: no local URI, storage reference,
+   * or remote URL), the caller passes an explanation here instead of simply
+   * omitting `onAddToDressingRoom`. The CTA still renders — disabled, with
+   * the reason — rather than silently disappearing.
+   */
+  addToDressingRoomUnavailableReason?: string | null;
   // Phase 2 (additive, optional): Ask StyleChat about this saved item.
   // Undefined leaves rendering and behavior unchanged.
   onAskStyleChat?: () => void;
@@ -84,6 +92,7 @@ export function AnalysisCard({
   relatedSavedScans,
   onDismiss,
   onAddToDressingRoom,
+  addToDressingRoomUnavailableReason,
   onAskStyleChat,
 }: AnalysisCardProps) {
   const insets = useSafeAreaInsets();
@@ -242,7 +251,7 @@ export function AnalysisCard({
                 </View>
               )}
 
-              {scanImageUri && onAddToDressingRoom ? (
+              {onAddToDressingRoom ? (
                 <TouchableOpacity
                   style={styles.scanRoomCta}
                   onPress={onAddToDressingRoom}
@@ -252,6 +261,18 @@ export function AnalysisCard({
                 >
                   <Text style={styles.scanRoomCtaText}>Add Scan to Dressing Room</Text>
                 </TouchableOpacity>
+              ) : addToDressingRoomUnavailableReason ? (
+                <View
+                  style={[styles.scanRoomCta, styles.scanRoomCtaDisabled]}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: true }}
+                  accessibilityLabel={`Add this scan to a Dressing Room. Unavailable: ${addToDressingRoomUnavailableReason}`}
+                >
+                  <Text style={[styles.scanRoomCtaText, styles.scanRoomCtaTextDisabled]}>
+                    Add Scan to Dressing Room
+                  </Text>
+                  <Text style={styles.scanRoomCtaReasonText}>{addToDressingRoomUnavailableReason}</Text>
+                </View>
               ) : null}
 
               {onAskStyleChat ? (
@@ -454,6 +475,19 @@ const styles = StyleSheet.create({
   },
   scanRoomCtaText: {
     ...LUXURY.typography.ctaSecondary,
+    textAlign: 'center',
+  },
+  scanRoomCtaDisabled: {
+    borderColor: LUXURY.colors.border,
+    opacity: 0.6,
+    gap: 2,
+  },
+  scanRoomCtaTextDisabled: {
+    color: LUXURY.colors.stone,
+  },
+  scanRoomCtaReasonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
     textAlign: 'center',
   },
   cta: {
