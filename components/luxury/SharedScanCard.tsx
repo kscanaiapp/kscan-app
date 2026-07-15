@@ -124,7 +124,6 @@ export function SharedScanCard({
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,

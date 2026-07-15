@@ -59,11 +59,15 @@ import {
   logRoomLinkEvent,
   normalizeRoomShareToken,
 } from '../../../services/roomDeepLinks';
+import { computeItemGridCellWidth } from '../../../services/sharedRoomLayout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const ITEM_GRID_GAP = SPACING.md;
 const ITEM_GRID_H_PAD = SPACING.xl;
-const ITEM_GRID_CELL_W = Math.floor((SCREEN_W - ITEM_GRID_H_PAD * 2 - ITEM_GRID_GAP) / 2);
+const ITEM_GRID_CELL_W = computeItemGridCellWidth(SCREEN_W, {
+  horizontalPadding: ITEM_GRID_H_PAD,
+  gap: ITEM_GRID_GAP,
+});
 
 // ─── Feature flag ────────────────────────────────────────────────────────────
 // Set to false to disable without removing the route. Shows a browser fallback.
