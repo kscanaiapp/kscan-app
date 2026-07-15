@@ -18,7 +18,11 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
-import { parseActiveContext, buildActiveContextBlock } from './activeContext.ts';
+import {
+  parseActiveContext,
+  buildActiveContextBlock,
+  VISUAL_COLLECTION_CONTRACT_VERSION,
+} from './activeContext.ts';
 // v2 (Closet Intelligence) modules — used only on the v2 request path.
 import {
   isV2StyleChatRequest,
@@ -842,9 +846,29 @@ Deno.serve(async (req) => {
   // (older app builds send nothing and behave exactly as before).
   const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
 
-  // Optional, additive active scan/upload/TextScan context for grounding. Malformed or
-  // unknown-source input is dropped so old clients and bad payloads are harmless.
+  // Optional, additive active scan/upload/TextScan context for grounding.
   const activeContext = parseActiveContext(body.activeContext);
+  if (body.activeContext != null && !activeContext) {
+    const activeContextRecord = typeof body.activeContext === 'object' &&
+      !Array.isArray(body.activeContext)
+      ? body.activeContext as Record<string, unknown>
+      : null;
+    const requestedVisualCollection = Boolean(
+      activeContextRecord && Object.prototype.hasOwnProperty.call(activeContextRecord, 'visualCollection'),
+    );
+    return json(
+      {
+        error: 'Active visual context could not be accepted',
+        errorCode: requestedVisualCollection
+          ? 'VISUAL_COLLECTION_INVALID'
+          : 'ACTIVE_CONTEXT_INVALID',
+        ...(requestedVisualCollection
+          ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
+          : {}),
+      },
+      400,
+    );
+  }
 
   // ── V1/V2 routing (Closet Intelligence) ───────────────────────────────────────
   // V1 (attachment-free, no contractVersion) takes the existing path unchanged:
@@ -1576,6 +1600,9 @@ Deno.serve(async (req) => {
       status: usedFallback ? 'error' : 'success',
       message: responseMessage,
       usage: { messagesUsed, messagesLimit, resetAt },
+      ...(activeContext?.visualCollection?.evidence.length
+        ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
+        : {}),
     });
   }
 
@@ -1588,5 +1615,8 @@ Deno.serve(async (req) => {
     actions: validatedActions,
     attachmentsResolved: resolvedAttachments.length,
     imagesInspected: inspectedImageCount,
+    ...(activeContext?.visualCollection?.evidence.length
+      ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
+      : {}),
   });
 });

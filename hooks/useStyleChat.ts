@@ -24,6 +24,10 @@ export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
   "Closet-aware messaging isn't available yet. Your attachments are still here.";
 export const STYLECHAT_ATTACHMENTS_REJECTED_COPY =
   "Elise couldn't verify that Closet item. Remove it and try again.";
+export const STYLECHAT_VISUAL_COLLECTION_UNSUPPORTED_COPY =
+  "Multi-reference styling isn't available yet. Your references and draft are still here.";
+export const STYLECHAT_VISUAL_COLLECTION_REJECTED_COPY =
+  "Elise couldn't safely read those references. Your references and draft are still here.";
 
 export type SendAttachmentsInput = {
   /** Immutable snapshot captured at send time (ready resolved refs only). */
@@ -185,6 +189,11 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       // must never present an attachment-blind reply as attachment-aware.
       const sendAttachments = options?.attachments ?? null;
       const hasAttachments = !!sendAttachments && sendAttachments.references.length > 0;
+      const activeContextSnapshot = activeContextRef.current ?? null;
+      const hasVisualCollection = Boolean(
+        activeContextSnapshot?.visualCollection?.evidence?.length,
+      );
+      const requiresContextAcknowledgement = hasAttachments || hasVisualCollection;
       const attachmentUiBlocks: StyleChatUiBlock[] = hasAttachments
         ? [buildAttachmentUiBlock(sendAttachments.drafts) as unknown as StyleChatUiBlock]
         : [];
@@ -192,7 +201,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       const skipUserPersistence = options?.skipUserPersistence === true;
       // Attachment sends defer persistence until backend v2 acknowledgement,
       // but still render an optimistic bubble.
-      const deferUserPersistence = skipUserPersistence || hasAttachments;
+      const deferUserPersistence = skipUserPersistence || requiresContextAcknowledgement;
       let persistedUserMessageId = options?.existingUserMessageId ?? null;
 
       // 1. Optimistic user bubble
@@ -251,13 +260,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           : null;
         // Active scan/upload/TextScan context is held in a ref so it is included on
         // every send while the context card is visible, without recreating sendMessage.
-        const activeContext = activeContextRef.current ?? null;
         const result = await provider.generateReply({
           sessionId,
           message: trimmed,
           weatherLocation,
           styleDnaContext,
-          activeContext,
+          activeContext: activeContextSnapshot,
           ...(hasAttachments
             ? {
                 attachments: sendAttachments!.references,
@@ -285,15 +293,40 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           );
           return false;
         }
+        if (
+          result.status === 'visual_collection_unsupported' ||
+          result.status === 'visual_collection_rejected'
+        ) {
+          setMessages(prev =>
+            prev.filter(m => m.id !== optimisticUser?.id && !m.id.startsWith('optimistic-assistant-')),
+          );
+          retryStateRef.current?.remember({
+            content: trimmed,
+            userMessageId: null,
+            attachments: sendAttachments,
+          });
+          setError(
+            result.status === 'visual_collection_rejected'
+              ? STYLECHAT_VISUAL_COLLECTION_REJECTED_COPY
+              : STYLECHAT_VISUAL_COLLECTION_UNSUPPORTED_COPY,
+          );
+          return false;
+        }
 
         if (result.status === 'burst_limit') {
           // Burst limit: transient per-minute cap. Do not persist, do not update daily usage.
+          if (requiresContextAcknowledgement) {
+            setMessages(prev => prev.filter(m => m.id !== optimisticUser?.id));
+          }
           setError(STYLE_CHAT_COPY.burstLimitNotice);
           return false;
         }
 
         if (result.status === 'limit_reached') {
           // Show a system notice in the UI. Do not persist as an assistant message.
+          if (requiresContextAcknowledgement) {
+            setMessages(prev => prev.filter(m => m.id !== optimisticUser?.id));
+          }
           setError(STYLE_CHAT_COPY.systemLimitNotice);
           setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed));
           setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
@@ -306,7 +339,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           // persisted text-only user row, preserve the exact send for one-shot
           // retry, and render the existing actionable error banner instead of
           // writing synthetic assistant content or exposing feedback controls.
-          if (hasAttachments) {
+          if (requiresContextAcknowledgement) {
             setMessages(prev => prev.filter(m => m.id !== optimisticUser?.id));
           }
           retryStateRef.current?.remember({
@@ -327,18 +360,18 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         //    now that the backend acknowledged the v2 contract. Bounded
         //    attachment summaries persist in the existing ui_blocks column
         //    (stable references + display fields only; never image bytes).
-        if (hasAttachments) {
+        if (requiresContextAcknowledgement) {
           const savedUser = await saveStyleChatMessage({
             sessionId,
             sender: 'user',
             content: trimmed,
-            uiBlocks: attachmentUiBlocks,
+            ...(attachmentUiBlocks.length > 0 ? { uiBlocks: attachmentUiBlocks } : {}),
           });
           persistedUserMessageId = savedUser.id;
           setMessages(prev =>
             prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
           );
-          sendAttachments?.onSent?.();
+          if (hasAttachments) sendAttachments?.onSent?.();
         }
 
         // optimistic assistant bubble, then persist.
