@@ -7,7 +7,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import {
   ELISE_VISUAL_CONTEXT_MAX_ENTRIES,
   type EliseVisualContextEntry,
@@ -15,8 +15,11 @@ import {
 
 const SCAN_LABEL = 'Scan';
 const UPLOAD_LABEL = 'Upload';
+const OBSIDIAN_VIOLET = '#2D1F5E';
+const MUTED_LAVENDER = '#E8E4F0';
 
 interface EliseVisualContextBarProps {
+  mode?: 'all' | 'actions' | 'tray';
   entries: EliseVisualContextEntry[];
   focusedEntryId: string | null;
   isProcessing: boolean;
@@ -39,13 +42,19 @@ function chipLabel(entry: EliseVisualContextEntry): string {
   return entry.title;
 }
 
-function chipAccessibilityLabel(entry: EliseVisualContextEntry, isFocused: boolean): string {
+function chipAccessibilityLabel(
+  entry: EliseVisualContextEntry,
+  isFocused: boolean,
+  position: number,
+  total: number,
+): string {
   const focus = isFocused ? 'focused' : 'not focused';
   const status = entry.status;
-  return `${entry.source === 'scan' ? 'Scan' : 'Upload'} reference: ${chipLabel(entry)}, ${status}, ${focus}`;
+  return `Reference ${position} of ${total}, ${entry.source === 'scan' ? 'scan' : 'upload'}: ${chipLabel(entry)}, ${status}, ${focus}`;
 }
 
 export function EliseVisualContextBar({
+  mode = 'all',
   entries,
   focusedEntryId,
   isProcessing,
@@ -61,21 +70,23 @@ export function EliseVisualContextBar({
 }: EliseVisualContextBarProps) {
   const count = entries.length;
   const isFull = remainingSlots === 0;
+  const showActions = mode !== 'tray';
+  const showTray = mode !== 'actions' && count > 0;
+
+  if (mode === 'tray' && count === 0) return null;
 
   return (
-    <View style={styles.container} testID="elise-visual-context-bar">
-      <View style={styles.header}>
+    <View
+      style={[styles.container, mode === 'tray' ? styles.trayContainer : styles.utilityContainer]}
+      testID={mode === 'tray' ? 'elise-visual-context-tray-region' : 'elise-visual-context-bar'}
+    >
+      {showActions ? <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.title}>Visual references</Text>
           <Text style={styles.count} testID="elise-visual-context-count">
             {count}/{ELISE_VISUAL_CONTEXT_MAX_ENTRIES}
           </Text>
         </View>
-        {hasBlockedEntry ? (
-          <Text style={styles.blockedHint} numberOfLines={1}>
-            {uploadUnavailableReason}
-          </Text>
-        ) : null}
         <View style={styles.headerActions}>
           <Pressable
             onPress={onScan}
@@ -86,6 +97,7 @@ export function EliseVisualContextBar({
               disabled || isFull ? styles.smallBtnDisabled : null,
             ]}
             accessibilityRole="button"
+            accessibilityState={{ disabled: disabled || isFull }}
             accessibilityLabel="Scan an item"
             accessibilityHint="Open the K Scan camera"
           >
@@ -110,16 +122,30 @@ export function EliseVisualContextBar({
             </Text>
           </Pressable>
         </View>
-      </View>
+      </View> : null}
 
-      <ScrollView
+      {showTray ? <View style={styles.trayHeader}>
+        <Text style={styles.trayTitle}>Pending for next message</Text>
+        <Text style={styles.count}>
+          {count}/{ELISE_VISUAL_CONTEXT_MAX_ENTRIES}
+        </Text>
+      </View> : null}
+
+      {showTray && hasBlockedEntry ? (
+        <Text style={styles.blockedHint} accessibilityLiveRegion="polite">
+          Some uploads can’t be analyzed yet. Remove them to send. {uploadUnavailableReason}
+        </Text>
+      ) : null}
+
+      {showTray ? <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.trayContent}
         testID="elise-visual-context-tray"
       >
-        {entries.map((entry) => {
+        {entries.map((entry, index) => {
           const isFocused = focusedEntryId === entry.id;
+          const previewUri = entry.sanitizedPreviewUri ?? entry.rawImageUri;
           return (
             <View
               key={entry.id}
@@ -133,14 +159,15 @@ export function EliseVisualContextBar({
                 onPress={() => onFocus(entry.id)}
                 style={styles.chipBody}
                 accessibilityRole="button"
-                accessibilityLabel={chipAccessibilityLabel(entry, isFocused)}
-                accessibilityHint="Tap to focus this reference"
+                accessibilityLabel={chipAccessibilityLabel(entry, isFocused, index + 1, count)}
+                accessibilityHint={isFocused ? 'Tap to clear focus' : 'Tap to emphasize this reference'}
               >
-                {entry.sanitizedPreviewUri ? (
+                {previewUri ? (
                   <Image
-                    source={{ uri: entry.sanitizedPreviewUri }}
+                    source={{ uri: previewUri }}
                     style={styles.thumbnail}
                     resizeMode="cover"
+                    accessible={false}
                   />
                 ) : (
                   <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
@@ -153,9 +180,12 @@ export function EliseVisualContextBar({
                   {entry.status === 'preparing' || entry.status === 'analyzing' ? (
                     <ActivityIndicator size="small" color={LUXURY.colors.plum} />
                   ) : null}
-                  <Text style={styles.chipLabel} numberOfLines={1}>
+                  <Text style={styles.chipLabel} numberOfLines={1} accessibilityLiveRegion="polite">
                     {chipLabel(entry)}
                   </Text>
+                  {isFocused ? (
+                    <Text style={styles.focusBadge}>Focused</Text>
+                  ) : null}
                   {entry.status === 'blocked' ? (
                     <Text style={styles.chipSubtext} numberOfLines={1}>
                       Analysis unavailable
@@ -169,7 +199,7 @@ export function EliseVisualContextBar({
                   onPress={() => onRetry(entry.id)}
                   style={styles.actionBtn}
                   accessibilityRole="button"
-                  accessibilityLabel="Retry upload"
+                  accessibilityLabel={`Retry reference ${index + 1}, ${chipLabel(entry)}`}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text style={styles.retryText}>↻</Text>
@@ -180,7 +210,7 @@ export function EliseVisualContextBar({
                 onPress={() => onRemove(entry.id)}
                 style={styles.actionBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Remove reference"
+                accessibilityLabel={`Remove reference ${index + 1}, ${chipLabel(entry)}`}
                 accessibilityHint="Remove this visual reference"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
@@ -201,7 +231,9 @@ export function EliseVisualContextBar({
                 disabled ? styles.addChipDisabled : null,
               ]}
               accessibilityRole="button"
+              accessibilityState={{ disabled }}
               accessibilityLabel="Scan another item"
+              accessibilityHint="Open the K Scan camera"
             >
               <Text style={styles.addChipText}>+</Text>
               <Text style={styles.addChipLabel}>{SCAN_LABEL}</Text>
@@ -215,26 +247,44 @@ export function EliseVisualContextBar({
                 disabled ? styles.addChipDisabled : null,
               ]}
               accessibilityRole="button"
+              accessibilityState={{ disabled }}
               accessibilityLabel="Upload another photo"
+              accessibilityHint="Choose photos from your library"
             >
               <Text style={styles.addChipText}>+</Text>
               <Text style={styles.addChipLabel}>{UPLOAD_LABEL}</Text>
             </Pressable>
           </>
         ) : null}
-      </ScrollView>
+      </ScrollView> : null}
     </View>
   );
 }
 
-const CHIP_SIZE = 64;
+const CHIP_SIZE = 52;
 
 const styles = StyleSheet.create({
   container: {
     marginHorizontal: SPACING.xl,
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.sm,
-    gap: SPACING.sm,
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(45, 31, 94, 0.18)',
+  },
+  utilityContainer: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
+    paddingVertical: SPACING.xs,
+    backgroundColor: MUTED_LAVENDER,
+    ...SHADOWS.editorialSmall,
+  },
+  trayContainer: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+    paddingTop: SPACING.xs,
+    paddingBottom: 0,
+    backgroundColor: LUXURY.colors.pearl,
   },
   header: {
     flexDirection: 'row',
@@ -263,7 +313,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: LUXURY.colors.stone,
     flexShrink: 1,
-    textAlign: 'right',
+    textAlign: 'left',
+  },
+  trayHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  trayTitle: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    color: LUXURY.colors.graphite,
   },
   headerActions: {
     flexDirection: 'row',
@@ -275,16 +338,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.pill,
-    backgroundColor: LUXURY.colors.plum,
-    minWidth: 56,
-    minHeight: 32,
+    backgroundColor: OBSIDIAN_VIOLET,
+    minWidth: 72,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   smallBtnSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: LUXURY.colors.plum,
+    backgroundColor: OBSIDIAN_VIOLET,
   },
   smallBtnPressed: {
     opacity: 0.8,
@@ -298,14 +359,14 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.inverse,
   },
   smallBtnSecondaryLabel: {
-    color: LUXURY.colors.plum,
+    color: '#FFFFFF',
   },
   trayContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
     paddingVertical: SPACING.xs,
-    minHeight: 88,
+    minHeight: 72,
   },
   chip: {
     flexDirection: 'row',
@@ -318,7 +379,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   chipFocused: {
-    borderColor: LUXURY.colors.plum,
+    borderColor: OBSIDIAN_VIOLET,
     borderWidth: 2,
   },
   chipFailed: {
@@ -345,7 +406,7 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.stone,
   },
   chipText: {
-    maxWidth: 120,
+    maxWidth: 88,
     gap: SPACING.xxs,
   },
   chipLabel: {
@@ -357,6 +418,16 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     fontSize: 10,
     color: LUXURY.colors.stone,
+  },
+  focusBadge: {
+    ...LUXURY.typography.caption,
+    alignSelf: 'flex-start',
+    fontSize: 9,
+    color: '#FFFFFF',
+    backgroundColor: OBSIDIAN_VIOLET,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
   },
   actionBtn: {
     width: 44,

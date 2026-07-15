@@ -441,6 +441,7 @@ export default function StyleChatSessionScreen() {
   const ChatBody = (
     <>
       <EliseVisualContextBar
+        mode="actions"
         entries={visualContextEntries}
         focusedEntryId={collection?.focusedEntryId ?? null}
         isProcessing={visualContextProcessing}
@@ -491,6 +492,21 @@ export default function StyleChatSessionScreen() {
         ) : null
       ) : null}
       {StyleMeForThisChip}
+      <EliseVisualContextBar
+        mode="tray"
+        entries={visualContextEntries}
+        focusedEntryId={collection?.focusedEntryId ?? null}
+        isProcessing={visualContextProcessing}
+        hasBlockedEntry={hasBlockedEntry}
+        remainingSlots={remainingSlots}
+        onScan={() => startScan(composerText)}
+        onUpload={startUpload}
+        onRemove={removeVisualContextEntry}
+        onRetry={retryVisualContextEntry}
+        onFocus={setFocusedEntry}
+        disabled={isSending || visualContextProcessing}
+        uploadUnavailableReason={uploadUnavailableReason}
+      />
       {ErrorBanner}
       {attachmentsEnabled ? (
         <StyleChatAttachmentBar
