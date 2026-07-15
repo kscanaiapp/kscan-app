@@ -23,7 +23,7 @@ export async function compressForUpload(uri) {
   }
 
   if (__DEV__) {
-    console.log('[DEBUG] COMPRESSION_START uri=' + uri.slice(0, 80));
+    console.log('[DEBUG] COMPRESSION_START');
     console.log('[DEBUG] COMPRESSION_SETTINGS maxWidth=896 quality=0.65 format=JPEG base64=true');
   }
   const t0 = Date.now();

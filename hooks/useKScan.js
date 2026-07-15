@@ -446,7 +446,7 @@ export function useKScan() {
       const executeScanAttempt = async () => {
         processingStart = Date.now();
 
-        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS uri=' + photo.uri.slice(0, 80));
+        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS');
         if (__DEV__ && photo.qaFixtureName) {
           console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
           console.log('[K-SCAN QA] Using compressImage utility: true');
@@ -482,7 +482,6 @@ export function useKScan() {
 
         const identifyResponse = await identifyScanImage(sanitized, {
           source: photo.source === 'upload' ? 'upload' : 'camera',
-          localPrivacyFiltered: true,
           signal: activeAbortControllerRef.current?.signal,
         });
 

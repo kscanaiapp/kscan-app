@@ -14,6 +14,7 @@ import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
 import { resetVisualContextStore } from '../services/style-chat/eliseVisualContextStore';
+import { cleanupSanitizedImage } from '../services/privacyImageUpload';
 import {
   createAuthBootstrapGenerationGuard,
   isHandledStaleRefreshTokenError,
@@ -76,7 +77,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         // this device's local image URIs and resolved references never cross
         // between accounts.
         resetAttachmentStore();
-        resetVisualContextStore();
+        for (const uri of resetVisualContextStore()) {
+          void cleanupSanitizedImage(uri);
+        }
       }
       setSession(usableSession);
       if (event === 'SIGNED_IN') {
@@ -169,7 +172,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const signOut = useCallback(async () => {
     invalidateAllMemoryCache();
     resetAttachmentStore();
-    resetVisualContextStore();
+    for (const uri of resetVisualContextStore()) {
+      void cleanupSanitizedImage(uri);
+    }
     setSession(null);
     await supabase.auth.signOut();
   }, []);

@@ -13,9 +13,21 @@ type StoreEntry = {
   revision: number;
 };
 
+export type VisualContextScanIntent = {
+  id: string;
+  actorKey: string;
+  sessionId: string;
+  expectedRevision: number;
+  createdAt: number;
+};
+
 const store = new Map<string, StoreEntry>();
+const scanIntents = new Map<string, VisualContextScanIntent>();
 const listeners = new Set<() => void>();
 let revisionCounter = 0;
+let intentCounter = 0;
+const SCAN_INTENT_TTL_MS = 15 * 60 * 1000;
+const MAX_SCAN_INTENTS = 20;
 
 function key(actorKey: string, sessionId: string): string {
   return `${actorKey}:${sessionId}`;
@@ -41,6 +53,22 @@ function getEntry(actorKey: string, sessionId: string): StoreEntry {
   return entry;
 }
 
+function currentRevision(actorKey: string, sessionId: string): number {
+  return store.get(key(actorKey, sessionId))?.revision ?? 0;
+}
+
+function pruneScanIntents(now = Date.now(), reserveSlot = false): void {
+  for (const [id, intent] of scanIntents) {
+    if (now - intent.createdAt > SCAN_INTENT_TTL_MS) scanIntents.delete(id);
+  }
+  const maximumSize = reserveSlot ? MAX_SCAN_INTENTS - 1 : MAX_SCAN_INTENTS;
+  while (scanIntents.size > maximumSize) {
+    const oldest = scanIntents.keys().next().value as string | undefined;
+    if (!oldest) break;
+    scanIntents.delete(oldest);
+  }
+}
+
 export function subscribeToVisualContext(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -50,11 +78,39 @@ export function getVisualContext(
   actorKey: string,
   sessionId: string,
 ): EliseVisualContext | null {
-  return getEntry(actorKey, sessionId).context;
+  return store.get(key(actorKey, sessionId))?.context ?? null;
 }
 
 export function getVisualContextRevision(actorKey: string, sessionId: string): number {
-  return getEntry(actorKey, sessionId).revision;
+  return currentRevision(actorKey, sessionId);
+}
+
+/** Create an opaque scanner return intent without exposing actor identity in the route. */
+export function createVisualContextScanIntent(actorKey: string, sessionId: string): string {
+  pruneScanIntents(Date.now(), true);
+  for (const [id, intent] of scanIntents) {
+    if (intent.actorKey === actorKey && intent.sessionId === sessionId) scanIntents.delete(id);
+  }
+  const id = `vc-scan-${Date.now().toString(36)}-${(++intentCounter).toString(36)}`;
+  scanIntents.set(id, {
+    id,
+    actorKey,
+    sessionId,
+    expectedRevision: currentRevision(actorKey, sessionId),
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+export function getVisualContextScanIntent(id: string): VisualContextScanIntent | null {
+  pruneScanIntents();
+  return scanIntents.get(id) ?? null;
+}
+
+export function consumeVisualContextScanIntent(id: string): VisualContextScanIntent | null {
+  const intent = getVisualContextScanIntent(id);
+  scanIntents.delete(id);
+  return intent;
 }
 
 /**
@@ -106,9 +162,16 @@ export function removeVisualContext(actorKey: string, sessionId: string): void {
 /**
  * Clear all visual-context state. Called on sign-out / actor change.
  */
-export function resetVisualContextStore(): void {
+export function resetVisualContextStore(): string[] {
+  const previewUris = [...new Set(
+    [...store.values()]
+      .map((entry) => entry.context?.sanitizedPreviewUri)
+      .filter((uri): uri is string => typeof uri === 'string' && uri.length > 0),
+  )];
   store.clear();
+  scanIntents.clear();
   notify();
+  return previewUris;
 }
 
 /**
@@ -119,5 +182,5 @@ export function isVisualContextRevisionCurrent(
   sessionId: string,
   revision: number,
 ): boolean {
-  return getEntry(actorKey, sessionId).revision === revision;
+  return currentRevision(actorKey, sessionId) === revision;
 }

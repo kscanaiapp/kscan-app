@@ -18,7 +18,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
-import { setVisualContext } from './services/style-chat/eliseVisualContextStore';
+import {
+  consumeVisualContextScanIntent,
+  isVisualContextRevisionCurrent,
+  setVisualContext,
+} from './services/style-chat/eliseVisualContextStore';
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
@@ -276,6 +280,7 @@ export default function App() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const returnToSessionId = params?.returnToSessionId ? String(params.returnToSessionId) : null;
+  const visualContextIntentId = params?.visualContextIntentId ? String(params.visualContextIntentId) : null;
   const isReturningToElise = Boolean(returnToSessionId);
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
   const qaTapRef = useRef({ count: 0, lastTap: 0 });
@@ -286,11 +291,12 @@ export default function App() {
 
   const handleHome = useCallback(() => {
     if (returnToSessionId) {
+      if (visualContextIntentId) consumeVisualContextScanIntent(visualContextIntentId);
       router.replace(`/style-chat/${returnToSessionId}`);
       return;
     }
     router.replace('/');
-  }, [router, returnToSessionId]);
+  }, [router, returnToSessionId, visualContextIntentId]);
 
   useEffect(() => {
     if (!permission?.granted || isCameraReady) return undefined;
@@ -423,10 +429,28 @@ export default function App() {
     hasReturnedRef.current = true;
 
     void (async () => {
+      const intent = visualContextIntentId
+        ? consumeVisualContextScanIntent(visualContextIntentId)
+        : null;
+      if (!intent || intent.sessionId !== returnToSessionId) {
+        router.replace(`/style-chat/${returnToSessionId}`);
+        return;
+      }
+
       const { data } = await supabase.auth.getSession();
       const user = data.session?.user;
-      if (!user) return;
+      if (!user) {
+        router.replace(`/style-chat/${returnToSessionId}`);
+        return;
+      }
       const actorKey = `user:${user.id}`;
+      if (
+        intent.actorKey !== actorKey ||
+        !isVisualContextRevisionCurrent(actorKey, returnToSessionId, intent.expectedRevision)
+      ) {
+        router.replace(`/style-chat/${returnToSessionId}`);
+        return;
+      }
       const meta = analysis?.metadata ?? {};
       const source = photo?.source === 'upload' ? 'upload' : 'scan';
 
@@ -444,12 +468,11 @@ export default function App() {
         styleAttributes: meta.styleTags || meta.styleDescriptors || undefined,
         brand: meta.brand || null,
         confidence: typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined,
-        sanitizedPreviewUri: photo?.uri || null,
       }));
 
       router.replace(`/style-chat/${returnToSessionId}`);
     })();
-  }, [status, analysis, returnToSessionId, photo?.uri, photo?.source, router]);
+  }, [status, analysis, returnToSessionId, visualContextIntentId, photo?.source, router]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.
@@ -459,7 +482,7 @@ export default function App() {
     const onBack = () => {
       // When opened from Elise, back always returns to the originating session.
       if (returnToSessionId && status !== 'processing') {
-        router.replace(`/style-chat/${returnToSessionId}`);
+        handleHome();
         return true;
       }
       // Block back during active analysis: aborting here would leave the
@@ -483,7 +506,7 @@ export default function App() {
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
     return () => sub.remove();
-  }, [status, perceiving, photo, retake, dismissResult, returnToSessionId, router]);
+  }, [status, perceiving, photo, retake, dismissResult, returnToSessionId, handleHome]);
 
   const scanAnim = useScanAnimation(status === 'processing');
 
