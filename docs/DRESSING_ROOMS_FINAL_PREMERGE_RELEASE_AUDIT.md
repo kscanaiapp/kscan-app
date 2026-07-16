@@ -1,7 +1,9 @@
 # Dressing Rooms Final Pre-Merge and Tester-Release Audit
 
-Audit date: 2026-07-16  
-Authoritative workspace: `C:\src\KScan-elise-avatar-audit-20260715`  
+Audit date: 2026-07-16
+
+Authoritative workspace: `C:\src\KScan-elise-avatar-audit-20260715`
+
 Authoritative branch: `integration/elise-avatar-voice-merge-20260714`
 
 ## Executive verdict
