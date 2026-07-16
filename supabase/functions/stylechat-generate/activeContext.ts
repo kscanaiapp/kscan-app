@@ -1,5 +1,9 @@
 // Active scan/upload/TextScan context (StyleChat grounding).
 // All fields are allowlisted, bounded, and rendered as untrusted data.
+// Prompt assembly places this block inside a typed visual_context envelope;
+// values here must never be treated as trusted system instructions.
+
+import { escapeUntrustedText } from '../_shared/aiSecurity/escapeUntrustedText.ts';
 
 export const VISUAL_COLLECTION_CONTRACT_VERSION = '1';
 export const MAX_VISUAL_EVIDENCE = 6;
@@ -233,14 +237,11 @@ function sourceLabel(source: ActiveContextSource): string {
 }
 
 function promptData(value: string): string {
-  return JSON.stringify(
-    value
-      .replace(/\[/g, '(')
-      .replace(/\]/g, ')')
-      .replace(/</g, '(')
-      .replace(/>/g, ')')
-      .replace(/`/g, "'"),
-  );
+  // Canonical untrusted escaping first, then legacy bracket neutralization.
+  const escaped = escapeUntrustedText(value)
+    .replace(/\[/g, '(')
+    .replace(/\]/g, ')');
+  return JSON.stringify(escaped);
 }
 
 function renderList(values: string[]): string {

@@ -12,6 +12,7 @@
 
 import type { OwnedSourceType, ParsedAttachment } from './attachments.ts';
 import { MAX_TOTAL_RESOLVED_ITEMS } from './attachments.ts';
+import { escapeUntrustedText } from '../_shared/aiSecurity/escapeUntrustedText.ts';
 
 export const MAX_ATTACHMENT_CONTEXT_CHARS = 4000;
 export const MAX_CONTEXT_HINT_CHARS = 200;
@@ -293,16 +294,18 @@ export async function resolveStyleChatAttachments(
 function describeItem(item: ResolvedAttachmentItem, index: number): string {
   const parts = [
     `  ${index}. [ref:${item.ref.sourceType}:${item.ref.sourceId || 'snapshot'}]`,
-    item.title,
-    item.category ? `category=${item.category}` : null,
-    `role=${item.role}`,
-    item.color ? `color=${item.color}` : null,
-    item.pattern ? `pattern=${item.pattern}` : null,
-    item.material ? `material=${item.material}` : null,
-    item.silhouette ? `silhouette=${item.silhouette}` : null,
-    item.fit ? `fit=${item.fit}` : null,
-    item.brand ? `brand=${item.brand}` : null,
-    item.styleTags.length ? `tags=${item.styleTags.join(',')}` : null,
+    escapeUntrustedText(item.title),
+    item.category ? `category=${escapeUntrustedText(item.category)}` : null,
+    `role=${escapeUntrustedText(item.role)}`,
+    item.color ? `color=${escapeUntrustedText(item.color)}` : null,
+    item.pattern ? `pattern=${escapeUntrustedText(item.pattern)}` : null,
+    item.material ? `material=${escapeUntrustedText(item.material)}` : null,
+    item.silhouette ? `silhouette=${escapeUntrustedText(item.silhouette)}` : null,
+    item.fit ? `fit=${escapeUntrustedText(item.fit)}` : null,
+    item.brand ? `brand=${escapeUntrustedText(item.brand)}` : null,
+    item.styleTags.length
+      ? `tags=${item.styleTags.map((tag) => escapeUntrustedText(tag)).join(',')}`
+      : null,
   ];
   return parts.filter(Boolean).join(' ');
 }
@@ -325,7 +328,7 @@ export function buildAttachmentContextBlock(resolved: ResolvedAttachment[]): str
         attachment.dressCode ? `dress_code=${attachment.dressCode}` : null,
         attachment.setting ? `setting=${attachment.setting}` : null,
       ].filter(Boolean).join(' ');
-      lines.push(`ATTACHED LOOK "${attachment.title}" (${attachment.items.length} items)${context ? ' ' + context : ''}:`);
+      lines.push(`ATTACHED LOOK "${escapeUntrustedText(attachment.title)}" (${attachment.items.length} items)${context ? ' ' + context : ''}:`);
       for (const item of attachment.items) {
         itemIndex += 1;
         lines.push(describeItem(item, itemIndex));

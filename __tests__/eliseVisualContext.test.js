@@ -29,6 +29,13 @@ function loadTsModule(relativePath, requireMap = {}) {
     module: mod,
     require: (spec) => {
       if (spec in requireMap) return requireMap[spec];
+      if (typeof spec === 'string' && spec.startsWith('.')) {
+        const resolved = path.resolve(path.dirname(filename), spec.replace(/\.ts$/, ''));
+        const candidate = `${resolved}.ts`;
+        if (fs.existsSync(candidate)) {
+          return loadTsModule(path.relative(ROOT, candidate).replace(/\\/g, '/'), requireMap);
+        }
+      }
       throw new Error(`Unexpected import in ${relativePath}: ${spec}`);
     },
   };
