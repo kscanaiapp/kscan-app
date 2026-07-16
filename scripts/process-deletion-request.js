@@ -20,6 +20,7 @@ const USER_DATA_RESOURCES = [
   { table: 'dressing_room_item_reactions', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'dressing_room_messages', column: 'sender_id', action: 'auth_delete_cascade' },
   { table: 'dressing_room_participants', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'shared_room_memberships', column: 'recipient_user_id', action: 'auth_delete_cascade' },
   { table: 'room_shares', column: 'owner_id', action: 'auth_delete_cascade' },
   { table: 'looks', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'look_items', column: null, action: 'parent_look_cascade', count: false },

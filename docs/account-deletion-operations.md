@@ -18,7 +18,8 @@ This runbook gives the release owner a manual account-erasure path for the curre
 - `public.saved_scans`: cloud scan metadata, references `auth.users(id)` with `on delete cascade`. Raw scan images remain local unless explicitly uploaded into room/library storage.
 - `public.dressing_rooms`, `public.looks`, `public.room_shares`: user-owned room/look/share rows, reference `auth.users(id)` with `on delete cascade`.
 - `public.dressing_room_items`, `public.look_items`: child rows removed through their parent room/look cascade.
-- `public.dressing_room_messages`, `public.dressing_room_item_reactions`, `public.dressing_room_participants`: user-authored or membership collaboration rows, reference `auth.users(id)` with `on delete cascade`.
+- `public.dressing_room_messages`, `public.dressing_room_item_reactions`, `public.dressing_room_participants`: user-authored or collaboration-participant rows, reference `auth.users(id)` with `on delete cascade`.
+- `public.shared_room_memberships`: recipient-private Shared with Me discovery rows, references `auth.users(id)` through `recipient_user_id` with `on delete cascade` and `room_shares(id)` with `on delete cascade`.
 - `public.inspiration_items`, `public.dressing_room_inspiration_items`: user-uploaded inspiration metadata and room links, reference `auth.users(id)` with `on delete cascade`.
 - `public.style_chat_sessions`, `public.style_chat_messages`, `public.style_memory_events`, `public.style_chat_usage`, `public.style_chat_daily_usage`: StyleChat content, memory, and usage rows, reference `auth.users(id)` with `on delete cascade`.
 - `public.scan_identify_usage_daily`: authenticated scan quota rows, references `auth.users(id)` with `on delete cascade`.
@@ -51,6 +52,7 @@ The operator script follows this table. Tables marked **optional** are skipped w
 | `public.dressing_room_item_reactions` | `user_id` | Auth delete cascade | 6 |
 | `public.dressing_room_messages` | `sender_id` | Auth delete cascade | 6 |
 | `public.dressing_room_participants` | `user_id` | Auth delete cascade | 6 |
+| `public.shared_room_memberships` | `recipient_user_id` | Auth delete cascade; original-owner deletion also cascades through `room_shares` | 6 |
 | `public.room_shares` | `owner_id` | Auth delete cascade | 6 |
 | `public.looks` | `user_id` | Auth delete cascade | 6 |
 | `public.inspiration_items` | `user_id` | Auth delete cascade | 6 |
@@ -111,6 +113,7 @@ Other buckets (e.g., legacy `investor-docs`) are not user-owned and are intentio
 - If no valid candidate exists, log `no_valid_recipient` and leave the room to cascade normally with the owner.
 - The original owner's messages, reactions, and inspiration links are still removed by the auth cascade.
 - `room_shares` rows for the original owner are removed by the auth cascade; the new owner can generate a fresh share link if desired.
+- `shared_room_memberships` rows tied to those original-owner shares cascade with the share rows, so recipient-private state is not exposed to the new owner and old links cannot authorize the transferred room.
 - Rooms with no other participants are left to cascade normally and are fully removed with the owner.
 
 ## Intake Behavior
