@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Linking,
@@ -26,16 +27,31 @@ import {
   InlineNotice,
   EmptyStateCard,
   PrivacyFooter,
+  StatusPill,
+  TertiaryButton,
 } from '../../components/luxury';
-import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { useSharedRoomMemberships } from '../../hooks/useSharedRoomMemberships';
 import { useDressingRooms } from '../../hooks/useStyleObjects';
 import { createDressingRoom, ROOM_TITLE_MAX_LENGTH } from '../../services/styleObjects';
+import {
+  SHARED_WITH_ME_EMPTY_SUBTITLE,
+  SHARED_WITH_ME_EMPTY_TITLE,
+  SHARED_WITH_ME_REFRESH_ERROR,
+  buildSharedRoomNativePath,
+  canOpenSharedRoom,
+  sharedRoomAccessibilityLabel,
+  sharedRoomDisplayTitle,
+  sharedRoomItemCountLabel,
+} from '../../services/sharedWithMeListLogic';
+import type { SharedRoomMembershipSummary } from '../../services/sharedRoomMemberships';
 import type { DressingRoom } from '../../types/styleObjects';
 
 const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
 const DRESSING_ROOM_LOAD_ERROR = "We couldn't load your Dressing Rooms. Please refresh and try again.";
+const NAV_GUARD_MS = 800;
 
 function RoomCard({ room, style }: { room: DressingRoom; style?: any }) {
   const cover = room.coverImageUrl || room.coverFallbackUrl;
@@ -63,6 +79,183 @@ function RoomCard({ room, style }: { room: DressingRoom; style?: any }) {
         <Text style={styles.cardMeta}>{itemCount} ITEM{itemCount === 1 ? '' : 'S'}</Text>
       </View>
     </Pressable>
+  );
+}
+
+function SharedRoomCard({
+  room,
+  removing,
+  onOpen,
+  onRemove,
+  style,
+}: {
+  room: SharedRoomMembershipSummary;
+  removing: boolean;
+  onOpen: (room: SharedRoomMembershipSummary) => void;
+  onRemove: (room: SharedRoomMembershipSummary) => void;
+  style?: any;
+}) {
+  const title = sharedRoomDisplayTitle(room);
+  const unavailable = room.availability === 'unavailable';
+  const openable = canOpenSharedRoom(room);
+
+  return (
+    <View
+      style={[
+        styles.card,
+        styles.sharedCard,
+        unavailable && styles.sharedCardUnavailable,
+        style,
+        removing && styles.sharedCardRemoving,
+      ]}
+    >
+      <Pressable
+        style={({ pressed }) => [
+          styles.sharedCardPressable,
+          pressed && openable && styles.cardPressed,
+        ]}
+        onPress={() => {
+          if (openable) onOpen(room);
+        }}
+        disabled={!openable || removing}
+        accessibilityRole="button"
+        accessibilityLabel={sharedRoomAccessibilityLabel(room)}
+        accessibilityHint={
+          openable
+            ? 'Open this shared Dressing Room'
+            : 'This shared room is no longer available'
+        }
+        accessibilityState={{ disabled: !openable || removing }}
+      >
+        <View style={[styles.cover, styles.coverFallback, unavailable && styles.sharedCoverUnavailable]}>
+          <Text style={styles.coverFallbackText}>{unavailable ? 'GONE' : 'SHARED'}</Text>
+        </View>
+        <View style={styles.cardBody}>
+          <View style={styles.sharedPillRow}>
+            <StatusPill
+              label={unavailable ? 'Unavailable' : 'Shared'}
+              variant={unavailable ? 'neutral' : 'gold'}
+            />
+          </View>
+          <Text style={[styles.cardTitle, unavailable && styles.sharedTitleUnavailable]} numberOfLines={2}>
+            {title}
+          </Text>
+          <Text style={[styles.cardMeta, unavailable && styles.sharedMetaUnavailable]}>
+            {sharedRoomItemCountLabel(room)}
+          </Text>
+        </View>
+      </Pressable>
+      <View style={styles.sharedRemoveWrap}>
+        <TertiaryButton
+          title={removing ? 'Removing' : 'Remove from list'}
+          onPress={() => onRemove(room)}
+          disabled={removing}
+          accessibilityLabel={`Remove ${title} from Shared with Me list`}
+        />
+      </View>
+    </View>
+  );
+}
+
+function SharedWithMeSection({
+  rooms,
+  loading,
+  temporaryFailure,
+  empty,
+  unauthenticated,
+  removingToken,
+  removeError,
+  onRetry,
+  onOpen,
+  onRemove,
+  onClearRemoveError,
+}: {
+  rooms: SharedRoomMembershipSummary[];
+  loading: boolean;
+  temporaryFailure: boolean;
+  empty: boolean;
+  unauthenticated: boolean;
+  removingToken: string | null;
+  removeError: string | null;
+  onRetry: () => void;
+  onOpen: (room: SharedRoomMembershipSummary) => void;
+  onRemove: (room: SharedRoomMembershipSummary) => void;
+  onClearRemoveError: () => void;
+}) {
+  if (unauthenticated) {
+    return null;
+  }
+
+  return (
+    <View style={styles.sharedSection} accessibilityLabel="Shared with Me">
+      <SectionHeader
+        title="Shared with Me"
+        subtitle={
+          loading
+            ? 'Loading shared rooms'
+            : temporaryFailure
+              ? 'Could not refresh'
+              : `${rooms.length} shared room${rooms.length === 1 ? '' : 's'}`
+        }
+      />
+
+      {removeError ? (
+        <InlineNotice
+          variant="warning"
+          title="Unable to update list"
+          body={removeError}
+          action={{
+            label: 'Dismiss',
+            onPress: onClearRemoveError,
+            accessibilityLabel: 'Dismiss shared room removal error',
+          }}
+          style={styles.sharedNotice}
+        />
+      ) : null}
+
+      {temporaryFailure ? (
+        <InlineNotice
+          variant="warning"
+          title="Shared rooms unavailable"
+          body={SHARED_WITH_ME_REFRESH_ERROR}
+          action={{
+            label: 'Retry',
+            onPress: onRetry,
+            accessibilityLabel: 'Retry loading shared rooms',
+          }}
+          style={styles.sharedNotice}
+        />
+      ) : null}
+
+      {loading ? (
+        <View style={styles.sharedLoading}>
+          <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+          <Text style={styles.sharedLoadingLabel}>Loading shared rooms…</Text>
+        </View>
+      ) : null}
+
+      {!loading && empty && !temporaryFailure ? (
+        <EmptyStateCard
+          title={SHARED_WITH_ME_EMPTY_TITLE}
+          subtitle={SHARED_WITH_ME_EMPTY_SUBTITLE}
+        />
+      ) : null}
+
+      {!loading && rooms.length > 0 ? (
+        <View style={styles.sharedGrid}>
+          {rooms.map((room) => (
+            <SharedRoomCard
+              key={room.shareToken}
+              room={room}
+              removing={removingToken === room.shareToken}
+              onOpen={onOpen}
+              onRemove={onRemove}
+              style={styles.sharedGridItem}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -139,9 +332,59 @@ function CreateRoomModal({
 
 function DressingRoomsContent() {
   const { rooms, loading, error, reload } = useDressingRooms();
+  const shared = useSharedRoomMemberships();
   const [creating, setCreating] = useState(false);
+  const navGuardRef = useRef<{ token: string; at: number } | null>(null);
   const blocking = loading || !!error;
   const friendlyError = error ? DRESSING_ROOM_LOAD_ERROR : null;
+
+  const handleOpenSharedRoom = useCallback((room: SharedRoomMembershipSummary) => {
+    if (!canOpenSharedRoom(room)) return;
+    const now = Date.now();
+    const prior = navGuardRef.current;
+    if (prior && prior.token === room.shareToken && now - prior.at < NAV_GUARD_MS) {
+      return;
+    }
+    navGuardRef.current = { token: room.shareToken, at: now };
+    router.push(buildSharedRoomNativePath(room.shareToken) as any);
+  }, []);
+
+  const handleRemoveSharedRoom = useCallback((room: SharedRoomMembershipSummary) => {
+    if (shared.removingToken) return;
+    const title = sharedRoomDisplayTitle(room);
+    Alert.alert(
+      'Remove shared room?',
+      `This removes “${title}” from your Shared with Me list. It does not delete the owner’s Dressing Room or disable the share link.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove from list',
+          style: 'destructive',
+          onPress: () => {
+            void shared.removeFromList(room);
+          },
+        },
+      ],
+    );
+  }, [shared.removeFromList, shared.removingToken]);
+
+  const sharedFooter = (
+    <SharedWithMeSection
+      rooms={shared.rooms}
+      loading={shared.loading}
+      temporaryFailure={shared.temporaryFailure}
+      empty={shared.empty}
+      unauthenticated={shared.unauthenticated}
+      removingToken={shared.removingToken}
+      removeError={shared.removeError}
+      onRetry={() => {
+        void shared.reload();
+      }}
+      onOpen={handleOpenSharedRoom}
+      onRemove={handleRemoveSharedRoom}
+      onClearRemoveError={shared.clearRemoveError}
+    />
+  );
 
   return (
     <LuxuryScreen
@@ -170,6 +413,8 @@ function DressingRoomsContent() {
               action={{ label: 'Retry', onPress: reload, accessibilityLabel: 'Retry loading dressing rooms' }}
             />
           )}
+          {/* Shared with Me remains independently visible when owned load fails. */}
+          {!loading ? sharedFooter : null}
         </View>
       ) : (
         <FlatList
@@ -184,7 +429,7 @@ function DressingRoomsContent() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <SectionHeader
-              title="Your Boards"
+              title="My Dressing Rooms"
               subtitle={`${rooms.length} private styling space${rooms.length === 1 ? '' : 's'}`}
               actionLabel="New"
               onAction={() => setCreating(true)}
@@ -203,6 +448,7 @@ function DressingRoomsContent() {
               }}
             />
           }
+          ListFooterComponent={sharedFooter}
         />
       )}
       <CreateRoomModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
@@ -290,6 +536,63 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.goldBrushed,
     marginTop: SPACING.xs,
     letterSpacing: 1.6,
+  },
+  sharedSection: {
+    marginTop: SPACING.xl,
+    gap: SPACING.md,
+    paddingBottom: SPACING.xl,
+  },
+  sharedNotice: {
+    marginBottom: 0,
+  },
+  sharedLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+  },
+  sharedLoadingLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+  },
+  sharedGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -SPACING.sm,
+  },
+  sharedGridItem: {
+    width: '50%',
+    padding: SPACING.sm,
+  },
+  sharedCard: {
+    width: '100%',
+  },
+  sharedCardUnavailable: {
+    opacity: 0.72,
+  },
+  sharedCardRemoving: {
+    opacity: 0.55,
+  },
+  sharedCardPressable: {
+    width: '100%',
+  },
+  sharedCoverUnavailable: {
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  sharedPillRow: {
+    flexDirection: 'row',
+    marginBottom: SPACING.xs,
+  },
+  sharedTitleUnavailable: {
+    color: LUXURY.colors.graphite,
+  },
+  sharedMetaUnavailable: {
+    color: LUXURY.colors.stone,
+  },
+  sharedRemoveWrap: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
+    alignItems: 'center',
   },
   modalBackdrop: {
     flex: 1,
