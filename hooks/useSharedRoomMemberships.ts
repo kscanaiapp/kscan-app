@@ -8,14 +8,19 @@ import {
   type SharedRoomMembershipSummary,
 } from '../services/sharedRoomMemberships';
 import {
-  SHARED_WITH_ME_REFRESH_ERROR,
-  applyOptimisticSharedRoomRemoval,
+  SHARED_WITH_ME_REMOVE_ERROR,
   applySharedWithMeListResult,
   applySuccessfulFinalSharedRoomRemoval,
   beginSharedWithMeLoad,
+  clearSharedRoomRemovalSuppression,
   clearSharedWithMeForActorChange,
+  createSharedRoomRemovalSuppression,
   createSharedWithMeSnapshot,
-  restoreSharedRoomAfterFailedRemoval,
+  forgetRemovedSharedRoomToken,
+  isSharedWithMeSnapshotVisibleToActor,
+  rememberRemovedSharedRoomToken,
+  removedSharedRoomTokensForActor,
+  restoreSharedRoomAfterFailedRemovalForActor,
   type SharedWithMeSnapshot,
 } from '../services/sharedWithMeListLogic';
 
@@ -36,7 +41,7 @@ export type UseSharedRoomMembershipsResult = {
 
 export function useSharedRoomMemberships(): UseSharedRoomMembershipsResult {
   const { user, loading: authLoading, isAuthenticated } = useAuthSession();
-  const actorId = isAuthenticated && user?.id ? user.id : null;
+  const actorId = !authLoading && isAuthenticated && user?.id ? user.id : null;
 
   const [snapshot, setSnapshot] = useState<SharedWithMeSnapshot>(() =>
     createSharedWithMeSnapshot(actorId),
@@ -48,17 +53,17 @@ export function useSharedRoomMemberships(): UseSharedRoomMembershipsResult {
   const snapshotRef = useRef(snapshot);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const inFlightActorRef = useRef<string | null>(null);
-  const removedTokensRef = useRef<Set<string>>(new Set());
+  const generationRef = useRef(snapshot.generation);
+  const removalSuppressionRef = useRef(createSharedRoomRemovalSuppression(actorId));
+  const removingTokenRef = useRef<string | null>(null);
+  const removalActorRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   const actorIdRef = useRef(actorId);
 
-  useEffect(() => {
-    snapshotRef.current = snapshot;
-  }, [snapshot]);
-
-  useEffect(() => {
-    actorIdRef.current = actorId;
-  }, [actorId]);
+  // These refs are request guards, so update them during render rather than
+  // waiting for a passive effect where prior-actor data could still win a race.
+  snapshotRef.current = snapshot;
+  actorIdRef.current = actorId;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -74,21 +79,23 @@ export function useSharedRoomMemberships(): UseSharedRoomMembershipsResult {
     // Invalidate any in-flight list for the previous actor.
     inFlightRef.current = null;
     inFlightActorRef.current = null;
-    removedTokensRef.current = new Set();
+    removalSuppressionRef.current = createSharedRoomRemovalSuppression(actorId);
+    removingTokenRef.current = null;
+    removalActorRef.current = null;
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
     setRemoveError(null);
     setRemovingToken(null);
     setRefreshing(false);
-    setSnapshot((previous) => clearSharedWithMeForActorChange(previous, actorId));
+    setSnapshot((previous) => ({
+      ...clearSharedWithMeForActorChange(previous, actorId),
+      generation,
+    }));
   }, [actorId]);
 
   const reload = useCallback(async () => {
     if (authLoading) return;
-    if (!actorId) {
-      if (mountedRef.current) {
-        setSnapshot((previous) => clearSharedWithMeForActorChange(previous, null));
-      }
-      return;
-    }
+    if (!actorId) return;
 
     if (inFlightRef.current) {
       // Deduplicate only when the in-flight request belongs to this actor.
@@ -98,27 +105,45 @@ export function useSharedRoomMemberships(): UseSharedRoomMembershipsResult {
       }
     }
 
-    let generation = 0;
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
     setSnapshot((previous) => {
-      const next = beginSharedWithMeLoad(previous, actorId);
-      generation = next.generation;
-      return next;
+      const actorSnapshot = previous.actorId === actorId
+        ? previous
+        : clearSharedWithMeForActorChange(previous, actorId);
+      return {
+        ...beginSharedWithMeLoad(actorSnapshot, actorId),
+        generation,
+      };
     });
     setRefreshing(true);
 
     const requestActorId = actorId;
     const request = (async () => {
-      const result = await listSharedRoomsForCurrentUser();
+      let result;
+      try {
+        result = await listSharedRoomsForCurrentUser();
+      } catch {
+        result = { ok: false, reason: 'temporary_failure' } as const;
+      }
       if (!mountedRef.current) return;
       if (actorIdRef.current !== requestActorId) return;
 
+      // Capture suppression before scheduling the updater. The request cleanup
+      // may clear the lifecycle-bound tombstones before React runs this update.
+      const removedTokensAtCompletion = new Set(
+        removedSharedRoomTokensForActor(
+          removalSuppressionRef.current,
+          requestActorId,
+        ),
+      );
       setSnapshot((previous) => {
         const applied = applySharedWithMeListResult({
           previous,
           generation,
           actorId: requestActorId,
           result,
-          removedTokens: removedTokensRef.current,
+          removedTokens: removedTokensAtCompletion,
         });
         return applied ?? previous;
       });
@@ -126,6 +151,12 @@ export function useSharedRoomMemberships(): UseSharedRoomMembershipsResult {
       if (inFlightRef.current === request) {
         inFlightRef.current = null;
         inFlightActorRef.current = null;
+        if (removalActorRef.current !== requestActorId) {
+          removalSuppressionRef.current = clearSharedRoomRemovalSuppression(
+            removalSuppressionRef.current,
+            requestActorId,
+          );
+        }
       }
       if (mountedRef.current && actorIdRef.current === requestActorId) {
         setRefreshing(false);
@@ -145,83 +176,153 @@ export function useSharedRoomMemberships(): UseSharedRoomMembershipsResult {
   );
 
   const removeFromList = useCallback(async (room: SharedRoomMembershipSummary) => {
-    if (removingToken) return false;
+    const requestActorId = actorIdRef.current;
+    if (!requestActorId || removingTokenRef.current) return false;
 
     const token = room.shareToken;
+    const actorSnapshot = snapshotRef.current;
+    if (
+      actorSnapshot.actorId !== requestActorId ||
+      !actorSnapshot.rooms.some((entry) => entry.shareToken === token)
+    ) {
+      return false;
+    }
+
+    removingTokenRef.current = token;
+    removalActorRef.current = requestActorId;
     setRemovingToken(token);
     setRemoveError(null);
 
-    const previousRooms = snapshotRef.current.rooms;
-    setSnapshot((previous) => applySuccessfulFinalSharedRoomRemoval(previous, token));
+    setSnapshot((previous) => previous.actorId === requestActorId
+      ? applySuccessfulFinalSharedRoomRemoval(previous, token)
+      : previous);
 
-    removedTokensRef.current.add(token);
+    removalSuppressionRef.current = rememberRemovedSharedRoomToken(
+      removalSuppressionRef.current,
+      requestActorId,
+      token,
+    );
 
     try {
       const result = await removeSharedRoomForCurrentUser(token);
       if (!mountedRef.current) return false;
+      if (
+        actorIdRef.current !== requestActorId ||
+        removalActorRef.current !== requestActorId ||
+        removingTokenRef.current !== token
+      ) {
+        return false;
+      }
 
       if (result.status === 'removed') {
+        removingTokenRef.current = null;
+        removalActorRef.current = null;
         setRemovingToken(null);
+        if (!inFlightRef.current || inFlightActorRef.current !== requestActorId) {
+          removalSuppressionRef.current = clearSharedRoomRemovalSuppression(
+            removalSuppressionRef.current,
+            requestActorId,
+          );
+        }
         return true;
       }
 
-      removedTokensRef.current.delete(token);
+      removalSuppressionRef.current = forgetRemovedSharedRoomToken(
+        removalSuppressionRef.current,
+        requestActorId,
+        token,
+      );
       setSnapshot((previous) => {
-        const rooms = restoreSharedRoomAfterFailedRemoval(previous.rooms, room);
-        return {
-          ...previous,
-          rooms,
-          phase: rooms.length === 0 ? 'empty' : 'ready',
-          errorMessage: null,
-        };
+        return restoreSharedRoomAfterFailedRemovalForActor({
+          previous,
+          operationActorId: requestActorId,
+          room,
+        }) ?? previous;
       });
       setRemoveError(
         result.status === 'unauthenticated'
           ? 'Sign in to update your Shared with Me list.'
-          : SHARED_WITH_ME_REFRESH_ERROR,
+          : SHARED_WITH_ME_REMOVE_ERROR,
       );
+      removingTokenRef.current = null;
+      removalActorRef.current = null;
       setRemovingToken(null);
+      if (!inFlightRef.current) {
+        removalSuppressionRef.current = clearSharedRoomRemovalSuppression(
+          removalSuppressionRef.current,
+          requestActorId,
+        );
+      }
       return false;
     } catch {
       if (!mountedRef.current) return false;
-      removedTokensRef.current.delete(token);
+      if (
+        actorIdRef.current !== requestActorId ||
+        removalActorRef.current !== requestActorId ||
+        removingTokenRef.current !== token
+      ) {
+        return false;
+      }
+      removalSuppressionRef.current = forgetRemovedSharedRoomToken(
+        removalSuppressionRef.current,
+        requestActorId,
+        token,
+      );
       setSnapshot((previous) => {
-        const rooms = restoreSharedRoomAfterFailedRemoval(
-          previous.rooms.length === 0 ? previousRooms : previous.rooms,
+        return restoreSharedRoomAfterFailedRemovalForActor({
+          previous,
+          operationActorId: requestActorId,
           room,
-        );
-        return {
-          ...previous,
-          rooms,
-          phase: rooms.length === 0 ? 'empty' : 'ready',
-          errorMessage: null,
-        };
+        }) ?? previous;
       });
-      setRemoveError(SHARED_WITH_ME_REFRESH_ERROR);
+      setRemoveError(SHARED_WITH_ME_REMOVE_ERROR);
+      removingTokenRef.current = null;
+      removalActorRef.current = null;
       setRemovingToken(null);
+      if (!inFlightRef.current) {
+        removalSuppressionRef.current = clearSharedRoomRemovalSuppression(
+          removalSuppressionRef.current,
+          requestActorId,
+        );
+      }
       return false;
     }
-  }, [removingToken]);
+  }, []);
 
   const clearRemoveError = useCallback(() => {
     setRemoveError(null);
   }, []);
 
+  const snapshotVisible = isSharedWithMeSnapshotVisibleToActor({
+    snapshot,
+    actorId,
+    authLoading,
+  });
+  const visibleSnapshot: SharedWithMeSnapshot = snapshotVisible
+    ? snapshot
+    : {
+        phase: actorId ? 'loading' : 'unauthenticated',
+        rooms: [],
+        actorId,
+        generation: generationRef.current,
+        errorMessage: null,
+      };
+
   const loading =
     Boolean(actorId) &&
-    snapshot.phase === 'loading' &&
-    snapshot.rooms.length === 0;
+    visibleSnapshot.phase === 'loading' &&
+    visibleSnapshot.rooms.length === 0;
 
   return {
-    snapshot,
-    rooms: snapshot.rooms,
+    snapshot: visibleSnapshot,
+    rooms: visibleSnapshot.rooms,
     loading,
-    refreshing,
-    temporaryFailure: snapshot.phase === 'temporary_failure',
-    empty: snapshot.phase === 'empty',
-    unauthenticated: !actorId || snapshot.phase === 'unauthenticated',
-    removingToken,
-    removeError,
+    refreshing: snapshotVisible ? refreshing : false,
+    temporaryFailure: visibleSnapshot.phase === 'temporary_failure',
+    empty: visibleSnapshot.phase === 'empty',
+    unauthenticated: authLoading || !actorId || visibleSnapshot.phase === 'unauthenticated',
+    removingToken: snapshotVisible ? removingToken : null,
+    removeError: snapshotVisible ? removeError : null,
     reload,
     removeFromList,
     clearRemoveError,

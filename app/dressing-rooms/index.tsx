@@ -138,7 +138,7 @@ function SharedRoomCard({
         <View style={styles.cardBody}>
           <View style={styles.sharedPillRow}>
             <StatusPill
-              label={unavailable ? 'Unavailable' : 'Shared'}
+              label={unavailable ? 'Shared · Unavailable' : 'Shared · View only'}
               variant={unavailable ? 'neutral' : 'gold'}
             />
           </View>
@@ -341,35 +341,46 @@ function DressingRoomsContent() {
   const shared = useSharedRoomMemberships();
   const [creating, setCreating] = useState(false);
   const navGuardRef = useRef<{ token: string; at: number } | null>(null);
+  const removePromptTokenRef = useRef<string | null>(null);
   const friendlyError = error ? DRESSING_ROOM_LOAD_ERROR : null;
 
   const handleOpenSharedRoom = useCallback((room: SharedRoomMembershipSummary) => {
     if (!canOpenSharedRoom(room)) return;
+    const path = buildSharedRoomNativePath(room.shareToken);
+    if (!path) return;
     const now = Date.now();
     const prior = navGuardRef.current;
     if (prior && prior.token === room.shareToken && now - prior.at < NAV_GUARD_MS) {
       return;
     }
     navGuardRef.current = { token: room.shareToken, at: now };
-    router.push(buildSharedRoomNativePath(room.shareToken) as any);
+    router.push(path as any);
   }, []);
 
   const handleRemoveSharedRoom = useCallback((room: SharedRoomMembershipSummary) => {
-    if (shared.removingToken) return;
+    if (shared.removingToken || removePromptTokenRef.current) return;
+    removePromptTokenRef.current = room.shareToken;
+    const clearPromptGuard = () => {
+      if (removePromptTokenRef.current === room.shareToken) {
+        removePromptTokenRef.current = null;
+      }
+    };
     const dialogTitle = formatSharedRoomDialogTitle(sharedRoomDisplayTitle(room));
     Alert.alert(
       'Remove shared room?',
       `This removes “${dialogTitle}” from your Shared with Me list. It does not delete the owner’s Dressing Room or disable the share link.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel', onPress: clearPromptGuard },
         {
           text: 'Remove from list',
           style: 'destructive',
           onPress: () => {
+            clearPromptGuard();
             void shared.removeFromList(room);
           },
         },
       ],
+      { cancelable: true, onDismiss: clearPromptGuard },
     );
   }, [shared.removeFromList, shared.removingToken]);
 

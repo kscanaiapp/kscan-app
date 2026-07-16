@@ -64,6 +64,31 @@ test('actor change clears prior shared rooms immediately', () => {
   assert.equal(next.generation, 3);
 });
 
+test('User A rooms become non-renderable immediately when the actor changes to User B', () => {
+  const snapshot = {
+    phase: 'ready',
+    rooms: [makeRoom({ shareToken: 'user-a-room' })],
+    actorId: 'user-a',
+    generation: 2,
+    errorMessage: null,
+  };
+  assert.equal(logic.isSharedWithMeSnapshotVisibleToActor({
+    snapshot,
+    actorId: 'user-a',
+    authLoading: false,
+  }), true);
+  assert.equal(logic.isSharedWithMeSnapshotVisibleToActor({
+    snapshot,
+    actorId: 'user-b',
+    authLoading: false,
+  }), false);
+  assert.equal(logic.isSharedWithMeSnapshotVisibleToActor({
+    snapshot,
+    actorId: 'user-a',
+    authLoading: true,
+  }), false);
+});
+
 test('unauthenticated actor does not retain prior rooms', () => {
   const previous = {
     phase: 'ready',
@@ -138,6 +163,26 @@ test('temporary failure with no prior rooms is not empty', () => {
   });
   assert.equal(next.phase, 'temporary_failure');
   assert.notEqual(next.phase, 'empty');
+});
+
+test('unauthenticated list completion remains keyed to its requesting actor', () => {
+  const previous = {
+    phase: 'loading',
+    rooms: [],
+    actorId: 'user-a',
+    generation: 3,
+    errorMessage: null,
+  };
+  const next = logic.applySharedWithMeListResult({
+    previous,
+    generation: 3,
+    actorId: 'user-a',
+    result: { ok: false, reason: 'unauthenticated' },
+    removedTokens: new Set(),
+  });
+  assert.equal(next.phase, 'unauthenticated');
+  assert.equal(next.actorId, 'user-a');
+  assert.equal(next.rooms.length, 0);
 });
 
 test('missing or unavailable list RPC presents temporary failure with Retry, never empty', async () => {
@@ -280,6 +325,24 @@ test('stale list result does not resurrect removed card', () => {
   assert.equal(next.rooms.length, 0);
 });
 
+test('User A failed removal cannot restore a card into User B state', () => {
+  const userB = {
+    phase: 'ready',
+    rooms: [makeRoom({ shareToken: 'user-b-room', title: 'User B room' })],
+    actorId: 'user-b',
+    generation: 8,
+    errorMessage: null,
+  };
+  const result = logic.restoreSharedRoomAfterFailedRemovalForActor({
+    previous: userB,
+    operationActorId: 'user-a',
+    room: makeRoom({ shareToken: 'user-a-room', title: 'User A room' }),
+  });
+  assert.equal(result, null);
+  assert.equal(userB.rooms.length, 1);
+  assert.equal(userB.rooms[0].shareToken, 'user-b-room');
+});
+
 test('removal-versus-refresh race: delayed stale refresh cannot resurrect removed room', () => {
   const roomA = makeRoom({ shareToken: 'token-a', lastAccessedAt: '2026-07-05T00:00:00.000Z' });
   const roomB = makeRoom({ shareToken: 'token-b', lastAccessedAt: '2026-07-04T00:00:00.000Z' });
@@ -291,15 +354,15 @@ test('removal-versus-refresh race: delayed stale refresh cannot resurrect remove
     errorMessage: null,
   };
 
-  // 1) list loaded  2) delayed refresh started at generation 3
-  // 3) remove token-a successfully (optimistic + guard)
-  // 4) older refresh resolves still containing token-a
-  const afterStale = logic.applyStaleRefreshAfterRemoval({
-    previous: loaded,
+  let suppression = logic.createSharedRoomRemovalSuppression('user-1');
+  suppression = logic.rememberRemovedSharedRoomToken(suppression, 'user-1', 'token-a');
+  const afterRemoval = logic.applySuccessfulFinalSharedRoomRemoval(loaded, 'token-a');
+  const afterStale = logic.applySharedWithMeListResult({
+    previous: afterRemoval,
     generation: 3,
     actorId: 'user-1',
-    removedToken: 'token-a',
-    staleRooms: [roomA, roomB],
+    result: { ok: true, rooms: [roomA, roomB] },
+    removedTokens: logic.removedSharedRoomTokensForActor(suppression, 'user-1'),
   });
 
   assert.ok(afterStale);
@@ -309,6 +372,90 @@ test('removal-versus-refresh race: delayed stale refresh cannot resurrect remove
     afterStale.rooms.some((room) => room.shareToken === 'token-a'),
     false,
   );
+});
+
+test('successful removal suppression expires so a later legitimate restore can reappear', () => {
+  const room = makeRoom({ shareToken: 'restorable-token' });
+  const removedSnapshot = {
+    phase: 'empty',
+    rooms: [],
+    actorId: 'user-a',
+    generation: 4,
+    errorMessage: null,
+  };
+  let suppression = logic.createSharedRoomRemovalSuppression('user-a');
+  suppression = logic.rememberRemovedSharedRoomToken(
+    suppression,
+    'user-a',
+    room.shareToken,
+  );
+  const removedTokensAtCompletion = new Set(
+    logic.removedSharedRoomTokensForActor(suppression, 'user-a'),
+  );
+  // Request cleanup can run before React applies its deferred state updater.
+  suppression = logic.clearSharedRoomRemovalSuppression(suppression, 'user-a');
+
+  const stale = logic.applySharedWithMeListResult({
+    previous: removedSnapshot,
+    generation: 4,
+    actorId: 'user-a',
+    result: { ok: true, rooms: [room] },
+    removedTokens: removedTokensAtCompletion,
+  });
+  assert.equal(stale.rooms.length, 0);
+
+  const restored = logic.applySharedWithMeListResult({
+    previous: { ...stale, generation: 5 },
+    generation: 5,
+    actorId: 'user-a',
+    result: { ok: true, rooms: [room] },
+    removedTokens: logic.removedSharedRoomTokensForActor(suppression, 'user-a'),
+  });
+  assert.equal(restored.phase, 'ready');
+  assert.equal(restored.rooms.length, 1);
+  assert.equal(restored.rooms[0].shareToken, 'restorable-token');
+});
+
+test('User A request finishing after User B request cannot replace User B state', () => {
+  const userBLoading = {
+    phase: 'loading',
+    rooms: [],
+    actorId: 'user-b',
+    generation: 12,
+    errorMessage: null,
+  };
+  const userBReady = logic.applySharedWithMeListResult({
+    previous: userBLoading,
+    generation: 12,
+    actorId: 'user-b',
+    result: { ok: true, rooms: [makeRoom({ shareToken: 'user-b-room' })] },
+    removedTokens: new Set(),
+  });
+  const lateUserA = logic.applySharedWithMeListResult({
+    previous: userBReady,
+    generation: 11,
+    actorId: 'user-a',
+    result: { ok: true, rooms: [makeRoom({ shareToken: 'user-a-room' })] },
+    removedTokens: new Set(),
+  });
+  assert.equal(lateUserA, null);
+  assert.equal(userBReady.actorId, 'user-b');
+  assert.equal(userBReady.rooms[0].shareToken, 'user-b-room');
+});
+
+test('removal suppression is bounded and actor-keyed', () => {
+  let suppression = logic.createSharedRoomRemovalSuppression('user-a');
+  for (const token of ['one', 'two', 'three', 'four']) {
+    suppression = logic.rememberRemovedSharedRoomToken(suppression, 'user-a', token, 3);
+  }
+  assert.equal(suppression.tokens.size, 3);
+  assert.equal(suppression.tokens.has('one'), false);
+  assert.equal(logic.removedSharedRoomTokensForActor(suppression, 'user-b').size, 0);
+
+  suppression = logic.rememberRemovedSharedRoomToken(suppression, 'user-b', 'user-b-token', 3);
+  assert.equal(suppression.actorId, 'user-b');
+  assert.equal(suppression.tokens.size, 1);
+  assert.equal(suppression.tokens.has('user-b-token'), true);
 });
 
 test('optimistic removal and failed restore work', () => {
@@ -337,6 +484,18 @@ test('sorts by lastAccessedAt descending with stable malformed-timestamp handlin
   assert.equal(sorted[2].shareToken, 'bad');
 });
 
+test('equal last-accessed timestamps preserve deterministic backend order', () => {
+  const rooms = [
+    makeRoom({ shareToken: 'first' }),
+    makeRoom({ shareToken: 'second' }),
+    makeRoom({ shareToken: 'third' }),
+  ];
+  assert.deepEqual(
+    Array.from(logic.sortSharedRoomSummaries(rooms), (room) => room.shareToken),
+    ['first', 'second', 'third'],
+  );
+});
+
 test('dialog title truncates without mutating the source title', () => {
   const long = 'A'.repeat(80);
   const formatted = logic.formatSharedRoomDialogTitle(long, 60);
@@ -355,6 +514,20 @@ test('canonical token route contains no private ids', () => {
   const route = logic.buildSharedRoomNativePath('active-token-a');
   assert.equal(route, '/rooms/active-token-a');
   assert.doesNotMatch(route, /room_id|membership|owner/i);
+  assert.equal(logic.buildSharedRoomNativePath('bad token!'), null);
+});
+
+test('malformed and duplicate summaries are dropped without crashing', () => {
+  const valid = makeRoom({ shareToken: 'valid-token' });
+  const prepared = logic.prepareSharedRoomSummaries([
+    valid,
+    makeRoom({ shareToken: 'valid-token', title: 'Duplicate' }),
+    makeRoom({ shareToken: 'bad token!' }),
+    makeRoom({ shareToken: 'bad-count', itemCount: -1 }),
+    makeRoom({ shareToken: 'bad-date', lastAccessedAt: 'not-a-date' }),
+  ]);
+  assert.equal(prepared.length, 1);
+  assert.equal(prepared[0].shareToken, 'valid-token');
 });
 
 test('accessibility labels distinguish unavailable rooms', () => {
@@ -364,6 +537,18 @@ test('accessibility labels distinguish unavailable rooms', () => {
   );
   assert.match(
     logic.sharedRoomAccessibilityLabel(makeRoom({ availability: 'unavailable', title: null })),
-    /no longer available/,
+    /no longer available, shared, view only/,
+  );
+});
+
+test('long visible titles retain their full accessible name and missing titles are safe', () => {
+  const longTitle = 'A'.repeat(90);
+  assert.match(
+    logic.sharedRoomAccessibilityLabel(makeRoom({ title: longTitle })),
+    new RegExp(longTitle),
+  );
+  assert.equal(
+    logic.sharedRoomDisplayTitle(makeRoom({ title: '   ' })),
+    'Shared Dressing Room',
   );
 });

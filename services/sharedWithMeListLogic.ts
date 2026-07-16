@@ -5,6 +5,7 @@ import type {
   ListSharedRoomsResult,
   SharedRoomMembershipSummary,
 } from './sharedRoomMemberships';
+import { normalizeRoomShareToken } from './roomDeepLinks';
 
 export type SharedWithMePhase =
   | 'idle'
@@ -24,6 +25,8 @@ export type SharedWithMeSnapshot = {
 
 export const SHARED_WITH_ME_REFRESH_ERROR =
   "We couldn't refresh your shared rooms.";
+export const SHARED_WITH_ME_REMOVE_ERROR =
+  "We couldn't remove that shared room. It's back in your list; try Remove from list again.";
 
 export const SHARED_WITH_ME_EMPTY_TITLE = 'No shared rooms yet';
 export const SHARED_WITH_ME_EMPTY_SUBTITLE =
@@ -31,6 +34,12 @@ export const SHARED_WITH_ME_EMPTY_SUBTITLE =
 
 /** Dialog-safe title length; matches owned-room title budget. */
 export const SHARED_ROOM_DIALOG_TITLE_MAX = 60;
+export const SHARED_ROOM_REMOVAL_SUPPRESSION_MAX = 100;
+
+export type SharedRoomRemovalSuppression = {
+  actorId: string | null;
+  tokens: ReadonlySet<string>;
+};
 
 export function createSharedWithMeSnapshot(actorId: string | null = null): SharedWithMeSnapshot {
   return {
@@ -53,6 +62,16 @@ export function clearSharedWithMeForActorChange(
     generation: previous.generation + 1,
     errorMessage: null,
   };
+}
+
+/** Prevent prior-actor rooms from remaining visible until passive effects run. */
+export function isSharedWithMeSnapshotVisibleToActor(input: {
+  snapshot: SharedWithMeSnapshot;
+  actorId: string | null;
+  authLoading: boolean;
+}): boolean {
+  if (input.authLoading) return false;
+  return input.snapshot.actorId === input.actorId;
 }
 
 export function beginSharedWithMeLoad(
@@ -79,14 +98,110 @@ export function sortSharedRoomSummaries(
   return rooms
     .map((room, index) => ({ room, index }))
     .sort((a, b) => {
-      const aTime = Date.parse(a.room.lastAccessedAt);
-      const bTime = Date.parse(b.room.lastAccessedAt);
+      const aTime = typeof a.room.lastAccessedAt === 'string'
+        ? Date.parse(a.room.lastAccessedAt)
+        : Number.NaN;
+      const bTime = typeof b.room.lastAccessedAt === 'string'
+        ? Date.parse(b.room.lastAccessedAt)
+        : Number.NaN;
       const aSafe = Number.isFinite(aTime) ? aTime : 0;
       const bSafe = Number.isFinite(bTime) ? bTime : 0;
       if (bSafe !== aSafe) return bSafe - aSafe;
       return a.index - b.index;
     })
     .map((entry) => entry.room);
+}
+
+export function isRenderableSharedRoomSummary(
+  room: SharedRoomMembershipSummary,
+): boolean {
+  if (!room || typeof room !== 'object') return false;
+  if (!normalizeRoomShareToken(room.shareToken)) return false;
+  if (!['available', 'empty', 'unavailable'].includes(room.availability)) return false;
+  if (!Number.isSafeInteger(room.itemCount) || room.itemCount < 0) return false;
+  if (room.title != null && typeof room.title !== 'string') return false;
+  if (typeof room.firstOpenedAt !== 'string' || !Number.isFinite(Date.parse(room.firstOpenedAt))) {
+    return false;
+  }
+  if (typeof room.lastAccessedAt !== 'string' || !Number.isFinite(Date.parse(room.lastAccessedAt))) {
+    return false;
+  }
+  if (
+    room.updatedAt != null &&
+    (typeof room.updatedAt !== 'string' || !Number.isFinite(Date.parse(room.updatedAt)))
+  ) {
+    return false;
+  }
+  if (room.availability === 'empty' && room.itemCount !== 0) return false;
+  if (room.availability === 'available' && room.itemCount === 0) return false;
+  return true;
+}
+
+/** Drop malformed and duplicate rows before rendering stable token keys. */
+export function prepareSharedRoomSummaries(
+  rooms: SharedRoomMembershipSummary[],
+  removedTokens: ReadonlySet<string> = new Set(),
+): SharedRoomMembershipSummary[] {
+  const seen = new Set<string>();
+  const safeRooms: SharedRoomMembershipSummary[] = [];
+  for (const room of rooms) {
+    if (!isRenderableSharedRoomSummary(room)) continue;
+    if (removedTokens.has(room.shareToken) || seen.has(room.shareToken)) continue;
+    seen.add(room.shareToken);
+    safeRooms.push(room);
+  }
+  return sortSharedRoomSummaries(safeRooms);
+}
+
+export function createSharedRoomRemovalSuppression(
+  actorId: string | null,
+): SharedRoomRemovalSuppression {
+  return { actorId, tokens: new Set() };
+}
+
+/** One backend page is bounded to 100, so suppression never needs to exceed it. */
+export function rememberRemovedSharedRoomToken(
+  current: SharedRoomRemovalSuppression,
+  actorId: string,
+  shareToken: string,
+  maxSize: number = SHARED_ROOM_REMOVAL_SUPPRESSION_MAX,
+): SharedRoomRemovalSuppression {
+  const next = new Set(current.actorId === actorId ? current.tokens : []);
+  next.delete(shareToken);
+  next.add(shareToken);
+  while (next.size > Math.max(1, maxSize)) {
+    const oldest = next.values().next().value;
+    if (typeof oldest !== 'string') break;
+    next.delete(oldest);
+  }
+  return { actorId, tokens: next };
+}
+
+export function forgetRemovedSharedRoomToken(
+  current: SharedRoomRemovalSuppression,
+  actorId: string,
+  shareToken: string,
+): SharedRoomRemovalSuppression {
+  if (current.actorId !== actorId) return current;
+  const next = new Set(current.tokens);
+  next.delete(shareToken);
+  return { actorId, tokens: next };
+}
+
+export function clearSharedRoomRemovalSuppression(
+  current: SharedRoomRemovalSuppression,
+  actorId: string,
+): SharedRoomRemovalSuppression {
+  return current.actorId === actorId
+    ? createSharedRoomRemovalSuppression(actorId)
+    : current;
+}
+
+export function removedSharedRoomTokensForActor(
+  current: SharedRoomRemovalSuppression,
+  actorId: string,
+): ReadonlySet<string> {
+  return current.actorId === actorId ? current.tokens : new Set();
 }
 
 export function applySharedWithMeListResult(input: {
@@ -105,7 +220,10 @@ export function applySharedWithMeListResult(input: {
       return {
         phase: 'unauthenticated',
         rooms: [],
-        actorId: null,
+        // The response still belongs to the actor that started the request.
+        // Keep that key so render visibility remains actor-scoped while the
+        // auth context catches up with the rejected session.
+        actorId,
         generation: previous.generation,
         errorMessage: null,
       };
@@ -129,9 +247,7 @@ export function applySharedWithMeListResult(input: {
     };
   }
 
-  const rooms = sortSharedRoomSummaries(
-    result.rooms.filter((room) => !removedTokens.has(room.shareToken)),
-  );
+  const rooms = prepareSharedRoomSummaries(result.rooms, removedTokens);
   return {
     phase: rooms.length === 0 ? 'empty' : 'ready',
     rooms,
@@ -158,8 +274,25 @@ export function restoreSharedRoomAfterFailedRemoval(
   return sortSharedRoomSummaries([...rooms, room]);
 }
 
+export function restoreSharedRoomAfterFailedRemovalForActor(input: {
+  previous: SharedWithMeSnapshot;
+  operationActorId: string;
+  room: SharedRoomMembershipSummary;
+}): SharedWithMeSnapshot | null {
+  if (input.previous.actorId !== input.operationActorId) return null;
+  const rooms = restoreSharedRoomAfterFailedRemoval(input.previous.rooms, input.room);
+  return {
+    ...input.previous,
+    rooms,
+    phase: rooms.length === 0 ? 'empty' : 'ready',
+    errorMessage: null,
+  };
+}
+
 export function sharedRoomDisplayTitle(room: SharedRoomMembershipSummary): string {
-  return room.title?.trim() || 'Shared Dressing Room';
+  return typeof room.title === 'string' && room.title.trim()
+    ? room.title.trim()
+    : 'Shared Dressing Room';
 }
 
 /** Truncate for confirmation dialogs without mutating the stored title. */
@@ -176,25 +309,31 @@ export function formatSharedRoomDialogTitle(
 export function sharedRoomAccessibilityLabel(room: SharedRoomMembershipSummary): string {
   const title = sharedRoomDisplayTitle(room);
   if (room.availability === 'unavailable') {
-    return `Shared Dressing Room, ${title}, no longer available`;
+    return `Shared Dressing Room, ${title}, no longer available, shared, view only`;
   }
-  const count = room.itemCount;
-  return `Shared Dressing Room, ${title}, ${count} item${count === 1 ? '' : 's'}`;
+  const count = Number.isSafeInteger(room.itemCount) && room.itemCount >= 0
+    ? room.itemCount
+    : 0;
+  return `Shared Dressing Room, ${title}, ${count} item${count === 1 ? '' : 's'}, shared, view only`;
 }
 
 export function canOpenSharedRoom(room: SharedRoomMembershipSummary): boolean {
-  return room.availability === 'available' || room.availability === 'empty';
+  return Boolean(normalizeRoomShareToken(room.shareToken)) &&
+    (room.availability === 'available' || room.availability === 'empty');
 }
 
-export function buildSharedRoomNativePath(shareToken: string): string {
-  return `/rooms/${encodeURIComponent(shareToken)}`;
+export function buildSharedRoomNativePath(shareToken: string): string | null {
+  const normalizedToken = normalizeRoomShareToken(shareToken);
+  return normalizedToken ? `/rooms/${encodeURIComponent(normalizedToken)}` : null;
 }
 
 export function sharedRoomItemCountLabel(room: SharedRoomMembershipSummary): string {
   if (room.availability === 'unavailable') {
     return 'UNAVAILABLE';
   }
-  const count = room.itemCount;
+  const count = Number.isSafeInteger(room.itemCount) && room.itemCount >= 0
+    ? room.itemCount
+    : 0;
   return `${count} ITEM${count === 1 ? '' : 'S'}`;
 }
 
@@ -272,31 +411,4 @@ export function applySuccessfulFinalSharedRoomRemoval(
     phase: previous.phase === 'temporary_failure' ? 'temporary_failure' : 'ready',
     errorMessage: previous.phase === 'temporary_failure' ? previous.errorMessage : null,
   };
-}
-
-/**
- * Simulate the removal-versus-stale-refresh race for tests:
- * start with a list, apply an optimistic removal, then apply an older
- * refresh payload that still contains the removed room.
- */
-export function applyStaleRefreshAfterRemoval(input: {
-  previous: SharedWithMeSnapshot;
-  generation: number;
-  actorId: string;
-  removedToken: string;
-  staleRooms: SharedRoomMembershipSummary[];
-}): SharedWithMeSnapshot | null {
-  const removedTokens = new Set([input.removedToken]);
-  const afterRemoval: SharedWithMeSnapshot = {
-    ...input.previous,
-    rooms: applyOptimisticSharedRoomRemoval(input.previous.rooms, input.removedToken),
-    phase: 'ready',
-  };
-  return applySharedWithMeListResult({
-    previous: afterRemoval,
-    generation: input.generation,
-    actorId: input.actorId,
-    result: { ok: true, rooms: input.staleRooms },
-    removedTokens,
-  });
 }

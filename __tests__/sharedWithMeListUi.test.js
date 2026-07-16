@@ -56,7 +56,9 @@ test('owned room navigation remains private-id detail route', () => {
 
 test('shared card uses canonical token route helper', () => {
   assert.match(screen, /buildSharedRoomNativePath\(room\.shareToken\)/);
-  assert.match(logic, /\/rooms\/\$\{encodeURIComponent\(shareToken\)\}/);
+  assert.match(logic, /normalizeRoomShareToken\(shareToken\)/);
+  assert.match(logic, /\/rooms\/\$\{encodeURIComponent\(normalizedToken\)\}/);
+  assert.match(screen, /const path = buildSharedRoomNativePath\(room\.shareToken\);\s+if \(!path\) return;/);
 });
 
 test('shared cards have no owner-edit controls', () => {
@@ -76,6 +78,8 @@ test('removal confirmation uses truncated dialog title helper', () => {
   assert.match(screen, /does not delete the owner/);
   assert.match(screen, /text: 'Remove from list'/);
   assert.match(screen, /style: 'destructive'/);
+  assert.match(screen, /removePromptTokenRef/);
+  assert.match(screen, /onDismiss: clearPromptGuard/);
 });
 
 test('focus refresh matches owned-room lifecycle', () => {
@@ -90,6 +94,42 @@ test('actor changes use useAuthSession and invalidate in-flight requests', () =>
   assert.match(hook, /inFlightRef\.current = null/);
   assert.match(hook, /inFlightActorRef/);
   assert.doesNotMatch(hook, /onAuthStateChange/);
+});
+
+test('actor-keyed render boundary hides prior rooms before passive effects', () => {
+  assert.match(hook, /const actorId = !authLoading && isAuthenticated && user\?\.id/);
+  assert.match(hook, /actorIdRef\.current = actorId/);
+  assert.match(hook, /isSharedWithMeSnapshotVisibleToActor/);
+  assert.match(hook, /snapshotVisible[\s\S]*rooms: \[\]/);
+  assert.doesNotMatch(hook, /useEffect\(\(\) => \{\s+actorIdRef\.current = actorId/);
+});
+
+test('list and removal completions are actor and generation scoped', () => {
+  assert.match(hook, /const requestActorId = actorId/);
+  assert.match(hook, /const requestActorId = actorIdRef\.current/);
+  assert.match(hook, /actorIdRef\.current !== requestActorId/);
+  assert.match(hook, /generationRef\.current \+ 1/);
+  assert.match(hook, /previous\.actorId === requestActorId/);
+  assert.match(hook, /restoreSharedRoomAfterFailedRemovalForActor/);
+  assert.doesNotMatch(hook, /let generation = 0/);
+});
+
+test('removal suppression is actor-keyed, bounded, and released after stale work', () => {
+  assert.match(hook, /createSharedRoomRemovalSuppression\(actorId\)/);
+  assert.match(hook, /rememberRemovedSharedRoomToken/);
+  assert.match(hook, /removedSharedRoomTokensForActor/);
+  assert.match(hook, /const removedTokensAtCompletion = new Set/);
+  assert.match(hook, /removedTokens: removedTokensAtCompletion/);
+  assert.match(hook, /clearSharedRoomRemovalSuppression/);
+  assert.match(logic, /SHARED_ROOM_REMOVAL_SUPPRESSION_MAX = 100/);
+  assert.doesNotMatch(hook, /removedTokensRef/);
+});
+
+test('one request is deduplicated per actor and unmount blocks state completion', () => {
+  assert.match(hook, /if \(inFlightRef\.current\)/);
+  assert.match(hook, /inFlightActorRef\.current === actorId/);
+  assert.match(hook, /if \(!mountedRef\.current\) return/);
+  assert.match(hook, /mountedRef\.current = false/);
 });
 
 test('temporary failure and empty states are distinct', () => {
@@ -138,4 +178,27 @@ test('shared indicator reuses existing visual language without a new icon librar
   assert.match(screen, /SHARED_ROOM_GLYPH = '✦'/);
   assert.match(screen, /StatusPill/);
   assert.doesNotMatch(screen, /@expo\/vector-icons|react-native-vector-icons|lucide/);
+});
+
+test('shared cards visibly and accessibly communicate view-only state', () => {
+  assert.match(screen, /Shared · View only/);
+  assert.match(screen, /Shared · Unavailable/);
+  assert.match(logic, /shared, view only/);
+  assert.match(screen, /sharedRoomItemCountLabel\(room\)/);
+  assert.match(screen, /accessibilityLabel=\{`Remove \$\{title\} from Shared with Me list`\}/);
+});
+
+test('owned room creation, empty state, grid sizing, safe area, and footer remain intact', () => {
+  assert.match(screen, /createDressingRoom\(\{ userId: user\?\.id, title, description \}\)/);
+  assert.match(screen, /title="Start Your First Styling Room"/);
+  assert.match(screen, /router\.push\(`\/dressing-rooms\/\$\{room\.id\}`\)/);
+  assert.match(screen, /gridItem:\s*\{\s*width: '50%'/);
+  assert.match(screen, /<LuxuryScreen[\s\S]*?scrollable=\{false\}[\s\S]*?safeArea/);
+  assert.match(screen, /<PrivacyFooter/);
+});
+
+test('failed removal restores the card with safe retry guidance', () => {
+  assert.match(logic, /SHARED_WITH_ME_REMOVE_ERROR/);
+  assert.match(logic, /try Remove from list again/);
+  assert.match(hook, /restoreSharedRoomAfterFailedRemovalForActor/);
 });
