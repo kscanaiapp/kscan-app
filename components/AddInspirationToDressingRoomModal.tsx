@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -50,6 +50,7 @@ export function AddInspirationToDressingRoomModal({
   const [message, setMessage] = useState<string | null>(null);
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [savedRoomId, setSavedRoomId] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -76,7 +77,8 @@ export function AddInspirationToDressingRoomModal({
   const missingItem = !inspirationId;
 
   const handleSave = async (roomId: string, roomTitle: string) => {
-    if (saving || !inspirationId) return;
+    if (savingRef.current || !inspirationId) return;
+    savingRef.current = true;
     setSaving(true);
     setMessage(null);
     try {
@@ -91,12 +93,14 @@ export function AddInspirationToDressingRoomModal({
       console.warn('Add inspiration to dressing room failed', err);
       setMessage(SAVE_ERROR);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
   const handleCreateAndSave = async () => {
-    if (!newRoomTitle.trim() || saving || !inspirationId) return;
+    if (!newRoomTitle.trim() || savingRef.current || !inspirationId) return;
+    savingRef.current = true;
     setSaving(true);
     setMessage(null);
     try {
@@ -117,6 +121,7 @@ export function AddInspirationToDressingRoomModal({
       console.warn('Create room and add inspiration failed', err);
       setMessage(SAVE_ERROR);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

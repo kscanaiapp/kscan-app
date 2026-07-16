@@ -355,11 +355,13 @@ function CreateRoomModal({
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   const canSave = useMemo(() => title.trim().length > 0 && !saving, [title, saving]);
 
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSave || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -372,6 +374,7 @@ function CreateRoomModal({
       console.error('Create dressing room failed', err);
       setError(DRESSING_ROOM_SAVE_ERROR);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -53,6 +53,7 @@ export function AddScanToDressingRoomModal({
   const [message, setMessage] = useState<string | null>(null);
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [savedRoomId, setSavedRoomId] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   // Only fetch rooms when the modal opens — never on background screen focus.
   const reload = useCallback(async () => {
@@ -90,7 +91,8 @@ export function AddScanToDressingRoomModal({
   });
 
   const handleSave = async (roomId: string, roomTitle: string) => {
-    if (saving) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setMessage(null);
     try {
@@ -104,12 +106,14 @@ export function AddScanToDressingRoomModal({
     } catch (err: any) {
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
   const handleCreateAndSave = async () => {
-    if (!newRoomTitle.trim() || saving) return;
+    if (!newRoomTitle.trim() || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setMessage(null);
     try {
@@ -129,6 +133,7 @@ export function AddScanToDressingRoomModal({
     } catch (err: any) {
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

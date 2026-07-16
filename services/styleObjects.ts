@@ -182,7 +182,7 @@ async function uploadLocalScanImage(input: {
     });
 
   if (error) {
-    throw new Error(error.message || 'Could not upload scan image.');
+    throw new Error('Could not upload scan image.');
   }
 
   return {
@@ -367,9 +367,8 @@ function mapLookItem(row: any): LookItem {
   };
 }
 
-function safeError(error: any, fallback: string) {
-  if (!error) return new Error(fallback);
-  return new Error(error.message || fallback);
+function safeError(_error: any, fallback: string) {
+  return new Error(fallback);
 }
 
 export async function listDressingRooms(): Promise<DressingRoom[]> {
@@ -383,11 +382,13 @@ export async function listDressingRooms(): Promise<DressingRoom[]> {
   if (rooms.length === 0) return rooms;
 
   const roomIds = rooms.map((room) => room.id);
-  const { data: items } = await supabase
+  const { data: items, error: itemsError } = await supabase
     .from('dressing_room_items')
     .select('id,dressing_room_id,image_url,storage_bucket,storage_path,sort_order,created_at')
     .in('dressing_room_id', roomIds)
     .order('sort_order', { ascending: true });
+
+  if (itemsError) throw safeError(itemsError, 'Unable to load Dressing Room items.');
 
   const byRoom = new Map<string, { count: number; cover: string | null }>();
   const coverRows = await resolveSignedImageUrlsForItems((items ?? []).map((item: any) => ({

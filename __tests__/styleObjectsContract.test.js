@@ -56,6 +56,16 @@ const addScanModal = fs.readFileSync(
   'utf8',
 );
 
+const addInspirationModal = fs.readFileSync(
+  path.join(__dirname, '..', 'components', 'AddInspirationToDressingRoomModal.tsx'),
+  'utf8',
+);
+
+const dressingRoomsIndex = fs.readFileSync(
+  path.join(__dirname, '..', 'app', 'dressing-rooms', 'index.tsx'),
+  'utf8',
+);
+
 const analysisCard = fs.readFileSync(
   path.join(__dirname, '..', 'components', 'AnalysisCard.tsx'),
   'utf8',
@@ -359,6 +369,24 @@ test('dressing room title is validated with 60-character max and newline normali
   assert.match(service, /Dressing Room title must be/);
   assert.match(service, /normalizeRoomTitleValue/);
   assert.match(service, /replace\(\/\[\\r\\n\]/);
+});
+
+test('owned room listing fails closed when the item query fails', () => {
+  assert.match(service, /const \{ data: items, error: itemsError \} = await supabase[\s\S]*?if \(itemsError\) throw safeError\(itemsError, 'Unable to load Dressing Room items\.'\);/);
+});
+
+test('style-object service maps backend failures to controlled user-facing copy', () => {
+  assert.match(service, /function safeError\(_error: any, fallback: string\) \{\s+return new Error\(fallback\);\s+\}/);
+  assert.doesNotMatch(service, /new Error\(error\.message \|\| 'Could not upload scan image\.'\)/);
+});
+
+test('Dressing Room create and add actions use synchronous in-flight guards against rapid taps', () => {
+  for (const source of [dressingRoomsIndex, addScanModal, addInspirationModal]) {
+    assert.match(source, /const savingRef = useRef\(false\);/);
+    assert.match(source, /if \([^\n]*savingRef\.current[^\n]*\) return;/);
+    assert.match(source, /savingRef\.current = true;/);
+    assert.match(source, /savingRef\.current = false;/);
+  }
 });
 
 test('public shared room screen displays room title with fallback', () => {
