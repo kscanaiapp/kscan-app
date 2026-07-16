@@ -22,7 +22,7 @@ Scanner audit HEAD:             b8d8b1bdfc93c2ee94a0a9dfcdbadd9879400f1e
 Integration worktree:           C:\src\KScan-scanner-dressingrooms-integration-20260716
 Integration branch:             integration/scanner-dressingrooms-final
 Starting HEAD:                  e39426141f3394500ccf76986f0938b3b5a7e836
-Ending HEAD:                    (see section O after commits)
+Ending HEAD:                    28af4268c623ff518967ea9d77d890c122b74620
 Clean status:                   source worktrees remained clean; integration branch committed only reconciliation artifacts
 ```
 
@@ -195,12 +195,14 @@ Expo Doctor known findings (unchanged):
 
 | Item | Evidence |
 |---|---|
-| Emulator | `emulator-5554` / `sdk_gphone16k_x86_64` / Android 17 present |
+| Emulator present | `emulator-5554` / `sdk_gphone16k_x86_64` / Android 17 |
+| Cloud Saved Scans env | `EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED=false` (default off preserved) |
+| Scan-identify env | enabled in local smoke env (`true`) for live analysis when a build installs |
 | iOS simulator | Unavailable on Windows host |
-| Interactive authenticated upload→save→reopen→room smoke on this branch | Attempted via `npx expo run:android`; see ending HEAD notes / build log artifact status |
-| Scanner audit prior combined-tree emulator smoke | Documented in `docs/SCANNER_FINAL_PREMERGE_RELEASE_AUDIT.md` (not re-claimed as this session's physical evidence) |
+| Interactive authenticated upload→save→reopen→room smoke on this branch | Not completed in this session: first assemble reached native compile then failed on missing local `debug.keystore` (restored from `~/.android/debug.keystore`, gitignored); subsequent assemble hit Windows MAX_PATH (`Filename longer than 260 characters`) under the agent Gradle cache path. Not treated as product/regression defect. |
+| Scanner audit prior combined-tree emulator smoke | Documented in `docs/SCANNER_FINAL_PREMERGE_RELEASE_AUDIT.md` for the same Scanner+`e394261` file set; not re-claimed as this session's interactive evidence |
 
-This integration does **not** claim physical-device or true cross-device validation.
+This integration does **not** claim physical-device, true cross-device, or ending-HEAD interactive emulator auth smoke.
 
 ## L. Platform parity
 
@@ -233,14 +235,20 @@ Physical Android: outstanding
 Physical iPhone/iPad: outstanding
 True cross-device: outstanding (cloud Saved Scans intentionally default off; schema not deployed)
 Other external gates:
+  - Ending-HEAD interactive Android emulator authenticated smoke (blocked here by Windows native path-length / local debug keystore bootstrap, not by merge defects)
   - Expo Doctor three known findings before store release
   - Optional full supabase db reset when config.toml-enabled local stack is available
-  - Interactive authenticated emulator re-smoke confirmation on this exact ending HEAD if build/auth environment permits
 ```
 
 ## O. Commits
 
-(Populated after commit sequence completes.)
+| SHA | Subject |
+|---|---|
+| `c74db5e` | feat(scanner): integrate audited commerce persistence |
+| `aa320df` | test(integration): cover scanner dressing room reconciliation |
+| `28af426` | docs(integration): record controlled merge evidence |
+
+Ending HEAD: `28af4268c623ff518967ea9d77d890c122b74620`
 
 ## P. Push/build recommendation
 
@@ -248,7 +256,7 @@ Other external gates:
 READY FOR CLEAN PUSH; HOLD TESTER BUILD
 ```
 
-Hold tester build until interactive authenticated emulator (or physical) smoke on the ending HEAD is confirmed in the release pipeline. Code/tests/migrations are integration-ready for clean push.
+Hold tester build until interactive authenticated emulator (or physical) smoke on the ending HEAD is confirmed in the release pipeline. Code, automated tests, and migration replay are integration-ready for clean push.
 
 ## Q. Final contract statement
 
