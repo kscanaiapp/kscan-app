@@ -90,3 +90,21 @@ export const ALLOWED_BUCKETS = new Set(['style-library-images']);
 export function isBucketAllowed(bucket: string): boolean {
   return ALLOWED_BUCKETS.has(bucket);
 }
+
+/**
+ * Encodes a Storage object reference without escaping path separators.
+ *
+ * Encoding the entire path with encodeURIComponent turns "/" into "%2F".
+ * Supabase may still return a signedURL for that request, but the resulting
+ * object URL is not fetchable. Encode each path segment independently so
+ * spaces and other unsafe characters remain safe while the object hierarchy
+ * stays intact.
+ */
+export function encodeStorageObjectPath(bucket: string, path: string): string {
+  const encodedBucket = encodeURIComponent(bucket);
+  const encodedPath = path
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `${encodedBucket}/${encodedPath}`;
+}

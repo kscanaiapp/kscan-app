@@ -24,6 +24,7 @@
 //   no bucket names, paths, owner ids, or credentials.
 
 import {
+  encodeStorageObjectPath,
   isBucketAllowed,
   isValidShareToken,
   resolveStorageRefFromRow,
@@ -147,7 +148,7 @@ async function createSignedImageUrl(bucket: string, path: string): Promise<strin
   const serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
 
   const signRes = await fetch(
-    `${supabaseUrl}/storage/v1/object/sign/${encodeURIComponent(bucket)}/${encodeURIComponent(path)}`,
+    `${supabaseUrl}/storage/v1/object/sign/${encodeStorageObjectPath(bucket, path)}`,
     {
       method: 'POST',
       headers: restHeaders(serviceRoleKey),

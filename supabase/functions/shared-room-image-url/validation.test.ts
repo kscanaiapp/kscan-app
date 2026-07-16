@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   MAX_ITEM_IDS,
+  encodeStorageObjectPath,
   isBucketAllowed,
   isUuid,
   isValidShareToken,
@@ -102,4 +103,18 @@ Deno.test('isBucketAllowed only allows the known style-library-images bucket', (
   assert.equal(isBucketAllowed('style-library-images'), true);
   assert.equal(isBucketAllowed('some-other-bucket'), false);
   assert.equal(isBucketAllowed(''), false);
+});
+
+Deno.test('encodeStorageObjectPath preserves object path separators', () => {
+  assert.equal(
+    encodeStorageObjectPath(
+      'style-library-images',
+      'user-1/saved scans/item #1.png',
+    ),
+    'style-library-images/user-1/saved%20scans/item%20%231.png',
+  );
+  assert.equal(
+    encodeStorageObjectPath('style-library-images', 'user-1/scans/a.jpg').includes('%2F'),
+    false,
+  );
 });

@@ -59,8 +59,8 @@ test('Edge Function imports validation/authorization helpers instead of duplicat
 
 test('Edge Function signs only the validated private storage object', () => {
   assert.match(edgeFn, /storage\/v1\/object\/sign/);
-  assert.match(edgeFn, /encodeURIComponent\(bucket\)/);
-  assert.match(edgeFn, /encodeURIComponent\(path\)/);
+  assert.match(edgeFn, /encodeStorageObjectPath\(bucket, path\)/);
+  assert.doesNotMatch(edgeFn, /encodeURIComponent\(path\)/);
   assert.match(edgeFn, /expiresIn/);
 });
 
