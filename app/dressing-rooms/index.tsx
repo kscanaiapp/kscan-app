@@ -1,7 +1,9 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   Image,
   Linking,
   Modal,
@@ -30,9 +32,10 @@ import {
   StatusPill,
   TertiaryButton,
 } from '../../components/luxury';
-import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { COLORS, LUXURY, MOTION, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSharedRoomMemberships } from '../../hooks/useSharedRoomMemberships';
 import { useDressingRooms } from '../../hooks/useStyleObjects';
 import { createDressingRoom, ROOM_TITLE_MAX_LENGTH } from '../../services/styleObjects';
@@ -44,6 +47,7 @@ import {
   getSharedWithMeSectionPresentation,
   sharedRoomAccessibilityLabel,
   sharedRoomDisplayTitle,
+  sharedRoomEnterDelayMs,
   sharedRoomItemCountLabel,
 } from '../../services/sharedWithMeListLogic';
 import type { SharedRoomMembershipSummary } from '../../services/sharedRoomMemberships';
@@ -92,25 +96,67 @@ function SharedRoomCard({
   onOpen,
   onRemove,
   style,
+  index = 0,
 }: {
   room: SharedRoomMembershipSummary;
   removing: boolean;
   onOpen: (room: SharedRoomMembershipSummary) => void;
   onRemove: (room: SharedRoomMembershipSummary) => void;
   style?: any;
+  index?: number;
 }) {
   const title = sharedRoomDisplayTitle(room);
   const unavailable = room.availability === 'unavailable';
   const openable = canOpenSharedRoom(room);
+  const reducedMotion = useReducedMotion();
+  const enter = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      enter.setValue(1);
+      return undefined;
+    }
+    enter.setValue(0);
+    const animation = Animated.timing(enter, {
+      toValue: 1,
+      duration: MOTION.microDuration,
+      delay: sharedRoomEnterDelayMs(index, MOTION.chipStagger),
+      easing: Easing.bezier(
+        MOTION.easing.x1,
+        MOTION.easing.y1,
+        MOTION.easing.x2,
+        MOTION.easing.y2,
+      ),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+    // Re-run only when the card's own identity or the motion preference
+    // changes; `index`/`enter` are stable per mounted card instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room.shareToken, reducedMotion]);
+
+  const enterStyle = {
+    opacity: enter,
+    transform: [
+      {
+        translateY: enter.interpolate({
+          inputRange: [0, 1],
+          outputRange: [8, 0],
+        }),
+      },
+    ],
+  };
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.card,
         styles.sharedCard,
         unavailable && styles.sharedCardUnavailable,
         style,
         removing && styles.sharedCardRemoving,
+        enterStyle,
       ]}
     >
       <Pressable
@@ -129,7 +175,7 @@ function SharedRoomCard({
             ? 'Open this shared Dressing Room'
             : 'This shared room is no longer available'
         }
-        accessibilityState={{ disabled: !openable || removing }}
+        accessibilityState={{ disabled: !openable || removing, busy: removing }}
       >
         <View style={[styles.cover, styles.coverFallback, unavailable && styles.sharedCoverUnavailable]}>
           <Text style={styles.coverGlyph}>{SHARED_ROOM_GLYPH}</Text>
@@ -155,8 +201,31 @@ function SharedRoomCard({
           title={removing ? 'Removing' : 'Remove from list'}
           onPress={() => onRemove(room)}
           disabled={removing}
+          loading={removing}
           accessibilityLabel={`Remove ${title} from Shared with Me list`}
         />
+      </View>
+    </Animated.View>
+  );
+}
+
+/**
+ * Static placeholder shown only while the very first load is in flight.
+ * Matches the app's existing skeleton convention (solid tinted block, no
+ * shimmer/animation) used by CatalogProductImage in ProductShelf.tsx, and is
+ * hidden from assistive technology since it carries no real content.
+ */
+function SharedRoomSkeletonCard({ style }: { style?: any }) {
+  return (
+    <View
+      style={[styles.card, styles.sharedCard, style]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <View style={[styles.cover, styles.skeletonBlock]} />
+      <View style={styles.cardBody}>
+        <View style={[styles.skeletonLine, styles.skeletonLineWide]} />
+        <View style={[styles.skeletonLine, styles.skeletonLineNarrow]} />
       </View>
     </View>
   );
@@ -231,10 +300,16 @@ function SharedWithMeSection({
       ) : null}
 
       {presentation.showLoading ? (
-        <View style={styles.sharedLoading}>
-          <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-          <Text style={styles.sharedLoadingLabel}>Loading shared rooms…</Text>
-        </View>
+        <>
+          <View style={styles.sharedLoading}>
+            <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+            <Text style={styles.sharedLoadingLabel}>Loading shared rooms…</Text>
+          </View>
+          <View style={styles.roomGrid}>
+            <SharedRoomSkeletonCard style={styles.gridItem} />
+            <SharedRoomSkeletonCard style={styles.gridItem} />
+          </View>
+        </>
       ) : null}
 
       {presentation.showEmpty ? (
@@ -249,7 +324,7 @@ function SharedWithMeSection({
 
       {presentation.showRooms ? (
         <View style={styles.roomGrid}>
-          {rooms.map((room) => (
+          {rooms.map((room, index) => (
             <SharedRoomCard
               key={room.shareToken}
               room={room}
@@ -257,6 +332,7 @@ function SharedWithMeSection({
               onOpen={onOpen}
               onRemove={onRemove}
               style={styles.gridItem}
+              index={index}
             />
           ))}
         </View>
@@ -616,6 +692,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.md,
     alignItems: 'center',
+  },
+  skeletonBlock: {
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  skeletonLine: {
+    height: 10,
+    borderRadius: RADIUS.sm,
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  skeletonLineWide: {
+    width: '70%',
+    marginBottom: SPACING.sm,
+  },
+  skeletonLineNarrow: {
+    width: '40%',
   },
   modalBackdrop: {
     flex: 1,

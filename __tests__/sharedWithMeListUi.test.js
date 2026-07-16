@@ -202,3 +202,56 @@ test('failed removal restores the card with safe retry guidance', () => {
   assert.match(logic, /try Remove from list again/);
   assert.match(hook, /restoreSharedRoomAfterFailedRemovalForActor/);
 });
+
+test('remove button shows a busy spinner instead of silently disabling, matching Create Room', () => {
+  const sharedCard = screen.match(
+    /function SharedRoomCard\([\s\S]*?function SharedRoomSkeletonCard/,
+  )?.[0] ?? '';
+  assert.ok(sharedCard.length > 100, 'SharedRoomCard found');
+  assert.match(sharedCard, /loading=\{removing\}/);
+  assert.match(sharedCard, /disabled=\{removing\}/);
+  assert.match(sharedCard, /accessibilityState=\{\{ disabled: !openable \|\| removing, busy: removing \}\}/);
+  // Same loading-prop convention already used by the owned-room create flow.
+  assert.match(screen, /loading=\{saving\}/);
+});
+
+test('shared card entrance respects reduced motion and stays under useNativeDriver', () => {
+  const sharedCard = screen.match(
+    /function SharedRoomCard\([\s\S]*?function SharedRoomSkeletonCard/,
+  )?.[0] ?? '';
+  assert.match(screen, /useReducedMotion/);
+  assert.match(sharedCard, /const reducedMotion = useReducedMotion\(\);/);
+  assert.match(sharedCard, /if \(reducedMotion\) \{\s+enter\.setValue\(1\);/);
+  assert.match(sharedCard, /useNativeDriver: true/);
+  assert.match(sharedCard, /sharedRoomEnterDelayMs\(index, MOTION\.chipStagger\)/);
+  assert.doesNotMatch(sharedCard, /useNativeDriver: false/);
+});
+
+test('shared card list passes a stable per-card index for staggered entrance', () => {
+  assert.match(screen, /rooms\.map\(\(room, index\) => \(/);
+  assert.match(screen, /<SharedRoomCard[\s\S]*?index=\{index\}/);
+});
+
+test('loading state shows decorative, non-animated skeleton cards hidden from screen readers', () => {
+  const skeletonComponent = screen.match(
+    /function SharedRoomSkeletonCard\([\s\S]*?function SharedWithMeSection/,
+  )?.[0] ?? '';
+  assert.ok(skeletonComponent.length > 50, 'SharedRoomSkeletonCard found');
+  assert.match(skeletonComponent, /accessibilityElementsHidden/);
+  assert.match(skeletonComponent, /importantForAccessibility="no-hide-descendants"/);
+  assert.match(skeletonComponent, /styles\.skeletonBlock/);
+  assert.doesNotMatch(skeletonComponent, /Animated\./);
+  assert.match(screen, /<SharedRoomSkeletonCard style=\{styles\.gridItem\} \/>/);
+});
+
+test('skeleton cards render only during initial loading, not alongside real rooms', () => {
+  const loadingBlock = screen.match(
+    /\{presentation\.showLoading \? \([\s\S]*?\) : null\}/,
+  )?.[0] ?? '';
+  assert.ok(loadingBlock.length > 20, 'showLoading block found');
+  assert.match(loadingBlock, /SharedRoomSkeletonCard/);
+  const roomsBlock = screen.match(
+    /\{presentation\.showRooms \? \([\s\S]*?\) : null\}/,
+  )?.[0] ?? '';
+  assert.doesNotMatch(roomsBlock, /SharedRoomSkeletonCard/);
+});

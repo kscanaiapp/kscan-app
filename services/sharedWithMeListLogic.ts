@@ -36,6 +36,13 @@ export const SHARED_WITH_ME_EMPTY_SUBTITLE =
 export const SHARED_ROOM_DIALOG_TITLE_MAX = 60;
 export const SHARED_ROOM_REMOVAL_SUPPRESSION_MAX = 100;
 
+/**
+ * Cap how many leading cards get a staggered entrance delay so a long list
+ * (many shared rooms) never makes the section take seconds to finish
+ * appearing. Cards beyond this index all animate in with the same delay.
+ */
+export const SHARED_ROOM_ENTER_STAGGER_MAX_INDEX = 8;
+
 export type SharedRoomRemovalSuppression = {
   actorId: string | null;
   tokens: ReadonlySet<string>;
@@ -325,6 +332,24 @@ export function canOpenSharedRoom(room: SharedRoomMembershipSummary): boolean {
 export function buildSharedRoomNativePath(shareToken: string): string | null {
   const normalizedToken = normalizeRoomShareToken(shareToken);
   return normalizedToken ? `/rooms/${encodeURIComponent(normalizedToken)}` : null;
+}
+
+/**
+ * Deterministic, reduced-motion-agnostic entrance delay for a shared room
+ * card at a given position. Motion components decide whether to apply this
+ * at all (reduced motion should always pass a delay of 0 regardless of what
+ * this returns); this only owns the stagger math so it is unit-testable
+ * without a React/Animated runtime.
+ */
+export function sharedRoomEnterDelayMs(
+  index: number,
+  staggerMs: number,
+  maxIndex: number = SHARED_ROOM_ENTER_STAGGER_MAX_INDEX,
+): number {
+  if (!Number.isFinite(index) || index < 0) return 0;
+  if (!Number.isFinite(staggerMs) || staggerMs <= 0) return 0;
+  const cappedIndex = Math.min(Math.floor(index), Math.max(0, maxIndex));
+  return cappedIndex * staggerMs;
 }
 
 export function sharedRoomItemCountLabel(room: SharedRoomMembershipSummary): string {

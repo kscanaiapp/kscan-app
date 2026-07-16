@@ -552,3 +552,28 @@ test('long visible titles retain their full accessible name and missing titles a
     'Shared Dressing Room',
   );
 });
+
+test('shared room entrance stagger delay grows linearly up to the capped index', () => {
+  assert.equal(logic.sharedRoomEnterDelayMs(0, 90), 0);
+  assert.equal(logic.sharedRoomEnterDelayMs(1, 90), 90);
+  assert.equal(logic.sharedRoomEnterDelayMs(3, 90), 270);
+  assert.equal(logic.sharedRoomEnterDelayMs(8, 90), 720);
+});
+
+test('shared room entrance stagger delay is capped so a long list does not take seconds to appear', () => {
+  // Without a cap, room #49 in a 50-room list would wait 49 * 90ms = 4410ms.
+  assert.equal(logic.sharedRoomEnterDelayMs(49, 90), 720);
+  assert.equal(
+    logic.sharedRoomEnterDelayMs(49, 90),
+    logic.sharedRoomEnterDelayMs(8, 90),
+  );
+  assert.equal(logic.sharedRoomEnterDelayMs(20, 90, 4), 360);
+});
+
+test('shared room entrance stagger delay handles non-finite and non-positive input safely', () => {
+  assert.equal(logic.sharedRoomEnterDelayMs(-1, 90), 0);
+  assert.equal(logic.sharedRoomEnterDelayMs(Number.NaN, 90), 0);
+  assert.equal(logic.sharedRoomEnterDelayMs(2, 0), 0);
+  assert.equal(logic.sharedRoomEnterDelayMs(2, -90), 0);
+  assert.equal(logic.sharedRoomEnterDelayMs(2.9, 90), 180);
+});
