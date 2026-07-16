@@ -215,7 +215,7 @@ test('post-OAuth hydration keeps the navigator mounted so Android cannot replay 
       session: validSession,
     }),
     false,
-    'ordinary authenticated bootstrap retains the existing loading policy',
+    'helper remains callback-scoped; AuthGate always mounts Stack separately',
   );
   assert.equal(
     shouldPreserveAuthNavigatorDuringLoading({
@@ -225,6 +225,25 @@ test('post-OAuth hydration keeps the navigator mounted so Android cannot replay 
     }),
     false,
     'a callback without an authenticated session never exposes the navigator',
+  );
+});
+
+test('AuthGate source always mounts Stack during loading and does not clear redirect dedupe on loading', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const authGateSource = fs.readFileSync(path.join(__dirname, '..', 'app', '_layout.tsx'), 'utf8');
+  assert.match(
+    authGateSource,
+    /if \(guardState\.action === 'loading'\)[\s\S]*<Stack screenOptions=\{\{ headerShown: false \}\} \/>/,
+  );
+  assert.doesNotMatch(authGateSource, /styles\.loadingRoot/);
+  assert.match(
+    authGateSource,
+    /if \(guardState\.action === 'allow'\) \{\s*lastRedirectRef\.current = null;/,
+  );
+  assert.doesNotMatch(
+    authGateSource,
+    /if \(guardState\.action !== 'redirect'\) \{\s*lastRedirectRef\.current = null;/,
   );
 });
 

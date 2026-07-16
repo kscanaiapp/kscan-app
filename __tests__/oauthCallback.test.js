@@ -184,10 +184,19 @@ test('all Google callback consumers use the shared idempotent session completion
 
 test('successful Google callback hydration preserves navigator state instead of replaying the deep link', () => {
   assert.match(authGateSource, /pathname === '\/auth\/callback'[\s\S]*authCallbackSeenRef\.current = true/);
-  assert.match(authGateSource, /shouldPreserveAuthNavigatorDuringLoading/);
   assert.match(
     authGateSource,
-    /if \(preserveNavigatorDuringLoading\)[\s\S]*<Stack screenOptions=\{\{ headerShown: false \}\} \/>[\s\S]*auth-gate-loading/,
+    /if \(guardState\.action === 'loading'\)[\s\S]*<Stack screenOptions=\{\{ headerShown: false \}\} \/>[\s\S]*auth-gate-loading/,
+  );
+  assert.doesNotMatch(
+    authGateSource,
+    /loadingRoot/,
+    'AuthGate must never unmount Stack behind a bare loading root',
+  );
+  assert.match(
+    authGateSource,
+    /guardState\.action === 'allow'[\s\S]*lastRedirectRef\.current = null/,
+    'redirect dedupe clears only after allow, not on transient loading',
   );
 });
 

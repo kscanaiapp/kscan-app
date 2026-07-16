@@ -131,14 +131,27 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
   // Auth state ref for hydrate to read without re-creating the callback
   const authRef = useRef({ isAuthenticated, isRefreshing, authLoading });
   authRef.current = { isAuthenticated, isRefreshing, authLoading };
+  const bootStatusRef = useRef(bootStatus);
+  bootStatusRef.current = bootStatus;
+  const hydrateGenerationRef = useRef(0);
 
-  const hydrate = useCallback(async () => {
+  const hydrate = useCallback(async (options?: { gateRouting?: boolean }) => {
     const auth = authRef.current;
 
     // Still booting: don't render any mode yet; the layout gates children behind loading state
     if (auth.authLoading) return;
 
-    setBootStatus('loading');
+    const generation = hydrateGenerationRef.current + 1;
+    hydrateGenerationRef.current = generation;
+
+    // Only block AuthGate routing on first boot or actor change. Same-actor
+    // revalidation (and especially access-token refresh) must not flip
+    // bootStatus back to loading — that unmounts the root navigator and aborts
+    // in-flight auth/network work.
+    const gateRouting = Boolean(options?.gateRouting) || bootStatusRef.current !== 'ready';
+    if (gateRouting) {
+      setBootStatus('loading');
+    }
     setRemoteFetchFailed(false);
     setRemoteFetchError(null);
     setSyncStatus('syncing');
@@ -149,6 +162,7 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
     } catch {
       // keep defaults
     }
+    if (hydrateGenerationRef.current !== generation) return;
     setLocalPrefs(local);
 
     if (auth.isAuthenticated && !auth.isRefreshing) {
@@ -166,6 +180,8 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
           // profiles table absent or RLS gap — proceed with default profile
         }
 
+        if (hydrateGenerationRef.current !== generation) return;
+
         const remote = (settingsRow ?? null) as Record<string, unknown> | null;
 
         if (remote) {
@@ -180,8 +196,10 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
             const patch = buildPrivacyUpdatePatch(merged, profileRow);
             try {
               const updated = await updatePrivacySettings(patch);
+              if (hydrateGenerationRef.current !== generation) return;
               setRemoteRow((updated ?? { ...remote, ...patch }) as Record<string, unknown>);
             } catch {
+              if (hydrateGenerationRef.current !== generation) return;
               // Merge write failed; reflect merged value locally without remote confirmation
               setRemoteRow({ ...remote, ...mergePrivacyPreferences(local, remotePrefs) } as Record<string, unknown>);
             }
@@ -199,32 +217,36 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
         });
         setSyncStatus('synced');
       } catch (error) {
+        if (hydrateGenerationRef.current !== generation) return;
         setRemoteRow(null);
         setRemoteFetchFailed(true);
         setRemoteFetchError('Unable to load privacy settings. Please try again later.');
         setProfile(DEFAULT_PROFILE);
         setSyncStatus('error');
       }
-    } else {
-      // Signed out or refreshing
+    } else if (!auth.isAuthenticated) {
+      // Signed out only — do not clear remote rows while a refresh is in flight.
       setRemoteRow(null);
       setSyncStatus('local-only');
     }
 
+    if (hydrateGenerationRef.current !== generation) return;
     setBootStatus('ready');
   }, []); // auth state read from ref — no dep cycle
 
-  // Re-hydrate when auth state transitions: boot complete, sign-in, sign-out, token refresh
-  const prevTokenRef = useRef<string | null | undefined>(undefined);
+  // Re-hydrate on actor transitions (sign-in / sign-out / cold boot), not on
+  // every access_token rotation. Token refresh must not re-gate routing.
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    const currentToken = session?.access_token ?? null;
+    const userId = session?.user?.id ?? null;
 
     // Skip the very first render before auth has settled
     if (authLoading) return;
 
     // On sign-out: clear remote data immediately without a full hydrate
-    if (prevTokenRef.current !== undefined && prevTokenRef.current !== null && currentToken === null) {
-      prevTokenRef.current = currentToken;
+    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== null && userId === null) {
+      hydrateGenerationRef.current += 1;
+      prevUserIdRef.current = userId;
       setRemoteRow(null);
       setRemoteFetchFailed(false);
       setRemoteFetchError(null);
@@ -234,9 +256,10 @@ export function PrivacyPreferencesProvider({ children }: { children: React.React
       return;
     }
 
-    prevTokenRef.current = currentToken;
-    void hydrate();
-  }, [session?.access_token, authLoading, hydrate]);
+    const actorChanged = prevUserIdRef.current !== userId;
+    prevUserIdRef.current = userId;
+    void hydrate({ gateRouting: actorChanged || bootStatusRef.current !== 'ready' });
+  }, [session?.user?.id, authLoading, hydrate]);
 
   const persistPreference = useCallback(
     async (patch: { opt_out_of_sale?: boolean; limit_sensitive_processing?: boolean }) => {

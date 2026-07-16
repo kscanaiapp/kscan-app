@@ -14,7 +14,6 @@ import {
   getRoutingGuardState,
   isAuthCallbackUrl,
   shouldCommitRouteNavigation,
-  shouldPreserveAuthNavigatorDuringLoading,
 } from '../services/routingGuard';
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
@@ -130,6 +129,10 @@ function AuthGate() {
   const waitingForAuthCallbackRoute =
     initialUrlChecked && isAuthCallbackUrl(initialUrl) && pathname !== '/auth/callback';
 
+  // Freeze expiry evaluation for this render so AuthGate cannot oscillate solely
+  // because Date.now() advances across rapid re-renders.
+  const nowSeconds = Math.floor(Date.now() / 1000);
+
   const guardState = getRoutingGuardState({
     pathname,
     loading: loading || !initialUrlChecked,
@@ -137,7 +140,7 @@ function AuthGate() {
     profile,
     profileLoading: Boolean(session && bootStatus !== 'ready'),
     onboardingComplete,
-    nowSeconds: undefined,
+    nowSeconds,
   });
 
   useEffect(() => {
@@ -148,11 +151,9 @@ function AuthGate() {
     }
   }, [guardState.action, pathname, session]);
 
-  const preserveNavigatorDuringLoading = shouldPreserveAuthNavigatorDuringLoading({
-    authCallbackSeen: authCallbackSeenRef.current,
-    guardAction: guardState.action,
-    session,
-  });
+  // Always keep the root navigator mounted during loading. Unmounting <Stack>
+  // on ordinary bootstrap/login caused pathname churn and maximum-update-depth
+  // failures that also aborted in-flight auth network requests.
 
   useEffect(() => {
     const onboardingState = onboardingComplete === null
@@ -206,7 +207,9 @@ function AuthGate() {
   }, [guardState.action, guardState.redirectTo, pathname, waitingForAuthCallbackRoute, navReady]);
 
   useEffect(() => {
-    if (guardState.action !== 'redirect') {
+    // Only clear redirect dedupe after a settled allow. Clearing on transient
+    // loading re-arms router.replace for the same destination and loops.
+    if (guardState.action === 'allow') {
       lastRedirectRef.current = null;
     }
   }, [guardState.action]);
@@ -216,22 +219,14 @@ function AuthGate() {
   }
 
   if (guardState.action === 'loading') {
-    if (preserveNavigatorDuringLoading) {
-      return (
-        <>
-          <Stack screenOptions={{ headerShown: false }} />
-          <View testID="auth-gate-loading" style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={COLORS.accent} />
-            <Text style={styles.loadingText}>K-SCAN</Text>
-          </View>
-        </>
-      );
-    }
     return (
-      <View testID="auth-gate-loading" style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-        <Text style={styles.loadingText}>K-SCAN</Text>
-      </View>
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <View testID="auth-gate-loading" style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.loadingText}>K-SCAN</Text>
+        </View>
+      </>
     );
   }
 
@@ -271,13 +266,6 @@ export default function Layout() {
 }
 
 const styles = StyleSheet.create({
-  loadingRoot: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.md,
-    backgroundColor: COLORS.bg,
-  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
