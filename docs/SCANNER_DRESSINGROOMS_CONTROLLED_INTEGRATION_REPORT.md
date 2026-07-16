@@ -22,7 +22,7 @@ Scanner audit HEAD:             b8d8b1bdfc93c2ee94a0a9dfcdbadd9879400f1e
 Integration worktree:           C:\src\KScan-scanner-dressingrooms-integration-20260716
 Integration branch:             integration/scanner-dressingrooms-final
 Starting HEAD:                  e39426141f3394500ccf76986f0938b3b5a7e836
-Ending HEAD:                    2224e135260dc7dd70672c2a21bcba2cc9beaf6a
+Ending HEAD:                    see section O (branch tip after documentation closeout)
 Clean status:                   source worktrees remained clean; integration branch committed only reconciliation artifacts
 ```
 
@@ -248,8 +248,10 @@ Other external gates:
 | `aa320df` | test(integration): cover scanner dressing room reconciliation |
 | `28af426` | docs(integration): record controlled merge evidence |
 | `2224e13` | docs(integration): finalize controlled merge report evidence |
+| `6ed3707` | docs(integration): sync ending HEAD in merge report |
+| (tip) | docs(integration): close controlled merge report |
 
-Ending HEAD: `2224e135260dc7dd70672c2a21bcba2cc9beaf6a`
+Confirm tip with `git rev-parse HEAD` on `integration/scanner-dressingrooms-final`.
 
 ## P. Push/build recommendation
 
