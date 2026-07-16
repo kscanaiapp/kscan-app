@@ -76,7 +76,7 @@ export function buildTrustedServerContext(body: string): string {
 export function buildUntrustedSection(
   name: Exclude<PromptSectionName, 'kscan_system_rules' | 'trusted_server_context'>,
   body: string,
-  maxChars = AI_INPUT_LIMITS.totalPromptChars,
+  maxChars: number = AI_INPUT_LIMITS.totalPromptChars,
 ): string {
   const bound = boundTextField(body, maxChars, {
     mode: 'truncate',
