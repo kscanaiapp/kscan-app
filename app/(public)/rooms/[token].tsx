@@ -63,6 +63,10 @@ import {
 import { computeItemGridCellWidth } from '../../../services/sharedRoomLayout';
 import { normalizeSharedRoomPreview } from '../../../services/sharedRoomPreview';
 import { resolveSharedRoomImageUrls } from '../../../services/sharedRoomImageResolver';
+import {
+  captureSharedRoomMembershipAfterPreview,
+  createMembershipCaptureAttemptTracker,
+} from '../../../services/captureSharedRoomMembership';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const ITEM_GRID_GAP = SPACING.md;
@@ -492,7 +496,7 @@ function SharedRoomChatSection({
 
 export default function SharedRoomScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
-  const { isAuthenticated, loading: authLoading } = useAuthSession();
+  const { isAuthenticated, loading: authLoading, user } = useAuthSession();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
@@ -505,6 +509,7 @@ export default function SharedRoomScreen() {
   const outcomeAnalyticsGuard = useRef<string | null>(null);
   const lastFetchedAt = useRef<number | null>(null);
   const imageResolutionGuard = useRef<string | null>(null);
+  const membershipCaptureTracker = useRef(createMembershipCaptureAttemptTracker());
 
   const insets = useSafeAreaInsets();
   const [resolvedImageUrls, setResolvedImageUrls] = useState<Record<string, string | null>>({});
@@ -668,7 +673,33 @@ export default function SharedRoomScreen() {
     setWebSelected(false);
     setResolvedImageUrls({});
     imageResolutionGuard.current = null;
+    membershipCaptureTracker.current.reset();
   }, [rawToken]);
+
+  useEffect(() => {
+    membershipCaptureTracker.current.reset();
+  }, [user?.id]);
+
+  // Account-anchored Shared with Me capture: non-blocking side effect after a
+  // valid public preview resolves for an authenticated native viewer.
+  useEffect(() => {
+    if (state.phase !== 'available' && state.phase !== 'empty') return;
+
+    const sessionState = authLoading
+      ? { phase: 'loading' as const }
+      : isAuthenticated && user?.id
+        ? { phase: 'authenticated' as const, actorId: user.id }
+        : { phase: 'unauthenticated' as const };
+
+    void captureSharedRoomMembershipAfterPreview({
+      shareToken: rawToken,
+      previewStatus: state.phase,
+      sessionState,
+      platform: Platform.OS,
+      hasAttempted: (key) => membershipCaptureTracker.current.hasAttempted(key),
+      markAttempted: (key) => membershipCaptureTracker.current.markAttempted(key),
+    });
+  }, [authLoading, isAuthenticated, rawToken, state.phase, user?.id]);
 
   // Resolve signed image URLs for items that have no public HTTPS imageUrl.
   // The share token and item ids are the only inputs; the Edge Function looks
