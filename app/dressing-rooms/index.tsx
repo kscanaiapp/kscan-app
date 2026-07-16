@@ -2,11 +2,11 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Image,
   Linking,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -37,11 +37,11 @@ import { useSharedRoomMemberships } from '../../hooks/useSharedRoomMemberships';
 import { useDressingRooms } from '../../hooks/useStyleObjects';
 import { createDressingRoom, ROOM_TITLE_MAX_LENGTH } from '../../services/styleObjects';
 import {
-  SHARED_WITH_ME_EMPTY_SUBTITLE,
-  SHARED_WITH_ME_EMPTY_TITLE,
   SHARED_WITH_ME_REFRESH_ERROR,
   buildSharedRoomNativePath,
   canOpenSharedRoom,
+  formatSharedRoomDialogTitle,
+  getSharedWithMeSectionPresentation,
   sharedRoomAccessibilityLabel,
   sharedRoomDisplayTitle,
   sharedRoomItemCountLabel,
@@ -52,6 +52,9 @@ import type { DressingRoom } from '../../types/styleObjects';
 const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
 const DRESSING_ROOM_LOAD_ERROR = "We couldn't load your Dressing Rooms. Please refresh and try again.";
 const NAV_GUARD_MS = 800;
+/** Home / Dressing Rooms geometric glyph — reused as the shared cover mark. */
+const SHARED_ROOM_GLYPH = '✦';
+const OWNED_ROOM_GLYPH = '◇';
 
 function RoomCard({ room, style }: { room: DressingRoom; style?: any }) {
   const cover = room.coverImageUrl || room.coverFallbackUrl;
@@ -68,6 +71,7 @@ function RoomCard({ room, style }: { room: DressingRoom; style?: any }) {
         <Image source={{ uri: cover }} style={styles.cover} resizeMode="cover" />
       ) : (
         <View style={[styles.cover, styles.coverFallback]}>
+          <Text style={styles.coverGlyph}>{OWNED_ROOM_GLYPH}</Text>
           <Text style={styles.coverFallbackText}>ROOM</Text>
         </View>
       )}
@@ -128,6 +132,7 @@ function SharedRoomCard({
         accessibilityState={{ disabled: !openable || removing }}
       >
         <View style={[styles.cover, styles.coverFallback, unavailable && styles.sharedCoverUnavailable]}>
+          <Text style={styles.coverGlyph}>{SHARED_ROOM_GLYPH}</Text>
           <Text style={styles.coverFallbackText}>{unavailable ? 'GONE' : 'SHARED'}</Text>
         </View>
         <View style={styles.cardBody}>
@@ -160,8 +165,7 @@ function SharedRoomCard({
 function SharedWithMeSection({
   rooms,
   loading,
-  temporaryFailure,
-  empty,
+  phase,
   unauthenticated,
   removingToken,
   removeError,
@@ -172,8 +176,7 @@ function SharedWithMeSection({
 }: {
   rooms: SharedRoomMembershipSummary[];
   loading: boolean;
-  temporaryFailure: boolean;
-  empty: boolean;
+  phase: 'idle' | 'loading' | 'ready' | 'empty' | 'temporary_failure' | 'unauthenticated';
   unauthenticated: boolean;
   removingToken: string | null;
   removeError: string | null;
@@ -186,17 +189,17 @@ function SharedWithMeSection({
     return null;
   }
 
+  const presentation = getSharedWithMeSectionPresentation({
+    phase,
+    rooms,
+    loading,
+  });
+
   return (
     <View style={styles.sharedSection} accessibilityLabel="Shared with Me">
       <SectionHeader
         title="Shared with Me"
-        subtitle={
-          loading
-            ? 'Loading shared rooms'
-            : temporaryFailure
-              ? 'Could not refresh'
-              : `${rooms.length} shared room${rooms.length === 1 ? '' : 's'}`
-        }
+        subtitle={presentation.sectionSubtitle}
       />
 
       {removeError ? (
@@ -213,11 +216,11 @@ function SharedWithMeSection({
         />
       ) : null}
 
-      {temporaryFailure ? (
+      {presentation.showTemporaryFailure ? (
         <InlineNotice
           variant="warning"
           title="Shared rooms unavailable"
-          body={SHARED_WITH_ME_REFRESH_ERROR}
+          body={presentation.failureBody || SHARED_WITH_ME_REFRESH_ERROR}
           action={{
             label: 'Retry',
             onPress: onRetry,
@@ -227,22 +230,25 @@ function SharedWithMeSection({
         />
       ) : null}
 
-      {loading ? (
+      {presentation.showLoading ? (
         <View style={styles.sharedLoading}>
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />
           <Text style={styles.sharedLoadingLabel}>Loading shared rooms…</Text>
         </View>
       ) : null}
 
-      {!loading && empty && !temporaryFailure ? (
+      {presentation.showEmpty ? (
         <EmptyStateCard
-          title={SHARED_WITH_ME_EMPTY_TITLE}
-          subtitle={SHARED_WITH_ME_EMPTY_SUBTITLE}
+          title={presentation.emptyTitle || 'No shared rooms yet'}
+          subtitle={
+            presentation.emptySubtitle ||
+            'Shared rooms will appear here after you open a Dressing Room link.'
+          }
         />
       ) : null}
 
-      {!loading && rooms.length > 0 ? (
-        <View style={styles.sharedGrid}>
+      {presentation.showRooms ? (
+        <View style={styles.roomGrid}>
           {rooms.map((room) => (
             <SharedRoomCard
               key={room.shareToken}
@@ -250,7 +256,7 @@ function SharedWithMeSection({
               removing={removingToken === room.shareToken}
               onOpen={onOpen}
               onRemove={onRemove}
-              style={styles.sharedGridItem}
+              style={styles.gridItem}
             />
           ))}
         </View>
@@ -335,7 +341,6 @@ function DressingRoomsContent() {
   const shared = useSharedRoomMemberships();
   const [creating, setCreating] = useState(false);
   const navGuardRef = useRef<{ token: string; at: number } | null>(null);
-  const blocking = loading || !!error;
   const friendlyError = error ? DRESSING_ROOM_LOAD_ERROR : null;
 
   const handleOpenSharedRoom = useCallback((room: SharedRoomMembershipSummary) => {
@@ -351,10 +356,10 @@ function DressingRoomsContent() {
 
   const handleRemoveSharedRoom = useCallback((room: SharedRoomMembershipSummary) => {
     if (shared.removingToken) return;
-    const title = sharedRoomDisplayTitle(room);
+    const dialogTitle = formatSharedRoomDialogTitle(sharedRoomDisplayTitle(room));
     Alert.alert(
       'Remove shared room?',
-      `This removes “${title}” from your Shared with Me list. It does not delete the owner’s Dressing Room or disable the share link.`,
+      `This removes “${dialogTitle}” from your Shared with Me list. It does not delete the owner’s Dressing Room or disable the share link.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -368,27 +373,9 @@ function DressingRoomsContent() {
     );
   }, [shared.removeFromList, shared.removingToken]);
 
-  const sharedFooter = (
-    <SharedWithMeSection
-      rooms={shared.rooms}
-      loading={shared.loading}
-      temporaryFailure={shared.temporaryFailure}
-      empty={shared.empty}
-      unauthenticated={shared.unauthenticated}
-      removingToken={shared.removingToken}
-      removeError={shared.removeError}
-      onRetry={() => {
-        void shared.reload();
-      }}
-      onOpen={handleOpenSharedRoom}
-      onRemove={handleRemoveSharedRoom}
-      onClearRemoveError={shared.clearRemoveError}
-    />
-  );
-
   return (
     <LuxuryScreen
-      scrollable
+      scrollable={false}
       safeArea
       backgroundColor={LUXURY.colors.ivory}
       accessibilityLabel="Dressing Rooms list"
@@ -401,56 +388,79 @@ function DressingRoomsContent() {
         backLabel="Back"
       />
 
-      {blocking ? (
-        <View style={styles.centeredFill}>
-          {loading ? (
-            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-          ) : (
-            <InlineNotice
-              variant="error"
-              title="Unable to load Dressing Rooms"
-              body={friendlyError || 'Something went wrong. Please try again.'}
-              action={{ label: 'Retry', onPress: reload, accessibilityLabel: 'Retry loading dressing rooms' }}
-            />
-          )}
-          {/* Shared with Me remains independently visible when owned load fails. */}
-          {!loading ? sharedFooter : null}
-        </View>
-      ) : (
-        <FlatList
-          data={rooms}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          renderItem={({ item }) => (
-            <RoomCard room={item} style={styles.gridItem} />
-          )}
-          contentContainerStyle={[styleObjectStyles.content, styles.content]}
-          columnWrapperStyle={styles.columnWrapper}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <SectionHeader
-              title="My Dressing Rooms"
-              subtitle={`${rooms.length} private styling space${rooms.length === 1 ? '' : 's'}`}
-              actionLabel="New"
-              onAction={() => setCreating(true)}
-              actionAccessibilityLabel="Create new dressing room"
-              actionVariant="pill"
-            />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styleObjectStyles.content, styles.content]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <SectionHeader
+          title="My Dressing Rooms"
+          subtitle={
+            loading
+              ? 'Loading your rooms'
+              : error
+                ? 'Unable to refresh'
+                : `${rooms.length} private styling space${rooms.length === 1 ? '' : 's'}`
           }
-          ListEmptyComponent={
-            <EmptyStateCard
-              title="Start Your First Styling Room"
-              subtitle="Create a private board to compare scans, notes, and looks."
-              action={{
-                label: 'Create Room',
-                onPress: () => setCreating(true),
-                accessibilityLabel: 'Create new dressing room',
-              }}
-            />
-          }
-          ListFooterComponent={sharedFooter}
+          actionLabel="New"
+          onAction={() => setCreating(true)}
+          actionAccessibilityLabel="Create new dressing room"
+          actionVariant="pill"
         />
-      )}
+
+        {loading ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          </View>
+        ) : null}
+
+        {!loading && error ? (
+          <InlineNotice
+            variant="error"
+            title="Unable to load Dressing Rooms"
+            body={friendlyError || 'Something went wrong. Please try again.'}
+            action={{ label: 'Retry', onPress: reload, accessibilityLabel: 'Retry loading dressing rooms' }}
+            style={styles.sharedNotice}
+          />
+        ) : null}
+
+        {!loading && !error && rooms.length === 0 ? (
+          <EmptyStateCard
+            title="Start Your First Styling Room"
+            subtitle="Create a private board to compare scans, notes, and looks."
+            action={{
+              label: 'Create Room',
+              onPress: () => setCreating(true),
+              accessibilityLabel: 'Create new dressing room',
+            }}
+          />
+        ) : null}
+
+        {!loading && !error && rooms.length > 0 ? (
+          <View style={styles.roomGrid}>
+            {rooms.map((room) => (
+              <RoomCard key={room.id} room={room} style={styles.gridItem} />
+            ))}
+          </View>
+        ) : null}
+
+        <SharedWithMeSection
+          rooms={shared.rooms}
+          loading={shared.loading}
+          phase={shared.snapshot.phase}
+          unauthenticated={shared.unauthenticated}
+          removingToken={shared.removingToken}
+          removeError={shared.removeError}
+          onRetry={() => {
+            void shared.reload();
+          }}
+          onOpen={handleOpenSharedRoom}
+          onRemove={handleRemoveSharedRoom}
+          onClearRemoveError={shared.clearRemoveError}
+        />
+      </ScrollView>
+
       <CreateRoomModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}
@@ -473,22 +483,28 @@ export default function DressingRoomsScreen() {
 }
 
 const styles = StyleSheet.create({
-  centeredFill: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
   },
   content: {
     paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxxl,
+    flexGrow: 1,
+  },
+  sectionLoading: {
+    minHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+  },
+  roomGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -SPACING.sm,
   },
   gridItem: {
-    flex: 1,
-    margin: SPACING.sm,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    marginHorizontal: -SPACING.sm,
+    width: '50%',
+    padding: SPACING.sm,
   },
   card: {
     borderRadius: RADIUS.lg,
@@ -510,6 +526,11 @@ const styles = StyleSheet.create({
   coverFallback: {
     alignItems: 'center',
     justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  coverGlyph: {
+    fontSize: 28,
+    color: LUXURY.colors.goldBrushed,
   },
   coverFallbackText: {
     ...LUXURY.typography.caption,
@@ -554,15 +575,6 @@ const styles = StyleSheet.create({
   sharedLoadingLabel: {
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
-  },
-  sharedGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -SPACING.sm,
-  },
-  sharedGridItem: {
-    width: '50%',
-    padding: SPACING.sm,
   },
   sharedCard: {
     width: '100%',

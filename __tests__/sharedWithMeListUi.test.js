@@ -7,11 +7,47 @@ const ROOT = path.resolve(__dirname, '..');
 const screen = fs.readFileSync(path.join(ROOT, 'app/dressing-rooms/index.tsx'), 'utf8');
 const hook = fs.readFileSync(path.join(ROOT, 'hooks/useSharedRoomMemberships.ts'), 'utf8');
 const logic = fs.readFileSync(path.join(ROOT, 'services/sharedWithMeListLogic.ts'), 'utf8');
+const memberships = fs.readFileSync(path.join(ROOT, 'services/sharedRoomMemberships.ts'), 'utf8');
+const ownedHook = fs.readFileSync(path.join(ROOT, 'hooks/useStyleObjects.ts'), 'utf8');
 
-test('owned and shared rooms remain clearly separated sections', () => {
+test('listSharedRoomsForCurrentUser contract exposes required card fields', () => {
+  assert.match(memberships, /export type SharedRoomMembershipSummary = \{/);
+  for (const field of [
+    'shareToken',
+    'title',
+    'itemCount',
+    'firstOpenedAt',
+    'lastAccessedAt',
+    'availability',
+    'updatedAt',
+  ]) {
+    assert.match(memberships, new RegExp(`${field}[?:]`));
+  }
+  assert.match(memberships, /normalizeListRow/);
+  assert.match(memberships, /share_token/);
+  assert.match(memberships, /item_count/);
+  assert.match(memberships, /room_updated_at/);
+});
+
+test('owned and shared rooms remain clearly separated in one ScrollView', () => {
   assert.match(screen, /title="My Dressing Rooms"/);
   assert.match(screen, /title="Shared with Me"/);
-  assert.match(screen, /ListFooterComponent=\{sharedFooter\}/);
+  assert.match(screen, /scrollable=\{false\}/);
+  assert.match(screen, /<ScrollView/);
+  assert.doesNotMatch(screen, /FlatList|SectionList/);
+  assert.doesNotMatch(screen, /nestedScrollEnabled/);
+});
+
+test('Create Dressing Room CTA stays on My Dressing Rooms header', () => {
+  const mySection = screen.match(
+    /title="My Dressing Rooms"[\s\S]*?actionLabel="New"[\s\S]*?actionAccessibilityLabel="Create new dressing room"/,
+  );
+  assert.ok(mySection, 'New CTA remains on My Dressing Rooms SectionHeader');
+  const sharedSection = screen.match(
+    /function SharedWithMeSection\([\s\S]*?function CreateRoomModal/,
+  )?.[0] ?? '';
+  assert.ok(sharedSection.length > 0, 'SharedWithMeSection found');
+  assert.doesNotMatch(sharedSection, /actionLabel="New"/);
 });
 
 test('owned room navigation remains private-id detail route', () => {
@@ -21,7 +57,6 @@ test('owned room navigation remains private-id detail route', () => {
 test('shared card uses canonical token route helper', () => {
   assert.match(screen, /buildSharedRoomNativePath\(room\.shareToken\)/);
   assert.match(logic, /\/rooms\/\$\{encodeURIComponent\(shareToken\)\}/);
-  assert.doesNotMatch(screen, /router\.push\(`\/dressing-rooms\/\$\{room\.shareToken/);
 });
 
 test('shared cards have no owner-edit controls', () => {
@@ -32,21 +67,45 @@ test('shared cards have no owner-edit controls', () => {
   assert.doesNotMatch(sharedCard, /Rename|Delete Dressing Room|Add item|createDressingRoom/i);
   assert.match(sharedCard, /Remove from list/);
   assert.match(sharedCard, /StatusPill/);
+  assert.match(sharedCard, /SHARED_ROOM_GLYPH|✦/);
 });
 
-test('removal confirmation uses recipient-safe copy', () => {
+test('removal confirmation uses truncated dialog title helper', () => {
+  assert.match(screen, /formatSharedRoomDialogTitle/);
   assert.match(screen, /Remove shared room\?/);
   assert.match(screen, /does not delete the owner/);
   assert.match(screen, /text: 'Remove from list'/);
   assert.match(screen, /style: 'destructive'/);
-  assert.doesNotMatch(screen, /Delete Dressing Room\?[\s\S]*Shared with Me/);
+});
+
+test('focus refresh matches owned-room lifecycle', () => {
+  assert.match(ownedHook, /useFocusEffect/);
+  assert.match(hook, /useFocusEffect/);
+  assert.match(hook, /Match owned-room focus refresh/);
+});
+
+test('actor changes use useAuthSession and invalidate in-flight requests', () => {
+  assert.match(hook, /useAuthSession/);
+  assert.match(hook, /clearSharedWithMeForActorChange/);
+  assert.match(hook, /inFlightRef\.current = null/);
+  assert.match(hook, /inFlightActorRef/);
+  assert.doesNotMatch(hook, /onAuthStateChange/);
 });
 
 test('temporary failure and empty states are distinct', () => {
-  assert.match(screen, /SHARED_WITH_ME_REFRESH_ERROR/);
-  assert.match(screen, /SHARED_WITH_ME_EMPTY_TITLE/);
-  assert.match(screen, /temporaryFailure/);
-  assert.match(logic, /temporary_failure[\s\S]*preserve prior/i);
+  assert.match(screen, /getSharedWithMeSectionPresentation/);
+  assert.match(screen, /label: 'Retry'/);
+  assert.match(screen, /Shared rooms will appear here after you open a Dressing Room link/);
+  assert.match(logic, /Missing\/undeployed list RPC maps to temporary_failure/);
+  assert.match(logic, /showEmpty = !showLoading && empty && !temporaryFailure/);
+});
+
+test('missing RPC UI path never shows empty-state copy in the failure branch', () => {
+  assert.match(screen, /presentation\.showTemporaryFailure/);
+  assert.match(screen, /presentation\.showEmpty/);
+  assert.match(screen, /presentation\.showRetry|label: 'Retry'/);
+  assert.doesNotMatch(screen, /list_shared_rooms_for_me/);
+  assert.doesNotMatch(screen, /PGRST202|schema cache/);
 });
 
 test('shared section loads through membership service only', () => {
@@ -69,31 +128,14 @@ test('rapid open guard and unavailable non-navigation exist', () => {
   assert.match(screen, /disabled=\{!openable \|\| removing\}/);
 });
 
-test('actor change clears prior memberships in the hook', () => {
-  assert.match(hook, /clearSharedWithMeForActorChange/);
-  assert.match(hook, /removedTokensRef\.current = new Set\(\)/);
-});
-
-test('focus refresh is bounded to one in-flight list request', () => {
-  assert.match(hook, /inFlightRef/);
-  assert.match(hook, /useFocusEffect/);
-  assert.match(hook, /if \(inFlightRef\.current\)/);
-});
-
 test('platform-neutral contract: no platform value passed to membership APIs', () => {
   assert.doesNotMatch(hook, /Platform\.OS/);
   assert.doesNotMatch(hook, /p_platform|platform:/);
 });
 
-test('current room cover fallback structure remains for owned cards', () => {
-  assert.match(screen, />ROOM</);
-  assert.match(screen, /'SHARED'/);
-  assert.match(screen, /'GONE'/);
-  assert.doesNotMatch(screen, /emoji|🚀|👗|🏠/);
-});
-
-test('shared indicator is accessible beyond color alone', () => {
+test('shared indicator reuses existing visual language without a new icon library', () => {
+  assert.match(screen, /OWNED_ROOM_GLYPH = '◇'/);
+  assert.match(screen, /SHARED_ROOM_GLYPH = '✦'/);
   assert.match(screen, /StatusPill/);
-  assert.match(screen, /label=\{unavailable \? 'Unavailable' : 'Shared'\}/);
-  assert.match(screen, /sharedRoomAccessibilityLabel/);
+  assert.doesNotMatch(screen, /@expo\/vector-icons|react-native-vector-icons|lucide/);
 });

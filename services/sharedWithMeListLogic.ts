@@ -29,6 +29,9 @@ export const SHARED_WITH_ME_EMPTY_TITLE = 'No shared rooms yet';
 export const SHARED_WITH_ME_EMPTY_SUBTITLE =
   'Shared rooms will appear here after you open a Dressing Room link.';
 
+/** Dialog-safe title length; matches owned-room title budget. */
+export const SHARED_ROOM_DIALOG_TITLE_MAX = 60;
+
 export function createSharedWithMeSnapshot(actorId: string | null = null): SharedWithMeSnapshot {
   return {
     phase: actorId ? 'loading' : 'unauthenticated',
@@ -63,6 +66,27 @@ export function beginSharedWithMeLoad(
     generation: previous.generation + 1,
     errorMessage: previous.rooms.length > 0 ? previous.errorMessage : null,
   };
+}
+
+/**
+ * Backend list_shared_rooms_for_me orders by last_accessed_at desc, share_id.
+ * Re-apply a stable lastAccessedAt descending sort so client order remains safe
+ * even if a row timestamp is missing/malformed.
+ */
+export function sortSharedRoomSummaries(
+  rooms: SharedRoomMembershipSummary[],
+): SharedRoomMembershipSummary[] {
+  return rooms
+    .map((room, index) => ({ room, index }))
+    .sort((a, b) => {
+      const aTime = Date.parse(a.room.lastAccessedAt);
+      const bTime = Date.parse(b.room.lastAccessedAt);
+      const aSafe = Number.isFinite(aTime) ? aTime : 0;
+      const bSafe = Number.isFinite(bTime) ? bTime : 0;
+      if (bSafe !== aSafe) return bSafe - aSafe;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.room);
 }
 
 export function applySharedWithMeListResult(input: {
@@ -105,7 +129,9 @@ export function applySharedWithMeListResult(input: {
     };
   }
 
-  const rooms = result.rooms.filter((room) => !removedTokens.has(room.shareToken));
+  const rooms = sortSharedRoomSummaries(
+    result.rooms.filter((room) => !removedTokens.has(room.shareToken)),
+  );
   return {
     phase: rooms.length === 0 ? 'empty' : 'ready',
     rooms,
@@ -129,18 +155,22 @@ export function restoreSharedRoomAfterFailedRemoval(
   if (rooms.some((entry) => entry.shareToken === room.shareToken)) {
     return rooms;
   }
-  return [...rooms, room].sort((a, b) => {
-    const aTime = Date.parse(a.lastAccessedAt) || 0;
-    const bTime = Date.parse(b.lastAccessedAt) || 0;
-    return bTime - aTime;
-  });
+  return sortSharedRoomSummaries([...rooms, room]);
 }
 
 export function sharedRoomDisplayTitle(room: SharedRoomMembershipSummary): string {
-  if (room.availability === 'unavailable') {
-    return room.title?.trim() || 'Shared Dressing Room';
-  }
   return room.title?.trim() || 'Shared Dressing Room';
+}
+
+/** Truncate for confirmation dialogs without mutating the stored title. */
+export function formatSharedRoomDialogTitle(
+  title: string,
+  maxLength: number = SHARED_ROOM_DIALOG_TITLE_MAX,
+): string {
+  const cleaned = String(title ?? '').trim() || 'Shared Dressing Room';
+  if (cleaned.length <= maxLength) return cleaned;
+  if (maxLength <= 1) return '…';
+  return `${cleaned.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
 export function sharedRoomAccessibilityLabel(room: SharedRoomMembershipSummary): string {
@@ -166,4 +196,107 @@ export function sharedRoomItemCountLabel(room: SharedRoomMembershipSummary): str
   }
   const count = room.itemCount;
   return `${count} ITEM${count === 1 ? '' : 'S'}`;
+}
+
+export type SharedWithMeSectionPresentation = {
+  showLoading: boolean;
+  showTemporaryFailure: boolean;
+  showRetry: boolean;
+  showEmpty: boolean;
+  showRooms: boolean;
+  sectionSubtitle: string;
+  failureBody: string | null;
+  emptyTitle: string | null;
+  emptySubtitle: string | null;
+};
+
+/**
+ * Deterministic Shared with Me section presentation.
+ * Missing/undeployed list RPC maps to temporary_failure — never empty.
+ * Removing the final room maps to the normal empty copy.
+ */
+export function getSharedWithMeSectionPresentation(input: {
+  phase: SharedWithMePhase;
+  rooms: SharedRoomMembershipSummary[];
+  loading: boolean;
+}): SharedWithMeSectionPresentation {
+  const temporaryFailure = input.phase === 'temporary_failure';
+  const empty = input.phase === 'empty';
+  const showLoading = input.loading;
+  const showTemporaryFailure = temporaryFailure;
+  const showEmpty = !showLoading && empty && !temporaryFailure;
+  const showRooms = !showLoading && input.rooms.length > 0;
+
+  let sectionSubtitle: string;
+  if (showLoading) {
+    sectionSubtitle = 'Loading shared rooms';
+  } else if (temporaryFailure) {
+    sectionSubtitle = 'Could not refresh';
+  } else if (empty) {
+    sectionSubtitle = 'No shared rooms yet';
+  } else {
+    const count = input.rooms.length;
+    sectionSubtitle = `${count} shared room${count === 1 ? '' : 's'}`;
+  }
+
+  return {
+    showLoading,
+    showTemporaryFailure,
+    showRetry: showTemporaryFailure,
+    showEmpty,
+    showRooms,
+    sectionSubtitle,
+    failureBody: showTemporaryFailure ? SHARED_WITH_ME_REFRESH_ERROR : null,
+    emptyTitle: showEmpty ? SHARED_WITH_ME_EMPTY_TITLE : null,
+    emptySubtitle: showEmpty ? SHARED_WITH_ME_EMPTY_SUBTITLE : null,
+  };
+}
+
+/** Apply optimistic removal; last room becomes the normal empty state. */
+export function applySuccessfulFinalSharedRoomRemoval(
+  previous: SharedWithMeSnapshot,
+  shareToken: string,
+): SharedWithMeSnapshot {
+  const rooms = applyOptimisticSharedRoomRemoval(previous.rooms, shareToken);
+  if (rooms.length === 0) {
+    return {
+      ...previous,
+      rooms,
+      phase: 'empty',
+      errorMessage: null,
+    };
+  }
+  return {
+    ...previous,
+    rooms,
+    phase: previous.phase === 'temporary_failure' ? 'temporary_failure' : 'ready',
+    errorMessage: previous.phase === 'temporary_failure' ? previous.errorMessage : null,
+  };
+}
+
+/**
+ * Simulate the removal-versus-stale-refresh race for tests:
+ * start with a list, apply an optimistic removal, then apply an older
+ * refresh payload that still contains the removed room.
+ */
+export function applyStaleRefreshAfterRemoval(input: {
+  previous: SharedWithMeSnapshot;
+  generation: number;
+  actorId: string;
+  removedToken: string;
+  staleRooms: SharedRoomMembershipSummary[];
+}): SharedWithMeSnapshot | null {
+  const removedTokens = new Set([input.removedToken]);
+  const afterRemoval: SharedWithMeSnapshot = {
+    ...input.previous,
+    rooms: applyOptimisticSharedRoomRemoval(input.previous.rooms, input.removedToken),
+    phase: 'ready',
+  };
+  return applySharedWithMeListResult({
+    previous: afterRemoval,
+    generation: input.generation,
+    actorId: input.actorId,
+    result: { ok: true, rooms: input.staleRooms },
+    removedTokens,
+  });
 }
