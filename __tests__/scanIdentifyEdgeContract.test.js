@@ -194,16 +194,18 @@ test('edge source: non-fashion scans never surface catalog products', () => {
 
 test('edge source: text validation matches client-side rules', () => {
   assert.ok(EDGE_SOURCE.includes('validateTextQuery'), 'Must have validateTextQuery function');
-  // Check that the same validation rules exist server-side
+  // Structural trust-boundary validation (envelope + bounds). Injection-like
+  // fashion text is allowed as untrusted data, not keyword-blocked.
   assert.ok(EDGE_SOURCE.includes('length < 3'), 'Must reject too-short queries');
   assert.ok(EDGE_SOURCE.includes('length > MAX_TEXT_QUERY_LEN'), 'Must reject too-long queries');
   assert.ok(EDGE_SOURCE.includes('A-Za-z0-9+/') && EDGE_SOURCE.includes('{40,}'), 'Must reject base64 payloads');
-  assert.ok(EDGE_SOURCE.includes("'```'"), 'Must reject code blocks');
-  assert.ok(EDGE_SOURCE.includes('ignore previous instructions'), 'Must reject prompt injection');
+  assert.ok(EDGE_SOURCE.includes("'```'") || EDGE_SOURCE.includes('```'), 'Must reject or strip code fences');
+  assert.ok(EDGE_SOURCE.includes('assembleTypeChatPrompt'), 'Must assemble typed TypeChat prompt envelope');
+  assert.ok(EDGE_SOURCE.includes('validateTypeChatModelOutput'), 'Must strictly validate TypeChat model output');
   assert.ok(EDGE_SOURCE.includes('[\\w.+-]+@[\\w.-]+\\.\\w+'), 'Must reject email addresses');
   assert.ok(EDGE_SOURCE.includes('(\\+?\\d[\\d\\s-]{7,}\\d)'), 'Must reject phone numbers');
   assert.ok(EDGE_SOURCE.includes('\\b\\d{3}[\\s-]\\d{2}[\\s-]\\d{4}\\b'), 'Must reject SSN-like patterns');
-  assert.ok(EDGE_SOURCE.includes('0.30'), 'Must reject excessive non-alphanumeric chars');
+  assert.ok(EDGE_SOURCE.includes('boundTextField'), 'Must use shared bounded text validation');
 });
 
 // ── 10. Deployment Readiness ──
@@ -262,20 +264,16 @@ test('edge source: text mode calls live shopping APIs', () => {
     'Must call getShoppingResults for text mode commerce',
   );
 
-  // Locate the text mode branch that handles product recommendations.
-  // There are two "if (mode === 'text')" blocks; the second one is the
-  // product-recommendations branch that calls getShoppingResults.
-  const firstTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')");
-  assert.ok(firstTextBranch !== -1, "Must have 'if (mode === \\'text\\')' branch");
-
-  const secondTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')", firstTextBranch + 1);
-  const productRecBranchStart = secondTextBranch !== -1 ? secondTextBranch : firstTextBranch;
+  // Product recommendations live in the text-mode branch that immediately
+  // precedes getShoppingResults (additional earlier text branches handle
+  // input validation and strict model-output validation).
+  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
+  assert.ok(shoppingCallIndex !== -1, 'Must call getShoppingResults');
+  const productRecBranchStart = EDGE_SOURCE.lastIndexOf("if (mode === 'text')", shoppingCallIndex);
+  assert.ok(productRecBranchStart !== -1, "Must have a text-mode branch before getShoppingResults");
 
   const elseBranchStart = EDGE_SOURCE.indexOf('} else {', productRecBranchStart);
   assert.ok(elseBranchStart !== -1, 'Must have an else branch for image mode');
-
-  // The getShoppingResults call must live inside the text branch.
-  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
   assert.ok(
     shoppingCallIndex > productRecBranchStart && shoppingCallIndex < elseBranchStart,
     'getShoppingResults must be called inside the text mode branch',
