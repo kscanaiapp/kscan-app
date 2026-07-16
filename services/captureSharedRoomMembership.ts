@@ -27,46 +27,54 @@ export type SharedRoomMembershipSessionState =
 
 export type CaptureSharedRoomMembershipInput = {
   shareToken: string;
+  previewShareToken: string;
   previewStatus: SharedRoomPreviewCaptureStatus;
   sessionState: SharedRoomMembershipSessionState;
   platform: string;
-  attemptKey?: string | null;
-  hasAttempted?: (attemptKey: string) => boolean;
-  markAttempted?: (attemptKey: string) => void;
+  hasAttempted: (attemptKey: string) => boolean;
+  markAttempted: (attemptKey: string) => void;
 };
 
 const VALID_PREVIEW_STATUSES = new Set<SharedRoomPreviewCaptureStatus>(['available', 'empty']);
+const NATIVE_PLATFORMS = new Set(['android', 'ios']);
 
 export function buildMembershipCaptureAttemptKey(actorId: string, normalizedToken: string): string {
   return `${actorId}:${normalizedToken}`;
 }
 
 export function createMembershipCaptureAttemptTracker() {
-  const attempted = new Set<string>();
+  // One route-open lifecycle can have only one current actor/token attempt.
+  // Replacing the key keeps this tracker bounded even if a caller misses a
+  // reset during an auth or token transition.
+  let attemptedKey: string | null = null;
   return {
     hasAttempted(key: string) {
-      return attempted.has(key);
+      return attemptedKey === key;
     },
     markAttempted(key: string) {
-      attempted.add(key);
+      attemptedKey = key;
     },
     reset() {
-      attempted.clear();
+      attemptedKey = null;
     },
   };
 }
 
 export function isEligibleForSharedRoomMembershipCapture(input: {
   shareToken: string;
+  previewShareToken: string;
   previewStatus: SharedRoomPreviewCaptureStatus;
   sessionState: SharedRoomMembershipSessionState;
   platform: string;
 }): boolean {
   const normalizedToken = normalizeRoomShareToken(input.shareToken);
   if (!normalizedToken) return false;
+  const normalizedPreviewToken = normalizeRoomShareToken(input.previewShareToken);
+  if (!normalizedPreviewToken || normalizedPreviewToken !== normalizedToken) return false;
   if (!VALID_PREVIEW_STATUSES.has(input.previewStatus)) return false;
   if (input.sessionState.phase !== 'authenticated') return false;
-  if (input.platform === 'web') return false;
+  if (!input.sessionState.actorId.trim()) return false;
+  if (!NATIVE_PLATFORMS.has(input.platform)) return false;
   return true;
 }
 
@@ -88,15 +96,19 @@ export async function captureSharedRoomMembershipAfterPreview(
     return null;
   }
 
-  const attemptKey =
-    input.attemptKey ??
-    buildMembershipCaptureAttemptKey(input.sessionState.actorId, normalizedToken);
+  const attemptKey = buildMembershipCaptureAttemptKey(
+    input.sessionState.actorId,
+    normalizedToken,
+  );
 
-  if (input.hasAttempted?.(attemptKey)) {
+  if (input.hasAttempted(attemptKey)) {
     return null;
   }
 
-  input.markAttempted?.(attemptKey);
+  // One non-blocking attempt per actor/token/open cycle, including temporary
+  // failures. A route remount or actor/token change resets the bounded tracker
+  // and may retry the backend's idempotent save operation.
+  input.markAttempted(attemptKey);
 
   const result = await saveSharedRoomForCurrentUser(normalizedToken);
 

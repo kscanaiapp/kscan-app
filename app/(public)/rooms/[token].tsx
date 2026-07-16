@@ -510,6 +510,8 @@ export default function SharedRoomScreen() {
   const lastFetchedAt = useRef<number | null>(null);
   const imageResolutionGuard = useRef<string | null>(null);
   const membershipCaptureTracker = useRef(createMembershipCaptureAttemptTracker());
+  const previewRequestId = useRef(0);
+  const routeTokenRef = useRef<string | null>(null);
 
   const insets = useSafeAreaInsets();
   const [resolvedImageUrls, setResolvedImageUrls] = useState<Record<string, string | null>>({});
@@ -531,6 +533,12 @@ export default function SharedRoomScreen() {
   // insets.bottom is applied on this screen; it is not double-counted.
 
   const rawToken = typeof token === 'string' ? token.trim() : '';
+  const normalizedRouteToken = normalizeRoomShareToken(rawToken);
+  routeTokenRef.current = normalizedRouteToken;
+  const membershipPreviewToken =
+    state.phase === 'available' || state.phase === 'empty'
+      ? state.preview.token
+      : null;
   const webUserAgent = getWebUserAgent();
   const installUrl = getRoomInstallUrl(webUserAgent);
   const likelyInAppBrowser = isLikelyInAppBrowser(webUserAgent);
@@ -545,22 +553,31 @@ export default function SharedRoomScreen() {
 
   const load = useCallback(
     async (silent = false) => {
-      if (!normalizeRoomShareToken(rawToken)) {
+      const requestedToken = normalizedRouteToken;
+      const requestId = ++previewRequestId.current;
+
+      if (!requestedToken) {
         setState({ phase: 'malformed' });
         return;
       }
 
       if (!silent) setState({ phase: 'loading' });
 
-      const result = await fetchRoomPreview(rawToken);
+      const result = await fetchRoomPreview(requestedToken);
+      if (
+        requestId !== previewRequestId.current ||
+        routeTokenRef.current !== requestedToken
+      ) {
+        return;
+      }
       lastFetchedAt.current = Date.now();
       setState(result);
     },
-    [rawToken]
+    [normalizedRouteToken]
   );
 
   const handleOpenInApp = useCallback(() => {
-    const shareToken = normalizeRoomShareToken(rawToken);
+    const shareToken = normalizedRouteToken;
     if (!shareToken) {
       setOpenAppStatus('failed');
       logRoomLinkEvent('room_token_invalid', { surface: 'web_fallback' });
@@ -584,7 +601,7 @@ export default function SharedRoomScreen() {
       setOpenAppStatus('failed');
       logRoomLinkEvent('room_open_app_cta_failed', { surface: Platform.OS });
     });
-  }, [rawToken]);
+  }, [normalizedRouteToken]);
 
   useEffect(() => {
     const shareToken = normalizeRoomShareToken(rawToken);
@@ -612,7 +629,7 @@ export default function SharedRoomScreen() {
   }, [rawToken, state.phase]);
 
   const handleOpenWeb = useCallback(() => {
-    const shareToken = normalizeRoomShareToken(rawToken);
+    const shareToken = normalizedRouteToken;
     if (!shareToken) return;
 
     logRoomLinkEvent('room_link_opened_web', {
@@ -624,7 +641,7 @@ export default function SharedRoomScreen() {
     }
 
     void Linking.openURL(buildRoomWebUrl(shareToken));
-  }, [rawToken]);
+  }, [normalizedRouteToken]);
 
   const handleGetApp = useCallback(() => {
     if (!installUrl) return;
@@ -635,6 +652,13 @@ export default function SharedRoomScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Invalidate pending preview work before unmount so an old request cannot
+  // update this route or qualify a membership capture after navigation.
+  useEffect(() => () => {
+    previewRequestId.current += 1;
+    routeTokenRef.current = null;
+  }, []);
 
   // Refetch after returning from background (>5 min)
   useEffect(() => {
@@ -651,13 +675,13 @@ export default function SharedRoomScreen() {
 
   // Deep-link analytics: safe event names only, no token or user data.
   useEffect(() => {
-    const shareToken = normalizeRoomShareToken(rawToken);
+    const shareToken = normalizedRouteToken;
     if (!shareToken || linkOpenedGuard.current === shareToken) return;
     linkOpenedGuard.current = shareToken;
     logRoomLinkEvent('room_share_link_opened', {
       surface: Platform.OS === 'web' ? 'web_fallback' : 'native',
     });
-  }, [rawToken]);
+  }, [normalizedRouteToken]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -674,7 +698,7 @@ export default function SharedRoomScreen() {
     setResolvedImageUrls({});
     imageResolutionGuard.current = null;
     membershipCaptureTracker.current.reset();
-  }, [rawToken]);
+  }, [normalizedRouteToken]);
 
   useEffect(() => {
     membershipCaptureTracker.current.reset();
@@ -684,6 +708,7 @@ export default function SharedRoomScreen() {
   // valid public preview resolves for an authenticated native viewer.
   useEffect(() => {
     if (state.phase !== 'available' && state.phase !== 'empty') return;
+    if (!normalizedRouteToken || !membershipPreviewToken) return;
 
     const sessionState = authLoading
       ? { phase: 'loading' as const }
@@ -692,14 +717,22 @@ export default function SharedRoomScreen() {
         : { phase: 'unauthenticated' as const };
 
     void captureSharedRoomMembershipAfterPreview({
-      shareToken: rawToken,
+      shareToken: normalizedRouteToken,
+      previewShareToken: membershipPreviewToken,
       previewStatus: state.phase,
       sessionState,
       platform: Platform.OS,
       hasAttempted: (key) => membershipCaptureTracker.current.hasAttempted(key),
       markAttempted: (key) => membershipCaptureTracker.current.markAttempted(key),
     });
-  }, [authLoading, isAuthenticated, rawToken, state.phase, user?.id]);
+  }, [
+    authLoading,
+    isAuthenticated,
+    membershipPreviewToken,
+    normalizedRouteToken,
+    state.phase,
+    user?.id,
+  ]);
 
   // Resolve signed image URLs for items that have no public HTTPS imageUrl.
   // The share token and item ids are the only inputs; the Edge Function looks

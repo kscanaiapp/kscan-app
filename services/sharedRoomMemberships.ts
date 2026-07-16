@@ -25,7 +25,6 @@ export type TouchSharedRoomStatus =
 
 export type RemoveSharedRoomStatus =
   | 'removed'
-  | 'unavailable'
   | 'unauthenticated'
   | 'malformed'
   | 'temporary_failure';
@@ -69,7 +68,6 @@ const TOUCH_STATUSES = new Set<TouchSharedRoomStatus>([
 
 const REMOVE_STATUSES = new Set<RemoveSharedRoomStatus>([
   'removed',
-  'unavailable',
   'unauthenticated',
   'malformed',
 ]);
@@ -88,14 +86,6 @@ function devLog(event: string, code?: string | number | null) {
   }
 }
 
-function isMissingRpcError(error: { code?: string; message?: string } | null | undefined) {
-  if (!error) return false;
-  const code = String(error.code ?? '');
-  if (code === 'PGRST202' || code === '42883') return true;
-  const message = String(error.message ?? '').toLowerCase();
-  return message.includes('could not find the function') || message.includes('does not exist');
-}
-
 function isAuthRequiredError(error: { code?: string; message?: string } | null | undefined) {
   if (!error) return false;
   const code = String(error.code ?? '');
@@ -104,20 +94,27 @@ function isAuthRequiredError(error: { code?: string; message?: string } | null |
   return message.includes('authentication required');
 }
 
-function isNetworkLikeError(error: { message?: string } | null | undefined) {
-  if (!error) return false;
-  const message = String(error.message ?? '').toLowerCase();
-  return (
-    message.includes('network') ||
-    message.includes('fetch failed') ||
-    message.includes('failed to fetch') ||
-    message.includes('timeout')
-  );
-}
+type CurrentActor =
+  | { status: 'authenticated'; userId: string }
+  | { status: 'unauthenticated' }
+  | { status: 'temporary_failure' };
 
-async function getCurrentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user?.id ?? null;
+async function getCurrentActor(): Promise<CurrentActor> {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      devLog('session lookup failed', error.code);
+      return { status: 'temporary_failure' };
+    }
+
+    const userId = data.session?.user?.id;
+    return userId
+      ? { status: 'authenticated', userId }
+      : { status: 'unauthenticated' };
+  } catch {
+    devLog('session lookup threw');
+    return { status: 'temporary_failure' };
+  }
 }
 
 function normalizeTokenInput(shareToken: string): string | null {
@@ -134,55 +131,60 @@ function readRpcStatus<T extends string>(
   return allowed.has(status as T) ? (status as T) : fallback;
 }
 
+function readTimestamp(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const timestamp = value.trim();
+  return timestamp && Number.isFinite(Date.parse(timestamp)) ? timestamp : null;
+}
+
 function normalizeListRow(raw: unknown): SharedRoomMembershipSummary | null {
   if (!raw || typeof raw !== 'object') return null;
 
   const row = raw as Record<string, unknown>;
-  const shareToken = normalizeRoomShareToken(String(row.share_token ?? row.shareToken ?? ''));
+  if (typeof row.share_token !== 'string' || typeof row.status !== 'string') return null;
+  const shareToken = normalizeRoomShareToken(row.share_token);
   if (!shareToken) return null;
 
-  const availabilityRaw = String(row.status ?? row.availability ?? '').trim();
+  const availabilityRaw = row.status.trim();
   if (!LIST_AVAILABILITY.has(availabilityRaw as SharedRoomMembershipAvailability)) {
     return null;
   }
 
-  const firstOpenedAt = String(row.first_opened_at ?? row.firstOpenedAt ?? '').trim();
-  const lastAccessedAt = String(row.last_accessed_at ?? row.lastAccessedAt ?? '').trim();
+  const firstOpenedAt = readTimestamp(row.first_opened_at);
+  const lastAccessedAt = readTimestamp(row.last_accessed_at);
   if (!firstOpenedAt || !lastAccessedAt) return null;
 
-  const itemCountRaw = row.item_count ?? row.itemCount;
-  const itemCount =
-    typeof itemCountRaw === 'number' && Number.isFinite(itemCountRaw)
-      ? Math.max(0, Math.trunc(itemCountRaw))
-      : typeof itemCountRaw === 'string' && itemCountRaw.trim() !== '' && Number.isFinite(Number(itemCountRaw))
-        ? Math.max(0, Math.trunc(Number(itemCountRaw)))
-        : null;
-  if (itemCount === null) return null;
+  const itemCountRaw = row.item_count;
+  const itemCountCandidate =
+    typeof itemCountRaw === 'number'
+      ? itemCountRaw
+      : typeof itemCountRaw === 'string' && itemCountRaw.trim() !== ''
+        ? Number(itemCountRaw)
+        : Number.NaN;
+  if (!Number.isSafeInteger(itemCountCandidate) || itemCountCandidate < 0) return null;
+  const itemCount = itemCountCandidate;
 
   const titleRaw = row.title;
-  const title =
-    titleRaw == null || titleRaw === ''
-      ? null
-      : typeof titleRaw === 'string'
-        ? titleRaw
-        : null;
+  if (titleRaw != null && typeof titleRaw !== 'string') return null;
+  const title: string | null =
+    typeof titleRaw === 'string' && titleRaw !== '' ? titleRaw : null;
 
-  const updatedAtRaw = row.room_updated_at ?? row.updatedAt ?? row.updated_at ?? null;
-  const updatedAt =
-    updatedAtRaw == null || updatedAtRaw === ''
-      ? null
-      : typeof updatedAtRaw === 'string'
-        ? updatedAtRaw
-        : null;
+  const updatedAtRaw = row.room_updated_at;
+  const updatedAt = updatedAtRaw == null ? null : readTimestamp(updatedAtRaw);
+  if (updatedAtRaw != null && !updatedAt) return null;
+
+  const availability = availabilityRaw as SharedRoomMembershipAvailability;
+  if (availability === 'empty' && itemCount !== 0) return null;
+  if (availability === 'available' && itemCount === 0) return null;
 
   return {
     shareToken,
-    title,
-    itemCount,
+    title: availability === 'unavailable' ? null : title,
+    itemCount: availability === 'unavailable' ? 0 : itemCount,
     firstOpenedAt,
     lastAccessedAt,
-    availability: availabilityRaw as SharedRoomMembershipAvailability,
-    updatedAt,
+    availability,
+    updatedAt: availability === 'unavailable' ? null : updatedAt,
   };
 }
 
@@ -196,67 +198,79 @@ export function normalizeSharedRoomMembershipListRows(rows: unknown[]): SharedRo
 }
 
 async function invokeSaveRpc(normalizedToken: string): Promise<SaveSharedRoomResult> {
-  const { data, error } = await supabase.rpc('save_shared_room_for_me', {
-    p_share_token: normalizedToken,
-  });
+  try {
+    const { data, error } = await supabase.rpc('save_shared_room_for_me', {
+      p_share_token: normalizedToken,
+    });
 
-  if (error) {
-    devLog('save rpc failed', error.code);
-    if (isMissingRpcError(error) || isNetworkLikeError(error)) {
+    if (error) {
+      devLog('save rpc failed', error.code);
       return { status: 'temporary_failure' };
     }
+
+    const status = readRpcStatus(data, SAVE_STATUSES, 'temporary_failure');
+    return { status };
+  } catch {
+    devLog('save rpc threw');
     return { status: 'temporary_failure' };
   }
-
-  const status = readRpcStatus(data, SAVE_STATUSES, 'temporary_failure');
-  return { status };
 }
 
-export function saveSharedRoomForCurrentUser(shareToken: string): Promise<SaveSharedRoomResult> {
+export async function saveSharedRoomForCurrentUser(shareToken: string): Promise<SaveSharedRoomResult> {
   const normalizedToken = normalizeTokenInput(shareToken);
   if (!normalizedToken) {
-    return Promise.resolve({ status: 'malformed' });
+    return { status: 'malformed' };
   }
 
-  const existing = saveInFlight.get(normalizedToken);
+  const actor = await getCurrentActor();
+  if (actor.status !== 'authenticated') {
+    return { status: actor.status };
+  }
+
+  // The actor is part of the transient key so an auth change cannot cause one
+  // account's in-flight request to suppress another account's save.
+  const inFlightKey = `${actor.userId}:${normalizedToken}`;
+  const existing = saveInFlight.get(inFlightKey);
   if (existing) {
     return existing;
   }
 
-  const request = (async (): Promise<SaveSharedRoomResult> => {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return { status: 'unauthenticated' };
-    }
-    return invokeSaveRpc(normalizedToken);
-  })().finally(() => {
-    if (saveInFlight.get(normalizedToken) === request) {
-      saveInFlight.delete(normalizedToken);
+  const request = invokeSaveRpc(normalizedToken).finally(() => {
+    if (saveInFlight.get(inFlightKey) === request) {
+      saveInFlight.delete(inFlightKey);
     }
   });
 
-  saveInFlight.set(normalizedToken, request);
+  saveInFlight.set(inFlightKey, request);
   return request;
 }
 
 export async function listSharedRoomsForCurrentUser(): Promise<ListSharedRoomsResult> {
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { ok: false, reason: 'unauthenticated' };
+  const actor = await getCurrentActor();
+  if (actor.status !== 'authenticated') {
+    return { ok: false, reason: actor.status };
   }
 
-  const { data, error } = await supabase.rpc('list_shared_rooms_for_me');
+  try {
+    const { data, error } = await supabase.rpc('list_shared_rooms_for_me');
 
-  if (error) {
-    devLog('list rpc failed', error.code);
-    if (isAuthRequiredError(error)) {
-      return { ok: false, reason: 'unauthenticated' };
+    if (error) {
+      devLog('list rpc failed', error.code);
+      if (isAuthRequiredError(error)) {
+        return { ok: false, reason: 'unauthenticated' };
+      }
+      return { ok: false, reason: 'temporary_failure' };
     }
+
+    if (!Array.isArray(data)) {
+      return { ok: false, reason: 'temporary_failure' };
+    }
+
+    return { ok: true, rooms: normalizeSharedRoomMembershipListRows(data) };
+  } catch {
+    devLog('list rpc threw');
     return { ok: false, reason: 'temporary_failure' };
   }
-
-  const rows = Array.isArray(data) ? data : [];
-  return { ok: true, rooms: normalizeSharedRoomMembershipListRows(rows) };
 }
 
 async function invokeStatusRpc<T extends string>(
@@ -264,20 +278,22 @@ async function invokeStatusRpc<T extends string>(
   normalizedToken: string,
   allowed: Set<T>,
 ): Promise<{ status: T | 'temporary_failure' }> {
-  const { data, error } = await supabase.rpc(rpcName, {
-    p_share_token: normalizedToken,
-  });
+  try {
+    const { data, error } = await supabase.rpc(rpcName, {
+      p_share_token: normalizedToken,
+    });
 
-  if (error) {
-    devLog(`${rpcName} rpc failed`, error.code);
-    if (isMissingRpcError(error) || isNetworkLikeError(error)) {
+    if (error) {
+      devLog(`${rpcName} rpc failed`, error.code);
       return { status: 'temporary_failure' };
     }
+
+    const status = readRpcStatus(data, allowed, 'temporary_failure' as T);
+    return { status: status as T | 'temporary_failure' };
+  } catch {
+    devLog(`${rpcName} rpc threw`);
     return { status: 'temporary_failure' };
   }
-
-  const status = readRpcStatus(data, allowed, 'temporary_failure' as T);
-  return { status: status as T | 'temporary_failure' };
 }
 
 export async function touchSharedRoomForCurrentUser(shareToken: string): Promise<TouchSharedRoomResult> {
@@ -286,9 +302,9 @@ export async function touchSharedRoomForCurrentUser(shareToken: string): Promise
     return { status: 'malformed' };
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { status: 'unauthenticated' };
+  const actor = await getCurrentActor();
+  if (actor.status !== 'authenticated') {
+    return { status: actor.status };
   }
 
   return invokeStatusRpc('touch_shared_room_for_me', normalizedToken, TOUCH_STATUSES);
@@ -300,9 +316,9 @@ export async function removeSharedRoomForCurrentUser(shareToken: string): Promis
     return { status: 'malformed' };
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { status: 'unauthenticated' };
+  const actor = await getCurrentActor();
+  if (actor.status !== 'authenticated') {
+    return { status: actor.status };
   }
 
   return invokeStatusRpc('remove_shared_room_for_me', normalizedToken, REMOVE_STATUSES);

@@ -48,9 +48,10 @@ function loadCaptureModule(saveImpl) {
   return { capture, saveCalls };
 }
 
-function makeTracker() {
+function makeTracker(previewShareToken = 'active-token-a') {
   const attempted = new Set();
   return {
+    previewShareToken,
     hasAttempted: (key) => attempted.has(key),
     markAttempted: (key) => attempted.add(key),
   };
@@ -72,7 +73,7 @@ test('valid available preview with authenticated native user saves membership', 
 
 test('valid empty room saves membership', async () => {
   const { capture, saveCalls } = loadCaptureModule(async () => ({ status: 'already_saved' }));
-  const tracker = makeTracker();
+  const tracker = makeTracker('empty-token');
   const result = await capture.captureSharedRoomMembershipAfterPreview({
     shareToken: 'empty-token',
     previewStatus: 'empty',
@@ -136,11 +137,42 @@ test('rate-limited preview does not save', async () => {
   assert.equal(saveCalls.length, 0);
 });
 
+test('malformed and timed-out previews do not save', async () => {
+  for (const previewStatus of ['malformed', 'timeout']) {
+    const { capture, saveCalls } = loadCaptureModule(async () => ({ status: 'saved' }));
+    const result = await capture.captureSharedRoomMembershipAfterPreview({
+      shareToken: 'active-token-a',
+      previewStatus,
+      sessionState: { phase: 'authenticated', actorId: 'user-1' },
+      platform: 'ios',
+      ...makeTracker(),
+    });
+    assert.equal(result, null);
+    assert.equal(saveCalls.length, 0);
+  }
+});
+
+test('a preview validated for an old token cannot save the current route token', async () => {
+  const { capture, saveCalls } = loadCaptureModule(async () => ({ status: 'saved' }));
+  const result = await capture.captureSharedRoomMembershipAfterPreview({
+    shareToken: 'new-token',
+    previewShareToken: 'old-token',
+    previewStatus: 'available',
+    sessionState: { phase: 'authenticated', actorId: 'user-1' },
+    platform: 'ios',
+    hasAttempted: () => false,
+    markAttempted: () => {},
+  });
+  assert.equal(result, null);
+  assert.equal(saveCalls.length, 0);
+});
+
 test('auth-loading state waits without saving', async () => {
   const { capture, saveCalls } = loadCaptureModule(async () => ({ status: 'saved' }));
   assert.equal(
     capture.isEligibleForSharedRoomMembershipCapture({
       shareToken: 'active-token-a',
+      previewShareToken: 'active-token-a',
       previewStatus: 'available',
       sessionState: { phase: 'loading' },
       platform: 'ios',
@@ -206,6 +238,25 @@ test('browser route never saves', async () => {
   assert.equal(saveCalls.length, 0);
 });
 
+test('unknown non-native platforms and empty actors never save', async () => {
+  const cases = [
+    { platform: 'server', actorId: 'user-1' },
+    { platform: 'ios', actorId: '' },
+  ];
+  for (const { platform, actorId } of cases) {
+    const { capture, saveCalls } = loadCaptureModule(async () => ({ status: 'saved' }));
+    const result = await capture.captureSharedRoomMembershipAfterPreview({
+      shareToken: 'active-token-a',
+      previewStatus: 'available',
+      sessionState: { phase: 'authenticated', actorId },
+      platform,
+      ...makeTracker(),
+    });
+    assert.equal(result, null);
+    assert.equal(saveCalls.length, 0);
+  }
+});
+
 test('owner and temporary membership results do not throw', async () => {
   for (const status of ['owner', 'temporary_failure']) {
     const { capture } = loadCaptureModule(async () => ({ status }));
@@ -235,6 +286,36 @@ test('rerender does not repeat the RPC for the same attempt key', async () => {
   assert.equal(saveCalls.length, 1);
 });
 
+test('temporary failure is attempted once per route lifecycle and can retry after reset', async () => {
+  const { capture, saveCalls } = loadCaptureModule(async () => ({ status: 'temporary_failure' }));
+  const tracker = capture.createMembershipCaptureAttemptTracker();
+  const input = {
+    shareToken: 'active-token-a',
+    previewShareToken: 'active-token-a',
+    previewStatus: 'available',
+    sessionState: { phase: 'authenticated', actorId: 'user-1' },
+    platform: 'ios',
+    hasAttempted: tracker.hasAttempted,
+    markAttempted: tracker.markAttempted,
+  };
+
+  assert.equal((await capture.captureSharedRoomMembershipAfterPreview(input)).status, 'temporary_failure');
+  assert.equal(await capture.captureSharedRoomMembershipAfterPreview(input), null);
+  tracker.reset();
+  assert.equal((await capture.captureSharedRoomMembershipAfterPreview(input)).status, 'temporary_failure');
+  assert.equal(saveCalls.length, 2);
+});
+
+test('attempt tracker retains only the current actor/token key', () => {
+  const { capture } = loadCaptureModule(async () => ({ status: 'saved' }));
+  const tracker = capture.createMembershipCaptureAttemptTracker();
+  tracker.markAttempted('actor-a:token-a');
+  assert.equal(tracker.hasAttempted('actor-a:token-a'), true);
+  tracker.markAttempted('actor-b:token-b');
+  assert.equal(tracker.hasAttempted('actor-a:token-a'), false);
+  assert.equal(tracker.hasAttempted('actor-b:token-b'), true);
+});
+
 test('user change uses a separate attempt key', () => {
   const { capture } = loadCaptureModule(async () => ({ status: 'saved' }));
   const keyA = capture.buildMembershipCaptureAttemptKey('user-a', 'active-token-a');
@@ -252,7 +333,7 @@ test('token change may save the new token', async () => {
     platform: 'ios',
     ...trackerA,
   });
-  const trackerB = makeTracker();
+  const trackerB = makeTracker('active-token-b');
   await capture.captureSharedRoomMembershipAfterPreview({
     shareToken: 'active-token-b',
     previewStatus: 'available',
