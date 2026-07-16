@@ -70,10 +70,13 @@ function userSafeError(message, userMessage) {
  *   analysis will be null; nonFashionMessage holds the AI's explanation.
  *   Resets to idle via dismissResult().
  */
-export function useKScan() {
+export function useKScan(actorId = null) {
+  const normalizedActorId =
+    typeof actorId === 'string' && actorId.trim() ? actorId.trim() : null;
   const [status, setStatus] = useState('idle');
   const [photo, setPhoto] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [analysisActorId, setAnalysisActorId] = useState(null);
   const [error, setError] = useState(null);
   const [nonFashionMessage, setNonFashionMessage] = useState(null);
   // Render-only flag that mirrors the imperative scanInFlightRef. It stays true
@@ -90,8 +93,12 @@ export function useKScan() {
   // update state, navigate, or replace a newer image.
   const operationIdRef = useRef(0);
   const activeAbortControllerRef = useRef(null);
+  const currentActorRef = useRef(normalizedActorId);
+  const activeOperationActorRef = useRef(null);
+  const previousActorRef = useRef(normalizedActorId);
   const secondhandRequestRef = useRef(0);
   const prevIsAnalyzingRef = useRef(false);
+  currentActorRef.current = normalizedActorId;
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -103,6 +110,24 @@ export function useKScan() {
       scanInFlightRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (previousActorRef.current === normalizedActorId) return;
+    previousActorRef.current = normalizedActorId;
+    operationIdRef.current += 1;
+    activeAbortControllerRef.current?.abort();
+    activeAbortControllerRef.current = null;
+    activeOperationActorRef.current = null;
+    scanInFlightRef.current = false;
+    secondhandRequestRef.current += 1;
+    setIsAnalyzing(false);
+    setPhoto(null);
+    setAnalysis(null);
+    setAnalysisActorId(null);
+    setError(null);
+    setNonFashionMessage(null);
+    setStatus('idle');
+  }, [normalizedActorId]);
 
   // Announce the start of analysis exactly once per true in-flight window.
   useEffect(() => {
@@ -120,6 +145,7 @@ export function useKScan() {
     operationIdRef.current += 1;
     scanInFlightRef.current = false;
     activeAbortControllerRef.current = null;
+    activeOperationActorRef.current = null;
     if (isMountedRef.current) {
       setIsAnalyzing(false);
     }
@@ -129,6 +155,7 @@ export function useKScan() {
     if (scanInFlightRef.current) return null;
     scanInFlightRef.current = true;
     const operationId = ++operationIdRef.current;
+    activeOperationActorRef.current = currentActorRef.current;
     // Replace any previous controller for this hook instance; this is the
     // single active attempt boundary.
     activeAbortControllerRef.current?.abort();
@@ -140,7 +167,9 @@ export function useKScan() {
   }, []);
 
   const isOperationValid = useCallback((operationId) => (
-    isMountedRef.current && operationId === operationIdRef.current
+    isMountedRef.current &&
+    operationId === operationIdRef.current &&
+    activeOperationActorRef.current === currentActorRef.current
   ), []);
 
   const capturePhoto = useCallback(
@@ -238,6 +267,7 @@ export function useKScan() {
             setPhoto({ uri: result.assets[0].uri, source: 'upload' });
             setError(null);
             setAnalysis(null);
+            setAnalysisActorId(null);
             setNonFashionMessage(null);
             secondhandRequestRef.current += 1;
             setStatus('preview');
@@ -285,6 +315,7 @@ export function useKScan() {
       setPhoto({ uri, source: 'upload' });
       setError(null);
       setAnalysis(null);
+      setAnalysisActorId(null);
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
       setStatus('preview');
@@ -341,6 +372,7 @@ export function useKScan() {
       setStatus('processing');
       setError(null);
       setAnalysis(null);
+      setAnalysisActorId(null);
       secondhandRequestRef.current += 1;
       const secondhandRequestId = secondhandRequestRef.current;
 
@@ -379,6 +411,7 @@ export function useKScan() {
           warningPulse();
           setNonFashionMessage(data.message);
           setAnalysis(null);
+          setAnalysisActorId(null);
           if (__DEV__) console.log('[DEBUG] SET_RESULT status=non-fashion');
           setStatus('non-fashion');
           return;
@@ -386,6 +419,7 @@ export function useKScan() {
 
         successPulse();
         setAnalysis(data);
+        setAnalysisActorId(activeOperationActorRef.current);
         setNonFashionMessage(null);
         if (__DEV__) console.log('[DEBUG] SET_RESULT status=result');
         setStatus('result');
@@ -559,6 +593,7 @@ export function useKScan() {
 
     setPhoto(null);
     setAnalysis(null);
+    setAnalysisActorId(null);
     setError(null);
     setNonFashionMessage(null);
     secondhandRequestRef.current += 1;
@@ -595,6 +630,7 @@ export function useKScan() {
       setPhoto({ uri, qaFixtureName: fixtureName, source: 'fixture' });
       setError(null);
       setAnalysis(null);
+      setAnalysisActorId(null);
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
       requestAnimationFrame(() => {
@@ -621,6 +657,7 @@ export function useKScan() {
     }
 
     setAnalysis(null);
+    setAnalysisActorId(null);
     setPhoto(null);
     setError(null);
     setNonFashionMessage(null);
@@ -647,11 +684,13 @@ export function useKScan() {
     if (photo) {
       setError(null);
       setAnalysis(null);
+      setAnalysisActorId(null);
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
       setStatus('preview');
     } else {
       setError(null);
+      setAnalysisActorId(null);
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
       setStatus('idle');
@@ -662,6 +701,7 @@ export function useKScan() {
     status,
     photo,
     analysis,
+    analysisActorId,
     error,
     nonFashionMessage,
     isAnalyzing,

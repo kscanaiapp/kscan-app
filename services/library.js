@@ -12,6 +12,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { saveScanToCloud, softDeleteCloudSavedScan } from './savedScansCloud';
+import { isPurchaseOptionsSnapshot, normalizePurchaseOptions } from './purchaseOptions';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
 const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
@@ -20,6 +21,7 @@ const THUMBS_DIR   = LIB_DIR + 'thumbnails/';
 const MAX_SCANS     = 25;
 const THUMB_WIDTH   = 160; // px — small square-ish card thumbnail
 const IMAGE_WIDTH   = 1440; // px — room-upload friendly, still compact
+let libraryMutationQueue = Promise.resolve();
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -39,6 +41,47 @@ async function persistLibrary(scans) {
     JSON.stringify(scans),
     { encoding: FileSystem.EncodingType.UTF8 }
   );
+}
+
+async function readAllLibrary() {
+  const info = await FileSystem.getInfoAsync(LIBRARY_PATH);
+  if (!info.exists) return [];
+  const raw = await FileSystem.readAsStringAsync(LIBRARY_PATH);
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.map((scan) => {
+    const hasValidPurchaseOptions = isPurchaseOptionsSnapshot(scan.purchaseOptions);
+    const purchaseOptions = normalizePurchaseOptions(scan.purchaseOptions);
+    return {
+      ...scan,
+      products: Array.isArray(scan.products) ? scan.products.slice() : [],
+      purchaseOptions,
+      commerceSnapshotVersion:
+        hasValidPurchaseOptions &&
+        (Number(scan.commerceSnapshotVersion) >= 1 ||
+          Object.prototype.hasOwnProperty.call(scan, 'purchaseOptions'))
+          ? 1
+          : undefined,
+    };
+  });
+}
+
+function enqueueLibraryMutation(operation) {
+  const result = libraryMutationQueue.then(operation, operation);
+  libraryMutationQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+function isVisibleToActor(scan, actorId) {
+  if (actorId === undefined) return true;
+  const ownerId = typeof scan.ownerId === 'string' && scan.ownerId.trim()
+    ? scan.ownerId
+    : null;
+  // Ownerless legacy records remain device-local. They are visible only in the
+  // signed-out device-local view and are never attributed to a signed-in actor.
+  if (actorId === null) return ownerId === null;
+  return ownerId === actorId;
 }
 
 async function generateThumbnail(photoUri, id) {
@@ -78,14 +121,14 @@ async function persistScanImage(photoUri, id) {
 
 /**
  * Load all saved scans from local storage. Returns [] on any error.
+ * @param {string|null|undefined} [actorId] - when provided, filters owned scans;
+ *   null selects only ownerless device-local legacy rows.
  */
-export async function loadLibrary() {
+export async function loadLibrary(actorId = undefined) {
   try {
-    const info = await FileSystem.getInfoAsync(LIBRARY_PATH);
-    if (!info.exists) return [];
-    const raw    = await FileSystem.readAsStringAsync(LIBRARY_PATH);
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    await libraryMutationQueue;
+    const parsed = await readAllLibrary();
+    return parsed.filter((scan) => !scan.deletedAt && isVisibleToActor(scan, actorId));
   } catch {
     return [];
   }
@@ -96,11 +139,12 @@ export async function loadLibrary() {
  *
  * @param {object} opts
  * @param {string} opts.photoUri   - original capture URI (may be temp cache)
- * @param {object} opts.analysis   - { result, metadata, products } from useKScan
+ * @param {object} opts.analysis   - { result, metadata, products, purchaseOptions } from useKScan
  * @param {string} [opts.source]   - source identifier ('scan', 'camera', 'upload', 'fixture')
+ * @param {string|null} [opts.ownerId] - authenticated actor at save time
  * @returns {SavedScan|null}  the saved object, or null on complete failure
  */
-export async function saveScan({ photoUri, analysis, source }) {
+export async function saveScan({ photoUri, analysis, source, ownerId = null }) {
   try {
     const id = 'scan_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
 
@@ -109,10 +153,14 @@ export async function saveScan({ photoUri, analysis, source }) {
     // Thumbnail generation is best-effort; missing thumbnail shows placeholder
     const thumbnailUri = await generateThumbnail(photoUri, id);
 
+    const createdAt = new Date().toISOString();
     /** @type {SavedScan} */
     const scan = {
       id,
-      createdAt: new Date().toISOString(),
+      createdAt,
+      savedAt: createdAt,
+      updatedAt: createdAt,
+      ownerId: typeof ownerId === 'string' && ownerId.trim() ? ownerId : null,
       imageUri,               // null if persistence failed; legacy scans may not have it
       thumbnailUri,          // null if generation failed
       attributes: {
@@ -123,37 +171,39 @@ export async function saveScan({ photoUri, analysis, source }) {
         style_tags:        [],
         confidence_score:  null,
       },
-      result:   analysis.result   ?? '',
-      products: Array.isArray(analysis.products) ? analysis.products : [],
-      source:   source || 'scan',
+      result:          analysis.result   ?? '',
+      products:        Array.isArray(analysis.products) ? analysis.products.slice() : [],
+      purchaseOptions: normalizePurchaseOptions(analysis.purchaseOptions),
+      commerceSnapshotVersion: 1,
+      source:          source || 'scan',
     };
 
-    const existing = await loadLibrary();
-    const updated  = [scan, ...existing];
+    await enqueueLibraryMutation(async () => {
+      const existing = await readAllLibrary();
+      const updated = [scan, ...existing];
+      const newOwner = scan.ownerId || null;
+      const actorEntries = updated.filter((item) => (item.ownerId || null) === newOwner);
+      const evicted = actorEntries.slice(MAX_SCANS);
 
-    // Enforce 25-scan cap; delete thumbnail files for evicted scans
-    if (updated.length > MAX_SCANS) {
-      const evicted = updated.splice(MAX_SCANS);
-      await Promise.all(
-        evicted
-          .filter(s => s.thumbnailUri)
-          .map(s =>
-            FileSystem.deleteAsync(s.thumbnailUri, { idempotent: true }).catch(() => null)
-          )
-      );
-      await Promise.all(
-        evicted
-          .filter(s => s.imageUri)
-          .map(s =>
-            FileSystem.deleteAsync(s.imageUri, { idempotent: true }).catch(() => null)
-          )
-      );
-    }
+      if (evicted.length > 0) {
+        const evictedEntries = new Set(evicted);
+        await Promise.all(
+          evicted
+            .flatMap((item) => [item.thumbnailUri, item.imageUri])
+            .filter(Boolean)
+            .map((uri) => FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => null)),
+        );
+        await persistLibrary(updated.filter((item) => !evictedEntries.has(item)));
+      } else {
+        await persistLibrary(updated);
+      }
+    });
 
-    await persistLibrary(updated);
     // Fire-and-forget cloud metadata sync. Local save is already committed;
     // cloud failure must never rollback the local scan.
-    saveScanToCloud(scan).catch(() => null);
+    if (scan.ownerId) {
+      saveScanToCloud(scan, undefined, scan.ownerId).catch(() => null);
+    }
     return scan;
   } catch {
     return null;
@@ -162,22 +212,34 @@ export async function saveScan({ photoUri, analysis, source }) {
 
 /**
  * Delete a scan and its thumbnail file. Returns true on success.
+ * Local delete remains authoritative; cloud soft-delete is best-effort.
  */
-export async function deleteScan(id) {
+export async function deleteScan(id, { ownerId, cloudId } = {}) {
   try {
-    const library = await loadLibrary();
-    const target  = library.find(s => s.id === id);
-    if (target?.thumbnailUri) {
-      await FileSystem.deleteAsync(target.thumbnailUri, { idempotent: true }).catch(() => null);
-    }
-    if (target?.imageUri) {
-      await FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => null);
-    }
-    await persistLibrary(library.filter(s => s.id !== id));
-    // Fire-and-forget cloud soft-delete. Uses local_id lookup so it works
-    // even when the local scan has not been updated with a cloudId.
-    softDeleteCloudSavedScan({ localId: id }).catch(() => null);
-    return true;
+    return await enqueueLibraryMutation(async () => {
+      const library = await readAllLibrary();
+      const target = library.find(
+        (scan) => scan.id === id && isVisibleToActor(scan, ownerId),
+      );
+      if (!target) return false;
+
+      if (target.thumbnailUri) {
+        await FileSystem.deleteAsync(target.thumbnailUri, { idempotent: true }).catch(() => null);
+      }
+      if (target.imageUri) {
+        await FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => null);
+      }
+      await persistLibrary(library.filter((scan) => scan !== target));
+
+      // Fire-and-forget cloud soft-delete. Uses local_id lookup so it works
+      // even when the local scan has not been updated with a cloudId.
+      softDeleteCloudSavedScan(
+        cloudId ? { cloudId } : { localId: id },
+        ownerId || undefined,
+      ).catch(() => null);
+
+      return true;
+    });
   } catch {
     return false;
   }

@@ -42,8 +42,20 @@ function createMockClient({
   insertError = null,
   updateError = null,
   maybeSingleData = null,
+  updateResultData = { id: 'updated-row' },
 } = {}) {
   const calls = [];
+  const updateResult = {
+    then: (resolve, reject) =>
+      Promise.resolve({ data: updateError ? null : updateResultData, error: updateError })
+        .then(resolve, reject),
+    select: () => ({
+      maybeSingle: async () => {
+        calls.push({ type: 'updateMaybeSingle', tableName: 'saved_scans' });
+        return { data: updateError ? null : updateResultData, error: updateError };
+      },
+    }),
+  };
   return {
     _calls: calls,
     auth: {
@@ -77,7 +89,7 @@ function createMockClient({
         calls.push({ type: 'update', tableName, payload });
         return {
           eq: () => ({
-            eq: () => Promise.resolve({ error: updateError }),
+            eq: () => updateResult,
           }),
         };
       },
@@ -89,6 +101,7 @@ function loadService(mockClient, flags = { CLOUD_SAVED_SCANS_ENABLED: true }) {
   return loadTsModule('services/savedScansCloud.ts', {
     './supabaseClient': { supabase: mockClient },
     '../constants/featureFlags': flags,
+    './purchaseOptions': loadTsModule('services/purchaseOptions.ts'),
   });
 }
 
@@ -464,4 +477,292 @@ test('concurrent local + cloud save does not duplicate', async () => {
   // When a matching row exists, it should update, not insert.
   assert.equal(insertCalls.length, 0);
   assert.equal(updateCalls.length, 1);
+});
+
+// ─── Purchase options commerce persistence ───────────────────────────────────
+
+test('mapSavedScanToRow writes purchase_options as a JS array', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const model = makeScanModel({
+    purchaseOptions: [{ id: 'po-1', title: 'Blazer', retailer: 'Store', productUrl: 'https://shop.example/1' }],
+    commerceSnapshotVersion: 1,
+  });
+  const row = svc.mapSavedScanToRow(model, 'user-1');
+  assert.ok(Array.isArray(row.purchase_options));
+  assert.equal(typeof row.purchase_options, 'object');
+  assert.equal(row.purchase_options.length, 1);
+  assert.equal(row.metadata.commerce_snapshot_version, 1);
+});
+
+test('mapSavedScanToRow parses stringified local commerce before network dispatch', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const model = makeScanModel({
+    purchaseOptions: JSON.stringify([{ id: 'po-2', title: 'Coat', retailer: 'Store' }]),
+    commerceSnapshotVersion: 1,
+  });
+  const row = svc.mapSavedScanToRow(model, 'user-1');
+  assert.ok(Array.isArray(row.purchase_options));
+  assert.equal(row.purchase_options[0].id, 'po-2');
+});
+
+test('mapSavedScanRowToModel restores purchase_options', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const row = makeRow({
+    purchase_options: [{ id: 'po-3', title: 'Jacket', retailer: 'Store' }],
+    metadata: { commerce_snapshot_version: 1 },
+  });
+  const model = svc.mapSavedScanRowToModel(row);
+  assert.equal(model.purchaseOptions.length, 1);
+  assert.equal(model.purchaseOptions[0].id, 'po-3');
+  assert.equal(model.commerceSnapshotVersion, 1);
+});
+
+test('save insert payload never sends stringified purchase_options', async () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const scan = makeScanModel({
+    id: 'scan_commerce',
+    purchaseOptions: JSON.stringify([{ id: 'po-4', title: 'Shirt' }]),
+    commerceSnapshotVersion: 1,
+  });
+  const result = await svc.saveScanToCloud(scan, client);
+  assert.equal(result.ok, true);
+  const insertCall = client._calls.find(c => c.type === 'insert');
+  assert.ok(Array.isArray(insertCall.rows.purchase_options));
+  assert.equal(typeof insertCall.rows.purchase_options, 'object');
+});
+
+test('metadata-only update does not erase existing commerce snapshot', async () => {
+  const client = createMockClient({
+    session: { user: { id: 'user-1' } },
+    maybeSingleData: {
+      id: 'existing-cloud-id',
+      deleted_at: null,
+      analysis_result: { result: 'Old' },
+      products: [{ id: 'p1' }],
+      purchase_options: [{ id: 'kept', title: 'Keep me', retailer: 'Store' }],
+      metadata: { commerce_snapshot_version: 1 },
+      saved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  });
+  const svc = loadService(client);
+  const scan = makeScanModel({ id: 'scan_upsert', title: 'meta only' });
+  // No purchaseOptions / commerceSnapshotVersion on incoming metadata-only model.
+  delete scan.purchaseOptions;
+  delete scan.commerceSnapshotVersion;
+  const result = await svc.saveScanToCloud(scan, client);
+  assert.equal(result.ok, true);
+  const updateCall = client._calls.find(c => c.type === 'update');
+  assert.equal(updateCall.payload.purchase_options, undefined);
+});
+
+test('newer explicit empty commerce may replace older non-empty snapshot on merge', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const older = makeScanModel({
+    id: 'scan_commerce_merge',
+    ownerId: 'user-1',
+    createdAt: new Date(1000).toISOString(),
+    savedAt: new Date(1000).toISOString(),
+    purchaseOptions: [{ id: 'old', title: 'Old option' }],
+    commerceSnapshotVersion: 1,
+  });
+  const newer = makeScanModel({
+    id: 'scan_commerce_merge',
+    cloudId: 'cloud-newer',
+    createdAt: new Date(2000).toISOString(),
+    savedAt: new Date(2000).toISOString(),
+    updatedAt: new Date(2000).toISOString(),
+    purchaseOptions: [],
+    commerceSnapshotVersion: 1,
+    ownerId: 'user-1',
+  });
+  const merged = svc.mergeLocalAndCloudScans([older], [newer], 'user-1');
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].purchaseOptions.length, 0);
+});
+
+test('legacy row without commerce cannot downgrade complete snapshot on merge', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const complete = makeScanModel({
+    id: 'scan_keep',
+    ownerId: 'user-1',
+    createdAt: new Date(1000).toISOString(),
+    purchaseOptions: [{ id: 'keep', title: 'Keep' }],
+    commerceSnapshotVersion: 1,
+  });
+  const legacyNewer = makeScanModel({
+    id: 'scan_keep',
+    cloudId: 'cloud-legacy',
+    createdAt: new Date(5000).toISOString(),
+    savedAt: new Date(5000).toISOString(),
+    updatedAt: new Date(5000).toISOString(),
+    ownerId: 'user-1',
+  });
+  delete legacyNewer.purchaseOptions;
+  delete legacyNewer.commerceSnapshotVersion;
+  const merged = svc.mergeLocalAndCloudScans([complete], [legacyNewer], 'user-1');
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].purchaseOptions[0].id, 'keep');
+});
+
+test('actor mismatch suppresses cloud save', async () => {
+  const client = createMockClient({ session: { user: { id: 'user-b' } } });
+  const svc = loadService(client);
+  const result = await svc.saveScanToCloud(makeScanModel(), client, 'user-a');
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'actor_changed');
+});
+
+test('scan owner mismatch suppresses cloud save under the current actor', async () => {
+  const client = createMockClient({ session: { user: { id: 'user-a' } } });
+  const svc = loadService(client);
+  const result = await svc.saveScanToCloud(
+    makeScanModel({ ownerId: 'user-b' }),
+    client,
+    'user-a',
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'actor_changed');
+  assert.equal(client._calls.length, 0);
+});
+
+test('ownerless legacy scans are never uploaded during actor cloud sync', async () => {
+  const client = createMockClient({ session: { user: { id: 'user-a' } } });
+  const svc = loadService(client);
+  const result = await svc.syncLocalSavedScansToCloud(
+    [
+      makeScanModel({ id: 'ownerless', ownerId: null }),
+      makeScanModel({ id: 'owned-a', ownerId: 'user-a' }),
+    ],
+    'user-a',
+    client,
+  );
+
+  assert.equal(result.synced, 1);
+  assert.equal(result.failed, 0);
+  const inserts = client._calls.filter((call) => call.type === 'insert');
+  assert.equal(inserts.length, 1);
+  assert.equal(inserts[0].rows.local_id, 'owned-a');
+});
+
+test('restoring a soft-deleted row replaces stale commerce with an explicit new snapshot', async () => {
+  const client = createMockClient({
+    session: { user: { id: 'user-1' } },
+    maybeSingleData: {
+      id: 'deleted-row',
+      deleted_at: new Date(1000).toISOString(),
+      analysis_result: { result: 'Old' },
+      products: [],
+      purchase_options: [{ id: 'stale', title: 'Stale' }],
+      metadata: { commerce_snapshot_version: 1 },
+    },
+  });
+  const svc = loadService(client);
+  const result = await svc.saveScanToCloud(
+    makeScanModel({
+      id: 'restore-local',
+      ownerId: 'user-1',
+      purchaseOptions: [],
+      commerceSnapshotVersion: 1,
+    }),
+    client,
+    'user-1',
+  );
+
+  assert.equal(result.ok, true);
+  const update = client._calls.find((call) => call.type === 'update');
+  assert.ok(update);
+  assert.equal(update.payload.purchase_options.length, 0);
+  assert.equal(update.payload.metadata.commerce_snapshot_version, 1);
+});
+
+test('malformed newer commerce cannot erase an older valid snapshot', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const valid = makeScanModel({
+    id: 'scan-corrupt-merge',
+    ownerId: 'user-1',
+    createdAt: new Date(1000).toISOString(),
+    purchaseOptions: [{ id: 'valid', title: 'Keep' }],
+    commerceSnapshotVersion: 1,
+  });
+  const malformed = makeScanModel({
+    id: 'scan-corrupt-merge',
+    ownerId: 'user-1',
+    createdAt: new Date(5000).toISOString(),
+    updatedAt: new Date(5000).toISOString(),
+    purchaseOptions: { not: 'an array' },
+    commerceSnapshotVersion: 1,
+  });
+
+  const merged = svc.mergeLocalAndCloudScans([valid, malformed], [], 'user-1');
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].purchaseOptions[0].id, 'valid');
+  assert.equal(merged[0].commerceSnapshotVersion, 1);
+});
+
+test('remote saved-scan image reference survives merge and remains the room snapshot authority', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const imageContract = loadTsModule('services/dressingRoomItemContract.ts');
+  const local = makeScanModel({
+    id: 'scan-image',
+    ownerId: 'user-1',
+    createdAt: new Date(5000).toISOString(),
+    imageUri: 'file:///newer-local.jpg',
+    purchaseOptions: [{ id: 'commerce', title: 'Option' }],
+    commerceSnapshotVersion: 1,
+  });
+  const cloud = makeScanModel({
+    id: 'scan-image',
+    cloudId: 'cloud-image',
+    ownerId: 'user-1',
+    createdAt: new Date(1000).toISOString(),
+    imageUri: null,
+    storageBucket: 'style-library-images',
+    storagePath: 'user-1/saved-scans/cloud-image.jpg',
+    mediaStatus: 'ready',
+  });
+
+  const [merged] = svc.mergeLocalAndCloudScans([local], [cloud], 'user-1');
+  const resolved = imageContract.resolveDressingRoomImageSource({
+    localUri: merged.imageUri,
+    storageBucket: merged.storageBucket,
+    storagePath: merged.storagePath,
+  });
+
+  assert.equal(merged.purchaseOptions[0].id, 'commerce');
+  assert.equal(merged.storageBucket, 'style-library-images');
+  assert.equal(merged.storagePath, 'user-1/saved-scans/cloud-image.jpg');
+  assert.equal(resolved.kind, 'storage');
+  assert.equal(resolved.storagePath, 'user-1/saved-scans/cloud-image.jpg');
+});
+
+test('zero-row cloud update is treated as failure', async () => {
+  const client = createMockClient({
+    session: { user: { id: 'user-1' } },
+    maybeSingleData: {
+      id: 'existing',
+      deleted_at: null,
+      analysis_result: {},
+      products: [],
+      purchase_options: [],
+      metadata: {},
+    },
+    updateResultData: null,
+  });
+  const svc = loadService(client);
+  const result = await svc.saveScanToCloud(
+    makeScanModel({ id: 'scan_zero', purchaseOptions: [], commerceSnapshotVersion: 1 }),
+    client,
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'network');
 });

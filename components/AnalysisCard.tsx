@@ -14,10 +14,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataChip } from './MetadataChip';
 import { ProductShelf, type Product } from './ProductShelf';
+import { PurchaseOptionsPanel } from './scan-results/PurchaseOptionsPanel';
+import type { PurchaseOption } from './scan-results/types';
 import { ScanResultCard } from './scan/ScanResultCard';
 import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
+import { normalizePurchaseOptions } from '../services/purchaseOptions';
 import {
   COLORS,
   LUXURY,
@@ -39,6 +42,42 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y     = SCREEN_HEIGHT * 0.36;
 const EMPTY_VALUE = '—';
 
+function toPurchaseOptions(value: unknown): PurchaseOption[] {
+  return normalizePurchaseOptions(value)
+    .map((raw, index) => {
+      const option = raw as Record<string, unknown>;
+      const productUrl = typeof option.productUrl === 'string'
+        ? option.productUrl
+        : undefined;
+      const priceLabel = typeof option.priceLabel === 'string'
+        ? option.priceLabel
+        : typeof option.price === 'string'
+        ? option.price
+        : typeof option.price === 'number' && Number.isFinite(option.price)
+        ? `$${option.price.toFixed(2)}`
+        : undefined;
+      return {
+        id: String(option.id ?? `purchase-${index}`),
+        retailer:
+          typeof option.retailer === 'string'
+            ? option.retailer
+            : 'Retailer',
+        title:
+          typeof option.title === 'string'
+            ? option.title
+            : typeof option.name === 'string'
+            ? option.name
+            : undefined,
+        priceLabel,
+        availabilityLabel:
+          typeof option.availabilityLabel === 'string'
+            ? option.availabilityLabel
+            : undefined,
+        productUrl,
+      };
+    });
+}
+
 export interface AnalysisCardProps {
   result:    string;
   metadata:  {
@@ -50,6 +89,8 @@ export interface AnalysisCardProps {
     stylingSuggestions?: string[];
   };
   products?: Product[];
+  /** Persisted or live commerce snapshot — distinct from catalog products. */
+  purchaseOptions?: Product[] | PurchaseOption[] | unknown[];
   /** Optional structured Scan Result Object (Part 2). When present, an additive
    *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
   scanResultObject?: ScanResultObject | null;
@@ -83,6 +124,7 @@ export function AnalysisCard({
   result,
   metadata,
   products = [],
+  purchaseOptions = [],
   scanResultObject,
   secondhand,
   sneakerReference,
@@ -99,6 +141,7 @@ export function AnalysisCard({
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
+  const commerceOptions = toPurchaseOptions(purchaseOptions);
   const translateY    = useRef(new Animated.Value(FROM_Y)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
   const chip1Opacity  = useRef(new Animated.Value(0)).current;
@@ -303,6 +346,11 @@ export function AnalysisCard({
                   are at least 2 meaningful matches. */}
               {priceDiscoveryEnabled && products.length >= 2 ? (
                 <ProductShelf products={products} />
+              ) : null}
+
+              {/* Persisted/live commerce options — same panel contract as ScanResultV2. */}
+              {priceDiscoveryEnabled && commerceOptions.length > 0 ? (
+                <PurchaseOptionsPanel purchaseOptions={commerceOptions} />
               ) : null}
 
               {resaleValuationEnabled && secondhand?.enabled && secondhand.items.length > 0 ? (

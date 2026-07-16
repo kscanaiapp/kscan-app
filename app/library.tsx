@@ -80,6 +80,8 @@ interface SavedScan {
   attributes: ScanAttributes;
   result: string;
   products: Product[];
+  /** Persisted live commerce snapshot; never re-fetched on reopen. */
+  purchaseOptions?: Product[];
   source: string;
 }
 
@@ -450,6 +452,7 @@ export default function LibraryScreen() {
             silhouette: selectedScan.attributes.silhouette,
           }}
           products={selectedScan.products}
+          purchaseOptions={selectedScan.purchaseOptions}
           scanImageUri={selectedScan.imageUri ?? null}
           scanSourceId={selectedScan.id}
           scanSourceType="style_library_scan"

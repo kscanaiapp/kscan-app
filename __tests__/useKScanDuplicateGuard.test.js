@@ -69,10 +69,14 @@ function loadUseKScanWithMocks({
   initialStatus = 'preview',
   initialPhoto = { uri: 'file://test.jpg' },
   mediaPermissionStatus = 'granted',
+  initialActorId = 'user-a',
 } = {}) {
   const hookPath = path.join(__dirname, '..', 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
-  source = source.replace('export function useKScan()', 'function useKScan()');
+  source = source.replace(
+    /export function useKScan\([^)]*\)/,
+    'function useKScan(actorId = null)',
+  );
   source = source.replace(
     'const ATTEMPT_TIMEOUT_MS = 32_000;',
     `const ATTEMPT_TIMEOUT_MS = ${attemptTimeoutMs};`
@@ -87,13 +91,23 @@ function loadUseKScanWithMocks({
     { value: null },
     { value: null },
     { value: null },
+    { value: null },
     { value: false },
   ];
 
   const accessibilityAnnouncements = [];
   const alertCalls = [];
-  const effectCleanups = [];
-  const effectEntries = [];
+  const effectSlots = [];
+  const refSlots = [];
+  let refIndex = 0;
+  let effectIndex = 0;
+  let renderActorId = initialActorId;
+  let currentHook;
+
+  const depsChanged = (left, right) => {
+    if (!left || !right || left.length !== right.length) return true;
+    return left.some((value, index) => !Object.is(value, right[index]));
+  };
 
   const context = {
     module: { exports: {} },
@@ -139,13 +153,27 @@ function loadUseKScanWithMocks({
     },
     useCallback: (callback) => callback,
     useEffect: (callback, deps) => {
-      const cleanup = callback();
-      if (typeof cleanup === 'function') {
-        effectCleanups.push(cleanup);
+      const index = effectIndex;
+      effectIndex += 1;
+      const previous = effectSlots[index];
+      if (!previous || depsChanged(previous.deps, deps)) {
+        previous?.cleanup?.();
+        const cleanup = callback();
+        effectSlots[index] = {
+          callback,
+          deps: Array.isArray(deps) ? deps.slice() : deps,
+          cleanup: typeof cleanup === 'function' ? cleanup : undefined,
+        };
+      } else {
+        previous.callback = callback;
       }
-      effectEntries.push({ callback, deps, cleanup });
     },
-    useRef: (initialValue) => ({ current: initialValue }),
+    useRef: (initialValue) => {
+      const index = refIndex;
+      refIndex += 1;
+      if (!refSlots[index]) refSlots[index] = { current: initialValue };
+      return refSlots[index];
+    },
     AbortController: MockAbortController,
     analyzeImage,
     identifyScanImage,
@@ -168,7 +196,13 @@ function loadUseKScanWithMocks({
   };
 
   vm.runInNewContext(source, context, { filename: hookPath });
-  const hook = context.module.exports.useKScan();
+  const render = () => {
+    stateIndex = 0;
+    refIndex = 0;
+    effectIndex = 0;
+    currentHook = context.module.exports.useKScan(renderActorId);
+  };
+  render();
 
   // State setters update the slots, but the original hook object holds a copy
   // of the initial values. Return a live object so tests can observe transitions.
@@ -176,28 +210,27 @@ function loadUseKScanWithMocks({
     get status() { return stateSlots[0]?.value; },
     get photo() { return stateSlots[1]?.value; },
     get analysis() { return stateSlots[2]?.value; },
-    get error() { return stateSlots[3]?.value; },
-    get nonFashionMessage() { return stateSlots[4]?.value; },
-    get isAnalyzing() { return stateSlots[5]?.value; },
-    capturePhoto: hook.capturePhoto,
-    selectGalleryPhoto: hook.selectGalleryPhoto,
-    runAnalysis: hook.runAnalysis,
-    retake: hook.retake,
-    dismissResult: hook.dismissResult,
-    retry: hook.retry,
-    selectStaticFixture: hook.selectStaticFixture,
-    uploadPhoto: hook.uploadPhoto,
+    get analysisActorId() { return stateSlots[3]?.value; },
+    get error() { return stateSlots[4]?.value; },
+    get nonFashionMessage() { return stateSlots[5]?.value; },
+    get isAnalyzing() { return stateSlots[6]?.value; },
+    capturePhoto: (...args) => currentHook.capturePhoto(...args),
+    selectGalleryPhoto: (...args) => currentHook.selectGalleryPhoto(...args),
+    runAnalysis: (...args) => currentHook.runAnalysis(...args),
+    retake: (...args) => currentHook.retake(...args),
+    dismissResult: (...args) => currentHook.dismissResult(...args),
+    retry: (...args) => currentHook.retry(...args),
+    selectStaticFixture: (...args) => currentHook.selectStaticFixture(...args),
+    uploadPhoto: (...args) => currentHook.uploadPhoto(...args),
     accessibilityAnnouncements,
     alertCalls,
     unmount: () => {
-      effectCleanups.forEach((cleanup) => cleanup());
+      effectSlots.forEach((entry) => entry?.cleanup?.());
     },
-    runEffects: () => {
-      effectEntries.forEach((entry) => {
-        if (entry.cleanup) entry.cleanup();
-        const newCleanup = entry.callback();
-        entry.cleanup = typeof newCleanup === 'function' ? newCleanup : undefined;
-      });
+    rerender: () => render(),
+    setActor: (actorId) => {
+      renderActorId = actorId;
+      render();
     },
   };
   return liveHook;
@@ -277,6 +310,83 @@ test('when SCAN_IDENTIFY_BACKEND_ENABLED is true and Supabase fails, analyzeImag
 
   assert.equal(identifyCalls, 1, 'identifyScanImage must be called once');
   assert.equal(analyzeCalls, 0, 'analyzeImage must not be called when scan-identify fails');
+});
+
+test('completed analysis remains bound to the actor that started it', async () => {
+  const hook = loadUseKScanWithMocks({
+    initialActorId: 'user-a',
+    identifyScanImage: async () => ({
+      status: 'completed',
+      attributes: { category: 'Tops', color: 'Black', silhouette: 'Fitted' },
+      recommendedProducts: [],
+    }),
+  });
+
+  await hook.runAnalysis();
+
+  assert.equal(hook.status, 'result');
+  assert.equal(hook.analysisActorId, 'user-a');
+});
+
+test('actor switch aborts and discards a deferred analysis result', async () => {
+  let resolveIdentify;
+  let requestSignal;
+  const identifyPromise = new Promise((resolve) => {
+    resolveIdentify = resolve;
+  });
+  const hook = loadUseKScanWithMocks({
+    initialActorId: 'user-a',
+    identifyScanImage: async (_image, options) => {
+      requestSignal = options.signal;
+      return identifyPromise;
+    },
+  });
+
+  const run = hook.runAnalysis();
+  await waitFor(() => Boolean(requestSignal));
+  hook.setActor('user-b');
+
+  assert.equal(requestSignal.aborted, true);
+  assert.equal(hook.status, 'idle');
+  assert.equal(hook.photo, null);
+  assert.equal(hook.analysis, null);
+  assert.equal(hook.analysisActorId, null);
+
+  resolveIdentify({
+    status: 'completed',
+    attributes: { category: 'Tops', color: 'Black', silhouette: 'Fitted' },
+    recommendedProducts: [{ id: 'late-a' }],
+  });
+  await run;
+
+  assert.equal(hook.status, 'idle');
+  assert.equal(hook.analysis, null);
+  assert.equal(hook.analysisActorId, null);
+});
+
+test('sign-out aborts and discards a deferred analysis result', async () => {
+  let resolveIdentify;
+  const identifyPromise = new Promise((resolve) => {
+    resolveIdentify = resolve;
+  });
+  const hook = loadUseKScanWithMocks({
+    initialActorId: 'user-a',
+    identifyScanImage: async () => identifyPromise,
+  });
+
+  const run = hook.runAnalysis();
+  await shortDelay(5);
+  hook.setActor(null);
+  resolveIdentify({
+    status: 'completed',
+    attributes: { category: 'Tops', color: 'Black', silhouette: 'Fitted' },
+    recommendedProducts: [{ id: 'late-a' }],
+  });
+  await run;
+
+  assert.equal(hook.status, 'idle');
+  assert.equal(hook.analysis, null);
+  assert.equal(hook.analysisActorId, null);
 });
 
 test('when SCAN_IDENTIFY_BACKEND_ENABLED is false, analyzeImage is not called', async () => {

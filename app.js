@@ -31,6 +31,7 @@ import { AddScanToDressingRoomModal } from './components/AddScanToDressingRoomMo
 import { PerceptionLayer } from './components/PerceptionLayer';
 import { ScanButton } from './components/ScanButton';
 import { useFeatureFreeze } from './hooks/useFeatureFreeze';
+import { useAuthSession } from './contexts/AuthSessionContext';
 import {
   APP_BUILD_LABEL,
   DEV_FALLBACK_STATUS,
@@ -249,6 +250,7 @@ export default function App() {
   const cameraRef = useRef(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const { user } = useAuthSession();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
   const textScanEnabled =
@@ -258,6 +260,7 @@ export default function App() {
     status,
     photo,
     analysis,
+    analysisActorId,
     error,
     nonFashionMessage,
     isAnalyzing,
@@ -268,7 +271,7 @@ export default function App() {
     retry,
     selectStaticFixture,
     selectGalleryPhoto,
-  } = useKScan();
+  } = useKScan(user?.id ?? null);
 
   const router = useRouter();
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
@@ -393,17 +396,29 @@ export default function App() {
   // Fires when status becomes 'result' (photo and analysis are both populated).
   // hasSavedRef prevents duplicate saves if the effect re-runs before dismiss.
   useEffect(() => {
-    if (status !== 'result' || !photo?.uri || !analysis || hasSavedRef.current) return;
+    if (
+      status !== 'result' ||
+      !photo?.uri ||
+      !analysis ||
+      !analysisActorId ||
+      analysisActorId !== user?.id ||
+      hasSavedRef.current
+    ) return;
     hasSavedRef.current = true;
     let live = true;
-    saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' }).then(saved => {
+    saveScan({
+      photoUri: photo.uri,
+      analysis,
+      source: photo.source || 'scan',
+      ownerId: analysisActorId,
+    }).then(saved => {
       if (live && saved) {
         setSavedScanId(saved.id);
         setSavedToast(true);
       }
     });
     return () => { live = false; };
-  }, [status, photo, analysis]);
+  }, [status, photo, analysis, analysisActorId, user?.id]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.
@@ -967,6 +982,7 @@ export default function App() {
             result={analysis?.result ?? ''}
             metadata={analysis?.metadata ?? EMPTY_METADATA}
             products={analysis?.products ?? []}
+            purchaseOptions={analysis?.purchaseOptions ?? []}
             scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
