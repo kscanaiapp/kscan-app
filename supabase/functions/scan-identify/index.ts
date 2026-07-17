@@ -610,6 +610,52 @@ const MULTI_ITEM_RESPONSE_SCHEMA = {
   required: ['status', 'detectedGarments', 'recommendedProducts', 'userMessage'],
 } as const;
 
+const SELECTED_ITEM_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    status: { type: 'STRING', enum: ['completed'] },
+    attributes: {
+      type: 'OBJECT',
+      properties: {
+        category: { type: 'STRING' },
+        itemType: { type: 'STRING' },
+        silhouette: { type: 'STRING' },
+        colorPalette: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 4 },
+        materialEstimate: { type: 'STRING' },
+        pattern: { type: 'STRING' },
+        confidenceScore: { type: 'NUMBER', minimum: 0, maximum: 1 },
+      },
+      required: ['category', 'itemType', 'colorPalette', 'confidenceScore'],
+    },
+    identification: {
+      type: 'OBJECT',
+      properties: {
+        visual_observation: { type: 'STRING' },
+        item_type: { type: 'STRING' },
+        subtype: { type: 'STRING' },
+        primary_color: { type: 'STRING' },
+        pattern: { type: 'STRING' },
+        material_estimate: { type: 'STRING' },
+        silhouette: { type: 'STRING' },
+        fit: { type: 'STRING' },
+        confidence_score: { type: 'NUMBER', minimum: 0, maximum: 1 },
+        non_fashion: { type: 'BOOLEAN' },
+      },
+      required: [
+        'visual_observation',
+        'item_type',
+        'subtype',
+        'primary_color',
+        'confidence_score',
+        'non_fashion',
+      ],
+    },
+    recommendedProducts: { type: 'ARRAY', maxItems: 0, items: { type: 'OBJECT' } },
+    userMessage: { type: 'STRING' },
+  },
+  required: ['status', 'attributes', 'identification', 'recommendedProducts', 'userMessage'],
+} as const;
+
 function buildSelectedItemPrompt(candidate: {
   candidateId: string;
   category: string;
@@ -617,7 +663,25 @@ function buildSelectedItemPrompt(candidate: {
   bounds?: { x: number; y: number; width: number; height: number };
 }): string {
   const target = JSON.stringify(candidate);
-  return `${IDENTIFY_PROMPT}\n\nSelected-item focus:\nThe client selected this candidate from a prior detection pass: ${target}\nAnalyze only that garment in the original parent image. Use the normalized bounds to locate it. Do not switch to a larger, more central, or more recognizable garment. Return the existing single-item response shape and no detectedGarments field.`;
+  return `You are K Scan AI's selected-garment identification engine.
+
+The client selected this candidate from a prior detection pass: ${target}
+
+Analyze only that garment in the original parent image.
+Use its normalized bounds to locate it.
+Do not switch to a larger, more central, or more recognizable garment.
+Ignore the person, face, body, background, and every unselected garment.
+Do not guess a brand unless clearly visible on the selected garment.
+
+Return strict JSON only in the existing single-item response shape:
+- status must be completed
+- attributes must describe the selected garment
+- identification must describe the selected garment
+- recommendedProducts must be []
+- userMessage must concisely describe the selected garment
+- do not return detectedGarments
+
+If an attribute is uncertain, use "unknown" rather than switching garments.`;
 }
 
 const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
@@ -1699,10 +1763,14 @@ Deno.serve(async (req) => {
           },
         ],
         generationConfig: {
-          temperature: useMultiItemDetectionProvider ? 0 : 0.2,
+          temperature: useMultiItemDetectionProvider || useSelectedItemProvider ? 0 : 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
-          ...(useMultiItemDetectionProvider ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA } : {}),
+          ...(useMultiItemDetectionProvider
+            ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
+            : useSelectedItemProvider
+            ? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }
+            : {}),
         },
       };
 

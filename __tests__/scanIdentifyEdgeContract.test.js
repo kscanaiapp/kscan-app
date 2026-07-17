@@ -347,11 +347,21 @@ test('edge source: server selects detection or selected-item prompt only through
 test('edge source: multi-item detection uses a deterministic structured output schema', () => {
   assert.equal(EDGE_SOURCE.includes('const MULTI_ITEM_RESPONSE_SCHEMA = {'), true);
   assert.equal(
-    EDGE_SOURCE.includes('temperature: useMultiItemDetectionProvider ? 0 : 0.2'),
+    EDGE_SOURCE.includes('temperature: useMultiItemDetectionProvider || useSelectedItemProvider ? 0 : 0.2'),
     true,
   );
+  assert.equal(EDGE_SOURCE.includes('? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }'), true);
+});
+
+test('edge source: selected-item follow-up uses a compact deterministic schema', () => {
+  assert.equal(EDGE_SOURCE.includes('const SELECTED_ITEM_RESPONSE_SCHEMA = {'), true);
   assert.equal(
-    EDGE_SOURCE.includes("useMultiItemDetectionProvider ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA } : {}"),
+    EDGE_SOURCE.includes('temperature: useMultiItemDetectionProvider || useSelectedItemProvider ? 0 : 0.2'),
+    true,
+  );
+  assert.equal(EDGE_SOURCE.includes('? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }'), true);
+  assert.equal(
+    EDGE_SOURCE.includes('You are K Scan AI\'s selected-garment identification engine.'),
     true,
   );
 });
