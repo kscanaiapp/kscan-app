@@ -38,6 +38,22 @@ export class UnsupportedStyleObjectItemError extends Error {
   }
 }
 
+/**
+ * Thrown by uploadAndSaveInspirationToDressingRoom when the image upload and
+ * Closet save succeed but attaching the item to the requested room fails.
+ * Carries the successfully-saved item so callers can keep it (never discard
+ * a successful upload) while still telling the user the room-attach step
+ * did not complete.
+ */
+export class InspirationRoomLinkError extends Error {
+  item: InspirationItem;
+  constructor(message: string, item: InspirationItem) {
+    super(message);
+    this.name = 'InspirationRoomLinkError';
+    this.item = item;
+  }
+}
+
 function requireAuthUserId(userId?: string | null) {
   if (!userId) {
     throw new Error('Sign in to use Dressing Rooms and Looks.');
@@ -1205,15 +1221,18 @@ export async function uploadAndSaveInspirationToDressingRoom(input: {
     });
 
   if (linkError) {
-    await Promise.allSettled([
-      supabase
-        .from('inspiration_items')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', inspirationRow.id),
-      supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]),
-    ]);
-
-    throw new Error(linkError.message || 'Could not attach inspiration to Dressing Room.');
+    // The image upload and closet save already succeeded at this point — a
+    // failure to attach the item to this specific room must never destroy
+    // that successful upload. Keep the closet row and its storage object,
+    // and surface a distinguishable partial-success error so the caller can
+    // tell the user the item is safe in their Closet even though it could
+    // not be attached here.
+    const savedItem = mapInspirationItem(inspirationRow);
+    const [resolvedSavedItem] = await resolveSignedUrlsForInspirationItems([savedItem]);
+    throw new InspirationRoomLinkError(
+      linkError.message || 'Saved to your Closet, but could not attach to this Dressing Room.',
+      resolvedSavedItem,
+    );
   }
 
   const item = mapInspirationItem(inspirationRow);

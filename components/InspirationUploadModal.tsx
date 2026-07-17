@@ -12,6 +12,7 @@ import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   INSPIRATION_NOTE_MAX_LENGTH,
+  InspirationRoomLinkError,
   normalizeInspirationNote,
   uploadAndSaveInspiration,
   uploadAndSaveInspirationToDressingRoom,
@@ -38,12 +39,14 @@ export function InspirationUploadModal({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
       setNote('');
       setError(null);
       setDone(false);
+      setDoneMessage(null);
     }
   }, [visible]);
 
@@ -70,9 +73,20 @@ export function InspirationUploadModal({
           note,
         });
       }
+      setDoneMessage('Inspiration saved.');
       setDone(true);
       onSuccess(item);
     } catch (err: any) {
+      if (err instanceof InspirationRoomLinkError) {
+        // The upload and Closet save already succeeded — never present this
+        // as a failure the user needs to retry. Tell them plainly that the
+        // item is safe in their Closet even though this room didn't get it,
+        // and never call onSuccess (which would add it to this room's list
+        // even though the server-side room link does not exist).
+        setDoneMessage('Saved to your Closet. This room could not be updated — you can add it from your Closet later.');
+        setDone(true);
+        return;
+      }
       setError(err?.message || 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
@@ -96,7 +110,7 @@ export function InspirationUploadModal({
 
           {done ? (
             <>
-              <Text style={styles.successText}>Inspiration saved.</Text>
+              <Text style={styles.successText}>{doneMessage ?? 'Inspiration saved.'}</Text>
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={onClose}

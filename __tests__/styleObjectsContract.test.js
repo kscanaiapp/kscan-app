@@ -351,6 +351,47 @@ test('inspiration upload does not store signed URLs in the database', () => {
   assert.match(service, /resolveSignedUrlsForInspirationItems/);
 });
 
+test('a room-link failure preserves the successfully uploaded Closet item instead of discarding it', () => {
+  assert.match(service, /class InspirationRoomLinkError extends Error/);
+  // The room-attach failure branch must never soft-delete the just-created
+  // inspiration row or remove its storage object -- that would silently
+  // discard a successful upload. It must instead throw a distinguishable
+  // error carrying the saved item.
+  const linkErrorBranch = service.slice(
+    service.indexOf("const { error: linkError } = await supabase"),
+    service.indexOf('const item = mapInspirationItem(inspirationRow);', service.indexOf("const { error: linkError } = await supabase")),
+  );
+  assert.match(linkErrorBranch, /if \(linkError\) \{/);
+  assert.doesNotMatch(linkErrorBranch, /deleted_at/);
+  assert.doesNotMatch(linkErrorBranch, /\.remove\(\[storagePath\]\)/);
+  assert.match(linkErrorBranch, /throw new InspirationRoomLinkError/);
+});
+
+test('InspirationUploadModal keeps a room-link failure out of the destructive error path', () => {
+  const modal = fs.readFileSync(
+    path.join(__dirname, '..', 'components', 'InspirationUploadModal.tsx'),
+    'utf8',
+  );
+  assert.match(modal, /InspirationRoomLinkError/);
+  assert.match(modal, /err instanceof InspirationRoomLinkError/);
+  // A room-link failure must not be reported through onSuccess for this
+  // room (the server-side link does not exist), and must not surface the
+  // generic retry-oriented failure message.
+  const catchBlock = modal.slice(modal.indexOf('} catch (err: any) {'), modal.indexOf('} finally {'));
+  const roomLinkBranch = catchBlock.slice(0, catchBlock.indexOf("setError(err?.message"));
+  assert.doesNotMatch(roomLinkBranch, /onSuccess\(/);
+  assert.match(roomLinkBranch, /Saved to your Closet/);
+});
+
+test('inspiration image uploads are re-encoded through ImageManipulator, never the raw source file', () => {
+  // manipulateAsync decodes to pixels and re-encodes as a fresh JPEG, which
+  // strips EXIF/GPS/camera metadata; the upload body must come from that
+  // output (`prepared.base64`), never the original `localUri`/`localImageUri`.
+  assert.match(service, /compressAndUploadInspirationImage[\s\S]{0,20}\{[\s\S]*?ImageManipulator\.manipulateAsync\(\s*input\.localUri/);
+  assert.match(service, /format: ImageManipulator\.SaveFormat\.JPEG/);
+  assert.match(service, /base64ToArrayBuffer\(prepared\.base64\)/);
+});
+
 test('public room preview screen does not expose inspiration uploads', () => {
   assert.doesNotMatch(publicRoomScreen, /inspiration_items/);
   assert.doesNotMatch(publicRoomScreen, /listDressingRoomInspirationItems/);
