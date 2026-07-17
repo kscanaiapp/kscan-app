@@ -50,12 +50,25 @@ export type SanitizedDetectedGarment = {
 };
 
 function cleanBounds(value: unknown): SanitizedDetectedGarment['bounds'] | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const src = value as Record<string, unknown>;
-  const numbers = ['x', 'y', 'width', 'height'].map((key) => {
-    const raw = src[key];
-    return typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
-  });
+  if (!value || typeof value !== 'object') return undefined;
+  let numbers: number[];
+  if (Array.isArray(value)) {
+    if (value.length !== 4) return undefined;
+    const box = value.map((raw) =>
+      typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN
+    );
+    if (!box.every(Number.isFinite)) return undefined;
+    // Gemini commonly emits [yMin, xMin, yMax, xMax] on a 0..1000 scale.
+    const scale = box.some((number) => number > 1) ? 1000 : 1;
+    numbers = [box[1] / scale, box[0] / scale, (box[3] - box[1]) / scale, (box[2] - box[0]) / scale];
+  } else {
+    const src = value as Record<string, unknown>;
+    numbers = ['x', 'y', 'width', 'height'].map((key) => {
+      const raw = src[key];
+      return typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+    });
+    if (numbers.some((number) => number > 2)) numbers = numbers.map((number) => number / 1000);
+  }
   if (!numbers.every(Number.isFinite)) return undefined;
 
   const x = Math.max(0, Math.min(1, numbers[0]));
@@ -171,7 +184,6 @@ function sanitizeGarment(raw: unknown, index: number): SanitizedDetectedGarment 
   });
   const confidence = cleanConfidence(src.confidenceScore) ?? cleanConfidence(identification.confidence_score);
   const bounds = cleanBounds(src.bounds ?? src.boundingBox ?? src.bounding_box);
-  if (!bounds) return undefined;
   const label =
     cleanString(src.label) ??
     ([cleanString(identification.primary_color), subtype].filter(Boolean).join(' ') || subtype);
@@ -183,7 +195,7 @@ function sanitizeGarment(raw: unknown, index: number): SanitizedDetectedGarment 
     label,
     category,
     subtype,
-    bounds,
+    ...(bounds ? { bounds } : {}),
     ...(confidence !== undefined ? { confidenceScore: confidence } : {}),
     attributes,
     identification: {

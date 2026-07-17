@@ -66,6 +66,37 @@ Deno.test('sanitizeDetectedGarments accepts compact real-world candidates and cl
   assertEquals(out[0].identification.primary_color, 'navy');
 });
 
+Deno.test('sanitizeDetectedGarments preserves a valid garment when optional bounds are absent', () => {
+  const result = sanitizeDetectedGarments([
+    {
+      label: 'white top',
+      category: 'top',
+      subtype: 'long-sleeve top',
+      visual_observation: 'A white long-sleeve top.',
+      item_type: 'top',
+      primary_color: 'white',
+    },
+  ]);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].category, 'top');
+  assertEquals(result[0].bounds, undefined);
+});
+
+Deno.test('sanitizeDetectedGarments normalizes Gemini box arrays', () => {
+  const result = sanitizeDetectedGarments([
+    {
+      category: 'shorts',
+      subtype: 'drawstring shorts',
+      visual_observation: 'White shorts in the lower half of the image.',
+      item_type: 'shorts',
+      bounding_box: [500, 200, 950, 800],
+    },
+  ]);
+
+  assertEquals(result[0].bounds, { x: 0.2, y: 0.5, width: 0.6, height: 0.45 });
+});
+
 Deno.test('rawDetectedGarmentCount reports provider array count only', () => {
   assertEquals(rawDetectedGarmentCount([{ a: 1 }, { a: 2 }]), 2);
   assertEquals(rawDetectedGarmentCount({ detectedGarments: [] }), 0);
