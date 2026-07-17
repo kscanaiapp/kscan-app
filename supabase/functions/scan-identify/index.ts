@@ -57,6 +57,13 @@ import {
   type SimilarityMatch,
 } from './similarityMatcher.ts';
 import { captureScanIntelligence } from './scanIntelligenceCapture.ts';
+import { sanitizeGarments } from './multiItemGarments.ts';
+import {
+  buildSelectedItemImagePromptParts,
+  buildSelectedItemInvalidPublicError,
+  validateSelectedItemContextForEdge,
+  type ProviderSelectedItemContext,
+} from './selectedItemBoundary.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -509,6 +516,111 @@ Rules:
 - For non_fashion, item_type must be "NON_FASHION" and non_fashion must be true.
 - userMessage should be a concise, friendly summary derived from visual_observation.
 - The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
+
+// Phase 4 — additive multi-garment variant. Used ONLY when the client sets
+// multiItemDetection on an image-mode request. The legacy single-item
+// IDENTIFY_PROMPT above is completely unchanged and remains the default.
+const MULTI_ITEM_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
+
+Analyze the uploaded image and identify EVERY distinct, clearly visible fashion garment or accessory — not just the dominant one.
+
+Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plates, furniture, and background clutter.
+
+Do not identify people.
+Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
+
+Real camera scan rules:
+- List each genuinely distinct garment or accessory you can actually see (for example: a jacket AND the shirt under it AND shoes) as a separate entry.
+- Do not invent or guess at items that are not visible. If only one item is visible, return exactly one entry.
+- Never list the same item twice under different labels.
+- Return between 1 and 5 entries, ordered from most to least visually prominent.
+- If the item is partially obscured, describe only what is visible and lower confidence_score.
+- If uncertain between two categories for an entry, use category: "unknown" with a lower confidence_score rather than forcing a confident wrong category.
+
+Return strict JSON only.
+No markdown.
+No commentary.
+
+Use the existing response shape (status, userMessage, attributes, recommendedProducts, identification) for the single dominant item exactly as before, PLUS one additional field:
+
+- garments: an array of 1-5 objects, one per distinct detected item, each shaped as:
+  {
+    "category": "blazer",
+    "subtype": "double-breasted blazer",
+    "primary_color": "black",
+    "silhouette": "structured",
+    "confidence_score": 0.84
+  }
+
+The first entry in garments should describe the same dominant item as attributes/identification.
+
+Return strict JSON only, matching exactly this shape:
+{
+  "status": "completed" | "non_fashion",
+  "attributes": {
+    "category": "blazer",
+    "itemType": "double-breasted blazer",
+    "silhouette": "structured",
+    "colorPalette": ["black"],
+    "materialEstimate": "wool blend",
+    "pattern": "solid",
+    "texture": "wool blend",
+    "styleTags": ["tailored", "minimalist", "polished"],
+    "occasion": "workwear",
+    "confidenceScore": 0.84
+  },
+  "garments": [
+    {
+      "category": "blazer",
+      "subtype": "double-breasted blazer",
+      "primary_color": "black",
+      "silhouette": "structured",
+      "confidence_score": 0.84
+    },
+    {
+      "category": "top",
+      "subtype": "collared shirt",
+      "primary_color": "white",
+      "silhouette": "fitted",
+      "confidence_score": 0.71
+    }
+  ],
+  "identification": {
+    "visual_observation": "A concise 1-2 sentence description of the dominant fashion item only.",
+    "item_type": "blazer",
+    "subtype": "double-breasted blazer",
+    "primary_color": "black",
+    "secondary_colors": [],
+    "pattern": "solid",
+    "material_estimate": "wool blend",
+    "silhouette": "structured",
+    "fit": "tailored",
+    "length": "hip length",
+    "sleeve_length": "long sleeve",
+    "neckline_or_lapel": "peak lapel",
+    "closure": "front buttons",
+    "distinctive_features": ["gold buttons", "structured shoulders"],
+    "style_tags": ["tailored", "minimalist", "polished"],
+    "occasion_tags": ["workwear", "evening", "smart casual"],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "brand_guess": null,
+    "confidence_score": 0.84,
+    "search_queries": ["black double breasted blazer gold buttons"],
+    "non_fashion": false,
+    "styling_suggestions": ["Pair with tailored trousers and a silk blouse."],
+    "scan_quality_note": null
+  },
+  "recommendedProducts": [],
+  "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
+}
+
+Rules:
+- Return JSON only. No markdown, no prose outside the JSON.
+- garments must contain between 1 and 5 entries, never more, never fabricated beyond what is actually visible.
+- If uncertain about any field, use null, unknown, or [].
+- Do not include people, identity, or demographic fields under any key.
+- The AI must return attributes, identification, AND garments.`;
 
 const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
 
@@ -1130,6 +1242,8 @@ function buildIdentificationFromAttributes(
   return Object.keys(out).length ? out : undefined;
 }
 
+// ── Selected-item context validation (Phase 3) ───────────────────────────────
+
 /** Strip markdown fences and parse the first JSON object from model text. */
 function parseModelJson(text: string): Record<string, unknown> | null {
   try {
@@ -1228,6 +1342,8 @@ Deno.serve(async (req) => {
     scanId?: unknown;
     scan_id?: unknown;
     id?: unknown;
+    selectedItemContext?: unknown;
+    multiItemDetection?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -1245,6 +1361,10 @@ Deno.serve(async (req) => {
     : null;
   let imageBase64 = '';
   let textQuery = '';
+  let selectedItemContext: ProviderSelectedItemContext | null = null;
+  // Phase 4 — additive, image-mode-only signal. Never affects TextScan or the
+  // legacy single-item contract when absent/false.
+  const multiItemDetection = mode === 'image' && body.multiItemDetection === true;
 
   const requestScanId = typeof body.scanId === 'string' && body.scanId.trim()
     ? body.scanId.trim()
@@ -1258,16 +1378,34 @@ Deno.serve(async (req) => {
   const auth = await resolveAuthContext(req, supabaseUrl, supabaseAnonKey);
   const userId = auth.userId;
   const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
-  const logUserId = userId ? userId.slice(0, 8) : 'anon';
+  const hasSelectedItemContext = body?.selectedItemContext !== undefined;
+  // Selected-item requests never emit truncated actor identifiers in diagnostics.
+  const logUserId = hasSelectedItemContext
+    ? 'redacted'
+    : userId
+      ? userId.slice(0, 8)
+      : 'anon';
 
-  console.log(
-    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
-    mode,
-    source,
-    auth.isAuthenticated ? 'authenticated' : 'anonymous',
-    logUserId,
-    String(auth.hasProjectAccess),
-  );
+  // Phase 3 selected-item path: metadata-only (no truncated actor identifiers).
+  if (hasSelectedItemContext) {
+    console.log(
+      '[scan-identify] request_start mode=%s source=%s auth=%s selectedItem=%s projectAccess=%s',
+      mode,
+      source,
+      auth.isAuthenticated ? 'authenticated' : 'anonymous',
+      'yes',
+      String(auth.hasProjectAccess),
+    );
+  } else {
+    console.log(
+      '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
+      mode,
+      source,
+      auth.isAuthenticated ? 'authenticated' : 'anonymous',
+      logUserId,
+      String(auth.hasProjectAccess),
+    );
+  }
 
   if (mode === 'text' && !auth.isAuthenticated) {
     return json({ error: 'Not authenticated' }, 401);
@@ -1312,6 +1450,17 @@ Deno.serve(async (req) => {
     // Accept either a raw base64 string or a data URI; strip the prefix server-side.
     imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : '';
     imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
+
+    // Phase 3 — optional selected-item focus
+    if (body.selectedItemContext !== undefined) {
+      const validation = validateSelectedItemContextForEdge(body.selectedItemContext);
+      if (!validation.ok) {
+        // Do not log validator reasons or actor identifiers for selected-item rejects.
+        console.warn('[scan-identify] selected_item_context_rejected');
+        return json(buildSelectedItemInvalidPublicError(), 400);
+      }
+      selectedItemContext = validation.providerContext;
+    }
 
     if (!imageBase64) {
       return json(normalized('failed', NO_IMAGE_PROVIDED_MESSAGE), 200);
@@ -1432,10 +1581,12 @@ Deno.serve(async (req) => {
         contents: [
           {
             role: 'user',
-            parts: [
-              { text: IDENTIFY_PROMPT },
-              { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
-            ],
+            parts: buildSelectedItemImagePromptParts(
+              multiItemDetection ? MULTI_ITEM_IDENTIFY_PROMPT : IDENTIFY_PROMPT,
+              imageBase64,
+              DEFAULT_MIME,
+              selectedItemContext,
+            ),
           },
         ],
         generationConfig: {
@@ -1604,6 +1755,13 @@ Deno.serve(async (req) => {
     if (!identification && attributes && rawStatus === 'completed') {
       identification = sanitizeIdentification(buildIdentificationFromAttributes(attributes));
     }
+
+    // Phase 4 — only populated when the request explicitly set multiItemDetection
+    // and the model returned a genuine garments list. Absent otherwise, so
+    // legacy single-item callers see zero shape change.
+    const detectedGarments = multiItemDetection && rawStatus === 'completed'
+      ? sanitizeGarments(parsed.garments)
+      : undefined;
 
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
@@ -1949,6 +2107,7 @@ Deno.serve(async (req) => {
         ...(mode === 'image' ? { scanId } : {}),
         ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
         ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
+        ...(detectedGarments ? { detectedGarments } : {}),
         displayResult: buildDisplayResult(
           completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
           typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
