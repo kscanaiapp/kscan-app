@@ -61,6 +61,7 @@ android/local.properties
 *.ipa
 *.tar
 *.zip
+/dist/
 
 # Local QA / smoke / debug artifacts
 2026-*/

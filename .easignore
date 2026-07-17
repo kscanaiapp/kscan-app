@@ -51,6 +51,7 @@ android/app/release-keystore/
 *.ipa
 *.tar
 *.zip
+/dist/
 *.mp4
 *.mov
 *.avi
