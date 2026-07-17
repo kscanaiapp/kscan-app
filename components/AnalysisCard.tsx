@@ -42,6 +42,17 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y     = SCREEN_HEIGHT * 0.36;
 const EMPTY_VALUE = '—';
 
+function formatPersistedPrice(price: number, currency: unknown): string {
+  const code = typeof currency === 'string' && currency.trim()
+    ? currency.trim().toUpperCase()
+    : 'USD';
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(price);
+  } catch {
+    return `${code} ${price.toFixed(2)}`;
+  }
+}
+
 function toPurchaseOptions(value: unknown): PurchaseOption[] {
   return normalizePurchaseOptions(value)
     .map((raw, index) => {
@@ -54,7 +65,7 @@ function toPurchaseOptions(value: unknown): PurchaseOption[] {
         : typeof option.price === 'string'
         ? option.price
         : typeof option.price === 'number' && Number.isFinite(option.price)
-        ? `$${option.price.toFixed(2)}`
+        ? formatPersistedPrice(option.price, option.currency)
         : undefined;
       return {
         id: String(option.id ?? `purchase-${index}`),
