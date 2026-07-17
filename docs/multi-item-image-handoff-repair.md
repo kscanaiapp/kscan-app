@@ -81,3 +81,31 @@ Focused tests capture the Supabase request body and cover:
 
 Runtime deployment and physical-device evidence are recorded in the task
 handoff after verification.
+
+## Runtime verification
+
+- Production project: `wyyuqfdxucjksghsmhry`
+- Edge Function: `scan-identify`
+- Verified deployed version: `119` (`ACTIVE`)
+- Real-world two-call proof: passed
+- Detection result: two bounded candidates (`top`, `bottom`)
+- Selected-item result: selected `top`, returned `top`
+- Edge Function calls in the acceptance run: exactly two
+- Parent image payload: byte-for-byte identical in both calls
+- Session ID and image digest prefix: preserved in both responses
+- Demo or fallback image: not used
+
+The first live attempt exposed a second provider-boundary defect: valid Gemini
+garments were discarded when location bounds were absent or used Gemini's box
+array format. The sanitizer now accepts object and array boxes and does not
+discard an otherwise valid garment solely because optional bounds are absent.
+The multi-item detection and selected-item follow-up now use compact structured
+output schemas and deterministic sampling; the legacy single-item prompt does
+not use either schema.
+
+The bundled Android debug APK built successfully. Installation on the connected
+physical phone could not be completed because the older installed debug build
+uses a different signing certificate. Before the data-preserving replacement
+could begin, the phone disconnected from ADB. No uninstall or app-data change
+occurred. Physical UI confirmation therefore remains required on the fresh
+client build.
