@@ -590,6 +590,25 @@ test('mapper: detectedGarments reach confirmation candidate state without collap
   assert.equal(out.confirmationCandidates[1].label, 'Black trousers');
 });
 
+test('confirmation UI supports independent multi-select candidates', () => {
+  const scanResultSource = fs.readFileSync(
+    path.join(ROOT, 'components', 'scan-results', 'ScanResultV2.tsx'),
+    'utf8',
+  );
+  const analysisCardSource = fs.readFileSync(
+    path.join(ROOT, 'components', 'AnalysisCard.tsx'),
+    'utf8',
+  );
+
+  for (const source of [scanResultSource, analysisCardSource]) {
+    assert.match(source, /selectedCandidateIds/);
+    assert.match(source, /current\.includes\(candidateId\)/);
+    assert.match(source, /current\.filter\(\(id\) => id !== candidateId\)/);
+    assert.match(source, /\[\.\.\.current, candidateId\]/);
+    assert.match(source, /selectedCandidateIds\.includes\(candidate\.id\)/);
+  }
+});
+
 test('mapper: scanQualityNote and stylingSuggestions in metadata', () => {
   const out = mapper.mapScanIdentifyToAnalysis({
     status: 'completed',

@@ -131,13 +131,21 @@ export function ScanResultV2({
   const confirmationCandidates = Array.isArray(analysis?.confirmationCandidates)
     ? analysis.confirmationCandidates
     : [];
-  const [selectedCandidateId, setSelectedCandidateId] = React.useState<string | null>(
-    confirmationCandidates[0]?.id ?? null,
+  const [selectedCandidateIds, setSelectedCandidateIds] = React.useState<string[]>(
+    confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : [],
   );
 
   React.useEffect(() => {
-    setSelectedCandidateId(confirmationCandidates[0]?.id ?? null);
+    setSelectedCandidateIds(confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : []);
   }, [confirmationCandidates.map((candidate) => candidate.id).join('|')]);
+
+  const toggleConfirmationCandidate = React.useCallback((candidateId: string) => {
+    setSelectedCandidateIds((current) =>
+      current.includes(candidateId)
+        ? current.filter((id) => id !== candidateId)
+        : [...current, candidateId],
+    );
+  }, []);
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -323,7 +331,7 @@ export function ScanResultV2({
                   <Text style={styles.candidateEyebrow}>Detected Items</Text>
                   <View style={styles.candidateList}>
                     {confirmationCandidates.map((candidate) => {
-                      const selected = selectedCandidateId === candidate.id;
+                      const selected = selectedCandidateIds.includes(candidate.id);
                       return (
                         <TouchableOpacity
                           key={candidate.id}
@@ -332,11 +340,11 @@ export function ScanResultV2({
                             styles.candidateButton,
                             selected ? styles.candidateButtonSelected : null,
                           ]}
-                          onPress={() => setSelectedCandidateId(candidate.id)}
+                          onPress={() => toggleConfirmationCandidate(candidate.id)}
                           activeOpacity={0.84}
                           accessibilityRole="button"
                           accessibilityState={{ selected }}
-                          accessibilityLabel={`Select ${candidate.label}`}
+                          accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}`}
                         >
                           <Text
                             style={[

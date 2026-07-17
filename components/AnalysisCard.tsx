@@ -169,13 +169,21 @@ export function AnalysisCard({
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
-  const [selectedCandidateId, setSelectedCandidateId] = React.useState<string | null>(
-    confirmationCandidates[0]?.id ?? null,
+  const [selectedCandidateIds, setSelectedCandidateIds] = React.useState<string[]>(
+    confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : [],
   );
 
   React.useEffect(() => {
-    setSelectedCandidateId(confirmationCandidates[0]?.id ?? null);
+    setSelectedCandidateIds(confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : []);
   }, [confirmationCandidates.map((candidate) => candidate.id).join('|')]);
+
+  const toggleConfirmationCandidate = React.useCallback((candidateId: string) => {
+    setSelectedCandidateIds((current) =>
+      current.includes(candidateId)
+        ? current.filter((id) => id !== candidateId)
+        : [...current, candidateId],
+    );
+  }, []);
 
   return (
     <Modal transparent animationType="none" onRequestClose={runExit}>
@@ -227,7 +235,7 @@ export function AnalysisCard({
                 <View style={styles.candidatePanel} testID="outfit-confirmation-candidates">
                   <Text style={styles.candidateEyebrow}>Detected Items</Text>
                   {confirmationCandidates.map((candidate) => {
-                    const selected = selectedCandidateId === candidate.id;
+                    const selected = selectedCandidateIds.includes(candidate.id);
                     return (
                       <TouchableOpacity
                         key={candidate.id}
@@ -236,11 +244,11 @@ export function AnalysisCard({
                           styles.candidateButton,
                           selected ? styles.candidateButtonSelected : null,
                         ]}
-                        onPress={() => setSelectedCandidateId(candidate.id)}
+                        onPress={() => toggleConfirmationCandidate(candidate.id)}
                         activeOpacity={0.84}
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
-                        accessibilityLabel={`Select ${candidate.label}`}
+                        accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}`}
                       >
                         <Text
                           style={[
