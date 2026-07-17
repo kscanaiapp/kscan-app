@@ -129,8 +129,27 @@ function actorChangedResult(actorId?: string | null): SavedScanCloudResult {
   };
 }
 
-function successResult(data?: unknown, actorId?: string | null): SavedScanCloudResult {
-  return { ok: true, data, actorId: actorId ?? null };
+function conflictResult(actorId?: string | null): SavedScanCloudResult {
+  return {
+    ok: false,
+    error: 'This scan was deleted on another device.',
+    reason: 'conflict',
+    actorId: actorId ?? null,
+  };
+}
+
+function successResult(
+  data?: unknown,
+  actorId?: string | null,
+  tombstones?: SavedScanModel[],
+): SavedScanCloudResult {
+  return { ok: true, data, actorId: actorId ?? null, tombstones };
+}
+
+const VALID_SCAN_TYPES = new Set(['camera', 'upload', 'textscan', 'unknown']);
+
+function normalizeScanType(value: string | null | undefined): string {
+  return value && VALID_SCAN_TYPES.has(value) ? value : 'unknown';
 }
 
 async function getCurrentUser(client = supabase): Promise<User | null> {
@@ -212,12 +231,11 @@ export function mapSavedScanToRow(
   const metadata = scan.metadata && typeof scan.metadata === 'object' ? { ...scan.metadata } : {};
   if (explicitCommerce) metadata.commerce_snapshot_version = COMMERCE_SNAPSHOT_VERSION;
 
-  return {
-    id: scan.cloudId,
+  const row: Omit<SavedScanRow, 'created_at' | 'updated_at' | 'id'> & { id?: string } = {
     user_id: userId,
     local_id: scan.id || null,
     title: scan.attributes?.category || null,
-    scan_type: scan.source || 'unknown',
+    scan_type: normalizeScanType(scan.source),
     analysis_result: scan.result ? { result: scan.result, metadata: scan.attributes } : {},
     products: Array.isArray(scan.products) ? scan.products.slice() : [],
     purchase_options: purchaseOptions,
@@ -228,6 +246,13 @@ export function mapSavedScanToRow(
     deleted_at: scan.deletedAt ?? null,
     metadata,
   };
+
+  if (scan.cloudId) row.id = scan.cloudId;
+  if (scan.storageBucket !== undefined) row.storage_bucket = scan.storageBucket;
+  if (scan.storagePath !== undefined) row.storage_path = scan.storagePath;
+  if (scan.mediaStatus !== undefined) row.media_status = scan.mediaStatus;
+  if (scan.mediaUploadedAt !== undefined) row.media_uploaded_at = scan.mediaUploadedAt;
+  return row;
 }
 
 /**
@@ -275,7 +300,7 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
     products,
     purchaseOptions,
     commerceSnapshotVersion: snapshotVersion,
-    source: row.scan_type || row.source || 'unknown',
+    source: normalizeScanType(row.scan_type || row.source),
     savedAt: row.saved_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -289,8 +314,9 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
  * Save a single scan to the cloud. Upserts by user_id + local_id when the
  * scan has a local id. For cloud-only scans (no local_id), inserts a new row.
  *
- * If the matching row is soft-deleted, clears deleted_at to undelete.
- * Metadata-only updates cannot erase an existing commerce snapshot.
+ * Soft-deleted cloud rows are authoritative tombstones: a local retry returns
+ * conflict and must not resurrect the delete. Newer timestamps own metadata,
+ * analysis, products, and explicit commerce snapshots.
  */
 export async function saveScanToCloud(
   scan: SavedScanModel,
@@ -307,8 +333,6 @@ export async function saveScanToCloud(
   try {
     const row = mapSavedScanToRow(scan, user.id);
 
-    // If a local_id exists, try to find an existing row first so we can
-    // undelete it or update metadata without overwriting analysis_result.
     if (row.local_id) {
       const { data: existing, error: selectError } = await client
         .from('saved_scans')
@@ -320,43 +344,53 @@ export async function saveScanToCloud(
       if (selectError) return networkResult(user.id);
 
       if (existing) {
+        if (existing.deleted_at) return conflictResult(user.id);
+
+        const incomingTime = recordTimestamp(scan);
+        const existingTime = recordTimestamp(existing);
+        const incomingIsCurrent = existingTime === null ||
+          (incomingTime !== null && incomingTime >= existingTime);
         const existingMetadata = existing.metadata && typeof existing.metadata === 'object'
           ? existing.metadata as Record<string, unknown>
           : {};
         const updatePayload: Record<string, unknown> = {
-          deleted_at: null,
-          updated_at: new Date().toISOString(),
-          title: row.title,
-          image_uri: row.image_uri,
-          thumbnail_uri: row.thumbnail_uri,
-          saved_at: row.saved_at,
-          metadata: { ...existingMetadata, ...row.metadata },
+          metadata: incomingIsCurrent
+            ? { ...existingMetadata, ...row.metadata }
+            : { ...row.metadata, ...existingMetadata },
         };
 
-        // Only overwrite analysis_result and products for a new row or
-        // explicit re-save when the existing row has empty values.
-        const existingAnalysis = existing.analysis_result;
-        const hasExistingAnalysis = typeof existingAnalysis === 'object'
-          && existingAnalysis !== null
-          && Object.keys(existingAnalysis).length > 0;
-
-        if (!hasExistingAnalysis) {
-          updatePayload.analysis_result = row.analysis_result;
-        }
-
-        const existingProducts = existing.products;
-        const hasExistingProducts = Array.isArray(existingProducts) && existingProducts.length > 0;
-        if (!hasExistingProducts) {
+        if (incomingIsCurrent) {
+          updatePayload.title = row.title;
+          updatePayload.scan_type = row.scan_type;
+          updatePayload.image_uri = row.image_uri;
+          updatePayload.thumbnail_uri = row.thumbnail_uri;
+          updatePayload.saved_at = row.saved_at;
+          if (Object.keys(row.analysis_result).length > 0) {
+            updatePayload.analysis_result = row.analysis_result;
+          }
           updatePayload.products = row.products;
+        } else {
+          const existingAnalysis = existing.analysis_result;
+          const hasExistingAnalysis = typeof existingAnalysis === 'object'
+            && existingAnalysis !== null
+            && Object.keys(existingAnalysis).length > 0;
+          if (!hasExistingAnalysis) {
+            updatePayload.analysis_result = row.analysis_result;
+          }
+          const existingProducts = existing.products;
+          const hasExistingProducts = Array.isArray(existingProducts) && existingProducts.length > 0;
+          if (!hasExistingProducts) {
+            updatePayload.products = row.products;
+          }
         }
 
         const incomingCommerceExplicit = hasOwn(scan, 'purchaseOptions') &&
-          Number(scan.commerceSnapshotVersion) >= 1;
+          Number(scan.commerceSnapshotVersion) >= 1 &&
+          isPurchaseOptionsSnapshot(scan.purchaseOptions);
         const existingOptions = normalizePurchaseOptions(existing.purchase_options);
         const existingCommerceExplicit = commerceVersion(existingMetadata) !== undefined
           || existingOptions.length > 0;
-        if (incomingCommerceExplicit) {
-          // Always send a JS array — never a stringified JSON payload.
+        if (incomingCommerceExplicit && (!existingCommerceExplicit || incomingIsCurrent)) {
           updatePayload.purchase_options = row.purchase_options;
           updatePayload.metadata = {
             ...(updatePayload.metadata as Record<string, unknown>),
@@ -377,7 +411,6 @@ export async function saveScanToCloud(
       }
     }
 
-    // No existing row → insert new.
     const { error: insertError } = await client
       .from('saved_scans')
       .insert(row);
@@ -390,7 +423,8 @@ export async function saveScanToCloud(
 }
 
 /**
- * List all non-deleted cloud saved scans for the current authenticated user.
+ * List active cloud saved scans plus separate tombstones so merge cannot
+ * resurrect deletes from stale local copies.
  */
 export async function listCloudSavedScans(
   clientOrActor?: string | typeof supabase,
@@ -408,14 +442,17 @@ export async function listCloudSavedScans(
       .from('saved_scans')
       .select('*')
       .eq('user_id', user.id)
-      .is('deleted_at', null)
       .order('saved_at', { ascending: false });
 
     if (error) return networkResult(user.id);
 
     const rows: SavedScanRow[] = Array.isArray(data) ? data : [];
     const models = rows.map(mapSavedScanRowToModel);
-    return successResult(models, user.id);
+    return successResult(
+      models.filter((scan) => !scan.deletedAt),
+      user.id,
+      models.filter((scan) => Boolean(scan.deletedAt)),
+    );
   } catch {
     return unknownResult(expectedActorId);
   }
@@ -444,18 +481,19 @@ export async function softDeleteCloudSavedScan(
   } else if (idOrScan?.cloudId) {
     targetId = idOrScan.cloudId;
   } else if (idOrScan?.localId) {
-    // Look up the cloud row by local_id so deletion works even when the
-    // caller only knows the local scan id.
-    const { data } = await client
+    const { data, error } = await client
       .from('saved_scans')
       .select('id')
       .eq('user_id', user.id)
       .eq('local_id', idOrScan.localId)
       .maybeSingle();
-    if (data?.id) targetId = data.id;
+    if (error) return networkResult(user.id);
+    targetId = data?.id || null;
+    // Local-only delete is already complete when no cloud row exists.
+    if (!targetId) return successResult(undefined, user.id);
   }
 
-  if (!targetId) return { ok: false, error: 'Scan not found.', reason: 'unknown', actorId: user.id };
+  if (!targetId) return unknownResult(user.id);
 
   try {
     const { data: updated, error } = await client
@@ -531,7 +569,7 @@ export function mergeLocalAndCloudScans(
   const entries = [
     ...localScans.map((scan, index) => ({ scan, kind: 'local' as const, index })),
     ...cloudScans.map((scan, index) => ({ scan, kind: 'cloud' as const, index })),
-  ].filter(({ scan }) => !actorId || scan.ownerId === actorId);
+  ].filter(({ scan }) => !actorId || !scan.ownerId || scan.ownerId === actorId);
 
   const groups: Array<typeof entries> = [];
   const aliasToGroup = new Map<string, number>();

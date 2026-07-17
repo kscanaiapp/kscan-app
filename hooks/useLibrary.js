@@ -72,9 +72,13 @@ export function useLibrary() {
               // be erased by the older local snapshot captured above.
               const latestLocalData = await loadLibrary(actorId);
               if (!isCurrent()) return;
+              const cloudWithTombstones = [
+                ...cloudResult.data,
+                ...(Array.isArray(cloudResult.tombstones) ? cloudResult.tombstones : []),
+              ];
               const merged = mergeLocalAndCloudScans(
                 latestLocalData,
-                cloudResult.data,
+                cloudWithTombstones,
                 actorId,
               );
               setSnapshot({ actorKey, scans: merged });

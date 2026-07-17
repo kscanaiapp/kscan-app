@@ -212,32 +212,43 @@ export async function saveScan({ photoUri, analysis, source, ownerId = null }) {
 
 /**
  * Delete a scan and its thumbnail file. Returns true on success.
- * Local delete remains authoritative; cloud soft-delete is best-effort.
+ * When cloud saved-scans are enabled, soft-delete must confirm before local
+ * wipe so a stale device cannot resurrect the cloud tombstone later.
  */
 export async function deleteScan(id, { ownerId, cloudId } = {}) {
   try {
+    const initialLibrary = await readAllLibrary();
+    const initialTarget = initialLibrary.find(
+      (scan) => scan.id === id && isVisibleToActor(scan, ownerId),
+    );
+    if (!initialTarget && !cloudId) return false;
+
+    const cloudResult = await softDeleteCloudSavedScan(
+      cloudId ? { cloudId } : { localId: id },
+      ownerId || undefined,
+    );
+    if (
+      !cloudResult.ok &&
+      cloudResult.reason !== 'disabled' &&
+      cloudResult.reason !== 'unauthenticated'
+    ) {
+      return false;
+    }
+
     return await enqueueLibraryMutation(async () => {
       const library = await readAllLibrary();
       const target = library.find(
         (scan) => scan.id === id && isVisibleToActor(scan, ownerId),
       );
-      if (!target) return false;
-
-      if (target.thumbnailUri) {
-        await FileSystem.deleteAsync(target.thumbnailUri, { idempotent: true }).catch(() => null);
+      if (target) {
+        if (target.thumbnailUri) {
+          await FileSystem.deleteAsync(target.thumbnailUri, { idempotent: true }).catch(() => null);
+        }
+        if (target.imageUri) {
+          await FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => null);
+        }
+        await persistLibrary(library.filter((scan) => scan !== target));
       }
-      if (target.imageUri) {
-        await FileSystem.deleteAsync(target.imageUri, { idempotent: true }).catch(() => null);
-      }
-      await persistLibrary(library.filter((scan) => scan !== target));
-
-      // Fire-and-forget cloud soft-delete. Uses local_id lookup so it works
-      // even when the local scan has not been updated with a cloudId.
-      softDeleteCloudSavedScan(
-        cloudId ? { cloudId } : { localId: id },
-        ownerId || undefined,
-      ).catch(() => null);
-
       return true;
     });
   } catch {

@@ -45,17 +45,27 @@ function createMockClient({
   updateResultData = { id: 'updated-row' },
 } = {}) {
   const calls = [];
-  const updateResult = {
-    then: (resolve, reject) =>
-      Promise.resolve({ data: updateError ? null : updateResultData, error: updateError })
-        .then(resolve, reject),
-    select: () => ({
-      maybeSingle: async () => {
-        calls.push({ type: 'updateMaybeSingle', tableName: 'saved_scans' });
-        return { data: updateError ? null : updateResultData, error: updateError };
+  const makeQuery = (responseFactory) => {
+    const chain = {
+      eq: (column, value) => {
+        calls.push({ type: 'eq', column, value });
+        return chain;
       },
-    }),
+      is: (column, value) => {
+        calls.push({ type: 'is', column, value });
+        return chain;
+      },
+      order: (column, options) => {
+        calls.push({ type: 'order', column, options });
+        return chain;
+      },
+      select: () => chain,
+      maybeSingle: async () => responseFactory(true),
+      then: (resolve, reject) => Promise.resolve(responseFactory(false)).then(resolve, reject),
+    };
+    return chain;
   };
+
   return {
     _calls: calls,
     auth: {
@@ -65,18 +75,13 @@ function createMockClient({
       }),
     },
     from: (tableName) => ({
-      select: (...columns) => {
-        const chain = {
-          eq: () => chain,
-          is: () => chain,
-          order: () => chain,
-          maybeSingle: async () => {
-            calls.push({ type: 'maybeSingle', tableName, columns });
-            return { data: maybeSingleData, error: selectError };
-          },
-        };
-        return chain;
-      },
+      select: (...columns) => makeQuery((single) => {
+        if (single) {
+          calls.push({ type: 'maybeSingle', tableName, columns });
+          return { data: maybeSingleData, error: selectError };
+        }
+        return { data: selectData, error: selectError };
+      }),
       upsert: async (rows, options) => {
         calls.push({ type: 'upsert', tableName, rows, options });
         return { error: upsertError };
@@ -87,11 +92,10 @@ function createMockClient({
       },
       update: (payload) => {
         calls.push({ type: 'update', tableName, payload });
-        return {
-          eq: () => ({
-            eq: () => updateResult,
-          }),
-        };
+        return makeQuery(() => ({
+          data: updateError ? null : updateResultData,
+          error: updateError,
+        }));
       },
     }),
   };
@@ -249,9 +253,9 @@ test('soft delete sets deleted_at and never calls delete()', async () => {
   assert.ok(updateCall.payload.deleted_at);
 });
 
-// ─── Undelete ──────────────────────────────────────────────────────────────────
+// ─── Soft-delete authority ─────────────────────────────────────────────────────
 
-test('undelete clears deleted_at when re-saving same local_id', async () => {
+test('soft-deleted cloud authority cannot be resurrected by a local retry', async () => {
   const client = createMockClient({
     session: { user: { id: 'user-1' } },
     maybeSingleData: { id: 'existing-id', deleted_at: '2024-01-01T00:00:00Z', analysis_result: {}, products: [] },
@@ -259,29 +263,44 @@ test('undelete clears deleted_at when re-saving same local_id', async () => {
   const svc = loadService(client);
   const scan = makeScanModel({ id: 'scan_reuse' });
   const result = await svc.saveScanToCloud(scan, client);
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'conflict');
 
   const updateCall = client._calls.find(c => c.type === 'update');
-  assert.ok(updateCall);
-  assert.equal(updateCall.payload.deleted_at, null);
+  assert.equal(updateCall, undefined);
 });
 
 // ─── List ─────────────────────────────────────────────────────────────────────
 
-test('list filters deleted rows defensively', async () => {
+test('list returns active rows plus separate tombstones', async () => {
   const client = createMockClient({
     session: { user: { id: 'user-1' } },
     selectData: [
-      makeRow({ deleted_at: null }),
-      makeRow({ deleted_at: '2024-01-01T00:00:00Z' }),
+      makeRow({ id: 'active-1', deleted_at: null }),
+      makeRow({ id: 'deleted-1', deleted_at: '2024-01-01T00:00:00Z' }),
     ],
   });
   const svc = loadService(client);
   const result = await svc.listCloudSavedScans(client);
   assert.equal(result.ok, true);
-  assert.ok(Array.isArray(result.data));
-  // The mock returns empty because selectData is not wired through the chain.
-  // This test verifies the defensive path exists; real integration tests the filter.
+  assert.equal(result.data.length, 1);
+  assert.equal(result.data[0].cloudId, 'active-1');
+  assert.equal(result.tombstones.length, 1);
+  assert.equal(result.tombstones[0].cloudId, 'deleted-1');
+});
+
+test('cloud tombstone suppresses a matching stale local record', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const local = makeScanModel({ id: 'scan-deleted', ownerId: 'user-1' });
+  const tombstone = svc.mapSavedScanRowToModel(makeRow({
+    local_id: 'scan-deleted',
+    deleted_at: '2026-01-02T00:00:00.000Z',
+  }));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(svc.mergeLocalAndCloudScans([local], [tombstone], 'user-1'))),
+    [],
+  );
 });
 
 // ─── Adapters ─────────────────────────────────────────────────────────────────
@@ -440,6 +459,17 @@ test('soft delete finds cloud row by localId when cloudId is unknown', async () 
 
   const maybeSingleCall = client._calls.find(c => c.type === 'maybeSingle');
   assert.ok(maybeSingleCall);
+});
+
+test('soft delete treats a missing cloud row as an already-complete local-only delete', async () => {
+  const client = createMockClient({
+    session: { user: { id: 'user-1' } },
+    maybeSingleData: null,
+  });
+  const svc = loadService(client);
+  const result = await svc.softDeleteCloudSavedScan({ localId: 'local-only' }, client);
+  assert.equal(result.ok, true);
+  assert.equal(client._calls.some((call) => call.type === 'update'), false);
 });
 
 // ─── Large payloads ──────────────────────────────────────────────────────────
@@ -652,7 +682,7 @@ test('ownerless legacy scans are never uploaded during actor cloud sync', async 
   assert.equal(inserts[0].rows.local_id, 'owned-a');
 });
 
-test('restoring a soft-deleted row replaces stale commerce with an explicit new snapshot', async () => {
+test('soft-deleted rows reject restore attempts instead of undeleting commerce', async () => {
   const client = createMockClient({
     session: { user: { id: 'user-1' } },
     maybeSingleData: {
@@ -676,11 +706,9 @@ test('restoring a soft-deleted row replaces stale commerce with an explicit new 
     'user-1',
   );
 
-  assert.equal(result.ok, true);
-  const update = client._calls.find((call) => call.type === 'update');
-  assert.ok(update);
-  assert.equal(update.payload.purchase_options.length, 0);
-  assert.equal(update.payload.metadata.commerce_snapshot_version, 1);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'conflict');
+  assert.equal(client._calls.some((call) => call.type === 'update'), false);
 });
 
 test('malformed newer commerce cannot erase an older valid snapshot', () => {

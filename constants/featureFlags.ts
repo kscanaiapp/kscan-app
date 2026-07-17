@@ -121,9 +121,18 @@ export const ONBOARDING_FRAMEWORK_V1_ENABLED =
 /** Master switch for the bright luxury account/home onboarding and Home visual pass. */
 export const ACCOUNT_HOME_UX_V1_ENABLED =
   process.env.EXPO_PUBLIC_ACCOUNT_HOME_UX_V1 === 'true';
+/**
+ * Enables cloud metadata sync for saved scans. Disabled by default.
+ * Only an explicit case-insensitive "true" opts in; missing/empty/false stay off.
+ */
+export function resolveCloudSavedScansEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED,
+): boolean {
+  return String(value ?? '').trim().toLowerCase() === 'true';
+}
+
 /** Enables cloud metadata sync for saved scans. Disabled by default. */
-export const CLOUD_SAVED_SCANS_ENABLED =
-  process.env.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';
+export const CLOUD_SAVED_SCANS_ENABLED = resolveCloudSavedScansEnabled();
 
 // ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
 /**
