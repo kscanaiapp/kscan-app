@@ -564,6 +564,52 @@ Bounds are normalized image coordinates from 0 to 1 and must tightly enclose the
 Keep each candidate compact. Do not return full styling analysis or shopping queries in this first pass.
 Return only approved garment schema fields.`;
 
+const MULTI_ITEM_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    status: { type: 'STRING', enum: ['completed', 'non_fashion'] },
+    detectedGarments: {
+      type: 'ARRAY',
+      maxItems: 5,
+      items: {
+        type: 'OBJECT',
+        properties: {
+          label: { type: 'STRING' },
+          category: { type: 'STRING' },
+          subtype: { type: 'STRING' },
+          bounds: {
+            type: 'OBJECT',
+            properties: {
+              x: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              y: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              width: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              height: { type: 'NUMBER', minimum: 0, maximum: 1 },
+            },
+            required: ['x', 'y', 'width', 'height'],
+          },
+          confidenceScore: { type: 'NUMBER', minimum: 0, maximum: 1 },
+          visual_observation: { type: 'STRING' },
+          item_type: { type: 'STRING' },
+          primary_color: { type: 'STRING' },
+        },
+        required: [
+          'label',
+          'category',
+          'subtype',
+          'bounds',
+          'confidenceScore',
+          'visual_observation',
+          'item_type',
+          'primary_color',
+        ],
+      },
+    },
+    recommendedProducts: { type: 'ARRAY', maxItems: 0, items: { type: 'OBJECT' } },
+    userMessage: { type: 'STRING' },
+  },
+  required: ['status', 'detectedGarments', 'recommendedProducts', 'userMessage'],
+} as const;
+
 function buildSelectedItemPrompt(candidate: {
   candidateId: string;
   category: string;
@@ -1653,9 +1699,10 @@ Deno.serve(async (req) => {
           },
         ],
         generationConfig: {
-          temperature: 0.2,
+          temperature: useMultiItemDetectionProvider ? 0 : 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
+          ...(useMultiItemDetectionProvider ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA } : {}),
         },
       };
 

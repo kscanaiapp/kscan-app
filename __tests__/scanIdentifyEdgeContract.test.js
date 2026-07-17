@@ -344,6 +344,18 @@ test('edge source: server selects detection or selected-item prompt only through
   );
 });
 
+test('edge source: multi-item detection uses a deterministic structured output schema', () => {
+  assert.equal(EDGE_SOURCE.includes('const MULTI_ITEM_RESPONSE_SCHEMA = {'), true);
+  assert.equal(
+    EDGE_SOURCE.includes('temperature: useMultiItemDetectionProvider ? 0 : 0.2'),
+    true,
+  );
+  assert.equal(
+    EDGE_SOURCE.includes("useMultiItemDetectionProvider ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA } : {}"),
+    true,
+  );
+});
+
 test('edge source: selected-item request verifies the parent image digest and preserves session correlation', () => {
   assert.match(EDGE_SOURCE, /useSelectedItemProvider/);
   assert.match(EDGE_SOURCE, /suppliedImageDigestPrefix !== imageDigestPrefix/);
