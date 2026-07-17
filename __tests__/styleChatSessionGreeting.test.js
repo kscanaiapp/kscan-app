@@ -279,12 +279,16 @@ test('a process restart reuses the persisted greeting without replay eligibility
   assert.equal(repo._messages().length, 1);
 });
 
-test('useStyleChat keeps the draft until the first user row is persisted', () => {
+test('useStyleChat keeps the draft until the send is known to have succeeded', () => {
   const source = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
   const screen = fs.readFileSync(path.join(ROOT, 'app', 'style-chat', '[sessionId].tsx'), 'utf8');
   assert.match(source, /waitForSessionGreeting/);
   assert.match(source, /onUserMessagePersisted\?\.\(\)/);
-  assert.match(screen, /onUserMessagePersisted:\s*\(\) => setComposerText\(''\)/);
+  // The composer draft is only cleared after sendMessage's returned promise
+  // resolves true (a fully successful send) — never optimistically, and
+  // never merely on persistence, so a downstream failure (burst limit,
+  // operational error) leaves the user's text intact for retry.
+  assert.match(screen, /const sent = await sendMessage\(text\);\s*\n\s*if \(!sent\) return;\s*\n\s*setComposerText\(''\);/);
   assert.doesNotMatch(screen, /void sendMessage\(text\);\s*setComposerText\(''\)/);
 });
 

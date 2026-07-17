@@ -715,18 +715,23 @@ test('StyleChat session screen integrates the visual context collection tray', (
   assert.doesNotMatch(bar, /Visual references|Scan an item|Upload another photo/);
 });
 
-test('top header presents Home, a truly centered Elise identity, and navigation-style SCAN', () => {
+test('top header presents Home, the Elise stylist identity, and navigation-style Scan', () => {
   const header = read('components/style-chat/StyleChatHeader.tsx');
   const homeIndex = header.indexOf('testID="style-chat-home-button"');
-  const titleIndex = header.indexOf('style={styles.titleWrap}');
+  const identityIndex = header.indexOf('style={styles.stylistText}');
   const scanIndex = header.indexOf('testID="style-chat-scan-button"');
 
-  assert.ok(homeIndex >= 0 && homeIndex < titleIndex && titleIndex < scanIndex);
+  // Home renders before the stylist identity block, and the guarded Scan
+  // button (only shown once onScanPress is wired) renders after Home.
+  assert.ok(identityIndex >= 0 && identityIndex < homeIndex && homeIndex < scanIndex);
   assert.match(header, /<Text style=\{styles\.navButtonText\}[^>]*>Home<\/Text>/);
   assert.match(header, /<Text style=\{styles\.navButtonText\}[^>]*>Scan<\/Text>/);
   assert.equal((header.match(/style=\{styles\.navButtonText\}/g) ?? []).length, 2);
-  assert.match(header, /titleWrap:\s*\{[\s\S]*?position: 'absolute'[\s\S]*?left: 96[\s\S]*?right: 96/);
-  assert.match(header, /navButton:\s*\{[\s\S]*?minHeight: 44[\s\S]*?width: 72/);
+  // The Elise identity is presented via the animated avatar + name/role text,
+  // not an absolutely-positioned title (superseded by the avatar header work).
+  assert.match(header, /avatarWrap:\s*\{[\s\S]*?flexShrink: 0/);
+  assert.match(header, /stylistText:\s*\{[\s\S]*?flex: 1/);
+  assert.match(header, /navButton:\s*\{[\s\S]*?minHeight: 44[\s\S]*?minWidth: 52/);
   assert.match(header, /accessibilityLabel="Add visual context"/);
   assert.match(header, /Choose the camera or upload images from your photo library/);
   assert.match(header, /Remove an image before adding another\./);
