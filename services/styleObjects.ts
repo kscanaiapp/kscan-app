@@ -54,6 +54,20 @@ export class InspirationRoomLinkError extends Error {
   }
 }
 
+// Verified against the style-library-images Supabase Storage bucket's
+// file_size_limit (5242880 bytes / 5 MB). Checked against the normalized
+// (post-ImageManipulator) upload payload -- the value that actually
+// determines success -- so the user gets a controlled message before the
+// network request instead of the raw storage-provider error.
+const INSPIRATION_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+
+export class InspirationImageTooLargeError extends Error {
+  constructor(message = 'This image is too large to upload. Please choose a smaller image.') {
+    super(message);
+    this.name = 'InspirationImageTooLargeError';
+  }
+}
+
 function requireAuthUserId(userId?: string | null) {
   if (!userId) {
     throw new Error('Sign in to use Dressing Rooms and Looks.');
@@ -1111,6 +1125,11 @@ async function compressAndUploadInspirationImage(input: {
   }
 
   const body = base64ToArrayBuffer(prepared.base64);
+
+  if (body.byteLength > INSPIRATION_UPLOAD_MAX_BYTES) {
+    throw new InspirationImageTooLargeError();
+  }
+
   const { error } = await supabase.storage
     .from(STYLE_LIBRARY_IMAGES_BUCKET)
     .upload(input.storagePath, body, {
@@ -1120,7 +1139,7 @@ async function compressAndUploadInspirationImage(input: {
     });
 
   if (error) {
-    throw new Error(error.message || 'Could not upload image.');
+    throw new Error('Could not upload image. Please try again.');
   }
 
   return { width: prepared.width ?? null, height: prepared.height ?? null };
@@ -1158,7 +1177,7 @@ export async function uploadAndSaveInspiration(input: {
 
   if (dbError) {
     await supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]).catch(() => {});
-    throw new Error(dbError.message || 'Could not save inspiration.');
+    throw new Error('Could not save inspiration. Please try again.');
   }
 
   const item = mapInspirationItem(data);
@@ -1209,7 +1228,7 @@ export async function uploadAndSaveInspirationToDressingRoom(input: {
 
   if (insertError) {
     await supabase.storage.from(STYLE_LIBRARY_IMAGES_BUCKET).remove([storagePath]).catch(() => {});
-    throw new Error(insertError.message || 'Could not save inspiration.');
+    throw new Error('Could not save inspiration. Please try again.');
   }
 
   const { error: linkError } = await supabase
@@ -1230,7 +1249,7 @@ export async function uploadAndSaveInspirationToDressingRoom(input: {
     const savedItem = mapInspirationItem(inspirationRow);
     const [resolvedSavedItem] = await resolveSignedUrlsForInspirationItems([savedItem]);
     throw new InspirationRoomLinkError(
-      linkError.message || 'Saved to your Closet, but could not attach to this Dressing Room.',
+      'Saved to your Closet, but could not attach to this Dressing Room.',
       resolvedSavedItem,
     );
   }

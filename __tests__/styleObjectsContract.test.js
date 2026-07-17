@@ -383,6 +383,31 @@ test('InspirationUploadModal keeps a room-link failure out of the destructive er
   assert.match(roomLinkBranch, /Saved to your Closet/);
 });
 
+test('inspiration upload rejects an oversized payload with a controlled message before the network request', () => {
+  // Verified against the style-library-images bucket's file_size_limit
+  // (5242880 bytes / 5 MB) via a live query against the linked Supabase
+  // project; checked against the actual upload payload (the normalized
+  // ImageManipulator output), not the original file.
+  assert.match(service, /INSPIRATION_UPLOAD_MAX_BYTES = 5 \* 1024 \* 1024/);
+  assert.match(service, /class InspirationImageTooLargeError extends Error/);
+  assert.match(service, /too large to upload/);
+  const sizeCheckSite = service.slice(
+    service.indexOf('const body = base64ToArrayBuffer(prepared.base64);'),
+    service.indexOf(".from(STYLE_LIBRARY_IMAGES_BUCKET)\n    .upload(input.storagePath"),
+  );
+  assert.match(sizeCheckSite, /body\.byteLength > INSPIRATION_UPLOAD_MAX_BYTES/);
+  assert.match(sizeCheckSite, /throw new InspirationImageTooLargeError\(\)/);
+});
+
+test('inspiration save failures never surface the raw Supabase/Postgres error to the user', () => {
+  // Storage/DB provider error objects (error.message) must never reach a
+  // thrown Error's message shown to the user -- only controlled copy.
+  assert.doesNotMatch(service, /throw new Error\(error\.message/);
+  assert.doesNotMatch(service, /throw new Error\(dbError\.message/);
+  assert.doesNotMatch(service, /throw new Error\(insertError\.message/);
+  assert.doesNotMatch(service, /throw new InspirationRoomLinkError\(\s*linkError\.message/);
+});
+
 test('inspiration image uploads are re-encoded through ImageManipulator, never the raw source file', () => {
   // manipulateAsync decodes to pixels and re-encodes as a fresh JPEG, which
   // strips EXIF/GPS/camera metadata; the upload body must come from that
