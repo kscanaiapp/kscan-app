@@ -1,11 +1,32 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Explicitly block debug-only permissions from leaking into the release build. -->
+    <!-- Explicitly block debug-only / forbidden permissions from release builds. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" tools:node="remove"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" tools:node="remove"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:node="remove"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:node="remove"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_SMS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.SEND_SMS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_CALL_LOG" tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_CALL_LOG" tools:node="remove"/>
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.CALL_PHONE" tools:node="remove"/>
 
 </manifest>

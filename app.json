@@ -1,161 +1,189 @@
 {
-    "expo":  {
-                 "name":  "K Scan",
-                 "slug":  "kscan",
-                 "version":  "1.0.1",
-                 "sdkVersion":  "54.0.0",
-                 "scheme":  "kscan",
-                 "orientation":  "portrait",
-                 "userInterfaceStyle":  "dark",
-                 "icon":  "./assets/icon.png",
-                 "splash":  {
-                                "image":  "./assets/splash-icon.png",
-                                "resizeMode":  "contain",
-                                "backgroundColor":  "#09090b"
-                            },
-                 "plugins":  [
-                                 [
-                                     "expo-camera",
-                                     {
-                                         "cameraPermission":  "K Scan uses your camera to photograph your outfit for style analysis.",
-                                         "microphonePermission":  false,
-                                         "recordAudioAndroid":  false
-                                     }
-                                 ],
-                                 [
-                                     "expo-image-picker",
-                                     {
-                                         "photosPermission":  "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms."
-                                     }
-                                 ],
-                                 "expo-router",
-                                 "expo-apple-authentication",
-                                 "expo-font",
-                                 [
-                                     "expo-location",
-                                     {
-                                         "locationWhenInUsePermission":  "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored.",
-                                         "isIosBackgroundLocationEnabled":  false,
-                                         "isAndroidBackgroundLocationEnabled":  false
-                                     }
-                                 ],
-                                 [
-                                     "expo-audio",
-                                     {
-                                         "microphonePermission":  false,
-                                         "recordAudioAndroid":  false
-                                     }
-                                 ],
-                                 "./plugins/withAndroidPermissionBlocklist"
-                             ],
-                 "android":  {
-                                 "package":  "com.kscanai.app",
-                                 "versionCode": 24,
-                                 "softwareKeyboardLayoutMode":  "resize",
-                                 "permissions":  [
-                                                     "android.permission.CAMERA",
-                                                     "android.permission.INTERNET",
-                                                     "android.permission.VIBRATE",
-                                                     "android.permission.ACCESS_COARSE_LOCATION"
-                                                 ],
-                                 "blockedPermissions":  [
-                                                            "android.permission.RECORD_AUDIO",
-                                                            "android.permission.ACCESS_FINE_LOCATION",
-                                                            "android.permission.READ_EXTERNAL_STORAGE",
-                                                            "android.permission.WRITE_EXTERNAL_STORAGE"
-                                                        ],
-                                 "adaptiveIcon":  {
-                                                      "foregroundImage":  "./assets/adaptive-icon.png",
-                                                      "backgroundColor":  "#1a0a2e"
-                                                  },
-                                 "intentFilters":  [
-                                                       {
-                                                           "action":  "VIEW",
-                                                           "autoVerify":  false,
-                                                           "data":  [
-                                                                        {
-                                                                            "scheme":  "kscan"
-                                                                        }
-                                                                    ],
-                                                           "category":  [
-                                                                            "BROWSABLE",
-                                                                            "DEFAULT"
-                                                                        ]
-                                                       },
-                                                       {
-                                                           "action":  "VIEW",
-                                                           "autoVerify":  true,
-                                                           "data":  [
-                                                                        {
-                                                                            "scheme":  "https",
-                                                                            "host":  "kscan.app",
-                                                                            "pathPrefix":  "/rooms"
-                                                                        }
-                                                                    ],
-                                                           "category":  [
-                                                                            "BROWSABLE",
-                                                                            "DEFAULT"
-                                                                        ]
-                                                       }
-                                                   ]
-                             },
-                 "ios":  {
-                             "bundleIdentifier":  "com.kscanai.app",
-                             "buildNumber":  "13",
-                             "associatedDomains":  [
-                                                       "applinks:kscan.app"
-                                                   ],
-                             "supportsTablet":  false,
-                             "usesAppleSignIn":  true,
-                             "infoPlist":  {
-                                               "NSCameraUsageDescription":  "K Scan uses your camera to photograph your outfit for style analysis.",
-                                               "NSPhotoLibraryUsageDescription":  "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
-                                               "NSLocationWhenInUseUsageDescription":  "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored.",
-                                               "ITSAppUsesNonExemptEncryption":  false
-                                           },
-                             "privacyManifests":  {
-                                                      "NSPrivacyTracking": false,
-                                                      "NSPrivacyTrackingDomains": [],
-                                                      "NSPrivacyCollectedDataTypes": [
-                                                                                        {
-                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
-                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
-                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
-                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
-                                                                                        },
-                                                                                        {
-                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
-                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
-                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
-                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
-                                                                                        },
-                                                                                        {
-                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
-                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
-                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
-                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
-                                                                                        }
-                                                                                    ],
-                                                      "NSPrivacyAccessedAPITypes":  [
-                                                                                        {
-                                                                                            "NSPrivacyAccessedAPIType":  "NSPrivacyAccessedAPICategoryUserDefaults",
-                                                                                            "NSPrivacyAccessedAPITypeReasons":  [
-                                                                                                                                    "CA92.1"
-                                                                                                                                ]
-                                                                                        },
-                                                                                        {
-                                                                                            "NSPrivacyAccessedAPIType":  "NSPrivacyAccessedAPICategoryFileTimestamp",
-                                                                                            "NSPrivacyAccessedAPITypeReasons":  [
-                                                                                                                                    "C617.1"
-                                                                                                                                ]
-                                                                                        }
-                                                                                    ]
-                                                  }
-                         },
-                 "extra":  {
-                               "eas":  {
-                                           "projectId":  "a075728d-bd77-446f-843d-0f63fd54cc2e"
-                                       }
-                           }
-             }
+  "expo": {
+    "name": "K Scan",
+    "slug": "kscan",
+    "version": "1.0.1",
+    "sdkVersion": "54.0.0",
+    "scheme": "kscan",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#09090b"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "K Scan uses your camera to photograph your outfit for style analysis.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms."
+        }
+      ],
+      "expo-router",
+      "expo-apple-authentication",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      "./plugins/withAndroidPermissionBlocklist",
+      "expo-asset"
+    ],
+    "android": {
+      "package": "com.kscanai.app",
+      "versionCode": 24,
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.VIBRATE",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        "com.google.android.gms.permission.AD_ID",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_ADVERTISE",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_SMS",
+        "android.permission.RECEIVE_SMS",
+        "android.permission.SEND_SMS",
+        "android.permission.READ_CALL_LOG",
+        "android.permission.WRITE_CALL_LOG",
+        "android.permission.PROCESS_OUTGOING_CALLS",
+        "android.permission.CALL_PHONE"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a0a2e"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "kscan"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kscan.app",
+              "pathPrefix": "/rooms"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.kscanai.app",
+      "buildNumber": "13",
+      "associatedDomains": [
+        "applinks:kscan.app"
+      ],
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "K Scan uses your camera to photograph your outfit for style analysis.",
+        "NSPhotoLibraryUsageDescription": "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
+        "NSLocationWhenInUseUsageDescription": "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          }
+        ],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          }
+        ]
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a075728d-bd77-446f-843d-0f63fd54cc2e"
+      }
+    }
+  }
 }
