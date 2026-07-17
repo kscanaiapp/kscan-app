@@ -4,18 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function createDeferred() {
-  let resolve;
-  let reject;
-
-  const promise = new Promise((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-
-  return { promise, resolve, reject };
-}
-
 function stripImports(source) {
   const lines = source.split(/\r?\n/);
   const kept = [];
@@ -37,7 +25,16 @@ function stripImports(source) {
   return kept.join('\n');
 }
 
-function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
+function loadUseKScanWithMocks({
+  scanIdentifyBackendEnabled = true,
+  identifyScanImage = async () => {
+    throw new Error('unexpected identifyScanImage call');
+  },
+  analyzeImage = async () => {
+    throw new Error('analyzeImage should not be called');
+  },
+  compressForUpload = async () => 'data:image/jpeg;base64,test-payload',
+} = {}) {
   const hookPath = path.join(__dirname, '..', 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
   source = source.replace('export function useKScan()', 'function useKScan()');
@@ -46,7 +43,7 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
   let stateIndex = 0;
   const stateSlots = [
     { value: 'preview' },
-    { value: { uri: 'file://duplicate-guard.jpg' } },
+    { value: { uri: 'file://test.jpg' } },
     { value: null },
     { value: null },
     { value: null },
@@ -55,9 +52,9 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
   const context = {
     module: { exports: {} },
     exports: {},
-    __DEV__: true,
+    __DEV__: false,
     console: {
-      log,
+      log: () => {},
       warn: () => {},
       error: () => {},
     },
@@ -68,6 +65,7 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
     clearTimeout: () => {},
     requestAnimationFrame: (callback) => callback(),
     Date,
+    SCAN_IDENTIFY_BACKEND_ENABLED: scanIdentifyBackendEnabled,
     useState: (initialValue) => {
       const slot = stateSlots[stateIndex] ?? { value: initialValue };
       stateSlots[stateIndex] = slot;
@@ -85,9 +83,19 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
     useEffect: () => {},
     useRef: (initialValue) => ({ current: initialValue }),
     analyzeImage,
+    identifyScanImage,
+    mapScanIdentifyToAnalysis: (response) => response,
     compressForUpload,
+    sanitizeImageBeforeUpload: async (image) => image,
+    getPrivacySanitizerStatus: () => ({
+      mode: 'test',
+      faceDetectionAvailable: false,
+      faceBlurApplied: false,
+    }),
     buildSecondhandSearchRequest: () => null,
     searchVintedSecondhand: async () => ({ enabled: false, items: [] }),
+    shouldEnrichSneakers: () => false,
+    searchSneakers: async () => [],
     errorPulse: () => {},
     softImpact: () => {},
     successPulse: () => {},
@@ -106,42 +114,103 @@ async function waitFor(predicate) {
   assert.equal(predicate(), true);
 }
 
-test('runAnalysis blocks duplicate invocation while first analyze request is unresolved', async () => {
-  const deferredAnalyze = createDeferred();
-  const logs = [];
+test('when SCAN_IDENTIFY_BACKEND_ENABLED is true, duplicate runAnalysis calls only invoke identifyScanImage once', async () => {
+  let identifyCalls = 0;
   let analyzeCalls = 0;
+  let resolveIdentify;
+  const identifyPromise = new Promise((resolve) => {
+    resolveIdentify = resolve;
+  });
 
   const hook = loadUseKScanWithMocks({
-    log: (message) => logs.push(String(message)),
-    compressForUpload: async () => 'data:image/jpeg;base64,test-payload',
+    scanIdentifyBackendEnabled: true,
+    identifyScanImage: async () => {
+      identifyCalls += 1;
+      return identifyPromise;
+    },
     analyzeImage: async () => {
       analyzeCalls += 1;
-      return deferredAnalyze.promise;
+      throw new Error('render should not be reached');
     },
   });
 
   const firstRun = hook.runAnalysis();
-  await waitFor(() => analyzeCalls === 1);
+  await waitFor(() => identifyCalls === 1);
 
   const secondRun = hook.runAnalysis();
 
   assert.equal(
-    analyzeCalls,
+    identifyCalls,
     1,
-    'analyzeImage must be called once while the first analysis remains in flight',
+    'identifyScanImage must be called once while the first analysis remains in flight',
   );
+  assert.equal(analyzeCalls, 0, 'analyzeImage must not be called as a fallback');
 
-  const joinedLogs = logs.join('\n');
-  assert.match(joinedLogs, /"event":"analyze_trigger_accepted"/);
-  assert.match(joinedLogs, /"event":"duplicate_analyze_blocked"/);
-
-  deferredAnalyze.resolve({
+  resolveIdentify({
     type: 'fashion',
     result: 'Black fitted top',
     metadata: { category: 'Tops', color: 'Black', silhouette: 'Fitted' },
     products: [],
   });
-
   await firstRun;
   await secondRun;
+});
+
+test('when SCAN_IDENTIFY_BACKEND_ENABLED is true and Supabase fails, analyzeImage is not called', async () => {
+  let identifyCalls = 0;
+  let analyzeCalls = 0;
+
+  const hook = loadUseKScanWithMocks({
+    scanIdentifyBackendEnabled: true,
+    identifyScanImage: async () => {
+      identifyCalls += 1;
+      throw new Error('supabase error');
+    },
+    analyzeImage: async () => {
+      analyzeCalls += 1;
+      throw new Error('render should not be reached');
+    },
+  });
+
+  await hook.runAnalysis();
+
+  assert.equal(identifyCalls, 1, 'identifyScanImage must be called once');
+  assert.equal(analyzeCalls, 0, 'analyzeImage must not be called when scan-identify fails');
+});
+
+test('production Scanner runAnalysis enables multi-item detection on scan-identify call', async () => {
+  let sentOptions = null;
+
+  const hook = loadUseKScanWithMocks({
+    scanIdentifyBackendEnabled: true,
+    identifyScanImage: async (_image, options) => {
+      sentOptions = options;
+      return {
+        type: 'fashion',
+        result: 'Outfit scan',
+        metadata: { category: 'Outfit', color: 'Black', silhouette: 'Layered' },
+        products: [],
+      };
+    },
+  });
+
+  await hook.runAnalysis();
+
+  assert.equal(sentOptions.multiItemDetection, true);
+});
+
+test('when SCAN_IDENTIFY_BACKEND_ENABLED is false, analyzeImage is not called', async () => {
+  let analyzeCalls = 0;
+
+  const hook = loadUseKScanWithMocks({
+    scanIdentifyBackendEnabled: false,
+    analyzeImage: async () => {
+      analyzeCalls += 1;
+      throw new Error('render should not be reached');
+    },
+  });
+
+  await hook.runAnalysis();
+
+  assert.equal(analyzeCalls, 0, 'analyzeImage must not be called when backend is disabled');
 });

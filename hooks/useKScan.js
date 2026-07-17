@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { analyzeImage } from '../services/api';
+import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
+import { identifyScanImage } from '../services/scanIdentification';
+import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import {
   buildSecondhandSearchRequest,
   searchVintedSecondhand,
@@ -47,6 +49,12 @@ function warnInvalidTransition(from, to) {
   }
 }
 
+function userSafeError(message, userMessage) {
+  const error = new Error(message);
+  error.userMessage = userMessage;
+  return error;
+}
+
 /**
  * K-SCAN scan state machine.
  * status: idle | capturing | preview | processing | result | non-fashion | error
@@ -80,7 +88,11 @@ export function useKScan() {
         warnInvalidTransition(status, 'capturing');
         return;
       }
-      if (!cameraRef?.current) return;
+      if (!cameraRef?.current || typeof cameraRef.current.takePictureAsync !== 'function') {
+        setError('We could not take the photo. Please try again.');
+        setStatus('error');
+        return;
+      }
 
       captureInProgressRef.current = true;
       setStatus('capturing');
@@ -90,13 +102,17 @@ export function useKScan() {
         const result = await cameraRef.current.takePictureAsync({
           quality: 0.7,
         });
-        setPhoto(result);
+        if (!result || typeof result.uri !== 'string' || result.uri.length === 0) {
+          throw new Error('Camera returned an invalid photo.');
+        }
+        setPhoto({ ...result, source: 'camera' });
         setError(null);
         setStatus('preview');
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.error('Capture failed:', err);
         }
+        setPhoto(null);
         setError('We could not take the photo. Please try again.');
         setStatus('error');
       } finally {
@@ -131,13 +147,15 @@ export function useKScan() {
         warnInvalidTransition(status, 'processing');
         return;
       }
-      if (!photo?.uri) {
+      if (!photo?.uri || typeof photo.uri !== 'string') {
         logAnalyzeDiag({
           event: 'analyze_trigger_rejected',
           source: 'runAnalysis',
           reason: 'missing_photo_uri',
           status,
         });
+        setError('We could not take the photo. Please try again.');
+        setStatus('error');
         return;
       }
 
@@ -153,41 +171,10 @@ export function useKScan() {
       secondhandRequestRef.current += 1;
       const secondhandRequestId = secondhandRequestRef.current;
 
-      if (__DEV__) console.log('[DEBUG] SET_PROCESSING');
-
-      // Yield one frame so React renders the processing UI (PerceptionLayer)
-      // before the JS thread is occupied by compression work.
-      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_START');
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_DONE');
-
-      try {
-        const processingStart = Date.now();
-
-        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS uri=' + photo.uri.slice(0, 80));
-        if (__DEV__ && photo.qaFixtureName) {
-          console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
-          console.log('[K-SCAN QA] Using compressImage utility: true');
-          console.log('[K-SCAN QA] Sending fixture through /api/analyze');
-        }
-        const compressed = await compressForUpload(photo.uri);
-        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
-
-        const sanitized = await sanitizeImageBeforeUpload(compressed);
-        if (__DEV__) {
-          const sanitizerStatus = getPrivacySanitizerStatus();
-          console.warn(
-            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
-            sanitizerStatus.mode +
-            ' faceDetectionAvailable=' +
-            sanitizerStatus.faceDetectionAvailable +
-            ' faceBlurApplied=' +
-            sanitizerStatus.faceBlurApplied
-          );
-        }
-
-        if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
-        const data = await analyzeImage(sanitized);
+      // Shared completion path for both the primary scan-identify path and the
+      // legacy /api/analyze fallback. Keeps status transitions, enrichment, and
+      // minimum-HUD timing identical regardless of which backend answered.
+      const finishAnalysis = async (data, processingStart) => {
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
 
         // Enforce minimum HUD display time so PerceptionLayer completes its entry
@@ -218,14 +205,18 @@ export function useKScan() {
 
         const secondhandRequest = buildSecondhandSearchRequest(data);
         if (secondhandRequest) {
-          searchVintedSecondhand(secondhandRequest).then((secondhand) => {
-            if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
-            if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
-            setAnalysis((current) => {
-              if (!current || current.type === 'non-fashion') return current;
-              return { ...current, secondhand };
+          searchVintedSecondhand(secondhandRequest)
+            .then((secondhand) => {
+              if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+              if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
+              setAnalysis((current) => {
+                if (!current || current.type === 'non-fashion') return current;
+                return { ...current, secondhand };
+              });
+            })
+            .catch(() => {
+              // Async enrichment failure must not replace the result card.
             });
-          });
         }
 
         // Sneaker enrichment — async, never blocks the result card.
@@ -237,17 +228,88 @@ export function useKScan() {
           model:              data.metadata?.silhouette,
         };
         if (shouldEnrichSneakers(sneakerInput)) {
-          searchSneakers(sneakerInput).then((sneakerReference) => {
-            if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
-            if (!sneakerReference || sneakerReference.length === 0) return;
-            setAnalysis((current) => {
-              if (!current || current.type === 'non-fashion') return current;
-              return { ...current, sneakerReference };
+          searchSneakers(sneakerInput)
+            .then((sneakerReference) => {
+              if (!isMounted.current || secondhandRequestRef.current !== secondhandRequestId) return;
+              if (!sneakerReference || sneakerReference.length === 0) return;
+              setAnalysis((current) => {
+                if (!current || current.type === 'non-fashion') return current;
+                return { ...current, sneakerReference };
+              });
+            })
+            .catch(() => {
+              // Async enrichment failure must not replace the result card.
             });
-          });
         }
+      };
+
+      if (__DEV__) console.log('[DEBUG] SET_PROCESSING');
+
+      // Yield one frame so React renders the processing UI (PerceptionLayer)
+      // before the JS thread is occupied by compression work.
+      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_START');
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_DONE');
+
+      let processingStart;
+      let sanitized;
+      let usedScanIdentify = false;
+
+      try {
+        processingStart = Date.now();
+
+        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS uri=' + photo.uri.slice(0, 80));
+        if (__DEV__ && photo.qaFixtureName) {
+          console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
+          console.log('[K-SCAN QA] Using compressImage utility: true');
+          console.log('[K-SCAN QA] Sending fixture through scan-identify');
+        }
+        const compressed = await compressForUpload(photo.uri);
+        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
+
+        sanitized = await sanitizeImageBeforeUpload(compressed);
+        if (__DEV__) {
+          const sanitizerStatus = getPrivacySanitizerStatus();
+          console.warn(
+            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
+            sanitizerStatus.mode +
+            ' faceDetectionAvailable=' +
+            sanitizerStatus.faceDetectionAvailable +
+            ' faceBlurApplied=' +
+            sanitizerStatus.faceBlurApplied
+          );
+        }
+
+        if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
+        // Production camera scan path (KS-REL-008C): always route through the
+        // app-side scan-identify Supabase Edge Function. The legacy Render
+        // /api/analyze fallback has been removed for production submission.
+        if (!SCAN_IDENTIFY_BACKEND_ENABLED) {
+          throw userSafeError(
+            'scan backend disabled',
+            'We couldn’t complete the scan. Please check your connection and try again.',
+          );
+        }
+        usedScanIdentify = true;
+        const identifyResponse = await identifyScanImage(sanitized, {
+          source: photo.source === 'upload' ? 'upload' : 'camera',
+          localPrivacyFiltered: true,
+          multiItemDetection: true,
+        });
+        // Throws a user-safe error on 'failed' → handled by the catch below.
+        const data = mapScanIdentifyToAnalysis(identifyResponse);
+        await finishAnalysis(data, processingStart);
       } catch (err) {
-        if (__DEV__) console.error('[DEBUG] ANALYZE_ERROR', err?.message);
+        logAnalyzeDiag({
+          event: 'scan_identify_failed',
+          source: 'runAnalysis',
+          usedScanIdentify,
+          errorMessage: err?.message ?? null,
+        });
+        if (__DEV__) {
+          console.warn('[useKScan] scan-identify path failed', err?.message);
+        }
+
         if (isMounted.current) {
           errorPulse();
           setError(
@@ -297,7 +359,7 @@ export function useKScan() {
 
       if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
-      setPhoto({ uri, qaFixtureName: fixtureName });
+      setPhoto({ uri, qaFixtureName: fixtureName, source: 'fixture' });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -305,6 +367,29 @@ export function useKScan() {
       requestAnimationFrame(() => {
         if (isMounted.current) setStatus('preview');
       });
+    },
+    [status]
+  );
+
+  const uploadPhoto = useCallback(
+    (uri) => {
+      if (status !== 'idle' && status !== 'preview') {
+        warnInvalidTransition(status, 'capturing');
+        return;
+      }
+
+      if (!uri || typeof uri !== 'string') {
+        setError('Uploaded image could not be loaded.');
+        setStatus('error');
+        return;
+      }
+
+      setPhoto({ uri, source: 'upload' });
+      setError(null);
+      setAnalysis(null);
+      setNonFashionMessage(null);
+      secondhandRequestRef.current += 1;
+      setStatus('preview');
     },
     [status]
   );
@@ -355,5 +440,6 @@ export function useKScan() {
     dismissResult,
     retry,
     selectStaticFixture,
+    uploadPhoto,
   };
 }
