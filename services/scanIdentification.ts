@@ -26,6 +26,7 @@ import type {
   DetailedIdentification,
   DisplayResult,
   DetectedGarmentCandidate,
+  SelectedGarmentTarget,
   RankedScanProduct,
 } from '../types/scanIdentification';
 
@@ -56,6 +57,10 @@ export type IdentifyScanOptions = {
   source?: 'camera' | 'upload';
   localPrivacyFiltered?: boolean;
   multiItemDetection?: boolean;
+  requestMode?: 'multi_item_detection' | 'selected_item';
+  scanSessionId?: string;
+  imageDigestPrefix?: string;
+  selectedCandidate?: SelectedGarmentTarget;
 };
 
 function failed(userMessage = NEUTRAL_FAILED_MESSAGE): ScanIdentifyResponse {
@@ -213,6 +218,24 @@ function normalizeDetectedGarments(raw: unknown): DetectedGarmentCandidate[] | u
         category,
         subtype,
       };
+      const boundsSource = item.bounds;
+      if (boundsSource && typeof boundsSource === 'object' && !Array.isArray(boundsSource)) {
+        const bounds = boundsSource as Record<string, unknown>;
+        const x = Number(bounds.x);
+        const y = Number(bounds.y);
+        const width = Number(bounds.width);
+        const height = Number(bounds.height);
+        if ([x, y, width, height].every(Number.isFinite)) {
+          const normalizedX = Math.max(0, Math.min(1, x));
+          const normalizedY = Math.max(0, Math.min(1, y));
+          candidate.bounds = {
+            x: normalizedX,
+            y: normalizedY,
+            width: Math.max(0.01, Math.min(1 - normalizedX, width)),
+            height: Math.max(0.01, Math.min(1 - normalizedY, height)),
+          };
+        }
+      }
       if (Number.isFinite(rawConfidence)) {
         candidate.confidenceScore = Math.max(0, Math.min(1, rawConfidence));
       }
@@ -332,6 +355,8 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
       identification: normalizeIdentification(src.identification),
       userMessage: userMessage ?? 'Identified a fashion item from your scan.',
       scanId: typeof src.scanId === 'string' ? src.scanId : undefined,
+      scanSessionId: typeof src.scanSessionId === 'string' ? src.scanSessionId : undefined,
+      imageDigestPrefix: typeof src.imageDigestPrefix === 'string' ? src.imageDigestPrefix : undefined,
       displayResult: normalizeDisplayResult(src.displayResult),
     };
     if (Object.prototype.hasOwnProperty.call(src, 'similarityMatches')) {
@@ -380,8 +405,21 @@ export async function identifyScanImage(
     source: options.source === 'upload' ? 'upload' : 'camera',
     localPrivacyFiltered: options.localPrivacyFiltered ?? false,
     ...(options.multiItemDetection === true ? { multiItemDetection: true } : {}),
+    ...(options.requestMode ? { requestMode: options.requestMode } : {}),
+    ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
+    ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
+    ...(options.selectedCandidate ? { selectedCandidate: options.selectedCandidate } : {}),
     clientTimestamp: new Date().toISOString(),
   };
+
+  if (SCAN_DIAGNOSTICS_ENABLED) {
+    console.log('[scanIdentification] correlation', {
+      scanSessionId: options.scanSessionId ?? 'none',
+      candidateId: options.selectedCandidate?.candidateId ?? 'none',
+      imageDigestPrefix: options.imageDigestPrefix ?? 'none',
+      requestMode: options.requestMode ?? 'legacy_single_item',
+    });
+  }
 
   const ac = new AbortController();
   const timeoutId = setTimeout(() => ac.abort(), INVOKE_TIMEOUT_MS);

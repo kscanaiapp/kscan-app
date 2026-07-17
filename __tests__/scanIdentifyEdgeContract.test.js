@@ -326,11 +326,13 @@ test('edge source: multi-item provider requires env gate and literal request tru
   );
 });
 
-test('edge source: server selects multi-item prompt only when useMultiItemProvider is true', () => {
+test('edge source: server selects detection or selected-item prompt only through the multi-item gate', () => {
   assert.ok(EDGE_SOURCE.includes('MULTI_ITEM_IDENTIFY_PROMPT'), 'Must define a dedicated multi-item prompt');
   assert.ok(
-    EDGE_SOURCE.includes('useMultiItemProvider ? MULTI_ITEM_IDENTIFY_PROMPT : IDENTIFY_PROMPT'),
-    'Image Gemini request must select multi-item prompt only through the explicit gate',
+    EDGE_SOURCE.includes('useMultiItemDetectionProvider') &&
+      EDGE_SOURCE.includes('? MULTI_ITEM_IDENTIFY_PROMPT') &&
+      EDGE_SOURCE.includes('buildSelectedItemPrompt(selectedCandidate)'),
+    'Image Gemini request must route detection and selected-item prompts through explicit gates',
   );
   assert.ok(
     EDGE_SOURCE.includes('sanitizeDetectedGarments(parsed.detectedGarments)'),
@@ -340,6 +342,16 @@ test('edge source: server selects multi-item prompt only when useMultiItemProvid
     EDGE_SOURCE.includes('detectedGarments'),
     'Response contract must preserve detectedGarments',
   );
+});
+
+test('edge source: selected-item request verifies the parent image digest and preserves session correlation', () => {
+  assert.match(EDGE_SOURCE, /useSelectedItemProvider/);
+  assert.match(EDGE_SOURCE, /suppliedImageDigestPrefix !== imageDigestPrefix/);
+  assert.match(EDGE_SOURCE, /selected_item_image_mismatch/);
+  assert.match(EDGE_SOURCE, /scanSessionId/);
+  assert.match(EDGE_SOURCE, /candidateId/);
+  assert.match(EDGE_SOURCE, /requestMode/);
+  assert.match(EDGE_SOURCE, /imageDigest/);
 });
 
 test('edge source: multi-item diagnostics are count-only', () => {

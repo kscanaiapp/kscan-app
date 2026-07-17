@@ -79,6 +79,9 @@ interface ScanResultV2Props {
   onAskStyleChat?: () => void;
   /** Called to scroll to / focus Similar Finds. */
   onFindSimilar?: () => void;
+  selectedCandidateId?: string | null;
+  onSelectCandidate?: (candidateId: string) => void;
+  onAnalyzeSelectedCandidate?: (candidateId: string) => void;
   testID?: string;
 }
 
@@ -100,6 +103,9 @@ export function ScanResultV2({
   onAddToDressingRoom,
   onAskStyleChat,
   onFindSimilar,
+  selectedCandidateId,
+  onSelectCandidate,
+  onAnalyzeSelectedCandidate,
   testID,
 }: ScanResultV2Props) {
   const insets = useSafeAreaInsets();
@@ -109,7 +115,11 @@ export function ScanResultV2({
   let v2Data: ScanResultV2 | null = mapLegacyToV2(analysis, scanImageUri);
 
   // Demo data override (dev-only, gated)
-  if (SCAN_RESULTS_DEMO_UI_ENABLED && !v2Data?.similarFinds) {
+  if (
+    SCAN_RESULTS_DEMO_UI_ENABLED &&
+    !analysis?.confirmationCandidates?.length &&
+    !v2Data?.similarFinds
+  ) {
     const demo = getDemoScanResultV2(v2Data ?? undefined);
     v2Data = {
       ...demo,
@@ -131,21 +141,8 @@ export function ScanResultV2({
   const confirmationCandidates = Array.isArray(analysis?.confirmationCandidates)
     ? analysis.confirmationCandidates
     : [];
-  const [selectedCandidateIds, setSelectedCandidateIds] = React.useState<string[]>(
-    confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : [],
-  );
-
-  React.useEffect(() => {
-    setSelectedCandidateIds(confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : []);
-  }, [confirmationCandidates.map((candidate) => candidate.id).join('|')]);
-
-  const toggleConfirmationCandidate = React.useCallback((candidateId: string) => {
-    setSelectedCandidateIds((current) =>
-      current.includes(candidateId)
-        ? current.filter((id) => id !== candidateId)
-        : [...current, candidateId],
-    );
-  }, []);
+  const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
+  const isConfirmationStep = confirmationCandidates.length > 0;
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -225,6 +222,10 @@ export function ScanResultV2({
   }, [onFindSimilar, similarFindsTarget, similarFindsTargetReady]);
 
   const handleViewAllSimilar = handleFindSimilar;
+  const handleFindCandidateMatches = React.useCallback(() => {
+    if (!activeCandidateId) return;
+    onAnalyzeSelectedCandidate?.(activeCandidateId);
+  }, [activeCandidateId, onAnalyzeSelectedCandidate]);
 
   // If no meaningful data at all, show empty state
   if (!v2Data) {
@@ -326,12 +327,12 @@ export function ScanResultV2({
                 confidence={v2Data.confidence}
               />
 
-              {confirmationCandidates.length > 1 ? (
+              {confirmationCandidates.length > 0 ? (
                 <View style={styles.section} testID="outfit-confirmation-candidates">
                   <Text style={styles.candidateEyebrow}>Detected Items</Text>
                   <View style={styles.candidateList}>
                     {confirmationCandidates.map((candidate) => {
-                      const selected = selectedCandidateIds.includes(candidate.id);
+                      const selected = activeCandidateId === candidate.id;
                       return (
                         <TouchableOpacity
                           key={candidate.id}
@@ -340,7 +341,7 @@ export function ScanResultV2({
                             styles.candidateButton,
                             selected ? styles.candidateButtonSelected : null,
                           ]}
-                          onPress={() => toggleConfirmationCandidate(candidate.id)}
+                          onPress={() => onSelectCandidate?.(candidate.id)}
                           activeOpacity={0.84}
                           accessibilityRole="button"
                           accessibilityState={{ selected }}
@@ -453,11 +454,20 @@ export function ScanResultV2({
 
             {/* Sticky Bottom Action Row */}
             <ScanResultActionRow
-              onSave={onSaveToLibrary}
+              onSave={isConfirmationStep ? undefined : onSaveToLibrary}
               saveLabel={saveActionLabel}
-              onFindSimilar={similarFindsTargetReady ? handleFindSimilar : undefined}
-              onAskStyleChat={onAskStyleChat}
-              onAddToDressingRoom={onAddToDressingRoom}
+              onFindSimilar={
+                confirmationCandidates.length > 0
+                  ? onAnalyzeSelectedCandidate
+                    ? handleFindCandidateMatches
+                    : undefined
+                  : similarFindsTargetReady
+                  ? handleFindSimilar
+                  : undefined
+              }
+              findSimilarLabel={confirmationCandidates.length > 0 ? 'Find Matches' : 'Find Similar'}
+              onAskStyleChat={isConfirmationStep ? undefined : onAskStyleChat}
+              onAddToDressingRoom={isConfirmationStep ? undefined : onAddToDressingRoom}
               onLayout={(event) => setActionRowHeight(event.nativeEvent.layout.height)}
             />
           </View>

@@ -6,6 +6,7 @@ export type OutfitConfirmationCandidate = {
   label: string;
   category: string;
   subtype: string;
+  bounds?: DetectedGarmentCandidate['bounds'];
   confidenceScore?: number;
   isPrimary: boolean;
   source: DetectedGarmentCandidate;
@@ -34,6 +35,7 @@ export function buildOutfitConfirmationCandidates(
       label: candidate.label || candidate.subtype || candidate.category,
       category: candidate.category,
       subtype: candidate.subtype,
+      bounds: candidate.bounds,
       confidenceScore: candidate.confidenceScore,
       isPrimary: index === 0,
       source: candidate,

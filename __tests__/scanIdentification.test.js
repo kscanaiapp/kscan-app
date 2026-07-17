@@ -259,6 +259,43 @@ test('identifyScanImage: multi-item Scanner flow sends multiItemDetection true',
   assert.equal(sentBody.multiItemDetection, true);
 });
 
+test('identifyScanImage: selected-item body preserves session, digest, candidate, and bounds', async () => {
+  let sentBody = null;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: async (_fn, opts) => {
+        sentBody = opts.body;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'blazer' } },
+          error: null,
+        };
+      },
+    },
+  });
+
+  await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'upload',
+    multiItemDetection: true,
+    requestMode: 'selected_item',
+    scanSessionId: 'scan_parent_123',
+    imageDigestPrefix: 'abcdef123456',
+    selectedCandidate: {
+      candidateId: 'garment-1-blazer',
+      category: 'blazer',
+      subtype: 'tailored blazer',
+      bounds: { x: 0.1, y: 0.08, width: 0.8, height: 0.52 },
+    },
+  });
+
+  assert.equal(sentBody.multiItemDetection, true);
+  assert.equal(sentBody.requestMode, 'selected_item');
+  assert.equal(sentBody.scanSessionId, 'scan_parent_123');
+  assert.equal(sentBody.imageDigestPrefix, 'abcdef123456');
+  assert.equal(sentBody.selectedCandidate.candidateId, 'garment-1-blazer');
+  assert.equal(sentBody.selectedCandidate.bounds.height, 0.52);
+});
+
 test('identifyScanImage: malformed multiItemDetection option does not send true', async () => {
   let sentBody = null;
   const adapter = loadAdapter({
@@ -590,7 +627,7 @@ test('mapper: detectedGarments reach confirmation candidate state without collap
   assert.equal(out.confirmationCandidates[1].label, 'Black trousers');
 });
 
-test('confirmation UI supports independent multi-select candidates', () => {
+test('confirmation UI keeps candidate selection controlled by orchestration', () => {
   const scanResultSource = fs.readFileSync(
     path.join(ROOT, 'components', 'scan-results', 'ScanResultV2.tsx'),
     'utf8',
@@ -601,11 +638,11 @@ test('confirmation UI supports independent multi-select candidates', () => {
   );
 
   for (const source of [scanResultSource, analysisCardSource]) {
-    assert.match(source, /selectedCandidateIds/);
-    assert.match(source, /current\.includes\(candidateId\)/);
-    assert.match(source, /current\.filter\(\(id\) => id !== candidateId\)/);
-    assert.match(source, /\[\.\.\.current, candidateId\]/);
-    assert.match(source, /selectedCandidateIds\.includes\(candidate\.id\)/);
+    assert.match(source, /selectedCandidateId/);
+    assert.match(source, /activeCandidateId === candidate\.id/);
+    assert.match(source, /onSelectCandidate\?\.\(candidate\.id\)/);
+    assert.match(source, /onAnalyzeSelectedCandidate/);
+    assert.doesNotMatch(source, /setSourceImageUri|setPreparedImageUri|setScanSessionId/);
   }
 });
 

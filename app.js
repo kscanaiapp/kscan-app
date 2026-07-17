@@ -262,11 +262,14 @@ export default function App() {
     analysis,
     error,
     nonFashionMessage,
+    selectedCandidateId,
     capturePhoto,
     runAnalysis,
     retake,
     dismissResult,
     retry,
+    selectConfirmationCandidate,
+    analyzeSelectedCandidate,
     selectStaticFixture,
     uploadPhoto,
   } = useKScan();
@@ -417,7 +420,13 @@ export default function App() {
   // Fires when status becomes 'result' (photo and analysis are both populated).
   // hasSavedRef prevents duplicate saves if the effect re-runs before dismiss.
   useEffect(() => {
-    if (status !== 'result' || !photo?.uri || !analysis || hasSavedRef.current) return;
+    if (
+      status !== 'result' ||
+      !photo?.uri ||
+      !analysis ||
+      analysis.confirmationCandidates?.length ||
+      hasSavedRef.current
+    ) return;
     hasSavedRef.current = true;
     let live = true;
     saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' }).then(saved => {
@@ -959,6 +968,9 @@ export default function App() {
             onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
             saveActionLabel={savedScanId ? 'View Closet' : undefined}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            selectedCandidateId={selectedCandidateId}
+            onSelectCandidate={selectConfirmationCandidate}
+            onAnalyzeSelectedCandidate={analyzeSelectedCandidate}
             onAskStyleChat={styleChatEnabled ? () => {
               const source = photo?.source === 'upload' ? 'upload' : 'camera';
               const meta = analysis?.metadata ?? {};
@@ -982,6 +994,9 @@ export default function App() {
             metadata={analysis?.metadata ?? EMPTY_METADATA}
             products={analysis?.products ?? []}
             confirmationCandidates={analysis?.confirmationCandidates ?? []}
+            selectedCandidateId={selectedCandidateId}
+            onSelectCandidate={selectConfirmationCandidate}
+            onAnalyzeSelectedCandidate={analyzeSelectedCandidate}
             scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}

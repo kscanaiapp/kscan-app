@@ -38,10 +38,32 @@ export type SanitizedDetectedGarment = {
   label: string;
   category: string;
   subtype: string;
+  bounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
   confidenceScore?: number;
   attributes: Record<string, unknown>;
   identification: Record<string, unknown>;
 };
+
+function cleanBounds(value: unknown): SanitizedDetectedGarment['bounds'] | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const src = value as Record<string, unknown>;
+  const numbers = ['x', 'y', 'width', 'height'].map((key) => {
+    const raw = src[key];
+    return typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  });
+  if (!numbers.every(Number.isFinite)) return undefined;
+
+  const x = Math.max(0, Math.min(1, numbers[0]));
+  const y = Math.max(0, Math.min(1, numbers[1]));
+  const width = Math.max(0.01, Math.min(1 - x, numbers[2]));
+  const height = Math.max(0.01, Math.min(1 - y, numbers[3]));
+  return { x, y, width, height };
+}
 
 function cleanString(value: unknown, max = MAX_STRING_LEN): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -148,6 +170,8 @@ function sanitizeGarment(raw: unknown, index: number): SanitizedDetectedGarment 
     subtype,
   });
   const confidence = cleanConfidence(src.confidenceScore) ?? cleanConfidence(identification.confidence_score);
+  const bounds = cleanBounds(src.bounds ?? src.boundingBox ?? src.bounding_box);
+  if (!bounds) return undefined;
   const label =
     cleanString(src.label) ??
     ([cleanString(identification.primary_color), subtype].filter(Boolean).join(' ') || subtype);
@@ -159,6 +183,7 @@ function sanitizeGarment(raw: unknown, index: number): SanitizedDetectedGarment 
     label,
     category,
     subtype,
+    bounds,
     ...(confidence !== undefined ? { confidenceScore: confidence } : {}),
     attributes,
     identification: {

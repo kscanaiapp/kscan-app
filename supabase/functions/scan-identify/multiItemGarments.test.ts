@@ -7,6 +7,7 @@ Deno.test('sanitizeDetectedGarments preserves up to five valid garments', () => 
       label: `Item ${index + 1}`,
       category: 'top',
       subtype: `subtype ${index + 1}`,
+      bounds: { x: 0.1, y: 0.1, width: 0.4, height: 0.4 },
       confidenceScore: index === 0 ? 2 : 0.8,
       dangerous: 'drop-me',
       identification: {
@@ -34,6 +35,7 @@ Deno.test('sanitizeDetectedGarments drops malformed candidates individually', ()
     {
       category: 'jacket',
       subtype: 'bomber jacket',
+      bounds: { x: 0.1, y: 0.1, width: 0.5, height: 0.5 },
       identification: {
         item_type: 'jacket',
         subtype: 'bomber jacket',
@@ -44,6 +46,24 @@ Deno.test('sanitizeDetectedGarments drops malformed candidates individually', ()
 
   assertEquals(out.length, 1);
   assertEquals(out[0].candidateId, 'garment-1-jacket-bomber-jacket');
+});
+
+Deno.test('sanitizeDetectedGarments accepts compact real-world candidates and clamps bounds', () => {
+  const out = sanitizeDetectedGarments([
+    {
+      label: 'navy blazer',
+      category: 'blazer',
+      subtype: 'tailored blazer',
+      primary_color: 'navy',
+      confidenceScore: 0.78,
+      bounds: { x: -0.1, y: 0.08, width: 1.4, height: 0.52 },
+    },
+  ]);
+
+  assertEquals(out.length, 1);
+  assertEquals(out[0].bounds, { x: 0, y: 0.08, width: 1, height: 0.52 });
+  assertEquals(out[0].identification.item_type, 'blazer');
+  assertEquals(out[0].identification.primary_color, 'navy');
 });
 
 Deno.test('rawDetectedGarmentCount reports provider array count only', () => {

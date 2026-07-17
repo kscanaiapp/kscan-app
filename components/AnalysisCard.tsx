@@ -52,6 +52,9 @@ export interface AnalysisCardProps {
   };
   products?: Product[];
   confirmationCandidates?: OutfitConfirmationCandidate[];
+  selectedCandidateId?: string | null;
+  onSelectCandidate?: (candidateId: string) => void;
+  onAnalyzeSelectedCandidate?: (candidateId: string) => void;
   /** Optional structured Scan Result Object (Part 2). When present, an additive
    *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
   scanResultObject?: ScanResultObject | null;
@@ -75,6 +78,9 @@ export function AnalysisCard({
   metadata,
   products = [],
   confirmationCandidates = [],
+  selectedCandidateId,
+  onSelectCandidate,
+  onAnalyzeSelectedCandidate,
   scanResultObject,
   secondhand,
   sneakerReference,
@@ -169,21 +175,7 @@ export function AnalysisCard({
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
-  const [selectedCandidateIds, setSelectedCandidateIds] = React.useState<string[]>(
-    confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : [],
-  );
-
-  React.useEffect(() => {
-    setSelectedCandidateIds(confirmationCandidates[0]?.id ? [confirmationCandidates[0].id] : []);
-  }, [confirmationCandidates.map((candidate) => candidate.id).join('|')]);
-
-  const toggleConfirmationCandidate = React.useCallback((candidateId: string) => {
-    setSelectedCandidateIds((current) =>
-      current.includes(candidateId)
-        ? current.filter((id) => id !== candidateId)
-        : [...current, candidateId],
-    );
-  }, []);
+  const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
 
   return (
     <Modal transparent animationType="none" onRequestClose={runExit}>
@@ -231,11 +223,11 @@ export function AnalysisCard({
                 </Text>
               </View>
 
-              {confirmationCandidates.length > 1 ? (
+              {confirmationCandidates.length > 0 ? (
                 <View style={styles.candidatePanel} testID="outfit-confirmation-candidates">
                   <Text style={styles.candidateEyebrow}>Detected Items</Text>
                   {confirmationCandidates.map((candidate) => {
-                    const selected = selectedCandidateIds.includes(candidate.id);
+                    const selected = activeCandidateId === candidate.id;
                     return (
                       <TouchableOpacity
                         key={candidate.id}
@@ -244,7 +236,7 @@ export function AnalysisCard({
                           styles.candidateButton,
                           selected ? styles.candidateButtonSelected : null,
                         ]}
-                        onPress={() => toggleConfirmationCandidate(candidate.id)}
+                        onPress={() => onSelectCandidate?.(candidate.id)}
                         activeOpacity={0.84}
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
@@ -271,6 +263,18 @@ export function AnalysisCard({
                       </TouchableOpacity>
                     );
                   })}
+                  {activeCandidateId && onAnalyzeSelectedCandidate ? (
+                    <TouchableOpacity
+                      testID="outfit-find-matches"
+                      style={styles.scanRoomCta}
+                      onPress={() => onAnalyzeSelectedCandidate(activeCandidateId)}
+                      activeOpacity={0.86}
+                      accessibilityRole="button"
+                      accessibilityLabel="Find matches for selected garment"
+                    >
+                      <Text style={styles.scanRoomCtaText}>Find Matches</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               ) : null}
 
