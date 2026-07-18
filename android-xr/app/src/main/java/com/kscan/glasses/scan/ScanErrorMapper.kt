@@ -20,6 +20,7 @@ object ScanErrorMapper {
 
     fun toUserMessage(error: ScanOrchestratorError): String = when (error) {
         is ScanOrchestratorError.PrivacyBlocked -> "Privacy check blocked upload. Please retry."
+        is ScanOrchestratorError.PrivacyUnavailable -> error.userMessage
         is ScanOrchestratorError.EncodeFailure -> "Image processing failed. Please retry."
         is ScanOrchestratorError.Timeout -> "Analysis timed out. Tap to retry."
         is ScanOrchestratorError.Network -> "Connection issue. Check network and retry."

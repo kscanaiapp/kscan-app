@@ -9,6 +9,13 @@ interface PrivacyImageSanitizer {
 sealed class SanitizeResult {
     data class Success(val sanitizedBase64: String, val mimeType: String) : SanitizeResult()
     data class Blocked(val reason: String) : SanitizeResult()
+
+    /**
+     * Strict sanitizer cannot run at all because on-device face masking is not
+     * implemented in this build. Distinct from [Blocked]: the pipeline must surface
+     * the dedicated "privacy protection unavailable" message, never retry copy.
+     */
+    data class MaskingUnavailable(val reason: String) : SanitizeResult()
     data class Error(val message: String) : SanitizeResult()
 }
 
@@ -61,7 +68,7 @@ class StrictPrivacyImageSanitizer(
     /**
      * True only when on-device face masking is implemented and usable.
      * False in this build: any sanitize() call fails closed with
-     * [SanitizeResult.Blocked] before anything can be uploaded.
+     * [SanitizeResult.MaskingUnavailable] before anything can be uploaded.
      */
     val isMaskingAvailable: Boolean
         get() = faceMasker.isMaskingAvailable
@@ -81,8 +88,9 @@ class StrictPrivacyImageSanitizer(
                 SanitizeResult.Success(compressed, masked.mimeType)
             }
             is MaskResult.NotImplemented -> {
-                // Fail closed: production sanitizer unavailable = block upload.
-                SanitizeResult.Blocked(masked.reason)
+                // Fail closed: production sanitizer unavailable = scan is NOT uploaded.
+                // Never downgrade to raw upload; never substitute the mock sanitizer.
+                SanitizeResult.MaskingUnavailable(masked.reason)
             }
             is MaskResult.Error -> SanitizeResult.Blocked(masked.message)
         }

@@ -47,6 +47,9 @@ class ScanOrchestrator(
             // 2. Privacy sanitizer
             val sanitized = when (val result = sanitizer.sanitize(compressed.base64, compressed.mimeType)) {
                 is SanitizeResult.Success -> result
+                is SanitizeResult.MaskingUnavailable -> return@withContext ScanOrchestratorResult.Failure(
+                    ScanOrchestratorError.PrivacyUnavailable(result.reason)
+                )
                 is SanitizeResult.Blocked -> return@withContext ScanOrchestratorResult.Failure(
                     ScanOrchestratorError.PrivacyBlocked(result.reason)
                 )
@@ -130,6 +133,17 @@ sealed class ScanOrchestratorResult {
 
 sealed class ScanOrchestratorError(val userMessage: String) {
     class PrivacyBlocked(reason: String) : ScanOrchestratorError("Privacy check blocked: $reason")
+
+    /**
+     * Strict privacy mode was selected but on-device face masking is not
+     * implemented in this build. The scan was NOT uploaded. The user message is
+     * intentionally fixed and exact — never claim masking occurred and never
+     * suggest the scan succeeded.
+     */
+    class PrivacyUnavailable(val reason: String) : ScanOrchestratorError(
+        "Privacy protection is not available in this build. Scan was not uploaded."
+    )
+
     class EncodeFailure(reason: String) : ScanOrchestratorError("Image encoding failed: $reason")
     class Timeout(message: String) : ScanOrchestratorError(message)
     class Network(message: String) : ScanOrchestratorError(message)
