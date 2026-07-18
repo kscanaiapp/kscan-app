@@ -27,7 +27,7 @@ If **any** gate is false, `AnalyzeClientFactory.create()` returns `MockAnalyzeCl
 
 ### Single Execution Authority
 
-`ScanOrchestrator` is the only execution authority for the scan pipeline. `KScanViewModel` no longer has any direct path to `KScanApiClient`, `PrivacyImageSanitizer`, or `KScanAnalyzeClient`.
+`ScanOrchestrator` is the only execution authority for the scan pipeline. `KScanViewModel` has no direct path to any analyze client or to `PrivacyImageSanitizer`. (Update: the legacy `KScanApiClient`/`KScanAnalyzeClient` network path referenced below was deleted from the main source set in the native-safety milestone; this section is kept for historical context.)
 
 All scan triggers (image picker, voice, D-pad, shortcut) route through:
 
@@ -109,7 +109,7 @@ The `android.permission.INTERNET` permission was present from Phase 1 but was **
 - `MockAnalyzeClient` returns synthetic data without any network calls
 - `KScanViewModel` routes all scan paths through `ScanOrchestrator`, which uses the injected `AnalyzeClient` interface
 - `RealAnalyzeClient` and `KscanHttpTransport` are unreachable under default config (all factory gates are false)
-- `KScanApiClient` (legacy network path) is no longer instantiated anywhere in the codebase
+- `KScanApiClient` (legacy network path) was never instantiated anywhere in the codebase and has since been deleted from the main source set
 
 If all gates are explicitly enabled in a future debug build, the `INTERNET` permission must be re-added to the manifest before `KscanHttpTransport` can function.
 
@@ -119,7 +119,7 @@ Confirmed by `AnalyzeClientFactoryTest.useMockApi true blocks real analyze`. Whe
 
 ### Legacy network path is unreachable
 
-- `KScanApiClient` is defined in `network/KScanApiClient.kt` but **never instantiated** anywhere in the main source tree
+- `KScanApiClient` was defined in `network/KScanApiClient.kt` but **never instantiated** anywhere in the main source tree; the file was later deleted to make the orchestrator-only invariant structural
 - `KscanHttpTransport` is only instantiated inside `AnalyzeClientFactory` as part of the `RealAnalyzeClient` construction path, which requires all gates to be true
 - `KScanViewModel`, `ScanOrchestrator`, `MainActivity`, and `ScanOrchestratorFactory` contain no references to either class
 
@@ -186,7 +186,7 @@ Total tests: **97** (all pass)
 - `app/src/main/java/com/kscan/glasses/scan/ScanErrorMapper.kt` — Safe error mapping
 - `app/src/main/java/com/kscan/glasses/config/SafeLog.kt` — Payload guard enforcement
 - `app/src/main/java/com/kscan/glasses/state/KScanViewModel.kt` — Orchestrator-only path
-- `app/src/main/java/com/kscan/glasses/network/KScanApiClient.kt` — Safe hardcoded error messages (legacy, unreachable)
+- ~~`app/src/main/java/com/kscan/glasses/network/KScanApiClient.kt`~~ — deleted (legacy, was unreachable); orchestrator-only analyze authority is now structural
 - `app/build.gradle.kts` — `USE_MOCK_API = true` default
 - `docs/PHASE_3A_CONTROLLED_BACKEND_ANALYZE.md` — Phase 3A close-out report
 

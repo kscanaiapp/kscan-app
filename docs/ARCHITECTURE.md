@@ -8,7 +8,7 @@ flowchart LR
     App[K Scan Glasses App]
     Bridge[GlassesBridgeProvider]
     Privacy[PrivacyImageSanitizer]
-    API[KScanApiClient]
+    API[AnalyzeClient via ScanOrchestrator]
   end
 
   subgraph phone [K Scan Phone App]
