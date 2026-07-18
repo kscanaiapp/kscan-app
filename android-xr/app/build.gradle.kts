@@ -141,4 +141,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.11")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    // Test-only: executes real Android framework image code (BitmapFactory, Bitmap,
+    // android.util.Base64, android.media.ExifInterface) on the JVM so the JPEG
+    // re-encode boundary (ImageCompressor) is behavior-verified in unit tests.
+    // Not used by production code; no production dependency added.
+    testImplementation("org.robolectric:robolectric:4.12.2")
 }

@@ -79,14 +79,8 @@ class StrictPrivacyImageSanitizer(
         }
 
         return when (val masked = faceMasker.maskFaces(base64, mimeType)) {
-            is MaskResult.Success -> {
-                val compressed = compressor.compressJpeg(masked.base64)
-                SanitizeResult.Success(compressed, masked.mimeType)
-            }
-            is MaskResult.NoFaces -> {
-                val compressed = compressor.compressJpeg(masked.base64)
-                SanitizeResult.Success(compressed, masked.mimeType)
-            }
+            is MaskResult.Success -> reencode(masked.base64)
+            is MaskResult.NoFaces -> reencode(masked.base64)
             is MaskResult.NotImplemented -> {
                 // Fail closed: production sanitizer unavailable = scan is NOT uploaded.
                 // Never downgrade to raw upload; never substitute the mock sanitizer.
@@ -95,21 +89,37 @@ class StrictPrivacyImageSanitizer(
             is MaskResult.Error -> SanitizeResult.Blocked(masked.message)
         }
     }
+
+    /**
+     * Runs the real JPEG re-encode boundary. Output is always newly encoded
+     * bytes; any boundary failure stops the pipeline (Error), never passes
+     * raw bytes through.
+     */
+    private fun reencode(maskedBase64: String): SanitizeResult {
+        return when (val out = compressor.compressJpeg(maskedBase64)) {
+            is CompressResult.Success -> SanitizeResult.Success(out.base64, out.mimeType)
+            // Classification name only — never embed payload or input-derived data.
+            is CompressResult.Failure -> SanitizeResult.Error(
+                "Image re-encode failed (${out.failure.name})"
+            )
+        }
+    }
 }
 
 /**
  * Mock sanitizer for local testing — simulates successful face-safe output.
- * NOT for production use. Does not perform real face detection or masking.
+ * NOT for production use. Does not perform real face detection, masking,
+ * decoding, or re-encoding: the payload passes through untouched.
+ * Pipelines using this sanitizer are labeled MOCK in the UI.
  */
-class MockPrivacyImageSanitizer(
-    private val compressor: ImageCompressor = ImageCompressor(),
-) : PrivacyImageSanitizer {
+class MockPrivacyImageSanitizer : PrivacyImageSanitizer {
 
     override suspend fun sanitize(base64: String, mimeType: String): SanitizeResult {
         if (base64.isBlank()) {
             return SanitizeResult.Blocked("Empty image payload")
         }
-        val compressed = compressor.compressJpeg(base64)
-        return SanitizeResult.Success(compressed, mimeType)
+        // Mock pass-through by design; the real output boundary is ImageCompressor,
+        // exercised only by StrictPrivacyImageSanitizer.
+        return SanitizeResult.Success(base64, mimeType)
     }
 }
