@@ -32,6 +32,7 @@ import {
 import type { VintedSecondhandSearchResponse } from '../types/scan';
 import type { SneakerReference } from '../services/sneakers/types';
 import type { ScanResultObject } from '../types/scanResultObject';
+import type { OutfitConfirmationCandidate } from '../services/outfitConfirmation/outfitDetectionBridge';
 import { SavedItemUtilityPanel } from './free-tier/SavedItemUtilityPanel';
 import { normalizeItem, normalizeItems } from '../services/free-tier/itemNormalization';
 
@@ -50,6 +51,10 @@ export interface AnalysisCardProps {
     stylingSuggestions?: string[];
   };
   products?: Product[];
+  confirmationCandidates?: OutfitConfirmationCandidate[];
+  selectedCandidateId?: string | null;
+  onSelectCandidate?: (candidateId: string) => void;
+  onAnalyzeSelectedCandidate?: (candidateId: string) => void;
   /** Optional structured Scan Result Object (Part 2). When present, an additive
    *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
   scanResultObject?: ScanResultObject | null;
@@ -83,6 +88,10 @@ export function AnalysisCard({
   result,
   metadata,
   products = [],
+  confirmationCandidates = [],
+  selectedCandidateId,
+  onSelectCandidate,
+  onAnalyzeSelectedCandidate,
   scanResultObject,
   secondhand,
   sneakerReference,
@@ -179,6 +188,8 @@ export function AnalysisCard({
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
+  const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
+  const isConfirmationStep = confirmationCandidates.length > 0;
 
   return (
     <Modal transparent animationType="none" onRequestClose={runExit}>
@@ -226,6 +237,61 @@ export function AnalysisCard({
                 </Text>
               </View>
 
+              {isConfirmationStep ? (
+                <View style={styles.candidatePanel} testID="outfit-confirmation-candidates">
+                  <Text style={styles.candidateEyebrow}>Detected Items</Text>
+                  {confirmationCandidates.map((candidate) => {
+                    const selected = activeCandidateId === candidate.id;
+                    return (
+                      <TouchableOpacity
+                        key={candidate.id}
+                        testID={`outfit-candidate-${candidate.id}`}
+                        style={[
+                          styles.candidateButton,
+                          selected ? styles.candidateButtonSelected : null,
+                        ]}
+                        onPress={() => onSelectCandidate?.(candidate.id)}
+                        activeOpacity={0.84}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}`}
+                      >
+                        <Text
+                          style={[
+                            styles.candidateLabel,
+                            selected ? styles.candidateLabelSelected : null,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {candidate.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.candidateMeta,
+                            selected ? styles.candidateMetaSelected : null,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {candidate.category} - {candidate.subtype}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {activeCandidateId && onAnalyzeSelectedCandidate ? (
+                    <TouchableOpacity
+                      testID="outfit-find-matches"
+                      style={styles.scanRoomCta}
+                      onPress={() => onAnalyzeSelectedCandidate(activeCandidateId)}
+                      activeOpacity={0.86}
+                      accessibilityRole="button"
+                      accessibilityLabel="Find matches for selected garment"
+                    >
+                      <Text style={styles.scanRoomCtaText}>Find Matches</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
+
               {/* Metadata chips */}
               <View style={styles.chipRow}>
                 <Animated.View style={{ opacity: chip1Opacity }}>
@@ -251,7 +317,7 @@ export function AnalysisCard({
                 </View>
               )}
 
-              {onAddToDressingRoom ? (
+              {!isConfirmationStep && onAddToDressingRoom ? (
                 <TouchableOpacity
                   style={styles.scanRoomCta}
                   onPress={onAddToDressingRoom}
@@ -261,7 +327,7 @@ export function AnalysisCard({
                 >
                   <Text style={styles.scanRoomCtaText}>Add Scan to Dressing Room</Text>
                 </TouchableOpacity>
-              ) : addToDressingRoomUnavailableReason ? (
+              ) : !isConfirmationStep && addToDressingRoomUnavailableReason ? (
                 <View
                   style={[styles.scanRoomCta, styles.scanRoomCtaDisabled]}
                   accessibilityRole="button"
@@ -275,7 +341,7 @@ export function AnalysisCard({
                 </View>
               ) : null}
 
-              {onAskStyleChat ? (
+              {!isConfirmationStep && onAskStyleChat ? (
                 <TouchableOpacity
                   style={styles.scanRoomCta}
                   onPress={onAskStyleChat}
@@ -489,6 +555,49 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
     textAlign: 'center',
+  },
+  candidatePanel: {
+    marginTop: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  candidateEyebrow: {
+    ...LUXURY.typography.sectionLabel,
+    fontSize: 10,
+    letterSpacing: 2.2,
+    color: LUXURY.colors.goldBrushed,
+  },
+  candidateButton: {
+    minHeight: 54,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.cream,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    justifyContent: 'center',
+  },
+  candidateButtonSelected: {
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  candidateLabel: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 13,
+    color: LUXURY.colors.ink,
+  },
+  candidateLabelSelected: {
+    color: LUXURY.colors.plumDeep,
+  },
+  candidateMeta: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    color: LUXURY.colors.stone,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  candidateMetaSelected: {
+    color: LUXURY.colors.plum,
   },
   cta: {
     width:          '100%',

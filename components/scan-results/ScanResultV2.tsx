@@ -79,6 +79,9 @@ interface ScanResultV2Props {
   onAskStyleChat?: () => void;
   /** Called to scroll to / focus Similar Finds. */
   onFindSimilar?: () => void;
+  selectedCandidateId?: string | null;
+  onSelectCandidate?: (candidateId: string) => void;
+  onAnalyzeSelectedCandidate?: (candidateId: string) => void;
   testID?: string;
 }
 
@@ -100,6 +103,9 @@ export function ScanResultV2({
   onAddToDressingRoom,
   onAskStyleChat,
   onFindSimilar,
+  selectedCandidateId,
+  onSelectCandidate,
+  onAnalyzeSelectedCandidate,
   testID,
 }: ScanResultV2Props) {
   const insets = useSafeAreaInsets();
@@ -109,7 +115,11 @@ export function ScanResultV2({
   let v2Data: ScanResultV2 | null = mapLegacyToV2(analysis, scanImageUri);
 
   // Demo data override (dev-only, gated)
-  if (SCAN_RESULTS_DEMO_UI_ENABLED && !v2Data?.similarFinds) {
+  if (
+    SCAN_RESULTS_DEMO_UI_ENABLED &&
+    !analysis?.confirmationCandidates?.length &&
+    !v2Data?.similarFinds
+  ) {
     const demo = getDemoScanResultV2(v2Data ?? undefined);
     v2Data = {
       ...demo,
@@ -128,6 +138,11 @@ export function ScanResultV2({
     key: string;
     y: number;
   } | null>(null);
+  const confirmationCandidates = Array.isArray(analysis?.confirmationCandidates)
+    ? analysis.confirmationCandidates
+    : [];
+  const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
+  const isConfirmationStep = confirmationCandidates.length > 0;
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -207,6 +222,10 @@ export function ScanResultV2({
   }, [onFindSimilar, similarFindsTarget, similarFindsTargetReady]);
 
   const handleViewAllSimilar = handleFindSimilar;
+  const handleFindCandidateMatches = React.useCallback(() => {
+    if (!activeCandidateId) return;
+    onAnalyzeSelectedCandidate?.(activeCandidateId);
+  }, [activeCandidateId, onAnalyzeSelectedCandidate]);
 
   // If no meaningful data at all, show empty state
   if (!v2Data) {
@@ -308,6 +327,51 @@ export function ScanResultV2({
                 confidence={v2Data.confidence}
               />
 
+              {confirmationCandidates.length > 0 ? (
+                <View style={styles.section} testID="outfit-confirmation-candidates">
+                  <Text style={styles.candidateEyebrow}>Detected Items</Text>
+                  <View style={styles.candidateList}>
+                    {confirmationCandidates.map((candidate) => {
+                      const selected = activeCandidateId === candidate.id;
+                      return (
+                        <TouchableOpacity
+                          key={candidate.id}
+                          testID={`outfit-candidate-${candidate.id}`}
+                          style={[
+                            styles.candidateButton,
+                            selected ? styles.candidateButtonSelected : null,
+                          ]}
+                          onPress={() => onSelectCandidate?.(candidate.id)}
+                          activeOpacity={0.84}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}`}
+                        >
+                          <Text
+                            style={[
+                              styles.candidateLabel,
+                              selected ? styles.candidateLabelSelected : null,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {candidate.label}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.candidateMeta,
+                              selected ? styles.candidateMetaSelected : null,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {candidate.category} - {candidate.subtype}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+
               {/* Style Match Summary */}
               <View style={styles.section}>
                 <StyleMatchPanel
@@ -390,11 +454,20 @@ export function ScanResultV2({
 
             {/* Sticky Bottom Action Row */}
             <ScanResultActionRow
-              onSave={onSaveToLibrary}
+              onSave={isConfirmationStep ? undefined : onSaveToLibrary}
               saveLabel={saveActionLabel}
-              onFindSimilar={similarFindsTargetReady ? handleFindSimilar : undefined}
-              onAskStyleChat={onAskStyleChat}
-              onAddToDressingRoom={onAddToDressingRoom}
+              onFindSimilar={
+                confirmationCandidates.length > 0
+                  ? onAnalyzeSelectedCandidate
+                    ? handleFindCandidateMatches
+                    : undefined
+                  : similarFindsTargetReady
+                  ? handleFindSimilar
+                  : undefined
+              }
+              findSimilarLabel={confirmationCandidates.length > 0 ? 'Find Matches' : 'Find Similar'}
+              onAskStyleChat={isConfirmationStep ? undefined : onAskStyleChat}
+              onAddToDressingRoom={isConfirmationStep ? undefined : onAddToDressingRoom}
               onLayout={(event) => setActionRowHeight(event.nativeEvent.layout.height)}
             />
           </View>
@@ -480,6 +553,49 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: SPACING.lg,
+  },
+  candidateEyebrow: {
+    ...LUXURY.typography.sectionLabel,
+    fontSize: 10,
+    letterSpacing: 2.2,
+    color: LUXURY.colors.goldBrushed,
+    marginBottom: SPACING.sm,
+  },
+  candidateList: {
+    gap: SPACING.sm,
+  },
+  candidateButton: {
+    minHeight: 54,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.cream,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    justifyContent: 'center',
+  },
+  candidateButtonSelected: {
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  candidateLabel: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 13,
+    color: LUXURY.colors.ink,
+  },
+  candidateLabelSelected: {
+    color: LUXURY.colors.plumDeep,
+  },
+  candidateMeta: {
+    ...LUXURY.typography.caption,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    color: LUXURY.colors.stone,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  candidateMetaSelected: {
+    color: LUXURY.colors.plum,
   },
   secondaryCta: {
     width: '100%',

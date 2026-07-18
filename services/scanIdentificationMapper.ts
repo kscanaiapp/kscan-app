@@ -18,6 +18,10 @@ import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification, R
 import type { ScanResultObject } from '../types/scanResultObject';
 import { createScanResultObject } from './scanResultObject';
 import { buildScanTitle, deriveBrandConfidence, type BrandConfidence } from './scanTitleBuilder';
+import {
+  buildOutfitConfirmationCandidates,
+  type OutfitConfirmationCandidate,
+} from './outfitConfirmation/outfitDetectionBridge';
 import { SCAN_IDENTITY_DEBUG } from '../constants/build';
 
 export type MappedScanMetadata = {
@@ -54,6 +58,7 @@ export type MappedFashionAnalysis = {
   displayResult?: DisplayResult;
   /** Clean, deterministic display title for the scan result UI. */
   title?: string;
+  confirmationCandidates?: OutfitConfirmationCandidate[];
   /**
    * Optional structured Scan Result Object (Part 2 activation). Additive and
    * non-breaking: existing consumers ignore it. Generated from the same
@@ -172,6 +177,7 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
       console.log('[scanIdentificationMapper] mapped products=' + products.length + ' purchaseOptions=' + (purchaseOptions?.length ?? 0));
     }
     const metadata = buildMetadata(resp.attributes, resp.identification);
+    const confirmationCandidates = buildOutfitConfirmationCandidates(resp.detectedGarments);
 
     // Conservative brand attribution: do not hallucinate brands.
     const geminiBrand = resp.identification?.brand_guess ?? resp.identification?.visible_brand_text ?? null;
@@ -215,6 +221,9 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
       purchaseOptions,
       displayResult: resp.displayResult,
     };
+    if (confirmationCandidates.length) {
+      analysis.confirmationCandidates = confirmationCandidates;
+    }
 
     // Additive Part 2 enrichment. Wrapped so a failure here can never break the
     // existing analysis contract — on any error we simply omit the field.

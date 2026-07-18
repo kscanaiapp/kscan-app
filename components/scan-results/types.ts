@@ -1,6 +1,7 @@
 import { buildScanTitle } from '../../services/scanTitleBuilder';
 import { SCAN_IDENTITY_DEBUG } from '../../constants/build';
 import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
+import type { OutfitConfirmationCandidate } from '../../services/outfitConfirmation/outfitDetectionBridge';
 
 export type ProductMatch = {
   id: string;
@@ -63,6 +64,7 @@ export type LegacyAnalysisData = {
   };
   products?: any[];
   purchaseOptions?: any[];
+  confirmationCandidates?: OutfitConfirmationCandidate[];
   secondhand?: any;
   sneakerReference?: any[];
 };

@@ -25,6 +25,8 @@ import type {
   FashionAttributes,
   DetailedIdentification,
   DisplayResult,
+  DetectedGarmentCandidate,
+  SelectedGarmentTarget,
   RankedScanProduct,
 } from '../types/scanIdentification';
 
@@ -64,6 +66,11 @@ export type IdentifyScanOptions = {
   };
   /** Optional abort signal for request cancellation. */
   signal?: AbortSignal;
+  multiItemDetection?: boolean;
+  requestMode?: 'multi_item_detection' | 'selected_item';
+  scanSessionId?: string;
+  imageDigestPrefix?: string;
+  selectedCandidate?: SelectedGarmentTarget;
 };
 
 const PRIVACY_PROTECTION_REQUIRED_MESSAGE =
@@ -204,6 +211,72 @@ function normalizeDisplayResult(raw: unknown): DisplayResult | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
+function normalizeDetectedGarments(raw: unknown): DetectedGarmentCandidate[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .filter((item): item is Record<string, unknown> => item && typeof item === 'object' && !Array.isArray(item))
+    .map((item, index) => {
+      const label = typeof item.label === 'string' && item.label.trim()
+        ? item.label.trim()
+        : undefined;
+      const category = typeof item.category === 'string' && item.category.trim()
+        ? item.category.trim()
+        : undefined;
+      const subtype = typeof item.subtype === 'string' && item.subtype.trim()
+        ? item.subtype.trim()
+        : category;
+      if (!category || !subtype) return null;
+      const rawOrder = typeof item.order === 'number'
+        ? item.order
+        : typeof item.order === 'string'
+          ? Number(item.order)
+          : index;
+      const rawConfidence = typeof item.confidenceScore === 'number'
+        ? item.confidenceScore
+        : typeof item.confidenceScore === 'string'
+          ? Number(item.confidenceScore)
+          : NaN;
+      const candidate: DetectedGarmentCandidate = {
+        candidateId: typeof item.candidateId === 'string' && item.candidateId.trim()
+          ? item.candidateId.trim()
+          : `garment-${index + 1}-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        order: Number.isFinite(rawOrder) ? rawOrder : index,
+        label: label ?? subtype,
+        category,
+        subtype,
+      };
+      const boundsSource = item.bounds;
+      if (boundsSource && typeof boundsSource === 'object' && !Array.isArray(boundsSource)) {
+        const bounds = boundsSource as Record<string, unknown>;
+        const x = Number(bounds.x);
+        const y = Number(bounds.y);
+        const width = Number(bounds.width);
+        const height = Number(bounds.height);
+        if ([x, y, width, height].every(Number.isFinite)) {
+          const normalizedX = Math.max(0, Math.min(1, x));
+          const normalizedY = Math.max(0, Math.min(1, y));
+          candidate.bounds = {
+            x: normalizedX,
+            y: normalizedY,
+            width: Math.max(0.01, Math.min(1 - normalizedX, width)),
+            height: Math.max(0.01, Math.min(1 - normalizedY, height)),
+          };
+        }
+      }
+      if (Number.isFinite(rawConfidence)) {
+        candidate.confidenceScore = Math.max(0, Math.min(1, rawConfidence));
+      }
+      const attributes = normalizeAttributes(item.attributes);
+      const identification = normalizeIdentification(item.identification);
+      if (attributes) candidate.attributes = attributes;
+      if (identification) candidate.identification = identification;
+      return candidate;
+    })
+    .filter((item): item is DetectedGarmentCandidate => Boolean(item))
+    .slice(0, 5);
+  return out.length ? out : undefined;
+}
+
 /** Coarse failure classification for diagnostics + message mapping. */
 export type ScanFailureReason =
   | 'timeout'
@@ -309,11 +382,15 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
       identification: normalizeIdentification(src.identification),
       userMessage: userMessage ?? 'Identified a fashion item from your scan.',
       scanId: typeof src.scanId === 'string' ? src.scanId : undefined,
+      scanSessionId: typeof src.scanSessionId === 'string' ? src.scanSessionId : undefined,
+      imageDigestPrefix: typeof src.imageDigestPrefix === 'string' ? src.imageDigestPrefix : undefined,
       displayResult: normalizeDisplayResult(src.displayResult),
     };
     if (Object.prototype.hasOwnProperty.call(src, 'similarityMatches')) {
       out.similarityMatches = normalizeRecommendedProducts(src.similarityMatches);
     }
+    const detectedGarments = normalizeDetectedGarments(src.detectedGarments);
+    if (detectedGarments) out.detectedGarments = detectedGarments;
     return out;
   }
 
@@ -361,8 +438,22 @@ export async function identifyScanImage(
     imageBase64,
     source: options.source === 'upload' ? 'upload' : 'camera',
     localPrivacyFiltered: true,
+    ...(options.multiItemDetection === true ? { multiItemDetection: true } : {}),
+    ...(options.requestMode ? { requestMode: options.requestMode } : {}),
+    ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
+    ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
+    ...(options.selectedCandidate ? { selectedCandidate: options.selectedCandidate } : {}),
     clientTimestamp: new Date().toISOString(),
   };
+
+  if (SCAN_DIAGNOSTICS_ENABLED) {
+    console.log('[scanIdentification] correlation', {
+      scanSessionId: options.scanSessionId ?? 'none',
+      candidateId: options.selectedCandidate?.candidateId ?? 'none',
+      imageDigestPrefix: options.imageDigestPrefix ?? 'none',
+      requestMode: options.requestMode ?? 'legacy_single_item',
+    });
+  }
 
   const ac = new AbortController();
   const externalSignal = options.signal;

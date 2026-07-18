@@ -41,7 +41,27 @@ export type ScanIdentifyRequest = {
   textQuery?: string;
   source: string;
   localPrivacyFiltered?: boolean;
+  multiItemDetection?: boolean;
+  requestMode?: 'multi_item_detection' | 'selected_item';
+  scanSessionId?: string;
+  imageDigestPrefix?: string;
+  selectedCandidate?: SelectedGarmentTarget;
   clientTimestamp: string;
+};
+
+export type GarmentBounds = {
+  /** Normalized 0..1 coordinates relative to the parent scan image. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type SelectedGarmentTarget = {
+  candidateId: string;
+  category: string;
+  subtype?: string;
+  bounds?: GarmentBounds;
 };
 
 /**
@@ -82,8 +102,22 @@ export type DisplayResult = {
   confidenceLabel?: string;
 };
 
+export type DetectedGarmentCandidate = {
+  candidateId: string;
+  order: number;
+  label: string;
+  category: string;
+  subtype: string;
+  bounds?: GarmentBounds;
+  confidenceScore?: number;
+  attributes?: FashionAttributes;
+  identification?: DetailedIdentification;
+};
+
 export type ScanIdentifyResponse = {
   scanId?: string;
+  scanSessionId?: string;
+  imageDigestPrefix?: string;
   status: FashionIdentificationStatus;
   attributes?: FashionAttributes;
   /** Rich identification fields (Day-1 prompt upgrade). Optional for backward compat. */
@@ -92,6 +126,7 @@ export type ScanIdentifyResponse = {
   recommendedProducts: RankedScanProduct[];
   /** Catalog similarity matches scored deterministically from product_catalog. */
   similarityMatches?: RankedScanProduct[];
+  detectedGarments?: DetectedGarmentCandidate[];
   userMessage?: string;
   /** Display result for seller/demo views; not integrated into ProductShelf. */
   displayResult?: DisplayResult;

@@ -309,6 +309,89 @@ test('edge source: image mode uses catalog retrieval plus the commerce router fa
   );
 });
 
+test('edge source: multi-item provider requires env gate and literal request true', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('body.multiItemDetection === true'),
+    'Malformed multiItemDetection values must not enable multi-item mode',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes("Deno.env.get('SCAN_MULTI_ITEM_ENABLED')"),
+    'Must read the server-side multi-item rollout gate',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes("mode === 'image'") &&
+      EDGE_SOURCE.includes('multiItemEnabled') &&
+      EDGE_SOURCE.includes('multiItemRequested'),
+    'Multi-item provider must require image mode, env gate, and request flag',
+  );
+});
+
+test('edge source: server selects detection or selected-item prompt only through the multi-item gate', () => {
+  assert.ok(EDGE_SOURCE.includes('MULTI_ITEM_IDENTIFY_PROMPT'), 'Must define a dedicated multi-item prompt');
+  assert.ok(
+    EDGE_SOURCE.includes('useMultiItemDetectionProvider') &&
+      EDGE_SOURCE.includes('? MULTI_ITEM_IDENTIFY_PROMPT') &&
+      EDGE_SOURCE.includes('buildSelectedItemPrompt(selectedCandidate)'),
+    'Image Gemini request must route detection and selected-item prompts through explicit gates',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('sanitizeDetectedGarments(parsed.detectedGarments)'),
+    'Multi-item output must run through the sanitizer',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('detectedGarments'),
+    'Response contract must preserve detectedGarments',
+  );
+});
+
+test('edge source: multi-item detection uses a deterministic structured output schema', () => {
+  assert.equal(EDGE_SOURCE.includes('const MULTI_ITEM_RESPONSE_SCHEMA = {'), true);
+  assert.equal(
+    EDGE_SOURCE.includes('temperature: useMultiItemDetectionProvider || useSelectedItemProvider ? 0 : 0.2'),
+    true,
+  );
+  assert.equal(EDGE_SOURCE.includes('? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }'), true);
+});
+
+test('edge source: selected-item follow-up uses a compact deterministic schema', () => {
+  assert.equal(EDGE_SOURCE.includes('const SELECTED_ITEM_RESPONSE_SCHEMA = {'), true);
+  assert.equal(
+    EDGE_SOURCE.includes('temperature: useMultiItemDetectionProvider || useSelectedItemProvider ? 0 : 0.2'),
+    true,
+  );
+  assert.equal(EDGE_SOURCE.includes('? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }'), true);
+  assert.equal(
+    EDGE_SOURCE.includes('You are K Scan AI\'s selected-garment identification engine.'),
+    true,
+  );
+});
+
+test('edge source: selected-item request verifies the parent image digest and preserves session correlation', () => {
+  assert.match(EDGE_SOURCE, /useSelectedItemProvider/);
+  assert.match(EDGE_SOURCE, /suppliedImageDigestPrefix !== imageDigestPrefix/);
+  assert.match(EDGE_SOURCE, /selected_item_image_mismatch/);
+  assert.match(EDGE_SOURCE, /scanSessionId/);
+  assert.match(EDGE_SOURCE, /candidateId/);
+  assert.match(EDGE_SOURCE, /requestMode/);
+  assert.match(EDGE_SOURCE, /imageDigest/);
+});
+
+test('edge source: multi-item diagnostics are count-only', () => {
+  for (const label of [
+    'multi_item_env_gate',
+    'multi_item_request',
+    'multi_item_provider_count',
+    'multi_item_validated_count',
+    'multi_item_dropped_count',
+    'multi_item_response_count',
+  ]) {
+    assert.ok(
+      EDGE_SOURCE.includes(`[scan-identify] ${label}`),
+      `Must include multi-item diagnostic log: ${label}`,
+    );
+  }
+});
+
 test('edge source: image mode generates a fresh scanId for metadata capture', () => {
   assert.ok(
     EDGE_SOURCE.includes("mode === 'image' ? crypto.randomUUID() : requestScanId"),

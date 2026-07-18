@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
+import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
 import { identifyScanImage } from '../services/scanIdentification';
@@ -30,6 +31,32 @@ const MIN_ANALYSIS_MS = 600;
 // more room. A late result after this window is treated as a timeout.
 const ATTEMPT_TIMEOUT_MS = 32_000;
 
+function createScanSessionId() {
+  return `scan_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function rawImageBase64(image) {
+  return typeof image === 'string' ? image.replace(/^data:[^;]+;base64,/, '').trim() : '';
+}
+
+async function digestPrefix(value) {
+  const digest = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    value,
+  );
+  return digest.slice(0, 12).toLowerCase();
+}
+
+function createScanSession(sourceImageUri) {
+  return {
+    scanSessionId: createScanSessionId(),
+    sourceImageUri,
+    sourceUriHash: null,
+    preparedImageUri: null,
+    imageDigestPrefix: null,
+  };
+}
+
 function logAnalyzeDiag(payload) {
   if (typeof __DEV__ === 'undefined' || !__DEV__) return;
   console.log(`[KSCAN_DIAG_ANALYZE] ${JSON.stringify({
@@ -45,9 +72,9 @@ const VALID_TRANSITIONS = {
   // 'non-fashion' is a distinct success state — same visual path as result
   // but with a different message and no product shelf.
   processing: ['result', 'non-fashion', 'error'],
-  result: ['idle'],
+  result: ['idle', 'processing'],
   'non-fashion': ['idle'],
-  error: ['idle', 'preview'],
+  error: ['idle', 'preview', 'processing'],
 };
 
 function warnInvalidTransition(from, to) {
@@ -76,6 +103,7 @@ export function useKScan() {
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState(null);
   const [nonFashionMessage, setNonFashionMessage] = useState(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   // Render-only flag that mirrors the imperative scanInFlightRef. It stays true
   // from the first synchronous guard activation until the attempt fully settles
   // (success, failure, timeout, abort, or picker cancellation).
@@ -91,6 +119,9 @@ export function useKScan() {
   const operationIdRef = useRef(0);
   const activeAbortControllerRef = useRef(null);
   const secondhandRequestRef = useRef(0);
+  const multiItemSessionRef = useRef(null);
+  const initialMultiItemAnalysisRef = useRef(null);
+  const retryRequestModeRef = useRef('multi_item_detection');
   const prevIsAnalyzingRef = useRef(false);
 
   useEffect(() => {
@@ -175,7 +206,12 @@ export function useKScan() {
           throw new Error('Camera returned an invalid photo.');
         }
         if (isOperationValid(operationId)) {
-          setPhoto({ ...result, source: 'camera' });
+          const session = createScanSession(result.uri);
+          multiItemSessionRef.current = session;
+          initialMultiItemAnalysisRef.current = null;
+          retryRequestModeRef.current = 'multi_item_detection';
+          setSelectedCandidateId(null);
+          setPhoto({ ...result, source: 'camera', scanSessionId: session.scanSessionId });
           setError(null);
           setStatus('preview');
         }
@@ -235,7 +271,13 @@ export function useKScan() {
 
         if (isOperationValid(operationId)) {
           if (!result.canceled && result.assets?.[0]?.uri) {
-            setPhoto({ uri: result.assets[0].uri, source: 'upload' });
+            const uri = result.assets[0].uri;
+            const session = createScanSession(uri);
+            multiItemSessionRef.current = session;
+            initialMultiItemAnalysisRef.current = null;
+            retryRequestModeRef.current = 'multi_item_detection';
+            setSelectedCandidateId(null);
+            setPhoto({ uri, source: 'upload', scanSessionId: session.scanSessionId });
             setError(null);
             setAnalysis(null);
             setNonFashionMessage(null);
@@ -282,7 +324,12 @@ export function useKScan() {
         return;
       }
 
-      setPhoto({ uri, source: 'upload' });
+      const session = createScanSession(uri);
+      multiItemSessionRef.current = session;
+      initialMultiItemAnalysisRef.current = null;
+      retryRequestModeRef.current = 'multi_item_detection';
+      setSelectedCandidateId(null);
+      setPhoto({ uri, source: 'upload', scanSessionId: session.scanSessionId });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -390,7 +437,9 @@ export function useKScan() {
         if (__DEV__) console.log('[DEBUG] SET_RESULT status=result');
         setStatus('result');
 
-        const secondhandRequest = buildSecondhandSearchRequest(data);
+        const isConfirmationResult =
+          Array.isArray(data.confirmationCandidates) && data.confirmationCandidates.length > 0;
+        const secondhandRequest = isConfirmationResult ? null : buildSecondhandSearchRequest(data);
         if (secondhandRequest) {
           searchVintedSecondhand(secondhandRequest)
             .then((secondhand) => {
@@ -414,7 +463,7 @@ export function useKScan() {
           brand:              data.metadata?.brand,
           model:              data.metadata?.silhouette,
         };
-        if (shouldEnrichSneakers(sneakerInput)) {
+        if (!isConfirmationResult && shouldEnrichSneakers(sneakerInput)) {
           searchSneakers(sneakerInput)
             .then((sneakerReference) => {
               if (!isMountedRef.current || secondhandRequestRef.current !== secondhandRequestId) return;
@@ -446,16 +495,37 @@ export function useKScan() {
       const executeScanAttempt = async () => {
         processingStart = Date.now();
 
+        // Session management: reuse the prepared image across retries for the
+        // same source URI (avoids re-compressing and re-sanitizing).
+        let session = multiItemSessionRef.current;
+        if (!session || session.sourceImageUri !== photo.uri) {
+          session = createScanSession(photo.uri);
+          multiItemSessionRef.current = session;
+        }
+        if (!session.sourceUriHash) {
+          session.sourceUriHash = await digestPrefix(photo.uri);
+        }
+
         if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS');
         if (__DEV__ && photo.qaFixtureName) {
           console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
           console.log('[K-SCAN QA] Using compressImage utility: true');
           console.log('[K-SCAN QA] Sending fixture through scan-identify');
         }
-        const compressed = await compressForUpload(photo.uri);
+        const compressed = session.preparedImageUri ?? await compressForUpload(photo.uri);
         if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
 
-        sanitized = await sanitizeImageBeforeUpload(compressed);
+        sanitized = session.preparedImageUri ?? await sanitizeImageBeforeUpload(compressed);
+        if (!sanitized || typeof sanitized !== 'string') {
+          throw userSafeError(
+            'prepared image unavailable',
+            'The selected outfit image could not be prepared. Please choose it again.',
+          );
+        }
+        if (!session.preparedImageUri) {
+          session.preparedImageUri = sanitized;
+          session.imageDigestPrefix = await digestPrefix(rawImageBase64(sanitized));
+        }
         if (__DEV__) {
           const sanitizerStatus = getPrivacySanitizerStatus();
           console.warn(
@@ -482,11 +552,21 @@ export function useKScan() {
 
         const identifyResponse = await identifyScanImage(sanitized, {
           source: photo.source === 'upload' ? 'upload' : 'camera',
+          localPrivacyFiltered: true,
+          multiItemDetection: true,
+          requestMode: 'multi_item_detection',
+          scanSessionId: session.scanSessionId,
+          imageDigestPrefix: session.imageDigestPrefix,
           signal: activeAbortControllerRef.current?.signal,
         });
 
         // Throws a user-safe error on 'failed' → handled by the catch below.
         const data = mapScanIdentifyToAnalysis(identifyResponse);
+        if (Array.isArray(data.confirmationCandidates) && data.confirmationCandidates.length > 0) {
+          initialMultiItemAnalysisRef.current = data;
+          setSelectedCandidateId(data.confirmationCandidates[0].id);
+        }
+        retryRequestModeRef.current = 'multi_item_detection';
         await finishAnalysis(data, processingStart);
       };
 
@@ -537,6 +617,117 @@ export function useKScan() {
     [status, photo, startInFlight, clearInFlight, isOperationValid]
   );
 
+  const selectConfirmationCandidate = useCallback((candidateId) => {
+    if (typeof candidateId !== 'string' || !candidateId.trim()) return;
+    const candidates = initialMultiItemAnalysisRef.current?.confirmationCandidates;
+    if (!Array.isArray(candidates) || !candidates.some((candidate) => candidate.id === candidateId)) {
+      return;
+    }
+    setSelectedCandidateId(candidateId);
+
+    const session = multiItemSessionRef.current;
+    if (__DEV__ && session) {
+      console.log('[KSCAN_MULTI_ITEM] correlation', {
+        event: 'candidate_selected',
+        scanSessionId: session.scanSessionId,
+        candidateId,
+        sourceUriHash: session.sourceUriHash ?? 'none',
+        imageDigestPrefix: session.imageDigestPrefix ?? 'none',
+        requestMode: 'selected_item',
+      });
+    }
+  }, []);
+
+  const analyzeSelectedCandidate = useCallback(async (candidateIdOverride) => {
+    if (scanInFlightRef.current) return;
+
+    const candidateId = candidateIdOverride || selectedCandidateId;
+    const initialAnalysis = initialMultiItemAnalysisRef.current;
+    const candidate = initialAnalysis?.confirmationCandidates?.find(
+      (item) => item.id === candidateId,
+    );
+    const session = multiItemSessionRef.current;
+
+    if (!candidate || !session?.preparedImageUri || !session.imageDigestPrefix) {
+      setError('The original outfit image is no longer available. Please start a new scan.');
+      setStatus('error');
+      return;
+    }
+    if (!photo?.uri || photo.uri !== session.sourceImageUri) {
+      setError('The original outfit image is no longer available. Please start a new scan.');
+      setStatus('error');
+      return;
+    }
+
+    const operationId = startInFlight();
+    if (operationId === null) return;
+
+    retryRequestModeRef.current = 'selected_item';
+    setSelectedCandidateId(candidate.id);
+    setError(null);
+    setStatus('processing');
+    secondhandRequestRef.current += 1;
+    const processingStart = Date.now();
+
+    try {
+      if (__DEV__) {
+        console.log('[KSCAN_MULTI_ITEM] correlation', {
+          event: 'selected_item_request_started',
+          scanSessionId: session.scanSessionId,
+          candidateId: candidate.id,
+          sourceUriHash: session.sourceUriHash ?? 'none',
+          imageDigestPrefix: session.imageDigestPrefix,
+          requestMode: 'selected_item',
+        });
+      }
+
+      const identifyResponse = await identifyScanImage(session.preparedImageUri, {
+        source: photo.source === 'upload' ? 'upload' : 'camera',
+        localPrivacyFiltered: true,
+        multiItemDetection: true,
+        requestMode: 'selected_item',
+        scanSessionId: session.scanSessionId,
+        imageDigestPrefix: session.imageDigestPrefix,
+        signal: activeAbortControllerRef.current?.signal,
+        selectedCandidate: {
+          candidateId: candidate.id,
+          category: candidate.category,
+          subtype: candidate.subtype,
+          bounds: candidate.bounds,
+        },
+      });
+      const data = mapScanIdentifyToAnalysis(identifyResponse);
+      if (data.type === 'non-fashion') {
+        throw userSafeError(
+          'selected garment not identified',
+          'The selected garment could not be identified. Please choose another item.',
+        );
+      }
+
+      const elapsed = Date.now() - processingStart;
+      if (elapsed < MIN_ANALYSIS_MS) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_ANALYSIS_MS - elapsed));
+      }
+      if (!isOperationValid(operationId)) return;
+
+      successPulse();
+      setAnalysis(data);
+      setNonFashionMessage(null);
+      setStatus('result');
+    } catch (err) {
+      if (!isOperationValid(operationId)) return;
+      errorPulse();
+      setAnalysis(initialAnalysis);
+      setError(
+        err?.userMessage ||
+        'We couldn\u2019t analyze the selected garment. Please try again.',
+      );
+      setStatus('error');
+    } finally {
+      clearInFlight(operationId);
+    }
+  }, [photo, selectedCandidateId, startInFlight, clearInFlight, isOperationValid]);
+
   const retake = useCallback(() => {
     if (scanInFlightRef.current) {
       logAnalyzeDiag({
@@ -560,6 +751,10 @@ export function useKScan() {
     setAnalysis(null);
     setError(null);
     setNonFashionMessage(null);
+    setSelectedCandidateId(null);
+    multiItemSessionRef.current = null;
+    initialMultiItemAnalysisRef.current = null;
+    retryRequestModeRef.current = 'multi_item_detection';
     secondhandRequestRef.current += 1;
     setStatus('idle');
   }, [status, photo]);
@@ -591,7 +786,12 @@ export function useKScan() {
 
       if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
-      setPhoto({ uri, qaFixtureName: fixtureName, source: 'fixture' });
+      const session = createScanSession(uri);
+      multiItemSessionRef.current = session;
+      initialMultiItemAnalysisRef.current = null;
+      retryRequestModeRef.current = 'multi_item_detection';
+      setSelectedCandidateId(null);
+      setPhoto({ uri, qaFixtureName: fixtureName, source: 'fixture', scanSessionId: session.scanSessionId });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -623,6 +823,10 @@ export function useKScan() {
     setPhoto(null);
     setError(null);
     setNonFashionMessage(null);
+    setSelectedCandidateId(null);
+    multiItemSessionRef.current = null;
+    initialMultiItemAnalysisRef.current = null;
+    retryRequestModeRef.current = 'multi_item_detection';
     secondhandRequestRef.current += 1;
     setStatus('idle');
   }, [status]);
@@ -643,7 +847,15 @@ export function useKScan() {
       return;
     }
 
-    if (photo) {
+    if (
+      photo &&
+      retryRequestModeRef.current === 'selected_item' &&
+      selectedCandidateId
+    ) {
+      setError(null);
+      setAnalysis(initialMultiItemAnalysisRef.current);
+      analyzeSelectedCandidate(selectedCandidateId);
+    } else if (photo) {
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -655,7 +867,7 @@ export function useKScan() {
       secondhandRequestRef.current += 1;
       setStatus('idle');
     }
-  }, [status, photo]);
+  }, [status, photo, selectedCandidateId, analyzeSelectedCandidate]);
 
   return {
     status,
@@ -663,12 +875,15 @@ export function useKScan() {
     analysis,
     error,
     nonFashionMessage,
+    selectedCandidateId,
     isAnalyzing,
     capturePhoto,
     runAnalysis,
     retake,
     dismissResult,
     retry,
+    selectConfirmationCandidate,
+    analyzeSelectedCandidate,
     selectStaticFixture,
     uploadPhoto,
     selectGalleryPhoto,

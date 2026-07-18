@@ -82,12 +82,13 @@ function loadUseKScanWithMocks({
 
   let stateIndex = 0;
   const stateSlots = [
-    { value: initialStatus },
-    { value: initialPhoto },
-    { value: null },
-    { value: null },
-    { value: null },
-    { value: false },
+    { value: initialStatus },  // [0] status
+    { value: initialPhoto },   // [1] photo
+    { value: null },           // [2] analysis
+    { value: null },           // [3] error
+    { value: null },           // [4] nonFashionMessage
+    { value: null },           // [5] selectedCandidateId
+    { value: false },          // [6] isAnalyzing
   ];
 
   const accessibilityAnnouncements = [];
@@ -146,6 +147,10 @@ function loadUseKScanWithMocks({
       effectEntries.push({ callback, deps, cleanup });
     },
     useRef: (initialValue) => ({ current: initialValue }),
+    Crypto: {
+      CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+      digestStringAsync: async () => 'a'.repeat(64),
+    },
     AbortController: MockAbortController,
     analyzeImage,
     identifyScanImage,
@@ -178,10 +183,12 @@ function loadUseKScanWithMocks({
     get analysis() { return stateSlots[2]?.value; },
     get error() { return stateSlots[3]?.value; },
     get nonFashionMessage() { return stateSlots[4]?.value; },
-    get isAnalyzing() { return stateSlots[5]?.value; },
+    get selectedCandidateId() { return stateSlots[5]?.value; },
+    get isAnalyzing() { return stateSlots[6]?.value; },
     capturePhoto: hook.capturePhoto,
     selectGalleryPhoto: hook.selectGalleryPhoto,
     runAnalysis: hook.runAnalysis,
+    analyzeSelectedCandidate: hook.analyzeSelectedCandidate,
     retake: hook.retake,
     dismissResult: hook.dismissResult,
     retry: hook.retry,
@@ -277,6 +284,74 @@ test('when SCAN_IDENTIFY_BACKEND_ENABLED is true and Supabase fails, analyzeImag
 
   assert.equal(identifyCalls, 1, 'identifyScanImage must be called once');
   assert.equal(analyzeCalls, 0, 'analyzeImage must not be called when scan-identify fails');
+});
+
+test('production Scanner runAnalysis enables multi-item detection on scan-identify call', async () => {
+  let sentOptions = null;
+
+  const hook = loadUseKScanWithMocks({
+    scanIdentifyBackendEnabled: true,
+    identifyScanImage: async (_image, options) => {
+      sentOptions = options;
+      return {
+        type: 'fashion',
+        result: 'Outfit scan',
+        metadata: { category: 'Outfit', color: 'Black', silhouette: 'Layered' },
+        products: [],
+      };
+    },
+  });
+
+  await hook.runAnalysis();
+
+  assert.equal(sentOptions.multiItemDetection, true);
+  assert.equal(sentOptions.requestMode, 'multi_item_detection');
+  assert.match(sentOptions.scanSessionId, /^scan_/);
+  assert.equal(sentOptions.imageDigestPrefix, 'aaaaaaaaaaaa');
+});
+
+test('selected-item request reuses the exact prepared image, digest, and scan session', async () => {
+  const calls = [];
+  const hook = loadUseKScanWithMocks({
+    identifyScanImage: async (image, options) => {
+      calls.push({ image, options });
+      if (calls.length === 1) {
+        return {
+          type: 'fashion',
+          result: 'Detected outfit',
+          metadata: { category: 'outfit', color: 'black', silhouette: 'layered' },
+          products: [],
+          confirmationCandidates: [
+            {
+              id: 'garment-1-blazer',
+              category: 'blazer',
+              subtype: 'tailored blazer',
+              bounds: { x: 0.1, y: 0.08, width: 0.8, height: 0.52 },
+            },
+          ],
+        };
+      }
+      return {
+        type: 'fashion',
+        result: 'Selected black blazer',
+        metadata: { category: 'blazer', color: 'black', silhouette: 'tailored' },
+        products: [],
+      };
+    },
+  });
+
+  await hook.runAnalysis();
+  await hook.analyzeSelectedCandidate('garment-1-blazer');
+
+  assert.equal(calls.length, 2, 'one detection call plus one selected-item call');
+  assert.equal(calls[1].image, calls[0].image, 'prepared image payload must be identical');
+  assert.equal(calls[1].options.scanSessionId, calls[0].options.scanSessionId);
+  assert.equal(calls[1].options.imageDigestPrefix, calls[0].options.imageDigestPrefix);
+  assert.equal(calls[0].options.requestMode, 'multi_item_detection');
+  assert.equal(calls[1].options.requestMode, 'selected_item');
+  assert.equal(calls[1].options.selectedCandidate.candidateId, 'garment-1-blazer');
+  assert.equal(calls[1].options.selectedCandidate.category, 'blazer');
+  assert.equal(calls[1].options.selectedCandidate.bounds.x, 0.1);
 });
 
 test('when SCAN_IDENTIFY_BACKEND_ENABLED is false, analyzeImage is not called', async () => {

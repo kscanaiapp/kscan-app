@@ -59,9 +59,11 @@ function loadTsModule(relativePath, requireMap = {}) {
 // with no requireMap.
 const scanResultObjectModule = loadTsModule('services/scanResultObject.ts');
 const scanTitleBuilderModule = loadTsModule('services/scanTitleBuilder.ts');
+const outfitDetectionBridgeModule = loadTsModule('services/outfitConfirmation/outfitDetectionBridge.ts');
 const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   './scanResultObject': scanResultObjectModule,
   './scanTitleBuilder': scanTitleBuilderModule,
+  './outfitConfirmation/outfitDetectionBridge': outfitDetectionBridgeModule,
   '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
 
@@ -240,7 +242,94 @@ test('identifyScanImage: success path returns normalized completed', async () =>
   assert.equal(sentBody.imageBase64, 'QUJD');
   assert.equal(sentBody.source, 'upload');
   assert.equal(sentBody.localPrivacyFiltered, true);
+  assert.notEqual(sentBody.multiItemDetection, true);
   assert.equal(typeof sentBody.clientTimestamp, 'string');
+});
+
+test('identifyScanImage: multi-item Scanner flow sends multiItemDetection true', async () => {
+  let sentBody = null;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: async (_fn, opts) => {
+        sentBody = opts.body;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Outfit' } },
+          error: null,
+        };
+      },
+    },
+  });
+
+  await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'camera',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
+    multiItemDetection: true,
+  });
+
+  assert.equal(sentBody.multiItemDetection, true);
+});
+
+test('identifyScanImage: selected-item body preserves session, digest, candidate, and bounds', async () => {
+  let sentBody = null;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: async (_fn, opts) => {
+        sentBody = opts.body;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'blazer' } },
+          error: null,
+        };
+      },
+    },
+  });
+
+  await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'upload',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
+    multiItemDetection: true,
+    requestMode: 'selected_item',
+    scanSessionId: 'scan_parent_123',
+    imageDigestPrefix: 'abcdef123456',
+    selectedCandidate: {
+      candidateId: 'garment-1-blazer',
+      category: 'blazer',
+      subtype: 'tailored blazer',
+      bounds: { x: 0.1, y: 0.08, width: 0.8, height: 0.52 },
+    },
+  });
+
+  assert.equal(sentBody.multiItemDetection, true);
+  assert.equal(sentBody.requestMode, 'selected_item');
+  assert.equal(sentBody.scanSessionId, 'scan_parent_123');
+  assert.equal(sentBody.imageDigestPrefix, 'abcdef123456');
+  assert.equal(sentBody.selectedCandidate.candidateId, 'garment-1-blazer');
+  assert.equal(sentBody.selectedCandidate.bounds.height, 0.52);
+});
+
+test('identifyScanImage: malformed multiItemDetection option does not send true', async () => {
+  let sentBody = null;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: async (_fn, opts) => {
+        sentBody = opts.body;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Tops' } },
+          error: null,
+        };
+      },
+    },
+  });
+
+  await adapter.identifyScanImage(TINY_DATA_URI, {
+    source: 'camera',
+    privacyProof: COMPLETE_PRIVACY_PROOF,
+    multiItemDetection: 'true',
+  });
+
+  assert.notEqual(sentBody.multiItemDetection, true);
 });
 
 test('identifyScanImage: invoke error → failed', async () => {
@@ -614,6 +703,54 @@ test('mapper: displayResult preserved on fashion analysis', () => {
   assert.equal(out.type, 'fashion');
   assert.equal(out.displayResult?.headline, 'Black blazer');
   assert.equal(out.displayResult?.confidenceLabel, 'High');
+});
+
+test('mapper: detectedGarments reach confirmation candidate state without collapsing', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({
+    status: 'completed',
+    recommendedProducts: [],
+    userMessage: 'Detected outfit.',
+    attributes: { category: 'blazer' },
+    detectedGarments: [
+      {
+        candidateId: 'garment-1-blazer',
+        order: 0,
+        label: 'Black blazer',
+        category: 'blazer',
+        subtype: 'double-breasted blazer',
+      },
+      {
+        candidateId: 'garment-2-trousers',
+        order: 1,
+        label: 'Black trousers',
+        category: 'trousers',
+        subtype: 'wide-leg trousers',
+      },
+    ],
+  });
+  assert.equal(out.type, 'fashion');
+  assert.equal(out.confirmationCandidates.length, 2);
+  assert.equal(out.confirmationCandidates[0].id, 'garment-1-blazer');
+  assert.equal(out.confirmationCandidates[1].label, 'Black trousers');
+});
+
+test('confirmation UI keeps candidate selection controlled by orchestration', () => {
+  const scanResultSource = fs.readFileSync(
+    path.join(ROOT, 'components', 'scan-results', 'ScanResultV2.tsx'),
+    'utf8',
+  );
+  const analysisCardSource = fs.readFileSync(
+    path.join(ROOT, 'components', 'AnalysisCard.tsx'),
+    'utf8',
+  );
+
+  for (const source of [scanResultSource, analysisCardSource]) {
+    assert.match(source, /selectedCandidateId/);
+    assert.match(source, /activeCandidateId === candidate\.id/);
+    assert.match(source, /onSelectCandidate\?\.\(candidate\.id\)/);
+    assert.match(source, /onAnalyzeSelectedCandidate/);
+    assert.doesNotMatch(source, /setSourceImageUri|setPreparedImageUri|setScanSessionId/);
+  }
 });
 
 test('mapper: scanQualityNote and stylingSuggestions in metadata', () => {
