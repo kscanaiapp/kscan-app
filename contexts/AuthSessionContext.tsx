@@ -22,7 +22,11 @@ import {
 } from '../services/authSessionBootstrap';
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import { logError } from '../src/utils/errorLogger';
-import { stopAvatarSpeechPlayback } from '../services/avatarSpeech';
+import {
+  resetAvatarSpeechAttempts,
+  stopAvatarSpeechPlayback,
+} from '../services/avatarSpeech';
+import { resetAvatarSpeechStore } from '../stores/avatarSpeechStore';
 import { resetStylistIdentityStore } from '../stores/stylistIdentityStore';
 import { resetStylistVoicePreferenceState } from '../stores/stylistVoicePreferenceStore';
 import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
@@ -68,6 +72,8 @@ function resetActorScopedRuntimeState(): void {
   resetStyleChatGreetingState();
   resetStylistIdentityStore();
   resetStylistVoicePreferenceState();
+  resetAvatarSpeechAttempts();
+  resetAvatarSpeechStore();
 }
 
 export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
