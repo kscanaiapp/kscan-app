@@ -102,10 +102,6 @@ scripts/textscan-live-smoke.ps1
 # Local App Store / reviewer artifacts
 store.config.json
 
-# Generated Android adaptive icon assets (from Expo prebuild / adaptiveIcon foreground)
-android/app/src/main/res/mipmap-anydpi-v26/
-android/app/src/main/res/mipmap-*/ic_launcher_foreground.webp
-
 # Supabase local CLI state
 supabase/.temp/
 supabase/.branches/
