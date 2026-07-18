@@ -43,3 +43,4 @@ Thumbs.db
 # Generated artifacts
 shared/*.generated.*
 android-xr/app/build/
+artifacts/
