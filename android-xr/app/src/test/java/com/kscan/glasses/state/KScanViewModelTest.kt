@@ -133,6 +133,23 @@ class KScanViewModelTest {
     }
 
     @Test
+    fun `back from error screen returns to scan`() = runTest {
+        val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
+            coEvery { getDeviceState() } returns defaultBridgeState()
+            coEvery { capturePhoto() } throws CaptureException("Camera unavailable")
+        }
+        val vm = createViewModel(bridge = bridge)
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
+        advanceUntilIdle()
+        assertEquals(AppScreen.ERROR, vm.screen.value)
+
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Back)
+
+        assertEquals(AppScreen.SCAN, vm.screen.value)
+        assertEquals(null, vm.errorMessage.value)
+    }
+
+    @Test
     fun `sanitizer failure blocks backend upload`() = runTest {
         val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
             coEvery { getDeviceState() } returns defaultBridgeState()

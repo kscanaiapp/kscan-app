@@ -203,7 +203,9 @@ class KScanViewModel(
             AppScreen.RESULTS -> handleResultsScreenInput(input)
             AppScreen.SETTINGS -> handleSettingsInput(input)
             AppScreen.LIBRARY -> handleLibraryInput(input)
-            AppScreen.ERROR -> if (input is GlassesInput.Select) retryFromError()
+            // Select retries; Back/Left also exit the error state — the primary
+            // navigation key must never dead-end on a nested screen.
+            AppScreen.ERROR -> if (input is GlassesInput.Select || input is GlassesInput.Back || input is GlassesInput.Left) retryFromError()
             AppScreen.PROCESSING -> Unit
         }
     }
