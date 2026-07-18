@@ -14,16 +14,16 @@ import androidx.compose.ui.unit.sp
 import com.kscan.glasses.ui.components.FocusableCard
 import com.kscan.glasses.ui.components.VoiceHint
 
-private val voiceSamples = listOf(
-    "K Scan scan this",
-    "K Scan what am I looking at",
-    "K Scan save this",
-    "K Scan open on phone",
-)
-
+/**
+ * Settings screen. Every interactive element is reachable by D-pad:
+ * index 0 is the capability-mock toggle, indices 1..N are the mock voice
+ * command cards (activation injects the phrase into the voice pipeline).
+ */
 @Composable
 fun SettingsScreen(
     hasDisplay: Boolean,
+    focusedIndex: Int,
+    voiceSamples: List<String>,
     onToggleAudioOnly: (Boolean) -> Unit,
     onSimulateVoice: (String) -> Unit,
 ) {
@@ -40,8 +40,8 @@ fun SettingsScreen(
         )
         FocusableCard(
             title = if (hasDisplay) "Display glasses (mock)" else "Audio-only (mock)",
-            subtitle = "Tap to toggle capability mock",
-            focused = true,
+            subtitle = "Select to toggle capability mock",
+            focused = focusedIndex == 0,
             modifier = Modifier
                 .padding(vertical = 8.dp)
                 .clickable { onToggleAudioOnly(hasDisplay) },
@@ -52,11 +52,10 @@ fun SettingsScreen(
             fontSize = 18.sp,
             modifier = Modifier.padding(top = 12.dp),
         )
-        voiceSamples.forEach { phrase ->
-            Text(
-                text = "· $phrase",
-                color = Color(0xFFE0E0E8).copy(alpha = 0.8f),
-                fontSize = 16.sp,
+        voiceSamples.forEachIndexed { index, phrase ->
+            FocusableCard(
+                title = phrase,
+                focused = focusedIndex == index + 1,
                 modifier = Modifier
                     .padding(vertical = 4.dp)
                     .clickable { onSimulateVoice(phrase) },

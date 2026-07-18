@@ -22,8 +22,6 @@ import com.kscan.glasses.ui.screens.ResultsScreen
 import com.kscan.glasses.ui.screens.ScanScreen
 import com.kscan.glasses.ui.screens.SettingsScreen
 
-private val Obsidian = Color(0xFF0A0A0F)
-
 @Composable
 fun KScanGlassesApp(viewModel: KScanViewModel) {
     val screen by viewModel.screen.collectAsState()
@@ -37,7 +35,8 @@ fun KScanGlassesApp(viewModel: KScanViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Obsidian),
+            // True-black HUD root; near-black tones live only inside cards/chips.
+            .background(Color.Black),
     ) {
         // Persistent honesty header on every screen: ALPHA, MOCK (when any mock
         // component is active), pipeline state, and HW VALIDATION PENDING.
@@ -67,6 +66,8 @@ fun KScanGlassesApp(viewModel: KScanViewModel) {
                 AppScreen.LIBRARY -> LibraryScreen()
                 AppScreen.SETTINGS -> SettingsScreen(
                     hasDisplay = hasDisplay,
+                    focusedIndex = viewModel.focusedIndex(),
+                    voiceSamples = viewModel.voiceSamples,
                     onToggleAudioOnly = { viewModel.toggleAudioOnlyMode(it) },
                     onSimulateVoice = viewModel::simulateVoice,
                 )

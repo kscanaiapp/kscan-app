@@ -85,6 +85,19 @@ class KScanViewModel(
     private val resultsActions = listOf("Save", "Open on Phone", "Scan Again")
     private var focusNavigator = FocusNavigator({ actionItems.size })
 
+    /** Mock voice sample phrases shown in Settings; D-pad selectable. */
+    val voiceSamples = listOf(
+        "K Scan scan this",
+        "K Scan what am I looking at",
+        "K Scan save this",
+        "K Scan open on phone",
+    )
+
+    /** Settings has its own navigator: capability toggle card + one card per voice sample. */
+    private var settingsNavigator = FocusNavigator({ settingsItemCount() })
+
+    private fun settingsItemCount(): Int = 1 + voiceSamples.size
+
     init {
         viewModelScope.launch {
             refreshDeviceState()
@@ -195,7 +208,10 @@ class KScanViewModel(
             is FocusEvent.Activated -> when (actionItems[event.index]) {
                 "Scan" -> startScanIfIdle()
                 "Closet" -> _screen.value = AppScreen.LIBRARY
-                "Settings" -> _screen.value = AppScreen.SETTINGS
+                "Settings" -> {
+                    settingsNavigator = FocusNavigator({ settingsItemCount() })
+                    _screen.value = AppScreen.SETTINGS
+                }
             }
             is FocusEvent.Back -> Unit
             is FocusEvent.Scan -> startScanIfIdle()
@@ -240,8 +256,16 @@ class KScanViewModel(
     }
 
     private fun handleSettingsInput(input: GlassesInput) {
-        if (input is GlassesInput.Back || input is GlassesInput.Left) {
-            _screen.value = AppScreen.SCAN
+        when (val event = settingsNavigator.onInput(input)) {
+            is FocusEvent.Activated -> {
+                if (event.index == 0) {
+                    toggleAudioOnlyMode(_hasDisplay.value)
+                } else {
+                    voiceSamples.getOrNull(event.index - 1)?.let { simulateVoice(it) }
+                }
+            }
+            is FocusEvent.Back -> _screen.value = AppScreen.SCAN
+            else -> Unit
         }
     }
 
@@ -266,7 +290,12 @@ class KScanViewModel(
             }
             VoiceAction.WAKE, VoiceAction.UNKNOWN -> Unit
         }
-        mappedInput?.let { if (it !is GlassesInput.ScanShortcut) routeFocusInput(it) }
+        // Voice-mapped presses are not re-routed while on SETTINGS: the settings
+        // voice cards inject these same phrases, so re-routing a mapped Select
+        // would re-activate the card and loop.
+        mappedInput?.let {
+            if (it !is GlassesInput.ScanShortcut && _screen.value != AppScreen.SETTINGS) routeFocusInput(it)
+        }
     }
 
     private fun startScanIfIdle() {
@@ -348,5 +377,8 @@ class KScanViewModel(
         speech.speakSummary(message)
     }
 
-    fun focusedIndex(): Int = focusNavigator.focusedIndex
+    fun focusedIndex(): Int = when (_screen.value) {
+        AppScreen.SETTINGS -> settingsNavigator.focusedIndex
+        else -> focusNavigator.focusedIndex
+    }
 }

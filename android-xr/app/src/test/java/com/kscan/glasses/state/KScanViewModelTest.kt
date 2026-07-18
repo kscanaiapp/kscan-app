@@ -334,4 +334,34 @@ class KScanViewModelTest {
             bridge.sendToPhone(match { it.type == BridgeMessageType.ANALYSIS_RESULT.name })
         }
     }
+
+    @Test
+    fun `settings screen is fully dpad navigable`() = runTest {
+        val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
+            coEvery { getDeviceState() } returns defaultBridgeState()
+        }
+        val vm = createViewModel(bridge = bridge)
+
+        // From scan: move focus to "Settings" (index 2 of Scan/Closet/Settings) and open it.
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Down)
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Down)
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Select)
+        assertEquals(AppScreen.SETTINGS, vm.screen.value)
+        assertEquals(0, vm.focusedIndex())
+
+        // Index 0 is the capability-mock toggle: selectable without leaving settings.
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Select)
+        assertEquals(AppScreen.SETTINGS, vm.screen.value)
+
+        // Voice sample cards are focusable; activating one feeds the mock voice path.
+        repeat(3) { vm.onInput(com.kscan.glasses.navigation.GlassesInput.Down) }
+        assertEquals(3, vm.focusedIndex())
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Select)
+        assertEquals(com.kscan.glasses.voice.VoiceAction.SAVE, vm.lastVoiceAction.value)
+        assertEquals(AppScreen.SETTINGS, vm.screen.value)
+
+        // Back returns to scan.
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Back)
+        assertEquals(AppScreen.SCAN, vm.screen.value)
+    }
 }
