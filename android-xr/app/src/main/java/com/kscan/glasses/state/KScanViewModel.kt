@@ -9,6 +9,8 @@ import com.kscan.glasses.bridge.MockBridgeProvider
 import com.kscan.glasses.navigation.FocusEvent
 import com.kscan.glasses.navigation.FocusNavigator
 import com.kscan.glasses.navigation.GlassesInput
+import com.kscan.glasses.runtime.GlassesRuntimeState
+import com.kscan.glasses.runtime.RuntimeStatus
 import com.kscan.glasses.scan.ScanErrorMapper
 import com.kscan.glasses.scan.ScanInput
 import com.kscan.glasses.scan.ScanOrchestrator
@@ -33,6 +35,13 @@ import java.util.UUID
 class KScanViewModel(
     private val bridge: GlassesBridgeProvider,
     private val orchestrator: ScanOrchestrator,
+    /**
+     * Authoritative runtime status resolved once at composition from the actual
+     * injected dependency instances. The UI derives its persistent status header
+     * and mock labeling from this — never from loosely related flags.
+     * Defaults to MOCK_DEVELOPMENT so tests and previews are always labeled.
+     */
+    val runtimeStatus: RuntimeStatus = RuntimeStatus(GlassesRuntimeState.MOCK_DEVELOPMENT, mock = true),
 ) : ViewModel() {
 
     private val speech = SpeechFeedback(bridge)

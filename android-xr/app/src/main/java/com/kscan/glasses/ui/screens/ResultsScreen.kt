@@ -14,6 +14,7 @@ import com.kscan.glasses.state.ProductMatch
 import com.kscan.glasses.ui.components.FocusableCard
 import com.kscan.glasses.ui.components.ResultCard
 import com.kscan.glasses.ui.components.ResultSummary
+import com.kscan.glasses.ui.components.StatusChip
 import com.kscan.glasses.ui.components.VoiceHint
 
 private val resultActions = listOf("Save", "Open on Phone", "Scan Again")
@@ -24,6 +25,7 @@ fun ResultsScreen(
     products: List<ProductMatch>,
     focusedIndex: Int,
     pageLabel: String?,
+    mockBadge: String? = null,
 ) {
     Column(
         modifier = Modifier
@@ -36,6 +38,14 @@ fun ResultsScreen(
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
         )
+        // Mock results are always labeled as synthetic demo data — never
+        // presented as authentic commerce output.
+        mockBadge?.let {
+            StatusChip(
+                label = it,
+                accent = Color(0xFFFFC857),
+            )
+        }
         pageLabel?.let {
             Text(text = it, color = Color(0xFFE0E0E8).copy(alpha = 0.6f), fontSize = 14.sp)
         }

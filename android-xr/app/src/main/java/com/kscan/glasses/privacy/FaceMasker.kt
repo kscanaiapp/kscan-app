@@ -18,6 +18,14 @@ package com.kscan.glasses.privacy
  *   - Do not persist bounding boxes, embeddings, or face counts
  */
 class FaceMasker {
+    /**
+     * True only when on-device face masking is implemented and usable.
+     * Always false in this build (ML Kit integration pending); maskFaces()
+     * returns [MaskResult.NotImplemented] until then.
+     */
+    val isMaskingAvailable: Boolean
+        get() = false
+
     fun maskFaces(base64: String, mimeType: String): MaskResult {
         // Production implementation required before release.
         // Until then, StrictPrivacyImageSanitizer will fail closed (Blocked).

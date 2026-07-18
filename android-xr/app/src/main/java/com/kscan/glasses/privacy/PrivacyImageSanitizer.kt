@@ -1,5 +1,7 @@
 package com.kscan.glasses.privacy
 
+import com.kscan.glasses.BuildConfig
+
 interface PrivacyImageSanitizer {
     suspend fun sanitize(base64: String, mimeType: String): SanitizeResult
 }
@@ -15,9 +17,34 @@ enum class SanitizerMode {
     PRODUCTION,
 }
 
+/**
+ * THE authoritative construction point for [PrivacyImageSanitizer].
+ *
+ * Selection rules:
+ * - Debug mock profile ([SanitizerMode.MOCK]) -> [MockPrivacyImageSanitizer]
+ * - Debug strict profile ([SanitizerMode.PRODUCTION]) -> [StrictPrivacyImageSanitizer]
+ * - Release / real-upload profile -> [StrictPrivacyImageSanitizer] ONLY;
+ *   requesting [SanitizerMode.MOCK] in a release build throws (fail fast,
+ *   never a silent mock fallback).
+ *
+ * There is intentionally no default value for [mode]: no production path may
+ * silently resolve to the mock sanitizer.
+ */
 object PrivacyImageSanitizerFactory {
-    fun create(mode: SanitizerMode): PrivacyImageSanitizer = when (mode) {
-        SanitizerMode.MOCK -> MockPrivacyImageSanitizer()
+    fun create(
+        mode: SanitizerMode,
+        isDebugBuild: Boolean = BuildConfig.DEBUG,
+    ): PrivacyImageSanitizer = when (mode) {
+        SanitizerMode.MOCK -> {
+            if (!isDebugBuild) {
+                throw IllegalStateException(
+                    "CRITICAL: MockPrivacyImageSanitizer requested in a release build. " +
+                    "Mock sanitizer does not provide production privacy. " +
+                    "Release and real-upload profiles must use SanitizerMode.PRODUCTION."
+                )
+            }
+            MockPrivacyImageSanitizer()
+        }
         SanitizerMode.PRODUCTION -> StrictPrivacyImageSanitizer()
     }
 }
@@ -30,6 +57,14 @@ class StrictPrivacyImageSanitizer(
     private val faceMasker: FaceMasker = FaceMasker(),
     private val compressor: ImageCompressor = ImageCompressor(),
 ) : PrivacyImageSanitizer {
+
+    /**
+     * True only when on-device face masking is implemented and usable.
+     * False in this build: any sanitize() call fails closed with
+     * [SanitizeResult.Blocked] before anything can be uploaded.
+     */
+    val isMaskingAvailable: Boolean
+        get() = faceMasker.isMaskingAvailable
 
     override suspend fun sanitize(base64: String, mimeType: String): SanitizeResult {
         if (base64.isBlank()) {

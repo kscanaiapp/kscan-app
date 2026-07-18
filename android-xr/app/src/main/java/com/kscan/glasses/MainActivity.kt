@@ -7,18 +7,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kscan.glasses.navigation.InputMapper
 import com.kscan.glasses.state.KScanViewModel
 import com.kscan.glasses.ui.KScanGlassesApp
-import com.kscan.glasses.analyze.AnalyzeClientConfig
-import com.kscan.glasses.analyze.AnalyzeClientFactory
-import com.kscan.glasses.analyze.DebugAnalyzeConfig
-import com.kscan.glasses.analyze.GlassesDebugEndpointClientFactory
-import com.kscan.glasses.config.BetaConfig
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: KScanViewModel
@@ -28,32 +22,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val app = application as KScanApplication
-
-        // Debug-only: use GlassesDebugEndpointClient when local debug config is present.
-        // This path is active ONLY in debug builds with local.properties configured.
-        // Release builds always use the standard factory path (MockAnalyzeClient default).
-        val debugConfig = DebugAnalyzeConfig.fromBuildConfig()
-        val analyzeClient = if (BuildConfig.DEBUG && debugConfig.isPresent && !debugConfig.dryRunBuildFlag) {
-            GlassesDebugEndpointClientFactory.create(
-                betaConfig = BetaConfig.DEFAULT.copy(
-                    enableRealAnalyze = true,
-                    enableRealFaceMasking = true,
-                ),
-                debugConfig = debugConfig,
-            )
-        } else {
-            AnalyzeClientFactory.create(
-                betaConfig = BetaConfig.DEFAULT,
-                clientConfig = AnalyzeClientConfig.MOCK_ONLY,
-            )
-        }
+        // Single authoritative runtime: constructed and verified in KScanApplication.
+        // Debug mock profile -> mock pipeline (labeled MOCK in the UI).
+        // Debug strict-privacy profile -> strict sanitizer; upload fails closed while
+        // face masking is unavailable in this build.
+        // Release -> strict sanitizer + fail-closed analyze client; never mock.
+        val runtime = app.runtime
 
         val orchestrator = com.kscan.glasses.scan.ScanOrchestratorFactory.create(
-            analyzeClient = analyzeClient,
+            config = runtime.betaConfig,
+            sanitizer = runtime.sanitizer,
+            analyzeClient = runtime.analyzeClient,
+            mobileBridge = runtime.mobileBridge,
+            clientConfig = runtime.clientConfig,
+            debugConfig = runtime.debugConfig,
         )
         viewModel = KScanViewModel(
-            bridge = app.bridgeProvider,
+            bridge = runtime.bridge,
             orchestrator = orchestrator,
+            runtimeStatus = runtime.runtimeStatus,
         )
 
         setContent {
