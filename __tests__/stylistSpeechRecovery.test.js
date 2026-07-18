@@ -224,6 +224,44 @@ test('visible speaking state begins only after native playback reports playing',
   assert.equal(store.getAvatarSpeechState().playbackSeconds, 0.24);
 });
 
+test('provider request failure releases attempt reservation so a later retry can proceed', async () => {
+  const store = loadAvatarSpeechStore();
+  let requests = 0;
+  const speech = transpileModule('services/avatarSpeech.ts', {
+    '../stores/avatarSpeechStore': store,
+    './avatars/stylistSpeechClient': {
+      requestStylistSpeech: async () => {
+        requests += 1;
+        if (requests === 1) throw new Error('Speech is temporarily unavailable.');
+        return {
+          messageId: 'message-retry',
+          stylistId: 'stylist_portrait_05',
+          voiceProfile: 'feminine',
+          mimeType: 'audio/mpeg',
+          audioBase64: 'YQ==',
+          alignment: null,
+        };
+      },
+    },
+    './avatars/stylistSpeechFiles': {
+      createTemporaryStylistSpeechFile: async () => 'file://speech.mp3',
+      deleteTemporaryStylistSpeechFile: async () => {},
+    },
+    './avatars/stylistAudioPlayback': {
+      playStylistAudio: async () => ({ stop: () => {} }),
+    },
+  });
+  const payload = {
+    actorId: 'a', sessionId: 's', messageId: 'message-retry',
+    stylistId: 'stylist_portrait_05', avatarId: 'stylist_portrait_05', source: 'greeting',
+  };
+  await speech.speakAvatarMessage(payload);
+  assert.equal(store.getAvatarSpeechState().phase, 'idle');
+  await speech.speakAvatarMessage(payload);
+  assert.equal(requests, 2);
+  assert.equal(store.getAvatarSpeechState().phase, 'ready');
+});
+
 test('client duplicate suppression prevents a second generation request for one message', async () => {
   const store = loadAvatarSpeechStore();
   let requests = 0;
@@ -269,7 +307,12 @@ test('permissions remain playback-only and device TTS is absent from production 
 test('StyleChat wiring speaks only persisted new messages and scopes the header to playing', () => {
   const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
   const header = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'), 'utf8');
-  assert.match(hook, /result\.inserted && canSpeakNewMessages/);
+  assert.match(hook, /noteInsertedGreetingForSpeech/);
+  assert.match(hook, /claimGreetingSpeechAttempt/);
+  assert.match(hook, /useScreenReaderReady/);
+  assert.match(hook, /screenReaderReady/);
+  assert.match(hook, /const identityReady = !identityLoading/);
+  assert.doesNotMatch(hook, /setTimeout\(\(\) => setIdentityReady\(true\), 1_500\)/);
   assert.match(hook, /messageId: savedAssistant\.id/);
   assert.match(hook, /voicePreference\.enabled/);
   assert.match(header, /speechState\.phase === 'playing'/);
