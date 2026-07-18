@@ -65,7 +65,6 @@ function loadUseKScanWithMocks({
   compressForUpload = async () => 'data:image/jpeg;base64,test-payload',
   imagePickerResult = { canceled: false, assets: [{ uri: 'file://gallery.jpg' }] },
   launchImageLibraryAsync,
-  attemptTimeoutMs = 50,
   initialStatus = 'preview',
   initialPhoto = { uri: 'file://test.jpg' },
   mediaPermissionStatus = 'granted',
@@ -77,10 +76,6 @@ function loadUseKScanWithMocks({
     /export function useKScan\([^)]*\)/,
     'function useKScan(actorId = null)',
   );
-  source = source.replace(
-    'const ATTEMPT_TIMEOUT_MS = 32_000;',
-    `const ATTEMPT_TIMEOUT_MS = ${attemptTimeoutMs};`
-  );
   source = source.replace('const MIN_ANALYSIS_MS = 600;', 'const MIN_ANALYSIS_MS = 0;');
   source += '\nmodule.exports = { useKScan };';
 
@@ -88,6 +83,9 @@ function loadUseKScanWithMocks({
   const stateSlots = [
     { value: initialStatus },
     { value: initialPhoto },
+    { value: [] },
+    { value: null },
+    { value: [] },
     { value: null },
     { value: null },
     { value: null },
@@ -103,6 +101,24 @@ function loadUseKScanWithMocks({
   let effectIndex = 0;
   let renderActorId = initialActorId;
   let currentHook;
+  let timerId = 0;
+  const timers = new Map();
+
+  const setHookTimeout = (callback, delay) => {
+    const id = ++timerId;
+    timers.set(id, { callback, delay });
+    return id;
+  };
+  const clearHookTimeout = (id) => timers.delete(id);
+  const runNextHookTimer = () => {
+    const next = [...timers.entries()].sort((left, right) => (
+      left[1].delay - right[1].delay || left[0] - right[0]
+    ))[0];
+    if (!next) return false;
+    timers.delete(next[0]);
+    next[1].callback();
+    return true;
+  };
 
   const depsChanged = (left, right) => {
     if (!left || !right || left.length !== right.length) return true;
@@ -118,11 +134,13 @@ function loadUseKScanWithMocks({
       warn: () => {},
       error: () => {},
     },
-    setTimeout,
-    clearTimeout,
+    setTimeout: setHookTimeout,
+    clearTimeout: clearHookTimeout,
     requestAnimationFrame: (callback) => callback(),
     Date,
     SCAN_IDENTIFY_BACKEND_ENABLED: scanIdentifyBackendEnabled,
+    MULTI_IMAGE_SCANNER_ENABLED: false,
+    MAX_SCAN_IMAGES: 5,
     AccessibilityInfo: {
       announceForAccessibility: (message) => {
         accessibilityAnnouncements.push(message);
@@ -177,6 +195,26 @@ function loadUseKScanWithMocks({
     AbortController: MockAbortController,
     analyzeImage,
     identifyScanImage,
+    normalizeImageSelections: (assets, source) => assets.map((asset, index) => ({
+      id: `image-${index}`,
+      uri: asset.uri,
+      source,
+    })),
+    removeImageSelection: (images, imageId) => images.filter((image) => image.id !== imageId),
+    buildMultiScanCandidates: (batches) => batches.flatMap(({ image, preparedImage, response }) => (
+      response?.status === 'completed' ? [{
+        id: `${image.id}-item-0`,
+        sourceImageId: image.id,
+        sourceImageIndex: 0,
+        sourceImageUri: image.uri,
+        source: image.source,
+        preparedImage,
+        detectionResponse: response,
+        selectedCandidate: null,
+        garment: null,
+      }] : []
+    )),
+    candidateLabel: () => 'Detected item',
     mapScanIdentifyToAnalysis: (response) => response,
     compressForUpload,
     sanitizeImageBeforeUpload: async (image) => image,
@@ -209,11 +247,11 @@ function loadUseKScanWithMocks({
   const liveHook = {
     get status() { return stateSlots[0]?.value; },
     get photo() { return stateSlots[1]?.value; },
-    get analysis() { return stateSlots[2]?.value; },
-    get analysisActorId() { return stateSlots[3]?.value; },
-    get error() { return stateSlots[4]?.value; },
-    get nonFashionMessage() { return stateSlots[5]?.value; },
-    get isAnalyzing() { return stateSlots[6]?.value; },
+    get analysis() { return stateSlots[3]?.value; },
+    get analysisActorId() { return stateSlots[6]?.value; },
+    get error() { return stateSlots[7]?.value; },
+    get nonFashionMessage() { return stateSlots[8]?.value; },
+    get isAnalyzing() { return stateSlots[9]?.value; },
     capturePhoto: (...args) => currentHook.capturePhoto(...args),
     selectGalleryPhoto: (...args) => currentHook.selectGalleryPhoto(...args),
     runAnalysis: (...args) => currentHook.runAnalysis(...args),
@@ -224,6 +262,7 @@ function loadUseKScanWithMocks({
     uploadPhoto: (...args) => currentHook.uploadPhoto(...args),
     accessibilityAnnouncements,
     alertCalls,
+    runNextHookTimer,
     unmount: () => {
       effectSlots.forEach((entry) => entry?.cleanup?.());
     },
@@ -705,7 +744,6 @@ test('handled failure clears the guard', async () => {
 test('timeout clears the guard', async () => {
   let identifyCalls = 0;
   const hook = loadUseKScanWithMocks({
-    attemptTimeoutMs: 30,
     identifyScanImage: async () => {
       identifyCalls += 1;
       // Never resolve so the attempt timeout fires.
@@ -713,7 +751,10 @@ test('timeout clears the guard', async () => {
     },
   });
 
-  await hook.runAnalysis();
+  const run = hook.runAnalysis();
+  await shortDelay();
+  assert.equal(hook.runNextHookTimer(), true);
+  await run;
   assert.equal(identifyCalls, 1);
   assert.equal(hook.status, 'error');
   assert.equal(hook.isAnalyzing, false);
@@ -723,7 +764,6 @@ test('timeout clears the guard', async () => {
 test('abort clears the guard', async () => {
   let identifyCalls = 0;
   const hook = loadUseKScanWithMocks({
-    attemptTimeoutMs: 30,
     identifyScanImage: async () => {
       identifyCalls += 1;
       // Never resolve so the attempt timeout fires and aborts the controller.
@@ -732,6 +772,8 @@ test('abort clears the guard', async () => {
   });
 
   const run = hook.runAnalysis();
+  await shortDelay();
+  assert.equal(hook.runNextHookTimer(), true);
   await run;
   assert.equal(identifyCalls, 1);
   assert.equal(hook.status, 'error');
@@ -742,7 +784,6 @@ test('late success after timeout is discarded', async () => {
   let resolveIdentify;
   let identifyCalls = 0;
   const hook = loadUseKScanWithMocks({
-    attemptTimeoutMs: 30,
     identifyScanImage: async () => {
       identifyCalls += 1;
       return new Promise((resolve) => { resolveIdentify = resolve; });
@@ -750,8 +791,9 @@ test('late success after timeout is discarded', async () => {
   });
 
   const run = hook.runAnalysis();
-  await shortDelay(60);
-  // Timeout should have fired by now.
+  await shortDelay();
+  assert.equal(hook.runNextHookTimer(), true);
+  await shortDelay();
   assert.equal(hook.status, 'error');
 
   resolveIdentify({ status: 'completed', attributes: { category: 'Tops' }, recommendedProducts: [] });
@@ -887,6 +929,7 @@ test('no stale result overwrites a newer state', async () => {
 
   // Simulate the first attempt being replaced (e.g., by unmount/timeout). The
   // timeout path will fire and invalidate the operation.
+  assert.equal(hook.runNextHookTimer(), true);
   await firstRun;
   assert.equal(hook.status, 'error');
 
