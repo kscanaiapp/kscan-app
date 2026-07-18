@@ -74,6 +74,12 @@ function rememberAttempt(key: string): boolean {
   return true;
 }
 
+function forgetAttempt(key: string): void {
+  if (!attemptedKeys.delete(key)) return;
+  const index = attemptedOrder.indexOf(key);
+  if (index >= 0) attemptedOrder.splice(index, 1);
+}
+
 function matchesScope(payload: SpeakAvatarMessagePayload, scope?: AvatarSpeechScope): boolean {
   if (!scope) return true;
   if (scope.actorId && payload.actorId !== scope.actorId) return false;
@@ -107,7 +113,10 @@ async function failCurrent(value: number): Promise<void> {
   await releaseResources();
   if (!isCurrent(value)) return;
   currentScope = null;
+  // Surface a terminal failure briefly, then return to idle so the avatar
+  // cannot remain stuck in a non-playing speaking/error phase.
   setAvatarSpeechError(value, 'Speech is temporarily unavailable.');
+  finishAvatarSpeech(value);
 }
 
 /**
@@ -123,7 +132,11 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
     !payload.avatarId ||
     payload.stylistId !== payload.avatarId
   ) return;
-  if (!rememberAttempt(operationKey(payload))) return;
+  const key = operationKey(payload);
+  // Reserve the attempt immediately to prevent concurrent duplicate billing,
+  // but release it when the provider request fails so a transient mismatch can
+  // retry once eligibility recovers.
+  if (!rememberAttempt(key)) return;
 
   const requestGeneration = nextGeneration();
   await releaseResources();
@@ -182,6 +195,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       await deleteTemporaryStylistSpeechFile(uri);
     }
   } catch {
+    forgetAttempt(key);
     if (isCurrent(requestGeneration)) await failCurrent(requestGeneration);
   }
 }
@@ -212,7 +226,10 @@ export async function stopAvatarSpeechPlayback(scope?: AvatarSpeechScope): Promi
   if (isCurrent(stoppedGeneration)) finishAvatarSpeech(priorGeneration);
 }
 
-export function resetAvatarSpeechAttemptsForTests(): void {
+/** Clear in-process speech attempt dedupe at an auth/actor boundary. */
+export function resetAvatarSpeechAttempts(): void {
   attemptedKeys.clear();
   attemptedOrder.length = 0;
 }
+
+export const resetAvatarSpeechAttemptsForTests = resetAvatarSpeechAttempts;

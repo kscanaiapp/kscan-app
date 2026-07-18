@@ -255,6 +255,36 @@ test('malformed uiBlocks never masquerade as a greeting', () => {
   }
 });
 
+test('inserted greeting speech candidates survive cancel and are claimed once', () => {
+  const {
+    noteInsertedGreetingForSpeech,
+    getPendingGreetingSpeechMessageId,
+    claimGreetingSpeechAttempt,
+    resetGreetingDedupeForTests,
+  } = loadGreeting(createMockRepository());
+  resetGreetingDedupeForTests();
+
+  noteInsertedGreetingForSpeech('actor-1', 'session-1', 'msg-1');
+  assert.equal(getPendingGreetingSpeechMessageId('actor-1', 'session-1'), 'msg-1');
+  assert.equal(getPendingGreetingSpeechMessageId('actor-1', 'session-2'), null);
+
+  assert.equal(claimGreetingSpeechAttempt('actor-1', 'session-1'), 'msg-1');
+  assert.equal(claimGreetingSpeechAttempt('actor-1', 'session-1'), null);
+  assert.equal(getPendingGreetingSpeechMessageId('actor-1', 'session-1'), null);
+});
+
+test('greeting speech candidates clear on auth-boundary reset', () => {
+  const {
+    noteInsertedGreetingForSpeech,
+    getPendingGreetingSpeechMessageId,
+    resetGreetingDedupeForTests,
+  } = loadGreeting(createMockRepository());
+  resetGreetingDedupeForTests();
+  noteInsertedGreetingForSpeech('actor-1', 'session-1', 'msg-1');
+  resetGreetingDedupeForTests();
+  assert.equal(getPendingGreetingSpeechMessageId('actor-1', 'session-1'), null);
+});
+
 test('a process restart reuses the persisted greeting without replay eligibility', async () => {
   const repo = createMockRepository();
   const firstModule = loadGreeting(repo);

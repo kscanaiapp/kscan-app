@@ -277,7 +277,41 @@ test('assistive settings fail closed before native hydration resolves', () => {
   });
 
   assert.equal(screenReader.useScreenReaderEnabled(), true);
+  assert.equal(screenReader.useScreenReaderReady(), false);
   assert.equal(reducedMotion.useReducedMotion(), true);
+});
+
+test('screen-reader readiness unblocks after the native probe settles', async () => {
+  let subscribed = false;
+  const react = {
+    useSyncExternalStore: (subscribe, getSnapshot) => {
+      if (!subscribed) {
+        subscribed = true;
+        subscribe(() => {});
+      }
+      return getSnapshot();
+    },
+  };
+  let resolveProbe;
+  const accessibilityInfo = {
+    addEventListener: () => ({ remove: () => {} }),
+    isScreenReaderEnabled: () => new Promise((resolve) => {
+      resolveProbe = resolve;
+    }),
+  };
+  const screenReader = load('hooks/useScreenReaderEnabled.ts', {
+    react,
+    'react-native': { AccessibilityInfo: accessibilityInfo },
+  });
+
+  assert.equal(screenReader.useScreenReaderEnabled(), true);
+  assert.equal(screenReader.useScreenReaderReady(), false);
+  assert.equal(typeof resolveProbe, 'function');
+  resolveProbe(false);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(screenReader.useScreenReaderReady(), true);
+  assert.equal(screenReader.useScreenReaderEnabled(), false);
 });
 
 test('voice preference defaults off and fails closed during actor switches', async () => {
@@ -369,4 +403,6 @@ test('typing, send, navigation, avatar, preference, actor, and sign-out interrup
   assert.match(preference, /const persistence = setStylistVoicePreference[\s\S]*stopAvatarSpeechPlayback[\s\S]*await persistence/);
   assert.match(auth, /onAuthStateChange[\s\S]*stopAvatarSpeechPlayback/);
   assert.match(auth, /const signOut[\s\S]*await stopAvatarSpeechPlayback/);
+  assert.match(auth, /resetAvatarSpeechAttempts/);
+  assert.match(auth, /resetAvatarSpeechStore/);
 });
