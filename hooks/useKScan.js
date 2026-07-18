@@ -35,9 +35,10 @@ import {
 // complete its entry animation (~730ms) before the result card appears.
 const MIN_ANALYSIS_MS = 600;
 
-// Fallback ceiling for the entire capture-to-result attempt. The backend edge
-// function uses ~20 s; compression + sanitizer + network overhead needs a bit
-// more room. A late result after this window is treated as a timeout.
+// Fallback ceiling for the entire capture-to-result attempt. Multi-item scans
+// can perform two sequential Edge calls (detection, then selected-item detail),
+// each client-capped at 20 s; compression, sanitization, and network overhead
+// require the remaining margin. A later result is treated as stale.
 const ATTEMPT_TIMEOUT_MS = 52_000;
 
 function logAnalyzeDiag(payload) {
