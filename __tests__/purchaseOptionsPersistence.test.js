@@ -302,6 +302,39 @@ test('concurrent local saves are serialized without losing either scan', async (
   assert.deepEqual(new Set(loaded.map((scan) => scan.result)), new Set(['A', 'B']));
 });
 
+test('saveScan clamps unknown source to a valid scan type', async () => {
+  const VALID = new Set(['camera', 'upload', 'textscan', 'unknown']);
+
+  for (const source of [undefined, null, 'scan', 'fixture', '', 'UPLOAD', 123]) {
+    const { library } = loadLibraryModule();
+    const saved = await library.saveScan({
+      photoUri: 'file:///tmp/photo.jpg',
+      source,
+      ownerId: 'user-1',
+      analysis: { result: 'Test', metadata: {}, products: [], purchaseOptions: [] },
+    });
+    assert.ok(saved, `saveScan should succeed for source=${JSON.stringify(source)}`);
+    assert.ok(
+      VALID.has(saved.source),
+      `source=${JSON.stringify(source)} must be clamped to a valid value, got: ${saved.source}`,
+    );
+  }
+});
+
+test('saveScan preserves valid sources unchanged', async () => {
+  for (const source of ['camera', 'upload', 'textscan', 'unknown']) {
+    const { library } = loadLibraryModule();
+    const saved = await library.saveScan({
+      photoUri: 'file:///tmp/photo.jpg',
+      source,
+      ownerId: 'user-1',
+      analysis: { result: 'Test', metadata: {}, products: [], purchaseOptions: [] },
+    });
+    assert.ok(saved);
+    assert.equal(saved.source, source, `valid source=${source} must be preserved exactly`);
+  }
+});
+
 test('cloud save receives normalized array purchase_options args from local save', async () => {
   const cloudCalls = [];
   const { library } = loadLibraryModule({ cloudCalls });

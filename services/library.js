@@ -21,6 +21,7 @@ const THUMBS_DIR   = LIB_DIR + 'thumbnails/';
 const MAX_SCANS     = 25;
 const THUMB_WIDTH   = 160; // px — small square-ish card thumbnail
 const IMAGE_WIDTH   = 1440; // px — room-upload friendly, still compact
+const VALID_SCAN_SOURCES = new Set(['camera', 'upload', 'textscan', 'unknown']);
 let libraryMutationQueue = Promise.resolve();
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -71,6 +72,10 @@ function enqueueLibraryMutation(operation) {
   const result = libraryMutationQueue.then(operation, operation);
   libraryMutationQueue = result.then(() => undefined, () => undefined);
   return result;
+}
+
+function normalizeScanSource(source) {
+  return VALID_SCAN_SOURCES.has(source) ? source : 'camera';
 }
 
 function isVisibleToActor(scan, actorId) {
@@ -175,7 +180,7 @@ export async function saveScan({ photoUri, analysis, source, ownerId = null }) {
       products:        Array.isArray(analysis.products) ? analysis.products.slice() : [],
       purchaseOptions: normalizePurchaseOptions(analysis.purchaseOptions),
       commerceSnapshotVersion: 1,
-      source:          source || 'scan',
+      source:          normalizeScanSource(source),
     };
 
     await enqueueLibraryMutation(async () => {
