@@ -32,6 +32,10 @@ import {
 } from '../services/dressingRoomItemContract';
 import type { InspirationItem } from '../types/styleObjects';
 import {
+  hasUsablePhotoLibraryAccess,
+  tryOpenPhotoLibrarySettings,
+} from '../services/photoLibraryAccess';
+import {
   LuxuryScreen,
   KScanHeader,
   SectionHeader,
@@ -100,12 +104,24 @@ function formatDate(iso: string): string {
 }
 
 async function requestPhotoLibraryPermission(): Promise<boolean> {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status === 'granted') return true;
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (hasUsablePhotoLibraryAccess(permission)) return true;
   Alert.alert(
     'Photo Access Required',
     'Allow K Scan to access your photo library in Settings to upload inspiration.',
-    [{ text: 'OK' }]
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Open Settings',
+        onPress: () => {
+          void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
+            if (!opened) {
+              Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan.');
+            }
+          });
+        },
+      },
+    ]
   );
   return false;
 }

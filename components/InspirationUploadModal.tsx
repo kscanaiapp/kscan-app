@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Image,
   Modal,
@@ -40,6 +40,7 @@ export function InspirationUploadModal({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [doneMessage, setDoneMessage] = useState<string | null>(null);
+  const uploadInFlightRef = useRef(false);
 
   useEffect(() => {
     if (visible) {
@@ -54,7 +55,8 @@ export function InspirationUploadModal({
   const noteTooLong = noteLength > INSPIRATION_NOTE_MAX_LENGTH;
 
   const handleUpload = async () => {
-    if (!selectedUri || uploading) return;
+    if (!selectedUri || uploadInFlightRef.current) return;
+    uploadInFlightRef.current = true;
     setUploading(true);
     setError(null);
     try {
@@ -89,6 +91,7 @@ export function InspirationUploadModal({
       }
       setError(err?.message || 'Upload failed. Please try again.');
     } finally {
+      uploadInFlightRef.current = false;
       setUploading(false);
     }
   };

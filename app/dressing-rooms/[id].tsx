@@ -77,6 +77,10 @@ import {
 } from '../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../components/rooms/RoomMessagesPanel';
 import { RoomItemDetailModal } from '../../components/dressing-rooms/RoomItemDetailModal';
+import {
+  hasUsablePhotoLibraryAccess,
+  tryOpenPhotoLibrarySettings,
+} from '../../services/photoLibraryAccess';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
@@ -687,9 +691,25 @@ function DressingRoomDetailContent() {
   }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, selectedReactions]);
 
   const handleUploadInspiration = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Photo Access Required', 'Allow K Scan to access your photo library in Settings to upload inspiration.');
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!hasUsablePhotoLibraryAccess(permission)) {
+      Alert.alert(
+        'Photo Access Required',
+        'Allow K Scan to access your photo library in Settings to upload inspiration.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
+                if (!opened) {
+                  Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan.');
+                }
+              });
+            },
+          },
+        ],
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
