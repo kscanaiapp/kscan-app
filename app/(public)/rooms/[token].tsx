@@ -571,6 +571,11 @@ export default function SharedRoomScreen() {
         return;
       }
       lastFetchedAt.current = Date.now();
+      // A refreshed preview must also refresh time-limited private image URLs.
+      // Clear both the prior values and the dedupe guard so the resolver runs
+      // again for the newly authoritative preview.
+      setResolvedImageUrls({});
+      imageResolutionGuard.current = null;
       setState(result);
     },
     [normalizedRouteToken]
@@ -752,14 +757,18 @@ export default function SharedRoomScreen() {
     const shareToken = normalizeRoomShareToken(rawToken);
     if (!shareToken || state.phase !== 'available') return;
 
-    const key = `${shareToken}:${state.preview.items.length}`;
-    if (imageResolutionGuard.current === key) return;
-    imageResolutionGuard.current = key;
-
     const itemIdsNeedingResolution = state.preview.items
       .filter((item) => item.id && !item.imageUrl)
       .map((item) => item.id!);
     if (itemIdsNeedingResolution.length === 0) return;
+
+    // Scope dedupe to the actual unresolved item identities, not only the
+    // item count. A changed preview with the same number of cards must be
+    // allowed to resolve its own images, while state-only rerenders of an
+    // unchanged preview remain deduped.
+    const key = `${shareToken}:${itemIdsNeedingResolution.slice().sort().join('|')}`;
+    if (imageResolutionGuard.current === key) return;
+    imageResolutionGuard.current = key;
 
     let cancelled = false;
 
