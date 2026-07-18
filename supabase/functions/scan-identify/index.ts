@@ -57,13 +57,11 @@ import {
   type SimilarityMatch,
 } from './similarityMatcher.ts';
 import { captureScanIntelligence } from './scanIntelligenceCapture.ts';
-import { sanitizeGarments } from './multiItemGarments.ts';
 import {
-  buildSelectedItemImagePromptParts,
-  buildSelectedItemInvalidPublicError,
-  validateSelectedItemContextForEdge,
-  type ProviderSelectedItemContext,
-} from './selectedItemBoundary.ts';
+  rawDetectedGarmentCount,
+  sanitizeDetectedGarments,
+  type SanitizedDetectedGarment,
+} from './multiItemGarments.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -517,110 +515,174 @@ Rules:
 - userMessage should be a concise, friendly summary derived from visual_observation.
 - The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
 
-// Phase 4 — additive multi-garment variant. Used ONLY when the client sets
-// multiItemDetection on an image-mode request. The legacy single-item
-// IDENTIFY_PROMPT above is completely unchanged and remains the default.
-const MULTI_ITEM_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
+const MULTI_ITEM_IDENTIFY_PROMPT = `You are K Scan AI's multi-item fashion detection engine.
 
-Analyze the uploaded image and identify EVERY distinct, clearly visible fashion garment or accessory — not just the dominant one.
+Analyze the uploaded image and identify genuinely distinct visible garments or fashion accessories.
 
 Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plates, furniture, and background clutter.
 
 Do not identify people.
 Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
 
-Real camera scan rules:
-- List each genuinely distinct garment or accessory you can actually see (for example: a jacket AND the shirt under it AND shoes) as a separate entry.
-- Do not invent or guess at items that are not visible. If only one item is visible, return exactly one entry.
-- Never list the same item twice under different labels.
-- Return between 1 and 5 entries, ordered from most to least visually prominent.
-- If the item is partially obscured, describe only what is visible and lower confidence_score.
-- If uncertain between two categories for an entry, use category: "unknown" with a lower confidence_score rather than forcing a confident wrong category.
+Multi-item rules:
+- Return one to five distinct fashion items only.
+- Preserve deterministic visual order: top-to-bottom, then left-to-right.
+- This is a real-world image. Clothing may be layered, worn, partially occluded, or surrounded by background clutter.
+- Return a candidate when the garment category and approximate location are visible, even when fine attributes are uncertain.
+- Do not duplicate the same garment.
+- Do not split one garment into artificial sub-items.
+- Do not combine multiple garments into one item.
+- Ignore background objects and non-fashion objects.
+- Never fabricate candidates to reach a target count.
+- If uncertain about a field, use null, "unknown", or [].
 
 Return strict JSON only.
 No markdown.
 No commentary.
 
-Use the existing response shape (status, userMessage, attributes, recommendedProducts, identification) for the single dominant item exactly as before, PLUS one additional field:
-
-- garments: an array of 1-5 objects, one per distinct detected item, each shaped as:
-  {
-    "category": "blazer",
-    "subtype": "double-breasted blazer",
-    "primary_color": "black",
-    "silhouette": "structured",
-    "confidence_score": 0.84
-  }
-
-The first entry in garments should describe the same dominant item as attributes/identification.
-
-Return strict JSON only, matching exactly this shape:
+Use exactly this response shape:
 {
   "status": "completed" | "non_fashion",
-  "attributes": {
-    "category": "blazer",
-    "itemType": "double-breasted blazer",
-    "silhouette": "structured",
-    "colorPalette": ["black"],
-    "materialEstimate": "wool blend",
-    "pattern": "solid",
-    "texture": "wool blend",
-    "styleTags": ["tailored", "minimalist", "polished"],
-    "occasion": "workwear",
-    "confidenceScore": 0.84
-  },
-  "garments": [
+  "detectedGarments": [
     {
+      "label": "black blazer",
       "category": "blazer",
       "subtype": "double-breasted blazer",
-      "primary_color": "black",
-      "silhouette": "structured",
-      "confidence_score": 0.84
-    },
-    {
-      "category": "top",
-      "subtype": "collared shirt",
-      "primary_color": "white",
-      "silhouette": "fitted",
-      "confidence_score": 0.71
+      "bounds": { "x": 0.12, "y": 0.08, "width": 0.76, "height": 0.54 },
+      "confidenceScore": 0.86,
+      "visual_observation": "Black structured blazer in the upper half of the image.",
+      "item_type": "blazer",
+      "primary_color": "black"
     }
   ],
-  "identification": {
-    "visual_observation": "A concise 1-2 sentence description of the dominant fashion item only.",
-    "item_type": "blazer",
-    "subtype": "double-breasted blazer",
-    "primary_color": "black",
-    "secondary_colors": [],
-    "pattern": "solid",
-    "material_estimate": "wool blend",
-    "silhouette": "structured",
-    "fit": "tailored",
-    "length": "hip length",
-    "sleeve_length": "long sleeve",
-    "neckline_or_lapel": "peak lapel",
-    "closure": "front buttons",
-    "distinctive_features": ["gold buttons", "structured shoulders"],
-    "style_tags": ["tailored", "minimalist", "polished"],
-    "occasion_tags": ["workwear", "evening", "smart casual"],
-    "visible_brand_text": null,
-    "logo_detected": false,
-    "brand_guess": null,
-    "confidence_score": 0.84,
-    "search_queries": ["black double breasted blazer gold buttons"],
-    "non_fashion": false,
-    "styling_suggestions": ["Pair with tailored trousers and a silk blouse."],
-    "scan_quality_note": null
-  },
   "recommendedProducts": [],
-  "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
+  "userMessage": "Detected multiple fashion items."
 }
 
-Rules:
-- Return JSON only. No markdown, no prose outside the JSON.
-- garments must contain between 1 and 5 entries, never more, never fabricated beyond what is actually visible.
-- If uncertain about any field, use null, unknown, or [].
-- Do not include people, identity, or demographic fields under any key.
-- The AI must return attributes, identification, AND garments.`;
+For non_fashion, return detectedGarments: [] and the standard non-fashion userMessage.
+Bounds are normalized image coordinates from 0 to 1 and must tightly enclose the visible garment.
+Keep each candidate compact. Do not return full styling analysis or shopping queries in this first pass.
+Return only approved garment schema fields.`;
+
+const MULTI_ITEM_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    status: { type: 'STRING', enum: ['completed', 'non_fashion'] },
+    detectedGarments: {
+      type: 'ARRAY',
+      maxItems: 5,
+      items: {
+        type: 'OBJECT',
+        properties: {
+          label: { type: 'STRING' },
+          category: { type: 'STRING' },
+          subtype: { type: 'STRING' },
+          bounds: {
+            type: 'OBJECT',
+            properties: {
+              x: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              y: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              width: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              height: { type: 'NUMBER', minimum: 0, maximum: 1 },
+            },
+            required: ['x', 'y', 'width', 'height'],
+          },
+          confidenceScore: { type: 'NUMBER', minimum: 0, maximum: 1 },
+          visual_observation: { type: 'STRING' },
+          item_type: { type: 'STRING' },
+          primary_color: { type: 'STRING' },
+        },
+        required: [
+          'label',
+          'category',
+          'subtype',
+          'bounds',
+          'confidenceScore',
+          'visual_observation',
+          'item_type',
+          'primary_color',
+        ],
+      },
+    },
+    recommendedProducts: { type: 'ARRAY', maxItems: 0, items: { type: 'OBJECT' } },
+    userMessage: { type: 'STRING' },
+  },
+  required: ['status', 'detectedGarments', 'recommendedProducts', 'userMessage'],
+} as const;
+
+const SELECTED_ITEM_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    status: { type: 'STRING', enum: ['completed'] },
+    attributes: {
+      type: 'OBJECT',
+      properties: {
+        category: { type: 'STRING' },
+        itemType: { type: 'STRING' },
+        silhouette: { type: 'STRING' },
+        colorPalette: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 4 },
+        materialEstimate: { type: 'STRING' },
+        pattern: { type: 'STRING' },
+        confidenceScore: { type: 'NUMBER', minimum: 0, maximum: 1 },
+      },
+      required: ['category', 'itemType', 'colorPalette', 'confidenceScore'],
+    },
+    identification: {
+      type: 'OBJECT',
+      properties: {
+        visual_observation: { type: 'STRING' },
+        item_type: { type: 'STRING' },
+        subtype: { type: 'STRING' },
+        primary_color: { type: 'STRING' },
+        pattern: { type: 'STRING' },
+        material_estimate: { type: 'STRING' },
+        silhouette: { type: 'STRING' },
+        fit: { type: 'STRING' },
+        confidence_score: { type: 'NUMBER', minimum: 0, maximum: 1 },
+        non_fashion: { type: 'BOOLEAN' },
+      },
+      required: [
+        'visual_observation',
+        'item_type',
+        'subtype',
+        'primary_color',
+        'confidence_score',
+        'non_fashion',
+      ],
+    },
+    recommendedProducts: { type: 'ARRAY', maxItems: 0, items: { type: 'OBJECT' } },
+    userMessage: { type: 'STRING' },
+  },
+  required: ['status', 'attributes', 'identification', 'recommendedProducts', 'userMessage'],
+} as const;
+
+function buildSelectedItemPrompt(candidate: {
+  candidateId: string;
+  category: string;
+  subtype?: string;
+  bounds?: { x: number; y: number; width: number; height: number };
+}): string {
+  const target = JSON.stringify(candidate);
+  return `You are K Scan AI's selected-garment identification engine.
+
+The client selected this candidate from a prior detection pass: ${target}
+
+Analyze only that garment in the original parent image.
+Use its normalized bounds to locate it.
+Do not switch to a larger, more central, or more recognizable garment.
+Ignore the person, face, body, background, and every unselected garment.
+Do not guess a brand unless clearly visible on the selected garment.
+
+Return strict JSON only in the existing single-item response shape:
+- status must be completed
+- attributes must describe the selected garment
+- identification must describe the selected garment
+- recommendedProducts must be []
+- userMessage must concisely describe the selected garment
+- do not return detectedGarments
+
+If an attribute is uncertain, use "unknown" rather than switching garments.`;
+}
 
 const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
 
@@ -831,6 +893,25 @@ function withSafeImageArrays(
     purchaseOptions: Array.isArray(options.purchaseOptions) ? options.purchaseOptions : recommendedProducts,
     similarityMatches,
     shoppingMeta: options.shoppingMeta && typeof options.shoppingMeta === 'object' ? options.shoppingMeta : {},
+  };
+}
+
+function primaryGarmentResponseFields(
+  garments: SanitizedDetectedGarment[],
+): {
+  attributes?: Record<string, unknown>;
+  identification?: Record<string, unknown>;
+  userMessage?: string;
+} {
+  const primary = garments[0];
+  if (!primary) return {};
+  return {
+    attributes: primary.attributes,
+    identification: primary.identification,
+    userMessage:
+      typeof primary.identification.visual_observation === 'string'
+        ? primary.identification.visual_observation
+        : primary.label,
   };
 }
 
@@ -1242,8 +1323,6 @@ function buildIdentificationFromAttributes(
   return Object.keys(out).length ? out : undefined;
 }
 
-// ── Selected-item context validation (Phase 3) ───────────────────────────────
-
 /** Strip markdown fences and parse the first JSON object from model text. */
 function parseModelJson(text: string): Record<string, unknown> | null {
   try {
@@ -1312,6 +1391,59 @@ function validateTextQuery(value: unknown): string | undefined {
 
 // ── Main handler ───────────────────────────────────────────────────────────────
 
+function safeCorrelationId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return /^[A-Za-z0-9_-]{1,80}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function safeDigestPrefix(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim().toLowerCase();
+  return /^[a-f0-9]{8,16}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function safeCandidateLabel(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  return /^[A-Za-z0-9 /&+.'-]{1,80}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function sanitizeSelectedCandidate(value: unknown): {
+  candidateId: string;
+  category: string;
+  subtype?: string;
+  bounds?: { x: number; y: number; width: number; height: number };
+} | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const src = value as Record<string, unknown>;
+  const candidateId = safeCorrelationId(src.candidateId);
+  const category = safeCandidateLabel(src.category);
+  if (!candidateId || !category) return undefined;
+
+  const subtype = safeCandidateLabel(src.subtype);
+  let bounds: { x: number; y: number; width: number; height: number } | undefined;
+  if (src.bounds && typeof src.bounds === 'object' && !Array.isArray(src.bounds)) {
+    const raw = src.bounds as Record<string, unknown>;
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    const width = Number(raw.width);
+    const height = Number(raw.height);
+    if ([x, y, width, height].every(Number.isFinite)) {
+      const safeX = Math.max(0, Math.min(1, x));
+      const safeY = Math.max(0, Math.min(1, y));
+      bounds = {
+        x: safeX,
+        y: safeY,
+        width: Math.max(0.01, Math.min(1 - safeX, width)),
+        height: Math.max(0.01, Math.min(1 - safeY, height)),
+      };
+    }
+  }
+
+  return { candidateId, category, ...(subtype ? { subtype } : {}), ...(bounds ? { bounds } : {}) };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
@@ -1339,11 +1471,14 @@ Deno.serve(async (req) => {
     appVersion?: unknown;
     localPrivacyFiltered?: unknown;
     clientTimestamp?: unknown;
+    multiItemDetection?: unknown;
+    requestMode?: unknown;
+    scanSessionId?: unknown;
+    imageDigestPrefix?: unknown;
+    selectedCandidate?: unknown;
     scanId?: unknown;
     scan_id?: unknown;
     id?: unknown;
-    selectedItemContext?: unknown;
-    multiItemDetection?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -1353,6 +1488,27 @@ Deno.serve(async (req) => {
 
   const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
   const source = safeString(body.source) ?? 'unknown';
+  const multiItemRequested = body.multiItemDetection === true;
+  const multiItemEnabled =
+    Deno.env.get('SCAN_MULTI_ITEM_ENABLED')?.trim().toLowerCase() === 'true';
+  const useMultiItemProvider =
+    mode === 'image' &&
+    multiItemEnabled &&
+    multiItemRequested;
+  const requestMode = body.requestMode === 'selected_item'
+    ? 'selected_item'
+    : body.requestMode === 'multi_item_detection'
+    ? 'multi_item_detection'
+    : 'legacy_single_item';
+  const selectedCandidate = sanitizeSelectedCandidate(body.selectedCandidate);
+  const useSelectedItemProvider =
+    useMultiItemProvider &&
+    requestMode === 'selected_item' &&
+    Boolean(selectedCandidate);
+  const useMultiItemDetectionProvider =
+    useMultiItemProvider && requestMode !== 'selected_item';
+  const scanSessionId = safeCorrelationId(body.scanSessionId) ?? crypto.randomUUID();
+  const suppliedImageDigestPrefix = safeDigestPrefix(body.imageDigestPrefix);
   const appPlatform = typeof body.appPlatform === 'string' && body.appPlatform.trim()
     ? body.appPlatform.trim()
     : null;
@@ -1361,10 +1517,7 @@ Deno.serve(async (req) => {
     : null;
   let imageBase64 = '';
   let textQuery = '';
-  let selectedItemContext: ProviderSelectedItemContext | null = null;
-  // Phase 4 — additive, image-mode-only signal. Never affects TextScan or the
-  // legacy single-item contract when absent/false.
-  const multiItemDetection = mode === 'image' && body.multiItemDetection === true;
+  let imageDigestPrefix = '';
 
   const requestScanId = typeof body.scanId === 'string' && body.scanId.trim()
     ? body.scanId.trim()
@@ -1378,34 +1531,34 @@ Deno.serve(async (req) => {
   const auth = await resolveAuthContext(req, supabaseUrl, supabaseAnonKey);
   const userId = auth.userId;
   const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
-  const hasSelectedItemContext = body?.selectedItemContext !== undefined;
-  // Selected-item requests never emit truncated actor identifiers in diagnostics.
-  const logUserId = hasSelectedItemContext
-    ? 'redacted'
-    : userId
-      ? userId.slice(0, 8)
-      : 'anon';
+  const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
-  // Phase 3 selected-item path: metadata-only (no truncated actor identifiers).
-  if (hasSelectedItemContext) {
-    console.log(
-      '[scan-identify] request_start mode=%s source=%s auth=%s selectedItem=%s projectAccess=%s',
-      mode,
-      source,
-      auth.isAuthenticated ? 'authenticated' : 'anonymous',
-      'yes',
-      String(auth.hasProjectAccess),
+  console.log(
+    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
+    mode,
+    source,
+    auth.isAuthenticated ? 'authenticated' : 'anonymous',
+    logUserId,
+    String(auth.hasProjectAccess),
+  );
+
+  if (useMultiItemProvider && requestMode === 'selected_item' && !selectedCandidate) {
+    console.warn(
+      '[scan-identify] selected_item_invalid scanSessionId=%s requestMode=%s',
+      scanSessionId,
+      requestMode,
     );
-  } else {
-    console.log(
-      '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
-      mode,
-      source,
-      auth.isAuthenticated ? 'authenticated' : 'anonymous',
-      logUserId,
-      String(auth.hasProjectAccess),
-    );
+    return json(normalized('failed', 'The selected garment could not be analyzed. Please return to the outfit and select it again.'), 200);
   }
+  console.log(
+    '[scan-identify] multi_item_env_gate enabled=%s',
+    String(multiItemEnabled),
+  );
+  console.log(
+    '[scan-identify] multi_item_request requested=%s enabled=%s',
+    String(multiItemRequested),
+    String(useMultiItemProvider),
+  );
 
   if (mode === 'text' && !auth.isAuthenticated) {
     return json({ error: 'Not authenticated' }, 401);
@@ -1451,17 +1604,6 @@ Deno.serve(async (req) => {
     imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : '';
     imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
 
-    // Phase 3 — optional selected-item focus
-    if (body.selectedItemContext !== undefined) {
-      const validation = validateSelectedItemContextForEdge(body.selectedItemContext);
-      if (!validation.ok) {
-        // Do not log validator reasons or actor identifiers for selected-item rejects.
-        console.warn('[scan-identify] selected_item_context_rejected');
-        return json(buildSelectedItemInvalidPublicError(), 400);
-      }
-      selectedItemContext = validation.providerContext;
-    }
-
     if (!imageBase64) {
       return json(normalized('failed', NO_IMAGE_PROVIDED_MESSAGE), 200);
     }
@@ -1474,6 +1616,33 @@ Deno.serve(async (req) => {
       console.warn('[scan-identify] invalid_image_payload reason=%s', imageValidation);
       return json(normalized('failed', INVALID_IMAGE_MESSAGE), 200);
     }
+
+    imageDigestPrefix = (await sha256Hex(imageBase64)).slice(0, 12);
+    if (
+      useSelectedItemProvider &&
+      (!suppliedImageDigestPrefix || suppliedImageDigestPrefix !== imageDigestPrefix)
+    ) {
+      console.warn(
+        '[scan-identify] selected_item_image_mismatch scanSessionId=%s candidateId=%s requestMode=%s imageDigest=%s',
+        scanSessionId,
+        selectedCandidate?.candidateId ?? 'none',
+        requestMode,
+        imageDigestPrefix,
+      );
+      return json(normalized('failed', 'The original outfit image is no longer available. Please start a new scan.'), 200);
+    }
+
+    console.log(
+      '[scan-identify] correlation scanSessionId=%s candidateId=%s requestMode=%s imageDigest=%s',
+      scanSessionId,
+      selectedCandidate?.candidateId ?? 'none',
+      useSelectedItemProvider
+        ? 'selected_item'
+        : useMultiItemDetectionProvider
+        ? 'multi_item_detection'
+        : 'legacy_single_item',
+      imageDigestPrefix,
+    );
 
     if (isAnonymousImageAnalysis) {
       anonymousFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
@@ -1581,18 +1750,27 @@ Deno.serve(async (req) => {
         contents: [
           {
             role: 'user',
-            parts: buildSelectedItemImagePromptParts(
-              multiItemDetection ? MULTI_ITEM_IDENTIFY_PROMPT : IDENTIFY_PROMPT,
-              imageBase64,
-              DEFAULT_MIME,
-              selectedItemContext,
-            ),
+            parts: [
+              {
+                text: useSelectedItemProvider && selectedCandidate
+                  ? buildSelectedItemPrompt(selectedCandidate)
+                  : useMultiItemDetectionProvider
+                  ? MULTI_ITEM_IDENTIFY_PROMPT
+                  : IDENTIFY_PROMPT,
+              },
+              { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
+            ],
           },
         ],
         generationConfig: {
-          temperature: 0.2,
+          temperature: useMultiItemDetectionProvider || useSelectedItemProvider ? 0 : 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
+          ...(useMultiItemDetectionProvider
+            ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
+            : useSelectedItemProvider
+            ? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }
+            : {}),
         },
       };
 
@@ -1739,11 +1917,51 @@ Deno.serve(async (req) => {
     );
 
     const rawStatus = typeof parsed.status === 'string' ? parsed.status.toLowerCase() : '';
+    const detectedGarments = useMultiItemDetectionProvider
+      ? sanitizeDetectedGarments(parsed.detectedGarments)
+      : [];
+    const rawGarmentCount = useMultiItemDetectionProvider
+      ? rawDetectedGarmentCount(parsed.detectedGarments)
+      : 0;
+    if (useMultiItemDetectionProvider) {
+      console.log('[scan-identify] multi_item_provider_count count=%d', rawGarmentCount);
+      console.log('[scan-identify] multi_item_validated_count count=%d', detectedGarments.length);
+      console.log(
+        '[scan-identify] multi_item_dropped_count count=%d',
+        Math.max(0, rawGarmentCount - detectedGarments.length),
+      );
+    }
+    const primaryGarmentFields = useMultiItemDetectionProvider
+      ? primaryGarmentResponseFields(detectedGarments)
+      : {};
+
+    if (useMultiItemDetectionProvider && rawStatus === 'completed' && detectedGarments.length === 0) {
+      console.warn('[scan-identify] multi_item_no_valid_garments mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
+      console.log('[scan-identify] multi_item_response_count count=0');
+      const failureAudit = buildAuditEvent(
+        { status: 'failed' },
+        null,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      failureAudit.error_reason = 'multi_item_no_valid_garments';
+      logScanIdentificationAudit(failureAudit);
+      console.log(
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
+      return json(normalized('failed', safeFailed), 200);
+    }
 
     // Try the new rich identification shape first.
-    let identification = sanitizeIdentification(parsed.identification);
+    let identification = sanitizeIdentification(primaryGarmentFields.identification ?? parsed.identification);
     let attributes: Record<string, unknown> | undefined;
-    if (identification) {
+    if (useMultiItemDetectionProvider && primaryGarmentFields.attributes) {
+      attributes = primaryGarmentFields.attributes;
+    } else if (identification) {
       attributes = buildAttributesFromIdentification(identification);
     }
     // Fallback: old direct attributes shape for backward compatibility.
@@ -1755,13 +1973,6 @@ Deno.serve(async (req) => {
     if (!identification && attributes && rawStatus === 'completed') {
       identification = sanitizeIdentification(buildIdentificationFromAttributes(attributes));
     }
-
-    // Phase 4 — only populated when the request explicitly set multiItemDetection
-    // and the model returned a genuine garments list. Absent otherwise, so
-    // legacy single-item callers see zero shape change.
-    const detectedGarments = multiItemDetection && rawStatus === 'completed'
-      ? sanitizeGarments(parsed.garments)
-      : undefined;
 
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
@@ -1818,7 +2029,8 @@ Deno.serve(async (req) => {
       const finalResponse = withSafeImageArrays(
         {
           ...nonFashionResponseWithAttributes,
-          ...(mode === 'image' ? { scanId } : {}),
+          ...(mode === 'image' ? { scanId, scanSessionId, imageDigestPrefix } : {}),
+          ...(useMultiItemDetectionProvider ? { detectedGarments: [] } : {}),
           displayResult: buildDisplayResult(nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined, 0.95),
         },
         {
@@ -1873,6 +2085,9 @@ Deno.serve(async (req) => {
         mode,
         source,
       );
+      if (useMultiItemDetectionProvider) {
+        console.log('[scan-identify] multi_item_response_count count=0');
+      }
       return json(finalResponse, 200);
     }
 
@@ -1990,6 +2205,25 @@ Deno.serve(async (req) => {
         };
       }
       rankedProductsForAudit = finalRecommendedProducts;
+    } else if (useMultiItemDetectionProvider) {
+      console.log(
+        '[scan-identify] commerce_skipped reason=multi_item_detection_only mode=%s source=%s',
+        mode,
+        source,
+      );
+      finalRecommendedProducts = [];
+      finalSimilarityMatches = [];
+      rankedProductsForAudit = [];
+      shoppingMeta = {
+        provider: 'none',
+        query: '',
+        count: 0,
+        providersTried: [],
+        catalogCount: 0,
+        similarityMatches: 0,
+        commerceSkipped: true,
+        reason: 'multi_item_detection_only',
+      };
     } else if (isAnonymousImageAnalysis) {
       console.log(
         '[scan-identify] commerce_skipped reason=anonymous_image_analysis mode=%s source=%s',
@@ -2104,10 +2338,10 @@ Deno.serve(async (req) => {
     const finalResponse = withSafeImageArrays(
       {
         ...completedResponseWithAttributes,
-        ...(mode === 'image' ? { scanId } : {}),
+        ...(mode === 'image' ? { scanId, scanSessionId, imageDigestPrefix } : {}),
         ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
         ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
-        ...(detectedGarments ? { detectedGarments } : {}),
+        ...(useMultiItemDetectionProvider ? { detectedGarments } : {}),
         displayResult: buildDisplayResult(
           completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
           typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
@@ -2158,6 +2392,9 @@ Deno.serve(async (req) => {
       mode,
       source,
     );
+    if (useMultiItemDetectionProvider) {
+      console.log('[scan-identify] multi_item_response_count count=%d', detectedGarments.length);
+    }
     return json(finalResponse, 200);
   } catch (err) {
     const isTimeout =

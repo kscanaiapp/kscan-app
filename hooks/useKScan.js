@@ -1,7 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
+import {
+  MULTI_IMAGE_SCANNER_ENABLED,
+  SCAN_IDENTIFY_BACKEND_ENABLED,
+} from '../constants/featureFlags';
 import { identifyScanImage } from '../services/scanIdentification';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import {
@@ -10,6 +13,13 @@ import {
 } from '../services/secondhand';
 import { searchSneakers, shouldEnrichSneakers } from '../services/sneakers/index';
 import { compressForUpload } from '../services/imageUtils';
+import {
+  MAX_SCAN_IMAGES,
+  buildMultiScanCandidates,
+  candidateLabel,
+  normalizeImageSelections,
+  removeImageSelection,
+} from '../services/multiImageScan';
 import {
   getPrivacySanitizerStatus,
   sanitizeImageBeforeUpload,
@@ -28,7 +38,7 @@ const MIN_ANALYSIS_MS = 600;
 // Fallback ceiling for the entire capture-to-result attempt. The backend edge
 // function uses ~20 s; compression + sanitizer + network overhead needs a bit
 // more room. A late result after this window is treated as a timeout.
-const ATTEMPT_TIMEOUT_MS = 32_000;
+const ATTEMPT_TIMEOUT_MS = 52_000;
 
 function logAnalyzeDiag(payload) {
   if (typeof __DEV__ === 'undefined' || !__DEV__) return;
@@ -75,7 +85,10 @@ export function useKScan(actorId = null) {
     typeof actorId === 'string' && actorId.trim() ? actorId.trim() : null;
   const [status, setStatus] = useState('idle');
   const [photo, setPhoto] = useState(null);
+  const [selectedImages, setSelectedImages] = useState([]);
   const [analysis, setAnalysis] = useState(null);
+  const [scanItems, setScanItems] = useState([]);
+  const [selectedScanItemId, setSelectedScanItemId] = useState(null);
   const [analysisActorId, setAnalysisActorId] = useState(null);
   const [error, setError] = useState(null);
   const [nonFashionMessage, setNonFashionMessage] = useState(null);
@@ -122,7 +135,10 @@ export function useKScan(actorId = null) {
     secondhandRequestRef.current += 1;
     setIsAnalyzing(false);
     setPhoto(null);
+    setSelectedImages([]);
     setAnalysis(null);
+    setScanItems([]);
+    setSelectedScanItemId(null);
     setAnalysisActorId(null);
     setError(null);
     setNonFashionMessage(null);
@@ -204,7 +220,9 @@ export function useKScan(actorId = null) {
           throw new Error('Camera returned an invalid photo.');
         }
         if (isOperationValid(operationId)) {
-          setPhoto({ ...result, source: 'camera' });
+          const images = normalizeImageSelections([{ uri: result.uri }], 'camera');
+          setSelectedImages(images);
+          setPhoto({ ...result, ...images[0], source: 'camera' });
           setError(null);
           setStatus('preview');
         }
@@ -224,12 +242,12 @@ export function useKScan(actorId = null) {
     [status, startInFlight, clearInFlight, isOperationValid]
   );
 
-  const selectGalleryPhoto = useCallback(
-    async () => {
+  const pickGalleryPhotos = useCallback(
+    async (append) => {
       if (scanInFlightRef.current) {
         logAnalyzeDiag({
           event: 'scan_duplicate_blocked',
-          source: 'selectGalleryPhoto',
+          source: append ? 'addGalleryPhotos' : 'selectGalleryPhoto',
           reason: 'scan_in_flight',
           status,
         });
@@ -259,14 +277,24 @@ export function useKScan(actorId = null) {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 1,
           allowsEditing: false,
-          allowsMultipleSelection: false,
+          allowsMultipleSelection: MULTI_IMAGE_SCANNER_ENABLED,
+          selectionLimit: MULTI_IMAGE_SCANNER_ENABLED ? MAX_SCAN_IMAGES : 1,
+          orderedSelection: MULTI_IMAGE_SCANNER_ENABLED,
         });
 
         if (isOperationValid(operationId)) {
-          if (!result.canceled && result.assets?.[0]?.uri) {
-            setPhoto({ uri: result.assets[0].uri, source: 'upload' });
+          if (!result.canceled && Array.isArray(result.assets) && result.assets.length > 0) {
+            const images = normalizeImageSelections(
+              MULTI_IMAGE_SCANNER_ENABLED ? result.assets : result.assets.slice(0, 1),
+              'upload',
+              append ? selectedImages : [],
+            );
+            setSelectedImages(images);
+            setPhoto({ ...images[0], source: images[0].source });
             setError(null);
             setAnalysis(null);
+            setScanItems([]);
+            setSelectedScanItemId(null);
             setAnalysisActorId(null);
             setNonFashionMessage(null);
             secondhandRequestRef.current += 1;
@@ -278,15 +306,46 @@ export function useKScan(actorId = null) {
           console.error('Gallery selection failed:', err);
         }
         if (isOperationValid(operationId)) {
-          setError('Uploaded image could not be loaded.');
-          setStatus('error');
+          if (err?.message === 'TOO_MANY_IMAGES') {
+            Alert.alert('Maximum 5 Images', 'Remove an image before adding another.');
+            setStatus(selectedImages.length > 0 ? 'preview' : 'idle');
+          } else {
+            setError('Uploaded image could not be loaded.');
+            setStatus('error');
+          }
         }
       } finally {
         clearInFlight(operationId);
       }
     },
-    [status, startInFlight, clearInFlight, isOperationValid]
+    [status, selectedImages, startInFlight, clearInFlight, isOperationValid]
   );
+
+  const selectGalleryPhoto = useCallback(
+    () => pickGalleryPhotos(false),
+    [pickGalleryPhotos],
+  );
+
+  const addGalleryPhotos = useCallback(
+    () => pickGalleryPhotos(true),
+    [pickGalleryPhotos],
+  );
+
+  const removeSelectedImage = useCallback((imageId) => {
+    if (scanInFlightRef.current) return;
+    const images = removeImageSelection(selectedImages, imageId);
+    setSelectedImages(images);
+    setAnalysis(null);
+    setScanItems([]);
+    setSelectedScanItemId(null);
+    if (images.length === 0) {
+      setPhoto(null);
+      setStatus('idle');
+    } else {
+      setPhoto({ ...images[0], source: images[0].source });
+      setStatus('preview');
+    }
+  }, [selectedImages]);
 
   const uploadPhoto = useCallback(
     (uri) => {
@@ -312,9 +371,13 @@ export function useKScan(actorId = null) {
         return;
       }
 
-      setPhoto({ uri, source: 'upload' });
+      const images = normalizeImageSelections([{ uri }], 'upload');
+      setSelectedImages(images);
+      setPhoto({ ...images[0], source: 'upload' });
       setError(null);
       setAnalysis(null);
+      setScanItems([]);
+      setSelectedScanItemId(null);
       setAnalysisActorId(null);
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
@@ -359,6 +422,9 @@ export function useKScan(actorId = null) {
         setStatus('error');
         return;
       }
+      const imagesForAttempt = selectedImages.length > 0
+        ? selectedImages
+        : normalizeImageSelections([{ uri: photo.uri }], photo.source || 'camera');
 
       const operationId = startInFlight();
       if (operationId === null) return;
@@ -372,6 +438,8 @@ export function useKScan(actorId = null) {
       setStatus('processing');
       setError(null);
       setAnalysis(null);
+      setScanItems([]);
+      setSelectedScanItemId(null);
       setAnalysisActorId(null);
       secondhandRequestRef.current += 1;
       const secondhandRequestId = secondhandRequestRef.current;
@@ -473,23 +541,24 @@ export function useKScan(actorId = null) {
       if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_DONE');
 
       let processingStart;
-      let sanitized;
       let usedScanIdentify = false;
       let attemptTimeoutId = null;
 
       const executeScanAttempt = async () => {
         processingStart = Date.now();
 
-        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS uri=' + photo.uri.slice(0, 80));
+        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS imageCount=' + imagesForAttempt.length);
         if (__DEV__ && photo.qaFixtureName) {
           console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
           console.log('[K-SCAN QA] Using compressImage utility: true');
           console.log('[K-SCAN QA] Sending fixture through scan-identify');
         }
-        const compressed = await compressForUpload(photo.uri);
-        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
-
-        sanitized = await sanitizeImageBeforeUpload(compressed);
+        const preparedImages = await Promise.all(imagesForAttempt.map(async (image) => {
+          const compressed = await compressForUpload(image.uri);
+          const prepared = await sanitizeImageBeforeUpload(compressed);
+          return { image, prepared };
+        }));
+        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms imageCount=' + preparedImages.length);
         if (__DEV__) {
           const sanitizerStatus = getPrivacySanitizerStatus();
           console.warn(
@@ -514,14 +583,83 @@ export function useKScan(actorId = null) {
         }
         usedScanIdentify = true;
 
-        const identifyResponse = await identifyScanImage(sanitized, {
-          source: photo.source === 'upload' ? 'upload' : 'camera',
-          localPrivacyFiltered: true,
-          signal: activeAbortControllerRef.current?.signal,
-        });
+        const detectionResponses = await Promise.all(preparedImages.map(async ({ image, prepared }) => ({
+          image,
+          preparedImage: prepared,
+          response: await identifyScanImage(prepared, {
+            source: image.source === 'upload' ? 'upload' : 'camera',
+            localPrivacyFiltered: true,
+            multiItemDetection: true,
+            requestMode: 'multi_item_detection',
+            signal: activeAbortControllerRef.current?.signal,
+          }),
+        })));
+
+        const candidates = buildMultiScanCandidates(detectionResponses);
+        if (candidates.length === 0) {
+          const allNonFashion = detectionResponses.every(({ response }) => response.status === 'non_fashion');
+          if (allNonFashion) {
+            await finishAnalysis({
+              type: 'non-fashion',
+              message: detectionResponses[0]?.response.userMessage ||
+                'No fashion items were detected in the selected images.',
+            }, processingStart);
+            return;
+          }
+          throw userSafeError(
+            'no valid garments detected',
+            'We could not find a clear fashion item in those images. Remove unclear images or try again.',
+          );
+        }
+
+        const items = await Promise.all(candidates.map(async (candidate) => {
+          let detailResponse = candidate.detectionResponse;
+          let detailStatus = 'complete';
+          if (candidate.selectedCandidate) {
+            detailResponse = await identifyScanImage(candidate.preparedImage, {
+              source: candidate.source === 'upload' ? 'upload' : 'camera',
+              localPrivacyFiltered: true,
+              multiItemDetection: true,
+              requestMode: 'selected_item',
+              scanSessionId: candidate.detectionResponse.scanSessionId,
+              imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
+              selectedCandidate: candidate.selectedCandidate,
+              signal: activeAbortControllerRef.current?.signal,
+            });
+          }
+
+          if (detailResponse.status !== 'completed') {
+            detailStatus = 'partial';
+            detailResponse = candidate.garment ? {
+              status: 'completed',
+              attributes: candidate.garment.attributes,
+              identification: candidate.garment.identification,
+              recommendedProducts: [],
+              userMessage: candidate.garment.label,
+            } : candidate.detectionResponse;
+          }
+
+          return {
+            id: candidate.id,
+            sourceImageId: candidate.sourceImageId,
+            sourceImageIndex: candidate.sourceImageIndex,
+            sourceImageUri: candidate.sourceImageUri,
+            source: candidate.source,
+            garment: candidate.garment,
+            selectedCandidate: candidate.selectedCandidate,
+            detectionResponse: candidate.detectionResponse,
+            label: candidateLabel(candidate),
+            analysis: mapScanIdentifyToAnalysis(detailResponse),
+            detailStatus,
+          };
+        }));
+
+        if (!isOperationValid(operationId)) return;
+        setScanItems(items);
+        setSelectedScanItemId(items[0].id);
 
         // Throws a user-safe error on 'failed' → handled by the catch below.
-        const data = mapScanIdentifyToAnalysis(identifyResponse);
+        const data = items[0].analysis;
         await finishAnalysis(data, processingStart);
       };
 
@@ -569,7 +707,7 @@ export function useKScan(actorId = null) {
         clearInFlight(operationId);
       }
     },
-    [status, photo, startInFlight, clearInFlight, isOperationValid]
+    [status, photo, selectedImages, startInFlight, clearInFlight, isOperationValid]
   );
 
   const retake = useCallback(() => {
@@ -592,7 +730,10 @@ export function useKScan(actorId = null) {
     }
 
     setPhoto(null);
+    setSelectedImages([]);
     setAnalysis(null);
+    setScanItems([]);
+    setSelectedScanItemId(null);
     setAnalysisActorId(null);
     setError(null);
     setNonFashionMessage(null);
@@ -627,9 +768,13 @@ export function useKScan(actorId = null) {
 
       if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
-      setPhoto({ uri, qaFixtureName: fixtureName, source: 'fixture' });
+      const images = normalizeImageSelections([{ uri, qaFixtureName: fixtureName }], 'fixture');
+      setSelectedImages(images);
+      setPhoto({ ...images[0], source: 'fixture' });
       setError(null);
       setAnalysis(null);
+      setScanItems([]);
+      setSelectedScanItemId(null);
       setAnalysisActorId(null);
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
@@ -657,8 +802,11 @@ export function useKScan(actorId = null) {
     }
 
     setAnalysis(null);
+    setScanItems([]);
+    setSelectedScanItemId(null);
     setAnalysisActorId(null);
     setPhoto(null);
+    setSelectedImages([]);
     setError(null);
     setNonFashionMessage(null);
     secondhandRequestRef.current += 1;
@@ -684,6 +832,8 @@ export function useKScan(actorId = null) {
     if (photo) {
       setError(null);
       setAnalysis(null);
+      setScanItems([]);
+      setSelectedScanItemId(null);
       setAnalysisActorId(null);
       setNonFashionMessage(null);
       secondhandRequestRef.current += 1;
@@ -697,10 +847,22 @@ export function useKScan(actorId = null) {
     }
   }, [status, photo]);
 
+  const selectScanItem = useCallback((itemId) => {
+    if (scanInFlightRef.current || status !== 'result') return;
+    const item = scanItems.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    setSelectedScanItemId(item.id);
+    setAnalysis(item.analysis);
+    setAnalysisActorId(currentActorRef.current);
+  }, [status, scanItems]);
+
   return {
     status,
     photo,
+    selectedImages,
     analysis,
+    scanItems,
+    selectedScanItemId,
     analysisActorId,
     error,
     nonFashionMessage,
@@ -713,5 +875,8 @@ export function useKScan(actorId = null) {
     selectStaticFixture,
     uploadPhoto,
     selectGalleryPhoto,
+    addGalleryPhotos,
+    removeSelectedImage,
+    selectScanItem,
   };
 }

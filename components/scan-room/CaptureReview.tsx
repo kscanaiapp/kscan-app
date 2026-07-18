@@ -16,8 +16,11 @@ import { ScanRoomHeader } from './ScanRoomHeader';
 
 interface CaptureReviewProps {
   imageUri: string;
+  images?: ReadonlyArray<{ id: string; uri: string }>;
   source?: 'camera' | 'upload' | 'fixture';
   onRetake: () => void;
+  onAddImage?: () => void;
+  onRemoveImage?: (imageId: string) => void;
   onAnalyze: () => void;
   onHome?: () => void;
   isAnalyzing?: boolean;
@@ -36,8 +39,11 @@ interface CaptureReviewProps {
  */
 export function CaptureReview({
   imageUri,
+  images = [],
   source = 'camera',
   onRetake,
+  onAddImage,
+  onRemoveImage,
   onAnalyze,
   onHome,
   isAnalyzing = false,
@@ -60,6 +66,7 @@ export function CaptureReview({
   const imageAccessibilityLabel = isUpload
     ? 'Uploaded inspiration image'
     : 'Captured scan image';
+  const reviewImages = images.length > 0 ? images : [{ id: 'primary', uri: imageUri }];
 
   return (
     <ScrollView
@@ -108,6 +115,50 @@ export function CaptureReview({
           </View>
         )}
       </View>
+
+      <View style={styles.selectionSummary}>
+        <Text style={styles.selectionTitle}>
+          {reviewImages.length === 1 ? '1 image selected' : `${reviewImages.length} images selected`}
+        </Text>
+        <Text style={styles.selectionBody}>Review up to five images before analysis.</Text>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.thumbnailRow}
+        style={styles.thumbnailScroller}
+      >
+        {reviewImages.map((image, index) => (
+          <View key={image.id} style={styles.thumbnailCard}>
+            <Image source={{ uri: image.uri }} style={styles.thumbnail} resizeMode="cover" />
+            <Text style={styles.thumbnailLabel}>Image {index + 1}</Text>
+            {onRemoveImage ? (
+              <Pressable
+                onPress={() => onRemoveImage(image.id)}
+                style={styles.removeButton}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove image ${index + 1}`}
+                testID={`scan-room-remove-image-${index}`}
+              >
+                <Text style={styles.removeButtonText}>Remove</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ))}
+        {onAddImage && reviewImages.length < 5 ? (
+          <Pressable
+            onPress={onAddImage}
+            style={styles.addCard}
+            accessibilityRole="button"
+            accessibilityLabel="Add another image"
+            testID="scan-room-add-image"
+          >
+            <Text style={styles.addMark}>+</Text>
+            <Text style={styles.addText}>Add image</Text>
+          </Pressable>
+        ) : null}
+      </ScrollView>
 
       {/* Metadata placeholder card */}
       <View style={styles.metaCard}>
@@ -195,6 +246,76 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: SPACING.md,
     left: SPACING.md,
+  },
+  selectionSummary: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    marginTop: SPACING.lg,
+  },
+  selectionTitle: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
+  },
+  selectionBody: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.xs,
+  },
+  thumbnailScroller: {
+    alignSelf: 'stretch',
+    marginTop: SPACING.md,
+  },
+  thumbnailRow: {
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+  thumbnailCard: {
+    width: 96,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+    padding: SPACING.xs,
+  },
+  thumbnail: {
+    width: '100%',
+    height: 84,
+    borderRadius: RADIUS.md,
+  },
+  thumbnailLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+  },
+  removeButton: {
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeButtonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+  },
+  addCard: {
+    width: 96,
+    minHeight: 142,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: LUXURY.colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: LUXURY.colors.cream,
+  },
+  addMark: {
+    fontSize: 28,
+    color: LUXURY.colors.plum,
+  },
+  addText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    marginTop: SPACING.xs,
   },
   metaCard: {
     borderRadius: RADIUS.lg,

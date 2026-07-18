@@ -24,8 +24,10 @@ import type {
   ScanIdentifyResponse,
   FashionAttributes,
   DetailedIdentification,
+  DetectedGarment,
   DisplayResult,
   RankedScanProduct,
+  ScanSelectedCandidate,
 } from '../types/scanIdentification';
 
 const EDGE_FN = 'scan-identify';
@@ -33,6 +35,7 @@ const EDGE_FN = 'scan-identify';
 const INVOKE_TIMEOUT_MS = 20_000;
 // Mirror the server guard so oversized payloads never leave the device.
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
+export const MAX_DETECTED_GARMENTS = 5;
 
 // Neutral default for generic (non image-quality) failures. Never blames the
 // user's photo or lighting; those appear only on an explicit image-quality
@@ -56,6 +59,12 @@ export type IdentifyScanOptions = {
   localPrivacyFiltered?: boolean;
   /** Optional abort signal for request cancellation. */
   signal?: AbortSignal;
+  /** v119 detection/detail contract. Omitted to preserve legacy behavior. */
+  multiItemDetection?: boolean;
+  requestMode?: 'multi_item_detection' | 'selected_item';
+  scanSessionId?: string;
+  imageDigestPrefix?: string;
+  selectedCandidate?: ScanSelectedCandidate;
 };
 
 function failed(userMessage = NEUTRAL_FAILED_MESSAGE): ScanIdentifyResponse {
@@ -121,6 +130,7 @@ function normalizeIdentification(raw: unknown): DetailedIdentification | undefin
     'closure',
     'visible_brand_text',
     'brand_guess',
+    'scan_quality_note',
   ];
   const arrayKeys: (keyof DetailedIdentification)[] = [
     'secondary_colors',
@@ -128,6 +138,7 @@ function normalizeIdentification(raw: unknown): DetailedIdentification | undefin
     'style_tags',
     'occasion_tags',
     'search_queries',
+    'styling_suggestions',
   ];
 
   for (const key of stringKeys) {
@@ -148,6 +159,75 @@ function normalizeIdentification(raw: unknown): DetailedIdentification | undefin
   if (Number.isFinite(n)) out.confidence_score = Math.max(0, Math.min(1, n));
 
   return Object.keys(out).length ? out : undefined;
+}
+
+function normalizeBounds(raw: unknown): ScanSelectedCandidate['bounds'] | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const values = ['x', 'y', 'width', 'height'].map((key) => Number(src[key]));
+  if (!values.every(Number.isFinite)) return undefined;
+  const x = Math.max(0, Math.min(1, values[0]));
+  const y = Math.max(0, Math.min(1, values[1]));
+  return {
+    x,
+    y,
+    width: Math.max(0.01, Math.min(1 - x, values[2])),
+    height: Math.max(0.01, Math.min(1 - y, values[3])),
+  };
+}
+
+function safeContractText(value: unknown, max = 120): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  return trimmed ? trimmed.slice(0, max) : undefined;
+}
+
+function normalizeDetectedGarment(raw: unknown): DetectedGarment | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const candidateId = safeContractText(src.candidateId, 80);
+  const category = safeContractText(src.category);
+  const subtype = safeContractText(src.subtype);
+  const label = safeContractText(src.label);
+  const identification = normalizeIdentification(src.identification);
+  const attributes = normalizeAttributes(src.attributes);
+  if (!candidateId || !category || !subtype || !label || !identification || !attributes) {
+    return undefined;
+  }
+  const orderValue = Number(src.order);
+  if (!Number.isInteger(orderValue) || orderValue < 0 || orderValue >= MAX_DETECTED_GARMENTS) {
+    return undefined;
+  }
+  const confidenceValue = Number(src.confidenceScore);
+  const confidenceScore = Number.isFinite(confidenceValue)
+    ? Math.max(0, Math.min(1, confidenceValue))
+    : undefined;
+  const bounds = normalizeBounds(src.bounds);
+  return {
+    candidateId,
+    order: orderValue,
+    label,
+    category,
+    subtype,
+    ...(bounds ? { bounds } : {}),
+    ...(confidenceScore !== undefined ? { confidenceScore } : {}),
+    attributes,
+    identification,
+  };
+}
+
+function normalizeDetectedGarments(raw: unknown): DetectedGarment[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: DetectedGarment[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const garment = normalizeDetectedGarment(entry);
+    if (!garment || seen.has(garment.candidateId)) continue;
+    seen.add(garment.candidateId);
+    out.push(garment);
+    if (out.length >= MAX_DETECTED_GARMENTS) break;
+  }
+  return out;
 }
 
 function normalizeRecommendedProducts(raw: unknown): RankedScanProduct[] {
@@ -284,8 +364,13 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
       identification: normalizeIdentification(src.identification),
       userMessage: userMessage ?? 'Identified a fashion item from your scan.',
       scanId: typeof src.scanId === 'string' ? src.scanId : undefined,
+      scanSessionId: typeof src.scanSessionId === 'string' ? src.scanSessionId : undefined,
+      imageDigestPrefix: typeof src.imageDigestPrefix === 'string' ? src.imageDigestPrefix : undefined,
       displayResult: normalizeDisplayResult(src.displayResult),
     };
+    if (Object.prototype.hasOwnProperty.call(src, 'detectedGarments')) {
+      out.detectedGarments = normalizeDetectedGarments(src.detectedGarments) ?? [];
+    }
     if (Object.prototype.hasOwnProperty.call(src, 'similarityMatches')) {
       out.similarityMatches = normalizeRecommendedProducts(src.similarityMatches);
     }
@@ -317,6 +402,10 @@ export async function identifyScanImage(
     return failed(IMAGE_TOO_LARGE_MESSAGE);
   }
 
+  if (options.requestMode === 'selected_item' && !options.selectedCandidate) {
+    return failed();
+  }
+
   // Authenticated calls only (default stance). Short-circuit before the network.
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -330,6 +419,11 @@ export async function identifyScanImage(
     source: options.source === 'upload' ? 'upload' : 'camera',
     localPrivacyFiltered: options.localPrivacyFiltered ?? false,
     clientTimestamp: new Date().toISOString(),
+    ...(options.multiItemDetection ? { multiItemDetection: true } : {}),
+    ...(options.requestMode ? { requestMode: options.requestMode } : {}),
+    ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
+    ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
+    ...(options.selectedCandidate ? { selectedCandidate: options.selectedCandidate } : {}),
   };
 
   const ac = new AbortController();

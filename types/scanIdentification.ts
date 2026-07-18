@@ -42,6 +42,24 @@ export type ScanIdentifyRequest = {
   source: string;
   localPrivacyFiltered?: boolean;
   clientTimestamp: string;
+  /** v119 bounded multi-item mode. Omitted for the legacy single-item path. */
+  multiItemDetection?: boolean;
+  requestMode?: 'multi_item_detection' | 'selected_item';
+  scanSessionId?: string;
+  imageDigestPrefix?: string;
+  selectedCandidate?: ScanSelectedCandidate;
+};
+
+export type ScanSelectedCandidate = {
+  candidateId: string;
+  category: string;
+  subtype?: string;
+  bounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 };
 
 /**
@@ -82,8 +100,23 @@ export type DisplayResult = {
   confidenceLabel?: string;
 };
 
+/** One sanitized garment returned by scan-identify v119 detection mode. */
+export type DetectedGarment = {
+  candidateId: string;
+  order: number;
+  label: string;
+  category: string;
+  subtype: string;
+  bounds?: ScanSelectedCandidate['bounds'];
+  confidenceScore?: number;
+  attributes: FashionAttributes;
+  identification: DetailedIdentification;
+};
+
 export type ScanIdentifyResponse = {
   scanId?: string;
+  scanSessionId?: string;
+  imageDigestPrefix?: string;
   status: FashionIdentificationStatus;
   attributes?: FashionAttributes;
   /** Rich identification fields (Day-1 prompt upgrade). Optional for backward compat. */
@@ -95,6 +128,8 @@ export type ScanIdentifyResponse = {
   userMessage?: string;
   /** Display result for seller/demo views; not integrated into ProductShelf. */
   displayResult?: DisplayResult;
+  /** Present only for the bounded multi-item detection request mode. */
+  detectedGarments?: DetectedGarment[];
 };
 
 export type MatchConfidenceTier =

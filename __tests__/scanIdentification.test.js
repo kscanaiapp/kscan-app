@@ -818,3 +818,116 @@ test('mapper: high-confidence brand appears in title', () => {
   assert.equal(out.title, 'Red Lacoste Polo Shirt');
   assert.equal(out.metadata.brandConfidence, 'high');
 });
+
+test('adapter: v119 multi-item request sends exact detection fields', async () => {
+  let invokedBody = null;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { access_token: 'test' } } }) },
+    functions: {
+      invoke: async (_name, options) => {
+        invokedBody = options.body;
+        return {
+          data: {
+            status: 'completed',
+            attributes: { category: 'jacket', itemType: 'blazer' },
+            identification: { item_type: 'jacket', subtype: 'blazer' },
+            recommendedProducts: [],
+            scanSessionId: 'session_1',
+            imageDigestPrefix: 'a1b2c3d4',
+            detectedGarments: [{
+              candidateId: 'garment-1-jacket-blazer',
+              order: 0,
+              label: 'black blazer',
+              category: 'jacket',
+              subtype: 'blazer',
+              bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+              attributes: { category: 'jacket', itemType: 'blazer' },
+              identification: { item_type: 'jacket', subtype: 'blazer' },
+            }],
+          },
+          error: null,
+        };
+      },
+    },
+  });
+
+  const result = await adapter.identifyScanImage('data:image/jpeg;base64,AAAA', {
+    source: 'upload',
+    localPrivacyFiltered: true,
+    multiItemDetection: true,
+    requestMode: 'multi_item_detection',
+  });
+
+  assert.equal(invokedBody.imageBase64, 'AAAA');
+  assert.equal(invokedBody.multiItemDetection, true);
+  assert.equal(invokedBody.requestMode, 'multi_item_detection');
+  assert.equal(invokedBody.source, 'upload');
+  assert.equal(result.detectedGarments.length, 1);
+  assert.equal(result.scanSessionId, 'session_1');
+  assert.equal(result.imageDigestPrefix, 'a1b2c3d4');
+});
+
+test('adapter: v119 selected-item request preserves correlation and candidate bounds', async () => {
+  let invokedBody = null;
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { access_token: 'test' } } }) },
+    functions: {
+      invoke: async (_name, options) => {
+        invokedBody = options.body;
+        return {
+          data: {
+            status: 'completed',
+            attributes: { category: 'jacket', itemType: 'blazer' },
+            identification: { item_type: 'jacket', subtype: 'blazer' },
+            recommendedProducts: [],
+          },
+          error: null,
+        };
+      },
+    },
+  });
+  const selectedCandidate = {
+    candidateId: 'garment-1-jacket-blazer',
+    category: 'jacket',
+    subtype: 'blazer',
+    bounds: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+  };
+
+  await adapter.identifyScanImage('AAAA', {
+    multiItemDetection: true,
+    requestMode: 'selected_item',
+    scanSessionId: 'session_1',
+    imageDigestPrefix: 'a1b2c3d4',
+    selectedCandidate,
+  });
+
+  assert.equal(invokedBody.requestMode, 'selected_item');
+  assert.equal(invokedBody.scanSessionId, 'session_1');
+  assert.equal(invokedBody.imageDigestPrefix, 'a1b2c3d4');
+  assert.deepEqual(JSON.parse(JSON.stringify(invokedBody.selectedCandidate)), selectedCandidate);
+});
+
+test('adapter: detected garment sanitizer drops unknown fields and duplicate ids', () => {
+  const adapter = loadAdapter({});
+  const rawGarment = {
+    candidateId: 'garment-1-jacket-blazer',
+    order: 0,
+    label: 'black blazer',
+    category: 'jacket',
+    subtype: 'blazer',
+    attributes: { category: 'jacket', itemType: 'blazer', executable: 'drop-me' },
+    identification: { item_type: 'jacket', subtype: 'blazer', system_prompt: 'drop-me' },
+    executable: 'drop-me',
+  };
+  const result = adapter.normalizeScanIdentifyResponse({
+    status: 'completed',
+    attributes: { category: 'jacket', itemType: 'blazer' },
+    identification: { item_type: 'jacket' },
+    recommendedProducts: [],
+    detectedGarments: [rawGarment, rawGarment],
+  });
+  assert.equal(result.detectedGarments.length, 1);
+  assert.equal(result.detectedGarments[0].executable, undefined);
+  assert.equal(result.detectedGarments[0].attributes.executable, undefined);
+  assert.equal(result.detectedGarments[0].identification.system_prompt, undefined);
+});

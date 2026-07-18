@@ -37,7 +37,12 @@ import {
   DEV_FALLBACK_STATUS,
   QA_TOOLS_ENABLED,
 } from './constants/build';
-import { TEXTSCAN_UI_ENABLED, SCAN_RESULTS_V2_UI_ENABLED, SCAN_ROOM_V2_UI_ENABLED } from './constants/featureFlags';
+import {
+  MULTI_IMAGE_SCANNER_ENABLED,
+  TEXTSCAN_UI_ENABLED,
+  SCAN_RESULTS_V2_UI_ENABLED,
+  SCAN_ROOM_V2_UI_ENABLED,
+} from './constants/featureFlags';
 import { QA_FIXTURES } from './constants/qaFixtures';
 import {
   BUTTONS,
@@ -259,7 +264,10 @@ export default function App() {
   const {
     status,
     photo,
+    selectedImages,
     analysis,
+    scanItems,
+    selectedScanItemId,
     analysisActorId,
     error,
     nonFashionMessage,
@@ -271,6 +279,9 @@ export default function App() {
     retry,
     selectStaticFixture,
     selectGalleryPhoto,
+    addGalleryPhotos,
+    removeSelectedImage,
+    selectScanItem,
   } = useKScan(user?.id ?? null);
 
   const router = useRouter();
@@ -348,12 +359,23 @@ export default function App() {
     [selectStaticFixture]
   );
 
-  // hasSavedRef: prevents saving the same result twice if the effect re-fires.
-  // Reset to false when a new analysis starts (status → processing).
-  const hasSavedRef = useRef(false);
+  // Track saves per detected item so retries and effect re-runs remain idempotent.
   const [savedToast, setSavedToast] = useState(false);
-  const [savedScanId, setSavedScanId] = useState(null);
+  const [savedScanIdsByItem, setSavedScanIdsByItem] = useState({});
+  const savingItemIdsRef = useRef(new Set());
+  const scanGroupIdRef = useRef(null);
+  const currentActorIdRef = useRef(user?.id ?? null);
+  currentActorIdRef.current = user?.id ?? null;
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
+  const [addAllToRoom, setAddAllToRoom] = useState(false);
+
+  const activeScanItem = scanItems.find((item) => item.id === selectedScanItemId) ?? null;
+  const activePhoto = activeScanItem
+    ? { uri: activeScanItem.sourceImageUri, source: activeScanItem.source }
+    : photo;
+  const activeSavedScanId = activeScanItem
+    ? savedScanIdsByItem[activeScanItem.id] ?? null
+    : null;
 
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
   // running. The AnalysisCard is held back until perceiving becomes false.
@@ -372,8 +394,10 @@ export default function App() {
       setPerceiving(false);
       setProcHudKey(k => k + 1);
       setV2AnalyzingMinComplete(false);
-      setSavedScanId(null);
-      hasSavedRef.current = false; // arm save for the next result
+      setSavedScanIdsByItem({});
+      savingItemIdsRef.current.clear();
+      scanGroupIdRef.current = `multi-scan-${Date.now()}`;
+      setAddAllToRoom(false);
       return;
     }
     // When processing succeeds, briefly show the HUD with real metadata
@@ -392,33 +416,63 @@ export default function App() {
     }
   }, [status]);
 
-  // Save each successful scan once to the local Style Library.
-  // Fires when status becomes 'result' (photo and analysis are both populated).
-  // hasSavedRef prevents duplicate saves if the effect re-runs before dismiss.
+  // Save one detected item at a time; the in-flight set closes manual/automatic races.
+  const persistScanItem = useCallback(async (item) => {
+    if (!item || !analysisActorId || analysisActorId !== user?.id) return null;
+    if (savedScanIdsByItem[item.id]) return savedScanIdsByItem[item.id];
+    if (savingItemIdsRef.current.has(item.id)) return null;
+    savingItemIdsRef.current.add(item.id);
+    try {
+      const saved = await saveScan({
+        photoUri: item.sourceImageUri,
+        analysis: {
+          ...item.analysis,
+          multiScan: {
+            schemaVersion: 1,
+            groupId: scanGroupIdRef.current,
+            itemId: item.id,
+            sourceImageId: item.sourceImageId,
+            sourceImageIndex: item.sourceImageIndex,
+            imageCount: selectedImages.length || 1,
+            itemCount: scanItems.length || 1,
+          },
+        },
+        source: item.source === 'camera' || item.source === 'upload' ? item.source : 'unknown',
+        ownerId: analysisActorId,
+      });
+      if (saved) {
+        if (currentActorIdRef.current !== analysisActorId) return null;
+        setSavedScanIdsByItem((current) => ({ ...current, [item.id]: saved.id }));
+        setSavedToast(true);
+        return saved.id;
+      }
+      return null;
+    } finally {
+      savingItemIdsRef.current.delete(item.id);
+    }
+  }, [analysisActorId, user?.id, savedScanIdsByItem, selectedImages.length, scanItems.length]);
+
+  useEffect(() => {
+    setSavedScanIdsByItem({});
+    savingItemIdsRef.current.clear();
+    setScanRoomModalVisible(false);
+    setAddAllToRoom(false);
+  }, [user?.id]);
+
+  const saveAllScanItems = useCallback(async () => {
+    await Promise.all(scanItems.map((item) => persistScanItem(item)));
+  }, [scanItems, persistScanItem]);
+
   useEffect(() => {
     if (
       status !== 'result' ||
-      !photo?.uri ||
-      !analysis ||
+      scanItems.length !== 1 ||
+      selectedImages.length > 1 ||
       !analysisActorId ||
-      analysisActorId !== user?.id ||
-      hasSavedRef.current
+      analysisActorId !== user?.id
     ) return;
-    hasSavedRef.current = true;
-    let live = true;
-    saveScan({
-      photoUri: photo.uri,
-      analysis,
-      source: photo.source || 'scan',
-      ownerId: analysisActorId,
-    }).then(saved => {
-      if (live && saved) {
-        setSavedScanId(saved.id);
-        setSavedToast(true);
-      }
-    });
-    return () => { live = false; };
-  }, [status, photo, analysis, analysisActorId, user?.id]);
+    void persistScanItem(scanItems[0]);
+  }, [status, scanItems, selectedImages.length, analysisActorId, user?.id, persistScanItem]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.
@@ -822,8 +876,11 @@ export default function App() {
           return (
             <CaptureReview
               imageUri={photo.uri}
+              images={selectedImages}
               source={photo.source || 'camera'}
               onRetake={photo.source === 'upload' ? selectGalleryPhoto : retake}
+              onAddImage={MULTI_IMAGE_SCANNER_ENABLED ? addGalleryPhotos : undefined}
+              onRemoveImage={removeSelectedImage}
               onAnalyze={runAnalysis}
               onHome={handleHome}
               isAnalyzing={isAnalyzing}
@@ -954,18 +1011,37 @@ export default function App() {
         SCAN_RESULTS_V2_UI_ENABLED ? (
           <ScanResultV2
             analysis={analysis}
-            scanImageUri={photo?.uri ?? null}
+            scanImageUri={activePhoto?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
             onDismiss={dismissResult}
-            onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
-            saveActionLabel={savedScanId ? 'View Closet' : undefined}
-            onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            onSaveToLibrary={activeScanItem
+              ? activeSavedScanId
+                ? () => router.push('/library')
+                : () => { void persistScanItem(activeScanItem); }
+              : undefined}
+            saveActionLabel={activeSavedScanId ? 'View Closet' : 'Save Item'}
+            onAddToDressingRoom={dressingRoomsEnabled ? () => {
+              setAddAllToRoom(false);
+              setScanRoomModalVisible(true);
+            } : undefined}
+            multiItem={activeScanItem ? {
+              imageCount: selectedImages.length || 1,
+              items: scanItems,
+              selectedItemId: activeScanItem.id,
+              savedItemIds: new Set(Object.keys(savedScanIdsByItem)),
+              onSelectItem: selectScanItem,
+              onSaveAll: scanItems.length > 1 ? () => { void saveAllScanItems(); } : undefined,
+              onAddAllToDressingRoom: dressingRoomsEnabled && scanItems.length > 1 ? () => {
+                setAddAllToRoom(true);
+                setScanRoomModalVisible(true);
+              } : undefined,
+            } : undefined}
             onAskStyleChat={styleChatEnabled ? () => {
-              const source = photo?.source === 'upload' ? 'upload' : 'camera';
+              const source = activePhoto?.source === 'upload' ? 'upload' : 'camera';
               const meta = analysis?.metadata ?? {};
               setStyleChatHandoffContext({
                 source,
-                imageUri: photo?.uri ?? null,
+                imageUri: activePhoto?.uri ?? null,
                 category: meta.category || null,
                 color: meta.color || null,
                 silhouette: meta.silhouette || null,
@@ -986,11 +1062,14 @@ export default function App() {
             scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
-            scanImageUri={photo?.uri ?? null}
+            scanImageUri={activePhoto?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
             scanSourceType="live_scan"
             onDismiss={dismissResult}
-            onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            onAddToDressingRoom={dressingRoomsEnabled ? () => {
+              setAddAllToRoom(false);
+              setScanRoomModalVisible(true);
+            } : undefined}
           />
         )
       )}
@@ -998,14 +1077,28 @@ export default function App() {
       {dressingRoomsEnabled ? (
         <AddScanToDressingRoomModal
           visible={scanRoomModalVisible}
-          localImageUri={photo?.uri ?? null}
+          localImageUri={activePhoto?.uri ?? null}
           scan={{
-            sourceType: photo?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
-            sourceId: photo?.qaFixtureName ?? null,
+            sourceType: activePhoto?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
+            sourceId: activeScanItem?.id ?? photo?.qaFixtureName ?? null,
             result: analysis?.result ?? null,
             metadata: analysis?.metadata ?? null,
           }}
-          onClose={() => setScanRoomModalVisible(false)}
+          additionalScans={addAllToRoom ? scanItems
+            .filter((item) => item.id !== activeScanItem?.id)
+            .map((item) => ({
+              localImageUri: item.sourceImageUri,
+              scan: {
+                sourceType: item.source === 'upload' ? 'upload_inspiration' : 'live_scan',
+                sourceId: item.id,
+                result: item.analysis?.result ?? null,
+                metadata: item.analysis?.metadata ?? null,
+              },
+            })) : []}
+          onClose={() => {
+            setScanRoomModalVisible(false);
+            setAddAllToRoom(false);
+          }}
         />
       ) : null}
     </View>

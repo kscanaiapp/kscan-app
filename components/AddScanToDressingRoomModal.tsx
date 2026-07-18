@@ -33,6 +33,14 @@ type Props = {
   storagePath?: string | null;
   imageUrl?: string | null;
   scan?: Partial<ScanImageSnapshotSource> | null;
+  /** Additional explicitly selected scanner items for the same room action. */
+  additionalScans?: ReadonlyArray<{
+    localImageUri?: string | null;
+    storageBucket?: string | null;
+    storagePath?: string | null;
+    imageUrl?: string | null;
+    scan?: Partial<ScanImageSnapshotSource> | null;
+  }>;
   onClose: () => void;
 };
 
@@ -43,6 +51,7 @@ export function AddScanToDressingRoomModal({
   storagePath,
   imageUrl,
   scan,
+  additionalScans = [],
   onClose,
 }: Props) {
   const { user } = useAuthSession();
@@ -77,18 +86,31 @@ export function AddScanToDressingRoomModal({
     }
   }, [visible, reload]);
 
-  const buildScan = (): ScanImageSnapshotSource => ({
+  const buildScans = (): ScanImageSnapshotSource[] => [
+    { localImageUri, storageBucket, storagePath, imageUrl, scan },
+    ...additionalScans,
+  ].map((item) => ({
     userId: user?.id,
-    localImageUri,
-    storageBucket,
-    storagePath,
-    imageUrl,
-    sourceType: scan?.sourceType ?? 'live_scan',
-    sourceId: scan?.sourceId ?? null,
-    createdAt: scan?.createdAt ?? new Date().toISOString(),
-    result: scan?.result ?? null,
-    metadata: scan?.metadata ?? null,
-  });
+    localImageUri: item.localImageUri,
+    storageBucket: item.storageBucket,
+    storagePath: item.storagePath,
+    imageUrl: item.imageUrl,
+    sourceType: item.scan?.sourceType ?? 'live_scan',
+    sourceId: item.scan?.sourceId ?? null,
+    createdAt: item.scan?.createdAt ?? new Date().toISOString(),
+    result: item.scan?.result ?? null,
+    metadata: item.scan?.metadata ?? null,
+  }));
+
+  const saveAllToRoom = async (roomId: string): Promise<{ saved: number; total: number }> => {
+    const scans = buildScans();
+    const results = await Promise.allSettled(scans.map((item) => addScanImageToDressingRoom({
+      dressingRoomId: roomId,
+      userId: user?.id,
+      scan: item,
+    })));
+    return { saved: results.filter((result) => result.status === 'fulfilled').length, total: scans.length };
+  };
 
   const handleSave = async (roomId: string, roomTitle: string) => {
     if (savingRef.current) return;
@@ -96,13 +118,12 @@ export function AddScanToDressingRoomModal({
     setSaving(true);
     setMessage(null);
     try {
-      await addScanImageToDressingRoom({
-        dressingRoomId: roomId,
-        userId: user?.id,
-        scan: buildScan(),
-      });
+      const result = await saveAllToRoom(roomId);
+      if (result.saved === 0) throw new Error('No items could be added.');
       setSavedRoomId(roomId);
-      setMessage(`Added to ${roomTitle}.`);
+      setMessage(result.saved === result.total
+        ? `Added ${result.saved === 1 ? 'item' : `${result.saved} items`} to ${roomTitle}.`
+        : `Added ${result.saved} of ${result.total} items to ${roomTitle}.`);
     } catch (err: any) {
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
@@ -122,14 +143,13 @@ export function AddScanToDressingRoomModal({
         title: newRoomTitle,
         description: null,
       });
-      await addScanImageToDressingRoom({
-        dressingRoomId: room.id,
-        userId: user?.id,
-        scan: buildScan(),
-      });
+      const result = await saveAllToRoom(room.id);
+      if (result.saved === 0) throw new Error('No items could be added.');
       await reload();
       setSavedRoomId(room.id);
-      setMessage(`Added to ${room.title}.`);
+      setMessage(result.saved === result.total
+        ? `Added ${result.saved === 1 ? 'item' : `${result.saved} items`} to ${room.title}.`
+        : `Added ${result.saved} of ${result.total} items to ${room.title}.`);
     } catch (err: any) {
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
@@ -147,7 +167,14 @@ export function AddScanToDressingRoomModal({
   // pipeline (storage > remote URL > local URI), not bare localImageUri
   // truthiness — a cloud-synced scan with no local file left on this device
   // can still be added when it has a durable storage reference or URL.
-  const missingImage = !hasUsableDressingRoomImageSource({ localUri: localImageUri, storageBucket, storagePath, imageUrl });
+  const missingImage =
+    !hasUsableDressingRoomImageSource({ localUri: localImageUri, storageBucket, storagePath, imageUrl }) ||
+    additionalScans.some((item) => !hasUsableDressingRoomImageSource({
+      localUri: item.localImageUri,
+      storageBucket: item.storageBucket,
+      storagePath: item.storagePath,
+      imageUrl: item.imageUrl,
+    }));
   const successState = !!savedRoomId;
 
   return (

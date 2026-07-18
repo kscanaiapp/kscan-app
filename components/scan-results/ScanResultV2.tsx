@@ -35,6 +35,10 @@ import type { LegacyAnalysisData, ProductMatch, ScanResultV2 } from './types';
 import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
+import {
+  MultiItemResultNavigator,
+  type MultiItemResultSummary,
+} from './MultiItemResultNavigator';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y = SCREEN_HEIGHT * 0.36;
@@ -79,6 +83,15 @@ interface ScanResultV2Props {
   onAskStyleChat?: () => void;
   /** Called to scroll to / focus Similar Finds. */
   onFindSimilar?: () => void;
+  multiItem?: {
+    imageCount: number;
+    items: ReadonlyArray<MultiItemResultSummary>;
+    selectedItemId: string;
+    savedItemIds?: ReadonlySet<string>;
+    onSelectItem: (itemId: string) => void;
+    onSaveAll?: () => void;
+    onAddAllToDressingRoom?: () => void;
+  };
   testID?: string;
 }
 
@@ -100,6 +113,7 @@ export function ScanResultV2({
   onAddToDressingRoom,
   onAskStyleChat,
   onFindSimilar,
+  multiItem,
   testID,
 }: ScanResultV2Props) {
   const insets = useSafeAreaInsets();
@@ -300,6 +314,8 @@ export function ScanResultV2({
               <View style={styles.divider}>
                 <Text style={styles.dividerText}>✧</Text>
               </View>
+
+              {multiItem ? <MultiItemResultNavigator {...multiItem} /> : null}
 
               {/* Hero */}
               <ScanResultHero

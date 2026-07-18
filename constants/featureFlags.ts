@@ -145,6 +145,14 @@ export const CLOUD_SAVED_SCANS_ENABLED = resolveCloudSavedScansEnabled();
 export const SCAN_IDENTIFY_BACKEND_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true';
 
+/**
+ * Enables the Android 1-5 image review and bounded multi-item result flow.
+ * Camera capture remains a one-image fallback. The QA profiles opt in
+ * explicitly; missing/false values keep the legacy picker surface.
+ */
+export const MULTI_IMAGE_SCANNER_ENABLED =
+  process.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED === 'true';
+
 // ── AI Stylist expansion (inactive rollout) ──────────────────────────────────
 /**
  * Master switch for the AI Stylist expansion UI: Library MY LOOKS sub-nav,
