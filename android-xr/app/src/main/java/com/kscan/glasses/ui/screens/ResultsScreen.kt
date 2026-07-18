@@ -30,12 +30,12 @@ fun ResultsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
+            .padding(16.dp),
     ) {
         Text(
             text = "Top Matches",
             color = Color(0xFF00E5FF),
-            fontSize = 28.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
         )
         // Mock results are always labeled as synthetic demo data — never
@@ -59,17 +59,14 @@ fun ResultsScreen(
                 focused = focusedIndex == index,
             )
         }
-        val actionOffset = products.size
-        Text(
-            text = "Actions",
-            color = Color(0xFFE0E0E8),
-            fontSize = 18.sp,
-            modifier = Modifier.padding(top = 8.dp),
-        )
+        // Action cards are self-labeled; a separate "Actions" header would push
+        // the last action outside the 600dp HUD viewport.
         resultActions.forEachIndexed { index, action ->
             FocusableCard(
                 title = action,
-                focused = focusedIndex == actionOffset + index,
+                focused = focusedIndex == products.size + index,
+                compact = true,
+                modifier = Modifier.padding(vertical = 4.dp),
             )
         }
         VoiceHint("Up/Down to focus · Select to activate")

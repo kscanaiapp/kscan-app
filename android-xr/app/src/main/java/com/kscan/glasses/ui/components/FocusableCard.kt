@@ -22,18 +22,24 @@ fun FocusableCard(
     subtitle: String? = null,
     focused: Boolean,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val borderColor = if (focused) Cyan else Purple.copy(alpha = 0.4f)
+    // Compact variant keeps dense screens (e.g. Results) inside the 600dp HUD
+    // viewport without dropping actions; default style is unchanged elsewhere.
+    val contentPadding = if (compact) 10.dp else 16.dp
+    val titleSize = if (compact) 18.sp else 22.sp
+    val subtitleSize = if (compact) 14.sp else 16.sp
     Box(
         modifier = modifier
             .fillMaxWidth()
             .border(2.dp, borderColor, RoundedCornerShape(12.dp))
-            .padding(16.dp),
+            .padding(contentPadding),
     ) {
         androidx.compose.foundation.layout.Column {
-            Text(text = title, color = Chrome, fontSize = 22.sp)
+            Text(text = title, color = Chrome, fontSize = titleSize)
             if (subtitle != null) {
-                Text(text = subtitle, color = Chrome.copy(alpha = 0.7f), fontSize = 16.sp)
+                Text(text = subtitle, color = Chrome.copy(alpha = 0.7f), fontSize = subtitleSize)
             }
         }
     }

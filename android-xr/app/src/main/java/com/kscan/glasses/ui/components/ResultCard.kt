@@ -24,7 +24,8 @@ fun ResultCard(
         title = "#$rank ${product.name}",
         subtitle = "${product.retailer} · ${product.price}",
         focused = focused,
-        modifier = modifier.padding(vertical = 6.dp),
+        modifier = modifier.padding(vertical = 4.dp),
+        compact = true,
     )
 }
 
@@ -33,9 +34,11 @@ fun ResultSummary(text: String) {
     Text(
         text = text,
         color = Chrome.copy(alpha = 0.85f),
-        fontSize = 18.sp,
+        fontSize = 16.sp,
+        maxLines = 2,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp),
+            .padding(bottom = 8.dp),
     )
 }
