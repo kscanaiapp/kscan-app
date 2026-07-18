@@ -154,4 +154,58 @@ class AnalyzeDryRunGateTest {
         )
         assertTrue(result is DryRunGateResult.ConfigBlocked)
     }
+
+    @Test
+    fun `debug analyze explicitly disabled blocks dry-run`() = runTest {
+        // Backend URL is present but debug analyze is explicitly turned off:
+        // isPresent requires BOTH, so this must fail the same gate.
+        val result = AnalyzeDryRunGate.evaluate(
+            betaConfig = readyConfig,
+            clientConfig = clientConfig,
+            debugConfig = debugConfig.copy(enabled = false),
+            sanitizerSuccess = true,
+            isDebugBuild = true,
+        )
+        assertTrue(result is DryRunGateResult.ConfigBlocked)
+        assertEquals("debug_backend_config_missing", (result as DryRunGateResult.ConfigBlocked).gate)
+    }
+
+    @Test
+    fun `safety guard rejection blocks dry-run`() = runTest {
+        // Passes every earlier gate, but enableRealConnectivity=true is rejected
+        // by BetaSafetyGuard (no transport support exists in this phase).
+        val result = AnalyzeDryRunGate.evaluate(
+            betaConfig = readyConfig.copy(enableRealConnectivity = true),
+            clientConfig = clientConfig,
+            debugConfig = debugConfig,
+            sanitizerSuccess = true,
+            isDebugBuild = true,
+        )
+        assertTrue(result is DryRunGateResult.ConfigBlocked)
+        assertEquals("safety_guard", (result as DryRunGateResult.ConfigBlocked).gate)
+    }
+
+    @Test
+    fun `gate results never expose urls tokens or payload material`() = runTest {
+        val sensitiveDebug = DebugAnalyzeConfig(
+            enabled = false,
+            backendUrl = "https://internal.example.com:8787/private",
+            authToken = "super-secret-token",
+            dryRunBuildFlag = true,
+        )
+        val outcomes = listOf(
+            AnalyzeDryRunGate.evaluate(readyConfig.copy(useMockApi = true), clientConfig, sensitiveDebug, true, isDebugBuild = true),
+            AnalyzeDryRunGate.evaluate(readyConfig, clientConfig.copy(backendUrl = ""), sensitiveDebug, true, isDebugBuild = true),
+            AnalyzeDryRunGate.evaluate(readyConfig, clientConfig, sensitiveDebug, true, isDebugBuild = true),
+            AnalyzeDryRunGate.evaluate(readyConfig, clientConfig, debugConfig, false, isDebugBuild = true),
+            AnalyzeDryRunGate.evaluate(readyConfig, clientConfig, sensitiveDebug, true, isDebugBuild = false),
+        )
+        for (outcome in outcomes) {
+            val text = outcome.toString()
+            assertTrue(!text.contains("super-secret-token"))
+            assertTrue(!text.contains("internal.example.com"))
+            assertTrue(!text.contains("http"))
+            assertTrue(!text.contains("base64"))
+        }
+    }
 }

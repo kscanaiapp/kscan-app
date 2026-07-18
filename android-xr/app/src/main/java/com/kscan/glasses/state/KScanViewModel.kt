@@ -148,11 +148,16 @@ class KScanViewModel(
             }
             is ScanOrchestratorResult.DryRunReady -> {
                 _orchestratorState.value = ScanOrchestratorState.COMPLETE
+                // "Ready" here means CONFIGURATION GATE ready only: the dry-run
+                // evaluated flags/URL/debug config without any transport, and the
+                // image privacy stage has NOT run for real (face masking is not
+                // implemented in this build; strict mode fails closed). Never
+                // describe this as live analysis readiness.
                 _results.value = ResultsUiState(
-                    summary = "Dry run ready",
+                    summary = "Dry-run gate ready (config only)",
                     topProducts = emptyList(),
                 )
-                speech.speakSummary("Dry run ready")
+                speech.speakSummary("Dry-run gate ready. Configuration only, not live analysis.")
                 _screen.value = if (_hasDisplay.value) AppScreen.RESULTS else AppScreen.SCAN
             }
             is ScanOrchestratorResult.DryRunBlocked -> {

@@ -7,6 +7,7 @@ import com.kscan.glasses.analyze.AnalyzeRequest
 import com.kscan.glasses.analyze.DebugAnalyzeConfig
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.mobilebridge.MockMobileAppBridge
+import com.kscan.glasses.privacy.CompressFailure
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
@@ -116,6 +117,28 @@ class ScanOrchestratorDryRunTest {
         // regardless of build type.
         assertTrue(result is ScanOrchestratorResult.Failure)
         assertTrue((result as ScanOrchestratorResult.Failure).error is ScanOrchestratorError.PrivacyBlocked)
+    }
+
+    @Test
+    fun `sanitizer error prevents dry-run selection`() = runTest {
+        // A sanitizer ERROR (safe output boundary failure) must also short-circuit
+        // before the dry-run gate: no dry-run outcome, no analyze call.
+        val sanitizer = object : PrivacyImageSanitizer {
+            override suspend fun sanitize(base64: String, mimeType: String) =
+                SanitizeResult.Error(
+                    "Image re-encode failed (ENCODE_FAILED)",
+                    failure = CompressFailure.ENCODE_FAILED,
+                )
+        }
+        val orchestrator = createOrchestrator(sanitizer = sanitizer)
+        val input = ScanInput(base64 = "mock", mimeType = "image/jpeg")
+
+        val result = orchestrator.run(input)
+
+        assertTrue(result is ScanOrchestratorResult.Failure)
+        val failure = result as ScanOrchestratorResult.Failure
+        assertTrue(failure.error is ScanOrchestratorError.ImageProcessingError)
+        assertEquals(ScanErrorCode.IMAGE_ENCODE_FAILED, failure.error.code)
     }
 
     @Test

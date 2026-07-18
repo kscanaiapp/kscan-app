@@ -1,7 +1,10 @@
 package com.kscan.glasses.state
 
 import com.kscan.glasses.analyze.AnalyzeClient
+import com.kscan.glasses.analyze.AnalyzeClientConfig
 import com.kscan.glasses.analyze.AnalyzeRequest
+import com.kscan.glasses.analyze.DebugAnalyzeConfig
+import com.kscan.glasses.BuildConfig
 import com.kscan.glasses.bridge.BridgeMessageType
 import com.kscan.glasses.bridge.CaptureException
 import com.kscan.glasses.bridge.CaptureResult
@@ -11,6 +14,7 @@ import com.kscan.glasses.bridge.DeviceState
 import com.kscan.glasses.bridge.GlassesBridgeProvider
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.mobilebridge.MockMobileAppBridge
+import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
 import com.kscan.glasses.scan.ScanOrchestrator
@@ -363,5 +367,52 @@ class KScanViewModelTest {
         // Back returns to scan.
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.Back)
         assertEquals(AppScreen.SCAN, vm.screen.value)
+    }
+
+    @Test
+    fun `dry-run ready reports config gate only never live readiness`() = runTest {
+        val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
+            coEvery { getDeviceState() } returns defaultBridgeState()
+            coEvery { capturePhoto() } returns defaultCapture()
+        }
+        // Fully gate-passing dry-run config; mock sanitizer succeeds WITHOUT real
+        // face masking, so the privacy stage has not genuinely run. The UI copy
+        // must say "config only" and never claim live analysis readiness.
+        val orchestrator = ScanOrchestrator(
+            sanitizer = MockPrivacyImageSanitizer(),
+            analyzeClient = mockk(relaxed = true),
+            mobileBridge = MockMobileAppBridge(),
+            config = BetaConfig(
+                useMockApi = false,
+                enableRealAnalyze = true,
+                enableRealFaceMasking = true,
+                enableDryRun = true,
+            ),
+            clientConfig = AnalyzeClientConfig(
+                backendUrl = "https://example.com",
+                enableRealAnalyze = false,
+            ),
+            debugConfig = DebugAnalyzeConfig(
+                enabled = true,
+                backendUrl = "https://example.com",
+                authToken = "",
+                dryRunBuildFlag = true,
+            ),
+            ioDispatcher = UnconfinedTestDispatcher(),
+        )
+        val vm = KScanViewModel(bridge = bridge, orchestrator = orchestrator)
+
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
+        advanceUntilIdle()
+
+        if (BuildConfig.DEBUG) {
+            assertEquals(AppScreen.RESULTS, vm.screen.value)
+            val summary = vm.results.value.summary
+            assertTrue(summary.contains("config only"))
+            assertFalse(summary.contains("live analysis is ready"))
+        } else {
+            // Release builds always block dry-run wiring at the build gate.
+            assertEquals(AppScreen.ERROR, vm.screen.value)
+        }
     }
 }
