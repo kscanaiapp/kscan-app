@@ -167,8 +167,33 @@ class ScanOrchestratorTest {
 
         assertTrue(result is ScanOrchestratorResult.Failure)
         val failure = result as ScanOrchestratorResult.Failure
-        assertTrue(failure.error is ScanOrchestratorError.PrivacyBlocked)
-        assertTrue(failure.error.userMessage.contains("Sanitizer crashed"))
+        // Unclassified sanitizer crash -> fixed generic processing error.
+        assertTrue(failure.error is ScanOrchestratorError.ImageProcessingError)
+        assertEquals(ScanErrorCode.UNKNOWN_SAFE_ERROR, failure.error.code)
+        // The raw sanitizer message never reaches the HUD-facing error.
+        assertEquals("Image processing failed", failure.error.userMessage)
+        assertTrue(!failure.error.userMessage.contains("Sanitizer crashed"))
+    }
+
+    @Test
+    fun `sanitizer boundary failure carries deterministic classification`() = runTest {
+        val sanitizer = object : PrivacyImageSanitizer {
+            override suspend fun sanitize(base64: String, mimeType: String) =
+                com.kscan.glasses.privacy.SanitizeResult.Error(
+                    "Image re-encode failed (DECODE_FAILED)",
+                    failure = com.kscan.glasses.privacy.CompressFailure.DECODE_FAILED,
+                )
+        }
+        val orchestrator = createOrchestrator(sanitizer = sanitizer, dispatcher = UnconfinedTestDispatcher(testScheduler))
+        val input = ScanInput(base64 = "any", mimeType = "image/jpeg")
+
+        val result = orchestrator.run(input)
+
+        assertTrue(result is ScanOrchestratorResult.Failure)
+        val failure = result as ScanOrchestratorResult.Failure
+        assertTrue(failure.error is ScanOrchestratorError.ImageProcessingError)
+        assertEquals(ScanErrorCode.IMAGE_DECODE_FAILED, failure.error.code)
+        assertEquals("Image processing failed. Please retry.", ScanErrorMapper.toUserMessage(failure.error))
     }
 
     @Test

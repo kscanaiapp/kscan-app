@@ -22,6 +22,7 @@ object ScanErrorMapper {
         is ScanOrchestratorError.PrivacyBlocked -> "Privacy check blocked upload. Please retry."
         is ScanOrchestratorError.PrivacyUnavailable -> error.userMessage
         is ScanOrchestratorError.EncodeFailure -> "Image processing failed. Please retry."
+        is ScanOrchestratorError.ImageProcessingError -> "Image processing failed. Please retry."
         is ScanOrchestratorError.Timeout -> "Analysis timed out. Tap to retry."
         is ScanOrchestratorError.Network -> "Connection issue. Check network and retry."
         is ScanOrchestratorError.HttpError -> "Server error (${error.status}). Please retry."

@@ -16,7 +16,13 @@ sealed class SanitizeResult {
      * the dedicated "privacy protection unavailable" message, never retry copy.
      */
     data class MaskingUnavailable(val reason: String) : SanitizeResult()
-    data class Error(val message: String) : SanitizeResult()
+    /**
+     * Sanitizer crashed or the safe output boundary failed. [failure] carries
+     * the deterministic [CompressFailure] classification when the failure came
+     * from the re-encode boundary; null for any other sanitizer crash.
+     * [message] is diagnostic-only and must never reach the HUD verbatim.
+     */
+    data class Error(val message: String, val failure: CompressFailure? = null) : SanitizeResult()
 }
 
 enum class SanitizerMode {
@@ -100,7 +106,8 @@ class StrictPrivacyImageSanitizer(
             is CompressResult.Success -> SanitizeResult.Success(out.base64, out.mimeType)
             // Classification name only — never embed payload or input-derived data.
             is CompressResult.Failure -> SanitizeResult.Error(
-                "Image re-encode failed (${out.failure.name})"
+                "Image re-encode failed (${out.failure.name})",
+                failure = out.failure,
             )
         }
     }

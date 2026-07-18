@@ -11,6 +11,7 @@ import com.kscan.glasses.navigation.FocusNavigator
 import com.kscan.glasses.navigation.GlassesInput
 import com.kscan.glasses.runtime.GlassesRuntimeState
 import com.kscan.glasses.runtime.RuntimeStatus
+import com.kscan.glasses.scan.ScanErrorCode
 import com.kscan.glasses.scan.ScanErrorMapper
 import com.kscan.glasses.scan.ScanInput
 import com.kscan.glasses.scan.ScanOrchestrator
@@ -56,6 +57,13 @@ class KScanViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    /**
+     * Stable machine-readable code paired with [errorMessage]. Null when no
+     * error is active. Never payload-derived.
+     */
+    private val _errorCode = MutableStateFlow<ScanErrorCode?>(null)
+    val errorCode: StateFlow<ScanErrorCode?> = _errorCode.asStateFlow()
+
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
@@ -91,6 +99,7 @@ class KScanViewModel(
 
     private suspend fun runOrchestratorFlow(input: ScanInput) {
         _isProcessing.value = true
+        _errorCode.value = null
         _orchestratorState.value = ScanOrchestratorState.PREPARING_IMAGE
         _screen.value = AppScreen.PROCESSING
 
@@ -122,7 +131,7 @@ class KScanViewModel(
             is ScanOrchestratorResult.Failure -> {
                 _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
                 val userMessage = ScanErrorMapper.toUserMessage(result.error)
-                showError(userMessage)
+                showError(userMessage, result.error.code)
             }
             is ScanOrchestratorResult.DryRunReady -> {
                 _orchestratorState.value = ScanOrchestratorState.COMPLETE
@@ -135,11 +144,11 @@ class KScanViewModel(
             }
             is ScanOrchestratorResult.DryRunBlocked -> {
                 _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
-                showError("Dry run blocked")
+                showError("Dry run blocked", ScanErrorCode.CONFIGURATION_REQUIRED)
             }
             is ScanOrchestratorResult.ConfigBlocked -> {
                 _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
-                showError("Backend config blocked")
+                showError("Backend config blocked", ScanErrorCode.CONFIGURATION_REQUIRED)
             }
         }
 
@@ -166,6 +175,7 @@ class KScanViewModel(
 
     fun retryFromError() {
         _errorMessage.value = null
+        _errorCode.value = null
         _screen.value = AppScreen.SCAN
     }
 
@@ -289,9 +299,9 @@ class KScanViewModel(
             val input = ScanInput(capture.base64, capture.mimeType)
             runOrchestratorFlow(input)
         } catch (e: CaptureException) {
-            showError("Capture failed. Please check camera access and retry.")
+            showError("Capture failed. Please check camera access and retry.", ScanErrorCode.CAPTURE_UNAVAILABLE)
         } catch (e: Exception) {
-            showError("Something went wrong. Please retry.")
+            showError("Something went wrong. Please retry.", ScanErrorCode.UNKNOWN_SAFE_ERROR)
         } finally {
             _isProcessing.value = false
         }
@@ -330,8 +340,9 @@ class KScanViewModel(
         }
     }
 
-    private suspend fun showError(message: String) {
+    private suspend fun showError(message: String, code: ScanErrorCode) {
         _errorMessage.value = message
+        _errorCode.value = code
         scanSession = scanSession.copy(status = ScanStatus.ERROR)
         _screen.value = AppScreen.ERROR
         speech.speakSummary(message)

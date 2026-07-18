@@ -10,6 +10,7 @@ import com.kscan.glasses.analyze.DryRunGateResult
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.config.SafeLog
 import com.kscan.glasses.mobilebridge.MobileAppBridge
+import com.kscan.glasses.privacy.CompressFailure
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
 import com.kscan.glasses.state.FashionAnalyzeResult
@@ -54,7 +55,9 @@ class ScanOrchestrator(
                     ScanOrchestratorError.PrivacyBlocked(result.reason)
                 )
                 is SanitizeResult.Error -> return@withContext ScanOrchestratorResult.Failure(
-                    ScanOrchestratorError.PrivacyBlocked(result.message)
+                    // Deterministic classification only; the raw sanitizer message
+                    // never reaches the HUD.
+                    ScanOrchestratorError.ImageProcessingError(result.failure)
                 )
             }
 
@@ -132,7 +135,13 @@ sealed class ScanOrchestratorResult {
 }
 
 sealed class ScanOrchestratorError(val userMessage: String) {
-    class PrivacyBlocked(reason: String) : ScanOrchestratorError("Privacy check blocked: $reason")
+
+    /** Stable machine-readable code; never payload-derived. */
+    abstract val code: ScanErrorCode
+
+    class PrivacyBlocked(reason: String) : ScanOrchestratorError("Privacy check blocked: $reason") {
+        override val code: ScanErrorCode = ScanErrorCode.PRIVACY_BLOCKED
+    }
 
     /**
      * Strict privacy mode was selected but on-device face masking is not
@@ -142,16 +151,59 @@ sealed class ScanOrchestratorError(val userMessage: String) {
      */
     class PrivacyUnavailable(val reason: String) : ScanOrchestratorError(
         "Privacy protection is not available in this build. Scan was not uploaded."
-    )
+    ) {
+        override val code: ScanErrorCode = ScanErrorCode.PRIVACY_UNAVAILABLE
+    }
 
-    class EncodeFailure(reason: String) : ScanOrchestratorError("Image encoding failed: $reason")
-    class Timeout(message: String) : ScanOrchestratorError(message)
-    class Network(message: String) : ScanOrchestratorError(message)
-    class HttpError(val status: Int, message: String) : ScanOrchestratorError(message)
-    class MalformedResponse(message: String) : ScanOrchestratorError(message)
-    class BetaDisabled(message: String) : ScanOrchestratorError(message)
-    class NonFashion(message: String) : ScanOrchestratorError(message)
-    class Unknown(message: String) : ScanOrchestratorError("Something went wrong: $message")
+    /**
+     * The sanitizer's safe output boundary failed. Carries only the
+     * deterministic [CompressFailure] classification — never payload text or
+     * the raw sanitizer message. The user message is intentionally fixed.
+     */
+    class ImageProcessingError(val failure: CompressFailure?) :
+        ScanOrchestratorError("Image processing failed") {
+        override val code: ScanErrorCode = when (failure) {
+            CompressFailure.DECODE_FAILED -> ScanErrorCode.IMAGE_DECODE_FAILED
+            CompressFailure.ENCODE_FAILED,
+            CompressFailure.RECONSTRUCT_FAILED,
+            CompressFailure.INVALID_DIMENSIONS
+            -> ScanErrorCode.IMAGE_ENCODE_FAILED
+            CompressFailure.EMPTY_INPUT -> ScanErrorCode.PAYLOAD_INVALID
+            null -> ScanErrorCode.UNKNOWN_SAFE_ERROR
+        }
+    }
+
+    class EncodeFailure(reason: String) : ScanOrchestratorError("Image encoding failed: $reason") {
+        override val code: ScanErrorCode = ScanErrorCode.PAYLOAD_INVALID
+    }
+
+    class Timeout(message: String) : ScanOrchestratorError(message) {
+        override val code: ScanErrorCode = ScanErrorCode.BACKEND_TIMEOUT
+    }
+
+    class Network(message: String) : ScanOrchestratorError(message) {
+        override val code: ScanErrorCode = ScanErrorCode.BACKEND_UNAVAILABLE
+    }
+
+    class HttpError(val status: Int, message: String) : ScanOrchestratorError(message) {
+        override val code: ScanErrorCode = ScanErrorCode.BACKEND_UNAVAILABLE
+    }
+
+    class MalformedResponse(message: String) : ScanOrchestratorError(message) {
+        override val code: ScanErrorCode = ScanErrorCode.BACKEND_UNAVAILABLE
+    }
+
+    class BetaDisabled(message: String) : ScanOrchestratorError(message) {
+        override val code: ScanErrorCode = ScanErrorCode.CONFIGURATION_REQUIRED
+    }
+
+    class NonFashion(message: String) : ScanOrchestratorError(message) {
+        override val code: ScanErrorCode = ScanErrorCode.NON_FASHION
+    }
+
+    class Unknown(message: String) : ScanOrchestratorError("Something went wrong: $message") {
+        override val code: ScanErrorCode = ScanErrorCode.UNKNOWN_SAFE_ERROR
+    }
 }
 
 data class ScanInput(

@@ -116,7 +116,10 @@ class ScanOrchestratorStrictPrivacyTest {
         val result = orchestrator.run(ScanInput(base64 = "raw", mimeType = "image/jpeg"))
 
         assertTrue(result is ScanOrchestratorResult.Failure)
-        assertTrue((result as ScanOrchestratorResult.Failure).error is ScanOrchestratorError.PrivacyBlocked)
+        // Unclassified sanitizer crash maps to the fixed image-processing error,
+        // never a privacy-block and never raw sanitizer text.
+        assertTrue((result as ScanOrchestratorResult.Failure).error is ScanOrchestratorError.ImageProcessingError)
+        assertEquals(ScanErrorCode.UNKNOWN_SAFE_ERROR, result.error.code)
         assertEquals(0, analyzeClient.callCount)
     }
 
