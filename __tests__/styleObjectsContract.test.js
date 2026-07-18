@@ -221,7 +221,7 @@ test('thumbs-down reaction migration preserves legacy favorite rows while hiding
 test('public room preview exposes item ids and gates reactions: anonymous read-only counts, writes require auth + room join', () => {
   assert.match(publicPreviewItemIdMigration, /create or replace function public\.get_public_room_preview/);
   assert.match(publicPreviewItemIdMigration, /'id', dri\.id/);
-  assert.match(publicRoomScreen, /ApiItem\.id === public\.dressing_room_items\.id/);
+  assert.match(publicRoomScreen, /build-14 compatibility alias for sourceId/);
   // Aggregate counts are always available (anonymous + authenticated).
   assert.match(publicRoomScreen, /getItemReactionCounts/);
   assert.match(publicRoomScreen, /<ItemReactions/);
@@ -417,8 +417,9 @@ test('inspiration image uploads are re-encoded through ImageManipulator, never t
   assert.match(service, /base64ToArrayBuffer\(prepared\.base64\)/);
 });
 
-test('public room preview screen does not expose inspiration uploads', () => {
-  assert.doesNotMatch(publicRoomScreen, /inspiration_items/);
+test('public room preview screen renders typed inspiration uploads without owner-only upload APIs', () => {
+  assert.match(publicRoomScreen, /sourceType: SharedRoomImageSourceType/);
+  assert.match(publicRoomScreen, /item\.sourceType === 'dressing_room_item'/);
   assert.doesNotMatch(publicRoomScreen, /listDressingRoomInspirationItems/);
   assert.doesNotMatch(publicRoomScreen, /InspirationUploadModal/);
 });

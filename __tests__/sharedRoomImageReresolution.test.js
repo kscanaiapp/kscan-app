@@ -29,8 +29,8 @@ test('server-side storage identity changes re-resolve after refresh without ente
   assert.doesNotMatch(resolver, /body: \{[^}]*storage(?:Bucket|Path)/);
 });
 
-test('guard identity includes unresolved item ids so same-count changed previews can resolve', () => {
-  assert.match(screen, /itemIdsNeedingResolution\.slice\(\)\.sort\(\)\.join\('\|'\)/);
+test('guard identity includes typed unresolved item refs so same-count changed previews can resolve', () => {
+  assert.match(screen, /itemRefsNeedingResolution[\s\S]*\.map\(getSharedRoomImageKey\)[\s\S]*\.sort\(\)/);
   assert.doesNotMatch(screen, /const key = `\$\{shareToken\}:\$\{state\.preview\.items\.length\}`/);
 });
 
@@ -48,8 +48,8 @@ test('unavailable previews never invoke image resolution and stale results are d
   assert.match(screen, /return \(\) => \{[\s\S]*cancelled = true/);
 });
 
-test('client sends no private storage coordinates and renders only resolver output', () => {
-  assert.match(resolver, /body: \{ shareToken, itemIds \}/);
+test('client sends no private storage coordinates and renders only typed resolver output', () => {
+  assert.match(resolver, /body: \{ shareToken, itemRefs \}/);
   assert.doesNotMatch(resolver, /storagePath|storageBucket/);
-  assert.match(screen, /item\.imageUrl \?\? resolvedImageUrls\[item\.id \?\? ''\]/);
+  assert.match(screen, /item\.imageUrl \?\? resolvedImageUrls\[imageKey\]/);
 });

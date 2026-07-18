@@ -46,13 +46,24 @@ test('Edge Function resolves the room directly from room_shares with the same ac
 
 test('Edge Function reads storage refs from dressing_room_items scoped to the resolved room', () => {
   assert.match(edgeFn, /rest\/v1\/dressing_room_items/);
-  assert.match(edgeFn, /dressing_room_id.*eq\.\$\{roomId\}/);
+  assert.match(edgeFn, /dressing_room_id.*eq\.\$\{room\.roomId\}/);
+});
+
+test('Edge Function resolves inspirations only through active room-scoped links', () => {
+  assert.match(edgeFn, /rest\/v1\/dressing_room_inspiration_items/);
+  assert.match(edgeFn, /room_id.*eq\.\$\{room\.roomId\}/);
+  assert.match(edgeFn, /inspiration_id.*in\.\(\$\{inspirationIds\.join\(','\)\}\)/);
+  assert.match(edgeFn, /deleted_at: 'is\.null'/);
+  assert.match(edgeFn, /rest\/v1\/inspiration_items/);
+  assert.match(edgeFn, /resolveAuthorizedInspirationStorageRefs/);
 });
 
 test('Edge Function imports validation/authorization helpers instead of duplicating them', () => {
   assert.match(edgeFn, /from ['"]\.\/validation\.ts['"]/);
   assert.match(edgeFn, /isValidShareToken/);
   assert.match(edgeFn, /sanitizeItemIds/);
+  assert.match(edgeFn, /sanitizeItemRefs/);
+  assert.match(edgeFn, /sharedRoomItemRefKey/);
   assert.match(edgeFn, /resolveStorageRefFromRow/);
   assert.match(edgeFn, /isBucketAllowed/);
 });
@@ -77,15 +88,16 @@ test('Edge Function restricts CORS to the supported web origin, not a wildcard',
 });
 
 test('Edge Function never echoes bucket, path, or owner metadata back to the client', () => {
-  assert.doesNotMatch(edgeFn, /'bucket':/);
-  assert.doesNotMatch(edgeFn, /ownerId/i);
-  assert.match(edgeFn, /imageUrls/);
+  const responseBlock = edgeFn.slice(edgeFn.indexOf('const imageUrls:'), edgeFn.indexOf('return json({ imageUrls });'));
+  assert.match(responseBlock, /imageUrls\[responseKey\]/);
+  assert.doesNotMatch(responseBlock, /ownerId|user_id|storageBucket|storagePath/);
+  assert.doesNotMatch(responseBlock, /imageUrls\[[^\]]+\]\s*=\s*\{[^}]*\b(bucket|path)\b/);
 });
 
-test('Client resolver sends only share token and item ids to the Edge Function', () => {
+test('Client resolver sends only share token and typed item refs to the Edge Function', () => {
   assert.match(clientService, /FUNCTION_NAME = 'shared-room-image-url'/);
   assert.match(clientService, /supabase\.functions\.invoke/);
-  assert.match(clientService, /body: \{ shareToken, itemIds \}/);
+  assert.match(clientService, /body: \{ shareToken, itemRefs \}/);
   assert.doesNotMatch(clientService, /imageStorageBucket/);
   assert.doesNotMatch(clientService, /imageStoragePath/);
 });
@@ -93,7 +105,7 @@ test('Client resolver sends only share token and item ids to the Edge Function',
 test('Shared room screen resolves private images and falls back to the signed URL', () => {
   assert.match(publicRoomScreen, /resolveSharedRoomImageUrls/);
   assert.match(publicRoomScreen, /resolvedImageUrls/);
-  assert.match(publicRoomScreen, /item\.imageUrl \?\? resolvedImageUrls\[item\.id \?\? ''\]/);
+  assert.match(publicRoomScreen, /item\.imageUrl \?\? resolvedImageUrls\[imageKey\]/);
 });
 
 // The following tests prove the specific security properties required of
@@ -102,8 +114,9 @@ test('Shared room screen resolves private images and falls back to the signed UR
 // signing, and generic (non-distinguishing) denial responses.
 
 test('Edge Function never reads a bucket or path from the client request body', () => {
-  // Only shareToken/itemIds are destructured from the parsed request body.
-  assert.match(edgeFn, /const body = \(await req\.json\(\)\) as \{ shareToken\?: unknown; itemIds\?: unknown \}/);
+  assert.match(edgeFn, /shareToken\?: unknown;/);
+  assert.match(edgeFn, /itemRefs\?: unknown;/);
+  assert.match(edgeFn, /itemIds\?: unknown;/);
   // No code path reads body.bucket / body.path / body.storageBucket anywhere.
   assert.doesNotMatch(edgeFn, /body\.(bucket|path|storageBucket|storagePath)/);
   // The only two places a bucket/path pair are constructed are the room-items
@@ -129,13 +142,25 @@ test('Edge Function only ever signs a bucket on the allowlist', () => {
 test('Edge Function resolves an unrelated or unauthorized item to null, never an error or distinguishing signal', () => {
   // Items not found in the room-scoped refs map resolve to null via the
   // ternary, with no separate error path or status code per-item.
-  assert.match(edgeFn, /imageUrls\[itemId\] = ref \? await createSignedImageUrl\(ref\.bucket, ref\.path\) : null;/);
+  assert.match(edgeFn, /imageUrls\[responseKey\] = ref \? await createSignedImageUrl\(ref\.bucket, ref\.path\) : null;/);
+});
+
+test('legacy build-14 itemIds remain dressing_room_item requests with unchanged response keys', () => {
+  assert.match(edgeFn, /const isLegacyRequest = body\.itemRefs === undefined/);
+  assert.match(edgeFn, /sanitizeItemIds\(body\.itemIds\)/);
+  assert.match(edgeFn, /sourceType: 'dressing_room_item' as const/);
+  assert.match(edgeFn, /const responseKey = isLegacyRequest \? itemRef\.sourceId : typedKey/);
+});
+
+test('inspiration reactions stay disabled because their ids are not dressing_room_items', () => {
+  assert.match(publicRoomScreen, /item\.sourceType === 'dressing_room_item'/);
+  assert.match(publicRoomScreen, /const reactionItemId/);
 });
 
 test('Edge Function returns a generic response when the room cannot be resolved, without distinguishing why', () => {
   // Unknown, revoked, and expired tokens all fall through the same
   // `if (!roomId)` branch to the same generic body/status.
-  assert.match(edgeFn, /if \(!roomId\) \{/);
+  assert.match(edgeFn, /if \(!room\) \{/);
   assert.match(edgeFn, /return json\(\{ imageUrls: \{\} \}, 404\);/);
   assert.match(edgeFn, /does not distinguish unknown vs\. revoked vs\. expired/);
 });

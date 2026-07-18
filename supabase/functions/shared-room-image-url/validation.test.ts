@@ -2,15 +2,21 @@ import assert from 'node:assert/strict';
 import {
   MAX_ITEM_IDS,
   encodeStorageObjectPath,
+  isApprovedPrivateStorageRef,
   isBucketAllowed,
+  isSharedRoomItemSourceType,
   isUuid,
   isValidShareToken,
+  resolveAuthorizedInspirationStorageRefs,
   resolveStorageRefFromRow,
   sanitizeItemIds,
+  sanitizeItemRefs,
+  sharedRoomItemRefKey,
 } from './validation.ts';
 
 const ITEM_A = '11111111-2222-3333-4444-555555555555';
 const ITEM_B = '66666666-7777-8888-9999-000000000000';
+const OWNER = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
 Deno.test('isValidShareToken accepts the real token contract, not just UUIDs', () => {
   assert.equal(isValidShareToken('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'), true);
@@ -52,6 +58,34 @@ Deno.test('sanitizeItemIds returns empty for non-array input', () => {
   assert.deepEqual(sanitizeItemIds(null), []);
   assert.deepEqual(sanitizeItemIds('not-an-array'), []);
   assert.deepEqual(sanitizeItemIds(undefined), []);
+});
+
+Deno.test('sanitizeItemRefs accepts both normalized domains and keys them without collision', () => {
+  assert.equal(isSharedRoomItemSourceType('dressing_room_item'), true);
+  assert.equal(isSharedRoomItemSourceType('inspiration_item'), true);
+  assert.equal(isSharedRoomItemSourceType('saved_scan'), false);
+  const refs = sanitizeItemRefs([
+    { sourceType: 'dressing_room_item', sourceId: ITEM_A },
+    { sourceType: 'inspiration_item', sourceId: ITEM_A },
+  ]);
+  assert.equal(refs.length, 2);
+  assert.equal(sharedRoomItemRefKey(refs[0]), `dressing_room_item:${ITEM_A}`);
+  assert.equal(sharedRoomItemRefKey(refs[1]), `inspiration_item:${ITEM_A}`);
+});
+
+Deno.test('sanitizeItemRefs drops malformed refs, deduplicates, and caps the combined batch at 24', () => {
+  const many = Array.from({ length: MAX_ITEM_IDS + 8 }, (_, i) => ({
+    sourceType: i % 2 ? 'inspiration_item' : 'dressing_room_item',
+    sourceId: `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`,
+  }));
+  const refs = sanitizeItemRefs([
+    { sourceType: 'bad', sourceId: ITEM_A },
+    { sourceType: 'inspiration_item', sourceId: 'bad' },
+    ...many,
+    many[0],
+  ]);
+  assert.equal(refs.length, MAX_ITEM_IDS);
+  assert.equal(new Set(refs.map(sharedRoomItemRefKey)).size, MAX_ITEM_IDS);
 });
 
 Deno.test('resolveStorageRefFromRow prefers the dedicated columns', () => {
@@ -103,6 +137,52 @@ Deno.test('isBucketAllowed only allows the known style-library-images bucket', (
   assert.equal(isBucketAllowed('style-library-images'), true);
   assert.equal(isBucketAllowed('some-other-bucket'), false);
   assert.equal(isBucketAllowed(''), false);
+});
+
+Deno.test('private storage contract accepts only owner-scoped approved source paths', () => {
+  assert.equal(isApprovedPrivateStorageRef('inspiration_item', OWNER, {
+    bucket: 'style-library-images', path: `${OWNER}/inspirations/photo.jpg`,
+  }), true);
+  assert.equal(isApprovedPrivateStorageRef('dressing_room_item', OWNER, {
+    bucket: 'style-library-images', path: `${OWNER}/scans/photo.jpg`,
+  }), true);
+  assert.equal(isApprovedPrivateStorageRef('dressing_room_item', OWNER, {
+    bucket: 'style-library-images', path: `${OWNER}/saved-scans/${ITEM_A}.jpg`,
+  }), true);
+  assert.equal(isApprovedPrivateStorageRef('inspiration_item', OWNER, {
+    bucket: 'style-library-images', path: `${OWNER}/scans/photo.jpg`,
+  }), false);
+  assert.equal(isApprovedPrivateStorageRef('inspiration_item', OWNER, {
+    bucket: 'other', path: `${OWNER}/inspirations/photo.jpg`,
+  }), false);
+  assert.equal(isApprovedPrivateStorageRef('inspiration_item', OWNER, {
+    bucket: 'style-library-images', path: `${ITEM_B}/inspirations/photo.jpg`,
+  }), false);
+});
+
+Deno.test('inspiration authorization excludes detached, deleted, and foreign-owner rows', () => {
+  const validPath = `${OWNER}/inspirations/photo.jpg`;
+  const validItem = {
+    id: ITEM_A, user_id: OWNER, storage_bucket: 'style-library-images', storage_path: validPath, deleted_at: null,
+  };
+  const activeLink = { inspiration_id: ITEM_A, user_id: OWNER, deleted_at: null };
+  assert.deepEqual(
+    resolveAuthorizedInspirationStorageRefs(OWNER, [activeLink], [validItem]).get(ITEM_A),
+    { bucket: 'style-library-images', path: validPath },
+  );
+  assert.equal(resolveAuthorizedInspirationStorageRefs(OWNER, [], [validItem]).size, 0);
+  assert.equal(resolveAuthorizedInspirationStorageRefs(
+    OWNER, [{ ...activeLink, deleted_at: '2026-07-18T00:00:00Z' }], [validItem],
+  ).size, 0);
+  assert.equal(resolveAuthorizedInspirationStorageRefs(
+    OWNER, [activeLink], [{ ...validItem, deleted_at: '2026-07-18T00:00:00Z' }],
+  ).size, 0);
+  assert.equal(resolveAuthorizedInspirationStorageRefs(
+    OWNER, [{ ...activeLink, user_id: ITEM_B }], [validItem],
+  ).size, 0);
+  assert.equal(resolveAuthorizedInspirationStorageRefs(
+    OWNER, [activeLink], [{ ...validItem, user_id: ITEM_B }],
+  ).size, 0);
 });
 
 Deno.test('encodeStorageObjectPath preserves object path separators', () => {

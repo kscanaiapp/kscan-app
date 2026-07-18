@@ -62,7 +62,11 @@ import {
 } from '../../../services/roomDeepLinks';
 import { computeItemGridCellWidth } from '../../../services/sharedRoomLayout';
 import { normalizeSharedRoomPreview } from '../../../services/sharedRoomPreview';
-import { resolveSharedRoomImageUrls } from '../../../services/sharedRoomImageResolver';
+import {
+  getSharedRoomImageKey,
+  resolveSharedRoomImageUrls,
+  type SharedRoomImageSourceType,
+} from '../../../services/sharedRoomImageResolver';
 import {
   captureSharedRoomMembershipAfterPreview,
   createMembershipCaptureAttemptTracker,
@@ -86,8 +90,10 @@ const FETCH_TIMEOUT_MS = 10_000;
 const BG_REFETCH_THRESHOLD_MS = 5 * 60 * 1000;
 
 type ApiItem = {
-  // ApiItem.id === public.dressing_room_items.id
+  // `id` is retained as a build-14 compatibility alias for sourceId.
   id: string | null;
+  sourceId: string | null;
+  sourceType: SharedRoomImageSourceType;
   // Public HTTPS URL only. When absent, the screen asks
   // shared-room-image-url (a service-role Edge Function, not this client)
   // to resolve the item's private storage reference into a short-lived
@@ -757,23 +763,26 @@ export default function SharedRoomScreen() {
     const shareToken = normalizeRoomShareToken(rawToken);
     if (!shareToken || state.phase !== 'available') return;
 
-    const itemIdsNeedingResolution = state.preview.items
-      .filter((item) => item.id && !item.imageUrl)
-      .map((item) => item.id!);
-    if (itemIdsNeedingResolution.length === 0) return;
+    const itemRefsNeedingResolution = state.preview.items
+      .filter((item) => item.sourceId && !item.imageUrl)
+      .map((item) => ({ sourceType: item.sourceType, sourceId: item.sourceId! }));
+    if (itemRefsNeedingResolution.length === 0) return;
 
     // Scope dedupe to the actual unresolved item identities, not only the
     // item count. A changed preview with the same number of cards must be
     // allowed to resolve its own images, while state-only rerenders of an
     // unchanged preview remain deduped.
-    const key = `${shareToken}:${itemIdsNeedingResolution.slice().sort().join('|')}`;
+    const key = `${shareToken}:${itemRefsNeedingResolution
+      .map(getSharedRoomImageKey)
+      .sort()
+      .join('|')}`;
     if (imageResolutionGuard.current === key) return;
     imageResolutionGuard.current = key;
 
     let cancelled = false;
 
     const resolve = async () => {
-      const next = await resolveSharedRoomImageUrls(shareToken, itemIdsNeedingResolution);
+      const next = await resolveSharedRoomImageUrls(shareToken, itemRefsNeedingResolution);
       if (!cancelled) {
         setResolvedImageUrls((current) => ({ ...current, ...next }));
       }
@@ -798,7 +807,8 @@ export default function SharedRoomScreen() {
     const itemIds = [
       ...new Set(
         state.preview.items
-          .map((item) => String(item.id || '').trim())
+          .filter((item) => item.sourceType === 'dressing_room_item')
+          .map((item) => String(item.sourceId || item.id || '').trim())
           .filter(Boolean)
       ),
     ];
@@ -1093,11 +1103,17 @@ export default function SharedRoomScreen() {
                   {preview.items.map((item, index) => {
                     const label = item.title || item.category || `Item ${index + 1}`;
                     const chips = [item.category, item.color, item.silhouette].filter(Boolean) as string[];
-                    const canReact = Boolean(isAuthenticated && joinedRoomId && item.id);
+                    const reactionItemId = item.sourceType === 'dressing_room_item'
+                      ? item.sourceId ?? item.id
+                      : null;
+                    const imageKey = item.sourceId
+                      ? getSharedRoomImageKey({ sourceType: item.sourceType, sourceId: item.sourceId })
+                      : '';
+                    const canReact = Boolean(isAuthenticated && joinedRoomId && reactionItemId);
                     return (
                       <SharedScanCard
-                        key={item.id ?? `item-${index}`}
-                        imageUrl={item.imageUrl ?? resolvedImageUrls[item.id ?? ''] ?? null}
+                        key={imageKey || `item-${index}`}
+                        imageUrl={item.imageUrl ?? resolvedImageUrls[imageKey] ?? null}
                         title={label}
                         subtitle="Shared item"
                         chips={chips}
@@ -1105,13 +1121,13 @@ export default function SharedRoomScreen() {
                         accessibilityLabel={`${label} shared item`}
                         style={{ width: ITEM_GRID_CELL_W }}
                         footer={
-                          item.id ? (
+                          reactionItemId ? (
                             <ItemReactions
-                              itemId={item.id}
-                              counts={reactionCounts[item.id] ?? createEmptyReactionCounts()}
-                              selectedReaction={selectedReactions[item.id] ?? null}
-                              disabled={!canReact || mutatingReactionItemId === item.id}
-                              isMutating={mutatingReactionItemId === item.id}
+                              itemId={reactionItemId}
+                              counts={reactionCounts[reactionItemId] ?? createEmptyReactionCounts()}
+                              selectedReaction={selectedReactions[reactionItemId] ?? null}
+                              disabled={!canReact || mutatingReactionItemId === reactionItemId}
+                              isMutating={mutatingReactionItemId === reactionItemId}
                               onReact={canReact ? handleReact : undefined}
                             />
                           ) : null
