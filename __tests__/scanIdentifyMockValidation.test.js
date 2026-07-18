@@ -49,9 +49,13 @@ const adapter = loadTsModule('services/scanIdentification.ts', {
 });
 const scanResultObject = loadTsModule('services/scanResultObject.ts');
 const scanTitleBuilder = loadTsModule('services/scanTitleBuilder.ts');
+const { buildOutfitConfirmationCandidates } = loadTsModule(
+  'services/outfitConfirmation/outfitDetectionBridge.ts',
+);
 const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   './scanResultObject': scanResultObject,
   './scanTitleBuilder': scanTitleBuilder,
+  './outfitConfirmation/outfitDetectionBridge': { buildOutfitConfirmationCandidates },
   '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
 
