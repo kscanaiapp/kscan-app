@@ -53,7 +53,7 @@
 ## Commands to run next
 
 ```powershell
-cd c:\Users\jsmit\KScan\kscan-google-glasses\android-xr
+cd c:\Users\jsmit\kscan-google-glasses-canonical\android-xr
 # Create local.properties with sdk.dir if missing
 .\gradlew.bat :app:assembleDebug
 ```
@@ -61,7 +61,7 @@ cd c:\Users\jsmit\KScan\kscan-google-glasses\android-xr
 **Verified (Prompt 1):** `:app:assembleDebug` succeeds on API 34 with mock bridge enabled.
 
 ```powershell
-cd c:\Users\jsmit\KScan\kscan-google-glasses
+cd c:\Users\jsmit\kscan-google-glasses-canonical
 npm test
 
 cd phone-bridge

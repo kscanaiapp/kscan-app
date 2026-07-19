@@ -15,9 +15,28 @@ The projected glasses app is a **lightweight companion surface**, not a standalo
   - Voice-activated shortcuts
   - Save/open-on-phone handoff actions
 
-## Handoff Model (Phase 2)
+## Current authority (Google XR Phase A)
 
-Phase 2 uses **Android intents and deep links** as the transport layer. No custom BLE or Wi-Fi transport is implemented in this phase.
+The versioned phone bridge lives under:
+
+```text
+android-xr/app/src/main/java/com/kscan/glasses/phonebridge/
+```
+
+See [`docs/google/PHONE_BRIDGE_PROTOCOL.md`](google/PHONE_BRIDGE_PROTOCOL.md) for the
+locked v1 envelope, 26 message types, validation rules, and mock companion notes.
+
+The pre-versioned `mobilebridge/` package has been removed. Do not reintroduce it.
+
+Legacy mobile-app path schemas under `shared/bridge.schema.json` and the TypeScript
+`phone-bridge/` package remain Phase-1 baseline artifacts; they are **not** the
+Google XR Phase A Kotlin protocol.
+
+## Handoff Model (historical Phase 2 notes)
+
+Phase 2 planning used **Android intents and deep links** as a transport sketch.
+The active Google XR connected runtime uses the versioned JSON phone bridge above;
+deep-link handoff remains a future mobile-companion concern.
 
 ## Deep Link Placeholder Contract
 
@@ -37,27 +56,15 @@ kscan://glasses/session/request
 - `handoff/open/{resultId}` — glasses requests the phone to open a detailed view
 - `session/request` — glasses requests the phone to share current session state
 
-## Message Contracts
-
-See Kotlin source under `mobilebridge/` for compile-safe message shapes.
-
-- `MobileAppBridge` — interface for all bridge operations
-- `MobileAppBridgeMessage` — sealed message hierarchy
-- `MobileAppHandoffResult` — result payload for handoff actions
-- `MobileAppRoute` — validated route enum
-- `SessionSnapshot` — lightweight session state snapshot
-- `MockMobileAppBridge` — in-memory mock implementation for tests
-
 ## Privacy and Safety
 
 - No real tokens in bridge messages
-- Session identifiers are placeholder refs only
-- No dependency on the main mobile app repo
-- All implementations are compile-safe and mock-ready
-- No raw image bytes or base64 in bridge messages by default
+- Session identifiers are opaque refs only
+- No raw image bytes or base64 in bridge messages
+- Release builds cannot select the mock phone companion
 
 ## Future Work
 
-- Real deep-link handling in the main mobile app (see `docs/MAIN_APP_HANDOFF_TODO.md`)
-- Optional Bluetooth/Wi-Fi transport (Phase 3+ only)
-- Session token negotiation via Supabase (Phase 3+ only)
+- Real Android phone companion implementing `PhoneBridgeTransport` + protocol v1
+- BLE/Wi-Fi/socket transport with read-side 64 KiB frame cap before UTF-8 assembly
+- Production session issuance (pairing approval from the signed-in mobile app)

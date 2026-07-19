@@ -39,6 +39,8 @@ Every message is one JSON object with these fields on every frame:
 | Clock-skew tolerance | **30,000 ms** in either direction | `STALE_MESSAGE` |
 | Message expiry | `expiresAt < now` | `STALE_MESSAGE` |
 | Session expiry | `pair.approved.sessionExpiresAt < now` | `SESSION_EXPIRED` |
+| Session grant window | `timestamp < sessionExpiresAt ≤ timestamp + 24h` | `INVALID_MESSAGE` |
+| Transport read cap | Real transports MUST abort before assembling >64 KiB UTF-8 | (implementer) |
 
 The 64 KiB ceiling sits well below the 100 KB product hard limit to leave headroom
 for future envelope fields.
@@ -74,24 +76,32 @@ for future envelope fields.
 ## 5. Session, correlation, and ordering rules
 
 1. **Pairing** establishes the session: on `pair.approved` the validator records
-   `sessionId`, the peer `deviceId`, and `sessionExpiresAt`.
-2. **Device binding:** after pairing, every non-`pair.*` frame whose sender
+   `sessionId`, the peer `deviceId`, and `sessionExpiresAt` (bounded grant).
+2. **No silent replace:** while a non-revoked session is active, further
+   `pair.approved` / `pair.denied` / `pair.expired` frames are `INVALID_MESSAGE`.
+   Re-pair is allowed only after `session.revoked`.
+3. **Device binding:** after pairing, every non-`pair.*` frame whose sender
    `deviceId` is not the paired peer is `WRONG_DEVICE`.
-3. **Unknown session:** a non-pair frame naming any other `sessionId` is
+4. **Unknown session:** a non-pair frame naming any other `sessionId` is
    `SESSION_NOT_READY`.
-4. **Readiness:** `action.*` frames require an accepted `session.ready` — before
+5. **Readiness:** `action.*` frames require an accepted `session.ready` — before
    it they are `SESSION_NOT_READY`; after `session.revoked` they are
    `SESSION_REVOKED`; after session expiry they are `SESSION_EXPIRED`.
-5. **Correlation:** replies to glasses-initiated requests (`pair.approved`,
+6. **Correlation:** replies to glasses-initiated requests (`pair.approved`,
    `pair.denied`, `pair.expired`, `capture.started`, `capture.completed`,
    `capture.failed`) must echo a currently pending `requestId` registered by
    `validateOutgoing`; otherwise `INVALID_MESSAGE`. Phone-initiated lifecycles
    (`session.*`, `scan.*`, `result.*`, `connection.*`) open their own requestIds.
-6. **Ordering:** `scan.completed` / `scan.failed` require a prior
+7. **Ordering:** `scan.completed` / `scan.failed` require a prior
    `scan.processing` for that `scanId`; otherwise `INVALID_MESSAGE`.
-7. **Duplicates:** repeated terminal events (`capture.completed/failed` per
+8. **Duplicates:** repeated terminal events (`capture.completed/failed` per
    `captureId`, `scan.completed/failed` per `scanId`, `result.show` per
-   `requestId + resultId`) are `DUPLICATE_EVENT`.
+   `requestId + resultId`, `result.update` per `resultId + revision`) are
+   `DUPLICATE_EVENT`. `result.update` also requires a prior `result.show` for
+   that `resultId`.
+9. **Confirmation:** the Connected HUD shows `ACTION_CONFIRMED` only after a
+   user action is pending **and** a correlated `result.update` arrives — never
+   on an unsolicited update.
 
 ## 6. Rejection codes
 

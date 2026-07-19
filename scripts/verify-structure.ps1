@@ -1,5 +1,5 @@
 param(
-    [string]$TargetPath = "C:\Users\jsmit\kscan-google-glasses"
+    [string]$TargetPath = "C:\Users\jsmit\kscan-google-glasses-canonical"
 )
 
 # Verify the Google Glasses workspace structure
