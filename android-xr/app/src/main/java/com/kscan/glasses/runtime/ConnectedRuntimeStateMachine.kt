@@ -1,7 +1,9 @@
 package com.kscan.glasses.runtime
 
 import com.kscan.glasses.phonebridge.PhoneBridgeEvent
+import com.kscan.glasses.phonebridge.ResultPayload
 import com.kscan.glasses.phonebridge.ScanStage
+import com.kscan.glasses.phonebridge.SessionRevokeReason
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -70,6 +72,12 @@ data class ConnectedUiState(
     val resultId: String? = null,
     val progressPercent: Int? = null,
     val errorCode: String? = null,
+    /** Structured result payload while in RESULTS/ACTION_CONFIRMED; null otherwise. */
+    val result: ResultPayload? = null,
+    /** Which outbound action the companion confirmed (SAVE or OPEN_ON_PHONE). */
+    val confirmedAction: ConnectedAction? = null,
+    /** Why the session ended, when the phone revoked it. Cleared on re-pairing. */
+    val disconnectReason: SessionRevokeReason? = null,
 )
 
 /** Inputs: validated bridge events plus user intents. */
@@ -132,11 +140,16 @@ class ConnectedRuntimeStateMachine {
     private var errorCode: String? = null
     private var errorRecovery: RecoveryBehavior = RecoveryBehavior.NONE
     private var stateBeforeReconnect: ConnectedState? = null
+    private var resultPayload: ResultPayload? = null
+    private var pendingAction: ConnectedAction? = null
+    private var confirmedAction: ConnectedAction? = null
+    private var disconnectReason: SessionRevokeReason? = null
 
     fun on(input: ConnectedInput) {
         when (input) {
             is ConnectedInput.Bridge -> onBridgeEvent(input.event)
             ConnectedInput.PairTapped -> if (state == ConnectedState.DISCONNECTED) {
+                disconnectReason = null
                 transition(ConnectedState.PAIRING, clearContext = true)
                 emit(ConnectedEffect.RequestPairing)
             }
@@ -145,15 +158,20 @@ class ConnectedRuntimeStateMachine {
                 emit(ConnectedEffect.RequestCapture)
             }
             ConnectedInput.SaveTapped -> if (state == ConnectedState.RESULTS) {
+                pendingAction = ConnectedAction.SAVE
                 resultId?.let { emit(ConnectedEffect.SaveResult(it)) }
             }
             ConnectedInput.OpenOnPhoneTapped -> if (state == ConnectedState.RESULTS) {
+                pendingAction = ConnectedAction.OPEN_ON_PHONE
                 resultId?.let { emit(ConnectedEffect.OpenOnPhone(it)) }
             }
             ConnectedInput.RetryTapped -> when (state) {
                 ConnectedState.RESULTS -> {
-                    scanId?.let { emit(ConnectedEffect.RetryScan(it)) }
+                    // Transition before emitting: a synchronous companion ack must
+                    // never be processed against the pre-transition state.
+                    val id = scanId
                     transition(ConnectedState.CAPTURE_REQUESTED, clearContext = true)
+                    id?.let { emit(ConnectedEffect.RetryScan(it)) }
                 }
                 ConnectedState.ERROR -> when (errorRecovery) {
                     RecoveryBehavior.RETRY_PAIRING -> {
@@ -216,7 +234,10 @@ class ConnectedRuntimeStateMachine {
             is PhoneBridgeEvent.SessionReady ->
                 if (state == ConnectedState.CONNECTED) transition(ConnectedState.READY)
             is PhoneBridgeEvent.SessionRevoked ->
-                if (state != ConnectedState.DISCONNECTED) transition(ConnectedState.DISCONNECTED, clearContext = true)
+                if (state != ConnectedState.DISCONNECTED) {
+                    disconnectReason = event.reason
+                    transition(ConnectedState.DISCONNECTED, clearContext = true)
+                }
             is PhoneBridgeEvent.SessionError ->
                 if (state in SESSION_STATES) {
                     error(event.code, if (event.recoverable) RecoveryBehavior.RETURN_READY else RecoveryBehavior.RETURN_DISCONNECTED)
@@ -270,16 +291,25 @@ class ConnectedRuntimeStateMachine {
                     error(event.code.name, RecoveryBehavior.RETURN_READY)
                 }
             is PhoneBridgeEvent.ResultShown -> when {
-                state == ConnectedState.RESULTS && event.result.resultId == resultId ->
+                state == ConnectedState.RESULTS && event.result.resultId == resultId -> {
+                    resultPayload = event.result
                     transition(ConnectedState.RESULTS) // in-place refresh; never a duplicate
+                }
                 state == ConnectedState.PRIVACY_PROCESSING || state == ConnectedState.ANALYZING -> {
                     resultId = event.result.resultId
+                    resultPayload = event.result
                     transition(ConnectedState.RESULTS)
                 }
                 else -> Unit
             }
             is PhoneBridgeEvent.ResultUpdated ->
-                if (state == ConnectedState.RESULTS) transition(ConnectedState.ACTION_CONFIRMED)
+                if (state == ConnectedState.RESULTS) {
+                    // The companion acknowledged (or re-sent) the result — this is
+                    // the ONLY path that may surface a visible confirmation.
+                    confirmedAction = pendingAction ?: ConnectedAction.SAVE
+                    pendingAction = null
+                    transition(ConnectedState.ACTION_CONFIRMED)
+                }
             is PhoneBridgeEvent.ResultDismissed ->
                 if (state == ConnectedState.RESULTS) transition(ConnectedState.READY, clearContext = true)
             is PhoneBridgeEvent.ConnectionLost ->
@@ -304,8 +334,11 @@ class ConnectedRuntimeStateMachine {
     }
 
     private fun cancelActiveScan() {
-        scanId?.let { emit(ConnectedEffect.CancelScan(it)) }
+        // Transition before emitting: the companion's cancel ack (scan.failed)
+        // must arrive to the settled READY state, never to the cancelled scan.
+        val id = scanId
         transition(ConnectedState.READY, clearContext = true)
+        id?.let { emit(ConnectedEffect.CancelScan(it)) }
     }
 
     private fun error(code: String, recovery: RecoveryBehavior) {
@@ -315,6 +348,9 @@ class ConnectedRuntimeStateMachine {
         scanId = null
         resultId = null
         progressPercent = null
+        resultPayload = null
+        confirmedAction = null
+        pendingAction = null
         transition(ConnectedState.ERROR)
     }
 
@@ -328,6 +364,11 @@ class ConnectedRuntimeStateMachine {
             resultId = null
             errorCode = null
             errorRecovery = RecoveryBehavior.NONE
+            resultPayload = null
+            confirmedAction = null
+            pendingAction = null
+            // disconnectReason survives clearContext so the DISCONNECTED card can
+            // explain why the session ended; it is cleared on the next PairTapped.
             if (target != ConnectedState.RECONNECTING) stateBeforeReconnect = null
         }
         progressPercent = percent
@@ -339,6 +380,9 @@ class ConnectedRuntimeStateMachine {
             resultId = resultId,
             progressPercent = progressPercent,
             errorCode = errorCode,
+            result = resultPayload,
+            confirmedAction = confirmedAction,
+            disconnectReason = disconnectReason,
         )
     }
 

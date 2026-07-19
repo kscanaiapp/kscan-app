@@ -1,5 +1,8 @@
 package com.kscan.glasses.phonebridge.mock
 
+import com.kscan.glasses.phonebridge.ActionOpenOnPhonePayload
+import com.kscan.glasses.phonebridge.ActionRetryPayload
+import com.kscan.glasses.phonebridge.ActionCancelPayload
 import com.kscan.glasses.phonebridge.ActionSavePayload
 import com.kscan.glasses.phonebridge.BridgeRejectCode
 import com.kscan.glasses.phonebridge.CapturePreference
@@ -93,6 +96,39 @@ class MockPhoneCompanionTest {
                     requestId = requestId, sessionId = validator.currentSessionId!!,
                     deviceId = GLASSES_ID, timestamp = now,
                     payload = ActionSavePayload(resultId = resultId),
+                ),
+            )
+            mock.handleIncoming(frame)
+        }
+
+        suspend fun glassesActionOpenOnPhone(requestId: String = "glasses-act-1", resultId: String = "res-1") {
+            val frame = validator.validateOutgoing(
+                PhoneBridgeMessage.ActionOpenOnPhone(
+                    requestId = requestId, sessionId = validator.currentSessionId!!,
+                    deviceId = GLASSES_ID, timestamp = now,
+                    payload = ActionOpenOnPhonePayload(resultId = resultId),
+                ),
+            )
+            mock.handleIncoming(frame)
+        }
+
+        suspend fun glassesActionRetry(requestId: String = "glasses-act-1", scanId: String = "scan-1") {
+            val frame = validator.validateOutgoing(
+                PhoneBridgeMessage.ActionRetry(
+                    requestId = requestId, sessionId = validator.currentSessionId!!,
+                    deviceId = GLASSES_ID, timestamp = now,
+                    payload = ActionRetryPayload(scanId = scanId),
+                ),
+            )
+            mock.handleIncoming(frame)
+        }
+
+        suspend fun glassesActionCancel(requestId: String = "glasses-act-1", scanId: String = "scan-1") {
+            val frame = validator.validateOutgoing(
+                PhoneBridgeMessage.ActionCancel(
+                    requestId = requestId, sessionId = validator.currentSessionId!!,
+                    deviceId = GLASSES_ID, timestamp = now,
+                    payload = ActionCancelPayload(scanId = scanId),
                 ),
             )
             mock.handleIncoming(frame)
@@ -365,5 +401,59 @@ class MockPhoneCompanionTest {
         assertEquals("glasses-req-1", approved.requestId)
         assertEquals(mock.deviceId, approved.deviceId)
         assertEquals(now + SESSION_TTL_MS, approved.payload.sessionExpiresAt)
+    }
+
+    // ----- action acknowledgements -----
+
+    @Test
+    fun `open on phone action is acked with a result update`() = runScenario {
+        pairAndReady()
+        glassesActionOpenOnPhone()
+
+        val update = acceptedMessages(this).last() as PhoneBridgeMessage.ResultUpdate
+        assertEquals("res-1", update.payload.result.resultId)
+        assertEquals(1, update.payload.revision)
+        assertTrue(rejections(this).isEmpty())
+    }
+
+    @Test
+    fun `retry action is acked with scan processing for a fresh scan`() = runScenario {
+        pairAndReady()
+        glassesActionRetry(scanId = "scan-1")
+
+        val processing = acceptedMessages(this).last() as PhoneBridgeMessage.ScanProcessing
+        assertTrue(processing.payload.scanId.startsWith("scan-"))
+        assertTrue(rejections(this).isEmpty())
+    }
+
+    @Test
+    fun `cancel action is acked with a cancelled scan failure`() = runScenario {
+        pairAndReady()
+        mock.sendScanProcessing("scan-1")
+        glassesActionCancel(scanId = "scan-1")
+
+        val failed = acceptedMessages(this).last() as PhoneBridgeMessage.ScanFailed
+        assertEquals("scan-1", failed.payload.scanId)
+        assertEquals(ScanErrorCode.CANCELLED, failed.payload.code)
+        assertTrue(rejections(this).isEmpty())
+    }
+
+    @Test
+    fun `rejected actions yield a recoverable session error`() = runScenario {
+        pairAndReady()
+        mock.rejectActions = true
+        glassesActionSave()
+        glassesActionOpenOnPhone(requestId = "glasses-act-2")
+        glassesActionRetry(requestId = "glasses-act-3")
+        glassesActionCancel(requestId = "glasses-act-4")
+
+        val errors = acceptedMessages(this).filterIsInstance<PhoneBridgeMessage.SessionError>()
+        assertEquals(4, errors.size)
+        assertTrue(errors.all { it.payload.code == MockPhoneCompanion.REJECTED_ACTION_CODE })
+        assertTrue(errors.all { it.payload.recoverable })
+        // Rejections are answers, not acks: no result.update, no scan frames.
+        assertTrue(acceptedMessages(this).none { it is PhoneBridgeMessage.ResultUpdate })
+        assertTrue(acceptedMessages(this).none { it is PhoneBridgeMessage.ScanProcessing })
+        assertTrue(rejections(this).isEmpty())
     }
 }

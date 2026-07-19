@@ -65,6 +65,9 @@ class MockPhoneCompanion(
     /** When false, every outbound emit is dropped (link lost / app dead). */
     var responsive: Boolean = true
 
+    /** When true, every action.* is answered with a recoverable ACTION_REJECTED error. */
+    var rejectActions: Boolean = false
+
     private var idCounter = 0
 
     /** Sequential id factory: next("req") → req-1, req-2, ... */
@@ -92,6 +95,9 @@ class MockPhoneCompanion(
             }
             is PhoneBridgeMessage.CaptureRequest -> sendCaptureSequence(message)
             is PhoneBridgeMessage.ActionSave -> ackSave(message)
+            is PhoneBridgeMessage.ActionOpenOnPhone -> ackOpenOnPhone(message)
+            is PhoneBridgeMessage.ActionRetry -> ackRetry(message)
+            is PhoneBridgeMessage.ActionCancel -> ackCancel(message)
             is PhoneBridgeMessage.ConnectionPing -> sendPong(message)
             else -> Unit
         }
@@ -347,19 +353,35 @@ class MockPhoneCompanion(
 
     /** Action ack: save → result.update with a bumped revision. */
     suspend fun ackSave(action: PhoneBridgeMessage.ActionSave) {
+        if (rejectActionIfConfigured()) return
+        if (emitSessionRevokedErrorIfRevoked()) return
+        sendResultUpdate(action.payload.resultId)
+    }
+
+    /** Action ack: open_on_phone → result.update with a bumped revision. */
+    suspend fun ackOpenOnPhone(action: PhoneBridgeMessage.ActionOpenOnPhone) {
+        if (rejectActionIfConfigured()) return
+        if (emitSessionRevokedErrorIfRevoked()) return
+        sendResultUpdate(action.payload.resultId)
+    }
+
+    /** Action ack: retry → scan.processing for a fresh scan id. */
+    suspend fun ackRetry(action: PhoneBridgeMessage.ActionRetry) {
+        if (rejectActionIfConfigured()) return
+        if (emitSessionRevokedErrorIfRevoked()) return
+        sendScanProcessing(nextId("scan"))
+    }
+
+    /** Action ack: cancel → scan.failed with CANCELLED for the cancelled scan. */
+    suspend fun ackCancel(action: PhoneBridgeMessage.ActionCancel) {
+        if (rejectActionIfConfigured()) return
+        if (emitSessionRevokedErrorIfRevoked()) return
+        sendScanFailed(action.payload.scanId, ScanErrorCode.CANCELLED)
+    }
+
+    /** result.update with a bumped revision — the companion's action confirmation. */
+    suspend fun sendResultUpdate(resultId: String) {
         val sessionId = grantedSessionId ?: return
-        if (revoked) {
-            emit(
-                PhoneBridgeMessage.SessionError(
-                    requestId = nextId("req"),
-                    sessionId = sessionId,
-                    deviceId = deviceId,
-                    timestamp = clock(),
-                    payload = SessionErrorPayload(code = "SESSION_REVOKED", recoverable = false),
-                ),
-            )
-            return
-        }
         resultRevision += 1
         emit(
             PhoneBridgeMessage.ResultUpdate(
@@ -368,11 +390,34 @@ class MockPhoneCompanion(
                 deviceId = deviceId,
                 timestamp = clock(),
                 payload = ResultUpdatePayload(
-                    result = buildResult(action.payload.resultId),
+                    result = buildResult(resultId),
                     revision = resultRevision,
                 ),
             ),
         )
+    }
+
+    /** Answers an action with a recoverable rejection when [rejectActions] is set. */
+    private suspend fun rejectActionIfConfigured(): Boolean {
+        if (!rejectActions) return false
+        sendSessionError(REJECTED_ACTION_CODE, recoverable = true)
+        return true
+    }
+
+    /** Emits the SESSION_REVOKED error for actions arriving after revocation. */
+    private suspend fun emitSessionRevokedErrorIfRevoked(): Boolean {
+        val sessionId = grantedSessionId ?: return true
+        if (!revoked) return false
+        emit(
+            PhoneBridgeMessage.SessionError(
+                requestId = nextId("req"),
+                sessionId = sessionId,
+                deviceId = deviceId,
+                timestamp = clock(),
+                payload = SessionErrorPayload(code = "SESSION_REVOKED", recoverable = false),
+            ),
+        )
+        return true
     }
 
     // ----- connection -----
@@ -473,5 +518,8 @@ class MockPhoneCompanion(
     companion object {
         const val DEFAULT_DEVICE_ID: String = "phone-mock-1"
         const val DEFAULT_SESSION_TTL_MS: Long = 30 * 60 * 1_000L
+
+        /** Recoverable session error code emitted when [rejectActions] is set. */
+        const val REJECTED_ACTION_CODE: String = "ACTION_REJECTED"
     }
 }
