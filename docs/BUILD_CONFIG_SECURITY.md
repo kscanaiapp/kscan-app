@@ -30,4 +30,17 @@ Non-secret flags and URLs are allowed:
 
 ## Future Live Debug Auth
 
-If a real debug auth token is ever needed, it must be supplied by a **runtime-only credential provider** — not by BuildConfig. A separate task will design that mechanism if required.
+Debug auth tokens are supplied by a **runtime-only credential provider**
+(`DebugAnalyzeCredentialProvider`) — never by BuildConfig.
+
+Operator supply for local emulator/device smoke:
+
+```bash
+adb shell "echo -n 'YOUR_DEBUG_TOKEN' > /data/local/tmp/kscan_glasses_debug_token"
+# optional: copy into the app-private files dir after install
+adb shell "run-as com.kscan.glasses sh -c 'cat /data/local/tmp/kscan_glasses_debug_token > files/kscan_debug_auth_token'"
+```
+
+`KScanApplication` merges the runtime token into `DebugAnalyzeConfig` at startup.
+`GlassesDebugEndpointClientFactory` refuses to construct a live client when the
+token is blank (falls back to `MockAnalyzeClient`).

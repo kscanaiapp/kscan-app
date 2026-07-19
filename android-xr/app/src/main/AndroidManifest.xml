@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!--
+  Main manifest permission surface: intentionally EMPTY.
 
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.VIBRATE" />
+  This build captures no audio, drives no camera, and vibrates no motor — the
+  glasses camera controllers are explicit TODO stubs and all input arrives via
+  key events or the companion bridge. See docs/google/PERMISSION_MATRIX.md.
+
+  android.permission.INTERNET is NOT here: it exists only in the debug overlay
+  (src/debug/AndroidManifest.xml) for local debug-backend smoke testing.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
         android:name=".KScanApplication"

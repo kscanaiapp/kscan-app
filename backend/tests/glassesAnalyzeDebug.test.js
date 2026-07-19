@@ -182,14 +182,20 @@ describe('glasses-analyze-debug service', () => {
     delete process.env.KSCAN_GLASSES_ANALYZE_ENABLED;
   });
 
-  it('createGlassesAnalyzeService returns mock when enabled is false', () => {
+  it('createGlassesAnalyzeService returns disabled service when enabled is false', () => {
     process.env.KSCAN_GLASSES_ANALYZE_ENABLED = 'false';
     process.env.KSCAN_GLASSES_ANALYZE_BACKEND_URL = 'https://example.com';
-    const { createGlassesAnalyzeService } = require('../services/glassesAnalyzeService');
+    const { createGlassesAnalyzeService, DisabledGlassesAnalyzeService } = require('../services/glassesAnalyzeService');
     const service = createGlassesAnalyzeService();
-    assert.ok(service instanceof MockGlassesAnalyzeService);
+    assert.ok(service instanceof DisabledGlassesAnalyzeService);
     delete process.env.KSCAN_GLASSES_ANALYZE_ENABLED;
     delete process.env.KSCAN_GLASSES_ANALYZE_BACKEND_URL;
+  });
+
+  it('toBareBase64 strips data-URL prefix for upstream contract', () => {
+    const { toBareBase64 } = require('../services/glassesAnalyzeService');
+    assert.strictEqual(toBareBase64('data:image/jpeg;base64,abc123'), 'abc123');
+    assert.strictEqual(toBareBase64('alreadyBare'), 'alreadyBare');
   });
 
   it('mock mode returns deterministic HUD-safe response', async () => {

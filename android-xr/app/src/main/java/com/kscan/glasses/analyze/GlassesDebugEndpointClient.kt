@@ -49,11 +49,9 @@ class GlassesDebugEndpointClient(
     }
 
     private fun buildRequestBody(request: AnalyzeRequest): String {
-        return buildString {
-            append("""{"image":""")
-            append(request.imageDataUrl)
-            append(""","client":"google-glasses-alpha"}""")
-        }
+        // Exact debug backend contract: {"image": "...", "client": "google-glasses-alpha"}.
+        // kotlinx.serialization handles all string escaping; never log this body.
+        return AnalyzeRequestJson.encodeGlassesDebugRequest(request.imageDataUrl)
     }
 
     private fun parseResponse(response: HttpTransportResponse): AnalyzeResponse {

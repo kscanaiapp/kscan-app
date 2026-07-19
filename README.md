@@ -82,7 +82,7 @@ Enable mock mode for local development without glasses:
 
 - Android: `BuildConfig.USE_MOCK_BRIDGE = true` (default in debug)
 - Toggle **display glasses** vs **audio-only** in Settings (runtime capability mock)
-- D-pad / keyboard: Up, Down, Left, Right, Enter (Select), Backspace (Back), `S` (Scan shortcut)
+- D-pad / keyboard: Arrow keys or WASD (move focus), Enter/Space (Select), Backspace/Esc (Back), `C` (Scan shortcut)
 - Mock image capture returns a bundled placeholder (no camera required)
 - Mock API client returns top-3 sample products when `USE_MOCK_API=true`
 

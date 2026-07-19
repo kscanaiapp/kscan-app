@@ -1,10 +1,11 @@
 package com.kscan.glasses.state
 
 import com.kscan.glasses.analyze.AnalyzeClient
+import com.kscan.glasses.analyze.AnalyzeClientConfig
 import com.kscan.glasses.analyze.AnalyzeRequest
-import com.kscan.glasses.bridge.BridgeMessage
+import com.kscan.glasses.analyze.DebugAnalyzeConfig
+import com.kscan.glasses.BuildConfig
 import com.kscan.glasses.bridge.BridgeMessageType
-import com.kscan.glasses.bridge.BridgeResult
 import com.kscan.glasses.bridge.CaptureException
 import com.kscan.glasses.bridge.CaptureResult
 import com.kscan.glasses.bridge.CaptureSource
@@ -13,16 +14,14 @@ import com.kscan.glasses.bridge.DeviceState
 import com.kscan.glasses.bridge.GlassesBridgeProvider
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.mobilebridge.MockMobileAppBridge
-import com.kscan.glasses.network.KScanAnalyzeClient
+import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
 import com.kscan.glasses.scan.ScanOrchestrator
 import com.kscan.glasses.testing.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -41,25 +40,9 @@ class KScanViewModelTest {
 
     private fun createViewModel(
         bridge: GlassesBridgeProvider = mockk(relaxed = true),
-        apiClient: KScanAnalyzeClient = mockk(relaxed = true),
+        analyzeClient: AnalyzeClient = mockk(relaxed = true),
         sanitizer: PrivacyImageSanitizer = mockk(relaxed = true),
     ): KScanViewModel {
-        val analyzeClient = object : AnalyzeClient {
-            override suspend fun analyze(request: AnalyzeRequest): AnalyzeResponse {
-                val base64 = request.imageDataUrl.substringAfter("base64,", "")
-                return try {
-                    apiClient.analyzeImage(base64)
-                } catch (e: com.kscan.glasses.network.AnalyzeException.Timeout) {
-                    throw com.kscan.glasses.analyze.AnalyzeException.Timeout(e.message ?: "Analysis timed out")
-                } catch (e: com.kscan.glasses.network.AnalyzeException.Network) {
-                    throw com.kscan.glasses.analyze.AnalyzeException.Network(e.message ?: "Network error")
-                } catch (e: com.kscan.glasses.network.AnalyzeException.HttpError) {
-                    throw com.kscan.glasses.analyze.AnalyzeException.HttpError(e.status, e.message ?: "Server error")
-                } catch (e: com.kscan.glasses.network.AnalyzeException.MalformedJson) {
-                    throw com.kscan.glasses.analyze.AnalyzeException.MalformedJson(e.message ?: "Malformed response")
-                }
-            }
-        }
         val orchestrator = ScanOrchestrator(
             sanitizer = sanitizer,
             analyzeClient = analyzeClient,
@@ -87,6 +70,10 @@ class KScanViewModelTest {
         source = CaptureSource.MOCK,
     )
 
+    private fun successSanitizer() = mockk<PrivacyImageSanitizer> {
+        coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
+    }
+
     private fun fashionResponse() = FashionAnalyzeResult(
         result = "Structured wool blazer with relaxed silhouette.",
         category = "outerwear",
@@ -109,14 +96,12 @@ class KScanViewModelTest {
                 defaultCapture()
             }
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } returns fashionResponse()
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } returns fashionResponse()
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
 
         // Coroutine is suspended at delay(5000); isProcessing should still be true
@@ -148,23 +133,40 @@ class KScanViewModelTest {
     }
 
     @Test
+    fun `back from error screen returns to scan`() = runTest {
+        val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
+            coEvery { getDeviceState() } returns defaultBridgeState()
+            coEvery { capturePhoto() } throws CaptureException("Camera unavailable")
+        }
+        val vm = createViewModel(bridge = bridge)
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
+        advanceUntilIdle()
+        assertEquals(AppScreen.ERROR, vm.screen.value)
+
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Back)
+
+        assertEquals(AppScreen.SCAN, vm.screen.value)
+        assertEquals(null, vm.errorMessage.value)
+    }
+
+    @Test
     fun `sanitizer failure blocks backend upload`() = runTest {
         val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
             coEvery { getDeviceState() } returns defaultBridgeState()
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
+        val sanitizer = mockk<PrivacyImageSanitizer> {
             coEvery { sanitize(any(), any()) } returns SanitizeResult.Blocked("Face detection failed")
         }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true)
+        val analyzeClient = mockk<AnalyzeClient>(relaxed = true)
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
         assertEquals(AppScreen.ERROR, vm.screen.value)
         assertTrue(vm.errorMessage.value?.contains("Privacy check blocked") == true)
-        coVerify(exactly = 0) { apiClient.analyzeImage(any()) }
+        coVerify(exactly = 0) { analyzeClient.analyze(any()) }
     }
 
     @Test
@@ -173,14 +175,12 @@ class KScanViewModelTest {
             coEvery { getDeviceState() } returns defaultBridgeState()
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } throws com.kscan.glasses.network.AnalyzeException.Timeout("Timed out")
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } throws com.kscan.glasses.analyze.AnalyzeException.Timeout("Timed out")
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
@@ -194,14 +194,12 @@ class KScanViewModelTest {
             coEvery { getDeviceState() } returns defaultBridgeState()
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } throws com.kscan.glasses.network.AnalyzeException.HttpError(500, "Internal error")
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } throws com.kscan.glasses.analyze.AnalyzeException.HttpError(500, "Internal error")
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
@@ -215,14 +213,12 @@ class KScanViewModelTest {
             coEvery { getDeviceState() } returns defaultBridgeState()
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } throws com.kscan.glasses.network.AnalyzeException.MalformedJson("Bad JSON")
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } throws com.kscan.glasses.analyze.AnalyzeException.MalformedJson("Bad JSON")
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
@@ -236,14 +232,12 @@ class KScanViewModelTest {
             coEvery { getDeviceState() } returns defaultBridgeState()
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } returns fashionResponse()
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } returns fashionResponse()
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
@@ -255,19 +249,43 @@ class KScanViewModelTest {
     }
 
     @Test
+    fun `analyze receives only sanitized validated data URLs never raw capture bytes`() = runTest {
+        val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
+            coEvery { getDeviceState() } returns defaultBridgeState()
+            coEvery { capturePhoto() } returns defaultCapture() // base64 = "test-base64"
+        }
+        val sanitizer = successSanitizer() // returns "sanitized"
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } returns fashionResponse()
+        }
+
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
+        advanceUntilIdle()
+
+        // The ONLY analyze call carries a data URL built from the sanitizer output,
+        // never the raw capture payload.
+        coVerify(exactly = 1) {
+            analyzeClient.analyze(match { request: AnalyzeRequest ->
+                request.imageDataUrl.startsWith("data:image/") &&
+                    request.imageDataUrl.contains("sanitized") &&
+                    !request.imageDataUrl.contains("test-base64")
+            })
+        }
+    }
+
+    @Test
     fun `save emits SAVE_ITEM bridge message`() = runTest {
         val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
             coEvery { getDeviceState() } returns defaultBridgeState()
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } returns fashionResponse()
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } returns fashionResponse()
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
@@ -286,14 +304,12 @@ class KScanViewModelTest {
             coEvery { getDeviceState() } returns defaultBridgeState()
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } returns fashionResponse()
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } returns fashionResponse()
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
@@ -316,14 +332,12 @@ class KScanViewModelTest {
             coEvery { getDeviceState() } returns defaultBridgeState(hasDisplay = false)
             coEvery { capturePhoto() } returns defaultCapture()
         }
-        val sanitizer = mockk<PrivacyImageSanitizer>(relaxed = true) {
-            coEvery { sanitize(any(), any()) } returns SanitizeResult.Success("sanitized", "image/jpeg")
-        }
-        val apiClient = mockk<KScanAnalyzeClient>(relaxed = true) {
-            coEvery { analyzeImage(any()) } returns fashionResponse()
+        val sanitizer = successSanitizer()
+        val analyzeClient = mockk<AnalyzeClient> {
+            coEvery { analyze(any()) } returns fashionResponse()
         }
 
-        val vm = createViewModel(bridge = bridge, apiClient = apiClient, sanitizer = sanitizer)
+        val vm = createViewModel(bridge = bridge, analyzeClient = analyzeClient, sanitizer = sanitizer)
         vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
         advanceUntilIdle()
 
@@ -339,6 +353,83 @@ class KScanViewModelTest {
         // Result should be sent to phone
         coVerify(atLeast = 1) {
             bridge.sendToPhone(match { it.type == BridgeMessageType.ANALYSIS_RESULT.name })
+        }
+    }
+
+    @Test
+    fun `settings screen is fully dpad navigable`() = runTest {
+        val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
+            coEvery { getDeviceState() } returns defaultBridgeState()
+        }
+        val vm = createViewModel(bridge = bridge)
+
+        // From scan: move focus to "Settings" (index 2 of Scan/Closet/Settings) and open it.
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Down)
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Down)
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Select)
+        assertEquals(AppScreen.SETTINGS, vm.screen.value)
+        assertEquals(0, vm.focusedIndex())
+
+        // Index 0 is the capability-mock toggle: selectable without leaving settings.
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Select)
+        assertEquals(AppScreen.SETTINGS, vm.screen.value)
+
+        // Voice sample cards are focusable; activating one feeds the mock voice path.
+        repeat(3) { vm.onInput(com.kscan.glasses.navigation.GlassesInput.Down) }
+        assertEquals(3, vm.focusedIndex())
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Select)
+        assertEquals(com.kscan.glasses.voice.VoiceAction.SAVE, vm.lastVoiceAction.value)
+        assertEquals(AppScreen.SETTINGS, vm.screen.value)
+
+        // Back returns to scan.
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.Back)
+        assertEquals(AppScreen.SCAN, vm.screen.value)
+    }
+
+    @Test
+    fun `dry-run ready reports config gate only never live readiness`() = runTest {
+        val bridge = mockk<GlassesBridgeProvider>(relaxed = true) {
+            coEvery { getDeviceState() } returns defaultBridgeState()
+            coEvery { capturePhoto() } returns defaultCapture()
+        }
+        // Fully gate-passing dry-run config; mock sanitizer succeeds WITHOUT real
+        // face masking, so the privacy stage has not genuinely run. The UI copy
+        // must say "config only" and never claim live analysis readiness.
+        val orchestrator = ScanOrchestrator(
+            sanitizer = MockPrivacyImageSanitizer(),
+            analyzeClient = mockk(relaxed = true),
+            mobileBridge = MockMobileAppBridge(),
+            config = BetaConfig(
+                useMockApi = false,
+                enableRealAnalyze = true,
+                enableRealFaceMasking = true,
+                enableDryRun = true,
+            ),
+            clientConfig = AnalyzeClientConfig(
+                backendUrl = "https://example.com",
+                enableRealAnalyze = false,
+            ),
+            debugConfig = DebugAnalyzeConfig(
+                enabled = true,
+                backendUrl = "https://example.com",
+                authToken = "",
+                dryRunBuildFlag = true,
+            ),
+            ioDispatcher = UnconfinedTestDispatcher(),
+        )
+        val vm = KScanViewModel(bridge = bridge, orchestrator = orchestrator)
+
+        vm.onInput(com.kscan.glasses.navigation.GlassesInput.ScanShortcut)
+        advanceUntilIdle()
+
+        if (BuildConfig.DEBUG) {
+            assertEquals(AppScreen.RESULTS, vm.screen.value)
+            val summary = vm.results.value.summary
+            assertTrue(summary.contains("config only"))
+            assertFalse(summary.contains("live analysis is ready"))
+        } else {
+            // Release builds always block dry-run wiring at the build gate.
+            assertEquals(AppScreen.ERROR, vm.screen.value)
         }
     }
 }

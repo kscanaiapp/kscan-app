@@ -1,24 +1,28 @@
 package com.kscan.glasses.scan
 
+import com.kscan.glasses.analyze.AnalyzeClient
 import com.kscan.glasses.analyze.AnalyzeClientConfig
 import com.kscan.glasses.analyze.DebugAnalyzeConfig
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.mobilebridge.MobileAppBridge
-import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 
 /**
- * Factory for creating a ScanOrchestrator with safe defaults for Phase 2.
+ * Factory for creating a ScanOrchestrator.
+ *
+ * [sanitizer], [analyzeClient], and [mobileBridge] are REQUIRED parameters with no
+ * defaults: no production path may silently resolve to a mock. Callers must obtain
+ * them from the single authoritative composition point (AppRuntimeFactory).
  */
 object ScanOrchestratorFactory {
 
     fun create(
+        sanitizer: PrivacyImageSanitizer,
+        analyzeClient: AnalyzeClient,
+        mobileBridge: MobileAppBridge,
         config: BetaConfig = BetaConfig.DEFAULT,
-        sanitizer: PrivacyImageSanitizer = MockPrivacyImageSanitizer(),
-        analyzeClient: com.kscan.glasses.analyze.AnalyzeClient = com.kscan.glasses.analyze.MockAnalyzeClient(),
-        mobileBridge: MobileAppBridge = com.kscan.glasses.mobilebridge.MockMobileAppBridge(),
         clientConfig: AnalyzeClientConfig = AnalyzeClientConfig.MOCK_ONLY,
         debugConfig: DebugAnalyzeConfig = DebugAnalyzeConfig.DEFAULT,
         ioDispatcher: CoroutineDispatcher = Dispatchers.IO,

@@ -11,7 +11,7 @@
 - Scan orchestrator: `ScanOrchestrator`, `ScanOrchestratorState`, `ScanErrorMapper` (Phase 2)
 - Voice/Connectivity/Supabase placeholders (Phase 2)
 - Mock scan flow: capture → sanitize → analyze → results → TTS → phone message
-- `KScanApiClient` with real backend contract (10s timeout)
+- Analyze boundary: `AnalyzeClient` + `RealAnalyzeClient` (gated, 10s timeout); legacy `KScanApiClient` bypass removed — `ScanOrchestrator` is the only production authority that may reach analyze
 - Privacy pipeline interfaces + mock sanitizer
 - Phone-bridge TypeScript stubs + shared schema
 - Documentation set (README, ARCHITECTURE, BRIDGE_CONTRACT, PRIVACY, TEST_PLAN)

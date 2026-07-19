@@ -9,6 +9,9 @@ import com.kscan.glasses.bridge.MockBridgeProvider
 import com.kscan.glasses.navigation.FocusEvent
 import com.kscan.glasses.navigation.FocusNavigator
 import com.kscan.glasses.navigation.GlassesInput
+import com.kscan.glasses.runtime.GlassesRuntimeState
+import com.kscan.glasses.runtime.RuntimeStatus
+import com.kscan.glasses.scan.ScanErrorCode
 import com.kscan.glasses.scan.ScanErrorMapper
 import com.kscan.glasses.scan.ScanInput
 import com.kscan.glasses.scan.ScanOrchestrator
@@ -33,6 +36,13 @@ import java.util.UUID
 class KScanViewModel(
     private val bridge: GlassesBridgeProvider,
     private val orchestrator: ScanOrchestrator,
+    /**
+     * Authoritative runtime status resolved once at composition from the actual
+     * injected dependency instances. The UI derives its persistent status header
+     * and mock labeling from this — never from loosely related flags.
+     * Defaults to MOCK_DEVELOPMENT so tests and previews are always labeled.
+     */
+    val runtimeStatus: RuntimeStatus = RuntimeStatus(GlassesRuntimeState.MOCK_DEVELOPMENT, mock = true),
 ) : ViewModel() {
 
     private val speech = SpeechFeedback(bridge)
@@ -46,6 +56,13 @@ class KScanViewModel(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    /**
+     * Stable machine-readable code paired with [errorMessage]. Null when no
+     * error is active. Never payload-derived.
+     */
+    private val _errorCode = MutableStateFlow<ScanErrorCode?>(null)
+    val errorCode: StateFlow<ScanErrorCode?> = _errorCode.asStateFlow()
 
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
@@ -68,6 +85,19 @@ class KScanViewModel(
     private val resultsActions = listOf("Save", "Open on Phone", "Scan Again")
     private var focusNavigator = FocusNavigator({ actionItems.size })
 
+    /** Mock voice sample phrases shown in Settings; D-pad selectable. */
+    val voiceSamples = listOf(
+        "K Scan scan this",
+        "K Scan what am I looking at",
+        "K Scan save this",
+        "K Scan open on phone",
+    )
+
+    /** Settings has its own navigator: capability toggle card + one card per voice sample. */
+    private var settingsNavigator = FocusNavigator({ settingsItemCount() })
+
+    private fun settingsItemCount(): Int = 1 + voiceSamples.size
+
     init {
         viewModelScope.launch {
             refreshDeviceState()
@@ -82,6 +112,7 @@ class KScanViewModel(
 
     private suspend fun runOrchestratorFlow(input: ScanInput) {
         _isProcessing.value = true
+        _errorCode.value = null
         _orchestratorState.value = ScanOrchestratorState.PREPARING_IMAGE
         _screen.value = AppScreen.PROCESSING
 
@@ -113,24 +144,29 @@ class KScanViewModel(
             is ScanOrchestratorResult.Failure -> {
                 _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
                 val userMessage = ScanErrorMapper.toUserMessage(result.error)
-                showError(userMessage)
+                showError(userMessage, result.error.code)
             }
             is ScanOrchestratorResult.DryRunReady -> {
                 _orchestratorState.value = ScanOrchestratorState.COMPLETE
+                // "Ready" here means CONFIGURATION GATE ready only: the dry-run
+                // evaluated flags/URL/debug config without any transport, and the
+                // image privacy stage has NOT run for real (face masking is not
+                // implemented in this build; strict mode fails closed). Never
+                // describe this as live analysis readiness.
                 _results.value = ResultsUiState(
-                    summary = "Dry run ready",
+                    summary = "Dry-run gate ready (config only)",
                     topProducts = emptyList(),
                 )
-                speech.speakSummary("Dry run ready")
+                speech.speakSummary("Dry-run gate ready. Configuration only, not live analysis.")
                 _screen.value = if (_hasDisplay.value) AppScreen.RESULTS else AppScreen.SCAN
             }
             is ScanOrchestratorResult.DryRunBlocked -> {
                 _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
-                showError("Dry run blocked")
+                showError("Dry run blocked", ScanErrorCode.CONFIGURATION_REQUIRED)
             }
             is ScanOrchestratorResult.ConfigBlocked -> {
                 _orchestratorState.value = ScanOrchestratorState.ERROR_RETRY
-                showError("Backend config blocked")
+                showError("Backend config blocked", ScanErrorCode.CONFIGURATION_REQUIRED)
             }
         }
 
@@ -157,6 +193,7 @@ class KScanViewModel(
 
     fun retryFromError() {
         _errorMessage.value = null
+        _errorCode.value = null
         _screen.value = AppScreen.SCAN
     }
 
@@ -166,7 +203,9 @@ class KScanViewModel(
             AppScreen.RESULTS -> handleResultsScreenInput(input)
             AppScreen.SETTINGS -> handleSettingsInput(input)
             AppScreen.LIBRARY -> handleLibraryInput(input)
-            AppScreen.ERROR -> if (input is GlassesInput.Select) retryFromError()
+            // Select retries; Back/Left also exit the error state — the primary
+            // navigation key must never dead-end on a nested screen.
+            AppScreen.ERROR -> if (input is GlassesInput.Select || input is GlassesInput.Back || input is GlassesInput.Left) retryFromError()
             AppScreen.PROCESSING -> Unit
         }
     }
@@ -176,7 +215,10 @@ class KScanViewModel(
             is FocusEvent.Activated -> when (actionItems[event.index]) {
                 "Scan" -> startScanIfIdle()
                 "Closet" -> _screen.value = AppScreen.LIBRARY
-                "Settings" -> _screen.value = AppScreen.SETTINGS
+                "Settings" -> {
+                    settingsNavigator = FocusNavigator({ settingsItemCount() })
+                    _screen.value = AppScreen.SETTINGS
+                }
             }
             is FocusEvent.Back -> Unit
             is FocusEvent.Scan -> startScanIfIdle()
@@ -221,8 +263,16 @@ class KScanViewModel(
     }
 
     private fun handleSettingsInput(input: GlassesInput) {
-        if (input is GlassesInput.Back || input is GlassesInput.Left) {
-            _screen.value = AppScreen.SCAN
+        when (val event = settingsNavigator.onInput(input)) {
+            is FocusEvent.Activated -> {
+                if (event.index == 0) {
+                    toggleAudioOnlyMode(_hasDisplay.value)
+                } else {
+                    voiceSamples.getOrNull(event.index - 1)?.let { simulateVoice(it) }
+                }
+            }
+            is FocusEvent.Back -> _screen.value = AppScreen.SCAN
+            else -> Unit
         }
     }
 
@@ -247,7 +297,12 @@ class KScanViewModel(
             }
             VoiceAction.WAKE, VoiceAction.UNKNOWN -> Unit
         }
-        mappedInput?.let { if (it !is GlassesInput.ScanShortcut) routeFocusInput(it) }
+        // Voice-mapped presses are not re-routed while on SETTINGS: the settings
+        // voice cards inject these same phrases, so re-routing a mapped Select
+        // would re-activate the card and loop.
+        mappedInput?.let {
+            if (it !is GlassesInput.ScanShortcut && _screen.value != AppScreen.SETTINGS) routeFocusInput(it)
+        }
     }
 
     private fun startScanIfIdle() {
@@ -280,9 +335,9 @@ class KScanViewModel(
             val input = ScanInput(capture.base64, capture.mimeType)
             runOrchestratorFlow(input)
         } catch (e: CaptureException) {
-            showError("Capture failed. Please check camera access and retry.")
+            showError("Capture failed. Please check camera access and retry.", ScanErrorCode.CAPTURE_UNAVAILABLE)
         } catch (e: Exception) {
-            showError("Something went wrong. Please retry.")
+            showError("Something went wrong. Please retry.", ScanErrorCode.UNKNOWN_SAFE_ERROR)
         } finally {
             _isProcessing.value = false
         }
@@ -321,12 +376,16 @@ class KScanViewModel(
         }
     }
 
-    private suspend fun showError(message: String) {
+    private suspend fun showError(message: String, code: ScanErrorCode) {
         _errorMessage.value = message
+        _errorCode.value = code
         scanSession = scanSession.copy(status = ScanStatus.ERROR)
         _screen.value = AppScreen.ERROR
         speech.speakSummary(message)
     }
 
-    fun focusedIndex(): Int = focusNavigator.focusedIndex
+    fun focusedIndex(): Int = when (_screen.value) {
+        AppScreen.SETTINGS -> settingsNavigator.focusedIndex
+        else -> focusNavigator.focusedIndex
+    }
 }

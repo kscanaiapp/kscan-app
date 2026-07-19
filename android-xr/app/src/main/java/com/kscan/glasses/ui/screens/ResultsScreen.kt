@@ -14,6 +14,7 @@ import com.kscan.glasses.state.ProductMatch
 import com.kscan.glasses.ui.components.FocusableCard
 import com.kscan.glasses.ui.components.ResultCard
 import com.kscan.glasses.ui.components.ResultSummary
+import com.kscan.glasses.ui.components.StatusChip
 import com.kscan.glasses.ui.components.VoiceHint
 
 private val resultActions = listOf("Save", "Open on Phone", "Scan Again")
@@ -24,18 +25,27 @@ fun ResultsScreen(
     products: List<ProductMatch>,
     focusedIndex: Int,
     pageLabel: String?,
+    mockBadge: String? = null,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
+            .padding(16.dp),
     ) {
         Text(
             text = "Top Matches",
             color = Color(0xFF00E5FF),
-            fontSize = 28.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
         )
+        // Mock results are always labeled as synthetic demo data — never
+        // presented as authentic commerce output.
+        mockBadge?.let {
+            StatusChip(
+                label = it,
+                accent = Color(0xFFFFC857),
+            )
+        }
         pageLabel?.let {
             Text(text = it, color = Color(0xFFE0E0E8).copy(alpha = 0.6f), fontSize = 14.sp)
         }
@@ -49,17 +59,14 @@ fun ResultsScreen(
                 focused = focusedIndex == index,
             )
         }
-        val actionOffset = products.size
-        Text(
-            text = "Actions",
-            color = Color(0xFFE0E0E8),
-            fontSize = 18.sp,
-            modifier = Modifier.padding(top = 8.dp),
-        )
+        // Action cards are self-labeled; a separate "Actions" header would push
+        // the last action outside the 600dp HUD viewport.
         resultActions.forEachIndexed { index, action ->
             FocusableCard(
                 title = action,
-                focused = focusedIndex == actionOffset + index,
+                focused = focusedIndex == products.size + index,
+                compact = true,
+                modifier = Modifier.padding(vertical = 4.dp),
             )
         }
         VoiceHint("Up/Down to focus · Select to activate")

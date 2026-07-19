@@ -19,6 +19,12 @@ fun debugPropertyBoolean(name: String): Boolean {
         ?: false
 }
 
+// Three-state variant: absent property falls back to the supplied default instead of false.
+fun debugPropertyBooleanOrDefault(name: String, defaultValue: Boolean): Boolean {
+    val raw = project.findProperty(name)?.toString() ?: localProperty(name)
+    return raw?.toBoolean() ?: defaultValue
+}
+
 fun localProperty(name: String): String? {
     val file = rootProject.file("local.properties")
     return if (file.exists()) {
@@ -64,7 +70,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Release builds must never use mock sanitizer or mock bridge.
+            // Release builds must never use mock API, mock sanitizer, or mock bridge.
+            // ReleaseSafetyGuard.verify() throws at startup if any of these is ever true.
+            buildConfigField("boolean", "USE_MOCK_API", "false")
             buildConfigField("boolean", "USE_MOCK_BRIDGE", "false")
             buildConfigField("boolean", "USE_MOCK_SANITIZER", "false")
             proguardFiles(
@@ -76,7 +84,10 @@ android {
             // Debug builds may use mock bridge and mock sanitizer for emulator/local testing.
             buildConfigField("boolean", "USE_MOCK_BRIDGE", "true")
             buildConfigField("boolean", "USE_MOCK_API", "true")
-            buildConfigField("boolean", "USE_MOCK_SANITIZER", "true")
+            // Debug strict-privacy profile: set KSCAN_DEBUG_USE_MOCK_SANITIZER=false in
+            // gitignored local.properties to select the strict sanitizer in debug builds.
+            // Upload then fails closed while face masking is unavailable in this build.
+            buildConfigField("boolean", "USE_MOCK_SANITIZER", "${debugPropertyBooleanOrDefault("KSCAN_DEBUG_USE_MOCK_SANITIZER", true)}")
         }
     }
 
@@ -130,4 +141,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.11")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    // Test-only: executes real Android framework image code (BitmapFactory, Bitmap,
+    // android.util.Base64, android.media.ExifInterface) on the JVM so the JPEG
+    // re-encode boundary (ImageCompressor) is behavior-verified in unit tests.
+    // Not used by production code; no production dependency added.
+    testImplementation("org.robolectric:robolectric:4.12.2")
 }

@@ -16,7 +16,7 @@ object InputMapper {
         KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_A -> Left
         KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_D -> Right
         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_SPACE -> Select
-        KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DEL -> Back
+        KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_ESCAPE -> Back
         KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_CAMERA, KeyEvent.KEYCODE_C -> ScanShortcut
         else -> null
     }

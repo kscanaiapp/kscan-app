@@ -50,7 +50,7 @@ cd phone-bridge && npm test
 
 ## Regression checklist (pre-release)
 
-- [ ] Backend payload exactly `{ "image": base64 }`
+- [ ] Backend payload exactly `{ "image": base64 }` for main `/api/analyze`; glasses debug endpoint (`/api/glasses/analyze-debug`) payload exactly `{ "image": "<jpeg data URL>", "client": "google-glasses-alpha" }` (valid JSON, kotlinx-serialization encoded)
 - [ ] 10s client timeout honored
 - [ ] Non-2xx and malformed JSON handled
 - [ ] Top 3 products displayed / spoken

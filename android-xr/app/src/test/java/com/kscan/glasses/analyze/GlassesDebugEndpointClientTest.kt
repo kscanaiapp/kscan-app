@@ -2,6 +2,8 @@ package com.kscan.glasses.analyze
 
 import com.kscan.glasses.state.FashionAnalyzeResult
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -210,6 +212,80 @@ class GlassesDebugEndpointClientTest {
 
         client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
         assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `request body is valid JSON matching the debug backend contract`() = runTest {
+        var capturedBody = ""
+        val fakeTransport = FakeHttpTransport { _, body, _ ->
+            capturedBody = body
+            HttpTransportResponse(200, debugSuccessJson)
+        }
+
+        val client = GlassesDebugEndpointClient(
+            endpointUrl = "http://127.0.0.1:3999/api/glasses/analyze-debug",
+            authToken = "test-token",
+            transport = fakeTransport,
+        )
+
+        client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
+
+        val json = kotlinx.serialization.json.Json
+            .parseToJsonElement(capturedBody)
+            .jsonObject
+        assertEquals(2, json.keys.size)
+        assertEquals(
+            "data:image/jpeg;base64,abc",
+            json["image"]!!.jsonPrimitive.content,
+        )
+        assertEquals("google-glasses-alpha", json["client"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `thrown error messages never expose the request body or image payload`() = runTest {
+        val sensitiveDataUrl = "data:image/jpeg;base64,SENSITIVE-PAYLOAD-MARKER"
+
+        // Timeout path
+        val timeoutClient = GlassesDebugEndpointClient(
+            endpointUrl = "http://127.0.0.1:3999/api/glasses/analyze-debug",
+            authToken = "test-token",
+            transport = FakeHttpTransport { _, _, _ -> throw java.net.SocketTimeoutException("timed out") },
+        )
+        try {
+            timeoutClient.analyze(AnalyzeRequest(sensitiveDataUrl))
+            assertTrue("Expected Timeout", false)
+        } catch (e: AnalyzeException.Timeout) {
+            assertFalse(e.message.orEmpty().contains("SENSITIVE-PAYLOAD-MARKER"))
+            assertFalse(e.message.orEmpty().contains("data:image"))
+        }
+
+        // HTTP error path (server-provided message is mapped, request body is not)
+        val httpClient = GlassesDebugEndpointClient(
+            endpointUrl = "http://127.0.0.1:3999/api/glasses/analyze-debug",
+            authToken = "test-token",
+            transport = FakeHttpTransport { _, _, _ -> HttpTransportResponse(401, debugErrorJson) },
+        )
+        try {
+            httpClient.analyze(AnalyzeRequest(sensitiveDataUrl))
+            assertTrue("Expected HttpError", false)
+        } catch (e: AnalyzeException.HttpError) {
+            assertFalse(e.message.orEmpty().contains("SENSITIVE-PAYLOAD-MARKER"))
+            assertFalse(e.message.orEmpty().contains("data:image"))
+        }
+
+        // Malformed response path
+        val malformedClient = GlassesDebugEndpointClient(
+            endpointUrl = "http://127.0.0.1:3999/api/glasses/analyze-debug",
+            authToken = "test-token",
+            transport = FakeHttpTransport { _, _, _ -> HttpTransportResponse(200, "not-json") },
+        )
+        try {
+            malformedClient.analyze(AnalyzeRequest(sensitiveDataUrl))
+            assertTrue("Expected MalformedJson", false)
+        } catch (e: AnalyzeException.MalformedJson) {
+            assertFalse(e.message.orEmpty().contains("SENSITIVE-PAYLOAD-MARKER"))
+            assertFalse(e.message.orEmpty().contains("data:image"))
+        }
     }
 
     companion object {
