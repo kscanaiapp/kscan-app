@@ -18,6 +18,16 @@ class GlassesAnalyzeService {
   }
 }
 
+/**
+ * Fail-closed service used when the debug endpoint is disabled.
+ * Never returns mock success for a disabled configuration.
+ */
+class DisabledGlassesAnalyzeService extends GlassesAnalyzeService {
+  async analyze(_payload) {
+    throw Object.assign(new Error('CONFIG_DISABLED'), { status: 503 });
+  }
+}
+
 class MockGlassesAnalyzeService extends GlassesAnalyzeService {
   constructor(options = {}) {
     super();
@@ -50,6 +60,16 @@ class MockGlassesAnalyzeService extends GlassesAnalyzeService {
   }
 }
 
+/**
+ * Strips a data-URL prefix so upstream /api/analyze receives bare base64
+ * (see shared/api-contract.md). Non-data-URL strings are returned unchanged.
+ */
+function toBareBase64(image) {
+  if (typeof image !== 'string') return image;
+  const match = /^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/s.exec(image);
+  return match ? match[1] : image;
+}
+
 class RealGlassesAnalyzeService extends GlassesAnalyzeService {
   constructor(options = {}) {
     super();
@@ -70,7 +90,7 @@ class RealGlassesAnalyzeService extends GlassesAnalyzeService {
       const response = await fetch(`${this.backendUrl}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: payload.image }),
+        body: JSON.stringify({ image: toBareBase64(payload.image) }),
         signal: controller.signal,
       });
 
@@ -142,8 +162,8 @@ function createGlassesAnalyzeService() {
   const model = process.env.KSCAN_GLASSES_ANALYZE_MODEL || 'mock';
 
   if (!enabled) {
-    // Validation middleware should already block this; kept as defensive fallback
-    return new MockGlassesAnalyzeService({ model });
+    // Validation middleware should already block this; keep fail-closed defensive fallback.
+    return new DisabledGlassesAnalyzeService();
   }
 
   if (backendUrl) {
@@ -155,7 +175,9 @@ function createGlassesAnalyzeService() {
 
 module.exports = {
   GlassesAnalyzeService,
+  DisabledGlassesAnalyzeService,
   MockGlassesAnalyzeService,
   RealGlassesAnalyzeService,
   createGlassesAnalyzeService,
+  toBareBase64,
 };

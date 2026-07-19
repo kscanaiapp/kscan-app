@@ -43,7 +43,8 @@ class RealAnalyzeClient(
         }
 
         val endpoint = config.backendUrl.trimEnd('/') + "/api/analyze"
-        val body = StringBuilder().append("{\"image\":\"").append(request.imageDataUrl).append("\"}").toString()
+        // Upstream contract requires bare base64; encode via kotlinx so escaping is correct.
+        val body = AnalyzeRequestJson.encodeUpstreamAnalyzeRequest(request.imageDataUrl)
 
         val response = try {
             transport.post(

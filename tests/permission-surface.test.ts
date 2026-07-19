@@ -40,4 +40,27 @@ describe('manifest permission surface (static contract)', () => {
     const src = readFileSync(DEBUG_MANIFEST, 'utf8');
     assert.ok(src.includes('NEVER'), 'debug overlay must keep its never-promote warning');
   });
+
+  it('debug overlay enables loopback cleartext only via networkSecurityConfig', () => {
+    const src = readFileSync(DEBUG_MANIFEST, 'utf8');
+    assert.ok(
+      src.includes('android:networkSecurityConfig="@xml/network_security_config"'),
+      'debug overlay must reference the debug-only network security config',
+    );
+    const nsc = readFileSync(
+      join(__dirname, '../android-xr/app/src/debug/res/xml/network_security_config.xml'),
+      'utf8',
+    );
+    assert.ok(nsc.includes('10.0.2.2'), 'must allow emulator host alias');
+    assert.ok(nsc.includes('localhost'), 'must allow localhost');
+    assert.ok(nsc.includes('127.0.0.1'), 'must allow loopback');
+    assert.ok(nsc.includes('cleartextTrafficPermitted="true"'));
+    assert.ok(!nsc.includes('cleartextTrafficPermitted="true">\n    <!-- all'), 'must not allow global cleartext');
+  });
+
+  it('main manifest has no cleartext or networkSecurityConfig', () => {
+    const src = readFileSync(MAIN_MANIFEST, 'utf8');
+    assert.ok(!src.includes('networkSecurityConfig'));
+    assert.ok(!src.includes('usesCleartextTraffic'));
+  });
 });

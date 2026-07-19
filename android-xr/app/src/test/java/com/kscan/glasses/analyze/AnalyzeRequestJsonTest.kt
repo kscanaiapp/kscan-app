@@ -68,4 +68,31 @@ class AnalyzeRequestJsonTest {
     fun `client id constant matches the documented backend contract`() {
         assertEquals("google-glasses-alpha", AnalyzeRequestJson.GLASSES_DEBUG_CLIENT_ID)
     }
+
+    @Test
+    fun `upstream body uses bare base64 without data URL prefix`() {
+        val dataUrl = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+        val json = parser.parseToJsonElement(
+            AnalyzeRequestJson.encodeUpstreamAnalyzeRequest(dataUrl),
+        ).jsonObject
+        assertEquals(1, json.keys.size)
+        assertEquals("/9j/4AAQSkZJRg==", json["image"]!!.jsonPrimitive.content)
+        assertFalse(json["image"]!!.jsonPrimitive.content.startsWith("data:"))
+    }
+
+    @Test
+    fun `upstream encoder preserves already-bare base64`() {
+        val bare = "abc123+/=="
+        val json = parser.parseToJsonElement(
+            AnalyzeRequestJson.encodeUpstreamAnalyzeRequest(bare),
+        ).jsonObject
+        assertEquals(bare, json["image"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `toBareBase64 strips only the data URL prefix`() {
+        assertEquals("abc", AnalyzeRequestJson.toBareBase64("data:image/jpeg;base64,abc"))
+        assertEquals("abc", AnalyzeRequestJson.toBareBase64("data:image/png;base64,abc"))
+        assertEquals("already", AnalyzeRequestJson.toBareBase64("already"))
+    }
 }
