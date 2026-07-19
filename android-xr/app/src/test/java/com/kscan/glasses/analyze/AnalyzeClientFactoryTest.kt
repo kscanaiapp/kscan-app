@@ -9,15 +9,18 @@ class AnalyzeClientFactoryTest {
 
     @Test
     fun `default config returns MockAnalyzeClient`() = runTest {
+        // Debug-scoped: in release the same config must fail fast (covered below).
         val client = AnalyzeClientFactory.create(
             betaConfig = BetaConfig.DEFAULT,
             clientConfig = AnalyzeClientConfig.MOCK_ONLY,
+            isDebugBuild = true,
         )
         assertTrue(client is MockAnalyzeClient)
     }
 
     @Test
     fun `useMockApi true blocks real analyze`() = runTest {
+        // Debug-scoped: mock lock overrides real gates in debug only.
         val client = AnalyzeClientFactory.create(
             betaConfig = BetaConfig(
                 useMockApi = true,
@@ -28,12 +31,14 @@ class AnalyzeClientFactoryTest {
                 backendUrl = "https://example.com",
                 enableRealAnalyze = true,
             ),
+            isDebugBuild = true,
         )
         assertTrue(client is MockAnalyzeClient)
     }
 
     @Test
     fun `enableRealAnalyze false blocks real analyze`() = runTest {
+        // Debug-scoped: a disabled real gate falls back to the labeled mock in debug.
         val client = AnalyzeClientFactory.create(
             betaConfig = BetaConfig(
                 useMockApi = false,
@@ -44,12 +49,14 @@ class AnalyzeClientFactoryTest {
                 backendUrl = "https://example.com",
                 enableRealAnalyze = true,
             ),
+            isDebugBuild = true,
         )
         assertTrue(client is MockAnalyzeClient)
     }
 
     @Test
     fun `enableRealFaceMasking false blocks real analyze`() = runTest {
+        // Debug-scoped: the privacy gate falls back to the labeled mock in debug.
         val client = AnalyzeClientFactory.create(
             betaConfig = BetaConfig(
                 useMockApi = false,
@@ -60,8 +67,55 @@ class AnalyzeClientFactoryTest {
                 backendUrl = "https://example.com",
                 enableRealAnalyze = true,
             ),
+            isDebugBuild = true,
         )
         assertTrue(client is MockAnalyzeClient)
+    }
+
+    @Test
+    fun `release with real analyze disabled fails closed without mock`() = runTest {
+        val client = AnalyzeClientFactory.create(
+            betaConfig = BetaConfig(
+                useMockApi = false,
+                enableRealAnalyze = false,
+                enableRealFaceMasking = true,
+            ),
+            clientConfig = AnalyzeClientConfig(
+                backendUrl = "https://example.com",
+                enableRealAnalyze = true,
+            ),
+            isDebugBuild = false,
+        )
+        assertTrue(client !is MockAnalyzeClient)
+        try {
+            client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
+            assertTrue("Expected AnalyzeException.Disabled", false)
+        } catch (e: AnalyzeException.Disabled) {
+            assertTrue(true)
+        }
+    }
+
+    @Test
+    fun `release with real face masking disabled fails closed without mock`() = runTest {
+        val client = AnalyzeClientFactory.create(
+            betaConfig = BetaConfig(
+                useMockApi = false,
+                enableRealAnalyze = true,
+                enableRealFaceMasking = false,
+            ),
+            clientConfig = AnalyzeClientConfig(
+                backendUrl = "https://example.com",
+                enableRealAnalyze = true,
+            ),
+            isDebugBuild = false,
+        )
+        assertTrue(client !is MockAnalyzeClient)
+        try {
+            client.analyze(AnalyzeRequest("data:image/jpeg;base64,abc"))
+            assertTrue("Expected AnalyzeException.Disabled", false)
+        } catch (e: AnalyzeException.Disabled) {
+            assertTrue(true)
+        }
     }
 
     @Test
