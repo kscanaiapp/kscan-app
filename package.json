@@ -21,7 +21,9 @@
     "verify:apple-readiness": "node scripts/verify-apple-readiness.js",
     "verify:apple-submission": "node scripts/verify-apple-submission.js",
     "check:scan-readiness": "node scripts/check-scan-readiness.js",
-    "smoke:scan-identify": "node scripts/smoke-scan-identify.js"
+    "smoke:scan-identify": "node scripts/smoke-scan-identify.js",
+    "verify:android-manifest": "node scripts/check-android-manifest-compliance.js",
+    "test:android-manifest": "node --test __tests__/androidForegroundServiceCompliance.test.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

@@ -4,6 +4,14 @@ const FORBIDDEN_ANDROID_PERMISSIONS = [
   'android.permission.RECORD_AUDIO',
   'android.permission.ACCESS_FINE_LOCATION',
   'android.permission.ACCESS_BACKGROUND_LOCATION',
+  // Foreground-service permissions: K Scan runs no foreground service. The location
+  // (expo-location) and media/microphone (expo-audio) foreground services are unused —
+  // location is foreground-position-read only; stylist audio plays foreground-only with
+  // shouldPlayInBackground:false and recording disabled. Block all FGS permissions.
+  'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_LOCATION',
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+  'android.permission.FOREGROUND_SERVICE_MICROPHONE',
   'android.permission.POST_NOTIFICATIONS',
   'android.permission.READ_EXTERNAL_STORAGE',
   'android.permission.WRITE_EXTERNAL_STORAGE',
@@ -34,5 +42,5 @@ const withAndroidPermissionBlocklist = (config) =>
 module.exports = createRunOncePlugin(
   withAndroidPermissionBlocklist,
   'with-android-permission-blocklist',
-  '1.1.0'
+  '1.2.0'
 );
