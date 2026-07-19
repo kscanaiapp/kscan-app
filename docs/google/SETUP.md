@@ -9,19 +9,23 @@
 
 ## Clone and configure
 
-1. Ensure this workspace is a sibling to the main K Scan mobile app repo:
+1. Ensure this workspace is the canonical Google XR repo:
    ```text
-   C:\Users\jsmit\KScan              (main mobile app)
-   C:\Users\jsmit\kscan-google-glasses  (this workspace)
+   C:\Users\jsmit\KScan                          (main mobile app)
+   C:\Users\jsmit\kscan-google-glasses-canonical (this workspace)
    ```
+   Do not develop from the deprecated sibling `C:\Users\jsmit\kscan-google-glasses`.
 2. Copy environment placeholders:
    ```bash
    cp .env.example .env
    ```
-3. Set debug-only backend analyze placeholders in `.env`:
-   - `KSCAN_DEBUG_ANALYZE_URL=` (leave blank for mock-only builds)
-   - `KSCAN_DEBUG_ANALYZE_AUTH_TOKEN=`
-   - `KSCAN_DEBUG_ANALYZE_DRY_RUN=false`
+3. Set debug-only backend analyze placeholders in `.env` (Node backend):
+   - `KSCAN_GLASSES_ANALYZE_ENABLED=false` (default)
+   - `KSCAN_GLASSES_ANALYZE_DEBUG_TOKEN=` (required when enabled)
+   - `KSCAN_GLASSES_PORT=3002`
+   Android debug URL/flags go in gitignored `android-xr/local.properties`.
+   Android auth tokens are supplied at runtime via `DebugAnalyzeCredentialProvider`
+   (see `docs/BUILD_CONFIG_SECURITY.md`) — never BuildConfig.
 4. For phone bridge development:
    ```bash
    cd phone-bridge && npm install

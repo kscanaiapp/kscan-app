@@ -143,7 +143,11 @@ This endpoint provides a controlled, isolated boundary for the Google glasses li
 2. It checks auth and config gates before any model or backend call.
 3. It proxies to the existing K Scan `/api/analyze` when configured, reusing the secure model client.
 4. It maps the backend response into a minimal, HUD-safe shape.
-5. When disabled or misconfigured, it returns safe mock responses so the client can test parsing without live model traffic.
+5. When disabled or misconfigured, the HTTP endpoint returns fail-closed errors
+   (`503 CONFIG_DISABLED`, `401 UNAUTHORIZED`, etc.). It does **not** silently
+   return mock success over HTTP. Mock analyze responses are only produced when
+   the endpoint is enabled, authorized, and `KSCAN_GLASSES_ANALYZE_BACKEND_URL`
+   is unset (intentional mock-service mode).
 
 ## Standalone Server
 

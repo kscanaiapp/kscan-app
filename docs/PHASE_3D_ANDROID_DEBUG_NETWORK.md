@@ -48,9 +48,9 @@ Add to `android-xr/local.properties` (gitignored):
 
 ```properties
 # Debug analyze — disabled by default. Enable only for local smoke testing.
+# URL/flags only. Do NOT put auth tokens in local.properties / BuildConfig.
 KSCAN_DEBUG_ANALYZE_ENABLED=false
 KSCAN_DEBUG_ANALYZE_URL=
-KSCAN_DEBUG_ANALYZE_AUTH_TOKEN=
 KSCAN_DEBUG_ANALYZE_DRY_RUN=false
 ```
 
@@ -59,12 +59,20 @@ For local emulator testing later:
 ```properties
 KSCAN_DEBUG_ANALYZE_ENABLED=true
 KSCAN_DEBUG_ANALYZE_URL=http://10.0.2.2:3002/api/glasses/analyze-debug
-KSCAN_DEBUG_ANALYZE_AUTH_TOKEN=test-local-token
 KSCAN_DEBUG_ANALYZE_DRY_RUN=false
+```
+
+Supply the debug Bearer token at **runtime** (never BuildConfig):
+
+```bash
+adb shell "echo -n 'test-local-token' > /data/local/tmp/kscan_glasses_debug_token"
 ```
 
 **Never commit actual token values.**
 
+Debug builds include a loopback-only cleartext network-security config so
+`http://10.0.2.2` and `http://127.0.0.1` work for local smoke. Release builds
+do not permit cleartext.
 ## Emulator URL Guidance
 
 From an Android emulator, the host machine is reachable at:
