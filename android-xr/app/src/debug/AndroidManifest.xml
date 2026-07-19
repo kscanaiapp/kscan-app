@@ -16,13 +16,15 @@
 
     <application android:networkSecurityConfig="@xml/network_security_config">
         <!--
-          Debug-only emulator-validation seam. Non-exported; double-gated at
-          runtime (mock-bridge flag + mock provider instance). Never merged
-          into release builds.
+          Debug-only emulator-validation seam. Exported so the adb shell can
+          deliver scenario broadcasts on production (user-build) emulator
+          images where `adb root` is unavailable; double-gated at runtime
+          (mock-bridge flag + mock provider instance) so it no-ops unless the
+          in-memory mock bridge is active. Never merged into release builds.
         -->
         <receiver
             android:name=".MockScenarioReceiver"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.kscan.glasses.action.MOCK_SCENARIO" />
             </intent-filter>

@@ -19,8 +19,10 @@ import kotlinx.coroutines.launch
  *   am broadcast -a com.kscan.glasses.action.MOCK_SCENARIO \
  *       -n com.kscan.glasses/.MockScenarioReceiver -e scenario <name>
  *
- * Declared non-exported; reachable from the shell only on rooted/debuggable
- * images (emulator). Never present in release builds.
+ * Declared exported so the adb shell can reach it on production (user-build)
+ * emulator images where `adb root` is unavailable; the runtime double-gate
+ * above keeps it inert unless the mock bridge is active. Never present in
+ * release builds.
  */
 class MockScenarioReceiver : BroadcastReceiver() {
 
