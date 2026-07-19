@@ -9,6 +9,16 @@ import com.kscan.glasses.bridge.MockBridgeProvider
 import com.kscan.glasses.navigation.FocusEvent
 import com.kscan.glasses.navigation.FocusNavigator
 import com.kscan.glasses.navigation.GlassesInput
+import com.kscan.glasses.phonebridge.PhoneBridgeEvent
+import com.kscan.glasses.phonebridge.PhoneBridgeProvider
+import com.kscan.glasses.phonebridge.PhoneBridgeProviderStatus
+import com.kscan.glasses.phonebridge.PhoneBridgeSendResult
+import com.kscan.glasses.runtime.ConnectedAction
+import com.kscan.glasses.runtime.ConnectedEffect
+import com.kscan.glasses.runtime.ConnectedInput
+import com.kscan.glasses.runtime.ConnectedRuntimeStateMachine
+import com.kscan.glasses.runtime.ConnectedState
+import com.kscan.glasses.runtime.ConnectedUiState
 import com.kscan.glasses.runtime.GlassesRuntimeState
 import com.kscan.glasses.runtime.RuntimeStatus
 import com.kscan.glasses.scan.ScanErrorCode
@@ -20,6 +30,8 @@ import com.kscan.glasses.scan.ScanOrchestratorState
 import com.kscan.glasses.voice.SpeechFeedback
 import com.kscan.glasses.voice.VoiceAction
 import com.kscan.glasses.voice.VoiceCommandController
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +44,12 @@ import java.util.UUID
  *
  * All scan execution is routed through the provided [ScanOrchestrator].
  * The orchestrator is the single authority for capture, sanitization, and analysis.
+ *
+ * Connected mode: when a [PhoneBridgeProvider] is injected, the app root becomes
+ * [AppScreen.CONNECTED] and the HUD is driven by a [ConnectedRuntimeStateMachine]
+ * fed from [PhoneBridgeProvider.events]. Legacy mode (null provider) is
+ * byte-identical to the pre-connected behavior: every existing screen and flow
+ * is untouched.
  */
 class KScanViewModel(
     private val bridge: GlassesBridgeProvider,
@@ -43,6 +61,17 @@ class KScanViewModel(
      * Defaults to MOCK_DEVELOPMENT so tests and previews are always labeled.
      */
     val runtimeStatus: RuntimeStatus = RuntimeStatus(GlassesRuntimeState.MOCK_DEVELOPMENT, mock = true),
+    /**
+     * Connected-runtime phone bridge; null selects the legacy mock scan flow.
+     * Injected by MainActivity from the verified app runtime.
+     */
+    private val phoneBridge: PhoneBridgeProvider? = null,
+    /**
+     * Bounded wait for the companion's action ack (result.update) before the HUD
+     * surfaces ACTION_TIMEOUT. Injectable for tests; never optimistic — the
+     * confirmation card is shown only after the ack arrives.
+     */
+    private val ackTimeoutMs: Long = DEFAULT_ACK_TIMEOUT_MS,
 ) : ViewModel() {
 
     private val speech = SpeechFeedback(bridge)
@@ -96,12 +125,245 @@ class KScanViewModel(
     /** Settings has its own navigator: capability toggle card + one card per voice sample. */
     private var settingsNavigator = FocusNavigator({ settingsItemCount() })
 
-    private fun settingsItemCount(): Int = 1 + voiceSamples.size
+    /** Voice sample cards shown in Settings; hidden in connected mode (voice loop is phone-side). */
+    val settingsVoiceSamples: List<String> get() = if (connectedMode) emptyList() else voiceSamples
+
+    private fun settingsItemCount(): Int = 1 + settingsVoiceSamples.size
+
+    // ----- connected mode (phone bridge) -----
+
+    /** True when a phone bridge is injected and the HUD is machine-driven. */
+    val connectedMode: Boolean = phoneBridge != null
+
+    private var connectedMachine: ConnectedRuntimeStateMachine? = null
+
+    /** Connected-runtime UI state; null only in legacy mode. */
+    private val _connected = MutableStateFlow<ConnectedUiState?>(null)
+    val connected: StateFlow<ConnectedUiState?> = _connected.asStateFlow()
+
+    /** Provider availability for the HUD connection indicator; null in legacy mode. */
+    private val _phoneBridgeStatus = MutableStateFlow<PhoneBridgeProviderStatus?>(null)
+    val phoneBridgeStatus: StateFlow<PhoneBridgeProviderStatus?> = _phoneBridgeStatus.asStateFlow()
+
+    /** Focusable rows for the connected HUD, rebuilt on every state change. */
+    private val _connectedItems = MutableStateFlow<List<ConnectedFocusItem>>(emptyList())
+    val connectedItems: StateFlow<List<ConnectedFocusItem>> = _connectedItems.asStateFlow()
+
+    /**
+     * Transient notice for outbound actions that could not be handed to the
+     * bridge at all (unavailable/disabled). Never a success signal.
+     */
+    private val _actionNotice = MutableStateFlow<String?>(null)
+    val actionNotice: StateFlow<String?> = _actionNotice.asStateFlow()
+
+    private var connectedNavigator = FocusNavigator({ _connectedItems.value.size })
+    private var ackJob: Job? = null
+
+    /**
+     * Wires the connected runtime: provider events feed the machine, machine
+     * effects are executed against the provider, and every state change rebuilds
+     * the HUD focus list at its metadata-declared default focus.
+     */
+    private fun startConnectedMode(provider: PhoneBridgeProvider) {
+        val machine = ConnectedRuntimeStateMachine()
+        connectedMachine = machine
+        _screen.value = AppScreen.CONNECTED
+        viewModelScope.launch {
+            provider.status.collect { _phoneBridgeStatus.value = it }
+        }
+        viewModelScope.launch {
+            provider.events.collect { machine.on(ConnectedInput.Bridge(it)) }
+        }
+        viewModelScope.launch {
+            machine.effects.collect { executeEffect(it) }
+        }
+        viewModelScope.launch {
+            machine.uiState.collect { ui ->
+                _connected.value = ui
+                _connectedItems.value = connectedFocusItems(ui)
+                connectedNavigator = FocusNavigator(
+                    { _connectedItems.value.size },
+                    initialIndex = defaultFocusIndex(ui),
+                )
+                // Leaving RESULTS resolves any pending ack wait: confirmed,
+                // navigated away, or superseded — a late timeout must not fire.
+                if (ui.state != ConnectedState.RESULTS) {
+                    ackJob?.cancel()
+                    ackJob = null
+                    _actionNotice.value = null
+                }
+            }
+        }
+    }
+
+    /** Focus rows per state: metadata actions first, then overlay destinations. */
+    internal fun connectedFocusItems(ui: ConnectedUiState): List<ConnectedFocusItem> {
+        fun actionItem(action: ConnectedAction, fallback: String): ConnectedFocusItem =
+            ConnectedFocusItem(label = actionLabel(ui, action, fallback), action = action)
+        val closet = ConnectedFocusItem(label = "Closet", destination = AppScreen.LIBRARY)
+        val settings = ConnectedFocusItem(label = "Settings", destination = AppScreen.SETTINGS)
+        return when (ui.state) {
+            ConnectedState.DISCONNECTED -> listOf(
+                actionItem(ConnectedAction.PAIR, "Pair phone"),
+                closet,
+                settings,
+            )
+            ConnectedState.PAIRING, ConnectedState.CONNECTED ->
+                listOf(actionItem(ConnectedAction.CANCEL, "Cancel"))
+            ConnectedState.READY -> listOf(
+                actionItem(ConnectedAction.SCAN, "Scan"),
+                closet,
+                settings,
+            )
+            ConnectedState.CAPTURE_REQUESTED, ConnectedState.CAPTURING_ON_PHONE,
+            ConnectedState.PRIVACY_PROCESSING, ConnectedState.ANALYZING,
+            -> listOf(actionItem(ConnectedAction.CANCEL, "Cancel"))
+            ConnectedState.RESULTS -> {
+                val products = ui.result?.products.orEmpty()
+                    .take(MAX_RESULT_ITEMS)
+                    .map { product ->
+                        ConnectedFocusItem(
+                            label = "${product.title} — ${product.brand}",
+                            action = ConnectedAction.OPEN_ON_PHONE,
+                        )
+                    }
+                products + listOf(
+                    actionItem(ConnectedAction.SAVE, "Save"),
+                    actionItem(ConnectedAction.OPEN_ON_PHONE, "Open on phone"),
+                    actionItem(ConnectedAction.RETRY, "Retry scan"),
+                )
+            }
+            ConnectedState.ACTION_CONFIRMED -> listOf(actionItem(ConnectedAction.DONE, "Done"))
+            ConnectedState.ERROR -> listOf(
+                actionItem(ConnectedAction.RETRY, "Retry"),
+                actionItem(ConnectedAction.DISMISS, "Dismiss"),
+            )
+            ConnectedState.RECONNECTING -> listOf(actionItem(ConnectedAction.DISMISS, "Disconnect"))
+        }
+    }
+
+    /** Label from the state metadata contract, never hardcoded at the call site. */
+    private fun actionLabel(ui: ConnectedUiState, action: ConnectedAction, fallback: String): String =
+        (listOf(ui.metadata.primaryAction) + ui.metadata.secondaryActions)
+            .firstOrNull { it.action == action }
+            ?.label
+            ?: fallback
+
+    /** Metadata-declared default focus, resolved against the built focus list. */
+    private fun defaultFocusIndex(ui: ConnectedUiState): Int {
+        val items = _connectedItems.value
+        val index = items.indexOfFirst { it.action == ui.metadata.defaultFocus }
+        return if (index >= 0) index else 0
+    }
+
+    private fun handleConnectedInput(input: GlassesInput) {
+        val machine = connectedMachine ?: return
+        when (input) {
+            is GlassesInput.ScanShortcut -> machine.on(ConnectedInput.ScanTapped)
+            is GlassesInput.Up, is GlassesInput.Down -> connectedNavigator.onInput(input)
+            is GlassesInput.Select -> activateConnectedItem(connectedNavigator.focusedIndex)
+            is GlassesInput.Back, is GlassesInput.Left -> machine.on(ConnectedInput.BackTapped)
+            is GlassesInput.Right -> Unit
+            is GlassesInput.VoiceCommand -> handleConnectedVoice(machine, input.transcript)
+        }
+    }
+
+    private fun activateConnectedItem(index: Int) {
+        val item = _connectedItems.value.getOrNull(index) ?: return
+        item.destination?.let { destination ->
+            when (destination) {
+                AppScreen.SETTINGS -> {
+                    settingsNavigator = FocusNavigator({ settingsItemCount() })
+                    _screen.value = AppScreen.SETTINGS
+                }
+                AppScreen.LIBRARY -> _screen.value = AppScreen.LIBRARY
+                else -> Unit
+            }
+            return
+        }
+        val machine = connectedMachine ?: return
+        when (item.action) {
+            ConnectedAction.PAIR -> machine.on(ConnectedInput.PairTapped)
+            ConnectedAction.SCAN -> machine.on(ConnectedInput.ScanTapped)
+            ConnectedAction.SAVE -> machine.on(ConnectedInput.SaveTapped)
+            ConnectedAction.OPEN_ON_PHONE -> machine.on(ConnectedInput.OpenOnPhoneTapped)
+            ConnectedAction.RETRY -> machine.on(ConnectedInput.RetryTapped)
+            ConnectedAction.CANCEL -> machine.on(ConnectedInput.CancelTapped)
+            ConnectedAction.DONE -> machine.on(ConnectedInput.DoneTapped)
+            ConnectedAction.DISMISS -> machine.on(ConnectedInput.CancelTapped)
+            null -> Unit
+        }
+    }
+
+    /** Voice in connected mode: mapped to machine intents; the machine guards legality. */
+    private fun handleConnectedVoice(machine: ConnectedRuntimeStateMachine, transcript: String) {
+        val (action, _) = voiceParser.parse(transcript)
+        _lastVoiceAction.value = action
+        when (action) {
+            VoiceAction.SCAN, VoiceAction.WHAT_AM_I_LOOKING_AT, VoiceAction.FIND_SIMILAR ->
+                machine.on(ConnectedInput.ScanTapped)
+            VoiceAction.SAVE -> machine.on(ConnectedInput.SaveTapped)
+            VoiceAction.OPEN_ON_PHONE -> machine.on(ConnectedInput.OpenOnPhoneTapped)
+            VoiceAction.GO_BACK -> machine.on(ConnectedInput.BackTapped)
+            else -> Unit
+        }
+    }
+
+    /** Executes one machine effect against the provider; results are never assumed. */
+    private fun executeEffect(effect: ConnectedEffect) {
+        val provider = phoneBridge ?: return
+        viewModelScope.launch {
+            when (effect) {
+                ConnectedEffect.RequestPairing -> noteSendResult(provider.requestPairing())
+                ConnectedEffect.RequestCapture -> noteSendResult(provider.requestCapture())
+                is ConnectedEffect.SaveResult -> sendActionWithAckWatchdog { provider.saveResult(effect.resultId) }
+                is ConnectedEffect.OpenOnPhone -> sendActionWithAckWatchdog { provider.openOnPhone(effect.resultId) }
+                is ConnectedEffect.RetryScan -> noteSendResult(provider.retryScan(effect.scanId))
+                is ConnectedEffect.CancelScan -> noteSendResult(provider.cancelScan(effect.scanId))
+            }
+        }
+    }
+
+    /**
+     * Sends an action that requires a companion ack. The ack watchdog is armed
+     * only when the frame actually left the glasses; on timeout the machine
+     * receives a recoverable ACTION_TIMEOUT and the HUD shows the error card.
+     */
+    private suspend fun sendActionWithAckWatchdog(send: suspend () -> PhoneBridgeSendResult) {
+        when (val result = send()) {
+            PhoneBridgeSendResult.Sent -> {
+                _actionNotice.value = null
+                ackJob?.cancel()
+                ackJob = viewModelScope.launch {
+                    delay(ackTimeoutMs)
+                    connectedMachine?.on(
+                        ConnectedInput.Bridge(
+                            PhoneBridgeEvent.SessionError(ACTION_TIMEOUT_CODE, recoverable = true),
+                        ),
+                    )
+                }
+            }
+            else -> noteSendResult(result)
+        }
+    }
+
+    /** Surfaces a non-Sent provider result as a controlled notice; never throws. */
+    private fun noteSendResult(result: PhoneBridgeSendResult) {
+        _actionNotice.value = when (result) {
+            PhoneBridgeSendResult.Sent -> null
+            PhoneBridgeSendResult.Unavailable -> "Bridge unavailable — reconnect your phone"
+            PhoneBridgeSendResult.Disabled -> "Phone bridge is disabled"
+        }
+    }
+
+    /** Home for overlay back-navigation: CONNECTED in connected mode, SCAN otherwise. */
+    private fun homeScreen(): AppScreen = if (connectedMode) AppScreen.CONNECTED else AppScreen.SCAN
 
     init {
         viewModelScope.launch {
             refreshDeviceState()
         }
+        phoneBridge?.let { startConnectedMode(it) }
     }
 
     /** Entry point for local image picker to route into orchestrator. */
@@ -174,6 +436,17 @@ class KScanViewModel(
     }
 
     fun onInput(input: GlassesInput) {
+        if (connectedMode) {
+            // Connected mode: the machine owns CONNECTED; Closet/Settings remain
+            // as legacy overlay screens. No other legacy screen is reachable.
+            when (_screen.value) {
+                AppScreen.CONNECTED -> handleConnectedInput(input)
+                AppScreen.SETTINGS -> handleSettingsInput(input)
+                AppScreen.LIBRARY -> handleLibraryInput(input)
+                else -> Unit
+            }
+            return
+        }
         when (input) {
             is GlassesInput.VoiceCommand -> handleVoice(input.transcript)
             is GlassesInput.ScanShortcut -> startScanIfIdle()
@@ -194,7 +467,7 @@ class KScanViewModel(
     fun retryFromError() {
         _errorMessage.value = null
         _errorCode.value = null
-        _screen.value = AppScreen.SCAN
+        _screen.value = homeScreen()
     }
 
     private fun routeFocusInput(input: GlassesInput) {
@@ -207,6 +480,8 @@ class KScanViewModel(
             // navigation key must never dead-end on a nested screen.
             AppScreen.ERROR -> if (input is GlassesInput.Select || input is GlassesInput.Back || input is GlassesInput.Left) retryFromError()
             AppScreen.PROCESSING -> Unit
+            // Reachable only defensively: onInput short-circuits connected mode.
+            AppScreen.CONNECTED -> handleConnectedInput(input)
         }
     }
 
@@ -240,7 +515,7 @@ class KScanViewModel(
                             "Save" -> saveFocusedProduct()
                             "Open on Phone" -> openFocusedOnPhone()
                             "Scan Again" -> {
-                                _screen.value = AppScreen.SCAN
+                                _screen.value = homeScreen()
                                 focusNavigator = FocusNavigator({ actionItems.size })
                             }
                         }
@@ -248,7 +523,7 @@ class KScanViewModel(
                 }
             }
             is GlassesInput.Back, is GlassesInput.Left -> {
-                _screen.value = AppScreen.SCAN
+                _screen.value = homeScreen()
                 focusNavigator = FocusNavigator({ actionItems.size })
             }
             else -> focusNavigator.onInput(input)
@@ -268,17 +543,17 @@ class KScanViewModel(
                 if (event.index == 0) {
                     toggleAudioOnlyMode(_hasDisplay.value)
                 } else {
-                    voiceSamples.getOrNull(event.index - 1)?.let { simulateVoice(it) }
+                    settingsVoiceSamples.getOrNull(event.index - 1)?.let { simulateVoice(it) }
                 }
             }
-            is FocusEvent.Back -> _screen.value = AppScreen.SCAN
+            is FocusEvent.Back -> _screen.value = homeScreen()
             else -> Unit
         }
     }
 
     private fun handleLibraryInput(input: GlassesInput) {
         if (input is GlassesInput.Back || input is GlassesInput.Left) {
-            _screen.value = AppScreen.SCAN
+            _screen.value = homeScreen()
         }
     }
 
@@ -386,6 +661,28 @@ class KScanViewModel(
 
     fun focusedIndex(): Int = when (_screen.value) {
         AppScreen.SETTINGS -> settingsNavigator.focusedIndex
+        AppScreen.CONNECTED -> connectedNavigator.focusedIndex
         else -> focusNavigator.focusedIndex
     }
+
+    companion object {
+        /** Bounded wait for the companion's action ack before the HUD errors out. */
+        const val DEFAULT_ACK_TIMEOUT_MS: Long = 3_000L
+
+        /** Recoverable error code injected by the ack watchdog. */
+        internal const val ACTION_TIMEOUT_CODE = "ACTION_TIMEOUT"
+
+        /** Maximum product rows rendered (and focusable) in the RESULTS state. */
+        internal const val MAX_RESULT_ITEMS = 5
+    }
 }
+
+/**
+ * One focusable row on the connected HUD: either a machine action (its label
+ * comes from the state metadata) or an overlay destination (Closet/Settings).
+ */
+data class ConnectedFocusItem(
+    val label: String,
+    val action: ConnectedAction? = null,
+    val destination: AppScreen? = null,
+)

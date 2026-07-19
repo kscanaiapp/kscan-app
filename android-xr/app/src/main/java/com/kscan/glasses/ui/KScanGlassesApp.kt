@@ -11,10 +11,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.kscan.glasses.phonebridge.PhoneBridgeProviderStatus
 import com.kscan.glasses.state.AppScreen
 import com.kscan.glasses.state.KScanViewModel
 import com.kscan.glasses.ui.components.RuntimeStatusHeader
 import com.kscan.glasses.ui.components.RuntimeStatusLabels
+import com.kscan.glasses.ui.screens.ConnectedHudScreen
 import com.kscan.glasses.ui.screens.ErrorScreen
 import com.kscan.glasses.ui.screens.LibraryScreen
 import com.kscan.glasses.ui.screens.ProcessingScreen
@@ -67,7 +69,7 @@ fun KScanGlassesApp(viewModel: KScanViewModel) {
                 AppScreen.SETTINGS -> SettingsScreen(
                     hasDisplay = hasDisplay,
                     focusedIndex = viewModel.focusedIndex(),
-                    voiceSamples = viewModel.voiceSamples,
+                    voiceSamples = viewModel.settingsVoiceSamples,
                     onToggleAudioOnly = { viewModel.toggleAudioOnlyMode(it) },
                     onSimulateVoice = viewModel::simulateVoice,
                 )
@@ -75,7 +77,29 @@ fun KScanGlassesApp(viewModel: KScanViewModel) {
                     message = error ?: "Unknown error",
                     onRetry = viewModel::retryFromError,
                 )
+                AppScreen.CONNECTED -> ConnectedHudDestination(viewModel, runtimeStatus)
             }
         }
     }
+}
+
+/** Connected-mode root: machine-driven HUD with the persistent honesty header. */
+@Composable
+private fun ConnectedHudDestination(
+    viewModel: KScanViewModel,
+    runtimeStatus: com.kscan.glasses.runtime.RuntimeStatus,
+) {
+    val ui by viewModel.connected.collectAsState()
+    val status by viewModel.phoneBridgeStatus.collectAsState()
+    val items by viewModel.connectedItems.collectAsState()
+    val notice by viewModel.actionNotice.collectAsState()
+    val current = ui ?: return
+    ConnectedHudScreen(
+        ui = current,
+        providerStatus = status ?: PhoneBridgeProviderStatus.UNAVAILABLE,
+        focusItems = items,
+        focusedIndex = viewModel.focusedIndex(),
+        actionNotice = notice,
+        mockBadge = RuntimeStatusLabels.resultsMockBadge(runtimeStatus),
+    )
 }

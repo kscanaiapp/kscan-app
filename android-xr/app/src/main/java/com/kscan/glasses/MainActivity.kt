@@ -41,6 +41,9 @@ class MainActivity : ComponentActivity() {
             bridge = runtime.bridge,
             orchestrator = orchestrator,
             runtimeStatus = runtime.runtimeStatus,
+            // Connected mode: the verified phone bridge drives the connected HUD;
+            // debug-disabled and release-stub providers render honest cards.
+            phoneBridge = runtime.phoneBridge,
         )
 
         setContent {

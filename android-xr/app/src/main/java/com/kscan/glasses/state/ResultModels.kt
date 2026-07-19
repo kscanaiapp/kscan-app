@@ -30,6 +30,9 @@ enum class AppScreen {
     LIBRARY,
     SETTINGS,
     ERROR,
+
+    /** Connected-runtime HUD (phone-bridge flow); active only when a provider is injected. */
+    CONNECTED,
 }
 
 data class ResultsUiState(
