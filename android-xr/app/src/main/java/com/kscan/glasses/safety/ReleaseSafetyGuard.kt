@@ -5,6 +5,8 @@ import com.kscan.glasses.analyze.AnalyzeClient
 import com.kscan.glasses.analyze.MockAnalyzeClient
 import com.kscan.glasses.bridge.GlassesBridgeProvider
 import com.kscan.glasses.bridge.MockBridgeProvider
+import com.kscan.glasses.phonebridge.PhoneBridgeProvider
+import com.kscan.glasses.phonebridge.mock.MockPhoneBridgeProvider
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 
@@ -29,6 +31,7 @@ object ReleaseSafetyGuard {
         useMockApi: Boolean = BuildConfig.USE_MOCK_API,
         useMockSanitizer: Boolean = BuildConfig.USE_MOCK_SANITIZER,
         useMockBridge: Boolean = BuildConfig.USE_MOCK_BRIDGE,
+        useMockPhoneBridge: Boolean = BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE,
     ) {
         if (isDebugBuild) {
             // Debug builds may use mock infrastructure for local development.
@@ -60,6 +63,15 @@ object ReleaseSafetyGuard {
                 "Mock bridge is not intended for production release."
             )
         }
+
+        // Release builds must never use the mock phone bridge.
+        if (useMockPhoneBridge) {
+            throw IllegalStateException(
+                "CRITICAL: Release build configured with KSCAN_DEBUG_MOCK_PHONE_BRIDGE=true. " +
+                "Mock phone bridge must never ship in a release build. " +
+                "Remove KSCAN_DEBUG_MOCK_PHONE_BRIDGE before release."
+            )
+        }
     }
 
     /**
@@ -76,10 +88,12 @@ object ReleaseSafetyGuard {
         bridge: GlassesBridgeProvider,
         sanitizer: PrivacyImageSanitizer,
         analyzeClient: AnalyzeClient,
+        phoneBridge: PhoneBridgeProvider,
         isDebugBuild: Boolean = BuildConfig.DEBUG,
         useMockApi: Boolean = BuildConfig.USE_MOCK_API,
         useMockSanitizer: Boolean = BuildConfig.USE_MOCK_SANITIZER,
         useMockBridge: Boolean = BuildConfig.USE_MOCK_BRIDGE,
+        useMockPhoneBridge: Boolean = BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE,
     ) {
         if (!isDebugBuild) {
             if (analyzeClient is MockAnalyzeClient) {
@@ -98,6 +112,12 @@ object ReleaseSafetyGuard {
                 throw IllegalStateException(
                     "CRITICAL: Release build resolved a MockBridgeProvider instance. " +
                     "Release must never fall back to mock bridge."
+                )
+            }
+            if (phoneBridge is MockPhoneBridgeProvider) {
+                throw IllegalStateException(
+                    "CRITICAL: Release build resolved a MockPhoneBridgeProvider instance. " +
+                    "Release must never fall back to mock phone bridge."
                 )
             }
         }
@@ -119,6 +139,13 @@ object ReleaseSafetyGuard {
         if (!useMockBridge && bridge is MockBridgeProvider) {
             throw IllegalStateException(
                 "Configuration mismatch: USE_MOCK_BRIDGE=false but MockBridgeProvider was injected. " +
+                "Fix the wiring; do not silently downgrade to mock."
+            )
+        }
+        if (!useMockPhoneBridge && phoneBridge is MockPhoneBridgeProvider) {
+            throw IllegalStateException(
+                "Configuration mismatch: KSCAN_DEBUG_MOCK_PHONE_BRIDGE=false but " +
+                "MockPhoneBridgeProvider was injected. " +
                 "Fix the wiring; do not silently downgrade to mock."
             )
         }

@@ -6,11 +6,17 @@ import com.kscan.glasses.analyze.MockAnalyzeClient
 import com.kscan.glasses.bridge.GlassesBridgeProvider
 import com.kscan.glasses.bridge.GoogleBridgeProvider
 import com.kscan.glasses.bridge.MockBridgeProvider
+import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
+import com.kscan.glasses.phonebridge.FutureRealPhoneBridgeProvider
+import com.kscan.glasses.phonebridge.mock.MockPhoneBridgeProvider
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.StrictPrivacyImageSanitizer
 import com.kscan.glasses.state.AnalyzeResponse
 import com.kscan.glasses.state.NonFashionAnalyzeResult
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -33,6 +39,7 @@ class ReleaseSafetyGuardTest {
             useMockApi = true,
             useMockSanitizer = true,
             useMockBridge = true,
+            useMockPhoneBridge = true,
         )
     }
 
@@ -43,6 +50,7 @@ class ReleaseSafetyGuardTest {
             useMockApi = false,
             useMockSanitizer = false,
             useMockBridge = false,
+            useMockPhoneBridge = false,
         )
     }
 
@@ -76,6 +84,17 @@ class ReleaseSafetyGuardTest {
         )
     }
 
+    @Test(expected = IllegalStateException::class)
+    fun `release mock phone bridge flag is rejected`() {
+        ReleaseSafetyGuard.verify(
+            isDebugBuild = false,
+            useMockApi = false,
+            useMockSanitizer = false,
+            useMockBridge = false,
+            useMockPhoneBridge = true,
+        )
+    }
+
     // ---------- Instance-level checks ----------
 
     @Test
@@ -84,10 +103,12 @@ class ReleaseSafetyGuardTest {
             bridge = realBridge,
             sanitizer = strictSanitizer,
             analyzeClient = nonMockAnalyzeClient,
+            phoneBridge = FutureRealPhoneBridgeProvider(),
             isDebugBuild = false,
             useMockApi = false,
             useMockSanitizer = false,
             useMockBridge = false,
+            useMockPhoneBridge = false,
         )
     }
 
@@ -97,10 +118,12 @@ class ReleaseSafetyGuardTest {
             bridge = realBridge,
             sanitizer = strictSanitizer,
             analyzeClient = MockAnalyzeClient(),
+            phoneBridge = FutureRealPhoneBridgeProvider(),
             isDebugBuild = false,
             useMockApi = false,
             useMockSanitizer = false,
             useMockBridge = false,
+            useMockPhoneBridge = false,
         )
     }
 
@@ -110,10 +133,12 @@ class ReleaseSafetyGuardTest {
             bridge = realBridge,
             sanitizer = MockPrivacyImageSanitizer(),
             analyzeClient = nonMockAnalyzeClient,
+            phoneBridge = FutureRealPhoneBridgeProvider(),
             isDebugBuild = false,
             useMockApi = false,
             useMockSanitizer = false,
             useMockBridge = false,
+            useMockPhoneBridge = false,
         )
     }
 
@@ -123,11 +148,33 @@ class ReleaseSafetyGuardTest {
             bridge = MockBridgeProvider(),
             sanitizer = strictSanitizer,
             analyzeClient = nonMockAnalyzeClient,
+            phoneBridge = FutureRealPhoneBridgeProvider(),
             isDebugBuild = false,
             useMockApi = false,
             useMockSanitizer = false,
             useMockBridge = false,
+            useMockPhoneBridge = false,
         )
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `release cannot silently fall back to mock phone bridge instance`() {
+        val phoneBridge = MockPhoneBridgeProvider.create(parentScope = testScope())
+        try {
+            ReleaseSafetyGuard.verifyDependencies(
+                bridge = realBridge,
+                sanitizer = strictSanitizer,
+                analyzeClient = nonMockAnalyzeClient,
+                phoneBridge = phoneBridge,
+                isDebugBuild = false,
+                useMockApi = false,
+                useMockSanitizer = false,
+                useMockBridge = false,
+                useMockPhoneBridge = false,
+            )
+        } finally {
+            phoneBridge.close()
+        }
     }
 
     @Test(expected = IllegalStateException::class)
@@ -136,10 +183,12 @@ class ReleaseSafetyGuardTest {
             bridge = MockBridgeProvider(),
             sanitizer = MockPrivacyImageSanitizer(),
             analyzeClient = MockAnalyzeClient(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             isDebugBuild = true,
             useMockApi = true,
             useMockSanitizer = false, // flag claims strict; instance is mock
             useMockBridge = true,
+            useMockPhoneBridge = false,
         )
     }
 
@@ -149,10 +198,12 @@ class ReleaseSafetyGuardTest {
             bridge = MockBridgeProvider(),
             sanitizer = MockPrivacyImageSanitizer(),
             analyzeClient = MockAnalyzeClient(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             isDebugBuild = true,
             useMockApi = false, // flag claims strict; instance is mock
             useMockSanitizer = true,
             useMockBridge = true,
+            useMockPhoneBridge = false,
         )
     }
 
@@ -162,24 +213,53 @@ class ReleaseSafetyGuardTest {
             bridge = MockBridgeProvider(),
             sanitizer = MockPrivacyImageSanitizer(),
             analyzeClient = MockAnalyzeClient(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             isDebugBuild = true,
             useMockApi = true,
             useMockSanitizer = true,
             useMockBridge = false, // flag claims strict; instance is mock
+            useMockPhoneBridge = false,
         )
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `strict phone bridge flag with mock phone bridge instance fails fast`() {
+        val phoneBridge = MockPhoneBridgeProvider.create(parentScope = testScope())
+        try {
+            ReleaseSafetyGuard.verifyDependencies(
+                bridge = MockBridgeProvider(),
+                sanitizer = MockPrivacyImageSanitizer(),
+                analyzeClient = MockAnalyzeClient(),
+                phoneBridge = phoneBridge,
+                isDebugBuild = true,
+                useMockApi = true,
+                useMockSanitizer = true,
+                useMockBridge = true,
+                useMockPhoneBridge = false, // flag claims strict; instance is mock
+            )
+        } finally {
+            phoneBridge.close()
+        }
     }
 
     @Test
     fun `debug mock profile with mock instances passes dependency verification`() {
-        ReleaseSafetyGuard.verifyDependencies(
-            bridge = MockBridgeProvider(),
-            sanitizer = MockPrivacyImageSanitizer(),
-            analyzeClient = MockAnalyzeClient(),
-            isDebugBuild = true,
-            useMockApi = true,
-            useMockSanitizer = true,
-            useMockBridge = true,
-        )
+        val phoneBridge = MockPhoneBridgeProvider.create(parentScope = testScope())
+        try {
+            ReleaseSafetyGuard.verifyDependencies(
+                bridge = MockBridgeProvider(),
+                sanitizer = MockPrivacyImageSanitizer(),
+                analyzeClient = MockAnalyzeClient(),
+                phoneBridge = phoneBridge,
+                isDebugBuild = true,
+                useMockApi = true,
+                useMockSanitizer = true,
+                useMockBridge = true,
+                useMockPhoneBridge = true,
+            )
+        } finally {
+            phoneBridge.close()
+        }
     }
 
     @Test
@@ -190,11 +270,16 @@ class ReleaseSafetyGuardTest {
             bridge = MockBridgeProvider(),
             sanitizer = strictSanitizer,
             analyzeClient = MockAnalyzeClient(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             isDebugBuild = true,
             useMockApi = true,
             useMockSanitizer = false,
             useMockBridge = true,
+            useMockPhoneBridge = false,
         )
         assertTrue(true)
     }
+
+    private fun testScope(): CoroutineScope =
+        CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher())
 }

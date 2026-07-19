@@ -3,6 +3,9 @@ package com.kscan.glasses.runtime
 import com.kscan.glasses.analyze.MockAnalyzeClient
 import com.kscan.glasses.bridge.GoogleBridgeProvider
 import com.kscan.glasses.bridge.MockBridgeProvider
+import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
+import com.kscan.glasses.phonebridge.FutureRealPhoneBridgeProvider
+import com.kscan.glasses.phonebridge.mock.MockPhoneBridgeProvider
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.StrictPrivacyImageSanitizer
 import org.junit.Assert.assertEquals
@@ -17,6 +20,15 @@ class AppRuntimeFactoryTest {
         useMockBridge = true,
         useMockApi = true,
         useMockSanitizer = true,
+        useMockPhoneBridge = false,
+    )
+
+    private val debugMockPhoneBridgeProfile = RuntimeProfile(
+        isDebugBuild = true,
+        useMockBridge = true,
+        useMockApi = true,
+        useMockSanitizer = true,
+        useMockPhoneBridge = true,
     )
 
     private val debugStrictPrivacyProfile = RuntimeProfile(
@@ -24,6 +36,7 @@ class AppRuntimeFactoryTest {
         useMockBridge = true,
         useMockApi = true,
         useMockSanitizer = false,
+        useMockPhoneBridge = false,
     )
 
     private val releaseProfile = RuntimeProfile(
@@ -31,6 +44,7 @@ class AppRuntimeFactoryTest {
         useMockBridge = false,
         useMockApi = false,
         useMockSanitizer = false,
+        useMockPhoneBridge = false,
     )
 
     @Test
@@ -81,5 +95,34 @@ class AppRuntimeFactoryTest {
     @Test(expected = IllegalStateException::class)
     fun `release profile with mock bridge flag throws instead of falling back`() {
         AppRuntimeFactory.resolve(profile = releaseProfile.copy(useMockBridge = true))
+    }
+
+    // ----- phone bridge provider selection -----
+
+    @Test
+    fun `debug profile without the flag resolves the disabled phone bridge`() {
+        val resolved = AppRuntimeFactory.resolve(profile = debugMockProfile)
+
+        assertTrue(resolved.phoneBridge is DisabledPhoneBridgeProvider)
+    }
+
+    @Test
+    fun `debug profile with the flag resolves the mock phone bridge`() {
+        val resolved = AppRuntimeFactory.resolve(profile = debugMockPhoneBridgeProfile)
+
+        assertTrue(resolved.phoneBridge is MockPhoneBridgeProvider)
+        resolved.phoneBridge.close()
+    }
+
+    @Test
+    fun `release profile resolves the fail-safe future real phone bridge`() {
+        val resolved = AppRuntimeFactory.resolve(profile = releaseProfile)
+
+        assertTrue(resolved.phoneBridge is FutureRealPhoneBridgeProvider)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `release profile with mock phone bridge flag throws instead of falling back`() {
+        AppRuntimeFactory.resolve(profile = releaseProfile.copy(useMockPhoneBridge = true))
     }
 }

@@ -54,9 +54,10 @@ data class RuntimeProfile(
     val useMockBridge: Boolean,
     val useMockApi: Boolean,
     val useMockSanitizer: Boolean,
+    val useMockPhoneBridge: Boolean,
 ) {
     val anyMock: Boolean
-        get() = useMockBridge || useMockApi || useMockSanitizer
+        get() = useMockBridge || useMockApi || useMockSanitizer || useMockPhoneBridge
 
     companion object {
         fun fromBuildConfig(): RuntimeProfile = RuntimeProfile(
@@ -64,6 +65,7 @@ data class RuntimeProfile(
             useMockBridge = BuildConfig.USE_MOCK_BRIDGE,
             useMockApi = BuildConfig.USE_MOCK_API,
             useMockSanitizer = BuildConfig.USE_MOCK_SANITIZER,
+            useMockPhoneBridge = BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE,
         )
     }
 }

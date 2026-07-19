@@ -57,6 +57,12 @@ android {
         buildConfigField("String", "KSCAN_DEBUG_ANALYZE_URL", "\"$debugAnalyzeUrl\"")
         buildConfigField("boolean", "KSCAN_DEBUG_ANALYZE_DRY_RUN", "$debugAnalyzeDryRun")
 
+        // Debug-only phone bridge mock. SAFE DEFAULT: false in every build type.
+        // Opt in for local development by setting KSCAN_DEBUG_MOCK_PHONE_BRIDGE=true
+        // in gitignored local.properties. Honored only in debug builds; a release
+        // build with this flag true fails fast in ReleaseSafetyGuard.verify().
+        buildConfigField("boolean", "KSCAN_DEBUG_MOCK_PHONE_BRIDGE", "${debugPropertyBoolean("KSCAN_DEBUG_MOCK_PHONE_BRIDGE")}")
+
         // Debug defaults: mock infrastructure is allowed for local development without hardware.
         buildConfigField("boolean", "USE_MOCK_BRIDGE", "true")
         buildConfigField("boolean", "USE_MOCK_API", "true")

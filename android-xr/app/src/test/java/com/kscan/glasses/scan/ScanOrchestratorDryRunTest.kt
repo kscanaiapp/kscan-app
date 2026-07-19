@@ -6,7 +6,7 @@ import com.kscan.glasses.analyze.AnalyzeClientConfig
 import com.kscan.glasses.analyze.AnalyzeRequest
 import com.kscan.glasses.analyze.DebugAnalyzeConfig
 import com.kscan.glasses.config.BetaConfig
-import com.kscan.glasses.mobilebridge.MockMobileAppBridge
+import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
 import com.kscan.glasses.privacy.CompressFailure
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
@@ -49,7 +49,7 @@ class ScanOrchestratorDryRunTest {
         return ScanOrchestrator(
             sanitizer = sanitizer,
             analyzeClient = analyzeClient,
-            mobileBridge = MockMobileAppBridge(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             config = betaConfig,
             clientConfig = clientConfig,
             debugConfig = debugConfig,
@@ -146,7 +146,7 @@ class ScanOrchestratorDryRunTest {
         val orchestrator = ScanOrchestrator(
             sanitizer = MockPrivacyImageSanitizer(),
             analyzeClient = com.kscan.glasses.analyze.MockAnalyzeClient(),
-            mobileBridge = MockMobileAppBridge(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             config = BetaConfig.DEFAULT,
             ioDispatcher = UnconfinedTestDispatcher(testScheduler),
         )

@@ -13,7 +13,7 @@ import com.kscan.glasses.bridge.DeviceCapabilities
 import com.kscan.glasses.bridge.DeviceState
 import com.kscan.glasses.bridge.GlassesBridgeProvider
 import com.kscan.glasses.config.BetaConfig
-import com.kscan.glasses.mobilebridge.MockMobileAppBridge
+import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
@@ -46,7 +46,7 @@ class KScanViewModelTest {
         val orchestrator = ScanOrchestrator(
             sanitizer = sanitizer,
             analyzeClient = analyzeClient,
-            mobileBridge = MockMobileAppBridge(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             config = BetaConfig.DEFAULT,
             ioDispatcher = UnconfinedTestDispatcher(),
         )
@@ -398,7 +398,7 @@ class KScanViewModelTest {
         val orchestrator = ScanOrchestrator(
             sanitizer = MockPrivacyImageSanitizer(),
             analyzeClient = mockk(relaxed = true),
-            mobileBridge = MockMobileAppBridge(),
+            phoneBridge = DisabledPhoneBridgeProvider(),
             config = BetaConfig(
                 useMockApi = false,
                 enableRealAnalyze = true,

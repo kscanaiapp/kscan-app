@@ -3,7 +3,7 @@ package com.kscan.glasses.scan
 import com.kscan.glasses.analyze.AnalyzeClient
 import com.kscan.glasses.analyze.AnalyzeRequest
 import com.kscan.glasses.config.BetaConfig
-import com.kscan.glasses.mobilebridge.MockMobileAppBridge
+import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
@@ -43,7 +43,7 @@ class ScanOrchestratorStrictPrivacyTest {
     ): ScanOrchestrator = ScanOrchestrator(
         sanitizer = sanitizer,
         analyzeClient = analyzeClient,
-        mobileBridge = MockMobileAppBridge(),
+        phoneBridge = DisabledPhoneBridgeProvider(),
         config = BetaConfig.DEFAULT,
         ioDispatcher = dispatcher,
     )

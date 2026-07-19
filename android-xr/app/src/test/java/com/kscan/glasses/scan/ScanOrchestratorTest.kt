@@ -3,8 +3,9 @@ package com.kscan.glasses.scan
 import com.kscan.glasses.analyze.AnalyzeClient
 import com.kscan.glasses.analyze.MockAnalyzeClient
 import com.kscan.glasses.config.BetaConfig
-import com.kscan.glasses.mobilebridge.MobileAppBridge
-import com.kscan.glasses.mobilebridge.MockMobileAppBridge
+import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
+import com.kscan.glasses.phonebridge.PhoneBridgeProvider
+import com.kscan.glasses.phonebridge.PhoneBridgeSendResult
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import kotlinx.coroutines.Dispatchers
@@ -19,14 +20,14 @@ class ScanOrchestratorTest {
     private fun createOrchestrator(
         sanitizer: PrivacyImageSanitizer = MockPrivacyImageSanitizer(),
         analyzeClient: AnalyzeClient = MockAnalyzeClient(),
-        mobileBridge: MobileAppBridge = MockMobileAppBridge(),
+        phoneBridge: PhoneBridgeProvider = DisabledPhoneBridgeProvider(),
         config: BetaConfig = BetaConfig.DEFAULT,
         dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Unconfined,
     ): ScanOrchestrator {
         return ScanOrchestrator(
             sanitizer = sanitizer,
             analyzeClient = analyzeClient,
-            mobileBridge = mobileBridge,
+            phoneBridge = phoneBridge,
             config = config,
             ioDispatcher = dispatcher,
         )
@@ -106,22 +107,23 @@ class ScanOrchestratorTest {
     }
 
     @Test
-    fun `save and open handoff actions can be generated from result`() = runTest {
-        val mobileBridge = MockMobileAppBridge()
-        val orchestrator = createOrchestrator(mobileBridge = mobileBridge, dispatcher = UnconfinedTestDispatcher(testScheduler))
+    fun `save and open handoff actions fail safe when bridge is disabled`() = runTest {
+        val phoneBridge = DisabledPhoneBridgeProvider()
+        val orchestrator = createOrchestrator(phoneBridge = phoneBridge, dispatcher = UnconfinedTestDispatcher(testScheduler))
         val input = ScanInput(base64 = "mock", mimeType = "image/jpeg")
 
         val result = orchestrator.run(input)
         assertTrue(result is ScanOrchestratorResult.Success)
 
-        // Simulate handoff actions
+        // Handoff actions route through the provider seam; a disabled bridge
+        // reports a controlled result instead of throwing.
         val success = result as ScanOrchestratorResult.Success
         val firstProduct = success.result.products.first()
-        val saveResult = mobileBridge.requestSave(firstProduct.id, firstProduct.name)
-        assertTrue(saveResult is com.kscan.glasses.mobilebridge.MobileAppBridgeResult.Success)
+        val saveResult = phoneBridge.saveResult(firstProduct.id, firstProduct.name)
+        assertTrue(saveResult is PhoneBridgeSendResult.Disabled)
 
-        val openResult = mobileBridge.requestOpen("result-123")
-        assertTrue(openResult is com.kscan.glasses.mobilebridge.MobileAppBridgeResult.Success)
+        val openResult = phoneBridge.openOnPhone("result-123")
+        assertTrue(openResult is PhoneBridgeSendResult.Disabled)
     }
 
     @Test

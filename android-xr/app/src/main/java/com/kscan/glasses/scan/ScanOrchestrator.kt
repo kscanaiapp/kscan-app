@@ -9,7 +9,7 @@ import com.kscan.glasses.analyze.DebugAnalyzeConfig
 import com.kscan.glasses.analyze.DryRunGateResult
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.config.SafeLog
-import com.kscan.glasses.mobilebridge.MobileAppBridge
+import com.kscan.glasses.phonebridge.PhoneBridgeProvider
 import com.kscan.glasses.privacy.CompressFailure
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
@@ -21,14 +21,14 @@ import kotlinx.coroutines.withContext
 
 /**
  * App-level scan orchestrator that wires the full pipeline:
- * input → resize/compress → sanitizer → data URL encoder → analyze client → HUD result → mobile bridge actions.
+ * input → resize/compress → sanitizer → data URL encoder → analyze client → HUD result → phone bridge actions.
  *
  * All heavy work runs on the injected IO dispatcher. No UI thread blocking.
  */
 class ScanOrchestrator(
     private val sanitizer: PrivacyImageSanitizer,
     private val analyzeClient: AnalyzeClient,
-    private val mobileBridge: MobileAppBridge,
+    private val phoneBridge: PhoneBridgeProvider,
     private val config: BetaConfig,
     private val clientConfig: AnalyzeClientConfig = AnalyzeClientConfig.MOCK_ONLY,
     private val debugConfig: DebugAnalyzeConfig = DebugAnalyzeConfig.DEFAULT,

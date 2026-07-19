@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
             config = runtime.betaConfig,
             sanitizer = runtime.sanitizer,
             analyzeClient = runtime.analyzeClient,
-            mobileBridge = runtime.mobileBridge,
+            phoneBridge = runtime.phoneBridge,
             clientConfig = runtime.clientConfig,
             debugConfig = runtime.debugConfig,
         )

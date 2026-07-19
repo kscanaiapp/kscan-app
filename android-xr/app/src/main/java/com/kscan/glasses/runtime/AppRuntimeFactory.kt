@@ -9,8 +9,10 @@ import com.kscan.glasses.bridge.GlassesBridgeProvider
 import com.kscan.glasses.bridge.GoogleBridgeProvider
 import com.kscan.glasses.bridge.MockBridgeProvider
 import com.kscan.glasses.config.BetaConfig
-import com.kscan.glasses.mobilebridge.MobileAppBridge
-import com.kscan.glasses.mobilebridge.MockMobileAppBridge
+import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
+import com.kscan.glasses.phonebridge.FutureRealPhoneBridgeProvider
+import com.kscan.glasses.phonebridge.PhoneBridgeProvider
+import com.kscan.glasses.phonebridge.mock.MockPhoneBridgeProvider
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizerFactory
 import com.kscan.glasses.privacy.SanitizerMode
@@ -27,11 +29,15 @@ import com.kscan.glasses.safety.ReleaseSafetyGuard
  *
  * Profiles:
  * - Debug mock profile (default): mock bridge, mock sanitizer, mock analyze client;
- *   labeled MOCK in the UI.
+ *   labeled MOCK in the UI. Phone bridge is DISABLED unless explicitly enabled.
+ * - Debug mock-phone-bridge profile (KSCAN_DEBUG_MOCK_PHONE_BRIDGE=true in
+ *   gitignored local.properties): adds the in-memory mock phone companion.
  * - Debug strict-privacy profile (KSCAN_DEBUG_USE_MOCK_SANITIZER=false): strict
  *   sanitizer; upload fails closed while face masking is unavailable in this build.
- * - Release: Google bridge stub, strict sanitizer, fail-closed real analyze client.
- *   No mock API, no mock sanitizer, no mock bridge, no silent fallback.
+ * - Release: Google bridge stub, strict sanitizer, fail-closed real analyze client,
+ *   fail-safe future-real phone bridge stub (reports bridge-unavailable).
+ *   No mock API, no mock sanitizer, no mock bridge, no mock phone bridge,
+ *   no silent fallback.
  */
 object AppRuntimeFactory {
 
@@ -40,7 +46,7 @@ object AppRuntimeFactory {
         val bridge: GlassesBridgeProvider,
         val sanitizer: PrivacyImageSanitizer,
         val analyzeClient: AnalyzeClient,
-        val mobileBridge: MobileAppBridge,
+        val phoneBridge: PhoneBridgeProvider,
         val betaConfig: BetaConfig,
         val clientConfig: AnalyzeClientConfig,
         val debugConfig: DebugAnalyzeConfig,
@@ -59,6 +65,7 @@ object AppRuntimeFactory {
             useMockApi = profile.useMockApi,
             useMockSanitizer = profile.useMockSanitizer,
             useMockBridge = profile.useMockBridge,
+            useMockPhoneBridge = profile.useMockPhoneBridge,
         )
 
         // 2. Bridge: mock only when the profile permits it (debug mock profile).
@@ -95,24 +102,34 @@ object AppRuntimeFactory {
                 )
         }
 
-        // Phone-handoff bridge remains an in-memory placeholder in every profile;
-        // no real transport exists yet and no scan result can exist without analyze.
-        val mobileBridge: MobileAppBridge = MockMobileAppBridge()
+        // 5. Phone bridge: the versioned phonebridge layer behind exactly three
+        // providers. The mock companion is selected ONLY for debug builds that
+        // explicitly opt in via BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE
+        // (default false, set in gitignored local.properties). Release always
+        // resolves the fail-safe future-real stub; the flag-level guard above
+        // has already thrown if a release build ever sets the mock flag.
+        val phoneBridge: PhoneBridgeProvider = when {
+            profile.isDebugBuild && profile.useMockPhoneBridge -> MockPhoneBridgeProvider.create()
+            profile.isDebugBuild -> DisabledPhoneBridgeProvider()
+            else -> FutureRealPhoneBridgeProvider()
+        }
 
-        // 5. Instance-level verification: fail fast when configuration and the
+        // 6. Instance-level verification: fail fast when configuration and the
         // injected dependency instances disagree. Never convert a release
         // misconfiguration into a mock result.
         ReleaseSafetyGuard.verifyDependencies(
             bridge = bridge,
             sanitizer = sanitizer,
             analyzeClient = analyzeClient,
+            phoneBridge = phoneBridge,
             isDebugBuild = profile.isDebugBuild,
             useMockApi = profile.useMockApi,
             useMockSanitizer = profile.useMockSanitizer,
             useMockBridge = profile.useMockBridge,
+            useMockPhoneBridge = profile.useMockPhoneBridge,
         )
 
-        // 6. Explicit runtime state for the UI, derived from resolved instances.
+        // 7. Explicit runtime state for the UI, derived from resolved instances.
         val runtimeStatus = RuntimeStatus(
             state = RuntimeStateResolver.resolve(
                 bridge = bridge,
@@ -129,7 +146,7 @@ object AppRuntimeFactory {
             bridge = bridge,
             sanitizer = sanitizer,
             analyzeClient = analyzeClient,
-            mobileBridge = mobileBridge,
+            phoneBridge = phoneBridge,
             betaConfig = effectiveBeta,
             clientConfig = clientConfig,
             debugConfig = debugConfig,
