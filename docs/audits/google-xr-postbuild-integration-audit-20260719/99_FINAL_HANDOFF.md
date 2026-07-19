@@ -6,7 +6,7 @@
 PASS WITH CONDITIONS — IMPLEMENTATION AND EMULATOR VERIFIED; LISTED BACKEND, SESSION, OR PHYSICAL XR GATES REMAIN
 ```
 
-**Emulator→`10.0.2.2` E2E blocker (this session):** after cold restart, `emulator-5554` repeatedly lost `package`/`activity` services (`cmd: Can't find service: package`), so the committed-HEAD APK could not be reinstalled for a fresh token-gated UI round trip.  
+**Emulator→`10.0.2.2` E2E blocker (this session):** after cold restart, `emulator-5554` repeatedly lost `package`/`activity` services (`cmd: Can't find service: package`), so the committed-HEAD APK could not be reinstalled for a fresh token-gated UI round trip.
 
 **Backend debug path evidence that did complete:**
 
@@ -27,14 +27,14 @@ Not physical XR. Not live upstream. Not production ready.
 | Target branch | `feature/glasses-xr-native-standalone` |
 | Starting HEAD (audit branch fork) | `d636ad8503d98f06f5bab4b4268cb1528bc232e8` |
 | Builder baseline | `497c583f9ca68ede1703c1199c16470a758afa74` |
-| Final HEAD | *(see git after docs commit — filled in commit message / log)* |
+| Final HEAD | a6d989c6b154d33f6f489c5699f7b7d88af46785 |
 | Worktree | Must be clean after docs commit |
 
 ### Logical commits (audit repairs)
 
 1. `fix(xr): repair runtime credential and capture wiring` — `505084d`
 2. `fix(xr-network): repair debug endpoint and upstream analyze contracts` — `9ab27a2`
-3. `docs(xr): update setup and post-build audit evidence` — *(this pack)*
+3. `docs(xr): update setup and post-build audit evidence` — a6d989c
 
 Plus prior builder commits `09787e8`…`d636ad8` already on the branch ancestry.
 

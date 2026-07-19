@@ -1,9 +1,9 @@
 # 01 — Build Report Reconciliation
 
-**Workspace:** `C:\Users\jsmit\kscan-google-glasses-canonical`  
-**Audit branch:** `audit/google-xr-postbuild-integration-repair-20260719`  
-**Starting HEAD (builder candidate):** `d636ad8503d98f06f5bab4b4268cb1528bc232e8`  
-**Original baseline:** `497c583f9ca68ede1703c1199c16470a758afa74` (`feature/glasses-xr-native-standalone`)  
+**Workspace:** `C:\Users\jsmit\kscan-google-glasses-canonical`
+**Audit branch:** `audit/google-xr-postbuild-integration-repair-20260719`
+**Starting HEAD (builder candidate):** `d636ad8503d98f06f5bab4b4268cb1528bc232e8`
+**Original baseline:** `497c583f9ca68ede1703c1199c16470a758afa74` (`feature/glasses-xr-native-standalone`)
 **Date:** 2026-07-19
 
 ## Preflight (Phase 0)
