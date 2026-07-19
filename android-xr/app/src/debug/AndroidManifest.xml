@@ -14,5 +14,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <application android:networkSecurityConfig="@xml/network_security_config" />
+    <application android:networkSecurityConfig="@xml/network_security_config">
+        <!--
+          Debug-only emulator-validation seam. Non-exported; double-gated at
+          runtime (mock-bridge flag + mock provider instance). Never merged
+          into release builds.
+        -->
+        <receiver
+            android:name=".MockScenarioReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.kscan.glasses.action.MOCK_SCENARIO" />
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>

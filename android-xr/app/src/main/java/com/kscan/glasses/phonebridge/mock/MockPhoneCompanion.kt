@@ -68,6 +68,23 @@ class MockPhoneCompanion(
     /** When true, every action.* is answered with a recoverable ACTION_REJECTED error. */
     var rejectActions: Boolean = false
 
+    /**
+     * When true, the companion drives the happy path itself: pairing approval is
+     * followed by session.ready, and capture/retry requests get a full scan
+     * burst (processing → progress → completed → result.show). Emulator-only;
+     * tests keep the default false for deterministic, explicitly-driven flows.
+     */
+    var autopilot: Boolean = false
+
+    /** One-shot: the next autopilot scan fails with BACKEND_UNAVAILABLE. */
+    var failNextScan: Boolean = false
+
+    /** One-shot: the next autopilot scan sends its completion twice. */
+    var duplicateNextCompletion: Boolean = false
+
+    /** One-shot: the next autopilot scan stalls after scan.processing. */
+    var holdNextScan: Boolean = false
+
     private var idCounter = 0
 
     /** Sequential id factory: next("req") → req-1, req-2, ... */
@@ -118,6 +135,7 @@ class MockPhoneCompanion(
                 payload = PairApprovedPayload(sessionExpiresAt = clock() + sessionTtlMs),
             ),
         )
+        if (autopilot) sendSessionReady()
     }
 
     suspend fun denyPairing(
@@ -219,6 +237,36 @@ class MockPhoneCompanion(
                 payload = CaptureCompletedPayload(captureId = captureId, captureRef = "ref-$captureId"),
             ),
         )
+        if (autopilot) runAutopilotScan()
+    }
+
+    /**
+     * Autopilot scan burst: processing → progress stages → completed →
+     * result.show, honoring the one-shot fault flags. A held scan stops after
+     * scan.processing so cancel and connection-loss scenarios can be driven.
+     */
+    private suspend fun runAutopilotScan() {
+        val scanId = nextId("scan")
+        val resultId = nextId("res")
+        sendScanProcessing(scanId)
+        if (failNextScan) {
+            failNextScan = false
+            sendScanFailed(scanId, ScanErrorCode.BACKEND_UNAVAILABLE)
+            return
+        }
+        if (holdNextScan) {
+            holdNextScan = false
+            return
+        }
+        sendScanProgress(scanId, ScanStage.PRIVACY_PROCESSING, 25)
+        sendScanProgress(scanId, ScanStage.ANALYZING, 60)
+        sendScanProgress(scanId, ScanStage.MATCHING, 90)
+        sendScanCompleted(scanId, resultId)
+        if (duplicateNextCompletion) {
+            duplicateNextCompletion = false
+            sendScanCompleted(scanId, resultId) // validator must reject DUPLICATE_EVENT
+        }
+        sendResultShow(resultId)
     }
 
     // ----- scan -----
@@ -369,7 +417,7 @@ class MockPhoneCompanion(
     suspend fun ackRetry(action: PhoneBridgeMessage.ActionRetry) {
         if (rejectActionIfConfigured()) return
         if (emitSessionRevokedErrorIfRevoked()) return
-        sendScanProcessing(nextId("scan"))
+        if (autopilot) runAutopilotScan() else sendScanProcessing(nextId("scan"))
     }
 
     /** Action ack: cancel → scan.failed with CANCELLED for the cancelled scan. */
