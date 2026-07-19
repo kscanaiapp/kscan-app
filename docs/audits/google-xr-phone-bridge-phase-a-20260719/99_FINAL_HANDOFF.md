@@ -17,8 +17,7 @@ AND PRODUCTION SESSION GATES REMAIN
 | Builder HEAD (start) | `9996d0637267caf93d63b65eedd514878f269370` |
 | Audit repair commit | `218c9f8` |
 | Docs alignment commit | `633dbb9` |
-| Final local HEAD | `6a8d3d0b88ceacb09a4776601bf0f5e5064d2e59` |
-| Final remote HEAD | `6a8d3d0b88ceacb09a4776601bf0f5e5064d2e59` (after push) |
+| Branch tip | `git rev-parse HEAD` must equal `git rev-parse origin/feature/google-xr-phone-bridge-phase-a` |
 | Integration target | `feature/glasses-xr-native-standalone` (**not merged**) |
 | Merge base | `d29344949a5e7406a4b759a09ce03a5d199064af` |
 
