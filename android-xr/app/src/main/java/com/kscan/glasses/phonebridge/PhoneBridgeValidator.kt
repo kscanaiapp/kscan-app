@@ -69,6 +69,10 @@ class PhoneBridgeValidator(
     private val terminalCaptureIds = mutableSetOf<String>()
     private val terminalScanIds = mutableSetOf<String>()
     private val shownResultKeys = mutableSetOf<String>()
+    /** resultIds accepted via result.show; required for result.update. */
+    private val knownResultIds = mutableSetOf<String>()
+    /** Dedup keys for result.update (`resultId:revision`). */
+    private val acceptedResultUpdateKeys = mutableSetOf<String>()
 
     /**
      * Validates an inbound raw frame. Never throws; every failure mode maps to
@@ -156,15 +160,38 @@ class PhoneBridgeValidator(
         }
         message.expiresAt?.let { if (it < now) return BridgeRejectCode.STALE_MESSAGE }
 
-        val isPairFamily = message is PhoneBridgeMessage.PairRequest ||
-            message is PhoneBridgeMessage.PairApproved ||
+        val isPairReply = message is PhoneBridgeMessage.PairApproved ||
             message is PhoneBridgeMessage.PairDenied ||
             message is PhoneBridgeMessage.PairExpired
+        val isPairFamily = message is PhoneBridgeMessage.PairRequest || isPairReply
 
         if (message is PhoneBridgeMessage.PairRequest) {
             // Empty sessionId is allowed ONLY here — no session exists yet.
             if (message.sessionId != PhoneBridgeProtocol.NO_SESSION) {
                 return BridgeRejectCode.INVALID_MESSAGE
+            }
+        }
+
+        if (isPairReply) {
+            // An active (non-revoked) session cannot be silently replaced by a
+            // correlated pair.* reply — revoke first, then re-pair.
+            if (currentSessionId != null && !sessionRevoked) {
+                return BridgeRejectCode.INVALID_MESSAGE
+            }
+            // After a peer is learned, pair replies must still come from that
+            // peer until the session is revoked (re-pair may introduce a new peer).
+            val peer = peerDeviceId
+            if (peer != null && !sessionRevoked && message.deviceId != peer) {
+                return BridgeRejectCode.WRONG_DEVICE
+            }
+            if (message is PhoneBridgeMessage.PairApproved) {
+                val expiresAt = message.payload.sessionExpiresAt
+                if (expiresAt <= message.timestamp) {
+                    return BridgeRejectCode.INVALID_MESSAGE
+                }
+                if (expiresAt - message.timestamp > PhoneBridgeProtocol.MAX_SESSION_DURATION_MS) {
+                    return BridgeRejectCode.INVALID_MESSAGE
+                }
             }
         }
 
@@ -210,6 +237,13 @@ class PhoneBridgeValidator(
                 if (message.payload.scanId in terminalScanIds) return BridgeRejectCode.DUPLICATE_EVENT
             is PhoneBridgeMessage.ResultShow ->
                 if (resultShowKey(message) in shownResultKeys) return BridgeRejectCode.DUPLICATE_EVENT
+            is PhoneBridgeMessage.ResultUpdate -> {
+                val resultId = message.payload.result.resultId
+                if (resultId !in knownResultIds) return BridgeRejectCode.INVALID_MESSAGE
+                if (resultUpdateKey(message) in acceptedResultUpdateKeys) {
+                    return BridgeRejectCode.DUPLICATE_EVENT
+                }
+            }
             else -> Unit
         }
 
@@ -283,6 +317,8 @@ class PhoneBridgeValidator(
                 terminalCaptureIds.clear()
                 terminalScanIds.clear()
                 shownResultKeys.clear()
+                knownResultIds.clear()
+                acceptedResultUpdateKeys.clear()
             }
             is PhoneBridgeMessage.PairDenied,
             is PhoneBridgeMessage.PairExpired,
@@ -292,6 +328,8 @@ class PhoneBridgeValidator(
                 sessionReady = false
                 sessionRevoked = true
                 pendingRequestIds.clear()
+                knownResultIds.clear()
+                acceptedResultUpdateKeys.clear()
             }
             is PhoneBridgeMessage.CaptureStarted -> Unit // requestId stays pending until terminal
             is PhoneBridgeMessage.CaptureCompleted -> {
@@ -311,13 +349,23 @@ class PhoneBridgeValidator(
                 processingScanIds.remove(message.payload.scanId)
                 terminalScanIds.add(message.payload.scanId)
             }
-            is PhoneBridgeMessage.ResultShow -> shownResultKeys.add(resultShowKey(message))
+            is PhoneBridgeMessage.ResultShow -> {
+                shownResultKeys.add(resultShowKey(message))
+                knownResultIds.add(message.payload.result.resultId)
+            }
+            is PhoneBridgeMessage.ResultUpdate -> {
+                knownResultIds.add(message.payload.result.resultId)
+                acceptedResultUpdateKeys.add(resultUpdateKey(message))
+            }
             else -> Unit
         }
     }
 
     private fun resultShowKey(message: PhoneBridgeMessage.ResultShow): String =
         message.requestId + ":" + message.payload.result.resultId
+
+    private fun resultUpdateKey(message: PhoneBridgeMessage.ResultUpdate): String =
+        message.payload.result.resultId + ":" + message.payload.revision
 
     private fun reject(code: BridgeRejectCode): ValidationResult.Rejected {
         // Code-only text: never frame bytes, payloads, or exception messages.

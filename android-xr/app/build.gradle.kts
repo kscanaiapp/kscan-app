@@ -76,11 +76,13 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Release builds must never use mock API, mock sanitizer, or mock bridge.
-            // ReleaseSafetyGuard.verify() throws at startup if any of these is ever true.
+            // Release builds must never use mock API, mock sanitizer, mock bridge,
+            // or the debug phone-bridge companion. ReleaseSafetyGuard.verify()
+            // throws at startup if any of these is ever true.
             buildConfigField("boolean", "USE_MOCK_API", "false")
             buildConfigField("boolean", "USE_MOCK_BRIDGE", "false")
             buildConfigField("boolean", "USE_MOCK_SANITIZER", "false")
+            buildConfigField("boolean", "KSCAN_DEBUG_MOCK_PHONE_BRIDGE", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -304,11 +304,18 @@ class ConnectedRuntimeStateMachine {
             }
             is PhoneBridgeEvent.ResultUpdated ->
                 if (state == ConnectedState.RESULTS) {
-                    // The companion acknowledged (or re-sent) the result — this is
-                    // the ONLY path that may surface a visible confirmation.
-                    confirmedAction = pendingAction ?: ConnectedAction.SAVE
-                    pendingAction = null
-                    transition(ConnectedState.ACTION_CONFIRMED)
+                    // Refresh structured payload in place. Visible confirmation is
+                    // ONLY allowed when the user has an outstanding action pending
+                    // an ack — never treat an unsolicited result.update as success.
+                    resultPayload = event.result
+                    val action = pendingAction
+                    if (action != null) {
+                        confirmedAction = action
+                        pendingAction = null
+                        transition(ConnectedState.ACTION_CONFIRMED)
+                    } else {
+                        transition(ConnectedState.RESULTS)
+                    }
                 }
             is PhoneBridgeEvent.ResultDismissed ->
                 if (state == ConnectedState.RESULTS) transition(ConnectedState.READY, clearContext = true)

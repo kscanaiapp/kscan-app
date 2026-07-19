@@ -408,6 +408,7 @@ class MockPhoneCompanionTest {
     @Test
     fun `open on phone action is acked with a result update`() = runScenario {
         pairAndReady()
+        mock.sendResultShow("res-1")
         glassesActionOpenOnPhone()
 
         val update = acceptedMessages(this).last() as PhoneBridgeMessage.ResultUpdate

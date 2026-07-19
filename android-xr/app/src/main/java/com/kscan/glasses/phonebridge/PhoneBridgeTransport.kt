@@ -10,6 +10,12 @@ import kotlinx.coroutines.flow.receiveAsFlow
  * Deliberately carries RAW frames, not typed messages: malformed, oversized,
  * and otherwise hostile frames must be able to reach the validator so it can
  * reject them with a safe code. Typed decode happens only after validation.
+ *
+ * **Implementer contract:** real transports (BLE/Wi-Fi/socket) MUST abort or
+ * close the read path before assembling a UTF-8 frame larger than
+ * [PhoneBridgeProtocol.MAX_MESSAGE_BYTES]. The validator's byte-ceiling check
+ * runs on an already-materialized [String] and cannot prevent unbounded
+ * allocation at the wire boundary.
  */
 interface PhoneBridgeTransport {
     /** Inbound raw frames from the peer, in arrival order. */

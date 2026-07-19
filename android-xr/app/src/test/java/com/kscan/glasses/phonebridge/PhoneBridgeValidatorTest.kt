@@ -117,9 +117,9 @@ class PhoneBridgeValidatorTest {
     fun `valid exchange across all seven families is accepted`() {
         val f = Fixture()
 
-        // pair.* — pair.request may arrive with an empty sessionId.
+        // pair.* — deny/expire before a lasting session is established; an active
+        // session cannot be silently replaced by a later pair.* reply.
         assertAccepted(f.validate(f.pairRequest("glasses-req-0")))
-        f.pair()
         f.validator.validateOutgoing(f.pairRequest("glasses-req-2"))
         assertAccepted(
             f.validate(
@@ -139,6 +139,7 @@ class PhoneBridgeValidatorTest {
                 ),
             ),
         )
+        f.pair()
 
         // session.*
         f.ready()
@@ -547,5 +548,126 @@ class PhoneBridgeValidatorTest {
         f.pairAndReady()
         val result = sampleResult().copy(confidence = 1.5f)
         assertRejected(f.validate(f.resultShow(result = result)), BridgeRejectCode.INVALID_MESSAGE)
+    }
+
+    @Test
+    fun `pair approved while session is active is rejected`() {
+        val f = Fixture()
+        f.pair()
+        f.validator.validateOutgoing(f.pairRequest("glasses-req-hijack"))
+        assertRejected(
+            f.validate(
+                PhoneBridgeMessage.PairApproved(
+                    requestId = "glasses-req-hijack",
+                    sessionId = "sess-hijack",
+                    deviceId = "phone-2",
+                    timestamp = f.now,
+                    payload = PairApprovedPayload(sessionExpiresAt = f.now + 60_000L),
+                ),
+            ),
+            BridgeRejectCode.INVALID_MESSAGE,
+        )
+        assertEquals(SESSION_ID, f.validator.currentSessionId)
+        assertEquals(PHONE_ID, f.validator.peerDeviceId)
+    }
+
+    @Test
+    fun `pair approved with unbounded or already-expired session lifetime is rejected`() {
+        val f = Fixture()
+        f.validator.validateOutgoing(f.pairRequest("glasses-req-ttl"))
+        assertRejected(
+            f.validate(
+                PhoneBridgeMessage.PairApproved(
+                    requestId = "glasses-req-ttl",
+                    sessionId = "sess-ttl",
+                    deviceId = PHONE_ID,
+                    timestamp = f.now,
+                    payload = PairApprovedPayload(sessionExpiresAt = f.now),
+                ),
+            ),
+            BridgeRejectCode.INVALID_MESSAGE,
+        )
+        f.validator.validateOutgoing(f.pairRequest("glasses-req-ttl-2"))
+        assertRejected(
+            f.validate(
+                PhoneBridgeMessage.PairApproved(
+                    requestId = "glasses-req-ttl-2",
+                    sessionId = "sess-ttl-2",
+                    deviceId = PHONE_ID,
+                    timestamp = f.now,
+                    payload = PairApprovedPayload(
+                        sessionExpiresAt = f.now + PhoneBridgeProtocol.MAX_SESSION_DURATION_MS + 1,
+                    ),
+                ),
+            ),
+            BridgeRejectCode.INVALID_MESSAGE,
+        )
+    }
+
+    @Test
+    fun `re-pair after revoke accepts a new session`() {
+        val f = Fixture()
+        f.pairAndReady()
+        assertAccepted(
+            f.validate(
+                PhoneBridgeMessage.SessionRevoked(
+                    requestId = "phone-rev-1", sessionId = SESSION_ID, deviceId = PHONE_ID, timestamp = f.now,
+                    payload = SessionRevokedPayload(reason = SessionRevokeReason.USER_REVOKED),
+                ),
+            ),
+        )
+        f.pair(pairRequestId = "glasses-req-repair", sessionId = "sess-2")
+        assertEquals("sess-2", f.validator.currentSessionId)
+        assertEquals(false, f.validator.sessionRevoked)
+    }
+
+    @Test
+    fun `duplicate result update revision is rejected`() {
+        val f = Fixture()
+        f.pairAndReady()
+        assertAccepted(f.validate(f.resultShow()))
+        val update = PhoneBridgeMessage.ResultUpdate(
+            requestId = "phone-req-upd", sessionId = SESSION_ID, deviceId = PHONE_ID, timestamp = f.now,
+            payload = ResultUpdatePayload(result = sampleResult(), revision = 1),
+        )
+        assertAccepted(f.validate(update))
+        assertRejected(
+            f.validate(update.copy(requestId = "phone-req-upd-2")),
+            BridgeRejectCode.DUPLICATE_EVENT,
+        )
+    }
+
+    @Test
+    fun `result update for unknown result id is rejected`() {
+        val f = Fixture()
+        f.pairAndReady()
+        assertRejected(
+            f.validate(
+                PhoneBridgeMessage.ResultUpdate(
+                    requestId = "phone-req-upd", sessionId = SESSION_ID, deviceId = PHONE_ID, timestamp = f.now,
+                    payload = ResultUpdatePayload(result = sampleResult("res-unknown"), revision = 1),
+                ),
+            ),
+            BridgeRejectCode.INVALID_MESSAGE,
+        )
+    }
+
+    @Test
+    fun `unicode summary survives codec and utf8 ceiling accounting`() {
+        val f = Fixture()
+        f.pairAndReady()
+        val summary = "ジャケット — café 🧥"
+        val result = sampleResult().copy(summary = summary)
+        assertAccepted(f.validate(f.resultShow(result = result)))
+        val encoded = PhoneBridgeCodec.encode(
+            PhoneBridgeMessage.ResultShow(
+                requestId = "phone-req-uni", sessionId = SESSION_ID, deviceId = PHONE_ID, timestamp = f.now,
+                payload = ResultShowPayload(result = result),
+            ),
+        )
+        assertTrue(encoded.toByteArray(Charsets.UTF_8).size <= PhoneBridgeProtocol.MAX_MESSAGE_BYTES)
+        assertEquals(summary, PhoneBridgeCodec.decode(encoded).let {
+            (it as PhoneBridgeMessage.ResultShow).payload.result.summary
+        })
     }
 }

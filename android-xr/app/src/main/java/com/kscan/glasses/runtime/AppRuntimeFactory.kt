@@ -28,8 +28,11 @@ import com.kscan.glasses.safety.ReleaseSafetyGuard
  * can never disagree silently.
  *
  * Profiles:
- * - Debug mock profile (default): mock bridge, mock sanitizer, mock analyze client;
- *   labeled MOCK in the UI. Phone bridge is DISABLED unless explicitly enabled.
+ * - Debug mock profile (default): mock capture bridge, mock sanitizer, mock analyze
+ *   client (labeled MOCK). Phone bridge resolves to [DisabledPhoneBridgeProvider];
+ *   MainActivity still injects it so the Connected HUD shows an honest
+ *   "bridge disabled" card. Legacy scan (null phoneBridge) remains available to
+ *   tests. Opt into the mock companion with KSCAN_DEBUG_MOCK_PHONE_BRIDGE=true.
  * - Debug mock-phone-bridge profile (KSCAN_DEBUG_MOCK_PHONE_BRIDGE=true in
  *   gitignored local.properties): adds the in-memory mock phone companion.
  * - Debug strict-privacy profile (KSCAN_DEBUG_USE_MOCK_SANITIZER=false): strict

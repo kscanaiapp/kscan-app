@@ -183,11 +183,23 @@ class ConnectedRuntimeStateMachineTest {
     @Test
     fun `action confirmed to ready on done`() = runFixture {
         driveToResults()
+        sm.on(ConnectedInput.SaveTapped)
         bridge(PhoneBridgeEvent.ResultUpdated(result("res-1"), revision = 1))
+        assertEquals(ConnectedState.ACTION_CONFIRMED, state)
         sm.on(ConnectedInput.DoneTapped)
 
         assertEquals(ConnectedState.READY, state)
         assertNull(sm.uiState.value.resultId)
+    }
+
+    @Test
+    fun `unsolicited result update refreshes results without confirming`() = runFixture {
+        driveToResults()
+        bridge(PhoneBridgeEvent.ResultUpdated(result("res-1").copy(summary = "Updated summary"), revision = 1))
+
+        assertEquals(ConnectedState.RESULTS, state)
+        assertEquals("Updated summary", sm.uiState.value.result?.summary)
+        assertNull(sm.uiState.value.confirmedAction)
     }
 
     // ----- reconnection -----

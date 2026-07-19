@@ -32,6 +32,13 @@ object PhoneBridgeProtocol {
      */
     const val TIMESTAMP_TOLERANCE_MS: Long = 30_000L
 
+    /**
+     * Maximum granted session lifetime accepted from `pair.approved`.
+     * Approvals that expire at or before the message timestamp, or that grant
+     * more than this window, are `INVALID_MESSAGE`.
+     */
+    const val MAX_SESSION_DURATION_MS: Long = 24L * 60L * 60L * 1_000L
+
     /** sessionId is empty ONLY for pair.request (no session exists yet). */
     const val NO_SESSION: String = ""
 
