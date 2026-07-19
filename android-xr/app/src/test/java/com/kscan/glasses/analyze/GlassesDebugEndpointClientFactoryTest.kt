@@ -88,4 +88,19 @@ class GlassesDebugEndpointClientFactoryTest {
         val client = GlassesDebugEndpointClientFactory.create(beta, debug)
         assertTrue(client is MockAnalyzeClient)
     }
+
+    @Test
+    fun `returns mock when authToken is blank`() {
+        val beta = BetaConfig(
+            enableRealAnalyze = true,
+            enableRealFaceMasking = true,
+        )
+        val debug = DebugAnalyzeConfig(
+            enabled = true,
+            backendUrl = "http://10.0.2.2:3002/api/glasses/analyze-debug",
+            authToken = "",
+        )
+        val client = GlassesDebugEndpointClientFactory.create(beta, debug)
+        assertTrue(client is MockAnalyzeClient)
+    }
 }

@@ -39,7 +39,7 @@ class GoogleBridgeProvider : GlassesBridgeProvider {
     }
 
     override suspend fun capturePhoto(): CaptureResult {
-        throw UnsupportedOperationException("Google bridge capture not implemented")
+        throw CaptureException("Google bridge capture not implemented")
     }
 
     override suspend fun speak(text: String) {

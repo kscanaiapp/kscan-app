@@ -13,9 +13,10 @@ import com.kscan.glasses.config.BetaConfig
  * 2. [BetaConfig.enableRealFaceMasking] == true
  * 3. [DebugAnalyzeConfig.enabled] == true
  * 4. [DebugAnalyzeConfig.backendUrl] is non-empty
- * 5. [DebugAnalyzeConfig.authToken] is non-empty (if backend requires token)
+ * 5. [DebugAnalyzeConfig.authToken] is non-empty (runtime credential provider)
  *
  * If any gate is false, returns [MockAnalyzeClient] (safe default).
+ * Never creates a live client with a blank Bearer token.
  */
 object GlassesDebugEndpointClientFactory {
 
@@ -33,6 +34,9 @@ object GlassesDebugEndpointClientFactory {
             return MockAnalyzeClient()
         }
         if (debugConfig.backendUrl.isBlank()) {
+            return MockAnalyzeClient()
+        }
+        if (debugConfig.authToken.isBlank()) {
             return MockAnalyzeClient()
         }
         return GlassesDebugEndpointClient(
