@@ -27,7 +27,7 @@ Not physical XR. Not live upstream. Not production ready.
 | Target branch | `feature/glasses-xr-native-standalone` |
 | Starting HEAD (audit branch fork) | `d636ad8503d98f06f5bab4b4268cb1528bc232e8` |
 | Builder baseline | `497c583f9ca68ede1703c1199c16470a758afa74` |
-| Final HEAD | 9909281df6210c3770d051f55cab80253c2ef138 |
+| Final HEAD | f8c0a919eb9d1190b66b81531e032a79fda0720c |
 | Worktree | Must be clean after docs commit |
 
 ### Logical commits (audit repairs)
