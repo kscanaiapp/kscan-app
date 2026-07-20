@@ -12,6 +12,7 @@ import {
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanRoomHeader } from './ScanRoomHeader';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface AnalyzingScanProps {
   imageUri?: string | null;
@@ -26,6 +27,18 @@ interface AnalyzingScanProps {
 }
 
 const MIN_DISPLAY_MS = 1500;
+
+/**
+ * Honest staged processing copy for the detection phase. One-shot timers are
+ * tied to this mount (one mount per active scan attempt); they never repeat,
+ * and completion dismisses this screen immediately — real candidates are
+ * never held back to finish the message schedule.
+ */
+const STAGED_MESSAGES: ReadonlyArray<{ at: number; text: string }> = [
+  { at: 0, text: 'Finding fashion items' },
+  { at: 1400, text: 'Separating the look' },
+  { at: 2800, text: 'Preparing your choices' },
+];
 
 /**
  * Analyzing Scan state for Scan Room V2.
@@ -48,8 +61,22 @@ export function AnalyzingScan({
   testID,
 }: AnalyzingScanProps) {
   const { width: screenWidth } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
   const startTime = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [stageIndex, setStageIndex] = useState(0);
+
+  // Staged messages: one-shot timers, cleaned up on unmount. Reduced motion
+  // shows a single static message and creates no timers at all.
+  useEffect(() => {
+    if (reducedMotion || hasError) return undefined;
+    const timers = STAGED_MESSAGES.slice(1).map((stage, index) => setTimeout(() => {
+      setStageIndex(index + 1);
+    }, stage.at));
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [reducedMotion, hasError]);
 
   const imageWidth = Math.min(screenWidth - SPACING.xl * 2, 280);
   const imageHeight = imageWidth * 1.25;
@@ -136,7 +163,9 @@ export function AnalyzingScan({
       {/* Compact processing card */}
       <View style={styles.processingCard}>
         <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-        <Text style={styles.processingTitle}>Analyzing your look…</Text>
+        <Text style={styles.processingTitle} accessibilityLiveRegion="polite">
+          {reducedMotion ? STAGED_MESSAGES[0].text : STAGED_MESSAGES[stageIndex].text}
+        </Text>
         <View style={styles.analyzingButton}>
           <Text style={styles.analyzingButtonText}>ANALYZING…</Text>
         </View>

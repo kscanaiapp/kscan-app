@@ -32,6 +32,7 @@ import {
   TYPOGRAPHY,
   card,
 } from '../constants/theme';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import type { VintedSecondhandSearchResponse } from '../types/scan';
 import type { SneakerReference } from '../services/sneakers/types';
 import type { ScanResultObject } from '../types/scanResultObject';
@@ -153,6 +154,7 @@ export function AnalysisCard({
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const commerceOptions = toPurchaseOptions(purchaseOptions);
+  const reducedMotion = useReducedMotion();
   const translateY    = useRef(new Animated.Value(FROM_Y)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
   const chip1Opacity  = useRef(new Animated.Value(0)).current;
@@ -163,6 +165,11 @@ export function AnalysisCard({
   const runExit = () => {
     if (isExiting.current) return;
     isExiting.current = true;
+
+    if (reducedMotion) {
+      onDismiss();
+      return;
+    }
 
     Animated.parallel([
       Animated.timing(translateY, {
@@ -189,12 +196,23 @@ export function AnalysisCard({
   ).current;
 
   useEffect(() => {
+    isExiting.current = false;
+
+    if (reducedMotion) {
+      // Reduced motion: no entrance or chip stagger animation.
+      translateY.setValue(0);
+      opacity.setValue(1);
+      chip1Opacity.setValue(1);
+      chip2Opacity.setValue(1);
+      chip3Opacity.setValue(1);
+      return;
+    }
+
     translateY.setValue(FROM_Y);
     opacity.setValue(0);
     chip1Opacity.setValue(0);
     chip2Opacity.setValue(0);
     chip3Opacity.setValue(0);
-    isExiting.current = false;
 
     const easingFn = Easing.bezier(
       MOTION.easing.x1,
@@ -223,7 +241,7 @@ export function AnalysisCard({
         Animated.timing(chip3Opacity, { toValue: 1, duration: MOTION.microDuration, useNativeDriver: true }),
       ]).start();
     });
-  }, [translateY, opacity, chip1Opacity, chip2Opacity, chip3Opacity]);
+  }, [translateY, opacity, chip1Opacity, chip2Opacity, chip3Opacity, reducedMotion]);
 
   const meta       = metadata ?? { category: '', color: '', silhouette: '' };
   const resultText = sanitizeText(result);
