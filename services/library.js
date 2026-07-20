@@ -78,6 +78,46 @@ function normalizeScanSource(source) {
   return VALID_SCAN_SOURCES.has(source) ? source : 'camera';
 }
 
+function normalizeMultiScanMetadata(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const boundedId = (candidate) => (
+    typeof candidate === 'string' && candidate.trim()
+      ? candidate.trim().slice(0, 200)
+      : null
+  );
+  const groupId = boundedId(value.groupId);
+  const itemId = boundedId(value.itemId);
+  const sourceImageId = boundedId(value.sourceImageId);
+  const sourceImageIndex = Number(value.sourceImageIndex);
+  const imageCount = Number(value.imageCount);
+  const itemCount = Number(value.itemCount);
+  if (
+    Number(value.schemaVersion) !== 1 ||
+    !groupId ||
+    !itemId ||
+    !sourceImageId ||
+    !Number.isInteger(sourceImageIndex) ||
+    sourceImageIndex < 0 ||
+    sourceImageIndex >= 5 ||
+    !Number.isInteger(imageCount) ||
+    imageCount < 1 ||
+    imageCount > 5 ||
+    !Number.isInteger(itemCount) ||
+    itemCount < 1 ||
+    itemCount > 5
+  ) return null;
+
+  return {
+    schemaVersion: 1,
+    groupId,
+    itemId,
+    sourceImageId,
+    sourceImageIndex,
+    imageCount,
+    itemCount,
+  };
+}
+
 function isVisibleToActor(scan, actorId) {
   if (actorId === undefined) return true;
   const ownerId = typeof scan.ownerId === 'string' && scan.ownerId.trim()
@@ -152,6 +192,7 @@ export async function loadLibrary(actorId = undefined) {
 export async function saveScan({ photoUri, analysis, source, ownerId = null }) {
   try {
     const id = 'scan_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
+    const multiScan = normalizeMultiScanMetadata(analysis?.multiScan);
 
     // Local image persistence is best-effort; existing library behavior remains local.
     const imageUri = await persistScanImage(photoUri, id);
@@ -181,6 +222,7 @@ export async function saveScan({ photoUri, analysis, source, ownerId = null }) {
       purchaseOptions: normalizePurchaseOptions(analysis.purchaseOptions),
       commerceSnapshotVersion: 1,
       source:          normalizeScanSource(source),
+      ...(multiScan ? { metadata: { multiScan } } : {}),
     };
 
     await enqueueLibraryMutation(async () => {

@@ -341,6 +341,27 @@ test('mapSavedScanToRow converts camelCase to snake_case', async () => {
 
 // ─── Merge ────────────────────────────────────────────────────────────────────
 
+test('multi-scan group metadata survives the cloud row round trip', () => {
+  const svc = loadService(createMockClient());
+  const multiScan = {
+    schemaVersion: 1,
+    groupId: 'multi-scan-123',
+    itemId: 'img-a:garment-1-top-blouse',
+    sourceImageId: 'img-a',
+    sourceImageIndex: 0,
+    imageCount: 2,
+    itemCount: 3,
+  };
+  const rowPayload = svc.mapSavedScanToRow(
+    makeScanModel({ metadata: { multiScan } }),
+    'user-1',
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(rowPayload.metadata.multiScan)), multiScan);
+
+  const restored = svc.mapSavedScanRowToModel(makeRow({ metadata: rowPayload.metadata }));
+  assert.deepEqual(JSON.parse(JSON.stringify(restored.metadata.multiScan)), multiScan);
+});
+
 test('merge avoids duplicates by local_id', () => {
   const client = createMockClient({ session: { user: { id: 'user-1' } } });
   const svc = loadService(client);

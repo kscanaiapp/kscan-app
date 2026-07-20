@@ -170,6 +170,38 @@ test('actor B cannot see actor A saved commerce or room-add candidate', async ()
   assert.equal(forB.length, 0);
 });
 
+test('progressive multi-item save preserves stable group and source-image association', async () => {
+  const { library } = loadLibraryModule();
+  const multiScan = {
+    schemaVersion: 1,
+    groupId: 'multi-scan-123',
+    itemId: 'img-a:garment-1-top-blouse',
+    sourceImageId: 'img-a',
+    sourceImageIndex: 0,
+    imageCount: 2,
+    itemCount: 3,
+  };
+  const saved = await library.saveScan({
+    photoUri: 'file:///tmp/a.jpg',
+    source: 'upload',
+    ownerId: 'actor-a',
+    analysis: {
+      result: 'Blouse',
+      metadata: { category: 'top' },
+      products: [],
+      purchaseOptions: [],
+      multiScan,
+    },
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(saved.metadata.multiScan)), multiScan);
+  const [reopened] = await library.loadLibrary('actor-a');
+  assert.deepEqual(JSON.parse(JSON.stringify(reopened.metadata.multiScan)), multiScan);
+
+  const appSrc = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  assert.match(appSrc, /itemCount: selectedCandidateIds\.length \|\| scanItems\.length \|\| 1/);
+});
+
 test('library reopen path wires purchaseOptions and storage fields into AnalysisCard props', () => {
   const librarySrc = fs.readFileSync(path.join(ROOT, 'app/library.tsx'), 'utf8');
   assert.match(librarySrc, /purchaseOptions=\{selectedScan\.purchaseOptions\}/);
