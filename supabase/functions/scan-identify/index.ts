@@ -74,6 +74,19 @@ import {
   buildQualityTuneMetrics,
   logQualityTuneMetrics,
 } from './qualityTuneTelemetry.ts';
+import {
+  isScannerIntelligenceEnabled,
+  SCANNER_INTELLIGENCE_VERSION,
+} from './scannerIntelligenceConfig.ts';
+import {
+  buildRoutedIdentifyPrompt,
+  resolveScannerCategoryRoute,
+  type ScannerCategoryRoute,
+} from './scannerCategoryRoute.ts';
+import {
+  applyScannerQualityGate,
+  type QualityGateResult,
+} from './scannerQualityGate.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 /** Appended to vision/text prompts when quality tune is enabled. Response shape unchanged. */
@@ -1755,15 +1768,45 @@ Deno.serve(async (req) => {
   })();
 
   const qualityTuneEnabled = isQualityTuneEnabled();
-  const identifyPrompt = qualityTuneEnabled
-    ? `${IDENTIFY_PROMPT}${QUALITY_TUNE_PROMPT_ADDENDUM}`
-    : IDENTIFY_PROMPT;
-  const multiItemPrompt = qualityTuneEnabled
-    ? `${MULTI_ITEM_IDENTIFY_PROMPT}${QUALITY_TUNE_PROMPT_ADDENDUM}`
-    : MULTI_ITEM_IDENTIFY_PROMPT;
-  const textIdentifyPrompt = qualityTuneEnabled
-    ? `${TEXT_IDENTIFY_PROMPT}${QUALITY_TUNE_PROMPT_ADDENDUM}`
-    : TEXT_IDENTIFY_PROMPT;
+  // Intelligence requires quality-tune ON; when intelligence OFF → exact v120 behavior.
+  const intelligenceEnabled = qualityTuneEnabled && isScannerIntelligenceEnabled();
+
+  const requestModeForRoute = useMultiItemDetectionProvider
+    ? 'multi_item_detection' as const
+    : useSelectedItemProvider
+    ? 'selected_item' as const
+    : mode === 'text'
+    ? 'text' as const
+    : 'legacy_single_item' as const;
+
+  const categoryRoute: ScannerCategoryRoute = intelligenceEnabled
+    ? resolveScannerCategoryRoute({
+      requestMode: requestModeForRoute,
+      selectedCandidate: selectedCandidate
+        ? {
+          category: selectedCandidate.category,
+          subtype: selectedCandidate.subtype,
+          label: (selectedCandidate as { label?: string }).label,
+          providerCategory: selectedCandidate.category,
+        }
+        : null,
+      textQuery: mode === 'text' ? textQuery : null,
+    })
+    : 'general';
+
+  const withQualityAndRoute = (base: string): string => {
+    let prompt = base;
+    if (qualityTuneEnabled) prompt = `${prompt}${QUALITY_TUNE_PROMPT_ADDENDUM}`;
+    if (intelligenceEnabled) prompt = buildRoutedIdentifyPrompt(prompt, categoryRoute);
+    return prompt;
+  };
+
+  const identifyPrompt = withQualityAndRoute(IDENTIFY_PROMPT);
+  const multiItemPrompt = withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT);
+  const textIdentifyPrompt = withQualityAndRoute(TEXT_IDENTIFY_PROMPT);
+  const selectedItemPrompt = selectedCandidate
+    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate))
+    : '';
 
   const geminiBody = mode === 'text'
     ? {
@@ -1789,9 +1832,7 @@ Deno.serve(async (req) => {
             parts: [
               {
                 text: useSelectedItemProvider && selectedCandidate
-                  ? (qualityTuneEnabled
-                    ? `${buildSelectedItemPrompt(selectedCandidate)}${QUALITY_TUNE_PROMPT_ADDENDUM}`
-                    : buildSelectedItemPrompt(selectedCandidate))
+                  ? selectedItemPrompt
                   : useMultiItemDetectionProvider
                   ? multiItemPrompt
                   : identifyPrompt,
@@ -2014,25 +2055,36 @@ Deno.serve(async (req) => {
 
     // Quality-tune: deterministic taxonomy normalization + generic recovery.
     // Flag OFF preserves exact v119-equivalent path (this block skipped).
+    // Intelligence gate runs after v120 normalization when intelligence ON.
     let qualityNormCorrectionCount = 0;
     let qualityNormRuleIds: string[] = [];
     let qualityGenericLabelOccurrence = 0;
     let qualityInvalidPairsResolved = 0;
+    let intelligenceGate: QualityGateResult | null = null;
     if (qualityTuneEnabled && rawStatus === 'completed') {
       if (useMultiItemDetectionProvider && detectedGarments.length > 0) {
         for (let i = 0; i < detectedGarments.length; i++) {
           const g = detectedGarments[i];
-          const tuned = applyQualityTaxonomyTune(
+          let tuned = applyQualityTaxonomyTune(
             g.identification as Record<string, unknown>,
             g.attributes as Record<string, unknown>,
           );
+          if (intelligenceEnabled) {
+            const gated = applyScannerQualityGate(tuned.identification, tuned.attributes);
+            tuned = {
+              ...tuned,
+              identification: gated.identification,
+              attributes: gated.attributes,
+            };
+            if (i === 0) intelligenceGate = gated;
+          }
           g.identification = tuned.identification;
           if (tuned.attributes) g.attributes = tuned.attributes;
           if (typeof tuned.identification.item_type === 'string' && tuned.identification.item_type) {
             g.category = String(tuned.identification.item_type);
             g.label = typeof tuned.identification.subtype === 'string' && tuned.identification.subtype
               ? String(tuned.identification.subtype)
-              : g.category;
+              : (intelligenceGate?.label || g.category);
           }
           if (typeof tuned.identification.subtype === 'string') {
             g.subtype = String(tuned.identification.subtype);
@@ -2046,10 +2098,18 @@ Deno.serve(async (req) => {
         identification = sanitizeIdentification(primaryTuned.identification) ?? identification;
         attributes = (primaryTuned.attributes as Record<string, unknown> | undefined) ?? attributes;
       } else if (identification || attributes) {
-        const tuned = applyQualityTaxonomyTune(
+        let tuned = applyQualityTaxonomyTune(
           (identification ?? {}) as Record<string, unknown>,
           attributes as Record<string, unknown> | undefined,
         );
+        if (intelligenceEnabled) {
+          intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes);
+          tuned = {
+            ...tuned,
+            identification: intelligenceGate.identification,
+            attributes: intelligenceGate.attributes,
+          };
+        }
         identification = sanitizeIdentification(tuned.identification) ?? identification;
         if (tuned.attributes) attributes = tuned.attributes;
         qualityNormCorrectionCount = tuned.correctionCount;
@@ -2197,7 +2257,11 @@ Deno.serve(async (req) => {
     }
 
     // Prefer the rich visual_observation for userMessage when available.
-    const userMessage = safeStringMessage(parsed.userMessage) ??
+    const intelligenceLabelMessage = intelligenceEnabled && intelligenceGate?.label
+      ? safeStringMessage(intelligenceGate.label)
+      : undefined;
+    const userMessage = intelligenceLabelMessage ??
+      safeStringMessage(parsed.userMessage) ??
       (identification?.visual_observation
         ? safeVisualObservation(identification.visual_observation)
         : undefined) ??
@@ -2239,6 +2303,15 @@ Deno.serve(async (req) => {
             ? (identification?.search_queries as string[])
             : undefined,
           originalText: textQuery,
+          ...(intelligenceEnabled && intelligenceGate
+            ? {
+              detailLevel: intelligenceGate.commerceQueryDetailLevel,
+              materialAllowed: !intelligenceGate.materialSuppressed &&
+                intelligenceGate.qualityBand !== 'low',
+              brandAllowed: !intelligenceGate.brandSuppressed &&
+                hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+            }
+            : {}),
         })
         : null;
       const shoppingQuery = weightedText
@@ -2387,6 +2460,17 @@ Deno.serve(async (req) => {
             ? completedNormalizedId.normalizedSearchQueries
             : undefined,
           limit: 10,
+          ...(intelligenceEnabled && intelligenceGate
+            ? {
+              qualityDetailLevel: intelligenceGate.commerceQueryDetailLevel,
+              materialAllowed: !intelligenceGate.materialSuppressed &&
+                intelligenceGate.qualityBand !== 'low',
+              brandAllowed: !intelligenceGate.brandSuppressed &&
+                hasBrandEvidenceForCommerce(
+                  completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
+                ),
+            }
+            : {}),
         }).catch((err) => {
           console.warn('[scan-identify] image commerce provider error:', err);
           return {
@@ -2542,11 +2626,34 @@ Deno.serve(async (req) => {
         categoryMismatchRemovals: qualityInvalidPairsResolved,
         emptyResultOccurrence: finalRecommendedProducts.length === 0 ? 1 : 0,
         errorCategory: null,
+        ...(intelligenceEnabled && intelligenceGate
+          ? {
+            intelligence: {
+              categoryRoute,
+              qualityScoreBand: intelligenceGate.qualityBand,
+              qualityScoreValue: intelligenceGate.qualityScore,
+              consistencyConflictCount: intelligenceGate.consistencyConflicts.length,
+              suppressedAttributeCount: intelligenceGate.suppressedAttributes.length,
+              commerceQueryDetailLevel: intelligenceGate.commerceQueryDetailLevel,
+              brandSuppressed: intelligenceGate.brandSuppressed,
+              materialSuppressed: intelligenceGate.materialSuppressed,
+            },
+          }
+          : {}),
       }));
       console.log(
         '[scan-identify] quality_tune_version=%s enabled=true',
         QUALITY_TUNE_VERSION,
       );
+      if (intelligenceEnabled) {
+        console.log(
+          '[scan-identify] scanner_intelligence_version=%s enabled=true route=%s band=%s score=%d',
+          SCANNER_INTELLIGENCE_VERSION,
+          categoryRoute,
+          intelligenceGate?.qualityBand ?? 'n/a',
+          intelligenceGate?.qualityScore ?? -1,
+        );
+      }
     }
     return json(finalResponse, 200);
   } catch (err) {
@@ -2591,6 +2698,15 @@ Deno.serve(async (req) => {
     clearTimeout(timer);
   }
 });
+
+function hasBrandEvidenceForCommerce(
+  identification: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!identification || typeof identification !== 'object') return false;
+  if (identification.logo_detected === true) return true;
+  return typeof identification.visible_brand_text === 'string' &&
+    identification.visible_brand_text.trim().length > 0;
+}
 
 function safeStringMessage(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
