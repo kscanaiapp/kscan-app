@@ -2,6 +2,10 @@
  * Retailer-neutral commerce query optimization + product filter/dedupe.
  * Client-facing purchase URLs are never rewritten — only identity keys use
  * canonicalization.
+ *
+ * v122 commerce relevance (optional):
+ *   When `relevance` options are omitted → exact v121 behavior.
+ *   When provided → category templates, agreement scoring, soft diversity.
  */
 
 import { QUALITY_TUNE_MIN_VALID_PRODUCTS } from './qualityTuneConfig.ts';
@@ -13,6 +17,19 @@ import {
   normalizeSilhouette,
 } from './qualityTuneNormalize.ts';
 import type { RecommendedProduct } from './shoppingProvider.ts';
+import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
+import { buildCategoryCommerceQueries } from './commerceRelevanceQueries.ts';
+import { scoreProductAgreement } from './commerceRelevanceAgreement.ts';
+import {
+  applySoftDiversityRerank,
+  selectByAgreementCoverage,
+  type ScoredProduct,
+} from './commerceRelevanceDiversity.ts';
+import {
+  FAILURE_REASON_CATEGORY_MISMATCH_REMOVED,
+  FAILURE_REASON_PRODUCT_DEDUPE_REDUCTION,
+  FAILURE_REASON_PRODUCT_FILTER_EMPTY,
+} from './commerceRelevanceFailure.ts';
 
 export type WeightedCommerceQueries = {
   primary: string;
@@ -25,6 +42,18 @@ export type ProductFilterStats = {
   categoryMismatchRemovals: number;
   identityKeyTypesUsed: string[];
   removedReasons: Record<string, number>;
+  /** v122 relevance diagnostics — only present when relevance path runs */
+  agreementScores?: number[];
+  retailerCount?: number;
+  failureReasonHints?: string[];
+  productsBeforeFilter?: number;
+  latencyRelevanceMs?: number;
+};
+
+export type CommerceRelevanceOptions = {
+  enabled: true;
+  categoryRoute: ScannerCategoryRoute;
+  qualityBand?: 'high' | 'moderate' | 'low' | null;
 };
 
 const FILLER = new Set([
@@ -106,6 +135,7 @@ function capMeaningfulWords(raw: string, max = MAX_QUERY_MEANINGFUL_WORDS): stri
  *   specific → color + subtype + supported material + silhouette + category
  *   moderate → color + subtype + category
  *   broad    → color + broad category
+ * When `relevanceRoute` is provided (v122 ON), uses category-specific templates.
  */
 export function buildWeightedCommerceQueries(input: {
   identification: Record<string, unknown>;
@@ -117,9 +147,27 @@ export function buildWeightedCommerceQueries(input: {
   /** When false/undefined with no detailLevel, use v120 query construction. */
   materialAllowed?: boolean;
   brandAllowed?: boolean;
+  /** v122 only — omit for exact v121 behavior */
+  relevanceRoute?: ScannerCategoryRoute;
+  qualityBand?: 'high' | 'moderate' | 'low' | null;
 }): WeightedCommerceQueries {
   const id = input.identification || {};
   const attrs = input.attributes || {};
+
+  // ── v122 category-template path ────────────────────────────────────────────
+  if (input.relevanceRoute) {
+    const q = buildCategoryCommerceQueries({
+      identification: id,
+      attributes: attrs,
+      categoryRoute: input.relevanceRoute,
+      detailLevel: input.detailLevel,
+      qualityBand: input.qualityBand,
+      materialAllowed: input.materialAllowed,
+      brandAllowed: input.brandAllowed,
+      originalText: input.originalText,
+    });
+    return { primary: q.primary, fallback: q.fallback };
+  }
 
   const logo = id.logo_detected === true;
   const visible = usable(id.visible_brand_text);
@@ -371,15 +419,21 @@ function scoreProduct(p: RecommendedProduct, garment: Record<string, unknown>): 
 /**
  * Filter + dedupe products before returning to the app.
  * Does not rename products ↔ purchaseOptions arrays.
+ *
+ * When `relevance` is omitted → exact v121 filter/dedupe/score behavior.
+ * When `relevance.enabled` → agreement scoring + coverage + soft diversity.
  */
 export function filterAndDedupeProducts(
   products: RecommendedProduct[],
   garmentIdentification: Record<string, unknown>,
+  relevance?: CommerceRelevanceOptions,
 ): { products: RecommendedProduct[]; stats: ProductFilterStats } {
   const removedReasons: Record<string, number> = {};
   const bump = (reason: string) => {
     removedReasons[reason] = (removedReasons[reason] || 0) + 1;
   };
+  const started = Date.now();
+  const productsBeforeFilter = Array.isArray(products) ? products.length : 0;
 
   const garmentCat = typeof garmentIdentification.item_type === 'string'
     ? garmentIdentification.item_type
@@ -421,7 +475,81 @@ export function filterAndDedupeProducts(
   const seen = new Set<string>();
   const identityKeyTypesUsed: string[] = [];
   const deduped: RecommendedProduct[] = [];
+  const failureReasonHints: string[] = [];
 
+  if (relevance?.enabled) {
+    // v122: agreement score → coverage selection → dedupe → soft diversity
+    const scored: ScoredProduct[] = validShaped.map((p, originalIndex) => {
+      const ag = scoreProductAgreement(p, garmentIdentification, relevance.categoryRoute);
+      return {
+        product: p,
+        agreementScore: ag.score,
+        agreementBand: ag.band,
+        clearCategoryConflict: ag.clearCategoryConflict,
+        originalIndex,
+      };
+    });
+
+    // Extra clear-conflict suppression (in addition to isCategoryMismatch)
+    const clearConflicts = scored.filter((s) => s.clearCategoryConflict).length;
+    if (clearConflicts > 0) {
+      categoryMismatchRemovals += clearConflicts;
+      removedReasons['category_mismatch'] =
+        (removedReasons['category_mismatch'] || 0) + clearConflicts;
+      failureReasonHints.push(FAILURE_REASON_CATEGORY_MISMATCH_REMOVED);
+    }
+    const coverageSelected = selectByAgreementCoverage(scored);
+
+    const rankedForDedupe = [...coverageSelected].sort((a, b) => {
+      if (b.agreementScore !== a.agreementScore) return b.agreementScore - a.agreementScore;
+      return a.originalIndex - b.originalIndex;
+    });
+
+    const dedupedScored: ScoredProduct[] = [];
+    for (const s of rankedForDedupe) {
+      const { key, type } = productIdentityKey(s.product);
+      if (seen.has(key)) {
+        bump('duplicate_identity');
+        continue;
+      }
+      seen.add(key);
+      if (!identityKeyTypesUsed.includes(type)) identityKeyTypesUsed.push(type);
+      dedupedScored.push(s);
+    }
+
+    if (dedupedScored.length < rankedForDedupe.length) {
+      failureReasonHints.push(FAILURE_REASON_PRODUCT_DEDUPE_REDUCTION);
+    }
+
+    const diversified = applySoftDiversityRerank(dedupedScored);
+    for (const p of diversified) deduped.push(p);
+
+    if (deduped.length === 0 && productsBeforeFilter > 0) {
+      failureReasonHints.push(FAILURE_REASON_PRODUCT_FILTER_EMPTY);
+    }
+
+    const retailers = new Set(
+      deduped.map((p) => (typeof p.source === 'string' ? p.source.toLowerCase() : 'unknown')),
+    );
+
+    return {
+      products: deduped,
+      stats: {
+        productsBeforeDedupe,
+        productsAfterDedupe: deduped.length,
+        categoryMismatchRemovals,
+        identityKeyTypesUsed,
+        removedReasons,
+        agreementScores: dedupedScored.map((s) => s.agreementScore),
+        retailerCount: retailers.size,
+        failureReasonHints,
+        productsBeforeFilter,
+        latencyRelevanceMs: Date.now() - started,
+      },
+    };
+  }
+
+  // ── v120/v121 path (unchanged) ─────────────────────────────────────────────
   // Rank then dedupe so strongest listing wins
   const ranked = [...validShaped].sort(
     (a, b) => scoreProduct(b, garmentIdentification) - scoreProduct(a, garmentIdentification),
