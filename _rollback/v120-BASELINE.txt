@@ -1,0 +1,9 @@
+Workspace: C:\Users\jsmit\KScan-scanner-backend-intelligence-layer-v121
+Branch: feature/scanner-backend-intelligence-layer-v121
+Starting SHA: 18eaed8d10c7fb9fcf2d7f9beff6f24dfd77d0e6
+Origin SHA: 18eaed8d10c7fb9fcf2d7f9beff6f24dfd77d0e6 (v120 branch)
+Production version: v120
+Production status: ACTIVE
+JWT posture: verify_jwt=false
+Worktree clean: yes (pre-edit)
+Local/deployed v120 match: YES (14/14 LF-normalized)
