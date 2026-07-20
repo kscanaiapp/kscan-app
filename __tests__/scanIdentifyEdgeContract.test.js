@@ -621,3 +621,22 @@ test('edge source: quota logs do not expose full user id, tokens, image, or text
     assert.equal(line.includes('geminiKey'), false, 'Quota log must not reference gemini key');
   }
 });
+
+// ── Quality Tune v120 contract non-regression ──
+
+test('edge source: quality tune modules are wired without changing response field names', () => {
+  assert.ok(EDGE_SOURCE.includes('qualityTuneConfig'), 'Must import quality tune config');
+  assert.ok(EDGE_SOURCE.includes('applyQualityTaxonomyTune'), 'Must apply taxonomy tune');
+  assert.ok(EDGE_SOURCE.includes('isQualityTuneEnabled'), 'Must support rollback flag');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions'), 'Must preserve purchaseOptions');
+  assert.ok(EDGE_SOURCE.includes('detectedGarments'), 'Must preserve detectedGarments');
+  assert.ok(EDGE_SOURCE.includes('scanSessionId'), 'Must preserve scanSessionId validation path');
+  assert.ok(EDGE_SOURCE.includes('imageDigestPrefix'), 'Must preserve imageDigestPrefix validation path');
+  assert.equal(EDGE_SOURCE.includes('requiredQualityField'), false, 'Must not add invented required fields');
+});
+
+test('edge source: quality tune does not rename products or purchaseOptions arrays', () => {
+  assert.ok(EDGE_SOURCE.includes('recommendedProducts'), 'Must keep recommendedProducts');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions:'), 'Must keep purchaseOptions mapping');
+  assert.ok(EDGE_SOURCE.includes('similarityMatches'), 'Must keep similarityMatches');
+});
