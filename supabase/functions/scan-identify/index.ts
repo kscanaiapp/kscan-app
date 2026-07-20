@@ -86,6 +86,13 @@ import {
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
+  isTextScanCommerceParityEnabled,
+  TEXTSCAN_COMMERCE_PARITY_VERSION,
+} from './textScanCommerceParityConfig.ts';
+import {
+  captureCommerceOutcome,
+} from './commerceOutcomeCapture.ts';
+import {
   buildRoutedIdentifyPrompt,
   resolveScannerCategoryRoute,
   type ScannerCategoryRoute,
@@ -1560,6 +1567,8 @@ Deno.serve(async (req) => {
   const appVersion = typeof body.appVersion === 'string' && body.appVersion.trim()
     ? body.appVersion.trim()
     : null;
+  // Request clock for outcome capture / early exits (Gemini uses its own startedAt).
+  const requestStartedAt = Date.now();
   let imageBase64 = '';
   let textQuery = '';
   let imageDigestPrefix = '';
@@ -1593,6 +1602,31 @@ Deno.serve(async (req) => {
       scanSessionId,
       requestMode,
     );
+    void captureCommerceOutcome({
+      requestMode: 'selected_item',
+      sourceClass: typeof source === 'string' ? source : null,
+      appPlatform,
+      appVersion,
+      status: 'failed',
+      isFashion: false,
+      categoryRoute: null,
+      qualityBand: null,
+      commerceQueryDetailLevel: null,
+      providerOutcome: null,
+      providersTried: null,
+      primaryResultCount: 0,
+      fallbackUsed: false,
+      productsBeforeFilter: 0,
+      productsAfterFilter: 0,
+      productsBeforeDedupe: 0,
+      productsAfterDedupe: 0,
+      categoryMismatchRemovals: 0,
+      retailerCount: 0,
+      commerceDurationMs: null,
+      totalDurationMs: Date.now() - requestStartedAt,
+      failureReason: mapToFailureReason({ candidateInvalid: true }),
+      textScanParityEnabled: false,
+    });
     return json(normalized('failed', 'The selected garment could not be analyzed. Please return to the outfit and select it again.'), 200);
   }
   console.log(
@@ -1606,6 +1640,31 @@ Deno.serve(async (req) => {
   );
 
   if (mode === 'text' && !auth.isAuthenticated) {
+    void captureCommerceOutcome({
+      requestMode: 'text',
+      sourceClass: typeof source === 'string' ? source : null,
+      appPlatform,
+      appVersion,
+      status: 'failed',
+      isFashion: false,
+      categoryRoute: null,
+      qualityBand: null,
+      commerceQueryDetailLevel: null,
+      providerOutcome: null,
+      providersTried: null,
+      primaryResultCount: 0,
+      fallbackUsed: false,
+      productsBeforeFilter: 0,
+      productsAfterFilter: 0,
+      productsBeforeDedupe: 0,
+      productsAfterDedupe: 0,
+      categoryMismatchRemovals: 0,
+      retailerCount: 0,
+      commerceDurationMs: null,
+      totalDurationMs: Date.now() - requestStartedAt,
+      failureReason: mapToFailureReason({ authRequired: true }),
+      textScanParityEnabled: false,
+    });
     return json({ error: 'Not authenticated' }, 401);
   }
 
@@ -1659,6 +1718,31 @@ Deno.serve(async (req) => {
     const imageValidation = validateImageBase64(imageBase64);
     if (imageValidation) {
       console.warn('[scan-identify] invalid_image_payload reason=%s', imageValidation);
+      void captureCommerceOutcome({
+        requestMode: useSelectedItemProvider ? 'selected_item' : useMultiItemDetectionProvider ? 'multi_item_detection' : 'legacy_single_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ invalidImage: true }),
+        textScanParityEnabled: false,
+      });
       return json(normalized('failed', INVALID_IMAGE_MESSAGE), 200);
     }
 
@@ -1674,6 +1758,35 @@ Deno.serve(async (req) => {
         requestMode,
         imageDigestPrefix,
       );
+      void captureCommerceOutcome({
+        requestMode: 'selected_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({
+          digestMissing: !suppliedImageDigestPrefix,
+          digestMismatch: !!suppliedImageDigestPrefix,
+        }),
+        textScanParityEnabled: false,
+        correlationHash: typeof imageDigestPrefix === 'string' ? imageDigestPrefix : null,
+      });
       return json(normalized('failed', 'The original outfit image is no longer available. Please start a new scan.'), 200);
     }
 
@@ -1727,6 +1840,31 @@ Deno.serve(async (req) => {
         quota.count,
         quota.limit,
       );
+      void captureCommerceOutcome({
+        requestMode: mode === 'text' ? 'text' : 'legacy_single_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'rate_limited',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ quotaExceeded: true }),
+        textScanParityEnabled: false,
+      });
       return json(buildRateLimitedResponse(), 200);
     }
     console.log(
@@ -1779,6 +1917,8 @@ Deno.serve(async (req) => {
   const intelligenceEnabled = qualityTuneEnabled && isScannerIntelligenceEnabled();
   // Relevance requires intelligence ON; when relevance OFF → exact v121 behavior.
   const relevanceEnabled = intelligenceEnabled && isCommerceRelevanceEnabled();
+  // TextScan parity requires relevance ON; when OFF → exact repaired-v122 TextScan behavior.
+  const textScanParityEnabled = relevanceEnabled && isTextScanCommerceParityEnabled();
 
   const requestModeForRoute = useMultiItemDetectionProvider
     ? 'multi_item_detection' as const
@@ -2322,150 +2462,254 @@ Deno.serve(async (req) => {
       productsBeforeDedupe: number;
       productsAfterDedupe: number;
       categoryMismatchRemovals: number;
+      productsBeforeFilter?: number;
+      retailerCount?: number;
     } | null = null;
+    let commerceStartedAt = 0;
+    let commerceDurationMs: number | null = null;
 
     if (mode === 'text') {
-      const weightedText = qualityTuneEnabled
-        ? buildWeightedCommerceQueries({
-          identification: (identification ?? {}) as Record<string, unknown>,
-          attributes: attributes as Record<string, unknown> | undefined,
-          searchQueries: Array.isArray(identification?.search_queries)
-            ? (identification?.search_queries as string[])
-            : undefined,
-          originalText: textQuery,
-          ...(intelligenceEnabled && intelligenceGate
-            ? {
-              detailLevel: intelligenceGate.commerceQueryDetailLevel,
-              materialAllowed: !intelligenceGate.materialSuppressed &&
-                intelligenceGate.qualityBand !== 'low',
-              brandAllowed: !intelligenceGate.brandSuppressed &&
-                hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
-            }
-            : {}),
-          ...(relevanceEnabled && intelligenceGate
-            ? {
-              relevanceRoute: commerceCategoryRoute,
-              qualityBand: intelligenceGate.qualityBand,
-              detailLevel: intelligenceGate.commerceQueryDetailLevel,
-              materialAllowed: !intelligenceGate.materialSuppressed &&
-                intelligenceGate.qualityBand !== 'low',
-              brandAllowed: !intelligenceGate.brandSuppressed &&
-                hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
-            }
-            : {}),
-        })
-        : null;
-      const shoppingQuery = weightedText
-        ? weightedText.primary
-        : buildShoppingQuery({
-        searchQueries: identification?.search_queries,
-        brand: identification?.brand_guess ?? identification?.visible_brand_text,
-        color: identification?.primary_color,
-        category: identification?.item_type ?? identification?.subtype,
-        material: identification?.material_estimate,
-        silhouette: identification?.silhouette,
-        style: Array.isArray(identification?.style_tags)
-          ? (identification.style_tags as unknown[]).join(' ')
-          : identification?.style_tags,
-        text: textQuery,
-      });
-      console.log('[scan-identify] commerce_started mode=%s source=%s', mode, source);
-      const shopping = await Promise.race([
-        getShoppingResults({ query: shoppingQuery, limit: 8 }).catch((err) => {
-          console.warn('[scan-identify] text commerce provider error:', err);
-          return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
-            ReturnType<typeof getShoppingResults>
-          >;
-        }),
-        new Promise<'text_commerce_timeout'>((resolve) => {
-          setTimeout(() => resolve('text_commerce_timeout'), TEXT_MODE_COMMERCE_TIMEOUT_MS);
-        }),
-      ]);
+      console.log('[scan-identify] commerce_started mode=%s source=%s parity=%s', mode, source, String(textScanParityEnabled));
+      commerceStartedAt = Date.now();
 
-      if (shopping === 'text_commerce_timeout') {
-        console.warn(
-          '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
-          TEXT_MODE_COMMERCE_TIMEOUT_MS,
-          mode,
-          source,
-        );
-        finalRecommendedProducts = [];
-        shoppingMeta = {
-          provider: 'timeout',
-          query: shoppingQuery,
-          count: 0,
-          reason: 'text_commerce_timeout',
-        };
-      } else {
-        let textProducts = shopping.products;
-        if (qualityTuneEnabled && weightedText) {
-          const textRelevance = relevanceEnabled
-            ? {
-              enabled: true as const,
-              categoryRoute: commerceCategoryRoute,
-              qualityBand: intelligenceGate?.qualityBand ?? null,
-            }
-            : undefined;
-          const filtered = filterAndDedupeProducts(
-            textProducts,
-            (identification ?? {}) as Record<string, unknown>,
-            textRelevance,
+      if (textScanParityEnabled) {
+        // v123: TextScan uses the same commerce router as image mode.
+        const commerce = await Promise.race([
+          getScanCommerceResults({
+            mode: 'text',
+            allowTextMode: true,
+            identification: (identification ?? {}) as Record<string, unknown>,
+            attributes: attributes as Record<string, unknown> | undefined,
+            searchQueries: Array.isArray(identification?.search_queries)
+              ? (identification?.search_queries as string[])
+              : undefined,
+            originalText: textQuery,
+            limit: 8,
+            ...(intelligenceEnabled && intelligenceGate
+              ? {
+                qualityDetailLevel: intelligenceGate.commerceQueryDetailLevel,
+                materialAllowed: !intelligenceGate.materialSuppressed &&
+                  intelligenceGate.qualityBand !== 'low',
+                brandAllowed: !intelligenceGate.brandSuppressed &&
+                  hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+              }
+              : {}),
+            ...(relevanceEnabled && intelligenceGate
+              ? {
+                relevanceEnabled: true,
+                relevanceRoute: commerceCategoryRoute,
+                qualityBand: intelligenceGate.qualityBand,
+              }
+              : {}),
+          }).catch((err) => {
+            console.warn('[scan-identify] text commerce router error:', err);
+            return {
+              provider: 'error',
+              providersTried: [],
+              query: '',
+              products: [],
+              count: 0,
+            } as unknown as ScanCommerceResult;
+          }),
+          new Promise<'text_commerce_timeout'>((resolve) => {
+            setTimeout(() => resolve('text_commerce_timeout'), TEXT_MODE_COMMERCE_TIMEOUT_MS);
+          }),
+        ]);
+        commerceDurationMs = Date.now() - commerceStartedAt;
+
+        if (commerce === 'text_commerce_timeout') {
+          console.warn(
+            '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
+            TEXT_MODE_COMMERCE_TIMEOUT_MS,
+            mode,
+            source,
           );
-          textProducts = filtered.products;
-          if (relevanceEnabled) {
+          finalRecommendedProducts = [];
+          shoppingMeta = {
+            provider: 'timeout',
+            query: '',
+            count: 0,
+            providersTried: [],
+            reason: 'text_commerce_timeout',
+          };
+        } else {
+          finalRecommendedProducts = commerce.products.slice(0, 8).map((p) => ({
+            id: p.id,
+            name: p.title,
+            title: p.title,
+            source: p.source,
+            retailer: p.source,
+            url: p.productUrl,
+            product_url: p.productUrl,
+            imageUrl: p.imageUrl,
+            price: p.price,
+            type: p.type,
+          })) as RankedScanProduct[];
+          shoppingMeta = {
+            provider: commerce.provider,
+            query: commerce.query,
+            count: finalRecommendedProducts.length,
+            providersTried: commerce.providersTried,
+          };
+          if (commerce.qualityTune) {
             commerceRelevanceStats = {
-              fallbackUsed: false,
-              productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
-              productsAfterDedupe: filtered.stats.productsAfterDedupe,
-              categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+              fallbackUsed: !!commerce.qualityTune.fallbackUsed,
+              productsBeforeDedupe: commerce.qualityTune.productsBeforeDedupe,
+              productsAfterDedupe: commerce.qualityTune.productsAfterDedupe,
+              categoryMismatchRemovals: commerce.qualityTune.categoryMismatchRemovals,
+              productsBeforeFilter: commerce.qualityTune.productsBeforeFilter,
+              retailerCount: commerce.qualityTune.retailerCount,
             };
           }
-          if (
-            shouldRunFallbackQuery(textProducts.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
-            weightedText.fallback &&
-            weightedText.fallback !== shoppingQuery
-          ) {
-            const fallbackShopping = await getShoppingResults({
-              query: weightedText.fallback,
-              limit: 8,
-            }).catch(() => ({ products: [] as typeof textProducts, provider: 'error', query: weightedText.fallback }));
-            const fallbackFiltered = filterAndDedupeProducts(
-              fallbackShopping.products,
+        }
+      } else {
+        // Repaired-v122 TextScan path: Serper/Brave via getShoppingResults only.
+        const weightedText = qualityTuneEnabled
+          ? buildWeightedCommerceQueries({
+            identification: (identification ?? {}) as Record<string, unknown>,
+            attributes: attributes as Record<string, unknown> | undefined,
+            searchQueries: Array.isArray(identification?.search_queries)
+              ? (identification?.search_queries as string[])
+              : undefined,
+            originalText: textQuery,
+            ...(intelligenceEnabled && intelligenceGate
+              ? {
+                detailLevel: intelligenceGate.commerceQueryDetailLevel,
+                materialAllowed: !intelligenceGate.materialSuppressed &&
+                  intelligenceGate.qualityBand !== 'low',
+                brandAllowed: !intelligenceGate.brandSuppressed &&
+                  hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+              }
+              : {}),
+            ...(relevanceEnabled && intelligenceGate
+              ? {
+                relevanceRoute: commerceCategoryRoute,
+                qualityBand: intelligenceGate.qualityBand,
+                detailLevel: intelligenceGate.commerceQueryDetailLevel,
+                materialAllowed: !intelligenceGate.materialSuppressed &&
+                  intelligenceGate.qualityBand !== 'low',
+                brandAllowed: !intelligenceGate.brandSuppressed &&
+                  hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+              }
+              : {}),
+          })
+          : null;
+        const shoppingQuery = weightedText
+          ? weightedText.primary
+          : buildShoppingQuery({
+          searchQueries: identification?.search_queries,
+          brand: identification?.brand_guess ?? identification?.visible_brand_text,
+          color: identification?.primary_color,
+          category: identification?.item_type ?? identification?.subtype,
+          material: identification?.material_estimate,
+          silhouette: identification?.silhouette,
+          style: Array.isArray(identification?.style_tags)
+            ? (identification.style_tags as unknown[]).join(' ')
+            : identification?.style_tags,
+          text: textQuery,
+        });
+        const shopping = await Promise.race([
+          getShoppingResults({ query: shoppingQuery, limit: 8 }).catch((err) => {
+            console.warn('[scan-identify] text commerce provider error:', err);
+            return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
+              ReturnType<typeof getShoppingResults>
+            >;
+          }),
+          new Promise<'text_commerce_timeout'>((resolve) => {
+            setTimeout(() => resolve('text_commerce_timeout'), TEXT_MODE_COMMERCE_TIMEOUT_MS);
+          }),
+        ]);
+        commerceDurationMs = Date.now() - commerceStartedAt;
+
+        if (shopping === 'text_commerce_timeout') {
+          console.warn(
+            '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
+            TEXT_MODE_COMMERCE_TIMEOUT_MS,
+            mode,
+            source,
+          );
+          finalRecommendedProducts = [];
+          shoppingMeta = {
+            provider: 'timeout',
+            query: shoppingQuery,
+            count: 0,
+            reason: 'text_commerce_timeout',
+          };
+        } else {
+          let textProducts = shopping.products;
+          if (qualityTuneEnabled && weightedText) {
+            const textRelevance = relevanceEnabled
+              ? {
+                enabled: true as const,
+                categoryRoute: commerceCategoryRoute,
+                qualityBand: intelligenceGate?.qualityBand ?? null,
+              }
+              : undefined;
+            const filtered = filterAndDedupeProducts(
+              textProducts,
               (identification ?? {}) as Record<string, unknown>,
               textRelevance,
             );
+            textProducts = filtered.products;
             if (relevanceEnabled) {
               commerceRelevanceStats = {
-                fallbackUsed: true,
-                productsBeforeDedupe: fallbackFiltered.stats.productsBeforeDedupe,
-                productsAfterDedupe: fallbackFiltered.stats.productsAfterDedupe,
-                categoryMismatchRemovals:
-                  (commerceRelevanceStats?.categoryMismatchRemovals || 0) +
-                  fallbackFiltered.stats.categoryMismatchRemovals,
+                fallbackUsed: false,
+                productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
+                productsAfterDedupe: filtered.stats.productsAfterDedupe,
+                categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+                productsBeforeFilter: filtered.stats.productsBeforeFilter,
+                retailerCount: filtered.stats.retailerCount,
               };
             }
-            if (fallbackFiltered.products.length > textProducts.length) {
-              textProducts = fallbackFiltered.products;
+            if (
+              shouldRunFallbackQuery(textProducts.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
+              weightedText.fallback &&
+              weightedText.fallback !== shoppingQuery
+            ) {
+              const fallbackShopping = await getShoppingResults({
+                query: weightedText.fallback,
+                limit: 8,
+              }).catch(() => ({ products: [] as typeof textProducts, provider: 'error', query: weightedText.fallback }));
+              const fallbackFiltered = filterAndDedupeProducts(
+                fallbackShopping.products,
+                (identification ?? {}) as Record<string, unknown>,
+                textRelevance,
+              );
+              if (relevanceEnabled) {
+                commerceRelevanceStats = {
+                  fallbackUsed: true,
+                  productsBeforeDedupe: fallbackFiltered.stats.productsBeforeDedupe,
+                  productsAfterDedupe: fallbackFiltered.stats.productsAfterDedupe,
+                  categoryMismatchRemovals:
+                    (commerceRelevanceStats?.categoryMismatchRemovals || 0) +
+                    fallbackFiltered.stats.categoryMismatchRemovals,
+                  productsBeforeFilter: fallbackFiltered.stats.productsBeforeFilter,
+                  retailerCount: fallbackFiltered.stats.retailerCount,
+                };
+              }
+              if (fallbackFiltered.products.length > textProducts.length) {
+                textProducts = fallbackFiltered.products;
+              }
             }
           }
+          finalRecommendedProducts = textProducts.slice(0, 8).map((p) => ({
+            id: p.id,
+            name: p.title,
+            title: p.title,
+            source: p.source,
+            retailer: p.source,
+            url: p.productUrl,
+            product_url: p.productUrl,
+            imageUrl: p.imageUrl,
+            price: p.price,
+            type: p.type,
+          })) as RankedScanProduct[];
+          shoppingMeta = {
+            provider: shopping.provider,
+            query: shopping.query,
+            count: finalRecommendedProducts.length,
+          };
         }
-        finalRecommendedProducts = textProducts.slice(0, 8).map((p) => ({
-          id: p.id,
-          name: p.title,
-          title: p.title,
-          source: p.source,
-          retailer: p.source,
-          url: p.productUrl,
-          product_url: p.productUrl,
-          imageUrl: p.imageUrl,
-          price: p.price,
-          type: p.type,
-        })) as RankedScanProduct[];
-        shoppingMeta = {
-          provider: shopping.provider,
-          query: shopping.query,
-          count: finalRecommendedProducts.length,
-        };
       }
       rankedProductsForAudit = finalRecommendedProducts;
     } else if (useMultiItemDetectionProvider) {
@@ -2518,6 +2762,7 @@ Deno.serve(async (req) => {
       // Live commerce is capped at IMAGE_MODE_COMMERCE_TIMEOUT_MS so a slow
       // provider cannot block the Similar Items shelf.
       console.log('[scan-identify] commerce_started mode=%s source=%s', mode, source);
+      commerceStartedAt = Date.now();
       const commerce = await Promise.race([
         getScanCommerceResults({
           mode: 'image',
@@ -2560,6 +2805,7 @@ Deno.serve(async (req) => {
           setTimeout(() => resolve('commerce_timeout'), IMAGE_MODE_COMMERCE_TIMEOUT_MS);
         }),
       ]);
+      commerceDurationMs = Date.now() - commerceStartedAt;
 
       let liveProducts: RankedScanProduct[] = [];
       let commerceProvider = 'none';
@@ -2580,6 +2826,8 @@ Deno.serve(async (req) => {
             productsBeforeDedupe: commerce.qualityTune.productsBeforeDedupe,
             productsAfterDedupe: commerce.qualityTune.productsAfterDedupe,
             categoryMismatchRemovals: commerce.qualityTune.categoryMismatchRemovals,
+            productsBeforeFilter: commerce.qualityTune.productsBeforeFilter,
+            retailerCount: commerce.qualityTune.retailerCount,
           };
         }
         liveProducts = commerce.products.map((p) => ({
@@ -2685,34 +2933,67 @@ Deno.serve(async (req) => {
       console.log('[scan-identify] multi_item_response_count count=%d', detectedGarments.length);
     }
     if (qualityTuneEnabled) {
-      const commerceQt = (shoppingMeta as Record<string, unknown> | undefined);
-      void commerceQt;
+      const requestModeLabel = useMultiItemDetectionProvider
+        ? 'multi_item_detection'
+        : useSelectedItemProvider
+        ? 'selected_item'
+        : mode === 'text'
+        ? 'text'
+        : 'legacy_single_item';
+      const productCount = typeof shoppingMeta?.count === 'number'
+        ? shoppingMeta.count
+        : finalRecommendedProducts.length;
+      const providerOutcome = typeof shoppingMeta?.provider === 'string' ? shoppingMeta.provider : null;
+      const fallbackUsed = commerceRelevanceStats?.fallbackUsed ?? false;
+      const beforeFilter = commerceRelevanceStats?.productsBeforeFilter ??
+        commerceRelevanceStats?.productsBeforeDedupe ??
+        productCount;
+      const afterDedupe = commerceRelevanceStats?.productsAfterDedupe ?? productCount;
+      const beforeDedupe = commerceRelevanceStats?.productsBeforeDedupe ?? productCount;
+      const mismatchRemovals = commerceRelevanceStats?.categoryMismatchRemovals ?? 0;
+      const retailerCount = commerceRelevanceStats?.retailerCount ?? new Set(
+        finalRecommendedProducts
+          .map((p) =>
+            typeof (p as { source?: string }).source === 'string'
+              ? (p as { source: string }).source
+              : typeof (p as { retailer?: string }).retailer === 'string'
+              ? (p as { retailer: string }).retailer
+              : ''
+          )
+          .filter(Boolean),
+      ).size;
+      const failureReason = mapToFailureReason({
+        providerOutcome,
+        commercePrimaryEmpty: !fallbackUsed && productCount === 0 &&
+          !(shoppingMeta as { commerceSkipped?: boolean } | undefined)?.commerceSkipped,
+        commerceFallbackUsed: fallbackUsed && productCount > 0,
+        commerceFallbackEmpty: fallbackUsed && productCount === 0,
+        productFilterEmpty: beforeFilter > 0 && afterDedupe === 0,
+        categoryMismatchRemoved: mismatchRemovals > 0,
+        productDedupeReduction: beforeDedupe > afterDedupe,
+      });
+
       logQualityTuneMetrics(buildQualityTuneMetrics({
         enabled: true,
-        requestMode: useMultiItemDetectionProvider
-          ? 'multi_item_detection'
-          : useSelectedItemProvider
-          ? 'selected_item'
-          : mode === 'text'
-          ? 'text'
-          : 'legacy_single_item',
+        requestMode: requestModeLabel,
         totalDurationMs: elapsedMs,
-        providerOutcome: typeof shoppingMeta?.provider === 'string' ? shoppingMeta.provider : null,
+        commerceDurationMs,
+        providerOutcome,
         candidateCount: useMultiItemDetectionProvider ? detectedGarments.length : 1,
         genericLabelOccurrence: qualityGenericLabelOccurrence,
         normalizationCorrectionCount: qualityNormCorrectionCount,
         normalizationRuleIds: qualityNormRuleIds,
-        primaryCommerceResultCount: typeof shoppingMeta?.count === 'number' ? shoppingMeta.count : finalRecommendedProducts.length,
-        fallbackQueryUsage: false,
-        productsBeforeDedupe: finalRecommendedProducts.length,
-        productsAfterDedupe: finalRecommendedProducts.length,
-        categoryMismatchRemovals: qualityInvalidPairsResolved,
-        emptyResultOccurrence: finalRecommendedProducts.length === 0 ? 1 : 0,
-        errorCategory: null,
+        primaryCommerceResultCount: productCount,
+        fallbackQueryUsage: fallbackUsed,
+        productsBeforeDedupe: beforeDedupe,
+        productsAfterDedupe: afterDedupe,
+        categoryMismatchRemovals: mismatchRemovals,
+        emptyResultOccurrence: productCount === 0 ? 1 : 0,
+        errorCategory: failureReason,
         ...(intelligenceEnabled && intelligenceGate
           ? {
             intelligence: {
-              categoryRoute,
+              categoryRoute: commerceCategoryRoute,
               qualityScoreBand: intelligenceGate.qualityBand,
               qualityScoreValue: intelligenceGate.qualityScore,
               consistencyConflictCount: intelligenceGate.consistencyConflicts.length,
@@ -2726,33 +3007,12 @@ Deno.serve(async (req) => {
         ...(relevanceEnabled
           ? {
             commerceRelevance: {
-              failureReason: mapToFailureReason({
-                providerOutcome: typeof shoppingMeta?.provider === 'string'
-                  ? shoppingMeta.provider
-                  : null,
-                commercePrimaryEmpty: (typeof shoppingMeta?.count === 'number'
-                  ? shoppingMeta.count
-                  : finalRecommendedProducts.length) === 0,
-              }),
-              productsBeforeFilter: commerceRelevanceStats
-                ? commerceRelevanceStats.productsBeforeDedupe
-                : finalRecommendedProducts.length,
-              productsAfterFilter: commerceRelevanceStats
-                ? commerceRelevanceStats.productsAfterDedupe
-                : finalRecommendedProducts.length,
-              retailerCount: new Set(
-                finalRecommendedProducts
-                  .map((p) =>
-                    typeof (p as { source?: string }).source === 'string'
-                      ? (p as { source: string }).source
-                      : typeof (p as { retailer?: string }).retailer === 'string'
-                      ? (p as { retailer: string }).retailer
-                      : ''
-                  )
-                  .filter(Boolean),
-              ).size,
-              fallbackUsed: commerceRelevanceStats?.fallbackUsed ?? false,
-              durationMs: elapsedMs,
+              failureReason,
+              productsBeforeFilter: beforeFilter,
+              productsAfterFilter: afterDedupe,
+              retailerCount,
+              fallbackUsed,
+              durationMs: commerceDurationMs ?? elapsedMs,
               intelligenceVersion: SCANNER_INTELLIGENCE_VERSION,
             },
           }
@@ -2766,7 +3026,7 @@ Deno.serve(async (req) => {
         console.log(
           '[scan-identify] scanner_intelligence_version=%s enabled=true route=%s band=%s score=%d',
           SCANNER_INTELLIGENCE_VERSION,
-          categoryRoute,
+          commerceCategoryRoute,
           intelligenceGate?.qualityBand ?? 'n/a',
           intelligenceGate?.qualityScore ?? -1,
         );
@@ -2778,6 +3038,43 @@ Deno.serve(async (req) => {
           commerceCategoryRoute,
         );
       }
+      if (textScanParityEnabled && mode === 'text') {
+        console.log(
+          '[scan-identify] textscan_commerce_parity_version=%s enabled=true route=%s',
+          TEXTSCAN_COMMERCE_PARITY_VERSION,
+          commerceCategoryRoute,
+        );
+      }
+
+      // Best-effort scrubbed outcome persistence — never blocks response.
+      void captureCommerceOutcome({
+        requestMode: requestModeLabel,
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: true,
+        categoryRoute: commerceCategoryRoute,
+        qualityBand: intelligenceGate?.qualityBand ?? null,
+        commerceQueryDetailLevel: intelligenceGate?.commerceQueryDetailLevel ?? null,
+        providerOutcome,
+        providersTried: Array.isArray((shoppingMeta as { providersTried?: string[] } | undefined)?.providersTried)
+          ? (shoppingMeta as { providersTried: string[] }).providersTried
+          : null,
+        primaryResultCount: productCount,
+        fallbackUsed,
+        productsBeforeFilter: beforeFilter,
+        productsAfterFilter: afterDedupe,
+        productsBeforeDedupe: beforeDedupe,
+        productsAfterDedupe: afterDedupe,
+        categoryMismatchRemovals: mismatchRemovals,
+        retailerCount,
+        commerceDurationMs,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason,
+        textScanParityEnabled: textScanParityEnabled && mode === 'text',
+        correlationHash: typeof scanId === 'string' ? scanId.slice(0, 12) : null,
+      });
     }
     return json(finalResponse, 200);
   } catch (err) {
