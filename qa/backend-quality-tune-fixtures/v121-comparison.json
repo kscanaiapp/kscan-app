@@ -1,0 +1,36 @@
+{
+  "version": "v121",
+  "fixtureCount": 34,
+  "v120IntelOffEquivalent": true,
+  "equivalentCases": 34,
+  "differingCases": 0,
+  "diffs": [],
+  "routingOnSample": [
+    {
+      "id": "cropped moto jacket",
+      "route": "apparel",
+      "band": "high"
+    },
+    {
+      "id": "wide-leg trousers",
+      "route": "apparel",
+      "band": "high"
+    },
+    {
+      "id": "pleated midi skirt",
+      "route": "apparel",
+      "band": "high"
+    },
+    {
+      "id": "ribbed sweater",
+      "route": "apparel",
+      "band": "high"
+    },
+    {
+      "id": "slip dress",
+      "route": "apparel",
+      "band": "high"
+    }
+  ],
+  "note": "Fixture harness only — not production accuracy."
+}

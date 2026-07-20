@@ -635,6 +635,18 @@ test('edge source: quality tune modules are wired without changing response fiel
   assert.equal(EDGE_SOURCE.includes('requiredQualityField'), false, 'Must not add invented required fields');
 });
 
+test('edge source: scanner intelligence modules are wired without contract changes', () => {
+  assert.ok(EDGE_SOURCE.includes('scannerIntelligenceConfig'), 'Must import intelligence config');
+  assert.ok(EDGE_SOURCE.includes('resolveScannerCategoryRoute'), 'Must route by category');
+  assert.ok(EDGE_SOURCE.includes('applyScannerQualityGate'), 'Must apply quality gate');
+  assert.ok(EDGE_SOURCE.includes('isScannerIntelligenceEnabled'), 'Must support intelligence rollback flag');
+  assert.ok(EDGE_SOURCE.includes('BACKEND_SCANNER_INTELLIGENCE_ENABLED') || EDGE_SOURCE.includes('isScannerIntelligenceEnabled'), 'Must gate intelligence');
+  assert.equal(EDGE_SOURCE.includes('requiredQualityScore'), false, 'Must not require quality score on client');
+  assert.equal(EDGE_SOURCE.includes('quality_score_value'), false, 'Must not expose quality_score_value in response builder');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions'), 'Must preserve purchaseOptions');
+  assert.ok(EDGE_SOURCE.includes('detectedGarments'), 'Must preserve detectedGarments');
+});
+
 test('edge source: quality tune does not rename products or purchaseOptions arrays', () => {
   assert.ok(EDGE_SOURCE.includes('recommendedProducts'), 'Must keep recommendedProducts');
   assert.ok(EDGE_SOURCE.includes('purchaseOptions:'), 'Must keep purchaseOptions mapping');
