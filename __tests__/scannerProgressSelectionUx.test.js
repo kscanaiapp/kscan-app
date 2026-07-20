@@ -124,6 +124,8 @@ function loadScannerHarness({
     recommendedProducts: [{ id: 'p1' }],
   }),
   compressForUpload = async (uri) => `prep:${uri}`,
+  buildSecondhandSearchRequest = () => null,
+  searchVintedSecondhand = async () => ({ enabled: false, items: [] }),
   initialActorId = 'user-a',
 } = {}) {
   const identifyCalls = [];
@@ -246,8 +248,8 @@ function loadScannerHarness({
     recordScanLatencyMarker: (event, generation, detail) => {
       latencyEvents.push({ event, generation, detail });
     },
-    buildSecondhandSearchRequest: () => null,
-    searchVintedSecondhand: async () => ({ enabled: false, items: [] }),
+    buildSecondhandSearchRequest,
+    searchVintedSecondhand,
     shouldEnrichSneakers: () => false,
     searchSneakers: async () => [],
     errorPulse: () => {},
@@ -289,6 +291,16 @@ function loadScannerHarness({
     confirm: (...args) => currentHook.confirmSelectedCandidates(...args),
     dismissResult: (...args) => currentHook.dismissResult(...args),
     removeSelectedImage: (...args) => currentHook.removeSelectedImage(...args),
+    uploadPhoto: (...args) => currentHook.uploadPhoto(...args),
+    selectScanItem: (...args) => currentHook.selectScanItem(...args),
+    getTimerIds: () => Array.from(timers.keys()),
+    fireTimer: (id) => {
+      const timer = timers.get(id);
+      if (!timer) return false;
+      timers.delete(id);
+      timer.callback();
+      return true;
+    },
     setActor: (actorId) => {
       renderActorId = actorId;
       render();
@@ -699,6 +711,137 @@ test('actor change during the queue invalidates every pending step', async () =>
   assert.equal(hook.analysisActorId, null);
 });
 
+test('superseded preparation issues no provider call and its timer cannot abort a replacement attempt', async () => {
+  let releaseOldPreparation;
+  let releaseNewDetection;
+  const oldPreparation = new Promise((resolve) => { releaseOldPreparation = resolve; });
+  const newDetection = new Promise((resolve) => { releaseNewDetection = resolve; });
+  const hook = loadScannerHarness({
+    images: [
+      { id: 'img-old', uri: 'file://imageA.jpg', source: 'upload', originalIndex: 0 },
+    ],
+    compressForUpload: async (uri) => {
+      if (uri.includes('imageA')) await oldPreparation;
+      return `prep:${uri}`;
+    },
+    detectionResponder: async (image, options) => {
+      if (image.includes('replacement')) await newDetection;
+      return defaultDetectionResponder(image, options);
+    },
+  });
+
+  const oldAttempt = hook.runAnalysis();
+  await settle(5);
+  const [oldTimerId] = hook.getTimerIds();
+  assert.ok(oldTimerId);
+
+  hook.setActor('user-b');
+  hook.rerender();
+  hook.uploadPhoto('file://replacement.jpg');
+  hook.rerender();
+  const replacementAttempt = hook.runAnalysis();
+  await waitFor(() => hook.identifyCalls.some((call) => call.image.includes('replacement')));
+  const replacementCall = hook.identifyCalls.find((call) => call.image.includes('replacement'));
+  assert.equal(replacementCall.options.signal.aborted, false);
+
+  assert.equal(hook.fireTimer(oldTimerId), true);
+  assert.equal(replacementCall.options.signal.aborted, false);
+
+  releaseNewDetection();
+  await replacementAttempt;
+  releaseOldPreparation();
+  await oldAttempt;
+  await settle(10);
+
+  assert.equal(hook.identifyCalls.some((call) => call.image.includes('imageA')), false);
+  assert.equal(hook.status, 'result');
+});
+
+test('a stale selected-item finally block cannot detach the replacement queue controller', async () => {
+  let releaseOldSelected;
+  let releaseNewSelected;
+  const oldSelected = new Promise((resolve) => { releaseOldSelected = resolve; });
+  const newSelected = new Promise((resolve) => { releaseNewSelected = resolve; });
+  let selectedCall = 0;
+  const hook = loadScannerHarness({
+    images: [
+      { id: 'img-old', uri: 'file://imageA.jpg', source: 'upload', originalIndex: 0 },
+    ],
+    selectedItemResponder: async () => {
+      selectedCall += 1;
+      if (selectedCall === 1) await oldSelected;
+      else await newSelected;
+      return { status: 'completed', attributes: {}, recommendedProducts: [] };
+    },
+  });
+
+  await hook.runAnalysis();
+  hook.rerender();
+  hook.toggle(hook.scanCandidates[0].id);
+  hook.confirm();
+  await waitFor(() => hook.identifyCalls.filter((call) => call.mode === 'selected_item').length === 1);
+
+  hook.setActor('user-b');
+  hook.rerender();
+  hook.uploadPhoto('file://replacement.jpg');
+  hook.rerender();
+  await hook.runAnalysis();
+  hook.rerender();
+  hook.toggle(hook.scanCandidates[0].id);
+  hook.confirm();
+  await waitFor(() => hook.identifyCalls.filter((call) => call.mode === 'selected_item').length === 2);
+
+  const selectedCalls = hook.identifyCalls.filter((call) => call.mode === 'selected_item');
+  const replacementCall = selectedCalls[1];
+  assert.equal(replacementCall.options.signal.aborted, false);
+
+  releaseOldSelected();
+  await settle(10);
+  hook.rerender();
+  hook.dismissResult();
+  assert.equal(replacementCall.options.signal.aborted, true);
+
+  releaseNewSelected();
+  await settle(10);
+  assert.equal(hook.scanItems.length, 0);
+});
+
+test('late enrichment from one candidate cannot decorate a newly selected candidate', async () => {
+  let releaseFirstEnrichment;
+  const firstEnrichment = new Promise((resolve) => { releaseFirstEnrichment = resolve; });
+  let enrichmentCall = 0;
+  const hook = loadScannerHarness({
+    selectedItemResponder: async (_image, options) => ({
+      status: 'completed',
+      attributes: { category: options.selectedCandidate.candidateId },
+      recommendedProducts: [],
+    }),
+    buildSecondhandSearchRequest: () => ({ query: 'fashion item' }),
+    searchVintedSecondhand: async () => {
+      enrichmentCall += 1;
+      if (enrichmentCall === 1) return firstEnrichment;
+      return { enabled: false, items: [] };
+    },
+  });
+
+  await hook.runAnalysis();
+  hook.rerender();
+  const [a, b] = hook.scanCandidates.map((candidate) => candidate.id);
+  hook.toggle(a);
+  hook.toggle(b);
+  hook.confirm();
+  await waitFor(() => hook.queueActive === false && hook.scanItems.length === 2);
+
+  hook.rerender();
+  hook.selectScanItem(b);
+  assert.equal(hook.analysis.attributes.category, hook.scanCandidates[1].selectedCandidate.candidateId);
+
+  releaseFirstEnrichment({ enabled: true, items: [{ id: 'stale-item-a' }] });
+  await settle(15);
+  assert.equal(hook.analysis.secondhand, undefined);
+  assert.equal(hook.analysis.attributes.category, hook.scanCandidates[1].selectedCandidate.candidateId);
+});
+
 test('source-image mutation after review clears candidates, selection, and queue state', async () => {
   const hook = loadScannerHarness();
   await hook.runAnalysis();
@@ -775,6 +918,13 @@ test('review UI renders in ScanResultV2 with review/processing/results navigator
   // Review mode exposes no Dressing Room actions.
   const reviewBlock = v2.slice(v2.indexOf('Deliberate candidate review'), v2.indexOf('// Build title'));
   assert.doesNotMatch(reviewBlock, /DressingRoom|onAddToDressingRoom|ScanResultActionRow/);
+});
+
+test('confirmed multi-item results keep the navigator-capable renderer when the legacy flag is off', () => {
+  const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  assert.match(app, /SCAN_RESULTS_V2_UI_ENABLED \|\| selectedCandidateIds\.length > 0/);
+  assert.match(app, /multiItem=\{activeScanItem \? \{/);
+  assert.match(app, /onAskStyleChat=\{styleChatEnabled/);
 });
 
 test('save-during-queue: Save All is disabled until at least one item is ready', () => {

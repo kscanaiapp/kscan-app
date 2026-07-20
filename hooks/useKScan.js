@@ -549,6 +549,9 @@ export function useKScan(actorId = null) {
 
       const operationId = startInFlight();
       if (operationId === null) return;
+      // Bind every continuation and timeout to the controller created for this
+      // exact attempt. A stale timer must never abort a newer actor/generation.
+      const attemptController = activeAbortControllerRef.current;
 
       // A new attempt supersedes any previous candidates, selection, or queue.
       invalidateScanPipeline();
@@ -624,6 +627,16 @@ export function useKScan(actorId = null) {
       let attemptTimeoutId = null;
 
       const executeScanAttempt = async () => {
+        if (
+          !isOperationValid(operationId) ||
+          !isGenerationValid(generation, attemptActor) ||
+          attemptController?.signal.aborted
+        ) {
+          throw userSafeError(
+            'scan attempt superseded',
+            'We couldnâ€™t complete the scan. Please try again.',
+          );
+        }
         processingStart = Date.now();
 
         if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS imageCount=' + imagesForAttempt.length);
@@ -650,6 +663,19 @@ export function useKScan(actorId = null) {
         const settledDetections = await Promise.allSettled(imagesForAttempt.map(async (image) => {
           const compressed = await compressForUpload(image.uri);
           const adapted = await preparePrivacyAdaptedImage(compressed);
+          // Compression/privacy preparation may outlive an actor change or
+          // reset. Reject before invoking the provider so a superseded image
+          // cannot be sent under a replacement session.
+          if (
+            !isOperationValid(operationId) ||
+            !isGenerationValid(generation, attemptActor) ||
+            attemptController?.signal.aborted
+          ) {
+            throw userSafeError(
+              'scan attempt superseded during preparation',
+              'We couldnâ€™t complete the scan. Please try again.',
+            );
+          }
           if (!firstRequestMarked) {
             firstRequestMarked = true;
             recordScanLatencyMarker('image_preparation_complete', generation);
@@ -664,7 +690,7 @@ export function useKScan(actorId = null) {
             localPrivacyFiltered: adapted.localPrivacyFiltered,
             multiItemDetection: true,
             requestMode: 'multi_item_detection',
-            signal: activeAbortControllerRef.current?.signal,
+            signal: attemptController?.signal,
           });
           if (!firstResponseMarked) {
             firstResponseMarked = true;
@@ -740,7 +766,7 @@ export function useKScan(actorId = null) {
             source: 'runAnalysis',
             operationId,
           });
-          activeAbortControllerRef.current?.abort();
+          attemptController?.abort();
           reject(userSafeError(
             'scan attempt timed out',
             'Analysis is taking longer than expected. Please try again.',
@@ -870,7 +896,8 @@ export function useKScan(actorId = null) {
         let requestFailed = false;
 
         if (candidate.selectedCandidate) {
-          queueAbortControllerRef.current = new AbortController();
+          const requestController = new AbortController();
+          queueAbortControllerRef.current = requestController;
           if (index === 0) {
             recordScanLatencyMarker('first_selected_request_sent', generation);
           }
@@ -885,13 +912,18 @@ export function useKScan(actorId = null) {
               scanSessionId: candidate.detectionResponse.scanSessionId,
               imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
               selectedCandidate: candidate.selectedCandidate,
-              signal: queueAbortControllerRef.current.signal,
+              signal: requestController.signal,
             });
           } catch (err) {
             if (__DEV__) console.warn('[useKScan] selected_item request failed', err?.message);
             requestFailed = true;
           } finally {
-            queueAbortControllerRef.current = null;
+            // An older queue request may settle after a replacement queue has
+            // installed its own controller. Only clear the controller owned by
+            // this request.
+            if (queueAbortControllerRef.current === requestController) {
+              queueAbortControllerRef.current = null;
+            }
           }
         }
 
@@ -1127,10 +1159,16 @@ export function useKScan(actorId = null) {
     if (scanInFlightRef.current || status !== 'result') return;
     const item = scanItems.find((candidate) => candidate.id === itemId);
     if (!item) return;
+    // Invalidate enrichment for the previously displayed item before swapping
+    // the analysis. Otherwise a late secondhand/sneaker response can decorate
+    // the newly selected candidate with the prior candidate's data.
+    secondhandRequestRef.current += 1;
+    const secondhandRequestId = secondhandRequestRef.current;
     setSelectedScanItemId(item.id);
     setAnalysis(item.analysis);
     setAnalysisActorId(currentActorRef.current);
-  }, [status, scanItems]);
+    enrichDisplayedAnalysis(item.analysis, secondhandRequestId);
+  }, [status, scanItems, enrichDisplayedAnalysis]);
 
   return {
     status,

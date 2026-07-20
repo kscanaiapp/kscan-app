@@ -38,7 +38,9 @@ test('request cancellation, timeout, unmount, and stale-response guards cover th
   const hook = read('hooks/useKScan.js');
   assert.match(hook, /ATTEMPT_TIMEOUT_MS = 52_000/);
   assert.match(hook, /activeAbortControllerRef\.current\?\.abort\(\)/);
-  assert.match(hook, /signal:\s*activeAbortControllerRef\.current\?\.signal/g);
+  assert.match(hook, /const attemptController = activeAbortControllerRef\.current/);
+  assert.match(hook, /signal:\s*attemptController\?\.signal/);
+  assert.match(hook, /attemptTimeoutId = setTimeout\(\(\) => \{[\s\S]*attemptController\?\.abort\(\)/);
   assert.match(hook, /!isOperationValid\(operationId\)/);
   assert.match(hook, /isGenerationValid\(generation/);
   assert.match(hook, /isMountedRef\.current/);
