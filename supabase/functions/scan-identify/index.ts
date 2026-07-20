@@ -2181,6 +2181,36 @@ Deno.serve(async (req) => {
         mode,
         source,
       );
+      // v120-v123 full-tree audit repair: this terminal branch previously
+      // returned without ever calling captureCommerceOutcome, so a whole class
+      // of legitimate multi-item requests (detection completed, zero garments
+      // survived sanitization) was invisible to scan_commerce_events, despite
+      // the unified v123 outcome table being designed to cover every request.
+      void captureCommerceOutcome({
+        requestMode: 'multi_item_detection',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ modelMalformed: true }),
+        textScanParityEnabled: false,
+      });
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -2395,6 +2425,43 @@ Deno.serve(async (req) => {
       if (useMultiItemDetectionProvider) {
         console.log('[scan-identify] multi_item_response_count count=0');
       }
+      // v120-v123 full-tree audit repair: non_fashion is an explicit, valid
+      // status in the outcome-row schema (ALLOWED_STATUS) and has its own
+      // stable failure reason (FAILURE_REASON_NON_FASHION), but this branch
+      // never called captureCommerceOutcome, so non-fashion scans — a
+      // legitimate, non-trivial share of Scanner traffic — were structurally
+      // invisible to scan_commerce_events.
+      void captureCommerceOutcome({
+        requestMode: useSelectedItemProvider
+          ? 'selected_item'
+          : useMultiItemDetectionProvider
+          ? 'multi_item_detection'
+          : mode === 'text'
+          ? 'text'
+          : 'legacy_single_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'non_fashion',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ isNonFashion: true }),
+        textScanParityEnabled: false,
+      });
       return json(finalResponse, 200);
     }
 

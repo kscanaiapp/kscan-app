@@ -748,3 +748,44 @@ test('edge source: commerce outcome capture is wired fail-open', () => {
   assert.ok(EDGE_SOURCE.includes('void captureCommerceOutcome'), 'Capture must be fire-and-forget');
   assert.ok(EDGE_SOURCE.includes('requestStartedAt'), 'Early exits must use requestStartedAt, not Gemini clock');
 });
+
+test('edge source: non_fashion outcomes are captured, not silently dropped from telemetry (v120-v123 full-tree audit regression)', () => {
+  // Prior to this repair, the non_fashion branch returned `finalResponse`
+  // without ever calling captureCommerceOutcome, even though the outcome
+  // schema explicitly supports a 'non_fashion' status and a dedicated
+  // FAILURE_REASON_NON_FASHION reason. A whole legitimate outcome class was
+  // structurally invisible to scan_commerce_events.
+  const nonFashionBlockStart = EDGE_SOURCE.indexOf("status=non_fashion elapsedMs");
+  assert.ok(nonFashionBlockStart > -1, 'non_fashion final_status log must exist');
+  const nonFashionBlockEnd = EDGE_SOURCE.indexOf('if (!attributes) {', nonFashionBlockStart);
+  assert.ok(nonFashionBlockEnd > nonFashionBlockStart, 'must be able to bound the non_fashion branch');
+  const nonFashionBlock = EDGE_SOURCE.slice(nonFashionBlockStart, nonFashionBlockEnd);
+  assert.ok(
+    nonFashionBlock.includes('void captureCommerceOutcome'),
+    'non_fashion branch must call captureCommerceOutcome before returning',
+  );
+  assert.ok(
+    nonFashionBlock.includes("status: 'non_fashion'"),
+    'non_fashion outcome row must use the non_fashion status, not a generic failure',
+  );
+  assert.ok(
+    nonFashionBlock.includes('mapToFailureReason({ isNonFashion: true })'),
+    'non_fashion outcome row must use the dedicated non_fashion failure reason',
+  );
+});
+
+test('edge source: multi-item detection with zero valid garments is captured, not silently dropped from telemetry (v120-v123 full-tree audit regression)', () => {
+  const blockStart = EDGE_SOURCE.indexOf('multi_item_no_valid_garments mode=%s');
+  assert.ok(blockStart > -1, 'multi_item_no_valid_garments branch must exist');
+  const blockEnd = EDGE_SOURCE.indexOf('return json(normalized(\'failed\', safeFailed), 200);', blockStart);
+  assert.ok(blockEnd > blockStart, 'must be able to bound the multi_item_no_valid_garments branch');
+  const block = EDGE_SOURCE.slice(blockStart, blockEnd);
+  assert.ok(
+    block.includes('void captureCommerceOutcome'),
+    'multi_item_no_valid_garments branch must call captureCommerceOutcome before returning',
+  );
+  assert.ok(
+    block.includes("requestMode: 'multi_item_detection'"),
+    'must label the outcome row as multi_item_detection',
+  );
+});
