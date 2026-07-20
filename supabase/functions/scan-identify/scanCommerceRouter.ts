@@ -23,6 +23,12 @@ import {
   searchKicksCrewProducts,
   type KicksCrewProduct,
 } from './kicksCrewProvider.ts';
+import { isQualityTuneEnabled, QUALITY_TUNE_MIN_VALID_PRODUCTS } from './qualityTuneConfig.ts';
+import {
+  buildWeightedCommerceQueries,
+  filterAndDedupeProducts,
+  shouldRunFallbackQuery,
+} from './qualityTuneCommerce.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +39,8 @@ export type ScanCommerceInput = {
   originalText?: string;
   mode: 'image' | 'text';
   limit?: number;
+  /** Internal: prevent recursive quality-tune fallback loops. */
+  disableQualityFallback?: boolean;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
@@ -44,6 +52,14 @@ export type ScanCommerceResult = {
   query: string;
   count: number;
   errorType?: string;
+  /** Quality-tune diagnostics (never required by clients). */
+  qualityTune?: {
+    fallbackUsed: boolean;
+    productsBeforeDedupe: number;
+    productsAfterDedupe: number;
+    categoryMismatchRemovals: number;
+    identityKeyTypesUsed: string[];
+  };
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -610,7 +626,30 @@ export async function getScanCommerceResults(
     };
   }
 
-  const query = buildScanCommerceQuery(input);
+  const qualityEnabled = isQualityTuneEnabled();
+  let fallbackQuery = '';
+  let query = '';
+
+  if (qualityEnabled) {
+    if (input.disableQualityFallback) {
+      // Forced single fallback attempt — use provided query only.
+      const forced = Array.isArray(input.searchQueries) && typeof input.searchQueries[0] === 'string'
+        ? input.searchQueries[0].trim()
+        : '';
+      query = forced || buildScanCommerceQuery(input);
+    } else {
+      const weighted = buildWeightedCommerceQueries({
+        identification: input.identification,
+        attributes: input.attributes,
+        searchQueries: input.searchQueries,
+        originalText: input.originalText,
+      });
+      query = weighted.primary;
+      fallbackQuery = weighted.fallback;
+    }
+  } else {
+    query = buildScanCommerceQuery(input);
+  }
 
   if (!query || isWeakQuery(query)) {
     return {
@@ -650,16 +689,47 @@ export async function getScanCommerceResults(
 
     // 1a. KicksCrew has enough products → skip Farfetch/Serper/Brave entirely.
     if (kicksProducts.length >= SUFFICIENT_THRESHOLD) {
-      const products = dedupeProductsByUrl(kicksProducts).slice(0, MAX_RESULTS);
-      logCommerce('kickscrew', Date.now() - started, products.length, 0, kicksErrorType);
-      return {
-        products,
-        provider: 'kickscrew',
-        providersTried,
-        query,
-        count: products.length,
-        errorType: kicksErrorType,
-      };
+      let products = dedupeProductsByUrl(kicksProducts).slice(0, MAX_RESULTS);
+      let qualityTuneMeta: ScanCommerceResult['qualityTune'];
+      if (qualityEnabled) {
+        const filtered = filterAndDedupeProducts(products, input.identification || {});
+        products = filtered.products.slice(0, MAX_RESULTS);
+        qualityTuneMeta = {
+          fallbackUsed: false,
+          productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
+          productsAfterDedupe: filtered.stats.productsAfterDedupe,
+          categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+          identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
+        };
+        // If quality filtering drops below threshold, continue provider cascade.
+        if (
+          shouldRunFallbackQuery(products.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
+          !input.disableQualityFallback
+        ) {
+          // keep kicksProducts; do not early-return
+        } else {
+          logCommerce('kickscrew', Date.now() - started, products.length, 0, kicksErrorType);
+          return {
+            products,
+            provider: 'kickscrew',
+            providersTried,
+            query,
+            count: products.length,
+            errorType: kicksErrorType,
+            ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
+          };
+        }
+      } else {
+        logCommerce('kickscrew', Date.now() - started, products.length, 0, kicksErrorType);
+        return {
+          products,
+          provider: 'kickscrew',
+          providersTried,
+          query,
+          count: products.length,
+          errorType: kicksErrorType,
+        };
+      }
     }
   }
 
@@ -684,17 +754,39 @@ export async function getScanCommerceResults(
 
   // 2a. Combined KicksCrew + Farfetch is enough → skip Serper/Brave.
   if (kicksFarfetchMerged.length >= SUFFICIENT_THRESHOLD) {
-    const products = kicksFarfetchMerged.slice(0, MAX_RESULTS);
-    const provider: ScanCommerceProvider = kicksProducts.length > 0 ? 'kickscrew' : 'farfetch';
-    logCommerce(provider, Date.now() - started, products.length, 0, kicksErrorType ?? farfetchErrorType);
-    return {
-      products,
-      provider,
-      providersTried,
-      query,
-      count: products.length,
-      errorType: kicksErrorType ?? farfetchErrorType,
-    };
+    let products = kicksFarfetchMerged.slice(0, MAX_RESULTS);
+    let provider: ScanCommerceProvider = kicksProducts.length > 0 ? 'kickscrew' : 'farfetch';
+    let qualityTuneMeta: ScanCommerceResult['qualityTune'];
+    let allowEarlyReturn = true;
+    if (qualityEnabled) {
+      const filtered = filterAndDedupeProducts(products, input.identification || {});
+      products = filtered.products.slice(0, MAX_RESULTS);
+      qualityTuneMeta = {
+        fallbackUsed: false,
+        productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
+        productsAfterDedupe: filtered.stats.productsAfterDedupe,
+        categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+        identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
+      };
+      if (
+        shouldRunFallbackQuery(products.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
+        !input.disableQualityFallback
+      ) {
+        allowEarlyReturn = false;
+      }
+    }
+    if (allowEarlyReturn) {
+      logCommerce(provider, Date.now() - started, products.length, 0, kicksErrorType ?? farfetchErrorType);
+      return {
+        products,
+        provider,
+        providersTried,
+        query,
+        count: products.length,
+        errorType: kicksErrorType ?? farfetchErrorType,
+        ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
+      };
+    }
   }
 
   // ── 3. Serper/Brave fallback ───────────────────────────────────────────────
@@ -718,10 +810,66 @@ export async function getScanCommerceResults(
   }
 
   // Merge live providers in priority order, then dedupe.
-  const merged = dedupeProductsByUrl([...kicksFarfetchMerged, ...serperBraveProducts]).slice(0, MAX_RESULTS);
-  const provider: ScanCommerceProvider = merged.length > 0
+  let merged = dedupeProductsByUrl([...kicksFarfetchMerged, ...serperBraveProducts]).slice(0, MAX_RESULTS);
+  let provider: ScanCommerceProvider = merged.length > 0
     ? (kicksProducts.length > 0 ? 'kickscrew' : farfetchProducts.length > 0 ? 'farfetch' : serperBraveProvider)
     : 'none';
+
+  let qualityTuneMeta: ScanCommerceResult['qualityTune'];
+  let fallbackUsed = false;
+
+  if (qualityEnabled) {
+    const filtered = filterAndDedupeProducts(merged, input.identification || {});
+    merged = filtered.products.slice(0, MAX_RESULTS);
+    qualityTuneMeta = {
+      fallbackUsed: false,
+      productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
+      productsAfterDedupe: filtered.stats.productsAfterDedupe,
+      categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+      identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
+    };
+
+    if (
+      !input.disableQualityFallback &&
+      fallbackQuery &&
+      fallbackQuery !== query &&
+      shouldRunFallbackQuery(merged.length, QUALITY_TUNE_MIN_VALID_PRODUCTS)
+    ) {
+      const fallbackResult = await getScanCommerceResults({
+        ...input,
+        searchQueries: [fallbackQuery],
+        disableQualityFallback: true,
+      });
+      fallbackUsed = true;
+      // Prefer fallback only when it improves valid coverage; otherwise keep primary.
+      if (fallbackResult.products.length > merged.length) {
+        merged = fallbackResult.products;
+        provider = fallbackResult.provider;
+        for (const p of fallbackResult.providersTried) {
+          if (!providersTried.includes(p)) providersTried.push(p);
+        }
+        query = fallbackQuery;
+      }
+      qualityTuneMeta = {
+        fallbackUsed: true,
+        productsBeforeDedupe: fallbackResult.qualityTune?.productsBeforeDedupe ?? qualityTuneMeta.productsBeforeDedupe,
+        productsAfterDedupe: merged.length,
+        categoryMismatchRemovals:
+          (qualityTuneMeta.categoryMismatchRemovals || 0) +
+          (fallbackResult.qualityTune?.categoryMismatchRemovals || 0),
+        identityKeyTypesUsed: [
+          ...new Set([
+            ...(qualityTuneMeta.identityKeyTypesUsed || []),
+            ...(fallbackResult.qualityTune?.identityKeyTypesUsed || []),
+          ]),
+        ],
+      };
+    } else if (qualityTuneMeta) {
+      qualityTuneMeta.fallbackUsed = fallbackUsed;
+    }
+
+    provider = merged.length > 0 ? provider : 'none';
+  }
 
   logCommerce(provider, Date.now() - started, merged.length, 0, kicksErrorType ?? farfetchErrorType ?? serperBraveErrorType);
 
@@ -732,5 +880,6 @@ export async function getScanCommerceResults(
     query,
     count: merged.length,
     errorType: merged.length > 0 ? undefined : (kicksErrorType ?? farfetchErrorType ?? serperBraveErrorType ?? 'no_results'),
+    ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
   };
 }
