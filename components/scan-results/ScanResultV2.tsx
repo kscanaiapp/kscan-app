@@ -37,8 +37,15 @@ import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 import {
   MultiItemResultNavigator,
+  type MultiItemNavigatorMode,
   type MultiItemResultSummary,
 } from './MultiItemResultNavigator';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { recordScanLatencyMarker } from '../../services/scanLatencyMarkers';
+import type {
+  CandidateReviewDescriptor,
+  ScanItemQueueState,
+} from '../../services/multiImageScan';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y = SCREEN_HEIGHT * 0.36;
@@ -90,7 +97,31 @@ interface ScanResultV2Props {
     savedItemIds?: ReadonlySet<string>;
     onSelectItem: (itemId: string) => void;
     onSaveAll?: () => void;
+    saveAllDisabled?: boolean;
     onAddAllToDressingRoom?: () => void;
+    itemStates?: Readonly<Record<string, ScanItemQueueState>>;
+    queueNotice?: string | null;
+    /** Present after a quota halt: explicit resume for the remaining items. */
+    onResumeQueue?: () => void;
+    resumeCount?: number;
+  };
+  /**
+   * Deliberate multi-item candidate review. When present, the modal renders
+   * the review (or queue-processing) surface instead of an analyzed result.
+   * Review requires zero commerce work and exposes no Dressing Room actions.
+   */
+  candidateReview?: {
+    stage: 'review' | 'processing';
+    imageCount: number;
+    candidates: ReadonlyArray<CandidateReviewDescriptor>;
+    selectedCandidateIds: ReadonlyArray<string>;
+    itemStates?: Readonly<Record<string, ScanItemQueueState>>;
+    onToggleCandidate: (candidateId: string) => void;
+    onConfirmSelection: () => void;
+    detectionNotice?: string | null;
+    queueNotice?: string | null;
+    /** Latency generation for sanitized first-paint instrumentation. */
+    latencyGeneration?: number;
   };
   testID?: string;
 }
@@ -114,10 +145,12 @@ export function ScanResultV2({
   onAskStyleChat,
   onFindSimilar,
   multiItem,
+  candidateReview,
   testID,
 }: ScanResultV2Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const reducedMotion = useReducedMotion();
 
   // Map legacy data into V2 shape
   let v2Data: ScanResultV2 | null = mapLegacyToV2(analysis, scanImageUri);
@@ -147,6 +180,11 @@ export function ScanResultV2({
     if (isExiting.current) return;
     isExiting.current = true;
 
+    if (reducedMotion) {
+      onDismiss();
+      return;
+    }
+
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: FROM_Y,
@@ -172,9 +210,17 @@ export function ScanResultV2({
   ).current;
 
   React.useEffect(() => {
+    isExiting.current = false;
+
+    if (reducedMotion) {
+      // Reduced motion: no entrance animation; content appears immediately.
+      translateY.setValue(0);
+      opacity.setValue(1);
+      return;
+    }
+
     translateY.setValue(FROM_Y);
     opacity.setValue(0);
-    isExiting.current = false;
 
     Animated.parallel([
       Animated.timing(translateY, {
@@ -188,7 +234,29 @@ export function ScanResultV2({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [translateY, opacity]);
+  }, [translateY, opacity, reducedMotion]);
+
+  // Sanitized latency marker: candidate review first paint.
+  const reviewPaintMarked = React.useRef(false);
+  React.useEffect(() => {
+    if (candidateReview?.stage === 'review' && !reviewPaintMarked.current) {
+      reviewPaintMarked.current = true;
+      recordScanLatencyMarker(
+        'candidate_review_first_paint',
+        candidateReview.latencyGeneration ?? 0,
+        candidateReview.candidates.length,
+      );
+    }
+  }, [candidateReview]);
+
+  const selectedCount = candidateReview?.selectedCandidateIds.length ?? 0;
+  const ctaLabel = selectedCount === 0
+    ? 'Select items to match'
+    : selectedCount === 1
+    ? 'Find Matches for 1 Item'
+    : `Find Matches for ${selectedCount} Items`;
+  const ctaDisabled = selectedCount === 0 || candidateReview?.stage === 'processing';
+
 
   // Build title from available metadata
   const title = v2Data?.title || 'Fashion Item';
@@ -221,6 +289,96 @@ export function ScanResultV2({
   }, [onFindSimilar, similarFindsTarget, similarFindsTargetReady]);
 
   const handleViewAllSimilar = handleFindSimilar;
+
+  // ── Deliberate candidate review / queue processing surface ──
+  if (candidateReview) {
+    const navigatorMode: MultiItemNavigatorMode =
+      candidateReview.stage === 'processing' ? 'processing' : 'review';
+    return (
+      <Modal transparent animationType="none" onRequestClose={runExit}>
+        <View style={styles.backdrop} pointerEvents="box-none">
+          <Animated.View
+            testID={testID ?? 'scan-result-v2-review'}
+            style={[
+              styles.cardWrap,
+              {
+                marginBottom: Math.max(LAYOUT.modalBottomPadding, insets.bottom + SPACING.lg),
+                transform: [{ translateY }],
+                opacity,
+              },
+            ]}
+          >
+            <View style={styles.card}>
+              <ScrollView
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                  styles.cardInner,
+                  { paddingBottom: 120 + Math.max(insets.bottom, SPACING.md) },
+                ]}
+              >
+                <View style={styles.header}>
+                  <Text style={styles.brandTitle}>K SCAN</Text>
+                  <Text style={styles.statusLabel}>
+                    {candidateReview.stage === 'processing'
+                      ? 'FINDING YOUR MATCHES'
+                      : 'CHOOSE YOUR ITEMS'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleBack}
+                    activeOpacity={0.78}
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                    style={styles.backButton}
+                  >
+                    <Text style={styles.backButtonText}>←</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.divider}>
+                  <Text style={styles.dividerText}>✧</Text>
+                </View>
+
+                <MultiItemResultNavigator
+                  mode={navigatorMode}
+                  imageCount={candidateReview.imageCount}
+                  candidates={candidateReview.candidates}
+                  selectedCandidateIds={candidateReview.selectedCandidateIds}
+                  itemStates={candidateReview.itemStates}
+                  onToggleCandidate={candidateReview.onToggleCandidate}
+                  detectionNotice={candidateReview.detectionNotice}
+                  queueNotice={candidateReview.queueNotice}
+                />
+              </ScrollView>
+
+              {/* Count-aware CTA — pinned above the safe area, never covering
+                  candidate controls (content reserves its height). */}
+              <View
+                style={[
+                  styles.reviewCtaWrap,
+                  { paddingBottom: Math.max(SPACING.md, insets.bottom) },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={ctaDisabled ? undefined : candidateReview.onConfirmSelection}
+                  disabled={ctaDisabled}
+                  activeOpacity={0.86}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: ctaDisabled }}
+                  accessibilityLabel={ctaLabel}
+                  style={[styles.reviewCta, ctaDisabled && styles.reviewCtaDisabled]}
+                  testID="candidate-review-cta"
+                >
+                  <Text style={styles.reviewCtaText}>{ctaLabel.toUpperCase()}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
+  }
+
 
   // If no meaningful data at all, show empty state
   if (!v2Data) {
@@ -315,7 +473,25 @@ export function ScanResultV2({
                 <Text style={styles.dividerText}>✧</Text>
               </View>
 
-              {multiItem ? <MultiItemResultNavigator {...multiItem} /> : null}
+              {multiItem ? (
+                <>
+                  <MultiItemResultNavigator mode="results" {...multiItem} />
+                  {multiItem.onResumeQueue && (multiItem.resumeCount ?? 0) > 0 ? (
+                    <TouchableOpacity
+                      onPress={multiItem.onResumeQueue}
+                      activeOpacity={0.86}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Resume matches for ${multiItem.resumeCount} remaining ${multiItem.resumeCount === 1 ? 'item' : 'items'}`}
+                      style={styles.resumeCta}
+                      testID="candidate-review-resume"
+                    >
+                      <Text style={styles.resumeCtaText}>
+                        {`RESUME MATCHES FOR ${multiItem.resumeCount} ${multiItem.resumeCount === 1 ? 'ITEM' : 'ITEMS'}`}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </>
+              ) : null}
 
               {/* Hero */}
               <ScanResultHero
@@ -530,6 +706,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.2,
     color: LUXURY.colors.stone,
+  },
+  reviewCtaWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 253, 249, 0.96)',
+    borderTopWidth: 1,
+    borderTopColor: LUXURY.colors.border,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    zIndex: 50,
+    elevation: 50,
+  },
+  reviewCta: {
+    minHeight: 52,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  reviewCtaDisabled: {
+    opacity: 0.5,
+  },
+  reviewCtaText: {
+    ...LUXURY.typography.cta,
+    color: LUXURY.colors.inverse,
+    textAlign: 'center',
+  },
+  resumeCta: {
+    minHeight: 48,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    borderColor: LUXURY.colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+  },
+  resumeCtaText: {
+    ...LUXURY.typography.ctaSecondary,
+    color: LUXURY.colors.plum,
+    textAlign: 'center',
   },
   privacySubtext: {
     ...LUXURY.typography.caption,

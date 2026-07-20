@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
+import { candidateReviewDescriptor } from './services/multiImageScan';
 import { saveScan } from './services/library';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
@@ -272,6 +273,14 @@ export default function App() {
     error,
     nonFashionMessage,
     isAnalyzing,
+    scanCandidates,
+    selectedCandidateIds,
+    scanStage,
+    itemStates,
+    queueActive,
+    queueHalted,
+    detectionNotice,
+    queueNotice,
     capturePhoto,
     runAnalysis,
     retake,
@@ -282,6 +291,8 @@ export default function App() {
     addGalleryPhotos,
     removeSelectedImage,
     selectScanItem,
+    toggleScanCandidate,
+    confirmSelectedCandidates,
   } = useKScan(user?.id ?? null);
 
   const router = useRouter();
@@ -377,6 +388,39 @@ export default function App() {
     ? savedScanIdsByItem[activeScanItem.id] ?? null
     : null;
 
+  // ── Deliberate multi-item review / queue derived state (render-only). All
+  //    selection and queue authority lives in useKScan.js. ──
+  const reviewCandidates = scanCandidates.map(candidateReviewDescriptor);
+  const reviewCandidateById = new Map(reviewCandidates.map((entry) => [entry.id, entry]));
+  // FIFO summaries for every selected candidate: completed items navigate,
+  // queued/analyzing/failed items render as visibly pending, non-savable chips.
+  const multiItemSummaries = selectedCandidateIds
+    .map((candidateId) => {
+      const ready = scanItems.find((item) => item.id === candidateId);
+      if (ready) {
+        return {
+          id: ready.id,
+          label: ready.label,
+          sourceImageIndex: ready.sourceImageIndex,
+          detailStatus: ready.detailStatus,
+        };
+      }
+      const descriptor = reviewCandidateById.get(candidateId);
+      if (!descriptor) return null;
+      return {
+        id: descriptor.id,
+        label: descriptor.label,
+        sourceImageIndex: descriptor.sourceImageIndex,
+        detailStatus: 'complete',
+      };
+    })
+    .filter(Boolean);
+  const remainingSelectedCount = selectedCandidateIds
+    .filter((candidateId) => itemStates[candidateId] !== 'ready')
+    .length;
+  const showCandidateReview =
+    scanStage === 'review' || (scanStage === 'results' && !analysis);
+
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
   // running. The AnalysisCard is held back until perceiving becomes false.
   const [perceiving, setPerceiving] = useState(false);
@@ -466,13 +510,17 @@ export default function App() {
   useEffect(() => {
     if (
       status !== 'result' ||
+      scanStage !== 'results' ||
+      queueActive ||
+      queueHalted !== null ||
+      selectedCandidateIds.length !== 1 ||
       scanItems.length !== 1 ||
       selectedImages.length > 1 ||
       !analysisActorId ||
       analysisActorId !== user?.id
     ) return;
     void persistScanItem(scanItems[0]);
-  }, [status, scanItems, selectedImages.length, analysisActorId, user?.id, persistScanItem]);
+  }, [status, scanStage, queueActive, queueHalted, selectedCandidateIds.length, scanItems, selectedImages.length, analysisActorId, user?.id, persistScanItem]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.
@@ -899,19 +947,9 @@ export default function App() {
           );
 
         case 'result':
-          // Hold the analyzing screen until the minimum display time has elapsed,
-          // then reveal the result via the existing preview/result surface.
-          if (!v2AnalyzingMinComplete) {
-            return (
-              <AnalyzingScan
-                imageUri={photo?.uri}
-                isComplete={true}
-                hasError={false}
-                onMinimumDisplayComplete={() => setV2AnalyzingMinComplete(true)}
-                onHome={handleHome}
-              />
-            );
-          }
+          // Detection complete: dismiss AnalyzingScan immediately and let the
+          // candidate review / result modal render. Real candidates are never
+          // held back for presentation timing.
           return renderPreviewScreen();
 
         case 'non-fashion':
@@ -1007,7 +1045,29 @@ export default function App() {
         />
       )}
 
-      {status === 'result' && !perceiving && (
+      {/* Deliberate candidate review (and queue processing before the first
+          result) renders in ScanResultV2 for both result-UI configurations;
+          zero commerce work happens on this surface and no Dressing Room
+          actions are exposed in review mode. */}
+      {status === 'result' && !perceiving && showCandidateReview && (
+        <ScanResultV2
+          onDismiss={dismissResult}
+          scanImageUri={activePhoto?.uri ?? null}
+          candidateReview={{
+            stage: scanStage === 'results' ? 'processing' : 'review',
+            imageCount: selectedImages.length || 1,
+            candidates: reviewCandidates,
+            selectedCandidateIds,
+            itemStates,
+            onToggleCandidate: toggleScanCandidate,
+            onConfirmSelection: confirmSelectedCandidates,
+            detectionNotice,
+            queueNotice,
+          }}
+        />
+      )}
+
+      {status === 'result' && !perceiving && !showCandidateReview && (
         SCAN_RESULTS_V2_UI_ENABLED ? (
           <ScanResultV2
             analysis={analysis}
@@ -1026,15 +1086,25 @@ export default function App() {
             } : undefined}
             multiItem={activeScanItem ? {
               imageCount: selectedImages.length || 1,
-              items: scanItems,
+              items: multiItemSummaries,
               selectedItemId: activeScanItem.id,
               savedItemIds: new Set(Object.keys(savedScanIdsByItem)),
               onSelectItem: selectScanItem,
-              onSaveAll: scanItems.length > 1 ? () => { void saveAllScanItems(); } : undefined,
+              itemStates,
+              queueNotice,
+              // Save All saves successfully completed items only; disabled
+              // until at least one item is ready.
+              onSaveAll: selectedCandidateIds.length > 1 ? () => { void saveAllScanItems(); } : undefined,
+              saveAllDisabled: scanItems.length === 0,
               onAddAllToDressingRoom: dressingRoomsEnabled && scanItems.length > 1 ? () => {
                 setAddAllToRoom(true);
                 setScanRoomModalVisible(true);
               } : undefined,
+              // Quota halt: explicit user resume for remaining selections.
+              onResumeQueue: queueHalted === 'quota' && remainingSelectedCount > 0
+                ? confirmSelectedCandidates
+                : undefined,
+              resumeCount: remainingSelectedCount,
             } : undefined}
             onAskStyleChat={styleChatEnabled ? () => {
               const source = activePhoto?.source === 'upload' ? 'upload' : 'camera';
