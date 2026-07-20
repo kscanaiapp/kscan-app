@@ -28,7 +28,9 @@ import {
   buildWeightedCommerceQueries,
   filterAndDedupeProducts,
   shouldRunFallbackQuery,
+  type CommerceRelevanceOptions,
 } from './qualityTuneCommerce.ts';
+import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,10 @@ export type ScanCommerceInput = {
   qualityDetailLevel?: 'specific' | 'moderate' | 'broad';
   materialAllowed?: boolean;
   brandAllowed?: boolean;
+  /** v122 commerce relevance — omit for exact v121 behavior */
+  relevanceEnabled?: boolean;
+  relevanceRoute?: ScannerCategoryRoute;
+  qualityBand?: 'high' | 'moderate' | 'low' | null;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
@@ -633,6 +639,10 @@ export async function getScanCommerceResults(
   const qualityEnabled = isQualityTuneEnabled();
   let fallbackQuery = '';
   let query = '';
+  const relevanceOpts: CommerceRelevanceOptions | undefined =
+    input.relevanceEnabled && input.relevanceRoute
+      ? { enabled: true, categoryRoute: input.relevanceRoute, qualityBand: input.qualityBand }
+      : undefined;
 
   if (qualityEnabled) {
     if (input.disableQualityFallback) {
@@ -652,6 +662,15 @@ export async function getScanCommerceResults(
             detailLevel: input.qualityDetailLevel,
             materialAllowed: input.materialAllowed,
             brandAllowed: input.brandAllowed,
+          }
+          : {}),
+        ...(relevanceOpts
+          ? {
+            relevanceRoute: relevanceOpts.categoryRoute,
+            qualityBand: relevanceOpts.qualityBand,
+            materialAllowed: input.materialAllowed,
+            brandAllowed: input.brandAllowed,
+            detailLevel: input.qualityDetailLevel,
           }
           : {}),
       });
@@ -703,7 +722,11 @@ export async function getScanCommerceResults(
       let products = dedupeProductsByUrl(kicksProducts).slice(0, MAX_RESULTS);
       let qualityTuneMeta: ScanCommerceResult['qualityTune'];
       if (qualityEnabled) {
-        const filtered = filterAndDedupeProducts(products, input.identification || {});
+        const filtered = filterAndDedupeProducts(
+          products,
+          input.identification || {},
+          relevanceOpts,
+        );
         products = filtered.products.slice(0, MAX_RESULTS);
         qualityTuneMeta = {
           fallbackUsed: false,
@@ -770,7 +793,11 @@ export async function getScanCommerceResults(
     let qualityTuneMeta: ScanCommerceResult['qualityTune'];
     let allowEarlyReturn = true;
     if (qualityEnabled) {
-      const filtered = filterAndDedupeProducts(products, input.identification || {});
+      const filtered = filterAndDedupeProducts(
+        products,
+        input.identification || {},
+        relevanceOpts,
+      );
       products = filtered.products.slice(0, MAX_RESULTS);
       qualityTuneMeta = {
         fallbackUsed: false,
@@ -830,7 +857,11 @@ export async function getScanCommerceResults(
   let fallbackUsed = false;
 
   if (qualityEnabled) {
-    const filtered = filterAndDedupeProducts(merged, input.identification || {});
+    const filtered = filterAndDedupeProducts(
+      merged,
+      input.identification || {},
+      relevanceOpts,
+    );
     merged = filtered.products.slice(0, MAX_RESULTS);
     qualityTuneMeta = {
       fallbackUsed: false,

@@ -79,6 +79,13 @@ import {
   SCANNER_INTELLIGENCE_VERSION,
 } from './scannerIntelligenceConfig.ts';
 import {
+  isCommerceRelevanceEnabled,
+  COMMERCE_RELEVANCE_VERSION,
+} from './commerceRelevanceConfig.ts';
+import {
+  mapToFailureReason,
+} from './commerceRelevanceFailure.ts';
+import {
   buildRoutedIdentifyPrompt,
   resolveScannerCategoryRoute,
   type ScannerCategoryRoute,
@@ -1770,6 +1777,8 @@ Deno.serve(async (req) => {
   const qualityTuneEnabled = isQualityTuneEnabled();
   // Intelligence requires quality-tune ON; when intelligence OFF → exact v120 behavior.
   const intelligenceEnabled = qualityTuneEnabled && isScannerIntelligenceEnabled();
+  // Relevance requires intelligence ON; when relevance OFF → exact v121 behavior.
+  const relevanceEnabled = intelligenceEnabled && isCommerceRelevanceEnabled();
 
   const requestModeForRoute = useMultiItemDetectionProvider
     ? 'multi_item_detection' as const
@@ -2312,6 +2321,17 @@ Deno.serve(async (req) => {
                 hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
             }
             : {}),
+          ...(relevanceEnabled && intelligenceGate
+            ? {
+              relevanceRoute: categoryRoute,
+              qualityBand: intelligenceGate.qualityBand,
+              detailLevel: intelligenceGate.commerceQueryDetailLevel,
+              materialAllowed: !intelligenceGate.materialSuppressed &&
+                intelligenceGate.qualityBand !== 'low',
+              brandAllowed: !intelligenceGate.brandSuppressed &&
+                hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+            }
+            : {}),
         })
         : null;
       const shoppingQuery = weightedText
@@ -2358,9 +2378,17 @@ Deno.serve(async (req) => {
       } else {
         let textProducts = shopping.products;
         if (qualityTuneEnabled && weightedText) {
+          const textRelevance = relevanceEnabled
+            ? {
+              enabled: true as const,
+              categoryRoute,
+              qualityBand: intelligenceGate?.qualityBand ?? null,
+            }
+            : undefined;
           const filtered = filterAndDedupeProducts(
             textProducts,
             (identification ?? {}) as Record<string, unknown>,
+            textRelevance,
           );
           textProducts = filtered.products;
           if (
@@ -2375,6 +2403,7 @@ Deno.serve(async (req) => {
             const fallbackFiltered = filterAndDedupeProducts(
               fallbackShopping.products,
               (identification ?? {}) as Record<string, unknown>,
+              textRelevance,
             );
             if (fallbackFiltered.products.length > textProducts.length) {
               textProducts = fallbackFiltered.products;
@@ -2469,6 +2498,13 @@ Deno.serve(async (req) => {
                 hasBrandEvidenceForCommerce(
                   completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
                 ),
+            }
+            : {}),
+          ...(relevanceEnabled && intelligenceGate
+            ? {
+              relevanceEnabled: true,
+              relevanceRoute: categoryRoute,
+              qualityBand: intelligenceGate.qualityBand,
             }
             : {}),
         }).catch((err) => {
@@ -2640,6 +2676,36 @@ Deno.serve(async (req) => {
             },
           }
           : {}),
+        ...(relevanceEnabled
+          ? {
+            commerceRelevance: {
+              failureReason: mapToFailureReason({
+                providerOutcome: typeof shoppingMeta?.provider === 'string'
+                  ? shoppingMeta.provider
+                  : null,
+                commercePrimaryEmpty: (typeof shoppingMeta?.count === 'number'
+                  ? shoppingMeta.count
+                  : finalRecommendedProducts.length) === 0,
+              }),
+              productsBeforeFilter: finalRecommendedProducts.length,
+              productsAfterFilter: finalRecommendedProducts.length,
+              retailerCount: new Set(
+                finalRecommendedProducts
+                  .map((p) =>
+                    typeof (p as { source?: string }).source === 'string'
+                      ? (p as { source: string }).source
+                      : typeof (p as { retailer?: string }).retailer === 'string'
+                      ? (p as { retailer: string }).retailer
+                      : ''
+                  )
+                  .filter(Boolean),
+              ).size,
+              fallbackUsed: false,
+              durationMs: elapsedMs,
+              intelligenceVersion: SCANNER_INTELLIGENCE_VERSION,
+            },
+          }
+          : {}),
       }));
       console.log(
         '[scan-identify] quality_tune_version=%s enabled=true',
@@ -2652,6 +2718,13 @@ Deno.serve(async (req) => {
           categoryRoute,
           intelligenceGate?.qualityBand ?? 'n/a',
           intelligenceGate?.qualityScore ?? -1,
+        );
+      }
+      if (relevanceEnabled) {
+        console.log(
+          '[scan-identify] commerce_relevance_version=%s enabled=true route=%s',
+          COMMERCE_RELEVANCE_VERSION,
+          categoryRoute,
         );
       }
     }
