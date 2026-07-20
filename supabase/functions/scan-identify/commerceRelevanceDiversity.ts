@@ -190,5 +190,8 @@ export function selectByAgreementCoverage(scored: ScoredProduct[]): ScoredProduc
   }
 
   const needed = MIN_RELEVANCE_RESULTS_FOR_COVERAGE - strongUsable.length;
-  return [...strongUsable, ...weak.slice(0, Math.max(needed, weak.length))];
+  // v122 repair: this previously read `Math.max(needed, weak.length)`, which is
+  // always >= weak.length by construction and therefore never truncated —
+  // every weak product was retained regardless of `needed`. Cap to `needed`.
+  return [...strongUsable, ...weak.slice(0, Math.max(needed, 0))];
 }

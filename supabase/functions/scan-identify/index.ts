@@ -2128,6 +2128,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // v122 repair: commerce must route on the FINAL normalized identification,
+    // not the pre-model prompt route (always 'general' for legacy_single_item,
+    // and possibly 'general' for ambiguous TextScan even after Gemini resolves
+    // a specific category). `categoryRoute` (used for the Gemini prompt) is
+    // left untouched; this only affects which commerce query template runs.
+    const commerceCategoryRoute: ScannerCategoryRoute = intelligenceEnabled
+      ? resolveScannerCategoryRoute({
+        requestMode: 'legacy_single_item',
+        knownCategory: typeof identification?.item_type === 'string' ? identification.item_type : null,
+        knownSubtype: typeof identification?.subtype === 'string' ? identification.subtype : null,
+      })
+      : 'general';
+
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
       const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
@@ -2302,6 +2315,14 @@ Deno.serve(async (req) => {
     let finalSimilarityMatches: SimilarityMatch[] = [];
     let rankedProductsForAudit: RankedScanProduct[];
     let shoppingMeta: ShoppingMeta | undefined;
+    // v122 repair: real filter/fallback stats for truthful commerceRelevance
+    // telemetry (was previously hardcoded/derived from the final array only).
+    let commerceRelevanceStats: {
+      fallbackUsed: boolean;
+      productsBeforeDedupe: number;
+      productsAfterDedupe: number;
+      categoryMismatchRemovals: number;
+    } | null = null;
 
     if (mode === 'text') {
       const weightedText = qualityTuneEnabled
@@ -2323,7 +2344,7 @@ Deno.serve(async (req) => {
             : {}),
           ...(relevanceEnabled && intelligenceGate
             ? {
-              relevanceRoute: categoryRoute,
+              relevanceRoute: commerceCategoryRoute,
               qualityBand: intelligenceGate.qualityBand,
               detailLevel: intelligenceGate.commerceQueryDetailLevel,
               materialAllowed: !intelligenceGate.materialSuppressed &&
@@ -2381,7 +2402,7 @@ Deno.serve(async (req) => {
           const textRelevance = relevanceEnabled
             ? {
               enabled: true as const,
-              categoryRoute,
+              categoryRoute: commerceCategoryRoute,
               qualityBand: intelligenceGate?.qualityBand ?? null,
             }
             : undefined;
@@ -2391,6 +2412,14 @@ Deno.serve(async (req) => {
             textRelevance,
           );
           textProducts = filtered.products;
+          if (relevanceEnabled) {
+            commerceRelevanceStats = {
+              fallbackUsed: false,
+              productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
+              productsAfterDedupe: filtered.stats.productsAfterDedupe,
+              categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+            };
+          }
           if (
             shouldRunFallbackQuery(textProducts.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
             weightedText.fallback &&
@@ -2405,6 +2434,16 @@ Deno.serve(async (req) => {
               (identification ?? {}) as Record<string, unknown>,
               textRelevance,
             );
+            if (relevanceEnabled) {
+              commerceRelevanceStats = {
+                fallbackUsed: true,
+                productsBeforeDedupe: fallbackFiltered.stats.productsBeforeDedupe,
+                productsAfterDedupe: fallbackFiltered.stats.productsAfterDedupe,
+                categoryMismatchRemovals:
+                  (commerceRelevanceStats?.categoryMismatchRemovals || 0) +
+                  fallbackFiltered.stats.categoryMismatchRemovals,
+              };
+            }
             if (fallbackFiltered.products.length > textProducts.length) {
               textProducts = fallbackFiltered.products;
             }
@@ -2503,7 +2542,7 @@ Deno.serve(async (req) => {
           ...(relevanceEnabled && intelligenceGate
             ? {
               relevanceEnabled: true,
-              relevanceRoute: categoryRoute,
+              relevanceRoute: commerceCategoryRoute,
               qualityBand: intelligenceGate.qualityBand,
             }
             : {}),
@@ -2535,6 +2574,14 @@ Deno.serve(async (req) => {
           source,
         );
       } else {
+        if (relevanceEnabled && commerce.qualityTune) {
+          commerceRelevanceStats = {
+            fallbackUsed: commerce.qualityTune.fallbackUsed,
+            productsBeforeDedupe: commerce.qualityTune.productsBeforeDedupe,
+            productsAfterDedupe: commerce.qualityTune.productsAfterDedupe,
+            categoryMismatchRemovals: commerce.qualityTune.categoryMismatchRemovals,
+          };
+        }
         liveProducts = commerce.products.map((p) => ({
           id: p.id,
           name: p.title,
@@ -2687,8 +2734,12 @@ Deno.serve(async (req) => {
                   ? shoppingMeta.count
                   : finalRecommendedProducts.length) === 0,
               }),
-              productsBeforeFilter: finalRecommendedProducts.length,
-              productsAfterFilter: finalRecommendedProducts.length,
+              productsBeforeFilter: commerceRelevanceStats
+                ? commerceRelevanceStats.productsBeforeDedupe
+                : finalRecommendedProducts.length,
+              productsAfterFilter: commerceRelevanceStats
+                ? commerceRelevanceStats.productsAfterDedupe
+                : finalRecommendedProducts.length,
               retailerCount: new Set(
                 finalRecommendedProducts
                   .map((p) =>
@@ -2700,7 +2751,7 @@ Deno.serve(async (req) => {
                   )
                   .filter(Boolean),
               ).size,
-              fallbackUsed: false,
+              fallbackUsed: commerceRelevanceStats?.fallbackUsed ?? false,
               durationMs: elapsedMs,
               intelligenceVersion: SCANNER_INTELLIGENCE_VERSION,
             },
@@ -2724,7 +2775,7 @@ Deno.serve(async (req) => {
         console.log(
           '[scan-identify] commerce_relevance_version=%s enabled=true route=%s',
           COMMERCE_RELEVANCE_VERSION,
-          categoryRoute,
+          commerceCategoryRoute,
         );
       }
     }

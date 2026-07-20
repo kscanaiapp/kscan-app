@@ -662,3 +662,42 @@ test('edge source: quality tune does not rename products or purchaseOptions arra
   assert.ok(EDGE_SOURCE.includes('purchaseOptions:'), 'Must keep purchaseOptions mapping');
   assert.ok(EDGE_SOURCE.includes('similarityMatches'), 'Must keep similarityMatches');
 });
+
+
+// ── v122 hostile-audit regressions ──
+
+test('edge source: commerce route is recomputed from final identification, not the pre-model prompt route', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('const commerceCategoryRoute'),
+    'Must compute a distinct post-identification commerce route (legacy_single_item and TextScan commerce must not stay stuck on the pre-model general route)'
+  );
+  assert.equal(
+    EDGE_SOURCE.includes('relevanceRoute: categoryRoute,'),
+    false,
+    'Commerce relevance route must not reuse the raw pre-model categoryRoute variable'
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('relevanceRoute: commerceCategoryRoute'),
+    'Image-mode commerce must pass the post-identification commerceCategoryRoute'
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('categoryRoute: commerceCategoryRoute'),
+    'Text-mode filterAndDedupeProducts relevance option must use the post-identification commerceCategoryRoute'
+  );
+});
+
+test('edge source: commerceRelevance telemetry reports real filter/fallback stats, not hardcoded placeholders', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('let commerceRelevanceStats'),
+    'Must capture real commerce filter stats for telemetry'
+  );
+  assert.equal(
+    /productsBeforeFilter:\s*finalRecommendedProducts\.length,\s*\n\s*productsAfterFilter:\s*finalRecommendedProducts\.length,/.test(EDGE_SOURCE),
+    false,
+    'productsBeforeFilter and productsAfterFilter must not both collapse to the same final-array length'
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('fallbackUsed: commerceRelevanceStats?.fallbackUsed ?? false'),
+    'commerceRelevance.fallbackUsed must reflect whether a fallback query actually ran, not a hardcoded false'
+  );
+});

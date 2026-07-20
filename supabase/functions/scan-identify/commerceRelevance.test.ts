@@ -28,7 +28,11 @@ import {
   AGREEMENT_USABLE_THRESHOLD,
   scoreProductAgreement,
 } from './commerceRelevanceAgreement.ts';
-import { applySoftDiversityRerank, type ScoredProduct } from './commerceRelevanceDiversity.ts';
+import {
+  applySoftDiversityRerank,
+  selectByAgreementCoverage,
+  type ScoredProduct,
+} from './commerceRelevanceDiversity.ts';
 import { buildCategoryCommerceQueries } from './commerceRelevanceQueries.ts';
 import {
   buildWeightedCommerceQueries,
@@ -579,4 +583,46 @@ Deno.test('filter flag-off: identical ordering without relevance options', () =>
   const b = filterAndDedupeProducts(products, garment);
   assertEquals(a.products.map((p) => p.productUrl), b.products.map((p) => p.productUrl));
   assertEquals(a.stats.productsAfterDedupe, b.stats.productsAfterDedupe);
+});
+
+
+Deno.test('coverage: weak products are capped at the coverage shortfall, not retained in full (v122 hostile-audit regression)', () => {
+  const usable = (i: number): ScoredProduct => ({
+    product: product({ title: `Usable ${i}`, productUrl: `https://a.test/u${i}`, source: 'A' }),
+    agreementScore: 60,
+    agreementBand: 'usable',
+    clearCategoryConflict: false,
+    originalIndex: i,
+  });
+  const weak = (i: number): ScoredProduct => ({
+    product: product({ title: `Weak ${i}`, productUrl: `https://a.test/w${i}`, source: 'A' }),
+    agreementScore: 30,
+    agreementBand: 'weak',
+    clearCategoryConflict: false,
+    originalIndex: 100 + i,
+  });
+
+  // 2 usable + 5 weak; MIN_RELEVANCE_RESULTS_FOR_COVERAGE = 3 → needed = 1.
+  const scored = [usable(0), usable(1), weak(0), weak(1), weak(2), weak(3), weak(4)];
+  const result = selectByAgreementCoverage(scored);
+
+  const weakCount = result.filter((s) => s.agreementBand === 'weak').length;
+  assert(
+    weakCount === 1,
+    `expected exactly 1 weak product to fill the coverage shortfall, got ${weakCount} (this was previously all 5 — Math.max(needed, weak.length) never truncates)`,
+  );
+  assertEquals(result.filter((s) => s.agreementBand === 'usable').length, 2);
+});
+
+Deno.test('coverage: 0 usable + 8 weak retains only the coverage minimum, not every weak product', () => {
+  const weak = (i: number): ScoredProduct => ({
+    product: product({ title: `Weak ${i}`, productUrl: `https://a.test/w${i}`, source: 'A' }),
+    agreementScore: 20 + i,
+    agreementBand: 'weak',
+    clearCategoryConflict: false,
+    originalIndex: i,
+  });
+  const scored = Array.from({ length: 8 }, (_, i) => weak(i));
+  const result = selectByAgreementCoverage(scored);
+  assertEquals(result.length, 3, 'needed = 3 - 0 = 3; must not return all 8 weak products');
 });
