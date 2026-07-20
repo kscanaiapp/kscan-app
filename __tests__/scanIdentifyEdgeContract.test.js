@@ -647,6 +647,16 @@ test('edge source: scanner intelligence modules are wired without contract chang
   assert.ok(EDGE_SOURCE.includes('detectedGarments'), 'Must preserve detectedGarments');
 });
 
+test('edge source: commerce relevance modules are wired without contract changes', () => {
+  assert.ok(EDGE_SOURCE.includes('commerceRelevanceConfig'), 'Must import commerce relevance config');
+  assert.ok(EDGE_SOURCE.includes('isCommerceRelevanceEnabled'), 'Must support relevance rollback flag');
+  assert.ok(EDGE_SOURCE.includes('COMMERCE_RELEVANCE_VERSION'), 'Must version the relevance layer');
+  assert.ok(EDGE_SOURCE.includes('mapToFailureReason'), 'Must map privacy-safe failure reasons');
+  assert.ok(EDGE_SOURCE.includes('relevanceRoute') || EDGE_SOURCE.includes('relevanceEnabled'), 'Must gate relevance query path');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions'), 'Must preserve purchaseOptions');
+  assert.equal(EDGE_SOURCE.includes('requiredAgreementScore'), false, 'Must not require agreement score on client');
+});
+
 test('edge source: quality tune does not rename products or purchaseOptions arrays', () => {
   assert.ok(EDGE_SOURCE.includes('recommendedProducts'), 'Must keep recommendedProducts');
   assert.ok(EDGE_SOURCE.includes('purchaseOptions:'), 'Must keep purchaseOptions mapping');
