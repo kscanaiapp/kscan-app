@@ -259,26 +259,30 @@ test('edge source: accepts unknown source values without crashing', () => {
 test('edge source: text mode calls live shopping APIs', () => {
   assert.ok(
     EDGE_SOURCE.includes('getShoppingResults('),
-    'Must call getShoppingResults for text mode commerce',
+    'Must retain getShoppingResults for flag-off TextScan commerce',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('getScanCommerceResults('),
+    'Must support getScanCommerceResults for TextScan parity ON',
   );
 
-  // Locate the text mode branch that handles product recommendations.
-  // There are two "if (mode === 'text')" blocks; the second one is the
-  // product-recommendations branch that calls getShoppingResults.
+  // Locate the product-recommendations text branch.
   const firstTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')");
   assert.ok(firstTextBranch !== -1, "Must have 'if (mode === \\'text\\')' branch");
 
   const secondTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')", firstTextBranch + 1);
   const productRecBranchStart = secondTextBranch !== -1 ? secondTextBranch : firstTextBranch;
 
-  const elseBranchStart = EDGE_SOURCE.indexOf('} else {', productRecBranchStart);
-  assert.ok(elseBranchStart !== -1, 'Must have an else branch for image mode');
-
-  // The getShoppingResults call must live inside the text branch.
-  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
+  // Commerce calls may live in nested if/else (parity ON vs repaired-v122 OFF).
+  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(', productRecBranchStart);
+  const routerCallIndex = EDGE_SOURCE.indexOf('getScanCommerceResults(', productRecBranchStart);
   assert.ok(
-    shoppingCallIndex > productRecBranchStart && shoppingCallIndex < elseBranchStart,
-    'getShoppingResults must be called inside the text mode branch',
+    shoppingCallIndex > productRecBranchStart || routerCallIndex > productRecBranchStart,
+    'Text mode product branch must call getShoppingResults and/or getScanCommerceResults',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('allowTextMode: true'),
+    'Parity ON TextScan must pass allowTextMode to the commerce router',
   );
 });
 
@@ -697,7 +701,50 @@ test('edge source: commerceRelevance telemetry reports real filter/fallback stat
     'productsBeforeFilter and productsAfterFilter must not both collapse to the same final-array length'
   );
   assert.ok(
-    EDGE_SOURCE.includes('fallbackUsed: commerceRelevanceStats?.fallbackUsed ?? false'),
+    EDGE_SOURCE.includes('commerceRelevanceStats?.fallbackUsed ?? false'),
     'commerceRelevance.fallbackUsed must reflect whether a fallback query actually ran, not a hardcoded false'
   );
+});
+
+// ── v123 TextScan parity + outcome intelligence ──
+
+test('edge source: TextScan parity routes through getScanCommerceResults when enabled', () => {
+  assert.ok(EDGE_SOURCE.includes('textScanCommerceParityConfig'), 'Must import TextScan parity config');
+  assert.ok(EDGE_SOURCE.includes('isTextScanCommerceParityEnabled'), 'Must gate TextScan parity');
+  assert.ok(EDGE_SOURCE.includes('TEXTSCAN_COMMERCE_PARITY_VERSION'), 'Must version TextScan parity');
+  assert.ok(EDGE_SOURCE.includes('textScanParityEnabled'), 'Must compute textScanParityEnabled');
+  assert.ok(
+    EDGE_SOURCE.includes("allowTextMode: true"),
+    'TextScan parity path must pass allowTextMode to commerce router',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('getShoppingResults({ query: shoppingQuery, limit: 8 })'),
+    'Flag-off TextScan must retain repaired-v122 getShoppingResults path',
+  );
+});
+
+test('edge source: selected_item uses image commerce path after identification (not detection commerce)', () => {
+  assert.ok(
+    EDGE_SOURCE.includes("requestMode === 'selected_item'"),
+    'Must distinguish selected_item request mode',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('useSelectedItemProvider'),
+    'Must gate selected-item provider path',
+  );
+  // Detection must skip product commerce; selected_item falls through to image commerce after ID.
+  const detectionSkip = EDGE_SOURCE.includes('commerceSkipped') ||
+    EDGE_SOURCE.includes('multi_item_detection');
+  assert.ok(detectionSkip, 'Must preserve multi-item detection vs selected-item split');
+  assert.ok(
+    EDGE_SOURCE.includes("requestModeLabel") && EDGE_SOURCE.includes("'selected_item'"),
+    'Outcome/telemetry must label selected_item distinctly',
+  );
+});
+
+test('edge source: commerce outcome capture is wired fail-open', () => {
+  assert.ok(EDGE_SOURCE.includes('commerceOutcomeCapture'), 'Must import outcome capture');
+  assert.ok(EDGE_SOURCE.includes('captureCommerceOutcome'), 'Must call captureCommerceOutcome');
+  assert.ok(EDGE_SOURCE.includes('void captureCommerceOutcome'), 'Capture must be fire-and-forget');
+  assert.ok(EDGE_SOURCE.includes('requestStartedAt'), 'Early exits must use requestStartedAt, not Gemini clock');
 });
