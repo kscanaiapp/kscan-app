@@ -20,10 +20,8 @@ import {
   normalizeImageSelections,
   removeImageSelection,
 } from '../services/multiImageScan';
-import {
-  getPrivacySanitizerStatus,
-  sanitizeImageBeforeUpload,
-} from '../services/privacyImageSanitizer';
+import { preparePrivacyAdaptedImage } from '../services/privacyImageAdapter';
+import { recordScanLatencyMarker } from '../services/scanLatencyMarkers';
 import {
   errorPulse,
   softImpact,
@@ -31,15 +29,17 @@ import {
   warningPulse,
 } from '../services/haptics';
 
-// Minimum time to stay in 'processing' so the PerceptionLayer HUD has time to
-// complete its entry animation (~730ms) before the result card appears.
-const MIN_ANALYSIS_MS = 600;
-
-// Fallback ceiling for the entire capture-to-result attempt. Multi-item scans
-// can perform two sequential Edge calls (detection, then selected-item detail),
-// each client-capped at 20 s; compression, sanitization, and network overhead
-// require the remaining margin. A later result is treated as stale.
+// Fallback ceiling for the capture-to-candidate-review attempt. Detection runs
+// one Edge call per source image in parallel (each client-capped at 20 s);
+// compression, privacy adaptation, and network overhead require the remaining
+// margin. A later result is treated as stale. Selected-item commerce calls run
+// in their own queue after the user confirms and are bounded per request.
 const ATTEMPT_TIMEOUT_MS = 52_000;
+
+const PARTIAL_DETECTION_NOTICE =
+  'Some images couldn’t be analyzed. Showing results from the others.';
+const ITEM_FAILURE_NOTICE =
+  'One item couldn’t be analyzed. Continuing with the rest.';
 
 function logAnalyzeDiag(payload) {
   if (typeof __DEV__ === 'undefined' || !__DEV__) return;
@@ -77,9 +77,17 @@ function userSafeError(message, userMessage) {
  * K-SCAN scan state machine.
  * status: idle | capturing | preview | processing | result | non-fashion | error
  *
- * non-fashion: the AI confirmed the image is not a fashion item.
- *   analysis will be null; nonFashionMessage holds the AI's explanation.
- *   Resets to idle via dismissResult().
+ * Multi-item architecture:
+ *   1-5 source images → prepare each once → parallel per-image detection →
+ *   normalize/aggregate/dedupe/cap candidates → deliberate multi-select review
+ *   (zero commerce calls) → count-aware CTA → automatic sequential
+ *   selected-item commerce queue → progressive result rendering.
+ *
+ * While status === 'result', `scanStage` distinguishes the modal surface:
+ *   'review'  — candidates rendered for deliberate selection; no commerce yet.
+ *   'results' — the selected-item queue has been confirmed; items stream in.
+ * One detected candidate is the N=1 case of the same review flow: no
+ * auto-selection, no auto-advance, and the same count-aware CTA.
  */
 export function useKScan(actorId = null) {
   const normalizedActorId =
@@ -97,6 +105,20 @@ export function useKScan(actorId = null) {
   // from the first synchronous guard activation until the attempt fully settles
   // (success, failure, timeout, abort, or picker cancellation).
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // ── Multi-item review + queue state (appended after legacy slots so the
+  //    positional test harness mapping for the slots above stays stable). ──
+  const [scanCandidates, setScanCandidates] = useState([]);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
+  // 'idle' | 'review' | 'results' — meaningful while status === 'result'.
+  const [scanStage, setScanStage] = useState('idle');
+  // candidateId → 'queued' | 'analyzing' | 'ready' | 'failed'
+  const [itemStates, setItemStates] = useState({});
+  const [queueActive, setQueueActive] = useState(false);
+  // null | 'quota' — quota/rate-limit halts preserve remaining selections.
+  const [queueHalted, setQueueHalted] = useState(null);
+  // Single nonblocking session-level notices. Never provider details.
+  const [detectionNotice, setDetectionNotice] = useState(null);
+  const [queueNotice, setQueueNotice] = useState(null);
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -112,7 +134,43 @@ export function useKScan(actorId = null) {
   const previousActorRef = useRef(normalizedActorId);
   const secondhandRequestRef = useRef(0);
   const prevIsAnalyzingRef = useRef(false);
+  // ── Multi-item refs ──
+  // Monotonic source/scan generation. Incremented on every source-image
+  // mutation, reset, actor change, or new attempt; every asynchronous
+  // continuation (detection completion, queue step, enrichment) must verify
+  // the captured generation before mutating state. Abort alone is not
+  // sufficient — stale callbacks must also fail this check.
+  const scanGenerationRef = useRef(0);
+  // Ordered stable-ID selection mirror for synchronous rapid-tap handling.
+  const selectedCandidateIdsRef = useRef([]);
+  const scanCandidatesRef = useRef([]);
+  const itemStatesRef = useRef({});
+  // Synchronous CTA duplicate lock for the selected-item queue.
+  const queueInFlightRef = useRef(false);
+  const queueAbortControllerRef = useRef(null);
   currentActorRef.current = normalizedActorId;
+
+  // Clears all candidate/selection/queue state and invalidates every pending
+  // asynchronous continuation (detection, queue, enrichment). Runs on source
+  // mutation, reset, actor change, session replacement, and unmount.
+  const invalidateScanPipeline = useCallback(() => {
+    scanGenerationRef.current += 1;
+    queueAbortControllerRef.current?.abort();
+    queueAbortControllerRef.current = null;
+    queueInFlightRef.current = false;
+    selectedCandidateIdsRef.current = [];
+    scanCandidatesRef.current = [];
+    itemStatesRef.current = {};
+    if (!isMountedRef.current) return;
+    setScanCandidates([]);
+    setSelectedCandidateIds([]);
+    setScanStage('idle');
+    setItemStates({});
+    setQueueActive(false);
+    setQueueHalted(null);
+    setDetectionNotice(null);
+    setQueueNotice(null);
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -122,6 +180,9 @@ export function useKScan(actorId = null) {
       operationIdRef.current += 1;
       activeAbortControllerRef.current?.abort();
       scanInFlightRef.current = false;
+      scanGenerationRef.current += 1;
+      queueAbortControllerRef.current?.abort();
+      queueInFlightRef.current = false;
     };
   }, []);
 
@@ -134,6 +195,7 @@ export function useKScan(actorId = null) {
     activeOperationActorRef.current = null;
     scanInFlightRef.current = false;
     secondhandRequestRef.current += 1;
+    invalidateScanPipeline();
     setIsAnalyzing(false);
     setPhoto(null);
     setSelectedImages([]);
@@ -144,7 +206,7 @@ export function useKScan(actorId = null) {
     setError(null);
     setNonFashionMessage(null);
     setStatus('idle');
-  }, [normalizedActorId]);
+  }, [normalizedActorId, invalidateScanPipeline]);
 
   // Announce the start of analysis exactly once per true in-flight window.
   useEffect(() => {
@@ -189,6 +251,14 @@ export function useKScan(actorId = null) {
     activeOperationActorRef.current === currentActorRef.current
   ), []);
 
+  // Generation + actor + mount check for queue steps and other continuations
+  // that outlive the initial detection operation.
+  const isGenerationValid = useCallback((generation, actor) => (
+    isMountedRef.current &&
+    generation === scanGenerationRef.current &&
+    actor === currentActorRef.current
+  ), []);
+
   const capturePhoto = useCallback(
     async (cameraRef) => {
       if (scanInFlightRef.current || status !== 'idle') {
@@ -221,6 +291,8 @@ export function useKScan(actorId = null) {
           throw new Error('Camera returned an invalid photo.');
         }
         if (isOperationValid(operationId)) {
+          // New capture replaces the source set → downstream state is stale.
+          invalidateScanPipeline();
           const images = normalizeImageSelections([{ uri: result.uri }], 'camera');
           setSelectedImages(images);
           setPhoto({ ...result, ...images[0], source: 'camera' });
@@ -240,7 +312,7 @@ export function useKScan(actorId = null) {
         clearInFlight(operationId);
       }
     },
-    [status, startInFlight, clearInFlight, isOperationValid]
+    [status, startInFlight, clearInFlight, isOperationValid, invalidateScanPipeline]
   );
 
   const pickGalleryPhotos = useCallback(
@@ -290,6 +362,8 @@ export function useKScan(actorId = null) {
               'upload',
               append ? selectedImages : [],
             );
+            // Source-image collection mutated → invalidate all downstream state.
+            invalidateScanPipeline();
             setSelectedImages(images);
             setPhoto({ ...images[0], source: images[0].source });
             setError(null);
@@ -319,7 +393,7 @@ export function useKScan(actorId = null) {
         clearInFlight(operationId);
       }
     },
-    [status, selectedImages, startInFlight, clearInFlight, isOperationValid]
+    [status, selectedImages, startInFlight, clearInFlight, isOperationValid, invalidateScanPipeline]
   );
 
   const selectGalleryPhoto = useCallback(
@@ -335,6 +409,8 @@ export function useKScan(actorId = null) {
   const removeSelectedImage = useCallback((imageId) => {
     if (scanInFlightRef.current) return;
     const images = removeImageSelection(selectedImages, imageId);
+    // Source-image collection mutated → invalidate all downstream state.
+    invalidateScanPipeline();
     setSelectedImages(images);
     setAnalysis(null);
     setScanItems([]);
@@ -346,7 +422,7 @@ export function useKScan(actorId = null) {
       setPhoto({ ...images[0], source: images[0].source });
       setStatus('preview');
     }
-  }, [selectedImages]);
+  }, [selectedImages, invalidateScanPipeline]);
 
   const uploadPhoto = useCallback(
     (uri) => {
@@ -373,6 +449,7 @@ export function useKScan(actorId = null) {
       }
 
       const images = normalizeImageSelections([{ uri }], 'upload');
+      invalidateScanPipeline();
       setSelectedImages(images);
       setPhoto({ ...images[0], source: 'upload' });
       setError(null);
@@ -384,8 +461,51 @@ export function useKScan(actorId = null) {
       secondhandRequestRef.current += 1;
       setStatus('preview');
     },
-    [status]
+    [status, invalidateScanPipeline]
   );
+
+  // Async enrichment for the currently displayed analysis. Never blocks or
+  // replaces the result card; guarded by mount + secondhand request id.
+  const enrichDisplayedAnalysis = useCallback((data, secondhandRequestId) => {
+    const secondhandRequest = buildSecondhandSearchRequest(data);
+    if (secondhandRequest) {
+      searchVintedSecondhand(secondhandRequest)
+        .then((secondhand) => {
+          if (!isMountedRef.current || secondhandRequestRef.current !== secondhandRequestId) return;
+          if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
+          setAnalysis((current) => {
+            if (!current || current.type === 'non-fashion') return current;
+            return { ...current, secondhand };
+          });
+        })
+        .catch(() => {
+          // Async enrichment failure must not replace the result card.
+        });
+    }
+
+    // Sneaker enrichment — async, never blocks the result card.
+    const sneakerInput = {
+      rawText:            data.result,
+      category:           data.metadata?.category,
+      categoryConfidence: data.metadata?.categoryConfidence,
+      brand:              data.metadata?.brand,
+      model:              data.metadata?.silhouette,
+    };
+    if (shouldEnrichSneakers(sneakerInput)) {
+      searchSneakers(sneakerInput)
+        .then((sneakerReference) => {
+          if (!isMountedRef.current || secondhandRequestRef.current !== secondhandRequestId) return;
+          if (!sneakerReference || sneakerReference.length === 0) return;
+          setAnalysis((current) => {
+            if (!current || current.type === 'non-fashion') return current;
+            return { ...current, sneakerReference };
+          });
+        })
+        .catch(() => {
+          // Async enrichment failure must not replace the result card.
+        });
+    }
+  }, []);
 
   const runAnalysis = useCallback(
     async () => {
@@ -430,6 +550,12 @@ export function useKScan(actorId = null) {
       const operationId = startInFlight();
       if (operationId === null) return;
 
+      // A new attempt supersedes any previous candidates, selection, or queue.
+      invalidateScanPipeline();
+      const generation = scanGenerationRef.current;
+      const attemptActor = currentActorRef.current;
+      recordScanLatencyMarker('scan_submit', generation, imagesForAttempt.length);
+
       logAnalyzeDiag({
         event: 'scan_analyze_accepted',
         source: 'runAnalysis',
@@ -443,33 +569,13 @@ export function useKScan(actorId = null) {
       setSelectedScanItemId(null);
       setAnalysisActorId(null);
       secondhandRequestRef.current += 1;
-      const secondhandRequestId = secondhandRequestRef.current;
 
-      // Shared completion path for the scan-identify backend.
-      const finishAnalysis = async (data, processingStart) => {
-        if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
-
-        if (!isOperationValid(operationId)) {
+      // Completion path for detection: candidate review or non-fashion.
+      const finishDetection = async (data) => {
+        if (!isOperationValid(operationId) || !isGenerationValid(generation, attemptActor)) {
           logAnalyzeDiag({
             event: 'scan_stale_result_discarded',
-            source: 'finishAnalysis',
-            operationId,
-          });
-          return;
-        }
-
-        // Enforce minimum HUD display time so PerceptionLayer completes its entry
-        // animation before we transition to result. Only effective for very fast
-        // responses (< MIN_ANALYSIS_MS); longer requests are unaffected.
-        const elapsed = Date.now() - processingStart;
-        if (elapsed < MIN_ANALYSIS_MS) {
-          await new Promise(r => setTimeout(r, MIN_ANALYSIS_MS - elapsed));
-        }
-
-        if (!isOperationValid(operationId)) {
-          logAnalyzeDiag({
-            event: 'scan_stale_result_discarded',
-            source: 'finishAnalysis_after_min_delay',
+            source: 'finishDetection',
             operationId,
           });
           return;
@@ -486,57 +592,29 @@ export function useKScan(actorId = null) {
           return;
         }
 
+        // Candidate review: render immediately after detection. No commerce
+        // request, no auto-selection, no artificial presentation delay.
         successPulse();
-        setAnalysis(data);
-        setAnalysisActorId(activeOperationActorRef.current);
-        setNonFashionMessage(null);
-        if (__DEV__) console.log('[DEBUG] SET_RESULT status=result');
+        setScanCandidates(data.candidates);
+        scanCandidatesRef.current = data.candidates;
+        setSelectedCandidateIds([]);
+        selectedCandidateIdsRef.current = [];
+        setItemStates({});
+        itemStatesRef.current = {};
+        setScanStage('review');
+        setAnalysisActorId(attemptActor);
+        if (data.partialFailure) {
+          setDetectionNotice(PARTIAL_DETECTION_NOTICE);
+        }
+        recordScanLatencyMarker('candidate_normalization_complete', generation, data.candidates.length);
+        if (__DEV__) console.log('[DEBUG] SET_RESULT status=result stage=review');
         setStatus('result');
-
-        const secondhandRequest = buildSecondhandSearchRequest(data);
-        if (secondhandRequest) {
-          searchVintedSecondhand(secondhandRequest)
-            .then((secondhand) => {
-              if (!isMountedRef.current || secondhandRequestRef.current !== secondhandRequestId) return;
-              if (!secondhand?.enabled || !Array.isArray(secondhand.items) || secondhand.items.length === 0) return;
-              setAnalysis((current) => {
-                if (!current || current.type === 'non-fashion') return current;
-                return { ...current, secondhand };
-              });
-            })
-            .catch(() => {
-              // Async enrichment failure must not replace the result card.
-            });
-        }
-
-        // Sneaker enrichment — async, never blocks the result card.
-        const sneakerInput = {
-          rawText:            data.result,
-          category:           data.metadata?.category,
-          categoryConfidence: data.metadata?.categoryConfidence,
-          brand:              data.metadata?.brand,
-          model:              data.metadata?.silhouette,
-        };
-        if (shouldEnrichSneakers(sneakerInput)) {
-          searchSneakers(sneakerInput)
-            .then((sneakerReference) => {
-              if (!isMountedRef.current || secondhandRequestRef.current !== secondhandRequestId) return;
-              if (!sneakerReference || sneakerReference.length === 0) return;
-              setAnalysis((current) => {
-                if (!current || current.type === 'non-fashion') return current;
-                return { ...current, sneakerReference };
-              });
-            })
-            .catch(() => {
-              // Async enrichment failure must not replace the result card.
-            });
-        }
       };
 
       if (__DEV__) console.log('[DEBUG] SET_PROCESSING');
 
-      // Yield one frame so React renders the processing UI (PerceptionLayer)
-      // before the JS thread is occupied by compression work.
+      // Yield one frame so React renders the processing UI before the JS
+      // thread is occupied by compression work.
       if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_START');
       await new Promise(resolve => requestAnimationFrame(resolve));
       if (__DEV__) console.log('[DEBUG] PROCESSING_RENDER_WAIT_DONE');
@@ -554,28 +632,7 @@ export function useKScan(actorId = null) {
           console.log('[K-SCAN QA] Using compressImage utility: true');
           console.log('[K-SCAN QA] Sending fixture through scan-identify');
         }
-        const preparedImages = await Promise.all(imagesForAttempt.map(async (image) => {
-          const compressed = await compressForUpload(image.uri);
-          const prepared = await sanitizeImageBeforeUpload(compressed);
-          return { image, prepared };
-        }));
-        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms imageCount=' + preparedImages.length);
-        if (__DEV__) {
-          const sanitizerStatus = getPrivacySanitizerStatus();
-          console.warn(
-            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
-            sanitizerStatus.mode +
-            ' faceDetectionAvailable=' +
-            sanitizerStatus.faceDetectionAvailable +
-            ' faceBlurApplied=' +
-            sanitizerStatus.faceBlurApplied
-          );
-        }
 
-        if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
-        // Production camera scan path (KS-REL-008C): always route through the
-        // app-side scan-identify Supabase Edge Function. The legacy Render
-        // /api/analyze fallback has been removed for production submission.
         if (!SCAN_IDENTIFY_BACKEND_ENABLED) {
           throw userSafeError(
             'scan backend disabled',
@@ -584,27 +641,83 @@ export function useKScan(actorId = null) {
         }
         usedScanIdentify = true;
 
-        const detectionResponses = await Promise.all(preparedImages.map(async ({ image, prepared }) => ({
-          image,
-          preparedImage: prepared,
-          response: await identifyScanImage(prepared, {
+        // Prepare (compress once + privacy-adapt once) and detect per image, in
+        // parallel. A single failed image must not cancel the whole session:
+        // allSettled keeps every successful sibling.
+        let firstRequestMarked = false;
+        let firstResponseMarked = false;
+        let dispatchedRequestCount = 0;
+        const settledDetections = await Promise.allSettled(imagesForAttempt.map(async (image) => {
+          const compressed = await compressForUpload(image.uri);
+          const adapted = await preparePrivacyAdaptedImage(compressed);
+          if (!firstRequestMarked) {
+            firstRequestMarked = true;
+            recordScanLatencyMarker('image_preparation_complete', generation);
+            recordScanLatencyMarker('first_detection_request_sent', generation);
+          }
+          dispatchedRequestCount += 1;
+          if (dispatchedRequestCount === imagesForAttempt.length) {
+            recordScanLatencyMarker('all_detection_requests_sent', generation);
+          }
+          const response = await identifyScanImage(adapted.uri, {
             source: image.source === 'upload' ? 'upload' : 'camera',
-            localPrivacyFiltered: true,
+            localPrivacyFiltered: adapted.localPrivacyFiltered,
             multiItemDetection: true,
             requestMode: 'multi_item_detection',
             signal: activeAbortControllerRef.current?.signal,
-          }),
-        })));
+          });
+          if (!firstResponseMarked) {
+            firstResponseMarked = true;
+            recordScanLatencyMarker('first_detection_response', generation);
+          }
+          return {
+            image,
+            preparedImage: adapted.uri,
+            preparedPrivacyFiltered: adapted.localPrivacyFiltered,
+            response,
+          };
+        }));
+        recordScanLatencyMarker('all_detection_responses_settled', generation);
+        if (__DEV__) console.log('[DEBUG] AFTER_DETECTION duration=' + (Date.now() - processingStart) + 'ms imageCount=' + settledDetections.length);
+
+        const detectionResponses = [];
+        let failedImageCount = 0;
+        for (const settled of settledDetections) {
+          if (settled.status === 'fulfilled') {
+            detectionResponses.push(settled.value);
+          } else {
+            failedImageCount += 1;
+          }
+        }
+
+        if (detectionResponses.length === 0) {
+          // Every image failed → existing controlled error path.
+          const firstReason = settledDetections.find((settled) => settled.status === 'rejected')?.reason;
+          if (firstReason?.userMessage) throw firstReason;
+          throw userSafeError(
+            firstReason?.message || 'all detection images failed',
+            'We couldn’t complete the scan. Please check your connection and try again.',
+          );
+        }
+
+        // Backend daily quota during detection is a controlled outcome.
+        const rateLimited = detectionResponses.find(({ response }) => response.status === 'rate_limited');
 
         const candidates = buildMultiScanCandidates(detectionResponses);
         if (candidates.length === 0) {
+          if (rateLimited) {
+            throw userSafeError(
+              'scan quota reached during detection',
+              rateLimited.response.userMessage || 'Daily scan limit reached. Try again tomorrow.',
+            );
+          }
           const allNonFashion = detectionResponses.every(({ response }) => response.status === 'non_fashion');
           if (allNonFashion) {
-            await finishAnalysis({
+            await finishDetection({
               type: 'non-fashion',
               message: detectionResponses[0]?.response.userMessage ||
                 'No fashion items were detected in the selected images.',
-            }, processingStart);
+            });
             return;
           }
           throw userSafeError(
@@ -613,55 +726,11 @@ export function useKScan(actorId = null) {
           );
         }
 
-        const items = await Promise.all(candidates.map(async (candidate) => {
-          let detailResponse = candidate.detectionResponse;
-          let detailStatus = 'complete';
-          if (candidate.selectedCandidate) {
-            detailResponse = await identifyScanImage(candidate.preparedImage, {
-              source: candidate.source === 'upload' ? 'upload' : 'camera',
-              localPrivacyFiltered: true,
-              multiItemDetection: true,
-              requestMode: 'selected_item',
-              scanSessionId: candidate.detectionResponse.scanSessionId,
-              imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
-              selectedCandidate: candidate.selectedCandidate,
-              signal: activeAbortControllerRef.current?.signal,
-            });
-          }
-
-          if (detailResponse.status !== 'completed') {
-            detailStatus = 'partial';
-            detailResponse = candidate.garment ? {
-              status: 'completed',
-              attributes: candidate.garment.attributes,
-              identification: candidate.garment.identification,
-              recommendedProducts: [],
-              userMessage: candidate.garment.label,
-            } : candidate.detectionResponse;
-          }
-
-          return {
-            id: candidate.id,
-            sourceImageId: candidate.sourceImageId,
-            sourceImageIndex: candidate.sourceImageIndex,
-            sourceImageUri: candidate.sourceImageUri,
-            source: candidate.source,
-            garment: candidate.garment,
-            selectedCandidate: candidate.selectedCandidate,
-            detectionResponse: candidate.detectionResponse,
-            label: candidateLabel(candidate),
-            analysis: mapScanIdentifyToAnalysis(detailResponse),
-            detailStatus,
-          };
-        }));
-
-        if (!isOperationValid(operationId)) return;
-        setScanItems(items);
-        setSelectedScanItemId(items[0].id);
-
-        // Throws a user-safe error on 'failed' → handled by the catch below.
-        const data = items[0].analysis;
-        await finishAnalysis(data, processingStart);
+        await finishDetection({
+          type: 'candidates',
+          candidates,
+          partialFailure: failedImageCount > 0,
+        });
       };
 
       const attemptTimeoutPromise = new Promise((_, reject) => {
@@ -708,8 +777,206 @@ export function useKScan(actorId = null) {
         clearInFlight(operationId);
       }
     },
-    [status, photo, selectedImages, startInFlight, clearInFlight, isOperationValid]
+    [status, photo, selectedImages, startInFlight, clearInFlight, isOperationValid, isGenerationValid, invalidateScanPipeline]
   );
+
+  // ── Deliberate multi-select (ordered, stable IDs, zero provider calls) ──
+  const toggleScanCandidate = useCallback((candidateId) => {
+    if (typeof candidateId !== 'string' || !candidateId.trim()) return;
+    if (!scanCandidatesRef.current.some((candidate) => candidate.id === candidateId)) return;
+    // Selection is frozen once the queue is confirmed for this generation;
+    // resume recalculates from the preserved list instead.
+    if (queueInFlightRef.current) return;
+    // Ready/failed items from a halted queue keep their state; re-toggling a
+    // consumed candidate is a no-op to prevent duplicate analysis.
+    if (itemStatesRef.current[candidateId] === 'ready') return;
+
+    // Functional update + synchronous ref reconciliation inside the same
+    // authoritative operation, so rapid toggles in one tick stay consistent.
+    const current = selectedCandidateIdsRef.current;
+    const exists = current.includes(candidateId);
+    const next = exists
+      ? current.filter((id) => id !== candidateId)
+      : [...current, candidateId];
+    selectedCandidateIdsRef.current = next;
+    setSelectedCandidateIds(() => next);
+  }, []);
+
+  // Count-aware CTA action. Confirms the current ordered selection and starts
+  // the automatic sequential selected-item commerce queue. Also serves as the
+  // explicit resume action after a quota halt (it recalculates the remaining
+  // unanalyzed selected candidates).
+  const confirmSelectedCandidates = useCallback(() => {
+    // Synchronous duplicate lock: a second CTA tap in the same tick is a no-op.
+    if (queueInFlightRef.current) return;
+
+    const orderedIds = [];
+    const seen = new Set();
+    for (const id of selectedCandidateIdsRef.current) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const state = itemStatesRef.current[id];
+      // Completed candidates are never repeated; failed ones require the
+      // compatible retry path (resume) and are requeued only if still selected.
+      if (state === 'ready') continue;
+      orderedIds.push(id);
+    }
+    if (orderedIds.length === 0) return;
+
+    queueInFlightRef.current = true;
+    const generation = scanGenerationRef.current;
+    const queueActor = currentActorRef.current;
+    recordScanLatencyMarker('selection_cta_pressed', generation, orderedIds.length);
+
+    const queuedStates = { ...itemStatesRef.current };
+    for (const id of orderedIds) queuedStates[id] = 'queued';
+    itemStatesRef.current = queuedStates;
+    setItemStates(queuedStates);
+    setQueueActive(true);
+    setQueueHalted(null);
+    setQueueNotice(null);
+    setScanStage('results');
+
+    void processSelectedItemQueue(orderedIds, generation, queueActor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setItemState = useCallback((candidateId, state) => {
+    itemStatesRef.current = { ...itemStatesRef.current, [candidateId]: state };
+    if (isMountedRef.current) {
+      setItemStates(itemStatesRef.current);
+    }
+  }, []);
+
+  // Sequential selected-item commerce queue. One singular request per selected
+  // candidate, one active request at a time, FIFO order, progressive results.
+  const processSelectedItemQueue = useCallback(async (queueIds, generation, queueActor) => {
+    let firstResultRendered = scanItemsHasEntriesRef.current;
+    try {
+      for (let index = 0; index < queueIds.length; index += 1) {
+        if (!isGenerationValid(generation, queueActor)) return;
+
+        const candidateId = queueIds[index];
+        const candidate = scanCandidatesRef.current.find((entry) => entry.id === candidateId);
+        if (!candidate) {
+          setItemState(candidateId, 'failed');
+          continue;
+        }
+
+        setItemState(candidateId, 'analyzing');
+
+        let detailResponse = candidate.detectionResponse;
+        let detailStatus = 'complete';
+        let requestFailed = false;
+
+        if (candidate.selectedCandidate) {
+          queueAbortControllerRef.current = new AbortController();
+          if (index === 0) {
+            recordScanLatencyMarker('first_selected_request_sent', generation);
+          }
+          try {
+            // Source continuity: the candidate's own prepared image, session,
+            // and digest — never the first image, never re-prepared.
+            detailResponse = await identifyScanImage(candidate.preparedImage, {
+              source: candidate.source === 'upload' ? 'upload' : 'camera',
+              localPrivacyFiltered: candidate.preparedPrivacyFiltered === true,
+              multiItemDetection: true,
+              requestMode: 'selected_item',
+              scanSessionId: candidate.detectionResponse.scanSessionId,
+              imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
+              selectedCandidate: candidate.selectedCandidate,
+              signal: queueAbortControllerRef.current.signal,
+            });
+          } catch (err) {
+            if (__DEV__) console.warn('[useKScan] selected_item request failed', err?.message);
+            requestFailed = true;
+          } finally {
+            queueAbortControllerRef.current = null;
+          }
+        }
+
+        if (!isGenerationValid(generation, queueActor)) return;
+
+        // Quota / rate limit: stop the queue, preserve completed results and
+        // the remaining selected IDs, surface the existing limit message, and
+        // wait for an explicit user resume. No automatic retries.
+        if (!requestFailed && detailResponse?.status === 'rate_limited') {
+          setItemState(candidateId, 'queued');
+          setQueueHalted('quota');
+          setQueueNotice(detailResponse.userMessage || 'Daily scan limit reached. Try again tomorrow.');
+          return;
+        }
+
+        if (requestFailed || !detailResponse || detailResponse.status !== 'completed') {
+          if (!requestFailed && candidate.garment) {
+            // Existing partial fallback: detection already produced a genuine
+            // garment; present it without commerce rather than discarding it.
+            detailStatus = 'partial';
+            detailResponse = {
+              status: 'completed',
+              attributes: candidate.garment.attributes,
+              identification: candidate.garment.identification,
+              recommendedProducts: [],
+              userMessage: candidate.garment.label,
+            };
+          } else {
+            setItemState(candidateId, 'failed');
+            setQueueNotice(ITEM_FAILURE_NOTICE);
+            continue;
+          }
+        }
+
+        const item = {
+          id: candidate.id,
+          sourceImageId: candidate.sourceImageId,
+          sourceImageIndex: candidate.sourceImageIndex,
+          sourceImageUri: candidate.sourceImageUri,
+          source: candidate.source,
+          garment: candidate.garment,
+          selectedCandidate: candidate.selectedCandidate,
+          detectionResponse: candidate.detectionResponse,
+          label: candidateLabel(candidate),
+          analysis: mapScanIdentifyToAnalysis(detailResponse),
+          detailStatus,
+        };
+
+        if (!isGenerationValid(generation, queueActor)) return;
+
+        scanItemsHasEntriesRef.current = true;
+        setScanItems((current) => (
+          current.some((existing) => existing.id === item.id) ? current : [...current, item]
+        ));
+        setItemState(candidateId, 'ready');
+
+        if (!firstResultRendered) {
+          firstResultRendered = true;
+          successPulse();
+          secondhandRequestRef.current += 1;
+          const secondhandRequestId = secondhandRequestRef.current;
+          setSelectedScanItemId(item.id);
+          setAnalysis(item.analysis);
+          setAnalysisActorId(queueActor);
+          recordScanLatencyMarker('first_selected_result_rendered', generation);
+          enrichDisplayedAnalysis(item.analysis, secondhandRequestId);
+        } else {
+          recordScanLatencyMarker('subsequent_result_rendered', generation, index);
+        }
+      }
+    } finally {
+      if (isGenerationValid(generation, queueActor)) {
+        queueInFlightRef.current = false;
+        setQueueActive(false);
+        if (itemStatesRef.current && !Object.values(itemStatesRef.current).some((state) => state === 'queued' || state === 'analyzing')) {
+          recordScanLatencyMarker('queue_complete', generation);
+        }
+      }
+      // On an invalid generation the pipeline was already invalidated (and the
+      // lock released) by invalidateScanPipeline; do not touch newer state.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scanItemsHasEntriesRef = useRef(false);
 
   const retake = useCallback(() => {
     if (scanInFlightRef.current) {
@@ -730,6 +997,8 @@ export function useKScan(actorId = null) {
       return;
     }
 
+    invalidateScanPipeline();
+    scanItemsHasEntriesRef.current = false;
     setPhoto(null);
     setSelectedImages([]);
     setAnalysis(null);
@@ -740,7 +1009,7 @@ export function useKScan(actorId = null) {
     setNonFashionMessage(null);
     secondhandRequestRef.current += 1;
     setStatus('idle');
-  }, [status, photo]);
+  }, [status, photo, invalidateScanPipeline]);
 
   const selectStaticFixture = useCallback(
     (uri, fixtureName) => {
@@ -769,6 +1038,8 @@ export function useKScan(actorId = null) {
 
       if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
+      invalidateScanPipeline();
+      scanItemsHasEntriesRef.current = false;
       const images = normalizeImageSelections([{ uri, qaFixtureName: fixtureName }], 'fixture');
       setSelectedImages(images);
       setPhoto({ ...images[0], source: 'fixture' });
@@ -783,7 +1054,7 @@ export function useKScan(actorId = null) {
         if (isMountedRef.current) setStatus('preview');
       });
     },
-    [status]
+    [status, invalidateScanPipeline]
   );
 
   const dismissResult = useCallback(() => {
@@ -802,6 +1073,8 @@ export function useKScan(actorId = null) {
       return;
     }
 
+    invalidateScanPipeline();
+    scanItemsHasEntriesRef.current = false;
     setAnalysis(null);
     setScanItems([]);
     setSelectedScanItemId(null);
@@ -812,7 +1085,7 @@ export function useKScan(actorId = null) {
     setNonFashionMessage(null);
     secondhandRequestRef.current += 1;
     setStatus('idle');
-  }, [status]);
+  }, [status, invalidateScanPipeline]);
 
   const retry = useCallback(() => {
     if (scanInFlightRef.current) {
@@ -830,6 +1103,8 @@ export function useKScan(actorId = null) {
       return;
     }
 
+    invalidateScanPipeline();
+    scanItemsHasEntriesRef.current = false;
     if (photo) {
       setError(null);
       setAnalysis(null);
@@ -846,7 +1121,7 @@ export function useKScan(actorId = null) {
       secondhandRequestRef.current += 1;
       setStatus('idle');
     }
-  }, [status, photo]);
+  }, [status, photo, invalidateScanPipeline]);
 
   const selectScanItem = useCallback((itemId) => {
     if (scanInFlightRef.current || status !== 'result') return;
@@ -868,6 +1143,15 @@ export function useKScan(actorId = null) {
     error,
     nonFashionMessage,
     isAnalyzing,
+    // Multi-item review + queue surface
+    scanCandidates,
+    selectedCandidateIds,
+    scanStage,
+    itemStates,
+    queueActive,
+    queueHalted,
+    detectionNotice,
+    queueNotice,
     capturePhoto,
     runAnalysis,
     retake,
@@ -879,5 +1163,7 @@ export function useKScan(actorId = null) {
     addGalleryPhotos,
     removeSelectedImage,
     selectScanItem,
+    toggleScanCandidate,
+    confirmSelectedCandidates,
   };
 }
