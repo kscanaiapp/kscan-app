@@ -20,12 +20,18 @@ test('picker exposes a real 1-5 image selection and review/removal flow', () => 
 
 test('all selected images enter the bounded v119 request pipeline in stable order', () => {
   const hook = read('hooks/useKScan.js');
-  assert.match(hook, /Promise\.all\(imagesForAttempt\.map/);
+  // Parallel per-image detection tolerates partial source failure.
+  assert.match(hook, /Promise\.allSettled\(imagesForAttempt\.map/);
   assert.match(hook, /requestMode:\s*'multi_item_detection'/);
   assert.match(hook, /requestMode:\s*'selected_item'/);
   assert.match(hook, /scanSessionId:\s*candidate\.detectionResponse\.scanSessionId/);
   assert.match(hook, /imageDigestPrefix:\s*candidate\.detectionResponse\.imageDigestPrefix/);
   assert.match(hook, /buildMultiScanCandidates\(detectionResponses\)/);
+  // No automatic pre-selection commerce fan-out: the singular selected_item
+  // request may exist only inside the sequential queue processor.
+  const detectionSection = hook.slice(hook.indexOf('const runAnalysis'), hook.indexOf('const toggleScanCandidate'));
+  assert.doesNotMatch(detectionSection, /selected_item/);
+  assert.match(hook, /processSelectedItemQueue/);
 });
 
 test('request cancellation, timeout, unmount, and stale-response guards cover the multi-image attempt', () => {
@@ -33,7 +39,8 @@ test('request cancellation, timeout, unmount, and stale-response guards cover th
   assert.match(hook, /ATTEMPT_TIMEOUT_MS = 52_000/);
   assert.match(hook, /activeAbortControllerRef\.current\?\.abort\(\)/);
   assert.match(hook, /signal:\s*activeAbortControllerRef\.current\?\.signal/g);
-  assert.match(hook, /if \(!isOperationValid\(operationId\)\) return/);
+  assert.match(hook, /!isOperationValid\(operationId\)/);
+  assert.match(hook, /isGenerationValid\(generation/);
   assert.match(hook, /isMountedRef\.current/);
 });
 

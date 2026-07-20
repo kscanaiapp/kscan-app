@@ -217,6 +217,12 @@ function loadUseKScanWithMocks({
     candidateLabel: () => 'Detected item',
     mapScanIdentifyToAnalysis: (response) => response,
     compressForUpload,
+    preparePrivacyAdaptedImage: async (uri) => ({
+      uri,
+      mode: 'passthrough',
+      localPrivacyFiltered: false,
+    }),
+    recordScanLatencyMarker: () => {},
     sanitizeImageBeforeUpload: async (image) => image,
     getPrivacySanitizerStatus: () => ({
       mode: 'test',
@@ -252,6 +258,16 @@ function loadUseKScanWithMocks({
     get error() { return stateSlots[7]?.value; },
     get nonFashionMessage() { return stateSlots[8]?.value; },
     get isAnalyzing() { return stateSlots[9]?.value; },
+    get scanItems() { return stateSlots[4]?.value; },
+    get selectedScanItemId() { return stateSlots[5]?.value; },
+    get scanCandidates() { return stateSlots[10]?.value; },
+    get selectedCandidateIds() { return stateSlots[11]?.value; },
+    get scanStage() { return stateSlots[12]?.value; },
+    get itemStates() { return stateSlots[13]?.value; },
+    get queueActive() { return stateSlots[14]?.value; },
+    get queueHalted() { return stateSlots[15]?.value; },
+    get detectionNotice() { return stateSlots[16]?.value; },
+    get queueNotice() { return stateSlots[17]?.value; },
     capturePhoto: (...args) => currentHook.capturePhoto(...args),
     selectGalleryPhoto: (...args) => currentHook.selectGalleryPhoto(...args),
     runAnalysis: (...args) => currentHook.runAnalysis(...args),
@@ -260,6 +276,9 @@ function loadUseKScanWithMocks({
     retry: (...args) => currentHook.retry(...args),
     selectStaticFixture: (...args) => currentHook.selectStaticFixture(...args),
     uploadPhoto: (...args) => currentHook.uploadPhoto(...args),
+    toggleScanCandidate: (...args) => currentHook.toggleScanCandidate(...args),
+    confirmSelectedCandidates: (...args) => currentHook.confirmSelectedCandidates(...args),
+    removeSelectedImage: (...args) => currentHook.removeSelectedImage(...args),
     accessibilityAnnouncements,
     alertCalls,
     runNextHookTimer,
@@ -941,5 +960,13 @@ test('no stale result overwrites a newer state', async () => {
   });
   await hook2.runAnalysis();
   assert.equal(hook2.status, 'result');
+  // New architecture: detection lands on the deliberate review stage with no
+  // commerce analysis. Confirming the single candidate (the N=1 flow) yields
+  // the displayed analysis.
+  assert.equal(hook2.scanStage, 'review');
+  assert.equal(hook2.analysis, null);
+  hook2.toggleScanCandidate(hook2.scanCandidates[0].id);
+  hook2.confirmSelectedCandidates();
+  await waitFor(() => hook2.analysis !== null);
   assert.equal(hook2.analysis?.attributes?.category, 'Fresh');
 });
