@@ -478,7 +478,9 @@ export default function App() {
             sourceImageId: item.sourceImageId,
             sourceImageIndex: item.sourceImageIndex,
             imageCount: selectedImages.length || 1,
-            itemCount: scanItems.length || 1,
+            // Selected count is the stable session total even when the user
+            // saves the first progressive result while later items are queued.
+            itemCount: selectedCandidateIds.length || scanItems.length || 1,
           },
         },
         source: item.source === 'camera' || item.source === 'upload' ? item.source : 'unknown',
@@ -494,7 +496,7 @@ export default function App() {
     } finally {
       savingItemIdsRef.current.delete(item.id);
     }
-  }, [analysisActorId, user?.id, savedScanIdsByItem, selectedImages.length, scanItems.length]);
+  }, [analysisActorId, user?.id, savedScanIdsByItem, selectedImages.length, selectedCandidateIds.length, scanItems.length]);
 
   useEffect(() => {
     setSavedScanIdsByItem({});
@@ -1068,7 +1070,10 @@ export default function App() {
       )}
 
       {status === 'result' && !perceiving && !showCandidateReview && (
-        SCAN_RESULTS_V2_UI_ENABLED ? (
+        // The deliberate queue requires the navigator-capable renderer even
+        // when the legacy result flag is off. Otherwise later selected items,
+        // Save All, and the active-item Elise handoff become unreachable.
+        (SCAN_RESULTS_V2_UI_ENABLED || selectedCandidateIds.length > 0) ? (
           <ScanResultV2
             analysis={analysis}
             scanImageUri={activePhoto?.uri ?? null}
