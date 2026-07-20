@@ -41,6 +41,10 @@ export type ScanCommerceInput = {
   limit?: number;
   /** Internal: prevent recursive quality-tune fallback loops. */
   disableQualityFallback?: boolean;
+  /** v121 intelligence — omit for exact v120 commerce query construction */
+  qualityDetailLevel?: 'specific' | 'moderate' | 'broad';
+  materialAllowed?: boolean;
+  brandAllowed?: boolean;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
@@ -643,6 +647,13 @@ export async function getScanCommerceResults(
         attributes: input.attributes,
         searchQueries: input.searchQueries,
         originalText: input.originalText,
+        ...(input.qualityDetailLevel
+          ? {
+            detailLevel: input.qualityDetailLevel,
+            materialAllowed: input.materialAllowed,
+            brandAllowed: input.brandAllowed,
+          }
+          : {}),
       });
       query = weighted.primary;
       fallbackQuery = weighted.fallback;

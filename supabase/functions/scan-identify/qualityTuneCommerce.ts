@@ -72,15 +72,51 @@ function dedupeTokens(raw: string, maxLen = 200): string {
   return kept.join(' ').slice(0, maxLen);
 }
 
+export type CommerceQueryDetailLevel = 'specific' | 'moderate' | 'broad';
+
+const MAX_QUERY_MEANINGFUL_WORDS = 8;
+
+function meaningfulWords(s: string): string[] {
+  return collapseSpaces(s).split(' ').filter((w) => {
+    if (!w) return false;
+    const lw = w.toLowerCase();
+    if (FILLER.has(lw)) return false;
+    if (/^(and|the|a|an|of|with|in|for|to|on)$/i.test(lw)) return false;
+    return true;
+  });
+}
+
+/** Cap to ≤8 meaningful words without truncating mid-phrase tokens. */
+function capMeaningfulWords(raw: string, max = MAX_QUERY_MEANINGFUL_WORDS): string {
+  const cleaned = dedupeTokens(raw);
+  const words = meaningfulWords(cleaned);
+  if (words.length <= max) return words.join(' ');
+  // Prefer color/leading descriptors + trailing garment phrase
+  const head = words.slice(0, Math.min(3, max - 2));
+  const tail = words.slice(-(max - head.length));
+  return dedupeTokens([...head, ...tail].join(' '));
+}
+
 /**
  * Build weighted primary + deterministic fallback commerce queries.
  * Brand excluded unless verified (logo / visible brand text).
+ *
+ * When `detailLevel` is omitted, preserves exact v120 query construction.
+ * When provided (v121 intelligence ON), varies specificity by quality tier:
+ *   specific → color + subtype + supported material + silhouette + category
+ *   moderate → color + subtype + category
+ *   broad    → color + broad category
  */
 export function buildWeightedCommerceQueries(input: {
   identification: Record<string, unknown>;
   attributes?: Record<string, unknown>;
   searchQueries?: string[];
   originalText?: string;
+  /** v121 only — omit for exact v120 behavior */
+  detailLevel?: CommerceQueryDetailLevel;
+  /** When false/undefined with no detailLevel, use v120 query construction. */
+  materialAllowed?: boolean;
+  brandAllowed?: boolean;
 }): WeightedCommerceQueries {
   const id = input.identification || {};
   const attrs = input.attributes || {};
@@ -88,7 +124,9 @@ export function buildWeightedCommerceQueries(input: {
   const logo = id.logo_detected === true;
   const visible = usable(id.visible_brand_text);
   const brandVerified = logo || !!visible;
-  const brand = brandVerified ? (usable(id.brand_guess) || visible) : '';
+  const brand = brandVerified && input.brandAllowed !== false
+    ? (usable(id.brand_guess) || visible)
+    : '';
 
   const category = usable(id.item_type) || usable(attrs.category);
   const subtype = usable(id.subtype) || usable(attrs.itemType);
@@ -97,7 +135,8 @@ export function buildWeightedCommerceQueries(input: {
       ? usable(attrs.colorPalette[0])
       : '');
   const silhouette = usable(id.silhouette) || usable(attrs.silhouette);
-  const material = usable(id.material_estimate) || usable(attrs.material) || usable(attrs.materialEstimate);
+  const materialRaw = usable(id.material_estimate) || usable(attrs.material) || usable(attrs.materialEstimate);
+  const material = input.materialAllowed === false ? '' : materialRaw;
   const pattern = usable(id.pattern) || usable(attrs.pattern);
   const fit = usable(id.fit);
   const construction = Array.isArray(id.distinctive_features)
@@ -105,6 +144,36 @@ export function buildWeightedCommerceQueries(input: {
     : '';
   const style = Array.isArray(id.style_tags) ? usable(id.style_tags[0]) : usable(attrs.style);
 
+  // ── v121 tiered path ───────────────────────────────────────────────────────
+  if (input.detailLevel) {
+    let primary = '';
+    if (input.detailLevel === 'specific') {
+      primary = capMeaningfulWords(
+        [color, subtype, material, silhouette, category].filter(Boolean).join(' '),
+      );
+    } else if (input.detailLevel === 'moderate') {
+      if (subtype && category && !subtype.toLowerCase().includes(category.toLowerCase())) {
+        primary = capMeaningfulWords([color, subtype, category].filter(Boolean).join(' '));
+      } else {
+        primary = capMeaningfulWords([color, subtype || category].filter(Boolean).join(' '));
+      }
+    } else {
+      primary = capMeaningfulWords([color, category || subtype].filter(Boolean).join(' '));
+    }
+    if (!primary) {
+      primary = capMeaningfulWords(usable(input.originalText)) ||
+        capMeaningfulWords([category, subtype].filter(Boolean).join(' '));
+    }
+    if (brand && input.brandAllowed) {
+      primary = capMeaningfulWords([brand, primary].join(' '));
+    }
+    const garment = subtype || category;
+    const fallback = capMeaningfulWords([color, category || garment].filter(Boolean).join(' ')) ||
+      capMeaningfulWords(garment);
+    return { primary, fallback: fallback === primary ? '' : fallback };
+  }
+
+  // ── v120 path (unchanged) ──────────────────────────────────────────────────
   // Prefer model search_queries[0] only when not generic/verbose luxury dump
   const searchQueries = Array.isArray(input.searchQueries)
     ? input.searchQueries
