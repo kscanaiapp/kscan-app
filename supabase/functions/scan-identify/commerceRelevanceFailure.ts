@@ -68,7 +68,15 @@ export type FailureReason = (typeof FAILURE_REASONS)[number];
 
 const FAILURE_REASON_SET: ReadonlySet<string> = new Set(FAILURE_REASONS);
 
-/** Map coarse legacy error categories / provider outcomes to stable reasons. */
+/** Map coarse legacy error categories / provider outcomes to stable reasons.
+ *
+ * Precedence (deterministic):
+ *   request/auth/session/digest/candidate
+ *   → model failure
+ *   → commerce terminal failure
+ *   → commerce degradation/informational
+ *   → null
+ */
 export function mapToFailureReason(input: {
   errorCategory?: string | null;
   providerOutcome?: string | null;
@@ -82,12 +90,19 @@ export function mapToFailureReason(input: {
   digestMissing?: boolean;
   digestMismatch?: boolean;
   candidateInvalid?: boolean;
+  invalidRequest?: boolean;
+  invalidImage?: boolean;
+  modelError?: boolean;
+  modelMalformed?: boolean;
   commercePrimaryEmpty?: boolean;
   commerceFallbackUsed?: boolean;
   commerceFallbackEmpty?: boolean;
   productFilterEmpty?: boolean;
+  productDedupeReduction?: boolean;
   categoryMismatchRemoved?: boolean;
+  providerInvalidResult?: boolean;
 }): FailureReason | null {
+  // 1. Request / auth / session
   if (input.authRequired) return FAILURE_REASON_AUTHENTICATION_REQUIRED;
   if (input.authInvalid) return FAILURE_REASON_AUTHENTICATION_INVALID;
   if (input.quotaExceeded) return FAILURE_REASON_QUOTA_EXCEEDED;
@@ -96,8 +111,14 @@ export function mapToFailureReason(input: {
   if (input.digestMissing) return FAILURE_REASON_DIGEST_MISSING;
   if (input.digestMismatch) return FAILURE_REASON_DIGEST_MISMATCH;
   if (input.candidateInvalid) return FAILURE_REASON_CANDIDATE_INVALID;
+  if (input.invalidRequest) return FAILURE_REASON_INVALID_REQUEST;
+  if (input.invalidImage) return FAILURE_REASON_INVALID_IMAGE;
   if (input.isNonFashion) return FAILURE_REASON_NON_FASHION;
+
+  // 2. Model
   if (input.isTimeout) return FAILURE_REASON_MODEL_TIMEOUT;
+  if (input.modelMalformed) return FAILURE_REASON_MODEL_MALFORMED_RESPONSE;
+  if (input.modelError) return FAILURE_REASON_MODEL_ERROR;
 
   const cat = (input.errorCategory || '').toLowerCase();
   if (cat === 'invalid_request') return FAILURE_REASON_INVALID_REQUEST;
@@ -111,16 +132,20 @@ export function mapToFailureReason(input: {
   if (cat === 'normalization_failure') return FAILURE_REASON_NORMALIZATION_FAILURE;
   if (cat === 'unexpected' || cat === 'internal') return FAILURE_REASON_UNEXPECTED_INTERNAL_ERROR;
 
+  // 3. Commerce terminal
   const provider = (input.providerOutcome || '').toLowerCase();
   if (provider === 'timeout' || provider === 'commerce_timeout' || provider === 'text_commerce_timeout') {
     return FAILURE_REASON_PROVIDER_TIMEOUT;
   }
   if (provider === 'error') return FAILURE_REASON_PROVIDER_ERROR;
-
+  if (input.providerInvalidResult) return FAILURE_REASON_PROVIDER_INVALID_RESULT;
   if (input.commerceFallbackEmpty) return FAILURE_REASON_COMMERCE_FALLBACK_EMPTY;
-  if (input.commerceFallbackUsed) return FAILURE_REASON_COMMERCE_FALLBACK_USED;
   if (input.commercePrimaryEmpty) return FAILURE_REASON_COMMERCE_PRIMARY_EMPTY;
   if (input.productFilterEmpty) return FAILURE_REASON_PRODUCT_FILTER_EMPTY;
+
+  // 4. Informational / degradation (may coexist with success)
+  if (input.commerceFallbackUsed) return FAILURE_REASON_COMMERCE_FALLBACK_USED;
+  if (input.productDedupeReduction) return FAILURE_REASON_PRODUCT_DEDUPE_REDUCTION;
   if (input.categoryMismatchRemoved) return FAILURE_REASON_CATEGORY_MISMATCH_REMOVED;
 
   return null;

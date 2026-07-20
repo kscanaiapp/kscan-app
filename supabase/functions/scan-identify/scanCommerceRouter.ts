@@ -51,6 +51,12 @@ export type ScanCommerceInput = {
   relevanceEnabled?: boolean;
   relevanceRoute?: ScannerCategoryRoute;
   qualityBand?: 'high' | 'moderate' | 'low' | null;
+  /**
+   * v123 TextScan parity: when true, mode=text is accepted by this router.
+   * Callers must gate with BACKEND_TEXTSCAN_COMMERCE_PARITY_ENABLED.
+   * Image mode is unchanged regardless of this flag.
+   */
+  allowTextMode?: boolean;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
@@ -69,6 +75,8 @@ export type ScanCommerceResult = {
     productsAfterDedupe: number;
     categoryMismatchRemovals: number;
     identityKeyTypesUsed: string[];
+    productsBeforeFilter?: number;
+    retailerCount?: number;
   };
 };
 
@@ -614,7 +622,7 @@ export async function getScanCommerceResults(
   const started = Date.now();
   const providersTried: string[] = [];
 
-  if (input.mode !== 'image') {
+  if (input.mode !== 'image' && !(input.mode === 'text' && input.allowTextMode === true)) {
     return {
       products: [],
       provider: 'none',
@@ -734,6 +742,8 @@ export async function getScanCommerceResults(
           productsAfterDedupe: filtered.stats.productsAfterDedupe,
           categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
           identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
+          productsBeforeFilter: filtered.stats.productsBeforeFilter,
+          retailerCount: filtered.stats.retailerCount,
         };
         // If quality filtering drops below threshold, continue provider cascade.
         if (
@@ -805,6 +815,8 @@ export async function getScanCommerceResults(
         productsAfterDedupe: filtered.stats.productsAfterDedupe,
         categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
         identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
+        productsBeforeFilter: filtered.stats.productsBeforeFilter,
+        retailerCount: filtered.stats.retailerCount,
       };
       if (
         shouldRunFallbackQuery(products.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
@@ -869,6 +881,8 @@ export async function getScanCommerceResults(
       productsAfterDedupe: filtered.stats.productsAfterDedupe,
       categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
       identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
+      productsBeforeFilter: filtered.stats.productsBeforeFilter,
+      retailerCount: filtered.stats.retailerCount,
     };
 
     if (
