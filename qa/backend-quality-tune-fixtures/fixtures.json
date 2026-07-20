@@ -1,0 +1,303 @@
+{
+  "version": "v120",
+  "garments": [
+    {
+      "id": "black_moto_jacket",
+      "identification": {
+        "item_type": "Jacket",
+        "subtype": "moto jacket",
+        "primary_color": "black",
+        "material_estimate": "faux leather",
+        "silhouette": "cropped",
+        "fit": "fitted",
+        "pattern": "solid",
+        "distinctive_features": ["asymmetric zip", "lapel"],
+        "style_tags": ["moto", "edgy"],
+        "search_queries": ["black cropped faux leather moto jacket"],
+        "visible_brand_text": null,
+        "logo_detected": false,
+        "brand_guess": null,
+        "confidence_score": 0.86
+      }
+    },
+    {
+      "id": "navy_blazer",
+      "identification": {
+        "item_type": "blazer",
+        "subtype": "sportcoat",
+        "primary_color": "dark blue",
+        "material_estimate": "wool",
+        "silhouette": "tailored",
+        "pattern": "solid",
+        "search_queries": ["navy tailored sport coat"],
+        "brand_guess": null,
+        "logo_detected": false,
+        "visible_brand_text": null
+      }
+    },
+    {
+      "id": "wide_leg_trousers",
+      "identification": {
+        "item_type": "pants",
+        "subtype": "wide leg trousers",
+        "primary_color": "charcoal",
+        "material_estimate": "wool blend",
+        "silhouette": "wide-leg",
+        "fit": "high-waisted",
+        "brand_guess": null
+      }
+    },
+    {
+      "id": "pleated_skirt",
+      "identification": {
+        "item_type": "dress",
+        "subtype": "pleated skirt",
+        "primary_color": "black",
+        "silhouette": "a-line",
+        "pattern": "solid"
+      }
+    },
+    {
+      "id": "white_sneakers",
+      "identification": {
+        "item_type": "footwear",
+        "subtype": "sneakers",
+        "primary_color": "white",
+        "material_estimate": "leather",
+        "silhouette": "low-top",
+        "brand_guess": null,
+        "logo_detected": false
+      }
+    },
+    {
+      "id": "ankle_boots",
+      "identification": {
+        "item_type": "footwear",
+        "subtype": "ankle boots",
+        "primary_color": "black",
+        "material_estimate": "leather"
+      }
+    },
+    {
+      "id": "structured_handbag",
+      "identification": {
+        "item_type": "bag",
+        "subtype": "hand bag",
+        "primary_color": "brown",
+        "silhouette": "structured"
+      }
+    },
+    {
+      "id": "knit_sweater",
+      "identification": {
+        "item_type": "top",
+        "subtype": "knit sweater",
+        "primary_color": "cream",
+        "material_estimate": "knit"
+      }
+    },
+    {
+      "id": "patterned_dress",
+      "identification": {
+        "item_type": "dress",
+        "subtype": "midi dress",
+        "primary_color": "multicolor",
+        "pattern": "floral",
+        "silhouette": "flowing"
+      }
+    },
+    {
+      "id": "ambiguous_outerwear",
+      "identification": {
+        "item_type": "Clothing",
+        "subtype": "bomber jacket",
+        "primary_color": "olive",
+        "material_estimate": "nylon"
+      }
+    }
+  ],
+  "hostile": [
+    {
+      "id": "generic_provider_label",
+      "identification": {
+        "item_type": "Fashion Item",
+        "subtype": "unknown",
+        "primary_color": "black",
+        "material_estimate": "leather",
+        "distinctive_features": ["moto zip"]
+      },
+      "attributes": { "category": "outerwear", "itemType": "moto jacket" }
+    },
+    {
+      "id": "missing_subtype",
+      "identification": {
+        "item_type": "blazer",
+        "subtype": "",
+        "primary_color": "navy"
+      }
+    },
+    {
+      "id": "conflicting_category_subtype",
+      "identification": {
+        "item_type": "Skirt",
+        "subtype": "Straight-Leg Trousers",
+        "primary_color": "black"
+      }
+    },
+    {
+      "id": "duplicate_descriptors",
+      "identification": {
+        "item_type": "outerwear",
+        "subtype": "moto jacket",
+        "primary_color": "black",
+        "style_tags": ["moto", "Moto", "edgy", "edgy", ""],
+        "distinctive_features": ["zip", "zip", null]
+      }
+    },
+    {
+      "id": "color_synonyms",
+      "identification": {
+        "item_type": "top",
+        "subtype": "tee shirt",
+        "primary_color": "off white"
+      }
+    },
+    {
+      "id": "malformed_arrays",
+      "identification": {
+        "item_type": "pants",
+        "subtype": "trousers",
+        "style_tags": "not-an-array",
+        "secondary_colors": [123, "navy", ""]
+      }
+    },
+    {
+      "id": "empty_strings",
+      "identification": {
+        "item_type": "   ",
+        "subtype": "ankle boots",
+        "primary_color": "black",
+        "material_estimate": ""
+      }
+    },
+    {
+      "id": "speculative_brand",
+      "identification": {
+        "item_type": "bag",
+        "subtype": "handbag",
+        "primary_color": "black",
+        "brand_guess": "Gucci",
+        "visible_brand_text": null,
+        "logo_detected": false
+      }
+    },
+    {
+      "id": "verbose_descriptors",
+      "identification": {
+        "item_type": "outerwear",
+        "subtype": "moto jacket",
+        "primary_color": "black",
+        "material_estimate": "faux leather",
+        "search_queries": [
+          "black cropped oversized minimalist luxury vintage-inspired faux lamb leather boyfriend moto biker jacket with silver hardware"
+        ]
+      }
+    }
+  ],
+  "products": [
+    {
+      "id": "dup_url_a",
+      "title": "Black Moto Jacket",
+      "source": "RetailerA",
+      "price": "$198",
+      "type": "retail",
+      "imageUrl": "https://cdn.example-retailer.test/img/1.jpg",
+      "productUrl": "https://www.retailer.com/product/123?utm_source=email&ref=newsletter"
+    },
+    {
+      "id": "dup_url_b",
+      "title": "Black Moto Jacket Variant",
+      "source": "RetailerA",
+      "price": "$198",
+      "type": "retail",
+      "imageUrl": "https://cdn.example-retailer.test/img/2.jpg",
+      "productUrl": "https://www.retailer.com/product/123?utm_campaign=spring"
+    },
+    {
+      "id": "dup_sku_a",
+      "title": "Navy Blazer",
+      "source": "ShopX",
+      "sku": "BLZ-001",
+      "retailerId": "shopx",
+      "price": "$220",
+      "type": "retail",
+      "imageUrl": "https://cdn.shopx.test/a.jpg",
+      "productUrl": "https://shopx.test/p/blazer-1"
+    },
+    {
+      "id": "dup_sku_b",
+      "title": "Navy Blazer Dup",
+      "source": "ShopX",
+      "sku": "BLZ-001",
+      "retailerId": "shopx",
+      "price": "$220",
+      "type": "retail",
+      "imageUrl": "https://cdn.shopx.test/b.jpg",
+      "productUrl": "https://shopx.test/p/blazer-1-alt"
+    },
+    {
+      "id": "mismatch_shoes_for_jacket",
+      "title": "White Running Sneakers",
+      "source": "ShoeCo",
+      "price": "$90",
+      "type": "retail",
+      "imageUrl": "https://cdn.shoeco.test/s.jpg",
+      "productUrl": "https://shoeco.test/sneakers/1"
+    },
+    {
+      "id": "missing_image",
+      "title": "Valid Jacket No Image",
+      "source": "ShopY",
+      "price": "$100",
+      "type": "retail",
+      "imageUrl": "",
+      "productUrl": "https://shopy.test/jacket/1"
+    },
+    {
+      "id": "missing_purchase_url",
+      "title": "Jacket Without URL",
+      "source": "ShopY",
+      "price": "$100",
+      "type": "retail",
+      "imageUrl": "https://cdn.shopy.test/j.jpg",
+      "productUrl": ""
+    },
+    {
+      "id": "malformed_price",
+      "title": "Jacket Bad Price",
+      "source": "ShopY",
+      "price": "not-a-price-value-zzzzzzzz",
+      "type": "retail",
+      "imageUrl": "https://cdn.shopy.test/j2.jpg",
+      "productUrl": "https://shopy.test/jacket/2"
+    },
+    {
+      "id": "demo_product",
+      "title": "Demo Fallback Product",
+      "source": "demo",
+      "price": "$1",
+      "type": "retail",
+      "imageUrl": "https://cdn.demo.test/d.jpg",
+      "productUrl": "https://example.com/demo"
+    },
+    {
+      "id": "valid_jacket",
+      "title": "Cropped Black Faux Leather Moto Jacket",
+      "source": "FashionCo",
+      "price": "$180",
+      "type": "retail",
+      "imageUrl": "https://cdn.fashionco.test/moto.jpg",
+      "productUrl": "https://fashionco.test/moto/black"
+    }
+  ]
+}
