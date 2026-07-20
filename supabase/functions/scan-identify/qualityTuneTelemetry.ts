@@ -27,6 +27,15 @@ export type QualityTuneMetrics = {
   error_category: string | null;
   quality_tune_version: string;
   treatment_bucket: 'quality_tune_on' | 'quality_tune_off';
+  /** v121 intelligence extensions — only present when intelligence metrics supplied */
+  category_route?: 'apparel' | 'footwear' | 'bags' | 'accessories' | 'general';
+  quality_score_band?: 'high' | 'moderate' | 'low';
+  quality_score_value?: number;
+  consistency_conflict_count?: number;
+  suppressed_attribute_count?: number;
+  commerce_query_detail_level?: 'specific' | 'moderate' | 'broad';
+  brand_suppressed?: boolean;
+  material_suppressed?: boolean;
 };
 
 const PROHIBITED_KEY_FRAGMENTS = [
@@ -57,6 +66,17 @@ const PROHIBITED_VALUE_PATTERNS: RegExp[] = [
   /\/9j\//, // jpeg base64 header
 ];
 
+export type IntelligenceTelemetryInput = {
+  categoryRoute: 'apparel' | 'footwear' | 'bags' | 'accessories' | 'general';
+  qualityScoreBand: 'high' | 'moderate' | 'low';
+  qualityScoreValue: number;
+  consistencyConflictCount: number;
+  suppressedAttributeCount: number;
+  commerceQueryDetailLevel: 'specific' | 'moderate' | 'broad';
+  brandSuppressed: boolean;
+  materialSuppressed: boolean;
+};
+
 export function buildQualityTuneMetrics(input: {
   enabled: boolean;
   requestMode: string;
@@ -75,8 +95,10 @@ export function buildQualityTuneMetrics(input: {
   categoryMismatchRemovals?: number | null;
   emptyResultOccurrence?: number;
   errorCategory?: string | null;
+  /** When set, appends privacy-safe v121 intelligence metrics. Omit for v120-equivalent telemetry. */
+  intelligence?: IntelligenceTelemetryInput | null;
 }): QualityTuneMetrics {
-  return {
+  const base: QualityTuneMetrics = {
     request_mode: String(input.requestMode || 'unknown').slice(0, 64),
     total_duration_ms: finiteOrNull(input.totalDurationMs),
     model_duration_ms: finiteOrNull(input.modelDurationMs),
@@ -97,6 +119,27 @@ export function buildQualityTuneMetrics(input: {
     error_category: input.errorCategory ? String(input.errorCategory).slice(0, 64) : null,
     quality_tune_version: QUALITY_TUNE_VERSION,
     treatment_bucket: qualityTuneTreatmentBucket(input.enabled),
+  };
+
+  if (!input.intelligence) return base;
+
+  const route = input.intelligence.categoryRoute;
+  const band = input.intelligence.qualityScoreBand;
+  const detail = input.intelligence.commerceQueryDetailLevel;
+  const allowedRoutes = new Set(['apparel', 'footwear', 'bags', 'accessories', 'general']);
+  const allowedBands = new Set(['high', 'moderate', 'low']);
+  const allowedDetail = new Set(['specific', 'moderate', 'broad']);
+
+  return {
+    ...base,
+    category_route: allowedRoutes.has(route) ? route : 'general',
+    quality_score_band: allowedBands.has(band) ? band : 'low',
+    quality_score_value: Math.max(0, Math.min(100, Math.floor(input.intelligence.qualityScoreValue || 0))),
+    consistency_conflict_count: Math.max(0, Math.floor(input.intelligence.consistencyConflictCount || 0)),
+    suppressed_attribute_count: Math.max(0, Math.floor(input.intelligence.suppressedAttributeCount || 0)),
+    commerce_query_detail_level: allowedDetail.has(detail) ? detail : 'broad',
+    brand_suppressed: !!input.intelligence.brandSuppressed,
+    material_suppressed: !!input.intelligence.materialSuppressed,
   };
 }
 
