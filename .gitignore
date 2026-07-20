@@ -67,6 +67,8 @@ android/local.properties
 2026-*/
 physical-*
 qa/
+!qa/backend-quality-tune-fixtures/
+!qa/backend-quality-tune-fixtures/**
 qa-*.xml
 qa-*.json
 qa-*.err
@@ -117,3 +119,7 @@ product-search-response.json
 
 # Raw portrait source files (processed JPEGs are bundled)
 assets/stylist-avatars/portraits/raw/
+
+# Local v119 rollback extract (hashes documented in docs)
+_rollback_v119/
+_v119_deployed_bundle/
