@@ -7,6 +7,8 @@ import {
   QUALITY_TUNE_VERSION,
   qualityTuneTreatmentBucket,
 } from './qualityTuneConfig.ts';
+import { COMMERCE_RELEVANCE_VERSION } from './commerceRelevanceConfig.ts';
+import { sanitizeFailureReason, type FailureReason } from './commerceRelevanceFailure.ts';
 
 export type QualityTuneMetrics = {
   request_mode: string;
@@ -36,6 +38,15 @@ export type QualityTuneMetrics = {
   commerce_query_detail_level?: 'specific' | 'moderate' | 'broad';
   brand_suppressed?: boolean;
   material_suppressed?: boolean;
+  /** v122 commerce relevance extensions — only when relevance metrics supplied */
+  failure_reason?: FailureReason | null;
+  products_before_filter?: number | null;
+  products_after_filter?: number | null;
+  retailer_count?: number | null;
+  fallback_used?: boolean;
+  duration_ms?: number | null;
+  intelligence_version?: string;
+  commerce_relevance_version?: string;
 };
 
 const PROHIBITED_KEY_FRAGMENTS = [
@@ -77,6 +88,16 @@ export type IntelligenceTelemetryInput = {
   materialSuppressed: boolean;
 };
 
+export type CommerceRelevanceTelemetryInput = {
+  failureReason?: string | null;
+  productsBeforeFilter?: number | null;
+  productsAfterFilter?: number | null;
+  retailerCount?: number | null;
+  fallbackUsed?: boolean;
+  durationMs?: number | null;
+  intelligenceVersion?: string;
+};
+
 export function buildQualityTuneMetrics(input: {
   enabled: boolean;
   requestMode: string;
@@ -97,6 +118,8 @@ export function buildQualityTuneMetrics(input: {
   errorCategory?: string | null;
   /** When set, appends privacy-safe v121 intelligence metrics. Omit for v120-equivalent telemetry. */
   intelligence?: IntelligenceTelemetryInput | null;
+  /** When set, appends privacy-safe v122 commerce relevance metrics. */
+  commerceRelevance?: CommerceRelevanceTelemetryInput | null;
 }): QualityTuneMetrics {
   const base: QualityTuneMetrics = {
     request_mode: String(input.requestMode || 'unknown').slice(0, 64),
@@ -121,26 +144,47 @@ export function buildQualityTuneMetrics(input: {
     treatment_bucket: qualityTuneTreatmentBucket(input.enabled),
   };
 
-  if (!input.intelligence) return base;
+  let metrics: QualityTuneMetrics = base;
 
-  const route = input.intelligence.categoryRoute;
-  const band = input.intelligence.qualityScoreBand;
-  const detail = input.intelligence.commerceQueryDetailLevel;
-  const allowedRoutes = new Set(['apparel', 'footwear', 'bags', 'accessories', 'general']);
-  const allowedBands = new Set(['high', 'moderate', 'low']);
-  const allowedDetail = new Set(['specific', 'moderate', 'broad']);
+  if (input.intelligence) {
+    const route = input.intelligence.categoryRoute;
+    const band = input.intelligence.qualityScoreBand;
+    const detail = input.intelligence.commerceQueryDetailLevel;
+    const allowedRoutes = new Set(['apparel', 'footwear', 'bags', 'accessories', 'general']);
+    const allowedBands = new Set(['high', 'moderate', 'low']);
+    const allowedDetail = new Set(['specific', 'moderate', 'broad']);
 
-  return {
-    ...base,
-    category_route: allowedRoutes.has(route) ? route : 'general',
-    quality_score_band: allowedBands.has(band) ? band : 'low',
-    quality_score_value: Math.max(0, Math.min(100, Math.floor(input.intelligence.qualityScoreValue || 0))),
-    consistency_conflict_count: Math.max(0, Math.floor(input.intelligence.consistencyConflictCount || 0)),
-    suppressed_attribute_count: Math.max(0, Math.floor(input.intelligence.suppressedAttributeCount || 0)),
-    commerce_query_detail_level: allowedDetail.has(detail) ? detail : 'broad',
-    brand_suppressed: !!input.intelligence.brandSuppressed,
-    material_suppressed: !!input.intelligence.materialSuppressed,
-  };
+    metrics = {
+      ...metrics,
+      category_route: allowedRoutes.has(route) ? route : 'general',
+      quality_score_band: allowedBands.has(band) ? band : 'low',
+      quality_score_value: Math.max(0, Math.min(100, Math.floor(input.intelligence.qualityScoreValue || 0))),
+      consistency_conflict_count: Math.max(0, Math.floor(input.intelligence.consistencyConflictCount || 0)),
+      suppressed_attribute_count: Math.max(0, Math.floor(input.intelligence.suppressedAttributeCount || 0)),
+      commerce_query_detail_level: allowedDetail.has(detail) ? detail : 'broad',
+      brand_suppressed: !!input.intelligence.brandSuppressed,
+      material_suppressed: !!input.intelligence.materialSuppressed,
+    };
+  }
+
+  if (input.commerceRelevance) {
+    const cr = input.commerceRelevance;
+    metrics = {
+      ...metrics,
+      failure_reason: sanitizeFailureReason(cr.failureReason),
+      products_before_filter: finiteOrNull(cr.productsBeforeFilter),
+      products_after_filter: finiteOrNull(cr.productsAfterFilter),
+      retailer_count: finiteOrNull(cr.retailerCount),
+      fallback_used: !!cr.fallbackUsed,
+      duration_ms: finiteOrNull(cr.durationMs ?? input.totalDurationMs),
+      intelligence_version: cr.intelligenceVersion
+        ? String(cr.intelligenceVersion).slice(0, 16)
+        : undefined,
+      commerce_relevance_version: COMMERCE_RELEVANCE_VERSION,
+    };
+  }
+
+  return metrics;
 }
 
 function finiteOrNull(v: unknown): number | null {
