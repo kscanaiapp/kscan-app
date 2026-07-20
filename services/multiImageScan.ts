@@ -21,6 +21,8 @@ export type DetectionBatchResult = {
   image: ScanImageSelection;
   response: ScanIdentifyResponse;
   preparedImage: string;
+  /** True only when a real local privacy filter ran on this prepared image. */
+  preparedPrivacyFiltered?: boolean;
 };
 
 export type MultiScanCandidate = {
@@ -30,6 +32,9 @@ export type MultiScanCandidate = {
   sourceImageUri: string;
   source: ScanImageSource;
   preparedImage: string;
+  /** Privacy posture of the prepared image, reused verbatim by selected_item. */
+  preparedPrivacyFiltered?: boolean;
+
   garment: DetectedGarment | null;
   selectedCandidate: ScanSelectedCandidate | null;
   detectionResponse: ScanIdentifyResponse;
@@ -133,6 +138,7 @@ export function buildMultiScanCandidates(
           sourceImageUri: batch.image.uri,
           source: batch.image.source,
           preparedImage: batch.preparedImage,
+          preparedPrivacyFiltered: batch.preparedPrivacyFiltered === true,
           garment,
           selectedCandidate: {
             candidateId: garment.candidateId,
@@ -161,6 +167,7 @@ export function buildMultiScanCandidates(
         sourceImageUri: batch.image.uri,
         source: batch.image.source,
         preparedImage: batch.preparedImage,
+        preparedPrivacyFiltered: batch.preparedPrivacyFiltered === true,
         garment: null,
         selectedCandidate: null,
         detectionResponse: batch.response,
@@ -178,4 +185,43 @@ export function candidateLabel(candidate: MultiScanCandidate): string {
     || candidate.detectionResponse.attributes?.itemType
     || candidate.detectionResponse.attributes?.category
     || 'Detected fashion item';
+}
+
+export type ScanItemQueueState = 'queued' | 'analyzing' | 'ready' | 'failed';
+
+export type CandidateReviewDescriptor = {
+  id: string;
+  label: string;
+  category: string | null;
+  subtype: string | null;
+  primaryColor: string | null;
+  sourceImageIndex: number;
+  sourceImageId: string;
+};
+
+/**
+ * Projection of a candidate for the deliberate review surface. Uses only
+ * detection metadata — rendering this requires zero commerce work.
+ */
+export function candidateReviewDescriptor(
+  candidate: MultiScanCandidate,
+): CandidateReviewDescriptor {
+  const identification = candidate.garment?.identification
+    ?? candidate.detectionResponse.identification
+    ?? {};
+  const attributes = candidate.garment?.attributes
+    ?? candidate.detectionResponse.attributes
+    ?? {};
+  const primaryColor = identification.primary_color
+    || (Array.isArray(attributes.colorPalette) ? attributes.colorPalette[0] : null)
+    || null;
+  return {
+    id: candidate.id,
+    label: candidateLabel(candidate),
+    category: candidate.garment?.category || attributes.category || null,
+    subtype: candidate.garment?.subtype || identification.subtype || null,
+    primaryColor,
+    sourceImageIndex: candidate.sourceImageIndex,
+    sourceImageId: candidate.sourceImageId,
+  };
 }
