@@ -62,7 +62,32 @@ import {
   sanitizeDetectedGarments,
   type SanitizedDetectedGarment,
 } from './multiItemGarments.ts';
+import { isQualityTuneEnabled, QUALITY_TUNE_VERSION } from './qualityTuneConfig.ts';
+import { applyQualityTaxonomyTune } from './qualityTuneNormalize.ts';
+import {
+  buildWeightedCommerceQueries,
+  filterAndDedupeProducts,
+  shouldRunFallbackQuery,
+  QUALITY_TUNE_MIN_VALID_PRODUCTS,
+} from './qualityTuneCommerce.ts';
+import {
+  buildQualityTuneMetrics,
+  logQualityTuneMetrics,
+} from './qualityTuneTelemetry.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+
+/** Appended to vision/text prompts when quality tune is enabled. Response shape unchanged. */
+const QUALITY_TUNE_PROMPT_ADDENDUM = `
+
+Quality precision rules (mandatory):
+- Prioritize: category, subtype, silhouette, fit, material, pattern, dominant color, secondary color when useful, construction details, style descriptors, and visible brand evidence only.
+- Prefer concise specific descriptions (e.g. "Cropped black faux-leather moto jacket", "High-waisted charcoal wide-leg trousers", "White low-profile leather sneakers").
+- Avoid redundant stacked descriptors (e.g. "black dark black jacket coat outerwear").
+- Do not invent unsupported attributes such as lamb leather, luxury, designer, vintage, or brand names unless a readable wordmark, logo, or label is clearly visible.
+- Brand fields (visible_brand_text, brand_guess, logo_detected) must stay null/false unless high-confidence visible brand evidence exists. Never infer brand from resemblance, shape, aesthetic, color, or vibe.
+- Never use generic labels such as "Fashion Item", "Clothing", "Apparel", "Unknown", or "Item" when a more specific category or subtype is visible.
+- Keep the exact JSON response shape. Do not add or rename fields.
+`;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -1729,13 +1754,24 @@ Deno.serve(async (req) => {
     return u.toString();
   })();
 
+  const qualityTuneEnabled = isQualityTuneEnabled();
+  const identifyPrompt = qualityTuneEnabled
+    ? `${IDENTIFY_PROMPT}${QUALITY_TUNE_PROMPT_ADDENDUM}`
+    : IDENTIFY_PROMPT;
+  const multiItemPrompt = qualityTuneEnabled
+    ? `${MULTI_ITEM_IDENTIFY_PROMPT}${QUALITY_TUNE_PROMPT_ADDENDUM}`
+    : MULTI_ITEM_IDENTIFY_PROMPT;
+  const textIdentifyPrompt = qualityTuneEnabled
+    ? `${TEXT_IDENTIFY_PROMPT}${QUALITY_TUNE_PROMPT_ADDENDUM}`
+    : TEXT_IDENTIFY_PROMPT;
+
   const geminiBody = mode === 'text'
     ? {
         contents: [
           {
             role: 'user',
             parts: [
-              { text: TEXT_IDENTIFY_PROMPT },
+              { text: textIdentifyPrompt },
               { text: textQuery },
             ],
           },
@@ -1753,10 +1789,12 @@ Deno.serve(async (req) => {
             parts: [
               {
                 text: useSelectedItemProvider && selectedCandidate
-                  ? buildSelectedItemPrompt(selectedCandidate)
+                  ? (qualityTuneEnabled
+                    ? `${buildSelectedItemPrompt(selectedCandidate)}${QUALITY_TUNE_PROMPT_ADDENDUM}`
+                    : buildSelectedItemPrompt(selectedCandidate))
                   : useMultiItemDetectionProvider
-                  ? MULTI_ITEM_IDENTIFY_PROMPT
-                  : IDENTIFY_PROMPT,
+                  ? multiItemPrompt
+                  : identifyPrompt,
               },
               { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
             ],
@@ -1974,6 +2012,53 @@ Deno.serve(async (req) => {
       identification = sanitizeIdentification(buildIdentificationFromAttributes(attributes));
     }
 
+    // Quality-tune: deterministic taxonomy normalization + generic recovery.
+    // Flag OFF preserves exact v119-equivalent path (this block skipped).
+    let qualityNormCorrectionCount = 0;
+    let qualityNormRuleIds: string[] = [];
+    let qualityGenericLabelOccurrence = 0;
+    let qualityInvalidPairsResolved = 0;
+    if (qualityTuneEnabled && rawStatus === 'completed') {
+      if (useMultiItemDetectionProvider && detectedGarments.length > 0) {
+        for (let i = 0; i < detectedGarments.length; i++) {
+          const g = detectedGarments[i];
+          const tuned = applyQualityTaxonomyTune(
+            g.identification as Record<string, unknown>,
+            g.attributes as Record<string, unknown>,
+          );
+          g.identification = tuned.identification;
+          if (tuned.attributes) g.attributes = tuned.attributes;
+          if (typeof tuned.identification.item_type === 'string' && tuned.identification.item_type) {
+            g.category = String(tuned.identification.item_type);
+            g.label = typeof tuned.identification.subtype === 'string' && tuned.identification.subtype
+              ? String(tuned.identification.subtype)
+              : g.category;
+          }
+          if (typeof tuned.identification.subtype === 'string') {
+            g.subtype = String(tuned.identification.subtype);
+          }
+          qualityNormCorrectionCount += tuned.correctionCount;
+          qualityNormRuleIds.push(...tuned.ruleIds);
+          qualityGenericLabelOccurrence += tuned.genericLabelOccurrence;
+          qualityInvalidPairsResolved += tuned.invalidPairResolved;
+        }
+        const primaryTuned = primaryGarmentResponseFields(detectedGarments);
+        identification = sanitizeIdentification(primaryTuned.identification) ?? identification;
+        attributes = (primaryTuned.attributes as Record<string, unknown> | undefined) ?? attributes;
+      } else if (identification || attributes) {
+        const tuned = applyQualityTaxonomyTune(
+          (identification ?? {}) as Record<string, unknown>,
+          attributes as Record<string, unknown> | undefined,
+        );
+        identification = sanitizeIdentification(tuned.identification) ?? identification;
+        if (tuned.attributes) attributes = tuned.attributes;
+        qualityNormCorrectionCount = tuned.correctionCount;
+        qualityNormRuleIds = tuned.ruleIds;
+        qualityGenericLabelOccurrence = tuned.genericLabelOccurrence;
+        qualityInvalidPairsResolved = tuned.invalidPairResolved;
+      }
+    }
+
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
       const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
@@ -2146,7 +2231,19 @@ Deno.serve(async (req) => {
     let shoppingMeta: ShoppingMeta | undefined;
 
     if (mode === 'text') {
-      const shoppingQuery = buildShoppingQuery({
+      const weightedText = qualityTuneEnabled
+        ? buildWeightedCommerceQueries({
+          identification: (identification ?? {}) as Record<string, unknown>,
+          attributes: attributes as Record<string, unknown> | undefined,
+          searchQueries: Array.isArray(identification?.search_queries)
+            ? (identification?.search_queries as string[])
+            : undefined,
+          originalText: textQuery,
+        })
+        : null;
+      const shoppingQuery = weightedText
+        ? weightedText.primary
+        : buildShoppingQuery({
         searchQueries: identification?.search_queries,
         brand: identification?.brand_guess ?? identification?.visible_brand_text,
         color: identification?.primary_color,
@@ -2186,7 +2283,32 @@ Deno.serve(async (req) => {
           reason: 'text_commerce_timeout',
         };
       } else {
-        finalRecommendedProducts = shopping.products.slice(0, 8).map((p) => ({
+        let textProducts = shopping.products;
+        if (qualityTuneEnabled && weightedText) {
+          const filtered = filterAndDedupeProducts(
+            textProducts,
+            (identification ?? {}) as Record<string, unknown>,
+          );
+          textProducts = filtered.products;
+          if (
+            shouldRunFallbackQuery(textProducts.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
+            weightedText.fallback &&
+            weightedText.fallback !== shoppingQuery
+          ) {
+            const fallbackShopping = await getShoppingResults({
+              query: weightedText.fallback,
+              limit: 8,
+            }).catch(() => ({ products: [] as typeof textProducts, provider: 'error', query: weightedText.fallback }));
+            const fallbackFiltered = filterAndDedupeProducts(
+              fallbackShopping.products,
+              (identification ?? {}) as Record<string, unknown>,
+            );
+            if (fallbackFiltered.products.length > textProducts.length) {
+              textProducts = fallbackFiltered.products;
+            }
+          }
+        }
+        finalRecommendedProducts = textProducts.slice(0, 8).map((p) => ({
           id: p.id,
           name: p.title,
           title: p.title,
@@ -2394,6 +2516,37 @@ Deno.serve(async (req) => {
     );
     if (useMultiItemDetectionProvider) {
       console.log('[scan-identify] multi_item_response_count count=%d', detectedGarments.length);
+    }
+    if (qualityTuneEnabled) {
+      const commerceQt = (shoppingMeta as Record<string, unknown> | undefined);
+      void commerceQt;
+      logQualityTuneMetrics(buildQualityTuneMetrics({
+        enabled: true,
+        requestMode: useMultiItemDetectionProvider
+          ? 'multi_item_detection'
+          : useSelectedItemProvider
+          ? 'selected_item'
+          : mode === 'text'
+          ? 'text'
+          : 'legacy_single_item',
+        totalDurationMs: elapsedMs,
+        providerOutcome: typeof shoppingMeta?.provider === 'string' ? shoppingMeta.provider : null,
+        candidateCount: useMultiItemDetectionProvider ? detectedGarments.length : 1,
+        genericLabelOccurrence: qualityGenericLabelOccurrence,
+        normalizationCorrectionCount: qualityNormCorrectionCount,
+        normalizationRuleIds: qualityNormRuleIds,
+        primaryCommerceResultCount: typeof shoppingMeta?.count === 'number' ? shoppingMeta.count : finalRecommendedProducts.length,
+        fallbackQueryUsage: false,
+        productsBeforeDedupe: finalRecommendedProducts.length,
+        productsAfterDedupe: finalRecommendedProducts.length,
+        categoryMismatchRemovals: qualityInvalidPairsResolved,
+        emptyResultOccurrence: finalRecommendedProducts.length === 0 ? 1 : 0,
+        errorCategory: null,
+      }));
+      console.log(
+        '[scan-identify] quality_tune_version=%s enabled=true',
+        QUALITY_TUNE_VERSION,
+      );
     }
     return json(finalResponse, 200);
   } catch (err) {
