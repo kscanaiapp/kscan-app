@@ -20,11 +20,13 @@ import {
 import {
   listRoomMessages,
   listRoomMessagesPage,
+  catchUpRoomMessages,
   mergeRoomMessages,
   normalizeMessageBody,
   ROOM_MESSAGE_MAX_LENGTH,
   ROOM_MESSAGE_SEND_ERROR,
   ROOM_MESSAGES_ACCESS_ERROR,
+  ROOM_MESSAGES_STALE_ERROR,
   ROOM_MESSAGES_LOAD_ERROR,
   sendRoomMessage,
   type RoomMessage,
@@ -32,6 +34,7 @@ import {
 import {
   bumpCollabActorGeneration,
   getCollabActorGeneration,
+  isCurrentCollabGeneration,
   startCollaborationBoundedRefresh,
   type MessageCursor,
 } from '../../services/dressingRoomCollaboration';
@@ -136,12 +139,14 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const [accessRevoked, setAccessRevoked] = useState(false);
   const sendInFlightRef = useRef(false);
   const accessVersionRef = useRef(0);
+  const newestCursorRef = useRef<MessageCursor | null>(null);
   const syncStopRef = useRef<null | (() => void)>(null);
 
   const clearInteractiveState = useCallback(() => {
     setMessages([]);
     setReplyTo(null);
     setOlderCursor(null);
+    newestCursorRef.current = null;
     setDraft('');
     setSendError(null);
   }, []);
@@ -166,6 +171,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
       ]);
       setMessages(fetchedPage.messages);
       setOlderCursor(fetchedPage.nextCursor);
+      newestCursorRef.current = fetchedPage.newestCursor;
       accessVersionRef.current = fetchedPage.accessVersion;
       setHiddenIds(new Set(hiddenContentIds));
       setHiddenUserIds(new Set(hiddenUserIdsResult));
@@ -312,9 +318,14 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
       },
       onTick: async (accessVersion) => {
         accessVersionRef.current = accessVersion;
-        const page = await listRoomMessagesPage({ roomId });
+        const page = await catchUpRoomMessages({
+          roomId,
+          fromCursor: newestCursorRef.current,
+        });
+        if (!isCurrentCollabGeneration(generation)) return;
         setMessages((current) => mergeRoomMessages(current, page.messages));
-        if (page.nextCursor) setOlderCursor(page.nextCursor);
+        if (page.newestCursor) newestCursorRef.current = page.newestCursor;
+        accessVersionRef.current = page.accessVersion;
       },
     });
     syncStopRef.current = handle.stop;
@@ -344,15 +355,31 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     sendInFlightRef.current = true;
     setSending(true);
     setSendError(null);
+    const sendGeneration = getCollabActorGeneration();
     const parentMessageId =
       threadsEnabled() && replyTo && !replyTo.parentMessageId ? replyTo.id : null;
     try {
       const sent = await sendRoomMessage(roomId, draft, { parentMessageId });
+      if (!isCurrentCollabGeneration(sendGeneration) || accessRevoked) {
+        return;
+      }
       setMessages((current) => mergeRoomMessages(current, [sent]));
+      newestCursorRef.current = {
+        createdAt: sent.createdAt,
+        id: sent.id,
+        direction: 'newer',
+      };
       setDraft('');
       setReplyTo(null);
     } catch (err: any) {
+      if (!isCurrentCollabGeneration(sendGeneration)) {
+        return;
+      }
       const message = typeof err?.message === 'string' ? err.message : ROOM_MESSAGE_SEND_ERROR;
+      if (message === ROOM_MESSAGES_STALE_ERROR) {
+        clearInteractiveState();
+        return;
+      }
       setSendError(message);
       if (message === ROOM_MESSAGES_ACCESS_ERROR) {
         setAccessRevoked(true);

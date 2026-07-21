@@ -9,6 +9,26 @@ import { supabase } from './supabaseClient';
 export const DR3_COLLAB_PAGE_SIZE = 30;
 export const DR3_COLLAB_REFRESH_MS = 12_000;
 export const DR3_COLLAB_REFRESH_MAX_MS = 60_000;
+export const DR3_COLLAB_CATCHUP_MAX_PAGES = 5;
+
+export const COLLAB_ACCESS_ERROR = 'You no longer have access to this room.';
+
+export function isCollaborationAccessError(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === 'string') {
+    return (
+      error === COLLAB_ACCESS_ERROR ||
+      /no longer have access|unavailable|unauthorized|42501|PGRST301/i.test(error)
+    );
+  }
+  if (error instanceof Error) {
+    return isCollaborationAccessError(error.message);
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return isCollaborationAccessError(String((error as { message: unknown }).message));
+  }
+  return false;
+}
 
 export type CollaborationRelationship = 'owner' | 'shared_recipient';
 
@@ -349,6 +369,55 @@ export type CollabSyncHandle = {
   stop: () => void;
 };
 
+export async function catchUpCollaborationMessages(input: {
+  roomId: string;
+  fromCursor: MessageCursor | null;
+  maxPages?: number;
+}): Promise<{
+  messages: CollaborationRoomMessage[];
+  newestCursor: MessageCursor | null;
+  accessVersion: number;
+}> {
+  const maxPages = Math.max(1, Math.min(input.maxPages ?? DR3_COLLAB_CATCHUP_MAX_PAGES, 10));
+  if (!input.fromCursor) {
+    const page = await listCollaborationMessages({ roomId: input.roomId });
+    return {
+      messages: page.messages,
+      newestCursor: page.newestCursor,
+      accessVersion: page.accessVersion,
+    };
+  }
+
+  let cursor: MessageCursor | null = {
+    createdAt: input.fromCursor.createdAt,
+    id: input.fromCursor.id,
+    direction: 'newer',
+  };
+  let accessVersion = 0;
+  let collected: CollaborationRoomMessage[] = [];
+  let newestCursor: MessageCursor | null = input.fromCursor;
+
+  for (let pageIndex = 0; pageIndex < maxPages && cursor; pageIndex += 1) {
+    const page = await listCollaborationMessages({
+      roomId: input.roomId,
+      cursor,
+      direction: 'newer',
+      limit: DR3_COLLAB_PAGE_SIZE,
+    });
+    accessVersion = page.accessVersion;
+    collected = mergeMessagesById(collected, page.messages);
+    newestCursor = page.newestCursor ?? newestCursor;
+    if (!page.messages.length || page.messages.length < DR3_COLLAB_PAGE_SIZE) {
+      break;
+    }
+    cursor = page.newestCursor
+      ? { ...page.newestCursor, direction: 'newer' }
+      : null;
+  }
+
+  return { messages: collected, newestCursor, accessVersion };
+}
+
 /**
  * Bounded refresh + access revalidation. Realtime stays OFF by default —
  * this is the safe sync path until a private revocation channel is proven.
@@ -373,6 +442,12 @@ export function startCollaborationBoundedRefresh(input: {
     }, delay);
   };
 
+  const stop = () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+
   const run = async () => {
     if (stopped || !isCurrentCollabGeneration(input.actorGeneration)) {
       stop();
@@ -393,22 +468,25 @@ export function startCollaborationBoundedRefresh(input: {
         typeof access.accessVersion === 'number' &&
         access.accessVersion !== accessVersion
       ) {
-        // Version change after revoke — tear down even if somehow still ok
-        // (should not happen); treat any jump while recipient as revalidation.
+        // Access still ok but version advanced (e.g. owner revoke then re-share).
+        // Revalidate already succeeded; adopt the new version for subsequent ticks.
         accessVersion = access.accessVersion;
       }
       await input.onTick(access.accessVersion);
+      if (stopped || !isCurrentCollabGeneration(input.actorGeneration)) {
+        stop();
+        return;
+      }
       delay = input.intervalMs ?? DR3_COLLAB_REFRESH_MS;
-    } catch {
+    } catch (error) {
+      if (isCollaborationAccessError(error)) {
+        input.onAccessLost();
+        stop();
+        return;
+      }
       delay = Math.min(delay * 2, DR3_COLLAB_REFRESH_MAX_MS);
     }
     schedule();
-  };
-
-  const stop = () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-    timer = null;
   };
 
   schedule();

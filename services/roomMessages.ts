@@ -11,6 +11,7 @@ import {
   getCollabActorGeneration,
   isCurrentCollabGeneration,
   listCollaborationMessages,
+  catchUpCollaborationMessages,
   mergeMessagesById,
   type CollaborationRoomMessage,
   type MessageCursor,
@@ -37,6 +38,7 @@ export const ROOM_MESSAGE_MAX_LENGTH = 1000;
 export const ROOM_MESSAGES_LOAD_ERROR = "We couldn't load messages. Please try again.";
 export const ROOM_MESSAGE_SEND_ERROR = "We couldn't send that message. Please try again.";
 export const ROOM_MESSAGES_ACCESS_ERROR = 'You no longer have access to this room.';
+export const ROOM_MESSAGES_STALE_ERROR = 'This room session is no longer active.';
 export const ROOM_MESSAGE_SIGN_IN_ERROR = 'Sign in to view and send room messages.';
 export const ROOM_MESSAGE_EMPTY_ERROR = 'Message cannot be empty.';
 export const ROOM_MESSAGE_TOO_LONG_ERROR = `Messages must be ${ROOM_MESSAGE_MAX_LENGTH} characters or fewer.`;
@@ -158,7 +160,7 @@ export async function listRoomMessages(roomId: string): Promise<RoomMessage[]> {
     const generation = getCollabActorGeneration();
     const page = await listCollaborationMessages({ roomId: normalizedRoomId });
     if (!isCurrentCollabGeneration(generation)) {
-      throw new Error(ROOM_MESSAGES_ACCESS_ERROR);
+      throw new Error(ROOM_MESSAGES_STALE_ERROR);
     }
     return page.messages.map(fromCollaborationMessage);
   }
@@ -211,11 +213,43 @@ export async function listRoomMessagesPage(input: {
     limit: input.limit,
   });
   if (!isCurrentCollabGeneration(generation)) {
-    throw new Error(ROOM_MESSAGES_ACCESS_ERROR);
+    throw new Error(ROOM_MESSAGES_STALE_ERROR);
   }
   return {
     messages: page.messages.map(fromCollaborationMessage),
     nextCursor: page.nextCursor,
+    newestCursor: page.newestCursor,
+    accessVersion: page.accessVersion,
+  };
+}
+
+export async function catchUpRoomMessages(input: {
+  roomId: string;
+  fromCursor: MessageCursor | null;
+}): Promise<{
+  messages: RoomMessage[];
+  newestCursor: MessageCursor | null;
+  accessVersion: number;
+}> {
+  const normalizedRoomId = requireRoomId(input.roomId);
+  const currentUserId = await getCurrentSessionUserId();
+  if (!currentUserId) {
+    throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
+  }
+  if (!collabMessagesEnabled()) {
+    const all = await listRoomMessages(normalizedRoomId);
+    return { messages: all, newestCursor: null, accessVersion: 0 };
+  }
+  const generation = getCollabActorGeneration();
+  const page = await catchUpCollaborationMessages({
+    roomId: normalizedRoomId,
+    fromCursor: input.fromCursor,
+  });
+  if (!isCurrentCollabGeneration(generation)) {
+    throw new Error(ROOM_MESSAGES_STALE_ERROR);
+  }
+  return {
+    messages: page.messages.map(fromCollaborationMessage),
     newestCursor: page.newestCursor,
     accessVersion: page.accessVersion,
   };
@@ -265,7 +299,7 @@ export async function sendRoomMessage(
       parentMessageId,
     });
     if (!isCurrentCollabGeneration(generation)) {
-      throw new Error(ROOM_MESSAGES_ACCESS_ERROR);
+      throw new Error(ROOM_MESSAGES_STALE_ERROR);
     }
     return fromCollaborationMessage(sent);
   }
