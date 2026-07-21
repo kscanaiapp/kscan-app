@@ -66,3 +66,20 @@ test('E-2 telemetry allowlist includes operation fields without raw content keys
   assert.doesNotMatch(telemetry, /'prompt'/);
   assert.doesNotMatch(telemetry, /'userMessage'/);
 });
+
+test('E-2 quota idempotency charges an existing uncounted reservation exactly once', () => {
+  const migration = read('supabase/migrations/20260721090920_fix_elise_quota_after_generation_reservation.sql');
+  assert.match(migration, /for update/);
+  assert.match(migration, /v_existing_quota_counted/);
+  assert.match(migration, /v_duplicate := false/);
+  assert.match(
+    migration,
+    /return query select v_used, v_limit, false, v_duplicate/,
+  );
+  assert.match(
+    migration,
+    /return query select coalesce\(v_used, 0\), v_limit, false, true/,
+  );
+  assert.match(migration, /drop policy if exists "Users read own Elise generation operations"/);
+  assert.match(migration, /using \(\(select auth\.uid\(\)\) = user_id\)/);
+});
