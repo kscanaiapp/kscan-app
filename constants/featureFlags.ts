@@ -175,6 +175,45 @@ export const ELISE_SHARED_ROOM_EVIDENCE_V1 =
 export const ELISE_ADVICE_METADATA_CLIENT_V1 =
   process.env.EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1 === 'true';
 
+// ── Dressing Rooms DR-3 collaborative / interactive layer ────────────────────
+/**
+ * Master client switch for DR-3 collaboration UX (reactions desired-state RPC,
+ * cursor messages, flat replies, bounded refresh). Default OFF.
+ * Security is server-enforced regardless of this flag.
+ */
+export const DRESSING_ROOM_COLLABORATION_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_COLLABORATION_V1 === 'true';
+
+/**
+ * Idempotent desired-state item reactions via RPC. Default OFF.
+ */
+export const DRESSING_ROOM_REACTIONS_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_REACTIONS_V1 === 'true';
+
+/**
+ * Cursor-paginated room messages + client_message_id sends. Default OFF.
+ */
+export const DRESSING_ROOM_MESSAGES_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_MESSAGES_V1 === 'true';
+
+/**
+ * One-level reply/thread UI. Default OFF. Requires messages V1.
+ */
+export const DRESSING_ROOM_THREADS_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_THREADS_V1 === 'true';
+
+/**
+ * Bounded-refresh collaboration sync (Realtime remains off). Default OFF.
+ */
+export const DRESSING_ROOM_REALTIME_SYNC_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_REALTIME_SYNC_V1 === 'true';
+
+/**
+ * Per-user per-room read-state. Default OFF — not required by current UI.
+ */
+export const DRESSING_ROOM_READ_STATE_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_READ_STATE_V1 === 'true';
+
 // ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
 /**
  * Routes the image Scan analyze call through the app-side `scan-identify`
