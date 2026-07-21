@@ -69,6 +69,13 @@ function loadProvider(invoke) {
     if (specifier === '../../../types/styleChatAttachments') {
       return require('../types/styleChatAttachments.ts');
     }
+    // DR-2 e931547 wired ELISE_ADVICE_METADATA_CLIENT_V1 into the provider so it
+    // can passthrough optional advice metadata. The flag defaults OFF; the
+    // provider only gates a passthrough branch on it, so the tests treat it as
+    // false to preserve the exact-shape v1 payload contract.
+    if (specifier === '../../../constants/featureFlags') {
+      return { ELISE_ADVICE_METADATA_CLIENT_V1: false };
+    }
     throw new Error(`Unexpected provider import: ${specifier}`);
   };
   const mod = { exports: {} };

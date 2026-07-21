@@ -54,6 +54,9 @@ const USER_DATA_RESOURCES = [
   { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+  // Elise generation idempotency ledger. FK to auth.users cascades; register for
+  // deletion coverage reporting and row-count telemetry.
+  { table: 'elise_generation_operations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
 ];
 
 const DIRECT_DELETE_RESOURCES = USER_DATA_RESOURCES.filter(
