@@ -1,39 +1,82 @@
-# 05 — DR-3 Messages, Cursor Pagination, and Flat Threads
+# DR-3 Messages: Cursor and Threading
 
-## Create
+## Schema additions
 
-RPC: `public.create_dressing_room_message(p_room_id, p_body, p_client_message_id, p_parent_message_id)`
+| Column / object | Purpose |
+| --------------- | ------- |
+| `client_message_id uuid` | Client idempotency / dedupe key |
+| `parent_message_id uuid` | Flat reply → root message FK (`ON DELETE SET NULL`) |
+| Unique `(sender_id, room_id, client_message_id)` | Partial where client id set |
+| Index `(room_id, created_at, id)` | Keyset; live rows only (`deleted_at is null`) |
+| Index `(room_id, parent_message_id)` | Reply lookups |
 
-- Access-checked
-- Body trimmed; C0 controls stripped; max 1000 chars; non-blank
-- `client_message_id` must be UUIDv4
-- Idempotent via ledger (`operation = 'message'`)
+## Flat-thread invariant
 
-## Cursor / keyset (no OFFSET)
+Trigger `dressing_room_messages_flat_thread` → `enforce_dressing_room_message_flat_thread`:
 
-RPC: `public.list_dressing_room_messages(p_room_id, p_limit, p_cursor_created_at, p_cursor_id, p_direction)`
+| Check | Failure |
+| ----- | ------- |
+| Parent exists | `Parent message not found` |
+| Parent not soft-deleted | `Parent message unavailable` |
+| Same `room_id` | `Parent message must belong to the same room` |
+| Parent has `parent_message_id is null` | `Replies to replies are not allowed` |
 
-Ordering: `(created_at, id)`
+Depth is exactly **0 (root) or 1 (reply to root)**. No nested threads.
+
+## Cursor shape (no SQL OFFSET)
+
+```ts
+type MessageCursor = {
+  createdAt: string; // timestamptz
+  id: string;        // uuid
+  direction?: 'older' | 'newer';
+};
+```
+
+`list_dressing_room_messages`:
+
+| Mode | Predicate | Order into page |
+| ---- | --------- | --------------- |
+| Initial (null cursor) | Latest `limit` | Returned ascending |
+| `older` | `(created_at, id) < cursor` | Ascending after reverse fetch |
+| `newer` | `(created_at, id) > cursor` | Ascending (reconnect) |
+
+| Limit | Clamp |
+| ----- | ----- |
+| Default | 30 |
+| Max | 50 |
+
+Response:
 
 | Field | Meaning |
-| --- | --- |
-| `messages` | Ascending page |
-| `nextCursor` | `{ createdAt, id, direction: "older" }` for history |
-| `newestCursor` | `{ createdAt, id, direction: "newer" }` for reconnect |
-| `accessVersion` | Room collaboration epoch |
+| ----- | ------- |
+| `messages[]` | Ascending rows + `isMine` |
+| `nextCursor` | Oldest edge for further `older` pages (or null) |
+| `newestCursor` | Newest edge + `direction: 'newer'` |
+| `accessVersion` | Current room access epoch |
 
-Initial call (null cursor): latest `limit` rows, returned ascending.
+Client constants: `DR3_COLLAB_PAGE_SIZE = 30`.
 
-Predicates: `(created_at, id) < cursor` (older) or `>` (newer). Index: `dressing_room_messages_room_created_id_idx`.
+## Client merge rules
 
-Live inserts merge client-side by stable message id (`mergeMessagesById`) without advancing the older cursor incorrectly.
+`mergeMessagesById`:
 
-## Flat threads (depth 1)
+- Dedupe by stable server `id`.
+- Sort by `(createdAt, id)`.
+- Live/newer inserts must not invent historical OFFSET; older cursor advances only from older pages.
 
-- `parent_message_id` optional
-- Trigger `enforce_dressing_room_message_flat_thread` rejects: missing parent, wrong room, deleted parent, parent that itself has a parent
-- UI reply affordance gated by `DRESSING_ROOM_THREADS_V1`
+`RoomMessagesPanel`:
 
-## Client
+- Initial + “Load older” via `listRoomMessagesPage`.
+- Reply UI when `DRESSING_ROOM_THREADS_V1`; only roots are reply targets (`!replyTo.parentMessageId`).
+- Soft-deleted/hidden content filtering unchanged (UGC hide/report).
 
-`services/roomMessages.ts` + `components/rooms/RoomMessagesPanel.tsx` (flags default OFF).
+## Flag matrix for messages
+
+| Flags | Path |
+| ----- | ---- |
+| Collab OFF or Messages OFF | Legacy `.from('dressing_room_messages')` full list / insert |
+| Collab + Messages ON | RPC list/create + cursors |
+| + Threads ON | Pass `parentMessageId` on send; reply chrome |
+
+`subscribeToRoomMessages` still throws — Realtime not shipped; use bounded refresh when sync flag ON.
