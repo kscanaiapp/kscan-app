@@ -16,10 +16,10 @@
 
 | Field | Value |
 | ----- | ----- |
-| Branch | eature/dr4-dressingrooms-production-hardening |
+| Branch | feature/dr4-dressingrooms-production-hardening |
 | Origin | https://github.com/kscanaiapp/kscan-app.git |
 | Start SHA | 844f9580c528597baef720ea194485e2035edf97 |
-| Ending SHA | ENDING_SHA_PENDING (set at push) |
+| Ending SHA | 93c21c0b0174641a4e2220735d39ba7db18f1494 |
 | Worktree | C:\src\KScan-dr4-dressingrooms-hardening-20260721 |
 
 ## What the next build should include
