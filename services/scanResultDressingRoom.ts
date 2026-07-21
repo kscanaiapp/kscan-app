@@ -81,7 +81,16 @@ export function buildDressingRoomSaveSource(
   // local/raw/captured URI is rejected and surfaces as null here.
   if (!normalized.imageUrl || !normalized.title) return null;
 
-  return normalized as unknown as ProductMatchSnapshotSource;
+  const matches = scanResultObject && Array.isArray(scanResultObject.matches)
+    ? scanResultObject.matches
+    : [];
+
+  return {
+    ...(normalized as unknown as ProductMatchSnapshotSource),
+    // Preserve full retailer-neutral offer set for DR-1 commerce flag path.
+    purchaseOptions: matches,
+    products: matches,
+  };
 }
 
 /**

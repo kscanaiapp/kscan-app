@@ -132,6 +132,10 @@ export type ProductMatchSnapshotSource = {
   purchase_url?: string | null;
   url?: string | null;
   link?: string | null;
+  /** Optional commerce arrays when DRESSING_ROOM_COMMERCE_PRESERVATION_V1 is on. */
+  purchaseOptions?: unknown;
+  products?: unknown;
+  recommendedProducts?: unknown;
 };
 
 export type ScanImageSnapshotSource = {
@@ -158,6 +162,14 @@ export type ScanImageSnapshotSource = {
     brand?: string | null;
     size?: string | null;
   } | null;
+  /** Optional DR-1 commerce / provenance fields (ignored when flags OFF). */
+  purchaseOptions?: unknown;
+  products?: unknown;
+  recommendedProducts?: unknown;
+  scanId?: string | null;
+  selectedItemId?: string | null;
+  savedScanId?: string | null;
+  backendVersion?: string | null;
 };
 
 export type InspirationItem = {
