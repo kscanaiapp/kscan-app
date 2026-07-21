@@ -62,6 +62,16 @@ function loadStyleObjects() {
           resolveDressingRoomImageSource: () => ({ kind: 'none' }),
           hasUsableDressingRoomImageSource: () => false,
           describeMissingImageReason: () => "This item's image isn't available right now.",
+          buildCanonicalSnapshotExtension: () => ({ schemaVersion: 1, source: { kind: 'catalog_product' } }),
+          readSnapshotDedupeKey: () => null,
+        };
+      }
+      if (id === '../constants/featureFlags') {
+        return {
+          DRESSING_ROOM_CANONICAL_ITEM_V1: false,
+          DRESSING_ROOM_COMMERCE_PRESERVATION_V1: false,
+          DRESSING_ROOM_DEDUPE_V1: false,
+          SAVED_SCAN_CLOUD_IMAGES_V1: false,
         };
       }
       throw new Error(`Unexpected require: ${id}`);
