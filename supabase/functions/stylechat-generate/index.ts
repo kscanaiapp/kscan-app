@@ -28,6 +28,15 @@ import { buildGenerationIdentity, validateSourceMessageOwnership } from './gener
 import { stripUnsafeModelOutput } from './promptHardening.ts';
 import { emitEliseTelemetry, makeRequestId, stableActorHash } from './telemetry.ts';
 import { normalizeLegacyVisualContext, type NormalizedVisualContext } from './visualContext.ts';
+import {
+  buildEliseVisualContextEnvelope,
+  envelopeResolverOutcomeCounts,
+  envelopeSourceTypeCounts,
+  envelopeWarningCodes,
+  type BuildEliseVisualContextResult,
+} from './eliseVisualContextPipeline.ts';
+import type { EliseResourceDataSource } from './eliseResourceResolvers.ts';
+import { ELISE_VISUAL_CONTEXT_INTERNAL_VERSION } from './eliseVisualContextTypes.ts';
 // v2 (Closet Intelligence) modules — used only on the v2 request path.
 import {
   isV2StyleChatRequest,
@@ -867,18 +876,19 @@ Deno.serve(async (req) => {
     : null;
 
   // Optional, additive active scan/upload/TextScan context for grounding.
+  // Flag OFF: legacy parseActiveContext path (accepted foundation behavior).
+  // Flag ON: typed E-1 envelope with server-side resolution; raw client context
+  // never reaches the prompt builder directly.
   let normalizedVisualContext: NormalizedVisualContext | null = null;
+  let typedVisualContext: BuildEliseVisualContextResult | null = null;
   let activeContext = parseActiveContext(body.activeContext);
+  let visualContextPromptBlock: string | null = null;
+
   if (config.flags.contextNormalizationV1) {
+    // Keep a best-effort legacy shape for response capability metadata only.
     normalizedVisualContext = normalizeLegacyVisualContext(body.activeContext);
     activeContext = normalizedVisualContext.activeContext;
-    emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
-      requestId,
-      operationType: 'stylechat_generate_reply',
-      actorHash,
-      normalizedContextCount: normalizedVisualContext.items.length,
-      rejectedContextCount: normalizedVisualContext.rejectedCount,
-    });
+    // Full typed pipeline runs after auth/session are confirmed (below).
   }
   if (!config.flags.contextNormalizationV1 && body.activeContext != null && !activeContext) {
     const activeContextRecord = typeof body.activeContext === 'object' &&
@@ -976,6 +986,139 @@ Deno.serve(async (req) => {
     });
     if (!ownsSourceMessage) {
       return json({ error: 'Source message not found' }, 404);
+    }
+  }
+
+  // ── 4a-E1. Typed visual-context continuity (flagged) ─────────────────────────
+  // Runs after actor/session validation. Failures for optional context fail open.
+  if (config.flags.contextNormalizationV1 && body.activeContext != null) {
+    const eliseResourceData: EliseResourceDataSource = {
+      fetchSavedScan: async (id) => {
+        const { data, error } = await userClient
+          .from('saved_scans')
+          .select('id,user_id,title,storage_bucket,storage_path')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchInspirationItem: async (id) => {
+        const { data, error } = await userClient
+          .from('inspiration_items')
+          .select(
+            'id,user_id,note,category,color,material,silhouette,storage_bucket,storage_path',
+          )
+          .eq('id', id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchDressingRoom: async (roomId) => {
+        const { data, error } = await userClient
+          .from('dressing_rooms')
+          .select('id,user_id')
+          .eq('id', roomId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchDressingRoomItem: async (roomId, itemId) => {
+        const { data, error } = await userClient
+          .from('dressing_room_items')
+          .select(
+            'id,dressing_room_id,title,category,brand,storage_bucket,storage_path',
+          )
+          .eq('id', itemId)
+          .eq('dressing_room_id', roomId)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchSharedRoomAccess: async (roomId, actorId) => {
+        const { data: participant } = await userClient
+          .from('dressing_room_participants')
+          .select('id')
+          .eq('dressing_room_id', roomId)
+          .eq('user_id', actorId)
+          .maybeSingle();
+        if (participant) return { active: true, expired: false };
+
+        const { data: memberships, error } = await userClient
+          .from('shared_room_memberships')
+          .select('id,removed_at,share_id,room_shares!inner(room_id,is_active,revoked_at,expires_at)')
+          .eq('recipient_user_id', actorId)
+          .is('removed_at', null)
+          .limit(50);
+        if (error) throw error;
+        const rows = (memberships ?? []) as Array<Record<string, unknown>>;
+        for (const row of rows) {
+          const share = row.room_shares as Record<string, unknown> | Record<string, unknown>[] | null;
+          const shareRow = Array.isArray(share) ? share[0] : share;
+          if (!shareRow) continue;
+          if (String(shareRow.room_id) !== roomId) continue;
+          if (shareRow.is_active === false || shareRow.revoked_at) {
+            return { active: false, expired: true };
+          }
+          if (
+            typeof shareRow.expires_at === 'string' &&
+            new Date(shareRow.expires_at).getTime() <= Date.now()
+          ) {
+            return { active: false, expired: true };
+          }
+          return { active: true, expired: false };
+        }
+        return null;
+      },
+    };
+
+    try {
+      typedVisualContext = await buildEliseVisualContextEnvelope({
+        rawActiveContext: body.activeContext,
+        actorId: userId,
+        sessionId,
+        dataSource: eliseResourceData,
+      });
+      visualContextPromptBlock = typedVisualContext.promptBlock;
+      emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
+        requestId,
+        operationType: 'stylechat_generate_reply',
+        actorHash,
+        flagState: 'contextNormalizationV1',
+        contextNormalizationV1: true,
+        internalContractVersion: ELISE_VISUAL_CONTEXT_INTERNAL_VERSION,
+        normalizationLatencyMs: typedVisualContext.normalizationLatencyMs,
+        receivedCount: typedVisualContext.envelope.normalization.receivedCount,
+        acceptedCount: typedVisualContext.envelope.normalization.acceptedCount,
+        droppedCount: typedVisualContext.envelope.normalization.droppedCount,
+        rejectedCount: typedVisualContext.envelope.normalization.rejectedCount,
+        duplicateCount: typedVisualContext.envelope.normalization.duplicateCount,
+        truncatedCount: typedVisualContext.envelope.normalization.truncatedCount,
+        normalizedContextCount: typedVisualContext.envelope.evidence.length,
+        rejectedContextCount: typedVisualContext.envelope.normalization.rejectedCount,
+        sourceTypeCounts: envelopeSourceTypeCounts(typedVisualContext.envelope),
+        warningCodes: envelopeWarningCodes(typedVisualContext.envelope),
+        resolverOutcomeCounts: envelopeResolverOutcomeCounts(typedVisualContext.envelope),
+      });
+    } catch {
+      // Optional enrichment must never block safe text generation.
+      typedVisualContext = null;
+      visualContextPromptBlock = null;
+      emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
+        requestId,
+        operationType: 'stylechat_generate_reply',
+        actorHash,
+        flagState: 'contextNormalizationV1',
+        contextNormalizationV1: true,
+        internalContractVersion: ELISE_VISUAL_CONTEXT_INTERNAL_VERSION,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        warningCodes: ['OPTIONAL_RESOURCE_UNAVAILABLE'],
+      });
     }
   }
 
@@ -1337,10 +1480,15 @@ Deno.serve(async (req) => {
     : systemTextWithWeather;
 
   // Active reference context is appended last so it is the freshest grounding signal.
-  // It is only included when the client sent a valid, known source (camera/upload/text-scan).
-  const systemTextForModel = activeContext
-    ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
-    : systemTextWithStyleDna;
+  // E-1 ON: use typed envelope serialization only (never raw client activeContext).
+  // E-1 OFF: preserve accepted legacy buildActiveContextBlock path.
+  const systemTextForModel = config.flags.contextNormalizationV1
+    ? (visualContextPromptBlock
+      ? `${systemTextWithStyleDna}\n\n${visualContextPromptBlock}`
+      : systemTextWithStyleDna)
+    : (activeContext
+      ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
+      : systemTextWithStyleDna);
 
   // ── V2: verified attachment context + structured-action instructions ─────────
   // Attachment-free messages (v1 AND v2-without-attachments) keep the exact v1
@@ -1646,7 +1794,9 @@ Deno.serve(async (req) => {
     latencyMs: elapsedMs,
     retryCount: wasRetried ? 1 : 0,
     stableErrorClass: usedFallback ? 'UNKNOWN_PROVIDER_ERROR' : null,
-    normalizedContextCount: normalizedVisualContext?.items.length ?? 0,
+    normalizedContextCount: typedVisualContext?.envelope.evidence.length
+      ?? normalizedVisualContext?.items.length
+      ?? 0,
     acceptedAttachmentCount: resolvedAttachments.length,
     rejectedAttachmentCount: 0,
   });

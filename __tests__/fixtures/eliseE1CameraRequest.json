@@ -1,0 +1,19 @@
+{
+  "source": "camera",
+  "visualCollection": {
+    "focusEvidenceId": "scan-1",
+    "evidence": [
+      {
+        "id": "scan-1",
+        "order": 1,
+        "title": "Navy blazer",
+        "sourceType": "current_scan",
+        "category": "outerwear",
+        "colors": ["navy"],
+        "materials": ["wool"],
+        "silhouette": "tailored",
+        "confidence": 0.91
+      }
+    ]
+  }
+}
