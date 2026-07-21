@@ -1651,12 +1651,18 @@ Deno.serve(async (req) => {
         async listSharedRoomItems(_actorId, limit) {
           const { data: memberships, error } = await userClient
             .from('shared_room_memberships')
-            .select('id,removed_at,share_id,room_shares!inner(room_id,is_active,revoked_at,expires_at)')
+            .select(
+              'id,removed_at,share_id,room_shares!inner(room_id,owner_id,is_active,revoked_at,expires_at)',
+            )
             .eq('recipient_user_id', userId)
             .is('removed_at', null)
             .limit(50);
           if (error) return [];
-          const roomIds: string[] = [];
+          // room_id -> the share's recorded owner_id, so a share whose owner no
+          // longer matches the room's current owner (e.g. an account-deletion
+          // ownership transfer) is never treated as current access authority.
+          // Matches the same staleness check list_shared_rooms_for_me() applies.
+          const shareOwnerByRoom = new Map<string, string>();
           for (const row of (memberships ?? []) as Array<Record<string, unknown>>) {
             const share = row.room_shares as Record<string, unknown> | Record<string, unknown>[] | null;
             const shareRow = Array.isArray(share) ? share[0] : share;
@@ -1668,8 +1674,19 @@ Deno.serve(async (req) => {
             ) {
               continue;
             }
-            if (typeof shareRow.room_id === 'string') roomIds.push(shareRow.room_id);
+            if (typeof shareRow.room_id === 'string' && typeof shareRow.owner_id === 'string') {
+              shareOwnerByRoom.set(shareRow.room_id, shareRow.owner_id);
+            }
           }
+          if (shareOwnerByRoom.size === 0) return [];
+          const candidateRoomIds = [...shareOwnerByRoom.keys()];
+          const { data: rooms } = await userClient
+            .from('dressing_rooms')
+            .select('id,user_id')
+            .in('id', candidateRoomIds);
+          const roomIds = ((rooms ?? []) as Array<{ id: string; user_id: string }>)
+            .filter((room) => shareOwnerByRoom.get(room.id) === room.user_id)
+            .map((room) => room.id);
           if (!roomIds.length) return [];
           const { data } = await userClient
             .from('dressing_room_items')

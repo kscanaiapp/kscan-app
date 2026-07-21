@@ -200,6 +200,69 @@ Deno.test('E-4 retrieval rejects unauthorized Closet and room rows', async () =>
   assert.ok(!result.candidates.some((c) => c.candidateId.includes('not-a-uuid')));
 });
 
+// Repair regression: a Dressing Room item saved from a catalog/commerce match
+// (DR-1 source_type: 'product_match', or canonical source.kind:
+// 'catalog_product' once DRESSING_ROOM_CANONICAL_ITEM_V1 is on) must never be
+// presented with owned ("You already have...") language just because it sits
+// in the actor's own room — the actor may only be considering it, not
+// physically own it. Only genuinely Scanner/Closet-originated room items
+// (source_type: 'scan_image', or no source_type at all) are truthfully owned.
+Deno.test('E-4 room items saved from a catalog match are "saved", not "owned"', async () => {
+  const result = await retrieveAuthorizedWardrobeCandidates({
+    actorId: ACTOR,
+    intent: 'build_outfit',
+    message: 'build an outfit',
+    data: {
+      async listSavedScans() {
+        return [];
+      },
+      async listInspirationItems() {
+        return [];
+      },
+      async listOwnedRoomItems() {
+        return [
+          {
+            id: ITEM_E,
+            room_id: ITEM_F,
+            category: 'shoes',
+            source_type: 'product_match',
+            __room_owned_by_actor: true,
+          },
+          {
+            id: ITEM_G,
+            room_id: ITEM_F,
+            category: 'jacket',
+            source_type: 'scan_image',
+            __room_owned_by_actor: true,
+          },
+          {
+            id: ITEM_H,
+            room_id: ITEM_F,
+            category: 'bag',
+            snapshot_payload: { canonical: { source: { kind: 'catalog_product' } } },
+            __room_owned_by_actor: true,
+          },
+          {
+            // No source_type at all (legacy row) must remain owned — the
+            // conservative default cannot regress existing behavior.
+            id: ITEM_D,
+            room_id: ITEM_F,
+            category: 'belt',
+            __room_owned_by_actor: true,
+          },
+        ];
+      },
+    },
+  });
+
+  const byId = (id: string) => result.candidates.find((c) => c.candidateId === `owned_room:${id}`);
+  assert.equal(byId(ITEM_E)?.actorRelationship, 'saved');
+  assert.equal(byId(ITEM_E)?.sourceType, 'saved_product');
+  assert.equal(byId(ITEM_G)?.actorRelationship, 'owned');
+  assert.equal(byId(ITEM_H)?.actorRelationship, 'saved');
+  assert.equal(byId(ITEM_D)?.actorRelationship, 'owned');
+});
+
 Deno.test('E-4 compatibility scoring prioritizes owned complements and penalizes redundancy', () => {
   const focus = normalizeWardrobeCandidate({
     candidateId: 'focus',

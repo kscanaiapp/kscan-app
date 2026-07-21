@@ -6,8 +6,10 @@
 import { isUuid } from './eliseResourceResolvers.ts';
 import { normalizeWardrobeCandidate } from './eliseFashionFeatures.ts';
 import type {
+  EliseActorRelationship,
   EliseAdviceIntent,
   EliseWardrobeCandidate,
+  EliseWardrobeSourceType,
 } from './eliseAdviceTypes.ts';
 import { ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 import { intentAllowsCommerce, intentNeedsShared, intentPrefersOwned } from './eliseAdviceIntents.ts';
@@ -38,6 +40,44 @@ function ownerMatches(row: Record<string, unknown>, actorId: string): boolean {
     (typeof row.owner_id === 'string' && row.owner_id) ||
     null;
   return owner === actorId;
+}
+
+/**
+ * A room item being in the actor's own Dressing Room does not by itself mean
+ * the actor physically owns the garment — it may be a saved/bookmarked
+ * catalog product (DR-1 `source_type: 'product_match'` /
+ * canonical `source.kind: 'catalog_product'`) the actor is only considering.
+ * Only genuinely Scanner/Closet-originated items are truthfully "owned."
+ * Consults DR-1's canonical snapshot extension when present (forward
+ * compatible with DRESSING_ROOM_CANONICAL_ITEM_V1), falling back to the
+ * legacy `source_type` column that exists on every row today.
+ */
+const DISCOVERED_ROOM_SOURCE_KINDS = new Set(['catalog_product', 'product_match']);
+
+function roomItemRelationship(row: Record<string, unknown>): {
+  sourceType: EliseWardrobeSourceType;
+  actorRelationship: EliseActorRelationship;
+} {
+  const payload =
+    row.snapshot_payload && typeof row.snapshot_payload === 'object' && !Array.isArray(row.snapshot_payload)
+      ? (row.snapshot_payload as Record<string, unknown>)
+      : {};
+  const canonical =
+    payload.canonical && typeof payload.canonical === 'object' && !Array.isArray(payload.canonical)
+      ? (payload.canonical as Record<string, unknown>)
+      : null;
+  const canonicalSource =
+    canonical && canonical.source && typeof canonical.source === 'object' && !Array.isArray(canonical.source)
+      ? (canonical.source as Record<string, unknown>)
+      : null;
+  const canonicalKind = typeof canonicalSource?.kind === 'string' ? canonicalSource.kind : null;
+  const legacyKind = typeof row.source_type === 'string' ? row.source_type : null;
+  const kind = canonicalKind ?? legacyKind;
+
+  if (kind && DISCOVERED_ROOM_SOURCE_KINDS.has(kind)) {
+    return { sourceType: 'saved_product', actorRelationship: 'saved' };
+  }
+  return { sourceType: 'owned_room', actorRelationship: 'owned' };
 }
 
 function pushCount(map: Record<string, number>, key: string) {
@@ -152,10 +192,11 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
               continue;
             }
           }
+          const relationship = roomItemRelationship(row);
           const candidate = normalizeWardrobeCandidate({
             candidateId: `owned_room:${id}`,
-            sourceType: 'owned_room',
-            actorRelationship: 'owned',
+            sourceType: relationship.sourceType,
+            actorRelationship: relationship.actorRelationship,
             row,
             canonicalResourceIds: {
               itemId: id,
@@ -164,8 +205,8 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
           });
           candidates.push(candidate);
           authorizedCount += 1;
-          pushCount(countsBySource, 'owned_room');
-          pushCount(ownershipSourceCounts, 'owned');
+          pushCount(countsBySource, relationship.sourceType);
+          pushCount(ownershipSourceCounts, relationship.actorRelationship);
         }
       } catch {
         partialFailure = true;
