@@ -1,0 +1,86 @@
+{
+  "contractVersion": "elise_advice_v1",
+  "scenarios": [
+    {
+      "id": "scanned_jacket_owned_pants",
+      "message": "What goes with the jacket I just scanned?",
+      "expectedIntent": "style_current_item",
+      "focus": { "category": "jacket", "colors": ["navy"] },
+      "owned": [{ "category": "pants", "colors": ["black"] }]
+    },
+    {
+      "id": "scanned_dress_owned_shoes",
+      "message": "What shoes in my Closet work with this dress?",
+      "expectedIntent": "shoe_pairing",
+      "focus": { "category": "dress", "colors": ["black"] },
+      "owned": [{ "category": "shoes", "colors": ["nude"] }]
+    },
+    {
+      "id": "scanned_top_saved_skirt",
+      "message": "Which saved item pairs with this top?",
+      "expectedIntent": "find_saved_alternative",
+      "focus": { "category": "top", "colors": ["white"] },
+      "saved": [{ "category": "skirt", "colors": ["beige"] }]
+    },
+    {
+      "id": "purchase_advice_owned_duplicate",
+      "message": "Should I buy this?",
+      "expectedIntent": "purchase_advice",
+      "expectedVerdict": "skip",
+      "ownedDuplicate": true
+    },
+    {
+      "id": "wardrobe_gap_request",
+      "message": "What am I missing to complete this look?",
+      "expectedIntent": "wardrobe_gap"
+    },
+    {
+      "id": "three_look_request",
+      "message": "Give me three ways to style this",
+      "expectedIntent": "multi_look_generation",
+      "maxLooks": 3
+    },
+    {
+      "id": "occasion_request",
+      "message": "Would this work for a work dinner?",
+      "expectedIntent": "occasion_fit"
+    },
+    {
+      "id": "weather_aware_request",
+      "message": "How should I style this for a rainy day?",
+      "expectedIntent": "style_current_item",
+      "weatherOptional": true
+    },
+    {
+      "id": "unauthorized_closet_item",
+      "message": "Style this with my Closet",
+      "rejectOtherActor": true
+    },
+    {
+      "id": "unauthorized_room_item",
+      "message": "Use the shared room item",
+      "requireSharedAccessMarker": true
+    },
+    {
+      "id": "large_closet_candidate_set",
+      "message": "Build an outfit without buying anything new",
+      "expectedIntent": "build_outfit",
+      "maxGrounded": 10
+    },
+    {
+      "id": "partial_metadata",
+      "message": "What goes with this?",
+      "lowConfidence": true
+    },
+    {
+      "id": "no_matching_item",
+      "message": "What goes with this?",
+      "emptyWardrobe": true
+    },
+    {
+      "id": "shared_room_item_request",
+      "message": "Can I style this with something from the shared room?",
+      "needsShared": true
+    }
+  ]
+}

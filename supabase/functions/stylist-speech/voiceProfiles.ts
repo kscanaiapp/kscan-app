@@ -43,3 +43,38 @@ export function resolveServerVoiceProfile(stylistId: string): StylistSpeechVoice
 export function isKnownStylistId(stylistId: string): boolean {
   return PROFILE_BY_STYLIST_ID.has(stylistId) || SILENT_STYLIST_IDS.has(stylistId);
 }
+
+/** Authoritative voice-registry entry (no provider secrets / voice IDs). */
+export interface EliseVoiceRegistryEntry {
+  avatarId: string;
+  voiceAlias: StylistSpeechVoiceProfile | 'silent';
+  provider: 'elevenlabs' | 'none';
+  modelAlias: 'configured' | 'none';
+  speechEnabled: boolean;
+  fallback: 'fail_speech_preserve_text';
+}
+
+export function resolveVoiceRegistryEntry(stylistId: string): EliseVoiceRegistryEntry {
+  const profile = PROFILE_BY_STYLIST_ID.get(stylistId);
+  if (profile) {
+    return {
+      avatarId: stylistId,
+      voiceAlias: profile,
+      provider: 'elevenlabs',
+      modelAlias: 'configured',
+      speechEnabled: true,
+      fallback: 'fail_speech_preserve_text',
+    };
+  }
+  if (SILENT_STYLIST_IDS.has(stylistId)) {
+    return {
+      avatarId: stylistId,
+      voiceAlias: 'silent',
+      provider: 'none',
+      modelAlias: 'none',
+      speechEnabled: false,
+      fallback: 'fail_speech_preserve_text',
+    };
+  }
+  throw new StylistSpeechError(422, 'STYLIST_UNSUPPORTED', 'Speech is not available for this stylist.');
+}

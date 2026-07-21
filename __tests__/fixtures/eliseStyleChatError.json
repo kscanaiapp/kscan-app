@@ -1,0 +1,16 @@
+{
+  "description": "Redacted stylechat-generate error response",
+  "example": {
+    "status": "error",
+    "message": {
+      "sender": "assistant",
+      "content": "Elise is temporarily unavailable. Please try again in a moment.",
+      "model": "",
+      "tokenEstimate": 0
+    },
+    "usage": {
+      "messagesUsed": 0,
+      "messagesLimit": 25
+    }
+  }
+}

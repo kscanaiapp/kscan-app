@@ -1,0 +1,51 @@
+{
+  "description": "Current installed client request to stylechat-generate Edge Function",
+  "version": "v0 (legacy)",
+  "note": "This fixture represents the request shape currently sent by installed mobile clients. All repairs must accept this shape.",
+  "example": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "message": "What should I wear to a casual dinner?",
+    "styleDnaContext": {
+      "summary": "Minimalist aesthetic with occasional bold pieces",
+      "signals": ["minimalism", "neutrals", "structure"],
+      "confidence": 0.78
+    },
+    "weatherLocation": {
+      "lat": 40.7128,
+      "lon": -74.006,
+      "displayName": "New York, NY"
+    },
+    "activeContext": {
+      "source": "camera",
+      "visualCollection": {
+        "evidence": [
+          {
+            "id": "item-001",
+            "order": 0,
+            "source": "scan",
+            "title": "Blue Linen Blazer",
+            "summary": "Lightweight structured blazer",
+            "category": "outerwear",
+            "colors": ["blue"],
+            "materials": ["linen"],
+            "silhouette": "structured",
+            "styleAttributes": ["casual", "sophisticated"],
+            "brand": "Uniqlo",
+            "confidence": 0.92
+          }
+        ],
+        "focusEvidenceId": "item-001"
+      }
+    },
+    "attachments": null
+  },
+  "contract_rules": [
+    "sessionId is required (UUID)",
+    "message is required (max 500 chars)",
+    "styleDnaContext is optional",
+    "weatherLocation is optional",
+    "activeContext is optional",
+    "attachments is optional (null or omitted for v0)",
+    "unknown optional fields must be safely ignored by server"
+  ]
+}

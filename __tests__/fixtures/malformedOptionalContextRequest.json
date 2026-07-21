@@ -1,0 +1,20 @@
+{
+  "description": "Malformed optional context must not require a new mobile build",
+  "example": {
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "message": "Can you help style this?",
+    "activeContext": {
+      "source": "camera",
+      "visualCollection": {
+        "evidence": [
+          {
+            "id": "bad-evidence",
+            "order": 0,
+            "title": ""
+          }
+        ]
+      },
+      "unknownOptionalField": "ignored"
+    }
+  }
+}

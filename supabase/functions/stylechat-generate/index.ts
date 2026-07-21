@@ -23,6 +23,41 @@ import {
   buildActiveContextBlock,
   VISUAL_COLLECTION_CONTRACT_VERSION,
 } from './activeContext.ts';
+import { readEliseBackendConfig } from './eliseConfig.ts';
+import {
+  buildGenerationIdentity,
+  finalizeGenerationOperation,
+  loadAssistantMessageById,
+  markGenerationGenerating,
+  persistAssistantOnce,
+  reserveGenerationOperation,
+  revalidateGenerationContext,
+  validateSourceMessageOwnership,
+} from './generationSafety.ts';
+import {
+  classifyTextProviderError,
+  isRetryableFailureClass,
+  shouldRetryTextProviderError,
+} from './eliseProviderRetry.ts';
+import { validateEliseGenerationOutput } from './eliseOutputValidation.ts';
+import {
+  buildEliseGroundingPackage,
+  buildStructuredGroundingSystemBlock,
+} from './eliseStructuredGrounding.ts';
+import type { EliseOperationReservation } from './eliseGenerationTypes.ts';
+import { ELISE_GROUNDING_VERSION } from './eliseGenerationTypes.ts';
+import { stripUnsafeModelOutput } from './promptHardening.ts';
+import { emitEliseTelemetry, makeRequestId, stableActorHash } from './telemetry.ts';
+import { normalizeLegacyVisualContext, type NormalizedVisualContext } from './visualContext.ts';
+import {
+  buildEliseVisualContextEnvelope,
+  envelopeResolverOutcomeCounts,
+  envelopeSourceTypeCounts,
+  envelopeWarningCodes,
+  type BuildEliseVisualContextResult,
+} from './eliseVisualContextPipeline.ts';
+import type { EliseResourceDataSource } from './eliseResourceResolvers.ts';
+import { ELISE_VISUAL_CONTEXT_INTERNAL_VERSION } from './eliseVisualContextTypes.ts';
 // v2 (Closet Intelligence) modules — used only on the v2 request path.
 import {
   isV2StyleChatRequest,
@@ -32,6 +67,7 @@ import {
 } from './attachments.ts';
 import {
   buildAttachmentContextBlock,
+  attachmentOutcomeForResolution,
   normalizeContextHint,
   resolveStyleChatAttachments,
   type AttachmentDataSource,
@@ -49,6 +85,9 @@ import {
   requiresImageInspection,
   selectImagesForInspection,
 } from './multimodal.ts';
+import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
+import type { EliseWardrobeDataSource } from './eliseWardrobeRetrieval.ts';
+import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -812,6 +851,8 @@ Deno.serve(async (req) => {
     weatherLocation?: unknown;
     styleDnaContext?: unknown;
     activeContext?: unknown;
+    sourceMessageId?: unknown;
+    requestId?: unknown;
     // v2 (Closet Intelligence) — absent on v1 requests.
     attachments?: unknown;
     contractVersion?: unknown;
@@ -823,15 +864,17 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
+  const config = readEliseBackendConfig({ get: (name) => Deno.env.get(name) ?? undefined });
+  const requestId = typeof body.requestId === 'string' && body.requestId.trim()
+    ? body.requestId.trim().slice(0, 80)
+    : makeRequestId();
+  const actorHash = await stableActorHash(userId);
+
   // Kill switch is trim/case-insensitive; only an explicit "false" disables AI.
-  const isAiDisabled =
-    readTrimmedEnv('STYLECHAT_AI_ENABLED')?.toLowerCase() === 'false';
+  const isAiDisabled = !config.flags.aiEnabled;
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
   // Model name is trimmed but never lowercased; preserves exact operator config.
-  const modelName =
-    readTrimmedEnv('STYLECHAT_GEMINI_MODEL') ||
-    readTrimmedEnv('GEMINI_MODEL') ||
-    DEFAULT_MODEL;
+  const modelName = config.modelName || DEFAULT_MODEL;
 
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const message   = typeof body.message   === 'string' ? body.message.trim()   : '';
@@ -852,9 +895,26 @@ Deno.serve(async (req) => {
   // (older app builds send nothing and behave exactly as before).
   const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
 
+  const sourceMessageId = typeof body.sourceMessageId === 'string'
+    ? body.sourceMessageId.trim()
+    : null;
+
   // Optional, additive active scan/upload/TextScan context for grounding.
-  const activeContext = parseActiveContext(body.activeContext);
-  if (body.activeContext != null && !activeContext) {
+  // Flag OFF: legacy parseActiveContext path (accepted foundation behavior).
+  // Flag ON: typed E-1 envelope with server-side resolution; raw client context
+  // never reaches the prompt builder directly.
+  let normalizedVisualContext: NormalizedVisualContext | null = null;
+  let typedVisualContext: BuildEliseVisualContextResult | null = null;
+  let activeContext = parseActiveContext(body.activeContext);
+  let visualContextPromptBlock: string | null = null;
+
+  if (config.flags.contextNormalizationV1) {
+    // Keep a best-effort legacy shape for response capability metadata only.
+    normalizedVisualContext = normalizeLegacyVisualContext(body.activeContext);
+    activeContext = normalizedVisualContext.activeContext;
+    // Full typed pipeline runs after auth/session are confirmed (below).
+  }
+  if (!config.flags.contextNormalizationV1 && body.activeContext != null && !activeContext) {
     const activeContextRecord = typeof body.activeContext === 'object' &&
       !Array.isArray(body.activeContext)
       ? body.activeContext as Record<string, unknown>
@@ -934,6 +994,240 @@ Deno.serve(async (req) => {
     return json({ error: 'Session not found' }, 404);
   }
 
+  const generationIdentity = await buildGenerationIdentity({
+    actorId: userId,
+    sessionId,
+    sourceMessageId,
+    message,
+    requestId,
+  });
+  if (config.flags.generationSafetyV1) {
+    const ownsSourceMessage = await validateSourceMessageOwnership({
+      userClient,
+      sourceMessageId,
+      actorId: userId,
+      sessionId,
+    });
+    if (!ownsSourceMessage) {
+      return json({ error: 'Source message not found' }, 404);
+    }
+  }
+
+  let generationReservation: EliseOperationReservation | null = null;
+  if (config.flags.generationSafetyV1) {
+    generationReservation = await reserveGenerationOperation({
+      userClient,
+      sessionId,
+      sourceMessageId: generationIdentity.sourceMessageId,
+      operationKey: generationIdentity.operationKey,
+      requestId,
+    });
+    if (!generationReservation) {
+      return json({ error: 'Unable to reserve generation operation' }, 500);
+    }
+    emitEliseTelemetry(config, 'elise_generation_outcome', {
+      requestId,
+      operationType: generationIdentity.operationType,
+      actorHash,
+      operationStatus: generationReservation.status,
+      attemptCount: generationReservation.attemptCount,
+      duplicateDetected: generationReservation.isDuplicate,
+      mayGenerate: generationReservation.mayGenerate,
+      duplicateRecoveryOutcome: generationReservation.isDuplicate
+        ? (generationReservation.status === 'completed'
+          ? 'completed_recovered'
+          : generationReservation.mayGenerate
+          ? 'retryable_reopened'
+          : 'in_flight_or_terminal')
+        : 'fresh',
+    });
+
+    if (generationReservation.isDuplicate && generationReservation.status === 'completed') {
+      if (generationReservation.assistantMessageId) {
+        const existing = await loadAssistantMessageById({
+          userClient,
+          actorId: userId,
+          sessionId,
+          assistantMessageId: generationReservation.assistantMessageId,
+        });
+        if (existing) {
+          return json({
+            status: 'success',
+            message: {
+              sender: 'assistant',
+              content: existing.content,
+              model: existing.model || modelName,
+              tokenEstimate: existing.tokenEstimate,
+            },
+            usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT, resetAt: null },
+            requestId,
+            duplicate: true,
+          });
+        }
+      }
+      // Completed without recoverable message — do not regenerate.
+      return json({
+        status: 'success',
+        message: {
+          sender: 'assistant',
+          content: buildStyleChatFallback(),
+          model: modelName,
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT, resetAt: null },
+        requestId,
+        duplicate: true,
+      });
+    }
+
+    if (!generationReservation.mayGenerate) {
+      return json({
+        status: 'error',
+        message: {
+          sender: 'assistant',
+          content: 'Elise is still working on that reply. Please try again in a moment.',
+          model: '',
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT },
+        requestId,
+        errorCode: 'GENERATION_IN_PROGRESS',
+      });
+    }
+  }
+
+  // ── 4a-E1. Typed visual-context continuity (flagged) ─────────────────────────
+  // Runs after actor/session validation. Failures for optional context fail open.
+  if (config.flags.contextNormalizationV1 && body.activeContext != null) {
+    const eliseResourceData: EliseResourceDataSource = {
+      fetchSavedScan: async (id) => {
+        const { data, error } = await userClient
+          .from('saved_scans')
+          .select('id,user_id,title,storage_bucket,storage_path')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchInspirationItem: async (id) => {
+        const { data, error } = await userClient
+          .from('inspiration_items')
+          .select(
+            'id,user_id,note,category,color,material,silhouette,storage_bucket,storage_path',
+          )
+          .eq('id', id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchDressingRoom: async (roomId) => {
+        const { data, error } = await userClient
+          .from('dressing_rooms')
+          .select('id,user_id')
+          .eq('id', roomId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchDressingRoomItem: async (roomId, itemId) => {
+        const { data, error } = await userClient
+          .from('dressing_room_items')
+          .select(
+            'id,dressing_room_id,title,category,brand,storage_bucket,storage_path',
+          )
+          .eq('id', itemId)
+          .eq('dressing_room_id', roomId)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
+      fetchSharedRoomAccess: async (roomId, actorId) => {
+        const { data: participant } = await userClient
+          .from('dressing_room_participants')
+          .select('id')
+          .eq('dressing_room_id', roomId)
+          .eq('user_id', actorId)
+          .maybeSingle();
+        if (participant) return { active: true, expired: false };
+
+        const { data: memberships, error } = await userClient
+          .from('shared_room_memberships')
+          .select('id,removed_at,share_id,room_shares!inner(room_id,is_active,revoked_at,expires_at)')
+          .eq('recipient_user_id', actorId)
+          .is('removed_at', null)
+          .limit(50);
+        if (error) throw error;
+        const rows = (memberships ?? []) as Array<Record<string, unknown>>;
+        for (const row of rows) {
+          const share = row.room_shares as Record<string, unknown> | Record<string, unknown>[] | null;
+          const shareRow = Array.isArray(share) ? share[0] : share;
+          if (!shareRow) continue;
+          if (String(shareRow.room_id) !== roomId) continue;
+          if (shareRow.is_active === false || shareRow.revoked_at) {
+            return { active: false, expired: true };
+          }
+          if (
+            typeof shareRow.expires_at === 'string' &&
+            new Date(shareRow.expires_at).getTime() <= Date.now()
+          ) {
+            return { active: false, expired: true };
+          }
+          return { active: true, expired: false };
+        }
+        return null;
+      },
+    };
+
+    try {
+      typedVisualContext = await buildEliseVisualContextEnvelope({
+        rawActiveContext: body.activeContext,
+        actorId: userId,
+        sessionId,
+        dataSource: eliseResourceData,
+      });
+      visualContextPromptBlock = typedVisualContext.promptBlock;
+      emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
+        requestId,
+        operationType: 'stylechat_generate_reply',
+        actorHash,
+        flagState: 'contextNormalizationV1',
+        contextNormalizationV1: true,
+        internalContractVersion: ELISE_VISUAL_CONTEXT_INTERNAL_VERSION,
+        normalizationLatencyMs: typedVisualContext.normalizationLatencyMs,
+        receivedCount: typedVisualContext.envelope.normalization.receivedCount,
+        acceptedCount: typedVisualContext.envelope.normalization.acceptedCount,
+        droppedCount: typedVisualContext.envelope.normalization.droppedCount,
+        rejectedCount: typedVisualContext.envelope.normalization.rejectedCount,
+        duplicateCount: typedVisualContext.envelope.normalization.duplicateCount,
+        truncatedCount: typedVisualContext.envelope.normalization.truncatedCount,
+        normalizedContextCount: typedVisualContext.envelope.evidence.length,
+        rejectedContextCount: typedVisualContext.envelope.normalization.rejectedCount,
+        sourceTypeCounts: envelopeSourceTypeCounts(typedVisualContext.envelope),
+        warningCodes: envelopeWarningCodes(typedVisualContext.envelope),
+        resolverOutcomeCounts: envelopeResolverOutcomeCounts(typedVisualContext.envelope),
+      });
+    } catch {
+      // Optional enrichment must never block safe text generation.
+      typedVisualContext = null;
+      visualContextPromptBlock = null;
+      emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
+        requestId,
+        operationType: 'stylechat_generate_reply',
+        actorHash,
+        flagState: 'contextNormalizationV1',
+        contextNormalizationV1: true,
+        internalContractVersion: ELISE_VISUAL_CONTEXT_INTERNAL_VERSION,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        warningCodes: ['OPTIONAL_RESOURCE_UNAVAILABLE'],
+      });
+    }
+  }
 
   // ── 4b. Per-minute burst limit ────────────────────────────────────────────────
   // Checked before daily quota so burst-limited requests do not consume daily quota.
@@ -942,11 +1236,7 @@ Deno.serve(async (req) => {
   // Boundary note: a user can send limit requests at the end of one window and
   // limit more at the start of the next; this is acceptable for beta.
 
-  const burstLimitPerMinute = (() => {
-    const raw = readTrimmedEnv('STYLECHAT_BURST_LIMIT_PER_MINUTE');
-    const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 60) : 4;
-  })();
+  const burstLimitPerMinute = config.burstLimitPerMinute;
 
   const { data: burstData, error: burstError } = await userClient
     .rpc('check_and_increment_stylechat_burst', { p_limit: burstLimitPerMinute });
@@ -1023,6 +1313,7 @@ Deno.serve(async (req) => {
   // Bounded id lists keep the query surface fixed; a single safe error covers
   // foreign, deleted, and nonexistent records so existence never leaks. A
   // rejected attachment set costs no daily quota.
+  let attachmentOutcomes: string[] = [];
   let resolvedAttachments: ResolvedAttachment[] = [];
   if (isV2Request && parsedAttachments.length > 0) {
     const attachmentData: AttachmentDataSource = {
@@ -1080,6 +1371,16 @@ Deno.serve(async (req) => {
     };
 
     const resolution = await resolveStyleChatAttachments(parsedAttachments, attachmentData);
+    const attachmentOutcome = attachmentOutcomeForResolution(resolution);
+    attachmentOutcomes = [attachmentOutcome];
+    emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
+      requestId,
+      operationType: 'stylechat_generate_reply',
+      actorHash,
+      attachmentOutcome,
+      acceptedAttachmentCount: resolution.ok ? resolution.resolved.length : 0,
+      rejectedAttachmentCount: resolution.ok ? 0 : parsedAttachments.length,
+    });
     if (!resolution.ok) {
       console.log(
         '[stylechat-generate] attachment_rejected uid=%s code=%s count=%d',
@@ -1097,14 +1398,20 @@ Deno.serve(async (req) => {
       );
     }
     resolvedAttachments = resolution.resolved;
+    attachmentOutcomes = resolvedAttachments.length
+      ? resolvedAttachments.map(() => 'accepted')
+      : attachmentOutcomes;
   }
 
   // ── 5. Atomic daily quota reservation ────────────────────────────────────────
   // This is the authority check. If the RPC returns limit_reached=true, we abort
   // before making any Gemini call.
 
-  const { data: quotaData, error: quotaError } = await userClient
-    .rpc('increment_stylechat_daily_usage');
+  const { data: quotaData, error: quotaError } = config.flags.quotaIdempotencyV1
+    ? await userClient.rpc('increment_stylechat_daily_usage_idempotent', {
+        p_operation_key: generationIdentity.operationKey,
+      })
+    : await userClient.rpc('increment_stylechat_daily_usage');
 
   if (quotaError) {
     console.error('[stylechat-generate] quota RPC error:', quotaError.message);
@@ -1153,6 +1460,14 @@ Deno.serve(async (req) => {
       usage: { messagesUsed, messagesLimit, resetAt },
     });
   }
+  emitEliseTelemetry(config, 'elise_quota_outcome', {
+    requestId,
+    operationType: generationIdentity.operationType,
+    actorHash,
+    messagesUsed,
+    messagesLimit,
+    duplicate: Boolean((quotaRow as Record<string, unknown>).duplicate_request),
+  });
 
   // ── 6. Assemble server-side context ──────────────────────────────────────────
   // Memory summary (bounded) + last 6 messages from the session.
@@ -1271,7 +1586,7 @@ Deno.serve(async (req) => {
 
   // ── 7. Build Gemini request payload ──────────────────────────────────────────
 
-  const baseSystemPrompt = STYLECHAT_EXPLANATIONS_ENABLED
+  const baseSystemPrompt = config.flags.explanations
     ? `${SYSTEM_PROMPT}\n\n${EXPLANATION_INSTRUCTIONS}`
     : SYSTEM_PROMPT;
 
@@ -1291,11 +1606,205 @@ Deno.serve(async (req) => {
     ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
     : systemTextWithWeather;
 
+  // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
+  let advicePromptBlock: string | null = null;
+  let adviceMetadata: Record<string, unknown> | null = null;
+  if (config.flags.adviceIntentsV1) {
+    try {
+      const wardrobeData: EliseWardrobeDataSource = {
+        async listSavedScans(actorId, limit) {
+          const { data } = await userClient
+            .from('saved_scans')
+            .select('id, user_id, title, analysis_result, storage_bucket, storage_path, created_at')
+            .eq('user_id', actorId)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
+          return ((data ?? []) as Record<string, unknown>[]).map((row) => {
+            const analysis =
+              row.analysis_result && typeof row.analysis_result === 'object'
+                ? (row.analysis_result as Record<string, unknown>)
+                : {};
+            return {
+              ...row,
+              category: analysis.category ?? analysis.itemType ?? null,
+              brand: analysis.brand ?? null,
+              color: analysis.color ?? (Array.isArray(analysis.colors) ? analysis.colors[0] : null),
+              material: analysis.material ?? null,
+              snapshot_payload: { metadata: analysis },
+            };
+          });
+        },
+        async listInspirationItems(actorId, limit) {
+          const { data } = await userClient
+            .from('inspiration_items')
+            .select('id, user_id, category, color, material, pattern, silhouette, garment_role, created_at')
+            .eq('user_id', actorId)
+            .order('created_at', { ascending: false })
+            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
+          return (data ?? []) as Record<string, unknown>[];
+        },
+        async listOwnedRoomItems(actorId, limit) {
+          const { data: rooms } = await userClient
+            .from('dressing_rooms')
+            .select('id')
+            .eq('user_id', actorId)
+            .limit(20);
+          const roomIds = ((rooms ?? []) as Array<{ id: string }>).map((r) => r.id).filter(Boolean);
+          if (!roomIds.length) return [];
+          const { data } = await userClient
+            .from('dressing_room_items')
+            .select('id, room_id, brand, category, price_amount, source_type, snapshot_payload, created_at')
+            .in('room_id', roomIds)
+            .order('created_at', { ascending: false })
+            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
+          return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+            ...row,
+            __room_owned_by_actor: true,
+          }));
+        },
+        async listSharedRoomItems(_actorId, limit) {
+          const { data: memberships, error } = await userClient
+            .from('shared_room_memberships')
+            .select(
+              'id,removed_at,share_id,room_shares!inner(room_id,owner_id,is_active,revoked_at,expires_at)',
+            )
+            .eq('recipient_user_id', userId)
+            .is('removed_at', null)
+            .limit(50);
+          if (error) return [];
+          // room_id -> the share's recorded owner_id, so a share whose owner no
+          // longer matches the room's current owner (e.g. an account-deletion
+          // ownership transfer) is never treated as current access authority.
+          // Matches the same staleness check list_shared_rooms_for_me() applies.
+          const shareOwnerByRoom = new Map<string, string>();
+          for (const row of (memberships ?? []) as Array<Record<string, unknown>>) {
+            const share = row.room_shares as Record<string, unknown> | Record<string, unknown>[] | null;
+            const shareRow = Array.isArray(share) ? share[0] : share;
+            if (!shareRow) continue;
+            if (shareRow.is_active === false || shareRow.revoked_at) continue;
+            if (
+              typeof shareRow.expires_at === 'string' &&
+              new Date(shareRow.expires_at).getTime() <= Date.now()
+            ) {
+              continue;
+            }
+            if (typeof shareRow.room_id === 'string' && typeof shareRow.owner_id === 'string') {
+              shareOwnerByRoom.set(shareRow.room_id, shareRow.owner_id);
+            }
+          }
+          if (shareOwnerByRoom.size === 0) return [];
+          const candidateRoomIds = [...shareOwnerByRoom.keys()];
+          const { data: rooms } = await userClient
+            .from('dressing_rooms')
+            .select('id,user_id')
+            .in('id', candidateRoomIds);
+          const roomIds = ((rooms ?? []) as Array<{ id: string; user_id: string }>)
+            .filter((room) => shareOwnerByRoom.get(room.id) === room.user_id)
+            .map((room) => room.id);
+          if (!roomIds.length) return [];
+          const { data } = await userClient
+            .from('dressing_room_items')
+            .select('id, room_id, brand, category, price_amount, source_type, snapshot_payload, created_at')
+            .in('room_id', roomIds)
+            .order('created_at', { ascending: false })
+            .limit(Math.min(limit, 20));
+          return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+            ...row,
+            __shared_access: true,
+          }));
+        },
+      };
+
+      const adviceResult = await runEliseAdvicePipeline({
+        message,
+        actorId: userId,
+        envelope: typedVisualContext?.envelope ?? null,
+        data: wardrobeData,
+        flags: {
+          adviceIntentsV1: config.flags.adviceIntentsV1,
+          closetRetrievalV1: config.flags.closetRetrievalV1,
+          compatibilityScoringV1: config.flags.compatibilityScoringV1,
+          wardrobeGapV1: config.flags.wardrobeGapV1,
+          purchaseAdviceV1: config.flags.purchaseAdviceV1,
+          multiLookV1: config.flags.multiLookV1,
+        },
+        weatherSummary: weatherContext ? JSON.stringify(weatherContext).slice(0, 400) : null,
+        signatureStyleSummary: styleDnaContext
+          ? JSON.stringify(styleDnaContext).slice(0, 400)
+          : null,
+      });
+
+      if (adviceResult) {
+        advicePromptBlock = adviceResult.promptBlock;
+        adviceMetadata = adviceResult.adviceMetadata as unknown as Record<string, unknown>;
+        emitEliseTelemetry(config, 'elise_advice_outcome', {
+          requestId,
+          adviceIntent: adviceResult.telemetry.adviceIntent,
+          authorizedCount: adviceResult.telemetry.authorizedCount,
+          rejectedCount: adviceResult.telemetry.rejectedCount,
+          retrievalLatencyMs: adviceResult.telemetry.retrievalLatencyMs,
+          scoringLatencyMs: adviceResult.telemetry.scoringLatencyMs,
+          groundedCandidateCount: adviceResult.telemetry.groundedCandidateCount,
+          purchaseVerdict: adviceResult.telemetry.purchaseVerdict,
+          wardrobeGapCategoryCode: adviceResult.telemetry.wardrobeGapCategoryCode,
+          multiLookCount: adviceResult.telemetry.multiLookCount,
+          candidateCountsBySource: Object.entries(adviceResult.telemetry.candidateCountsBySource)
+            .map(([k, v]) => `${k}:${v}`)
+            .join('|')
+            .slice(0, 160),
+          ownershipSourceCounts: Object.entries(adviceResult.telemetry.ownershipSourceCounts)
+            .map(([k, v]) => `${k}:${v}`)
+            .join('|')
+            .slice(0, 160),
+          stableErrorClass: adviceResult.telemetry.stableErrorClass,
+        });
+      }
+    } catch {
+      // E-4 is fail-open: advice enrichment must never block core generation.
+      advicePromptBlock = null;
+      adviceMetadata = null;
+    }
+  }
+
   // Active reference context is appended last so it is the freshest grounding signal.
-  // It is only included when the client sent a valid, known source (camera/upload/text-scan).
-  const systemTextForModel = activeContext
-    ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
-    : systemTextWithStyleDna;
+  // E-2 structured grounding ON: typed grounding package (includes E-1 visual when present).
+  // E-1 only: typed visual serialization.
+  // Flags OFF: legacy buildActiveContextBlock path.
+  let structuredGroundingBlock: string | null = null;
+  if (config.flags.structuredGroundingV1) {
+    const grounding = buildEliseGroundingPackage({
+      promptVersion: config.promptVersion,
+      requestId,
+      sessionId,
+      userMessage: message,
+      visualContext: typedVisualContext?.envelope ?? null,
+      // Weather / Signature Style already appended above; avoid duplicate prompt sections.
+      signatureStyleSummary: null,
+      weatherSummary: null,
+      attachmentOutcomes,
+      advicePromptBlock,
+    });
+    structuredGroundingBlock = buildStructuredGroundingSystemBlock(grounding);
+  } else if (advicePromptBlock) {
+    // E-4 without E-2: append advice block after legacy/E-1 system text.
+    // Handled below via systemTextForModel enrichment.
+  }
+
+  const systemTextForModelBase = config.flags.structuredGroundingV1 && structuredGroundingBlock
+    ? `${systemTextWithStyleDna}\n\n${structuredGroundingBlock}`
+    : config.flags.contextNormalizationV1
+    ? (visualContextPromptBlock
+      ? `${systemTextWithStyleDna}\n\n${visualContextPromptBlock}`
+      : systemTextWithStyleDna)
+    : (activeContext
+      ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
+      : systemTextWithStyleDna);
+
+  const systemTextForModel =
+    !config.flags.structuredGroundingV1 && advicePromptBlock
+      ? `${systemTextForModelBase}\n\n${advicePromptBlock}`
+      : systemTextForModelBase;
 
   // ── V2: verified attachment context + structured-action instructions ─────────
   // Attachment-free messages (v1 AND v2-without-attachments) keep the exact v1
@@ -1389,9 +1898,59 @@ Deno.serve(async (req) => {
   let whyThisWorks: string | undefined;
   let wasRetried     = false;
   let usedFallback   = false;
+  let providerRetryCount = 0;
+  let stableErrorClass: string | null = null;
+
+  if (generationReservation) {
+    const marked = await markGenerationGenerating(userClient, generationReservation.operationId);
+    if (!marked) {
+      emitEliseTelemetry(config, 'elise_generation_outcome', {
+        requestId,
+        operationType: generationIdentity.operationType,
+        actorHash,
+        staleResponseOutcome: 'mark_generating_failed',
+        operationStatus: 'stale',
+      });
+      return json({
+        status: 'error',
+        message: {
+          sender: 'assistant',
+          content: buildStyleChatFallback(),
+          model: modelName,
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed, messagesLimit, resetAt },
+        requestId,
+      });
+    }
+  }
+
+  async function callGeminiWithOptionalRetry(
+    body: typeof geminiBody,
+    attemptLabel: string,
+  ): Promise<Awaited<ReturnType<typeof callGemini>>> {
+    try {
+      return await callGemini(geminiUrl, body, attemptLabel, modelName);
+    } catch (error) {
+      const failureClass = classifyTextProviderError(error);
+      stableErrorClass = failureClass;
+      const retryAfterSeconds = failureClass === 'RATE_LIMIT' ? 1 : null;
+      const shouldRetry = shouldRetryTextProviderError({
+        failureClass,
+        retryCount: providerRetryCount,
+        retryEnabled: config.flags.generationRetryV1,
+        retryAfterSeconds,
+        remainingBudgetMs: 20_000 - (Date.now() - startedAt),
+      });
+      if (!shouldRetry) throw error;
+      providerRetryCount += 1;
+      wasRetried = true;
+      return await callGemini(geminiUrl, body, `${attemptLabel}-provider-retry`, modelName);
+    }
+  }
 
   try {
-    const initial = await callGemini(geminiUrl, geminiBody, 'initial', modelName);
+    const initial = await callGeminiWithOptionalRetry(geminiBody, 'initial');
     assistantText = initial.text;
     tokenEstimate = initial.tokenEstimate;
     whyThisWorks  = initial.whyThisWorks;
@@ -1523,7 +2082,17 @@ Deno.serve(async (req) => {
   } catch (err) {
     const elapsedMs   = Date.now() - startedAt;
     const isTimeout   = err instanceof DOMException && err.name === 'AbortError';
+    const failureClass = stableErrorClass ?? classifyTextProviderError(err);
     console.warn('[stylechat-generate] %s elapsedMs=%d', isTimeout ? 'timeout' : 'error', elapsedMs);
+
+    if (generationReservation) {
+      await finalizeGenerationOperation({
+        userClient,
+        operationId: generationReservation.operationId,
+        status: isRetryableFailureClass(failureClass) ? 'failed_retryable' : 'failed_terminal',
+        stableErrorClass: failureClass,
+      });
+    }
 
     // Return safe fallback — do not expose internal error details.
     return json({
@@ -1535,6 +2104,7 @@ Deno.serve(async (req) => {
         tokenEstimate: 0,
       },
       usage: { messagesUsed, messagesLimit, resetAt },
+      requestId,
     });
   }
 
@@ -1545,17 +2115,36 @@ Deno.serve(async (req) => {
   // and validated against the authenticated resolved attachment set. Invalid
   // actions are dropped entirely; the text reply is always preserved. On the
   // v1 path this whole step is skipped and the text is untouched.
+  let rawActions: unknown = [];
   let validatedActions: ReturnType<typeof validateStyleChatActions> = [];
   if (isV2Request && !usedFallback) {
     const extracted = extractActionsBlock(assistantText);
     if (extracted.text.trim().length > 0) {
       assistantText = extracted.text;
     }
+    rawActions = extracted.rawActions;
     validatedActions = validateStyleChatActions(extracted.rawActions, resolvedAttachments);
+  }
+
+  // E-2 output validation (always safe to run; preserves plain-text contract).
+  const validatedOutput = validateEliseGenerationOutput({
+    text: assistantText,
+    explanation: whyThisWorks ?? null,
+    rawActions,
+    fallbackText: buildStyleChatFallback(),
+    usedFallback,
+  });
+  assistantText = validatedOutput.text;
+  usedFallback = validatedOutput.metadata.usedFallback;
+  whyThisWorks = validatedOutput.explanation ?? undefined;
+  if (validatedOutput.actions.length && isV2Request) {
+    // Prefer E-2 allowlisted actions when structured grounding/safety paths are active.
+    validatedActions = validatedOutput.actions as typeof validatedActions;
   }
 
   // Final safety net: if no usable text survived (e.g. an empty best-effort path),
   // substitute the generic fallback so we never return whitespace as success.
+  assistantText = stripUnsafeModelOutput(assistantText);
   if (!usedFallback && assistantText.trim().length === 0) {
     usedFallback = true;
     assistantText = buildStyleChatFallback();
@@ -1566,6 +2155,75 @@ Deno.serve(async (req) => {
       modelName,
       elapsedMs,
     );
+  }
+
+  // E-2: revalidate actor/session/source before any persistence or success return.
+  let persistenceOutcome = 'skipped';
+  let staleResponseOutcome: string | null = null;
+  let persistedAssistantId: string | null = null;
+  if (generationReservation) {
+    const revalidation = await revalidateGenerationContext({
+      userClient,
+      operationId: generationReservation.operationId,
+      sessionId,
+      sourceMessageId: generationIdentity.sourceMessageId,
+    });
+    if (!revalidation.valid) {
+      staleResponseOutcome = revalidation.reason ?? 'stale';
+      await finalizeGenerationOperation({
+        userClient,
+        operationId: generationReservation.operationId,
+        status: 'stale',
+        stableErrorClass: 'OPERATION_STALE',
+      });
+      emitEliseTelemetry(config, 'elise_generation_outcome', {
+        requestId,
+        operationType: generationIdentity.operationType,
+        actorHash,
+        staleResponseOutcome,
+        persistenceOutcome: 'blocked_stale',
+        operationStatus: 'stale',
+      });
+      return json({
+        status: 'error',
+        message: {
+          sender: 'assistant',
+          content: buildStyleChatFallback(),
+          model: modelName,
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed, messagesLimit, resetAt },
+        requestId,
+        errorCode: 'GENERATION_STALE',
+      });
+    }
+
+    const persisted = await persistAssistantOnce({
+      userClient,
+      actorId: userId,
+      sessionId,
+      sourceMessageId: generationIdentity.sourceMessageId,
+      content: assistantText,
+      model: modelName,
+      tokenEstimate: usedFallback ? 0 : Math.max(1, Math.ceil(assistantText.length / 4)),
+    });
+    if (persisted) {
+      persistedAssistantId = persisted.id;
+      persistenceOutcome = persisted.duplicate ? 'recovered_existing' : 'inserted';
+      if (persisted.duplicate) {
+        assistantText = persisted.content;
+      }
+    } else {
+      persistenceOutcome = 'insert_failed_client_will_retry';
+    }
+
+    await finalizeGenerationOperation({
+      userClient,
+      operationId: generationReservation.operationId,
+      status: usedFallback ? 'failed_retryable' : 'completed',
+      assistantMessageId: persistedAssistantId,
+      stableErrorClass: usedFallback ? (stableErrorClass ?? 'EMPTY_RESPONSE') : null,
+    });
   }
 
   // Single token-estimate lineage: real or best-effort Gemini text reports its computed
@@ -1591,6 +2249,27 @@ Deno.serve(async (req) => {
     String(usedFallback),
     elapsedMs,
   );
+  emitEliseTelemetry(config, 'elise_generation_outcome', {
+    requestId,
+    operationType: generationIdentity.operationType,
+    actorHash,
+    provider: 'google',
+    model: modelName,
+    latencyMs: elapsedMs,
+    generationLatencyMs: elapsedMs,
+    retryCount: wasRetried ? Math.max(1, providerRetryCount) : 0,
+    attemptCount: generationReservation?.attemptCount ?? 1,
+    stableErrorClass: usedFallback ? (stableErrorClass ?? 'UNKNOWN_PROVIDER_ERROR') : null,
+    outputValidationOutcome: validatedOutput.metadata.validationOutcome,
+    persistenceOutcome,
+    staleResponseOutcome,
+    groundingVersion: config.flags.structuredGroundingV1 ? ELISE_GROUNDING_VERSION : null,
+    normalizedContextCount: typedVisualContext?.envelope.evidence.length
+      ?? normalizedVisualContext?.items.length
+      ?? 0,
+    acceptedAttachmentCount: resolvedAttachments.length,
+    rejectedAttachmentCount: 0,
+  });
 
   // When a fallback message was substituted (Gemini failed, retry failed, or retry was
   // truncated/empty), surface status "error" while preserving the message shape. Real
@@ -1611,7 +2290,7 @@ Deno.serve(async (req) => {
   };
 
   if (
-    STYLECHAT_EXPLANATIONS_ENABLED &&
+    config.flags.explanations &&
     !usedFallback &&
     typeof whyThisWorks === 'string' &&
     whyThisWorks.trim().length > 0
@@ -1628,8 +2307,15 @@ Deno.serve(async (req) => {
       status: usedFallback ? 'error' : 'success',
       message: responseMessage,
       usage: { messagesUsed, messagesLimit, resetAt },
+      requestId,
       ...(activeContext?.visualCollection?.evidence.length
         ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
+        : {}),
+      ...(adviceMetadata
+        ? {
+            adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
+            adviceMetadata,
+          }
         : {}),
     });
   }
@@ -1638,6 +2324,7 @@ Deno.serve(async (req) => {
     status: usedFallback ? 'error' : 'success',
     message: responseMessage,
     usage: { messagesUsed, messagesLimit, resetAt },
+    requestId,
     contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
     capabilities: ['attachments', 'structured_actions'],
     actions: validatedActions,
@@ -1645,6 +2332,12 @@ Deno.serve(async (req) => {
     imagesInspected: inspectedImageCount,
     ...(activeContext?.visualCollection?.evidence.length
       ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
+      : {}),
+    ...(adviceMetadata
+      ? {
+          adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
+          adviceMetadata,
+        }
       : {}),
   });
 });

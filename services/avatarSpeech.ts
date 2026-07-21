@@ -122,6 +122,7 @@ async function failCurrent(value: number): Promise<void> {
 /**
  * Requests and plays one newly persisted assistant message. The service accepts
  * references only; the authenticated Edge Function owns text and voice lookup.
+ * Speech is optional enrichment: failures never affect persisted text.
  */
 export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Promise<void> {
   if (
@@ -155,7 +156,10 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       stylistId: payload.stylistId,
       signal: controller.signal,
     });
+    // Account switch / superseding message / unmount: discard late audio.
     if (!isCurrent(requestGeneration)) return;
+    if (!currentScope || currentScope.actorId !== payload.actorId) return;
+    if (currentScope.messageId !== payload.messageId) return;
     pendingController = null;
 
     const uri = await createTemporaryStylistSpeechFile({
@@ -166,7 +170,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       voiceProfile: speech.voiceProfile,
       audioBase64: speech.audioBase64,
     });
-    if (!isCurrent(requestGeneration)) {
+    if (!isCurrent(requestGeneration) || !currentScope || currentScope.actorId !== payload.actorId) {
       await deleteTemporaryStylistSpeechFile(uri);
       return;
     }
@@ -175,10 +179,12 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
 
     activePlayer = await playStylistAudio(uri, {
       onPlaybackStarted: () => {
-        if (isCurrent(requestGeneration)) markAvatarSpeechPlaying(requestGeneration);
+        if (isCurrent(requestGeneration) && currentScope?.actorId === payload.actorId) {
+          markAvatarSpeechPlaying(requestGeneration);
+        }
       },
       onPlaybackProgress: (seconds) => {
-        if (isCurrent(requestGeneration)) {
+        if (isCurrent(requestGeneration) && currentScope?.actorId === payload.actorId) {
           updateAvatarSpeechPlayback(requestGeneration, seconds);
         }
       },
@@ -189,10 +195,14 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
         void failCurrent(requestGeneration);
       },
     });
-    if (!isCurrent(requestGeneration)) {
+    if (!isCurrent(requestGeneration) || currentScope?.actorId !== payload.actorId) {
       activePlayer.stop();
       activePlayer = null;
       await deleteTemporaryStylistSpeechFile(uri);
+      if (isCurrent(requestGeneration)) {
+        currentScope = null;
+        finishAvatarSpeech(requestGeneration);
+      }
     }
   } catch {
     forgetAttempt(key);

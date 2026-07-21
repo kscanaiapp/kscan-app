@@ -472,6 +472,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           weatherLocation,
           styleDnaContext,
           activeContext: activeContextSnapshot,
+          sourceMessageId: persistedUserMessageId,
           ...(hasAttachments
             ? {
                 attachments: sendAttachments!.references,
@@ -628,6 +629,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           provider: 'gemini',
           model: result.message.model || undefined,
           tokenEstimate: result.message.tokenEstimate,
+          sourceMessageId: persistedUserMessageId,
         }, actorId);
         if (!isCurrentSend()) return;
         setMessages(prev =>

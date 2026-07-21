@@ -77,11 +77,18 @@ export type SpeechErrorCode =
 export class StylistSpeechError extends Error {
   readonly status: number;
   readonly code: SpeechErrorCode;
+  readonly retryAfterSeconds: number | null;
 
-  constructor(status: number, code: SpeechErrorCode, message: string) {
+  constructor(
+    status: number,
+    code: SpeechErrorCode,
+    message: string,
+    retryAfterSeconds: number | null = null,
+  ) {
     super(message);
     this.name = 'StylistSpeechError';
     this.status = status;
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }

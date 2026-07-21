@@ -1,0 +1,20 @@
+{
+  "description": "Installed clients ignore unknown optional response fields",
+  "example": {
+    "status": "success",
+    "message": {
+      "sender": "assistant",
+      "content": "Try the blazer with straight-leg trousers.",
+      "model": "gemini-2.5-flash",
+      "tokenEstimate": 64
+    },
+    "usage": {
+      "messagesUsed": 1,
+      "messagesLimit": 25
+    },
+    "requestId": "redacted-request-id",
+    "unknownOptionalField": {
+      "ignored": true
+    }
+  }
+}

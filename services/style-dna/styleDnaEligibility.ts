@@ -47,3 +47,21 @@ export function isEligibleForStyleFeedback(params: {
     hasRecommendationMetadata(message)
   );
 }
+
+export function shouldShowStyleFeedbackControls(params: {
+  message: StyleChatMessage;
+  userKey: string | null | undefined;
+  isError?: boolean;
+  learnFromFeedback: boolean;
+  showFeedbackControls: boolean;
+}): boolean {
+  return (
+    params.learnFromFeedback &&
+    params.showFeedbackControls &&
+    isEligibleForStyleFeedback({
+      message: params.message,
+      userKey: params.userKey,
+      isError: params.isError,
+    })
+  );
+}

@@ -1,0 +1,36 @@
+{
+  "source": "upload",
+  "visualCollection": {
+    "evidence": [
+      {
+        "id": "closet-1",
+        "order": 1,
+        "title": "Cream sweater",
+        "sourceType": "closet_item",
+        "itemId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "actorRelationship": "owned",
+        "confidence": 0.7
+      },
+      {
+        "id": "shared-1",
+        "order": 2,
+        "title": "Shared jacket",
+        "sourceType": "shared_room_item",
+        "roomId": "ffffffff-ffff-4fff-8fff-ffffffffffff",
+        "itemId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        "actorRelationship": "owned",
+        "confidence": 0.6
+      },
+      {
+        "id": "commerce-1",
+        "order": 3,
+        "title": "Retail sneaker",
+        "sourceType": "commerce_product",
+        "productId": "sku-redacted",
+        "retailerName": "Retailer A",
+        "actorRelationship": "owned",
+        "confidence": 0.55
+      }
+    ]
+  }
+}

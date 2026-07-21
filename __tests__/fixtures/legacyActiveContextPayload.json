@@ -1,0 +1,18 @@
+{
+  "description": "Legacy activeContext payload accepted from installed clients",
+  "example": {
+    "source": "camera",
+    "visualContext": {
+      "source": "scan",
+      "title": "Redacted blazer",
+      "summary": "Structured layer with neutral styling potential",
+      "category": "outerwear",
+      "colors": ["navy"],
+      "materials": ["linen"],
+      "silhouette": "structured",
+      "styleAttributes": ["polished"],
+      "brand": "Redacted",
+      "confidence": 0.81
+    }
+  }
+}

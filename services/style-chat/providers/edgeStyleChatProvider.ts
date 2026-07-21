@@ -74,6 +74,12 @@ export interface EdgeChatResult {
   actions?: EdgeChatAction[];
   /** v2 only: safe error code for attachment failures. */
   errorCode?: string;
+  /**
+   * E-4 optional structured advice metadata.
+   * Older clients ignore this field; text remains authoritative.
+   */
+  adviceMetadata?: Record<string, unknown>;
+  adviceContractVersion?: string;
 }
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
@@ -279,6 +285,7 @@ export class EdgeStyleChatProvider {
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
     activeContext?: StyleChatHandoffContext | null;
+    sourceMessageId?: string | null;
     /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
     attachments?: StyleChatAttachment[] | null;
     contextHint?: string | null;
@@ -293,6 +300,7 @@ export class EdgeStyleChatProvider {
         body: {
           sessionId: input.sessionId,
           message: input.message,
+          ...(input.sourceMessageId ? { sourceMessageId: input.sourceMessageId } : {}),
           // Additive/optional: sent only when weather-aware styling is enabled and a
           // rounded foreground fix is available. Requests without it stay valid.
           ...(input.weatherLocation && input.weatherLocation.enabled
@@ -486,11 +494,22 @@ export class EdgeStyleChatProvider {
         : [];
 
       // Validate and pass through the typed response.
+      const rawAdvice = (data as unknown as Record<string, unknown>).adviceMetadata;
+      const adviceContractVersion =
+        typeof (data as unknown as Record<string, unknown>).adviceContractVersion === 'string'
+          ? String((data as unknown as Record<string, unknown>).adviceContractVersion)
+          : undefined;
       return {
         status,
         message,
         usage: normalizeUsage(data.usage),
         ...(actions.length > 0 ? { actions } : {}),
+        ...(isRecord(rawAdvice)
+          ? {
+              adviceMetadata: rawAdvice,
+              ...(adviceContractVersion ? { adviceContractVersion } : {}),
+            }
+          : {}),
       };
 
     } catch (err: unknown) {
