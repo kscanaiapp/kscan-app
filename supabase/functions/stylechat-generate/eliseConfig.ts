@@ -1,0 +1,90 @@
+export const ELISE_BACKEND_VERSION = 'elise-backend-foundation-r014';
+export const ELISE_PROMPT_VERSION = 'stylechat-prompt-v1';
+export const ELISE_CONTEXT_CONTRACT_VERSION = 'visual-context-v1';
+export const ELISE_OUTPUT_PARSER_VERSION = 'stylechat-output-v1';
+
+export interface EliseBackendFlags {
+  aiEnabled: boolean;
+  contextNormalizationV1: boolean;
+  generationSafetyV1: boolean;
+  quotaIdempotencyV1: boolean;
+  speechResilienceV1: boolean;
+  speechRetry: boolean;
+  speechCircuitBreaker: boolean;
+  telemetryV1: boolean;
+  structuredGroundingV1: boolean;
+  explanations: boolean;
+}
+
+export interface EliseBackendConfig {
+  backendVersion: string;
+  promptVersion: string;
+  contextContractVersion: string;
+  outputParserVersion: string;
+  modelName: string;
+  burstLimitPerMinute: number;
+  flags: EliseBackendFlags;
+}
+
+export interface EnvReader {
+  get(name: string): string | undefined;
+}
+
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+
+function readTrimmed(env: EnvReader, name: string): string | undefined {
+  const value = env.get(name)?.trim();
+  return value ? value : undefined;
+}
+
+export function parseBooleanEnv(
+  env: EnvReader,
+  name: string,
+  defaultValue: boolean,
+): boolean {
+  const value = readTrimmed(env, name);
+  if (value == null) return defaultValue;
+  const normalized = value.toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return defaultValue;
+}
+
+function parsePositiveIntEnv(
+  env: EnvReader,
+  name: string,
+  defaultValue: number,
+  maxValue: number,
+): number {
+  const value = readTrimmed(env, name);
+  const parsed = value != null ? Number.parseInt(value, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.min(parsed, maxValue)
+    : defaultValue;
+}
+
+export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
+  return {
+    backendVersion: ELISE_BACKEND_VERSION,
+    promptVersion: ELISE_PROMPT_VERSION,
+    contextContractVersion: ELISE_CONTEXT_CONTRACT_VERSION,
+    outputParserVersion: ELISE_OUTPUT_PARSER_VERSION,
+    modelName:
+      readTrimmed(env, 'STYLECHAT_GEMINI_MODEL') ||
+      readTrimmed(env, 'GEMINI_MODEL') ||
+      DEFAULT_MODEL,
+    burstLimitPerMinute: parsePositiveIntEnv(env, 'STYLECHAT_BURST_LIMIT_PER_MINUTE', 4, 60),
+    flags: {
+      aiEnabled: !((readTrimmed(env, 'STYLECHAT_AI_ENABLED') ?? '').toLowerCase() === 'false'),
+      contextNormalizationV1: parseBooleanEnv(env, 'ELISE_CONTEXT_NORMALIZATION_V1_ENABLED', false),
+      generationSafetyV1: parseBooleanEnv(env, 'ELISE_GENERATION_SAFETY_V1_ENABLED', false),
+      quotaIdempotencyV1: parseBooleanEnv(env, 'ELISE_QUOTA_IDEMPOTENCY_V1_ENABLED', false),
+      speechResilienceV1: parseBooleanEnv(env, 'ELISE_SPEECH_RESILIENCE_V1_ENABLED', false),
+      speechRetry: parseBooleanEnv(env, 'ELISE_SPEECH_RETRY_ENABLED', false),
+      speechCircuitBreaker: parseBooleanEnv(env, 'ELISE_SPEECH_CIRCUIT_BREAKER_ENABLED', false),
+      telemetryV1: parseBooleanEnv(env, 'ELISE_TELEMETRY_V1_ENABLED', false),
+      structuredGroundingV1: parseBooleanEnv(env, 'ELISE_STRUCTURED_GROUNDING_V1_ENABLED', false),
+      explanations: parseBooleanEnv(env, 'STYLECHAT_EXPLANATIONS_ENABLED', true),
+    },
+  };
+}

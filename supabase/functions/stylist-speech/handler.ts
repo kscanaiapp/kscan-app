@@ -1,5 +1,11 @@
 import { requestElevenLabsSpeech, type ElevenLabsEnvironment } from './elevenLabsClient.ts';
 import { StylistSpeechRateLimiter } from './rateLimit.ts';
+import { parseBooleanEnv } from '../stylechat-generate/eliseConfig.ts';
+import {
+  SpeechCircuitBreaker,
+  shouldRecordSpeechCircuitFailure,
+  shouldRetrySpeechError,
+} from './resilience.ts';
 import { buildSpeechText, isHiddenOrSystemOnlyMessage } from './speechText.ts';
 import {
   StylistSpeechError,
@@ -23,6 +29,7 @@ export interface StylistSpeechHandlerDependencies {
   createDataAccess(authHeader: string): StylistSpeechDataAccess;
   env: ElevenLabsEnvironment;
   limiter?: StylistSpeechRateLimiter;
+  circuitBreaker?: SpeechCircuitBreaker;
   generateSpeech?: typeof requestElevenLabsSpeech;
   now?: () => number;
 }
@@ -70,6 +77,7 @@ export function createStylistSpeechHandler(
   dependencies: StylistSpeechHandlerDependencies,
 ): (request: Request) => Promise<Response> {
   const limiter = dependencies.limiter ?? new StylistSpeechRateLimiter();
+  const circuitBreaker = dependencies.circuitBreaker ?? new SpeechCircuitBreaker();
   const generateSpeech = dependencies.generateSpeech ?? requestElevenLabsSpeech;
   const now = dependencies.now ?? Date.now;
 
@@ -136,13 +144,59 @@ export function createStylistSpeechHandler(
         throw new StylistSpeechError(403, 'STYLIST_MISMATCH', 'The selected stylist does not match this account.');
       }
 
+      const speechResilienceEnabled = parseBooleanEnv(
+        dependencies.env,
+        'ELISE_SPEECH_RESILIENCE_V1_ENABLED',
+        false,
+      );
+      const speechRetryEnabled = parseBooleanEnv(
+        dependencies.env,
+        'ELISE_SPEECH_RETRY_ENABLED',
+        false,
+      );
+      const speechCircuitEnabled = parseBooleanEnv(
+        dependencies.env,
+        'ELISE_SPEECH_CIRCUIT_BREAKER_ENABLED',
+        false,
+      );
+      if (speechCircuitEnabled && !circuitBreaker.canAttempt('elevenlabs', now())) {
+        throw new StylistSpeechError(503, 'PROVIDER_UNAVAILABLE', 'Speech generation is unavailable.');
+      }
+
       const release = limiter.begin(actor.id, operationKey(actor.id, body), now());
       try {
-        const generated = await generateSpeech({
-          text: speechText,
-          voiceProfile,
-          env: dependencies.env,
-        });
+        let generated: Awaited<ReturnType<typeof generateSpeech>> | null = null;
+        let retryCount = 0;
+        const startedAt = now();
+        for (;;) {
+          try {
+            generated = await generateSpeech({
+              text: speechText,
+              voiceProfile,
+              env: dependencies.env,
+            });
+            if (speechCircuitEnabled) circuitBreaker.recordSuccess('elevenlabs');
+            break;
+          } catch (error) {
+            if (speechCircuitEnabled && shouldRecordSpeechCircuitFailure(error)) {
+              circuitBreaker.recordFailure('elevenlabs', now());
+            }
+            const retryAfterSeconds = error instanceof StylistSpeechError && error.code === 'PROVIDER_RATE_LIMIT'
+              ? 1
+              : null;
+            const shouldRetry = speechResilienceEnabled && speechRetryEnabled && shouldRetrySpeechError({
+              error,
+              retryCount,
+              retryAfterSeconds,
+              remainingBudgetMs: 15_000 - (now() - startedAt),
+            });
+            if (!shouldRetry) throw error;
+            retryCount += 1;
+          }
+        }
+        if (!generated) {
+          throw new StylistSpeechError(500, 'INTERNAL_ERROR', 'Speech is temporarily unavailable.');
+        }
         const response: StylistSpeechResponse = {
           messageId: body.messageId,
           stylistId: body.stylistId,

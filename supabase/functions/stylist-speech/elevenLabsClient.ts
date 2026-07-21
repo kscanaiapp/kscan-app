@@ -148,7 +148,7 @@ export async function requestElevenLabsSpeech(input: {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => '');
-      const classification = classifyProviderFailure(response.status, errorBody);
+      const classification = classifyProviderFailure(response.status, errorBody, response.headers);
       await emit({
         failureKind: 'provider_rejection',
         providerStatus: classification.providerStatus,

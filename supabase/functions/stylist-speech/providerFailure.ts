@@ -12,8 +12,25 @@ export type ProviderFailureCategory =
   | 'provider_voice_unavailable'
   | 'provider_model_unavailable'
   | 'provider_quota_exceeded'
+  | 'provider_rate_limited'
+  | 'provider_concurrency_limited'
   | 'provider_invalid_request'
   | 'provider_unavailable';
+
+export type StableSpeechErrorClass =
+  | 'QUOTA_EXHAUSTED'
+  | 'RATE_LIMIT'
+  | 'CONCURRENCY_LIMIT'
+  | 'AUTHENTICATION_FAILURE'
+  | 'VOICE_NOT_FOUND'
+  | 'MODEL_NOT_AVAILABLE'
+  | 'INVALID_REQUEST'
+  | 'PROVIDER_BUSY'
+  | 'PROVIDER_TIMEOUT'
+  | 'NETWORK_FAILURE'
+  | 'MALFORMED_AUDIO'
+  | 'EMPTY_AUDIO'
+  | 'UNKNOWN_PROVIDER_ERROR';
 
 export interface ProviderFailureClassification {
   /** Raw provider HTTP status. */
@@ -22,6 +39,8 @@ export interface ProviderFailureClassification {
   readonly category: ProviderFailureCategory;
   /** Public StylistSpeechError code (upper-snake, codebase convention). */
   readonly code: SpeechErrorCode;
+  readonly stableErrorClass: StableSpeechErrorClass;
+  readonly retryAfterSeconds: number | null;
   /** HTTP status returned to the client. */
   readonly clientStatus: number;
   /** Fixed, provider-neutral public message. Never derived from provider text. */
@@ -45,8 +64,21 @@ const CATEGORY_TO_CODE: Record<ProviderFailureCategory, SpeechErrorCode> = {
   provider_voice_unavailable: 'PROVIDER_VOICE_UNAVAILABLE',
   provider_model_unavailable: 'PROVIDER_MODEL_UNAVAILABLE',
   provider_quota_exceeded: 'PROVIDER_QUOTA_EXCEEDED',
+  provider_rate_limited: 'PROVIDER_RATE_LIMIT',
+  provider_concurrency_limited: 'PROVIDER_RATE_LIMIT',
   provider_invalid_request: 'PROVIDER_INVALID_REQUEST',
   provider_unavailable: 'PROVIDER_UNAVAILABLE',
+};
+
+const CATEGORY_TO_STABLE_CLASS: Record<ProviderFailureCategory, StableSpeechErrorClass> = {
+  provider_auth_failed: 'AUTHENTICATION_FAILURE',
+  provider_voice_unavailable: 'VOICE_NOT_FOUND',
+  provider_model_unavailable: 'MODEL_NOT_AVAILABLE',
+  provider_quota_exceeded: 'QUOTA_EXHAUSTED',
+  provider_rate_limited: 'RATE_LIMIT',
+  provider_concurrency_limited: 'CONCURRENCY_LIMIT',
+  provider_invalid_request: 'INVALID_REQUEST',
+  provider_unavailable: 'PROVIDER_BUSY',
 };
 
 // Public messages are fixed strings. They intentionally never interpolate any
@@ -56,6 +88,8 @@ const CATEGORY_TO_MESSAGE: Record<ProviderFailureCategory, string> = {
   provider_voice_unavailable: 'Speech generation is unavailable.',
   provider_model_unavailable: 'Speech generation is unavailable.',
   provider_quota_exceeded: 'Speech generation is temporarily limited.',
+  provider_rate_limited: 'Speech generation is temporarily limited.',
+  provider_concurrency_limited: 'Speech generation is temporarily limited.',
   provider_invalid_request: 'Speech generation is unavailable.',
   provider_unavailable: 'Speech generation is unavailable.',
 };
@@ -68,6 +102,8 @@ const CATEGORY_TO_CLIENT_STATUS: Record<ProviderFailureCategory, number> = {
   provider_voice_unavailable: 502,
   provider_model_unavailable: 502,
   provider_quota_exceeded: 429,
+  provider_rate_limited: 429,
+  provider_concurrency_limited: 429,
   provider_invalid_request: 502,
   provider_unavailable: 502,
 };
@@ -126,7 +162,11 @@ function refineByToken(
   const normalized = token.toLowerCase();
   if (/(voice)/.test(normalized)) return 'provider_voice_unavailable';
   if (/(model)/.test(normalized)) return 'provider_model_unavailable';
-  if (/(quota|exceeded|too_many|rate)/.test(normalized)) return 'provider_quota_exceeded';
+  if (/(concurrency|concurrent|too_many_concurrent|too_many_connections)/.test(normalized)) {
+    return 'provider_concurrency_limited';
+  }
+  if (/(quota|credit|billing|subscription|exceeded)/.test(normalized)) return 'provider_quota_exceeded';
+  if (/(rate|too_many|throttle|requests)/.test(normalized)) return 'provider_rate_limited';
   if (/(api_key|apikey|unauthor|permission|forbidden|missing_permissions|invalid_key)/.test(normalized)) {
     return 'provider_auth_failed';
   }
@@ -137,7 +177,7 @@ function baseCategoryForStatus(status: number): ProviderFailureCategory {
   if (status === 401) return 'provider_auth_failed';
   if (status === 403) return 'provider_auth_failed';
   if (status === 404) return 'provider_voice_unavailable';
-  if (status === 429) return 'provider_quota_exceeded';
+  if (status === 429) return 'provider_rate_limited';
   if (status === 400 || status === 422) return 'provider_invalid_request';
   if (status >= 500) return 'provider_unavailable';
   return 'provider_unavailable';
@@ -151,6 +191,7 @@ function baseCategoryForStatus(status: number): ProviderFailureCategory {
 export function classifyProviderFailure(
   status: number,
   rawBody: string,
+  headers?: Headers | Record<string, string | null | undefined>,
 ): ProviderFailureClassification {
   const totalByteLength = byteLength(rawBody);
   const inspected = truncateToBytes(rawBody, PROVIDER_ERROR_INSPECTION_LIMIT_BYTES);
@@ -168,18 +209,55 @@ export function classifyProviderFailure(
   }
 
   const category = refineByToken(baseCategoryForStatus(status), providerErrorStatus);
+  const retryAfterValue = headers instanceof Headers
+    ? headers.get('Retry-After')
+    : headers?.['Retry-After'] ?? headers?.['retry-after'] ?? null;
+  const retryAfterSeconds = parseRetryAfterSeconds(retryAfterValue);
 
   return {
     providerStatus: status,
     category,
     code: CATEGORY_TO_CODE[category],
+    stableErrorClass: CATEGORY_TO_STABLE_CLASS[category],
     clientStatus: CATEGORY_TO_CLIENT_STATUS[category],
     message: CATEGORY_TO_MESSAGE[category],
     isJson,
     providerErrorStatus,
+    retryAfterSeconds,
     inspectedByteLength,
     totalByteLength,
   };
+}
+
+export function parseRetryAfterSeconds(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const seconds = Number.parseInt(trimmed, 10);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds, 30);
+  const dateMs = Date.parse(trimmed);
+  if (!Number.isFinite(dateMs)) return null;
+  const delta = Math.ceil((dateMs - Date.now()) / 1000);
+  return delta >= 0 ? Math.min(delta, 30) : null;
+}
+
+export function shouldRetryProviderFailure(
+  classification: ProviderFailureClassification,
+  retryCount: number,
+  remainingBudgetMs: number,
+): boolean {
+  if (retryCount >= 1 || remainingBudgetMs <= 0) return false;
+  if (['PROVIDER_BUSY', 'PROVIDER_TIMEOUT', 'NETWORK_FAILURE'].includes(classification.stableErrorClass)) {
+    return remainingBudgetMs >= 250;
+  }
+  if (
+    (classification.stableErrorClass === 'RATE_LIMIT' ||
+      classification.stableErrorClass === 'CONCURRENCY_LIMIT') &&
+    classification.retryAfterSeconds != null
+  ) {
+    return classification.retryAfterSeconds * 1000 < remainingBudgetMs;
+  }
+  return false;
 }
 
 /** Build the sanitized public error for a classified provider failure. */

@@ -112,7 +112,7 @@ Deno.test('classifies provider failures into specific app-owned categories witho
     [403, JSON.stringify({ detail: { status: 'missing_permissions' } }), 'PROVIDER_AUTH_FAILED'],
     [404, JSON.stringify({ detail: { status: 'voice_not_found' } }), 'PROVIDER_VOICE_UNAVAILABLE'],
     [422, JSON.stringify({ detail: { status: 'model_not_found' } }), 'PROVIDER_MODEL_UNAVAILABLE'],
-    [429, JSON.stringify({ detail: { status: 'too_many_requests' } }), 'PROVIDER_QUOTA_EXCEEDED'],
+    [429, JSON.stringify({ detail: { status: 'too_many_requests' } }), 'PROVIDER_RATE_LIMIT'],
     [500, 'provider-secret-diagnostic', 'PROVIDER_UNAVAILABLE'],
   ] as const;
 

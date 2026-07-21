@@ -9,7 +9,7 @@ import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { reportAiOutput } from '../../services/reportAiOutput';
 import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
-import { isEligibleForStyleFeedback } from '../../services/style-dna/styleDnaEligibility';
+import { shouldShowStyleFeedbackControls } from '../../services/style-dna/styleDnaEligibility';
 
 interface StyleChatBubbleProps {
   message: StyleChatMessage;
@@ -143,7 +143,13 @@ export function StyleChatBubble({
     !isSyntheticFailure &&
     !isGreeting &&
     isStablePersistedId(message.id) &&
-    isEligibleForStyleFeedback({ message, userKey, isError });
+    shouldShowStyleFeedbackControls({
+      message,
+      userKey,
+      isError,
+      learnFromFeedback,
+      showFeedbackControls,
+    });
 
   return (
     <View
@@ -241,7 +247,7 @@ export function StyleChatBubble({
             })}
           </View>
         ) : null}
-        {showFeedback && learnFromFeedback && showFeedbackControls ? (
+        {showFeedback ? (
           <StyleChatFeedbackControls
             userKey={userKey as string}
             sessionId={message.sessionId}

@@ -61,6 +61,24 @@ export type AttachmentResolutionResult =
         | 'ATTACHMENT_LIMIT_EXCEEDED';
     };
 
+export type AttachmentDegradationOutcome =
+  | 'accepted'
+  | 'rejected_unauthorized'
+  | 'not_found'
+  | 'expired_reference'
+  | 'invalid_shape'
+  | 'image_unavailable'
+  | 'inspection_failed';
+
+export function attachmentOutcomeForResolution(
+  result: AttachmentResolutionResult,
+): AttachmentDegradationOutcome {
+  if (result.ok) return 'accepted';
+  if (result.errorCode === 'ATTACHMENT_NOT_OWNED') return 'rejected_unauthorized';
+  if (result.errorCode === 'ATTACHMENT_LIMIT_EXCEEDED') return 'invalid_shape';
+  return 'not_found';
+}
+
 // ── Injected data access (implemented in index.ts with the user client) ───────
 
 export type AttachmentDataSource = {

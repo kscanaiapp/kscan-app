@@ -1,0 +1,51 @@
+{
+  "description": "Current installed client expects this response from stylechat-generate Edge Function",
+  "version": "v0 (legacy)",
+  "note": "This fixture represents the response shape currently consumed by installed mobile clients. All repairs must keep required fields.",
+  "example": {
+    "message": "With your minimalist style, I'd pair the blazer with tailored navy trousers and minimal accessories for a polished casual dinner look.",
+    "ui_blocks": [
+      {
+        "type": "explanation",
+        "content": "This combination balances structure with your preference for clean lines."
+      }
+    ],
+    "model": "gemini-2.5-flash",
+    "provider": "google",
+    "token_estimate": 248
+  },
+  "response_fields": {
+    "message": {
+      "required": true,
+      "type": "string",
+      "max_length": 1000,
+      "description": "The styling recommendation or response text"
+    },
+    "ui_blocks": {
+      "required": false,
+      "type": "array",
+      "description": "Optional UI blocks (explanations, actions). Old clients safely ignore unknown block types.",
+      "block_types": ["explanation", "action", "greeting"]
+    },
+    "model": {
+      "required": false,
+      "type": "string",
+      "description": "Model name used for generation (telemetry only)"
+    },
+    "provider": {
+      "required": false,
+      "type": "string",
+      "description": "Provider name (telemetry only)"
+    },
+    "token_estimate": {
+      "required": false,
+      "type": "integer",
+      "description": "Estimated tokens used (cost tracking)"
+    }
+  },
+  "backward_compatibility": {
+    "old_clients_ignore": ["ui_blocks", "model", "provider", "token_estimate"],
+    "old_clients_require": ["message"],
+    "new_fields_must_be_optional": true
+  }
+}

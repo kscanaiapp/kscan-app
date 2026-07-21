@@ -279,6 +279,7 @@ export class EdgeStyleChatProvider {
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
     activeContext?: StyleChatHandoffContext | null;
+    sourceMessageId?: string | null;
     /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
     attachments?: StyleChatAttachment[] | null;
     contextHint?: string | null;
@@ -293,6 +294,7 @@ export class EdgeStyleChatProvider {
         body: {
           sessionId: input.sessionId,
           message: input.message,
+          ...(input.sourceMessageId ? { sourceMessageId: input.sourceMessageId } : {}),
           // Additive/optional: sent only when weather-aware styling is enabled and a
           // rounded foreground fix is available. Requests without it stay valid.
           ...(input.weatherLocation && input.weatherLocation.enabled

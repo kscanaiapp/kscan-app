@@ -1,0 +1,7 @@
+{
+  "description": "Redacted stylist-speech error response",
+  "example": {
+    "error": "Speech generation is temporarily unavailable.",
+    "code": "PROVIDER_UNAVAILABLE"
+  }
+}

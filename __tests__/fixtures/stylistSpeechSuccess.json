@@ -1,0 +1,11 @@
+{
+  "description": "Redacted stylist-speech success response",
+  "example": {
+    "messageId": "22222222-2222-4222-8222-222222222222",
+    "stylistId": "stylist_portrait_05",
+    "voiceProfile": "feminine",
+    "mimeType": "audio/mpeg",
+    "audioBase64": "YXVkaW8=",
+    "alignment": null
+  }
+}

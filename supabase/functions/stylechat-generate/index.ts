@@ -23,6 +23,11 @@ import {
   buildActiveContextBlock,
   VISUAL_COLLECTION_CONTRACT_VERSION,
 } from './activeContext.ts';
+import { readEliseBackendConfig } from './eliseConfig.ts';
+import { buildGenerationIdentity, validateSourceMessageOwnership } from './generationSafety.ts';
+import { stripUnsafeModelOutput } from './promptHardening.ts';
+import { emitEliseTelemetry, makeRequestId, stableActorHash } from './telemetry.ts';
+import { normalizeLegacyVisualContext, type NormalizedVisualContext } from './visualContext.ts';
 // v2 (Closet Intelligence) modules — used only on the v2 request path.
 import {
   isV2StyleChatRequest,
@@ -32,6 +37,7 @@ import {
 } from './attachments.ts';
 import {
   buildAttachmentContextBlock,
+  attachmentOutcomeForResolution,
   normalizeContextHint,
   resolveStyleChatAttachments,
   type AttachmentDataSource,
@@ -812,6 +818,8 @@ Deno.serve(async (req) => {
     weatherLocation?: unknown;
     styleDnaContext?: unknown;
     activeContext?: unknown;
+    sourceMessageId?: unknown;
+    requestId?: unknown;
     // v2 (Closet Intelligence) — absent on v1 requests.
     attachments?: unknown;
     contractVersion?: unknown;
@@ -823,15 +831,17 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
+  const config = readEliseBackendConfig({ get: (name) => Deno.env.get(name) ?? undefined });
+  const requestId = typeof body.requestId === 'string' && body.requestId.trim()
+    ? body.requestId.trim().slice(0, 80)
+    : makeRequestId();
+  const actorHash = await stableActorHash(userId);
+
   // Kill switch is trim/case-insensitive; only an explicit "false" disables AI.
-  const isAiDisabled =
-    readTrimmedEnv('STYLECHAT_AI_ENABLED')?.toLowerCase() === 'false';
+  const isAiDisabled = !config.flags.aiEnabled;
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
   // Model name is trimmed but never lowercased; preserves exact operator config.
-  const modelName =
-    readTrimmedEnv('STYLECHAT_GEMINI_MODEL') ||
-    readTrimmedEnv('GEMINI_MODEL') ||
-    DEFAULT_MODEL;
+  const modelName = config.modelName || DEFAULT_MODEL;
 
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const message   = typeof body.message   === 'string' ? body.message.trim()   : '';
@@ -852,9 +862,25 @@ Deno.serve(async (req) => {
   // (older app builds send nothing and behave exactly as before).
   const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
 
+  const sourceMessageId = typeof body.sourceMessageId === 'string'
+    ? body.sourceMessageId.trim()
+    : null;
+
   // Optional, additive active scan/upload/TextScan context for grounding.
-  const activeContext = parseActiveContext(body.activeContext);
-  if (body.activeContext != null && !activeContext) {
+  let normalizedVisualContext: NormalizedVisualContext | null = null;
+  let activeContext = parseActiveContext(body.activeContext);
+  if (config.flags.contextNormalizationV1) {
+    normalizedVisualContext = normalizeLegacyVisualContext(body.activeContext);
+    activeContext = normalizedVisualContext.activeContext;
+    emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
+      requestId,
+      operationType: 'stylechat_generate_reply',
+      actorHash,
+      normalizedContextCount: normalizedVisualContext.items.length,
+      rejectedContextCount: normalizedVisualContext.rejectedCount,
+    });
+  }
+  if (!config.flags.contextNormalizationV1 && body.activeContext != null && !activeContext) {
     const activeContextRecord = typeof body.activeContext === 'object' &&
       !Array.isArray(body.activeContext)
       ? body.activeContext as Record<string, unknown>
@@ -934,6 +960,24 @@ Deno.serve(async (req) => {
     return json({ error: 'Session not found' }, 404);
   }
 
+  const generationIdentity = await buildGenerationIdentity({
+    actorId: userId,
+    sessionId,
+    sourceMessageId,
+    message,
+    requestId,
+  });
+  if (config.flags.generationSafetyV1) {
+    const ownsSourceMessage = await validateSourceMessageOwnership({
+      userClient,
+      sourceMessageId,
+      actorId: userId,
+      sessionId,
+    });
+    if (!ownsSourceMessage) {
+      return json({ error: 'Source message not found' }, 404);
+    }
+  }
 
   // ── 4b. Per-minute burst limit ────────────────────────────────────────────────
   // Checked before daily quota so burst-limited requests do not consume daily quota.
@@ -942,11 +986,7 @@ Deno.serve(async (req) => {
   // Boundary note: a user can send limit requests at the end of one window and
   // limit more at the start of the next; this is acceptable for beta.
 
-  const burstLimitPerMinute = (() => {
-    const raw = readTrimmedEnv('STYLECHAT_BURST_LIMIT_PER_MINUTE');
-    const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 60) : 4;
-  })();
+  const burstLimitPerMinute = config.burstLimitPerMinute;
 
   const { data: burstData, error: burstError } = await userClient
     .rpc('check_and_increment_stylechat_burst', { p_limit: burstLimitPerMinute });
@@ -1065,6 +1105,15 @@ Deno.serve(async (req) => {
     };
 
     const resolution = await resolveStyleChatAttachments(parsedAttachments, attachmentData);
+    const attachmentOutcome = attachmentOutcomeForResolution(resolution);
+    emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
+      requestId,
+      operationType: 'stylechat_generate_reply',
+      actorHash,
+      attachmentOutcome,
+      acceptedAttachmentCount: resolution.ok ? resolution.resolved.length : 0,
+      rejectedAttachmentCount: resolution.ok ? 0 : parsedAttachments.length,
+    });
     if (!resolution.ok) {
       console.log(
         '[stylechat-generate] attachment_rejected uid=%s code=%s count=%d',
@@ -1088,8 +1137,11 @@ Deno.serve(async (req) => {
   // This is the authority check. If the RPC returns limit_reached=true, we abort
   // before making any Gemini call.
 
-  const { data: quotaData, error: quotaError } = await userClient
-    .rpc('increment_stylechat_daily_usage');
+  const { data: quotaData, error: quotaError } = config.flags.quotaIdempotencyV1
+    ? await userClient.rpc('increment_stylechat_daily_usage_idempotent', {
+        p_operation_key: generationIdentity.operationKey,
+      })
+    : await userClient.rpc('increment_stylechat_daily_usage');
 
   if (quotaError) {
     console.error('[stylechat-generate] quota RPC error:', quotaError.message);
@@ -1138,6 +1190,14 @@ Deno.serve(async (req) => {
       usage: { messagesUsed, messagesLimit, resetAt },
     });
   }
+  emitEliseTelemetry(config, 'elise_quota_outcome', {
+    requestId,
+    operationType: generationIdentity.operationType,
+    actorHash,
+    messagesUsed,
+    messagesLimit,
+    duplicate: Boolean((quotaRow as Record<string, unknown>).duplicate_request),
+  });
 
   // ── 6. Assemble server-side context ──────────────────────────────────────────
   // Memory summary (bounded) + last 6 messages from the session.
@@ -1256,7 +1316,7 @@ Deno.serve(async (req) => {
 
   // ── 7. Build Gemini request payload ──────────────────────────────────────────
 
-  const baseSystemPrompt = STYLECHAT_EXPLANATIONS_ENABLED
+  const baseSystemPrompt = config.flags.explanations
     ? `${SYSTEM_PROMPT}\n\n${EXPLANATION_INSTRUCTIONS}`
     : SYSTEM_PROMPT;
 
@@ -1541,6 +1601,7 @@ Deno.serve(async (req) => {
 
   // Final safety net: if no usable text survived (e.g. an empty best-effort path),
   // substitute the generic fallback so we never return whitespace as success.
+  assistantText = stripUnsafeModelOutput(assistantText);
   if (!usedFallback && assistantText.trim().length === 0) {
     usedFallback = true;
     assistantText = buildStyleChatFallback();
@@ -1576,6 +1637,19 @@ Deno.serve(async (req) => {
     String(usedFallback),
     elapsedMs,
   );
+  emitEliseTelemetry(config, 'elise_generation_outcome', {
+    requestId,
+    operationType: generationIdentity.operationType,
+    actorHash,
+    provider: 'google',
+    model: modelName,
+    latencyMs: elapsedMs,
+    retryCount: wasRetried ? 1 : 0,
+    stableErrorClass: usedFallback ? 'UNKNOWN_PROVIDER_ERROR' : null,
+    normalizedContextCount: normalizedVisualContext?.items.length ?? 0,
+    acceptedAttachmentCount: resolvedAttachments.length,
+    rejectedAttachmentCount: 0,
+  });
 
   // When a fallback message was substituted (Gemini failed, retry failed, or retry was
   // truncated/empty), surface status "error" while preserving the message shape. Real
@@ -1596,7 +1670,7 @@ Deno.serve(async (req) => {
   };
 
   if (
-    STYLECHAT_EXPLANATIONS_ENABLED &&
+    config.flags.explanations &&
     !usedFallback &&
     typeof whyThisWorks === 'string' &&
     whyThisWorks.trim().length > 0
@@ -1613,6 +1687,7 @@ Deno.serve(async (req) => {
       status: usedFallback ? 'error' : 'success',
       message: responseMessage,
       usage: { messagesUsed, messagesLimit, resetAt },
+      requestId,
       ...(activeContext?.visualCollection?.evidence.length
         ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
         : {}),
@@ -1623,6 +1698,7 @@ Deno.serve(async (req) => {
     status: usedFallback ? 'error' : 'success',
     message: responseMessage,
     usage: { messagesUsed, messagesLimit, resetAt },
+    requestId,
     contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
     capabilities: ['attachments', 'structured_actions'],
     actions: validatedActions,

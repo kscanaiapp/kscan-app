@@ -42,6 +42,7 @@ interface MessageRow {
   referenced_dressing_room_ids: string[];
   referenced_catalog_items: string[];
   ui_blocks: StyleChatUiBlock[];
+  source_message_id?: string | null;
   provider: string | null;
   model: string | null;
   token_estimate: number;
@@ -188,7 +189,7 @@ export async function listStyleChatMessages(
   const { data, error } = await supabase
     .from('style_chat_messages')
     .select(
-      'id, session_id, user_id, sender, content, referenced_scan_ids, referenced_saved_item_ids, referenced_dressing_room_ids, referenced_catalog_items, ui_blocks, provider, model, token_estimate, created_at',
+      'id, session_id, user_id, sender, content, referenced_scan_ids, referenced_saved_item_ids, referenced_dressing_room_ids, referenced_catalog_items, ui_blocks, provider, model, token_estimate, created_at, source_message_id',
     )
     .eq('session_id', sessionId)
     .eq('user_id', userId)  // belt-and-suspenders
@@ -210,6 +211,7 @@ export async function saveStyleChatMessage(input: {
   referencedSavedItemIds?: string[];
   referencedDressingRoomIds?: string[];
   referencedCatalogItems?: string[];
+  sourceMessageId?: string | null;
 }, expectedUserId?: string): Promise<StyleChatMessage> {
   const userId = await requireUserId(expectedUserId);
 
@@ -222,6 +224,9 @@ export async function saveStyleChatMessage(input: {
       content: input.content.trim(),
       ui_blocks: input.uiBlocks ?? [],
       provider: input.provider ?? 'mock',
+      ...(input.sender === 'assistant' && input.sourceMessageId
+        ? { source_message_id: input.sourceMessageId }
+        : {}),
       model: input.model ?? null,
       token_estimate:
         typeof input.tokenEstimate === 'number' && input.tokenEstimate > 0
@@ -233,11 +238,30 @@ export async function saveStyleChatMessage(input: {
       referenced_catalog_items: input.referencedCatalogItems ?? [],
     })
     .select(
-      'id, session_id, user_id, sender, content, referenced_scan_ids, referenced_saved_item_ids, referenced_dressing_room_ids, referenced_catalog_items, ui_blocks, provider, model, token_estimate, created_at',
+      'id, session_id, user_id, sender, content, referenced_scan_ids, referenced_saved_item_ids, referenced_dressing_room_ids, referenced_catalog_items, ui_blocks, provider, model, token_estimate, created_at, source_message_id',
     )
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    const duplicateSource =
+      input.sender === 'assistant' &&
+      input.sourceMessageId &&
+      /duplicate|unique|style_chat_assistant_source_message_unique/i.test(error.message ?? '');
+    if (duplicateSource) {
+      const { data: existing, error: existingError } = await supabase
+        .from('style_chat_messages')
+        .select(
+          'id, session_id, user_id, sender, content, referenced_scan_ids, referenced_saved_item_ids, referenced_dressing_room_ids, referenced_catalog_items, ui_blocks, provider, model, token_estimate, created_at, source_message_id',
+        )
+        .eq('session_id', input.sessionId)
+        .eq('user_id', userId)
+        .eq('sender', 'assistant')
+        .eq('source_message_id', input.sourceMessageId)
+        .maybeSingle();
+      if (!existingError && existing) return toMessage(existing as MessageRow);
+    }
+    throw new Error(error.message);
+  }
 
   // Best-effort session timestamp bump; fire-and-forget
   void touchSession(input.sessionId);

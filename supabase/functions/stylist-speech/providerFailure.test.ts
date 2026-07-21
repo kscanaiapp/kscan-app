@@ -56,11 +56,19 @@ Deno.test('classifies a 422 model-scoped rejection as model unavailable', () => 
   assert.equal(result.code, 'PROVIDER_MODEL_UNAVAILABLE');
 });
 
-Deno.test('classifies a 429 provider rejection as quota exceeded', () => {
+Deno.test('classifies a generic 429 provider rejection as rate limited, not quota', () => {
   const result = classifyProviderFailure(429, detailBody('too_many_requests'));
+  assert.equal(result.category, 'provider_rate_limited');
+  assert.equal(result.code, 'PROVIDER_RATE_LIMIT');
+  assert.equal(result.stableErrorClass, 'RATE_LIMIT');
+  assert.equal(result.clientStatus, 429);
+});
+
+Deno.test('classifies explicit 429 quota exhaustion separately', () => {
+  const result = classifyProviderFailure(429, detailBody('quota_exceeded'));
   assert.equal(result.category, 'provider_quota_exceeded');
   assert.equal(result.code, 'PROVIDER_QUOTA_EXCEEDED');
-  assert.equal(result.clientStatus, 429);
+  assert.equal(result.stableErrorClass, 'QUOTA_EXHAUSTED');
 });
 
 Deno.test('classifies a 5xx provider rejection as provider unavailable', () => {

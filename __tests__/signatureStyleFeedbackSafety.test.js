@@ -73,11 +73,15 @@ test('reason changes fail closed and restore optimistic state on persistence err
 test('conversation feedback UI and writes use the same explicit two-part gate', () => {
   assert.match(
     bubbleSource,
-    /showFeedback && learnFromFeedback && showFeedbackControls \? \(/,
+    /shouldShowStyleFeedbackControls\(\{/,
   );
   assert.match(
     bubbleSource,
     /feedbackEnabled=\{learnFromFeedback && showFeedbackControls\}/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(ROOT, 'services', 'style-dna', 'styleDnaEligibility.ts'), 'utf8'),
+    /params\.learnFromFeedback &&\s*params\.showFeedbackControls/,
   );
   assert.match(controlsSource, /if \(\s*!feedbackEnabledRef\.current \|\|/);
   assert.match(controlsSource, /feedbackEnabledRef\.current = false/);
