@@ -25,6 +25,8 @@ export interface EliseGroundingPackage {
   };
   attachmentOutcomes: string[];
   userMessage: string;
+  /** Optional E-4 closet-aware advice grounding block (already sanitized). */
+  advicePromptBlock: string | null;
 }
 
 const MAX_USER_MESSAGE_CHARS = 4_000;
@@ -49,6 +51,7 @@ export function buildEliseGroundingPackage(input: {
   signatureStyleSummary?: string | null;
   weatherSummary?: string | null;
   attachmentOutcomes?: string[];
+  advicePromptBlock?: string | null;
 }): EliseGroundingPackage {
   return {
     groundingVersion: ELISE_GROUNDING_VERSION,
@@ -71,6 +74,13 @@ export function buildEliseGroundingPackage(input: {
       .filter((code) => typeof code === 'string' && /^[a-z_]+$/.test(code))
       .slice(0, 12),
     userMessage: boundText(input.userMessage, MAX_USER_MESSAGE_CHARS) ?? '',
+    advicePromptBlock: (() => {
+      if (typeof input.advicePromptBlock !== 'string') return null;
+      const cleaned = input.advicePromptBlock
+        .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ')
+        .trim();
+      return cleaned ? cleaned.slice(0, 8_000) : null;
+    })(),
   };
 }
 
@@ -124,6 +134,10 @@ export function buildStructuredGroundingSystemBlock(
       lines.push(visualBlock);
       lines.push('[/UNVERIFIED / TYPED VISUAL REFERENCE CONTEXT]');
     }
+  }
+
+  if (grounding.advicePromptBlock) {
+    lines.push(grounding.advicePromptBlock);
   }
 
   lines.push(

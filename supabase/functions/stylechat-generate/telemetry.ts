@@ -4,7 +4,8 @@ export type EliseTelemetryEventName =
   | 'elise_generation_outcome'
   | 'elise_context_normalization_outcome'
   | 'elise_speech_outcome'
-  | 'elise_quota_outcome';
+  | 'elise_quota_outcome'
+  | 'elise_advice_outcome';
 
 export type EliseTelemetryPayload = Record<string, unknown>;
 
@@ -56,6 +57,18 @@ const ALLOWED_KEYS = new Set([
   'staleResponseOutcome',
   'groundingVersion',
   'mayGenerate',
+  // E-4 allowlisted keys only — no item names, URLs, or full Closet dumps.
+  'adviceIntent',
+  'candidateCountsBySource',
+  'authorizedCount',
+  'rejectedCount',
+  'retrievalLatencyMs',
+  'scoringLatencyMs',
+  'groundedCandidateCount',
+  'ownershipSourceCounts',
+  'purchaseVerdict',
+  'wardrobeGapCategoryCode',
+  'multiLookCount',
 ]);
 
 const ALLOWED_STRING_VALUE = /^[A-Za-z0-9_.:\-|,]{0,160}$/;

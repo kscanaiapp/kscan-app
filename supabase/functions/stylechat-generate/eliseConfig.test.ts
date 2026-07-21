@@ -24,6 +24,12 @@ Deno.test('Elise backend config defaults preserve current behavior and default r
   assert.equal(config.flags.structuredGroundingV1, false);
   assert.equal(config.flags.speechDeduplicationV1, false);
   assert.equal(config.flags.speechConcurrencyV1, false);
+  assert.equal(config.flags.adviceIntentsV1, false);
+  assert.equal(config.flags.closetRetrievalV1, false);
+  assert.equal(config.flags.compatibilityScoringV1, false);
+  assert.equal(config.flags.wardrobeGapV1, false);
+  assert.equal(config.flags.purchaseAdviceV1, false);
+  assert.equal(config.flags.multiLookV1, false);
 });
 
 Deno.test('Elise backend config supports independent valid overrides and safe invalid fallback', () => {

@@ -1,4 +1,4 @@
-export const ELISE_BACKEND_VERSION = 'elise-backend-foundation-r014';
+export const ELISE_BACKEND_VERSION = 'elise-backend-foundation-r015';
 export const ELISE_PROMPT_VERSION = 'stylechat-prompt-v1';
 export const ELISE_CONTEXT_CONTRACT_VERSION = 'visual-context-v1';
 export const ELISE_OUTPUT_PARSER_VERSION = 'stylechat-output-v1';
@@ -17,6 +17,13 @@ export interface EliseBackendFlags {
   structuredGroundingV1: boolean;
   generationRetryV1: boolean;
   explanations: boolean;
+  /** E-4 closet-aware styling — all default OFF. */
+  adviceIntentsV1: boolean;
+  closetRetrievalV1: boolean;
+  compatibilityScoringV1: boolean;
+  wardrobeGapV1: boolean;
+  purchaseAdviceV1: boolean;
+  multiLookV1: boolean;
 }
 
 export interface EliseBackendConfig {
@@ -91,6 +98,12 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       structuredGroundingV1: parseBooleanEnv(env, 'ELISE_STRUCTURED_GROUNDING_V1_ENABLED', false),
       generationRetryV1: parseBooleanEnv(env, 'ELISE_GENERATION_RETRY_V1_ENABLED', false),
       explanations: parseBooleanEnv(env, 'STYLECHAT_EXPLANATIONS_ENABLED', true),
+      adviceIntentsV1: parseBooleanEnv(env, 'ELISE_ADVICE_INTENTS_V1_ENABLED', false),
+      closetRetrievalV1: parseBooleanEnv(env, 'ELISE_CLOSET_RETRIEVAL_V1_ENABLED', false),
+      compatibilityScoringV1: parseBooleanEnv(env, 'ELISE_COMPATIBILITY_SCORING_V1_ENABLED', false),
+      wardrobeGapV1: parseBooleanEnv(env, 'ELISE_WARDROBE_GAP_V1_ENABLED', false),
+      purchaseAdviceV1: parseBooleanEnv(env, 'ELISE_PURCHASE_ADVICE_V1_ENABLED', false),
+      multiLookV1: parseBooleanEnv(env, 'ELISE_MULTI_LOOK_V1_ENABLED', false),
     },
   };
 }
