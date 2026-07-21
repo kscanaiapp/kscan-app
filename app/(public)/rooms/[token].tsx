@@ -38,7 +38,6 @@ import { useAuthSession } from '../../../contexts/AuthSessionContext';
 import {
   getItemReactionCounts,
   getMyItemReaction,
-  removeItemReaction,
   setItemReaction,
 } from '../../../services/styleObjects';
 import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
@@ -906,9 +905,9 @@ export default function SharedRoomScreen() {
     setMutatingReactionItemId(itemId);
     try {
       if (currentReaction === reactionType) {
-        await removeItemReaction(itemId);
+        await setItemReaction(itemId, reactionType, { roomId: joinedRoomId, active: false });
       } else {
-        await setItemReaction(itemId, reactionType);
+        await setItemReaction(itemId, reactionType, { roomId: joinedRoomId, active: true });
       }
       await refreshItemReactions([itemId]);
     } catch {

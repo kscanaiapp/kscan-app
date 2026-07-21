@@ -3,9 +3,18 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import {
   DRESSING_ROOM_CANONICAL_ITEM_V1,
+  DRESSING_ROOM_COLLABORATION_V1,
   DRESSING_ROOM_COMMERCE_PRESERVATION_V1,
   DRESSING_ROOM_DEDUPE_V1,
+  DRESSING_ROOM_REACTIONS_V1,
 } from '../constants/featureFlags';
+import {
+  createCollabRequestId,
+  getCollabActorGeneration,
+  isCurrentCollabGeneration,
+  setItemReactionDesiredState,
+  bumpCollabActorGeneration,
+} from './dressingRoomCollaboration';
 import {
   buildCanonicalSnapshotExtension,
   isLocalImageUri as contractIsLocalImageUri,
@@ -920,12 +929,41 @@ export async function getMyItemReaction(
 export async function setItemReaction(
   itemId: string,
   reactionType: DressingRoomReactionType,
+  options?: { roomId?: string; active?: boolean; requestId?: string },
 ): Promise<void> {
   const normalizedItemId = String(itemId || '').trim();
   const currentUserId = requireAuthUserId(await getCurrentSessionUserId());
+  bumpCollabActorGeneration(currentUserId);
 
   if (!normalizedItemId) {
     throw new Error(REACTION_SAVE_ERROR);
+  }
+
+  const active = options?.active !== false;
+  const roomId = String(options?.roomId || '').trim();
+
+  if (DRESSING_ROOM_COLLABORATION_V1 && DRESSING_ROOM_REACTIONS_V1 && roomId) {
+    const generation = getCollabActorGeneration();
+    const requestId = options?.requestId ?? createCollabRequestId();
+    try {
+      await setItemReactionDesiredState({
+        roomId,
+        itemId: normalizedItemId,
+        reactionType,
+        active,
+        requestId,
+      });
+      if (!isCurrentCollabGeneration(generation)) {
+        throw new Error(REACTION_SAVE_ERROR);
+      }
+      return;
+    } catch {
+      throw new Error(REACTION_SAVE_ERROR);
+    }
+  }
+
+  if (!active) {
+    return removeItemReaction(normalizedItemId);
   }
 
   const { error } = await supabase
