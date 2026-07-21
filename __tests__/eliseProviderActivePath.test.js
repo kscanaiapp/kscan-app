@@ -42,6 +42,7 @@ test('R-010 backend Elise flags are backend-scoped and default-off for repairs',
     'ELISE_SPEECH_CIRCUIT_BREAKER_ENABLED',
     'ELISE_TELEMETRY_V1_ENABLED',
     'ELISE_STRUCTURED_GROUNDING_V1_ENABLED',
+    'ELISE_GENERATION_RETRY_V1_ENABLED',
   ]) {
     assert.match(config, new RegExp(flag));
   }

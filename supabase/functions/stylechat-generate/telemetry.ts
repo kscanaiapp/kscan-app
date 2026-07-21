@@ -44,6 +44,18 @@ const ALLOWED_KEYS = new Set([
   'truncatedCount',
   'resolverOutcomeCounts',
   'contextNormalizationV1',
+  'operationStatus',
+  'attemptCount',
+  'duplicateDetected',
+  'duplicateRecoveryOutcome',
+  'quotaReservationOutcome',
+  'generationLatencyMs',
+  'providerLatencyMs',
+  'outputValidationOutcome',
+  'persistenceOutcome',
+  'staleResponseOutcome',
+  'groundingVersion',
+  'mayGenerate',
 ]);
 
 const ALLOWED_STRING_VALUE = /^[A-Za-z0-9_.:\-|,]{0,160}$/;

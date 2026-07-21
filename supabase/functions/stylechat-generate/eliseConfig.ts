@@ -13,6 +13,7 @@ export interface EliseBackendFlags {
   speechCircuitBreaker: boolean;
   telemetryV1: boolean;
   structuredGroundingV1: boolean;
+  generationRetryV1: boolean;
   explanations: boolean;
 }
 
@@ -84,6 +85,7 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       speechCircuitBreaker: parseBooleanEnv(env, 'ELISE_SPEECH_CIRCUIT_BREAKER_ENABLED', false),
       telemetryV1: parseBooleanEnv(env, 'ELISE_TELEMETRY_V1_ENABLED', false),
       structuredGroundingV1: parseBooleanEnv(env, 'ELISE_STRUCTURED_GROUNDING_V1_ENABLED', false),
+      generationRetryV1: parseBooleanEnv(env, 'ELISE_GENERATION_RETRY_V1_ENABLED', false),
       explanations: parseBooleanEnv(env, 'STYLECHAT_EXPLANATIONS_ENABLED', true),
     },
   };

@@ -24,7 +24,28 @@ import {
   VISUAL_COLLECTION_CONTRACT_VERSION,
 } from './activeContext.ts';
 import { readEliseBackendConfig } from './eliseConfig.ts';
-import { buildGenerationIdentity, validateSourceMessageOwnership } from './generationSafety.ts';
+import {
+  buildGenerationIdentity,
+  finalizeGenerationOperation,
+  loadAssistantMessageById,
+  markGenerationGenerating,
+  persistAssistantOnce,
+  reserveGenerationOperation,
+  revalidateGenerationContext,
+  validateSourceMessageOwnership,
+} from './generationSafety.ts';
+import {
+  classifyTextProviderError,
+  isRetryableFailureClass,
+  shouldRetryTextProviderError,
+} from './eliseProviderRetry.ts';
+import { validateEliseGenerationOutput } from './eliseOutputValidation.ts';
+import {
+  buildEliseGroundingPackage,
+  buildStructuredGroundingSystemBlock,
+} from './eliseStructuredGrounding.ts';
+import type { EliseOperationReservation } from './eliseGenerationTypes.ts';
+import { ELISE_GROUNDING_VERSION } from './eliseGenerationTypes.ts';
 import { stripUnsafeModelOutput } from './promptHardening.ts';
 import { emitEliseTelemetry, makeRequestId, stableActorHash } from './telemetry.ts';
 import { normalizeLegacyVisualContext, type NormalizedVisualContext } from './visualContext.ts';
@@ -989,6 +1010,89 @@ Deno.serve(async (req) => {
     }
   }
 
+  let generationReservation: EliseOperationReservation | null = null;
+  if (config.flags.generationSafetyV1) {
+    generationReservation = await reserveGenerationOperation({
+      userClient,
+      sessionId,
+      sourceMessageId: generationIdentity.sourceMessageId,
+      operationKey: generationIdentity.operationKey,
+      requestId,
+    });
+    if (!generationReservation) {
+      return json({ error: 'Unable to reserve generation operation' }, 500);
+    }
+    emitEliseTelemetry(config, 'elise_generation_outcome', {
+      requestId,
+      operationType: generationIdentity.operationType,
+      actorHash,
+      operationStatus: generationReservation.status,
+      attemptCount: generationReservation.attemptCount,
+      duplicateDetected: generationReservation.isDuplicate,
+      mayGenerate: generationReservation.mayGenerate,
+      duplicateRecoveryOutcome: generationReservation.isDuplicate
+        ? (generationReservation.status === 'completed'
+          ? 'completed_recovered'
+          : generationReservation.mayGenerate
+          ? 'retryable_reopened'
+          : 'in_flight_or_terminal')
+        : 'fresh',
+    });
+
+    if (generationReservation.isDuplicate && generationReservation.status === 'completed') {
+      if (generationReservation.assistantMessageId) {
+        const existing = await loadAssistantMessageById({
+          userClient,
+          actorId: userId,
+          sessionId,
+          assistantMessageId: generationReservation.assistantMessageId,
+        });
+        if (existing) {
+          return json({
+            status: 'success',
+            message: {
+              sender: 'assistant',
+              content: existing.content,
+              model: existing.model || modelName,
+              tokenEstimate: existing.tokenEstimate,
+            },
+            usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT, resetAt: null },
+            requestId,
+            duplicate: true,
+          });
+        }
+      }
+      // Completed without recoverable message — do not regenerate.
+      return json({
+        status: 'success',
+        message: {
+          sender: 'assistant',
+          content: buildStyleChatFallback(),
+          model: modelName,
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT, resetAt: null },
+        requestId,
+        duplicate: true,
+      });
+    }
+
+    if (!generationReservation.mayGenerate) {
+      return json({
+        status: 'error',
+        message: {
+          sender: 'assistant',
+          content: 'Elise is still working on that reply. Please try again in a moment.',
+          model: '',
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT },
+        requestId,
+        errorCode: 'GENERATION_IN_PROGRESS',
+      });
+    }
+  }
+
   // ── 4a-E1. Typed visual-context continuity (flagged) ─────────────────────────
   // Runs after actor/session validation. Failures for optional context fail open.
   if (config.flags.contextNormalizationV1 && body.activeContext != null) {
@@ -1206,6 +1310,7 @@ Deno.serve(async (req) => {
   // Bounded id lists keep the query surface fixed; a single safe error covers
   // foreign, deleted, and nonexistent records so existence never leaks. A
   // rejected attachment set costs no daily quota.
+  let attachmentOutcomes: string[] = [];
   let resolvedAttachments: ResolvedAttachment[] = [];
   if (isV2Request && parsedAttachments.length > 0) {
     const attachmentData: AttachmentDataSource = {
@@ -1249,6 +1354,7 @@ Deno.serve(async (req) => {
 
     const resolution = await resolveStyleChatAttachments(parsedAttachments, attachmentData);
     const attachmentOutcome = attachmentOutcomeForResolution(resolution);
+    attachmentOutcomes = [attachmentOutcome];
     emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
       requestId,
       operationType: 'stylechat_generate_reply',
@@ -1274,6 +1380,9 @@ Deno.serve(async (req) => {
       );
     }
     resolvedAttachments = resolution.resolved;
+    attachmentOutcomes = resolvedAttachments.length
+      ? resolvedAttachments.map(() => 'accepted')
+      : attachmentOutcomes;
   }
 
   // ── 5. Atomic daily quota reservation ────────────────────────────────────────
@@ -1480,9 +1589,28 @@ Deno.serve(async (req) => {
     : systemTextWithWeather;
 
   // Active reference context is appended last so it is the freshest grounding signal.
-  // E-1 ON: use typed envelope serialization only (never raw client activeContext).
-  // E-1 OFF: preserve accepted legacy buildActiveContextBlock path.
-  const systemTextForModel = config.flags.contextNormalizationV1
+  // E-2 structured grounding ON: typed grounding package (includes E-1 visual when present).
+  // E-1 only: typed visual serialization.
+  // Flags OFF: legacy buildActiveContextBlock path.
+  let structuredGroundingBlock: string | null = null;
+  if (config.flags.structuredGroundingV1) {
+    const grounding = buildEliseGroundingPackage({
+      promptVersion: config.promptVersion,
+      requestId,
+      sessionId,
+      userMessage: message,
+      visualContext: typedVisualContext?.envelope ?? null,
+      // Weather / Signature Style already appended above; avoid duplicate prompt sections.
+      signatureStyleSummary: null,
+      weatherSummary: null,
+      attachmentOutcomes,
+    });
+    structuredGroundingBlock = buildStructuredGroundingSystemBlock(grounding);
+  }
+
+  const systemTextForModel = config.flags.structuredGroundingV1 && structuredGroundingBlock
+    ? `${systemTextWithStyleDna}\n\n${structuredGroundingBlock}`
+    : config.flags.contextNormalizationV1
     ? (visualContextPromptBlock
       ? `${systemTextWithStyleDna}\n\n${visualContextPromptBlock}`
       : systemTextWithStyleDna)
@@ -1582,9 +1710,59 @@ Deno.serve(async (req) => {
   let whyThisWorks: string | undefined;
   let wasRetried     = false;
   let usedFallback   = false;
+  let providerRetryCount = 0;
+  let stableErrorClass: string | null = null;
+
+  if (generationReservation) {
+    const marked = await markGenerationGenerating(userClient, generationReservation.operationId);
+    if (!marked) {
+      emitEliseTelemetry(config, 'elise_generation_outcome', {
+        requestId,
+        operationType: generationIdentity.operationType,
+        actorHash,
+        staleResponseOutcome: 'mark_generating_failed',
+        operationStatus: 'stale',
+      });
+      return json({
+        status: 'error',
+        message: {
+          sender: 'assistant',
+          content: buildStyleChatFallback(),
+          model: modelName,
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed, messagesLimit, resetAt },
+        requestId,
+      });
+    }
+  }
+
+  async function callGeminiWithOptionalRetry(
+    body: typeof geminiBody,
+    attemptLabel: string,
+  ): Promise<Awaited<ReturnType<typeof callGemini>>> {
+    try {
+      return await callGemini(geminiUrl, body, attemptLabel, modelName);
+    } catch (error) {
+      const failureClass = classifyTextProviderError(error);
+      stableErrorClass = failureClass;
+      const retryAfterSeconds = failureClass === 'RATE_LIMIT' ? 1 : null;
+      const shouldRetry = shouldRetryTextProviderError({
+        failureClass,
+        retryCount: providerRetryCount,
+        retryEnabled: config.flags.generationRetryV1,
+        retryAfterSeconds,
+        remainingBudgetMs: 20_000 - (Date.now() - startedAt),
+      });
+      if (!shouldRetry) throw error;
+      providerRetryCount += 1;
+      wasRetried = true;
+      return await callGemini(geminiUrl, body, `${attemptLabel}-provider-retry`, modelName);
+    }
+  }
 
   try {
-    const initial = await callGemini(geminiUrl, geminiBody, 'initial', modelName);
+    const initial = await callGeminiWithOptionalRetry(geminiBody, 'initial');
     assistantText = initial.text;
     tokenEstimate = initial.tokenEstimate;
     whyThisWorks  = initial.whyThisWorks;
@@ -1716,7 +1894,17 @@ Deno.serve(async (req) => {
   } catch (err) {
     const elapsedMs   = Date.now() - startedAt;
     const isTimeout   = err instanceof DOMException && err.name === 'AbortError';
+    const failureClass = stableErrorClass ?? classifyTextProviderError(err);
     console.warn('[stylechat-generate] %s elapsedMs=%d', isTimeout ? 'timeout' : 'error', elapsedMs);
+
+    if (generationReservation) {
+      await finalizeGenerationOperation({
+        userClient,
+        operationId: generationReservation.operationId,
+        status: isRetryableFailureClass(failureClass) ? 'failed_retryable' : 'failed_terminal',
+        stableErrorClass: failureClass,
+      });
+    }
 
     // Return safe fallback — do not expose internal error details.
     return json({
@@ -1728,6 +1916,7 @@ Deno.serve(async (req) => {
         tokenEstimate: 0,
       },
       usage: { messagesUsed, messagesLimit, resetAt },
+      requestId,
     });
   }
 
@@ -1738,13 +1927,31 @@ Deno.serve(async (req) => {
   // and validated against the authenticated resolved attachment set. Invalid
   // actions are dropped entirely; the text reply is always preserved. On the
   // v1 path this whole step is skipped and the text is untouched.
+  let rawActions: unknown = [];
   let validatedActions: ReturnType<typeof validateStyleChatActions> = [];
   if (isV2Request && !usedFallback) {
     const extracted = extractActionsBlock(assistantText);
     if (extracted.text.trim().length > 0) {
       assistantText = extracted.text;
     }
+    rawActions = extracted.rawActions;
     validatedActions = validateStyleChatActions(extracted.rawActions, resolvedAttachments);
+  }
+
+  // E-2 output validation (always safe to run; preserves plain-text contract).
+  const validatedOutput = validateEliseGenerationOutput({
+    text: assistantText,
+    explanation: whyThisWorks ?? null,
+    rawActions,
+    fallbackText: buildStyleChatFallback(),
+    usedFallback,
+  });
+  assistantText = validatedOutput.text;
+  usedFallback = validatedOutput.metadata.usedFallback;
+  whyThisWorks = validatedOutput.explanation ?? undefined;
+  if (validatedOutput.actions.length && isV2Request) {
+    // Prefer E-2 allowlisted actions when structured grounding/safety paths are active.
+    validatedActions = validatedOutput.actions as typeof validatedActions;
   }
 
   // Final safety net: if no usable text survived (e.g. an empty best-effort path),
@@ -1760,6 +1967,75 @@ Deno.serve(async (req) => {
       modelName,
       elapsedMs,
     );
+  }
+
+  // E-2: revalidate actor/session/source before any persistence or success return.
+  let persistenceOutcome = 'skipped';
+  let staleResponseOutcome: string | null = null;
+  let persistedAssistantId: string | null = null;
+  if (generationReservation) {
+    const revalidation = await revalidateGenerationContext({
+      userClient,
+      operationId: generationReservation.operationId,
+      sessionId,
+      sourceMessageId: generationIdentity.sourceMessageId,
+    });
+    if (!revalidation.valid) {
+      staleResponseOutcome = revalidation.reason ?? 'stale';
+      await finalizeGenerationOperation({
+        userClient,
+        operationId: generationReservation.operationId,
+        status: 'stale',
+        stableErrorClass: 'OPERATION_STALE',
+      });
+      emitEliseTelemetry(config, 'elise_generation_outcome', {
+        requestId,
+        operationType: generationIdentity.operationType,
+        actorHash,
+        staleResponseOutcome,
+        persistenceOutcome: 'blocked_stale',
+        operationStatus: 'stale',
+      });
+      return json({
+        status: 'error',
+        message: {
+          sender: 'assistant',
+          content: buildStyleChatFallback(),
+          model: modelName,
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed, messagesLimit, resetAt },
+        requestId,
+        errorCode: 'GENERATION_STALE',
+      });
+    }
+
+    const persisted = await persistAssistantOnce({
+      userClient,
+      actorId: userId,
+      sessionId,
+      sourceMessageId: generationIdentity.sourceMessageId,
+      content: assistantText,
+      model: modelName,
+      tokenEstimate: usedFallback ? 0 : Math.max(1, Math.ceil(assistantText.length / 4)),
+    });
+    if (persisted) {
+      persistedAssistantId = persisted.id;
+      persistenceOutcome = persisted.duplicate ? 'recovered_existing' : 'inserted';
+      if (persisted.duplicate) {
+        assistantText = persisted.content;
+      }
+    } else {
+      persistenceOutcome = 'insert_failed_client_will_retry';
+    }
+
+    await finalizeGenerationOperation({
+      userClient,
+      operationId: generationReservation.operationId,
+      status: usedFallback ? 'failed_retryable' : 'completed',
+      assistantMessageId: persistedAssistantId,
+      stableErrorClass: usedFallback ? (stableErrorClass ?? 'EMPTY_RESPONSE') : null,
+    });
   }
 
   // Single token-estimate lineage: real or best-effort Gemini text reports its computed
@@ -1792,8 +2068,14 @@ Deno.serve(async (req) => {
     provider: 'google',
     model: modelName,
     latencyMs: elapsedMs,
-    retryCount: wasRetried ? 1 : 0,
-    stableErrorClass: usedFallback ? 'UNKNOWN_PROVIDER_ERROR' : null,
+    generationLatencyMs: elapsedMs,
+    retryCount: wasRetried ? Math.max(1, providerRetryCount) : 0,
+    attemptCount: generationReservation?.attemptCount ?? 1,
+    stableErrorClass: usedFallback ? (stableErrorClass ?? 'UNKNOWN_PROVIDER_ERROR') : null,
+    outputValidationOutcome: validatedOutput.metadata.validationOutcome,
+    persistenceOutcome,
+    staleResponseOutcome,
+    groundingVersion: config.flags.structuredGroundingV1 ? ELISE_GROUNDING_VERSION : null,
     normalizedContextCount: typedVisualContext?.envelope.evidence.length
       ?? normalizedVisualContext?.items.length
       ?? 0,
