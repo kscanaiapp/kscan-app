@@ -72,6 +72,17 @@ function loadStyleObjects() {
           DRESSING_ROOM_COMMERCE_PRESERVATION_V1: false,
           DRESSING_ROOM_DEDUPE_V1: false,
           SAVED_SCAN_CLOUD_IMAGES_V1: false,
+          DRESSING_ROOM_COLLABORATION_V1: false,
+          DRESSING_ROOM_REACTIONS_V1: false,
+        };
+      }
+      if (id === './dressingRoomCollaboration') {
+        return {
+          createCollabRequestId: () => '00000000-0000-4000-8000-000000000099',
+          getCollabActorGeneration: () => 1,
+          isCurrentCollabGeneration: () => true,
+          setItemReactionDesiredState: async () => ({ ok: true }),
+          bumpCollabActorGeneration: () => 1,
         };
       }
       throw new Error(`Unexpected require: ${id}`);
@@ -147,7 +158,18 @@ function loadStyleObjectsWithExtensionCapture(flagOverrides) {
           DRESSING_ROOM_COMMERCE_PRESERVATION_V1: false,
           DRESSING_ROOM_DEDUPE_V1: false,
           SAVED_SCAN_CLOUD_IMAGES_V1: false,
+          DRESSING_ROOM_COLLABORATION_V1: false,
+          DRESSING_ROOM_REACTIONS_V1: false,
           ...flagOverrides,
+        };
+      }
+      if (id === './dressingRoomCollaboration') {
+        return {
+          createCollabRequestId: () => '00000000-0000-4000-8000-000000000099',
+          getCollabActorGeneration: () => 1,
+          isCurrentCollabGeneration: () => true,
+          setItemReactionDesiredState: async () => ({ ok: true }),
+          bumpCollabActorGeneration: () => 1,
         };
       }
       throw new Error(`Unexpected require: ${id}`);

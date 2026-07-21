@@ -94,6 +94,14 @@ test('DR-3 migration hardens access, preserves history, and adds keyset/idempote
   assert.match(migration, /\(m\.created_at, m\.id\) </);
 });
 
+test('DR-3 ledger uniqueness is superseded by DR-4 room-scoped constraint', () => {
+  const dr4 = fs.readFileSync(
+    path.join(ROOT, 'supabase/migrations/20260721183308_dr4_collab_idempotency_room_scope.sql'),
+    'utf8',
+  );
+  assert.match(dr4, /unique \(room_id, actor_id, operation, request_id\)/);
+});
+
 test('DR-3 UUIDv4 request ids reject non-v4 shapes', () => {
   assert.equal(collab.isUuidV4('11111111-1111-4111-8111-111111111111'), true);
   assert.equal(collab.isUuidV4('11111111-1111-1111-8111-111111111111'), false);
