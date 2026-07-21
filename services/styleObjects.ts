@@ -27,6 +27,7 @@ import type {
   RoomDetail,
   ScanImageSnapshotSource,
 } from '../types/styleObjects';
+import type { CanonicalItemSourceKind } from '../types/canonicalDressingRoomItem';
 
 export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
@@ -312,11 +313,25 @@ export function buildProductMatchSnapshot(
   if (DRESSING_ROOM_CANONICAL_ITEM_V1 || DRESSING_ROOM_COMMERCE_PRESERVATION_V1 || DRESSING_ROOM_DEDUPE_V1) {
     const commerceSource =
       (source as ProductMatchSnapshotSource & { purchaseOptions?: unknown; products?: unknown })
+    // DR-1: a Scan Result Object primary-match save (services/scanResultDressingRoom.ts)
+    // sets scanId + kind: 'scanner_single' on the source object to mark this item
+    // as Scanner-originated rather than a browsed catalog product. Genuine
+    // Catalog/ProductShelf saves never set these, and remain 'catalog_product'.
+    const scannerSource = source as ProductMatchSnapshotSource & {
+      scanId?: string | null;
+      selectedItemId?: string | null;
+      kind?: string | null;
+    };
+    const provenanceScanId = cleanText(scannerSource.scanId);
+    const provenanceKind: CanonicalItemSourceKind =
+      provenanceScanId && scannerSource.kind === 'scanner_single' ? 'scanner_single' : 'catalog_product';
     const extension = buildCanonicalSnapshotExtension({
       dressingRoomId: options?.dressingRoomId ?? '',
       sourceType: 'product_match',
       sourceId: cleanText(source.id),
-      kind: 'catalog_product',
+      kind: provenanceKind,
+      scanId: provenanceScanId,
+      selectedItemId: cleanText(scannerSource.selectedItemId),
       providerProductId: cleanText(source.id),
       creationSource: 'product_match',
       commerceSource: {

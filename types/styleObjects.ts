@@ -136,6 +136,16 @@ export type ProductMatchSnapshotSource = {
   purchaseOptions?: unknown;
   products?: unknown;
   recommendedProducts?: unknown;
+  /**
+   * DR-1 canonical provenance passthrough. Set by Scanner-originated adapters
+   * (e.g. Scan Result Object primary-match saves) so the canonical
+   * `source.kind`/`source.scanId` reflect that the item came from a Scanner
+   * scan rather than a browsed catalog product. Absent for genuine
+   * Catalog/ProductShelf saves, which remain `catalog_product`.
+   */
+  scanId?: string | null;
+  selectedItemId?: string | null;
+  kind?: string | null;
 };
 
 export type ScanImageSnapshotSource = {

@@ -90,6 +90,12 @@ export function buildDressingRoomSaveSource(
     // Preserve full retailer-neutral offer set for DR-1 commerce flag path.
     purchaseOptions: matches,
     products: matches,
+    // DR-1 canonical provenance: this save originates from a Scanner scan's
+    // primary product match, not a browsed catalog product — the canonical
+    // source.kind/source.scanId must reflect that so Elise and dedupe can
+    // distinguish "the user's own scanned item" from a discovered product.
+    scanId: scanResultObject?.id ?? null,
+    kind: 'scanner_single',
   };
 }
 

@@ -102,6 +102,21 @@ test('save bridge selects the primary (first) recommended product', () => {
   assert.equal(primary.id, 'p1');
 });
 
+// DR-1 regression: the save bridge must tag its source object with the
+// Scanner scan's own id (ScanResultObject.id — distinct from the matched
+// product's id) and kind: 'scanner_single', so the canonical DR-1 contract
+// (services/styleObjects.ts::buildProductMatchSnapshot) can record truthful
+// Scanner provenance instead of always labeling the item 'catalog_product'.
+test('save bridge tags the source with the scan\'s own id and kind: scanner_single', () => {
+  const obj = scanWithMatch();
+  const bridge = loadBridge(async () => ({ id: 'item-1' }));
+  const source = bridge.buildDressingRoomSaveSource(obj);
+  assert.equal(source.scanId, obj.id);
+  assert.ok(source.scanId, 'scanId must be non-empty when the scan has an id');
+  assert.notEqual(source.scanId, source.id, 'scanId must be the scan id, not the matched product id');
+  assert.equal(source.kind, 'scanner_single');
+});
+
 // ── 7. Save adapter rejects raw/local/captured image fields ───────────────────
 
 test('save bridge never uses raw/local/captured image as the saved image', () => {
