@@ -18,10 +18,7 @@ export type EliseWardrobeDataSource = {
   listSavedScans(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listInspirationItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listOwnedRoomItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
-  listSharedRoomItems?(
-    actorId: string,
-    limit: number,
-  ): Promise<Array<Record<string, unknown> & { dressing_room_id?: string; room_id?: string }>>;
+  listSharedRoomItems?(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
 };
 
 export interface EliseWardrobeRetrievalResult {
