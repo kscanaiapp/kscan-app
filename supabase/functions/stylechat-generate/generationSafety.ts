@@ -90,8 +90,18 @@ export async function validateSessionOwnership(input: {
   return !error && Boolean(data);
 }
 
+/**
+ * Supabase `.rpc()` returns a thenable PostgrestFilterBuilder, not a full Promise
+ * (no `.catch` / `.finally` / `[Symbol.toStringTag]`). Model it as PromiseLike so
+ * real SupabaseClient values assign without casts while await still works.
+ */
+export type GenerationRpcResult = {
+  data: unknown;
+  error: { message?: string } | null;
+};
+
 export type GenerationRpcClient = {
-  rpc(fn: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: { message?: string } | null }>;
+  rpc(fn: string, args?: Record<string, unknown>): PromiseLike<GenerationRpcResult>;
   from(table: string): any;
 };
 

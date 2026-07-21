@@ -486,7 +486,8 @@ function incompleteReasonFor(text: string, userMessage: string, finishReason: st
 async function callGemini(
   geminiUrl: string,
   geminiBody: GeminiBody,
-  attempt: 'initial' | 'retry',
+  // Logging label only — includes 'initial', 'retry', and `${base}-provider-retry`.
+  attempt: string,
   modelName: string,
 ): Promise<GeminiCallResult> {
   const controller = new AbortController();
