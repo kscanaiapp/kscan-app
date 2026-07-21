@@ -67,6 +67,8 @@ export type AttachmentDataSource = {
   /** Rows for the ids, ALREADY scoped to the authenticated user and active. */
   fetchSavedScans(ids: string[]): Promise<Array<Record<string, unknown>>>;
   fetchInspirationItems(ids: string[]): Promise<Array<Record<string, unknown>>>;
+  /** Owned dressing_room_items joined to rooms owned by the actor (RLS/user client). */
+  fetchDressingRoomItems?(ids: string[]): Promise<Array<Record<string, unknown>>>;
   fetchLook(lookId: string): Promise<Record<string, unknown> | null>;
   fetchLookItems(lookId: string): Promise<Array<Record<string, unknown>>>;
 };
@@ -174,6 +176,44 @@ function inspirationToItem(row: Record<string, unknown>): ResolvedAttachmentItem
   };
 }
 
+function mediaRefForDressingRoomItem(row: Record<string, unknown>): { bucket: string; path: string } | null {
+  const bucket = typeof row.storage_bucket === 'string' ? row.storage_bucket.trim() : '';
+  const path = typeof row.storage_path === 'string' ? row.storage_path.trim() : '';
+  if (bucket !== STYLE_LIBRARY_IMAGES_BUCKET || !path) return null;
+  return { bucket, path };
+}
+
+/**
+ * Maps an owned dressing_room_items row into bounded Elise evidence.
+ * Never exposes storage paths/URLs/product arrays in the text block — media
+ * is private for multimodal selection only.
+ */
+export function dressingRoomItemToEvidence(row: Record<string, unknown>): ResolvedAttachmentItem {
+  const snapshot =
+    row.snapshot_payload && typeof row.snapshot_payload === 'object'
+      ? (row.snapshot_payload as Record<string, unknown>)
+      : {};
+  const metadata =
+    snapshot.metadata && typeof snapshot.metadata === 'object'
+      ? (snapshot.metadata as Record<string, unknown>)
+      : {};
+  const category = bound(row.category) ?? bound(snapshot.category) ?? bound(metadata.category);
+  return {
+    ref: { sourceType: 'dressing_room_item', sourceId: String(row.id).toLowerCase() },
+    title: bound(row.title, 80) ?? bound(snapshot.title, 80) ?? category ?? 'Room item',
+    category,
+    role: inferRole(category, bound(metadata.itemType)),
+    color: bound(metadata.color),
+    pattern: null,
+    material: null,
+    silhouette: bound(metadata.silhouette),
+    fit: null,
+    brand: bound(row.brand) ?? bound(snapshot.brand) ?? bound(metadata.brand),
+    styleTags: [],
+    media: mediaRefForDressingRoomItem(row),
+  };
+}
+
 function lookItemToItem(row: Record<string, unknown>): ResolvedAttachmentItem | null {
   const snapshot =
     row.snapshot_payload && typeof row.snapshot_payload === 'object'
@@ -217,19 +257,27 @@ export async function resolveStyleChatAttachments(
   // Batch owned-item lookups.
   const scanIds = new Set<string>();
   const inspirationIds = new Set<string>();
+  const roomItemIds = new Set<string>();
   for (const attachment of attachments) {
     if (attachment.attachmentType === 'owned_item') {
-      (attachment.sourceType === 'saved_scan' ? scanIds : inspirationIds).add(attachment.sourceId);
+      if (attachment.sourceType === 'saved_scan') scanIds.add(attachment.sourceId);
+      else if (attachment.sourceType === 'inspiration_item') inspirationIds.add(attachment.sourceId);
+      else if (attachment.sourceType === 'dressing_room_item') roomItemIds.add(attachment.sourceId);
     } else if (attachment.attachmentType === 'outfit_draft') {
       for (const ref of attachment.itemRefs) {
-        (ref.sourceType === 'saved_scan' ? scanIds : inspirationIds).add(ref.sourceId);
+        if (ref.sourceType === 'saved_scan') scanIds.add(ref.sourceId);
+        else if (ref.sourceType === 'inspiration_item') inspirationIds.add(ref.sourceId);
+        else if (ref.sourceType === 'dressing_room_item') roomItemIds.add(ref.sourceId);
       }
     }
   }
 
-  const [scanRows, inspirationRows] = await Promise.all([
+  const [scanRows, inspirationRows, roomItemRows] = await Promise.all([
     scanIds.size ? data.fetchSavedScans([...scanIds]) : Promise.resolve([]),
     inspirationIds.size ? data.fetchInspirationItems([...inspirationIds]) : Promise.resolve([]),
+    roomItemIds.size && data.fetchDressingRoomItems
+      ? data.fetchDressingRoomItems([...roomItemIds])
+      : Promise.resolve([]),
   ]);
 
   const itemByKey = new Map<string, ResolvedAttachmentItem>();
@@ -238,6 +286,14 @@ export async function resolveStyleChatAttachments(
   }
   for (const row of inspirationRows) {
     if (row?.id) itemByKey.set(`inspiration_item:${String(row.id).toLowerCase()}`, inspirationToItem(row));
+  }
+  for (const row of roomItemRows) {
+    if (row?.id) {
+      itemByKey.set(
+        `dressing_room_item:${String(row.id).toLowerCase()}`,
+        dressingRoomItemToEvidence(row),
+      );
+    }
   }
 
   for (const attachment of attachments) {

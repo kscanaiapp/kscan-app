@@ -16,7 +16,7 @@ export const MAX_DRAFT_ITEM_REFS = 6;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type OwnedSourceType = 'saved_scan' | 'inspiration_item';
+export type OwnedSourceType = 'saved_scan' | 'inspiration_item' | 'dressing_room_item';
 
 export type ParsedOwnedItemAttachment = {
   attachmentType: 'owned_item';
@@ -52,7 +52,7 @@ function normalizeId(value: string): string {
 }
 
 function isOwnedSourceType(value: unknown): value is OwnedSourceType {
-  return value === 'saved_scan' || value === 'inspiration_item';
+  return value === 'saved_scan' || value === 'inspiration_item' || value === 'dressing_room_item';
 }
 
 /**

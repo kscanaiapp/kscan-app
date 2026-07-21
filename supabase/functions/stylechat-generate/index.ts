@@ -1044,6 +1044,21 @@ Deno.serve(async (req) => {
           .in('id', ids.slice(0, 12));
         return (data ?? []) as Array<Record<string, unknown>>;
       },
+      // DR-1: owned room items only — RLS + explicit join to rooms owned by actor.
+      fetchDressingRoomItems: async (ids) => {
+        const { data: rooms } = await userClient
+          .from('dressing_rooms')
+          .select('id')
+          .eq('user_id', userId);
+        const roomIds = (rooms ?? []).map((row: { id: string }) => row.id);
+        if (roomIds.length === 0) return [];
+        const { data } = await userClient
+          .from('dressing_room_items')
+          .select('id,dressing_room_id,title,brand,category,snapshot_payload,storage_bucket,storage_path')
+          .in('dressing_room_id', roomIds)
+          .in('id', ids.slice(0, 12));
+        return (data ?? []) as Array<Record<string, unknown>>;
+      },
       fetchLook: async (lookId) => {
         const { data } = await userClient
           .from('looks')
