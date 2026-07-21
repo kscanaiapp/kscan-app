@@ -125,6 +125,35 @@ export const ACCOUNT_HOME_UX_V1_ENABLED =
 export const CLOUD_SAVED_SCANS_ENABLED =
   process.env.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';
 
+// ── Dressing Rooms DR-1 canonical item / commerce / dedupe ───────────────────
+/**
+ * Canonical Dressing Room item normalization (provenance + schema extension).
+ * Default OFF — legacy snapshot writers remain authoritative until enabled.
+ */
+export const DRESSING_ROOM_CANONICAL_ITEM_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_CANONICAL_ITEM_V1 === 'true';
+
+/**
+ * Persist retailer-neutral purchaseOptions into snapshot_payload.
+ * Default OFF — does not change current tester behavior.
+ */
+export const DRESSING_ROOM_COMMERCE_PRESERVATION_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_COMMERCE_PRESERVATION_V1 === 'true';
+
+/**
+ * Idempotent duplicate suppression for Dressing Room item inserts.
+ * Default OFF.
+ */
+export const DRESSING_ROOM_DEDUPE_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_DEDUPE_V1 === 'true';
+
+/**
+ * Next-build Saved Scan cloud image upload pathway. Default OFF.
+ * Must not be enabled for current testers without an approved client release.
+ */
+export const SAVED_SCAN_CLOUD_IMAGES_V1 =
+  process.env.EXPO_PUBLIC_SAVED_SCAN_CLOUD_IMAGES_V1 === 'true';
+
 // ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
 /**
  * Routes the image Scan analyze call through the app-side `scan-identify`
