@@ -11,6 +11,8 @@ export interface EliseBackendFlags {
   speechResilienceV1: boolean;
   speechRetry: boolean;
   speechCircuitBreaker: boolean;
+  speechDeduplicationV1: boolean;
+  speechConcurrencyV1: boolean;
   telemetryV1: boolean;
   structuredGroundingV1: boolean;
   generationRetryV1: boolean;
@@ -83,6 +85,8 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       speechResilienceV1: parseBooleanEnv(env, 'ELISE_SPEECH_RESILIENCE_V1_ENABLED', false),
       speechRetry: parseBooleanEnv(env, 'ELISE_SPEECH_RETRY_ENABLED', false),
       speechCircuitBreaker: parseBooleanEnv(env, 'ELISE_SPEECH_CIRCUIT_BREAKER_ENABLED', false),
+      speechDeduplicationV1: parseBooleanEnv(env, 'ELISE_SPEECH_DEDUPLICATION_V1_ENABLED', false),
+      speechConcurrencyV1: parseBooleanEnv(env, 'ELISE_SPEECH_CONCURRENCY_V1_ENABLED', false),
       telemetryV1: parseBooleanEnv(env, 'ELISE_TELEMETRY_V1_ENABLED', false),
       structuredGroundingV1: parseBooleanEnv(env, 'ELISE_STRUCTURED_GROUNDING_V1_ENABLED', false),
       generationRetryV1: parseBooleanEnv(env, 'ELISE_GENERATION_RETRY_V1_ENABLED', false),

@@ -22,6 +22,8 @@ Deno.test('Elise backend config defaults preserve current behavior and default r
   assert.equal(config.flags.explanations, true);
   assert.equal(config.flags.generationRetryV1, false);
   assert.equal(config.flags.structuredGroundingV1, false);
+  assert.equal(config.flags.speechDeduplicationV1, false);
+  assert.equal(config.flags.speechConcurrencyV1, false);
 });
 
 Deno.test('Elise backend config supports independent valid overrides and safe invalid fallback', () => {

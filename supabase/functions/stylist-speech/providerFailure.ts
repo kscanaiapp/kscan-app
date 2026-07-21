@@ -268,5 +268,6 @@ export function providerFailureError(
     classification.clientStatus,
     classification.code,
     classification.message,
+    classification.retryAfterSeconds,
   );
 }

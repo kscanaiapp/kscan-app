@@ -36,17 +36,18 @@ Deno.test('retry policy never retries terminal errors and requires Retry-After f
   assert.equal(shouldRetryProviderFailure(rateWithHeader, 1, 10_000), false);
 });
 
-Deno.test('speech circuit breaker opens after repeated failures and recovers on success', () => {
-  const breaker = new SpeechCircuitBreaker();
+Deno.test('speech circuit breaker opens after repeated failures and recovers via half-open success', () => {
+  const breaker = new SpeechCircuitBreaker({ failureThreshold: 3, cooldownMs: 5000 });
   assert.equal(breaker.canAttempt('elevenlabs', 1000), true);
   breaker.recordFailure('elevenlabs', 1000, 5000);
   breaker.recordFailure('elevenlabs', 1000, 5000);
   assert.equal(breaker.canAttempt('elevenlabs', 1000), true);
   breaker.recordFailure('elevenlabs', 1000, 5000);
   assert.equal(breaker.canAttempt('elevenlabs', 1001), false);
-  assert.equal(breaker.canAttempt('elevenlabs', 7000), true);
+  assert.equal(breaker.getState('elevenlabs', 7000), 'half_open');
+  assert.equal(breaker.beginProbe('elevenlabs', 7000), true);
   breaker.recordSuccess('elevenlabs');
-  assert.equal(breaker.canAttempt('elevenlabs', 1001), true);
+  assert.equal(breaker.canAttempt('elevenlabs', 7001), true);
 });
 
 Deno.test('handler retry classifier allows only one transient retry', () => {

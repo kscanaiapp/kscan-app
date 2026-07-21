@@ -1,3 +1,4 @@
+import { assertValidSpeechAudio, validateSpeechAlignment } from './eliseSpeechAudioValidation.ts';
 import {
   classifyProviderFailure,
   providerFailureError,
@@ -22,51 +23,6 @@ export type ElevenLabsEnvironment = SecretEnvironment;
 export interface ElevenLabsSpeechResult {
   audioBase64: string;
   alignment: SpeechAlignment | null;
-}
-
-function validateBase64(value: unknown): value is string {
-  if (typeof value !== 'string' || value.length === 0 || value.length % 4 !== 0) return false;
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return false;
-  try {
-    return atob(value).length > 0;
-  } catch {
-    return false;
-  }
-}
-
-function parseAlignment(value: unknown): SpeechAlignment | null {
-  if (!value || typeof value !== 'object') return null;
-  const record = value as Record<string, unknown>;
-  const characters = record.characters;
-  const starts = record.character_start_times_seconds;
-  const ends = record.character_end_times_seconds;
-  if (!Array.isArray(characters) || !Array.isArray(starts) || !Array.isArray(ends)) return null;
-  if (characters.length === 0 || characters.length !== starts.length || starts.length !== ends.length) {
-    return null;
-  }
-
-  let previousStart = -1;
-  let previousEnd = -1;
-  for (let index = 0; index < characters.length; index += 1) {
-    if (typeof characters[index] !== 'string') return null;
-    const start = starts[index];
-    const end = ends[index];
-    if (
-      typeof start !== 'number' || !Number.isFinite(start) || start < 0 ||
-      typeof end !== 'number' || !Number.isFinite(end) || end < 0 ||
-      start > end || start < previousStart || end < previousEnd
-    ) {
-      return null;
-    }
-    previousStart = start;
-    previousEnd = end;
-  }
-
-  return {
-    characters: [...characters] as string[],
-    characterStartTimesSeconds: [...starts] as number[],
-    characterEndTimesSeconds: [...ends] as number[],
-  };
 }
 
 export async function requestElevenLabsSpeech(input: {
@@ -184,19 +140,26 @@ export async function requestElevenLabsSpeech(input: {
       throw new StylistSpeechError(502, 'PROVIDER_RESPONSE_INVALID', 'Speech response was invalid.');
     }
 
-    if (!validateBase64(parsed.audio_base64)) {
+    const alignmentCandidate =
+      validateSpeechAlignment(parsed.normalized_alignment, { strict: false }) ??
+      validateSpeechAlignment(parsed.alignment, { strict: false });
+
+    let validated;
+    try {
+      validated = assertValidSpeechAudio({
+        audioBase64: parsed.audio_base64,
+        alignment: alignmentCandidate,
+        strictAlignment: false,
+      });
+    } catch (error) {
       await emit({
         failureKind: 'invalid_response',
         providerStatus: response.status,
         responseIsJson: true,
         responseByteLength: rawByteLength,
       });
-      throw new StylistSpeechError(502, 'PROVIDER_RESPONSE_INVALID', 'Speech response was invalid.');
+      throw error;
     }
-
-    const alignment =
-      parseAlignment(parsed.normalized_alignment) ??
-      parseAlignment(parsed.alignment);
 
     await emit({
       failureKind: 'success',
@@ -204,7 +167,7 @@ export async function requestElevenLabsSpeech(input: {
       responseIsJson: true,
       responseByteLength: rawByteLength,
     });
-    return { audioBase64: parsed.audio_base64, alignment };
+    return { audioBase64: validated.audioBase64, alignment: validated.alignment };
   } finally {
     clearTimeout(timeout);
   }
