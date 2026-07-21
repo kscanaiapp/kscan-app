@@ -10,6 +10,9 @@
 
 import { supabase } from '../../supabaseClient';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
+import {
+  ELISE_ADVICE_METADATA_CLIENT_V1,
+} from '../../../constants/featureFlags';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
@@ -18,6 +21,7 @@ import {
   STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
   type StyleChatAttachment,
 } from '../../../types/styleChatAttachments';
+import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
 
 const EDGE_FN      = 'stylechat-generate';
 export const ELISE_VISUAL_COLLECTION_CONTRACT_VERSION = '1';
@@ -77,8 +81,9 @@ export interface EdgeChatResult {
   /**
    * E-4 optional structured advice metadata.
    * Older clients ignore this field; text remains authoritative.
+   * Applied only when ELISE_ADVICE_METADATA_CLIENT_V1 is enabled and object-shaped.
    */
-  adviceMetadata?: Record<string, unknown>;
+  adviceMetadata?: EliseAdviceMetadataClient | Record<string, unknown>;
   adviceContractVersion?: string;
 }
 
@@ -493,18 +498,20 @@ export class EdgeStyleChatProvider {
             }))
         : [];
 
-      // Validate and pass through the typed response.
+      // Optional advice metadata: flag OFF or non-object → omit (never crash).
       const rawAdvice = (data as unknown as Record<string, unknown>).adviceMetadata;
       const adviceContractVersion =
         typeof (data as unknown as Record<string, unknown>).adviceContractVersion === 'string'
           ? String((data as unknown as Record<string, unknown>).adviceContractVersion)
           : undefined;
+      const includeAdvice =
+        ELISE_ADVICE_METADATA_CLIENT_V1 && isRecord(rawAdvice);
       return {
         status,
         message,
         usage: normalizeUsage(data.usage),
         ...(actions.length > 0 ? { actions } : {}),
-        ...(isRecord(rawAdvice)
+        ...(includeAdvice
           ? {
               adviceMetadata: rawAdvice,
               ...(adviceContractVersion ? { adviceContractVersion } : {}),

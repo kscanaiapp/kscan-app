@@ -154,6 +154,7 @@ export function clearDraftAttachments(
 
 function attachmentKey(ref: StyleChatAttachment): string {
   if (ref.attachmentType === 'owned_item') return `owned:${ref.sourceType}:${ref.sourceId}`;
+  if (ref.attachmentType === 'shared_item') return `shared:${ref.sourceType}:${ref.sourceId}`;
   if (ref.attachmentType === 'look') return `look:${ref.lookId}`;
   return `outfit:${ref.itemRefs.map((r) => `${r.sourceType}:${r.sourceId}`).sort().join('|')}`;
 }

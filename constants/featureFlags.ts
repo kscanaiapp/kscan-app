@@ -154,6 +154,27 @@ export const DRESSING_ROOM_DEDUPE_V1 =
 export const SAVED_SCAN_CLOUD_IMAGES_V1 =
   process.env.EXPO_PUBLIC_SAVED_SCAN_CLOUD_IMAGES_V1 === 'true';
 
+/**
+ * DR-2: client may send owned dressing_room_item stable-ID attachments.
+ * Default OFF — next-build activation only.
+ */
+export const ELISE_DRESSING_ROOM_ATTACHMENTS_V1 =
+  process.env.EXPO_PUBLIC_ELISE_DRESSING_ROOM_ATTACHMENTS_V1 === 'true';
+
+/**
+ * DR-2: client may send shared_item / shared_room_item stable-ID attachments.
+ * Default OFF. Independent of wardrobe shared retrieval flags.
+ */
+export const ELISE_SHARED_ROOM_EVIDENCE_V1 =
+  process.env.EXPO_PUBLIC_ELISE_SHARED_ROOM_EVIDENCE_V1 === 'true';
+
+/**
+ * DR-2: client applies optional adviceMetadata when object-shaped.
+ * Default OFF — malformed/absent metadata must never crash the session.
+ */
+export const ELISE_ADVICE_METADATA_CLIENT_V1 =
+  process.env.EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1 === 'true';
+
 // ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
 /**
  * Routes the image Scan analyze call through the app-side `scan-identify`
