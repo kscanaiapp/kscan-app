@@ -15,6 +15,8 @@ DR-1 establishes one canonical item/commerce/image/dedupe contract on the ios-v1
 | Worktree | `C:\src\KScan-dressingrooms-canonical-item-contract-20260721` |
 | Branch | `feature/dressingrooms-canonical-item-contract-v1` |
 | Starting HEAD | `f73d414745d366c5945fbb776231de6741012888` |
+| Ending HEAD | `b2b4b866af5a36ef7d0f9410457b2b74a42d9738` |
+| Remote | `origin/feature/dressingrooms-canonical-item-contract-v1` (SHA equal) |
 | Flags | all DR-1 flags default OFF |
 | Deployed | nothing |
 | Tester impact | none while flags OFF |
