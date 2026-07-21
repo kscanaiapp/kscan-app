@@ -206,9 +206,11 @@ export function ownershipLanguageLabel(relationship: EliseActorRelationship): st
     case 'scanned':
       return 'The item you scanned';
     case 'shared':
-      return 'In the shared room';
+      return 'Shared with you';
     case 'discovered':
       return 'One available option is';
+    case 'unverified':
+    case 'unknown':
     default:
       return 'Based on the available details';
   }

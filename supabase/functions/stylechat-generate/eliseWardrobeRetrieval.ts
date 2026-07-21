@@ -21,7 +21,7 @@ export type EliseWardrobeDataSource = {
   listSharedRoomItems?(
     actorId: string,
     limit: number,
-  ): Promise<Array<Record<string, unknown> & { room_id?: string }>>;
+  ): Promise<Array<Record<string, unknown> & { dressing_room_id?: string; room_id?: string }>>;
 };
 
 export interface EliseWardrobeRetrievalResult {
@@ -43,18 +43,39 @@ function ownerMatches(row: Record<string, unknown>, actorId: string): boolean {
 }
 
 /**
- * A room item being in the actor's own Dressing Room does not by itself mean
- * the actor physically owns the garment — it may be a saved/bookmarked
- * catalog product (DR-1 `source_type: 'product_match'` /
- * canonical `source.kind: 'catalog_product'`) the actor is only considering.
- * Only genuinely Scanner/Closet-originated items are truthfully "owned."
- * Consults DR-1's canonical snapshot extension when present (forward
- * compatible with DRESSING_ROOM_CANONICAL_ITEM_V1), falling back to the
- * legacy `source_type` column that exists on every row today.
+ * Deterministic actor-relationship mapper for Dressing Room rows.
+ *
+ * Separation of truths (DR-1 / DR-2):
+ *   source provenance ≠ actor relationship ≠ physical ownership ≠ room ownership
+ *
+ * Catalog/product match → saved/discovered (never "you own")
+ * Scanner kinds → scanned (never "you purchased")
+ * Inspiration / Closet-saved → saved
+ * Only explicit Closet ownership evidence → owned
+ * Unknown legacy → unverified
  */
-const DISCOVERED_ROOM_SOURCE_KINDS = new Set(['catalog_product', 'product_match']);
+const DISCOVERED_ROOM_SOURCE_KINDS = new Set([
+  'catalog_product',
+  'product_match',
+  'commerce_product',
+]);
+const SCANNED_ROOM_SOURCE_KINDS = new Set([
+  'scan_image',
+  'live_scan',
+  'scanned_item',
+  'scanner',
+  'outfit_scan',
+]);
+const SAVED_ROOM_SOURCE_KINDS = new Set([
+  'inspiration',
+  'inspiration_item',
+  'saved_scan',
+  'closet_item',
+  'upload_inspiration',
+]);
+const OWNED_ROOM_SOURCE_KINDS = new Set(['owned_closet', 'physically_owned']);
 
-function roomItemRelationship(row: Record<string, unknown>): {
+export function roomItemRelationship(row: Record<string, unknown>): {
   sourceType: EliseWardrobeSourceType;
   actorRelationship: EliseActorRelationship;
 } {
@@ -72,12 +93,22 @@ function roomItemRelationship(row: Record<string, unknown>): {
       : null;
   const canonicalKind = typeof canonicalSource?.kind === 'string' ? canonicalSource.kind : null;
   const legacyKind = typeof row.source_type === 'string' ? row.source_type : null;
-  const kind = canonicalKind ?? legacyKind;
+  const kind = (canonicalKind ?? legacyKind)?.toLowerCase() ?? null;
 
   if (kind && DISCOVERED_ROOM_SOURCE_KINDS.has(kind)) {
     return { sourceType: 'saved_product', actorRelationship: 'saved' };
   }
-  return { sourceType: 'owned_room', actorRelationship: 'owned' };
+  if (kind && SCANNED_ROOM_SOURCE_KINDS.has(kind)) {
+    return { sourceType: 'owned_room', actorRelationship: 'scanned' };
+  }
+  if (kind && SAVED_ROOM_SOURCE_KINDS.has(kind)) {
+    return { sourceType: 'owned_room', actorRelationship: 'saved' };
+  }
+  if (kind && OWNED_ROOM_SOURCE_KINDS.has(kind)) {
+    return { sourceType: 'owned_room', actorRelationship: 'owned' };
+  }
+  // Presence in an owned room is not physical ownership.
+  return { sourceType: 'owned_room', actorRelationship: 'unverified' };
 }
 
 function pushCount(map: Record<string, number>, key: string) {
@@ -179,7 +210,10 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
         const rows = await input.data.listOwnedRoomItems(input.actorId, limit);
         for (const row of rows) {
           const id = typeof row.id === 'string' ? row.id : null;
-          const roomId = typeof row.room_id === 'string' ? row.room_id : null;
+          const roomId =
+            (typeof row.dressing_room_id === 'string' && row.dressing_room_id) ||
+            (typeof row.room_id === 'string' && row.room_id) ||
+            null;
           if (!id || !isUuid(id)) {
             rejectedCount += 1;
             continue;
@@ -232,7 +266,10 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
               row,
               canonicalResourceIds: {
                 itemId: id,
-                roomId: typeof row.room_id === 'string' ? row.room_id : undefined,
+                roomId:
+                  (typeof row.dressing_room_id === 'string' && row.dressing_room_id) ||
+                  (typeof row.room_id === 'string' && row.room_id) ||
+                  undefined,
               },
             });
             candidates.push(candidate);

@@ -9,6 +9,7 @@
 export const STYLECHAT_ATTACHMENT_CONTRACT_VERSION = '2';
 
 export const MAX_OWNED_ITEM_ATTACHMENTS = 3;
+export const MAX_SHARED_ITEM_ATTACHMENTS = 2;
 export const MAX_LOOK_ATTACHMENTS = 1;
 export const MAX_OUTFIT_DRAFT_ATTACHMENTS = 1;
 export const MAX_TOTAL_RESOLVED_ITEMS = 6;
@@ -17,10 +18,18 @@ export const MAX_DRAFT_ITEM_REFS = 6;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type OwnedSourceType = 'saved_scan' | 'inspiration_item' | 'dressing_room_item';
+export type SharedSourceType = 'shared_room_item';
 
 export type ParsedOwnedItemAttachment = {
   attachmentType: 'owned_item';
   sourceType: OwnedSourceType;
+  sourceId: string;
+};
+
+/** Shared room evidence — never attachmentType owned_item. */
+export type ParsedSharedItemAttachment = {
+  attachmentType: 'shared_item';
+  sourceType: SharedSourceType;
   sourceId: string;
 };
 
@@ -36,6 +45,7 @@ export type ParsedOutfitDraftAttachment = {
 
 export type ParsedAttachment =
   | ParsedOwnedItemAttachment
+  | ParsedSharedItemAttachment
   | ParsedLookAttachment
   | ParsedOutfitDraftAttachment;
 
@@ -55,30 +65,49 @@ function isOwnedSourceType(value: unknown): value is OwnedSourceType {
   return value === 'saved_scan' || value === 'inspiration_item' || value === 'dressing_room_item';
 }
 
+function isSharedSourceType(value: unknown): value is SharedSourceType {
+  return value === 'shared_room_item';
+}
+
 /**
  * Parses the v2 attachments array. Only stable references survive parsing;
  * every display field is dropped here. Ambiguous combinations and limit
  * violations are rejected, never silently trimmed.
+ *
+ * Client ownership / relationship claims, owner IDs, share tokens, and raw
+ * snapshots are ignored — only attachmentType + sourceType + sourceId survive.
  */
 export function parseStyleChatAttachments(raw: unknown): AttachmentParseResult {
   if (raw == null) return { ok: true, attachments: [] };
   if (!Array.isArray(raw)) return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
   if (raw.length === 0) return { ok: true, attachments: [] };
-  if (raw.length > MAX_OWNED_ITEM_ATTACHMENTS + MAX_LOOK_ATTACHMENTS + MAX_OUTFIT_DRAFT_ATTACHMENTS) {
+  if (
+    raw.length >
+    MAX_OWNED_ITEM_ATTACHMENTS +
+      MAX_SHARED_ITEM_ATTACHMENTS +
+      MAX_LOOK_ATTACHMENTS +
+      MAX_OUTFIT_DRAFT_ATTACHMENTS
+  ) {
     return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
   }
 
   const attachments: ParsedAttachment[] = [];
   let ownedItems = 0;
+  let sharedItems = 0;
   let looks = 0;
   let drafts = 0;
   const seenOwnedKeys = new Set<string>();
+  const seenSharedKeys = new Set<string>();
 
   for (const entry of raw) {
     if (!entry || typeof entry !== 'object') return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
     const record = entry as Record<string, unknown>;
 
     if (record.attachmentType === 'owned_item') {
+      // Reject shared_room_item disguised as owned_item.
+      if (record.sourceType === 'shared_room_item') {
+        return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
+      }
       if (!isOwnedSourceType(record.sourceType) || !isUuid(record.sourceId)) {
         return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
       }
@@ -91,6 +120,19 @@ export function parseStyleChatAttachments(raw: unknown): AttachmentParseResult {
         sourceType: record.sourceType,
         sourceId: normalizeId(record.sourceId as string),
       });
+    } else if (record.attachmentType === 'shared_item') {
+      if (!isSharedSourceType(record.sourceType) || !isUuid(record.sourceId)) {
+        return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
+      }
+      const key = `${record.sourceType}:${normalizeId(record.sourceId as string)}`;
+      if (seenSharedKeys.has(key)) return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
+      seenSharedKeys.add(key);
+      sharedItems += 1;
+      attachments.push({
+        attachmentType: 'shared_item',
+        sourceType: 'shared_room_item',
+        sourceId: normalizeId(record.sourceId as string),
+      });
     } else if (record.attachmentType === 'look') {
       if (!isUuid(record.lookId)) return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
       looks += 1;
@@ -98,7 +140,7 @@ export function parseStyleChatAttachments(raw: unknown): AttachmentParseResult {
     } else if (record.attachmentType === 'outfit_draft') {
       if (!Array.isArray(record.itemRefs)) return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
       if (record.itemRefs.length < 2 || record.itemRefs.length > MAX_DRAFT_ITEM_REFS) {
-        return { ok: false, errorCode: 'ATTACHMENT_INVALID' };
+        return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
       }
       const refs: Array<{ sourceType: OwnedSourceType; sourceId: string }> = [];
       const seen = new Set<string>();
@@ -121,10 +163,11 @@ export function parseStyleChatAttachments(raw: unknown): AttachmentParseResult {
   }
 
   if (ownedItems > MAX_OWNED_ITEM_ATTACHMENTS) return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
+  if (sharedItems > MAX_SHARED_ITEM_ATTACHMENTS) return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
   if (looks > MAX_LOOK_ATTACHMENTS) return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
   if (drafts > MAX_OUTFIT_DRAFT_ATTACHMENTS) return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
   if (looks > 0 && drafts > 0) return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
-  if ((looks > 0 || drafts > 0) && ownedItems > 1) {
+  if ((looks > 0 || drafts > 0) && ownedItems + sharedItems > 1) {
     return { ok: false, errorCode: 'ATTACHMENT_LIMIT_EXCEEDED' };
   }
 

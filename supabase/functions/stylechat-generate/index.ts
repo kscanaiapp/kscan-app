@@ -957,6 +957,35 @@ Deno.serve(async (req) => {
     }
     parsedAttachments = parsedResult.attachments;
     contextHint = normalizeContextHint(body.contextHint);
+
+    // DR-2 flags: room/shared attachments stay dark until independently enabled.
+    const hasDressingRoomAttachment = parsedAttachments.some(
+      (a) =>
+        (a.attachmentType === 'owned_item' && a.sourceType === 'dressing_room_item') ||
+        (a.attachmentType === 'outfit_draft' &&
+          a.itemRefs.some((r) => r.sourceType === 'dressing_room_item')),
+    );
+    const hasSharedAttachment = parsedAttachments.some((a) => a.attachmentType === 'shared_item');
+    if (hasDressingRoomAttachment && !config.flags.dressingRoomAttachmentsV1) {
+      return json(
+        {
+          error: 'Attachments could not be accepted',
+          errorCode: 'ATTACHMENT_INVALID',
+          contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+        },
+        400,
+      );
+    }
+    if (hasSharedAttachment && !config.flags.sharedRoomEvidenceV1) {
+      return json(
+        {
+          error: 'Attachments could not be accepted',
+          errorCode: 'ATTACHMENT_INVALID',
+          contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+        },
+        400,
+      );
+    }
   }
 
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
@@ -1147,23 +1176,19 @@ Deno.serve(async (req) => {
         return (data ?? null) as Record<string, unknown> | null;
       },
       fetchSharedRoomAccess: async (roomId, actorId) => {
-        const { data: participant } = await userClient
-          .from('dressing_room_participants')
-          .select('id')
-          .eq('dressing_room_id', roomId)
-          .eq('user_id', actorId)
-          .maybeSingle();
-        if (participant) return { active: true, expired: false };
-
+        // Unified shared-access decision: membership + active share + owner staleness.
+        // Public tokens are never accepted here.
         const { data: memberships, error } = await userClient
           .from('shared_room_memberships')
-          .select('id,removed_at,share_id,room_shares!inner(room_id,is_active,revoked_at,expires_at)')
+          .select(
+            'id,removed_at,share_id,room_shares!inner(id,room_id,owner_id,is_active,revoked_at,expires_at)',
+          )
           .eq('recipient_user_id', actorId)
           .is('removed_at', null)
           .limit(50);
         if (error) throw error;
-        const rows = (memberships ?? []) as Array<Record<string, unknown>>;
-        for (const row of rows) {
+        const shareOwnerByRoom = new Map<string, string>();
+        for (const row of (memberships ?? []) as Array<Record<string, unknown>>) {
           const share = row.room_shares as Record<string, unknown> | Record<string, unknown>[] | null;
           const shareRow = Array.isArray(share) ? share[0] : share;
           if (!shareRow) continue;
@@ -1177,9 +1202,21 @@ Deno.serve(async (req) => {
           ) {
             return { active: false, expired: true };
           }
-          return { active: true, expired: false };
+          if (typeof shareRow.owner_id === 'string') {
+            if (shareRow.owner_id === actorId) return null;
+            shareOwnerByRoom.set(roomId, shareRow.owner_id);
+          }
         }
-        return null;
+        if (shareOwnerByRoom.size === 0) return null;
+        const { data: room } = await userClient
+          .from('dressing_rooms')
+          .select('id,user_id')
+          .eq('id', roomId)
+          .maybeSingle();
+        if (!room || shareOwnerByRoom.get(roomId) !== (room as { user_id: string }).user_id) {
+          return { active: false, expired: true };
+        }
+        return { active: true, expired: false };
       },
     };
 
@@ -1349,6 +1386,56 @@ Deno.serve(async (req) => {
           .in('dressing_room_id', roomIds)
           .in('id', ids.slice(0, 12));
         return (data ?? []) as Array<Record<string, unknown>>;
+      },
+      // DR-2: shared room items — membership + active share + owner staleness.
+      fetchSharedDressingRoomItems: async (ids) => {
+        const wanted = new Set(ids.slice(0, 12).map((id) => id.toLowerCase()));
+        if (wanted.size === 0) return [];
+        const { data: memberships, error } = await userClient
+          .from('shared_room_memberships')
+          .select(
+            'id,removed_at,share_id,room_shares!inner(id,room_id,owner_id,is_active,revoked_at,expires_at)',
+          )
+          .eq('recipient_user_id', userId)
+          .is('removed_at', null)
+          .limit(50);
+        if (error) return [];
+        const shareOwnerByRoom = new Map<string, string>();
+        for (const row of (memberships ?? []) as Array<Record<string, unknown>>) {
+          const share = row.room_shares as Record<string, unknown> | Record<string, unknown>[] | null;
+          const shareRow = Array.isArray(share) ? share[0] : share;
+          if (!shareRow) continue;
+          if (shareRow.is_active === false || shareRow.revoked_at) continue;
+          if (
+            typeof shareRow.expires_at === 'string' &&
+            new Date(shareRow.expires_at).getTime() <= Date.now()
+          ) {
+            continue;
+          }
+          if (typeof shareRow.room_id === 'string' && typeof shareRow.owner_id === 'string') {
+            if (shareRow.owner_id === userId) continue;
+            shareOwnerByRoom.set(shareRow.room_id, shareRow.owner_id);
+          }
+        }
+        if (shareOwnerByRoom.size === 0) return [];
+        const { data: rooms } = await userClient
+          .from('dressing_rooms')
+          .select('id,user_id')
+          .in('id', [...shareOwnerByRoom.keys()]);
+        const authorizedRoomIds = ((rooms ?? []) as Array<{ id: string; user_id: string }>)
+          .filter((room) => shareOwnerByRoom.get(room.id) === room.user_id)
+          .map((room) => room.id);
+        if (!authorizedRoomIds.length) return [];
+        const { data } = await userClient
+          .from('dressing_room_items')
+          .select('id,dressing_room_id,title,brand,category,snapshot_payload,storage_bucket,storage_path')
+          .in('dressing_room_id', authorizedRoomIds)
+          .in('id', [...wanted]);
+        return ((data ?? []) as Array<Record<string, unknown>>).filter((row) => {
+          const id = typeof row.id === 'string' ? row.id.toLowerCase() : '';
+          const roomId = typeof row.dressing_room_id === 'string' ? row.dressing_room_id : '';
+          return wanted.has(id) && authorizedRoomIds.includes(roomId);
+        });
       },
       fetchLook: async (lookId) => {
         const { data } = await userClient
@@ -1654,12 +1741,16 @@ Deno.serve(async (req) => {
           if (!roomIds.length) return [];
           const { data } = await userClient
             .from('dressing_room_items')
-            .select('id, room_id, brand, category, price_amount, source_type, snapshot_payload, created_at')
-            .in('room_id', roomIds)
+            .select(
+              'id, dressing_room_id, brand, category, price_amount, source_type, snapshot_payload, created_at',
+            )
+            .in('dressing_room_id', roomIds)
             .order('created_at', { ascending: false })
             .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
           return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
             ...row,
+            // Compat alias for older retrieval readers; authoritative column is dressing_room_id.
+            room_id: row.dressing_room_id,
             __room_owned_by_actor: true,
           }));
         },
@@ -1667,7 +1758,7 @@ Deno.serve(async (req) => {
           const { data: memberships, error } = await userClient
             .from('shared_room_memberships')
             .select(
-              'id,removed_at,share_id,room_shares!inner(room_id,owner_id,is_active,revoked_at,expires_at)',
+              'id,removed_at,share_id,room_shares!inner(id,room_id,owner_id,is_active,revoked_at,expires_at)',
             )
             .eq('recipient_user_id', userId)
             .is('removed_at', null)
@@ -1690,6 +1781,8 @@ Deno.serve(async (req) => {
               continue;
             }
             if (typeof shareRow.room_id === 'string' && typeof shareRow.owner_id === 'string') {
+              // Owner-as-recipient is not shared evidence.
+              if (shareRow.owner_id === userId) continue;
               shareOwnerByRoom.set(shareRow.room_id, shareRow.owner_id);
             }
           }
@@ -1705,12 +1798,15 @@ Deno.serve(async (req) => {
           if (!roomIds.length) return [];
           const { data } = await userClient
             .from('dressing_room_items')
-            .select('id, room_id, brand, category, price_amount, source_type, snapshot_payload, created_at')
-            .in('room_id', roomIds)
+            .select(
+              'id, dressing_room_id, brand, category, price_amount, source_type, snapshot_payload, created_at',
+            )
+            .in('dressing_room_id', roomIds)
             .order('created_at', { ascending: false })
             .limit(Math.min(limit, 20));
           return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
             ...row,
+            room_id: row.dressing_room_id,
             __shared_access: true,
           }));
         },
@@ -2311,7 +2407,7 @@ Deno.serve(async (req) => {
       ...(activeContext?.visualCollection?.evidence.length
         ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
         : {}),
-      ...(adviceMetadata
+      ...(adviceMetadata && config.flags.adviceMetadataClientV1
         ? {
             adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
             adviceMetadata,
@@ -2333,7 +2429,7 @@ Deno.serve(async (req) => {
     ...(activeContext?.visualCollection?.evidence.length
       ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
       : {}),
-    ...(adviceMetadata
+    ...(adviceMetadata && config.flags.adviceMetadataClientV1
       ? {
           adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
           adviceMetadata,

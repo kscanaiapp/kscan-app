@@ -143,9 +143,10 @@ Deno.test('E-4 focus resolution prefers focused evidence and selected scan', () 
 Deno.test('E-4 ownership language never conflates saved/shared/commerce', () => {
   assert.equal(ownershipLanguageLabel('owned'), 'You already have');
   assert.equal(ownershipLanguageLabel('saved'), "You've saved");
-  assert.equal(ownershipLanguageLabel('shared'), 'In the shared room');
+  assert.equal(ownershipLanguageLabel('shared'), 'Shared with you');
   assert.equal(ownershipLanguageLabel('discovered'), 'One available option is');
   assert.equal(ownershipLanguageLabel('scanned'), 'The item you scanned');
+  assert.equal(ownershipLanguageLabel('unverified'), 'Based on the available details');
 });
 
 Deno.test('E-4 retrieval rejects unauthorized Closet and room rows', async () => {
@@ -200,13 +201,8 @@ Deno.test('E-4 retrieval rejects unauthorized Closet and room rows', async () =>
   assert.ok(!result.candidates.some((c) => c.candidateId.includes('not-a-uuid')));
 });
 
-// Repair regression: a Dressing Room item saved from a catalog/commerce match
-// (DR-1 source_type: 'product_match', or canonical source.kind:
-// 'catalog_product' once DRESSING_ROOM_CANONICAL_ITEM_V1 is on) must never be
-// presented with owned ("You already have...") language just because it sits
-// in the actor's own room — the actor may only be considering it, not
-// physically own it. Only genuinely Scanner/Closet-originated room items
-// (source_type: 'scan_image', or no source_type at all) are truthfully owned.
+// DR-2: catalog/product_match → saved; scan_image → scanned; unknown → unverified.
+// Room presence alone never establishes physical ownership.
 Deno.test('E-4 room items saved from a catalog match are "saved", not "owned"', async () => {
   const result = await retrieveAuthorizedWardrobeCandidates({
     actorId: ACTOR,
@@ -243,8 +239,7 @@ Deno.test('E-4 room items saved from a catalog match are "saved", not "owned"', 
             __room_owned_by_actor: true,
           },
           {
-            // No source_type at all (legacy row) must remain owned — the
-            // conservative default cannot regress existing behavior.
+            // No source_type at all (legacy row) → unverified (not owned).
             id: ITEM_D,
             room_id: ITEM_F,
             category: 'belt',
@@ -258,9 +253,9 @@ Deno.test('E-4 room items saved from a catalog match are "saved", not "owned"', 
   const byId = (id: string) => result.candidates.find((c) => c.candidateId === `owned_room:${id}`);
   assert.equal(byId(ITEM_E)?.actorRelationship, 'saved');
   assert.equal(byId(ITEM_E)?.sourceType, 'saved_product');
-  assert.equal(byId(ITEM_G)?.actorRelationship, 'owned');
+  assert.equal(byId(ITEM_G)?.actorRelationship, 'scanned');
   assert.equal(byId(ITEM_H)?.actorRelationship, 'saved');
-  assert.equal(byId(ITEM_D)?.actorRelationship, 'owned');
+  assert.equal(byId(ITEM_D)?.actorRelationship, 'unverified');
 });
 
 Deno.test('E-4 compatibility scoring prioritizes owned complements and penalizes redundancy', () => {

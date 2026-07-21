@@ -52,6 +52,7 @@ export type EliseActorRelationship =
   | 'scanned'
   | 'shared'
   | 'discovered'
+  | 'unverified'
   | 'unknown';
 
 export type EliseRecommendationRole =

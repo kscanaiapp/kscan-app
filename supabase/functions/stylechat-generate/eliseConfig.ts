@@ -24,6 +24,12 @@ export interface EliseBackendFlags {
   wardrobeGapV1: boolean;
   purchaseAdviceV1: boolean;
   multiLookV1: boolean;
+  /** DR-2: allow owned dressing_room_item attachments (stable ID only). */
+  dressingRoomAttachmentsV1: boolean;
+  /** DR-2: allow shared_item / shared_room_item evidence attachments. */
+  sharedRoomEvidenceV1: boolean;
+  /** DR-2: client may receive adviceMetadata when object-shaped. */
+  adviceMetadataClientV1: boolean;
 }
 
 export interface EliseBackendConfig {
@@ -104,6 +110,13 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       wardrobeGapV1: parseBooleanEnv(env, 'ELISE_WARDROBE_GAP_V1_ENABLED', false),
       purchaseAdviceV1: parseBooleanEnv(env, 'ELISE_PURCHASE_ADVICE_V1_ENABLED', false),
       multiLookV1: parseBooleanEnv(env, 'ELISE_MULTI_LOOK_V1_ENABLED', false),
+      dressingRoomAttachmentsV1: parseBooleanEnv(
+        env,
+        'ELISE_DRESSING_ROOM_ATTACHMENTS_V1_ENABLED',
+        false,
+      ),
+      sharedRoomEvidenceV1: parseBooleanEnv(env, 'ELISE_SHARED_ROOM_EVIDENCE_V1_ENABLED', false),
+      adviceMetadataClientV1: parseBooleanEnv(env, 'ELISE_ADVICE_METADATA_CLIENT_V1_ENABLED', false),
     },
   };
 }

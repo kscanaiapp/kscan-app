@@ -10,8 +10,10 @@
 // NEVER contains: user ids, storage buckets/paths, signed URLs, raw
 // analysis_result blobs, product arrays, or Style Memory history.
 
-import type { OwnedSourceType, ParsedAttachment } from './attachments.ts';
+import type { OwnedSourceType, ParsedAttachment, SharedSourceType } from './attachments.ts';
 import { MAX_TOTAL_RESOLVED_ITEMS } from './attachments.ts';
+
+type AttachmentItemSourceType = OwnedSourceType | SharedSourceType;
 
 export const MAX_ATTACHMENT_CONTEXT_CHARS = 4000;
 export const MAX_CONTEXT_HINT_CHARS = 200;
@@ -22,7 +24,7 @@ const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 
 export type ResolvedAttachmentItem = {
   /** Opaque action reference: the stable id actions may point at. */
-  ref: { sourceType: OwnedSourceType; sourceId: string };
+  ref: { sourceType: AttachmentItemSourceType; sourceId: string };
   title: string;
   category: string | null;
   role: string;
@@ -39,6 +41,7 @@ export type ResolvedAttachmentItem = {
 
 export type ResolvedAttachment =
   | { attachmentType: 'owned_item'; items: [ResolvedAttachmentItem] }
+  | { attachmentType: 'shared_item'; items: [ResolvedAttachmentItem] }
   | {
       attachmentType: 'look';
       lookId: string;
@@ -87,6 +90,11 @@ export type AttachmentDataSource = {
   fetchInspirationItems(ids: string[]): Promise<Array<Record<string, unknown>>>;
   /** Owned dressing_room_items joined to rooms owned by the actor (RLS/user client). */
   fetchDressingRoomItems?(ids: string[]): Promise<Array<Record<string, unknown>>>;
+  /**
+   * Shared dressing_room_items already authorized via resolveSharedRoomAccess
+   * (active share, not revoked/expired, share-owner matches room owner).
+   */
+  fetchSharedDressingRoomItems?(ids: string[]): Promise<Array<Record<string, unknown>>>;
   fetchLook(lookId: string): Promise<Record<string, unknown> | null>;
   fetchLookItems(lookId: string): Promise<Array<Record<string, unknown>>>;
 };
@@ -206,7 +214,10 @@ function mediaRefForDressingRoomItem(row: Record<string, unknown>): { bucket: st
  * Never exposes storage paths/URLs/product arrays in the text block — media
  * is private for multimodal selection only.
  */
-export function dressingRoomItemToEvidence(row: Record<string, unknown>): ResolvedAttachmentItem {
+export function dressingRoomItemToEvidence(
+  row: Record<string, unknown>,
+  sourceType: AttachmentItemSourceType = 'dressing_room_item',
+): ResolvedAttachmentItem {
   const snapshot =
     row.snapshot_payload && typeof row.snapshot_payload === 'object'
       ? (row.snapshot_payload as Record<string, unknown>)
@@ -216,9 +227,10 @@ export function dressingRoomItemToEvidence(row: Record<string, unknown>): Resolv
       ? (snapshot.metadata as Record<string, unknown>)
       : {};
   const category = bound(row.category) ?? bound(snapshot.category) ?? bound(metadata.category);
+  const defaultTitle = sourceType === 'shared_room_item' ? 'Shared room item' : 'Room item';
   return {
-    ref: { sourceType: 'dressing_room_item', sourceId: String(row.id).toLowerCase() },
-    title: bound(row.title, 80) ?? bound(snapshot.title, 80) ?? category ?? 'Room item',
+    ref: { sourceType, sourceId: String(row.id).toLowerCase() },
+    title: bound(row.title, 80) ?? bound(snapshot.title, 80) ?? category ?? defaultTitle,
     category,
     role: inferRole(category, bound(metadata.itemType)),
     color: bound(metadata.color),
@@ -272,15 +284,18 @@ export async function resolveStyleChatAttachments(
   const resolved: ResolvedAttachment[] = [];
   let totalItems = 0;
 
-  // Batch owned-item lookups.
+  // Batch owned / shared item lookups.
   const scanIds = new Set<string>();
   const inspirationIds = new Set<string>();
   const roomItemIds = new Set<string>();
+  const sharedItemIds = new Set<string>();
   for (const attachment of attachments) {
     if (attachment.attachmentType === 'owned_item') {
       if (attachment.sourceType === 'saved_scan') scanIds.add(attachment.sourceId);
       else if (attachment.sourceType === 'inspiration_item') inspirationIds.add(attachment.sourceId);
       else if (attachment.sourceType === 'dressing_room_item') roomItemIds.add(attachment.sourceId);
+    } else if (attachment.attachmentType === 'shared_item') {
+      sharedItemIds.add(attachment.sourceId);
     } else if (attachment.attachmentType === 'outfit_draft') {
       for (const ref of attachment.itemRefs) {
         if (ref.sourceType === 'saved_scan') scanIds.add(ref.sourceId);
@@ -290,11 +305,14 @@ export async function resolveStyleChatAttachments(
     }
   }
 
-  const [scanRows, inspirationRows, roomItemRows] = await Promise.all([
+  const [scanRows, inspirationRows, roomItemRows, sharedItemRows] = await Promise.all([
     scanIds.size ? data.fetchSavedScans([...scanIds]) : Promise.resolve([]),
     inspirationIds.size ? data.fetchInspirationItems([...inspirationIds]) : Promise.resolve([]),
     roomItemIds.size && data.fetchDressingRoomItems
       ? data.fetchDressingRoomItems([...roomItemIds])
+      : Promise.resolve([]),
+    sharedItemIds.size && data.fetchSharedDressingRoomItems
+      ? data.fetchSharedDressingRoomItems([...sharedItemIds])
       : Promise.resolve([]),
   ]);
 
@@ -309,7 +327,15 @@ export async function resolveStyleChatAttachments(
     if (row?.id) {
       itemByKey.set(
         `dressing_room_item:${String(row.id).toLowerCase()}`,
-        dressingRoomItemToEvidence(row),
+        dressingRoomItemToEvidence(row, 'dressing_room_item'),
+      );
+    }
+  }
+  for (const row of sharedItemRows) {
+    if (row?.id) {
+      itemByKey.set(
+        `shared_room_item:${String(row.id).toLowerCase()}`,
+        dressingRoomItemToEvidence(row, 'shared_room_item'),
       );
     }
   }
@@ -321,6 +347,12 @@ export async function resolveStyleChatAttachments(
       // three so record existence never leaks.
       if (!item) return { ok: false, errorCode: 'ATTACHMENT_NOT_OWNED' };
       resolved.push({ attachmentType: 'owned_item', items: [item] });
+      totalItems += 1;
+    } else if (attachment.attachmentType === 'shared_item') {
+      const item = itemByKey.get(`shared_room_item:${attachment.sourceId}`);
+      // Same generic rejection as owned — no existence leak for foreign/shared misses.
+      if (!item) return { ok: false, errorCode: 'ATTACHMENT_NOT_OWNED' };
+      resolved.push({ attachmentType: 'shared_item', items: [item] });
       totalItems += 1;
     } else if (attachment.attachmentType === 'look') {
       const lookRow = await data.fetchLook(attachment.lookId);
@@ -341,7 +373,7 @@ export async function resolveStyleChatAttachments(
         items,
       });
       totalItems += items.length;
-    } else {
+    } else if (attachment.attachmentType === 'outfit_draft') {
       // Outfit draft: every reference must independently resolve; one invalid
       // item rejects the entire draft atomically.
       const items: ResolvedAttachmentItem[] = [];
@@ -386,13 +418,16 @@ function describeItem(item: ResolvedAttachmentItem, index: number): string {
  * item lines from the end — it never splits an item line or breaks structure.
  */
 export function buildAttachmentContextBlock(resolved: ResolvedAttachment[]): string {
-  const lines: string[] = ['[Attached from the user\'s closet — verified items only]'];
+  const lines: string[] = ['[Attached verified evidence — ownership language is server-derived]'];
   let itemIndex = 0;
 
   for (const attachment of resolved) {
     if (attachment.attachmentType === 'owned_item') {
       itemIndex += 1;
       lines.push(describeItem(attachment.items[0], itemIndex));
+    } else if (attachment.attachmentType === 'shared_item') {
+      itemIndex += 1;
+      lines.push(`SHARED WITH YOU ${describeItem(attachment.items[0], itemIndex)}`);
     } else if (attachment.attachmentType === 'look') {
       const context = [
         attachment.occasion ? `occasion=${attachment.occasion}` : null,
@@ -404,7 +439,7 @@ export function buildAttachmentContextBlock(resolved: ResolvedAttachment[]): str
         itemIndex += 1;
         lines.push(describeItem(item, itemIndex));
       }
-    } else {
+    } else if (attachment.attachmentType === 'outfit_draft') {
       lines.push(`ATTACHED UNSAVED OUTFIT (${attachment.items.length} items):`);
       for (const item of attachment.items) {
         itemIndex += 1;
