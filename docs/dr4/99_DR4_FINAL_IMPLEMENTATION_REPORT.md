@@ -14,9 +14,9 @@ DR-4 SOURCE AND AUTOMATED VALIDATION COMPLETE
 | Worktree | `C:\src\KScan-dr4-dressingrooms-hardening-20260721` |
 | Branch | `feature/dr4-dressingrooms-production-hardening` |
 | Starting SHA | `844f9580c528597baef720ea194485e2035edf97` |
-| Ending SHA | `` |
-| Local/remote parity | Required at push (verify after `git push`) |
-| Worktree | Clean after push |
+| Ending SHA | `b813f1e37bf55a7b812006e06b9b3c178594fb56` (implementation tip at first push; see branch HEAD for latest docs tip) |
+| Local/remote parity | Verified equal at push |
+| Worktree | Clean after final push |
 
 ## 8. Scope reviewed
 
