@@ -5,7 +5,7 @@ Audit date: 2026-07-22
 Supabase production project: `wyyuqfdxucjksghsmhry`
 
 Canonical application branch: `feature/ai-model-input-security`
-Canonical remote SHA at close: `ffd25753a08e1e7077f3672446106c776b8c1fb2`
+Audited application-code SHA before the docs-only audit merge: `ffd25753a08e1e7077f3672446106c776b8c1fb2`
 
 ## Grade
 
