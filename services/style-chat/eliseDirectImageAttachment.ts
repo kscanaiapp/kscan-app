@@ -4,7 +4,6 @@
 // row with private media so V2 can attach owned_item/saved_scan.
 
 import {
-  compressForUpload,
   SCANNER_IMAGE_JPEG_QUALITY,
   SCANNER_IMAGE_MAX_WIDTH,
 } from '../imageUtils';
@@ -12,10 +11,6 @@ import {
   cleanupSanitizedImage,
   prepareImageForPrivacyUpload,
 } from '../privacyImageUpload';
-import {
-  getPrivacySanitizerStatus,
-  sanitizeImageBeforeUpload,
-} from '../privacyImageSanitizer';
 import { saveScan } from '../library';
 import { saveScanToCloud } from '../savedScansCloud';
 import { ensureSavedScanMediaBacking } from '../savedScanMedia';
@@ -29,7 +24,6 @@ import {
 export type PreparedDirectImage = {
   previewUri: string;
   preparedUri: string;
-  dataUri: string;
   width?: number;
   height?: number;
   source: 'camera' | 'photo_library';
@@ -55,7 +49,7 @@ function newOperationId(): string {
 
 /**
  * Prepare a local camera/gallery URI with the accepted Scanner pathway:
- * URI validate → metadata-stripped re-encode (896/0.65) → compressForUpload.
+ * URI validate → single metadata-stripped re-encode (896/0.65 JPEG).
  */
 export async function prepareEliseDirectImage(
   localUri: string,
@@ -66,21 +60,18 @@ export async function prepareEliseDirectImage(
   }
 
   const operationId = newOperationId();
+  // Single Scanner-compatible resize+re-encode pass (896 / 0.65). The prior
+  // implementation ran a second compressForUpload pass on top of this output
+  // to produce a base64 data URI that no downstream caller ever read —
+  // that pass has been removed to avoid a wasted generational JPEG re-encode.
   const prepared = await prepareImageForPrivacyUpload(localUri, {
     maxDimension: SCANNER_IMAGE_MAX_WIDTH,
     quality: SCANNER_IMAGE_JPEG_QUALITY,
   });
 
-  // compressForUpload is the Scanner transport helper (896 / 0.65 / JPEG base64).
-  const dataUri = await compressForUpload(prepared.sanitizedUri);
-  // Keep sanitizer alignment for any downstream callers that expect it.
-  const sanitized = await sanitizeImageBeforeUpload(dataUri);
-  void getPrivacySanitizerStatus();
-
   return {
     previewUri: prepared.sanitizedUri,
     preparedUri: prepared.sanitizedUri,
-    dataUri: typeof sanitized === 'string' ? sanitized : dataUri,
     width: prepared.width,
     height: prepared.height,
     source,
