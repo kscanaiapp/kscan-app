@@ -9,15 +9,14 @@
  * convergence is confirmed.
  *
  * Usage:
- *   node scripts/qa-convergence.js
- *   BASE_URL=https://kscan-app-1.onrender.com node scripts/qa-convergence.js
+ *   BASE_URL=https://your-private-qa-host.example node scripts/qa-convergence.js
  */
 
-const HEALTH_URL = (
-  process.env.BASE_URL    ||
-  process.env.KSCAN_API_URL?.replace('/api/analyze', '') ||
-  'https://kscan-app-1.onrender.com'
-) + '/api/health';
+const BASE_URL = process.env.BASE_URL || process.env.KSCAN_API_URL?.replace('/api/analyze', '');
+if (!BASE_URL) {
+  throw new Error('Set BASE_URL or KSCAN_API_URL explicitly; no legacy hosted default exists.');
+}
+const HEALTH_URL = BASE_URL + '/api/health';
 
 const TOTAL_REQUESTS     = parseInt(process.env.CONVERGENCE_N || '5', 10);
 const CONCURRENCY        = parseInt(process.env.CONVERGENCE_C || '3', 10);
