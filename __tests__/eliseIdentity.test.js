@@ -193,9 +193,10 @@ test('system prompt distinguishes v1 and v2 attachment behavior', () => {
   assert.match(edgeIndex, /multimodal inspection actually occurred/);
 });
 
-test('Signature Style context block uses Signature Style terminology', () => {
-  assert.match(edgeStyleDnaContext, /\[Optional Signature Style Context\]/);
-  assert.match(edgeStyleDnaContext, /\[\/Optional Signature Style Context\]/);
+test('StyleDNA context stays distinct from server-derived Signature Style', () => {
+  assert.match(edgeStyleDnaContext, /\[Optional StyleDNA Context\]/);
+  assert.match(edgeStyleDnaContext, /\[\/Optional StyleDNA Context\]/);
+  assert.match(edgeStyleDnaContext, /Distinct from Signature Style/);
 });
 
 // ── Internal identifier stability ────────────────────────────────────────────

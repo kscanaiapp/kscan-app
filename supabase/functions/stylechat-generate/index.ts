@@ -83,6 +83,7 @@ const MAX_MEMORY_CHARS     = 500;
 const MAX_RECENT_MESSAGES  = 6;
 const GEMINI_TIMEOUT_MS    = 12_000;
 const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/models';
+const SAFE_REQUEST_ID_RE   = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/;
 
 // Approved Step 2B defaults (allowlisted in modelRouting.ts).
 const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -784,7 +785,8 @@ Deno.serve(async (req) => {
 
   const supabaseUrl     = Deno.env.get('SUPABASE_URL');
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!supabaseUrl || !supabaseAnonKey) {
+  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
     console.error('[stylechat-generate] Supabase function env is not configured');
     return json({ error: 'Server configuration error' }, 500);
   }
@@ -799,6 +801,9 @@ Deno.serve(async (req) => {
   }
 
   const userId = user.id;
+  const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 
   // ── 2. Lifecycle gate (before ownership, quota, or provider) ─────────────────
   // A valid JWT can outlive the client routing that blocks locked / pending-
@@ -935,6 +940,7 @@ Deno.serve(async (req) => {
     console.error('[stylechat-generate] GEMINI_API_KEY not configured');
     return json({ error: 'AI provider not configured' }, 500);
   }
+  const configuredGeminiKey = geminiKey;
 
   // ── 4. Verify session ownership ──────────────────────────────────────────────
   // Belt-and-suspenders: RLS also enforces this, but we confirm before quota spend.
@@ -977,7 +983,7 @@ Deno.serve(async (req) => {
         403,
       );
     }
-    console.error('[stylechat-generate] burst RPC error:', burstError.message);
+    console.error('[stylechat-generate] burst_rpc_error');
     return json({ error: 'Usage check failed' }, 500);
   }
 
@@ -1004,7 +1010,7 @@ Deno.serve(async (req) => {
     const burstResetAt = (burstRow?.reset_at ?? null) as string | null;
     console.log(
       '[stylechat-generate] burst_limit uid=%s retryAfterSeconds=%d',
-      userId.slice(0, 8),
+      oneWayActorRef(userId),
       retryAfter,
     );
     return new Response(
@@ -1084,7 +1090,7 @@ Deno.serve(async (req) => {
     if (!resolution.ok) {
       console.log(
         '[stylechat-generate] attachment_rejected uid=%s code=%s count=%d',
-        userId.slice(0, 8),
+        oneWayActorRef(userId),
         resolution.errorCode,
         parsedAttachments.length,
       );
@@ -1104,14 +1110,19 @@ Deno.serve(async (req) => {
   // This is the authority check. If the RPC returns limit_reached=true, we abort
   // before making any Gemini call.
 
-  // Request id is required for idempotent consume/refund linkage.
-  const requestId = req.headers.get(REQUEST_ID_HEADER)?.trim() || crypto.randomUUID();
+  // Request id is required for idempotent consume/refund linkage. A replay is
+  // never allowed to make another provider call because responses are not cached.
+  const requestIdHeader = req.headers.get(REQUEST_ID_HEADER)?.trim() || '';
+  if (requestIdHeader && !SAFE_REQUEST_ID_RE.test(requestIdHeader)) {
+    return json({ error: 'Invalid request id' }, 400);
+  }
+  const requestId = requestIdHeader || crypto.randomUUID();
 
   const { data: quotaData, error: quotaError } = await userClient
     .rpc('consume_stylechat_request_quota', { p_request_id: requestId });
 
   if (quotaError) {
-    console.error('[stylechat-generate] quota RPC error:', quotaError.message);
+    console.error('[stylechat-generate] quota_rpc_error');
     return json({ error: 'Usage check failed' }, 500);
   }
 
@@ -1141,13 +1152,14 @@ Deno.serve(async (req) => {
   const messagesLimit  = typeof quotaRow.messages_limit === 'number' ? quotaRow.messages_limit : DAILY_LIMIT;
   const limitReached   = quotaRow.limit_reached;
   let quotaStatus: string = typeof quotaRow.quota_status === 'string' ? quotaRow.quota_status : 'consumed';
+  const quotaCharged = quotaRow.charged === true;
   let quotaRefunded = false;
   // Next UTC midnight: capture ts once so both sides of the arithmetic use the same value.
   const nowMs   = Date.now();
   const resetAt = new Date(nowMs - (nowMs % 86_400_000) + 86_400_000).toISOString();
 
   if (limitReached) {
-    console.log('[stylechat-generate] daily quota exhausted for hashed_uid=%s', userId.slice(0, 8));
+    console.log('[stylechat-generate] daily quota exhausted for hashed_uid=%s', oneWayActorRef(userId));
     return json({
       status: 'limit_reached',
       message: {
@@ -1158,6 +1170,23 @@ Deno.serve(async (req) => {
       },
       usage: { messagesUsed, messagesLimit, resetAt },
     });
+  }
+
+  if (quotaStatus === 'consumed' && !quotaCharged) {
+    console.warn('[stylechat-generate] duplicate_request_blocked request_id=%s', requestId);
+    return json(
+      {
+        status: 'duplicate_request',
+        message: {
+          sender: 'assistant',
+          content: 'This Elise request was already processed. Please send it again as a new message.',
+          model: '',
+          tokenEstimate: 0,
+        },
+        usage: { messagesUsed, messagesLimit, resetAt },
+      },
+      409,
+    );
   }
 
   // ── 6. Assemble server-side context ──────────────────────────────────────────
@@ -1386,7 +1415,7 @@ Deno.serve(async (req) => {
     }
     console.log(
       '[stylechat-generate] multimodal uid=%s requested=%d attached=%d bytes=%d',
-      userId.slice(0, 8),
+      oneWayActorRef(userId),
       selections.length,
       inspectedImageCount,
       totalImageBytes,
@@ -1412,8 +1441,11 @@ Deno.serve(async (req) => {
   async function refundQuotaOnce(reason: string): Promise<void> {
     if (quotaRefunded || quotaStatus !== 'consumed') return;
     try {
-      const { data: refundData, error: refundError } = await userClient
-        .rpc('refund_stylechat_request_quota', { p_request_id: requestId });
+      const { data: refundData, error: refundError } = await adminClient
+        .rpc('refund_stylechat_request_quota_for_user', {
+          p_user_id: userId,
+          p_request_id: requestId,
+        });
       if (refundError) {
         console.warn('[stylechat-generate] quota_refund_error reason=%s', reason);
         return;
@@ -1469,7 +1501,7 @@ Deno.serve(async (req) => {
       label: 'initial' | 'retry' | 'fallback',
     ): Promise<AttemptOutcome> {
       attemptCount += 1;
-      const url = buildGeminiUrl(model, geminiKey);
+      const url = buildGeminiUrl(model, configuredGeminiKey);
       try {
         const result = await callGemini(url, body, label === 'fallback' ? 'initial' : label, model);
         if (!result.text.trim()) {
@@ -1716,9 +1748,9 @@ Deno.serve(async (req) => {
   // ── 9. Dev-only redacted log ──────────────────────────────────────────────────
   // In production, keep this minimal. No PII, no secrets, no full messages.
   console.log(
-    '[stylechat-generate] ok uid=%s session=%s model=%s memoryChars=%d historyMsgs=%d responseChars=%d tokens=%d retried=%s fallback=%s elapsedMs=%d',
-    userId.slice(0, 8),
-    sessionId.slice(0, 8),
+    '[stylechat-generate] ok uid=%s request_id=%s model=%s memoryChars=%d historyMsgs=%d responseChars=%d tokens=%d retried=%s fallback=%s elapsedMs=%d',
+    oneWayActorRef(userId),
+    requestId,
     servedModel,
     memoryText.length,
     historyMessages.length,

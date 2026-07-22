@@ -41,8 +41,16 @@ const mobileContract = loadTsModule('types/styleChatAttachments.ts', {
   './fashionReasoning': {}, './ownedClosetItem': {},
 });
 const attachments = loadTsModule(path.join(FN, 'attachments.ts'));
+const trustTypes = loadTsModule(
+  path.join('supabase', 'functions', '_shared', 'aiSecurity', 'trustTypes.ts'),
+);
+const escapeUntrustedText = loadTsModule(
+  path.join('supabase', 'functions', '_shared', 'aiSecurity', 'escapeUntrustedText.ts'),
+  { './trustTypes.ts': trustTypes },
+);
 const context = loadTsModule(path.join(FN, 'attachmentContext.ts'), {
   './attachments.ts': attachments,
+  '../_shared/aiSecurity/escapeUntrustedText.ts': escapeUntrustedText,
 });
 const actions = loadTsModule(path.join(FN, 'actions.ts'), {
   './attachmentContext.ts': context,
@@ -232,7 +240,7 @@ test('v1 requests: no contractVersion required; attachment-free prompt unchanged
   // Prompt extension only applies when verified attachments exist.
   assert.match(indexSource, /resolvedAttachments\.length > 0 \? buildAttachmentContextBlock/);
   // V1 response shape untouched; v2 adds capabilities signal.
-  assert.match(indexSource, /if \(!isV2Request\) \{\s*return json\(\{\s*status: usedFallback/);
+  assert.match(indexSource, /if \(!isV2Request\) \{\s*return json\(\{\s*status: usedCannedFallback/);
   assert.match(indexSource, /capabilities: \['attachments', 'structured_actions'\]/);
   assert.match(indexSource, /select\('id,user_id,title,analysis_result,storage_bucket,storage_path,media_status'\)/);
   assert.match(indexSource, /select\('id,user_id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path'\)/);
@@ -240,7 +248,7 @@ test('v1 requests: no contractVersion required; attachment-free prompt unchanged
   assert.ok(indexSource.indexOf('check_and_increment_stylechat_burst') <
     indexSource.indexOf('4c. V2 attachment resolution'));
   assert.ok(indexSource.indexOf('4c. V2 attachment resolution') <
-    indexSource.indexOf(".rpc('increment_stylechat_daily_usage')"));
+    indexSource.indexOf('consume_stylechat_request_quota'));
 });
 
 test('client capability handling: unsupported v2 preserves the draft, never strips attachments', () => {

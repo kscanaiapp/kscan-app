@@ -18,6 +18,10 @@ const SIG = fs.readFileSync(
   path.join(ROOT, 'supabase/functions/stylechat-generate/signatureStyleContext.ts'),
   'utf8',
 );
+const QUOTA_LOCKDOWN_MIGRATION = fs.readFileSync(
+  path.join(ROOT, 'supabase/migrations/20260722011900_lock_down_stylechat_quota_refunds.sql'),
+  'utf8',
+);
 
 function loadTs(relativePath) {
   const filename = path.join(ROOT, relativePath);
@@ -86,7 +90,10 @@ test('elise routing: client model override ignored', () => {
 test('elise routing: fallback and completeness paths wired', () => {
   assert.ok(EDGE.includes('elise_fallback'));
   assert.ok(EDGE.includes('consume_stylechat_request_quota'));
-  assert.ok(EDGE.includes('refund_stylechat_request_quota'));
+  assert.ok(EDGE.includes('refund_stylechat_request_quota_for_user'));
+  assert.ok(EDGE.includes('p_user_id: userId'));
+  assert.ok(EDGE.includes('adminClient'));
+  assert.equal(EDGE.includes(".rpc('refund_stylechat_request_quota',"), false);
   assert.ok(EDGE.includes('routing_telemetry'));
   assert.equal(routing.isDirectFallbackFailure('http_429'), true);
   assert.equal(routing.isRepairableFailure('incomplete'), true);
@@ -165,4 +172,42 @@ test('quota migration file present', () => {
   assert.ok(mig.includes('stylechat_quota_events'));
   assert.ok(mig.includes("'consumed'"));
   assert.ok(mig.includes("'refunded'"));
+});
+
+test('quota refunds are service-role-only and no longer client callable', () => {
+  assert.ok(
+    QUOTA_LOCKDOWN_MIGRATION.includes(
+      'revoke execute on function public.refund_stylechat_request_quota(text)',
+    ),
+  );
+  assert.match(
+    QUOTA_LOCKDOWN_MIGRATION,
+    /from public, anon, authenticated, service_role/,
+  );
+  assert.ok(
+    QUOTA_LOCKDOWN_MIGRATION.includes(
+      'refund_stylechat_request_quota_for_user(uuid, text)',
+    ),
+  );
+  assert.match(
+    QUOTA_LOCKDOWN_MIGRATION,
+    /grant execute on function public\.refund_stylechat_request_quota_for_user\(uuid, text\)[\s\S]*to service_role/,
+  );
+  assert.equal(
+    /grant execute[\s\S]*refund_stylechat_request_quota_for_user[\s\S]*to authenticated/.test(
+      QUOTA_LOCKDOWN_MIGRATION,
+    ),
+    false,
+  );
+});
+
+test('request-id replay is rejected before any Elise provider attempt', () => {
+  assert.match(EDGE, /SAFE_REQUEST_ID_RE/);
+  assert.match(EDGE, /quotaStatus === 'consumed' && !quotaCharged/);
+  assert.match(EDGE, /status: 'duplicate_request'/);
+  assert.match(EDGE, /duplicate_request_blocked/);
+  assert.ok(
+    EDGE.indexOf("quotaStatus === 'consumed' && !quotaCharged") <
+      EDGE.indexOf('const geminiBody = buildGeminiBody'),
+  );
 });
