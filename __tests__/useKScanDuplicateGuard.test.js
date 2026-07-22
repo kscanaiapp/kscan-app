@@ -159,8 +159,12 @@ function loadUseKScanWithMocks({
     sanitizeImageBeforeUpload: async (image) => image,
     getPrivacySanitizerStatus: () => ({
       mode: 'test',
+      sanitizerVersion: 'metadata-reencode-v1',
       faceDetectionAvailable: false,
       faceBlurApplied: false,
+      plateDetectionAvailable: false,
+      plateMaskApplied: false,
+      metadataStripped: true,
     }),
     buildSecondhandSearchRequest: () => null,
     searchVintedSecondhand: async () => ({ enabled: false, items: [] }),
@@ -352,6 +356,30 @@ test('selected-item request reuses the exact prepared image, digest, and scan se
   assert.equal(calls[1].options.selectedCandidate.candidateId, 'garment-1-blazer');
   assert.equal(calls[1].options.selectedCandidate.category, 'blazer');
   assert.equal(calls[1].options.selectedCandidate.bounds.x, 0.1);
+
+  // Regression: the selected-item request must send a structured privacyProof
+  // (as scanIdentification.hasCompleteLocalPrivacyProof requires) and must NOT
+  // fall back to the stale `localPrivacyFiltered` field, which the edge contract
+  // does not recognize and which made every candidate analysis fail closed.
+  assert.equal(
+    calls[1].options.localPrivacyFiltered,
+    undefined,
+    'selected-item request must not send the unrecognized localPrivacyFiltered field',
+  );
+  assert.ok(
+    calls[1].options.privacyProof && typeof calls[1].options.privacyProof === 'object',
+    'selected-item request must include a privacyProof object',
+  );
+  assert.equal(calls[1].options.privacyProof.sanitizerVersion, 'metadata-reencode-v1');
+  assert.equal(calls[1].options.privacyProof.metadataStripped, true);
+  assert.equal(typeof calls[1].options.privacyProof.faceMaskApplied, 'boolean');
+  assert.equal(typeof calls[1].options.privacyProof.plateMaskApplied, 'boolean');
+  // Parity with the primary detection call's proof shape.
+  assert.deepEqual(
+    Object.keys(calls[1].options.privacyProof).sort(),
+    Object.keys(calls[0].options.privacyProof).sort(),
+    'selected-item privacyProof must match the detection call proof shape',
+  );
 });
 
 test('when SCAN_IDENTIFY_BACKEND_ENABLED is false, analyzeImage is not called', async () => {

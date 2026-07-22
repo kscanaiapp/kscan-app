@@ -689,9 +689,17 @@ export function useKScan() {
         });
       }
 
+      const selectedCandidateSanitizerStatus = getPrivacySanitizerStatus();
       const identifyResponse = await identifyScanImage(session.preparedImageUri, {
         source: photo.source === 'upload' ? 'upload' : 'camera',
-        localPrivacyFiltered: true,
+        privacyProof: {
+          sanitizerVersion: selectedCandidateSanitizerStatus.sanitizerVersion,
+          faceDetectionPerformed: selectedCandidateSanitizerStatus.faceDetectionAvailable,
+          faceMaskApplied: selectedCandidateSanitizerStatus.faceBlurApplied,
+          plateDetectionPerformed: selectedCandidateSanitizerStatus.plateDetectionAvailable,
+          plateMaskApplied: selectedCandidateSanitizerStatus.plateMaskApplied,
+          metadataStripped: selectedCandidateSanitizerStatus.metadataStripped,
+        },
         multiItemDetection: true,
         requestMode: 'selected_item',
         scanSessionId: session.scanSessionId,

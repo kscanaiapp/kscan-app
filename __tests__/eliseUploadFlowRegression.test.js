@@ -12,6 +12,7 @@ const useAttachments = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChatAtt
 const attachmentBar = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatAttachmentBar.tsx'), 'utf8');
 const provider = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'providers', 'edgeStyleChatProvider.ts'), 'utf8');
 const attachmentStore = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'styleChatAttachmentStore.ts'), 'utf8');
+const directImageAttachment = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'eliseDirectImageAttachment.ts'), 'utf8');
 
 // ── Intake sequence ──────────────────────────────────────────────────────────
 
@@ -77,4 +78,20 @@ test('Phase 2 component names and handoff keys are not renamed for branding', ()
   assert.match(photoIntake, /onAttached/);
   assert.match(useAttachments, /addResolvedOwnedItem/);
   assert.match(useAttachments, /StyleChatAttachment/);
+});
+
+// ── Image preparation parity ─────────────────────────────────────────────────
+
+test('direct-image prep runs exactly one Scanner-compatible re-encode pass', () => {
+  // Scanner prepares an image with a single 896/0.65 JPEG re-encode. The Elise
+  // direct-image path must match that (one lossy pass), not stack a second
+  // compressForUpload pass on top of prepareImageForPrivacyUpload — doing so
+  // added generational JPEG loss and extra latency on every attach.
+  const prepareCalls = (directImageAttachment.match(/prepareImageForPrivacyUpload\(/g) || []).length;
+  assert.equal(prepareCalls, 1, 'exactly one prepareImageForPrivacyUpload call expected');
+  assert.doesNotMatch(
+    directImageAttachment,
+    /compressForUpload\(/,
+    'direct-image prep must not invoke a second compressForUpload re-encode pass',
+  );
 });
