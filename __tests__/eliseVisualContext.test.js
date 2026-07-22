@@ -400,7 +400,7 @@ test('preparation queue is FIFO, capped at two, skips removed jobs, and survives
   assert.equal(queue.snapshot().pending.length, 0);
 });
 
-test('metadata-only preparation is blocked before any re-encode', async () => {
+test('local image preparation strips metadata through a bounded re-encode', async () => {
   const manipResult = { uri: 'file:///cache/sanitized.jpg', width: 1024, height: 768 };
   let manipulateCalls = 0;
   const manipulator = {
@@ -415,12 +415,14 @@ test('metadata-only preparation is blocked before any re-encode', async () => {
     'expo-file-system/legacy': fileSystem,
   });
 
-  assert.equal(privacy.isPrivateImageUploadAvailable(), false);
-  await assert.rejects(
-    () => privacy.prepareImageForPrivacyUpload('file:///library/original.jpg'),
-    /face and license-plate masking/i,
-  );
-  assert.equal(manipulateCalls, 0);
+  assert.equal(privacy.isPrivateImageUploadAvailable(), true);
+  const prepared = await privacy.prepareImageForPrivacyUpload('file:///library/original.jpg');
+  assert.equal(manipulateCalls, 1);
+  assert.equal(prepared.sanitizedUri, manipResult.uri);
+  assert.equal(prepared.policy.mode, 'metadata-stripped-reencode');
+  assert.equal(prepared.policy.metadataStripped, true);
+  assert.equal(prepared.policy.faceMaskApplied, false);
+  assert.equal(prepared.policy.plateMaskApplied, false);
 });
 
 test('prepareImageForPrivacyUpload rejects cloud placeholders', async () => {
@@ -434,7 +436,7 @@ test('prepareImageForPrivacyUpload rejects cloud placeholders', async () => {
   );
 });
 
-test('unavailable masking blocks before the metadata codec is called', async () => {
+test('codec failures fail closed with a safe preparation error', async () => {
   let codecCalled = false;
   const privacy = loadTsModule('services/privacyImageUpload.ts', {
     'expo-image-manipulator': {
@@ -445,9 +447,23 @@ test('unavailable masking blocks before the metadata codec is called', async () 
   });
   await assert.rejects(
     () => privacy.prepareImageForPrivacyUpload('file:///library/original.jpg'),
-    /face and license-plate masking/i,
+    /could not be prepared securely/i,
   );
-  assert.equal(codecCalled, false);
+  assert.equal(codecCalled, true);
+});
+
+test('missing re-encoded URI fails closed', async () => {
+  const privacy = loadTsModule('services/privacyImageUpload.ts', {
+    'expo-image-manipulator': {
+      SaveFormat: { JPEG: 'jpeg' },
+      manipulateAsync: async () => ({ width: 1024, height: 768 }),
+    },
+    'expo-file-system/legacy': { deleteAsync: async () => {} },
+  });
+  await assert.rejects(
+    () => privacy.prepareImageForPrivacyUpload('file:///library/original.jpg'),
+    /could not be prepared securely/i,
+  );
 });
 
 test('legacy image sanitizer is explicitly blocked and never passes pixels through', async () => {
@@ -879,7 +895,7 @@ test('visual context tray exposes 44dp targets and blocked-state copy', () => {
   assert.match(signatureStyle, /backgroundColor: 'rgba\(232, 228, 240, 0\.46\)'/);
 });
 
-test('canonical scanner disables every gallery upload control while pixel masking is unavailable', () => {
+test('canonical scanner binds gallery controls to privacy preparation availability', () => {
   const landing = read('components/scan-room/ScanLanding.tsx');
   const camera = read('components/scan-room/LiveScanCamera.tsx');
 
