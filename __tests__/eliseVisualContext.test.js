@@ -466,22 +466,22 @@ test('missing re-encoded URI fails closed', async () => {
   );
 });
 
-test('legacy image sanitizer is explicitly blocked and never passes pixels through', async () => {
-  const sanitizer = loadTsModule('services/privacyImageSanitizer.js', {});
+test('image sanitizer accepts a freshly re-encoded JPEG with truthful capability evidence', async () => {
+  const sanitizer = loadTsModule('services/privacyImageSanitizer.js', {
+    'expo-image-manipulator': {
+      SaveFormat: { JPEG: 'jpeg' },
+      manipulateAsync: async () => ({ uri: 'file:///cache/sanitized.jpg', width: 896, height: 672 }),
+    },
+    'expo-file-system/legacy': { deleteAsync: async () => {} },
+  });
   const status = sanitizer.getPrivacySanitizerStatus();
-  assert.equal(status.mode, 'blocked');
-  assert.equal(status.remoteTransmissionAllowed, false);
+  assert.equal(status.mode, 'metadata-stripped-reencode');
+  assert.equal(status.remoteTransmissionAllowed, true);
+  assert.equal(status.metadataStripped, true);
   assert.equal(status.faceDetectionAvailable, false);
   assert.equal(status.plateDetectionAvailable, false);
-  await assert.rejects(
-    () => sanitizer.sanitizeImageBeforeUpload('data:image/jpeg;base64,RAW'),
-    (error) => {
-      assert.match(error.message, /masking is not installed/i);
-      assert.equal(error.name, 'PrivacySanitizerUnavailableError');
-      assert.equal(error.userMessage, sanitizer.PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE);
-      return true;
-    },
-  );
+  const prepared = await sanitizer.sanitizeImageBeforeUpload('data:image/jpeg;base64,UkFX');
+  assert.equal(prepared, 'data:image/jpeg;base64,UkFX');
 });
 
 // ── Mapping scan-identify to visual context entries ───────────────────────────

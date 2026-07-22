@@ -30,7 +30,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
-import { sanitizeImageBeforeUpload } from '../../services/privacyImageSanitizer';
+import {
+  getPrivacySanitizerStatus,
+  sanitizeImageBeforeUpload,
+} from '../../services/privacyImageSanitizer';
 import { identifyScanImage } from '../../services/scanIdentification';
 import { saveScan } from '../../services/library';
 import { saveScanToCloud } from '../../services/savedScansCloud';
@@ -147,6 +150,17 @@ export function StyleChatPhotoIntake({
       const identification = prepared.base64
         ? await identifyScanImage(prepared.base64, {
             source: 'upload',
+            privacyProof: (() => {
+              const status = getPrivacySanitizerStatus();
+              return {
+                sanitizerVersion: status.sanitizerVersion,
+                faceDetectionPerformed: status.faceDetectionAvailable,
+                faceMaskApplied: status.faceBlurApplied,
+                plateDetectionPerformed: status.plateDetectionAvailable,
+                plateMaskApplied: status.plateMaskApplied,
+                metadataStripped: status.metadataStripped,
+              };
+            })(),
             signal: abortRef.current?.signal,
           })
         : null;
