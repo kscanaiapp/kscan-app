@@ -8,7 +8,7 @@
 
 - Repository: `kscanaiapp/kscan-app`
 - Branch: `feature/ai-model-input-security`
-- Remote SHA: `ffd25753a08e1e7077f3672446106c776b8c1fb2`
+- Audited application-code SHA before docs-only merges: `ffd25753a08e1e7077f3672446106c776b8c1fb2`
 - Repair/build workspace: `C:\src\KScan-enable-private-image-upload-20260721`
 - Dirty original workspaces: preserved untouched as evidence
 
