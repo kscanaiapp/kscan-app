@@ -8,6 +8,10 @@ const MIGRATION = fs.readFileSync(
   path.join(ROOT, 'supabase/migrations/20260722030000_create_llm_routing_events.sql'),
   'utf8',
 );
+const PRIVILEGE_MIGRATION = fs.readFileSync(
+  path.join(ROOT, 'supabase/migrations/20260722033000_limit_llm_routing_event_privileges.sql'),
+  'utf8',
+);
 const SCAN = fs.readFileSync(
   path.join(ROOT, 'supabase/functions/scan-identify/index.ts'),
   'utf8',
@@ -48,6 +52,18 @@ test('routing ledger is service-role-only categorical telemetry', () => {
     /^\s+(user_id|prompt|message|image|audio|provider_response)\s+/m.test(MIGRATION),
     false,
     'The telemetry table must not have identity or content columns',
+  );
+  assert.match(
+    PRIVILEGE_MIGRATION,
+    /revoke all on table public\.llm_routing_events from service_role/,
+  );
+  assert.match(
+    PRIVILEGE_MIGRATION,
+    /grant select, insert on table public\.llm_routing_events to service_role/,
+  );
+  assert.equal(
+    /grant\s+(update|delete)|grant\s+[^;]*,\s*(update|delete)/i.test(PRIVILEGE_MIGRATION),
+    false,
   );
 });
 
