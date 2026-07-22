@@ -136,6 +136,13 @@ begin
 
   p_request_id := trim(p_request_id);
 
+  -- Use the identical narrow lock identity as consume so a refund cannot race
+  -- another operation for this user/request pair. Unrelated users and request
+  -- IDs derive independent 64-bit advisory-lock keys.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_user_id::text || ':' || p_request_id, 0)
+  );
+
   select e.status, e.usage_date
     into v_status, v_date
     from public.stylechat_quota_events as e

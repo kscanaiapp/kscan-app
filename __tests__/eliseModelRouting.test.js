@@ -227,6 +227,11 @@ test('quota RPC runtime repair qualifies output-column references and serializes
   );
   assert.ok(QUOTA_RUNTIME_REPAIR_MIGRATION.includes('pg_advisory_xact_lock'));
   assert.ok(QUOTA_RUNTIME_REPAIR_MIGRATION.includes('hashtextextended'));
+  assert.equal(
+    (QUOTA_RUNTIME_REPAIR_MIGRATION.match(/pg_advisory_xact_lock/g) || []).length,
+    2,
+    'consume and refund must use the same narrow transaction lock pattern',
+  );
   assert.match(
     QUOTA_RUNTIME_REPAIR_MIGRATION,
     /create or replace function public\.consume_stylechat_request_quota[\s\S]*set search_path = ''/,
