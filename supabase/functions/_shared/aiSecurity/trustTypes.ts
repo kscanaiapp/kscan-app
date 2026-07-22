@@ -19,6 +19,7 @@ export type PromptSectionName =
   | 'attachment_context'
   | 'closet_context'
   | 'signature_style_context'
+  | 'style_dna_context'
   | 'commerce_context'
   | 'shared_context'
   | 'retrieved_context';
@@ -30,6 +31,7 @@ export const UNTRUSTED_SECTION_NAMES: readonly PromptSectionName[] = [
   'attachment_context',
   'closet_context',
   'signature_style_context',
+  'style_dna_context',
   'commerce_context',
   'shared_context',
   'retrieved_context',
@@ -44,6 +46,7 @@ export const TRUST_FOR_SECTION: Record<PromptSectionName, AIContentTrust> = {
   attachment_context: 'untrusted_derived',
   closet_context: 'untrusted_derived',
   signature_style_context: 'untrusted_derived',
+  style_dna_context: 'untrusted_derived',
   commerce_context: 'untrusted_external',
   shared_context: 'untrusted_external',
   retrieved_context: 'untrusted_external',

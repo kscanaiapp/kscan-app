@@ -14,7 +14,9 @@
 //   - Response sanitized before returning to mobile
 //
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
-// Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-2.5-flash).
+// Model routing (workload vars only; generic GEMINI_MODEL is not used):
+//   STYLECHAT_GEMINI_MODEL          -> gemini-3.6-flash
+//   STYLECHAT_GEMINI_FALLBACK_MODEL -> gemini-3.5-flash-lite
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
@@ -57,12 +59,19 @@ import {
 } from '../_shared/aiSecurity/securityTelemetry.ts';
 import { recordObjectiveAbuse } from '../_shared/aiSecurity/abuseControls.ts';
 import { authorizeModelAction } from '../_shared/aiSecurity/actionAuthorization.ts';
+import {
+  isDirectFallbackFailure,
+  isRepairableFailure,
+  resolveEliseModels,
+  type ProviderFailureKind,
+} from './modelRouting.ts';
+import { buildSignatureStyleContextBlock } from './signatureStyleContext.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-request-id',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -75,8 +84,7 @@ const MAX_RECENT_MESSAGES  = 6;
 const GEMINI_TIMEOUT_MS    = 12_000;
 const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Stable GA default; operator should set STYLECHAT_GEMINI_MODEL at deployment.
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Approved Step 2B defaults (allowlisted in modelRouting.ts).
 const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Local rollback switch for the explainable-recommendation slice (Option A). Setting this
@@ -318,7 +326,6 @@ interface GeminiBody {
   contents: GeminiTurn[];
   generationConfig: {
     maxOutputTokens: number;
-    temperature: number;
   };
 }
 
@@ -379,7 +386,6 @@ function buildGeminiBody(systemText: string, contents: GeminiTurn[]): GeminiBody
     contents,
     generationConfig: {
       maxOutputTokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.7,
     },
   };
 }
@@ -838,11 +844,10 @@ Deno.serve(async (req) => {
   const isAiDisabled =
     readTrimmedEnv('STYLECHAT_AI_ENABLED')?.toLowerCase() === 'false';
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
-  // Model name is trimmed but never lowercased; preserves exact operator config.
-  const modelName =
-    readTrimmedEnv('STYLECHAT_GEMINI_MODEL') ||
-    readTrimmedEnv('GEMINI_MODEL') ||
-    DEFAULT_MODEL;
+  const { primaryModel, fallbackModel } = resolveEliseModels((key) => Deno.env.get(key));
+  if (body && typeof body === 'object' && 'model' in (body as Record<string, unknown>)) {
+    console.log('[stylechat-generate] client_model_override_ignored');
+  }
 
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const message   = typeof body.message   === 'string' ? body.message.trim()   : '';
@@ -1099,8 +1104,11 @@ Deno.serve(async (req) => {
   // This is the authority check. If the RPC returns limit_reached=true, we abort
   // before making any Gemini call.
 
+  // Request id is required for idempotent consume/refund linkage.
+  const requestId = req.headers.get(REQUEST_ID_HEADER)?.trim() || crypto.randomUUID();
+
   const { data: quotaData, error: quotaError } = await userClient
-    .rpc('increment_stylechat_daily_usage');
+    .rpc('consume_stylechat_request_quota', { p_request_id: requestId });
 
   if (quotaError) {
     console.error('[stylechat-generate] quota RPC error:', quotaError.message);
@@ -1129,9 +1137,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  const messagesUsed   = quotaRow.messages_used;
+  let messagesUsed   = quotaRow.messages_used;
   const messagesLimit  = typeof quotaRow.messages_limit === 'number' ? quotaRow.messages_limit : DAILY_LIMIT;
   const limitReached   = quotaRow.limit_reached;
+  let quotaStatus: string = typeof quotaRow.quota_status === 'string' ? quotaRow.quota_status : 'consumed';
+  let quotaRefunded = false;
   // Next UTC midnight: capture ts once so both sides of the arithmetic use the same value.
   const nowMs   = Date.now();
   const resetAt = new Date(nowMs - (nowMs % 86_400_000) + 86_400_000).toISOString();
@@ -1275,7 +1285,15 @@ Deno.serve(async (req) => {
   const attachmentContextBlock =
     resolvedAttachments.length > 0 ? buildAttachmentContextBlock(resolvedAttachments) : null;
   const visualContextBlock = activeContext ? buildActiveContextBlock(activeContext) : null;
-  const signatureStyleContext = styleDnaContext
+  const signatureStyleBlock = buildSignatureStyleContextBlock({
+    brands: topBrands,
+    colors: topColors,
+    categories: topCategories,
+    budgetMin,
+    budgetMax,
+  });
+  const signatureStyleContext = signatureStyleBlock.text;
+  const styleDnaGuidance = styleDnaContext
     ? buildStyleDnaContextBlock(styleDnaContext)
     : null;
 
@@ -1291,11 +1309,11 @@ Deno.serve(async (req) => {
     attachmentContextBlock,
     closetContext: memoryText || null,
     signatureStyleContext,
+    styleDnaContext: styleDnaGuidance,
     focusText: contextHint,
   });
 
   const systemTextWithAttachments = assembledPrompt.systemText;
-  const requestId = req.headers.get(REQUEST_ID_HEADER)?.trim() || crypto.randomUUID();
 
   emitAiSecurityTelemetry({
     requestId,
@@ -1379,148 +1397,231 @@ Deno.serve(async (req) => {
 
   // ── 8. Call Gemini ────────────────────────────────────────────────────────────
 
-  const geminiUrl    = buildGeminiUrl(modelName, geminiKey);
-
   let assistantText  = '';
   let tokenEstimate  = 0;
   let whyThisWorks: string | undefined;
   let wasRetried     = false;
-  let usedFallback   = false;
+  let usedCannedFallback = false;
+  let servedModel = primaryModel;
+  let fallbackUsed = false;
+  let fallbackReason: string | null = null;
+  let attemptCount = 0;
+  let providerStatus = 'ok';
+  let responseValid = false;
+
+  async function refundQuotaOnce(reason: string): Promise<void> {
+    if (quotaRefunded || quotaStatus !== 'consumed') return;
+    try {
+      const { data: refundData, error: refundError } = await userClient
+        .rpc('refund_stylechat_request_quota', { p_request_id: requestId });
+      if (refundError) {
+        console.warn('[stylechat-generate] quota_refund_error reason=%s', reason);
+        return;
+      }
+      const refundRow = Array.isArray(refundData) ? refundData[0] : refundData;
+      if (refundRow && refundRow.refunded === true) {
+        quotaRefunded = true;
+        quotaStatus = 'refunded';
+        if (typeof refundRow.messages_used === 'number') {
+          messagesUsed = refundRow.messages_used;
+        }
+        console.log(
+          '[stylechat-generate] quota_refunded request_id=%s reason=%s',
+          requestId,
+          reason,
+        );
+      } else if (refundRow && refundRow.quota_status === 'refunded') {
+        quotaStatus = 'refunded';
+      }
+    } catch {
+      console.warn('[stylechat-generate] quota_refund_exception reason=%s', reason);
+    }
+  }
+
+  function logRoutingTelemetry(extra: Record<string, string | number | boolean | null> = {}): void {
+    console.log(
+      '[stylechat-generate] routing_telemetry request_id=%s primary_model=%s served_model=%s fallback_used=%s fallback_reason=%s attempt_count=%d provider_status=%s latency_ms=%d response_valid=%s signature_style_included=%s signature_style_signal_count=%d quota_status=%s quota_refunded=%s',
+      requestId,
+      primaryModel,
+      servedModel,
+      String(fallbackUsed),
+      fallbackReason ?? 'none',
+      attemptCount,
+      providerStatus,
+      Date.now() - startedAt,
+      String(responseValid),
+      String(Boolean(signatureStyleContext)),
+      signatureStyleBlock.signalCount,
+      quotaStatus,
+      String(quotaRefunded),
+    );
+    void extra;
+  }
 
   try {
-    const initial = await callGemini(geminiUrl, geminiBody, 'initial', modelName);
-    assistantText = initial.text;
-    tokenEstimate = initial.tokenEstimate;
-    whyThisWorks  = initial.whyThisWorks;
+    type AttemptOutcome =
+      | { ok: true; result: GeminiCallResult; model: string }
+      | { ok: false; kind: ProviderFailureKind; model: string; partial?: GeminiCallResult };
 
-    const incompleteReason = incompleteReasonFor(
-      assistantText,
-      message,
-      initial.finishReason,
-    );
-
-    const initialSignals = completenessSignals(assistantText, message);
-    console.log(
-      '[stylechat-generate] completeness_check attempt=initial reason=%s responseChars=%d finishReason=%s terminalPunctuation=%s danglingEnding=%s shortQuestion=%s',
-      incompleteReason ?? 'none',
-      assistantText.length,
-      initial.finishReason || 'none',
-      String(initialSignals.terminalPunctuation),
-      String(initialSignals.danglingEnding),
-      String(initialSignals.shortQuestion),
-    );
-
-    if (incompleteReason) {
-      wasRetried = true;
-      console.warn(
-        '[stylechat-generate] retrying incomplete response reason=%s responseChars=%d finishReason=%s',
-        incompleteReason,
-        assistantText.length,
-        initial.finishReason || 'none',
-      );
-
-      const retryBody = buildGeminiBody(systemTextWithAttachments, buildRetryTurns(turns));
-
+    async function attemptModel(
+      model: string,
+      body: GeminiBody,
+      label: 'initial' | 'retry' | 'fallback',
+    ): Promise<AttemptOutcome> {
+      attemptCount += 1;
+      const url = buildGeminiUrl(model, geminiKey);
       try {
-        const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName);
-        const retryIncompleteReason = incompleteReasonFor(
-          retry.text,
-          message,
-          retry.finishReason,
-        );
-
-        const retrySignals = completenessSignals(retry.text, message);
-        console.log(
-          '[stylechat-generate] completeness_check attempt=retry reason=%s responseChars=%d finishReason=%s terminalPunctuation=%s danglingEnding=%s shortQuestion=%s',
-          retryIncompleteReason ?? 'none',
-          retry.text.length,
-          retry.finishReason || 'none',
-          String(retrySignals.terminalPunctuation),
-          String(retrySignals.danglingEnding),
-          String(retrySignals.shortQuestion),
-        );
-
-        const retryHasText = retry.text.trim().length > 0;
-
-        if (!retryIncompleteReason) {
-          // Retry produced a complete answer — use it.
-          assistantText = retry.text;
-          tokenEstimate = retry.tokenEstimate;
-          whyThisWorks  = retry.whyThisWorks;
-        } else if (retryIncompleteReason !== 'max_tokens' && retryHasText) {
-          // Best-effort: retry text is non-empty and was NOT truncated by MAX_TOKENS, but
-          // the heuristic still flags it. Prefer real Gemini guidance over a generic fallback.
-          assistantText = retry.text;
-          tokenEstimate = retry.tokenEstimate;
-          whyThisWorks  = retry.whyThisWorks;
-          usedFallback = false;
-          console.warn(
-            '[stylechat-generate] returned_best_effort_after_retry reason=%s responseChars=%d finishReason=%s retried=true model=%s elapsedMs=%d',
-            retryIncompleteReason,
-            retry.text.length,
-            retry.finishReason || 'none',
-            modelName,
-            Date.now() - startedAt,
-          );
-        } else {
-          // Retry was MAX_TOKENS (truncated) or empty — use the safe generic fallback.
-          usedFallback = true;
-          assistantText = buildStyleChatFallback();
-          tokenEstimate = 0;
-          whyThisWorks  = undefined;
-          console.warn(
-            '[stylechat-generate] retry remained incomplete reason=%s responseChars=%d finishReason=%s',
-            retryIncompleteReason,
-            retry.text.length,
-            retry.finishReason || 'none',
-          );
+        const result = await callGemini(url, body, label === 'fallback' ? 'initial' : label, model);
+        if (!result.text.trim()) {
+          return { ok: false, kind: 'empty_response', model, partial: result };
         }
-      } catch (retryErr) {
-        const retryTimedOut = retryErr instanceof DOMException && retryErr.name === 'AbortError';
-        const initialHasText = initial.text.trim().length > 0;
-
-        if (initialHasText && initial.finishReason !== 'MAX_TOKENS') {
-          // Retry failed entirely, but the initial reply was usable and NOT truncated by
-          // MAX_TOKENS. Return it as best-effort rather than discarding real guidance.
-          assistantText = initial.text;
-          tokenEstimate = initial.tokenEstimate;
-          whyThisWorks  = initial.whyThisWorks;
-          usedFallback = false;
-          console.warn(
-            '[stylechat-generate] returned_best_effort_initial_after_retry_failure reason=%s responseChars=%d finishReason=%s retried=true model=%s elapsedMs=%d',
-            incompleteReason,
-            initial.text.length,
-            initial.finishReason || 'none',
-            modelName,
-            Date.now() - startedAt,
-          );
-        } else {
-          // Initial was empty or MAX_TOKENS and retry failed — use the safe fallback.
-          usedFallback = true;
-          assistantText = buildStyleChatFallback();
-          tokenEstimate = 0;
-          whyThisWorks  = undefined;
-          console.warn(
-            '[stylechat-generate] retry %s elapsedMs=%d',
-            retryTimedOut ? 'timeout' : 'error',
-            Date.now() - startedAt,
-          );
+        const incomplete = incompleteReasonFor(result.text, message, result.finishReason);
+        if (incomplete) {
+          return { ok: false, kind: 'incomplete', model, partial: result };
         }
-      }
-
-      if (usedFallback) {
-        console.warn(
-          '[stylechat-generate] fallback_after_retry model=%s elapsedMs=%d',
-          modelName,
-          Date.now() - startedAt,
-        );
+        return { ok: true, result, model };
+      } catch (err) {
+        const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+        const msg = err instanceof Error ? err.message : String(err);
+        if (isTimeout) return { ok: false, kind: 'timeout', model };
+        if (/Empty Gemini/i.test(msg)) return { ok: false, kind: 'empty_response', model };
+        if (/non-JSON/i.test(msg)) return { ok: false, kind: 'malformed', model };
+        if (/returned 429/.test(msg)) return { ok: false, kind: 'http_429', model };
+        if (/returned 5\d\d/.test(msg)) return { ok: false, kind: 'http_5xx', model };
+        return { ok: false, kind: 'network', model };
       }
     }
+
+    let outcome = await attemptModel(primaryModel, geminiBody, 'initial');
+    servedModel = primaryModel;
+
+    if (outcome.ok) {
+      assistantText = outcome.result.text;
+      tokenEstimate = outcome.result.tokenEstimate;
+      whyThisWorks = outcome.result.whyThisWorks;
+      responseValid = true;
+      providerStatus = 'ok';
+    } else if (isDirectFallbackFailure(outcome.kind)) {
+      fallbackUsed = true;
+      fallbackReason = outcome.kind;
+      providerStatus = outcome.kind;
+      console.log('[stylechat-generate] elise_fallback model=%s reason=%s', fallbackModel, outcome.kind);
+      const lite = await attemptModel(fallbackModel, geminiBody, 'fallback');
+      servedModel = fallbackModel;
+      if (lite.ok) {
+        assistantText = lite.result.text;
+        tokenEstimate = lite.result.tokenEstimate;
+        whyThisWorks = lite.result.whyThisWorks;
+        responseValid = true;
+        providerStatus = 'ok';
+      } else if (lite.partial && lite.partial.text.trim() && lite.kind === 'incomplete' && lite.partial.finishReason !== 'MAX_TOKENS') {
+        assistantText = lite.partial.text;
+        tokenEstimate = lite.partial.tokenEstimate;
+        whyThisWorks = lite.partial.whyThisWorks;
+        responseValid = true;
+        providerStatus = 'best_effort';
+      } else {
+        providerStatus = lite.kind;
+        usedCannedFallback = true;
+        assistantText = buildStyleChatFallback();
+        tokenEstimate = 0;
+        whyThisWorks = undefined;
+        await refundQuotaOnce(lite.kind);
+      }
+    } else if (isRepairableFailure(outcome.kind)) {
+      wasRetried = true;
+      providerStatus = outcome.kind;
+      console.warn(
+        '[stylechat-generate] retrying incomplete response reason=%s model=%s',
+        outcome.kind,
+        primaryModel,
+      );
+      const retryBody = buildGeminiBody(systemTextWithAttachments, buildRetryTurns(turns));
+      const retry = await attemptModel(primaryModel, retryBody, 'retry');
+      if (retry.ok) {
+        assistantText = retry.result.text;
+        tokenEstimate = retry.result.tokenEstimate;
+        whyThisWorks = retry.result.whyThisWorks;
+        responseValid = true;
+        providerStatus = 'ok';
+        servedModel = primaryModel;
+      } else if (
+        retry.partial &&
+        retry.partial.text.trim() &&
+        retry.kind === 'incomplete' &&
+        retry.partial.finishReason !== 'MAX_TOKENS'
+      ) {
+        assistantText = retry.partial.text;
+        tokenEstimate = retry.partial.tokenEstimate;
+        whyThisWorks = retry.partial.whyThisWorks;
+        responseValid = true;
+        providerStatus = 'best_effort';
+        servedModel = primaryModel;
+      } else if (
+        outcome.partial &&
+        outcome.partial.text.trim() &&
+        outcome.partial.finishReason !== 'MAX_TOKENS'
+      ) {
+        // Best-effort initial after failed repair.
+        assistantText = outcome.partial.text;
+        tokenEstimate = outcome.partial.tokenEstimate;
+        whyThisWorks = outcome.partial.whyThisWorks;
+        responseValid = true;
+        providerStatus = 'best_effort';
+        servedModel = primaryModel;
+      } else {
+        // Completeness path: one Lite attempt after repair exhausted.
+        fallbackUsed = true;
+        fallbackReason = retry.kind;
+        console.log('[stylechat-generate] elise_fallback model=%s reason=%s', fallbackModel, retry.kind);
+        const lite = await attemptModel(fallbackModel, geminiBody, 'fallback');
+        servedModel = fallbackModel;
+        if (lite.ok) {
+          assistantText = lite.result.text;
+          tokenEstimate = lite.result.tokenEstimate;
+          whyThisWorks = lite.result.whyThisWorks;
+          responseValid = true;
+          providerStatus = 'ok';
+        } else if (
+          lite.partial &&
+          lite.partial.text.trim() &&
+          lite.kind === 'incomplete' &&
+          lite.partial.finishReason !== 'MAX_TOKENS'
+        ) {
+          assistantText = lite.partial.text;
+          tokenEstimate = lite.partial.tokenEstimate;
+          whyThisWorks = lite.partial.whyThisWorks;
+          responseValid = true;
+          providerStatus = 'best_effort';
+        } else {
+          providerStatus = lite.kind;
+          usedCannedFallback = true;
+          assistantText = buildStyleChatFallback();
+          tokenEstimate = 0;
+          whyThisWorks = undefined;
+          await refundQuotaOnce(lite.kind);
+        }
+      }
+    } else {
+      providerStatus = outcome.kind;
+      usedCannedFallback = true;
+      assistantText = buildStyleChatFallback();
+      tokenEstimate = 0;
+      whyThisWorks = undefined;
+      await refundQuotaOnce(outcome.kind);
+    }
+
+    logRoutingTelemetry();
 
   } catch (err) {
     const elapsedMs   = Date.now() - startedAt;
     const isTimeout   = err instanceof DOMException && err.name === 'AbortError';
     console.warn('[stylechat-generate] %s elapsedMs=%d', isTimeout ? 'timeout' : 'error', elapsedMs);
+    providerStatus = isTimeout ? 'timeout' : 'exception';
+    servedModel = 'none';
+    usedCannedFallback = true;
+    await refundQuotaOnce(providerStatus);
+    logRoutingTelemetry();
 
     // Return safe fallback — do not expose internal error details.
     return json({
@@ -1528,7 +1629,7 @@ Deno.serve(async (req) => {
       message: {
         sender: 'assistant',
         content: buildStyleChatFallback(),
-        model: modelName,
+        model: primaryModel,
         tokenEstimate: 0,
       },
       usage: { messagesUsed, messagesLimit, resetAt },
@@ -1543,7 +1644,7 @@ Deno.serve(async (req) => {
   // actions are dropped entirely; the text reply is always preserved. On the
   // v1 path this whole step is skipped and the text is untouched.
   let validatedActions: ReturnType<typeof validateStyleChatActions> = [];
-  if (isV2Request && !usedFallback) {
+  if (isV2Request && !usedCannedFallback) {
     const extracted = extractActionsBlock(assistantText);
     if (extracted.text.trim().length > 0) {
       assistantText = extracted.text;
@@ -1589,21 +1690,24 @@ Deno.serve(async (req) => {
 
   // Final safety net: if no usable text survived (e.g. an empty best-effort path),
   // substitute the generic fallback so we never return whitespace as success.
-  if (!usedFallback && assistantText.trim().length === 0) {
-    usedFallback = true;
+  if (!usedCannedFallback && assistantText.trim().length === 0) {
+    usedCannedFallback = true;
     assistantText = buildStyleChatFallback();
     tokenEstimate = 0;
     whyThisWorks  = undefined;
+    servedModel = 'none';
+    providerStatus = 'empty_final';
+    await refundQuotaOnce('empty_final');
     console.warn(
       '[stylechat-generate] empty_final_text_fallback model=%s elapsedMs=%d',
-      modelName,
+      servedModel,
       elapsedMs,
     );
   }
 
   // Single token-estimate lineage: real or best-effort Gemini text reports its computed
   // estimate (usageMetadata or char approximation); generic fallback text stays 0.
-  const finalTokenEstimate = usedFallback
+  const finalTokenEstimate = usedCannedFallback
     ? 0
     : typeof tokenEstimate === 'number' && tokenEstimate > 0
       ? tokenEstimate
@@ -1615,13 +1719,13 @@ Deno.serve(async (req) => {
     '[stylechat-generate] ok uid=%s session=%s model=%s memoryChars=%d historyMsgs=%d responseChars=%d tokens=%d retried=%s fallback=%s elapsedMs=%d',
     userId.slice(0, 8),
     sessionId.slice(0, 8),
-    modelName,
+    servedModel,
     memoryText.length,
     historyMessages.length,
     assistantText.length,
     finalTokenEstimate,
     String(wasRetried),
-    String(usedFallback),
+    String(usedCannedFallback),
     elapsedMs,
   );
 
@@ -1639,13 +1743,13 @@ Deno.serve(async (req) => {
   } = {
     sender: 'assistant',
     content: assistantText,
-    model: modelName,
+    model: servedModel === 'none' ? primaryModel : servedModel,
     tokenEstimate: finalTokenEstimate,
   };
 
   if (
     STYLECHAT_EXPLANATIONS_ENABLED &&
-    !usedFallback &&
+    !usedCannedFallback &&
     typeof whyThisWorks === 'string' &&
     whyThisWorks.trim().length > 0
   ) {
@@ -1658,7 +1762,7 @@ Deno.serve(async (req) => {
   // answers), validated actions, and resolution metadata (never content).
   if (!isV2Request) {
     return json({
-      status: usedFallback ? 'error' : 'success',
+      status: usedCannedFallback ? 'error' : 'success',
       message: responseMessage,
       usage: { messagesUsed, messagesLimit, resetAt },
       ...(activeContext?.visualCollection?.evidence.length
@@ -1668,7 +1772,7 @@ Deno.serve(async (req) => {
   }
 
   return json({
-    status: usedFallback ? 'error' : 'success',
+    status: usedCannedFallback ? 'error' : 'success',
     message: responseMessage,
     usage: { messagesUsed, messagesLimit, resetAt },
     contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,

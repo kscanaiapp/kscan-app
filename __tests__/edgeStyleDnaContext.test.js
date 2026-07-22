@@ -53,10 +53,12 @@ test('valid medium context (6+) parses', () => {
 test('guidance block wording differs by confidence and is clearly delimited', () => {
   const low = m.buildStyleDnaContextBlock({ signalCount: 3, helpfulCount: 2, notMyStyleCount: 1, confidence: 'low' });
   const med = m.buildStyleDnaContextBlock({ signalCount: 8, helpfulCount: 6, notMyStyleCount: 2, confidence: 'medium' });
-  assert.ok(low.startsWith('[Optional Signature Style Context]'));
-  assert.ok(low.includes('[/Optional Signature Style Context]'));
+  assert.ok(low.startsWith('[Optional StyleDNA Context]'));
+  assert.ok(low.includes('[/Optional StyleDNA Context]'));
   assert.ok(low.includes('small number'));
   assert.ok(med.includes('several'));
+  assert.ok(low.includes('StyleDNA'));
+  assert.ok(low.includes('Signature Style preference inventory'));
   // no raw counts leaked into the prompt text
   assert.equal(/\b\d+\b/.test(low), false);
   assert.equal(/\b\d+\b/.test(med), false);

@@ -1,5 +1,6 @@
-// ── Signature Style context (Phase 2) — server-side consumption ────────────────
+// ── StyleDNA context — local satisfaction / confidence signal ──────────────────
 // Pure helpers, no Deno/network imports, so they are unit-testable from node too.
+// Distinct from Signature Style (stored preference signals from Closet/reactions).
 //
 // Backward-compatibility contract:
 //   - styleDnaContext is fully optional. Absent -> null -> prompt unchanged (old apps).
@@ -53,14 +54,16 @@ export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
   const body =
     ctx.confidence === 'medium'
       ? [
-          'The user has given several local StyleChat feedback signals for their Signature Style.',
+          'The user has given several local StyleChat feedback signals (StyleDNA).',
           'Lightly adapt recommendations toward what has received helpful feedback and away from suggestions marked not-my-style.',
           'Do not claim certainty or invent specific preferences.',
+          'Do not conflate this satisfaction signal with Signature Style preference inventory.',
         ]
       : [
-          'The user has given a small number of local StyleChat feedback signals for their Signature Style.',
+          'The user has given a small number of local StyleChat feedback signals (StyleDNA).',
           'Use this only as a light personalization signal.',
           'Do not overstate preferences or claim a defined style identity.',
+          'Do not conflate this satisfaction signal with Signature Style preference inventory.',
         ];
-  return ['[Optional Signature Style Context]', ...body, '[/Optional Signature Style Context]'].join('\n');
+  return ['[Optional StyleDNA Context]', ...body, '[/Optional StyleDNA Context]'].join('\n');
 }
