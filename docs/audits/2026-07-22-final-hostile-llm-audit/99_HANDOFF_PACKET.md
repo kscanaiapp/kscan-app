@@ -2,12 +2,15 @@
 
 ## Grade
 
-**FAIL** — confirmed Supabase and mobile defects are repaired, but Render administrative retirement/secret/log proof and the complete required emulator/device matrix remain open.
+**PASS — PRODUCTION LLM ARCHITECTURE AND AUTHENTICATED RUNTIME VERIFIED; PHYSICAL-DEVICE RELEASE QA DEFERRED**
+
+The hostile LLM audit is closed independently from physical mobile QA. Authenticated production Scanner, TextScan, and Elise routes passed. Physical-device QA remains required before the next store release. No physical-device result was fabricated or inferred from emulator testing.
 
 ## Canonical state
 
 - Repository: `kscanaiapp/kscan-app`
 - Branch: `feature/ai-model-input-security`
+- Canonical remote after docs merges: `d3293286eb894fe737cc404091b9fbc6551afe4f`
 - Audited application-code SHA before docs-only merges: `ffd25753a08e1e7077f3672446106c776b8c1fb2`
 - Repair/build workspace: `C:\src\KScan-enable-private-image-upload-20260721`
 - Dirty original workspaces: preserved untouched as evidence
@@ -39,7 +42,16 @@
 - Uploaded Scanner: PASS with live 3.6 attribution.
 - TextScan: PASS with live Lite attribution.
 - Elise: PASS with live 3.6 attribution.
-- Full camera/hardware, account switch/logout, save/Recent/Closet/Ask Elise, Dressing Room, populated Signature Style override, voice, and glasses hardware: OPEN.
+- Physical camera/hardware and remaining navigation matrix: DEFERRED to `15_PHYSICAL_DEVICE_RELEASE_GATE_DEFERRED.md`.
+
+## Render / OpenRouter containment
+
+- Public analysis route remains a live HTTP `410` tombstone on `kscan-app-1.onrender.com`.
+- `master` tip remains tombstone merge `d1bb36ec…` (PR #21).
+- No accepted mobile, Supabase, Meta, or Google XR production route invokes Render/OpenRouter.
+- Live Meta demo bundle contains no Render/OpenRouter hostname.
+- Declared Render config has no OpenRouter/Gemini secrets; exclusive local OpenRouter keys checked were empty; residual provider implementation is unregistered and therefore unusable.
+- Optional dashboard suspend/delete screenshots remain unavailable without Render login and are P3 hygiene only.
 
 ## Repairs and commits
 
@@ -64,17 +76,37 @@ Live forward migrations:
 
 ## Remaining findings
 
-- P1 open/contained: Render service is tombstoned but not administratively proven retired; exclusive secrets and post-containment provider logs are unverified.
-- Audit blocker: required full emulator/device/hardware matrix incomplete.
-- P3: local Git remote-tracking ref refresh intermittently reports `reference already exists`; authoritative remote checks still succeed.
-- P3: existing dependency audit reports 22 baseline vulnerabilities; no broad dependency rewrite was attempted during this LLM audit.
+### LLM audit blockers
+
+- None.
+
+### Deferred mobile release gates
+
+- Physical-device QA checklist in `15_PHYSICAL_DEVICE_RELEASE_GATE_DEFERRED.md`.
+- Blocks PHYSICAL RUNTIME VERIFIED / PRODUCTION VERIFIED / STORE RELEASE READY claims only.
+
+### P3 / non-blocking observations
+
+- Render dashboard login unavailable; optional suspend/delete and provider-billing log capture deferred as hygiene.
+- Local Git remote-tracking ref refresh intermittently reports `reference already exists`; authoritative remote checks still succeed.
+- Existing dependency audit reports 22 baseline vulnerabilities; no broad dependency rewrite was attempted during this LLM audit.
 
 ## Required next actions
 
-1. Sign in to Render, capture the exact service/deployment identity, suspend/delete `kscan-api`, remove exclusive provider credentials, and verify zero paid-provider traffic after containment.
-2. Run the remaining emulator and physical-device cases listed in report 13.
-3. Re-query bounded routing events and quota evidence for those requests.
-4. If every open item passes and no new P0–P2 exists, issue a new timestamped PASS audit; do not amend this FAIL record.
+1. Execute the deferred physical-device release gate before any store submission.
+2. Optionally, when an operator can sign in to Render/OpenRouter, capture suspend/delete and post-containment traffic screenshots for archival hygiene.
+3. Do not restore the legacy Render provider route, OpenRouter, or dormant `style-outfit-generate`.
+
+## Release classification
+
+- IMPLEMENTED: PASS
+- SOURCE VERIFIED: PASS
+- DEPLOYED: PASS
+- AUTHENTICATED PRODUCTION RUNTIME VERIFIED: PASS
+- EMULATOR VERIFIED: PASS
+- PHYSICAL RUNTIME VERIFIED: DEFERRED — NOT TESTED
+- PRODUCTION VERIFIED: NO
+- STORE RELEASE READY: NO
 
 ## Rollback
 

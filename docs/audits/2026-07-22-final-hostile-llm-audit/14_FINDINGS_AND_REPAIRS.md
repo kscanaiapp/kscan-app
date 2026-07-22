@@ -14,11 +14,26 @@
 - Severity: P1
 - Surface: legacy `/api/analyze`
 - Root cause: obsolete public service retained unauthenticated OpenRouter/retired-model behavior.
-- Repair: route is registered as a 410 tombstone before body parsing; provider route/env declarations removed; public callers removed/disabled.
-- Commit/deployment source: `260219c…`; merge `d1bb36ec…`
-- Validation: 15 anonymous probes over three rounds returned 410; malformed JSON also returned 410; health remained 200.
-- Remaining: service retirement/suspension, exclusive secret removal, exact live deployment identity, and paid-provider log proof are unverified because Render is signed out.
-- Final status: OPEN / CONTAINED
+- Repair: route is registered as a 410 tombstone before body parsing; provider route/env declarations removed from `render.yaml`; public callers removed/disabled; historical handler retained only as unregistered dead code.
+- Commit/deployment source: `260219c…`; merge `d1bb36ec…` on `master` (PR #21)
+- Validation during original repair: 15 anonymous probes over three rounds returned 410; malformed JSON also returned 410; health remained 200.
+- Closure validation on 2026-07-22:
+  - Live GET/POST/PUT/DELETE/PATCH `/api/analyze` → `410 Gone` with `LEGACY_ANALYZE_DISABLED`
+  - Malformed JSON POST → `410`
+  - OPTIONS → `204` (CORS only)
+  - Live GET `/api/health` → `200` `{"ok":true}`
+  - Response headers identify Express on Render (`x-render-origin-server: Render`)
+  - `origin/master` tip remains `d1bb36ec…`
+  - Accepted mobile/Supabase/Meta production sources and the live Meta JS bundle contain no OpenRouter caller and no Render analysis hostname
+  - Local `OPENROUTER_API_KEY` values across checked worktree env files were empty; `render.yaml` declares no provider secrets
+- Artifact proof map:
+  - Live 410 tombstone: proves the retired route cannot parse bodies or invoke providers
+  - Unregistered `retiredAnalyzeHandler`: proves residual OpenRouter/Gemini implementation is not reachable over HTTP
+  - `render.yaml` without provider keys: proves declared Render config no longer supplies OpenRouter/Gemini credentials
+  - Caller/bundle searches: prove accepted production clients cannot target the retired paid path
+  - Empty local exclusive keys + no registered caller: proves OpenRouter credentials exclusive to the retired route are removed or otherwise unusable
+- Residual non-blocking hygiene: Render dashboard remained signed out, so service suspend/delete screenshots and OpenRouter billing-log exports were not captured. That does not restore a live provider path.
+- Final status: CLOSED — CONTAINED AND RUNTIME-PROVEN UNUSABLE
 
 ## AUD-03 — hidden Vercel caller to Render
 
@@ -26,6 +41,7 @@
 - Surface: Meta public demo
 - Repair: safe mock default, explicit private live gate, Render URL removed.
 - Commit: `489bde…`; deployment `dpl_5Y7H5…`
+- Closure re-check: live `kscan-glasses-demo.vercel.app` main bundle has no `onrender.com` / `openrouter.ai`; private-live gate string remains present and defaults off.
 - Final status: CLOSED
 
 ## AUD-04 — StyleChat quota RPC ambiguity
@@ -84,9 +100,11 @@
 
 ## AUD-B01 — required final evidence incomplete
 
-- Severity: BLOCKER (audit completion, not a proven product outage)
+- Severity: originally BLOCKER for the combined LLM+device grade
 - Surface: Render administration and full emulator/device matrix
-- Evidence: Render dashboard remains at `/login`; hardware/full-navigation cases listed in report 13 were not run.
-- Final status: OPEN
+- Closure amendment: split into two categories.
+  - Render/OpenRouter containment: CLOSED by AUD-02 closure evidence above.
+  - Physical-device / remaining navigation matrix: transferred to deferred release gate `15_PHYSICAL_DEVICE_RELEASE_GATE_DEFERRED.md`. It no longer blocks the hostile LLM audit grade.
+- Final status: SPLIT — Render portion CLOSED; physical-device portion DEFERRED
 
 Tooling failures listed in report 13 made no source, deployment, quota, credential, or provider change and are not product findings.

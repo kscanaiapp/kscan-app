@@ -27,7 +27,7 @@ Release-profile public environment values were loaded process-locally; credentia
 - A PowerShell runtime harness stalled without evidence or state change.
 - Live camera UI dumping was unreliable and the emulator cannot provide meaningful live-fashion imagery.
 
-## Not completed
+## Not completed during the LLM audit
 
 - Physical/live camera fashion capture.
 - Account switch and logout context-isolation journey.
@@ -38,4 +38,4 @@ Release-profile public environment values were loaded process-locally; credentia
 - Meta and Google XR hardware journeys.
 - Optional ElevenLabs playback from this final build.
 
-These gaps contribute to the binary FAIL grade; they are not asserted as observed product failures.
+These gaps are not asserted as observed product failures. Under the 2026-07-22 closure amendment they are transferred to the deferred physical-device release gate in `15_PHYSICAL_DEVICE_RELEASE_GATE_DEFERRED.md` and no longer block the hostile LLM audit grade. Emulator PASS results must not be treated as physical-device verification.

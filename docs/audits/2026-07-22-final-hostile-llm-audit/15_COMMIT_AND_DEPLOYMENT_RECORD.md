@@ -4,7 +4,7 @@
 
 | Purpose | Commit / merge | Pushed | Deployment effect |
 | --- | --- | --- | --- |
-| Render tombstone source | `260219c…` / `d1bb36ec…` (PR 21) | Yes | Public route observed 410; exact Render deployment ID unknown |
+| Render tombstone source | `260219c…` / `d1bb36ec…` (PR 21) | Yes | Live `/api/analyze` observed `410`; `origin/master` tip remains `d1bb36ec…`; dashboard deployment ID still unavailable while signed out |
 | Legacy surface tombstones | `2009dce…` | Yes | Canonical source repair |
 | Scanner/TextScan reconciliation | `50a3038…` | Yes | Later deployed as Scanner v131 line |
 | Elise quota/refund authority | `54991fd…` | Yes | Later deployed as StyleChat v72 line |

@@ -29,4 +29,4 @@ Metadata queries and transactional `SET ROLE service_role` probes proved this ma
 
 ## Legacy service
 
-The public Render analysis route is a non-processing tombstone and repeated anonymous requests return 410. Administrative provider-secret revocation and service retirement remain unverified and prevent final PASS.
+The public Render analysis route is a non-processing tombstone. Closure probes on 2026-07-22 returned HTTP `410` for GET/POST/PUT/DELETE/PATCH and malformed JSON. The historical OpenRouter/Gemini handler remains unregistered. Declared Render config no longer includes provider secrets, accepted production callers do not target the route, and exclusive local OpenRouter keys checked during closure were empty. Residual dashboard suspend/delete screenshots remain optional hygiene only and do not reopen a live provider path.

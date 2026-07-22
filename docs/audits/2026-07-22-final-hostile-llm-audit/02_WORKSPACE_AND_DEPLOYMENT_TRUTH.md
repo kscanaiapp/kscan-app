@@ -18,7 +18,8 @@ All dirty or ahead workspaces were treated as evidence only. None was reset, cle
 
 - Repository: `https://github.com/kscanaiapp/kscan-app.git`
 - Canonical branch: `feature/ai-model-input-security`
-- Remote canonical SHA after PR 26: `ffd25753a08e1e7077f3672446106c776b8c1fb2`
+- Audited application-code SHA after PR 26: `ffd25753a08e1e7077f3672446106c776b8c1fb2`
+- Canonical remote after docs merges PR 27/28: `d3293286eb894fe737cc404091b9fbc6551afe4f`
 - The local `origin/feature/ai-model-input-security` reference intermittently failed to refresh with `reference already exists`; `git ls-remote`, `FETCH_HEAD`, GitHub PR data, and tree equality were used as authoritative evidence. This is a local Git tooling issue, not a product defect.
 
 ## Supabase deployment truth
@@ -33,5 +34,5 @@ Both live LLM functions map to committed and pushed source from the telemetry re
 
 ## Other deployments
 
-- Render: `kscan-api`, host `kscan-app-1.onrender.com`, repository `kscanaiapp/kscan-app`, branch `master`; tombstone source merged at `d1bb36ec…`. Exact live Render deployment ID/SHA is unverified because the dashboard is signed out.
-- Vercel Meta demo: production deployment `dpl_5Y7H5…`; source commit `489bde…`; branch merge `32a63a…`. The public bundle no longer contains the Render hostname and live mode defaults off.
+- Render: `kscan-api`, host `kscan-app-1.onrender.com`, repository `kscanaiapp/kscan-app`, branch `master`; tombstone source merged at `d1bb36ec…` and still the tip of `origin/master`. Closure probes on 2026-07-22 confirmed live `/api/analyze` → `410` and `/api/health` → `200`. Exact Render dashboard deployment ID remains unverified because the dashboard is signed out; live route behavior and master tip alignment are sufficient to prove the retired analysis path cannot invoke providers.
+- Vercel Meta demo: production deployment `dpl_5Y7H5…`; source commit `489bde…`; branch merge `32a63a…`. Live `kscan-glasses-demo.vercel.app` JS bundle contains no Render/OpenRouter hostname and live mode defaults off.
