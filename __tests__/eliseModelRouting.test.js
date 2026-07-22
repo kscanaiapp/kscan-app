@@ -22,6 +22,10 @@ const QUOTA_LOCKDOWN_MIGRATION = fs.readFileSync(
   path.join(ROOT, 'supabase/migrations/20260722011900_lock_down_stylechat_quota_refunds.sql'),
   'utf8',
 );
+const QUOTA_RUNTIME_REPAIR_MIGRATION = fs.readFileSync(
+  path.join(ROOT, 'supabase/migrations/20260722024000_fix_stylechat_quota_rpc_ambiguity.sql'),
+  'utf8',
+);
 
 function loadTs(relativePath) {
   const filename = path.join(ROOT, relativePath);
@@ -209,5 +213,26 @@ test('request-id replay is rejected before any Elise provider attempt', () => {
   assert.ok(
     EDGE.indexOf("quotaStatus === 'consumed' && !quotaCharged") <
       EDGE.indexOf('const geminiBody = buildGeminiBody'),
+  );
+});
+
+test('quota RPC runtime repair qualifies output-column references and serializes replays', () => {
+  assert.match(
+    QUOTA_RUNTIME_REPAIR_MIGRATION,
+    /set messages_used = u\.messages_used \+ 1/,
+  );
+  assert.match(
+    QUOTA_RUNTIME_REPAIR_MIGRATION,
+    /set messages_used = greatest\(u\.messages_used - 1, 0\)/,
+  );
+  assert.ok(QUOTA_RUNTIME_REPAIR_MIGRATION.includes('pg_advisory_xact_lock'));
+  assert.ok(QUOTA_RUNTIME_REPAIR_MIGRATION.includes('hashtextextended'));
+  assert.match(
+    QUOTA_RUNTIME_REPAIR_MIGRATION,
+    /create or replace function public\.consume_stylechat_request_quota[\s\S]*set search_path = ''/,
+  );
+  assert.match(
+    QUOTA_RUNTIME_REPAIR_MIGRATION,
+    /grant execute on function public\.consume_stylechat_request_quota\(text\)[\s\S]*to authenticated/,
   );
 });
