@@ -12,6 +12,12 @@
 
 import type { OwnedSourceType, ParsedAttachment, SharedSourceType } from './attachments.ts';
 import { MAX_TOTAL_RESOLVED_ITEMS } from './attachments.ts';
+import type { EliseActorRelationship } from './eliseAdviceTypes.ts';
+import {
+  attachmentOwnershipNote,
+  relationshipForDressingRoomRow,
+  relationshipForLookItem,
+} from './attachmentProvenance.ts';
 
 type AttachmentItemSourceType = OwnedSourceType | SharedSourceType;
 
@@ -25,6 +31,14 @@ const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 export type ResolvedAttachmentItem = {
   /** Opaque action reference: the stable id actions may point at. */
   ref: { sourceType: AttachmentItemSourceType; sourceId: string };
+  /**
+   * Server-derived ownership relationship. Authoritative for any ownership
+   * language — never inferred from attachmentType or the attached image. Only
+   * explicit owned provenance is 'owned'; scans/uploads/screenshots are
+   * 'scanned' (ownership unconfirmed), saved products are 'saved', shared-room
+   * items are 'shared'.
+   */
+  relationship: EliseActorRelationship;
   title: string;
   category: string | null;
   role: string;
@@ -166,6 +180,9 @@ function savedScanToItem(row: Record<string, unknown>): ResolvedAttachmentItem {
 
   return {
     ref: { sourceType: 'saved_scan', sourceId: String(row.id).toLowerCase() },
+    // A saved scan may be a camera shot, an uploaded screenshot, or a genuine
+    // wardrobe item — saving does not prove ownership. Never 'owned'.
+    relationship: 'scanned',
     title: bound(row.title, 80) ?? category ?? 'Saved item',
     category,
     role: inferRole(category, subcategory),
@@ -188,6 +205,8 @@ function inspirationToItem(row: Record<string, unknown>): ResolvedAttachmentItem
   const media = mediaRefForInspiration(row);
   return {
     ref: { sourceType: 'inspiration_item', sourceId: String(row.id).toLowerCase() },
+    // Saved inspiration / product — available or saved, not owned.
+    relationship: 'saved',
     title: bound(row.note, 80) ?? category ?? 'Inspiration item',
     category,
     role: explicitRole ?? inferRole(category),
@@ -228,8 +247,15 @@ export function dressingRoomItemToEvidence(
       : {};
   const category = bound(row.category) ?? bound(snapshot.category) ?? bound(metadata.category);
   const defaultTitle = sourceType === 'shared_room_item' ? 'Shared room item' : 'Room item';
+  // Ownership follows the item's provenance, not the room. A shared-room item
+  // is always 'shared' (belongs to the room owner, not the requester); an owned
+  // room's item is classified from its source kind — presence in the user's own
+  // room is never treated as physical ownership.
+  const relationship: EliseActorRelationship =
+    sourceType === 'shared_room_item' ? 'shared' : relationshipForDressingRoomRow(row);
   return {
     ref: { sourceType, sourceId: String(row.id).toLowerCase() },
+    relationship,
     title: bound(row.title, 80) ?? bound(snapshot.title, 80) ?? category ?? defaultTitle,
     category,
     role: inferRole(category, bound(metadata.itemType)),
@@ -261,6 +287,8 @@ function lookItemToItem(row: Record<string, unknown>): ResolvedAttachmentItem | 
     ref: sourceType && sourceId
       ? { sourceType, sourceId: String(sourceId).toLowerCase() }
       : { sourceType: 'saved_scan', sourceId: '' },
+    // Ownership follows the underlying source ref, never assumed owned.
+    relationship: relationshipForLookItem(row),
     title: bound(snapshot.title, 80) ?? bound(row.title, 80) ?? 'Item',
     category,
     role: bound(row.item_role, 20) ?? inferRole(category, bound(snapshot.subcategory)),
@@ -399,6 +427,8 @@ export async function resolveStyleChatAttachments(
 function describeItem(item: ResolvedAttachmentItem, index: number): string {
   const parts = [
     `  ${index}. [ref:${item.ref.sourceType}:${item.ref.sourceId || 'snapshot'}]`,
+    // Authoritative ownership note — the model must not contradict this.
+    `ownership=${attachmentOwnershipNote(item.relationship)}`,
     item.title,
     item.category ? `category=${item.category}` : null,
     `role=${item.role}`,
@@ -418,7 +448,9 @@ function describeItem(item: ResolvedAttachmentItem, index: number): string {
  * item lines from the end — it never splits an item line or breaks structure.
  */
 export function buildAttachmentContextBlock(resolved: ResolvedAttachment[]): string {
-  const lines: string[] = ['[Attached verified evidence — ownership language is server-derived]'];
+  const lines: string[] = [
+    '[Attached verified evidence — the per-item ownership= field is server-derived and authoritative; never claim ownership beyond it]',
+  ];
   let itemIndex = 0;
 
   for (const attachment of resolved) {
