@@ -10,6 +10,7 @@ const easConfig = fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8');
 const mobileApi = fs.readFileSync(path.join(ROOT, 'services', 'api.js'), 'utf8');
 const fixtureScript = fs.readFileSync(path.join(ROOT, 'scripts', 'qa-fixtures.js'), 'utf8');
 const convergenceScript = fs.readFileSync(path.join(ROOT, 'scripts', 'qa-convergence.js'), 'utf8');
+const envExample = fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8');
 
 test('legacy Render analyze route is an unconditional pre-body tombstone', () => {
   assert.match(server, /app\.all\('\/api\/analyze'[\s\S]*status\(410\)[\s\S]*LEGACY_ANALYZE_DISABLED/);
@@ -34,6 +35,7 @@ test('release and QA callers cannot silently fall back to the retired Render hos
     'services/api.js': mobileApi,
     'scripts/qa-fixtures.js': fixtureScript,
     'scripts/qa-convergence.js': convergenceScript,
+    '.env.example': envExample,
   })) {
     assert.doesNotMatch(content, /kscan-app-1\.onrender\.com/, name);
   }

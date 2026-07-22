@@ -15,3 +15,11 @@ services:
         value: "*"
       - key: KSCAN_LOG_MATCH
         value: "true"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: KSCAN_EMAIL_INTERNAL_SECRET
+        sync: false
+      - key: KSCAN_EMAIL_FROM
+        value: "K Scan <hello@info.kscan.app>"
+      - key: KSCAN_EMAIL_REPLY_TO
+        value: "kscanai.app@gmail.com"
