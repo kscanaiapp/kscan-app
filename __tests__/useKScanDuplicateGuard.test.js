@@ -154,8 +154,12 @@ function loadUseKScanWithMocks({
     sanitizeImageBeforeUpload: async (image) => image,
     getPrivacySanitizerStatus: () => ({
       mode: 'test',
+      sanitizerVersion: 'metadata-reencode-v1',
       faceDetectionAvailable: false,
       faceBlurApplied: false,
+      plateDetectionAvailable: false,
+      plateMaskApplied: false,
+      metadataStripped: true,
     }),
     buildSecondhandSearchRequest: () => null,
     searchVintedSecondhand: async () => ({ enabled: false, items: [] }),

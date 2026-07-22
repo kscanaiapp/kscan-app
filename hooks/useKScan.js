@@ -468,6 +468,8 @@ export function useKScan() {
           );
         }
 
+        const sanitizerStatus = getPrivacySanitizerStatus();
+
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
         // Production camera scan path (KS-REL-008C): always route through the
         // app-side scan-identify Supabase Edge Function. The legacy Render
@@ -482,6 +484,14 @@ export function useKScan() {
 
         const identifyResponse = await identifyScanImage(sanitized, {
           source: photo.source === 'upload' ? 'upload' : 'camera',
+          privacyProof: {
+            sanitizerVersion: sanitizerStatus.sanitizerVersion,
+            faceDetectionPerformed: sanitizerStatus.faceDetectionAvailable,
+            faceMaskApplied: sanitizerStatus.faceBlurApplied,
+            plateDetectionPerformed: sanitizerStatus.plateDetectionAvailable,
+            plateMaskApplied: sanitizerStatus.plateMaskApplied,
+            metadataStripped: sanitizerStatus.metadataStripped,
+          },
           signal: activeAbortControllerRef.current?.signal,
         });
 
