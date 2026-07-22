@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
+const {
+  secretsMatch,
+  validateWaitlistWelcomeRequest,
+  sendWaitlistWelcomeEmail,
+} = require('./services/transactionalEmail');
 
 require('dotenv').config();
 
@@ -1208,13 +1212,10 @@ function parseAIResponse(rawText, context = {}) {
 // (e.g. the Expo Go deep-link or your hosted frontend domain).
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 app.use(cors({ origin: CORS_ORIGIN }));
-app.use(
-  '/catalog-images',
-  express.static(path.join(__dirname, 'assets', 'catalog-images'), {
-    immutable: true,
-    maxAge: '30d',
-  }),
-);
+app.all('/catalog-images/*', (_req, res) => res.status(410).json({
+  status: 'FAILED',
+  error: 'LEGACY_CATALOG_DISABLED',
+}));
 
 // Permanent tombstone for the retired public analysis surface. Keep this before
 // JSON parsing so request bodies are neither parsed nor logged. This handler does
@@ -1224,6 +1225,39 @@ app.all('/api/analyze', (_req, res) => res.status(410).json({
   error: 'LEGACY_ANALYZE_DISABLED',
   message: 'This legacy analysis route is no longer available.',
 }));
+
+function requireInternalEmailAuth(req, res, next) {
+  const configuredSecret = process.env.KSCAN_EMAIL_INTERNAL_SECRET;
+  if (!configuredSecret || !process.env.RESEND_API_KEY) {
+    return res.status(503).json({ status: 'error', code: 'EMAIL_SERVICE_NOT_CONFIGURED' });
+  }
+  if (!secretsMatch(req.headers['x-kscan-email-secret'], configuredSecret)) {
+    return res.status(401).json({ status: 'error', code: 'UNAUTHORIZED' });
+  }
+  return next();
+}
+
+app.post(
+  '/internal/email/waitlist-welcome',
+  requireInternalEmailAuth,
+  express.json({ limit: '8kb' }),
+  async (req, res) => {
+    const validated = validateWaitlistWelcomeRequest(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ status: 'error', code: validated.code });
+    }
+    const result = await sendWaitlistWelcomeEmail(validated.value);
+    const statusCode = result.status === 'sent' ? 200 : result.status === 'failed_retryable' ? 503 : 422;
+    return res.status(statusCode).json({ status: result.status, eventType: validated.value.eventType, code: result.code });
+  },
+);
+
+app.use('/internal/email/waitlist-welcome', (error, _req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({ status: 'error', code: 'INVALID_JSON' });
+  }
+  return next(error);
+});
 
 // Body size: 15 MB hard cap. Raw image from expo-image-manipulator at 1024px
 // JPEG quality 0.7 is ~200–400 KB base64-encoded (~1.3× raw), so 15 MB provides
@@ -1656,6 +1690,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  app,
   parseAIResponse,
   extractMetadataFromProse,
   normalizeAttributeValue,
