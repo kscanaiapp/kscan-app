@@ -1117,16 +1117,6 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid request id' }, 400);
   }
   const requestId = requestIdHeader || crypto.randomUUID();
-  const auditFaultToken = readTrimmedEnv('KSCAN_AUDIT_FAULT_INJECTION_TOKEN');
-  const auditFaultModeHeader = req.headers.get('x-kscan-audit-fault-mode')?.trim();
-  const auditFaultMode =
-    auditFaultToken &&
-      auditFaultToken.length >= 32 &&
-      requestId.startsWith('audit-') &&
-      req.headers.get('x-kscan-audit-fault-token') === auditFaultToken &&
-      (auditFaultModeHeader === 'primary_unavailable' || auditFaultModeHeader === 'all_unavailable')
-      ? auditFaultModeHeader
-      : null;
 
   const { data: quotaData, error: quotaError } = await userClient
     .rpc('consume_stylechat_request_quota', { p_request_id: requestId });
@@ -1540,18 +1530,6 @@ Deno.serve(async (req) => {
       label: 'initial' | 'retry' | 'fallback',
     ): Promise<AttemptOutcome> {
       attemptCount += 1;
-      if (
-        auditFaultMode === 'all_unavailable' ||
-        (auditFaultMode === 'primary_unavailable' && label === 'initial' && model === primaryModel)
-      ) {
-        console.warn(
-          '[stylechat-generate] audit_fault_injection mode=%s label=%s model=%s',
-          auditFaultMode,
-          label,
-          model,
-        );
-        return { ok: false, kind: 'http_unavailable', model };
-      }
       const url = buildGeminiUrl(model, configuredGeminiKey);
       try {
         const result = await callGemini(url, body, label === 'fallback' ? 'initial' : label, model);
