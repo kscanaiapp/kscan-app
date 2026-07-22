@@ -1237,6 +1237,15 @@ app.use(
   }),
 );
 
+// Permanent tombstone for the retired public analysis surface. Keep this before
+// JSON parsing so request bodies are neither parsed nor logged. This handler does
+// not authenticate, invoke a provider, or call next().
+app.all('/api/analyze', (_req, res) => res.status(410).json({
+  status: 'FAILED',
+  error: 'LEGACY_ANALYZE_DISABLED',
+  message: 'This legacy analysis route is no longer available.',
+}));
+
 // Body size: 15 MB hard cap. Raw image from expo-image-manipulator at 1024px
 // JPEG quality 0.7 is ~200–400 KB base64-encoded (~1.3× raw), so 15 MB provides
 // ample headroom while preventing abuse.
@@ -1980,7 +1989,9 @@ function validateImageInput(image) {
   return null; // valid
 }
 
-app.post('/api/analyze', async (req, res) => {
+// Historical implementation retained temporarily as non-exported evidence only.
+// It is not registered with Express and cannot receive requests.
+async function retiredAnalyzeHandler(req, res) {
   try {
     console.log('[K-SCAN] /api/analyze hit');
 
@@ -2211,7 +2222,7 @@ app.post('/api/analyze', async (req, res) => {
     console.warn('[K-SCAN] Final response status: 500 FAILED AI_PROVIDER_UNAVAILABLE');
     return res.status(500).json({ status: 'FAILED', error: 'AI_PROVIDER_UNAVAILABLE', message: 'Style-Parse could not complete.' });
   }
-});
+}
 
 if (require.main === module) {
   // Bind to 0.0.0.0 so the server is reachable from:
