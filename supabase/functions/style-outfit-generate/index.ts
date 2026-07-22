@@ -30,6 +30,14 @@ import {
   type CandidateItem,
   type ParsedStyleOutfitRequest,
 } from './validation.ts';
+import {
+  classifyStyleOutfitFailure,
+  isDirectStyleOutfitFallback,
+  isRepairableStyleOutfitFailure,
+  resolveStyleOutfitModels,
+  type OutfitProviderFailureKind,
+} from './modelRouting.ts';
+import { oneWayActorRef } from '../_shared/aiSecurity/securityTelemetry.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -38,7 +46,6 @@ const CORS_HEADERS = {
 };
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
 const GEMINI_TIMEOUT_MS = 15_000;
 const MAX_PROMPT_CANDIDATES = 60;
 const DEFAULT_DAILY_LIMIT = 10;
@@ -148,7 +155,7 @@ async function callGeminiJson(
   geminiKey: string,
   systemText: string,
   userText: string,
-  attempt: 'initial' | 'retry',
+  attempt: 'initial' | 'retry' | 'fallback',
 ): Promise<unknown> {
   const url = new URL(`${GEMINI_API_BASE}/${modelName}:generateContent`);
   url.searchParams.set('key', geminiKey);
@@ -165,12 +172,7 @@ async function callGeminiJson(
         system_instruction: { parts: [{ text: systemText }] },
         contents: [{ role: 'user', parts: [{ text: userText }] }],
         generationConfig: {
-          // gemini-2.5-flash is a reasoning model: hidden thinking tokens draw
-          // from this same budget. 1024 truncated multi-outfit JSON (the default
-          // request asks for up to 3 outfits), yielding provider_unavailable.
-          // 4096 leaves room for thinking plus the full structured response.
           maxOutputTokens: 4096,
-          temperature: 0.6,
           responseMimeType: 'application/json',
         },
       }),
@@ -301,7 +303,7 @@ Deno.serve(async (req) => {
   // 3. Kill switch (explicit "false" disables generation).
   const isAiDisabled = readTrimmedEnv('STYLE_OUTFIT_AI_ENABLED')?.toLowerCase() === 'false';
   if (isAiDisabled) {
-    console.log('[style-outfit-generate] kill switch active uid=%s', userId.slice(0, 8));
+    console.log('[style-outfit-generate] kill switch active uid=%s', oneWayActorRef(userId));
     return json({
       requestId,
       contractVersion: FASHION_REASONING_CONTRACT_VERSION,
@@ -317,8 +319,11 @@ Deno.serve(async (req) => {
     console.error('[style-outfit-generate] GEMINI_API_KEY not configured');
     return json({ error: 'AI provider not configured' }, 500);
   }
-  const modelName =
-    readTrimmedEnv('STYLE_OUTFIT_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+  const configuredGeminiKey = geminiKey;
+  const { primaryModel, fallbackModel } = resolveStyleOutfitModels((key) => Deno.env.get(key));
+  if (body && typeof body === 'object' && !Array.isArray(body) && 'model' in body) {
+    console.log('[style-outfit-generate] client_model_override_ignored');
+  }
 
   // 4. Ownership + sufficiency validation BEFORE any quota reservation.
   //    Deterministic rejections (foreign / unowned anchor, insufficient owned
@@ -363,7 +368,7 @@ Deno.serve(async (req) => {
     }
     console.log(
       '[style-outfit-generate] insufficient_closet uid=%s candidateCount=%d',
-      userId.slice(0, 8),
+      oneWayActorRef(userId),
       candidates.length,
     );
     return noResultResponse(requestId, 'insufficient_closet');
@@ -447,23 +452,87 @@ Deno.serve(async (req) => {
 
   const userPrompt = buildUserPrompt(request, poolItems, anchor);
 
-  // 7. Provider call with one safe retry on malformed output.
+  // 7. Provider call: one repair retry for malformed output, or direct Lite
+  // fallback for operational failure. A request makes at most three calls.
   let providerOutput: unknown = null;
-  try {
-    providerOutput = await callGeminiJson(modelName, geminiKey, SYSTEM_PROMPT, userPrompt, 'initial');
-  } catch (firstError) {
-    const message = firstError instanceof Error ? firstError.message : 'provider_error';
-    const retryable = message === 'provider_invalid_output' || message === 'provider_non_json' || message === 'provider_empty';
-    if (retryable) {
-      try {
-        providerOutput = await callGeminiJson(modelName, geminiKey, SYSTEM_PROMPT, userPrompt, 'retry');
-      } catch {
-        providerOutput = null;
-      }
+  let servedModel = primaryModel;
+  let fallbackUsed = false;
+  let fallbackReason: OutfitProviderFailureKind | null = null;
+  let providerStatus: OutfitProviderFailureKind | 'ok' = 'ok';
+  let attemptCount = 0;
+  const providerStartedAt = Date.now();
+
+  async function attemptProvider(
+    model: string,
+    attempt: 'initial' | 'retry' | 'fallback',
+  ): Promise<
+    | { ok: true; output: unknown }
+    | { ok: false; kind: OutfitProviderFailureKind }
+  > {
+    attemptCount += 1;
+    try {
+      return {
+        ok: true,
+        output: await callGeminiJson(model, configuredGeminiKey, SYSTEM_PROMPT, userPrompt, attempt),
+      };
+    } catch (error) {
+      return { ok: false, kind: classifyStyleOutfitFailure(error) };
     }
   }
 
+  let outcome = await attemptProvider(primaryModel, 'initial');
+  if (outcome.ok) {
+    providerOutput = outcome.output;
+  } else if (isDirectStyleOutfitFallback(outcome.kind)) {
+    fallbackUsed = true;
+    fallbackReason = outcome.kind;
+    providerStatus = outcome.kind;
+    servedModel = fallbackModel;
+    outcome = await attemptProvider(fallbackModel, 'fallback');
+    if (outcome.ok) {
+      providerOutput = outcome.output;
+      providerStatus = 'ok';
+    } else {
+      providerStatus = outcome.kind;
+    }
+  } else if (isRepairableStyleOutfitFailure(outcome.kind)) {
+    providerStatus = outcome.kind;
+    outcome = await attemptProvider(primaryModel, 'retry');
+    if (outcome.ok) {
+      providerOutput = outcome.output;
+      providerStatus = 'ok';
+    } else if (
+      isRepairableStyleOutfitFailure(outcome.kind) ||
+      isDirectStyleOutfitFallback(outcome.kind)
+    ) {
+      fallbackUsed = true;
+      fallbackReason = outcome.kind;
+      providerStatus = outcome.kind;
+      servedModel = fallbackModel;
+      outcome = await attemptProvider(fallbackModel, 'fallback');
+      if (outcome.ok) {
+        providerOutput = outcome.output;
+        providerStatus = 'ok';
+      } else {
+        providerStatus = outcome.kind;
+      }
+    }
+  } else {
+    providerStatus = outcome.kind;
+  }
+
   if (providerOutput === null) {
+    console.log(
+      '[style-outfit-generate] routing_telemetry request_id=%s surface=dressing_room primary_model=%s served_model=%s fallback_used=%s fallback_reason=%s attempt_count=%d latency_ms=%d provider_status=%s response_valid=false',
+      requestId,
+      primaryModel,
+      servedModel,
+      String(fallbackUsed),
+      fallbackReason ?? 'none',
+      attemptCount,
+      Date.now() - providerStartedAt,
+      providerStatus,
+    );
     // Safe error: no raw provider details leave the function.
     return json(
       {
@@ -481,8 +550,21 @@ Deno.serve(async (req) => {
   const outfits = validateProviderOutfits(providerOutput, pool, anchor, request.maximumOutfits);
 
   console.log(
+    '[style-outfit-generate] routing_telemetry request_id=%s surface=dressing_room primary_model=%s served_model=%s fallback_used=%s fallback_reason=%s attempt_count=%d latency_ms=%d provider_status=%s response_valid=%s',
+    requestId,
+    primaryModel,
+    servedModel,
+    String(fallbackUsed),
+    fallbackReason ?? 'none',
+    attemptCount,
+    Date.now() - providerStartedAt,
+    providerStatus,
+    String(outfits.length > 0),
+  );
+
+  console.log(
     '[style-outfit-generate] result uid=%s mode=%s poolSize=%d outfits=%d variations=%s',
-    userId.slice(0, 8),
+    oneWayActorRef(userId),
     request.mode,
     pool.size,
     outfits.length,

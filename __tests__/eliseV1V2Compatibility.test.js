@@ -43,7 +43,7 @@ test('v2 attachment contract version remains 2', () => {
 // ── Response compatibility ───────────────────────────────────────────────────
 
 test('v1 response schema remains compatible', () => {
-  assert.match(edgeIndex, /status:\s*usedFallback \? 'error' : 'success'/);
+  assert.match(edgeIndex, /status:\s*usedCannedFallback \? 'error' : 'success'/);
   assert.match(edgeIndex, /message:\s*responseMessage/);
   assert.match(edgeIndex, /usage:\s*\{ messagesUsed, messagesLimit, resetAt \}/);
 });

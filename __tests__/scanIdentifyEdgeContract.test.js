@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const EDGE_SOURCE = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+const SUPABASE_CONFIG = fs.readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8');
 
 // ── 1. CORS and Auth Contract ──
 
@@ -14,20 +15,16 @@ test('edge source: CORS OPTIONS preflight is handled', () => {
   assert.ok(EDGE_SOURCE.includes('Access-Control-Allow-Methods'), 'Must include CORS allow-methods');
 });
 
-test('edge source: text mode remains authenticated', () => {
-  assert.ok(EDGE_SOURCE.includes("mode === 'text' && !auth.isAuthenticated"), 'Text mode must keep auth gate');
+test('edge source: every Scanner and TextScan request is authenticated', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('if (!auth.isAuthenticated || !userId)'),
+    'All modes must share one mandatory auth gate',
+  );
   assert.ok(EDGE_SOURCE.includes("auth.getUser()"), 'Must verify signed-in users with getUser');
   assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error for protected paths');
-});
-
-test('edge source: image mode allows project-key analysis-only without user data', () => {
-  assert.ok(EDGE_SOURCE.includes('isAnonymousImageAnalysis'), 'Must identify anonymous image analysis path');
-  assert.ok(EDGE_SOURCE.includes('hasValidProjectAccess'), 'Must require project access for anonymous image analysis');
-  assert.ok(EDGE_SOURCE.includes("provider: 'anonymous_analysis_only'"), 'Must mark anonymous scans analysis-only');
-  assert.ok(EDGE_SOURCE.includes('commerceSkipped: true'), 'Must skip commerce for anonymous scans');
   assert.ok(
-    EDGE_SOURCE.includes("mode === 'image' && auth.isAuthenticated"),
-    'Image metadata capture must remain authenticated-only',
+    /\[functions\.scan-identify\][\s\S]*verify_jwt\s*=\s*true/.test(SUPABASE_CONFIG),
+    'Deployment config must preserve platform JWT verification',
   );
 });
 
@@ -62,7 +59,15 @@ test('edge source: image mode remains backward-compatible', () => {
 });
 
 test('edge source: image mode works without explicit mode field', () => {
-  assert.ok(EDGE_SOURCE.includes("typeof body.mode === 'string'") && EDGE_SOURCE.includes("'image'"), 'Must default to image mode');
+  const routingSource = fs.readFileSync(
+    path.join(ROOT, 'supabase/functions/scan-identify/modelRouting.ts'),
+    'utf8',
+  );
+  assert.ok(EDGE_SOURCE.includes('resolveVerifiedRequestMode(body.mode)'), 'Must resolve verified request mode');
+  assert.ok(
+    routingSource.includes('if (modeField === undefined || modeField === null) return \'image\''),
+    'Must default absent mode to image',
+  );
 });
 
 test('edge source: image failures return safe app-compatible shape', () => {
@@ -78,21 +83,21 @@ test('edge source: image failures return safe app-compatible shape', () => {
 
 test('edge source: invalid image payload is rejected before Gemini', () => {
   const validationIndex = EDGE_SOURCE.indexOf('validateImageBase64(imageBase64)');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('await callGeminiOnce(');
   assert.ok(validationIndex !== -1, 'Must validate image base64');
   assert.ok(geminiIndex !== -1, 'Must call Gemini after validation');
   assert.ok(validationIndex < geminiIndex, 'Image validation must run before Gemini');
 });
 
-test('edge source: anonymous image scans are rate-limited before Gemini', () => {
-  const rateLimitIndex = EDGE_SOURCE.indexOf('checkAnonymousImageRateLimit');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
-  assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_WINDOW_MS'), 'Must define anonymous limiter window');
-  assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_MAX'), 'Must define anonymous limiter maximum');
-  assert.ok(rateLimitIndex !== -1, 'Must check anonymous rate limit');
-  assert.ok(geminiIndex !== -1, 'Must call Gemini after rate limit');
-  assert.ok(rateLimitIndex < geminiIndex, 'Anonymous rate limit must run before Gemini');
-  assert.ok(EDGE_SOURCE.includes('retryAfterSeconds'), 'Limited response must include retryAfterSeconds');
+test('edge source: authentication is enforced before image validation and Gemini', () => {
+  const authIndex = EDGE_SOURCE.indexOf('if (!auth.isAuthenticated || !userId)');
+  const imageValidationIndex = EDGE_SOURCE.indexOf('validateImageBase64(imageBase64)');
+  const geminiIndex = EDGE_SOURCE.indexOf('await callGeminiOnce(');
+  assert.ok(authIndex !== -1, 'Must enforce auth');
+  assert.ok(imageValidationIndex !== -1, 'Must validate image');
+  assert.ok(geminiIndex !== -1, 'Must call Gemini');
+  assert.ok(authIndex < imageValidationIndex, 'Auth must precede image processing');
+  assert.ok(authIndex < geminiIndex, 'Auth must precede the paid provider');
 });
 
 test('edge source: Render fallback is not reintroduced', () => {
@@ -116,7 +121,13 @@ test('edge source: missing Gemini key returns safe error', () => {
 test('edge source: env var audit lists expected variables', () => {
   assert.ok(EDGE_SOURCE.includes("Deno.env.get('GEMINI_API_KEY')"), 'Must reference GEMINI_API_KEY');
   assert.ok(EDGE_SOURCE.includes('SCAN_GEMINI_MODEL'), 'Must reference SCAN_GEMINI_MODEL');
-  assert.ok(EDGE_SOURCE.includes('GEMINI_MODEL'), 'Must reference GEMINI_MODEL fallback');
+  assert.ok(EDGE_SOURCE.includes('SCAN_GEMINI_FALLBACK_MODEL'), 'Must reference SCAN_GEMINI_FALLBACK_MODEL');
+  assert.ok(EDGE_SOURCE.includes('TEXTSCAN_GEMINI_MODEL'), 'Must reference TEXTSCAN_GEMINI_MODEL');
+  assert.equal(
+    EDGE_SOURCE.includes("readTrimmedEnv('GEMINI_MODEL')"),
+    false,
+    'Generic GEMINI_MODEL must not control scan-identify routing',
+  );
   assert.ok(EDGE_SOURCE.includes('SCAN_IDENTIFY_AI_ENABLED'), 'Must reference SCAN_IDENTIFY_AI_ENABLED');
   assert.ok(EDGE_SOURCE.includes("Deno.env.get('SUPABASE_URL')"), 'Must reference SUPABASE_URL');
   assert.ok(EDGE_SOURCE.includes("Deno.env.get('SUPABASE_ANON_KEY')"), 'Must reference SUPABASE_ANON_KEY');
@@ -194,18 +205,16 @@ test('edge source: non-fashion scans never surface catalog products', () => {
 
 test('edge source: text validation matches client-side rules', () => {
   assert.ok(EDGE_SOURCE.includes('validateTextQuery'), 'Must have validateTextQuery function');
-  // Structural trust-boundary validation (envelope + bounds). Injection-like
-  // fashion text is allowed as untrusted data, not keyword-blocked.
+  // Check that the same validation rules exist server-side
   assert.ok(EDGE_SOURCE.includes('length < 3'), 'Must reject too-short queries');
   assert.ok(EDGE_SOURCE.includes('length > MAX_TEXT_QUERY_LEN'), 'Must reject too-long queries');
   assert.ok(EDGE_SOURCE.includes('A-Za-z0-9+/') && EDGE_SOURCE.includes('{40,}'), 'Must reject base64 payloads');
-  assert.ok(EDGE_SOURCE.includes("'```'") || EDGE_SOURCE.includes('```'), 'Must reject or strip code fences');
-  assert.ok(EDGE_SOURCE.includes('assembleTypeChatPrompt'), 'Must assemble typed TypeChat prompt envelope');
-  assert.ok(EDGE_SOURCE.includes('validateTypeChatModelOutput'), 'Must strictly validate TypeChat model output');
+  assert.ok(EDGE_SOURCE.includes("'```'"), 'Must reject code blocks');
+  assert.ok(EDGE_SOURCE.includes('ignore previous instructions'), 'Must reject prompt injection');
   assert.ok(EDGE_SOURCE.includes('[\\w.+-]+@[\\w.-]+\\.\\w+'), 'Must reject email addresses');
   assert.ok(EDGE_SOURCE.includes('(\\+?\\d[\\d\\s-]{7,}\\d)'), 'Must reject phone numbers');
   assert.ok(EDGE_SOURCE.includes('\\b\\d{3}[\\s-]\\d{2}[\\s-]\\d{4}\\b'), 'Must reject SSN-like patterns');
-  assert.ok(EDGE_SOURCE.includes('boundTextField'), 'Must use shared bounded text validation');
+  assert.ok(EDGE_SOURCE.includes('0.30'), 'Must reject excessive non-alphanumeric chars');
 });
 
 // ── 10. Deployment Readiness ──
@@ -223,9 +232,12 @@ test('edge source: Deno.serve is present', () => {
   assert.ok(EDGE_SOURCE.includes('Deno.serve'), 'Must use Deno.serve');
 });
 
-test('edge source: default model is gemini-1.5-flash', () => {
-  assert.ok(EDGE_SOURCE.includes("gemini-1.5-flash"), 'Default model must be gemini-1.5-flash');
-  assert.equal(EDGE_SOURCE.includes('gemini-2.0'), false, 'Must not use gemini-2.0 in TextScan path');
+test('edge source: approved Scanner/TextScan model defaults are active', () => {
+  assert.ok(EDGE_SOURCE.includes('gemini-3.6-flash'), 'Scanner primary must be gemini-3.6-flash');
+  assert.ok(EDGE_SOURCE.includes('gemini-3.5-flash-lite'), 'Fallback/TextScan must be gemini-3.5-flash-lite');
+  assert.equal(EDGE_SOURCE.includes('gemini-1.5-'), false, 'Must not reference retired gemini-1.5 models');
+  assert.equal(EDGE_SOURCE.includes('gemini-2.0-'), false, 'Must not reference retired gemini-2.0 models');
+  assert.equal(EDGE_SOURCE.includes('gemini-2.5-'), false, 'Must not reference retired gemini-2.5 models');
 });
 
 test('edge source: text mode and image mode share auth, timeout, and error handling', () => {
@@ -264,16 +276,20 @@ test('edge source: text mode calls live shopping APIs', () => {
     'Must call getShoppingResults for text mode commerce',
   );
 
-  // Product recommendations live in the text-mode branch that immediately
-  // precedes getShoppingResults (additional earlier text branches handle
-  // input validation and strict model-output validation).
-  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
-  assert.ok(shoppingCallIndex !== -1, 'Must call getShoppingResults');
-  const productRecBranchStart = EDGE_SOURCE.lastIndexOf("if (mode === 'text')", shoppingCallIndex);
-  assert.ok(productRecBranchStart !== -1, "Must have a text-mode branch before getShoppingResults");
+  // Locate the text mode branch that handles product recommendations.
+  // There are two "if (mode === 'text')" blocks; the second one is the
+  // product-recommendations branch that calls getShoppingResults.
+  const firstTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')");
+  assert.ok(firstTextBranch !== -1, "Must have 'if (mode === \\'text\\')' branch");
+
+  const secondTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')", firstTextBranch + 1);
+  const productRecBranchStart = secondTextBranch !== -1 ? secondTextBranch : firstTextBranch;
 
   const elseBranchStart = EDGE_SOURCE.indexOf('} else {', productRecBranchStart);
   assert.ok(elseBranchStart !== -1, 'Must have an else branch for image mode');
+
+  // The getShoppingResults call must live inside the text branch.
+  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
   assert.ok(
     shoppingCallIndex > productRecBranchStart && shoppingCallIndex < elseBranchStart,
     'getShoppingResults must be called inside the text mode branch',
@@ -305,6 +321,86 @@ test('edge source: image mode uses catalog retrieval plus the commerce router fa
     imageBranch.includes('commerce:'),
     'Image mode must include commerce diagnostics',
   );
+});
+
+test('edge source: multi-item provider requires env gate and literal request true', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('body.multiItemDetection === true'),
+    'Malformed multiItemDetection values must not enable multi-item mode',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes("Deno.env.get('SCAN_MULTI_ITEM_ENABLED')"),
+    'Must read the server-side multi-item rollout gate',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes("mode === 'image'") &&
+      EDGE_SOURCE.includes('multiItemEnabled') &&
+      EDGE_SOURCE.includes('multiItemRequested'),
+    'Multi-item provider must require image mode, env gate, and request flag',
+  );
+});
+
+test('edge source: server selects detection or selected-item prompt only through the multi-item gate', () => {
+  assert.ok(EDGE_SOURCE.includes('MULTI_ITEM_IDENTIFY_PROMPT'), 'Must define a dedicated multi-item prompt');
+  assert.ok(
+    EDGE_SOURCE.includes('useMultiItemDetectionProvider') &&
+      EDGE_SOURCE.includes('? MULTI_ITEM_IDENTIFY_PROMPT') &&
+      EDGE_SOURCE.includes('buildSelectedItemPrompt(selectedCandidate)'),
+    'Image Gemini request must route detection and selected-item prompts through explicit gates',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('sanitizeDetectedGarments(parsed.detectedGarments)'),
+    'Multi-item output must run through the sanitizer',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('detectedGarments'),
+    'Response contract must preserve detectedGarments',
+  );
+});
+
+test('edge source: multi-item detection uses a deterministic structured output schema', () => {
+  assert.equal(EDGE_SOURCE.includes('const MULTI_ITEM_RESPONSE_SCHEMA = {'), true);
+  assert.equal(
+    EDGE_SOURCE.includes('? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }'),
+    true,
+  );
+  // Gemini 3.6 / 3.5-lite deprecate temperature; omit rather than send 0/0.2.
+  assert.equal(/temperature\s*:/.test(EDGE_SOURCE), false);
+});
+
+test('edge source: selected-item follow-up uses a compact deterministic schema', () => {
+  assert.equal(EDGE_SOURCE.includes('const SELECTED_ITEM_RESPONSE_SCHEMA = {'), true);
+  assert.equal(EDGE_SOURCE.includes('? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }'), true);
+  assert.equal(
+    EDGE_SOURCE.includes('You are K Scan AI\'s selected-garment identification engine.'),
+    true,
+  );
+});
+
+test('edge source: selected-item request verifies the parent image digest and preserves session correlation', () => {
+  assert.match(EDGE_SOURCE, /useSelectedItemProvider/);
+  assert.match(EDGE_SOURCE, /suppliedImageDigestPrefix !== imageDigestPrefix/);
+  assert.match(EDGE_SOURCE, /selected_item_image_mismatch/);
+  assert.match(EDGE_SOURCE, /scanSessionId/);
+  assert.match(EDGE_SOURCE, /candidateId/);
+  assert.match(EDGE_SOURCE, /requestMode/);
+  assert.match(EDGE_SOURCE, /imageDigest/);
+});
+
+test('edge source: multi-item diagnostics are count-only', () => {
+  for (const label of [
+    'multi_item_env_gate',
+    'multi_item_request',
+    'multi_item_provider_count',
+    'multi_item_validated_count',
+    'multi_item_dropped_count',
+    'multi_item_response_count',
+  ]) {
+    assert.ok(
+      EDGE_SOURCE.includes(`[scan-identify] ${label}`),
+      `Must include multi-item diagnostic log: ${label}`,
+    );
+  }
 });
 
 test('edge source: image mode generates a fresh scanId for metadata capture', () => {
@@ -420,8 +516,8 @@ test('edge source: default Gemini timeout is 14000ms when env override is absent
 
 test('edge source: SCAN_GEMINI_TIMEOUT_MS override clamps within 2000ms to 20000ms', () => {
   assert.ok(EDGE_SOURCE.includes('SCAN_GEMINI_TIMEOUT_MS'), 'Must reference SCAN_GEMINI_TIMEOUT_MS');
-  assert.ok(EDGE_SOURCE.includes('parsed >= 2_000'), 'Must enforce minimum 2000ms');
-  assert.ok(EDGE_SOURCE.includes('parsed <= 20_000'), 'Must enforce maximum 20000ms');
+  assert.ok(EDGE_SOURCE.includes('parsedTimeout >= 2_000'), 'Must enforce minimum 2000ms');
+  assert.ok(EDGE_SOURCE.includes('parsedTimeout <= 20_000'), 'Must enforce maximum 20000ms');
 });
 
 test('edge source: Gemini timeout logs elapsedMs and timeoutMs and returns safe failed shape', () => {
@@ -463,7 +559,11 @@ test('edge source: image commerce failure or timeout does not fail a completed s
 test('edge source: text-mode shopping failure does not fail a completed Gemini interpretation', () => {
   assert.ok(EDGE_SOURCE.includes('TEXT_MODE_COMMERCE_TIMEOUT_MS'), 'Must define text commerce timeout');
   assert.ok(EDGE_SOURCE.includes('text_commerce_timeout'), 'Must handle text commerce timeout');
-  assert.ok(EDGE_SOURCE.includes('.catch((err)'), 'Must catch text commerce errors');
+  assert.ok(EDGE_SOURCE.includes('.catch(() => {'), 'Must catch text commerce errors without retaining provider details');
+  assert.ok(
+    EDGE_SOURCE.includes('text_commerce_provider_error'),
+    'Must emit only the categorical commerce error marker',
+  );
   assert.ok(
     EDGE_SOURCE.includes('finalRecommendedProducts = []'),
     'Must fall back to empty products on text commerce failure',
@@ -471,15 +571,7 @@ test('edge source: text-mode shopping failure does not fail a completed Gemini i
   assert.ok(EDGE_SOURCE.includes('final_status status=completed'), 'Must still complete after text commerce failure');
 });
 
-test('edge source: anonymous image scan skips commerce, similarity, and authenticated user writes', () => {
-  assert.ok(
-    EDGE_SOURCE.includes('commerce_skipped reason=anonymous_image_analysis'),
-    'Must log commerce_skipped for anonymous scans',
-  );
-  assert.ok(
-    EDGE_SOURCE.includes('similarity_skipped reason=anonymous_image_analysis'),
-    'Must log similarity_skipped for anonymous scans',
-  );
+test('edge source: user-owned writes remain authenticated-only', () => {
   assert.ok(
     EDGE_SOURCE.includes("mode === 'image' && auth.isAuthenticated"),
     'Must only capture scan intelligence for authenticated users',
@@ -522,7 +614,7 @@ test('edge source: production stage logs are present and do not leak sensitive d
 
 test('edge source: authenticated image scan checks DB quota before Gemini', () => {
   const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('await callGeminiOnce(');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check');
   assert.ok(
     EDGE_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
@@ -537,7 +629,7 @@ test('edge source: authenticated TextScan checks DB quota before Gemini', () => 
   assert.ok(EDGE_SOURCE.includes("mode === 'text'"), 'Must branch on text mode');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check for text');
   const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('await callGeminiOnce(');
   assert.ok(quotaIndex < geminiIndex, 'Text scan quota must run before Gemini');
 });
 
@@ -558,7 +650,7 @@ test('edge source: quota exceeded returns HTTP 200 rate_limited app-safe shape',
 
 test('edge source: quota exceeded does not call Gemini, commerce, or similarity', () => {
   const rateLimitReturn = EDGE_SOURCE.indexOf('return json(buildRateLimitedResponse(), 200)');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('await callGeminiOnce(');
   const commerceIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
   const similarityIndex = EDGE_SOURCE.indexOf('buildImageSimilarityMatches');
   assert.ok(rateLimitReturn !== -1, 'Must return early on quota exceeded');
@@ -567,39 +659,39 @@ test('edge source: quota exceeded does not call Gemini, commerce, or similarity'
   assert.ok(rateLimitReturn < similarityIndex, 'Rate-limited response must return before similarity');
 });
 
-test('edge source: quota DB/RPC failure fails open and proceeds to Gemini', () => {
+test('edge source: quota DB/RPC failure fails closed before Gemini', () => {
   assert.ok(EDGE_SOURCE.includes('quota_check_error'), 'Must log quota check errors');
   assert.ok(
-    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
-    'Must allow scan when quota check fails',
+    EDGE_SOURCE.includes('{ available: false, allowed: false, count: 0, limit: 0 }'),
+    'Must deny provider access when quota check fails',
   );
+  const unavailableReturn = EDGE_SOURCE.indexOf("code: 'QUOTA_CHECK_UNAVAILABLE'");
+  const geminiIndex = EDGE_SOURCE.indexOf('await callGeminiOnce(');
+  assert.ok(unavailableReturn !== -1 && unavailableReturn < geminiIndex);
 });
 
-test('edge source: missing service role key fails open for authenticated quota', () => {
+test('edge source: missing service role key fails closed for authenticated quota', () => {
   assert.ok(
     EDGE_SOURCE.includes('reason=missing_service_role_client'),
     'Must detect missing service role client',
   );
   assert.ok(
-    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
-    'Must allow scan when service role client missing',
+    EDGE_SOURCE.includes('{ available: false, allowed: false, count: 0, limit: 0 }'),
+    'Must deny provider access when service role client is missing',
   );
 });
 
-test('edge source: anonymous image scan uses anonymous guard, not DB user quota', () => {
-  const anonGuardIndex = EDGE_SOURCE.indexOf('checkAnonymousImageRateLimit');
+test('edge source: authenticated image and text modes use the DB quota', () => {
   const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
-  assert.ok(anonGuardIndex !== -1, 'Must keep anonymous image guard');
   assert.ok(quotaIndex !== -1, 'Must have authenticated quota check');
   assert.ok(
     EDGE_SOURCE.includes('if (auth.isAuthenticated && userId)'),
     'Quota check must be gated to authenticated users',
   );
-  assert.ok(EDGE_SOURCE.includes('isAnonymousImageAnalysis'), 'Must preserve anonymous image analysis path');
 });
 
 test('edge source: TextScan remains authenticated-only', () => {
-  assert.ok(EDGE_SOURCE.includes("mode === 'text' && !auth.isAuthenticated"), 'Text mode must keep auth gate');
+  assert.ok(EDGE_SOURCE.includes('if (!auth.isAuthenticated || !userId)'), 'Text mode must share auth gate');
   assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error for text mode');
 });
 

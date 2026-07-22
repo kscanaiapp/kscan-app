@@ -1,11 +1,14 @@
 const fs   = require('fs');
 const path = require('path');
 
-// Priority: BASE_URL (sprint task spec) > KSCAN_API_URL (legacy) > hosted beta
+// No hosted default: callers must explicitly name a non-production QA target.
 const API_URL =
   process.env.BASE_URL         ||
-  process.env.KSCAN_API_URL    ||
-  'https://kscan-app-1.onrender.com/api/analyze';
+  process.env.KSCAN_API_URL;
+
+if (!API_URL) {
+  throw new Error('Set BASE_URL or KSCAN_API_URL explicitly; no legacy hosted default exists.');
+}
 
 // Token-gated diagnostic headers: set VALIDATION_SECRET_KEY in your shell to
 // receive X-KScan-* version headers from the production backend.

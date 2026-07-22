@@ -1,0 +1,8 @@
+[functions.scan-identify]
+verify_jwt = true
+
+[functions.stylechat-generate]
+verify_jwt = true
+
+[functions.style-outfit-generate]
+verify_jwt = true

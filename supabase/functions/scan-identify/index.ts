@@ -17,8 +17,7 @@
 // visible garments/accessories are returned. No biometric/demographic traits.
 //
 // Security guarantees (mirrors stylechat-generate where user data is involved):
-//   - Signed-in users are verified via auth.getUser() before user-owned data work
-//   - Image mode can run analysis-only for project-authenticated anon/reviewer calls
+//   - Every request is verified via auth.getUser() before validation or paid work
 //   - GEMINI_API_KEY never leaves this function
 //   - Raw provider output is parsed + normalized, never returned verbatim
 //   - No stack traces returned to the client
@@ -26,7 +25,10 @@
 //   - similarityMatches: image-mode catalog similarity products.
 //
 // Kill switch: set SCAN_IDENTIFY_AI_ENABLED=false (trim/case-insensitive) to disable.
-// Model precedence: SCAN_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL.
+// Model routing (workload vars only; generic GEMINI_MODEL is not used):
+//   Scanner primary:  SCAN_GEMINI_MODEL           -> gemini-3.6-flash
+//   Scanner fallback: SCAN_GEMINI_FALLBACK_MODEL  -> gemini-3.5-flash-lite
+//   TextScan:          TEXTSCAN_GEMINI_MODEL       -> gemini-3.5-flash-lite
 
 import {
   cleanAiJsonText,
@@ -56,7 +58,6 @@ import {
   oneWayActorRef,
 } from '../_shared/aiSecurity/securityTelemetry.ts';
 import { recordObjectiveAbuse } from '../_shared/aiSecurity/abuseControls.ts';
-import { AI_INPUT_LIMITS, boundTextField } from '../_shared/aiSecurity/inputLimits.ts';
 import {
   getScanCommerceResults,
   type ScanCommerceResult,
@@ -66,6 +67,20 @@ import {
   type SimilarityMatch,
 } from './similarityMatcher.ts';
 import { captureScanIntelligence } from './scanIntelligenceCapture.ts';
+import {
+  rawDetectedGarmentCount,
+  sanitizeDetectedGarments,
+  type SanitizedDetectedGarment,
+} from './multiItemGarments.ts';
+import {
+  classifyHttpFailure,
+  isDirectImageFallbackFailure,
+  isImageRepairableFailure,
+  isRetryableTextScanFailure,
+  resolveVerifiedRequestMode,
+  resolveWorkloadModels,
+  type ProviderFailureKind,
+} from './modelRouting.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -88,13 +103,9 @@ const SIMILARITY_TIMEOUT_MS = 300;
 const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
 const TEXT_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
-const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const ANON_SCAN_RATE_LIMIT_MAX = 6;
 const SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT = 30;
 const SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT = 50;
-const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
 
 // Output sanitization caps — keep responses small and predictable.
 const MAX_STRING_LEN = 120;
@@ -162,8 +173,6 @@ const SAFE_TEXT_NON_FASHION_MESSAGE =
 type AuthContext = {
   userId: string | null;
   isAuthenticated: boolean;
-  hasProjectAccess: boolean;
-  authError: boolean;
 };
 
 type ShoppingMeta = {
@@ -176,19 +185,6 @@ type ShoppingMeta = {
   commerceSkipped?: boolean;
   reason?: string;
 };
-
-type AnonymousRateEntry = {
-  windowStart: number;
-  count: number;
-};
-
-type ProjectAccessCacheEntry = {
-  valid: boolean;
-  expiresAt: number;
-};
-
-const anonymousScanRateLimits = new Map<string, AnonymousRateEntry>();
-const projectAccessCache = new Map<string, ProjectAccessCacheEntry>();
 
 // ── Provider prompts (server-side only) ────────────────────────────────────────
 
@@ -519,6 +515,175 @@ Rules:
 - userMessage should be a concise, friendly summary derived from visual_observation.
 - The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
 
+const MULTI_ITEM_IDENTIFY_PROMPT = `You are K Scan AI's multi-item fashion detection engine.
+
+Analyze the uploaded image and identify genuinely distinct visible garments or fashion accessories.
+
+Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plates, furniture, and background clutter.
+
+Do not identify people.
+Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
+
+Multi-item rules:
+- Return one to five distinct fashion items only.
+- Preserve deterministic visual order: top-to-bottom, then left-to-right.
+- This is a real-world image. Clothing may be layered, worn, partially occluded, or surrounded by background clutter.
+- Return a candidate when the garment category and approximate location are visible, even when fine attributes are uncertain.
+- Do not duplicate the same garment.
+- Do not split one garment into artificial sub-items.
+- Do not combine multiple garments into one item.
+- Ignore background objects and non-fashion objects.
+- Never fabricate candidates to reach a target count.
+- If uncertain about a field, use null, "unknown", or [].
+
+Return strict JSON only.
+No markdown.
+No commentary.
+
+Use exactly this response shape:
+{
+  "status": "completed" | "non_fashion",
+  "detectedGarments": [
+    {
+      "label": "black blazer",
+      "category": "blazer",
+      "subtype": "double-breasted blazer",
+      "bounds": { "x": 0.12, "y": 0.08, "width": 0.76, "height": 0.54 },
+      "confidenceScore": 0.86,
+      "visual_observation": "Black structured blazer in the upper half of the image.",
+      "item_type": "blazer",
+      "primary_color": "black"
+    }
+  ],
+  "recommendedProducts": [],
+  "userMessage": "Detected multiple fashion items."
+}
+
+For non_fashion, return detectedGarments: [] and the standard non-fashion userMessage.
+Bounds are normalized image coordinates from 0 to 1 and must tightly enclose the visible garment.
+Keep each candidate compact. Do not return full styling analysis or shopping queries in this first pass.
+Return only approved garment schema fields.`;
+
+const MULTI_ITEM_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    status: { type: 'STRING', enum: ['completed', 'non_fashion'] },
+    detectedGarments: {
+      type: 'ARRAY',
+      maxItems: 5,
+      items: {
+        type: 'OBJECT',
+        properties: {
+          label: { type: 'STRING' },
+          category: { type: 'STRING' },
+          subtype: { type: 'STRING' },
+          bounds: {
+            type: 'OBJECT',
+            properties: {
+              x: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              y: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              width: { type: 'NUMBER', minimum: 0, maximum: 1 },
+              height: { type: 'NUMBER', minimum: 0, maximum: 1 },
+            },
+            required: ['x', 'y', 'width', 'height'],
+          },
+          confidenceScore: { type: 'NUMBER', minimum: 0, maximum: 1 },
+          visual_observation: { type: 'STRING' },
+          item_type: { type: 'STRING' },
+          primary_color: { type: 'STRING' },
+        },
+        required: [
+          'label',
+          'category',
+          'subtype',
+          'bounds',
+          'confidenceScore',
+          'visual_observation',
+          'item_type',
+          'primary_color',
+        ],
+      },
+    },
+    recommendedProducts: { type: 'ARRAY', maxItems: 0, items: { type: 'OBJECT' } },
+    userMessage: { type: 'STRING' },
+  },
+  required: ['status', 'detectedGarments', 'recommendedProducts', 'userMessage'],
+} as const;
+
+const SELECTED_ITEM_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    status: { type: 'STRING', enum: ['completed'] },
+    attributes: {
+      type: 'OBJECT',
+      properties: {
+        category: { type: 'STRING' },
+        itemType: { type: 'STRING' },
+        silhouette: { type: 'STRING' },
+        colorPalette: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 4 },
+        materialEstimate: { type: 'STRING' },
+        pattern: { type: 'STRING' },
+        confidenceScore: { type: 'NUMBER', minimum: 0, maximum: 1 },
+      },
+      required: ['category', 'itemType', 'colorPalette', 'confidenceScore'],
+    },
+    identification: {
+      type: 'OBJECT',
+      properties: {
+        visual_observation: { type: 'STRING' },
+        item_type: { type: 'STRING' },
+        subtype: { type: 'STRING' },
+        primary_color: { type: 'STRING' },
+        pattern: { type: 'STRING' },
+        material_estimate: { type: 'STRING' },
+        silhouette: { type: 'STRING' },
+        fit: { type: 'STRING' },
+        confidence_score: { type: 'NUMBER', minimum: 0, maximum: 1 },
+        non_fashion: { type: 'BOOLEAN' },
+      },
+      required: [
+        'visual_observation',
+        'item_type',
+        'subtype',
+        'primary_color',
+        'confidence_score',
+        'non_fashion',
+      ],
+    },
+    recommendedProducts: { type: 'ARRAY', maxItems: 0, items: { type: 'OBJECT' } },
+    userMessage: { type: 'STRING' },
+  },
+  required: ['status', 'attributes', 'identification', 'recommendedProducts', 'userMessage'],
+} as const;
+
+function buildSelectedItemPrompt(candidate: {
+  candidateId: string;
+  category: string;
+  subtype?: string;
+  bounds?: { x: number; y: number; width: number; height: number };
+}): string {
+  const target = JSON.stringify(candidate);
+  return `You are K Scan AI's selected-garment identification engine.
+
+The client selected this candidate from a prior detection pass: ${target}
+
+Analyze only that garment in the original parent image.
+Use its normalized bounds to locate it.
+Do not switch to a larger, more central, or more recognizable garment.
+Ignore the person, face, body, background, and every unselected garment.
+Do not guess a brand unless clearly visible on the selected garment.
+
+Return strict JSON only in the existing single-item response shape:
+- status must be completed
+- attributes must describe the selected garment
+- identification must describe the selected garment
+- recommendedProducts must be []
+- userMessage must concisely describe the selected garment
+- do not return detectedGarments
+
+If an attribute is uncertain, use "unknown" rather than switching garments.`;
+}
+
 const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
 
 Analyze this fashion text query and identify the described item.
@@ -731,52 +896,29 @@ function withSafeImageArrays(
   };
 }
 
+function primaryGarmentResponseFields(
+  garments: SanitizedDetectedGarment[],
+): {
+  attributes?: Record<string, unknown>;
+  identification?: Record<string, unknown>;
+  userMessage?: string;
+} {
+  const primary = garments[0];
+  if (!primary) return {};
+  return {
+    attributes: primary.attributes,
+    identification: primary.identification,
+    userMessage:
+      typeof primary.identification.visual_observation === 'string'
+        ? primary.identification.visual_observation
+        : primary.label,
+  };
+}
+
 function extractBearerToken(authHeader: string | null): string {
   if (!authHeader) return '';
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() ?? '';
-}
-
-function safeHeaderValue(value: string | null): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-async function hasValidProjectAccess(
-  req: Request,
-  supabaseUrl: string,
-  supabaseAnonKey: string,
-): Promise<boolean> {
-  const bearerToken = extractBearerToken(req.headers.get('Authorization'));
-  const apiKey = safeHeaderValue(req.headers.get('apikey')) || safeHeaderValue(req.headers.get('x-api-key'));
-  if (bearerToken === supabaseAnonKey || apiKey === supabaseAnonKey) return true;
-
-  const candidate = apiKey || bearerToken;
-  if (!candidate) return false;
-  return validateProjectAccessKey(supabaseUrl, candidate);
-}
-
-async function validateProjectAccessKey(supabaseUrl: string, candidate: string): Promise<boolean> {
-  const keyHash = await sha256Hex(candidate);
-  const now = Date.now();
-  const cached = projectAccessCache.get(keyHash);
-  if (cached && cached.expiresAt > now) return cached.valid;
-
-  let valid = false;
-  try {
-    const res = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
-      method: 'GET',
-      headers: { apikey: candidate },
-    });
-    valid = res.ok;
-  } catch {
-    valid = false;
-  }
-
-  projectAccessCache.set(keyHash, {
-    valid,
-    expiresAt: now + PROJECT_ACCESS_CACHE_MS,
-  });
-  return valid;
 }
 
 async function resolveAuthContext(
@@ -786,14 +928,11 @@ async function resolveAuthContext(
 ): Promise<AuthContext> {
   const authHeader = req.headers.get('Authorization');
   const bearerToken = extractBearerToken(authHeader);
-  const hasProjectAccess = await hasValidProjectAccess(req, supabaseUrl, supabaseAnonKey);
 
-  if (!bearerToken || bearerToken === supabaseAnonKey) {
+  if (!bearerToken) {
     return {
       userId: null,
       isAuthenticated: false,
-      hasProjectAccess,
-      authError: false,
     };
   }
 
@@ -805,20 +944,7 @@ async function resolveAuthContext(
   return {
     userId: authError || !user ? null : user.id,
     isAuthenticated: Boolean(!authError && user),
-    hasProjectAccess,
-    authError: Boolean(authError || !user),
   };
-}
-
-function getClientFingerprintMaterial(req: Request): string {
-  const forwardedFor = safeHeaderValue(req.headers.get('x-forwarded-for')).split(',')[0]?.trim() ?? '';
-  const ip =
-    forwardedFor ||
-    safeHeaderValue(req.headers.get('cf-connecting-ip')) ||
-    safeHeaderValue(req.headers.get('x-real-ip')) ||
-    'unknown-ip';
-  const userAgent = safeHeaderValue(req.headers.get('user-agent')) || 'unknown-agent';
-  return `${ip}|${userAgent}`;
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -844,14 +970,14 @@ async function checkAuthenticatedScanQuota(
   userId: string,
   mode: string,
   logUserId: string,
-): Promise<{ allowed: boolean; count: number; limit: number }> {
+): Promise<{ available: boolean; allowed: boolean; count: number; limit: number }> {
   if (!catalogClient) {
     console.warn(
       '[scan-identify] quota_check_error user=%s mode=%s reason=missing_service_role_client',
       logUserId,
       mode,
     );
-    return { allowed: true, count: 0, limit: 0 };
+    return { available: false, allowed: false, count: 0, limit: 0 };
   }
 
   const dailyLimit = getScanIdentifyDailyLimit(mode);
@@ -874,11 +1000,10 @@ async function checkAuthenticatedScanQuota(
     const count = typeof row.count === 'number' ? row.count : 0;
     const limit = typeof row.limit === 'number' ? row.limit : dailyLimit;
 
-    return { allowed, count, limit };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[scan-identify] quota_check_error user=%s mode=%s error=%s', logUserId, mode, msg);
-    return { allowed: true, count: 0, limit: 0 };
+    return { available: true, allowed, count, limit };
+  } catch {
+    console.warn('[scan-identify] quota_check_error user=%s mode=%s error=rpc_unavailable', logUserId, mode);
+    return { available: false, allowed: false, count: 0, limit: 0 };
   }
 }
 
@@ -901,38 +1026,6 @@ function buildRateLimitedResponse(): Record<string, unknown> {
       reason: 'daily_limit',
     },
     userMessage: 'Daily scan limit reached. Try again tomorrow.',
-  };
-}
-
-function checkAnonymousImageRateLimit(fingerprint: string): {
-  allowed: boolean;
-  retryAfterSeconds: number;
-  count: number;
-} {
-  const now = Date.now();
-  if (anonymousScanRateLimits.size > 1000) {
-    for (const [key, entry] of anonymousScanRateLimits.entries()) {
-      if (now - entry.windowStart > ANON_SCAN_RATE_LIMIT_WINDOW_MS * 2) {
-        anonymousScanRateLimits.delete(key);
-      }
-    }
-  }
-
-  const current = anonymousScanRateLimits.get(fingerprint);
-  const entry = !current || now - current.windowStart >= ANON_SCAN_RATE_LIMIT_WINDOW_MS
-    ? { windowStart: now, count: 0 }
-    : current;
-  entry.count += 1;
-  anonymousScanRateLimits.set(fingerprint, entry);
-
-  const retryAfterSeconds = Math.max(
-    1,
-    Math.ceil((entry.windowStart + ANON_SCAN_RATE_LIMIT_WINDOW_MS - now) / 1000),
-  );
-  return {
-    allowed: entry.count <= ANON_SCAN_RATE_LIMIT_MAX,
-    retryAfterSeconds,
-    count: entry.count,
   };
 }
 
@@ -1139,10 +1232,9 @@ function buildIdentificationFromAttributes(
   return Object.keys(out).length ? out : undefined;
 }
 
-/** Strip markdown fences (```) and parse the first JSON object from model text. */
+/** Strip markdown fences and parse the first JSON object from model text. */
 function parseModelJson(text: string): Record<string, unknown> | null {
   try {
-    // ``` fences are removed inside cleanAiJsonText via safeParseAiJson.
     const parsed = safeParseAiJson(text);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       return parsed as Record<string, unknown>;
@@ -1178,29 +1270,271 @@ function extractGeminiText(data: GeminiResponse): string {
     .trim();
 }
 
+type GeminiCallSuccess = {
+  ok: true;
+  model: string;
+  data: GeminiResponse;
+  text: string;
+  parsed: Record<string, unknown>;
+  httpStatus: number;
+  elapsedMs: number;
+};
+
+type GeminiCallFailure = {
+  ok: false;
+  model: string;
+  kind: ProviderFailureKind;
+  httpStatus?: number;
+  elapsedMs: number;
+  blockReason?: string;
+};
+
+type GeminiCallResult = GeminiCallSuccess | GeminiCallFailure;
+
+function buildGeminiUrl(modelName: string, geminiKey: string): string {
+  const u = new URL(`${GEMINI_API_BASE}/${modelName}:generateContent`);
+  u.searchParams.set('key', geminiKey);
+  return u.toString();
+}
+
+async function callGeminiOnce(
+  modelName: string,
+  geminiKey: string,
+  geminiBody: Record<string, unknown>,
+  timeoutMs: number,
+): Promise<GeminiCallResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(buildGeminiUrl(modelName, geminiKey), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiBody),
+      signal: controller.signal,
+    });
+    const raw = await res.text().catch(() => '');
+    const elapsedMs = Date.now() - startedAt;
+
+    if (!res.ok) {
+      const meta = extractGeminiErrorMeta(raw);
+      console.warn(
+        '[scan-identify] gemini_http_error model=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
+        modelName,
+        res.status,
+        String(meta.code ?? 'none'),
+        String(meta.status ?? 'none'),
+        elapsedMs,
+      );
+      return {
+        ok: false,
+        model: modelName,
+        kind: classifyHttpFailure(res.status),
+        httpStatus: res.status,
+        elapsedMs,
+      };
+    }
+
+    let data: GeminiResponse;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      console.warn('[scan-identify] gemini_parse_failure model=%s elapsedMs=%d', modelName, elapsedMs);
+      return {
+        ok: false,
+        model: modelName,
+        kind: 'malformed_envelope',
+        httpStatus: res.status,
+        elapsedMs,
+      };
+    }
+
+    const blockReason = data.promptFeedback?.blockReason;
+    if (blockReason) {
+      console.warn(
+        '[scan-identify] gemini_policy_block model=%s blockReason=%s elapsedMs=%d',
+        modelName,
+        blockReason,
+        elapsedMs,
+      );
+      return {
+        ok: false,
+        model: modelName,
+        kind: 'policy_block',
+        httpStatus: res.status,
+        elapsedMs,
+        blockReason,
+      };
+    }
+
+    const text = extractGeminiText(data);
+    if (!text) {
+      console.warn('[scan-identify] gemini_empty model=%s elapsedMs=%d', modelName, elapsedMs);
+      return {
+        ok: false,
+        model: modelName,
+        kind: 'empty_response',
+        httpStatus: res.status,
+        elapsedMs,
+      };
+    }
+
+    const parsedJson = parseModelJson(text);
+    if (!parsedJson) {
+      console.warn('[scan-identify] model_json_unparseable model=%s elapsedMs=%d', modelName, elapsedMs);
+      return {
+        ok: false,
+        model: modelName,
+        kind: 'unparseable_json',
+        httpStatus: res.status,
+        elapsedMs,
+      };
+    }
+
+    return {
+      ok: true,
+      model: modelName,
+      data,
+      text,
+      parsed: parsedJson,
+      httpStatus: res.status,
+      elapsedMs,
+    };
+  } catch (err) {
+    const elapsedMs = Date.now() - startedAt;
+    const isTimeout =
+      (err instanceof DOMException && err.name === 'AbortError') ||
+      (err && typeof err === 'object' && (err as Error).name === 'AbortError');
+    if (isTimeout) {
+      console.warn(
+        '[scan-identify] gemini_timeout model=%s elapsedMs=%d timeoutMs=%d',
+        modelName,
+        elapsedMs,
+        timeoutMs,
+      );
+      return { ok: false, model: modelName, kind: 'timeout', elapsedMs };
+    }
+    console.warn(
+      '[scan-identify] gemini_error model=%s error=%s elapsedMs=%d',
+      modelName,
+      err instanceof Error ? err.name : String(err),
+      elapsedMs,
+    );
+    return { ok: false, model: modelName, kind: 'network', elapsedMs };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function logRoutingTelemetry(fields: {
+  request_id: string;
+  request_mode: string;
+  primary_model: string;
+  served_model: string;
+  fallback_used: boolean;
+  fallback_reason: string | null;
+  attempt_count: number;
+  latency_ms: number;
+  schema_valid: boolean;
+  provider_status: string;
+}): void {
+  console.log(
+    '[scan-identify] routing_telemetry request_id=%s request_mode=%s primary_model=%s served_model=%s fallback_used=%s fallback_reason=%s attempt_count=%d latency_ms=%d schema_valid=%s provider_status=%s',
+    fields.request_id,
+    fields.request_mode,
+    fields.primary_model,
+    fields.served_model,
+    String(fields.fallback_used),
+    fields.fallback_reason ?? 'none',
+    fields.attempt_count,
+    fields.latency_ms,
+    String(fields.schema_valid),
+    fields.provider_status,
+  );
+}
+
 function validateTextQuery(value: unknown): string | undefined {
-  // Structural validation. Prompt-injection-like fashion text remains allowed as
-  // untrusted data inside a typed user_input envelope (not keyword-blocked).
   if (typeof value !== 'string') return 'Invalid query format';
-  const maxLen = Math.min(MAX_TEXT_QUERY_LEN, AI_INPUT_LIMITS.typeChatQuery);
-  if (typeof value === 'string' && value.trim().length > MAX_TEXT_QUERY_LEN) {
-    return 'Invalid query format';
-  }
-  const bound = boundTextField(value, maxLen, { mode: 'reject', stripSecrets: true });
-  if (!bound.ok) return 'Invalid query format';
-  if (bound.value.length < 3) return 'Invalid query format';
-  // Binary/base64-like and code-fence payloads are rejected as non-text fashion input.
-  if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(bound.value.replace(/\s/g, ''))) {
-    return 'Invalid query format';
-  }
-  if (bound.value.includes('```')) return 'Invalid query format';
-  if (/[\w.+-]+@[\w.-]+\.\w+/.test(bound.value)) return 'Invalid query format';
-  if (/(\+?\d[\d\s-]{7,}\d)/.test(bound.value)) return 'Invalid query format';
-  if (/\b\d{3}[\s-]\d{2}[\s-]\d{4}\b/.test(bound.value)) return 'Invalid query format';
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length < 3 || trimmed.length > MAX_TEXT_QUERY_LEN) return 'Invalid query format';
+  if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(trimmed)) return 'Invalid query format';
+  if (trimmed.includes('```') || trimmed.includes('`')) return 'Invalid query format';
+  const lower = trimmed.toLowerCase();
+  const injections = [
+    'ignore previous instructions',
+    'system prompt',
+    'developer message',
+    'reveal your prompt',
+    'act as another system',
+    'ignore all instructions',
+    'forget previous',
+    'you are now',
+    'new role:',
+    'override instructions',
+  ];
+  if (injections.some((p) => lower.includes(p))) return 'Invalid query format';
+  if (/[\w.+-]+@[\w.-]+\.\w+/.test(trimmed)) return 'Invalid query format';
+  if (/(\+?\d[\d\s-]{7,}\d)/.test(trimmed)) return 'Invalid query format';
+  if (/\b\d{3}[\s-]\d{2}[\s-]\d{4}\b/.test(trimmed)) return 'Invalid query format';
+  const nonAlphaNum = (trimmed.match(/[^a-zA-Z0-9\s]/g) || []).length;
+  if (nonAlphaNum / trimmed.length > 0.30) return 'Invalid query format';
   return undefined;
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────────
+
+function safeCorrelationId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return /^[A-Za-z0-9_-]{1,80}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function safeDigestPrefix(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim().toLowerCase();
+  return /^[a-f0-9]{8,16}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function safeCandidateLabel(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  return /^[A-Za-z0-9 /&+.'-]{1,80}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function sanitizeSelectedCandidate(value: unknown): {
+  candidateId: string;
+  category: string;
+  subtype?: string;
+  bounds?: { x: number; y: number; width: number; height: number };
+} | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const src = value as Record<string, unknown>;
+  const candidateId = safeCorrelationId(src.candidateId);
+  const category = safeCandidateLabel(src.category);
+  if (!candidateId || !category) return undefined;
+
+  const subtype = safeCandidateLabel(src.subtype);
+  let bounds: { x: number; y: number; width: number; height: number } | undefined;
+  if (src.bounds && typeof src.bounds === 'object' && !Array.isArray(src.bounds)) {
+    const raw = src.bounds as Record<string, unknown>;
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    const width = Number(raw.width);
+    const height = Number(raw.height);
+    if ([x, y, width, height].every(Number.isFinite)) {
+      const safeX = Math.max(0, Math.min(1, x));
+      const safeY = Math.max(0, Math.min(1, y));
+      bounds = {
+        x: safeX,
+        y: safeY,
+        width: Math.max(0.01, Math.min(1 - safeX, width)),
+        height: Math.max(0.01, Math.min(1 - safeY, height)),
+      };
+    }
+  }
+
+  return { candidateId, category, ...(subtype ? { subtype } : {}), ...(bounds ? { bounds } : {}) };
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -1229,6 +1563,11 @@ Deno.serve(async (req) => {
     appVersion?: unknown;
     localPrivacyFiltered?: unknown;
     clientTimestamp?: unknown;
+    multiItemDetection?: unknown;
+    requestMode?: unknown;
+    scanSessionId?: unknown;
+    imageDigestPrefix?: unknown;
+    selectedCandidate?: unknown;
     scanId?: unknown;
     scan_id?: unknown;
     id?: unknown;
@@ -1239,8 +1578,37 @@ Deno.serve(async (req) => {
     return json({ ...normalized('failed', INVALID_IMAGE_MESSAGE), error: 'Invalid JSON' }, 400);
   }
 
-  const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
+  const modeResolved = resolveVerifiedRequestMode(body.mode);
+  if (!modeResolved) {
+    return json({ error: true, message: 'Unsupported request mode.', code: 'UNSUPPORTED_MODE' }, 400);
+  }
+  const mode = modeResolved;
+  const isTextScan = mode === 'text';
   const source = safeString(body.source) ?? 'unknown';
+  if (body && typeof body === 'object' && 'model' in (body as Record<string, unknown>)) {
+    console.log('[scan-identify] client_model_override_ignored');
+  }
+  const multiItemRequested = body.multiItemDetection === true;
+  const multiItemEnabled =
+    Deno.env.get('SCAN_MULTI_ITEM_ENABLED')?.trim().toLowerCase() === 'true';
+  const useMultiItemProvider =
+    mode === 'image' &&
+    multiItemEnabled &&
+    multiItemRequested;
+  const requestMode = body.requestMode === 'selected_item'
+    ? 'selected_item'
+    : body.requestMode === 'multi_item_detection'
+    ? 'multi_item_detection'
+    : 'legacy_single_item';
+  const selectedCandidate = sanitizeSelectedCandidate(body.selectedCandidate);
+  const useSelectedItemProvider =
+    useMultiItemProvider &&
+    requestMode === 'selected_item' &&
+    Boolean(selectedCandidate);
+  const useMultiItemDetectionProvider =
+    useMultiItemProvider && requestMode !== 'selected_item';
+  const scanSessionId = safeCorrelationId(body.scanSessionId) ?? crypto.randomUUID();
+  const suppliedImageDigestPrefix = safeDigestPrefix(body.imageDigestPrefix);
   const appPlatform = typeof body.appPlatform === 'string' && body.appPlatform.trim()
     ? body.appPlatform.trim()
     : null;
@@ -1249,6 +1617,7 @@ Deno.serve(async (req) => {
     : null;
   let imageBase64 = '';
   let textQuery = '';
+  let imageDigestPrefix = '';
 
   const requestScanId = typeof body.scanId === 'string' && body.scanId.trim()
     ? body.scanId.trim()
@@ -1261,35 +1630,35 @@ Deno.serve(async (req) => {
 
   const auth = await resolveAuthContext(req, supabaseUrl, supabaseAnonKey);
   const userId = auth.userId;
-  const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
-  const logUserId = userId ? userId.slice(0, 8) : 'anon';
-
-  console.log(
-    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
-    mode,
-    source,
-    auth.isAuthenticated ? 'authenticated' : 'anonymous',
-    logUserId,
-    String(auth.hasProjectAccess),
-  );
-
-  if (mode === 'text' && !auth.isAuthenticated) {
+  if (!auth.isAuthenticated || !userId) {
     return json({ error: 'Not authenticated' }, 401);
   }
+  const logUserId = oneWayActorRef(userId);
 
-  if (isAnonymousImageAnalysis && !auth.hasProjectAccess) {
-    return json(
-      {
-        ...normalized('failed', SAFE_FAILED_MESSAGE),
-        error: 'Not authenticated',
-      },
-      401,
+  console.log(
+    '[scan-identify] request_start mode=%s source=%s auth=authenticated uid=%s',
+    mode,
+    source,
+    logUserId,
+  );
+
+  if (useMultiItemProvider && requestMode === 'selected_item' && !selectedCandidate) {
+    console.warn(
+      '[scan-identify] selected_item_invalid scanSessionId=%s requestMode=%s',
+      scanSessionId,
+      requestMode,
     );
+    return json(normalized('failed', 'The selected garment could not be analyzed. Please return to the outfit and select it again.'), 200);
   }
-
-  if (isAnonymousImageAnalysis && auth.authError) {
-    console.warn('[scan-identify] image_auth_fallback_to_analysis_only reason=user_jwt_unverified');
-  }
+  console.log(
+    '[scan-identify] multi_item_env_gate enabled=%s',
+    String(multiItemEnabled),
+  );
+  console.log(
+    '[scan-identify] multi_item_request requested=%s enabled=%s',
+    String(multiItemRequested),
+    String(useMultiItemProvider),
+  );
 
   const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const catalogClient = auth.isAuthenticated && supabaseUrl && supabaseServiceRoleKey
@@ -1301,24 +1670,14 @@ Deno.serve(async (req) => {
     console.log('[scan-identify] catalog_client_not_available');
   }
 
-  let anonymousFingerprint = '';
-
   if (mode === 'text') {
-    const rawTextQuery = typeof body.textQuery === 'string' ? body.textQuery : '';
-    const textValidation = validateTextQuery(rawTextQuery);
-    if (textValidation) {
-      return json({ error: true, message: textValidation, code: 'TEXTSCAN_INVALID_INPUT' }, 400);
-    }
-    const boundQuery = boundTextField(rawTextQuery, Math.min(MAX_TEXT_QUERY_LEN, AI_INPUT_LIMITS.typeChatQuery), {
-      mode: 'reject',
-      stripSecrets: true,
-    });
-    if (!boundQuery.ok) {
-      return json({ error: true, message: 'Invalid query format', code: 'TEXTSCAN_INVALID_INPUT' }, 400);
-    }
-    textQuery = boundQuery.value;
+    textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
     if (!textQuery) {
       return json(normalized('failed', SAFE_TEXT_FAILED_MESSAGE), 200);
+    }
+    const textValidation = validateTextQuery(textQuery);
+    if (textValidation) {
+      return json({ error: true, message: textValidation, code: 'TEXTSCAN_INVALID_INPUT' }, 400);
     }
   } else {
     // Accept either a raw base64 string or a data URI; strip the prefix server-side.
@@ -1338,36 +1697,59 @@ Deno.serve(async (req) => {
       return json(normalized('failed', INVALID_IMAGE_MESSAGE), 200);
     }
 
-    if (isAnonymousImageAnalysis) {
-      anonymousFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
-      const rateLimit = checkAnonymousImageRateLimit(anonymousFingerprint);
-      console.log(
-        '[scan-identify] anonymous_image_attempt fingerprint=%s count=%d allowed=%s',
-        anonymousFingerprint.slice(0, 12),
-        rateLimit.count,
-        String(rateLimit.allowed),
+    imageDigestPrefix = (await sha256Hex(imageBase64)).slice(0, 12);
+    if (
+      useSelectedItemProvider &&
+      (!suppliedImageDigestPrefix || suppliedImageDigestPrefix !== imageDigestPrefix)
+    ) {
+      console.warn(
+        '[scan-identify] selected_item_image_mismatch scanSessionId=%s candidateId=%s requestMode=%s imageDigest=%s',
+        scanSessionId,
+        selectedCandidate?.candidateId ?? 'none',
+        requestMode,
+        imageDigestPrefix,
       );
-      if (!rateLimit.allowed) {
-        return json(
-          {
-            ...normalized('failed', 'Scan limit reached. Please try again later.'),
-            retryAfterSeconds: rateLimit.retryAfterSeconds,
-          },
-          429,
-        );
-      }
+      return json(normalized('failed', 'The original outfit image is no longer available. Please start a new scan.'), 200);
     }
+
+    console.log(
+      '[scan-identify] correlation scanSessionId=%s candidateId=%s requestMode=%s imageDigest=%s',
+      scanSessionId,
+      selectedCandidate?.candidateId ?? 'none',
+      useSelectedItemProvider
+        ? 'selected_item'
+        : useMultiItemDetectionProvider
+        ? 'multi_item_detection'
+        : 'legacy_single_item',
+      imageDigestPrefix,
+    );
+
   }
 
   // ── 2b. Authenticated per-user daily quota check ─────────────────────────────
   // Checked after mode/body validation and before any AI/commerce call.
   // Quota failures return an HTTP 200 app-safe body so mobile clients treat it
   // as a normal outcome rather than a network/system error.
-  // DB or configuration errors fail open so a quota rollout issue cannot
-  // break all scans.
+  // DB or configuration errors fail closed so quota enforcement cannot be
+  // bypassed during an outage or deployment drift.
 
   if (auth.isAuthenticated && userId) {
     const quota = await checkAuthenticatedScanQuota(catalogClient, userId, mode, logUserId);
+    if (!quota.available) {
+      console.warn(
+        '[scan-identify] quota_unavailable user=%s mode=%s',
+        logUserId,
+        mode,
+      );
+      return json(
+        {
+          ...normalized('failed', 'Scan service is temporarily unavailable. Please try again.'),
+          error: 'Quota check unavailable',
+          code: 'QUOTA_CHECK_UNAVAILABLE',
+        },
+        503,
+      );
+    }
     if (!quota.allowed) {
       console.log(
         '[scan-identify] quota_rate_limited user=%s mode=%s count=%d limit=%d',
@@ -1406,23 +1788,22 @@ Deno.serve(async (req) => {
     );
   }
 
-  const modelName =
-    readTrimmedEnv('SCAN_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+  const {
+    scannerModel,
+    scannerFallbackModel,
+    textScanModel,
+  } = resolveWorkloadModels((key) => Deno.env.get(key));
+  const primaryModel = isTextScan ? textScanModel : scannerModel;
   const timeoutMs = (() => {
     const raw = readTrimmedEnv('SCAN_GEMINI_TIMEOUT_MS');
-    const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) && parsed >= 2_000 && parsed <= 20_000
-      ? parsed
+    const parsedTimeout = raw !== undefined ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(parsedTimeout) && parsedTimeout >= 2_000 && parsedTimeout <= 20_000
+      ? parsedTimeout
       : DEFAULT_GEMINI_TIMEOUT_MS;
   })();
 
-  // ── 4. Call Gemini with a timeout guard ──────────────────────────────────────
-  const geminiUrl = (() => {
-    const u = new URL(`${GEMINI_API_BASE}/${modelName}:generateContent`);
-    u.searchParams.set('key', geminiKey);
-    return u.toString();
-  })();
-
+  // Thinking configuration deferred in Step 1 (REST generateContent field syntax unverified).
+  // temperature omitted for Gemini 3.6 / 3.5-lite sampling-parameter deprecation.
   const typeChatPrompt = mode === 'text'
     ? assembleTypeChatPrompt({
         systemRules: `${TEXT_IDENTIFY_PROMPT}
@@ -1464,7 +1845,6 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
           },
         ],
         generationConfig: {
-          temperature: 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
         },
@@ -1474,211 +1854,276 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
           {
             role: 'user',
             parts: [
-              { text: IDENTIFY_PROMPT },
+              {
+                text: useSelectedItemProvider && selectedCandidate
+                  ? buildSelectedItemPrompt(selectedCandidate)
+                  : useMultiItemDetectionProvider
+                  ? MULTI_ITEM_IDENTIFY_PROMPT
+                  : IDENTIFY_PROMPT,
+              },
               { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
             ],
           },
         ],
         generationConfig: {
-          temperature: 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
+          ...(useMultiItemDetectionProvider
+            ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
+            : useSelectedItemProvider
+            ? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }
+            : {}),
         },
       };
 
   console.log(
-    '[scan-identify] gemini_start timeoutMs=%d model=%s mode=%s source=%s',
+    '[scan-identify] gemini_start timeoutMs=%d primary_model=%s mode=%s source=%s requestMode=%s',
     timeoutMs,
-    modelName,
+    primaryModel,
     mode,
     source,
+    requestMode,
   );
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
 
   const safeFailed = mode === 'text' ? SAFE_TEXT_FAILED_MESSAGE : SAFE_FAILED_MESSAGE;
   const safeNonFashion = mode === 'text' ? SAFE_TEXT_NON_FASHION_MESSAGE : SAFE_NON_FASHION_MESSAGE;
 
-  try {
-    const res = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiBody),
-      signal: controller.signal,
-    });
+  let attemptCount = 0;
+  let fallbackUsed = false;
+  let fallbackReason = null;
+  let servedModel = primaryModel;
+  let providerResult = await callGeminiOnce(
+    primaryModel,
+    geminiKey,
+    geminiBody,
+    timeoutMs,
+  );
+  attemptCount += 1;
 
-    const raw = await res.text().catch(() => '');
-    const elapsedMs = Date.now() - startedAt;
-
-    if (!res.ok) {
-      const meta = extractGeminiErrorMeta(raw);
-      console.warn(
-        '[scan-identify] gemini_http_error uid=%s mode=%s source=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
-        logUserId,
-        mode,
-        source,
-        res.status,
-        String(meta.code ?? 'none'),
-        String(meta.status ?? 'none'),
-        elapsedMs,
-      );
-      // Audit log failure
+  if (!providerResult.ok) {
+    if (providerResult.kind === 'policy_block') {
+      const policyElapsedMs = Date.now() - startedAt;
+      logRoutingTelemetry({
+        request_id: scanId,
+        request_mode: isTextScan ? 'text' : requestMode,
+        primary_model: primaryModel,
+        served_model: primaryModel,
+        fallback_used: false,
+        fallback_reason: null,
+        attempt_count: attemptCount,
+        latency_ms: policyElapsedMs,
+        schema_valid: false,
+        provider_status: 'policy_block',
+      });
       const failureAudit = buildAuditEvent(
         { status: 'failed' },
         null,
         [],
-        elapsedMs,
+        policyElapsedMs,
         scanId,
       );
-      failureAudit.error_reason = 'gemini_http_error';
+      failureAudit.error_reason = 'policy_block';
       logScanIdentificationAudit(failureAudit);
       console.log(
-        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
-        elapsedMs,
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s reason=policy_block',
+        policyElapsedMs,
         mode,
         source,
       );
       return json(normalized('failed', safeFailed), 200);
     }
 
+    if (isTextScan) {
+      if (isRetryableTextScanFailure(providerResult.kind)) {
+        console.log(
+          '[scan-identify] textscan_retry model=%s reason=%s',
+          primaryModel,
+          providerResult.kind,
+        );
+        providerResult = await callGeminiOnce(primaryModel, geminiKey, geminiBody, timeoutMs);
+        attemptCount += 1;
+      }
+    } else if (isDirectImageFallbackFailure(providerResult.kind)) {
+      fallbackUsed = true;
+      fallbackReason = providerResult.kind;
+      console.log(
+        '[scan-identify] image_fallback model=%s reason=%s',
+        scannerFallbackModel,
+        fallbackReason,
+      );
+      providerResult = await callGeminiOnce(
+        scannerFallbackModel,
+        geminiKey,
+        geminiBody,
+        timeoutMs,
+      );
+      attemptCount += 1;
+      servedModel = scannerFallbackModel;
+    } else if (isImageRepairableFailure(providerResult.kind)) {
+      console.log(
+        '[scan-identify] image_repair_retry model=%s reason=%s',
+        primaryModel,
+        providerResult.kind,
+      );
+      providerResult = await callGeminiOnce(primaryModel, geminiKey, geminiBody, timeoutMs);
+      attemptCount += 1;
+      if (
+        !providerResult.ok &&
+        (isImageRepairableFailure(providerResult.kind) ||
+          isDirectImageFallbackFailure(providerResult.kind))
+      ) {
+        fallbackUsed = true;
+        fallbackReason = providerResult.kind;
+        console.log(
+          '[scan-identify] image_fallback model=%s reason=%s',
+          scannerFallbackModel,
+          fallbackReason,
+        );
+        providerResult = await callGeminiOnce(
+          scannerFallbackModel,
+          geminiKey,
+          geminiBody,
+          timeoutMs,
+        );
+        attemptCount += 1;
+        servedModel = scannerFallbackModel;
+      }
+    }
+  }
+
+  let textScanExecutableRejected = false;
+  let textScanValidation: ReturnType<typeof validateTypeChatModelOutput> | null = null;
+  if (isTextScan && providerResult.ok) {
+    textScanExecutableRejected = rejectExecutableInstruction(providerResult.parsed);
+    textScanValidation = validateTypeChatModelOutput(providerResult.parsed);
+    if ((textScanExecutableRejected || !textScanValidation.ok) && attemptCount < 2) {
+      console.log(
+        '[scan-identify] textscan_retry model=%s reason=schema_invalid',
+        primaryModel,
+      );
+      providerResult = await callGeminiOnce(primaryModel, geminiKey, geminiBody, timeoutMs);
+      attemptCount += 1;
+      if (providerResult.ok) {
+        textScanExecutableRejected = rejectExecutableInstruction(providerResult.parsed);
+        textScanValidation = validateTypeChatModelOutput(providerResult.parsed);
+      }
+    }
+  }
+
+  if (!providerResult.ok) {
+    const failElapsedMs = Date.now() - startedAt;
+    servedModel = providerResult.model;
+    logRoutingTelemetry({
+      request_id: scanId,
+      request_mode: isTextScan ? 'text' : requestMode,
+      primary_model: primaryModel,
+      served_model: servedModel,
+      fallback_used: fallbackUsed,
+      fallback_reason: fallbackReason,
+      attempt_count: attemptCount,
+      latency_ms: failElapsedMs,
+      schema_valid: false,
+      provider_status: providerResult.kind,
+    });
+    const failureAudit = buildAuditEvent(
+      { status: 'failed' },
+      null,
+      [],
+      failElapsedMs,
+      scanId,
+    );
+    failureAudit.error_reason = providerResult.kind;
+    logScanIdentificationAudit(failureAudit);
     console.log(
-      '[scan-identify] gemini_success elapsedMs=%d mode=%s source=%s',
-      elapsedMs,
+      '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+      failElapsedMs,
       mode,
       source,
     );
+    return json(normalized('failed', safeFailed), 200);
+  }
 
-    let data: GeminiResponse;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      console.warn('[scan-identify] gemini_parse_failure mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
-      const failureAudit = buildAuditEvent(
-        { status: 'failed' },
-        null,
-        [],
-        elapsedMs,
-        scanId,
-      );
-      failureAudit.error_reason = 'gemini_parse_failure';
-      logScanIdentificationAudit(failureAudit);
-      console.log(
-        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
-        elapsedMs,
-        mode,
-        source,
-      );
-      return json(normalized('failed', safeFailed), 200);
-    }
+  if (
+    isTextScan &&
+    (textScanExecutableRejected || !textScanValidation || !textScanValidation.ok)
+  ) {
+    const validationReason = textScanExecutableRejected
+      ? 'forbidden_executable'
+      : textScanValidation && !textScanValidation.ok
+      ? textScanValidation.reason
+      : 'schema_invalid';
+    const validationDetail =
+      textScanValidation && !textScanValidation.ok ? textScanValidation.detail : undefined;
+    recordObjectiveAbuse({
+      actorRef: oneWayActorRef(userId),
+      entryPoint: 'typechat',
+      category: textScanExecutableRejected ? 'forbidden_executable' : 'schema_invalid',
+    });
+    emitAiSecurityTelemetry({
+      requestId: scanId,
+      timestamp: new Date().toISOString(),
+      actorRef: oneWayActorRef(userId),
+      entryPoint: 'typechat',
+      validationCategory: validationReason,
+      rejectedActionCategory: validationDetail,
+      authorizationResult: 'deny',
+      providerLatencyMs: Date.now() - startedAt,
+    });
+    logRoutingTelemetry({
+      request_id: scanId,
+      request_mode: 'text',
+      primary_model: primaryModel,
+      served_model: providerResult.model,
+      fallback_used: false,
+      fallback_reason: null,
+      attempt_count: attemptCount,
+      latency_ms: Date.now() - startedAt,
+      schema_valid: false,
+      provider_status: 'schema_invalid',
+    });
+    console.warn(
+      '[scan-identify] typechat_output_rejected reason=%s detail=%s',
+      validationReason,
+      validationDetail ?? 'none',
+    );
+    return json(normalized('failed', safeFailed), 200);
+  }
 
-    const blockReason = data.promptFeedback?.blockReason;
-    const text = extractGeminiText(data);
-    if (!text) {
-      console.warn(
-        '[scan-identify] gemini_empty mode=%s source=%s blockReason=%s elapsedMs=%d',
-        mode,
-        source,
-        blockReason ?? 'none',
-        elapsedMs,
-      );
-      const failureAudit = buildAuditEvent(
-        { status: 'failed' },
-        null,
-        [],
-        elapsedMs,
-        scanId,
-      );
-      failureAudit.error_reason = 'gemini_empty';
-      logScanIdentificationAudit(failureAudit);
-      console.log(
-        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
-        elapsedMs,
-        mode,
-        source,
-      );
-      return json(normalized('failed', safeFailed), 200);
-    }
-
-    const parsed = parseModelJson(text);
-    if (!parsed) {
-      console.warn('[scan-identify] model_json_unparseable mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
-      const failureAudit = buildAuditEvent(
-        { status: 'failed' },
-        null,
-        [],
-        elapsedMs,
-        scanId,
-      );
-      failureAudit.error_reason = 'model_json_unparseable';
-      logScanIdentificationAudit(failureAudit);
-      console.log(
-        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
-        elapsedMs,
-        mode,
-        source,
-      );
-      return json(normalized('failed', safeFailed), 200);
-    }
-
-    // Text/TypeChat: strict schema + executable-instruction rejection before any use.
-    if (mode === 'text') {
-      if (rejectExecutableInstruction(parsed)) {
-        recordObjectiveAbuse({
-          actorRef: oneWayActorRef(userId),
-          entryPoint: 'typechat',
-          category: 'forbidden_executable',
-        });
-        emitAiSecurityTelemetry({
-          requestId: scanId,
-          timestamp: new Date().toISOString(),
-          actorRef: oneWayActorRef(userId),
-          entryPoint: 'typechat',
-          rejectedActionCategory: 'forbidden_executable',
-          authorizationResult: 'deny',
-          providerLatencyMs: elapsedMs,
-        });
-        return json(normalized('failed', safeFailed), 200);
+  servedModel = providerResult.model;
+  const elapsedMs = Date.now() - startedAt;
+  const parsed = isTextScan && textScanValidation?.ok
+    ? {
+        ...textScanValidation.value,
+        // Model-suggested products are never executed; commerce uses server providers.
+        recommendedProducts: [],
       }
-      const strict = validateTypeChatModelOutput(parsed);
-      if (!strict.ok) {
-        recordObjectiveAbuse({
-          actorRef: oneWayActorRef(userId),
-          entryPoint: 'typechat',
-          category: strict.reason === 'unknown_field' ? 'schema_invalid' : 'schema_invalid',
-        });
-        emitAiSecurityTelemetry({
-          requestId: scanId,
-          timestamp: new Date().toISOString(),
-          actorRef: oneWayActorRef(userId),
-          entryPoint: 'typechat',
-          validationCategory: strict.reason,
-          rejectedActionCategory: strict.detail,
-          authorizationResult: 'deny',
-          providerLatencyMs: elapsedMs,
-        });
-        console.warn(
-          '[scan-identify] typechat_output_rejected reason=%s detail=%s elapsedMs=%d',
-          strict.reason,
-          strict.detail ?? 'none',
-          elapsedMs,
-        );
-        return json(normalized('failed', safeFailed), 200);
-      }
-      // Reconstruct from allowlisted fields only.
-      for (const key of Object.keys(parsed)) {
-        if (!(key in strict.value) && key !== 'recommendedProducts') {
-          delete parsed[key];
-        }
-      }
-      parsed.status = strict.value.status;
-      if (strict.value.userMessage != null) parsed.userMessage = strict.value.userMessage;
-      if (strict.value.attributes) parsed.attributes = strict.value.attributes;
-      if (strict.value.identification) parsed.identification = strict.value.identification;
-      // Model-suggested products are never executed; commerce uses server providers.
-      parsed.recommendedProducts = [];
-    }
+    : providerResult.parsed;
 
+  logRoutingTelemetry({
+    request_id: scanId,
+    request_mode: isTextScan ? 'text' : requestMode,
+    primary_model: primaryModel,
+    served_model: servedModel,
+    fallback_used: fallbackUsed,
+    fallback_reason: fallbackReason,
+    attempt_count: attemptCount,
+    latency_ms: elapsedMs,
+    schema_valid: true,
+    provider_status: 'ok',
+  });
+
+  console.log(
+    '[scan-identify] gemini_success elapsedMs=%d mode=%s source=%s served_model=%s fallback_used=%s attempt_count=%d',
+    elapsedMs,
+    mode,
+    source,
+    servedModel,
+    String(fallbackUsed),
+    attemptCount,
+  );
+
+  try {
     console.log(
       '[scan-identify] parse_success elapsedMs=%d mode=%s source=%s',
       elapsedMs,
@@ -1687,11 +2132,51 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
     );
 
     const rawStatus = typeof parsed.status === 'string' ? parsed.status.toLowerCase() : '';
+    const detectedGarments = useMultiItemDetectionProvider
+      ? sanitizeDetectedGarments(parsed.detectedGarments)
+      : [];
+    const rawGarmentCount = useMultiItemDetectionProvider
+      ? rawDetectedGarmentCount(parsed.detectedGarments)
+      : 0;
+    if (useMultiItemDetectionProvider) {
+      console.log('[scan-identify] multi_item_provider_count count=%d', rawGarmentCount);
+      console.log('[scan-identify] multi_item_validated_count count=%d', detectedGarments.length);
+      console.log(
+        '[scan-identify] multi_item_dropped_count count=%d',
+        Math.max(0, rawGarmentCount - detectedGarments.length),
+      );
+    }
+    const primaryGarmentFields = useMultiItemDetectionProvider
+      ? primaryGarmentResponseFields(detectedGarments)
+      : {};
+
+    if (useMultiItemDetectionProvider && rawStatus === 'completed' && detectedGarments.length === 0) {
+      console.warn('[scan-identify] multi_item_no_valid_garments mode=%s source=%s elapsedMs=%d', mode, source, elapsedMs);
+      console.log('[scan-identify] multi_item_response_count count=0');
+      const failureAudit = buildAuditEvent(
+        { status: 'failed' },
+        null,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      failureAudit.error_reason = 'multi_item_no_valid_garments';
+      logScanIdentificationAudit(failureAudit);
+      console.log(
+        '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
+        elapsedMs,
+        mode,
+        source,
+      );
+      return json(normalized('failed', safeFailed), 200);
+    }
 
     // Try the new rich identification shape first.
-    let identification = sanitizeIdentification(parsed.identification);
+    let identification = sanitizeIdentification(primaryGarmentFields.identification ?? parsed.identification);
     let attributes: Record<string, unknown> | undefined;
-    if (identification) {
+    if (useMultiItemDetectionProvider && primaryGarmentFields.attributes) {
+      attributes = primaryGarmentFields.attributes;
+    } else if (identification) {
       attributes = buildAttributesFromIdentification(identification);
     }
     // Fallback: old direct attributes shape for backward compatibility.
@@ -1759,7 +2244,8 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
       const finalResponse = withSafeImageArrays(
         {
           ...nonFashionResponseWithAttributes,
-          ...(mode === 'image' ? { scanId } : {}),
+          ...(mode === 'image' ? { scanId, scanSessionId, imageDigestPrefix } : {}),
+          ...(useMultiItemDetectionProvider ? { detectedGarments: [] } : {}),
           displayResult: buildDisplayResult(nonFashionResponseWithAttributes.identification as Record<string, unknown> | undefined, 0.95),
         },
         {
@@ -1768,14 +2254,14 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
           purchaseOptions: [],
           similarityMatches: [],
           shoppingMeta: {
-            provider: isAnonymousImageAnalysis ? 'anonymous_analysis_only' : 'none',
+            provider: 'none',
             query: '',
             count: 0,
             providersTried: [],
             catalogCount: 0,
             similarityMatches: 0,
-            commerceSkipped: isAnonymousImageAnalysis,
-            reason: isAnonymousImageAnalysis ? 'anonymous_non_fashion' : 'non_fashion',
+            commerceSkipped: false,
+            reason: 'non_fashion',
           },
         },
       );
@@ -1792,28 +2278,23 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
           appVersion,
         });
       }
-      if (isAnonymousImageAnalysis) {
-        console.log(
-          '[scan-identify] anonymous_image_result fingerprint=%s status=non_fashion elapsedMs=%d',
-          anonymousFingerprint.slice(0, 12),
-          elapsedMs,
-        );
-      } else {
-        const auditEvent = buildAuditEvent(
-          finalResponse,
-          nonFashionNormalizedId,
-          [],
-          elapsedMs,
-          scanId,
-        );
-        logScanIdentificationAudit(auditEvent);
-      }
+      const auditEvent = buildAuditEvent(
+        finalResponse,
+        nonFashionNormalizedId,
+        [],
+        elapsedMs,
+        scanId,
+      );
+      logScanIdentificationAudit(auditEvent);
       console.log(
         '[scan-identify] final_status status=non_fashion elapsedMs=%d mode=%s source=%s',
         elapsedMs,
         mode,
         source,
       );
+      if (useMultiItemDetectionProvider) {
+        console.log('[scan-identify] multi_item_response_count count=0');
+      }
       return json(finalResponse, 200);
     }
 
@@ -1886,8 +2367,8 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
       });
       console.log('[scan-identify] commerce_started mode=%s source=%s', mode, source);
       const shopping = await Promise.race([
-        getShoppingResults({ query: shoppingQuery, limit: 8 }).catch((err) => {
-          console.warn('[scan-identify] text commerce provider error:', err);
+        getShoppingResults({ query: shoppingQuery, limit: 8 }).catch(() => {
+          console.warn('[scan-identify] text_commerce_provider_error');
           return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
             ReturnType<typeof getShoppingResults>
           >;
@@ -1931,14 +2412,9 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
         };
       }
       rankedProductsForAudit = finalRecommendedProducts;
-    } else if (isAnonymousImageAnalysis) {
+    } else if (useMultiItemDetectionProvider) {
       console.log(
-        '[scan-identify] commerce_skipped reason=anonymous_image_analysis mode=%s source=%s',
-        mode,
-        source,
-      );
-      console.log(
-        '[scan-identify] similarity_skipped reason=anonymous_image_analysis mode=%s source=%s',
+        '[scan-identify] commerce_skipped reason=multi_item_detection_only mode=%s source=%s',
         mode,
         source,
       );
@@ -1946,14 +2422,14 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
       finalSimilarityMatches = [];
       rankedProductsForAudit = [];
       shoppingMeta = {
-        provider: 'anonymous_analysis_only',
+        provider: 'none',
         query: '',
         count: 0,
         providersTried: [],
         catalogCount: 0,
         similarityMatches: 0,
         commerceSkipped: true,
-        reason: 'anonymous_image_analysis',
+        reason: 'multi_item_detection_only',
       };
     } else {
       // Image (camera) mode: live commerce first, then deterministic catalog
@@ -1972,8 +2448,8 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
             ? completedNormalizedId.normalizedSearchQueries
             : undefined,
           limit: 10,
-        }).catch((err) => {
-          console.warn('[scan-identify] image commerce provider error:', err);
+        }).catch(() => {
+          console.warn('[scan-identify] image_commerce_provider_error');
           return {
             provider: 'error',
             providersTried: [],
@@ -2045,9 +2521,10 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
     const finalResponse = withSafeImageArrays(
       {
         ...completedResponseWithAttributes,
-        ...(mode === 'image' ? { scanId } : {}),
+        ...(mode === 'image' ? { scanId, scanSessionId, imageDigestPrefix } : {}),
         ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
         ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
+        ...(useMultiItemDetectionProvider ? { detectedGarments } : {}),
         displayResult: buildDisplayResult(
           completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
           typeof (completedResponseWithAttributes.identification as Record<string, unknown> | undefined)?.confidence_score === 'number'
@@ -2076,69 +2553,49 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
         appVersion,
       });
     }
-    if (isAnonymousImageAnalysis) {
-      console.log(
-        '[scan-identify] anonymous_image_result fingerprint=%s status=completed elapsedMs=%d',
-        anonymousFingerprint.slice(0, 12),
-        elapsedMs,
-      );
-    } else {
-      const auditEvent = buildAuditEvent(
-        finalResponse,
-        completedNormalizedId,
-        rankedProductsForAudit,
-        elapsedMs,
-        scanId,
-      );
-      logScanIdentificationAudit(auditEvent);
-    }
+    const auditEvent = buildAuditEvent(
+      finalResponse,
+      completedNormalizedId,
+      rankedProductsForAudit,
+      elapsedMs,
+      scanId,
+    );
+    logScanIdentificationAudit(auditEvent);
     console.log(
       '[scan-identify] final_status status=completed elapsedMs=%d mode=%s source=%s',
       elapsedMs,
       mode,
       source,
     );
+    if (useMultiItemDetectionProvider) {
+      console.log('[scan-identify] multi_item_response_count count=%d', detectedGarments.length);
+    }
     return json(finalResponse, 200);
   } catch (err) {
-    const isTimeout =
-      (err instanceof DOMException && err.name === 'AbortError') ||
-      (err && typeof err === 'object' && (err as Error).name === 'AbortError');
-    const elapsedMs = Date.now() - startedAt;
-    if (isTimeout) {
-      console.warn(
-        '[scan-identify] gemini_timeout elapsedMs=%d timeoutMs=%d mode=%s source=%s',
-        elapsedMs,
-        timeoutMs,
-        mode,
-        source,
-      );
-    } else {
-      console.warn(
-        '[scan-identify] gemini_error elapsedMs=%d mode=%s source=%s error=%s',
-        elapsedMs,
-        mode,
-        source,
-        err instanceof Error ? err.name : String(err),
-      );
-    }
+    const catchElapsedMs = Date.now() - startedAt;
+    console.warn(
+      '[scan-identify] post_gemini_error elapsedMs=%d mode=%s source=%s error=%s',
+      catchElapsedMs,
+      mode,
+      source,
+      err instanceof Error ? err.name : String(err),
+    );
     const failureAudit = buildAuditEvent(
       { status: 'failed' },
       null,
       [],
-      elapsedMs,
+      catchElapsedMs,
       scanId,
     );
-    failureAudit.error_reason = isTimeout ? 'timeout' : 'exception';
+    failureAudit.error_reason = 'exception';
     logScanIdentificationAudit(failureAudit);
     console.log(
       '[scan-identify] final_status status=failed elapsedMs=%d mode=%s source=%s',
-      elapsedMs,
+      catchElapsedMs,
       mode,
       source,
     );
     return json(normalized('failed', safeFailed), 200);
-  } finally {
-    clearTimeout(timer);
   }
 });
 
@@ -2218,8 +2675,7 @@ async function buildImageSimilarityMatches(input: {
   }
 
   if (result.error) {
-    const msg = result.error instanceof Error ? result.error.message : String(result.error);
-    console.warn('[scan-identify] similarity matcher failed: %s', msg);
+    console.warn('[scan-identify] similarity_matcher_error');
   }
   return { matches: result.matches, catalogCount: result.catalogCount };
 }
