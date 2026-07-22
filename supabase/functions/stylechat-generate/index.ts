@@ -1470,7 +1470,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  function logRoutingTelemetry(extra: Record<string, string | number | boolean | null> = {}): void {
+  async function recordRoutingTelemetry(): Promise<void> {
+    const latencyMs = Date.now() - startedAt;
     console.log(
       '[stylechat-generate] routing_telemetry request_id=%s primary_model=%s served_model=%s fallback_used=%s fallback_reason=%s attempt_count=%d provider_status=%s latency_ms=%d response_valid=%s signature_style_included=%s signature_style_signal_count=%d quota_status=%s quota_refunded=%s',
       requestId,
@@ -1480,14 +1481,42 @@ Deno.serve(async (req) => {
       fallbackReason ?? 'none',
       attemptCount,
       providerStatus,
-      Date.now() - startedAt,
+      latencyMs,
       String(responseValid),
       String(Boolean(signatureStyleContext)),
       signatureStyleBlock.signalCount,
       quotaStatus,
       String(quotaRefunded),
     );
-    void extra;
+    try {
+      const write = Promise.resolve(
+        adminClient.from('llm_routing_events').insert({
+          request_id: requestId,
+          surface: 'elise',
+          primary_model: primaryModel,
+          served_model: servedModel,
+          fallback_used: fallbackUsed,
+          fallback_reason: fallbackReason,
+          attempt_count: attemptCount,
+          latency_ms: latencyMs,
+          provider_status: providerStatus,
+          response_valid: responseValid,
+          quota_status: quotaStatus,
+          signature_style_included: Boolean(signatureStyleContext),
+        }),
+      )
+        .then(({ error }) => error ? 'error' as const : 'ok' as const)
+        .catch(() => 'error' as const);
+      const outcome = await Promise.race([
+        write,
+        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 1_000)),
+      ]);
+      if (outcome !== 'ok') {
+        console.warn('[stylechat-generate] routing_telemetry_persist status=%s', outcome);
+      }
+    } catch {
+      console.warn('[stylechat-generate] routing_telemetry_persist status=error');
+    }
   }
 
   try {
@@ -1643,8 +1672,6 @@ Deno.serve(async (req) => {
       await refundQuotaOnce(outcome.kind);
     }
 
-    logRoutingTelemetry();
-
   } catch (err) {
     const elapsedMs   = Date.now() - startedAt;
     const isTimeout   = err instanceof DOMException && err.name === 'AbortError';
@@ -1653,7 +1680,7 @@ Deno.serve(async (req) => {
     servedModel = 'none';
     usedCannedFallback = true;
     await refundQuotaOnce(providerStatus);
-    logRoutingTelemetry();
+    await recordRoutingTelemetry();
 
     // Return safe fallback — do not expose internal error details.
     return json({
@@ -1736,6 +1763,8 @@ Deno.serve(async (req) => {
       elapsedMs,
     );
   }
+
+  await recordRoutingTelemetry();
 
   // Single token-estimate lineage: real or best-effort Gemini text reports its computed
   // estimate (usageMetadata or char approximation); generic fallback text stays 0.

@@ -1426,7 +1426,7 @@ async function callGeminiOnce(
   }
 }
 
-function logRoutingTelemetry(fields: {
+type RoutingTelemetryFields = {
   request_id: string;
   request_mode: string;
   primary_model: string;
@@ -1437,9 +1437,12 @@ function logRoutingTelemetry(fields: {
   latency_ms: number;
   schema_valid: boolean;
   provider_status: string;
-}): void {
+  quota_status: string;
+};
+
+function logRoutingTelemetry(fields: RoutingTelemetryFields): void {
   console.log(
-    '[scan-identify] routing_telemetry request_id=%s request_mode=%s primary_model=%s served_model=%s fallback_used=%s fallback_reason=%s attempt_count=%d latency_ms=%d schema_valid=%s provider_status=%s',
+    '[scan-identify] routing_telemetry request_id=%s request_mode=%s primary_model=%s served_model=%s fallback_used=%s fallback_reason=%s attempt_count=%d latency_ms=%d schema_valid=%s provider_status=%s quota_status=%s',
     fields.request_id,
     fields.request_mode,
     fields.primary_model,
@@ -1450,6 +1453,7 @@ function logRoutingTelemetry(fields: {
     fields.latency_ms,
     String(fields.schema_valid),
     fields.provider_status,
+    fields.quota_status,
   );
 }
 
@@ -1487,6 +1491,12 @@ function safeCorrelationId(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return /^[A-Za-z0-9_-]{1,80}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function safeRoutingRequestId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/.test(trimmed) ? trimmed : undefined;
 }
 
 function safeDigestPrefix(value: unknown): string | undefined {
@@ -1619,13 +1629,12 @@ Deno.serve(async (req) => {
   let textQuery = '';
   let imageDigestPrefix = '';
 
-  const requestScanId = typeof body.scanId === 'string' && body.scanId.trim()
-    ? body.scanId.trim()
-    : typeof body.scan_id === 'string' && body.scan_id.trim()
-    ? body.scan_id.trim()
-    : typeof body.id === 'string' && body.id.trim()
-    ? body.id.trim()
-    : req.headers.get('x-scan-id') || req.headers.get('x-request-id') || crypto.randomUUID();
+  const requestScanId = safeRoutingRequestId(body.scanId) ??
+    safeRoutingRequestId(body.scan_id) ??
+    safeRoutingRequestId(body.id) ??
+    safeRoutingRequestId(req.headers.get('x-scan-id')) ??
+    safeRoutingRequestId(req.headers.get('x-request-id')) ??
+    crypto.randomUUID();
   const scanId = mode === 'image' ? crypto.randomUUID() : requestScanId;
 
   const auth = await resolveAuthContext(req, supabaseUrl, supabaseAnonKey);
@@ -1669,6 +1678,43 @@ Deno.serve(async (req) => {
   if (auth.isAuthenticated && !catalogClient) {
     console.log('[scan-identify] catalog_client_not_available');
   }
+
+  const recordRoutingTelemetry = async (fields: RoutingTelemetryFields): Promise<void> => {
+    logRoutingTelemetry(fields);
+    if (!catalogClient) {
+      console.warn('[scan-identify] routing_telemetry_persist status=unavailable');
+      return;
+    }
+    try {
+      const write = Promise.resolve(
+        catalogClient.from('llm_routing_events').insert({
+          request_id: fields.request_id,
+          surface: fields.request_mode === 'text' ? 'textscan' : 'scanner',
+          primary_model: fields.primary_model,
+          served_model: fields.served_model,
+          fallback_used: fields.fallback_used,
+          fallback_reason: fields.fallback_reason,
+          attempt_count: fields.attempt_count,
+          latency_ms: fields.latency_ms,
+          provider_status: fields.provider_status,
+          response_valid: fields.schema_valid,
+          quota_status: fields.quota_status,
+          signature_style_included: null,
+        }),
+      )
+        .then(({ error }) => error ? 'error' as const : 'ok' as const)
+        .catch(() => 'error' as const);
+      const outcome = await Promise.race([
+        write,
+        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 1_000)),
+      ]);
+      if (outcome !== 'ok') {
+        console.warn('[scan-identify] routing_telemetry_persist status=%s', outcome);
+      }
+    } catch {
+      console.warn('[scan-identify] routing_telemetry_persist status=error');
+    }
+  };
 
   if (mode === 'text') {
     textQuery = typeof body.textQuery === 'string' ? body.textQuery.trim() : '';
@@ -1904,7 +1950,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
   if (!providerResult.ok) {
     if (providerResult.kind === 'policy_block') {
       const policyElapsedMs = Date.now() - startedAt;
-      logRoutingTelemetry({
+      await recordRoutingTelemetry({
         request_id: scanId,
         request_mode: isTextScan ? 'text' : requestMode,
         primary_model: primaryModel,
@@ -1915,6 +1961,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
         latency_ms: policyElapsedMs,
         schema_valid: false,
         provider_status: 'policy_block',
+        quota_status: 'consumed',
       });
       const failureAudit = buildAuditEvent(
         { status: 'failed' },
@@ -2014,7 +2061,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
   if (!providerResult.ok) {
     const failElapsedMs = Date.now() - startedAt;
     servedModel = providerResult.model;
-    logRoutingTelemetry({
+    await recordRoutingTelemetry({
       request_id: scanId,
       request_mode: isTextScan ? 'text' : requestMode,
       primary_model: primaryModel,
@@ -2025,6 +2072,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
       latency_ms: failElapsedMs,
       schema_valid: false,
       provider_status: providerResult.kind,
+      quota_status: 'consumed',
     });
     const failureAudit = buildAuditEvent(
       { status: 'failed' },
@@ -2070,7 +2118,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
       authorizationResult: 'deny',
       providerLatencyMs: Date.now() - startedAt,
     });
-    logRoutingTelemetry({
+    await recordRoutingTelemetry({
       request_id: scanId,
       request_mode: 'text',
       primary_model: primaryModel,
@@ -2081,6 +2129,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
       latency_ms: Date.now() - startedAt,
       schema_valid: false,
       provider_status: 'schema_invalid',
+      quota_status: 'consumed',
     });
     console.warn(
       '[scan-identify] typechat_output_rejected reason=%s detail=%s',
@@ -2100,7 +2149,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
       }
     : providerResult.parsed;
 
-  logRoutingTelemetry({
+  await recordRoutingTelemetry({
     request_id: scanId,
     request_mode: isTextScan ? 'text' : requestMode,
     primary_model: primaryModel,
@@ -2111,6 +2160,7 @@ Never invent or execute RPC names, SQL, routes, storage operations, or tool call
     latency_ms: elapsedMs,
     schema_valid: true,
     provider_status: 'ok',
+    quota_status: 'consumed',
   });
 
   console.log(
