@@ -29,6 +29,7 @@ function loadTsModule(relativePath, requireMap = {}) {
   const sandbox = {
     __DEV__: false,
     console,
+    DOMException,
     exports: mod.exports,
     module: mod,
     require: (specifier) => {
@@ -42,12 +43,14 @@ function loadTsModule(relativePath, requireMap = {}) {
 }
 
 const reasoningEdge = loadTsModule(path.join(FN_DIR, 'reasoningContract.ts'));
+const modelRouting = loadTsModule(path.join(FN_DIR, 'modelRouting.ts'));
 const reasoningMobile = loadTsModule('types/fashionReasoning.ts');
 const validation = loadTsModule(path.join(FN_DIR, 'validation.ts'), {
   './reasoningContract.ts': reasoningEdge,
 });
 
 const indexSource = fs.readFileSync(path.join(ROOT, FN_DIR, 'index.ts'), 'utf8');
+const modelRoutingSource = fs.readFileSync(path.join(ROOT, FN_DIR, 'modelRouting.ts'), 'utf8');
 const validationSource = fs.readFileSync(path.join(ROOT, FN_DIR, 'validation.ts'), 'utf8');
 
 const A = '11111111-1111-4111-8111-111111111111'; // anchor (blazer/outerwear)
@@ -385,6 +388,35 @@ test('edge function has a kill switch and safe provider errors', () => {
   assert.match(indexSource, /STYLE_OUTFIT_AI_ENABLED/);
   assert.match(indexSource, /provider_unavailable/);
   assert.doesNotMatch(indexSource, /error\.stack/);
+});
+
+test('Dressing Room model routing uses approved defaults and ignores GEMINI_MODEL', () => {
+  const defaults = modelRouting.resolveStyleOutfitModels(() => undefined);
+  assert.equal(defaults.primaryModel, 'gemini-3.6-flash');
+  assert.equal(defaults.fallbackModel, 'gemini-3.5-flash-lite');
+
+  const retired = modelRouting.resolveStyleOutfitModels((key) => ({
+    STYLE_OUTFIT_GEMINI_MODEL: 'gemini-2.5-flash',
+    STYLE_OUTFIT_GEMINI_FALLBACK_MODEL: 'gemini-1.5-flash',
+    GEMINI_MODEL: 'gemini-2.0-flash',
+  })[key]);
+  assert.equal(retired.primaryModel, 'gemini-3.6-flash');
+  assert.equal(retired.fallbackModel, 'gemini-3.5-flash-lite');
+  assert.doesNotMatch(indexSource, /readTrimmedEnv\('GEMINI_MODEL'\)/);
+  assert.doesNotMatch(indexSource, /['"]gemini-(1\.5|2\.0|2\.5)-/);
+  assert.match(modelRoutingSource, /STYLE_OUTFIT_GEMINI_FALLBACK_MODEL/);
+});
+
+test('Dressing Room fallback is bounded and omits deprecated sampling parameters', () => {
+  assert.equal(modelRouting.isDirectStyleOutfitFallback('timeout'), true);
+  assert.equal(modelRouting.isDirectStyleOutfitFallback('http_429'), true);
+  assert.equal(modelRouting.isRepairableStyleOutfitFailure('invalid_output'), true);
+  assert.equal(modelRouting.isDirectStyleOutfitFallback('http_other'), false);
+  assert.match(indexSource, /attemptProvider\(fallbackModel, 'fallback'\)/);
+  assert.match(indexSource, /attempt_count=%d/);
+  assert.match(indexSource, /response_valid=%s/);
+  assert.doesNotMatch(indexSource, /temperature\s*:/);
+  assert.doesNotMatch(indexSource, /topP\s*:|topK\s*:|thinkingBudget|thinkingConfig/);
 });
 
 test('edge function queries only the caller\'s active saved_scans for the pool', () => {
