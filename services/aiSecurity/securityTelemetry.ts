@@ -22,8 +22,13 @@ export type AiSecurityTelemetryEvent = {
 
 export function oneWayActorRef(actorId: string | null | undefined): string {
   if (!actorId) return 'anon';
-  // Bounded one-way reference — never the full user id.
-  return `u_${actorId.slice(0, 8)}`;
+  // Stable bounded pseudonym. Never place a raw UUID substring in logs.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < actorId.length; i += 1) {
+    hash ^= actorId.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `u_${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 export function emitAiSecurityTelemetry(
