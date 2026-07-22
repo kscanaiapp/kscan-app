@@ -344,7 +344,7 @@ test('identifyScanImage: invoke error → failed', async () => {
   assert.equal(out.status, 'failed');
 });
 
-test('identifyScanImage: missing pixel-masking proof fails closed before invoke', async () => {
+test('identifyScanImage: missing privacy-preparation proof fails closed before invoke', async () => {
   let invoked = false;
   const adapter = loadAdapter({
     auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
@@ -352,22 +352,30 @@ test('identifyScanImage: missing pixel-masking proof fails closed before invoke'
   });
   const out = await adapter.identifyScanImage(TINY_DATA_URI, { source: 'camera' });
   assert.equal(out.status, 'failed');
-  assert.match(out.userMessage, /privacy masking/i);
+  assert.match(out.userMessage, /prepared securely/i);
   assert.equal(invoked, false);
 });
 
-test('identifyScanImage: metadata-only proof fails closed before invoke', async () => {
+test('identifyScanImage: truthful metadata-only proof permits invoke', async () => {
   let invoked = false;
   const adapter = loadAdapter({
     auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
-    functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
+    functions: {
+      invoke: async () => {
+        invoked = true;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Dresses' } },
+          error: null,
+        };
+      },
+    },
   });
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'upload',
     privacyProof: { ...COMPLETE_PRIVACY_PROOF, faceMaskApplied: false, plateMaskApplied: false },
   });
-  assert.equal(out.status, 'failed');
-  assert.equal(invoked, false);
+  assert.equal(out.status, 'completed');
+  assert.equal(invoked, true);
 });
 
 // ── Abort signal lifecycle (KC05 audit F1) ─────────────────────────────────────

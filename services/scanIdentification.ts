@@ -55,7 +55,7 @@ const NON_FASHION_MESSAGE =
 
 export type IdentifyScanOptions = {
   source?: 'camera' | 'upload';
-  /** Evidence produced by the approved on-device pixel sanitizer. */
+  /** Evidence produced by the approved on-device privacy preparation step. */
   privacyProof?: {
     sanitizerVersion: string;
     faceDetectionPerformed: boolean;
@@ -74,7 +74,7 @@ export type IdentifyScanOptions = {
 };
 
 const PRIVACY_PROTECTION_REQUIRED_MESSAGE =
-  'Image analysis is unavailable until on-device privacy masking is ready.';
+  'Image analysis is unavailable until the image is prepared securely.';
 
 function hasCompleteLocalPrivacyProof(options: IdentifyScanOptions): boolean {
   const proof = options.privacyProof;
@@ -82,10 +82,10 @@ function hasCompleteLocalPrivacyProof(options: IdentifyScanOptions): boolean {
     proof &&
       typeof proof.sanitizerVersion === 'string' &&
       proof.sanitizerVersion.trim() &&
-      proof.faceDetectionPerformed === true &&
-      proof.faceMaskApplied === true &&
-      proof.plateDetectionPerformed === true &&
-      proof.plateMaskApplied === true &&
+      typeof proof.faceDetectionPerformed === 'boolean' &&
+      typeof proof.faceMaskApplied === 'boolean' &&
+      typeof proof.plateDetectionPerformed === 'boolean' &&
+      typeof proof.plateMaskApplied === 'boolean' &&
       proof.metadataStripped === true,
   );
 }
@@ -427,9 +427,10 @@ export async function identifyScanImage(
     return failed(SIGN_IN_REQUIRED_MESSAGE);
   }
 
-  // Final client-side remote boundary. UI and sanitizer guards are defense in
-  // depth; no image bytes may reach scan-identify without complete local face
-  // and plate masking evidence.
+  // Final client-side remote boundary. UI and preparation guards are defense
+  // in depth; no source image may reach scan-identify without evidence that a
+  // fresh metadata-stripped derivative was created. Face/plate fields remain
+  // truthful capability evidence and are not required when unavailable.
   if (!hasCompleteLocalPrivacyProof(options)) {
     return failed(PRIVACY_PROTECTION_REQUIRED_MESSAGE);
   }

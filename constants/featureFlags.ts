@@ -256,3 +256,14 @@ export const AI_STYLIST_BACKEND_ENABLED =
  */
 export const STYLECHAT_ATTACHMENTS_ENABLED =
   process.env.EXPO_PUBLIC_STYLECHAT_ATTACHMENTS_ENABLED === 'true';
+
+/**
+ * Elise visual attachment composer (camera, gallery, Recent Scans, Closet,
+ * saved items, owned/shared Dressing Room items) with V2 E4 transport.
+ * Default OFF. Independent of STYLECHAT_ATTACHMENTS_ENABLED for staged QA;
+ * when ON, enables the unified composer attachment control and V2 attachment
+ * construction. Not a privacy gate — image preparation still uses the
+ * accepted Scanner-compatible metadata-stripped pathway.
+ */
+export const ELISE_VISUAL_ATTACHMENTS_V1_ENABLED =
+  process.env.EXPO_PUBLIC_ELISE_VISUAL_ATTACHMENTS_V1_ENABLED === 'true';

@@ -550,9 +550,17 @@ export function useKScan() {
         }
         usedScanIdentify = true;
 
+        const sanitizerStatus = getPrivacySanitizerStatus();
         const identifyResponse = await identifyScanImage(sanitized, {
           source: photo.source === 'upload' ? 'upload' : 'camera',
-          localPrivacyFiltered: true,
+          privacyProof: {
+            sanitizerVersion: sanitizerStatus.sanitizerVersion,
+            faceDetectionPerformed: sanitizerStatus.faceDetectionAvailable,
+            faceMaskApplied: sanitizerStatus.faceBlurApplied,
+            plateDetectionPerformed: sanitizerStatus.plateDetectionAvailable,
+            plateMaskApplied: sanitizerStatus.plateMaskApplied,
+            metadataStripped: sanitizerStatus.metadataStripped,
+          },
           multiItemDetection: true,
           requestMode: 'multi_item_detection',
           scanSessionId: session.scanSessionId,

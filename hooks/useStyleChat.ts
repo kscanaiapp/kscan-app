@@ -39,7 +39,9 @@ import {
 export const STYLECHAT_ATTACHMENTS_UNSUPPORTED_COPY =
   "Closet-aware messaging isn't available yet. Your attachments are still here.";
 export const STYLECHAT_ATTACHMENTS_REJECTED_COPY =
-  "Elise couldn't verify that Closet item. Remove it and try again.";
+  'Elise could not access the selected image or item. You can retry, remove it, or continue without attachments.';
+export const STYLECHAT_ATTACHMENT_EMPTY_RESPONSE_COPY =
+  'I couldn’t generate advice for that attachment. Please try again.';
 export const STYLECHAT_VISUAL_COLLECTION_UNSUPPORTED_COPY =
   "Multi-reference styling isn't available yet. Your references and draft are still here.";
 export const STYLECHAT_VISUAL_COLLECTION_REJECTED_COPY =
@@ -568,6 +570,24 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         //    now that the backend acknowledged the v2 contract. Bounded
         //    attachment summaries persist in the existing ui_blocks column
         //    (stable references + display fields only; never image bytes).
+        const trimmedAssistant = result.message.content.trim();
+        const hasActions = Array.isArray(result.actions) && result.actions.length > 0;
+
+        // Empty user-facing text + empty actions must not produce a blank bubble.
+        // Keep attachments for retry rather than clearing via onSent.
+        if (hasAttachments && !trimmedAssistant && !hasActions) {
+          setMessages(prev =>
+            prev.filter(m => m.id !== optimisticUser?.id && !m.id.startsWith('optimistic-assistant-')),
+          );
+          retryStateRef.current?.remember({
+            content: trimmed,
+            userMessageId: null,
+            attachments: sendAttachments,
+          });
+          setError(STYLECHAT_ATTACHMENT_EMPTY_RESPONSE_COPY);
+          return false;
+        }
+
         if (requiresContextAcknowledgement) {
           const savedUser = await saveStyleChatMessage({
             sessionId,
@@ -584,7 +604,11 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         }
 
         // optimistic assistant bubble, then persist.
-        const assistantContent = result.message.content.trim() || STYLE_CHAT_COPY.errorGeneric;
+        const assistantContent =
+          trimmedAssistant ||
+          (hasAttachments && !hasActions
+            ? STYLECHAT_ATTACHMENT_EMPTY_RESPONSE_COPY
+            : STYLE_CHAT_COPY.errorGeneric);
 
         // Optional "Why this works" explanation for concrete recommendations. Stored in
         // the existing ui_blocks jsonb column so it persists across reload with no schema

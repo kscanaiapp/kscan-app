@@ -30,7 +30,11 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
-import { sanitizeImageBeforeUpload } from '../../services/privacyImageSanitizer';
+import {
+  getPrivacySanitizerStatus,
+  sanitizeImageBeforeUpload,
+} from '../../services/privacyImageSanitizer';
+import { SCANNER_IMAGE_MAX_WIDTH, SCANNER_IMAGE_JPEG_QUALITY } from '../../services/imageUtils';
 import { identifyScanImage } from '../../services/scanIdentification';
 import { saveScan } from '../../services/library';
 import { saveScanToCloud } from '../../services/savedScansCloud';
@@ -137,16 +141,30 @@ export function StyleChatPhotoIntake({
       setImageUri(sanitizedUri);
 
       // Identify through the existing guarded service (its own timeout+abort).
+      // Reuse Scanner-compatible compress settings (896 / 0.65).
       setStep('identifying');
       const prepared = await ImageManipulator.manipulateAsync(
         sanitizedUri,
-        [{ resize: { width: 1024 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+        [{ resize: { width: SCANNER_IMAGE_MAX_WIDTH } }],
+        {
+          compress: SCANNER_IMAGE_JPEG_QUALITY,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        },
       );
       if (operationId !== operationIdRef.current) return;
+      const sanitizerStatus = getPrivacySanitizerStatus();
       const identification = prepared.base64
         ? await identifyScanImage(prepared.base64, {
             source: 'upload',
+            privacyProof: {
+              sanitizerVersion: sanitizerStatus.sanitizerVersion,
+              faceDetectionPerformed: sanitizerStatus.faceDetectionAvailable,
+              faceMaskApplied: sanitizerStatus.faceBlurApplied,
+              plateDetectionPerformed: sanitizerStatus.plateDetectionAvailable,
+              plateMaskApplied: sanitizerStatus.plateMaskApplied,
+              metadataStripped: sanitizerStatus.metadataStripped,
+            },
             signal: abortRef.current?.signal,
           })
         : null;

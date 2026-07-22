@@ -16,6 +16,7 @@ function VoiceInputPlaceholder() {
 }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { ELISE_IDENTITY } from '../../constants/elise';
 
 interface StyleChatInputProps {
   onSend: (text: string) => void;
@@ -28,6 +29,10 @@ interface StyleChatInputProps {
   sendDisabled?: boolean;
   /** Announces an in-flight send without coupling it to input editability. */
   sendBusy?: boolean;
+  /** Opens the Elise attachment menu when the attach control is shown. */
+  onAttachPress?: () => void;
+  /** When false (default), composer matches the pre-attach layout. */
+  showAttachButton?: boolean;
 }
 
 export function StyleChatInput({
@@ -38,6 +43,8 @@ export function StyleChatInput({
   inputEditable = true,
   sendDisabled = false,
   sendBusy = false,
+  onAttachPress,
+  showAttachButton = false,
 }: StyleChatInputProps) {
   const [internalText, setInternalText] = useState('');
   const isControlled = typeof value === 'string';
@@ -56,6 +63,7 @@ export function StyleChatInput({
   };
 
   const canSubmit = text.trim().length > 0 && inputEditable && !sendDisabled;
+  const attachEnabled = showAttachButton && typeof onAttachPress === 'function';
 
   const handleTextChange = (next: string) => {
     if (!isControlled) setInternalText(next);
@@ -72,6 +80,24 @@ export function StyleChatInput({
     <View style={[styles.container, safeContainerPadding]}>
       {/* Future voice affordance — invisible while gated. */}
       <VoiceInputPlaceholder />
+      {attachEnabled ? (
+        <Pressable
+          testID="stylechat-attach-button"
+          style={({ pressed }) => [
+            styles.attachBtn,
+            !inputEditable ? styles.attachBtnDisabled : null,
+            pressed && inputEditable ? styles.attachBtnPressed : null,
+          ]}
+          onPress={onAttachPress}
+          disabled={!inputEditable}
+          accessibilityRole="button"
+          accessibilityLabel={ELISE_IDENTITY.attachAccessibilityLabel}
+          accessibilityHint="Opens options to add a photo, scan, Closet item, or Dressing Room piece"
+          accessibilityState={{ disabled: !inputEditable }}
+        >
+          <Text style={styles.attachText}>＋</Text>
+        </Pressable>
+      ) : null}
       <TextInput
         testID="style-chat-input"
         style={[styles.input, isLandscape ? styles.inputLandscape : null]}
@@ -124,6 +150,33 @@ const styles = StyleSheet.create({
     borderTopColor: LUXURY.colors.hairline,
     backgroundColor: LUXURY.colors.ivory,
     gap: SPACING.sm,
+  },
+  attachBtn: {
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    minHeight: 44,
+    flexShrink: 0,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plum,
+    backgroundColor: LUXURY.colors.pearl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  attachBtnPressed: {
+    backgroundColor: LUXURY.colors.champagne,
+    borderColor: LUXURY.colors.goldBrushed,
+  },
+  attachBtnDisabled: {
+    opacity: 0.45,
+  },
+  attachText: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
+    fontSize: 22,
+    lineHeight: 24,
   },
   input: {
     flex: 1,

@@ -200,7 +200,10 @@ test('send path: immutable snapshot per send, deferred persistence, draft restor
 test('attachment bar reuses Closet/Look sources; no second outfit engine in StyleChat', () => {
   assert.match(barSource, /useOwnedClosetItems|listOwnedClosetItems/);
   assert.match(barSource, /useLooks|listLooks/);
-  assert.match(barSource, /onRetry\(draft\.draftId,\s*closet\.items,\s*closet\.localScans/);
+  assert.match(
+    barSource,
+    /onRetry\(draft\.draftId,\s*closet\.items,\s*(closet\.localScans|localScans)/,
+  );
   // StyleChat never generates outfits itself — it routes to the shared stylist.
   for (const source of [barSource, screenSource, chatHookSource, hookSource]) {
     assert.ok(!source.includes('style-outfit-generate'), 'StyleChat must not call the outfit engine directly');
