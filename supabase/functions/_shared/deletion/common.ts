@@ -144,8 +144,60 @@ export async function requireUser(req: Request): Promise<AuthUser> {
 }
 
 /**
+ * Confirms an Auth user is genuinely active (exists, not soft-deleted, not
+ * currently banned) via the admin API. Used only to decide whether a MISSING
+ * profile row belongs to a legitimate active user (legacy/import gap) or to a
+ * banned/deleted account. Never used to override an explicit non-active
+ * profile status.
+ */
+async function isAuthUserActive(userId: string): Promise<boolean> {
+  try {
+    const { createClient } = await import('npm:@supabase/supabase-js@2');
+    const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await admin.auth.admin.getUserById(userId);
+    if (error || !data?.user) return false;
+    const user = data.user as { banned_until?: string | null; deleted_at?: string | null };
+    if (user.deleted_at) return false;
+    if (user.banned_until && new Date(user.banned_until) > new Date()) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Best-effort self-heal: create the missing profile row so subsequent guard
+ * checks and RLS (is_active_account) see it. Never throws -- a failure here
+ * must not block a legitimate active user (the caller already verified the
+ * Auth record). Idempotent via on-conflict merge.
+ */
+async function provisionMissingProfile(userId: string): Promise<void> {
+  try {
+    await rest('profiles?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ id: userId }),
+    });
+  } catch (_err) {
+    // swallow -- provisioning is opportunistic, not required for this request
+    logEvent('account_guard_profile_provision_failed', { uid: shortUserId(userId) });
+  }
+}
+
+/**
  * Fail-closed account-active guard for mutation / paid-provider entry points.
  * Allows restoration & deletion-status pathways to skip this guard explicitly.
+ *
+ * Missing-profile handling (Finding P1-10): a null/absent profile row must NOT
+ * blanket-403 legitimate users. Some valid, active Auth users (created before
+ * the handle_new_user provisioning trigger existed, or via an import path that
+ * bypassed it) have no profile row. Those users are allowed ONLY after the
+ * Auth record is positively verified active (exists, not banned, not deleted),
+ * and their profile is self-healed. A profile that EXISTS with a non-active
+ * status (pending_deletion, locked, etc.) is still fail-closed, and a
+ * banned/deleted/absent Auth user with no profile is still blocked.
  */
 export async function assertAccountActive(userId: string): Promise<void> {
   if (!isValidUuid(userId)) {
@@ -153,7 +205,7 @@ export async function assertAccountActive(userId: string): Promise<void> {
   }
 
   const response = await rest(
-    `profiles?id=eq.${userId}&select=account_status&limit=1`,
+    `profiles?id=eq.${userId}&select=account_status,account_locked_at&limit=1`,
     { method: 'GET', headers: { Prefer: 'return=representation' } },
   );
 
@@ -166,10 +218,25 @@ export async function assertAccountActive(userId: string): Promise<void> {
   }
 
   const rows = await response.json();
-  const status = Array.isArray(rows) && rows[0] ? rows[0].account_status : null;
-  if (status !== 'active') {
+  const profile = Array.isArray(rows) && rows[0] ? rows[0] : null;
+
+  if (profile) {
+    // Profile exists: enforce its status strictly (fail-closed on anything
+    // that is not an unlocked active account).
+    if (profile.account_status !== 'active' || profile.account_locked_at) {
+      throw json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
+    }
+    return;
+  }
+
+  // No profile row: verify the Auth record before allowing.
+  const authActive = await isAuthUserActive(userId);
+  if (!authActive) {
+    logEvent('account_guard_missing_profile_blocked', { uid: shortUserId(userId) });
     throw json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
   }
+  logEvent('account_guard_missing_profile_allowed', { uid: shortUserId(userId) });
+  await provisionMissingProfile(userId);
 }
 
 /**

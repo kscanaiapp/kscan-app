@@ -219,3 +219,43 @@ test('P2-9: ledger transition function redacts email-shaped values, not just key
   // still strips sensitive keys too
   assert.match(sql, /- 'email' - 'token'/);
 });
+
+const p1_10Migration = 'supabase/migrations/20260723070000_profiles_backfill_and_active_account_hardening.sql';
+
+test('P1-10: assertAccountActive verifies the Auth record on a missing profile, not blanket-403 or blanket-allow', () => {
+  const common = read('supabase/functions/_shared/deletion/common.ts');
+  // Missing-profile branch verifies the Auth user before allowing.
+  assert.match(common, /async function isAuthUserActive/);
+  assert.match(common, /banned_until/);
+  assert.match(common, /deleted_at/);
+  assert.match(common, /account_guard_missing_profile_allowed/);
+  assert.match(common, /account_guard_missing_profile_blocked/);
+  // A profile that EXISTS with a non-active status is still fail-closed.
+  assert.match(common, /profile\.account_status !== 'active' \|\| profile\.account_locked_at/);
+});
+
+test('P1-10: backfill is guarded to legitimate (non-deleted, non-banned) users and is idempotent', () => {
+  const sql = read(p1_10Migration);
+  assert.match(sql, /insert into public\.profiles \(id, email\)/);
+  assert.match(sql, /u\.deleted_at is null/);
+  assert.match(sql, /u\.banned_until is null or u\.banned_until <= now\(\)/);
+  assert.match(sql, /on conflict \(id\) do nothing/);
+});
+
+test('P1-10: is_active_account allows missing-profile only for an active Auth user, still blocks pending_deletion', () => {
+  const sql = read(p1_10Migration);
+  assert.match(sql, /create or replace function public\.is_active_account/);
+  // profile-present branch keeps the strict active + unlocked check
+  assert.match(sql, /coalesce\(p\.account_status, 'active'\) = 'active'/);
+  assert.match(sql, /p\.account_locked_at is null/);
+  // no-profile branch verifies auth.users
+  assert.match(sql, /from auth\.users u\s*\n\s*where u\.id = auth\.uid\(\)/);
+  assert.match(sql, /u\.deleted_at is null/);
+});
+
+test('P1-10: provisioning trigger is hardened to set account_status explicitly', () => {
+  const sql = read(p1_10Migration);
+  assert.match(sql, /create or replace function public\.handle_new_user/);
+  assert.match(sql, /insert into public\.profiles \(id, email, account_status\)/);
+  assert.match(sql, /values \(new\.id, new\.email, 'active'\)/);
+});
