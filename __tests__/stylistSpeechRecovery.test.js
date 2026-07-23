@@ -70,9 +70,17 @@ test('abstract avatars are silent and approved portraits have explicit profiles'
 });
 
 test('priority portraits have explicit mouth-state configuration and fallback wiring', () => {
-  assert.equal(STYLIST_SPEECH_CONFIG_BY_ID.size, 3);
+  const priorityIds = [
+    'stylist_portrait_01',
+    'stylist_portrait_02',
+    'stylist_portrait_03',
+    'stylist_portrait_04',
+    'stylist_portrait_05',
+    'stylist_portrait_08',
+  ];
+  assert.equal(STYLIST_SPEECH_CONFIG_BY_ID.size, priorityIds.length);
   const regionY = new Set();
-  for (const id of ['stylist_portrait_02', 'stylist_portrait_05', 'stylist_portrait_08']) {
+  for (const id of priorityIds) {
     const config = STYLIST_SPEECH_CONFIG_BY_ID.get(id);
     assert.ok(config, `${id} must have speech config`);
     assert.equal(config.speakingMotionMode, 'mouth_states');
@@ -84,7 +92,11 @@ test('priority portraits have explicit mouth-state configuration and fallback wi
     assert.equal(typeof config.mouthStateSources.halfOpen, 'number');
     assert.equal(typeof config.mouthStateSources.open, 'number');
   }
-  assert.equal(regionY.size, 3, 'priority portraits require individually calibrated crops');
+  assert.equal(
+    regionY.size,
+    priorityIds.length,
+    'priority portraits require individually calibrated crops',
+  );
   const source = fs.readFileSync(
     path.join(ROOT, 'components', 'stylist', 'AnimatedStylistAvatar.tsx'),
     'utf8',
@@ -100,7 +112,7 @@ test('priority portraits have explicit mouth-state configuration and fallback wi
 
 test('priority mouth-state asset manifest contains static square PNG frames', () => {
   const animatedDir = path.join(ROOT, 'assets', 'stylist-avatars', 'portraits', 'animated');
-  for (const stylist of ['02', '05', '08']) {
+  for (const stylist of ['01', '02', '03', '04', '05', '08']) {
     for (const state of ['closed', 'half_open', 'open']) {
       const filename = path.join(animatedDir, `avatar_stylist_${stylist}_mouth_${state}.png`);
       const bytes = fs.readFileSync(filename);

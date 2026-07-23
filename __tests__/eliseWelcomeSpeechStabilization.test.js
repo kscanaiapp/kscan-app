@@ -14,17 +14,27 @@ const {
 } = require('../constants/stylistIdentity.ts');
 
 test('female and male animation-ready portraits keep approved voice profiles', () => {
-  assert.equal(getStylistVoiceProfile('stylist_portrait_05'), 'feminine');
+  assert.equal(getStylistVoiceProfile('stylist_portrait_01'), 'feminine');
   assert.equal(getStylistVoiceProfile('stylist_portrait_02'), 'masculine');
+  assert.equal(getStylistVoiceProfile('stylist_portrait_03'), 'feminine');
+  assert.equal(getStylistVoiceProfile('stylist_portrait_04'), 'masculine');
+  assert.equal(getStylistVoiceProfile('stylist_portrait_05'), 'feminine');
   assert.equal(getStylistVoiceProfile('stylist_portrait_08'), 'masculine');
-  assert.ok(STYLIST_SPEECH_CONFIG_BY_ID.has('stylist_portrait_05'));
-  assert.ok(STYLIST_SPEECH_CONFIG_BY_ID.has('stylist_portrait_02'));
-  assert.ok(STYLIST_SPEECH_CONFIG_BY_ID.has('stylist_portrait_08'));
+  for (const id of [
+    'stylist_portrait_01',
+    'stylist_portrait_02',
+    'stylist_portrait_03',
+    'stylist_portrait_04',
+    'stylist_portrait_05',
+    'stylist_portrait_08',
+  ]) {
+    assert.ok(STYLIST_SPEECH_CONFIG_BY_ID.has(id), id);
+  }
 });
 
 test('mouth-state assets exist with case-stable filenames for animation-ready portraits', () => {
   const animatedDir = path.join(ROOT, 'assets', 'stylist-avatars', 'portraits', 'animated');
-  for (const id of ['02', '05', '08']) {
+  for (const id of ['01', '02', '03', '04', '05', '08']) {
     for (const state of ['closed', 'half_open', 'open']) {
       const filePath = path.join(animatedDir, `avatar_stylist_${id}_mouth_${state}.png`);
       assert.ok(fs.existsSync(filePath), filePath);

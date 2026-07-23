@@ -425,14 +425,51 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
   // Approved mouth-state assets for priority portrait presets.
   // Round states are not yet available; the renderer falls back open → halfOpen → closed.
   [
+    'stylist_portrait_01',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.41, y: 0.56, width: 0.18, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_open.png') : 1,
+      },
+    },
+  ],
+  [
     'stylist_portrait_02',
     {
       speakingMotionMode: 'mouth_states',
-      mouthRegion: { x: 0.42, y: 0.49, width: 0.18, height: 0.09 },
+      // Recalibrated for the refreshed Avatar 02 subject (prior crop: y 0.49).
+      mouthRegion: { x: 0.43, y: 0.48, width: 0.17, height: 0.09 },
       mouthStateSources: {
         closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_closed.png') : 1,
         halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_half_open.png') : 1,
         open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_open.png') : 1,
+      },
+    },
+  ],
+  [
+    'stylist_portrait_03',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.42, y: 0.54, width: 0.18, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_03_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_03_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_03_mouth_open.png') : 1,
+      },
+    },
+  ],
+  [
+    'stylist_portrait_04',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.41, y: 0.47, width: 0.17, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_04_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_04_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_04_mouth_open.png') : 1,
       },
     },
   ],
