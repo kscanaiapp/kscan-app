@@ -18,7 +18,7 @@ import {
 } from '../../services/accountDeletion';
 import { supabase } from '../../services/supabaseClient';
 
-type RestoreState = 'idle' | 'restoring' | 'restored' | 'failed' | 'resending';
+type RestoreState = 'idle' | 'restoring' | 'restored' | 'restored_pending_unban' | 'failed' | 'resending';
 
 export default function AccountRestoreScreen() {
   const router = useRouter();
@@ -46,6 +46,14 @@ export default function AccountRestoreScreen() {
       try {
         const result = await restoreAccountWithToken(supabase, token);
         if (cancelled) return;
+        if (result.status === 'restored_pending_unban') {
+          setState('restored_pending_unban');
+          setMessage(
+            result.message ||
+              'Your account data has been restored, but re-enabling sign-in is taking longer than expected. Please try again shortly.',
+          );
+          return;
+        }
         setState('restored');
         setMessage(result.message || 'Your account has been restored. Please sign in again.');
       } catch {
@@ -95,7 +103,7 @@ export default function AccountRestoreScreen() {
 
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
-      {state === 'restored' ? (
+      {state === 'restored' || state === 'restored_pending_unban' ? (
         <Pressable
           style={styles.primaryButton}
           onPress={() => router.replace('/auth')}

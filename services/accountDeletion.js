@@ -102,7 +102,7 @@ async function restoreAccountWithToken(supabase, token) {
   if (error) {
     throw new Error(error.message || 'Unable to restore account.');
   }
-  if (!data || data.status !== 'restored') {
+  if (!data || (data.status !== 'restored' && data.status !== 'restored_pending_unban')) {
     throw new Error(data?.error || 'Unable to restore account.');
   }
   return data;
