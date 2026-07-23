@@ -150,3 +150,48 @@ Workspace: `C:\src\KScan-account-deletion-repair-20260722`, branch `repair/accou
 - **Missing migration history for 21 live tables.** Production's actual schema is correct (verified above), but this repo cannot reproduce it from `supabase/migrations/` alone. Recommend exporting the missing `CREATE TABLE`/policy/FK statements from production into committed migration files as a separate, non-deletion-specific cleanup.
 - **P1-2 through P1-9 and all P2/P3 findings** — open, out of scope for this round by explicit user instruction.
 - **No migration has been applied to any database yet** (local, branch, or production) and no code has been pushed or deployed. The SQL was hand-verified against live production schema (table/column/FK existence, existing policy names, function existence) but not executed end-to-end. Before any real deploy: run these migrations against a disposable Supabase branch or local `supabase db start` and re-run the production-safe validation checks (dry-run, health, analyze-410, email-secret-401) against that branch first.
+
+---
+
+## Round 2 — Full P1/P2 closure + P1-10 production incident (2026-07-23)
+
+Continued past the Blockers into every P1/P2, plus a newly-surfaced production P1 (P1-10). Kill switch OFF, dry-run ON, scheduler DISABLED throughout.
+
+### P1 closure tracker
+
+| Finding | Confirmed cause | Repair | Behavioral test | Commit | Deployment | Re-audit |
+|---|---|---|---|---|---|---|
+| P1-1 | `schedule_deletion_retry_or_fail` dropped its `status='purging'` guard | Restored the guard | DB rollback test (retry-guard) | `588a204` | migration file (not applied to prod) | Closed |
+| P1-2 | CLI storage purge had no referenced-object protection; worker ref-query unpaginated + fail-open | `collectReferencedStoragePaths` in both paths; pagination; fail-closed; partial-removal re-list | `processDeletionRequest.test.js` (referenced obj preserved; ref-error removes nothing) | `123c39f` | source (worker not redeployed) | Closed |
+| P1-3 | Manual CLI shared none of the worker's gates | grace/restored/purged/live-lease refusals + global dry-run gate + atomic status-guarded claim | 11 behavioral tests | `8390c2e` | source | Closed |
+| P1-4 | No operator alerting | `alertEvent()` stderr severity marker; wired to dead-letter/stuck/residual/partial-removal/resend-fail | source guards | `6a9eb27` | source | Closed |
+| P1-5 | Missing explicit `REVOKE SELECT` on deletion_requests | Added revoke | source guard | `588a204` | migration file | Closed |
+| P1-6 | Tests were mostly regex-on-source | Added genuine behavioral tests (storage, CLI gates, restore status, effective-state DB tests) | this round's suites | multiple | n/a | Closed |
+| P1-7 | Saved dry-run artifact showed 43 nodes, missing user_device_sessions | Registry now 45 (44 tables inc. user_device_sessions + outfit_decision_groups, + storage); deployed process-account-deletions is v6 with the current registry | registry parity tests | `6ac3a64` | n/a (fresh authenticated dry-run deferred to lifecycle test) | Closed (count reconciled); runtime re-run = external gate |
+| P1-8 | Resend matched path slower than unmatched (timing oracle) | Crypto on both paths + response-time floor; identical generic body | ordering guards | `1b3f545` | edge source | Mitigated; residual downgraded to P3 |
+| P1-9 | PR #36 bundles unrelated avatar/scanner commits | Deletion-only commit range identified (below); repair branch is deletion-only | n/a | this doc | branch pushed | Closed |
+| P1-10 | Deployed assertAccountActive maps missing profile -> null -> 403; 1 legacy pre-trigger user affected | Backfill (effective-state guarded) + hardened trigger + is_active_account + assertAccountActive; effective (latest) deletion state, DB==Edge definition | 13 DB rollback scenarios + edge/RLS tests | `6ed47c6`,`0962d00` | **migration applied to prod (orphan count 0); scan-identify v136 + stylechat-generate v77 deployed** | Closed (source+deploy); authenticated runtime proof = external gate |
+
+### P2 closure
+
+| Finding | Resolution | Commit |
+|---|---|---|
+| P2-1 | False positive — transfer correctly uses `dressing_room_participants` (populated); `shared_room_memberships` is discovery-only (0 active rows) | evidence in this doc |
+| P2-2 | Resolved by P1-9 branch hygiene (unrelated bundled scan-identify work excluded from the deletion-only range) | n/a |
+| P2-3 | Reclassified — all 21 tables verified to exist in prod with correct FK cascade via `pg_constraint`; missing migration history noted as follow-up | this doc |
+| P2-4 | Storage enumeration + reference query paginated | `123c39f` |
+| P2-5 | remove() response diffed; partial removal fails closed | `123c39f` |
+| P2-6 | Ops-doc backoff corrected to live formula | `6a9eb27` |
+| P2-7 | Resend rotate-first (delivered link always backed by stored hash) | `1b3f545` |
+| P2-8 | Token scrubbed from URL/history + no-store + no-referrer; verified in production build | app `2cd5c68`,`54bcac4`; website `7afbf28` |
+| P2-9 | Ledger metadata redacts email-shaped values, not just keys | `54bcac4` |
+
+### Deletion-only commit range (P1-9)
+
+Repair branch `repair/account-deletion-hostile-audit-20260722` (base `13e9b6a`) is deletion-only. The 4 deletion commits in the original PR #36 are `892f258`, `d4e9c1e`, `5f35b57`, `13e9b6a`. The 8 unrelated commits (avatar `ca747f5`; scanner/scan-identify `18c3497`,`e15172d`,`e6c68fb`,`405a27f`,`f1a0332`,`69efe02`,`0c9086a`) must NOT be carried into an iOS-v15 / Android-AAB-26 integration of the deletion feature. Recommendation: replace PR #36 with a deletion-only PR built from this repair branch.
+
+### Production deployments applied this round
+
+- **Supabase migration** `profiles_backfill_and_active_account_hardening` applied to project `wyyuqfdxucjksghsmhry` (KScan App Production). Post-apply: active-auth-users-missing-profile = 0; backfilled user status = active; pending_deletion user unchanged. Rollback: additive/idempotent — the backfill is insert-only, and `is_active_account`/`handle_new_user` are `create or replace` (prior versions recoverable from migration history).
+- **Edge Functions** `scan-identify` (v135→v136) and `stylechat-generate` (v76→v77) redeployed with the hardened `assertAccountActive` (surgical patch onto the exact deployed file trees; other functions untouched). Rollback: redeploy prior version.
+- **Not applied to prod:** the crash-recovery, RLS, and ledger-PII migrations (deletion-behavior changes held for the coordinated lifecycle rollout); Render unchanged; PR #5 not merged/production-deployed.
