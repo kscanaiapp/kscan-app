@@ -61,6 +61,7 @@
     { "table": "dressing_room_collab_idempotency", "column": "actor_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "shared_room_memberships", "column": "recipient_user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "outfit_decision_votes", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
+    { "table": "outfit_decision_groups", "column": "created_by", "action": "auth_delete_set_null", "optional": true },
     { "table": "stylechat_quota_events", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "style_outfit_burst_usage", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "style_outfit_daily_usage", "column": "user_id", "action": "auth_delete_cascade", "optional": true },

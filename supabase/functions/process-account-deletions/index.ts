@@ -384,12 +384,6 @@ async function processClaimedRequest(
   const storage = await deleteOwnedStorage(supabase, userId);
   if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
 
-  // Coverage check for seven added tables (verification visibility).
-  const coverage = [];
-  for (const resource of USER_DATA_RESOURCES) {
-    coverage.push(await countResourceRows(supabase, resource, userId));
-  }
-
   await rpc('append_deletion_state_transition', {
     p_request_id: requestId,
     p_subject_ref: subjectRef,
@@ -426,6 +420,47 @@ async function processClaimedRequest(
       .from('deletion_requests')
       .update({ user_id: null })
       .eq('id', requestId);
+  }
+
+  // B3 fix: verify AFTER the auth user is gone, not before. The prior
+  // "coverage check" ran ahead of auth.admin.deleteUser() -- i.e. it was a
+  // pre-delete inventory, not a post-delete verification -- and its actual
+  // per-table counts were discarded (only coverage.length was logged). A
+  // cascade FK that silently didn't fire (wrong table, missing constraint,
+  // a future migration that adds a user-data table without one) would
+  // never be caught. Now: any resource whose FK is supposed to have
+  // removed every row tied to this user (everything except the
+  // survive_auth_delete-tagged ledger) that still shows a nonzero count
+  // fails the request instead of marking it purged, so it durably retries
+  // (via schedule_deletion_retry_or_fail, same as any other thrown error
+  // here) rather than silently reporting success over residual user data.
+  //
+  // Renew the lease before this loop specifically: it issues one query per
+  // registry resource (currently ~44), and unlike every other step in this
+  // function it previously had no heartbeat guarding it.
+  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+  const coverage = [];
+  const residual = [];
+  for (const resource of USER_DATA_RESOURCES) {
+    const row = await countResourceRows(supabase, resource, userId);
+    coverage.push(row);
+    if (
+      resource.action !== 'survive_auth_delete' &&
+      typeof row.count === 'number' &&
+      row.count > 0
+    ) {
+      residual.push(row);
+    }
+  }
+  if (residual.length > 0) {
+    logEvent('purge_verification_failed', {
+      requestIdPrefix: requestId.slice(0, 8),
+      uid: shortUserId(userId),
+      residual: residual.map((r) => ({ table: r.table, action: r.action, count: r.count })),
+    });
+    throw new Error(
+      `post-purge verification found residual rows in: ${residual.map((r) => r.table).join(', ')}`,
+    );
   }
 
   const marked = await rpc('mark_deletion_request_purged', {
