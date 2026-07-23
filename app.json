@@ -29,7 +29,8 @@
         }
       ],
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ],
     "android": {
       "package": "com.kscanai.app",

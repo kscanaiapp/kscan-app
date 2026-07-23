@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { supabase } from '../../services/supabaseClient';
-import { validateNewPassword, verifySessionAfterPasswordUpdate } from '../../services/passwordReset';
+import { validateNewPassword } from '../../services/passwordReset';
 import { mapAuthError } from '../../services/authValidation';
 
 export default function UpdatePasswordScreen() {
@@ -40,15 +40,18 @@ export default function UpdatePasswordScreen() {
       return;
     }
 
-    try {
-      await verifySessionAfterPasswordUpdate(supabase);
-      router.replace('/privacy');
-    } catch {
-      await supabase.auth.signOut();
-      router.replace('/auth');
-    } finally {
-      setBusy(false);
+    // A password change is a security boundary. Global sign-out revokes refresh
+    // capability on every device, including this recovery session, so an old
+    // securely stored token cannot silently restore access.
+    const { error: revokeError } = await supabase.auth.signOut({ scope: 'global' });
+    setBusy(false);
+
+    if (revokeError) {
+      setError('Password changed, but we could not revoke existing sessions. Reconnect and try again.');
+      return;
     }
+
+    router.replace('/auth');
   };
 
   return (
@@ -70,7 +73,7 @@ export default function UpdatePasswordScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Set New Password</Text>
           <Text style={styles.cardBody}>
-            Choose a new password. Your recovery session will stay signed in after the update.
+            Choose a new password. For your security, you’ll sign in again on every device.
           </Text>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 

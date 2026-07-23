@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
@@ -46,17 +47,19 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const bootSession = data.session ?? null;
-      const usableSession = isSessionUsable(bootSession) ? bootSession : null;
-      if (bootSession && !usableSession) {
-        invalidateAllMemoryCache();
-        await supabase.auth.signOut();
-      }
-      if (!mounted) return;
-      setSession(usableSession);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        const bootSession = data.session ?? null;
+        const usableSession = isSessionUsable(bootSession) ? bootSession : null;
+        if (!mounted) return;
+        setSession(usableSession);
+        setLoading(false);
+      })
+      .catch(() => {
+        // Do not call signOut for a transient storage/network failure. A later
+        // foreground refresh can still restore the persisted session.
+        if (mounted) setLoading(false);
+      });
 
     const {
       data: { subscription },
@@ -73,6 +76,27 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     return () => {
       mounted = false;
       subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    // React Native does not have browser visibility events. Explicitly starting
+    // refresh in the foreground keeps short-lived access tokens renewable while
+    // the securely persisted refresh token remains valid.
+    const syncAutoRefresh = (state: string) => {
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    };
+
+    syncAutoRefresh(AppState.currentState);
+    const subscription = AppState.addEventListener('change', syncAutoRefresh);
+
+    return () => {
+      subscription.remove();
+      supabase.auth.stopAutoRefresh();
     };
   }, []);
 
