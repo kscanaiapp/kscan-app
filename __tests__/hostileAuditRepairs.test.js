@@ -234,28 +234,57 @@ test('P1-10: assertAccountActive verifies the Auth record on a missing profile, 
   assert.match(common, /profile\.account_status !== 'active' \|\| profile\.account_locked_at/);
 });
 
-test('P1-10: backfill is guarded to legitimate (non-deleted, non-banned) users and is idempotent', () => {
+test('P1-10: backfill is guarded to legitimate users, uses EFFECTIVE deletion state, and is idempotent', () => {
   const sql = read(p1_10Migration);
-  assert.match(sql, /insert into public\.profiles \(id, email\)/);
+  assert.match(sql, /insert into public\.profiles \(id, email, account_status\)/);
   assert.match(sql, /u\.deleted_at is null/);
   assert.match(sql, /u\.banned_until is null or u\.banned_until <= now\(\)/);
   assert.match(sql, /on conflict \(id\) do nothing/);
+  // Must use the LATEST (effective) deletion request, not "any historical row",
+  // so a restored/cancelled user is not permanently excluded.
+  assert.match(sql, /order by dr\.requested_at desc nulls last, dr\.id desc\s*\n\s*limit 1/);
+  assert.match(sql, /coalesce\(/);
+  for (const s of ['pending', 'processing', 'completed', 'deactivated', 'purging', 'legal_hold', 'failed']) {
+    assert.ok(sql.includes(`'${s}'`), `backfill deletion-state guard missing status ${s}`);
+  }
 });
 
-test('P1-10: is_active_account allows missing-profile only for an active Auth user, still blocks pending_deletion', () => {
+test('P1-10: is_active_account missing-profile path uses effective deletion state, still blocks pending_deletion', () => {
   const sql = read(p1_10Migration);
   assert.match(sql, /create or replace function public\.is_active_account/);
+  assert.match(sql, /set search_path = ''/); // empty search_path, fully qualified
   // profile-present branch keeps the strict active + unlocked check
   assert.match(sql, /coalesce\(p\.account_status, 'active'\) = 'active'/);
   assert.match(sql, /p\.account_locked_at is null/);
-  // no-profile branch verifies auth.users
+  // no-profile branch verifies auth.users AND the latest deletion status
   assert.match(sql, /from auth\.users u\s*\n\s*where u\.id = auth\.uid\(\)/);
-  assert.match(sql, /u\.deleted_at is null/);
+  assert.match(sql, /from public\.deletion_requests dr\s*\n\s*where dr\.user_id = auth\.uid\(\)\s*\n\s*order by dr\.requested_at desc nulls last, dr\.id desc/);
 });
 
-test('P1-10: provisioning trigger is hardened to set account_status explicitly', () => {
+test('P1-10: provisioning trigger sets status on insert but preserves it on conflict', () => {
   const sql = read(p1_10Migration);
   assert.match(sql, /create or replace function public\.handle_new_user/);
+  assert.match(sql, /set search_path = ''/);
   assert.match(sql, /insert into public\.profiles \(id, email, account_status\)/);
   assert.match(sql, /values \(new\.id, new\.email, 'active'\)/);
+  // On conflict it must sync email only, NEVER reset account_status.
+  assert.match(sql, /on conflict \(id\) do update\s*\n\s*set email = excluded\.email;/);
+  assert.doesNotMatch(sql, /do update\s*\n\s*set account_status/);
+});
+
+test('P1-10: edge guard uses the effective (latest) deletion state with the same definition as the SQL', () => {
+  const common = read('supabase/functions/_shared/deletion/common.ts');
+  const sql = read(p1_10Migration);
+  assert.match(common, /BLOCKING_DELETION_STATES/);
+  // latest row via the SAME stable ordering as the SQL (requested_at desc
+  // nulls last, id desc) -- otherwise DB and Edge could pick different rows.
+  assert.match(common, /order=requested_at\.desc\.nullslast,id\.desc&limit=1/);
+  assert.match(sql, /order by dr\.requested_at desc nulls last, dr\.id desc\s*\n\s*limit 1/);
+  // fail closed if the effective-state lookup itself fails
+  assert.match(common, /Fail closed if we cannot determine the effective deletion state/);
+  // identical blocking set in both places
+  const edgeStates = [...common.matchAll(/'(pending|processing|completed|deactivated|purging|legal_hold|failed)'/g)].map((m) => m[1]);
+  for (const s of ['pending', 'processing', 'completed', 'deactivated', 'purging', 'legal_hold', 'failed']) {
+    assert.ok(edgeStates.includes(s), `edge BLOCKING_DELETION_STATES missing ${s}`);
+  }
 });

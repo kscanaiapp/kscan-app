@@ -5,70 +5,93 @@
 -- Scanner (scan-identify), TextScan, and Elise (stylechat-generate) before
 -- the LLM route was reached.
 --
--- Root cause: the handle_new_user() AFTER INSERT trigger on auth.users
--- provisions profiles atomically for all NEW users, but a small number of
--- legacy/import users created before the trigger existed never got a profile
--- row. This migration is forward-only and idempotent: it (1) backfills
--- profiles for legitimate active Auth users missing one, (2) hardens the
--- provisioning trigger to be explicit about account_status, and (3) hardens
--- is_active_account() so a missing profile no longer blocks a genuinely
--- active Auth user, WITHOUT weakening fail-closed blocking for
--- pending_deletion / locked / banned / deleted accounts.
+-- Root cause: the handle_new_user() AFTER INSERT trigger provisions profiles
+-- atomically for all NEW users, but a small number of legacy/import users
+-- created before the trigger existed never got a profile row.
+--
+-- Guardrail: "missing profile" must NEVER become an alternate path around
+-- deletion / banning / deactivation, and must NOT permanently lock out a user
+-- because of a HISTORICAL deletion row that was later restored/cancelled. The
+-- deletion check therefore uses the CURRENT EFFECTIVE (latest) deletion state,
+-- not the existence of any historical blocking row. Forward-only, idempotent.
+--
+-- Precedence for missing-profile compatibility:
+--   1. Auth user soft-deleted      -> blocked
+--   2. Auth user currently banned  -> blocked
+--   3. (profile absent, so profiles.account_status precedence is N/A here)
+--   4. LATEST deletion request is a blocking state -> blocked
+--   5. otherwise                   -> eligible (backfill / treated active)
+--
+-- deletion_requests status universe (check constraint): pending, processing,
+-- completed, rejected, cancelled, deactivated, restored, purging, purged,
+-- failed, legal_hold. Blocking (account is being / was left mid deletion):
+--   pending, processing, completed, deactivated, purging, legal_hold, failed
+-- Non-blocking terminal (deletion resolved without removing the account):
+--   restored, cancelled, rejected, purged
+-- `failed` blocks only while it is the LATEST state; a later restored/cancelled
+-- row supersedes it, so a historical failed attempt never locks a user out.
 
 -- ---------------------------------------------------------------------------
--- (1) Backfill. Only for Auth users that are genuinely legitimate right now:
---     not soft-deleted and not currently banned. A banned/deleted Auth user
---     missing a profile is intentionally left without one so the guards keep
---     failing closed for it. Idempotent: on-conflict no-op, and re-running
---     finds nothing left to insert. profiles.account_status defaults to
---     'active' and account_locked_at defaults to null.
+-- (1) Backfill. Insert-only (ON CONFLICT DO NOTHING) so it never resets an
+--     existing pending_deletion / locked / other state. Restricted to Auth
+--     users that are legitimate right now AND whose LATEST deletion request
+--     (if any) is not a blocking state.
 -- ---------------------------------------------------------------------------
-insert into public.profiles (id, email)
-select u.id, u.email
+insert into public.profiles (id, email, account_status)
+select u.id, u.email, 'active'
 from auth.users u
-where u.deleted_at is null
+left join public.profiles p on p.id = u.id
+where p.id is null
+  and u.deleted_at is null
   and (u.banned_until is null or u.banned_until <= now())
-  and not exists (select 1 from public.profiles p where p.id = u.id)
+  and coalesce(
+        (select dr.status
+         from public.deletion_requests dr
+         where dr.user_id = u.id
+         order by dr.requested_at desc nulls last, dr.id desc
+         limit 1),
+        'none'
+      ) not in (
+        'pending', 'processing', 'completed',
+        'deactivated', 'purging', 'legal_hold', 'failed'
+      )
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- (2) Harden future provisioning. The trigger already fires atomically on
---     insert; make the account_status explicit so a future change to the
---     column default cannot silently change what new users are provisioned
---     with. Behaviour is otherwise identical (id + email, on-conflict merge
---     of email). SECURITY DEFINER + fixed search_path preserved.
+-- (2) Harden future provisioning. Trigger already fires atomically on insert;
+--     make account_status explicit so a future column-default change cannot
+--     silently alter provisioning. CRITICAL: on conflict, sync email ONLY --
+--     never reset account_status (that would reactivate a pending_deletion
+--     account). SECURITY DEFINER, EMPTY search_path, fully schema-qualified.
 -- ---------------------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   insert into public.profiles (id, email, account_status)
   values (new.id, new.email, 'active')
   on conflict (id) do update
-    set email = excluded.email;
+    set email = excluded.email;   -- status intentionally preserved
   return new;
 end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- (3) Harden is_active_account(). Previously returned false for ANY user
---     without a profile row, which (via the RESTRICTIVE RLS policies added in
---     20260723050000) blocked legitimate active users from their own data.
---     Now: if a profile exists, enforce it strictly (unchanged -- this is
---     what keeps pending_deletion / locked users fail-closed). If NO profile
---     exists, allow only when the Auth user is genuinely active (exists, not
---     soft-deleted, not currently banned). SECURITY DEFINER (owned by the
---     migration role) can read auth.users.
+-- (3) Harden is_active_account(). Profile present -> enforce it strictly
+--     (unchanged; keeps pending_deletion / locked fail-closed). Profile absent
+--     -> allow ONLY when the Auth user is genuinely active AND the LATEST
+--     deletion request is not a blocking state. Uses effective (latest) state
+--     so restored/cancelled supersede historical blocking rows.
 -- ---------------------------------------------------------------------------
 create or replace function public.is_active_account()
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select case
     when exists (select 1 from public.profiles p where p.id = auth.uid()) then
@@ -86,6 +109,17 @@ as $$
         where u.id = auth.uid()
           and u.deleted_at is null
           and (u.banned_until is null or u.banned_until <= now())
+      )
+      and coalesce(
+        (select dr.status
+         from public.deletion_requests dr
+         where dr.user_id = auth.uid()
+         order by dr.requested_at desc nulls last, dr.id desc
+         limit 1),
+        'none'
+      ) not in (
+        'pending', 'processing', 'completed',
+        'deactivated', 'purging', 'legal_hold', 'failed'
       )
   end;
 $$;

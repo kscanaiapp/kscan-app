@@ -143,12 +143,32 @@ export async function requireUser(req: Request): Promise<AuthUser> {
   return { id: user.id, email: user.email ?? undefined, accessToken };
 }
 
+// Deletion-request statuses that mean "this account is being deleted, or was
+// left mid-deletion" -- if this is the account's CURRENT EFFECTIVE (latest)
+// deletion state, a missing-profile user must not be treated as active.
+// Non-blocking terminal states (restored, cancelled, rejected, purged) are
+// excluded, so a historical blocking row that was later resolved does not
+// permanently lock a user out. Mirrors the SQL guard in
+// 20260723070000_profiles_backfill_and_active_account_hardening.sql.
+const BLOCKING_DELETION_STATES = [
+  'pending',
+  'processing',
+  'completed',
+  'deactivated',
+  'purging',
+  'legal_hold',
+  'failed',
+];
+
 /**
  * Confirms an Auth user is genuinely active (exists, not soft-deleted, not
- * currently banned) via the admin API. Used only to decide whether a MISSING
- * profile row belongs to a legitimate active user (legacy/import gap) or to a
- * banned/deleted account. Never used to override an explicit non-active
- * profile status.
+ * currently banned) via the admin API, AND whose CURRENT EFFECTIVE (latest)
+ * deletion request -- if any -- is not a blocking state. Used only to decide
+ * whether a MISSING profile row belongs to a legitimate active user
+ * (legacy/import gap) or to an account that is being / was left mid deletion.
+ * Never used to override an explicit non-active profile status. Keeps "missing
+ * profile" from becoming a deletion bypass, without locking out users whose
+ * historical deletion was later restored/cancelled.
  */
 async function isAuthUserActive(userId: string): Promise<boolean> {
   try {
@@ -161,6 +181,25 @@ async function isAuthUserActive(userId: string): Promise<boolean> {
     const user = data.user as { banned_until?: string | null; deleted_at?: string | null };
     if (user.deleted_at) return false;
     if (user.banned_until && new Date(user.banned_until) > new Date()) return false;
+
+    // Effective deletion state = the LATEST deletion_requests row for the user.
+    // Block only if that row's status is blocking; a later restored/cancelled
+    // row supersedes an earlier blocking one. Ordering MUST match the SQL
+    // is_active_account() exactly (requested_at desc nulls last, then id desc
+    // as a stable tiebreak for equal timestamps) so the DB and Edge never
+    // disagree on which row is effective.
+    const delResp = await rest(
+      `deletion_requests?user_id=eq.${userId}&select=status&order=requested_at.desc.nullslast,id.desc&limit=1`,
+      { method: 'GET' },
+    );
+    if (!delResp.ok) {
+      // Fail closed if we cannot determine the effective deletion state.
+      return false;
+    }
+    const rows = await delResp.json();
+    const latestStatus = Array.isArray(rows) && rows[0] ? String(rows[0].status) : 'none';
+    if (BLOCKING_DELETION_STATES.includes(latestStatus)) return false;
+
     return true;
   } catch {
     return false;
