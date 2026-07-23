@@ -43,10 +43,23 @@ test('worker storage delete fails closed and paginates', () => {
   assert.match(source, /storage list failed/);
   assert.match(source, /offset \+= limit/);
   assert.match(source, /retainedReferenced/);
-  // Live delete path must throw; dry-run enumerate may still mark list_error.
+  // P1-2/P2-4: pagination + fail-closed listing now live in the shared
+  // listPrefixPaths helper (used by both the live delete path and the
+  // dry-run enumerator), not inlined in deleteOwnedStorage itself.
+  const listFn = source.slice(
+    source.indexOf('async function listPrefixPaths'),
+    source.indexOf('async function collectReferencedStoragePaths'),
+  );
+  assert.match(listFn, /throw new Error\(`storage list failed/);
+  // Live delete path must throw on a reference-check failure (fail closed);
+  // dry-run enumerate may still mark list_error instead of throwing.
   const deleteFn = source.slice(source.indexOf('async function deleteOwnedStorage'), source.indexOf('async function enumerateOwnedStorage'));
   assert.doesNotMatch(deleteFn, /status: 'list_error'/);
-  assert.match(deleteFn, /throw new Error\(`storage list failed/);
+  const refFn = source.slice(
+    source.indexOf('async function collectReferencedStoragePaths'),
+    source.indexOf('async function deleteOwnedStorage'),
+  );
+  assert.match(refFn, /throw new Error\(`reference check failed/);
 });
 
 test('security hardening migration drops client insert and adds device sessions', () => {
