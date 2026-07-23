@@ -539,6 +539,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Crash recovery: close out any 'purging' rows whose auth user was already
+    // deleted (user_id nulled by FK cascade) before the worker that claimed
+    // them could call mark_deletion_request_purged. Pure ledger reconciliation
+    // — there is no remaining user data to touch, since the auth.users cascade
+    // already removed it. Safe to run every live invocation.
+    const reconcileResponse = await rpc('reconcile_orphaned_purging_requests', { p_limit: 25 });
+    if (reconcileResponse.ok) {
+      const reconciled = await reconcileResponse.json();
+      const reconciledCount = Array.isArray(reconciled) ? reconciled.length : 0;
+      if (reconciledCount > 0) {
+        logEvent('worker_reconciled_orphaned_purging', { count: reconciledCount });
+      }
+    } else {
+      logEvent('worker_reconcile_failed', { status: reconcileResponse.status });
+    }
+
     // Live claim path — only when kill switch enabled AND dry-run disabled.
     const claimResponse = await rpc('claim_deletion_requests_for_purge', {
       p_worker_id: workerId,
