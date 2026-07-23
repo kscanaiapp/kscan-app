@@ -11,6 +11,7 @@ import { supabase } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
+import { currentDevicePlatform, getOrCreateDeviceKey } from '../services/deviceIdentity';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -38,6 +39,26 @@ export interface AuthSessionContextValue {
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
+// Registers/refreshes this install's row in user_device_sessions so the
+// server-side max-5-active-sessions enforcement (register_user_device_session)
+// actually has data to enforce against. Previously this RPC was correctly
+// written in SQL but never called from any client -- the five-session cap
+// was dead code. Best-effort: a failure here must never block sign-in.
+async function registerDeviceSession(): Promise<void> {
+  try {
+    const deviceKey = await getOrCreateDeviceKey();
+    const { error } = await supabase.rpc('register_user_device_session', {
+      p_device_key: deviceKey,
+      p_platform: currentDevicePlatform(),
+    });
+    if (error) {
+      console.warn('[AuthSession] register_user_device_session failed', error.message);
+    }
+  } catch (err) {
+    console.warn('[AuthSession] register_user_device_session threw', err);
+  }
+}
+
 export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +77,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       if (!mounted) return;
       setSession(usableSession);
       setLoading(false);
+      if (usableSession) void registerDeviceSession();
     });
 
     const {
@@ -68,6 +90,12 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         invalidateAllMemoryCache();
       }
       setSession(usableSession);
+      // Runs on SIGNED_IN and on every TOKEN_REFRESHED -- the RPC is an
+      // upsert keyed on (user_id, device_key), so this both registers new
+      // devices and keeps last_seen_at fresh for already-registered ones,
+      // which is what protects an actively-used device from being evicted
+      // as "oldest" by the 5-session cap.
+      if (usableSession) void registerDeviceSession();
     });
 
     return () => {
