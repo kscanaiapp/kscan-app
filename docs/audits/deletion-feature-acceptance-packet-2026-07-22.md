@@ -24,7 +24,7 @@ Kill switch remains OFF. Live purge scheduler remains disabled. Dry-run remains 
 | Workspace | `C:\Users\jsmit\KScan-account-deletion` |
 | Branch | `feature/automatic-account-deletion` |
 | Starting SHA | `0c9086af9257b8ef002b7d2c479bf3da43ca0b9b` |
-| Final SHA | *(see git HEAD after push)* |
+| Final SHA | `5f35b57f67833b448060dcc32da895002258c5aa` |
 | PR | https://github.com/kscanaiapp/kscan-app/pull/36 (base `ios/full-submission-readiness-v2`) — **OPEN, NOT MERGED** |
 | Website restore | `C:\src\kscan-website-account-restore-20260722` branch `feature/account-restore-page` |
 
