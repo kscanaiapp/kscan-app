@@ -5,6 +5,9 @@ const path = require('node:path');
 
 const {
   appendNote,
+  assertCliPurgeEligible,
+  assertGlobalDryRunDisabled,
+  cliEligibleStatuses,
   buildDeletionSummary,
   deleteDirectUserRows,
   deleteOwnedStorageObjects,
@@ -179,6 +182,10 @@ function createSupabaseMock(options = {}) {
                 eq(column2, value2) {
                   return updateChain;
                 },
+                in(column2, values2) {
+                  calls.push({ type: 'update.in', table, column: column2, values: values2 });
+                  return updateChain;
+                },
                 select(columns) {
                   return Promise.resolve(updateResult);
                 },
@@ -314,6 +321,105 @@ test('deleteOwnedStorageObjects fails closed when the reference check errors (P1
   });
   await assert.rejects(() => deleteOwnedStorageObjects(storage.client, userId), /reference check failed/);
   assert.equal(storage.removed.length, 0, 'nothing may be removed when references cannot be determined');
+});
+
+// --- P1-3: CLI manual-purge safety gates ----------------------------------
+const NOW = new Date('2026-07-23T00:00:00Z');
+
+test('assertCliPurgeEligible refuses a request still inside its grace period', () => {
+  assert.throws(
+    () => assertCliPurgeEligible(
+      { status: 'deactivated', grace_period_ends_at: '2026-08-10T00:00:00Z' },
+      NOW,
+    ),
+    /grace period has not elapsed/i,
+  );
+});
+
+test('assertCliPurgeEligible refuses a restored request', () => {
+  assert.throws(
+    () => assertCliPurgeEligible({ status: 'deactivated', restored_at: '2026-07-20T00:00:00Z' }, NOW),
+    /restored by the user/i,
+  );
+});
+
+test('assertCliPurgeEligible refuses an already-purged request', () => {
+  assert.throws(
+    () => assertCliPurgeEligible({ status: 'purged', purged_at: '2026-07-19T00:00:00Z' }, NOW),
+    /already purged/i,
+  );
+});
+
+test('assertCliPurgeEligible refuses a request under an active worker lease', () => {
+  assert.throws(
+    () => assertCliPurgeEligible(
+      { status: 'purging', worker_lease_expires_at: '2026-07-23T00:04:00Z' },
+      NOW,
+    ),
+    /active lease/i,
+  );
+});
+
+test('assertCliPurgeEligible allows a grace-elapsed, unclaimed request', () => {
+  assert.doesNotThrow(() =>
+    assertCliPurgeEligible(
+      { status: 'deactivated', grace_period_ends_at: '2026-07-01T00:00:00Z' },
+      NOW,
+    ),
+  );
+});
+
+test('assertCliPurgeEligible allows finishing a stale (crashed) purging claim', () => {
+  assert.doesNotThrow(() =>
+    assertCliPurgeEligible(
+      { status: 'purging', worker_lease_expires_at: '2026-07-22T23:00:00Z' },
+      NOW,
+    ),
+  );
+});
+
+test('cliEligibleStatuses restricts a stale purging row to a purging-only transition', () => {
+  assert.deepEqual(cliEligibleStatuses({ status: 'purging' }), ['purging']);
+  assert.deepEqual(cliEligibleStatuses({ status: 'deactivated' }), ['pending', 'processing', 'deactivated']);
+});
+
+test('assertGlobalDryRunDisabled refuses when the dry-run flag is ON', async () => {
+  const supabase = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { value: { enabled: true } }, error: null }),
+        }),
+      }),
+    }),
+  };
+  await assert.rejects(() => assertGlobalDryRunDisabled(supabase), /global dry-run .* is ON/i);
+});
+
+test('assertGlobalDryRunDisabled fails closed when the flag cannot be read', async () => {
+  const supabase = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: null, error: { message: 'permission denied' } }),
+        }),
+      }),
+    }),
+  };
+  await assert.rejects(() => assertGlobalDryRunDisabled(supabase), /could not read/i);
+});
+
+test('assertGlobalDryRunDisabled proceeds only when the flag is explicitly disabled', async () => {
+  const supabase = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { value: { enabled: false } }, error: null }),
+        }),
+      }),
+    }),
+  };
+  await assert.doesNotReject(() => assertGlobalDryRunDisabled(supabase));
 });
 
 test('deleteDirectUserRows deletes explicit non-cascade resources by user id', async () => {

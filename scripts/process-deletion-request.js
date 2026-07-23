@@ -65,6 +65,15 @@ Safety:
   --confirm-delete is present. Deleting the auth user cascades the local public
   rows that reference auth.users(id). Use --verify to run a read-only
   completeness check after a confirmed deletion.
+
+  --confirm-delete additionally refuses to proceed unless ALL of the following
+  hold (these mirror the automated worker's gates so the CLI is not a way to
+  bypass them):
+    * the request's 30-day grace period has elapsed (never shortened);
+    * the request has not been restored by the user;
+    * the request is not already purged;
+    * the request is not currently held by a live automated-worker lease;
+    * the global account_deletion_worker_dry_run flag is confirmed disabled.
 `);
 }
 
@@ -201,9 +210,12 @@ async function listPendingRequests(supabase, limit) {
 }
 
 async function getOpenRequest(supabase, options) {
+  // Select * so eligibility columns (grace_period_ends_at, restored_at,
+  // purged_at, worker_lease_expires_at) are available to the safety gate
+  // below without hard-coding a column list that a legacy schema might lack.
   let query = supabase
     .from('deletion_requests')
-    .select('id,user_id,status,requested_at,request_source,notes')
+    .select('*')
     .in('status', OPEN_STATUSES)
     .order('requested_at', { ascending: false })
     .limit(1);
@@ -220,6 +232,84 @@ async function getOpenRequest(supabase, options) {
     throw new Error('No pending or processing deletion request matched the selector');
   }
   return request;
+}
+
+// Standard statuses a manual purge may legitimately act on. A stale (crashed)
+// 'purging' claim is allowed separately, only after the active-lease check.
+const CLI_PURGE_ELIGIBLE_STATUSES = ['pending', 'processing', 'deactivated'];
+
+// P1-3: the manual CLI previously shared none of the automated worker's
+// safety gates -- it would purge a request that was still inside its 30-day
+// grace period, one the user had restored, one already purged, or one the
+// automated worker currently holds a live lease on. These are hard refusals;
+// there is deliberately no override for the grace-period check (the global
+// 30-day grace must not be shortened).
+function assertCliPurgeEligible(request, now = new Date()) {
+  if (request.purged_at || request.status === 'purged') {
+    throw new Error('Refusing to purge: request is already purged.');
+  }
+  if (request.restored_at || request.status === 'restored') {
+    throw new Error('Refusing to purge: request was restored by the user.');
+  }
+  if (
+    request.grace_period_ends_at &&
+    new Date(request.grace_period_ends_at) > now
+  ) {
+    throw new Error(
+      'Refusing to purge: grace period has not elapsed. The 30-day deletion grace period must not be shortened.',
+    );
+  }
+  if (request.status === 'purging') {
+    const leaseActive =
+      request.worker_lease_expires_at &&
+      new Date(request.worker_lease_expires_at) > now;
+    if (leaseActive) {
+      throw new Error(
+        'Refusing to purge: the automated worker holds an active lease on this request. Wait for the lease to expire or for the worker to finish.',
+      );
+    }
+  }
+}
+
+// The set of statuses the atomic claim update is allowed to transition from,
+// given the fetched request. A stale 'purging' row may be finished manually;
+// everything else must come from the standard eligible set.
+function cliEligibleStatuses(request) {
+  return request.status === 'purging' ? ['purging'] : CLI_PURGE_ELIGIBLE_STATUSES;
+}
+
+// P1-3: the CLI had no linkage to the global dry-run flag, so a --confirm-delete
+// run would purge for real even while account_deletion_worker_dry_run was ON.
+// Fail CLOSED: proceed only if we can positively confirm the flag is disabled.
+async function assertGlobalDryRunDisabled(supabase) {
+  let row;
+  try {
+    const { data, error } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'account_deletion_worker_dry_run')
+      .maybeSingle();
+    if (error) {
+      throw new Error(
+        `Refusing to purge: could not read account_deletion_worker_dry_run (${error.message}).`,
+      );
+    }
+    row = data;
+  } catch (err) {
+    throw new Error(
+      `Refusing to purge: could not confirm global dry-run is disabled (${err instanceof Error ? err.message : err}).`,
+    );
+  }
+  if (!row) {
+    throw new Error(
+      'Refusing to purge: account_deletion_worker_dry_run flag not found; cannot confirm dry-run is disabled.',
+    );
+  }
+  if (row.value?.enabled) {
+    throw new Error(
+      'Refusing to purge: global dry-run (account_deletion_worker_dry_run) is ON. Disable it before running a manual purge.',
+    );
+  }
 }
 
 // --- Bridged pipeline functions -------------------------------------------
@@ -321,6 +411,12 @@ async function processDeletionRequest(supabase, request, options) {
   // 5. Delete the Supabase Auth user last so auth FK cascades clean up the rest.
   // 6. Mark the surviving deletion_requests row purged (best-effort).
 
+  // Atomic status-guarded claim (P1-3): constrain the transition to the
+  // statuses this request is actually eligible to move from, so the CLI can
+  // never stomp a row that changed concurrently (e.g. the user restored it,
+  // or the automated worker claimed it) between fetch and update. If zero
+  // rows match, the row moved under us -- abort rather than overwrite.
+  const eligibleStatuses = cliEligibleStatuses(request);
   const markProcessingResult = await supabase
     .from('deletion_requests')
     .update({
@@ -328,10 +424,13 @@ async function processDeletionRequest(supabase, request, options) {
       notes: appendNote(request.notes, note),
     })
     .eq('id', request.id)
+    .in('status', eligibleStatuses)
     .select('id');
   await failIfError(markProcessingResult, 'mark deletion request processing');
   if (!Array.isArray(markProcessingResult.data) || markProcessingResult.data.length !== 1) {
-    throw new Error('mark deletion request processing did not update exactly one open request');
+    throw new Error(
+      'mark deletion request processing did not update exactly one eligible request (it may have been restored, claimed by the worker, or already purged concurrently)',
+    );
   }
 
   const lockProfileResult = await supabase
@@ -423,6 +522,12 @@ async function main(argv = process.argv.slice(2)) {
     throw new Error('Refusing to delete without --confirm-delete');
   }
 
+  // P1-3 safety gates before any destructive work: request must be genuinely
+  // eligible (grace elapsed, not restored/purged, not held by a live worker
+  // lease) and the global dry-run flag must be confirmed disabled.
+  assertCliPurgeEligible(request);
+  await assertGlobalDryRunDisabled(supabase);
+
   const result = await processDeletionRequest(supabase, request, options);
   console.log(JSON.stringify(result, null, 2));
   return result;
@@ -437,7 +542,11 @@ if (require.main === module) {
 
 module.exports = {
   appendNote,
+  assertCliPurgeEligible,
+  assertGlobalDryRunDisabled,
   buildDeletionSummary,
+  cliEligibleStatuses,
+  CLI_PURGE_ELIGIBLE_STATUSES,
   deleteDirectUserRows,
   deleteOwnedStorageObjects,
   getSharedRoomsForUser,
