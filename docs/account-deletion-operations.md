@@ -124,7 +124,7 @@ In-flight `purging` work may finish; kill switch only blocks **new** claims.
 - RPC `claim_deletion_requests_for_purge` (`FOR UPDATE SKIP LOCKED`)
 - Batch size 5
 - Heartbeat via `heartbeat_deletion_request_lease` (5 minutes)
-- Retries: 1h → 4h → 12h → 24h → 48h; max 5 attempts → `failed`
+- Retries: exponential backoff in minutes — `2^attempt` minutes, floored at 1 min and capped at 240 min (4 h); default max 8 attempts (clamp 1–20) → `failed`. (Defined in `schedule_deletion_retry_or_fail`, migration `20260723040000_account_deletion_crash_recovery.sql`. The earlier "1h → 4h → 12h → 24h → 48h / max 5" schedule is superseded and no longer accurate.)
 
 ### Final order
 
@@ -236,13 +236,30 @@ Holds do not reactivate the account. Users must not see investigation details.
 
 Events: `deletion_request_accepted`, `session_revocation_*`, `restoration_*`, `worker_invocation`, `worker_claim`, `purge_success`, `purge_failure`, `kill_switch_skip`, `resend_*`.
 
-Alert candidates:
+### Operator alerts (implemented — Finding P1-4)
 
-- `purging` > 1 hour / expired lease while `purging`
-- attempt_count exhausted (`failed`)
-- deadline passed but never claimed
-- restoration email repeatedly failing
-- scheduler silence (no hourly invocation)
+Alertable conditions are now emitted actively as structured **stderr** log lines
+with a stable `"severity":"alert"` marker and an `ALERT_`-prefixed `event`
+(via `alertEvent()` in `_shared/deletion/common.ts`). Configure a Supabase log
+drain / Logflare alert on `severity = "alert"` (no external alerting
+integration is required — the marker is the trigger). Emitted alerts:
+
+| Event | Emitted from | Meaning |
+|---|---|---|
+| `ALERT_deletion_request_dead_lettered` | live worker, on terminal `failed` | attempts exhausted; a partially-purged user needs manual attention |
+| `ALERT_deletion_request_failed_seen_in_dry_run` | dry-run health check | a `failed` row exists and won't self-resolve |
+| `ALERT_deletion_request_stuck_purging` | dry-run health check | a `purging` row past its lease (crashed worker not yet reclaimed) |
+| `ALERT_purge_verification_failed` | live worker | residual user rows found after Auth delete; request will retry then dead-letter |
+| `ALERT_storage_partial_removal` | live worker | storage `remove()` left objects behind; request will retry |
+| `ALERT_resend_email_failed_after_rotate` | resend function | token rotated but email delivery failed; user has no working link until next resend |
+
+Because the read-only dry-run path emits `stuck_purging` / `failed` alerts,
+running the hourly dry-run (kill switch OFF, dry-run ON) doubles as the
+stuck-request monitor even while the live purge scheduler is disabled.
+
+Still operator-configured (outside code): "deadline passed but never claimed"
+and "scheduler silence (no hourly invocation)" — both require a scheduler-side
+heartbeat/monitor that the repo cannot assert on its own.
 
 ## Rollback (non-destructive)
 

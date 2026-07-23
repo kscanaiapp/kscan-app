@@ -182,3 +182,26 @@ test('P1-8: resend still returns an identical generic body on every path', () =>
   const distinctReturns = src.match(/return respond\((?!GENERIC)/g) || [];
   assert.equal(distinctReturns.length, 0, 'every respond() call must use the GENERIC payload');
 });
+
+test('P1-4: alertEvent helper emits a stable severity marker to stderr', () => {
+  const common = read('supabase/functions/_shared/deletion/common.ts');
+  assert.match(common, /export function alertEvent/);
+  assert.match(common, /severity: 'alert'/);
+  assert.match(common, /console\.error\(/);
+});
+
+test('P1-4: worker raises alerts on dead-letter, stuck-purging, and verification failure', () => {
+  const src = read(processFn);
+  assert.match(src, /alertEvent\('deletion_request_dead_lettered'/);
+  assert.match(src, /alertEvent\('deletion_request_stuck_purging'/);
+  assert.match(src, /alertEvent\('deletion_request_failed_seen_in_dry_run'/);
+  assert.match(src, /alertEvent\('purge_verification_failed'/);
+  assert.match(src, /alertEvent\('storage_partial_removal'/);
+});
+
+test('P2-6: ops doc backoff description matches the live exponential-minutes formula', () => {
+  const doc = read('docs/account-deletion-operations.md');
+  assert.match(doc, /exponential backoff in minutes/i);
+  assert.match(doc, /capped at 240 min/);
+  assert.doesNotMatch(doc, /Retries: 1h → 4h → 12h → 24h → 48h; max 5/);
+});

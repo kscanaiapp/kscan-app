@@ -43,6 +43,26 @@ export function logEvent(event: string, fields: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...fields }));
 }
 
+/**
+ * Operator alert signal (Finding P1-4). Emitted to stderr with a stable,
+ * greppable `severity: 'alert'` marker and an `ALERT` event prefix so a log
+ * drain / Logflare / Supabase log alert can trigger on it without any
+ * additional external integration. Use for conditions an operator must act on:
+ * dead-lettered (attempts-exhausted) requests, requests stuck in 'purging'
+ * past their lease, post-purge residual detection, and partial storage
+ * removal. Never include PII -- callers pass short/hashed identifiers only.
+ */
+export function alertEvent(event: string, fields: Record<string, unknown> = {}) {
+  console.error(
+    JSON.stringify({
+      severity: 'alert',
+      event: event.startsWith('ALERT') ? event : `ALERT_${event}`,
+      ts: new Date().toISOString(),
+      ...fields,
+    }),
+  );
+}
+
 /** URL-safe token from 32 cryptographically random bytes. */
 export function generateRestorationToken(): string {
   const bytes = new Uint8Array(32);

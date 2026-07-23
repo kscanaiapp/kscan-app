@@ -1,4 +1,5 @@
 import {
+  alertEvent,
   corsHeaders,
   env,
   envOptional,
@@ -281,7 +282,7 @@ async function deleteOwnedStorage(
           const afterPaths = new Set(await listPrefixPaths(bucket, prefix));
           const stillPresent = removable.filter((p) => afterPaths.has(p));
           if (stillPresent.length > 0) {
-            logEvent('ALERT_storage_partial_removal', {
+            alertEvent('storage_partial_removal', {
               uid: shortUserId(userId),
               prefixTemplate: prefix.replace(userId, '{userId}'),
               requested: removable.length,
@@ -510,7 +511,7 @@ async function processClaimedRequest(
     }
   }
   if (residual.length > 0) {
-    logEvent('purge_verification_failed', {
+    alertEvent('purge_verification_failed', {
       requestIdPrefix: requestId.slice(0, 8),
       uid: shortUserId(userId),
       residual: residual.map((r) => ({ table: r.table, action: r.action, count: r.count })),
@@ -577,7 +578,7 @@ Deno.serve(async (req) => {
       const inventory = await supabase
         .from('deletion_requests')
         .select(
-          'id,subject_ref,user_id,status,grace_period_ends_at,attempt_count,restored_at,purged_at,legal_hold_until',
+          'id,subject_ref,user_id,status,grace_period_ends_at,attempt_count,restored_at,purged_at,legal_hold_until,worker_lease_expires_at',
         )
         .in('status', ['deactivated', 'restored', 'purged', 'failed', 'legal_hold', 'purging'])
         .order('grace_period_ends_at', { ascending: true })
@@ -613,6 +614,27 @@ Deno.serve(async (req) => {
           return acc;
         }, {}),
       };
+
+      // P1-4: surface conditions an operator must act on, straight from the
+      // read-only health-check path. A request dead-lettered to 'failed', or
+      // stuck in 'purging' past its lease, will not resolve on its own.
+      const now = Date.now();
+      for (const row of inventory.data ?? []) {
+        if (row.status === 'failed') {
+          alertEvent('deletion_request_failed_seen_in_dry_run', {
+            requestIdPrefix: String(row.id).slice(0, 8),
+            attemptCount: (row as { attempt_count?: number }).attempt_count ?? null,
+          });
+        } else if (row.status === 'purging') {
+          const lease = (row as { worker_lease_expires_at?: string }).worker_lease_expires_at;
+          if (!lease || new Date(lease).getTime() < now) {
+            alertEvent('deletion_request_stuck_purging', {
+              requestIdPrefix: String(row.id).slice(0, 8),
+              hasUser: Boolean(row.user_id),
+            });
+          }
+        }
+      }
 
       logEvent('worker_dry_run', {
         ...summary,
@@ -678,6 +700,21 @@ Deno.serve(async (req) => {
           p_failure_code: 'PURGE_ERROR',
           p_failure_message: message.slice(0, 500),
         });
+        // P1-4: if that transition dead-lettered the request (attempts
+        // exhausted -> terminal 'failed'), raise an operator alert. A
+        // partially-purged user stuck in 'failed' needs manual attention.
+        const after = await supabase
+          .from('deletion_requests')
+          .select('status,attempt_count')
+          .eq('id', row.id)
+          .maybeSingle();
+        if (after.data?.status === 'failed') {
+          alertEvent('deletion_request_dead_lettered', {
+            requestIdPrefix: String(row.id).slice(0, 8),
+            attemptCount: after.data.attempt_count ?? null,
+            code: 'PURGE_ERROR',
+          });
+        }
         results.push({ requestId: row.id, status: 'retry_or_failed', error: message.slice(0, 200) });
       }
     }
