@@ -24,6 +24,7 @@ set search_path = public
 as $$
 declare
   v_enabled boolean;
+  v_dry_run boolean;
 begin
   if p_worker_id is null or length(trim(p_worker_id)) < 8 then
     raise exception 'invalid worker id';
@@ -35,6 +36,19 @@ begin
   where key = 'account_deletion_worker_enabled';
 
   if coalesce(v_enabled, false) is not true then
+    return;
+  end if;
+
+  -- B2: dry-run was previously an edge-function-only convention -- a direct
+  -- service-role RPC call (bypassing process-account-deletions/index.ts)
+  -- could claim and purge for real regardless of the flag. Enforce it here
+  -- too, so dry-run is a database guarantee, not just an edge-function habit.
+  select coalesce((value->>'enabled')::boolean, false)
+    into v_dry_run
+  from public.app_config
+  where key = 'account_deletion_worker_dry_run';
+
+  if coalesce(v_dry_run, false) is true then
     return;
   end if;
 
