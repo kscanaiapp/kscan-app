@@ -192,6 +192,65 @@ async function transferSharedRooms(
   return results;
 }
 
+// Paginated listing of every object path under a prefix. limit=1000 is
+// Supabase Storage's per-call ceiling, so a user with more than 1000 objects
+// requires multiple pages -- a single unpaginated list() would silently leave
+// objects 1001+ un-purged (Finding P2-4).
+async function listPrefixPaths(
+  bucket: ReturnType<ReturnType<typeof createAdmin>['storage']['from']>,
+  prefix: string,
+): Promise<string[]> {
+  const paths: string[] = [];
+  const limit = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await bucket.list(prefix, { limit, offset });
+    if (error) {
+      throw new Error(`storage list failed for ${prefix}: ${error.message}`);
+    }
+    const page = data ?? [];
+    for (const item of page) {
+      if (item?.name) paths.push(`${prefix}/${item.name}`);
+    }
+    if (page.length < limit) break;
+    offset += limit;
+  }
+  return paths;
+}
+
+// Storage objects still pointed at by a dressing_room_items row that will
+// SURVIVE this purge (rows cascade with their room, not with the deleting
+// user, so a room transferred to another owner keeps them). Those objects
+// must be preserved. Paginated (P2-4) and fail-CLOSED: if the reference set
+// can't be determined, the caller must not delete under this prefix, so an
+// error here throws rather than silently returning an empty set (which would
+// have deleted everything -- the prior code's fail-OPEN bug).
+async function collectReferencedStoragePaths(
+  supabase: ReturnType<typeof createAdmin>,
+  prefix: string,
+): Promise<Set<string>> {
+  const referenced = new Set<string>();
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const q = await supabase
+      .from('dressing_room_items')
+      .select('storage_path')
+      .like('storage_path', `${prefix}%`)
+      .range(from, from + pageSize - 1);
+    if (q.error) {
+      throw new Error(`reference check failed for ${prefix}: ${q.error.message}`);
+    }
+    const rows = q.data ?? [];
+    for (const row of rows) {
+      if (row.storage_path) referenced.add(String(row.storage_path));
+    }
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  return referenced;
+}
+
 async function deleteOwnedStorage(
   supabase: ReturnType<typeof createAdmin>,
   userId: string,
@@ -200,44 +259,39 @@ async function deleteOwnedStorage(
   for (const resource of STORAGE_RESOURCES) {
     const bucket = supabase.storage.from(resource.bucket);
     for (const prefix of resource.prefixesForUser(userId)) {
-      const paths: string[] = [];
-      const limit = 1000;
-      let offset = 0;
-      while (true) {
-        const { data, error } = await bucket.list(prefix, { limit, offset });
-        if (error) {
-          throw new Error(`storage list failed for ${resource.bucket}: ${error.message}`);
-        }
-        const page = data ?? [];
-        for (const item of page) {
-          if (item?.name) paths.push(`${prefix}/${item.name}`);
-        }
-        if (page.length < limit) break;
-        offset += limit;
-      }
+      const paths = await listPrefixPaths(bucket, prefix);
 
       if (paths.length === 0) {
         results.push({ status: 'no_objects', count: 0 });
         continue;
       }
 
-      // Skip objects still referenced by rooms transferred to another owner.
-      const referenced = new Set<string>();
-      const refQuery = await supabase
-        .from('dressing_room_items')
-        .select('storage_path')
-        .like('storage_path', `${prefix}%`)
-        .limit(1000);
-      if (!refQuery.error) {
-        for (const row of refQuery.data ?? []) {
-          if (row.storage_path) referenced.add(String(row.storage_path));
-        }
-      }
+      const referenced = await collectReferencedStoragePaths(supabase, prefix);
       const removable = paths.filter((p) => !referenced.has(p));
       const retained = paths.length - removable.length;
       if (removable.length > 0) {
         const removed = await bucket.remove(removable);
         if (removed.error) throw new Error(removed.error.message);
+        // P2-5: a 200 with fewer returned objects than requested means a
+        // silent partial removal. Re-list and fail closed if any requested
+        // object is genuinely still present (already-absent objects are fine
+        // -- retries are idempotent and converge as remaining objects clear).
+        const removedCount = Array.isArray(removed.data) ? removed.data.length : removable.length;
+        if (removedCount < removable.length) {
+          const afterPaths = new Set(await listPrefixPaths(bucket, prefix));
+          const stillPresent = removable.filter((p) => afterPaths.has(p));
+          if (stillPresent.length > 0) {
+            logEvent('ALERT_storage_partial_removal', {
+              uid: shortUserId(userId),
+              prefixTemplate: prefix.replace(userId, '{userId}'),
+              requested: removable.length,
+              stillPresent: stillPresent.length,
+            });
+            throw new Error(
+              `storage partial removal: ${stillPresent.length} objects still present under prefix`,
+            );
+          }
+        }
       }
       results.push({
         status: 'removed',
@@ -257,8 +311,12 @@ async function enumerateOwnedStorage(
   for (const resource of STORAGE_RESOURCES) {
     const bucket = supabase.storage.from(resource.bucket);
     for (const prefix of resource.prefixesForUser(userId)) {
-      const { data, error } = await bucket.list(prefix, { limit: 1000 });
-      if (error) {
+      let objectCount: number | null;
+      try {
+        // Paginated (P2-4): the prior single list({limit:1000}) undercounted
+        // the dry-run plan for users with >1000 objects.
+        objectCount = (await listPrefixPaths(bucket, prefix)).length;
+      } catch (_err) {
         results.push({
           bucket: resource.bucket,
           prefixHash: shortUserId(userId),
@@ -267,7 +325,6 @@ async function enumerateOwnedStorage(
         });
         continue;
       }
-      const objectCount = (data ?? []).filter((i) => i?.name).length;
       results.push({
         bucket: resource.bucket,
         prefixTemplate: prefix.includes(userId)

@@ -18,24 +18,68 @@ const {
   verifyDeletionCompleteness,
 } = require('../scripts/process-deletion-request');
 
-function createStorageMock(filesByPrefix = {}) {
+// Behavioral storage mock. `referencedPaths` are dressing_room_items.storage_path
+// values that must be preserved (rows that survive the purge via room transfer);
+// the mock exposes a matching `from('dressing_room_items')` reference query so
+// deleteOwnedStorageObjects' cross-user protection is actually exercised, not
+// stubbed away. remove() mutates the backing store and returns the removed
+// objects (mirroring real Supabase), so the P2-5 partial-removal re-list is
+// exercised realistically rather than falsely triggered.
+function createStorageMock(filesByPrefix = {}, referencedPaths = []) {
   const removed = [];
   const listed = [];
+  const store = {};
+  for (const [prefix, items] of Object.entries(filesByPrefix)) {
+    store[prefix] = items.map((i) => ({ ...i }));
+  }
+  const referencedSet = new Set(referencedPaths);
 
   return {
     removed,
     listed,
+    referencedSet,
     client: {
+      from(table) {
+        // Only dressing_room_items is queried by the reference check.
+        const rows = table === 'dressing_room_items'
+          ? [...referencedSet].map((storage_path) => ({ storage_path }))
+          : [];
+        const builder = {
+          select() { return builder; },
+          like(_col, pattern) {
+            const prefix = String(pattern).replace(/%$/, '');
+            builder._rows = rows.filter((r) => String(r.storage_path).startsWith(prefix));
+            return builder;
+          },
+          range(from, to) {
+            const slice = (builder._rows ?? rows).slice(from, to + 1);
+            return Promise.resolve({ data: slice, error: null });
+          },
+        };
+        return builder;
+      },
       storage: {
         from(bucket) {
           return {
             async list(prefix) {
               listed.push({ bucket, prefix });
-              return { data: filesByPrefix[prefix] ?? [], error: null };
+              return { data: store[prefix] ?? [], error: null };
             },
             async remove(paths) {
               removed.push({ bucket, paths });
-              return { data: [], error: null };
+              const removedObjects = [];
+              for (const p of paths) {
+                const slash = p.lastIndexOf('/');
+                const prefix = p.slice(0, slash);
+                const name = p.slice(slash + 1);
+                const bucketList = store[prefix] ?? [];
+                const idx = bucketList.findIndex((i) => i.name === name);
+                if (idx >= 0) {
+                  removedObjects.push({ name });
+                  bucketList.splice(idx, 1);
+                }
+              }
+              return { data: removedObjects, error: null };
             },
           };
         },
@@ -115,6 +159,15 @@ function createSupabaseMock(options = {}) {
                 count: residualTables[table] ?? data.length,
               };
               return makeThenable(base);
+            },
+            // Reference-check query used by deleteOwnedStorageObjects:
+            // .select('storage_path').like('storage_path', '<prefix>%').range(...)
+            like() {
+              return {
+                range() {
+                  return Promise.resolve({ data: [], error: null });
+                },
+              };
             },
           };
         },
@@ -228,6 +281,39 @@ test('deleteOwnedStorageObjects removes only known user-owned storage prefixes',
   );
   assert.equal(results.filter((entry) => entry.status === 'removed').length, 2);
   assert.ok(storage.listed.every((entry) => entry.bucket === 'style-library-images'));
+});
+
+test('deleteOwnedStorageObjects preserves a scan image still referenced by a transferred room (P1-2)', async () => {
+  const userId = 'user-123';
+  const referenced = `${userId}/scans/shared-in-room.jpg`;
+  const storage = createStorageMock(
+    {
+      [`${userId}/scans`]: [{ name: 'shared-in-room.jpg' }, { name: 'private.jpg' }],
+      [`${userId}/inspirations`]: [{ name: 'inspo.jpg' }],
+    },
+    // dressing_room_items row that survives via room transfer still points here:
+    [referenced],
+  );
+
+  const results = await deleteOwnedStorageObjects(storage.client, userId);
+
+  const removedPaths = storage.removed.flatMap((e) => e.paths);
+  assert.ok(!removedPaths.includes(referenced), 'referenced (transferred-room) object must NOT be deleted');
+  assert.ok(removedPaths.includes(`${userId}/scans/private.jpg`), 'unreferenced object must be deleted');
+  assert.ok(removedPaths.includes(`${userId}/inspirations/inspo.jpg`), 'inspiration object must be deleted');
+  const scansResult = results.find((r) => r.prefix.endsWith('/scans'));
+  assert.equal(scansResult.retainedReferenced, 1);
+});
+
+test('deleteOwnedStorageObjects fails closed when the reference check errors (P1-2)', async () => {
+  const userId = 'user-err';
+  const storage = createStorageMock({ [`${userId}/scans`]: [{ name: 'a.jpg' }] });
+  // Force the reference query to error.
+  storage.client.from = () => ({
+    select: () => ({ like: () => ({ range: () => Promise.resolve({ data: null, error: { message: 'boom' } }) }) }),
+  });
+  await assert.rejects(() => deleteOwnedStorageObjects(storage.client, userId), /reference check failed/);
+  assert.equal(storage.removed.length, 0, 'nothing may be removed when references cannot be determined');
 });
 
 test('deleteDirectUserRows deletes explicit non-cascade resources by user id', async () => {
