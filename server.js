@@ -1,6 +1,12 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
+const {
+  secretsMatch,
+  validateWaitlistWelcomeRequest,
+  validateAccountDeletionRestorationRequest,
+  sendWaitlistWelcomeEmail,
+  sendAccountDeletionRestorationEmail,
+} = require('./services/transactionalEmail');
 
 require('dotenv').config();
 
@@ -80,6 +86,24 @@ function loadCatalog() {
 }
 
 const CATALOG = loadCatalog();
+
+// Demo/synthetic catalog rows must not surface in release builds. They are
+// preserved in data/catalog.json for local layout testing and can be re-enabled
+// server-side by setting INCLUDE_DEMO_CATALOG=true.
+const INCLUDE_DEMO_CATALOG = process.env.INCLUDE_DEMO_CATALOG === 'true';
+
+function isDemoCatalogProduct(product) {
+  if (!product || typeof product !== 'object' || Array.isArray(product)) return false;
+  const id = String(product.id || '').toLowerCase();
+  const retailer = String(product.retailer || '').toLowerCase();
+  const name = String(product.name || product.title || product.displayName || '').toLowerCase();
+  return (
+    id.startsWith('demo-') ||
+    retailer.includes('k-scan demo') ||
+    retailer.includes('k scan demo') ||
+    name.includes('demo catalog')
+  );
+}
 
 const IMAGE_PLACEHOLDER_CATEGORIES = new Set([
   'footwear',
@@ -598,7 +622,8 @@ function matchProducts(metadata, options = {}) {
   const eligibleCatalog = requestedCategory
     ? CATALOG.filter((product) => imageCategoryForProduct(product) === requestedCategory)
     : CATALOG;
-  const catalogForScoring = eligibleCatalog.length > 0 ? eligibleCatalog : CATALOG;
+  const catalogForScoring = (eligibleCatalog.length > 0 ? eligibleCatalog : CATALOG)
+    .filter((product) => INCLUDE_DEMO_CATALOG || !isDemoCatalogProduct(product));
 
   // itemKeywords drawn from allKeywords so normalization activates category filter.
   // e.g. AI says "outerwear" → expands to ["jacket","coat"] → category filter fires.
@@ -1189,13 +1214,79 @@ function parseAIResponse(rawText, context = {}) {
 // (e.g. the Expo Go deep-link or your hosted frontend domain).
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 app.use(cors({ origin: CORS_ORIGIN }));
-app.use(
-  '/catalog-images',
-  express.static(path.join(__dirname, 'assets', 'catalog-images'), {
-    immutable: true,
-    maxAge: '30d',
-  }),
+app.all('/catalog-images/*', (_req, res) => res.status(410).json({
+  status: 'FAILED',
+  error: 'LEGACY_CATALOG_DISABLED',
+}));
+
+// Permanent tombstone for the retired public analysis surface. Keep this before
+// JSON parsing so request bodies are neither parsed nor logged. This handler does
+// not authenticate, invoke a provider, or call next().
+app.all('/api/analyze', (_req, res) => res.status(410).json({
+  status: 'FAILED',
+  error: 'LEGACY_ANALYZE_DISABLED',
+  message: 'This legacy analysis route is no longer available.',
+}));
+
+function requireInternalEmailAuth(req, res, next) {
+  const configuredSecret = process.env.KSCAN_EMAIL_INTERNAL_SECRET;
+  if (!configuredSecret || !process.env.RESEND_API_KEY) {
+    return res.status(503).json({ status: 'error', code: 'EMAIL_SERVICE_NOT_CONFIGURED' });
+  }
+  if (!secretsMatch(req.headers['x-kscan-email-secret'], configuredSecret)) {
+    return res.status(401).json({ status: 'error', code: 'UNAUTHORIZED' });
+  }
+  return next();
+}
+
+app.post(
+  '/internal/email/waitlist-welcome',
+  requireInternalEmailAuth,
+  express.json({ limit: '8kb' }),
+  async (req, res) => {
+    const validated = validateWaitlistWelcomeRequest(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ status: 'error', code: validated.code });
+    }
+    const result = await sendWaitlistWelcomeEmail(validated.value);
+    const statusCode = result.status === 'sent' ? 200 : result.status === 'failed_retryable' ? 503 : 422;
+    return res.status(statusCode).json({ status: result.status, eventType: validated.value.eventType, code: result.code });
+  },
 );
+
+app.use('/internal/email/waitlist-welcome', (error, _req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({ status: 'error', code: 'INVALID_JSON' });
+  }
+  return next(error);
+});
+
+app.post(
+  '/internal/email/account-deletion-restoration',
+  requireInternalEmailAuth,
+  express.json({ limit: '16kb' }),
+  async (req, res) => {
+    const validated = validateAccountDeletionRestorationRequest(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ status: 'error', code: validated.code });
+    }
+    const result = await sendAccountDeletionRestorationEmail(validated.value);
+    const statusCode = result.status === 'sent' ? 200 : result.status === 'failed_retryable' ? 503 : 422;
+    return res.status(statusCode).json({
+      status: result.status,
+      eventType: validated.value.eventType,
+      kind: validated.value.kind,
+      code: result.code,
+    });
+  },
+);
+
+app.use('/internal/email/account-deletion-restoration', (error, _req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({ status: 'error', code: 'INVALID_JSON' });
+  }
+  return next(error);
+});
 
 // Body size: 15 MB hard cap. Raw image from expo-image-manipulator at 1024px
 // JPEG quality 0.7 is ~200–400 KB base64-encoded (~1.3× raw), so 15 MB provides
@@ -1385,7 +1476,9 @@ function validateImageInput(image) {
   return null; // valid
 }
 
-app.post('/api/analyze', async (req, res) => {
+// Historical implementation retained temporarily as non-exported evidence only.
+// It is not registered with Express and cannot receive requests.
+async function retiredAnalyzeHandler(req, res) {
   try {
     console.log('[K-SCAN] /api/analyze hit');
     if (DEBUG) {
@@ -1609,7 +1702,7 @@ app.post('/api/analyze', async (req, res) => {
     console.warn('[K-SCAN] Final response status: 500 FAILED AI_PROVIDER_UNAVAILABLE');
     return res.status(500).json({ status: 'FAILED', error: 'AI_PROVIDER_UNAVAILABLE', message: 'Style-Parse could not complete.' });
   }
-});
+}
 
 if (require.main === module) {
   // Bind to 0.0.0.0 so the server is reachable from:
@@ -1626,6 +1719,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  app,
   parseAIResponse,
   extractMetadataFromProse,
   normalizeAttributeValue,
