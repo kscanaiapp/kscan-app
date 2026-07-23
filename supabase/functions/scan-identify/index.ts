@@ -1533,6 +1533,17 @@ Deno.serve(async (req) => {
   const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
   const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
+  // Server-authoritative pending-deletion guard (defense beyond client routing).
+  if (auth.isAuthenticated && userId) {
+    try {
+      const { assertAccountActive } = await import('../_shared/deletion/common.ts');
+      await assertAccountActive(userId);
+    } catch (guardError) {
+      if (guardError instanceof Response) return guardError;
+      return json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
+    }
+  }
+
   console.log(
     '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
     mode,

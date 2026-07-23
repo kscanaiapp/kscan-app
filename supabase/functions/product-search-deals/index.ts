@@ -94,6 +94,14 @@ Deno.serve(async (req) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
+  {
+    const { assertAccountActiveIfAuthenticated } = await import(
+      '../_shared/deletion/assertAccountActiveIfAuthenticated.ts'
+    );
+    const blocked = await assertAccountActiveIfAuthenticated(req);
+    if (blocked) return blocked;
+  }
+
   // ── Validate secret ─────────────────────────────────────────────────────────
   const apiKey = Deno.env.get('RAPIDAPI_KEY');
   if (!apiKey) {

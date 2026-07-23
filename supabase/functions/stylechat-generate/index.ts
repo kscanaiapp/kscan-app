@@ -494,6 +494,14 @@ Deno.serve(async (req) => {
 
   const userId = user.id;
 
+  try {
+    const { assertAccountActive } = await import('../_shared/deletion/common.ts');
+    await assertAccountActive(userId);
+  } catch (guardError) {
+    if (guardError instanceof Response) return guardError;
+    return json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
+  }
+
   // ── 2. Parse and validate request body ──────────────────────────────────────
 
   let body: {

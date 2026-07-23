@@ -1,73 +1,295 @@
 # K Scan Account Deletion Operations
 
-Last updated: 2026-06-12
+Last updated: 2026-07-22
 
 ## Purpose
 
-This runbook gives the release owner a manual account-erasure path for the current App Store submission build. The app already lets an authenticated user submit an in-app deletion request through the `handle-user-deletion` Edge Function. This runbook covers the operator step that completes the request within the stated 30-day window.
+This runbook covers K Scan AI’s **automatic account-deletion lifecycle**:
 
-## Current Data Map
+1. Verified request → account **deactivated**
+2. **30-day** data preservation + self-service restoration email
+3. Shared Dressing Rooms / share links remain active during grace (binding product decision)
+4. Automatic worker purge after the grace deadline (kill-switch gated)
+5. Manual CLI processor remains as emergency fallback
 
-- `auth.users`: Supabase Auth account record.
-- `public.profiles`: account profile row, references `auth.users(id)` with `on delete cascade`.
-- `public.privacy_settings`: privacy preference row, references `auth.users(id)` with `on delete cascade`.
-- `public.privacy_export_requests`: export request rows, references `auth.users(id)` with `on delete cascade`.
-- `public.privacy_correction_requests`: correction request rows, references `auth.users(id)` with `on delete cascade`.
-- `public.deletion_requests`: deletion request rows, references `auth.users(id)` with `on delete cascade`.
-- Local saved scans: stored in the app sandbox by `expo-file-system`, not in Supabase. Users can remove saved scans in the app before deletion or remove them by uninstalling the app.
+**Automatic claims are not active until the kill switch is explicitly enabled.** Default production state after this migration:
 
-## Intake Behavior
+- `app_config.account_deletion_worker_enabled.enabled = false`
+- `app_config.account_deletion_worker_dry_run.enabled = true`
 
-When the user taps Delete Account in the app, `supabase/functions/handle-user-deletion`:
+## State model
 
-1. Verifies the caller's bearer token with Supabase Auth.
-2. Refuses duplicate open requests for the same account.
-3. Inserts a `deletion_requests` row with status `pending`.
-4. Marks the profile `account_status = 'pending_deletion'`.
-5. Returns the request ID and timestamp to the client.
+| Status | Meaning |
+|---|---|
+| `deactivated` | Grace period active; data retained; account blocked from normal features |
+| `restored` | User restored via email token; account active again |
+| `purging` | Worker holds a lease and is deleting |
+| `purged` | Hard delete finished; Auth user gone; request row survives with `user_id` null |
+| `failed` | Retries exhausted |
+| `legal_hold` / `legal_hold_until` | Scheduler must not claim |
 
-The app then shows a native confirmation alert before sign-out. On future sign-in, pending or locked accounts are limited to Privacy controls and cannot continue to scan or library routes.
+Legacy statuses `pending` / `processing` may still appear on historical rows until backfill.
 
-## Manual Processing Command
+### Timing fields
 
-Use the tracked processor script from the mobile repo. It defaults to dry-run and requires an explicit confirmation flag before deleting anything.
+- `requested_at`, `deactivated_at`
+- `grace_period_ends_at = requested_at + 30 days` (new requests)
+- Restoration token expires **exactly** at `grace_period_ends_at`
+- Worker lease: `worker_id`, `worker_lease_expires_at`, `worker_heartbeat_at`
 
-```powershell
-$env:SUPABASE_URL="https://<project-ref>.supabase.co"
-$env:SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
+### Surviving lifecycle record
 
-node scripts/process-deletion-request.js --list-pending
-node scripts/process-deletion-request.js --request-id "<request-id>"
-node scripts/process-deletion-request.js --request-id "<request-id>" --confirm-delete --output-dir "qa/deletion-processing"
+`deletion_requests.user_id` is **nullable** with `ON DELETE SET NULL`.
+
+After Auth deletion the row remains with:
+
+- `subject_ref` (opaque durable id)
+- `status = purged`, `purged_at`, `processed_at`
+- no email, no restoration token, no raw user id requirement
+
+Append-only ledger: `deletion_state_transitions` (no Auth FK; service-role insert only).
+
+## Request intake
+
+Edge Function: `handle-user-deletion`
+
+- Auth via verified JWT (`auth.getUser`); never trusts client user id
+- Creates one active lifecycle (`deactivated`)
+- Sets `profiles.account_status = pending_deletion`
+- Generates hashed restoration token
+- Sends restoration email via **Render transactional email** (`POST /internal/email/account-deletion-restoration`) using `KSCAN_EMAIL_INTERNAL_SECRET` (not direct Resend from Edge)
+- Revokes sessions (`auth.admin.signOut(jwt,'global')` + `revoke_user_sessions` RPC)
+- Idempotent on duplicate active request
+- Does **not** revoke Dressing Room share links during grace
+
+Response shape:
+
+```json
+{
+  "status": "deactivated",
+  "requestedAt": "...",
+  "gracePeriodEndsAt": "...",
+  "restorationEmailQueued": true
+}
 ```
 
-You may use `--user-id "<auth-user-id>"` instead of `--request-id` when working from a support ticket that records the Supabase user ID.
+## Restoration
 
-## Operator Checklist
+- URL: `https://kscan.app/account/restore?token=<opaque>`
+- Endpoint: `restore-account` (POST `{ "token": "..." }`)
+- Atomic RPC `restore_account_by_token_hash` races safely against worker claim
+- Single-use; expires at grace deadline
+- Resend: `resend-restoration-email` (POST `{ "email": "..." }`) — generic response; max 3 / 24h; does not extend deadline
 
-1. Confirm the request came from the authenticated in-app deletion path or a matching support ticket.
-2. Run a dry-run for the request and review the user ID, email, request timestamp, and linked row counts.
-3. Confirm no legal hold, fraud/security exception, or billing obligation applies. This release has no in-app purchases or subscriptions.
-4. Run with `--confirm-delete`.
-5. Save the generated audit JSON path or terminal output in the support ticket.
-6. Reply to the user, if contact is available, that the account deletion request has been processed.
+## Account deactivation enforcement
 
-## What The Processor Does
+Server guard: `assertAccountActive(userId)` in `_shared/deletion/common.ts`
 
-On confirmed processing, `scripts/process-deletion-request.js`:
+Wired into authenticated mutation / paid-provider entry points including:
 
-1. Marks the deletion request `processing`.
-2. Locks the profile with `account_status = 'pending_deletion'` and `account_locked_at`.
-3. Calls `supabase.auth.admin.deleteUser(user_id)`.
-4. Relies on the schema's `on delete cascade` foreign keys to remove the user's linked public rows.
-5. Optionally writes a local audit JSON file outside the app data path.
+- `scan-identify`
+- `stylechat-generate`
+- `tryon-clothes-pro` / `product-search-deals` / `search-vinted-secondhand` (when JWT present)
 
-Because `deletion_requests` currently cascades from `auth.users`, the request row is expected to be removed with the Auth user. Keep the generated audit JSON or support-ticket note as the operational completion record.
+Returns `403 ACCOUNT_DEACTIVATED`. Fail closed if status cannot be determined.
 
-## App Review Statement
+Client routing remains defense-in-depth only.
 
-For App Review notes, use wording like:
+## Worker
 
-> Users can request account deletion in the app from Privacy > Delete Account. The request is recorded server-side, the account is marked pending deletion, and pending-deletion accounts are blocked from normal app use. K Scan processes deletion requests manually using a service-role Supabase operator script and completes eligible requests within 30 days.
+Edge Function: `process-account-deletions`
 
-Do not claim instant deletion or automated downstream erasure until a production job replaces this manual process and has been verified.
+### Authorization
+
+Requires dedicated secret `ACCOUNT_DELETION_WORKER_SECRET` via header:
+
+`x-deletion-worker-secret: <secret>`
+
+Anon key is rejected. Do not commit the secret.
+
+### Kill switch / dry-run
+
+Checked on every invocation / before claim:
+
+| Key | Default | Effect |
+|---|---|---|
+| `account_deletion_worker_enabled` | `false` | Prevents new claims |
+| `account_deletion_worker_dry_run` | `true` | Preview only; no purging transition |
+| `DELETION_WORKER_DRY_RUN=true` | env | Forces dry-run |
+
+In-flight `purging` work may finish; kill switch only blocks **new** claims.
+
+### Claim / lease
+
+- RPC `claim_deletion_requests_for_purge` (`FOR UPDATE SKIP LOCKED`)
+- Batch size 5
+- Heartbeat via `heartbeat_deletion_request_lease` (5 minutes)
+- Retries: 1h → 4h → 12h → 24h → 48h; max 5 attempts → `failed`
+
+### Final order
+
+1. Own valid lease + grace passed + not restored + no legal hold  
+2. Revoke sessions  
+3. Direct-delete non-cascade rows  
+4. Transfer shared rooms  
+5. Delete owned Storage prefixes  
+6. Verify registry coverage (incl. seven added tables)  
+7. Append `AUTH_DELETE_STARTED`  
+8. Delete Auth user last (idempotent if already gone)  
+9. Confirm request row survived (`user_id` null)  
+10. Mark `purged` + ledger `PURGED`
+
+## Seven-table registry additions
+
+Authoritative registry: `lib/account-deletion/user-data-resources.json`  
+Deno mirror: `supabase/functions/_shared/deletion/userDataResources.ts`  
+Parity test fails CI on drift.
+
+| Table | Ownership column |
+|---|---|
+| `user_stylist_preferences` | `user_id` |
+| `dressing_room_collab_idempotency` | `actor_id` |
+| `shared_room_memberships` | `recipient_user_id` |
+| `outfit_decision_votes` | `user_id` |
+| `stylechat_quota_events` | `user_id` |
+| `style_outfit_burst_usage` | `user_id` |
+| `style_outfit_daily_usage` | `user_id` |
+
+These cascade on Auth delete; they are registered so verification is not blind.
+
+## Manual CLI fallback
+
+```bash
+node scripts/process-deletion-request.js --list-pending
+node scripts/process-deletion-request.js --request-id <uuid> --dry-run
+node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete --verify
+```
+
+Dry-run by default. Requires `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
+
+## Existing tester backfill (6 pending rows)
+
+### Preview (read-only)
+
+```bash
+node scripts/preview-deletion-backfill.js
+# or SQL: select * from public.preview_pending_deletion_backfill();
+```
+
+Deadline rule (runtime `now()`):
+
+```sql
+greatest(requested_at + interval '30 days', now() + interval '7 days')
+```
+
+Never shortens the original 30-day deadline.
+
+### Apply (explicit confirm)
+
+```bash
+node scripts/apply-deletion-backfill.js --confirm-backfill [--write-tokens-file <path>]
+```
+
+Then send restoration emails (Resend / resend function). Do **not** enable the kill switch until:
+
+1. Preview reviewed  
+2. Backfill applied  
+3. Restoration emails sent  
+4. One restoration production-verified  
+5. Worker dry-run output reviewed  
+
+## Scheduler
+
+`pg_cron` is **not** installed on production. Prefer Supabase Dashboard → Edge Functions → Schedules:
+
+- Function: `process-account-deletions`
+- Cron: `0 * * * *` (hourly)
+- Header: `x-deletion-worker-secret: <ACCOUNT_DELETION_WORKER_SECRET>`
+
+Start with kill switch **OFF** and dry-run **ON**.
+
+## Legal hold
+
+```sql
+-- Apply hold (service role / SQL editor)
+update public.deletion_requests
+set legal_hold_until = now() + interval '90 days',
+    status = 'legal_hold',
+    updated_at = now()
+where id = '<request_id>';
+
+select public.append_deletion_state_transition(
+  '<request_id>', '<subject_ref>', 'deactivated', 'legal_hold', 'admin', 'ops', 'LEGAL_HOLD', '{}'::jsonb
+);
+
+-- Clear hold
+update public.deletion_requests
+set legal_hold_until = null,
+    status = 'deactivated',
+    updated_at = now()
+where id = '<request_id>';
+```
+
+Holds do not reactivate the account. Users must not see investigation details.
+
+## Monitoring (structured logs)
+
+Events: `deletion_request_accepted`, `session_revocation_*`, `restoration_*`, `worker_invocation`, `worker_claim`, `purge_success`, `purge_failure`, `kill_switch_skip`, `resend_*`.
+
+Alert candidates:
+
+- `purging` > 1 hour / expired lease while `purging`
+- attempt_count exhausted (`failed`)
+- deadline passed but never claimed
+- restoration email repeatedly failing
+- scheduler silence (no hourly invocation)
+
+## Rollback (non-destructive)
+
+1. Set `account_deletion_worker_enabled.enabled = false`
+2. Set `account_deletion_worker_dry_run.enabled = true`
+3. Disable Dashboard schedule
+4. Roll back Edge Function versions if needed
+5. Request intake / restoration can remain available
+
+Do **not** attempt to roll back a completed hard deletion.
+
+## Email provider
+
+Smallest approved path: **Supabase Edge → Render `/internal/email/account-deletion-restoration` → Resend**.
+
+Required Edge secrets:
+
+| Secret | Purpose |
+|---|---|
+| `KSCAN_EMAIL_RENDER_URL` | Base URL only (`https://kscan-app-1.onrender.com`) |
+| `KSCAN_EMAIL_INTERNAL_SECRET` | Same value as Render `KSCAN_EMAIL_INTERNAL_SECRET` |
+| `ACCOUNT_DELETION_WORKER_SECRET` | Worker / scheduler auth |
+| `ACCOUNT_RESTORATION_BASE_URL` | Optional; default `https://kscan.app/account/restore` |
+
+Do **not** put `RESEND_API_KEY` on Supabase for deletion mail. Resend stays on Render only.
+
+If unset, request still succeeds; `restorationEmailQueued` is false and ops must deliver tokens via backfill file / support process.
+
+## Secrets checklist
+
+| Secret | Where |
+|---|---|
+| `ACCOUNT_DELETION_WORKER_SECRET` | Edge Function secrets |
+| `KSCAN_EMAIL_RENDER_URL` | Edge Function secrets |
+| `KSCAN_EMAIL_INTERNAL_SECRET` | Edge Function secrets (matches Render) |
+| `RESEND_API_KEY` | Render only |
+| `SUPABASE_SERVICE_ROLE_KEY` | Edge runtime (existing) |
+| Service role for CLI | Operator environment only |
+
+## Production release gates
+
+Do not claim **PASS — AUTOMATIC DELETION ACTIVE** until:
+
+1. Migration applied  
+2. Functions deployed  
+3. Restoration verified in production  
+4. Dry-run worker observed  
+5. Kill switch explicitly enabled by an authorized operator  
+
+Until then the correct verdict is **PASS — DEPLOYED, AUTOMATIC CLAIMS HELD OFF BY KILL SWITCH** (or conditional if deploy pending).

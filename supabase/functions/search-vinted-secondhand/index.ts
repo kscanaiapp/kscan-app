@@ -262,6 +262,14 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
+  {
+    const { assertAccountActiveIfAuthenticated } = await import(
+      '../_shared/deletion/assertAccountActiveIfAuthenticated.ts'
+    );
+    const blocked = await assertAccountActiveIfAuthenticated(req);
+    if (blocked) return blocked;
+  }
+
   if (!isEnabled()) {
     return json(response(false, [], undefined, 'FEATURE_DISABLED'));
   }

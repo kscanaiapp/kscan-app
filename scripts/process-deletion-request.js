@@ -1,27 +1,60 @@
 #!/usr/bin/env node
 
+// Thin CLI wrapper around the runtime-neutral hard-delete pipeline in
+// lib/account-deletion/. This file stays CommonJS so the existing Node test
+// suite (which uses require()) keeps working unchanged. The registry
+// (USER_DATA_RESOURCES/STORAGE_RESOURCES) is loaded synchronously from the
+// single JSON-backed source via lib/account-deletion/loadRegistry.cjs. The
+// async pipeline functions (which were already awaited everywhere they are
+// used) are lazily bridged to their ESM implementations in
+// lib/account-deletion/processorCore.mjs via dynamic import() - this keeps
+// exactly one implementation of the deletion logic while still exposing a
+// synchronous require()-able CJS interface for the CLI and tests.
+
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const OPEN_STATUSES = ['pending', 'processing'];
-const COUNT_TABLES = [
-  'profiles',
-  'privacy_settings',
-  'privacy_export_requests',
-  'privacy_correction_requests',
-  'deletion_requests',
-];
+const { loadRegistry } = require('../lib/account-deletion/loadRegistry.cjs');
+
+const {
+  USER_DATA_RESOURCES,
+  STORAGE_RESOURCES,
+  SHARED_ROOM_TRANSFER_POLICY,
+  REQUIRED_REGISTRY_TABLES,
+} = loadRegistry();
+
+// Legacy statuses ('pending', 'processing') are the original request-based
+// model. 'deactivated'/'purging' are the new grace-period lifecycle states.
+// Both are "open" for the CLI's list/get/process operations.
+const OPEN_STATUSES = ['pending', 'processing', 'deactivated', 'purging'];
+
+let corePromise;
+function loadCore() {
+  if (!corePromise) {
+    corePromise = import('../lib/account-deletion/processorCore.mjs');
+  }
+  return corePromise;
+}
+
+let helpersPromise;
+function loadHelpers() {
+  if (!helpersPromise) {
+    helpersPromise = import('../lib/account-deletion/helpers.mjs');
+  }
+  return helpersPromise;
+}
 
 function printHelp() {
   console.log(`K Scan account deletion processor
 
 Usage:
   node scripts/process-deletion-request.js --list-pending
-  node scripts/process-deletion-request.js --request-id <uuid> [--dry-run]
-  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete
-  node scripts/process-deletion-request.js --user-id <uuid> [--dry-run]
-  node scripts/process-deletion-request.js --user-id <uuid> --confirm-delete
+  node scripts/process-deletion-request.js --request-id <uuid> [--dry-run] [--output-dir <path>]
+  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete [--output-dir <path>]
+  node scripts/process-deletion-request.js --request-id <uuid> --confirm-delete --verify [--output-dir <path>]
+  node scripts/process-deletion-request.js --user-id <uuid> [--dry-run] [--output-dir <path>]
+  node scripts/process-deletion-request.js --user-id <uuid> --confirm-delete [--output-dir <path>]
 
 Environment:
   SUPABASE_URL
@@ -30,7 +63,8 @@ Environment:
 Safety:
   The command is dry-run by default. It only deletes the Supabase Auth user when
   --confirm-delete is present. Deleting the auth user cascades the local public
-  rows that reference auth.users(id).
+  rows that reference auth.users(id). Use --verify to run a read-only
+  completeness check after a confirmed deletion.
 `);
 }
 
@@ -53,7 +87,13 @@ function parseArgs(argv) {
     outputDir: null,
     requestId: null,
     userId: null,
+    verify: false,
   };
+
+  const destructiveFlagOccurrences = argv.filter((arg) => arg === '--confirm-delete' || arg === '--dry-run').length;
+  if (destructiveFlagOccurrences > 1) {
+    throw new Error('--confirm-delete and --dry-run are mutually exclusive');
+  }
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -92,6 +132,9 @@ function parseArgs(argv) {
         options.userId = takeValue(argv, i, arg);
         i += 1;
         break;
+      case '--verify':
+        options.verify = true;
+        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -117,6 +160,8 @@ function requireEnv(name) {
   return value;
 }
 
+// The service-role key is required for all deletion operations. The anon key
+// must never be used here because it cannot delete storage objects or auth users.
 function createSupabaseAdminClient() {
   return createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_SERVICE_ROLE_KEY'), {
     auth: {
@@ -126,16 +171,23 @@ function createSupabaseAdminClient() {
   });
 }
 
+// shortUserId/appendNote are trivial, dependency-free helpers that are also
+// exported here for CJS test compatibility, so they are kept as real
+// synchronous functions (mirroring lib/account-deletion/helpers.mjs) rather
+// than bridged through a dynamic import - callers rely on them returning a
+// value immediately, not a Promise.
+function shortUserId(userId) {
+  return typeof userId === 'string' && userId.length > 8 ? `${userId.slice(0, 8)}...` : 'unknown';
+}
+
 function appendNote(existing, note) {
   const trimmed = typeof existing === 'string' ? existing.trim() : '';
   return trimmed ? `${trimmed}\n${note}` : note;
 }
 
 async function failIfError(result, label) {
-  if (result.error) {
-    throw new Error(`${label}: ${result.error.message}`);
-  }
-  return result;
+  const helpers = await loadHelpers();
+  return helpers.failIfError(result, label);
 }
 
 async function listPendingRequests(supabase, limit) {
@@ -170,45 +222,39 @@ async function getOpenRequest(supabase, options) {
   return request;
 }
 
-async function maybeSingle(supabase, table, select, column, value) {
-  const result = await supabase.from(table).select(select).eq(column, value).maybeSingle();
-  return (await failIfError(result, `fetch ${table}`)).data ?? null;
-}
-
-async function countRows(supabase, table, column, value) {
-  const result = await supabase.from(table).select('*', { count: 'exact', head: true }).eq(column, value);
-  return (await failIfError(result, `count ${table}`)).count ?? 0;
-}
+// --- Bridged pipeline functions -------------------------------------------
+// Each of these was already async/awaited everywhere it is called, so
+// delegating to the single ESM implementation in processorCore.mjs via a
+// lazily-cached dynamic import() is transparent to callers and to tests.
 
 async function buildDeletionSummary(supabase, request) {
-  const userId = request.user_id;
-  const [profile, authUserResult, counts] = await Promise.all([
-    maybeSingle(
-      supabase,
-      'profiles',
-      'id,email,account_status,account_locked_at,deletion_requested_at',
-      'id',
-      userId,
-    ),
-    supabase.auth.admin.getUserById(userId),
-    Promise.all(COUNT_TABLES.map(async (table) => [table, await countRows(supabase, table, table === 'profiles' ? 'id' : 'user_id', userId)])),
-  ]);
+  const core = await loadCore();
+  return core.buildDeletionSummary(supabase, request);
+}
 
-  if (authUserResult.error) {
-    throw new Error(`fetch auth user: ${authUserResult.error.message}`);
-  }
+async function deleteDirectUserRows(supabase, userId) {
+  const core = await loadCore();
+  return core.deleteDirectUserRows(supabase, userId);
+}
 
-  return {
-    request,
-    user: {
-      id: userId,
-      email: profile?.email ?? authUserResult.data?.user?.email ?? null,
-      authUserExists: Boolean(authUserResult.data?.user),
-      profile,
-    },
-    linkedRowCounts: Object.fromEntries(counts),
-    localDeviceDataNote: 'Saved scan thumbnails live in the app sandbox and are removed by in-app delete or app uninstall; they are not server-side Supabase rows.',
-  };
+async function deleteOwnedStorageObjects(supabase, userId) {
+  const core = await loadCore();
+  return core.deleteOwnedStorageObjects(supabase, userId);
+}
+
+async function getSharedRoomsForUser(supabase, userId) {
+  const core = await loadCore();
+  return core.getSharedRoomsForUser(supabase, userId);
+}
+
+async function transferSharedRoomOwnership(supabase, userId) {
+  const core = await loadCore();
+  return core.transferSharedRoomOwnership(supabase, userId);
+}
+
+async function verifyDeletionCompleteness(supabase, userId) {
+  const core = await loadCore();
+  return core.verifyDeletionCompleteness(supabase, userId);
 }
 
 async function writeAuditFile(outputDir, payload) {
@@ -222,56 +268,133 @@ async function writeAuditFile(outputDir, payload) {
   return fullPath;
 }
 
+// Best-effort post-purge bookkeeping. deletion_requests now survives the
+// Auth user deletion (its FK is ON DELETE SET NULL, not CASCADE - see
+// lib/account-deletion/user-data-resources.json), so once the hard-delete
+// pipeline finishes we mark the surviving row purged. This must never fail
+// the overall deletion: legacy schemas may not have the new worker columns
+// yet, and the row may already be gone under the old CASCADE FK.
+async function markRequestPurged(supabase, request) {
+  const purgedAt = new Date().toISOString();
+  const fullPayload = {
+    status: 'purged',
+    purged_at: purgedAt,
+    processed_at: purgedAt,
+    claimed_by: null,
+    claimed_at: null,
+  };
+
+  try {
+    const result = await supabase.from('deletion_requests').update(fullPayload).eq('id', request.id).select('id');
+    if (!result.error) return;
+
+    const message = String(result.error.message ?? '');
+    if (/column|schema cache|PGRST204|does not exist/i.test(message)) {
+      // Legacy schema without the new worker columns yet - fall back to the
+      // minimal update so the request is still marked complete.
+      await supabase
+        .from('deletion_requests')
+        .update({ status: 'purged', processed_at: purgedAt })
+        .eq('id', request.id)
+        .select('id');
+    } else {
+      console.warn(`[process-deletion-request] mark_purged_failed: ${message}`);
+    }
+  } catch (error) {
+    console.warn(
+      `[process-deletion-request] mark_purged_best_effort_failed: ${error instanceof Error ? error.message : error}`,
+    );
+  }
+}
+
 async function processDeletionRequest(supabase, request, options) {
+  const core = await loadCore();
   const startedAt = new Date().toISOString();
   const note = `Manual deletion processor started at ${startedAt}.`;
+  const safeUserId = shortUserId(request.user_id);
 
-  await failIfError(
-    await supabase
-      .from('deletion_requests')
-      .update({
-        status: 'processing',
-        notes: appendNote(request.notes, note),
-      })
-      .eq('id', request.id),
-    'mark deletion request processing',
-  );
+  // Deletion order (see docs/account-deletion-operations.md):
+  // 1. Mark request processing and lock the profile.
+  // 2. Direct-delete non-cascade rows first to avoid FK errors later.
+  // 3. Transfer shared dressing rooms so other participants keep their data.
+  // 4. Delete owned storage objects.
+  // 5. Delete the Supabase Auth user last so auth FK cascades clean up the rest.
+  // 6. Mark the surviving deletion_requests row purged (best-effort).
 
-  await failIfError(
-    await supabase
-      .from('profiles')
-      .update({
-        account_status: 'pending_deletion',
-        account_locked_at: startedAt,
-        deletion_requested_at: request.requested_at,
-      })
-      .eq('id', request.user_id),
-    'lock profile before auth deletion',
-  );
-
-  const deleteResult = await supabase.auth.admin.deleteUser(request.user_id);
-  if (deleteResult.error) {
-    throw new Error(`delete auth user: ${deleteResult.error.message}`);
+  const markProcessingResult = await supabase
+    .from('deletion_requests')
+    .update({
+      status: 'processing',
+      notes: appendNote(request.notes, note),
+    })
+    .eq('id', request.id)
+    .select('id');
+  await failIfError(markProcessingResult, 'mark deletion request processing');
+  if (!Array.isArray(markProcessingResult.data) || markProcessingResult.data.length !== 1) {
+    throw new Error('mark deletion request processing did not update exactly one open request');
   }
 
+  const lockProfileResult = await supabase
+    .from('profiles')
+    .update({
+      account_status: 'pending_deletion',
+      account_locked_at: startedAt,
+      deletion_requested_at: request.requested_at,
+    })
+    .eq('id', request.user_id)
+    .select('id');
+  await failIfError(lockProfileResult, 'lock profile before auth deletion');
+  if (!Array.isArray(lockProfileResult.data) || lockProfileResult.data.length !== 1) {
+    throw new Error('lock profile before auth deletion did not update exactly one profile');
+  }
+
+  const pipelineResult = await core.runHardDeletePipeline(supabase, request, {
+    afterAuthDelete: (client, req) => markRequestPurged(client, req),
+  });
+
+  const { authUserDeleted, summary, directDeletionResults, roomTransferResults, storageResults } = pipelineResult;
+
   const completedAt = new Date().toISOString();
+
   const auditPayload = {
     completedAt,
     deletionRequestId: request.id,
     requestedAt: request.requested_at,
     requestSource: request.request_source,
-    userId: request.user_id,
-    note: 'Supabase Auth user deleted. Public rows with auth.users(id) foreign keys are expected to cascade.',
+    userId: safeUserId,
+    authUserDeleted,
+    summary,
+    roomTransferResults,
+    storageResults,
+    directDeletionResults,
+    deletionCoverage: USER_DATA_RESOURCES.map(({ table, column, action, optional }) => ({
+      table,
+      column,
+      action,
+      optional: Boolean(optional),
+    })),
+    note: 'Shared rooms were transferred to the earliest remaining active participant before auth deletion. Supabase Auth user was deleted last; public rows with auth.users(id) foreign keys cascade. Known non-cascade rows and owned storage prefixes were handled first. deletion_requests survives the auth delete (ON DELETE SET NULL) and was marked purged.',
   };
   const auditFile = await writeAuditFile(options.outputDir, auditPayload);
 
-  return {
+  const result = {
     status: 'completed',
     completedAt,
     deletionRequestId: request.id,
-    userId: request.user_id,
+    userId: safeUserId,
+    authUserDeleted,
+    summary,
+    roomTransferResults,
+    storageResults,
+    directDeletionResults,
     auditFile,
   };
+
+  if (options.verify) {
+    result.verification = await verifyDeletionCompleteness(supabase, request.user_id);
+  }
+
+  return result;
 }
 
 async function main(argv = process.argv.slice(2)) {
@@ -314,6 +437,18 @@ if (require.main === module) {
 
 module.exports = {
   appendNote,
+  buildDeletionSummary,
+  deleteDirectUserRows,
+  deleteOwnedStorageObjects,
+  getSharedRoomsForUser,
+  OPEN_STATUSES,
   parseArgs,
   processDeletionRequest,
+  REQUIRED_REGISTRY_TABLES,
+  SHARED_ROOM_TRANSFER_POLICY,
+  shortUserId,
+  STORAGE_RESOURCES,
+  transferSharedRoomOwnership,
+  USER_DATA_RESOURCES,
+  verifyDeletionCompleteness,
 };

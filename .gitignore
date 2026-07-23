@@ -106,3 +106,12 @@ kickscrew-test.json
 nike-shoe-test*.json
 product-search-test.json
 product-search-response.json
+
+.deletion-worker-secret.local
+_migration_payload.json
+
+
+qa/deletion-backfill/
+.deletion-worker-secret.local
+_audit_snapshots/
+
