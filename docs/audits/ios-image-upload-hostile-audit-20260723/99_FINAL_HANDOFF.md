@@ -9,8 +9,8 @@
 | Starting branch | `fix/ios-v15-image-upload-regression` |
 | Repair branch | `fix/ios-image-upload-hostile-audit` |
 | Starting / branch-point SHA | `b1ac92c` |
-| Final local SHA | `<recorded in 20 after push>` |
-| Final remote SHA | `<recorded in 20 after push>` |
+| Reports commit SHA (pushed) | `dc021d917a05c7eae87920e0aaa1505e2e34fc6d` |
+| Final local/remote SHA | recorded in `20_COMMIT_AND_PUSH_REPORT.md` (this doc-record commit is the tip) |
 | Worktree status | clean after commit/push |
 
 ## Provenance
