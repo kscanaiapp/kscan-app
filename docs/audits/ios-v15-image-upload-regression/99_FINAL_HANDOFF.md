@@ -23,10 +23,10 @@
 | Scanner impact | Camera + gallery analysis unblocked |
 | Elise impact | Gallery/camera attachment prep unblocked |
 | Dressing Rooms impact | No intentional change; shared inspiration upload path untouched by this repair |
-| Final SHA | _(fill after commit)_ |
-| Remote SHA | _(fill after push)_ |
+| Final SHA | `79f1106addb14537daa8db6119d726997e77085d` |
+| Remote SHA | `cc09b609bf41af45fba1fca452eabee8572406f6` (merged into `integration/ios-v15-second-pass-test-ready`) |
 | Rollback SHA | `d5e19eea984d863182694bee065848efaeab6a7e` |
-| Open gates | Physical iPhone QA matrix; EAS build finish; merge approval |
+| Open gates | Physical iPhone QA matrix; wait for EAS build `94685c6e-2341-4356-89c4-01976c99cbb9` artifact |
 
 ## Phase 0A classification (final)
 

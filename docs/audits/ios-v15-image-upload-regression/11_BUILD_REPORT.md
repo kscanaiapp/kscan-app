@@ -12,15 +12,15 @@
 
 ## Status
 
-Populate after `eas build` / push completes:
-
 | Field | Value |
 |---|---|
-| Local SHA | _(filled at commit)_ |
-| Remote SHA | _(filled after push)_ |
-| EAS Build ID | _(pending)_ |
-| Artifact URL | _(pending)_ |
-| Logs URL | _(pending)_ |
+| Repair commit SHA | `79f1106addb14537daa8db6119d726997e77085d` |
+| Merged remote SHA | `cc09b609bf41af45fba1fca452eabee8572406f6` (`integration/ios-v15-second-pass-test-ready`) |
+| PR | https://github.com/kscanaiapp/kscan-app/pull/37 |
+| EAS Build ID | `94685c6e-2341-4356-89c4-01976c99cbb9` |
+| Logs URL | https://expo.dev/accounts/ams2dad/projects/kscan/builds/94685c6e-2341-4356-89c4-01976c99cbb9 |
+| Artifact URL | pending (build in progress / finishing) |
+| Version / Build Number | 1.0.1 / **16** |
 
 ## Notes
 
