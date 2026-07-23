@@ -21,7 +21,7 @@ const WAITLIST_WELCOME_HTML = `
     `;
 
 const ACCOUNT_DELETION_RESTORATION_EVENT = 'account_deletion_restoration';
-const ACCOUNT_DELETION_RESTORATION_FROM = 'K Scan AI <privacy@kscan.app>';
+const ACCOUNT_DELETION_RESTORATION_FROM = 'K Scan AI <hello@info.kscan.app>';
 const ACCOUNT_DELETION_RESTORATION_REPLY_TO = 'kscanai.app@gmail.com';
 const ACCOUNT_DELETION_KINDS = new Set(['request', 'resend', 'restored']);
 
