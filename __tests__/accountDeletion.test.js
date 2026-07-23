@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   getPendingDeletionRequest,
   submitAccountDeletionRequest,
+  restoreAccountWithToken,
 } = require('../services/accountDeletion');
 
 function createSelectMock({ existing = [] } = {}) {
@@ -75,4 +76,50 @@ test('submitAccountDeletionRequest throws on unexpected empty response', async (
     () => submitAccountDeletionRequest(client, null),
     /Unexpected empty response/,
   );
+});
+
+// Regression tests for Blocker B7 (docs/audits/deletion-hostile-audit-findings-2026-07-22.md):
+// restore-account can return 202 { status: 'restored_pending_unban' } when the DB row is
+// already flipped to 'restored' (token consumed) but the Auth unban failed. Before the fix,
+// restoreAccountWithToken's `data.status !== 'restored'` check treated this as a hard failure
+// and threw a generic "Unable to restore account" -- discarding the real, more accurate
+// message the edge function returned, and giving the caller no way to distinguish "invalid
+// token" from "your data was restored, sign-in just needs a minute."
+const TEST_TOKEN = 'a'.repeat(40);
+
+test('restoreAccountWithToken returns data as-is for status "restored"', async () => {
+  const client = createInvokeMock({
+    fnData: { status: 'restored', restoredAt: '2026-07-23T00:00:00Z', message: 'ok' },
+  });
+  const result = await restoreAccountWithToken(client, TEST_TOKEN);
+  assert.equal(result.status, 'restored');
+});
+
+test('restoreAccountWithToken does not throw for status "restored_pending_unban" (B7)', async () => {
+  const client = createInvokeMock({
+    fnData: {
+      status: 'restored_pending_unban',
+      message: 'Your account data has been restored, but re-enabling sign-in is taking longer than expected.',
+    },
+  });
+  const result = await restoreAccountWithToken(client, TEST_TOKEN);
+  assert.equal(result.status, 'restored_pending_unban');
+  assert.match(result.message, /taking longer than expected/);
+});
+
+test('restoreAccountWithToken still throws for an unrecognized/failed status', async () => {
+  const client = createInvokeMock({
+    fnData: { status: 'error', error: 'Invalid or expired restoration link' },
+  });
+  await assert.rejects(
+    () => restoreAccountWithToken(client, TEST_TOKEN),
+    /Invalid or expired restoration link/,
+  );
+});
+
+test('restoreAccountWithToken rejects a too-short token before calling the edge function', async () => {
+  let invoked = false;
+  const client = { functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } } };
+  await assert.rejects(() => restoreAccountWithToken(client, 'short'), /Invalid restoration token/);
+  assert.equal(invoked, false);
 });
