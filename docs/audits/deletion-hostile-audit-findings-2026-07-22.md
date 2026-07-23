@@ -195,3 +195,48 @@ Repair branch `repair/account-deletion-hostile-audit-20260722` (base `13e9b6a`) 
 - **Supabase migration** `profiles_backfill_and_active_account_hardening` applied to project `wyyuqfdxucjksghsmhry` (KScan App Production). Post-apply: active-auth-users-missing-profile = 0; backfilled user status = active; pending_deletion user unchanged. Rollback: additive/idempotent — the backfill is insert-only, and `is_active_account`/`handle_new_user` are `create or replace` (prior versions recoverable from migration history).
 - **Edge Functions** `scan-identify` (v135→v136) and `stylechat-generate` (v76→v77) redeployed with the hardened `assertAccountActive` (surgical patch onto the exact deployed file trees; other functions untouched). Rollback: redeploy prior version.
 - **Not applied to prod:** the crash-recovery, RLS, and ledger-PII migrations (deletion-behavior changes held for the coordinated lifecycle rollout); Render unchanged; PR #5 not merged/production-deployed.
+
+---
+
+## Round 3 — Production closeout deployment (2026-07-23)
+
+Guardrails throughout: kill switch OFF (`account_deletion_worker_enabled=false`), dry-run ON, scheduler DISABLED, `/api/analyze` 410, Render email-only, no customer account deleted.
+
+### Migrations deployed to production (`wyyuqfdxucjksghsmhry`)
+
+| Migration | Controls | Verify (live schema) |
+|---|---|---|
+| `account_deletion_crash_recovery` | B1 stale-lease reclaim + `reconcile_orphaned_purging_requests`, B2 DB dry-run guard, P1-1 retry `status='purging'` guard, P1-5 `revoke select` | claim/reconcile/schedule are SECURITY DEFINER, service_role-only EXECUTE; `deletion_requests` SELECT revoked from anon+authenticated |
+| `account_deletion_rls_active_account` | B5 restrictive `is_active_account()` on 9 tables | all 9 tables have the restrictive guard; active owner sees 4 own rooms / 0 others'; deactivated owner sees 0 |
+| `deletion_ledger_pii_sanitizer` | P2-9 email-value redaction | `append_deletion_state_transition` SECURITY DEFINER, service_role-only |
+| `profiles_backfill_and_active_account_hardening` | P1-10 backfill + trigger + effective-state `is_active_account` | orphan profiles = 0; active/backfilled → true; pending_deletion → false |
+| `harden_deletion_trigger_function_grants` | advisor cleanup (trigger fns no longer anon-RPC-callable) | EXECUTE revoked from public/anon/authenticated on the 2 trigger fns |
+
+Live-schema verification (post-deploy, read-only): active-with-profile → allowed; latest blocking (pending_deletion / deactivated / purging) → denied; latest restored/cancelled supersedes historical blocking → allowed; cross-user access denied; worker RPCs blocked for anon+authenticated; backfill idempotent + non-resetting; no orphaned profile state. Rollback: additive create-or-replace / additive policies; prior bodies recoverable from migration history; no data migration to reverse.
+
+### Edge Functions deployed (all account/deletion-state paths)
+
+| Function | Deployed ver | JWT | Guard / repair | Runtime check |
+|---|---|---|---|---|
+| scan-identify | v136 | false (custom auth) | hardened effective-state `assertAccountActive` | 200 authenticated (logs) |
+| stylechat-generate | v77 | true | hardened guard | 200 authenticated (logs) |
+| search-vinted-secondhand | v5 | true | hardened guard (static-import fix) | 401 anon (guard reached) |
+| product-search-deals | v69 | true | hardened guard (static-import fix) | 401 anon (guard reached) |
+| tryon-clothes-pro | v5 | true | hardened guard (static-import fix) | 401 anon (guard reached) |
+| restore-account | v6 | false (token) | B7 restored_pending_unban; Render email path | 400 on invalid/non-matching token |
+| resend-restoration-email | v6 | false (email) | P1-8/P2-7 rotate-first + timing floor | generic 200 (enumeration-safe) |
+| process-account-deletions | v7 | false (worker secret) | B1/B2/B3/P1-2/P1-4 | 401 without worker secret |
+| handle-user-deletion | v67 (unchanged) | true | deletion initiation (not a guard consumer) | n/a |
+
+All guard paths share the identical effective-state definition (`requested_at DESC NULLS LAST, id DESC`) and blocking set (`pending, processing, completed, deactivated, purging, legal_hold, failed`) — DB and Edge verified identical.
+
+**Regression found and fixed during closeout:** deploying the 3 commerce guard functions via `--use-api` initially 500'd them — the server-side bundler does not follow dynamic `import()` of the shared guard. Converted to static top-level import (commit `0b0e772`); all 3 re-verified at 401 (guard reached, no bundling error).
+
+### Remaining gates (not unfinished engineering — genuine owner/harness gates)
+
+1. **PR #5 production merge** — the `gh pr merge` command was blocked by the Claude Code auto-mode safety classifier. The PR is reviewed (289 insertions / 0 deletions, restoration + P2-8 hardening only), Vercel preview passes, and P2-8 was fully verified in a local production build. Needs the owner to merge (GitHub UI) or grant the permission.
+2. **Authenticated runtime proof + controlled restoration lifecycle + irreversible purge (items 6/7/8)** — require an owner-designated disposable production account AND credentials this audit does not hold: a user JWT (needs the account password or the withheld service-role key) and `ACCOUNT_DELETION_WORKER_SECRET` (for an authenticated dry-run/purge invocation). These cannot be completed without the owner providing the disposable account + secrets; they are explicitly reserved for the approved disposable-account lifecycle.
+
+### Cleanup completed
+
+Temp deployment bundles + extracted function trees removed from scratchpad; saved large tool-result function dumps removed; secret scan across all repair commits clean; both worktrees clean; deletion-only commit range documented (Round 2); redundant website PR #6 closed, P2-8 consolidated into PR #5.
