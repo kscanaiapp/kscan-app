@@ -6,6 +6,7 @@ import {
   logEvent,
   rpc,
   sendRestorationEmail,
+  shortUserId,
 } from '../_shared/deletion/common.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -48,15 +49,64 @@ Deno.serve(async (req) => {
       requestIdPrefix: String(restored.request_id ?? '').slice(0, 8),
     });
 
-    try {
+    // The DB row is already flipped to 'restored' and the single-use token
+    // is already consumed at this point (restore_account_by_token_hash ran
+    // above) -- there is no path back to re-run that RPC if the unban below
+    // fails. Unban is therefore handled separately from, and before, the
+    // best-effort session-revoke/email steps: its failure must be visible
+    // and retried, not silently swallowed as a generic "email failed" log
+    // line while the client is told restoration fully succeeded.
+    let unbanOk = !restored.user_id;
+    if (restored.user_id) {
       const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-      if (restored.user_id) {
-        // Unban + ensure old sessions stay dead; user must sign in again.
-        await admin.auth.admin.updateUserById(restored.user_id, { ban_duration: 'none' });
-        await rpc('revoke_user_sessions', { p_user_id: restored.user_id });
 
+      for (let attempt = 1; attempt <= 2 && !unbanOk; attempt += 1) {
+        try {
+          const { error } = await admin.auth.admin.updateUserById(restored.user_id, {
+            ban_duration: 'none',
+          });
+          if (error) throw error;
+          unbanOk = true;
+        } catch (err) {
+          logEvent('restoration_unban_attempt_failed', {
+            requestIdPrefix: String(restored.request_id ?? '').slice(0, 8),
+            attempt,
+            message: err instanceof Error ? err.message : 'unknown',
+          });
+        }
+      }
+
+      if (!unbanOk) {
+        // Alertable: the ledger says restored but Auth still bans sign-in,
+        // and the token is already consumed -- this needs operator action
+        // (retry the unban directly against auth.users) or a resend-style
+        // recovery path. Tell the caller honestly rather than claiming
+        // full success.
+        logEvent('restoration_unban_failed_needs_manual_intervention', {
+          requestIdPrefix: String(restored.request_id ?? '').slice(0, 8),
+          uid: shortUserId(restored.user_id),
+        });
+        return json(
+          {
+            status: 'restored_pending_unban',
+            message:
+              'Your account data has been restored, but re-enabling sign-in is taking longer than expected. Please try signing in again in a few minutes, or contact support if this persists.',
+          },
+          202,
+        );
+      }
+
+      try {
+        await rpc('revoke_user_sessions', { p_user_id: restored.user_id });
+      } catch {
+        logEvent('restoration_session_revoke_failed', {
+          requestIdPrefix: String(restored.request_id ?? '').slice(0, 8),
+        });
+      }
+
+      try {
         const { data } = await admin.auth.admin.getUserById(restored.user_id);
         const email = data?.user?.email;
         if (email) {
@@ -69,9 +119,11 @@ Deno.serve(async (req) => {
             kind: 'restored',
           });
         }
+      } catch {
+        logEvent('restoration_confirmation_email_failed', {
+          requestIdPrefix: String(restored.request_id ?? '').slice(0, 8),
+        });
       }
-    } catch {
-      logEvent('restoration_confirmation_email_failed', {});
     }
 
     return json({
