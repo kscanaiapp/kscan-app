@@ -1,16 +1,22 @@
-// Fail-closed privacy boundary for photo-library uploads into Elise.
-// Metadata-only re-encoding is not pixel masking. Until a cross-platform face
-// and license-plate detector/masker is integrated and proven, preparation is
-// unavailable and no selected image may proceed to remote analysis.
+// Privacy boundary for local photo-library uploads into Scanner and Elise.
+// Every accepted local image is re-encoded before analysis so source metadata
+// is not transmitted. This does not claim face or license-plate masking.
 
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 
+const SANITIZER_VERSION = 'elise-upload-metadata-only-1.0.0';
+
+// Max dimension for the sanitized derivative. Large enough for fashion analysis,
+// small enough to keep payloads bounded.
+const MAX_UPLOAD_DIMENSION = 1024;
+const UPLOAD_QUALITY = 0.82;
+
 export const PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE =
-  'Upload is unavailable until on-device face and license-plate masking can be verified.';
+  'The selected image could not be prepared securely.';
 
 export function isPrivateImageUploadAvailable(): boolean {
-  return false;
+  return true;
 }
 
 export type PrivacyPrepareResult = {
@@ -39,8 +45,23 @@ function isLocalImageUri(uri: string): boolean {
   return typeof uri === 'string' && (uri.startsWith('file://') || uri.startsWith('content://'));
 }
 
+function honestPolicy(metadataStripped: boolean) {
+  return {
+    mode: 'metadata-stripped-reencode',
+    sanitizerVersion: SANITIZER_VERSION,
+    faceDetectionAvailable: false,
+    faceMaskApplied: false,
+    plateDetectionAvailable: false,
+    plateMaskApplied: false,
+    metadataStripped,
+  };
+}
+
 /**
- * Validate the local input, then fail closed while required masking is absent.
+ * Prepare a photo-library image for remote fashion analysis.
+ *
+ * Returns a sanitized derivative URI and an honest privacy policy. Throws
+ * PrivacyPrepareError when the input is invalid or re-encoding fails.
  */
 export async function prepareImageForPrivacyUpload(
   inputUri: string,
@@ -53,8 +74,36 @@ export async function prepareImageForPrivacyUpload(
     throw new PrivacyPrepareError('Selected image must be on this device.');
   }
 
-  void options;
-  throw new PrivacyPrepareError(PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE);
+  const maxDimension = options?.maxDimension ?? MAX_UPLOAD_DIMENSION;
+  const quality = options?.quality ?? UPLOAD_QUALITY;
+
+  try {
+    // Re-encode through ImageManipulator. This strips EXIF/metadata and produces
+    // a fresh JPEG derivative in the app's cache directory.
+    const result = await ImageManipulator.manipulateAsync(
+      inputUri,
+      [{ resize: { width: maxDimension } }],
+      {
+        compress: quality,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: false,
+      },
+    );
+
+    if (!result?.uri || typeof result.uri !== 'string') {
+      throw new PrivacyPrepareError(PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE);
+    }
+
+    return {
+      sanitizedUri: result.uri,
+      width: result.width,
+      height: result.height,
+      policy: honestPolicy(true),
+    };
+  } catch (err) {
+    if (err instanceof PrivacyPrepareError) throw err;
+    throw new PrivacyPrepareError(PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE);
+  }
 }
 
 /**

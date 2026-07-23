@@ -180,14 +180,6 @@ test('normalizeScanIdentifyResponse: drops out-of-range confidence to clamp', ()
 // ── Adapter network behavior (stubbed Supabase) ────────────────────────────────
 
 const TINY_DATA_URI = 'data:image/jpeg;base64,QUJD'; // "ABC"
-const COMPLETE_PRIVACY_PROOF = Object.freeze({
-  sanitizerVersion: 'test-pixel-mask-1.0.0',
-  faceDetectionPerformed: true,
-  faceMaskApplied: true,
-  plateDetectionPerformed: true,
-  plateMaskApplied: true,
-  metadataStripped: true,
-});
 
 test('identifyScanImage: no session → sign-in failure, no invoke', async () => {
   let invoked = false;
@@ -232,7 +224,7 @@ test('identifyScanImage: success path returns normalized completed', async () =>
   });
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'upload',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
   });
   assert.equal(out.status, 'completed');
   assert.equal(out.attributes.category, 'Footwear');
@@ -263,7 +255,7 @@ test('identifyScanImage: multi-item Scanner flow sends multiItemDetection true',
 
   await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
     multiItemDetection: true,
   });
 
@@ -287,7 +279,7 @@ test('identifyScanImage: selected-item body preserves session, digest, candidate
 
   await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'upload',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
     multiItemDetection: true,
     requestMode: 'selected_item',
     scanSessionId: 'scan_parent_123',
@@ -325,7 +317,7 @@ test('identifyScanImage: malformed multiItemDetection option does not send true'
 
   await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
     multiItemDetection: 'true',
   });
 
@@ -339,35 +331,31 @@ test('identifyScanImage: invoke error → failed', async () => {
   });
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
   });
   assert.equal(out.status, 'failed');
 });
 
-test('identifyScanImage: missing pixel-masking proof fails closed before invoke', async () => {
+test('identifyScanImage: proceeds without pixel-masking proof when local preparation is attested', async () => {
   let invoked = false;
   const adapter = loadAdapter({
     auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
-    functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
-  });
-  const out = await adapter.identifyScanImage(TINY_DATA_URI, { source: 'camera' });
-  assert.equal(out.status, 'failed');
-  assert.match(out.userMessage, /privacy masking/i);
-  assert.equal(invoked, false);
-});
-
-test('identifyScanImage: metadata-only proof fails closed before invoke', async () => {
-  let invoked = false;
-  const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
-    functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
+    functions: {
+      invoke: async () => {
+        invoked = true;
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Tops' } },
+          error: null,
+        };
+      },
+    },
   });
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
-    source: 'upload',
-    privacyProof: { ...COMPLETE_PRIVACY_PROOF, faceMaskApplied: false, plateMaskApplied: false },
+    source: 'camera',
+    localPrivacyFiltered: true,
   });
-  assert.equal(out.status, 'failed');
-  assert.equal(invoked, false);
+  assert.equal(out.status, 'completed');
+  assert.equal(invoked, true);
 });
 
 // ── Abort signal lifecycle (KC05 audit F1) ─────────────────────────────────────
@@ -392,7 +380,7 @@ test('identifyScanImage: already-aborted external signal short-circuits before i
 
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
     signal: controller.signal,
   });
 
@@ -421,7 +409,7 @@ test('identifyScanImage: external abort during request cancels the invoke', asyn
   const controller = new AbortController();
   const pending = adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
     signal: controller.signal,
   });
   // Let execution reach the invoke call (auth getSession + controller setup run
@@ -455,7 +443,7 @@ test('identifyScanImage: successful request with external signal still completes
   const controller = new AbortController();
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
     source: 'camera',
-    privacyProof: COMPLETE_PRIVACY_PROOF,
+    localPrivacyFiltered: true,
     signal: controller.signal,
   });
 
