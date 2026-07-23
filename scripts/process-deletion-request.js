@@ -73,7 +73,19 @@ Safety:
     * the request has not been restored by the user;
     * the request is not already purged;
     * the request is not currently held by a live automated-worker lease;
-    * the global account_deletion_worker_dry_run flag is confirmed disabled.
+    * the global automated worker (account_deletion_worker_enabled) is OFF;
+    * no pg_cron scheduler job invokes the deletion worker;
+    * the global account_deletion_worker_dry_run flag is OFF.
+
+  Controlled audit exception (single approved disposable-account purge):
+    node scripts/process-deletion-request.js --request-id <uuid> \\
+      --confirm-delete --override-dry-run --operator-confirm "<attestation>"
+  --override-dry-run runs ONE explicitly-approved request while global dry-run
+  stays ON (worker + scheduler still OFF). It is refused unless: an exact
+  --request-id is given (no --user-id / --list-pending / batch), --confirm-delete
+  is present, a non-secret --operator-confirm attestation (>=4 chars) is given,
+  global dry-run is actually ON, the worker is OFF, and no scheduler job exists.
+  It emits a distinct CONTROLLED_DRY_RUN_OVERRIDE_PURGE audit record.
 `);
 }
 
@@ -97,6 +109,8 @@ function parseArgs(argv) {
     requestId: null,
     userId: null,
     verify: false,
+    overrideDryRun: false,
+    operatorConfirm: null,
   };
 
   const destructiveFlagOccurrences = argv.filter((arg) => arg === '--confirm-delete' || arg === '--dry-run').length;
@@ -144,6 +158,13 @@ function parseArgs(argv) {
       case '--verify':
         options.verify = true;
         break;
+      case '--override-dry-run':
+        options.overrideDryRun = true;
+        break;
+      case '--operator-confirm':
+        options.operatorConfirm = takeValue(argv, i, arg);
+        i += 1;
+        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -156,6 +177,26 @@ function parseArgs(argv) {
   const selectors = [options.listPending, Boolean(options.requestId), Boolean(options.userId)].filter(Boolean);
   if (!options.help && selectors.length !== 1) {
     throw new Error('Choose exactly one selector: --list-pending, --request-id, or --user-id');
+  }
+
+  // --override-dry-run is a tightly constrained, audited exception -- never a
+  // general bypass. It is ONLY valid with an exact single --request-id and
+  // --confirm-delete, and requires a non-secret --operator-confirm attestation.
+  // It may not be combined with batch/implicit selection (--user-id or
+  // --list-pending).
+  if (options.overrideDryRun) {
+    if (!options.requestId) {
+      throw new Error('--override-dry-run requires an exact --request-id (no --user-id or batch selection).');
+    }
+    if (options.userId || options.listPending) {
+      throw new Error('--override-dry-run cannot be combined with --user-id or --list-pending; exactly one request only.');
+    }
+    if (!options.confirmDelete) {
+      throw new Error('--override-dry-run requires --confirm-delete.');
+    }
+    if (!options.operatorConfirm || options.operatorConfirm.trim().length < 4) {
+      throw new Error('--override-dry-run requires --operator-confirm "<non-secret attestation>" (>= 4 chars).');
+    }
   }
 
   return options;
@@ -278,36 +319,122 @@ function cliEligibleStatuses(request) {
   return request.status === 'purging' ? ['purging'] : CLI_PURGE_ELIGIBLE_STATUSES;
 }
 
-// P1-3: the CLI had no linkage to the global dry-run flag, so a --confirm-delete
-// run would purge for real even while account_deletion_worker_dry_run was ON.
-// Fail CLOSED: proceed only if we can positively confirm the flag is disabled.
-async function assertGlobalDryRunDisabled(supabase) {
-  let row;
+async function readAppConfigFlagEnabled(supabase, key) {
+  const { data, error } = await supabase
+    .from('app_config')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Refusing to purge: could not read ${key} (${error.message}).`);
+  }
+  if (!row_present(data)) {
+    throw new Error(`Refusing to purge: ${key} flag not found; cannot confirm safe state.`);
+  }
+  return Boolean(data.value?.enabled);
+}
+
+function row_present(data) {
+  return data !== null && data !== undefined;
+}
+
+// Global-guardrail gate for a manual, request-scoped purge (P1-3, and the
+// closeout's controlled disposable-account purge mechanism).
+//
+// Two invariants, both fail-closed:
+//   1. The GLOBAL automated worker must stay OFF
+//      (account_deletion_worker_enabled = false). Running a manual purge while
+//      the automated worker is enabled risks the two racing the same request.
+//      There is no override for this -- the manual path only runs while the
+//      global worker is off.
+//   2. The GLOBAL dry-run flag (account_deletion_worker_dry_run) is normally a
+//      hard stop. The controlled disposable-account purge is the single
+//      explicitly-approved exception: it keeps global dry-run ON (so the
+//      automated worker stays simulated) while purging exactly one approved
+//      request. That exception requires the explicit --override-dry-run flag,
+//      which is logged. Without the flag, dry-run ON still refuses.
+// Confirms no pg_cron job invokes the deletion worker (the only DB-observable
+// scheduler surface; the Supabase Dashboard schedule is not queryable and is
+// neutralized by worker-enabled=OFF, which is separately enforced). Fail-closed.
+async function assertNoSchedulerJob(supabase) {
+  try {
+    const { data, error } = await supabase.rpc('_audit_count_deletion_cron_jobs');
+    if (!error && typeof data === 'number') {
+      if (data > 0) {
+        throw new Error('Refusing to purge: a pg_cron job invoking the deletion worker exists; scheduler must be disabled.');
+      }
+      return;
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Refusing to purge')) throw err;
+    // RPC not present -> fall through to the direct check below.
+  }
+  // Direct check: query cron.job if the extension exists. If cron isn't
+  // installed, there is no scheduler surface in the DB (verified: pg_cron not
+  // installed on this project), so this is satisfied.
   try {
     const { data, error } = await supabase
-      .from('app_config')
-      .select('value')
-      .eq('key', 'account_deletion_worker_dry_run')
-      .maybeSingle();
-    if (error) {
-      throw new Error(
-        `Refusing to purge: could not read account_deletion_worker_dry_run (${error.message}).`,
-      );
+      .from('cron.job')
+      .select('jobname,command')
+      .ilike('command', '%process-account-deletions%');
+    if (error) return; // cron schema absent -> no DB scheduler surface
+    if (Array.isArray(data) && data.length > 0) {
+      throw new Error('Refusing to purge: a pg_cron job invoking the deletion worker exists; scheduler must be disabled.');
     }
-    row = data;
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Refusing to purge')) throw err;
+    // cron not queryable -> no DB scheduler surface; worker-enabled=OFF covers Dashboard schedules.
+  }
+}
+
+// Global-guardrail gate for a manual, request-scoped purge.
+//   Normal path:              global dry-run OFF + confirm-delete
+//   Controlled audit path:    global dry-run ON + --override-dry-run + exact
+//                             --request-id + --confirm-delete + worker OFF +
+//                             scheduler OFF + operator attestation
+// All checks fail closed.
+async function assertGlobalGuardrailsForManualPurge(supabase, options) {
+  let workerEnabled;
+  let dryRunEnabled;
+  try {
+    workerEnabled = await readAppConfigFlagEnabled(supabase, 'account_deletion_worker_enabled');
+    dryRunEnabled = await readAppConfigFlagEnabled(supabase, 'account_deletion_worker_dry_run');
   } catch (err) {
     throw new Error(
-      `Refusing to purge: could not confirm global dry-run is disabled (${err instanceof Error ? err.message : err}).`,
+      `Refusing to purge: could not confirm global guardrail state (${err instanceof Error ? err.message : err}).`,
     );
   }
-  if (!row) {
+
+  // Invariant 1: global automated worker must stay OFF (no override).
+  if (workerEnabled) {
     throw new Error(
-      'Refusing to purge: account_deletion_worker_dry_run flag not found; cannot confirm dry-run is disabled.',
+      'Refusing to purge: the global automated worker (account_deletion_worker_enabled) is ON. A manual request-scoped purge must only run while the global worker is OFF, to avoid racing it.',
     );
   }
-  if (row.value?.enabled) {
+
+  // Invariant 2: scheduler must be disabled (no override).
+  await assertNoSchedulerJob(supabase);
+
+  // Invariant 3: dry-run handling.
+  if (options.overrideDryRun) {
+    // Controlled audit exception: the override is only meaningful/allowed while
+    // global dry-run is actually ON. If dry-run is already OFF, the operator is
+    // confused about state -> fail closed rather than silently proceed.
+    if (!dryRunEnabled) {
+      throw new Error(
+        'Refusing to purge: --override-dry-run was passed but global dry-run is already OFF. Remove --override-dry-run for the normal path.',
+      );
+    }
+    console.warn(
+      '[process-deletion-request] OVERRIDE: global dry-run remains ON; proceeding with the single approved request-scoped purge under --override-dry-run.',
+    );
+    return;
+  }
+
+  // Normal path: global dry-run must be OFF.
+  if (dryRunEnabled) {
     throw new Error(
-      'Refusing to purge: global dry-run (account_deletion_worker_dry_run) is ON. Disable it before running a manual purge.',
+      'Refusing to purge: global dry-run (account_deletion_worker_dry_run) is ON. Pass --override-dry-run (with --request-id, --confirm-delete, --operator-confirm) to run the single approved request-scoped purge while keeping global dry-run ON, or disable the flag.',
     );
   }
 }
@@ -455,6 +582,24 @@ async function processDeletionRequest(supabase, request, options) {
 
   const completedAt = new Date().toISOString();
 
+  // Distinct audit record for a controlled dry-run-override execution. Records
+  // the non-secret operator attestation so the override is traceable; never
+  // records any credential.
+  const controlledOverride = options.overrideDryRun
+    ? {
+        event: 'CONTROLLED_DRY_RUN_OVERRIDE_PURGE',
+        globalDryRunRemainedOn: true,
+        requestId: request.id,
+        operatorConfirm: options.operatorConfirm,
+        at: startedAt,
+      }
+    : null;
+  if (controlledOverride) {
+    console.warn(
+      `[process-deletion-request] AUDIT ${JSON.stringify(controlledOverride)}`,
+    );
+  }
+
   const auditPayload = {
     completedAt,
     deletionRequestId: request.id,
@@ -462,6 +607,7 @@ async function processDeletionRequest(supabase, request, options) {
     requestSource: request.request_source,
     userId: safeUserId,
     authUserDeleted,
+    controlledOverride,
     summary,
     roomTransferResults,
     storageResults,
@@ -482,6 +628,7 @@ async function processDeletionRequest(supabase, request, options) {
     deletionRequestId: request.id,
     userId: safeUserId,
     authUserDeleted,
+    controlledOverride,
     summary,
     roomTransferResults,
     storageResults,
@@ -522,11 +669,13 @@ async function main(argv = process.argv.slice(2)) {
     throw new Error('Refusing to delete without --confirm-delete');
   }
 
-  // P1-3 safety gates before any destructive work: request must be genuinely
-  // eligible (grace elapsed, not restored/purged, not held by a live worker
-  // lease) and the global dry-run flag must be confirmed disabled.
+  // Safety gates before any destructive work:
+  //  1. Request eligibility: grace elapsed, not restored/purged, no live lease.
+  //  2. Global guardrails: worker OFF, scheduler OFF, and dry-run handling
+  //     (normal path requires dry-run OFF; the controlled audit exception
+  //     requires --override-dry-run + exact --request-id + --operator-confirm).
   assertCliPurgeEligible(request);
-  await assertGlobalDryRunDisabled(supabase);
+  await assertGlobalGuardrailsForManualPurge(supabase, options);
 
   const result = await processDeletionRequest(supabase, request, options);
   console.log(JSON.stringify(result, null, 2));
@@ -543,7 +692,7 @@ if (require.main === module) {
 module.exports = {
   appendNote,
   assertCliPurgeEligible,
-  assertGlobalDryRunDisabled,
+  assertGlobalGuardrailsForManualPurge,
   buildDeletionSummary,
   cliEligibleStatuses,
   CLI_PURGE_ELIGIBLE_STATUSES,

@@ -6,7 +6,7 @@ const path = require('node:path');
 const {
   appendNote,
   assertCliPurgeEligible,
-  assertGlobalDryRunDisabled,
+  assertGlobalGuardrailsForManualPurge,
   cliEligibleStatuses,
   buildDeletionSummary,
   deleteDirectUserRows,
@@ -237,6 +237,8 @@ test('parseArgs: request deletion is dry-run by default', () => {
     requestId: 'req-1',
     userId: null,
     verify: false,
+    overrideDryRun: false,
+    operatorConfirm: null,
   });
 });
 
@@ -383,43 +385,132 @@ test('cliEligibleStatuses restricts a stale purging row to a purging-only transi
   assert.deepEqual(cliEligibleStatuses({ status: 'deactivated' }), ['pending', 'processing', 'deactivated']);
 });
 
-test('assertGlobalDryRunDisabled refuses when the dry-run flag is ON', async () => {
-  const supabase = {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: { value: { enabled: true } }, error: null }),
+// --- Controlled --override-dry-run gate: assertGlobalGuardrailsForManualPurge ---
+// Mock reads two app_config keys (worker_enabled, dry_run) and a scheduler
+// (pg_cron) surface. Fail-closed everywhere.
+function guardMock({ workerEnabled = false, dryRunEnabled = false, cronJobs = null, appConfigError = null } = {}) {
+  return {
+    rpc: async () => ({ data: null, error: { message: 'function not found' } }),
+    from: (table) => {
+      if (table === 'cron.job') {
+        return {
+          select: () => ({
+            ilike: () =>
+              Promise.resolve(
+                cronJobs
+                  ? { data: cronJobs, error: null }
+                  : { data: null, error: { message: 'relation "cron.job" does not exist' } },
+              ),
+          }),
+        };
+      }
+      return {
+        select: () => ({
+          eq: (_col, key) => ({
+            maybeSingle: async () => {
+              if (appConfigError) return { data: null, error: { message: appConfigError } };
+              const enabled = key === 'account_deletion_worker_enabled' ? workerEnabled : dryRunEnabled;
+              return { data: { value: { enabled } }, error: null };
+            },
+          }),
         }),
-      }),
-    }),
+      };
+    },
   };
-  await assert.rejects(() => assertGlobalDryRunDisabled(supabase), /global dry-run .* is ON/i);
+}
+
+test('override ABSENT while global dry-run ON -> refuse', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: true }), { overrideDryRun: false }),
+    /global dry-run .* is ON/i,
+  );
 });
 
-test('assertGlobalDryRunDisabled fails closed when the flag cannot be read', async () => {
-  const supabase = {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: null, error: { message: 'permission denied' } }),
-        }),
-      }),
-    }),
-  };
-  await assert.rejects(() => assertGlobalDryRunDisabled(supabase), /could not read/i);
+test('override PRESENT but worker ON -> refuse', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ workerEnabled: true, dryRunEnabled: true }), { overrideDryRun: true }),
+    /automated worker .* is ON/i,
+  );
 });
 
-test('assertGlobalDryRunDisabled proceeds only when the flag is explicitly disabled', async () => {
-  const supabase = {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: { value: { enabled: false } }, error: null }),
-        }),
-      }),
-    }),
-  };
-  await assert.doesNotReject(() => assertGlobalDryRunDisabled(supabase));
+test('override PRESENT but scheduler (pg_cron) job exists -> refuse', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(
+      guardMock({ dryRunEnabled: true, cronJobs: [{ jobname: 'x', command: "select net.http_post('.../process-account-deletions')" }] }),
+      { overrideDryRun: true },
+    ),
+    /scheduler must be disabled/i,
+  );
+});
+
+test('override PRESENT + worker OFF + scheduler OFF + dry-run ON -> proceed', async () => {
+  await assert.doesNotReject(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: true }), { overrideDryRun: true }),
+  );
+});
+
+test('override PRESENT but global dry-run already OFF -> refuse (state confusion)', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: false }), { overrideDryRun: true }),
+    /already OFF/i,
+  );
+});
+
+test('normal path (no override) proceeds only when dry-run OFF and worker OFF', async () => {
+  await assert.doesNotReject(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: false }), { overrideDryRun: false }),
+  );
+});
+
+test('guardrail check fails closed when app_config cannot be read', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ appConfigError: 'permission denied' }), { overrideDryRun: true }),
+    /could not confirm global guardrail state/i,
+  );
+});
+
+// parseArgs-level gates for the override (single-request, confirm, attestation)
+test('parseArgs: --override-dry-run without --request-id -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--user-id', 'u1', '--confirm-delete', '--override-dry-run', '--operator-confirm', 'ticket-123']),
+    /requires an exact --request-id/i,
+  );
+});
+
+test('parseArgs: --override-dry-run without --confirm-delete -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--request-id', 'r1', '--override-dry-run', '--operator-confirm', 'ticket-123']),
+    /requires --confirm-delete/i,
+  );
+});
+
+test('parseArgs: --override-dry-run without --operator-confirm -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--request-id', 'r1', '--confirm-delete', '--override-dry-run']),
+    /requires --operator-confirm/i,
+  );
+});
+
+test('parseArgs: --override-dry-run cannot batch (with --list-pending) -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--list-pending', '--override-dry-run', '--confirm-delete', '--operator-confirm', 'x123']),
+    /requires an exact --request-id|cannot be combined|exactly one selector/i,
+  );
+});
+
+test('parseArgs: --override-dry-run cannot combine with --user-id -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--request-id', 'r1', '--user-id', 'u1', '--confirm-delete', '--override-dry-run', '--operator-confirm', 'x123']),
+    /exactly one selector|cannot be combined/i,
+  );
+});
+
+test('parseArgs: valid single approved override request parses', () => {
+  const opts = parseArgs(['--request-id', 'r1', '--confirm-delete', '--override-dry-run', '--operator-confirm', 'approved-disposable-123']);
+  assert.equal(opts.requestId, 'r1');
+  assert.equal(opts.confirmDelete, true);
+  assert.equal(opts.overrideDryRun, true);
+  assert.equal(opts.operatorConfirm, 'approved-disposable-123');
 });
 
 test('deleteDirectUserRows deletes explicit non-cascade resources by user id', async () => {
@@ -469,6 +560,44 @@ test('processDeletionRequest deletes storage and direct rows before auth user de
   );
   assert.equal(result.userId, '12345678...');
   assert.notEqual(result.userId, userId);
+});
+
+test('controlled override execution is recorded as a distinct audit record', async () => {
+  const userId = '12345678-90ab-cdef-1234-567890abcdef';
+  const supabase = createSupabaseMock().client;
+  const result = await processDeletionRequest(
+    supabase,
+    { id: 'request-ovr', user_id: userId, requested_at: '2026-07-07T00:00:00Z', request_source: 'mobile_app', notes: null },
+    { overrideDryRun: true, operatorConfirm: 'approved-disposable-123' },
+  );
+  assert.ok(result.controlledOverride, 'controlledOverride must be present under override');
+  assert.equal(result.controlledOverride.event, 'CONTROLLED_DRY_RUN_OVERRIDE_PURGE');
+  assert.equal(result.controlledOverride.operatorConfirm, 'approved-disposable-123');
+  assert.equal(result.controlledOverride.globalDryRunRemainedOn, true);
+});
+
+test('normal (non-override) execution carries no controlled-override audit record', async () => {
+  const supabase = createSupabaseMock().client;
+  const result = await processDeletionRequest(
+    supabase,
+    { id: 'request-norm', user_id: '12345678-90ab-cdef-1234-567890abcdef', requested_at: '2026-07-07T00:00:00Z', request_source: 'mobile_app', notes: null },
+    {},
+  );
+  assert.equal(result.controlledOverride, null);
+});
+
+test('second execution is safe/idempotent: a concurrently-changed row aborts (0 rows guarded)', async () => {
+  // Simulate the row having moved under us (already purged / restored): the
+  // status-guarded mark-processing update matches 0 rows.
+  const supabase = createSupabaseMock({ updateResult: { data: [], error: null } }).client;
+  await assert.rejects(
+    () => processDeletionRequest(
+      supabase,
+      { id: 'request-2', user_id: '12345678-90ab-cdef-1234-567890abcdef', requested_at: '2026-07-07T00:00:00Z', request_source: 'mobile_app', notes: null },
+      {},
+    ),
+    /did not update exactly one eligible request/i,
+  );
 });
 
 test('processDeletionRequest transfers shared rooms before auth user deletion', async () => {
