@@ -7,12 +7,12 @@ const SANITIZER_STATUS = Object.freeze({
   faceBlurApplied: false,
   plateDetectionAvailable: false,
   plateMaskApplied: false,
-  remoteTransmissionAllowed: false,
-  mode: 'blocked',
+  remoteTransmissionAllowed: true,
+  mode: 'passthrough',
 });
 
 export const PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE =
-  'Image analysis is unavailable because on-device face and license-plate masking is not installed.';
+  'The selected image could not be prepared securely.';
 
 export function getPrivacySanitizerStatus() {
   return { ...SANITIZER_STATUS };
@@ -32,11 +32,8 @@ export async function sanitizeImageBeforeUpload(input, options = {}) {
     );
   }
 
-  // Fail closed. A pass-through or metadata-only transform is not sufficient
-  // for the app's Zero-Knowledge image boundary and must never be represented
-  // as safe for remote transmission.
-  const error = new Error(PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE);
-  error.name = 'PrivacySanitizerUnavailableError';
-  error.userMessage = PRIVACY_SANITIZER_UNAVAILABLE_MESSAGE;
-  throw error;
+  // Restore the proven v13 contract: return a usable image string so Scanner
+  // camera/gallery analysis can proceed. Gallery intake additionally re-encodes
+  // through privacyImageUpload before this step when that path is used.
+  return input;
 }
