@@ -12,6 +12,9 @@ import {
 /**
  * Account-enumeration-safe restoration email resend.
  * Always returns a generic success payload regardless of account existence.
+ *
+ * Order: send email first, then rotate token hash so a failed send does not
+ * invalidate the previous working link.
  */
 
 const GENERIC = {
@@ -38,8 +41,44 @@ Deno.serve(async (req) => {
       return json(GENERIC);
     }
 
+    // Peek eligibility without rotating yet.
+    const peekResponse = await rpc('peek_restoration_resend_by_email', {
+      p_email: email,
+    });
+
+    if (!peekResponse.ok) {
+      // Fallback: if peek RPC missing, keep prior rotate-first behavior unavailable —
+      // fail closed to generic response.
+      logEvent('resend_peek_rpc_failed', { status: peekResponse.status });
+      return json(GENERIC);
+    }
+
+    const peekRows = await peekResponse.json();
+    const peek = Array.isArray(peekRows) ? peekRows[0] : null;
+    if (!peek?.matched) {
+      return json(GENERIC);
+    }
+
     const rawToken = generateRestorationToken();
     const tokenHash = await hashRestorationToken(rawToken);
+    const nextCount = Number(peek.email_count ?? 0) + 1;
+
+    const emailResult = await sendRestorationEmail({
+      to: email,
+      requestId: String(peek.request_id),
+      requestedAt: peek.requested_at,
+      gracePeriodEndsAt: peek.grace_period_ends_at,
+      restorationUrl: buildRestorationUrl(rawToken),
+      kind: 'resend',
+      emailCount: nextCount,
+    });
+
+    if (!emailResult.queued) {
+      logEvent('resend_email_failed_token_not_rotated', {
+        requestIdPrefix: String(peek.request_id ?? '').slice(0, 8),
+      });
+      return json(GENERIC);
+    }
 
     const rotateResponse = await rpc('rotate_restoration_token_by_email', {
       p_email: email,
@@ -47,29 +86,17 @@ Deno.serve(async (req) => {
     });
 
     if (!rotateResponse.ok) {
-      logEvent('resend_rotate_rpc_failed', { status: rotateResponse.status });
-      return json(GENERIC);
+      logEvent('resend_rotate_after_send_failed', { status: rotateResponse.status });
+      // Email already sent with token that is not yet hashed — emergency rotate retry.
+      await rpc('rotate_restoration_token_by_email', {
+        p_email: email,
+        p_token_hash: tokenHash,
+      });
     }
-
-    const rows = await rotateResponse.json();
-    const match = Array.isArray(rows) ? rows[0] : null;
-    if (!match?.matched) {
-      return json(GENERIC);
-    }
-
-    await sendRestorationEmail({
-      to: email,
-      requestId: String(match.request_id),
-      requestedAt: match.requested_at,
-      gracePeriodEndsAt: match.grace_period_ends_at,
-      restorationUrl: buildRestorationUrl(rawToken),
-      kind: 'resend',
-      emailCount: Number(match.email_count ?? 1),
-    });
 
     logEvent('resend_restoration_email_attempted', {
-      requestIdPrefix: String(match.request_id ?? '').slice(0, 8),
-      emailCount: match.email_count,
+      requestIdPrefix: String(peek.request_id ?? '').slice(0, 8),
+      emailCount: nextCount,
     });
 
     return json(GENERIC);

@@ -35,14 +35,27 @@ function requireWorkerAuth(req: Request): void {
     ? auth.slice('bearer '.length).trim()
     : '';
   const provided = headerSecret || bearer;
-  if (!provided || provided !== expected) {
+  if (!provided) {
     logEvent('worker_auth_rejected', {});
     throw json({ error: 'Unauthorized' }, 401);
   }
 
-  // Reject anon key as authority even if somehow passed.
   const anon = envOptional('SUPABASE_ANON_KEY');
   if (anon && provided === anon) {
+    throw json({ error: 'Unauthorized' }, 401);
+  }
+
+  const enc = new TextEncoder();
+  const a = enc.encode(provided);
+  const b = enc.encode(expected);
+  if (a.length !== b.length) {
+    logEvent('worker_auth_rejected', {});
+    throw json({ error: 'Unauthorized' }, 401);
+  }
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i += 1) mismatch |= a[i] ^ b[i];
+  if (mismatch !== 0) {
+    logEvent('worker_auth_rejected', {});
     throw json({ error: 'Unauthorized' }, 401);
   }
 }
@@ -187,19 +200,50 @@ async function deleteOwnedStorage(
   for (const resource of STORAGE_RESOURCES) {
     const bucket = supabase.storage.from(resource.bucket);
     for (const prefix of resource.prefixesForUser(userId)) {
-      const { data, error } = await bucket.list(prefix, { limit: 1000 });
-      if (error) {
-        results.push({ prefix: shortUserId(userId), status: 'list_error' });
-        continue;
+      const paths: string[] = [];
+      const limit = 1000;
+      let offset = 0;
+      while (true) {
+        const { data, error } = await bucket.list(prefix, { limit, offset });
+        if (error) {
+          throw new Error(`storage list failed for ${resource.bucket}: ${error.message}`);
+        }
+        const page = data ?? [];
+        for (const item of page) {
+          if (item?.name) paths.push(`${prefix}/${item.name}`);
+        }
+        if (page.length < limit) break;
+        offset += limit;
       }
-      const paths = (data ?? []).filter((i) => i?.name).map((i) => `${prefix}/${i.name}`);
+
       if (paths.length === 0) {
         results.push({ status: 'no_objects', count: 0 });
         continue;
       }
-      const removed = await bucket.remove(paths);
-      if (removed.error) throw new Error(removed.error.message);
-      results.push({ status: 'removed', count: paths.length });
+
+      // Skip objects still referenced by rooms transferred to another owner.
+      const referenced = new Set<string>();
+      const refQuery = await supabase
+        .from('dressing_room_items')
+        .select('storage_path')
+        .like('storage_path', `${prefix}%`)
+        .limit(1000);
+      if (!refQuery.error) {
+        for (const row of refQuery.data ?? []) {
+          if (row.storage_path) referenced.add(String(row.storage_path));
+        }
+      }
+      const removable = paths.filter((p) => !referenced.has(p));
+      const retained = paths.length - removable.length;
+      if (removable.length > 0) {
+        const removed = await bucket.remove(removable);
+        if (removed.error) throw new Error(removed.error.message);
+      }
+      results.push({
+        status: 'removed',
+        count: removable.length,
+        retainedReferenced: retained,
+      });
     }
   }
   return results;
@@ -501,9 +545,8 @@ Deno.serve(async (req) => {
       p_limit: 5,
     });
     if (!claimResponse.ok) {
-      const detail = await claimResponse.text();
       logEvent('worker_claim_failed', { status: claimResponse.status });
-      return json({ error: 'Claim failed', detail: detail.slice(0, 200) }, 500);
+      return json({ error: 'Claim failed' }, 500);
     }
 
     const claimed = await claimResponse.json();

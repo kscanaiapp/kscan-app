@@ -163,13 +163,13 @@ export default function PrivacyScreen() {
       const confirmationMessage =
         result.status === 'already_requested'
           ? 'Request already pending. You have been signed out.'
-          : 'Deletion request submitted. You have been signed out.';
+          : 'Account deactivated. Check your email for a restoration link. You have been signed out.';
       setMessage(confirmationMessage);
 
       // Surface the confirmation and only sign out after the user acknowledges it,
       // so the message is visible before AuthGate moves them to /auth (72dd18a).
       Alert.alert(
-        'Account deletion request',
+        'Account deactivated',
         confirmationMessage,
         [
           {
@@ -237,7 +237,7 @@ export default function PrivacyScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Request account deletion?</Text>
             <Text style={styles.modalBody}>
-              Your deletion request will be reviewed and processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.
+              Your account will be deactivated immediately. Active sessions on all devices will be signed out. Cloud data is preserved for 30 days so you can restore from the emailed link. After that window, deletion is permanent. Shared Dressing Rooms may remain available to other participants during the grace period.
             </Text>
             <View style={styles.modalActions}>
               <Pressable

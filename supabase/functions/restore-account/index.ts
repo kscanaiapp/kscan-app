@@ -53,6 +53,10 @@ Deno.serve(async (req) => {
         auth: { autoRefreshToken: false, persistSession: false },
       });
       if (restored.user_id) {
+        // Unban + ensure old sessions stay dead; user must sign in again.
+        await admin.auth.admin.updateUserById(restored.user_id, { ban_duration: 'none' });
+        await rpc('revoke_user_sessions', { p_user_id: restored.user_id });
+
         const { data } = await admin.auth.admin.getUserById(restored.user_id);
         const email = data?.user?.email;
         if (email) {

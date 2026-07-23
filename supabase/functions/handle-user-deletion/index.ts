@@ -41,12 +41,65 @@ Deno.serve(async (req) => {
     const openRequests = await openRequestResponse.json();
     if (Array.isArray(openRequests) && openRequests.length > 0) {
       const existing = openRequests[0];
+      // Upgrade legacy pending rows into the deactivated lifecycle.
+      if (existing.status === 'pending' || existing.status === 'processing') {
+        const upgradeToken = generateRestorationToken();
+        const upgradeHash = await hashRestorationToken(upgradeToken);
+        const nowIso = new Date().toISOString();
+        const grace = existing.grace_period_ends_at ?? addDaysIso(new Date(), 30);
+        const upgradeResponse = await rest(`deletion_requests?id=eq.${existing.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status: 'deactivated',
+            deactivated_at: existing.deactivated_at ?? nowIso,
+            grace_period_ends_at: grace,
+            restoration_token_hash: upgradeHash,
+            restoration_token_expires_at: grace,
+          }),
+        });
+        if (!upgradeResponse.ok) {
+          logEvent('legacy_pending_upgrade_failed', { uid: safeUid });
+          return json({ error: 'Unable to process deletion request' }, 500);
+        }
+        const profileUpgrade = await rest(`profiles?id=eq.${user.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            account_status: 'pending_deletion',
+            deletion_requested_at: existing.requested_at ?? nowIso,
+          }),
+        });
+        if (!profileUpgrade.ok) {
+          return json({ error: 'Unable to deactivate account' }, 500);
+        }
+        await revokeAllSessions(user.id, user.accessToken);
+        let queued = false;
+        if (user.email) {
+          const emailResult = await sendRestorationEmail({
+            to: user.email,
+            requestId: existing.id,
+            requestedAt: existing.requested_at ?? nowIso,
+            gracePeriodEndsAt: grace,
+            restorationUrl: buildRestorationUrl(upgradeToken),
+            kind: 'request',
+          });
+          queued = emailResult.queued;
+        }
+        return json({
+          status: 'deactivated',
+          requestedAt: existing.requested_at,
+          gracePeriodEndsAt: grace,
+          restorationEmailQueued: queued,
+          alreadyRequested: true,
+          upgradedFromLegacy: true,
+        });
+      }
+
       logEvent('deletion_request_idempotent', {
         uid: safeUid,
         status: existing.status,
       });
       return json({
-        status: existing.status === 'pending' ? 'deactivated' : existing.status,
+        status: existing.status,
         requestedAt: existing.requested_at,
         gracePeriodEndsAt: existing.grace_period_ends_at ?? null,
         restorationEmailQueued: false,
@@ -133,7 +186,32 @@ Deno.serve(async (req) => {
         uid: safeUid,
         status: profileResponse.status,
       });
-      // Request row is durable; surface soft failure but do not erase the request.
+      // Compensating action: mark request failed so purge cannot proceed without deactivation.
+      await rest(`deletion_requests?id=eq.${deletionRequest.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: 'failed',
+          failure_code: 'PROFILE_DEACTIVATION_FAILED',
+          failure_message: 'Could not set profiles.account_status=pending_deletion',
+          restoration_token_hash: null,
+          restoration_token_expires_at: null,
+        }),
+      });
+      return json({ error: 'Unable to deactivate account' }, 500);
+    }
+
+    // Ban auth login for the grace window (unbanned on restore). Access JWTs still
+    // expire naturally; Edge guards + session revoke cover the data plane.
+    try {
+      const { createClient } = await import('npm:@supabase/supabase-js@2');
+      const admin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        { auth: { autoRefreshToken: false, persistSession: false } },
+      );
+      await admin.auth.admin.updateUserById(user.id, { ban_duration: '720h' });
+    } catch {
+      logEvent('auth_ban_failed', { uid: safeUid });
     }
 
     await appendTransition({

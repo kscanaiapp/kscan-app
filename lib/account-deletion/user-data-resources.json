@@ -63,6 +63,12 @@
     { "table": "outfit_decision_votes", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "stylechat_quota_events", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "style_outfit_burst_usage", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
-    { "table": "style_outfit_daily_usage", "column": "user_id", "action": "auth_delete_cascade", "optional": true }
+    { "table": "style_outfit_daily_usage", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
+    {
+      "table": "user_device_sessions",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "notes": "Five-session / wearable device registry. Soft-revoked at deletion request via revoke_user_sessions; Auth cascade removes rows at final purge."
+    }
   ]
 }

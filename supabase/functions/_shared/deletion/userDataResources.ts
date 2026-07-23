@@ -79,6 +79,11 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'stylechat_quota_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_outfit_burst_usage', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_outfit_daily_usage', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  {
+    table: 'user_device_sessions',
+    column: 'user_id',
+    action: 'auth_delete_cascade',
+  },
 ];
 
 export interface StorageResourceTemplate {

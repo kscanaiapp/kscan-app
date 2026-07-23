@@ -91,8 +91,26 @@ async function resendRestorationEmail(supabase, email) {
   };
 }
 
+async function restoreAccountWithToken(supabase, token) {
+  const trimmed = typeof token === 'string' ? token.trim() : '';
+  if (!trimmed || trimmed.length < 32) {
+    throw new Error('Invalid restoration token.');
+  }
+  const { data, error } = await supabase.functions.invoke('restore-account', {
+    body: { token: trimmed },
+  });
+  if (error) {
+    throw new Error(error.message || 'Unable to restore account.');
+  }
+  if (!data || data.status !== 'restored') {
+    throw new Error(data?.error || 'Unable to restore account.');
+  }
+  return data;
+}
+
 module.exports = {
   getPendingDeletionRequest,
   submitAccountDeletionRequest,
   resendRestorationEmail,
+  restoreAccountWithToken,
 };

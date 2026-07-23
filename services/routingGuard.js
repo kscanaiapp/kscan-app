@@ -4,9 +4,10 @@ const PUBLIC_ROUTES = new Set([
   '/auth/reset',
   '/auth/update-password',
   '/onboarding',
+  '/account/restore',
 ]);
 
-const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy']);
+const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy', '/account/restore']);
 
 function normalizePathname(pathname) {
   if (!pathname || pathname === '') return '/';

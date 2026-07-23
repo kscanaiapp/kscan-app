@@ -57,6 +57,18 @@ Deno.serve(async (req) => {
 
   try {
     const user = await requireUser(req);
+    const { createClient } = await import('npm:@supabase/supabase-js@2');
+    const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const profile = await admin.from('profiles').select('account_status,account_locked_at').eq('id', user.id).maybeSingle();
+    if (profile.error || !profile.data) {
+      return json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
+    }
+    if (profile.data.account_status !== 'active' || profile.data.account_locked_at) {
+      return json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
+    }
+
     const manifest = {
       includes: [
         'profile account fields',

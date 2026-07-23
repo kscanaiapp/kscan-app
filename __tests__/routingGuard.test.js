@@ -14,6 +14,17 @@ const expiredSession = { access_token: 'access-token', expires_at: NOW - 1 };
 const pendingProfile = { account_status: 'pending_deletion', age_group: 'unknown' };
 const lockedProfile = { account_status: 'active', age_group: 'unknown', account_locked_at: '2026-06-12T12:00:00Z' };
 
+function authed(overrides = {}) {
+  return {
+    loading: false,
+    session: validSession,
+    nowSeconds: NOW,
+    profileLoading: false,
+    onboardingComplete: true,
+    ...overrides,
+  };
+}
+
 test('launch without an active session redirects to /auth', () => {
   const state = getRoutingGuardState({ pathname: '/', loading: false, session: null, nowSeconds: NOW });
   assert.equal(state.action, 'redirect');
@@ -21,7 +32,7 @@ test('launch without an active session redirects to /auth', () => {
 });
 
 test('launch with a valid active session allows authenticated app entry', () => {
-  const state = getRoutingGuardState({ pathname: '/', loading: false, session: validSession, nowSeconds: NOW });
+  const state = getRoutingGuardState(authed({ pathname: '/' }));
   assert.equal(state.action, 'allow');
   assert.equal(state.redirectTo, null);
 });
@@ -41,7 +52,7 @@ test('direct protected route access while signed out redirects to /auth', () => 
 });
 
 test('public auth routes are allowed while signed out', () => {
-  for (const pathname of ['/auth', '/auth/callback', '/auth/reset', '/auth/update-password']) {
+  for (const pathname of ['/auth', '/auth/callback', '/auth/reset', '/auth/update-password', '/account/restore']) {
     const state = getRoutingGuardState({ pathname, loading: false, session: null, nowSeconds: NOW });
     assert.equal(state.action, 'allow', pathname);
     assert.equal(state.redirectTo, null, pathname);
@@ -66,22 +77,12 @@ test('implemented auth callback deep-link URL is detected for cold-start passthr
 });
 
 test('successful callback session establishment can proceed to authenticated destination', () => {
-  const state = getRoutingGuardState({
-    pathname: '/',
-    loading: false,
-    session: validSession,
-    nowSeconds: NOW,
-  });
+  const state = getRoutingGuardState(authed({ pathname: '/' }));
   assert.equal(state.action, 'allow');
 });
 
 test('clearing session routes protected screens to /auth', () => {
-  const signedIn = getRoutingGuardState({
-    pathname: '/privacy',
-    loading: false,
-    session: validSession,
-    nowSeconds: NOW,
-  });
+  const signedIn = getRoutingGuardState(authed({ pathname: '/privacy' }));
   const signedOut = getRoutingGuardState({
     pathname: '/privacy',
     loading: false,
@@ -95,12 +96,7 @@ test('clearing session routes protected screens to /auth', () => {
 });
 
 test('authenticated users on auth entry are replaced to app entry', () => {
-  const state = getRoutingGuardState({
-    pathname: '/auth',
-    loading: false,
-    session: validSession,
-    nowSeconds: NOW,
-  });
+  const state = getRoutingGuardState(authed({ pathname: '/auth' }));
   assert.equal(state.action, 'redirect');
   assert.equal(state.redirectTo, '/');
 });
@@ -120,49 +116,26 @@ test('expired sessions are treated as signed out', () => {
 
 test('authenticated pending-deletion accounts are limited to privacy controls', () => {
   for (const pathname of ['/', '/scan', '/library', '/auth']) {
-    const state = getRoutingGuardState({
-      pathname,
-      loading: false,
-      session: validSession,
-      profile: pendingProfile,
-      nowSeconds: NOW,
-    });
+    const state = getRoutingGuardState(authed({ pathname, profile: pendingProfile }));
     assert.equal(state.action, 'redirect', pathname);
     assert.equal(state.redirectTo, '/privacy', pathname);
   }
 
-  const privacyState = getRoutingGuardState({
-    pathname: '/privacy',
-    loading: false,
-    session: validSession,
-    profile: pendingProfile,
-    nowSeconds: NOW,
-  });
+  const privacyState = getRoutingGuardState(authed({ pathname: '/privacy', profile: pendingProfile }));
   assert.equal(privacyState.action, 'allow');
+
+  const restoreState = getRoutingGuardState(authed({ pathname: '/account/restore', profile: pendingProfile }));
+  assert.equal(restoreState.action, 'allow');
 });
 
 test('account lock timestamp also limits authenticated app entry', () => {
-  const state = getRoutingGuardState({
-    pathname: '/scan',
-    loading: false,
-    session: validSession,
-    profile: lockedProfile,
-    nowSeconds: NOW,
-  });
-
+  const state = getRoutingGuardState(authed({ pathname: '/scan', profile: lockedProfile }));
   assert.equal(state.action, 'redirect');
   assert.equal(state.redirectTo, '/privacy');
 });
 
 test('authenticated app entry waits for profile status before allowing protected routes', () => {
-  const state = getRoutingGuardState({
-    pathname: '/scan',
-    loading: false,
-    session: validSession,
-    profileLoading: true,
-    nowSeconds: NOW,
-  });
-
+  const state = getRoutingGuardState(authed({ pathname: '/scan', profileLoading: true }));
   assert.equal(state.action, 'loading');
   assert.equal(state.redirectTo, null);
 });
