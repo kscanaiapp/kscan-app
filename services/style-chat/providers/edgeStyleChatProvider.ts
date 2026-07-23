@@ -20,10 +20,11 @@ import {
 } from '../../../types/styleChatAttachments';
 
 const EDGE_FN      = 'stylechat-generate';
-// 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
-// before Gemini starts. Client must wait longer than the worst-case server budget
-// so it does not abort while the backend is still succeeding.
-const TIMEOUT_MS   = 20_000;
+// A complete response may make two sequential 12-second Gemini calls when the
+// first reply is incomplete, plus auth/quota/context work. Leave a small client
+// margin so the app does not report a failure while the Edge Function is still
+// producing the retry result.
+const TIMEOUT_MS   = 30_000;
 
 // ── Response contract ─────────────────────────────────────────────────────────
 
