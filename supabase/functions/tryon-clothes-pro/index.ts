@@ -4,6 +4,11 @@
 // Uses the shared RAPIDAPI_KEY secret.  The key never leaves this function;
 // it is never forwarded, logged in plaintext, or included in any response body.
 
+// Static top-level import (was a dynamic await import()). The --use-api
+// bundler does not follow dynamic import() of the shared guard; static import
+// ensures the shared account-state guard is bundled.
+import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAccountActiveIfAuthenticated.ts';
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -90,9 +95,6 @@ Deno.serve(async (req) => {
   }
 
   {
-    const { assertAccountActiveIfAuthenticated } = await import(
-      '../_shared/deletion/assertAccountActiveIfAuthenticated.ts'
-    );
     const blocked = await assertAccountActiveIfAuthenticated(req);
     if (blocked) return blocked;
   }

@@ -1,3 +1,9 @@
+// Static top-level import (was a dynamic await import()). The Supabase
+// server-side (--use-api) bundler does not follow dynamic import() of the
+// shared guard, which left the module unbundled and 500'd the function.
+// Static import makes the bundler include the shared account-state guard.
+import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAccountActiveIfAuthenticated.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -263,9 +269,6 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   {
-    const { assertAccountActiveIfAuthenticated } = await import(
-      '../_shared/deletion/assertAccountActiveIfAuthenticated.ts'
-    );
     const blocked = await assertAccountActiveIfAuthenticated(req);
     if (blocked) return blocked;
   }
