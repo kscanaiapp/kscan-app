@@ -30,6 +30,17 @@ export default function AccountRestoreScreen() {
     return String(raw || '').trim();
   }, [params.token]);
 
+  // P2-8: strip the token from the route params (and, on web builds, the URL)
+  // as soon as it is captured, so it does not linger in navigation state,
+  // deep-link history, or a Referer header.
+  useEffect(() => {
+    if (token) {
+      router.setParams({ token: undefined } as Record<string, string | undefined>);
+    }
+    // Intentionally runs once on mount after the initial capture above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [state, setState] = useState<RestoreState>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [email, setEmail] = useState('');

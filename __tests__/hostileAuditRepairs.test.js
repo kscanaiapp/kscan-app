@@ -205,3 +205,17 @@ test('P2-6: ops doc backoff description matches the live exponential-minutes for
   assert.match(doc, /capped at 240 min/);
   assert.doesNotMatch(doc, /Retries: 1h → 4h → 12h → 24h → 48h; max 5/);
 });
+
+test('P2-8: mobile restore screen strips the token from route params after capture', () => {
+  const src = read('app/account/restore.tsx');
+  assert.match(src, /router\.setParams\(\{ token: undefined \}/);
+});
+
+test('P2-9: ledger transition function redacts email-shaped values, not just keys', () => {
+  const sql = read('supabase/migrations/20260723060000_deletion_ledger_pii_sanitizer.sql');
+  assert.match(sql, /create or replace function public\.append_deletion_state_transition/);
+  assert.match(sql, /\[redacted-email\]/);
+  assert.match(sql, /regexp_replace\(/);
+  // still strips sensitive keys too
+  assert.match(sql, /- 'email' - 'token'/);
+});
