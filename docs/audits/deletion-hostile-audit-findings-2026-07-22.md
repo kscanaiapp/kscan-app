@@ -104,3 +104,49 @@ Production is currently safe — but only because it's running code from a **dif
 7 Blockers, 9 P1s, 9 P2s, 2 P3s, 2 external gates. The feature's automated core (claim/lease/kill-switch/dry-run-at-the-edge-function-layer) is genuinely well-engineered, and several individual defenses are real. But the acceptance packet's "56/56, 29/29, dry-run clean" framing significantly overstates production-readiness: the registry's headline count is accurate but unverifiable for half its entries, the one safety net that would catch a verification gap is opt-in and off by default, two independently-serious session/RLS gaps mean "deletion" doesn't actually cut off data access for up to an hour, and the feature's own PR carries a live regression risk to a completely different subsystem (Render/LLM) that has nothing to do with account deletion.
 
 **This is not ready for a controlled production lifecycle test.** No Blocker or P1 is currently closed.
+
+---
+
+## Update — B3 corrected against live production schema (read-only)
+
+The B3 finding above was written from source-only investigation (no repo migration found for 21 registry tables). Direct read-only queries against the live "KScan App Production" Supabase project (`wyyuqfdxucjksghsmhry`) during repair correct this:
+
+- `list_tables` confirms all 21 tables exist in production.
+- A `pg_constraint`-based FK query (not `information_schema`, which returned an empty/permission-filtered result) confirms all of them have a foreign key to `auth.users` with the correct delete rule — `CASCADE` for the auth-cascade-tagged resources, `SET NULL` for the two ledger-style ones (`content_reports.reported_user_id`, `deletion_requests.user_id`), matching the registry's own action tags exactly.
+- One real gap found this way: `outfit_decision_groups.created_by` (`SET NULL`) exists in production but had no registry entry at all. Added (see repairs below).
+
+**Revised understanding:** the live schema is *not* silently dropping user data today. The real defect is structural, not a current data leak: this repo's committed migration history cannot reproduce production (21 tables' `CREATE TABLE` statements are missing from `supabase/migrations/`), and the automated worker had no post-purge verification step to catch a *future* regression (a new user-data table added without a cascade FK, or without a registry entry). B3 is repaired below by closing the verification gap, which is the part that's actually fixable from this repo; the missing-migration-history problem is noted as a follow-up, not fixed here (see "Not repaired / follow-up" below).
+
+---
+
+## Repairs applied (this session, repair worktree only — nothing pushed or deployed)
+
+Workspace: `C:\src\KScan-account-deletion-repair-20260722`, branch `repair/account-deletion-hostile-audit-20260722`, based on audited SHA `13e9b6ae0ce5d13d028ab5d53a6b8ed50775e588`.
+
+| Finding | Repair commit | What changed | Regression test | Status |
+|---|---|---|---|---|
+| B6 | `759417f` | Adopted the known-hardened `server.js`/`render.yaml` from `fix/deletion-restoration-verified-from` (confirmed via matching production's exact `LEGACY_ANALYZE_DISABLED` tombstone body and email-route 401 behavior) | `hostileAuditRepairs.test.js` (B6) | Closed |
+| B1 | `588a204` | `claim_deletion_requests_for_purge` reclaims stale `purging` leases; new `reconcile_orphaned_purging_requests()` closes out rows whose auth user was already deleted before the crash; wired into the worker | `hostileAuditRepairs.test.js` (B1 ×3) | Closed in source; **not yet applied to any live database** (see Production-safe validation below) |
+| P1-1 | `588a204` | Restored the dropped `status = 'purging'` guard in `schedule_deletion_retry_or_fail` | `hostileAuditRepairs.test.js` (P1-1) | Closed in source, not yet deployed |
+| P1-5 | `588a204` | Added the missing explicit `revoke select on deletion_requests` | `hostileAuditRepairs.test.js` (P1-5) | Closed in source, not yet deployed |
+| B2 | `2620c1e` | `claim_deletion_requests_for_purge` now checks `account_deletion_worker_dry_run` itself, not just the edge function | `hostileAuditRepairs.test.js` (B2) | Closed in source, not yet deployed |
+| B7 | `c6a9c8b`, `2cd5c68` | Unban call separated from the swallowed catch block, retried once, returns honest `202 restored_pending_unban` on failure instead of a false `restored`; both mobile and website clients updated to handle the new status | `accountDeletion.test.js` (4 new tests), `hostileAuditRepairs.test.js` (B7) | Closed in source, not yet deployed |
+| B4 | `08d97ac` | New `services/deviceIdentity.ts` (persisted per-install device key, no new native deps) called from `AuthSessionContext`'s boot-session resolution and `onAuthStateChange`, covering every sign-in method | `hostileAuditRepairs.test.js` (B4) | Closed in source, not yet deployed |
+| B3 | `6ac3a64` | Coverage check moved from before to after `auth.admin.deleteUser()`; any non-`survive_auth_delete` resource with a residual row count now fails the request instead of marking it purged; added missing `outfit_decision_groups` registry entry (both JSON and Deno mirror) | `hostileAuditRepairs.test.js` (B3 ×3) | Closed in source, not yet deployed |
+| B5 | `770c921` | One `RESTRICTIVE FOR ALL` policy per shared-data table (`dressing_rooms`, `dressing_room_items`, `looks`, `look_items`, `room_shares`, `dressing_room_item_reactions`, `dressing_room_messages`, `inspiration_items`, `dressing_room_inspiration_items`) requiring `is_active_account()`, ANDed against existing ownership policies rather than rewriting them | `hostileAuditRepairs.test.js` (B5) | Closed in source, not yet deployed |
+
+**All 7 Blockers and the 2 directly-related P1s bundled into the same fixes (P1-1, P1-5) are closed in source.** Per the user's explicit scope decision for this round, P1-2, P1-3, P1-4, P1-6, P1-7, P1-8, P1-9, and all P2/P3 findings remain open and were not addressed in this pass.
+
+### Test evidence (repair worktree, `npm install` + `node --test`)
+
+- Unit bucket (`accountDeletionLifecycle`, `deletionRegistryParity`, `handleUserDeletionEdge`, `sevenTableCoverage`, `processDeletionRequest`): **56/56 passed**, no regressions.
+- Integration-contract bucket (`accountDeletionIntegrationContracts`, `accountDeletion`, `routingGuard`): **29/29 passed** before adding new tests; **33/33** after the 4 new `restoreAccountWithToken` tests.
+- New regression-guard file `hostileAuditRepairs.test.js`: **13/13 passed**.
+- Combined deletion-related suite: **102/102 passed.**
+- `npx tsc --noEmit`: **zero errors in any file touched by this repair** (`AuthSessionContext.tsx`, `services/deviceIdentity.ts`, `app/account/restore.tsx`). The pre-existing 26 compiler errors are all in the unrelated bundled avatar/scan-identify/scan-results work from P1-9/P2-2 (`components/AnalysisCard.tsx`, `components/home/HomeLuxuryTechV1.tsx`, `components/scan-results/*`, `services/scanIdentificationMapper.ts`) and were not touched or introduced by this repair — independent compiler confirmation that that bundled work does not build as committed.
+
+### Not repaired / follow-up needed
+
+- **Missing migration history for 21 live tables.** Production's actual schema is correct (verified above), but this repo cannot reproduce it from `supabase/migrations/` alone. Recommend exporting the missing `CREATE TABLE`/policy/FK statements from production into committed migration files as a separate, non-deletion-specific cleanup.
+- **P1-2 through P1-9 and all P2/P3 findings** — open, out of scope for this round by explicit user instruction.
+- **No migration has been applied to any database yet** (local, branch, or production) and no code has been pushed or deployed. The SQL was hand-verified against live production schema (table/column/FK existence, existing policy names, function existence) but not executed end-to-end. Before any real deploy: run these migrations against a disposable Supabase branch or local `supabase db start` and re-run the production-safe validation checks (dry-run, health, analyze-410, email-secret-401) against that branch first.
