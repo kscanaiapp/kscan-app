@@ -3,7 +3,9 @@ const cors = require('cors');
 const {
   secretsMatch,
   validateWaitlistWelcomeRequest,
+  validateAccountDeletionRestorationRequest,
   sendWaitlistWelcomeEmail,
+  sendAccountDeletionRestorationEmail,
 } = require('./services/transactionalEmail');
 
 require('dotenv').config();
@@ -1253,6 +1255,33 @@ app.post(
 );
 
 app.use('/internal/email/waitlist-welcome', (error, _req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({ status: 'error', code: 'INVALID_JSON' });
+  }
+  return next(error);
+});
+
+app.post(
+  '/internal/email/account-deletion-restoration',
+  requireInternalEmailAuth,
+  express.json({ limit: '16kb' }),
+  async (req, res) => {
+    const validated = validateAccountDeletionRestorationRequest(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ status: 'error', code: validated.code });
+    }
+    const result = await sendAccountDeletionRestorationEmail(validated.value);
+    const statusCode = result.status === 'sent' ? 200 : result.status === 'failed_retryable' ? 503 : 422;
+    return res.status(statusCode).json({
+      status: result.status,
+      eventType: validated.value.eventType,
+      kind: validated.value.kind,
+      code: result.code,
+    });
+  },
+);
+
+app.use('/internal/email/account-deletion-restoration', (error, _req, res, next) => {
   if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
     return res.status(400).json({ status: 'error', code: 'INVALID_JSON' });
   }
