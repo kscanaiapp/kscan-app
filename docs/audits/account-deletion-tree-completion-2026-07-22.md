@@ -34,13 +34,16 @@ Deletion request (handle-user-deletion)
 
 ## C. Source-control evidence
 
-### Deletion app repo (`kscanaiapp/KScan` worktree)
+### Deletion app repo (`kscanaiapp/kscan-app` worktree)
 
 | Item | Value |
 |---|---|
 | Workspace | `C:\Users\jsmit\KScan-account-deletion` |
 | Branch | `feature/automatic-account-deletion` |
 | Starting SHA | `0c9086af9257b8ef002b7d2c479bf3da43ca0b9b` |
+| Final SHA | `892f258d8043cc829efb9aec85187d98409c80fc` |
+| Remote SHA | `892f258d8043cc829efb9aec85187d98409c80fc` |
+| PR | https://github.com/kscanaiapp/kscan-app/pull/36 (base: `ios/full-submission-readiness-v2`) |
 | Dirty primary tree preserved | `C:\Users\jsmit\KScan` on `ios/full-submission-readiness-v2` (untouched) |
 
 ### Render email repo (`kscanaiapp/kscan-app`)
@@ -50,6 +53,7 @@ Deletion request (handle-user-deletion)
 | PR #32 | https://github.com/kscanaiapp/kscan-app/pull/32 (merged) |
 | PR #34 | https://github.com/kscanaiapp/kscan-app/pull/34 (merged) |
 | Master SHA | `9bb0b57ed9c4869047a795fb0544e962bc306d4a` |
+| Edge function versions | `handle-user-deletion` v66, `restore-account` v4, `resend-restoration-email` v4, `process-account-deletions` v4 |
 
 ## D. Deployment evidence
 
