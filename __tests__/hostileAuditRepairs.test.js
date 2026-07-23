@@ -151,3 +151,34 @@ test('B7: restore-account separates the unban call from the swallowed catch bloc
   assert.match(src, /json\(\s*\n?\s*\{/); // still returns json(...) helper for the 202 path
   assert.match(src, /},\s*\n?\s*202,\s*\n?\s*\);/);
 });
+
+const resendFn = 'supabase/functions/resend-restoration-email/index.ts';
+
+test('P2-7: resend rotates the stored token hash BEFORE sending the email', () => {
+  const src = read(resendFn);
+  const rotateIdx = src.indexOf("rpc('rotate_restoration_token_by_email'");
+  const sendIdx = src.indexOf('sendRestorationEmail(');
+  assert.ok(rotateIdx > -1, 'rotate call missing');
+  assert.ok(sendIdx > -1, 'send call missing');
+  assert.ok(rotateIdx < sendIdx, 'rotate-first: the stored hash must be persisted before the email is sent');
+});
+
+test('P1-8: resend does the token crypto on every path and pads the response floor', () => {
+  const src = read(resendFn);
+  // Token generate+hash must happen before the peek so matched/unmatched
+  // paths share the CPU work.
+  const hashIdx = src.indexOf('hashRestorationToken(rawToken)');
+  const peekIdx = src.indexOf("rpc('peek_restoration_resend_by_email'");
+  assert.ok(hashIdx > -1 && peekIdx > -1);
+  assert.ok(hashIdx < peekIdx, 'crypto work must run before the eligibility peek');
+  assert.match(src, /MIN_RESPONSE_MS/);
+  assert.match(src, /elapsed < MIN_RESPONSE_MS/);
+});
+
+test('P1-8: resend still returns an identical generic body on every path', () => {
+  const src = read(resendFn);
+  // No branch should return a distinguishable body that reveals match status.
+  assert.match(src, /const GENERIC = \{/);
+  const distinctReturns = src.match(/return respond\((?!GENERIC)/g) || [];
+  assert.equal(distinctReturns.length, 0, 'every respond() call must use the GENERIC payload');
+});
