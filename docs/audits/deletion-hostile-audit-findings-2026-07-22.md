@@ -240,3 +240,35 @@ All guard paths share the identical effective-state definition (`requested_at DE
 ### Cleanup completed
 
 Temp deployment bundles + extracted function trees removed from scratchpad; saved large tool-result function dumps removed; secret scan across all repair commits clean; both worktrees clean; deletion-only commit range documented (Round 2); redundant website PR #6 closed, P2-8 consolidated into PR #5.
+
+---
+
+## Round 4 — PR #5 merged + production website verification (2026-07-23)
+
+- **Merge:** PR #5 merged to `kscan-website` `main`, merge commit `0ae732ee7d5b2be4141cae69d52a24fb5a88d15a` (2026-07-23 14:44 UTC).
+- **Production deploy:** Vercel production `kscan-website-grh6r0xrx` (Ready). `kscan.app/account/restore` now 200 (was 404 pre-merge).
+
+### P2-8 production checklist (all PASS, against live kscan.app)
+
+| Check | Result |
+|---|---|
+| `/account/restore` live | 200 |
+| Token captured before scrub | `POST /api/account/restore` fired (→400 for non-matching token) |
+| Token removed from address bar | `location.search === ""`, `tokenInUrl=false` |
+| Token absent from browser history | back-nav → `/account/restore` (clean), `tokenReExposed=false` |
+| `Cache-Control: no-store` | present |
+| `Referrer-Policy: no-referrer` | present |
+| No token in localStorage / sessionStorage / cookies / IndexedDB | all empty |
+| No token in console / logs | no console messages |
+| API error body leakage | 400 `{"error":"Invalid or expired restoration link"}` — no token in body |
+| Invalid / non-matching token fails safely | 400, renders resend form |
+| Token absent from static HTML | 0 occurrences |
+| Waitlist still operational | `POST /api/waitlist` (empty) → 400 (route intact) |
+| No open redirect / user-controlled backend | API forwards only to fixed function names |
+
+### Website rollback (documented)
+
+- Fast: in Vercel, **promote the prior production deployment** `kscan-website-9g0wyfwa9` back to production (instant, no rebuild).
+- Source: `git revert 0ae732e` on `main` → Vercel auto-deploys the revert. The change is purely additive (new `/account/restore` route + additive header rules); reverting removes the route and restores prior header behavior with no data impact.
+
+**Resend connector verified** (read-only): can list sent transactional emails (delivery status) and read an email body to extract the `?token=` restoration URL — so "exactly one email delivery" and token-reuse-rejection can be verified directly during the lifecycle. Confirmed the live Render→Resend restoration path delivered a real restoration email (2026-07-23 01:57, from `hello@info.kscan.app`).
