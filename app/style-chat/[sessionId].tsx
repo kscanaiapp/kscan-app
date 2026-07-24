@@ -50,7 +50,7 @@ import {
 } from '../../services/style-dna/localStyleDnaProfile';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
-import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, ELISE_VISUAL_ATTACHMENTS_V1_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
@@ -404,14 +404,27 @@ export default function StyleChatSessionScreen() {
   // preselect an occasion, and the raw hint lands in the optional note field.
   // No outfit generation happens inside the chat response.
   const { isFeatureEnabled: isStylistFeatureEnabled } = useFeatureFreeze();
-  // Phase 2 Closet attachments: subordinate capability under aiStylist.
-  // Disabled → controls hidden, v2 never sent, v1 StyleChat unchanged.
+  // Phase 2 Closet attachments + Elise visual attachment composer.
+  // ELISE_VISUAL_ATTACHMENTS_V1_ENABLED enables the unified composer control
+  // (camera/gallery/item pickers → V2). STYLECHAT_ATTACHMENTS_ENABLED remains
+  // the subordinate Closet-attachment capability under aiStylist.
   const attachmentsEnabled =
-    AI_STYLIST_UI_ENABLED &&
-    STYLECHAT_ATTACHMENTS_ENABLED &&
-    isStylistFeatureEnabled('aiStylist');
+    (ELISE_VISUAL_ATTACHMENTS_V1_ENABLED ||
+      (AI_STYLIST_UI_ENABLED && STYLECHAT_ATTACHMENTS_ENABLED)) &&
+    (ELISE_VISUAL_ATTACHMENTS_V1_ENABLED || isStylistFeatureEnabled('aiStylist'));
+  const visualAttachmentsEnabled = ELISE_VISUAL_ATTACHMENTS_V1_ENABLED;
   const chatAttachments = useStyleChatAttachments(sessionId ?? '');
   const [photoIntakeVisible, setPhotoIntakeVisible] = useState(false);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+
+  // Flag OFF: clear attachment state and discard pending async results.
+  useEffect(() => {
+    if (attachmentsEnabled) return;
+    chatAttachments.clearAttachments({ keepText: true });
+    setAttachMenuOpen(false);
+    setPhotoIntakeVisible(false);
+  }, [attachmentsEnabled, chatAttachments.clearAttachments]);
+
   const latestUserMessage = [...messages].reverse().find((message) => message.sender === 'user');
   const showStyleMeForThis = Boolean(
     AI_STYLIST_UI_ENABLED &&
@@ -533,11 +546,23 @@ export default function StyleChatSessionScreen() {
       {attachmentsEnabled ? (
         <StyleChatAttachmentBar
           attachments={chatAttachments.attachments}
-          onAddOwnedItem={(item) => chatAttachments.addOwnedItem(item)}
+          focusedDraftId={chatAttachments.focusedDraftId}
+          onAddOwnedItem={(item, scan) => chatAttachments.addOwnedItem(item, scan)}
           onAddLook={(look) => chatAttachments.addLook(look)}
-          onUploadPhoto={() => setPhotoIntakeVisible(true)}
+          onDirectImage={(uri, source) => chatAttachments.addDirectImage(uri, source)}
+          onAddDressingRoomItem={(input) => chatAttachments.addDressingRoomItem(input)}
+          onAddSharedItem={(input) => chatAttachments.addSharedItem(input)}
+          onUploadPhoto={visualAttachmentsEnabled ? undefined : () => setPhotoIntakeVisible(true)}
           onRemove={chatAttachments.removeAttachment}
-          onRetry={(draftId, items, localScans) => chatAttachments.retryAttachment(draftId, items, localScans)}
+          onRetry={(draftId, items, localScans) =>
+            chatAttachments.retryAttachment(draftId, items, localScans)
+          }
+          onFocus={chatAttachments.setFocusedAttachment}
+          atAttachmentLimit={chatAttachments.atAttachmentLimit}
+          atDirectImageLimit={chatAttachments.atDirectImageLimit}
+          showAttachButton={!visualAttachmentsEnabled}
+          menuOpen={visualAttachmentsEnabled ? attachMenuOpen : undefined}
+          onMenuOpenChange={visualAttachmentsEnabled ? setAttachMenuOpen : undefined}
           disabled={isSending}
         />
       ) : null}
@@ -546,6 +571,12 @@ export default function StyleChatSessionScreen() {
           stylistDisplayName={stylistDisplayName}
           value={composerText}
           onChangeText={setComposerText}
+          showAttachButton={visualAttachmentsEnabled && attachmentsEnabled}
+          onAttachPress={
+            visualAttachmentsEnabled && attachmentsEnabled
+              ? () => setAttachMenuOpen(true)
+              : undefined
+          }
           onSend={async text => {
             weather.markStylingIntent();
             if (attachmentsEnabled && chatAttachments.attachments.length > 0) {
@@ -554,6 +585,17 @@ export default function StyleChatSessionScreen() {
               // text only). The snapshot is immutable for this operation.
               if (!chatAttachments.canSendWithAttachments) return;
               const snapshot = chatAttachments.snapshotForSend();
+              // Focus must be included when present — never send without it.
+              if (
+                chatAttachments.focusedDraftId &&
+                !snapshot.references.length
+              ) {
+                Alert.alert(
+                  'Attachment',
+                  'Elise could not access the selected image or item. Remove it or try again.',
+                );
+                return;
+              }
               await sendMessage(text, {
                 attachments: {
                   references: snapshot.references,
@@ -584,12 +626,14 @@ export default function StyleChatSessionScreen() {
           sendBusy={isSending}
         />
       </View>
-      {attachmentsEnabled ? (
+      {attachmentsEnabled && !visualAttachmentsEnabled ? (
         <StyleChatPhotoIntake
           visible={photoIntakeVisible}
           onClose={() => setPhotoIntakeVisible(false)}
           onAttached={(resolved, summary) => {
-            const result = chatAttachments.addResolvedOwnedItem(resolved, summary);
+            const result = chatAttachments.addResolvedOwnedItem(resolved, summary, {
+              isDirectImage: true,
+            });
             if (!result.ok) {
               Alert.alert('Attachment', result.message);
             }

@@ -1,5 +1,10 @@
 // services/imageUtils.js
+// Pure Scanner-compatible image preparation helpers shared by Scanner and Elise.
 import * as ImageManipulator from 'expo-image-manipulator';
+
+/** Verified Scanner prep limits — Elise direct images must reuse these. */
+export const SCANNER_IMAGE_MAX_WIDTH = 896;
+export const SCANNER_IMAGE_JPEG_QUALITY = 0.65;
 
 function logCompressDiag(payload) {
   if (typeof __DEV__ === 'undefined' || !__DEV__) return;
@@ -24,15 +29,25 @@ export async function compressForUpload(uri) {
 
   if (__DEV__) {
     console.log('[DEBUG] COMPRESSION_START');
-    console.log('[DEBUG] COMPRESSION_SETTINGS maxWidth=896 quality=0.65 format=JPEG base64=true');
+    console.log(
+      '[DEBUG] COMPRESSION_SETTINGS maxWidth=' +
+        SCANNER_IMAGE_MAX_WIDTH +
+        ' quality=' +
+        SCANNER_IMAGE_JPEG_QUALITY +
+        ' format=JPEG base64=true',
+    );
   }
   const t0 = Date.now();
 
   try {
     const result = await ImageManipulator.manipulateAsync(
       uri,
-      [{ resize: { width: 896 } }],
-      { compress: 0.65, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      [{ resize: { width: SCANNER_IMAGE_MAX_WIDTH } }],
+      {
+        compress: SCANNER_IMAGE_JPEG_QUALITY,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      },
     );
 
     if (!result.base64) {

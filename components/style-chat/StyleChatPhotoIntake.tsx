@@ -31,6 +31,7 @@ import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { sanitizeImageBeforeUpload } from '../../services/privacyImageSanitizer';
+import { SCANNER_IMAGE_MAX_WIDTH, SCANNER_IMAGE_JPEG_QUALITY } from '../../services/imageUtils';
 import { identifyScanImage } from '../../services/scanIdentification';
 import { saveScan } from '../../services/library';
 import { saveScanToCloud } from '../../services/savedScansCloud';
@@ -137,16 +138,27 @@ export function StyleChatPhotoIntake({
       setImageUri(sanitizedUri);
 
       // Identify through the existing guarded service (its own timeout+abort).
+      // Reuse Scanner-compatible compress settings (896 / 0.65).
       setStep('identifying');
       const prepared = await ImageManipulator.manipulateAsync(
         sanitizedUri,
-        [{ resize: { width: 1024 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+        [{ resize: { width: SCANNER_IMAGE_MAX_WIDTH } }],
+        {
+          compress: SCANNER_IMAGE_JPEG_QUALITY,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        },
       );
       if (operationId !== operationIdRef.current) return;
       const identification = prepared.base64
         ? await identifyScanImage(prepared.base64, {
             source: 'upload',
+            // Batch 2 uses the checkpoint's uniform localPrivacyFiltered attestation
+            // (matches the main Scanner flow and the integrated scan-identify backend,
+            // which read localPrivacyFiltered — NOT the un-integrated structured
+            // privacyProof migration). The image is already re-encoded and
+            // metadata-stripped above via the accepted Scanner 896 / 0.65 path.
+            localPrivacyFiltered: true,
             signal: abortRef.current?.signal,
           })
         : null;

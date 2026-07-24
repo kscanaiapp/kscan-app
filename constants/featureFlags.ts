@@ -167,3 +167,18 @@ export const AI_STYLIST_BACKEND_ENABLED =
  */
 export const STYLECHAT_ATTACHMENTS_ENABLED =
   process.env.EXPO_PUBLIC_STYLECHAT_ATTACHMENTS_ENABLED === 'true';
+
+/**
+ * Elise V2 visual attachments (Batch 2). OFF hides attachment controls, clears
+ * actor-bound attachment state, and preserves text-only Elise. Not proof of any
+ * privacy processing — the accepted re-encode/sanitize path is authoritative.
+ */
+export const ELISE_VISUAL_ATTACHMENTS_V1_ENABLED =
+  process.env.EXPO_PUBLIC_ELISE_VISUAL_ATTACHMENTS_V1_ENABLED === 'true';
+
+/**
+ * Elise E-4 optional structured advice metadata on the client. Additive: text
+ * remains authoritative; applied only when enabled and object-shaped.
+ */
+export const ELISE_ADVICE_METADATA_CLIENT_V1 =
+  process.env.EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1 === 'true';

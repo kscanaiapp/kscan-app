@@ -13,13 +13,19 @@
 // and reasoning: only stable references cross the wire as authority.
 
 import type { GarmentRole, OutfitVariation } from './fashionReasoning';
-import type { OwnedItemSourceType } from './ownedClosetItem';
+import type {
+  DressingRoomItemSourceType,
+  OwnedItemSourceType,
+  SharedRoomItemSourceType,
+  StyleChatItemSourceType,
+} from './ownedClosetItem';
 
 export const STYLECHAT_ATTACHMENT_CONTRACT_VERSION = '2';
 
 // ── Limits (Part 2) ───────────────────────────────────────────────────────────
 
 export const MAX_OWNED_ITEM_ATTACHMENTS = 3;
+export const MAX_SHARED_ITEM_ATTACHMENTS = 2;
 export const MAX_LOOK_ATTACHMENTS = 1;
 export const MAX_OUTFIT_DRAFT_ATTACHMENTS = 1;
 export const MAX_TOTAL_RESOLVED_ITEMS = 6;
@@ -30,7 +36,15 @@ export const MAX_UPLOAD_FLOWS_IN_FLIGHT = 1;
 
 export type StyleChatOwnedItemAttachment = {
   attachmentType: 'owned_item';
-  sourceType: OwnedItemSourceType;
+  sourceType: OwnedItemSourceType | DressingRoomItemSourceType;
+  sourceId: string;
+  contractVersion: typeof STYLECHAT_ATTACHMENT_CONTRACT_VERSION;
+};
+
+/** Shared evidence — never attachmentType owned_item. */
+export type StyleChatSharedItemAttachment = {
+  attachmentType: 'shared_item';
+  sourceType: SharedRoomItemSourceType;
   sourceId: string;
   contractVersion: typeof STYLECHAT_ATTACHMENT_CONTRACT_VERSION;
 };
@@ -42,7 +56,7 @@ export type StyleChatLookAttachment = {
 };
 
 export type StyleChatOutfitDraftItemRef = {
-  sourceType: OwnedItemSourceType;
+  sourceType: OwnedItemSourceType | DressingRoomItemSourceType;
   sourceId: string;
   role: GarmentRole;
   position: number;
@@ -59,8 +73,35 @@ export type StyleChatOutfitDraftAttachment = {
 
 export type StyleChatAttachment =
   | StyleChatOwnedItemAttachment
+  | StyleChatSharedItemAttachment
   | StyleChatLookAttachment
   | StyleChatOutfitDraftAttachment;
+
+/**
+ * Stable-ID builders for next-build DR-2 attachments.
+ * Never include owner IDs, share tokens, paths, URLs, or relationship claims.
+ */
+export function buildOwnedDressingRoomItemAttachment(
+  sourceId: string,
+): StyleChatOwnedItemAttachment {
+  return {
+    attachmentType: 'owned_item',
+    sourceType: 'dressing_room_item',
+    sourceId: sourceId.trim().toLowerCase(),
+    contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+  };
+}
+
+export function buildSharedRoomItemAttachment(sourceId: string): StyleChatSharedItemAttachment {
+  return {
+    attachmentType: 'shared_item',
+    sourceType: 'shared_room_item',
+    sourceId: sourceId.trim().toLowerCase(),
+    contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+  };
+}
+
+export type { StyleChatItemSourceType };
 
 /** Bounded, client-local display summary. Never authoritative. */
 export type StyleChatAttachmentSummary = {
@@ -154,6 +195,7 @@ export function validateAttachmentCombination(
   attachments: Array<{ attachment: StyleChatAttachment; itemCount: number }>,
 ): AttachmentValidationResult {
   let ownedItems = 0;
+  let sharedItems = 0;
   let looks = 0;
   let drafts = 0;
   let resolvedItemCount = 0;
@@ -170,6 +212,17 @@ export function validateAttachmentCombination(
       }
       seenKeys.add(key);
       ownedItems += 1;
+      resolvedItemCount += 1;
+    } else if (attachment.attachmentType === 'shared_item') {
+      if (attachment.sourceType !== 'shared_room_item' || !isUuid(attachment.sourceId)) {
+        return { ok: false, errorCode: 'ATTACHMENT_INVALID', message: 'This item cannot be attached yet.' };
+      }
+      const key = `shared_room_item:${attachment.sourceId.toLowerCase()}`;
+      if (seenKeys.has(key)) {
+        return { ok: false, errorCode: 'ATTACHMENT_INVALID', message: 'That item is already attached.' };
+      }
+      seenKeys.add(key);
+      sharedItems += 1;
       resolvedItemCount += 1;
     } else if (attachment.attachmentType === 'look') {
       if (!isUuid(attachment.lookId)) {
@@ -206,6 +259,13 @@ export function validateAttachmentCombination(
       message: `You can attach up to ${MAX_OWNED_ITEM_ATTACHMENTS} closet items.`,
     };
   }
+  if (sharedItems > MAX_SHARED_ITEM_ATTACHMENTS) {
+    return {
+      ok: false,
+      errorCode: 'ATTACHMENT_LIMIT_EXCEEDED',
+      message: `You can attach up to ${MAX_SHARED_ITEM_ATTACHMENTS} shared items.`,
+    };
+  }
   if (looks > MAX_LOOK_ATTACHMENTS || drafts > MAX_OUTFIT_DRAFT_ATTACHMENTS) {
     return {
       ok: false,
@@ -221,8 +281,8 @@ export function validateAttachmentCombination(
       message: 'Attach either a Look or an outfit, not both.',
     };
   }
-  // Look + owned anchor is allowed only as ONE item alongside the Look.
-  if ((looks > 0 || drafts > 0) && ownedItems > 1) {
+  // Look + owned/shared anchor is allowed only as ONE item alongside the Look.
+  if ((looks > 0 || drafts > 0) && ownedItems + sharedItems > 1) {
     return {
       ok: false,
       errorCode: 'ATTACHMENT_AMBIGUOUS',

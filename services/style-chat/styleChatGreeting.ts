@@ -16,6 +16,9 @@ export interface SessionGreetingResult {
 
 const pendingInserts = new Map<string, Promise<SessionGreetingResult>>();
 const greetedSessions = new Set<string>();
+/** Process-scoped message IDs eligible for one welcome-speech attempt after insert. */
+const pendingGreetingSpeech = new Map<string, string>();
+const greetingSpeechStarted = new Set<string>();
 
 function greetingScopeKey(actorId: string, sessionId: string): string {
   return `${actorId}:${sessionId}`;
@@ -126,10 +129,54 @@ export function isSessionGreeted(actorId: string, sessionId: string): boolean {
   return greetedSessions.has(greetingScopeKey(actorId, sessionId));
 }
 
+/**
+ * Remember that this process freshly inserted a greeting so speech can still
+ * start after a remount/cancel, once voice eligibility is known.
+ */
+export function noteInsertedGreetingForSpeech(
+  actorId: string,
+  sessionId: string,
+  messageId: string,
+): void {
+  if (!actorId || !sessionId || !messageId) return;
+  const scopeKey = greetingScopeKey(actorId, sessionId);
+  if (greetingSpeechStarted.has(scopeKey)) return;
+  pendingGreetingSpeech.set(scopeKey, messageId);
+}
+
+/** Pending welcome-speech message ID for this actor/session, if any. */
+export function getPendingGreetingSpeechMessageId(
+  actorId: string,
+  sessionId: string,
+): string | null {
+  if (!actorId || !sessionId) return null;
+  const scopeKey = greetingScopeKey(actorId, sessionId);
+  if (greetingSpeechStarted.has(scopeKey)) return null;
+  return pendingGreetingSpeech.get(scopeKey) ?? null;
+}
+
+/**
+ * Claim the single in-process welcome-speech attempt. Returns the message ID
+ * when speech should start, or null when already claimed/absent.
+ */
+export function claimGreetingSpeechAttempt(
+  actorId: string,
+  sessionId: string,
+): string | null {
+  const messageId = getPendingGreetingSpeechMessageId(actorId, sessionId);
+  if (!messageId) return null;
+  const scopeKey = greetingScopeKey(actorId, sessionId);
+  greetingSpeechStarted.add(scopeKey);
+  pendingGreetingSpeech.delete(scopeKey);
+  return messageId;
+}
+
 /** Clear actor-scoped greeting work and playback dedupe at an auth boundary. */
 export function resetStyleChatGreetingState(): void {
   pendingInserts.clear();
   greetedSessions.clear();
+  pendingGreetingSpeech.clear();
+  greetingSpeechStarted.clear();
 }
 
 export const resetGreetingDedupeForTests = resetStyleChatGreetingState;

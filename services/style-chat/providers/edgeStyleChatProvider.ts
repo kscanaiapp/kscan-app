@@ -10,6 +10,9 @@
 
 import { supabase } from '../../supabaseClient';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
+import {
+  ELISE_ADVICE_METADATA_CLIENT_V1,
+} from '../../../constants/featureFlags';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
@@ -18,6 +21,7 @@ import {
   STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
   type StyleChatAttachment,
 } from '../../../types/styleChatAttachments';
+import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
 
 const EDGE_FN      = 'stylechat-generate';
 export const ELISE_VISUAL_COLLECTION_CONTRACT_VERSION = '1';
@@ -75,6 +79,13 @@ export interface EdgeChatResult {
   actions?: EdgeChatAction[];
   /** v2 only: safe error code for attachment failures. */
   errorCode?: string;
+  /**
+   * E-4 optional structured advice metadata.
+   * Older clients ignore this field; text remains authoritative.
+   * Applied only when ELISE_ADVICE_METADATA_CLIENT_V1 is enabled and object-shaped.
+   */
+  adviceMetadata?: EliseAdviceMetadataClient | Record<string, unknown>;
+  adviceContractVersion?: string;
 }
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
@@ -280,6 +291,7 @@ export class EdgeStyleChatProvider {
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
     activeContext?: StyleChatHandoffContext | null;
+    sourceMessageId?: string | null;
     /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
     attachments?: StyleChatAttachment[] | null;
     contextHint?: string | null;
@@ -294,6 +306,7 @@ export class EdgeStyleChatProvider {
         body: {
           sessionId: input.sessionId,
           message: input.message,
+          ...(input.sourceMessageId ? { sourceMessageId: input.sourceMessageId } : {}),
           // Additive/optional: sent only when weather-aware styling is enabled and a
           // rounded foreground fix is available. Requests without it stay valid.
           ...(input.weatherLocation && input.weatherLocation.enabled
@@ -486,12 +499,25 @@ export class EdgeStyleChatProvider {
             }))
         : [];
 
-      // Validate and pass through the typed response.
+      // Optional advice metadata: flag OFF or non-object → omit (never crash).
+      const rawAdvice = (data as unknown as Record<string, unknown>).adviceMetadata;
+      const adviceContractVersion =
+        typeof (data as unknown as Record<string, unknown>).adviceContractVersion === 'string'
+          ? String((data as unknown as Record<string, unknown>).adviceContractVersion)
+          : undefined;
+      const includeAdvice =
+        ELISE_ADVICE_METADATA_CLIENT_V1 && isRecord(rawAdvice);
       return {
         status,
         message,
         usage: normalizeUsage(data.usage),
         ...(actions.length > 0 ? { actions } : {}),
+        ...(includeAdvice
+          ? {
+              adviceMetadata: rawAdvice,
+              ...(adviceContractVersion ? { adviceContractVersion } : {}),
+            }
+          : {}),
       };
 
     } catch (err: unknown) {

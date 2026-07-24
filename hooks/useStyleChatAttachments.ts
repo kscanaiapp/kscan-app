@@ -23,6 +23,8 @@ import {
 } from '../services/style-chat/styleChatAttachmentStore';
 import {
   STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+  buildOwnedDressingRoomItemAttachment,
+  buildSharedRoomItemAttachment,
   isPendingAttachmentState,
   validateAttachmentCombination,
   type DraftAttachment,
@@ -31,10 +33,23 @@ import {
   type StyleChatOutfitDraftItemRef,
 } from '../types/styleChatAttachments';
 import {
+  ELISE_ATTACHMENT_LIMIT_MESSAGE,
+  ELISE_DIRECT_IMAGE_LIMIT_MESSAGE,
+  MAX_ELISE_ATTACHMENTS,
+  MAX_ELISE_DIRECT_IMAGES,
+} from '../types/eliseVisualAttachments';
+import {
   ensureRemoteBackedOwnedItem,
 } from '../services/ownedClosetItems';
 import { ensureSavedScanMediaBacking } from '../services/savedScanMedia';
 import { recordAiStylistEvent } from '../services/styleMemoryEvents';
+import {
+  cleanupPreparedDirectImage,
+  prepareEliseDirectImage,
+  resolvePreparedDirectImageAttachment,
+} from '../services/style-chat/eliseDirectImageAttachment';
+import { orderAttachmentsForSend } from '../services/style-chat/eliseVisualAttachmentDedup';
+import { trackEliseAttachmentTelemetry } from '../services/style-chat/eliseVisualAttachmentTelemetry';
 import type { OwnedClosetItem, OwnedItemSourceType } from '../types/ownedClosetItem';
 import type { OutfitVariation } from '../types/fashionReasoning';
 import type { SavedScanModel } from '../services/savedScansCloud';
@@ -56,8 +71,44 @@ function attachmentItemCount(attachment: StyleChatAttachment, summaryCount?: num
   return Math.max(1, summaryCount ?? 1);
 }
 
+function countDirectImageDrafts(attachments: DraftAttachment[]): number {
+  return attachments.filter((entry) => {
+    if (entry.state === 'cancelled') return false;
+    const subtitle = entry.summary.subtitle?.toLowerCase() ?? '';
+    return (
+      subtitle === 'photo' ||
+      Boolean(entry.selection.sanitizedImageUri) ||
+      (entry.resolved?.attachmentType === 'owned_item' &&
+        entry.resolved.sourceType === 'saved_scan' &&
+        subtitle.includes('photo'))
+    );
+  }).length;
+}
+
 /** Resolution guard: one saga per draftId at a time. */
 const resolvingDraftIds = new Set<string>();
+/** Focused draft id per session (client UI only). */
+const focusedDraftBySession = new Map<string, string | null>();
+const focusListeners = new Set<() => void>();
+
+function notifyFocus() {
+  for (const listener of [...focusListeners]) {
+    try {
+      listener();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function getFocusedDraftId(sessionId: string): string | null {
+  return focusedDraftBySession.get(sessionId) ?? null;
+}
+
+function setFocusedDraftId(sessionId: string, draftId: string | null): void {
+  focusedDraftBySession.set(sessionId, draftId);
+  notifyFocus();
+}
 
 export function useStyleChatAttachments(sessionId: string) {
   const attachments = useSyncExternalStore(
@@ -65,19 +116,37 @@ export function useStyleChatAttachments(sessionId: string) {
     () => getDraftAttachments(sessionId),
     () => getDraftAttachments(sessionId),
   );
+  const focusedDraftId = useSyncExternalStore(
+    (listener) => {
+      focusListeners.add(listener);
+      return () => focusListeners.delete(listener);
+    },
+    () => getFocusedDraftId(sessionId),
+    () => getFocusedDraftId(sessionId),
+  );
 
   const hasPending = attachments.some((entry) => isPendingAttachmentState(entry.state));
   const hasFailed = attachments.some((entry) => entry.state === 'failed_retryable');
   const allReady = attachments.length > 0 && attachments.every((entry) => entry.state === 'ready');
   const canSendWithAttachments = attachments.length === 0 || allReady;
+  const atAttachmentLimit = attachments.filter((entry) => entry.state !== 'cancelled').length >= MAX_ELISE_ATTACHMENTS;
+  const atDirectImageLimit = countDirectImageDrafts(attachments) >= MAX_ELISE_DIRECT_IMAGES;
 
   const validateAddition = useCallback(
-    (candidate: StyleChatAttachment, candidateItemCount: number): AddAttachmentResult => {
+    (candidate: StyleChatAttachment, candidateItemCount: number, options?: { isDirectImage?: boolean }): AddAttachmentResult => {
+      const live = getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled');
+      if (live.length >= MAX_ELISE_ATTACHMENTS) {
+        return { ok: false, message: ELISE_ATTACHMENT_LIMIT_MESSAGE };
+      }
+      if (options?.isDirectImage && countDirectImageDrafts(live) >= MAX_ELISE_DIRECT_IMAGES) {
+        return { ok: false, message: ELISE_DIRECT_IMAGE_LIMIT_MESSAGE };
+      }
+
       // Use a unique placeholder per unresolved draft entry so multiple
       // pending local selections do not collide as duplicates.
       let pendingIndex = 0;
       const proposed = [
-        ...getDraftAttachments(sessionId)
+        ...live
           .filter((entry) => entry.resolved || entry.state !== 'cancelled')
           .map((entry) => ({
             attachment:
@@ -231,6 +300,7 @@ export function useStyleChatAttachments(sessionId: string) {
         },
       };
       upsertDraftAttachment(sessionId, draft);
+      if (!getFocusedDraftId(sessionId)) setFocusedDraftId(sessionId, draft.draftId);
       void resolveOwnedItemDraft(draft, item, localScan);
       return { ok: true };
     },
@@ -260,6 +330,8 @@ export function useStyleChatAttachments(sessionId: string) {
           itemCount,
         },
       });
+      const draftId = getDraftAttachments(sessionId).slice(-1)[0]?.draftId;
+      if (draftId && !getFocusedDraftId(sessionId)) setFocusedDraftId(sessionId, draftId);
       void recordAiStylistEvent({
         eventType: 'stylechat_look_attached',
         signalKey: look.id,
@@ -306,19 +378,261 @@ export function useStyleChatAttachments(sessionId: string) {
 
   /** Adds a fully-resolved photo-intake result (already row+media backed). */
   const addResolvedOwnedItem = useCallback(
-    (resolved: StyleChatAttachment, summary: StyleChatAttachmentSummary): AddAttachmentResult => {
-      const validation = validateAddition(resolved, attachmentItemCount(resolved, summary.itemCount));
+    (resolved: StyleChatAttachment, summary: StyleChatAttachmentSummary, options?: { isDirectImage?: boolean }): AddAttachmentResult => {
+      const validation = validateAddition(
+        resolved,
+        attachmentItemCount(resolved, summary.itemCount),
+        { isDirectImage: options?.isDirectImage },
+      );
       if (!validation.ok) return validation;
+      const draftId = newDraftId();
       upsertDraftAttachment(sessionId, {
-        draftId: newDraftId(),
+        draftId,
         state: 'ready',
         selection: { retryCount: 0, updatedAt: now() },
         resolved,
         summary,
       });
+      if (!getFocusedDraftId(sessionId)) setFocusedDraftId(sessionId, draftId);
       return { ok: true };
     },
     [sessionId, validateAddition],
+  );
+
+  const addSharedItem = useCallback(
+    (input: {
+      sourceId: string;
+      title: string;
+      imageUri?: string | null;
+      subtitle?: string | null;
+    }): AddAttachmentResult => {
+      const candidate = buildSharedRoomItemAttachment(input.sourceId);
+      const validation = validateAddition(candidate, 1);
+      if (!validation.ok) return validation;
+      const draftId = newDraftId();
+      upsertDraftAttachment(sessionId, {
+        draftId,
+        state: 'ready',
+        selection: { retryCount: 0, updatedAt: now() },
+        resolved: candidate,
+        summary: {
+          title: input.title,
+          subtitle: input.subtitle ?? 'Shared',
+          imageUri: input.imageUri ?? null,
+          itemCount: 1,
+        },
+      });
+      if (!getFocusedDraftId(sessionId)) setFocusedDraftId(sessionId, draftId);
+      return { ok: true };
+    },
+    [sessionId, validateAddition],
+  );
+
+  const addDressingRoomItem = useCallback(
+    (input: {
+      sourceId: string;
+      title: string;
+      imageUri?: string | null;
+      shared?: boolean;
+      subtitle?: string | null;
+    }): AddAttachmentResult => {
+      if (input.shared) {
+        return addSharedItem({
+          sourceId: input.sourceId,
+          title: input.title,
+          imageUri: input.imageUri,
+          subtitle: input.subtitle ?? 'Shared',
+        });
+      }
+      const candidate = buildOwnedDressingRoomItemAttachment(input.sourceId);
+      const validation = validateAddition(candidate, 1);
+      if (!validation.ok) return validation;
+      const draftId = newDraftId();
+      upsertDraftAttachment(sessionId, {
+        draftId,
+        state: 'ready',
+        selection: { retryCount: 0, updatedAt: now() },
+        resolved: candidate,
+        summary: {
+          title: input.title,
+          subtitle: input.subtitle ?? 'Dressing Room',
+          imageUri: input.imageUri ?? null,
+          itemCount: 1,
+        },
+      });
+      if (!getFocusedDraftId(sessionId)) setFocusedDraftId(sessionId, draftId);
+      return { ok: true };
+    },
+    [sessionId, validateAddition, addSharedItem],
+  );
+
+  /**
+   * Camera / gallery → Scanner-compatible prep → saved_scan owned_item.
+   * Does not call scan-identify merely to manufacture the attachment.
+   */
+  const addDirectImage = useCallback(
+    async (
+      localUri: string,
+      source: 'camera' | 'photo_library',
+    ): Promise<AddAttachmentResult> => {
+      const live = getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled');
+      if (live.length >= MAX_ELISE_ATTACHMENTS) {
+        return { ok: false, message: ELISE_ATTACHMENT_LIMIT_MESSAGE };
+      }
+      if (countDirectImageDrafts(live) >= MAX_ELISE_DIRECT_IMAGES) {
+        return { ok: false, message: ELISE_DIRECT_IMAGE_LIMIT_MESSAGE };
+      }
+
+      const draftId = newDraftId();
+      const startedAt = Date.now();
+      upsertDraftAttachment(sessionId, {
+        draftId,
+        state: 'sanitizing',
+        selection: {
+          localImageUri: localUri,
+          retryCount: 0,
+          updatedAt: now(),
+        },
+        resolved: null,
+        summary: {
+          title: 'Photo',
+          subtitle: 'Photo',
+          imageUri: localUri,
+          itemCount: 1,
+        },
+      });
+      if (!getFocusedDraftId(sessionId)) setFocusedDraftId(sessionId, draftId);
+
+      let prepared: Awaited<ReturnType<typeof prepareEliseDirectImage>> | null = null;
+      try {
+        prepared = await prepareEliseDirectImage(localUri, source);
+        if (!updateDraftAttachment(sessionId, {
+          draftId,
+          state: 'creating_record',
+          selection: {
+            localImageUri: localUri,
+            sanitizedImageUri: prepared.preparedUri,
+            retryCount: 0,
+            updatedAt: now(),
+          },
+          resolved: null,
+          summary: {
+            title: 'Photo',
+            subtitle: 'Photo',
+            imageUri: prepared.previewUri,
+            itemCount: 1,
+          },
+        })) {
+          await cleanupPreparedDirectImage(prepared);
+          return { ok: false, message: 'Attachment removed.' };
+        }
+
+        const result = await resolvePreparedDirectImageAttachment(prepared, {
+          title: 'Photo',
+          category: 'tops',
+        });
+        if (result.ok) {
+          updateDraftAttachment(sessionId, {
+            draftId,
+            state: 'ready',
+            selection: {
+              localImageUri: localUri,
+              sanitizedImageUri: prepared.preparedUri,
+              remoteSourceType: 'saved_scan',
+              remoteSourceId:
+                result.resolved.attachmentType === 'owned_item' ? result.resolved.sourceId : null,
+              retryCount: 0,
+              lastErrorCode: null,
+              updatedAt: now(),
+            },
+            resolved: result.resolved,
+            summary: result.summary,
+          });
+          trackEliseAttachmentTelemetry('elise_attachment_direct_image', {
+            attachmentCount: 1,
+            directImageCount: 1,
+            attachmentsResolved: 1,
+            preparationOutcome: 'ready',
+            resolutionOutcome: 'ready',
+            transportOutcome: 'saved_scan',
+            sendOutcome: 'pending',
+            latencyMs: Date.now() - startedAt,
+            contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+          });
+          return { ok: true };
+        }
+
+        const failureCode =
+          'errorCode' in result && typeof result.errorCode === 'string'
+            ? result.errorCode
+            : 'RESOLUTION_FAILED';
+        const failureMessage =
+          'message' in result && typeof result.message === 'string'
+            ? result.message
+            : 'Could not attach the photo. Please try again.';
+
+        updateDraftAttachment(sessionId, {
+          draftId,
+          state: 'failed_retryable',
+          selection: {
+            localImageUri: localUri,
+            sanitizedImageUri: prepared.preparedUri,
+            retryCount: 1,
+            lastErrorCode: failureCode,
+            updatedAt: now(),
+          },
+          resolved: null,
+          summary: {
+            title: 'Photo',
+            subtitle: 'Photo',
+            imageUri: prepared.previewUri,
+            itemCount: 1,
+          },
+        });
+        trackEliseAttachmentTelemetry('elise_attachment_direct_image', {
+          attachmentCount: 1,
+          directImageCount: 1,
+          preparationOutcome: 'failed',
+          resolutionOutcome: failureCode,
+          sendOutcome: 'not_sent',
+          latencyMs: Date.now() - startedAt,
+          contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+          failureCode,
+        });
+        return { ok: false, message: failureMessage };
+      } catch {
+        updateDraftAttachment(sessionId, {
+          draftId,
+          state: 'failed_retryable',
+          selection: {
+            localImageUri: localUri,
+            sanitizedImageUri: prepared?.preparedUri ?? null,
+            retryCount: 1,
+            lastErrorCode: 'PREPARATION_FAILED',
+            updatedAt: now(),
+          },
+          resolved: null,
+          summary: {
+            title: 'Photo',
+            subtitle: 'Photo',
+            imageUri: prepared?.previewUri ?? localUri,
+            itemCount: 1,
+          },
+        });
+        if (prepared) await cleanupPreparedDirectImage(prepared);
+        return { ok: false, message: 'Could not prepare that photo. Please try again.' };
+      }
+    },
+    [sessionId],
+  );
+
+  const setFocusedAttachment = useCallback(
+    (draftId: string) => {
+      const exists = getDraftAttachments(sessionId).some((entry) => entry.draftId === draftId);
+      if (!exists) return;
+      setFocusedDraftId(sessionId, draftId);
+    },
+    [sessionId],
   );
 
   const retryAttachment = useCallback(
@@ -415,16 +729,80 @@ export function useStyleChatAttachments(sessionId: string) {
   );
 
   const removeAttachment = useCallback(
-    (draftId: string) => removeDraftAttachment(sessionId, draftId),
+    (draftId: string) => {
+      removeDraftAttachment(sessionId, draftId);
+      if (getFocusedDraftId(sessionId) === draftId) {
+        const remaining = getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled');
+        setFocusedDraftId(sessionId, remaining[0]?.draftId ?? null);
+      }
+    },
     [sessionId],
   );
 
   const clearAttachments = useCallback(
-    (options?: { keepText?: boolean }) => clearDraftAttachments(sessionId, options),
+    (options?: { keepText?: boolean }) => {
+      clearDraftAttachments(sessionId, options);
+      setFocusedDraftId(sessionId, null);
+    },
     [sessionId],
   );
 
-  const snapshotForSend = useCallback(() => snapshotReadyAttachments(sessionId), [sessionId]);
+  const snapshotForSend = useCallback(() => {
+    const snapshot = snapshotReadyAttachments(sessionId);
+    // V2 treats attachment order as multimodal focus priority; no explicit
+    // attachment focus field exists. Bind UI focus by placing the focused
+    // draft first. Visual-collection focus still uses focusEvidenceId when present.
+    const orderedDrafts = orderAttachmentsForSend(
+      getDraftAttachments(sessionId)
+        .filter((entry) => entry.state === 'ready' && entry.resolved)
+        .map((entry) => ({
+          draftId: entry.draftId,
+          focused: entry.draftId === getFocusedDraftId(sessionId),
+          resolved: entry.resolved!,
+        })),
+      getFocusedDraftId(sessionId),
+    );
+    const byId = new Map(snapshot.references.map((ref) => {
+      const key =
+        ref.attachmentType === 'owned_item' || ref.attachmentType === 'shared_item'
+          ? `${ref.attachmentType}:${ref.sourceType}:${ref.sourceId}`
+          : ref.attachmentType === 'look'
+            ? `look:${ref.lookId}`
+            : `draft:${JSON.stringify(ref)}`;
+      return [key, ref] as const;
+    }));
+    const orderedRefs = orderedDrafts
+      .map((entry) => {
+        const ref = entry.resolved;
+        const key =
+          ref.attachmentType === 'owned_item' || ref.attachmentType === 'shared_item'
+            ? `${ref.attachmentType}:${ref.sourceType}:${ref.sourceId}`
+            : ref.attachmentType === 'look'
+              ? `look:${ref.lookId}`
+              : null;
+        return key ? byId.get(key) ?? ref : ref;
+      })
+      .filter(Boolean) as StyleChatAttachment[];
+
+    return {
+      ...snapshot,
+      references: orderedRefs.length ? orderedRefs : snapshot.references,
+      focusedDraftId: getFocusedDraftId(sessionId),
+    };
+  }, [sessionId]);
+
+  // Ensure first attachment is focused by default.
+  useEffect(() => {
+    const live = attachments.filter((entry) => entry.state !== 'cancelled');
+    if (!live.length) {
+      if (getFocusedDraftId(sessionId)) setFocusedDraftId(sessionId, null);
+      return;
+    }
+    const current = getFocusedDraftId(sessionId);
+    if (!current || !live.some((entry) => entry.draftId === current)) {
+      setFocusedDraftId(sessionId, live[0].draftId);
+    }
+  }, [attachments, sessionId]);
 
   // One-time entry handoff consumption (Case 2 navigation). Re-evaluate when
   // the session id changes so a handoff set while the screen was mounted for
@@ -447,18 +825,29 @@ export function useStyleChatAttachments(sessionId: string) {
   // Register the store-reset callback so sign-out also clears in-flight saga
   // guards. The cleanup only unregisters this component's callback if it is
   // still the active one; module-level guards remain otherwise.
-  useEffect(() => registerAttachmentSagaReset(() => resolvingDraftIds.clear()), []);
+  useEffect(() => registerAttachmentSagaReset(() => {
+    resolvingDraftIds.clear();
+    focusedDraftBySession.clear();
+    notifyFocus();
+  }), []);
 
   return {
     attachments,
+    focusedDraftId,
     hasPending,
     hasFailed,
     allReady,
     canSendWithAttachments,
+    atAttachmentLimit,
+    atDirectImageLimit,
     addOwnedItem,
     addLook,
     addOutfitDraft,
     addResolvedOwnedItem,
+    addSharedItem,
+    addDressingRoomItem,
+    addDirectImage,
+    setFocusedAttachment,
     retryAttachment,
     removeAttachment,
     clearAttachments,
