@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { KScanIcon } from '../components/icons/kscan';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { VOICESCAN_ENABLED } from '../constants/featureFlags';
 
@@ -85,6 +86,20 @@ export default function Home() {
           accessibilityLabel="Scan Now"
           accessibilityRole="button"
         >
+          <View
+            style={styles.scanNowIcon}
+            accessible={false}
+            importantForAccessibility="no"
+            accessibilityElementsHidden
+          >
+            <KScanIcon
+              name="visual-search"
+              size={24}
+              variant="standard"
+              color={COLORS.textInverse}
+              accentColor={COLORS.gold}
+            />
+          </View>
           <Text style={styles.scanNowText}>SCAN NOW</Text>
         </Pressable>
 
@@ -97,7 +112,17 @@ export default function Home() {
         {Platform.OS !== 'ios' && (
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
-              <Text style={styles.cardLabel}>DRESSING ROOMS</Text>
+              <View style={styles.cardLabelRow}>
+                <View
+                  style={styles.cardIcon}
+                  accessible={false}
+                  importantForAccessibility="no"
+                  accessibilityElementsHidden
+                >
+                  <KScanIcon name="dressing-rooms" size={22} variant="compact" />
+                </View>
+                <Text style={styles.cardLabel}>DRESSING ROOMS</Text>
+              </View>
               <View style={styles.betaBadge}>
                 <Text style={styles.betaBadgeText}>BETA</Text>
               </View>
@@ -115,7 +140,17 @@ export default function Home() {
 
         {/* 7. Style Library */}
         <View style={[styles.card, styles.cardMuted]}>
-          <Text style={styles.cardLabel}>STYLE LIBRARY</Text>
+          <View style={styles.cardLabelRow}>
+            <View
+              style={styles.cardIcon}
+              accessible={false}
+              importantForAccessibility="no"
+              accessibilityElementsHidden
+            >
+              <KScanIcon name="save-organize" size={22} variant="compact" />
+            </View>
+            <Text style={styles.cardLabel}>STYLE LIBRARY</Text>
+          </View>
           <Text style={styles.cardBody}>Saved scans and inspiration.</Text>
           <Pressable
             testID="open-library-button"
@@ -152,7 +187,13 @@ export default function Home() {
                   Style a scan, compare looks, or choose from a Dressing Room.
                 </Text>
               </View>
-              <View style={styles.styleChatDot} />
+              <View
+                accessible={false}
+                importantForAccessibility="no"
+                accessibilityElementsHidden
+              >
+                <KScanIcon name="style" size={28} variant="standard" />
+              </View>
             </View>
           </Pressable>
         )}
@@ -231,6 +272,8 @@ const styles = StyleSheet.create({
     minHeight: 72,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: SPACING.sm,
     paddingHorizontal: SPACING.xl,
     backgroundColor: COLORS.accent,
     // Lacquered aubergine: plum rim + lighter top edge sheen + plum-tinted shadow halo
@@ -246,6 +289,12 @@ const styles = StyleSheet.create({
   },
   scanNowPressed: {
     backgroundColor: COLORS.purpleDeep,
+  },
+  scanNowIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scanNowText: {
     color: COLORS.textInverse,
@@ -317,6 +366,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.xs,
+  },
+  cardLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flexShrink: 1,
+  },
+  cardIcon: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardLabel: {
     ...TYPOGRAPHY.caption,
@@ -397,13 +458,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: COLORS.editorialTextSecondary,
-  },
-  styleChatDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.accent,
-    opacity: 0.8,
   },
 
   // ── Footer ────────────────────────────────────────────────────────────────

@@ -27,6 +27,7 @@ import {
   SavedLookCard,
   StatusPill,
 } from '../../components/luxury';
+import { KScanIcon } from '../icons/kscan';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import { StylistGreetingCard } from './StylistGreetingCard';
@@ -48,7 +49,7 @@ function formatDateLabel(iso: string): string {
 }
 
 interface FeatureChipProps {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   body: string;
   onPress?: () => void;
@@ -67,7 +68,14 @@ function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, a
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
     >
-      <Text style={styles.chipIcon}>{icon}</Text>
+      <View
+        style={styles.chipIconWrap}
+        accessible={false}
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+      >
+        {icon}
+      </View>
       <Text style={styles.chipTitle}>{title}</Text>
       <Text style={styles.chipBody}>{body}</Text>
     </Pressable>
@@ -213,7 +221,17 @@ export default function HomeLuxuryTechV1() {
       {showRecentSection && (
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <SectionHeader title="RECENT SCANS" style={styles.sectionHeaderTitle} />
+            <View style={styles.recentScansHeading}>
+              <View
+                style={styles.recentScansIcon}
+                accessible={false}
+                importantForAccessibility="no"
+                accessibilityElementsHidden
+              >
+                <KScanIcon name="recent-scans" size={22} variant="compact" />
+              </View>
+              <SectionHeader title="RECENT SCANS" style={styles.sectionHeaderTitle} />
+            </View>
             {hasRecentScans && (
               <Pressable
                 testID="home-luxury-view-all-scans"
@@ -322,7 +340,7 @@ export default function HomeLuxuryTechV1() {
       {/* Static product education content — no backend integration required. */}
       <View style={styles.featuresRow}>
         <FeatureChip
-          icon="✦"
+          icon={<KScanIcon name="style" size={28} variant="standard" />}
           title="AI STYLIST"
           body="Smart style insights just for you."
           onPress={() => router.push('/style-chat')}
@@ -331,7 +349,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to StyleChat"
         />
         <FeatureChip
-          icon="◈"
+          icon={<KScanIcon name="visual-search" size={28} variant="standard" />}
           title="VISUAL SEARCH"
           body="Scan anything. Find it instantly."
           onPress={() => router.push('/scan')}
@@ -340,7 +358,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to the scan camera"
         />
         <FeatureChip
-          icon="◇"
+          icon={<KScanIcon name="save-organize" size={28} variant="standard" />}
           title="SAVE & ORGANIZE"
           body="Save your favorites to your closet."
           onPress={() => router.push('/library')}
@@ -349,7 +367,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to your saved looks and closet"
         />
         <FeatureChip
-          icon="◉"
+          icon={<KScanIcon name="dressing-rooms" size={28} variant="standard" />}
           title="DRESSING ROOMS"
           body="Compare, save, and decide."
           onPress={() => router.push('/dressing-rooms')}
@@ -364,7 +382,8 @@ export default function HomeLuxuryTechV1() {
         {textScanEnabled && (
           <SecondaryButton
             testID="home-luxury-textscan"
-            title="✧ TextScan"
+            title="TextScan"
+            icon={<KScanIcon name="textscan" size={20} variant="compact" />}
             onPress={() => router.push('/text-scan')}
             accessibilityLabel="Open TextScan"
             accessibilityHint="Describe a look with text instead of the camera"
@@ -474,9 +493,24 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     gap: SPACING.sm,
   },
+  recentScansHeading: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  recentScansIcon: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sectionHeaderTitle: {
     flex: 1,
     minWidth: 0,
+    marginBottom: 0,
+    paddingTop: 0,
   },
   sectionHeaderAction: {
     flexShrink: 0,
@@ -557,9 +591,12 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
     ...SHADOWS.editorialSmall,
   },
-  chipIcon: {
-    fontSize: 20,
-    color: LUXURY.colors.goldBrushed,
+  chipIconWrap: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   chipTitle: {
     ...LUXURY.typography.sectionLabel,
