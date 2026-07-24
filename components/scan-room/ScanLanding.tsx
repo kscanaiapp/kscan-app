@@ -12,6 +12,7 @@ import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { LuxuryButton } from '../luxury/LuxuryButton';
 import { PrivacyFooter } from '../luxury/PrivacyFooter';
 import { ScanRoomHeader } from './ScanRoomHeader';
+import { KScanIcon } from '../icons/kscan';
 import {
   isPrivateImageUploadAvailable,
   PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
@@ -129,7 +130,8 @@ export function ScanLanding({
             style={[styles.textScanButton, disabled && styles.textScanButtonDisabled]}
             testID="scan-room-textscan"
           >
-            <Text style={styles.textScanText}>✧ Describe an item</Text>
+            <KScanIcon name="textscan" size={16} variant="compact" />
+            <Text style={styles.textScanText}>Describe an item</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -213,8 +215,10 @@ const styles = StyleSheet.create({
   },
   textScanButton: {
     minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: SPACING.xs,
   },
   textScanText: {
     ...LUXURY.typography.caption,

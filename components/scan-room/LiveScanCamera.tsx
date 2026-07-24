@@ -17,6 +17,7 @@ import { ScanButton } from '../ScanButton';
 import { ScanRoomHeader } from './ScanRoomHeader';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { LuxuryButton } from '../luxury/LuxuryButton';
+import { KScanIcon } from '../icons/kscan';
 import {
   isPrivateImageUploadAvailable,
   PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
@@ -189,9 +190,10 @@ export function LiveScanCamera({
               activeOpacity={0.78}
               accessibilityRole="button"
               accessibilityLabel="Open TextScan"
-              style={styles.controlPill}
+              style={[styles.controlPill, styles.controlPillWithIcon]}
             >
-              <Text style={styles.controlPillText}>✧ TextScan</Text>
+              <KScanIcon name="textscan" size={14} variant="compact" />
+              <Text style={styles.controlPillText}>TextScan</Text>
             </TouchableOpacity>
           )}
 
@@ -321,6 +323,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     minHeight: 36,
     justifyContent: 'center',
+  },
+  controlPillWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
   },
   controlPillText: {
     ...LUXURY.typography.caption,
