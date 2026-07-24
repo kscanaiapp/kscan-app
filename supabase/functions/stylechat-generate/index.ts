@@ -100,7 +100,10 @@ const CORS_HEADERS = {
 const DAILY_LIMIT          = 25;
 const MAX_MESSAGE_CHARS    = 500;
 const MAX_RESPONSE_CHARS   = 1000;
-const MAX_OUTPUT_TOKENS    = 512;
+// 2048 (was 512): gemini-3.6 thinking tokens count against maxOutputTokens,
+// and the v2 attachment/action prompts spend enough reasoning budget that a
+// 512-token cap produced empty visible candidates (live probe finding).
+const MAX_OUTPUT_TOKENS    = 2048;
 const MAX_MEMORY_CHARS     = 500;
 const MAX_RECENT_MESSAGES        = 6;
 const GREETING_HISTORY_BUFFER    = 3;
