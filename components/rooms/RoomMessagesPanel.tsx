@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Linking,
   StyleSheet,
   Text,
@@ -11,14 +12,33 @@ import {
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import {
+  DRESSING_ROOM_COLLABORATION_V1,
+  DRESSING_ROOM_MESSAGES_V1,
+  DRESSING_ROOM_REALTIME_SYNC_V1,
+  DRESSING_ROOM_THREADS_V1,
+} from '../../constants/featureFlags';
+import {
   listRoomMessages,
+  listRoomMessagesPage,
+  catchUpRoomMessages,
+  mergeRoomMessages,
   normalizeMessageBody,
   ROOM_MESSAGE_MAX_LENGTH,
   ROOM_MESSAGE_SEND_ERROR,
+  ROOM_MESSAGES_ACCESS_ERROR,
+  ROOM_MESSAGES_STALE_ERROR,
   ROOM_MESSAGES_LOAD_ERROR,
   sendRoomMessage,
   type RoomMessage,
 } from '../../services/roomMessages';
+import {
+  bumpCollabActorGeneration,
+  getCollabActorGeneration,
+  isCurrentCollabGeneration,
+  startCollaborationBoundedRefresh,
+  type MessageCursor,
+} from '../../services/dressingRoomCollaboration';
+import { supabase } from '../../services/supabaseClient';
 import {
   addHiddenContentId,
   addHiddenUserId,
@@ -27,16 +47,22 @@ import {
 } from '../../services/ugcSafetyStore';
 import { submitContentReport } from '../../services/contentReports';
 
-// Shared In-App Room Chat v1.
-// Backend-backed (services/roomMessages). Renders for AUTHENTICATED users only —
-// the room owner (Dressing Room detail screen) or an authorized participant who
-// joined via a share token (shared room screen). Never render for anonymous
-// preview viewers; the messages table is never exposed on the public preview.
-
 const MESSAGES_EMPTY_COPY = 'No messages yet. Start the conversation about this room.';
 const MESSAGES_FILTERED_EMPTY_COPY =
   'You have reported or hidden all recent activity in this room.';
 const COMPOSER_PLACEHOLDER = 'Message about this room…';
+
+function collabMessagesEnabled() {
+  return DRESSING_ROOM_COLLABORATION_V1 && DRESSING_ROOM_MESSAGES_V1;
+}
+
+function threadsEnabled() {
+  return collabMessagesEnabled() && DRESSING_ROOM_THREADS_V1;
+}
+
+function syncEnabled() {
+  return DRESSING_ROOM_COLLABORATION_V1 && DRESSING_ROOM_REALTIME_SYNC_V1;
+}
 
 function formatMessageTimestamp(createdAt: string) {
   const date = new Date(createdAt);
@@ -52,16 +78,37 @@ function formatMessageTimestamp(createdAt: string) {
 function MessageRow({
   message,
   onReport,
+  onReply,
+  replyEnabled,
 }: {
   message: RoomMessage;
   onReport: (message: RoomMessage) => void;
+  onReply?: (message: RoomMessage) => void;
+  replyEnabled: boolean;
 }) {
+  const isReply = Boolean(message.parentMessageId);
   return (
-    <View style={styles.messageCard}>
+    <View
+      style={[styles.messageCard, isReply ? styles.replyCard : null]}
+      accessibilityLabel={isReply ? 'Reply message' : 'Room message'}
+    >
       <View style={styles.messageMetaRow}>
-        <Text style={styles.messageSender}>{message.isMine ? 'You' : 'Participant'}</Text>
+        <Text style={styles.messageSender}>
+          {message.isMine ? 'You' : 'Participant'}
+          {isReply ? ' · Reply' : ''}
+        </Text>
         <View style={styles.messageMetaRight}>
           <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
+          {replyEnabled && !isReply && onReply ? (
+            <TouchableOpacity
+              onPress={() => onReply(message)}
+              accessibilityRole="button"
+              accessibilityLabel="Reply to message"
+              testID={`room-message-reply-${message.id}`}
+            >
+              <Text style={styles.replyButtonText}>Reply</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             onPress={() => onReport(message)}
             accessibilityRole="button"
@@ -86,32 +133,85 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const [sendError, setSendError] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string> | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<Set<string> | null>(null);
+  const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
+  const [olderCursor, setOlderCursor] = useState<MessageCursor | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [accessRevoked, setAccessRevoked] = useState(false);
   const sendInFlightRef = useRef(false);
+  const accessVersionRef = useRef(0);
+  const newestCursorRef = useRef<MessageCursor | null>(null);
+  const syncStopRef = useRef<null | (() => void)>(null);
+
+  const clearInteractiveState = useCallback(() => {
+    setMessages([]);
+    setReplyTo(null);
+    setOlderCursor(null);
+    newestCursorRef.current = null;
+    setDraft('');
+    setSendError(null);
+  }, []);
 
   const load = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
     setLoadError(null);
+    setAccessRevoked(false);
     try {
-      const [fetchedMessages, hiddenContentIds, hiddenUserIdsResult] = await Promise.all([
-        listRoomMessages(roomId),
+      const [fetchedPage, hiddenContentIds, hiddenUserIdsResult] = await Promise.all([
+        collabMessagesEnabled()
+          ? listRoomMessagesPage({ roomId })
+          : listRoomMessages(roomId).then((all) => ({
+              messages: all,
+              nextCursor: null as MessageCursor | null,
+              newestCursor: null as MessageCursor | null,
+              accessVersion: 0,
+            })),
         readHiddenContentIds().catch(() => [] as string[]),
         readHiddenUserIds().catch(() => [] as string[]),
       ]);
-      setMessages(fetchedMessages);
+      setMessages(fetchedPage.messages);
+      setOlderCursor(fetchedPage.nextCursor);
+      newestCursorRef.current = fetchedPage.newestCursor;
+      accessVersionRef.current = fetchedPage.accessVersion;
       setHiddenIds(new Set(hiddenContentIds));
       setHiddenUserIds(new Set(hiddenUserIdsResult));
     } catch (err: any) {
-      // err.message is always a friendly string from services/roomMessages —
-      // never a raw Supabase/Postgres/RLS error, and never a message body.
-      setMessages([]);
+      clearInteractiveState();
       setHiddenIds(new Set());
       setHiddenUserIds(new Set());
-      setLoadError(typeof err?.message === 'string' ? err.message : ROOM_MESSAGES_LOAD_ERROR);
+      const message = typeof err?.message === 'string' ? err.message : ROOM_MESSAGES_LOAD_ERROR;
+      setLoadError(message);
+      if (message === ROOM_MESSAGES_ACCESS_ERROR) {
+        setAccessRevoked(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [roomId]);
+  }, [clearInteractiveState, roomId]);
+
+  const loadOlder = useCallback(async () => {
+    if (!collabMessagesEnabled() || !olderCursor || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const page = await listRoomMessagesPage({
+        roomId,
+        cursor: olderCursor,
+        direction: 'older',
+      });
+      setMessages((current) => mergeRoomMessages(page.messages, current));
+      setOlderCursor(page.nextCursor);
+      accessVersionRef.current = page.accessVersion;
+    } catch (err: any) {
+      const message = typeof err?.message === 'string' ? err.message : ROOM_MESSAGES_LOAD_ERROR;
+      if (message === ROOM_MESSAGES_ACCESS_ERROR) {
+        setAccessRevoked(true);
+        clearInteractiveState();
+        setLoadError(message);
+      }
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [clearInteractiveState, loadingOlder, olderCursor, roomId]);
 
   const handleReport = useCallback(
     (message: RoomMessage) => {
@@ -124,7 +224,6 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
             text: 'Report & Hide',
             style: 'destructive',
             onPress: async () => {
-              // 1. Immediate in-memory hide so there is no state flash.
               setHiddenIds((current) => {
                 const next = new Set<string>(current ?? new Set<string>());
                 next.add(message.id);
@@ -138,7 +237,6 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
                 });
               }
 
-              // 2. Persist hide/block in the background; UI does not wait.
               const [contentPersisted, userPersisted] = await Promise.all([
                 addHiddenContentId(message.id),
                 message.senderId ? addHiddenUserId(message.senderId) : Promise.resolve(true),
@@ -149,7 +247,6 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
                 return;
               }
 
-              // 3. Attempt server-side report insert asynchronously. Failure must not unhide.
               const reportResult = await submitContentReport({
                 targetType: 'message',
                 targetId: message.id,
@@ -164,60 +261,130 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
 
               if (reportResult.ok && reportResult.serverAccepted) {
                 Alert.alert(
-                  'Thanks. We received your report and hid this content on this device.'
+                  'Thanks. We received your report and hid this content on this device.',
                 );
                 return;
               }
 
-              // Migration may not be deployed yet; fall back to email/local hide.
-              let emailOpened = false;
               try {
                 const supported = await Linking.canOpenURL(mailto);
-                if (supported) {
-                  await Linking.openURL(mailto);
-                  emailOpened = true;
-                }
+                if (supported) await Linking.openURL(mailto);
               } catch {
-                emailOpened = false;
+                // local hide already applied
               }
 
-              if (emailOpened) {
-                Alert.alert(
-                  'Thanks. This content has been hidden on this device. If needed, your report can also be sent to K Scan AI support.'
-                );
-              } else {
-                Alert.alert(
-                  'Thanks. This content has been hidden on this device. If needed, your report can also be sent to K Scan AI support.'
-                );
-              }
+              Alert.alert(
+                'Thanks. This content has been hidden on this device. If needed, your report can also be sent to K Scan AI support.',
+              );
             },
           },
-        ]
+        ],
       );
     },
-    [roomId]
+    [roomId],
   );
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      bumpCollabActorGeneration(session?.user?.id ?? null);
+      clearInteractiveState();
+      if (session?.user?.id) {
+        void load();
+      } else {
+        syncStopRef.current?.();
+        syncStopRef.current = null;
+      }
+    });
+    return () => {
+      data.subscription.unsubscribe();
+    };
+  }, [clearInteractiveState, load]);
+
+  useEffect(() => {
+    if (!syncEnabled() || !roomId || accessRevoked) return;
+    const generation = getCollabActorGeneration();
+    const handle = startCollaborationBoundedRefresh({
+      roomId,
+      actorGeneration: generation,
+      knownAccessVersion: accessVersionRef.current,
+      onAccessLost: () => {
+        setAccessRevoked(true);
+        clearInteractiveState();
+        setLoadError(ROOM_MESSAGES_ACCESS_ERROR);
+      },
+      onTick: async (accessVersion) => {
+        accessVersionRef.current = accessVersion;
+        const page = await catchUpRoomMessages({
+          roomId,
+          fromCursor: newestCursorRef.current,
+        });
+        if (!isCurrentCollabGeneration(generation)) return;
+        setMessages((current) => mergeRoomMessages(current, page.messages));
+        if (page.newestCursor) newestCursorRef.current = page.newestCursor;
+        accessVersionRef.current = page.accessVersion;
+      },
+    });
+    syncStopRef.current = handle.stop;
+    return () => {
+      handle.stop();
+      syncStopRef.current = null;
+    };
+  }, [accessRevoked, clearInteractiveState, roomId]);
+
+  useEffect(() => {
+    if (!syncEnabled()) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && !accessRevoked) {
+        void load();
+      }
+    });
+    return () => sub.remove();
+  }, [accessRevoked, load]);
+
   const normalizedDraft = normalizeMessageBody(draft);
   const draftLength = normalizedDraft.length;
   const draftTooLong = draftLength > ROOM_MESSAGE_MAX_LENGTH;
-  const canSend = !sending && draftLength > 0 && !draftTooLong;
+  const canSend = !sending && !accessRevoked && draftLength > 0 && !draftTooLong;
 
   const handleSend = async () => {
     if (!canSend || sendInFlightRef.current) return;
     sendInFlightRef.current = true;
     setSending(true);
     setSendError(null);
+    const sendGeneration = getCollabActorGeneration();
+    const parentMessageId =
+      threadsEnabled() && replyTo && !replyTo.parentMessageId ? replyTo.id : null;
     try {
-      const sent = await sendRoomMessage(roomId, draft);
-      setMessages((current) => [...current, sent]);
+      const sent = await sendRoomMessage(roomId, draft, { parentMessageId });
+      if (!isCurrentCollabGeneration(sendGeneration) || accessRevoked) {
+        return;
+      }
+      setMessages((current) => mergeRoomMessages(current, [sent]));
+      newestCursorRef.current = {
+        createdAt: sent.createdAt,
+        id: sent.id,
+        direction: 'newer',
+      };
       setDraft('');
+      setReplyTo(null);
     } catch (err: any) {
-      setSendError(typeof err?.message === 'string' ? err.message : ROOM_MESSAGE_SEND_ERROR);
+      if (!isCurrentCollabGeneration(sendGeneration)) {
+        return;
+      }
+      const message = typeof err?.message === 'string' ? err.message : ROOM_MESSAGE_SEND_ERROR;
+      if (message === ROOM_MESSAGES_STALE_ERROR) {
+        clearInteractiveState();
+        return;
+      }
+      setSendError(message);
+      if (message === ROOM_MESSAGES_ACCESS_ERROR) {
+        setAccessRevoked(true);
+        clearInteractiveState();
+      }
     } finally {
       sendInFlightRef.current = false;
       setSending(false);
@@ -239,21 +406,24 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
       ) : loadError ? (
         <View style={styles.statusCard}>
           <Text style={styles.errorText}>{loadError}</Text>
-          <TouchableOpacity
-            style={styles.pillButton}
-            onPress={() => { void load(); }}
-            testID="room-messages-retry-button"
-            accessibilityRole="button"
-            accessibilityLabel="Retry loading messages"
-          >
-            <Text style={styles.pillButtonText}>Retry</Text>
-          </TouchableOpacity>
+          {!accessRevoked ? (
+            <TouchableOpacity
+              style={styles.pillButton}
+              onPress={() => {
+                void load();
+              }}
+              testID="room-messages-retry-button"
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading messages"
+            >
+              <Text style={styles.pillButtonText}>Retry</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       ) : (
         (() => {
           const visibleMessages = messages.filter(
-            (message) =>
-              !hiddenIds.has(message.id) && !hiddenUserIds.has(message.senderId)
+            (message) => !hiddenIds.has(message.id) && !hiddenUserIds.has(message.senderId),
           );
           return visibleMessages.length === 0 ? (
             <View style={styles.statusCard}>
@@ -263,8 +433,32 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
             </View>
           ) : (
             <View style={styles.messageList} testID="room-messages-list">
+              {collabMessagesEnabled() && olderCursor ? (
+                <TouchableOpacity
+                  style={styles.pillButton}
+                  onPress={() => {
+                    void loadOlder();
+                  }}
+                  disabled={loadingOlder}
+                  accessibilityRole="button"
+                  accessibilityLabel="Load older messages"
+                  testID="room-messages-load-older"
+                >
+                  {loadingOlder ? (
+                    <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+                  ) : (
+                    <Text style={styles.pillButtonText}>Older</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
               {visibleMessages.map((message) => (
-                <MessageRow key={message.id} message={message} onReport={handleReport} />
+                <MessageRow
+                  key={message.id}
+                  message={message}
+                  onReport={handleReport}
+                  replyEnabled={threadsEnabled() && !accessRevoked}
+                  onReply={(target) => setReplyTo(target)}
+                />
               ))}
             </View>
           );
@@ -272,6 +466,20 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
       )}
 
       <View style={styles.composerCard}>
+        {replyTo ? (
+          <View style={styles.replyBanner}>
+            <Text style={styles.replyBannerText} numberOfLines={1}>
+              Replying to {replyTo.isMine ? 'yourself' : 'participant'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setReplyTo(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel reply"
+            >
+              <Text style={styles.reportButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         <TextInput
           value={draft}
           onChangeText={setDraft}
@@ -280,11 +488,12 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
           multiline
           textAlignVertical="top"
           maxLength={ROOM_MESSAGE_MAX_LENGTH}
-          editable={!sending}
+          editable={!sending && !accessRevoked}
           style={styles.composerInput}
           testID="room-messages-input"
           accessibilityLabel="Message composer"
           accessibilityHint="Type a message about this room"
+          accessibilityState={{ disabled: accessRevoked }}
         />
         <View style={styles.composerFooter}>
           <Text style={[styles.charCount, draftTooLong ? styles.charCountError : null]}>
@@ -292,12 +501,15 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
           </Text>
           <TouchableOpacity
             style={[styles.pillButton, !canSend ? styles.pillButtonDisabled : null]}
-            onPress={() => { void handleSend(); }}
+            onPress={() => {
+              void handleSend();
+            }}
             disabled={!canSend}
             testID="room-messages-send-button"
             accessibilityRole="button"
             accessibilityLabel="Send message"
             accessibilityHint="Send your message to the room"
+            accessibilityState={{ disabled: !canSend, busy: sending }}
           >
             {sending ? (
               <ActivityIndicator size="small" color={LUXURY.colors.plum} />
@@ -361,6 +573,10 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     ...SHADOWS.editorialSmall,
   },
+  replyCard: {
+    marginLeft: SPACING.lg,
+    borderColor: LUXURY.colors.gold,
+  },
   messageMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -387,6 +603,11 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.error,
     fontWeight: '600',
   },
+  replyButtonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
+  },
   messageBody: {
     ...LUXURY.typography.body,
     color: LUXURY.colors.ink,
@@ -400,6 +621,18 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.cream,
     padding: SPACING.md,
     ...SHADOWS.editorialSmall,
+  },
+  replyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  replyBannerText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    flex: 1,
+    marginRight: SPACING.sm,
   },
   composerInput: {
     minHeight: 72,

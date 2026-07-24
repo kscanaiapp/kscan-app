@@ -2,8 +2,24 @@ import { supabase } from './supabaseClient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import {
+  DRESSING_ROOM_CANONICAL_ITEM_V1,
+  DRESSING_ROOM_COLLABORATION_V1,
+  DRESSING_ROOM_COMMERCE_PRESERVATION_V1,
+  DRESSING_ROOM_DEDUPE_V1,
+  DRESSING_ROOM_REACTIONS_V1,
+} from '../constants/featureFlags';
+import {
+  createCollabRequestId,
+  getCollabActorGeneration,
+  isCurrentCollabGeneration,
+  setItemReactionDesiredState,
+  bumpCollabActorGeneration,
+} from './dressingRoomCollaboration';
+import {
+  buildCanonicalSnapshotExtension,
   isLocalImageUri as contractIsLocalImageUri,
   isRemoteImageUrl as contractIsRemoteImageUrl,
+  readSnapshotDedupeKey,
   resolveDressingRoomImageSource,
 } from './dressingRoomItemContract';
 import type {
@@ -20,6 +36,7 @@ import type {
   RoomDetail,
   ScanImageSnapshotSource,
 } from '../types/styleObjects';
+import type { CanonicalItemSourceKind } from '../types/canonicalDressingRoomItem';
 
 export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
@@ -244,7 +261,10 @@ async function resolveSignedImageUrlsForItems<T extends { imageUrl?: string | nu
   );
 }
 
-export function buildProductMatchSnapshot(source: ProductMatchSnapshotSource) {
+export function buildProductMatchSnapshot(
+  source: ProductMatchSnapshotSource,
+  options?: { dressingRoomId?: string | null },
+) {
   // Resolve fields accepting BOTH camelCase and snake_case so the snapshot
   // builder accepts exactly what ProductShelf considers saveable: its
   // eligibility gate (getProductImageUrl/getPurchaseUrl/getProductTitle) reads
@@ -282,26 +302,69 @@ export function buildProductMatchSnapshot(source: ProductMatchSnapshotSource) {
     cleanText(source.category) ||
     cleanText(source.canonical_category);
 
+  const snapshotPayload: Record<string, unknown> = {
+    snapshotVersion: SNAPSHOT_VERSION,
+    sourceType: 'product_match',
+    sourceId: cleanText(source.id),
+    title,
+    brand,
+    category,
+    imageUrl,
+    productUrl,
+    price: {
+      amount: price.amount,
+      currency: price.currency,
+      display: cleanText(source.price),
+    },
+    metadata: {},
+  };
+
+  if (DRESSING_ROOM_CANONICAL_ITEM_V1 || DRESSING_ROOM_COMMERCE_PRESERVATION_V1 || DRESSING_ROOM_DEDUPE_V1) {
+    const commerceSource =
+      (source as ProductMatchSnapshotSource & { purchaseOptions?: unknown; products?: unknown })
+    // DR-1: a Scan Result Object primary-match save (services/scanResultDressingRoom.ts)
+    // sets scanId + kind: 'scanner_single' on the source object to mark this item
+    // as Scanner-originated rather than a browsed catalog product. Genuine
+    // Catalog/ProductShelf saves never set these, and remain 'catalog_product'.
+    const scannerSource = source as ProductMatchSnapshotSource & {
+      scanId?: string | null;
+      selectedItemId?: string | null;
+      kind?: string | null;
+    };
+    const provenanceScanId = cleanText(scannerSource.scanId);
+    const provenanceKind: CanonicalItemSourceKind =
+      provenanceScanId && scannerSource.kind === 'scanner_single' ? 'scanner_single' : 'catalog_product';
+    const extension = buildCanonicalSnapshotExtension({
+      dressingRoomId: options?.dressingRoomId ?? '',
+      sourceType: 'product_match',
+      sourceId: cleanText(source.id),
+      kind: provenanceKind,
+      scanId: provenanceScanId,
+      selectedItemId: cleanText(scannerSource.selectedItemId),
+      providerProductId: cleanText(source.id),
+      creationSource: 'product_match',
+      commerceSource: {
+        purchaseOptions: commerceSource.purchaseOptions,
+        products: commerceSource.products,
+        // Single-product path: also fold the primary product itself.
+        recommendedProducts: [source],
+      },
+      includeCommerce: DRESSING_ROOM_COMMERCE_PRESERVATION_V1,
+      includeDedupe: DRESSING_ROOM_DEDUPE_V1,
+    });
+    if (DRESSING_ROOM_CANONICAL_ITEM_V1 || DRESSING_ROOM_DEDUPE_V1) {
+      snapshotPayload.canonical = extension;
+    }
+    if (DRESSING_ROOM_COMMERCE_PRESERVATION_V1 && extension.purchaseOptions) {
+      snapshotPayload.purchaseOptions = extension.purchaseOptions;
+    }
+  }
+
   return {
     sourceType: 'product_match',
     sourceId: cleanText(source.id),
     snapshotVersion: SNAPSHOT_VERSION,
-    snapshotPayload: {
-      snapshotVersion: SNAPSHOT_VERSION,
-      sourceType: 'product_match',
-      sourceId: cleanText(source.id),
-      title,
-      brand,
-      category,
-      imageUrl,
-      productUrl,
-      price: {
-        amount: price.amount,
-        currency: price.currency,
-        display: cleanText(source.price),
-      },
-      metadata: {},
-    },
+    snapshotPayload,
     title,
     imageUrl,
     brand,
@@ -555,8 +618,16 @@ export async function addProductToDressingRoom(
   source: ProductMatchSnapshotSource,
 ): Promise<DressingRoomItem> {
   devLog('add:start', { entryPoint: 'product_match' });
-  const snapshot = buildProductMatchSnapshot(source);
+  const snapshot = buildProductMatchSnapshot(source, { dressingRoomId });
   devLog('add:normalized', { entryPoint: 'product_match', imageSourceKind: 'remote' });
+
+  if (DRESSING_ROOM_DEDUPE_V1) {
+    const existing = await findExistingRoomItemByDedupe(dressingRoomId, snapshot.snapshotPayload);
+    if (existing) {
+      devLog('add:dedupe_hit', { entryPoint: 'product_match' });
+      return existing;
+    }
+  }
 
   const { count } = await supabase
     .from('dressing_room_items')
@@ -588,6 +659,35 @@ export async function addProductToDressingRoom(
   }
   devLog('add:insert_succeeded', { entryPoint: 'product_match', success: true });
   return mapDressingRoomItem(data);
+}
+
+async function findExistingRoomItemByDedupe(
+  dressingRoomId: string,
+  snapshotPayload: Record<string, unknown>,
+): Promise<DressingRoomItem | null> {
+  const dedupeKey = readSnapshotDedupeKey(snapshotPayload);
+  if (!dedupeKey) return null;
+  const { data, error } = await supabase
+    .from('dressing_room_items')
+    .select('*')
+    .eq('dressing_room_id', dressingRoomId)
+    .order('created_at', { ascending: true })
+    .limit(40);
+  if (error || !Array.isArray(data)) return null;
+  for (const row of data) {
+    const mapped = mapDressingRoomItem(row);
+    if (readSnapshotDedupeKey(mapped.snapshotPayload) === dedupeKey) return mapped;
+  }
+  // Fallback: same source_type + source_id when present
+  const sourceType = typeof snapshotPayload.sourceType === 'string' ? snapshotPayload.sourceType : null;
+  const sourceId = typeof snapshotPayload.sourceId === 'string' ? snapshotPayload.sourceId : null;
+  if (sourceType && sourceId) {
+    const hit = data.find(
+      (row) => row.source_type === sourceType && String(row.source_id ?? '').toLowerCase() === sourceId.toLowerCase(),
+    );
+    if (hit) return mapDressingRoomItem(hit);
+  }
+  return null;
 }
 
 /**
@@ -653,7 +753,7 @@ export async function addScanImageToDressingRoom(input: {
       ? `${cleanText(metadata.category)} scan`
       : 'Scanned inspiration';
 
-  const snapshotPayload = {
+  const snapshotPayload: Record<string, unknown> = {
     snapshotVersion: SNAPSHOT_VERSION,
     sourceType: input.scan.sourceType ?? 'live_scan',
     sourceId: cleanText(input.scan.sourceId),
@@ -676,6 +776,53 @@ export async function addScanImageToDressingRoom(input: {
       capturedAt: cleanText(input.scan.createdAt),
     },
   };
+
+  if (DRESSING_ROOM_CANONICAL_ITEM_V1 || DRESSING_ROOM_COMMERCE_PRESERVATION_V1 || DRESSING_ROOM_DEDUPE_V1) {
+    const scanWithCommerce = input.scan as ScanImageSnapshotSource & {
+      purchaseOptions?: unknown;
+      products?: unknown;
+      recommendedProducts?: unknown;
+      scanId?: string | null;
+      selectedItemId?: string | null;
+      savedScanId?: string | null;
+      backendVersion?: string | null;
+    };
+    const extension = buildCanonicalSnapshotExtension({
+      dressingRoomId: input.dressingRoomId,
+      sourceType: input.scan.sourceType ?? 'live_scan',
+      sourceId: cleanText(input.scan.sourceId),
+      scanId: cleanText(scanWithCommerce.scanId),
+      selectedItemId: cleanText(scanWithCommerce.selectedItemId),
+      savedScanId: cleanText(scanWithCommerce.savedScanId) ?? (
+        input.scan.sourceType === 'style_library_scan' ? cleanText(input.scan.sourceId) : null
+      ),
+      backendVersion: cleanText(scanWithCommerce.backendVersion),
+      creationSource: input.scan.sourceType ?? 'live_scan',
+      storageBucket,
+      storagePath,
+      commerceSource: {
+        purchaseOptions: scanWithCommerce.purchaseOptions,
+        products: scanWithCommerce.products,
+        recommendedProducts: scanWithCommerce.recommendedProducts,
+      },
+      includeCommerce: DRESSING_ROOM_COMMERCE_PRESERVATION_V1,
+      includeDedupe: DRESSING_ROOM_DEDUPE_V1,
+    });
+    if (DRESSING_ROOM_CANONICAL_ITEM_V1 || DRESSING_ROOM_DEDUPE_V1) {
+      snapshotPayload.canonical = extension;
+    }
+    if (DRESSING_ROOM_COMMERCE_PRESERVATION_V1 && extension.purchaseOptions) {
+      snapshotPayload.purchaseOptions = extension.purchaseOptions;
+    }
+  }
+
+  if (DRESSING_ROOM_DEDUPE_V1) {
+    const existing = await findExistingRoomItemByDedupe(input.dressingRoomId, snapshotPayload);
+    if (existing) {
+      devLog('add:dedupe_hit', { entryPoint: 'scan_image' });
+      return existing;
+    }
+  }
 
   const { count } = await supabase
     .from('dressing_room_items')
@@ -782,12 +929,41 @@ export async function getMyItemReaction(
 export async function setItemReaction(
   itemId: string,
   reactionType: DressingRoomReactionType,
+  options?: { roomId?: string; active?: boolean; requestId?: string },
 ): Promise<void> {
   const normalizedItemId = String(itemId || '').trim();
   const currentUserId = requireAuthUserId(await getCurrentSessionUserId());
+  bumpCollabActorGeneration(currentUserId);
 
   if (!normalizedItemId) {
     throw new Error(REACTION_SAVE_ERROR);
+  }
+
+  const active = options?.active !== false;
+  const roomId = String(options?.roomId || '').trim();
+
+  if (DRESSING_ROOM_COLLABORATION_V1 && DRESSING_ROOM_REACTIONS_V1 && roomId) {
+    const generation = getCollabActorGeneration();
+    const requestId = options?.requestId ?? createCollabRequestId();
+    try {
+      await setItemReactionDesiredState({
+        roomId,
+        itemId: normalizedItemId,
+        reactionType,
+        active,
+        requestId,
+      });
+      if (!isCurrentCollabGeneration(generation)) {
+        throw new Error(REACTION_SAVE_ERROR);
+      }
+      return;
+    } catch {
+      throw new Error(REACTION_SAVE_ERROR);
+    }
+  }
+
+  if (!active) {
+    return removeItemReaction(normalizedItemId);
   }
 
   const { error } = await supabase

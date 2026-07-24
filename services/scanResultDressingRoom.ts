@@ -81,7 +81,22 @@ export function buildDressingRoomSaveSource(
   // local/raw/captured URI is rejected and surfaces as null here.
   if (!normalized.imageUrl || !normalized.title) return null;
 
-  return normalized as unknown as ProductMatchSnapshotSource;
+  const matches = scanResultObject && Array.isArray(scanResultObject.matches)
+    ? scanResultObject.matches
+    : [];
+
+  return {
+    ...(normalized as unknown as ProductMatchSnapshotSource),
+    // Preserve full retailer-neutral offer set for DR-1 commerce flag path.
+    purchaseOptions: matches,
+    products: matches,
+    // DR-1 canonical provenance: this save originates from a Scanner scan's
+    // primary product match, not a browsed catalog product — the canonical
+    // source.kind/source.scanId must reflect that so Elise and dedupe can
+    // distinguish "the user's own scanned item" from a discovered product.
+    scanId: scanResultObject?.id ?? null,
+    kind: 'scanner_single',
+  };
 }
 
 /**

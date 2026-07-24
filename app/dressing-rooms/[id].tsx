@@ -54,7 +54,6 @@ import {
   listDressingRoomInspirationItems,
   removeDressingRoomItem,
   removeInspirationFromDressingRoom,
-  removeItemReaction,
   revokeRoomShare,
   ROOM_NOTE_MAX_LENGTH,
   ROOM_TITLE_MAX_LENGTH,
@@ -678,9 +677,9 @@ function DressingRoomDetailContent() {
     setMutatingReactionItemId(itemId);
     try {
       if (currentReaction === reactionType) {
-        await removeItemReaction(itemId);
+        await setItemReaction(itemId, reactionType, { roomId: roomId ?? undefined, active: false });
       } else {
-        await setItemReaction(itemId, reactionType);
+        await setItemReaction(itemId, reactionType, { roomId: roomId ?? undefined, active: true });
       }
       await refreshItemReactions([itemId]);
     } catch {
@@ -688,7 +687,7 @@ function DressingRoomDetailContent() {
     } finally {
       setMutatingReactionItemId((current) => (current === itemId ? null : current));
     }
-  }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, selectedReactions]);
+  }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, roomId, selectedReactions]);
 
   const handleUploadInspiration = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();

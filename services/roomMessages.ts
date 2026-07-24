@@ -1,6 +1,23 @@
 import { supabase } from './supabaseClient';
+import {
+  DRESSING_ROOM_COLLABORATION_V1,
+  DRESSING_ROOM_MESSAGES_V1,
+  DRESSING_ROOM_THREADS_V1,
+} from '../constants/featureFlags';
+import {
+  bumpCollabActorGeneration,
+  createCollaborationMessage,
+  createCollabRequestId,
+  getCollabActorGeneration,
+  isCurrentCollabGeneration,
+  listCollaborationMessages,
+  catchUpCollaborationMessages,
+  mergeMessagesById,
+  type CollaborationRoomMessage,
+  type MessageCursor,
+} from './dressingRoomCollaboration';
 
-// Shared In-App Room Messaging v1.
+// Shared In-App Room Messaging v1 + DR-3 cursor/idempotent extensions.
 //
 // Backed by public.dressing_room_messages. RLS grants read/write to the room
 // OWNER and to AUTHORIZED PARTICIPANTS who joined via an active share token
@@ -21,6 +38,7 @@ export const ROOM_MESSAGE_MAX_LENGTH = 1000;
 export const ROOM_MESSAGES_LOAD_ERROR = "We couldn't load messages. Please try again.";
 export const ROOM_MESSAGE_SEND_ERROR = "We couldn't send that message. Please try again.";
 export const ROOM_MESSAGES_ACCESS_ERROR = 'You no longer have access to this room.';
+export const ROOM_MESSAGES_STALE_ERROR = 'This room session is no longer active.';
 export const ROOM_MESSAGE_SIGN_IN_ERROR = 'Sign in to view and send room messages.';
 export const ROOM_MESSAGE_EMPTY_ERROR = 'Message cannot be empty.';
 export const ROOM_MESSAGE_TOO_LONG_ERROR = `Messages must be ${ROOM_MESSAGE_MAX_LENGTH} characters or fewer.`;
@@ -34,6 +52,8 @@ export type RoomMessage = {
   body: string;
   createdAt: string;
   isMine: boolean;
+  clientMessageId?: string | null;
+  parentMessageId?: string | null;
 };
 
 type MessageRow = {
@@ -42,9 +62,32 @@ type MessageRow = {
   sender_id: string;
   body: string;
   created_at: string;
+  client_message_id?: string | null;
+  parent_message_id?: string | null;
 };
 
-const MESSAGE_COLUMNS = 'id, room_id, sender_id, body, created_at';
+const MESSAGE_COLUMNS = 'id, room_id, sender_id, body, created_at, client_message_id, parent_message_id';
+
+function collabMessagesEnabled() {
+  return DRESSING_ROOM_COLLABORATION_V1 && DRESSING_ROOM_MESSAGES_V1;
+}
+
+function threadsEnabled() {
+  return collabMessagesEnabled() && DRESSING_ROOM_THREADS_V1;
+}
+
+function fromCollaborationMessage(message: CollaborationRoomMessage): RoomMessage {
+  return {
+    id: message.id,
+    roomId: message.roomId,
+    senderId: message.senderId,
+    body: message.body,
+    createdAt: message.createdAt,
+    isMine: message.isMine,
+    clientMessageId: message.clientMessageId ?? null,
+    parentMessageId: message.parentMessageId ?? null,
+  };
+}
 
 function devLog(event: string, code?: string | number | null) {
   // Safe metadata only: event name + error code. Never bodies/IDs/tokens.
@@ -71,7 +114,9 @@ function requireRoomId(roomId?: string | null) {
 
 async function getCurrentSessionUserId() {
   const { data } = await supabase.auth.getSession();
-  return data.session?.user?.id ?? null;
+  const userId = data.session?.user?.id ?? null;
+  bumpCollabActorGeneration(userId);
+  return userId;
 }
 
 function toRoomMessage(row: MessageRow, currentUserId: string | null): RoomMessage {
@@ -82,11 +127,15 @@ function toRoomMessage(row: MessageRow, currentUserId: string | null): RoomMessa
     body: row.body,
     createdAt: row.created_at,
     isMine: Boolean(currentUserId && row.sender_id === currentUserId),
+    clientMessageId: row.client_message_id ?? null,
+    parentMessageId: row.parent_message_id ?? null,
   };
 }
 
 export function normalizeMessageBody(value?: string | null) {
-  return String(value ?? '').trim();
+  return String(value ?? '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .trim();
 }
 
 export function validateMessageBody(value?: string | null) {
@@ -107,6 +156,15 @@ export async function listRoomMessages(roomId: string): Promise<RoomMessage[]> {
     throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
   }
 
+  if (collabMessagesEnabled()) {
+    const generation = getCollabActorGeneration();
+    const page = await listCollaborationMessages({ roomId: normalizedRoomId });
+    if (!isCurrentCollabGeneration(generation)) {
+      throw new Error(ROOM_MESSAGES_STALE_ERROR);
+    }
+    return page.messages.map(fromCollaborationMessage);
+  }
+
   const { data, error } = await supabase
     .from('dressing_room_messages')
     .select(MESSAGE_COLUMNS)
@@ -122,13 +180,128 @@ export async function listRoomMessages(roomId: string): Promise<RoomMessage[]> {
   return (data ?? []).map((row) => toRoomMessage(row as MessageRow, currentUserId));
 }
 
-export async function sendRoomMessage(roomId: string, body: string): Promise<RoomMessage> {
+export async function listRoomMessagesPage(input: {
+  roomId: string;
+  cursor?: MessageCursor | null;
+  direction?: 'older' | 'newer';
+  limit?: number;
+}): Promise<{
+  messages: RoomMessage[];
+  nextCursor: MessageCursor | null;
+  newestCursor: MessageCursor | null;
+  accessVersion: number;
+}> {
+  const normalizedRoomId = requireRoomId(input.roomId);
+  const currentUserId = await getCurrentSessionUserId();
+  if (!currentUserId) {
+    throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
+  }
+  if (!collabMessagesEnabled()) {
+    const all = await listRoomMessages(normalizedRoomId);
+    return {
+      messages: all,
+      nextCursor: null,
+      newestCursor: null,
+      accessVersion: 0,
+    };
+  }
+  const generation = getCollabActorGeneration();
+  const page = await listCollaborationMessages({
+    roomId: normalizedRoomId,
+    cursor: input.cursor,
+    direction: input.direction,
+    limit: input.limit,
+  });
+  if (!isCurrentCollabGeneration(generation)) {
+    throw new Error(ROOM_MESSAGES_STALE_ERROR);
+  }
+  return {
+    messages: page.messages.map(fromCollaborationMessage),
+    nextCursor: page.nextCursor,
+    newestCursor: page.newestCursor,
+    accessVersion: page.accessVersion,
+  };
+}
+
+export async function catchUpRoomMessages(input: {
+  roomId: string;
+  fromCursor: MessageCursor | null;
+}): Promise<{
+  messages: RoomMessage[];
+  newestCursor: MessageCursor | null;
+  accessVersion: number;
+}> {
+  const normalizedRoomId = requireRoomId(input.roomId);
+  const currentUserId = await getCurrentSessionUserId();
+  if (!currentUserId) {
+    throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
+  }
+  if (!collabMessagesEnabled()) {
+    const all = await listRoomMessages(normalizedRoomId);
+    return { messages: all, newestCursor: null, accessVersion: 0 };
+  }
+  const generation = getCollabActorGeneration();
+  const page = await catchUpCollaborationMessages({
+    roomId: normalizedRoomId,
+    fromCursor: input.fromCursor,
+  });
+  if (!isCurrentCollabGeneration(generation)) {
+    throw new Error(ROOM_MESSAGES_STALE_ERROR);
+  }
+  return {
+    messages: page.messages.map(fromCollaborationMessage),
+    newestCursor: page.newestCursor,
+    accessVersion: page.accessVersion,
+  };
+}
+
+export function mergeRoomMessages(
+  existing: RoomMessage[],
+  incoming: RoomMessage[],
+): RoomMessage[] {
+  return mergeMessagesById(
+    existing.map((m) => ({
+      ...m,
+      clientMessageId: m.clientMessageId ?? null,
+      parentMessageId: m.parentMessageId ?? null,
+    })),
+    incoming.map((m) => ({
+      ...m,
+      clientMessageId: m.clientMessageId ?? null,
+      parentMessageId: m.parentMessageId ?? null,
+    })),
+  );
+}
+
+export async function sendRoomMessage(
+  roomId: string,
+  body: string,
+  options?: { parentMessageId?: string | null; clientMessageId?: string },
+): Promise<RoomMessage> {
   const normalizedRoomId = requireRoomId(roomId);
   const normalizedBody = validateMessageBody(body);
 
   const currentUserId = await getCurrentSessionUserId();
   if (!currentUserId) {
     throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
+  }
+
+  if (collabMessagesEnabled()) {
+    const parentMessageId = threadsEnabled()
+      ? options?.parentMessageId ?? null
+      : null;
+    const clientMessageId = options?.clientMessageId ?? createCollabRequestId();
+    const generation = getCollabActorGeneration();
+    const sent = await createCollaborationMessage({
+      roomId: normalizedRoomId,
+      text: normalizedBody,
+      clientMessageId,
+      parentMessageId,
+    });
+    if (!isCurrentCollabGeneration(generation)) {
+      throw new Error(ROOM_MESSAGES_STALE_ERROR);
+    }
+    return fromCollaborationMessage(sent);
   }
 
   const { data, error } = await supabase
@@ -181,8 +354,8 @@ export async function joinSharedRoom(shareToken: string): Promise<string> {
 }
 
 /**
- * Realtime is deferred to v2. This stub reserves the API name only; it never
- * opens a live subscription.
+ * Realtime remains deferred. Prefer startCollaborationBoundedRefresh when
+ * DRESSING_ROOM_REALTIME_SYNC_V1 is enabled at the UI layer.
  */
 export function subscribeToRoomMessages(_roomId: string, _onMessage?: (message: RoomMessage) => void): never {
   throw new Error(ROOM_MESSAGES_REALTIME_UNAVAILABLE);

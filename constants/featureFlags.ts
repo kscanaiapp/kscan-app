@@ -125,6 +125,88 @@ export const ACCOUNT_HOME_UX_V1_ENABLED =
 export const CLOUD_SAVED_SCANS_ENABLED =
   process.env.EXPO_PUBLIC_CLOUD_SAVED_SCANS_ENABLED === 'true';
 
+// ── Dressing Rooms DR-1 canonical item / commerce / dedupe ───────────────────
+/**
+ * Canonical Dressing Room item normalization (provenance + schema extension).
+ * Default OFF — legacy snapshot writers remain authoritative until enabled.
+ */
+export const DRESSING_ROOM_CANONICAL_ITEM_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_CANONICAL_ITEM_V1 === 'true';
+
+/**
+ * Persist retailer-neutral purchaseOptions into snapshot_payload.
+ * Default OFF — does not change current tester behavior.
+ */
+export const DRESSING_ROOM_COMMERCE_PRESERVATION_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_COMMERCE_PRESERVATION_V1 === 'true';
+
+/**
+ * Idempotent duplicate suppression for Dressing Room item inserts.
+ * Default OFF.
+ */
+export const DRESSING_ROOM_DEDUPE_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_DEDUPE_V1 === 'true';
+
+/**
+ * Next-build Saved Scan cloud image upload pathway. Default OFF.
+ * Must not be enabled for current testers without an approved client release.
+ */
+export const SAVED_SCAN_CLOUD_IMAGES_V1 =
+  process.env.EXPO_PUBLIC_SAVED_SCAN_CLOUD_IMAGES_V1 === 'true';
+
+/**
+ * DR-2: client may send owned dressing_room_item stable-ID attachments.
+ * Default OFF — next-build activation only.
+ */
+export const ELISE_DRESSING_ROOM_ATTACHMENTS_V1 =
+  process.env.EXPO_PUBLIC_ELISE_DRESSING_ROOM_ATTACHMENTS_V1 === 'true';
+
+/**
+ * DR-2: client may send shared_item / shared_room_item stable-ID attachments.
+ * Default OFF. Independent of wardrobe shared retrieval flags.
+ */
+export const ELISE_SHARED_ROOM_EVIDENCE_V1 =
+  process.env.EXPO_PUBLIC_ELISE_SHARED_ROOM_EVIDENCE_V1 === 'true';
+
+// ── Dressing Rooms DR-3 collaborative / interactive layer ────────────────────
+/**
+ * Master client switch for DR-3 collaboration UX (reactions desired-state RPC,
+ * cursor messages, flat replies, bounded refresh). Default OFF.
+ * Security is server-enforced regardless of this flag.
+ */
+export const DRESSING_ROOM_COLLABORATION_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_COLLABORATION_V1 === 'true';
+
+/**
+ * Idempotent desired-state item reactions via RPC. Default OFF.
+ */
+export const DRESSING_ROOM_REACTIONS_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_REACTIONS_V1 === 'true';
+
+/**
+ * Cursor-paginated room messages + client_message_id sends. Default OFF.
+ */
+export const DRESSING_ROOM_MESSAGES_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_MESSAGES_V1 === 'true';
+
+/**
+ * One-level reply/thread UI. Default OFF. Requires messages V1.
+ */
+export const DRESSING_ROOM_THREADS_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_THREADS_V1 === 'true';
+
+/**
+ * Bounded-refresh collaboration sync (Realtime remains off). Default OFF.
+ */
+export const DRESSING_ROOM_REALTIME_SYNC_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_REALTIME_SYNC_V1 === 'true';
+
+/**
+ * Per-user per-room read-state. Default OFF — not required by current UI.
+ */
+export const DRESSING_ROOM_READ_STATE_V1 =
+  process.env.EXPO_PUBLIC_DRESSING_ROOM_READ_STATE_V1 === 'true';
+
 // ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
 /**
  * Routes the image Scan analyze call through the app-side `scan-identify`
