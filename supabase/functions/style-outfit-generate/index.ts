@@ -30,6 +30,7 @@ import {
   type CandidateItem,
   type ParsedStyleOutfitRequest,
 } from './validation.ts';
+import { ELISE_PRIMARY_MODEL, getConfiguredModel } from './modelRouting.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -38,7 +39,11 @@ const CORS_HEADERS = {
 };
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Frozen model map (modelRouting.ts): explicit workload var only,
+// allowlist-validated. Generic GEMINI_MODEL precedence and the retired
+// gemini-2.5 default removed (LLM-01/LLM-02 parity with scan-identify
+// and stylechat-generate).
+const STYLE_OUTFIT_PRIMARY_MODEL = ELISE_PRIMARY_MODEL;
 const GEMINI_TIMEOUT_MS = 15_000;
 const MAX_PROMPT_CANDIDATES = 60;
 const DEFAULT_DAILY_LIMIT = 10;
@@ -318,7 +323,7 @@ Deno.serve(async (req) => {
     return json({ error: 'AI provider not configured' }, 500);
   }
   const modelName =
-    readTrimmedEnv('STYLE_OUTFIT_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+    getConfiguredModel(readTrimmedEnv, 'STYLE_OUTFIT_GEMINI_MODEL', STYLE_OUTFIT_PRIMARY_MODEL);
 
   // 4. Ownership + sufficiency validation BEFORE any quota reservation.
   //    Deterministic rejections (foreign / unowned anchor, insufficient owned
