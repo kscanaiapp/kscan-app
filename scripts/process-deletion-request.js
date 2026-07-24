@@ -1,86 +1,49 @@
 #!/usr/bin/env node
 
+// Thin CLI wrapper around the runtime-neutral hard-delete pipeline in
+// lib/account-deletion/. This file stays CommonJS so the existing Node test
+// suite (which uses require()) keeps working unchanged. The registry
+// (USER_DATA_RESOURCES/STORAGE_RESOURCES) is loaded synchronously from the
+// single JSON-backed source via lib/account-deletion/loadRegistry.cjs. The
+// async pipeline functions (which were already awaited everywhere they are
+// used) are lazily bridged to their ESM implementations in
+// lib/account-deletion/processorCore.mjs via dynamic import() - this keeps
+// exactly one implementation of the deletion logic while still exposing a
+// synchronous require()-able CJS interface for the CLI and tests.
+
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const OPEN_STATUSES = ['pending', 'processing'];
-const USER_DATA_RESOURCES = [
-  { table: 'profiles', column: 'id', action: 'auth_delete_cascade' },
-  { table: 'privacy_settings', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'user_stylist_preferences', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'privacy_export_requests', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'privacy_correction_requests', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'deletion_requests', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'legal_acceptances', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'saved_scans', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'dressing_rooms', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'dressing_room_items', column: null, action: 'parent_room_cascade', count: false },
-  { table: 'dressing_room_inspiration_items', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'dressing_room_item_reactions', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'dressing_room_messages', column: 'sender_id', action: 'auth_delete_cascade' },
-  { table: 'dressing_room_participants', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'shared_room_memberships', column: 'recipient_user_id', action: 'auth_delete_cascade' },
-  { table: 'room_shares', column: 'owner_id', action: 'auth_delete_cascade' },
-  { table: 'looks', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'look_items', column: null, action: 'parent_look_cascade', count: false },
-  // Outfit decisions (AI Stylist expansion): groups live under the dressing
-  // room boundary; a deleted creator only nullifies created_by. Votes cast by
-  // the deleted user in OTHER users' rooms are removed by the user_id cascade.
-  { table: 'outfit_decision_groups', column: 'created_by', action: 'auth_delete_set_null', optional: true },
-  { table: 'outfit_decision_options', column: null, action: 'parent_room_cascade', count: false, optional: true },
-  { table: 'outfit_decision_option_items', column: null, action: 'parent_room_cascade', count: false, optional: true },
-  { table: 'outfit_decision_votes', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'style_outfit_daily_usage', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'style_outfit_burst_usage', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'inspiration_items', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'style_chat_sessions', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'style_chat_messages', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'style_memory_events', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'style_chat_usage', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'style_chat_daily_usage', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },
-  { table: 'content_reports', column: 'reporter_user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'content_reports', column: 'reported_user_id', action: 'auth_delete_set_null', optional: true },
-  { table: 'wardrobe_utility_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_collections', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_collection_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_brand_sizing_notes', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_outfit_feedback', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_care_notes', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_wishlist_intents', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_wear_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
-  { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
-];
+const { loadRegistry } = require('../lib/account-deletion/loadRegistry.cjs');
 
-const DIRECT_DELETE_RESOURCES = USER_DATA_RESOURCES.filter(
-  (resource) => resource.action === 'direct_delete_before_auth',
-);
+const {
+  USER_DATA_RESOURCES,
+  STORAGE_RESOURCES,
+  SHARED_ROOM_TRANSFER_POLICY,
+  REQUIRED_REGISTRY_TABLES,
+} = loadRegistry();
 
-// Rooms owned by the deleted user are transferred to the earliest remaining
-// active participant (verified profile status and auth user existence) so that
-// other users' data (items, messages, participants) is not removed by the
-// auth.users cascade. Rooms with no valid active participant are left to cascade
-// normally. See docs/account-deletion-operations.md.
-const SHARED_ROOM_TRANSFER_POLICY = 'transfer_to_earliest_active_participant';
+// Legacy statuses ('pending', 'processing') are the original request-based
+// model. 'deactivated'/'purging' are the new grace-period lifecycle states.
+// Both are "open" for the CLI's list/get/process operations.
+const OPEN_STATUSES = ['pending', 'processing', 'deactivated', 'purging'];
 
-// Only the style-library-images bucket is known to hold user-owned objects.
-// Prefixes are intentionally explicit to avoid accidentally listing/deleting
-// non-user folders. If a new user-owned prefix is added, register it here.
-const STORAGE_RESOURCES = [
-  {
-    bucket: 'style-library-images',
-    // saved-scans: Phase 2 remote media backing for saved_scans rows
-    // ({userId}/saved-scans/{savedScanId}.jpg).
-    prefixesForUser: (userId) => [
-      `${userId}/scans`,
-      `${userId}/inspirations`,
-      `${userId}/saved-scans`,
-    ],
-  },
-];
+let corePromise;
+function loadCore() {
+  if (!corePromise) {
+    corePromise = import('../lib/account-deletion/processorCore.mjs');
+  }
+  return corePromise;
+}
+
+let helpersPromise;
+function loadHelpers() {
+  if (!helpersPromise) {
+    helpersPromise = import('../lib/account-deletion/helpers.mjs');
+  }
+  return helpersPromise;
+}
 
 function printHelp() {
   console.log(`K Scan account deletion processor
@@ -102,6 +65,27 @@ Safety:
   --confirm-delete is present. Deleting the auth user cascades the local public
   rows that reference auth.users(id). Use --verify to run a read-only
   completeness check after a confirmed deletion.
+
+  --confirm-delete additionally refuses to proceed unless ALL of the following
+  hold (these mirror the automated worker's gates so the CLI is not a way to
+  bypass them):
+    * the request's 30-day grace period has elapsed (never shortened);
+    * the request has not been restored by the user;
+    * the request is not already purged;
+    * the request is not currently held by a live automated-worker lease;
+    * the global automated worker (account_deletion_worker_enabled) is OFF;
+    * no pg_cron scheduler job invokes the deletion worker;
+    * the global account_deletion_worker_dry_run flag is OFF.
+
+  Controlled audit exception (single approved disposable-account purge):
+    node scripts/process-deletion-request.js --request-id <uuid> \\
+      --confirm-delete --override-dry-run --operator-confirm "<attestation>"
+  --override-dry-run runs ONE explicitly-approved request while global dry-run
+  stays ON (worker + scheduler still OFF). It is refused unless: an exact
+  --request-id is given (no --user-id / --list-pending / batch), --confirm-delete
+  is present, a non-secret --operator-confirm attestation (>=4 chars) is given,
+  global dry-run is actually ON, the worker is OFF, and no scheduler job exists.
+  It emits a distinct CONTROLLED_DRY_RUN_OVERRIDE_PURGE audit record.
 `);
 }
 
@@ -125,6 +109,8 @@ function parseArgs(argv) {
     requestId: null,
     userId: null,
     verify: false,
+    overrideDryRun: false,
+    operatorConfirm: null,
   };
 
   const destructiveFlagOccurrences = argv.filter((arg) => arg === '--confirm-delete' || arg === '--dry-run').length;
@@ -172,6 +158,13 @@ function parseArgs(argv) {
       case '--verify':
         options.verify = true;
         break;
+      case '--override-dry-run':
+        options.overrideDryRun = true;
+        break;
+      case '--operator-confirm':
+        options.operatorConfirm = takeValue(argv, i, arg);
+        i += 1;
+        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -184,6 +177,26 @@ function parseArgs(argv) {
   const selectors = [options.listPending, Boolean(options.requestId), Boolean(options.userId)].filter(Boolean);
   if (!options.help && selectors.length !== 1) {
     throw new Error('Choose exactly one selector: --list-pending, --request-id, or --user-id');
+  }
+
+  // --override-dry-run is a tightly constrained, audited exception -- never a
+  // general bypass. It is ONLY valid with an exact single --request-id and
+  // --confirm-delete, and requires a non-secret --operator-confirm attestation.
+  // It may not be combined with batch/implicit selection (--user-id or
+  // --list-pending).
+  if (options.overrideDryRun) {
+    if (!options.requestId) {
+      throw new Error('--override-dry-run requires an exact --request-id (no --user-id or batch selection).');
+    }
+    if (options.userId || options.listPending) {
+      throw new Error('--override-dry-run cannot be combined with --user-id or --list-pending; exactly one request only.');
+    }
+    if (!options.confirmDelete) {
+      throw new Error('--override-dry-run requires --confirm-delete.');
+    }
+    if (!options.operatorConfirm || options.operatorConfirm.trim().length < 4) {
+      throw new Error('--override-dry-run requires --operator-confirm "<non-secret attestation>" (>= 4 chars).');
+    }
   }
 
   return options;
@@ -208,64 +221,23 @@ function createSupabaseAdminClient() {
   });
 }
 
+// shortUserId/appendNote are trivial, dependency-free helpers that are also
+// exported here for CJS test compatibility, so they are kept as real
+// synchronous functions (mirroring lib/account-deletion/helpers.mjs) rather
+// than bridged through a dynamic import - callers rely on them returning a
+// value immediately, not a Promise.
+function shortUserId(userId) {
+  return typeof userId === 'string' && userId.length > 8 ? `${userId.slice(0, 8)}...` : 'unknown';
+}
+
 function appendNote(existing, note) {
   const trimmed = typeof existing === 'string' ? existing.trim() : '';
   return trimmed ? `${trimmed}\n${note}` : note;
 }
 
-function shortUserId(userId) {
-  return typeof userId === 'string' && userId.length > 8 ? `${userId.slice(0, 8)}...` : 'unknown';
-}
-
-function isMissingResourceError(error) {
-  const code = String(error?.code ?? '').toUpperCase();
-  const message = String(error?.message ?? '').toLowerCase();
-  return (
-    code === '42P01' ||
-    code === 'PGRST205' ||
-    message.includes('does not exist') ||
-    message.includes('could not find the table') ||
-    message.includes('schema cache') ||
-    message.includes('bucket not found')
-  );
-}
-
 async function failIfError(result, label) {
-  if (result.error) {
-    throw new Error(`${label}: ${result.error.message}`);
-  }
-  return result;
-}
-
-const ELIGIBLE_TRANSFER_STATUSES = ['active'];
-const INELIGIBLE_TRANSFER_STATUSES = ['pending_deletion', 'locked', 'suspended', 'deleted'];
-
-async function validateTransferCandidate(supabase, candidateUserId) {
-  const profileResult = await supabase
-    .from('profiles')
-    .select('id,account_status')
-    .eq('id', candidateUserId)
-    .maybeSingle();
-  if (profileResult.error) {
-    return { valid: false, reason: 'profile_lookup_error' };
-  }
-  if (!profileResult.data) {
-    return { valid: false, reason: 'profile_missing' };
-  }
-  if (INELIGIBLE_TRANSFER_STATUSES.includes(profileResult.data.account_status)) {
-    return { valid: false, reason: `status_ineligible:${profileResult.data.account_status}` };
-  }
-  if (!ELIGIBLE_TRANSFER_STATUSES.includes(profileResult.data.account_status)) {
-    return { valid: false, reason: `status_not_active:${profileResult.data.account_status}` };
-  }
-  const authResult = await supabase.auth.admin.getUserById(candidateUserId);
-  if (authResult.error) {
-    return { valid: false, reason: 'auth_lookup_error' };
-  }
-  if (!authResult.data?.user) {
-    return { valid: false, reason: 'auth_user_missing' };
-  }
-  return { valid: true, reason: null };
+  const helpers = await loadHelpers();
+  return helpers.failIfError(result, label);
 }
 
 async function listPendingRequests(supabase, limit) {
@@ -279,9 +251,12 @@ async function listPendingRequests(supabase, limit) {
 }
 
 async function getOpenRequest(supabase, options) {
+  // Select * so eligibility columns (grace_period_ends_at, restored_at,
+  // purged_at, worker_lease_expires_at) are available to the safety gate
+  // below without hard-coding a column list that a legacy schema might lack.
   let query = supabase
     .from('deletion_requests')
-    .select('id,user_id,status,requested_at,request_source,notes')
+    .select('*')
     .in('status', OPEN_STATUSES)
     .order('requested_at', { ascending: false })
     .limit(1);
@@ -300,323 +275,203 @@ async function getOpenRequest(supabase, options) {
   return request;
 }
 
-async function maybeSingle(supabase, table, select, column, value) {
-  const result = await supabase.from(table).select(select).eq(column, value).maybeSingle();
-  return (await failIfError(result, `fetch ${table}`)).data ?? null;
-}
+// Standard statuses a manual purge may legitimately act on. A stale (crashed)
+// 'purging' claim is allowed separately, only after the active-lease check.
+const CLI_PURGE_ELIGIBLE_STATUSES = ['pending', 'processing', 'deactivated'];
 
-async function countRows(supabase, table, column, value) {
-  const result = await supabase.from(table).select('*', { count: 'exact', head: true }).eq(column, value);
-  return (await failIfError(result, `count ${table}`)).count ?? 0;
-}
-
-async function countResourceRows(supabase, resource, userId) {
-  if (resource.count === false || !resource.column) {
-    return {
-      table: resource.table,
-      column: resource.column,
-      action: resource.action,
-      count: null,
-      covered: true,
-      notes: 'Covered through parent-row cascade.',
-    };
+// P1-3: the manual CLI previously shared none of the automated worker's
+// safety gates -- it would purge a request that was still inside its 30-day
+// grace period, one the user had restored, one already purged, or one the
+// automated worker currently holds a live lease on. These are hard refusals;
+// there is deliberately no override for the grace-period check (the global
+// 30-day grace must not be shortened).
+function assertCliPurgeEligible(request, now = new Date()) {
+  if (request.purged_at || request.status === 'purged') {
+    throw new Error('Refusing to purge: request is already purged.');
   }
-
-  const result = await supabase
-    .from(resource.table)
-    .select('*', { count: 'exact', head: true })
-    .eq(resource.column, userId);
-
-  if (result.error) {
-    if (resource.optional && isMissingResourceError(result.error)) {
-      return {
-        table: resource.table,
-        column: resource.column,
-        action: resource.action,
-        count: null,
-        covered: true,
-        notes: 'Optional table not present in this project.',
-      };
+  if (request.restored_at || request.status === 'restored') {
+    throw new Error('Refusing to purge: request was restored by the user.');
+  }
+  if (
+    request.grace_period_ends_at &&
+    new Date(request.grace_period_ends_at) > now
+  ) {
+    throw new Error(
+      'Refusing to purge: grace period has not elapsed. The 30-day deletion grace period must not be shortened.',
+    );
+  }
+  if (request.status === 'purging') {
+    const leaseActive =
+      request.worker_lease_expires_at &&
+      new Date(request.worker_lease_expires_at) > now;
+    if (leaseActive) {
+      throw new Error(
+        'Refusing to purge: the automated worker holds an active lease on this request. Wait for the lease to expire or for the worker to finish.',
+      );
     }
-    throw new Error(`count ${resource.table}: ${result.error.message}`);
+  }
+}
+
+// The set of statuses the atomic claim update is allowed to transition from,
+// given the fetched request. A stale 'purging' row may be finished manually;
+// everything else must come from the standard eligible set.
+function cliEligibleStatuses(request) {
+  return request.status === 'purging' ? ['purging'] : CLI_PURGE_ELIGIBLE_STATUSES;
+}
+
+async function readAppConfigFlagEnabled(supabase, key) {
+  const { data, error } = await supabase
+    .from('app_config')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Refusing to purge: could not read ${key} (${error.message}).`);
+  }
+  if (!row_present(data)) {
+    throw new Error(`Refusing to purge: ${key} flag not found; cannot confirm safe state.`);
+  }
+  return Boolean(data.value?.enabled);
+}
+
+function row_present(data) {
+  return data !== null && data !== undefined;
+}
+
+// Global-guardrail gate for a manual, request-scoped purge (P1-3, and the
+// closeout's controlled disposable-account purge mechanism).
+//
+// Two invariants, both fail-closed:
+//   1. The GLOBAL automated worker must stay OFF
+//      (account_deletion_worker_enabled = false). Running a manual purge while
+//      the automated worker is enabled risks the two racing the same request.
+//      There is no override for this -- the manual path only runs while the
+//      global worker is off.
+//   2. The GLOBAL dry-run flag (account_deletion_worker_dry_run) is normally a
+//      hard stop. The controlled disposable-account purge is the single
+//      explicitly-approved exception: it keeps global dry-run ON (so the
+//      automated worker stays simulated) while purging exactly one approved
+//      request. That exception requires the explicit --override-dry-run flag,
+//      which is logged. Without the flag, dry-run ON still refuses.
+// Confirms no pg_cron job invokes the deletion worker (the only DB-observable
+// scheduler surface; the Supabase Dashboard schedule is not queryable and is
+// neutralized by worker-enabled=OFF, which is separately enforced). Fail-closed.
+async function assertNoSchedulerJob(supabase) {
+  try {
+    const { data, error } = await supabase.rpc('_audit_count_deletion_cron_jobs');
+    if (!error && typeof data === 'number') {
+      if (data > 0) {
+        throw new Error('Refusing to purge: a pg_cron job invoking the deletion worker exists; scheduler must be disabled.');
+      }
+      return;
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Refusing to purge')) throw err;
+    // RPC not present -> fall through to the direct check below.
+  }
+  // Direct check: query cron.job if the extension exists. If cron isn't
+  // installed, there is no scheduler surface in the DB (verified: pg_cron not
+  // installed on this project), so this is satisfied.
+  try {
+    const { data, error } = await supabase
+      .from('cron.job')
+      .select('jobname,command')
+      .ilike('command', '%process-account-deletions%');
+    if (error) return; // cron schema absent -> no DB scheduler surface
+    if (Array.isArray(data) && data.length > 0) {
+      throw new Error('Refusing to purge: a pg_cron job invoking the deletion worker exists; scheduler must be disabled.');
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Refusing to purge')) throw err;
+    // cron not queryable -> no DB scheduler surface; worker-enabled=OFF covers Dashboard schedules.
+  }
+}
+
+// Global-guardrail gate for a manual, request-scoped purge.
+//   Normal path:              global dry-run OFF + confirm-delete
+//   Controlled audit path:    global dry-run ON + --override-dry-run + exact
+//                             --request-id + --confirm-delete + worker OFF +
+//                             scheduler OFF + operator attestation
+// All checks fail closed.
+async function assertGlobalGuardrailsForManualPurge(supabase, options) {
+  let workerEnabled;
+  let dryRunEnabled;
+  try {
+    workerEnabled = await readAppConfigFlagEnabled(supabase, 'account_deletion_worker_enabled');
+    dryRunEnabled = await readAppConfigFlagEnabled(supabase, 'account_deletion_worker_dry_run');
+  } catch (err) {
+    throw new Error(
+      `Refusing to purge: could not confirm global guardrail state (${err instanceof Error ? err.message : err}).`,
+    );
   }
 
-  return {
-    table: resource.table,
-    column: resource.column,
-    action: resource.action,
-    count: result.count ?? 0,
-    covered: true,
-    notes: resource.optional ? 'Optional feature table; covered when present.' : 'Covered.',
-  };
+  // Invariant 1: global automated worker must stay OFF (no override).
+  if (workerEnabled) {
+    throw new Error(
+      'Refusing to purge: the global automated worker (account_deletion_worker_enabled) is ON. A manual request-scoped purge must only run while the global worker is OFF, to avoid racing it.',
+    );
+  }
+
+  // Invariant 2: scheduler must be disabled (no override).
+  await assertNoSchedulerJob(supabase);
+
+  // Invariant 3: dry-run handling.
+  if (options.overrideDryRun) {
+    // Controlled audit exception: the override is only meaningful/allowed while
+    // global dry-run is actually ON. If dry-run is already OFF, the operator is
+    // confused about state -> fail closed rather than silently proceed.
+    if (!dryRunEnabled) {
+      throw new Error(
+        'Refusing to purge: --override-dry-run was passed but global dry-run is already OFF. Remove --override-dry-run for the normal path.',
+      );
+    }
+    console.warn(
+      '[process-deletion-request] OVERRIDE: global dry-run remains ON; proceeding with the single approved request-scoped purge under --override-dry-run.',
+    );
+    return;
+  }
+
+  // Normal path: global dry-run must be OFF.
+  if (dryRunEnabled) {
+    throw new Error(
+      'Refusing to purge: global dry-run (account_deletion_worker_dry_run) is ON. Pass --override-dry-run (with --request-id, --confirm-delete, --operator-confirm) to run the single approved request-scoped purge while keeping global dry-run ON, or disable the flag.',
+    );
+  }
+}
+
+// --- Bridged pipeline functions -------------------------------------------
+// Each of these was already async/awaited everywhere it is called, so
+// delegating to the single ESM implementation in processorCore.mjs via a
+// lazily-cached dynamic import() is transparent to callers and to tests.
+
+async function buildDeletionSummary(supabase, request) {
+  const core = await loadCore();
+  return core.buildDeletionSummary(supabase, request);
 }
 
 async function deleteDirectUserRows(supabase, userId) {
-  const results = [];
-  for (const resource of DIRECT_DELETE_RESOURCES) {
-    const result = await supabase
-      .from(resource.table)
-      .delete({ count: 'exact' })
-      .eq(resource.column, userId);
-
-    if (result.error) {
-      if (resource.optional && isMissingResourceError(result.error)) {
-        results.push({
-          table: resource.table,
-          column: resource.column,
-          status: 'skipped_missing_optional_table',
-          count: null,
-        });
-        continue;
-      }
-      throw new Error(`delete ${resource.table}: ${result.error.message}`);
-    }
-
-    results.push({
-      table: resource.table,
-      column: resource.column,
-      status: 'deleted',
-      count: result.count ?? null,
-    });
-  }
-  return results;
-}
-
-async function listStoragePrefix(storageBucket, prefix) {
-  const paths = [];
-  const limit = 1000;
-  let offset = 0;
-
-  while (true) {
-    const { data, error } = await storageBucket.list(prefix, { limit, offset });
-    if (error) {
-      if (isMissingResourceError(error)) {
-        return { paths, skipped: true, reason: 'missing_storage_prefix_or_bucket' };
-      }
-      throw new Error(`list storage ${prefix}: ${error.message}`);
-    }
-
-    const page = Array.isArray(data) ? data : [];
-    for (const item of page) {
-      if (item?.name) paths.push(`${prefix}/${item.name}`);
-    }
-
-    if (page.length < limit) break;
-    offset += limit;
-  }
-
-  return { paths, skipped: false, reason: null };
+  const core = await loadCore();
+  return core.deleteDirectUserRows(supabase, userId);
 }
 
 async function deleteOwnedStorageObjects(supabase, userId) {
-  const results = [];
-  for (const resource of STORAGE_RESOURCES) {
-    const bucket = supabase.storage.from(resource.bucket);
-    for (const prefix of resource.prefixesForUser(userId)) {
-      const sanitizedPrefix = prefix.replace(userId, shortUserId(userId));
-      const listing = await listStoragePrefix(bucket, prefix);
-      if (listing.skipped) {
-        results.push({
-          bucket: resource.bucket,
-          prefix: sanitizedPrefix,
-          status: listing.reason,
-          pathsAttempted: 0,
-        });
-        continue;
-      }
-
-      if (listing.paths.length === 0) {
-        results.push({
-          bucket: resource.bucket,
-          prefix: sanitizedPrefix,
-          status: 'no_objects',
-          pathsAttempted: 0,
-        });
-        continue;
-      }
-
-      const { error } = await bucket.remove(listing.paths);
-      if (error) {
-        throw new Error(`remove storage ${prefix}: ${error.message}`);
-      }
-
-      results.push({
-        bucket: resource.bucket,
-        prefix: sanitizedPrefix,
-        status: 'removed',
-        pathsAttempted: listing.paths.length,
-      });
-    }
-  }
-  return results;
-}
-
-async function getOwnedRooms(supabase, userId) {
-  const result = await supabase.from('dressing_rooms').select('id,title').eq('user_id', userId);
-  return (await failIfError(result, 'list owned dressing rooms')).data ?? [];
+  const core = await loadCore();
+  return core.deleteOwnedStorageObjects(supabase, userId);
 }
 
 async function getSharedRoomsForUser(supabase, userId) {
-  const rooms = await getOwnedRooms(supabase, userId);
-  const shared = [];
-  for (const room of rooms) {
-    const participantsResult = await supabase
-      .from('dressing_room_participants')
-      .select('user_id,created_at')
-      .eq('dressing_room_id', room.id)
-      .order('created_at', { ascending: true });
-    const participants = (await failIfError(participantsResult, `list participants for room ${room.id}`))
-      .data ?? [];
-    const candidates = [];
-    let selectedRecipientId = null;
-    let selectedJoinedAt = null;
-    for (const participant of participants) {
-      const validation = await validateTransferCandidate(supabase, participant.user_id);
-      const candidate = {
-        userId: participant.user_id,
-        joinedAt: participant.created_at,
-        status: validation.valid ? 'selected' : 'skipped',
-        reason: validation.valid ? undefined : validation.reason,
-      };
-      candidates.push(candidate);
-      if (validation.valid && selectedRecipientId === null) {
-        selectedRecipientId = participant.user_id;
-        selectedJoinedAt = participant.created_at;
-      }
-    }
-    shared.push({
-      roomId: room.id,
-      roomTitle: room.title,
-      candidateCount: participants.length,
-      selectedRecipientId,
-      selectedJoinedAt,
-      noValidRecipient: selectedRecipientId === null,
-      candidates,
-    });
-  }
-  return shared;
-}
-
-function sanitizeSharedRoomForOutput(room) {
-  return {
-    roomId: room.roomId,
-    roomTitle: room.roomTitle,
-    candidateCount: room.candidateCount,
-    selectedRecipientId: room.selectedRecipientId ? shortUserId(room.selectedRecipientId) : null,
-    noValidRecipient: room.noValidRecipient,
-    candidates: room.candidates.map((c) => ({
-      userId: shortUserId(c.userId),
-      joinedAt: c.joinedAt,
-      status: c.status,
-      reason: c.reason,
-    })),
-  };
+  const core = await loadCore();
+  return core.getSharedRoomsForUser(supabase, userId);
 }
 
 async function transferSharedRoomOwnership(supabase, userId) {
-  const sharedRooms = await getSharedRoomsForUser(supabase, userId);
-  const transferredAt = new Date().toISOString();
-  const results = [];
-  for (const room of sharedRooms) {
-    if (!room.selectedRecipientId) {
-      results.push({
-        roomId: room.roomId,
-        roomTitle: room.roomTitle,
-        action: 'no_valid_recipient',
-        candidateCount: room.candidateCount,
-        candidates: room.candidates.map((c) => ({
-          userId: shortUserId(c.userId),
-          reason: c.reason,
-        })),
-        note: 'No active remaining participant found; room will be removed by owner cascade.',
-      });
-      continue;
-    }
-    const updateResult = await supabase
-      .from('dressing_rooms')
-      .update({ user_id: room.selectedRecipientId, updated_at: transferredAt })
-      .eq('id', room.roomId)
-      .eq('user_id', userId)
-      .select('id');
-    await failIfError(updateResult, `transfer ownership of room ${room.roomId}`);
-    if (!Array.isArray(updateResult.data) || updateResult.data.length !== 1) {
-      throw new Error(`transfer ownership of room ${room.roomId} did not update exactly one row`);
-    }
-    results.push({
-      roomId: room.roomId,
-      roomTitle: room.roomTitle,
-      action: 'transfer',
-      newOwnerId: shortUserId(room.selectedRecipientId),
-      newOwnerJoinedAt: room.selectedJoinedAt,
-      candidateCount: room.candidateCount,
-      candidates: room.candidates.map((c) => ({
-        userId: shortUserId(c.userId),
-        status: c.status,
-        reason: c.reason,
-      })),
-      transferredAt,
-    });
-  }
-  return results;
+  const core = await loadCore();
+  return core.transferSharedRoomOwnership(supabase, userId);
 }
 
-async function buildDeletionSummary(supabase, request) {
-  const userId = request.user_id;
-  const [profile, authUserResult, coverage, sharedRoomCheck] = await Promise.all([
-    maybeSingle(
-      supabase,
-      'profiles',
-      'id,account_status,account_locked_at,deletion_requested_at',
-      'id',
-      userId,
-    ),
-    supabase.auth.admin.getUserById(userId),
-    Promise.all(USER_DATA_RESOURCES.map((resource) => countResourceRows(supabase, resource, userId))),
-    getSharedRoomsForUser(supabase, userId),
-  ]);
-
-  if (authUserResult.error) {
-    throw new Error(`fetch auth user: ${authUserResult.error.message}`);
-  }
-
-  return {
-    request: {
-      id: request.id,
-      partialUserId: shortUserId(request.user_id),
-      status: request.status,
-      requestedAt: request.requested_at,
-      requestSource: request.request_source,
-      notes: request.notes,
-    },
-    user: {
-      partialUserId: shortUserId(userId),
-      authUserExists: Boolean(authUserResult.data?.user),
-      profile: profile
-        ? {
-            accountStatus: profile.account_status,
-            accountLockedAt: profile.account_locked_at,
-            deletionRequestedAt: profile.deletion_requested_at,
-          }
-        : null,
-    },
-    linkedRowCounts: Object.fromEntries(coverage.map((entry) => [entry.table, entry.count])),
-    deletionCoverage: coverage,
-    storageCoverage: STORAGE_RESOURCES.flatMap((resource) =>
-      resource.prefixesForUser(userId).map((prefix) => ({
-        bucket: resource.bucket,
-        prefix: prefix.replace(userId, shortUserId(userId)),
-        action: 'remove_owned_storage_objects_before_auth_delete',
-      })),
-    ),
-    sharedRoomCheck: {
-      policy: SHARED_ROOM_TRANSFER_POLICY,
-      sharedRooms: sharedRoomCheck.map(sanitizeSharedRoomForOutput),
-      note:
-        'Shared rooms are transferred to the earliest remaining active participant before the original owner is deleted. Rooms with no valid active participant are removed with the owner.',
-    },
-    localDeviceDataNote:
-      'Saved scan thumbnails in the app sandbox are removed by in-app delete or app uninstall; server-side deletion covers Supabase rows and owned storage objects.',
-  };
+async function verifyDeletionCompleteness(supabase, userId) {
+  const core = await loadCore();
+  return core.verifyDeletionCompleteness(supabase, userId);
 }
 
 async function writeAuditFile(outputDir, payload) {
@@ -630,39 +485,47 @@ async function writeAuditFile(outputDir, payload) {
   return fullPath;
 }
 
-async function verifyDeletionCompleteness(supabase, userId) {
-  const residuals = [];
-  for (const resource of USER_DATA_RESOURCES) {
-    // Parent-cascade tables are verified through their parent row lifecycle.
-    // deletion_requests is the operational request record and is expected to
-    // cascade away with the auth user; it is excluded from residual checks.
-    if (!resource.column || resource.table === 'deletion_requests') continue;
+// Best-effort post-purge bookkeeping. deletion_requests now survives the
+// Auth user deletion (its FK is ON DELETE SET NULL, not CASCADE - see
+// lib/account-deletion/user-data-resources.json), so once the hard-delete
+// pipeline finishes we mark the surviving row purged. This must never fail
+// the overall deletion: legacy schemas may not have the new worker columns
+// yet, and the row may already be gone under the old CASCADE FK.
+async function markRequestPurged(supabase, request) {
+  const purgedAt = new Date().toISOString();
+  const fullPayload = {
+    status: 'purged',
+    purged_at: purgedAt,
+    processed_at: purgedAt,
+    claimed_by: null,
+    claimed_at: null,
+  };
 
-    const result = await supabase
-      .from(resource.table)
-      .select('*', { count: 'exact', head: true })
-      .eq(resource.column, userId);
+  try {
+    const result = await supabase.from('deletion_requests').update(fullPayload).eq('id', request.id).select('id');
+    if (!result.error) return;
 
-    if (result.error) {
-      if (resource.optional && isMissingResourceError(result.error)) continue;
-      throw new Error(`verify ${resource.table}: ${result.error.message}`);
+    const message = String(result.error.message ?? '');
+    if (/column|schema cache|PGRST204|does not exist/i.test(message)) {
+      // Legacy schema without the new worker columns yet - fall back to the
+      // minimal update so the request is still marked complete.
+      await supabase
+        .from('deletion_requests')
+        .update({ status: 'purged', processed_at: purgedAt })
+        .eq('id', request.id)
+        .select('id');
+    } else {
+      console.warn(`[process-deletion-request] mark_purged_failed: ${message}`);
     }
-
-    const count = result.count ?? 0;
-    if (count > 0) {
-      residuals.push({ table: resource.table, column: resource.column, count });
-    }
+  } catch (error) {
+    console.warn(
+      `[process-deletion-request] mark_purged_best_effort_failed: ${error instanceof Error ? error.message : error}`,
+    );
   }
-
-  const authUserResult = await supabase.auth.admin.getUserById(userId);
-  if (!authUserResult.error && authUserResult.data?.user) {
-    residuals.push({ table: 'auth.users', column: 'id', count: 1 });
-  }
-
-  return { passed: residuals.length === 0, residuals };
 }
 
 async function processDeletionRequest(supabase, request, options) {
+  const core = await loadCore();
   const startedAt = new Date().toISOString();
   const note = `Manual deletion processor started at ${startedAt}.`;
   const safeUserId = shortUserId(request.user_id);
@@ -673,7 +536,14 @@ async function processDeletionRequest(supabase, request, options) {
   // 3. Transfer shared dressing rooms so other participants keep their data.
   // 4. Delete owned storage objects.
   // 5. Delete the Supabase Auth user last so auth FK cascades clean up the rest.
+  // 6. Mark the surviving deletion_requests row purged (best-effort).
 
+  // Atomic status-guarded claim (P1-3): constrain the transition to the
+  // statuses this request is actually eligible to move from, so the CLI can
+  // never stomp a row that changed concurrently (e.g. the user restored it,
+  // or the automated worker claimed it) between fetch and update. If zero
+  // rows match, the row moved under us -- abort rather than overwrite.
+  const eligibleStatuses = cliEligibleStatuses(request);
   const markProcessingResult = await supabase
     .from('deletion_requests')
     .update({
@@ -681,10 +551,13 @@ async function processDeletionRequest(supabase, request, options) {
       notes: appendNote(request.notes, note),
     })
     .eq('id', request.id)
+    .in('status', eligibleStatuses)
     .select('id');
   await failIfError(markProcessingResult, 'mark deletion request processing');
   if (!Array.isArray(markProcessingResult.data) || markProcessingResult.data.length !== 1) {
-    throw new Error('mark deletion request processing did not update exactly one open request');
+    throw new Error(
+      'mark deletion request processing did not update exactly one eligible request (it may have been restored, claimed by the worker, or already purged concurrently)',
+    );
   }
 
   const lockProfileResult = await supabase
@@ -701,25 +574,31 @@ async function processDeletionRequest(supabase, request, options) {
     throw new Error('lock profile before auth deletion did not update exactly one profile');
   }
 
-  const directDeletionResults = await deleteDirectUserRows(supabase, request.user_id);
-  const roomTransferResults = await transferSharedRoomOwnership(supabase, request.user_id);
-  const storageResults = await deleteOwnedStorageObjects(supabase, request.user_id);
-  const deleteResult = await supabase.auth.admin.deleteUser(request.user_id);
-  if (deleteResult.error) {
-    throw new Error(`delete auth user: ${deleteResult.error.message}`);
-  }
+  const pipelineResult = await core.runHardDeletePipeline(supabase, request, {
+    afterAuthDelete: (client, req) => markRequestPurged(client, req),
+  });
+
+  const { authUserDeleted, summary, directDeletionResults, roomTransferResults, storageResults } = pipelineResult;
 
   const completedAt = new Date().toISOString();
-  const summary = {
-    authUserDeleted: true,
-    roomsTransferred: roomTransferResults.filter((entry) => entry.action === 'transfer').length,
-    storagePrefixesProcessed: storageResults.length,
-    storageObjectsRemoved: storageResults.reduce((sum, entry) => sum + (entry.pathsAttempted ?? 0), 0),
-    directRowsDeleted: directDeletionResults.reduce(
-      (sum, entry) => sum + (typeof entry.count === 'number' ? entry.count : 0),
-      0,
-    ),
-  };
+
+  // Distinct audit record for a controlled dry-run-override execution. Records
+  // the non-secret operator attestation so the override is traceable; never
+  // records any credential.
+  const controlledOverride = options.overrideDryRun
+    ? {
+        event: 'CONTROLLED_DRY_RUN_OVERRIDE_PURGE',
+        globalDryRunRemainedOn: true,
+        requestId: request.id,
+        operatorConfirm: options.operatorConfirm,
+        at: startedAt,
+      }
+    : null;
+  if (controlledOverride) {
+    console.warn(
+      `[process-deletion-request] AUDIT ${JSON.stringify(controlledOverride)}`,
+    );
+  }
 
   const auditPayload = {
     completedAt,
@@ -727,7 +606,8 @@ async function processDeletionRequest(supabase, request, options) {
     requestedAt: request.requested_at,
     requestSource: request.request_source,
     userId: safeUserId,
-    authUserDeleted: summary.authUserDeleted,
+    authUserDeleted,
+    controlledOverride,
     summary,
     roomTransferResults,
     storageResults,
@@ -738,7 +618,7 @@ async function processDeletionRequest(supabase, request, options) {
       action,
       optional: Boolean(optional),
     })),
-    note: 'Shared rooms were transferred to the earliest remaining active participant before auth deletion. Supabase Auth user was deleted last; public rows with auth.users(id) foreign keys cascade. Known non-cascade rows and owned storage prefixes were handled first.',
+    note: 'Shared rooms were transferred to the earliest remaining active participant before auth deletion. Supabase Auth user was deleted last; public rows with auth.users(id) foreign keys cascade. Known non-cascade rows and owned storage prefixes were handled first. deletion_requests survives the auth delete (ON DELETE SET NULL) and was marked purged.',
   };
   const auditFile = await writeAuditFile(options.outputDir, auditPayload);
 
@@ -747,7 +627,8 @@ async function processDeletionRequest(supabase, request, options) {
     completedAt,
     deletionRequestId: request.id,
     userId: safeUserId,
-    authUserDeleted: summary.authUserDeleted,
+    authUserDeleted,
+    controlledOverride,
     summary,
     roomTransferResults,
     storageResults,
@@ -788,6 +669,14 @@ async function main(argv = process.argv.slice(2)) {
     throw new Error('Refusing to delete without --confirm-delete');
   }
 
+  // Safety gates before any destructive work:
+  //  1. Request eligibility: grace elapsed, not restored/purged, no live lease.
+  //  2. Global guardrails: worker OFF, scheduler OFF, and dry-run handling
+  //     (normal path requires dry-run OFF; the controlled audit exception
+  //     requires --override-dry-run + exact --request-id + --operator-confirm).
+  assertCliPurgeEligible(request);
+  await assertGlobalGuardrailsForManualPurge(supabase, options);
+
   const result = await processDeletionRequest(supabase, request, options);
   console.log(JSON.stringify(result, null, 2));
   return result;
@@ -802,12 +691,19 @@ if (require.main === module) {
 
 module.exports = {
   appendNote,
+  assertCliPurgeEligible,
+  assertGlobalGuardrailsForManualPurge,
   buildDeletionSummary,
+  cliEligibleStatuses,
+  CLI_PURGE_ELIGIBLE_STATUSES,
   deleteDirectUserRows,
   deleteOwnedStorageObjects,
   getSharedRoomsForUser,
+  OPEN_STATUSES,
   parseArgs,
   processDeletionRequest,
+  REQUIRED_REGISTRY_TABLES,
+  SHARED_ROOM_TRANSFER_POLICY,
   shortUserId,
   STORAGE_RESOURCES,
   transferSharedRoomOwnership,

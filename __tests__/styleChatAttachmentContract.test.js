@@ -41,8 +41,10 @@ const mobileContract = loadTsModule('types/styleChatAttachments.ts', {
   './fashionReasoning': {}, './ownedClosetItem': {},
 });
 const attachments = loadTsModule(path.join(FN, 'attachments.ts'));
+const attachmentProvenance = loadTsModule(path.join(FN, 'attachmentProvenance.ts'));
 const context = loadTsModule(path.join(FN, 'attachmentContext.ts'), {
   './attachments.ts': attachments,
+  './attachmentProvenance.ts': attachmentProvenance,
 });
 const actions = loadTsModule(path.join(FN, 'actions.ts'), {
   './attachmentContext.ts': context,
@@ -408,7 +410,16 @@ test('media saga: deterministic path, no duplicate upload, finalize-first retry,
 });
 
 test('account deletion covers the saved-scans media prefix; no bulk historical upload exists', () => {
-  assert.match(deletionScript, /\$\{userId\}\/saved-scans/);
+  // Registry externalized to lib/account-deletion/user-data-resources.json (loadRegistry.cjs).
+  // saved-scan media (services/savedScanMedia.ts → style-library-images/{userId}/saved-scans/*)
+  // must be covered by the storage prefix templates.
+  {
+    const registry = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'), 'utf8'),
+    );
+    const prefixes = registry.storage.flatMap((s) => s.prefixTemplates);
+    assert.ok(prefixes.includes('{userId}/saved-scans'), 'account deletion must cover the saved-scans media prefix');
+  }
   const owned = fs.readFileSync(path.join(ROOT, 'services', 'ownedClosetItems.ts'), 'utf8');
   assert.doesNotMatch(owned, /ensureSavedScanMediaBacking/); // listing never triggers uploads
   assert.match(mediaService, /Lazy: call only for explicit/);

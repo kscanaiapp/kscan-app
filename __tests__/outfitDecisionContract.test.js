@@ -178,18 +178,39 @@ test('deletion semantics: room cascade, voter-only cascade, creator SET NULL', (
 });
 
 test('account-deletion contract covers all new tables', () => {
+  // The deletion registry was externalized from the CLI into a single JSON source
+  // (lib/account-deletion/user-data-resources.json, loaded via loadRegistry.cjs).
+  // Assert coverage against that authoritative source, by each table's real mechanism.
+  const registry = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'), 'utf8'),
+  );
+  const registryTables = new Set(registry.tables.map((t) => t.table));
+  const entryFor = (table) => registry.tables.find((t) => t.table === table);
+
+  // User-owned tables must be explicitly registered for account deletion.
   for (const table of [
     'outfit_decision_groups',
-    'outfit_decision_options',
-    'outfit_decision_option_items',
     'outfit_decision_votes',
     'style_outfit_daily_usage',
     'style_outfit_burst_usage',
   ]) {
-    assert.match(deletionScript, new RegExp(`table: '${table}'`));
+    assert.ok(registryTables.has(table), `${table} must be in the account-deletion registry`);
   }
-  assert.match(deletionScript, /outfit_decision_groups', column: 'created_by', action: 'auth_delete_set_null'/);
-  assert.match(deletionScript, /outfit_decision_votes', column: 'user_id', action: 'auth_delete_cascade'/);
+
+  // outfit_decision_groups: collaborative group survives with created_by nulled.
+  assert.equal(entryFor('outfit_decision_groups').column, 'created_by');
+  assert.equal(entryFor('outfit_decision_groups').action, 'auth_delete_set_null');
+  // outfit_decision_votes: the participant's own votes are hard-removed.
+  assert.equal(entryFor('outfit_decision_votes').column, 'user_id');
+  assert.equal(entryFor('outfit_decision_votes').action, 'auth_delete_cascade');
+
+  // outfit_decision_options / option_items are group-owned, not user-owned: they are
+  // covered transitively by FK ON DELETE CASCADE (group → options → option_items),
+  // so they must NOT be independently registered, and the cascade path must exist.
+  assert.ok(!registryTables.has('outfit_decision_options'), 'options follow the group, not the user');
+  assert.ok(!registryTables.has('outfit_decision_option_items'), 'option_items follow the option, not the user');
+  assert.match(migration, /public\.outfit_decision_options[\s\S]*?references public\.outfit_decision_groups\(id\) on delete cascade/);
+  assert.match(migration, /public\.outfit_decision_option_items[\s\S]*?references public\.outfit_decision_options\(id\) on delete cascade/);
 });
 
 test('vote UI supports voting, vote change, counts, chosen and wearing states', () => {

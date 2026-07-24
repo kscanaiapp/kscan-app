@@ -62,7 +62,65 @@ import {
   sanitizeDetectedGarments,
   type SanitizedDetectedGarment,
 } from './multiItemGarments.ts';
+import { isQualityTuneEnabled, QUALITY_TUNE_VERSION } from './qualityTuneConfig.ts';
+import { applyQualityTaxonomyTune } from './qualityTuneNormalize.ts';
+import {
+  buildWeightedCommerceQueries,
+  filterAndDedupeProducts,
+  shouldRunFallbackQuery,
+  QUALITY_TUNE_MIN_VALID_PRODUCTS,
+} from './qualityTuneCommerce.ts';
+import {
+  buildQualityTuneMetrics,
+  logQualityTuneMetrics,
+} from './qualityTuneTelemetry.ts';
+import {
+  isScannerIntelligenceEnabled,
+  SCANNER_INTELLIGENCE_VERSION,
+} from './scannerIntelligenceConfig.ts';
+import {
+  isCommerceRelevanceEnabled,
+  COMMERCE_RELEVANCE_VERSION,
+} from './commerceRelevanceConfig.ts';
+import {
+  mapToFailureReason,
+} from './commerceRelevanceFailure.ts';
+import {
+  isTextScanCommerceParityEnabled,
+  TEXTSCAN_COMMERCE_PARITY_VERSION,
+} from './textScanCommerceParityConfig.ts';
+import {
+  captureCommerceOutcome,
+} from './commerceOutcomeCapture.ts';
+import {
+  buildRoutedIdentifyPrompt,
+  resolveScannerCategoryRoute,
+  type ScannerCategoryRoute,
+} from './scannerCategoryRoute.ts';
+import {
+  applyScannerQualityGate,
+  type QualityGateResult,
+} from './scannerQualityGate.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  getConfiguredModel,
+  SCANNER_PRIMARY_MODEL,
+  SCANNER_FALLBACK_MODEL,
+  TEXTSCAN_PRIMARY_MODEL,
+} from './modelRouting.ts';
+
+/** Appended to vision/text prompts when quality tune is enabled. Response shape unchanged. */
+const QUALITY_TUNE_PROMPT_ADDENDUM = `
+
+Quality precision rules (mandatory):
+- Prioritize: category, subtype, silhouette, fit, material, pattern, dominant color, secondary color when useful, construction details, style descriptors, and visible brand evidence only.
+- Prefer concise specific descriptions (e.g. "Cropped black faux-leather moto jacket", "High-waisted charcoal wide-leg trousers", "White low-profile leather sneakers").
+- Avoid redundant stacked descriptors (e.g. "black dark black jacket coat outerwear").
+- Do not invent unsupported attributes such as lamb leather, luxury, designer, vintage, or brand names unless a readable wordmark, logo, or label is clearly visible.
+- Brand fields (visible_brand_text, brand_guess, logo_detected) must stay null/false unless high-confidence visible brand evidence exists. Never infer brand from resemblance, shape, aesthetic, color, or vibe.
+- Never use generic labels such as "Fashion Item", "Clothing", "Apparel", "Unknown", or "Item" when a more specific category or subtype is visible.
+- Keep the exact JSON response shape. Do not add or rename fields.
+`;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -84,7 +142,6 @@ const SIMILARITY_TIMEOUT_MS = 300;
 const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
 const TEXT_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
 const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const ANON_SCAN_RATE_LIMIT_MAX = 6;
@@ -515,118 +572,6 @@ Rules:
 - userMessage should be a concise, friendly summary derived from visual_observation.
 - The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
 
-const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
-
-Analyze this fashion text query and identify the described item.
-
-Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plates, furniture, and background clutter.
-
-Do not identify people.
-Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
-
-Return strict JSON only.
-No markdown.
-No commentary.
-
-Use the existing response shape:
-- status
-- userMessage
-- attributes
-- recommendedProducts
-- identification
-
-The \`attributes\` object is legacy and must remain populated for the current app.
-
-The optional \`identification\` object must include:
-- visual_observation
-- item_type
-- subtype
-- primary_color
-- secondary_colors
-- pattern
-- material_estimate
-- silhouette
-- fit
-- length
-- sleeve_length
-- neckline_or_lapel
-- closure
-- distinctive_features
-- style_tags
-- occasion_tags
-- visible_brand_text
-- logo_detected
-- brand_guess
-- confidence_score
-- search_queries
-- non_fashion
-- styling_suggestions
-- scan_quality_note
-
-If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
-
-If confidence_score is below 0.60, you MUST include a scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
-
-If confidence_score is between 0.60 and 0.79, include a scan_quality_note only when the image is blurry, dark, far away, or the item is partially visible.
-
-If confidence_score is 0.80 or higher and the item is clearly visible, set scan_quality_note to null.
-
-Return strict JSON only, matching exactly this shape:
-{
-  "status": "completed" | "non_fashion",
-  "attributes": {
-    "category": "blazer",
-    "itemType": "double-breasted blazer",
-    "silhouette": "structured",
-    "colorPalette": ["black"],
-    "materialEstimate": "wool blend",
-    "pattern": "solid",
-    "texture": "wool blend",
-    "styleTags": ["tailored", "minimalist", "polished"],
-    "occasion": "workwear",
-    "confidenceScore": 0.84
-  },
-  "identification": {
-    "visual_observation": "A concise 1-2 sentence description of the described fashion item.",
-    "item_type": "blazer",
-    "subtype": "double-breasted blazer",
-    "primary_color": "black",
-    "secondary_colors": [],
-    "pattern": "solid",
-    "material_estimate": "wool blend",
-    "silhouette": "structured",
-    "fit": "tailored",
-    "length": "hip length",
-    "sleeve_length": "long sleeve",
-    "neckline_or_lapel": "peak lapel",
-    "closure": "front buttons",
-    "distinctive_features": ["gold buttons", "structured shoulders"],
-    "style_tags": ["tailored", "minimalist", "polished"],
-    "occasion_tags": ["workwear", "evening", "smart casual"],
-    "visible_brand_text": null,
-    "logo_detected": false,
-    "brand_guess": null,
-    "confidence_score": 0.84,
-    "search_queries": [
-      "black double breasted blazer gold buttons",
-      "tailored black blazer structured shoulders",
-      "minimalist black blazer peak lapel"
-    ],
-    "non_fashion": false,
-    "styling_suggestions": ["Pair with tailored trousers and a silk blouse.", "Layer over a monochrome dress for a sharp look."],
-    "scan_quality_note": null
-  },
-  "recommendedProducts": [],
-  "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
-}
-
-Rules:
-- Return JSON only. No markdown, no prose outside the JSON.
-- If uncertain about any field, use null, unknown, or [].
-- For non_fashion, item_type must be "NON_FASHION" and non_fashion must be true.
-- userMessage should be a concise, friendly summary derived from visual_observation.
-- The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
-
 const MULTI_ITEM_IDENTIFY_PROMPT = `You are K Scan AI's multi-item fashion detection engine.
 
 Analyze the uploaded image and identify genuinely distinct visible garments or fashion accessories.
@@ -796,6 +741,118 @@ Return strict JSON only in the existing single-item response shape:
 If an attribute is uncertain, use "unknown" rather than switching garments.`;
 }
 
+const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
+
+Analyze this fashion text query and identify the described item.
+
+Ignore people, faces, bodies, bystanders, mirrors, rooms, vehicles, license plates, furniture, and background clutter.
+
+Do not identify people.
+Do not infer age, race, gender identity, body type, health, religion, income, or any protected trait.
+
+Return strict JSON only.
+No markdown.
+No commentary.
+
+Use the existing response shape:
+- status
+- userMessage
+- attributes
+- recommendedProducts
+- identification
+
+The \`attributes\` object is legacy and must remain populated for the current app.
+
+The optional \`identification\` object must include:
+- visual_observation
+- item_type
+- subtype
+- primary_color
+- secondary_colors
+- pattern
+- material_estimate
+- silhouette
+- fit
+- length
+- sleeve_length
+- neckline_or_lapel
+- closure
+- distinctive_features
+- style_tags
+- occasion_tags
+- visible_brand_text
+- logo_detected
+- brand_guess
+- confidence_score
+- search_queries
+- non_fashion
+- styling_suggestions
+- scan_quality_note
+
+If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
+
+If confidence_score is below 0.60, you MUST include a scan_quality_note explaining what would improve the scan, such as "Try a clearer front view" or "Move closer to the item."
+
+If confidence_score is between 0.60 and 0.79, include a scan_quality_note only when the image is blurry, dark, far away, or the item is partially visible.
+
+If confidence_score is 0.80 or higher and the item is clearly visible, set scan_quality_note to null.
+
+Return strict JSON only, matching exactly this shape:
+{
+  "status": "completed" | "non_fashion",
+  "attributes": {
+    "category": "blazer",
+    "itemType": "double-breasted blazer",
+    "silhouette": "structured",
+    "colorPalette": ["black"],
+    "materialEstimate": "wool blend",
+    "pattern": "solid",
+    "texture": "wool blend",
+    "styleTags": ["tailored", "minimalist", "polished"],
+    "occasion": "workwear",
+    "confidenceScore": 0.84
+  },
+  "identification": {
+    "visual_observation": "A concise 1-2 sentence description of the described fashion item.",
+    "item_type": "blazer",
+    "subtype": "double-breasted blazer",
+    "primary_color": "black",
+    "secondary_colors": [],
+    "pattern": "solid",
+    "material_estimate": "wool blend",
+    "silhouette": "structured",
+    "fit": "tailored",
+    "length": "hip length",
+    "sleeve_length": "long sleeve",
+    "neckline_or_lapel": "peak lapel",
+    "closure": "front buttons",
+    "distinctive_features": ["gold buttons", "structured shoulders"],
+    "style_tags": ["tailored", "minimalist", "polished"],
+    "occasion_tags": ["workwear", "evening", "smart casual"],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "brand_guess": null,
+    "confidence_score": 0.84,
+    "search_queries": [
+      "black double breasted blazer gold buttons",
+      "tailored black blazer structured shoulders",
+      "minimalist black blazer peak lapel"
+    ],
+    "non_fashion": false,
+    "styling_suggestions": ["Pair with tailored trousers and a silk blouse.", "Layer over a monochrome dress for a sharp look."],
+    "scan_quality_note": null
+  },
+  "recommendedProducts": [],
+  "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
+}
+
+Rules:
+- Return JSON only. No markdown, no prose outside the JSON.
+- If uncertain about any field, use null, unknown, or [].
+- For non_fashion, item_type must be "NON_FASHION" and non_fashion must be true.
+- userMessage should be a concise, friendly summary derived from visual_observation.
+- The AI must return BOTH attributes and identification. If attributes is missing, derive it from identification.`;
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const readTrimmedEnv = (name: string): string | undefined => {
@@ -893,6 +950,25 @@ function withSafeImageArrays(
     purchaseOptions: Array.isArray(options.purchaseOptions) ? options.purchaseOptions : recommendedProducts,
     similarityMatches,
     shoppingMeta: options.shoppingMeta && typeof options.shoppingMeta === 'object' ? options.shoppingMeta : {},
+  };
+}
+
+function primaryGarmentResponseFields(
+  garments: SanitizedDetectedGarment[],
+): {
+  attributes?: Record<string, unknown>;
+  identification?: Record<string, unknown>;
+  userMessage?: string;
+} {
+  const primary = garments[0];
+  if (!primary) return {};
+  return {
+    attributes: primary.attributes,
+    identification: primary.identification,
+    userMessage:
+      typeof primary.identification.visual_observation === 'string'
+        ? primary.identification.visual_observation
+        : primary.label,
   };
 }
 
@@ -1425,25 +1501,6 @@ function sanitizeSelectedCandidate(value: unknown): {
   return { candidateId, category, ...(subtype ? { subtype } : {}), ...(bounds ? { bounds } : {}) };
 }
 
-function primaryGarmentResponseFields(
-  garments: SanitizedDetectedGarment[],
-): {
-  attributes?: Record<string, unknown>;
-  identification?: Record<string, unknown>;
-  userMessage?: string;
-} {
-  const primary = garments[0];
-  if (!primary) return {};
-  return {
-    attributes: primary.attributes,
-    identification: primary.identification,
-    userMessage:
-      typeof primary.identification.visual_observation === 'string'
-        ? primary.identification.visual_observation
-        : primary.label,
-  };
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
@@ -1515,6 +1572,8 @@ Deno.serve(async (req) => {
   const appVersion = typeof body.appVersion === 'string' && body.appVersion.trim()
     ? body.appVersion.trim()
     : null;
+  // Request clock for outcome capture / early exits (Gemini uses its own startedAt).
+  const requestStartedAt = Date.now();
   let imageBase64 = '';
   let textQuery = '';
   let imageDigestPrefix = '';
@@ -1533,6 +1592,17 @@ Deno.serve(async (req) => {
   const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
   const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
+  // Server-authoritative pending-deletion guard (defense beyond client routing).
+  if (auth.isAuthenticated && userId) {
+    try {
+      const { assertAccountActive } = await import('../_shared/deletion/common.ts');
+      await assertAccountActive(userId);
+    } catch (guardError) {
+      if (guardError instanceof Response) return guardError;
+      return json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
+    }
+  }
+
   console.log(
     '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
     mode,
@@ -1548,6 +1618,31 @@ Deno.serve(async (req) => {
       scanSessionId,
       requestMode,
     );
+    void captureCommerceOutcome({
+      requestMode: 'selected_item',
+      sourceClass: typeof source === 'string' ? source : null,
+      appPlatform,
+      appVersion,
+      status: 'failed',
+      isFashion: false,
+      categoryRoute: null,
+      qualityBand: null,
+      commerceQueryDetailLevel: null,
+      providerOutcome: null,
+      providersTried: null,
+      primaryResultCount: 0,
+      fallbackUsed: false,
+      productsBeforeFilter: 0,
+      productsAfterFilter: 0,
+      productsBeforeDedupe: 0,
+      productsAfterDedupe: 0,
+      categoryMismatchRemovals: 0,
+      retailerCount: 0,
+      commerceDurationMs: null,
+      totalDurationMs: Date.now() - requestStartedAt,
+      failureReason: mapToFailureReason({ candidateInvalid: true }),
+      textScanParityEnabled: false,
+    });
     return json(normalized('failed', 'The selected garment could not be analyzed. Please return to the outfit and select it again.'), 200);
   }
   console.log(
@@ -1561,6 +1656,31 @@ Deno.serve(async (req) => {
   );
 
   if (mode === 'text' && !auth.isAuthenticated) {
+    void captureCommerceOutcome({
+      requestMode: 'text',
+      sourceClass: typeof source === 'string' ? source : null,
+      appPlatform,
+      appVersion,
+      status: 'failed',
+      isFashion: false,
+      categoryRoute: null,
+      qualityBand: null,
+      commerceQueryDetailLevel: null,
+      providerOutcome: null,
+      providersTried: null,
+      primaryResultCount: 0,
+      fallbackUsed: false,
+      productsBeforeFilter: 0,
+      productsAfterFilter: 0,
+      productsBeforeDedupe: 0,
+      productsAfterDedupe: 0,
+      categoryMismatchRemovals: 0,
+      retailerCount: 0,
+      commerceDurationMs: null,
+      totalDurationMs: Date.now() - requestStartedAt,
+      failureReason: mapToFailureReason({ authRequired: true }),
+      textScanParityEnabled: false,
+    });
     return json({ error: 'Not authenticated' }, 401);
   }
 
@@ -1614,6 +1734,31 @@ Deno.serve(async (req) => {
     const imageValidation = validateImageBase64(imageBase64);
     if (imageValidation) {
       console.warn('[scan-identify] invalid_image_payload reason=%s', imageValidation);
+      void captureCommerceOutcome({
+        requestMode: useSelectedItemProvider ? 'selected_item' : useMultiItemDetectionProvider ? 'multi_item_detection' : 'legacy_single_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ invalidImage: true }),
+        textScanParityEnabled: false,
+      });
       return json(normalized('failed', INVALID_IMAGE_MESSAGE), 200);
     }
 
@@ -1629,6 +1774,35 @@ Deno.serve(async (req) => {
         requestMode,
         imageDigestPrefix,
       );
+      void captureCommerceOutcome({
+        requestMode: 'selected_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({
+          digestMissing: !suppliedImageDigestPrefix,
+          digestMismatch: !!suppliedImageDigestPrefix,
+        }),
+        textScanParityEnabled: false,
+        correlationHash: typeof imageDigestPrefix === 'string' ? imageDigestPrefix : null,
+      });
       return json(normalized('failed', 'The original outfit image is no longer available. Please start a new scan.'), 200);
     }
 
@@ -1682,6 +1856,31 @@ Deno.serve(async (req) => {
         quota.count,
         quota.limit,
       );
+      void captureCommerceOutcome({
+        requestMode: mode === 'text' ? 'text' : 'legacy_single_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'rate_limited',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ quotaExceeded: true }),
+        textScanParityEnabled: false,
+      });
       return json(buildRateLimitedResponse(), 200);
     }
     console.log(
@@ -1712,8 +1911,14 @@ Deno.serve(async (req) => {
     );
   }
 
-  const modelName =
-    readTrimmedEnv('SCAN_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+  // Frozen model map (modelRouting.ts): explicit workload vars only, allowlist-validated.
+  // Generic GEMINI_MODEL precedence and retired gemini-1.5/2.0/2.5 defaults removed.
+  const modelName = mode === 'text'
+    ? getConfiguredModel(readTrimmedEnv, 'TEXTSCAN_GEMINI_MODEL', TEXTSCAN_PRIMARY_MODEL)
+    : getConfiguredModel(readTrimmedEnv, 'SCAN_GEMINI_MODEL', SCANNER_PRIMARY_MODEL);
+  const fallbackModel = mode === 'text'
+    ? modelName
+    : getConfiguredModel(readTrimmedEnv, 'SCAN_GEMINI_FALLBACK_MODEL', SCANNER_FALLBACK_MODEL);
   const timeoutMs = (() => {
     const raw = readTrimmedEnv('SCAN_GEMINI_TIMEOUT_MS');
     const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
@@ -1729,13 +1934,58 @@ Deno.serve(async (req) => {
     return u.toString();
   })();
 
+  const qualityTuneEnabled = isQualityTuneEnabled();
+  // Intelligence requires quality-tune ON; when intelligence OFF → exact v120 behavior.
+  const intelligenceEnabled = qualityTuneEnabled && isScannerIntelligenceEnabled();
+  // Relevance requires intelligence ON; when relevance OFF → exact v121 behavior.
+  const relevanceEnabled = intelligenceEnabled && isCommerceRelevanceEnabled();
+  // TextScan parity requires relevance ON; when OFF → exact repaired-v122 TextScan behavior.
+  const textScanParityEnabled = relevanceEnabled && isTextScanCommerceParityEnabled();
+
+  const requestModeForRoute = useMultiItemDetectionProvider
+    ? 'multi_item_detection' as const
+    : useSelectedItemProvider
+    ? 'selected_item' as const
+    : mode === 'text'
+    ? 'text' as const
+    : 'legacy_single_item' as const;
+
+  const categoryRoute: ScannerCategoryRoute = intelligenceEnabled
+    ? resolveScannerCategoryRoute({
+      requestMode: requestModeForRoute,
+      selectedCandidate: selectedCandidate
+        ? {
+          category: selectedCandidate.category,
+          subtype: selectedCandidate.subtype,
+          label: (selectedCandidate as { label?: string }).label,
+          providerCategory: selectedCandidate.category,
+        }
+        : null,
+      textQuery: mode === 'text' ? textQuery : null,
+    })
+    : 'general';
+
+  const withQualityAndRoute = (base: string): string => {
+    let prompt = base;
+    if (qualityTuneEnabled) prompt = `${prompt}${QUALITY_TUNE_PROMPT_ADDENDUM}`;
+    if (intelligenceEnabled) prompt = buildRoutedIdentifyPrompt(prompt, categoryRoute);
+    return prompt;
+  };
+
+  const identifyPrompt = withQualityAndRoute(IDENTIFY_PROMPT);
+  const multiItemPrompt = withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT);
+  const textIdentifyPrompt = withQualityAndRoute(TEXT_IDENTIFY_PROMPT);
+  const selectedItemPrompt = selectedCandidate
+    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate))
+    : '';
+
   const geminiBody = mode === 'text'
     ? {
         contents: [
           {
             role: 'user',
             parts: [
-              { text: TEXT_IDENTIFY_PROMPT },
+              { text: textIdentifyPrompt },
               { text: textQuery },
             ],
           },
@@ -1753,10 +2003,10 @@ Deno.serve(async (req) => {
             parts: [
               {
                 text: useSelectedItemProvider && selectedCandidate
-                  ? buildSelectedItemPrompt(selectedCandidate)
+                  ? selectedItemPrompt
                   : useMultiItemDetectionProvider
-                  ? MULTI_ITEM_IDENTIFY_PROMPT
-                  : IDENTIFY_PROMPT,
+                  ? multiItemPrompt
+                  : identifyPrompt,
               },
               { inline_data: { mime_type: DEFAULT_MIME, data: imageBase64 } },
             ],
@@ -1974,6 +2224,85 @@ Deno.serve(async (req) => {
       identification = sanitizeIdentification(buildIdentificationFromAttributes(attributes));
     }
 
+    // Quality-tune: deterministic taxonomy normalization + generic recovery.
+    // Flag OFF preserves exact v119-equivalent path (this block skipped).
+    // Intelligence gate runs after v120 normalization when intelligence ON.
+    let qualityNormCorrectionCount = 0;
+    let qualityNormRuleIds: string[] = [];
+    let qualityGenericLabelOccurrence = 0;
+    let qualityInvalidPairsResolved = 0;
+    let intelligenceGate: QualityGateResult | null = null;
+    if (qualityTuneEnabled && rawStatus === 'completed') {
+      if (useMultiItemDetectionProvider && detectedGarments.length > 0) {
+        for (let i = 0; i < detectedGarments.length; i++) {
+          const g = detectedGarments[i];
+          let tuned = applyQualityTaxonomyTune(
+            g.identification as Record<string, unknown>,
+            g.attributes as Record<string, unknown>,
+          );
+          if (intelligenceEnabled) {
+            const gated = applyScannerQualityGate(tuned.identification, tuned.attributes);
+            tuned = {
+              ...tuned,
+              identification: gated.identification,
+              attributes: gated.attributes,
+            };
+            if (i === 0) intelligenceGate = gated;
+          }
+          g.identification = tuned.identification;
+          if (tuned.attributes) g.attributes = tuned.attributes;
+          if (typeof tuned.identification.item_type === 'string' && tuned.identification.item_type) {
+            g.category = String(tuned.identification.item_type);
+            g.label = typeof tuned.identification.subtype === 'string' && tuned.identification.subtype
+              ? String(tuned.identification.subtype)
+              : (intelligenceGate?.label || g.category);
+          }
+          if (typeof tuned.identification.subtype === 'string') {
+            g.subtype = String(tuned.identification.subtype);
+          }
+          qualityNormCorrectionCount += tuned.correctionCount;
+          qualityNormRuleIds.push(...tuned.ruleIds);
+          qualityGenericLabelOccurrence += tuned.genericLabelOccurrence;
+          qualityInvalidPairsResolved += tuned.invalidPairResolved;
+        }
+        const primaryTuned = primaryGarmentResponseFields(detectedGarments);
+        identification = sanitizeIdentification(primaryTuned.identification) ?? identification;
+        attributes = (primaryTuned.attributes as Record<string, unknown> | undefined) ?? attributes;
+      } else if (identification || attributes) {
+        let tuned = applyQualityTaxonomyTune(
+          (identification ?? {}) as Record<string, unknown>,
+          attributes as Record<string, unknown> | undefined,
+        );
+        if (intelligenceEnabled) {
+          intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes);
+          tuned = {
+            ...tuned,
+            identification: intelligenceGate.identification,
+            attributes: intelligenceGate.attributes,
+          };
+        }
+        identification = sanitizeIdentification(tuned.identification) ?? identification;
+        if (tuned.attributes) attributes = tuned.attributes;
+        qualityNormCorrectionCount = tuned.correctionCount;
+        qualityNormRuleIds = tuned.ruleIds;
+        qualityGenericLabelOccurrence = tuned.genericLabelOccurrence;
+        qualityInvalidPairsResolved = tuned.invalidPairResolved;
+      }
+    }
+
+    // v122 repair: commerce must route on the FINAL normalized identification,
+    // not the pre-model prompt route (always 'general' for legacy_single_item,
+    // and possibly 'general' for ambiguous TextScan even after Gemini resolves
+    // a specific category). `categoryRoute` (used for the Gemini prompt) is
+    // left untouched; this only affects which commerce query template runs.
+    const commerceCategoryRoute: ScannerCategoryRoute = intelligenceEnabled
+      ? resolveScannerCategoryRoute({
+        requestMode: 'legacy_single_item',
+        knownCategory: typeof identification?.item_type === 'string' ? identification.item_type : null,
+        knownSubtype: typeof identification?.subtype === 'string' ? identification.subtype : null,
+      })
+      : 'general';
+
     // Non-fashion (explicit, or completed with no usable attributes).
     if (rawStatus.includes('non') || (!attributes && rawStatus !== 'completed')) {
       const msg = safeStringMessage(parsed.userMessage) ?? safeNonFashion;
@@ -2112,7 +2441,11 @@ Deno.serve(async (req) => {
     }
 
     // Prefer the rich visual_observation for userMessage when available.
-    const userMessage = safeStringMessage(parsed.userMessage) ??
+    const intelligenceLabelMessage = intelligenceEnabled && intelligenceGate?.label
+      ? safeStringMessage(intelligenceGate.label)
+      : undefined;
+    const userMessage = intelligenceLabelMessage ??
+      safeStringMessage(parsed.userMessage) ??
       (identification?.visual_observation
         ? safeVisualObservation(identification.visual_observation)
         : undefined) ??
@@ -2144,65 +2477,261 @@ Deno.serve(async (req) => {
     let finalSimilarityMatches: SimilarityMatch[] = [];
     let rankedProductsForAudit: RankedScanProduct[];
     let shoppingMeta: ShoppingMeta | undefined;
+    // v122 repair: real filter/fallback stats for truthful commerceRelevance
+    // telemetry (was previously hardcoded/derived from the final array only).
+    let commerceRelevanceStats: {
+      fallbackUsed: boolean;
+      productsBeforeDedupe: number;
+      productsAfterDedupe: number;
+      categoryMismatchRemovals: number;
+      productsBeforeFilter?: number;
+      retailerCount?: number;
+    } | null = null;
+    let commerceStartedAt = 0;
+    let commerceDurationMs: number | null = null;
 
     if (mode === 'text') {
-      const shoppingQuery = buildShoppingQuery({
-        searchQueries: identification?.search_queries,
-        brand: identification?.brand_guess ?? identification?.visible_brand_text,
-        color: identification?.primary_color,
-        category: identification?.item_type ?? identification?.subtype,
-        material: identification?.material_estimate,
-        silhouette: identification?.silhouette,
-        style: Array.isArray(identification?.style_tags)
-          ? (identification.style_tags as unknown[]).join(' ')
-          : identification?.style_tags,
-        text: textQuery,
-      });
-      console.log('[scan-identify] commerce_started mode=%s source=%s', mode, source);
-      const shopping = await Promise.race([
-        getShoppingResults({ query: shoppingQuery, limit: 8 }).catch((err) => {
-          console.warn('[scan-identify] text commerce provider error:', err);
-          return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
-            ReturnType<typeof getShoppingResults>
-          >;
-        }),
-        new Promise<'text_commerce_timeout'>((resolve) => {
-          setTimeout(() => resolve('text_commerce_timeout'), TEXT_MODE_COMMERCE_TIMEOUT_MS);
-        }),
-      ]);
+      console.log('[scan-identify] commerce_started mode=%s source=%s parity=%s', mode, source, String(textScanParityEnabled));
+      commerceStartedAt = Date.now();
 
-      if (shopping === 'text_commerce_timeout') {
-        console.warn(
-          '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
-          TEXT_MODE_COMMERCE_TIMEOUT_MS,
-          mode,
-          source,
-        );
-        finalRecommendedProducts = [];
-        shoppingMeta = {
-          provider: 'timeout',
-          query: shoppingQuery,
-          count: 0,
-          reason: 'text_commerce_timeout',
-        };
+      if (textScanParityEnabled) {
+        // v123: TextScan uses the same commerce router as image mode.
+        const commerce = await Promise.race([
+          getScanCommerceResults({
+            mode: 'text',
+            allowTextMode: true,
+            identification: (identification ?? {}) as Record<string, unknown>,
+            attributes: attributes as Record<string, unknown> | undefined,
+            searchQueries: Array.isArray(identification?.search_queries)
+              ? (identification?.search_queries as string[])
+              : undefined,
+            originalText: textQuery,
+            limit: 8,
+            ...(intelligenceEnabled && intelligenceGate
+              ? {
+                qualityDetailLevel: intelligenceGate.commerceQueryDetailLevel,
+                materialAllowed: !intelligenceGate.materialSuppressed &&
+                  intelligenceGate.qualityBand !== 'low',
+                brandAllowed: !intelligenceGate.brandSuppressed &&
+                  hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+              }
+              : {}),
+            ...(relevanceEnabled && intelligenceGate
+              ? {
+                relevanceEnabled: true,
+                relevanceRoute: commerceCategoryRoute,
+                qualityBand: intelligenceGate.qualityBand,
+              }
+              : {}),
+          }).catch((err) => {
+            console.warn('[scan-identify] text commerce router error:', err);
+            return {
+              provider: 'error',
+              providersTried: [],
+              query: '',
+              products: [],
+              count: 0,
+            } as unknown as ScanCommerceResult;
+          }),
+          new Promise<'text_commerce_timeout'>((resolve) => {
+            setTimeout(() => resolve('text_commerce_timeout'), TEXT_MODE_COMMERCE_TIMEOUT_MS);
+          }),
+        ]);
+        commerceDurationMs = Date.now() - commerceStartedAt;
+
+        if (commerce === 'text_commerce_timeout') {
+          console.warn(
+            '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
+            TEXT_MODE_COMMERCE_TIMEOUT_MS,
+            mode,
+            source,
+          );
+          finalRecommendedProducts = [];
+          shoppingMeta = {
+            provider: 'timeout',
+            query: '',
+            count: 0,
+            providersTried: [],
+            reason: 'text_commerce_timeout',
+          };
+        } else {
+          finalRecommendedProducts = commerce.products.slice(0, 8).map((p) => ({
+            id: p.id,
+            name: p.title,
+            title: p.title,
+            source: p.source,
+            retailer: p.source,
+            url: p.productUrl,
+            product_url: p.productUrl,
+            imageUrl: p.imageUrl,
+            price: p.price,
+            type: p.type,
+          })) as RankedScanProduct[];
+          shoppingMeta = {
+            provider: commerce.provider,
+            query: commerce.query,
+            count: finalRecommendedProducts.length,
+            providersTried: commerce.providersTried,
+          };
+          if (commerce.qualityTune) {
+            commerceRelevanceStats = {
+              fallbackUsed: !!commerce.qualityTune.fallbackUsed,
+              productsBeforeDedupe: commerce.qualityTune.productsBeforeDedupe,
+              productsAfterDedupe: commerce.qualityTune.productsAfterDedupe,
+              categoryMismatchRemovals: commerce.qualityTune.categoryMismatchRemovals,
+              productsBeforeFilter: commerce.qualityTune.productsBeforeFilter,
+              retailerCount: commerce.qualityTune.retailerCount,
+            };
+          }
+        }
       } else {
-        finalRecommendedProducts = shopping.products.slice(0, 8).map((p) => ({
-          id: p.id,
-          name: p.title,
-          title: p.title,
-          source: p.source,
-          retailer: p.source,
-          url: p.productUrl,
-          product_url: p.productUrl,
-          imageUrl: p.imageUrl,
-          price: p.price,
-          type: p.type,
-        })) as RankedScanProduct[];
-        shoppingMeta = {
-          provider: shopping.provider,
-          query: shopping.query,
-          count: finalRecommendedProducts.length,
-        };
+        // Repaired-v122 TextScan path: Serper/Brave via getShoppingResults only.
+        const weightedText = qualityTuneEnabled
+          ? buildWeightedCommerceQueries({
+            identification: (identification ?? {}) as Record<string, unknown>,
+            attributes: attributes as Record<string, unknown> | undefined,
+            searchQueries: Array.isArray(identification?.search_queries)
+              ? (identification?.search_queries as string[])
+              : undefined,
+            originalText: textQuery,
+            ...(intelligenceEnabled && intelligenceGate
+              ? {
+                detailLevel: intelligenceGate.commerceQueryDetailLevel,
+                materialAllowed: !intelligenceGate.materialSuppressed &&
+                  intelligenceGate.qualityBand !== 'low',
+                brandAllowed: !intelligenceGate.brandSuppressed &&
+                  hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+              }
+              : {}),
+            ...(relevanceEnabled && intelligenceGate
+              ? {
+                relevanceRoute: commerceCategoryRoute,
+                qualityBand: intelligenceGate.qualityBand,
+                detailLevel: intelligenceGate.commerceQueryDetailLevel,
+                materialAllowed: !intelligenceGate.materialSuppressed &&
+                  intelligenceGate.qualityBand !== 'low',
+                brandAllowed: !intelligenceGate.brandSuppressed &&
+                  hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
+              }
+              : {}),
+          })
+          : null;
+        const shoppingQuery = weightedText
+          ? weightedText.primary
+          : buildShoppingQuery({
+          searchQueries: identification?.search_queries,
+          brand: identification?.brand_guess ?? identification?.visible_brand_text,
+          color: identification?.primary_color,
+          category: identification?.item_type ?? identification?.subtype,
+          material: identification?.material_estimate,
+          silhouette: identification?.silhouette,
+          style: Array.isArray(identification?.style_tags)
+            ? (identification.style_tags as unknown[]).join(' ')
+            : identification?.style_tags,
+          text: textQuery,
+        });
+        const shopping = await Promise.race([
+          getShoppingResults({ query: shoppingQuery, limit: 8 }).catch((err) => {
+            console.warn('[scan-identify] text commerce provider error:', err);
+            return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
+              ReturnType<typeof getShoppingResults>
+            >;
+          }),
+          new Promise<'text_commerce_timeout'>((resolve) => {
+            setTimeout(() => resolve('text_commerce_timeout'), TEXT_MODE_COMMERCE_TIMEOUT_MS);
+          }),
+        ]);
+        commerceDurationMs = Date.now() - commerceStartedAt;
+
+        if (shopping === 'text_commerce_timeout') {
+          console.warn(
+            '[scan-identify] commerce_timeout timeoutMs=%d mode=%s source=%s',
+            TEXT_MODE_COMMERCE_TIMEOUT_MS,
+            mode,
+            source,
+          );
+          finalRecommendedProducts = [];
+          shoppingMeta = {
+            provider: 'timeout',
+            query: shoppingQuery,
+            count: 0,
+            reason: 'text_commerce_timeout',
+          };
+        } else {
+          let textProducts = shopping.products;
+          if (qualityTuneEnabled && weightedText) {
+            const textRelevance = relevanceEnabled
+              ? {
+                enabled: true as const,
+                categoryRoute: commerceCategoryRoute,
+                qualityBand: intelligenceGate?.qualityBand ?? null,
+              }
+              : undefined;
+            const filtered = filterAndDedupeProducts(
+              textProducts,
+              (identification ?? {}) as Record<string, unknown>,
+              textRelevance,
+            );
+            textProducts = filtered.products;
+            if (relevanceEnabled) {
+              commerceRelevanceStats = {
+                fallbackUsed: false,
+                productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
+                productsAfterDedupe: filtered.stats.productsAfterDedupe,
+                categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+                productsBeforeFilter: filtered.stats.productsBeforeFilter,
+                retailerCount: filtered.stats.retailerCount,
+              };
+            }
+            if (
+              shouldRunFallbackQuery(textProducts.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
+              weightedText.fallback &&
+              weightedText.fallback !== shoppingQuery
+            ) {
+              const fallbackShopping = await getShoppingResults({
+                query: weightedText.fallback,
+                limit: 8,
+              }).catch(() => ({ products: [] as typeof textProducts, provider: 'error', query: weightedText.fallback }));
+              const fallbackFiltered = filterAndDedupeProducts(
+                fallbackShopping.products,
+                (identification ?? {}) as Record<string, unknown>,
+                textRelevance,
+              );
+              if (relevanceEnabled) {
+                commerceRelevanceStats = {
+                  fallbackUsed: true,
+                  productsBeforeDedupe: fallbackFiltered.stats.productsBeforeDedupe,
+                  productsAfterDedupe: fallbackFiltered.stats.productsAfterDedupe,
+                  categoryMismatchRemovals:
+                    (commerceRelevanceStats?.categoryMismatchRemovals || 0) +
+                    fallbackFiltered.stats.categoryMismatchRemovals,
+                  productsBeforeFilter: fallbackFiltered.stats.productsBeforeFilter,
+                  retailerCount: fallbackFiltered.stats.retailerCount,
+                };
+              }
+              if (fallbackFiltered.products.length > textProducts.length) {
+                textProducts = fallbackFiltered.products;
+              }
+            }
+          }
+          finalRecommendedProducts = textProducts.slice(0, 8).map((p) => ({
+            id: p.id,
+            name: p.title,
+            title: p.title,
+            source: p.source,
+            retailer: p.source,
+            url: p.productUrl,
+            product_url: p.productUrl,
+            imageUrl: p.imageUrl,
+            price: p.price,
+            type: p.type,
+          })) as RankedScanProduct[];
+          shoppingMeta = {
+            provider: shopping.provider,
+            query: shopping.query,
+            count: finalRecommendedProducts.length,
+          };
+        }
       }
       rankedProductsForAudit = finalRecommendedProducts;
     } else if (useMultiItemDetectionProvider) {
@@ -2255,6 +2784,7 @@ Deno.serve(async (req) => {
       // Live commerce is capped at IMAGE_MODE_COMMERCE_TIMEOUT_MS so a slow
       // provider cannot block the Similar Items shelf.
       console.log('[scan-identify] commerce_started mode=%s source=%s', mode, source);
+      commerceStartedAt = Date.now();
       const commerce = await Promise.race([
         getScanCommerceResults({
           mode: 'image',
@@ -2265,6 +2795,24 @@ Deno.serve(async (req) => {
             ? completedNormalizedId.normalizedSearchQueries
             : undefined,
           limit: 10,
+          ...(intelligenceEnabled && intelligenceGate
+            ? {
+              qualityDetailLevel: intelligenceGate.commerceQueryDetailLevel,
+              materialAllowed: !intelligenceGate.materialSuppressed &&
+                intelligenceGate.qualityBand !== 'low',
+              brandAllowed: !intelligenceGate.brandSuppressed &&
+                hasBrandEvidenceForCommerce(
+                  completedResponseWithAttributes.identification as Record<string, unknown> | undefined,
+                ),
+            }
+            : {}),
+          ...(relevanceEnabled && intelligenceGate
+            ? {
+              relevanceEnabled: true,
+              relevanceRoute: commerceCategoryRoute,
+              qualityBand: intelligenceGate.qualityBand,
+            }
+            : {}),
         }).catch((err) => {
           console.warn('[scan-identify] image commerce provider error:', err);
           return {
@@ -2279,6 +2827,7 @@ Deno.serve(async (req) => {
           setTimeout(() => resolve('commerce_timeout'), IMAGE_MODE_COMMERCE_TIMEOUT_MS);
         }),
       ]);
+      commerceDurationMs = Date.now() - commerceStartedAt;
 
       let liveProducts: RankedScanProduct[] = [];
       let commerceProvider = 'none';
@@ -2293,6 +2842,16 @@ Deno.serve(async (req) => {
           source,
         );
       } else {
+        if (relevanceEnabled && commerce.qualityTune) {
+          commerceRelevanceStats = {
+            fallbackUsed: commerce.qualityTune.fallbackUsed,
+            productsBeforeDedupe: commerce.qualityTune.productsBeforeDedupe,
+            productsAfterDedupe: commerce.qualityTune.productsAfterDedupe,
+            categoryMismatchRemovals: commerce.qualityTune.categoryMismatchRemovals,
+            productsBeforeFilter: commerce.qualityTune.productsBeforeFilter,
+            retailerCount: commerce.qualityTune.retailerCount,
+          };
+        }
         liveProducts = commerce.products.map((p) => ({
           id: p.id,
           name: p.title,
@@ -2395,6 +2954,150 @@ Deno.serve(async (req) => {
     if (useMultiItemDetectionProvider) {
       console.log('[scan-identify] multi_item_response_count count=%d', detectedGarments.length);
     }
+    if (qualityTuneEnabled) {
+      const requestModeLabel = useMultiItemDetectionProvider
+        ? 'multi_item_detection'
+        : useSelectedItemProvider
+        ? 'selected_item'
+        : mode === 'text'
+        ? 'text'
+        : 'legacy_single_item';
+      const productCount = typeof shoppingMeta?.count === 'number'
+        ? shoppingMeta.count
+        : finalRecommendedProducts.length;
+      const providerOutcome = typeof shoppingMeta?.provider === 'string' ? shoppingMeta.provider : null;
+      const fallbackUsed = commerceRelevanceStats?.fallbackUsed ?? false;
+      const beforeFilter = commerceRelevanceStats?.productsBeforeFilter ??
+        commerceRelevanceStats?.productsBeforeDedupe ??
+        productCount;
+      const afterDedupe = commerceRelevanceStats?.productsAfterDedupe ?? productCount;
+      const beforeDedupe = commerceRelevanceStats?.productsBeforeDedupe ?? productCount;
+      const mismatchRemovals = commerceRelevanceStats?.categoryMismatchRemovals ?? 0;
+      const retailerCount = commerceRelevanceStats?.retailerCount ?? new Set(
+        finalRecommendedProducts
+          .map((p) =>
+            typeof (p as { source?: string }).source === 'string'
+              ? (p as { source: string }).source
+              : typeof (p as { retailer?: string }).retailer === 'string'
+              ? (p as { retailer: string }).retailer
+              : ''
+          )
+          .filter(Boolean),
+      ).size;
+      const failureReason = mapToFailureReason({
+        providerOutcome,
+        commercePrimaryEmpty: !fallbackUsed && productCount === 0 &&
+          !(shoppingMeta as { commerceSkipped?: boolean } | undefined)?.commerceSkipped,
+        commerceFallbackUsed: fallbackUsed && productCount > 0,
+        commerceFallbackEmpty: fallbackUsed && productCount === 0,
+        productFilterEmpty: beforeFilter > 0 && afterDedupe === 0,
+        categoryMismatchRemoved: mismatchRemovals > 0,
+        productDedupeReduction: beforeDedupe > afterDedupe,
+      });
+
+      logQualityTuneMetrics(buildQualityTuneMetrics({
+        enabled: true,
+        requestMode: requestModeLabel,
+        totalDurationMs: elapsedMs,
+        commerceDurationMs,
+        providerOutcome,
+        candidateCount: useMultiItemDetectionProvider ? detectedGarments.length : 1,
+        genericLabelOccurrence: qualityGenericLabelOccurrence,
+        normalizationCorrectionCount: qualityNormCorrectionCount,
+        normalizationRuleIds: qualityNormRuleIds,
+        primaryCommerceResultCount: productCount,
+        fallbackQueryUsage: fallbackUsed,
+        productsBeforeDedupe: beforeDedupe,
+        productsAfterDedupe: afterDedupe,
+        categoryMismatchRemovals: mismatchRemovals,
+        emptyResultOccurrence: productCount === 0 ? 1 : 0,
+        errorCategory: failureReason,
+        ...(intelligenceEnabled && intelligenceGate
+          ? {
+            intelligence: {
+              categoryRoute: commerceCategoryRoute,
+              qualityScoreBand: intelligenceGate.qualityBand,
+              qualityScoreValue: intelligenceGate.qualityScore,
+              consistencyConflictCount: intelligenceGate.consistencyConflicts.length,
+              suppressedAttributeCount: intelligenceGate.suppressedAttributes.length,
+              commerceQueryDetailLevel: intelligenceGate.commerceQueryDetailLevel,
+              brandSuppressed: intelligenceGate.brandSuppressed,
+              materialSuppressed: intelligenceGate.materialSuppressed,
+            },
+          }
+          : {}),
+        ...(relevanceEnabled
+          ? {
+            commerceRelevance: {
+              failureReason,
+              productsBeforeFilter: beforeFilter,
+              productsAfterFilter: afterDedupe,
+              retailerCount,
+              fallbackUsed,
+              durationMs: commerceDurationMs ?? elapsedMs,
+              intelligenceVersion: SCANNER_INTELLIGENCE_VERSION,
+            },
+          }
+          : {}),
+      }));
+      console.log(
+        '[scan-identify] quality_tune_version=%s enabled=true',
+        QUALITY_TUNE_VERSION,
+      );
+      if (intelligenceEnabled) {
+        console.log(
+          '[scan-identify] scanner_intelligence_version=%s enabled=true route=%s band=%s score=%d',
+          SCANNER_INTELLIGENCE_VERSION,
+          commerceCategoryRoute,
+          intelligenceGate?.qualityBand ?? 'n/a',
+          intelligenceGate?.qualityScore ?? -1,
+        );
+      }
+      if (relevanceEnabled) {
+        console.log(
+          '[scan-identify] commerce_relevance_version=%s enabled=true route=%s',
+          COMMERCE_RELEVANCE_VERSION,
+          commerceCategoryRoute,
+        );
+      }
+      if (textScanParityEnabled && mode === 'text') {
+        console.log(
+          '[scan-identify] textscan_commerce_parity_version=%s enabled=true route=%s',
+          TEXTSCAN_COMMERCE_PARITY_VERSION,
+          commerceCategoryRoute,
+        );
+      }
+
+      // Best-effort scrubbed outcome persistence — never blocks response.
+      void captureCommerceOutcome({
+        requestMode: requestModeLabel,
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: true,
+        categoryRoute: commerceCategoryRoute,
+        qualityBand: intelligenceGate?.qualityBand ?? null,
+        commerceQueryDetailLevel: intelligenceGate?.commerceQueryDetailLevel ?? null,
+        providerOutcome,
+        providersTried: Array.isArray((shoppingMeta as { providersTried?: string[] } | undefined)?.providersTried)
+          ? (shoppingMeta as { providersTried: string[] }).providersTried
+          : null,
+        primaryResultCount: productCount,
+        fallbackUsed,
+        productsBeforeFilter: beforeFilter,
+        productsAfterFilter: afterDedupe,
+        productsBeforeDedupe: beforeDedupe,
+        productsAfterDedupe: afterDedupe,
+        categoryMismatchRemovals: mismatchRemovals,
+        retailerCount,
+        commerceDurationMs,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason,
+        textScanParityEnabled: textScanParityEnabled && mode === 'text',
+        correlationHash: typeof scanId === 'string' ? scanId.slice(0, 12) : null,
+      });
+    }
     return json(finalResponse, 200);
   } catch (err) {
     const isTimeout =
@@ -2438,6 +3141,15 @@ Deno.serve(async (req) => {
     clearTimeout(timer);
   }
 });
+
+function hasBrandEvidenceForCommerce(
+  identification: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!identification || typeof identification !== 'object') return false;
+  if (identification.logo_detected === true) return true;
+  return typeof identification.visible_brand_text === 'string' &&
+    identification.visible_brand_text.trim().length > 0;
+}
 
 function safeStringMessage(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;

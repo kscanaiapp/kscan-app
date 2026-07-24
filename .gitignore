@@ -66,6 +66,9 @@ android/local.properties
 2026-*/
 physical-*
 qa/
+# Scanner backend (v120–v123) quality-tune fixtures are tracked test data.
+!qa/backend-quality-tune-fixtures/
+!qa/backend-quality-tune-fixtures/**
 qa-*.xml
 qa-*.json
 qa-*.err

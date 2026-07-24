@@ -296,7 +296,15 @@ test('migration creates user_stylist_preferences with RLS and constraints', () =
     userStylistPreferencesGrantsMigration,
     /grant select, insert, update on public\.user_stylist_preferences to authenticated/,
   );
-  assert.match(deletionScript, /table:\s*['"]user_stylist_preferences['"][\s\S]*?auth_delete_cascade/);
+  // Registry externalized to lib/account-deletion/user-data-resources.json (loadRegistry.cjs).
+  {
+    const registry = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'), 'utf8'),
+    );
+    const usp = registry.tables.find((t) => t.table === 'user_stylist_preferences');
+    assert.ok(usp, 'user_stylist_preferences must be in the account-deletion registry');
+    assert.equal(usp.action, 'auth_delete_cascade');
+  }
 });
 
 test('migration policies restrict access to the authenticated owner', () => {

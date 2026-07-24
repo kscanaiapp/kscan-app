@@ -5,36 +5,84 @@ const path = require('node:path');
 
 const {
   appendNote,
+  assertCliPurgeEligible,
+  assertGlobalGuardrailsForManualPurge,
+  cliEligibleStatuses,
   buildDeletionSummary,
   deleteDirectUserRows,
   deleteOwnedStorageObjects,
   getSharedRoomsForUser,
   parseArgs,
   processDeletionRequest,
+  REQUIRED_REGISTRY_TABLES,
   shortUserId,
   transferSharedRoomOwnership,
   USER_DATA_RESOURCES,
   verifyDeletionCompleteness,
 } = require('../scripts/process-deletion-request');
 
-function createStorageMock(filesByPrefix = {}) {
+// Behavioral storage mock. `referencedPaths` are dressing_room_items.storage_path
+// values that must be preserved (rows that survive the purge via room transfer);
+// the mock exposes a matching `from('dressing_room_items')` reference query so
+// deleteOwnedStorageObjects' cross-user protection is actually exercised, not
+// stubbed away. remove() mutates the backing store and returns the removed
+// objects (mirroring real Supabase), so the P2-5 partial-removal re-list is
+// exercised realistically rather than falsely triggered.
+function createStorageMock(filesByPrefix = {}, referencedPaths = []) {
   const removed = [];
   const listed = [];
+  const store = {};
+  for (const [prefix, items] of Object.entries(filesByPrefix)) {
+    store[prefix] = items.map((i) => ({ ...i }));
+  }
+  const referencedSet = new Set(referencedPaths);
 
   return {
     removed,
     listed,
+    referencedSet,
     client: {
+      from(table) {
+        // Only dressing_room_items is queried by the reference check.
+        const rows = table === 'dressing_room_items'
+          ? [...referencedSet].map((storage_path) => ({ storage_path }))
+          : [];
+        const builder = {
+          select() { return builder; },
+          like(_col, pattern) {
+            const prefix = String(pattern).replace(/%$/, '');
+            builder._rows = rows.filter((r) => String(r.storage_path).startsWith(prefix));
+            return builder;
+          },
+          range(from, to) {
+            const slice = (builder._rows ?? rows).slice(from, to + 1);
+            return Promise.resolve({ data: slice, error: null });
+          },
+        };
+        return builder;
+      },
       storage: {
         from(bucket) {
           return {
             async list(prefix) {
               listed.push({ bucket, prefix });
-              return { data: filesByPrefix[prefix] ?? [], error: null };
+              return { data: store[prefix] ?? [], error: null };
             },
             async remove(paths) {
               removed.push({ bucket, paths });
-              return { data: [], error: null };
+              const removedObjects = [];
+              for (const p of paths) {
+                const slash = p.lastIndexOf('/');
+                const prefix = p.slice(0, slash);
+                const name = p.slice(slash + 1);
+                const bucketList = store[prefix] ?? [];
+                const idx = bucketList.findIndex((i) => i.name === name);
+                if (idx >= 0) {
+                  removedObjects.push({ name });
+                  bucketList.splice(idx, 1);
+                }
+              }
+              return { data: removedObjects, error: null };
             },
           };
         },
@@ -115,6 +163,15 @@ function createSupabaseMock(options = {}) {
               };
               return makeThenable(base);
             },
+            // Reference-check query used by deleteOwnedStorageObjects:
+            // .select('storage_path').like('storage_path', '<prefix>%').range(...)
+            like() {
+              return {
+                range() {
+                  return Promise.resolve({ data: [], error: null });
+                },
+              };
+            },
           };
         },
         update(payload) {
@@ -123,6 +180,10 @@ function createSupabaseMock(options = {}) {
             eq(column, value) {
               const updateChain = {
                 eq(column2, value2) {
+                  return updateChain;
+                },
+                in(column2, values2) {
+                  calls.push({ type: 'update.in', table, column: column2, values: values2 });
                   return updateChain;
                 },
                 select(columns) {
@@ -176,6 +237,8 @@ test('parseArgs: request deletion is dry-run by default', () => {
     requestId: 'req-1',
     userId: null,
     verify: false,
+    overrideDryRun: false,
+    operatorConfirm: null,
   });
 });
 
@@ -229,6 +292,289 @@ test('deleteOwnedStorageObjects removes only known user-owned storage prefixes',
   assert.ok(storage.listed.every((entry) => entry.bucket === 'style-library-images'));
 });
 
+test('deleteOwnedStorageObjects preserves a scan image still referenced by a transferred room (P1-2)', async () => {
+  const userId = 'user-123';
+  const referenced = `${userId}/scans/shared-in-room.jpg`;
+  const storage = createStorageMock(
+    {
+      [`${userId}/scans`]: [{ name: 'shared-in-room.jpg' }, { name: 'private.jpg' }],
+      [`${userId}/inspirations`]: [{ name: 'inspo.jpg' }],
+    },
+    // dressing_room_items row that survives via room transfer still points here:
+    [referenced],
+  );
+
+  const results = await deleteOwnedStorageObjects(storage.client, userId);
+
+  const removedPaths = storage.removed.flatMap((e) => e.paths);
+  assert.ok(!removedPaths.includes(referenced), 'referenced (transferred-room) object must NOT be deleted');
+  assert.ok(removedPaths.includes(`${userId}/scans/private.jpg`), 'unreferenced object must be deleted');
+  assert.ok(removedPaths.includes(`${userId}/inspirations/inspo.jpg`), 'inspiration object must be deleted');
+  const scansResult = results.find((r) => r.prefix.endsWith('/scans'));
+  assert.equal(scansResult.retainedReferenced, 1);
+});
+
+test('deleteOwnedStorageObjects fails closed when the reference check errors (P1-2)', async () => {
+  const userId = 'user-err';
+  const storage = createStorageMock({ [`${userId}/scans`]: [{ name: 'a.jpg' }] });
+  // Force the reference query to error.
+  storage.client.from = () => ({
+    select: () => ({ like: () => ({ range: () => Promise.resolve({ data: null, error: { message: 'boom' } }) }) }),
+  });
+  await assert.rejects(() => deleteOwnedStorageObjects(storage.client, userId), /reference check failed/);
+  assert.equal(storage.removed.length, 0, 'nothing may be removed when references cannot be determined');
+});
+
+// ── P0 privacy regression: saved-scans media coverage ────────────────────────
+// services/savedScanMedia.ts uploads to style-library-images/{userId}/saved-scans/*.
+// That prefix was previously absent from the deletion registry, so saved-scan
+// images were orphaned in storage after account deletion. These tests pin the fix.
+
+test('deletion registry covers {userId}/saved-scans in both edge (.ts) and worker (.json) registries', () => {
+  const ROOT = path.resolve(__dirname, '..');
+  const tsReg = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion', 'userDataResources.ts'), 'utf8');
+  const jsonReg = fs.readFileSync(path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'), 'utf8');
+  assert.match(tsReg, /\{userId\}\/saved-scans/, 'edge registry must include the saved-scans prefix');
+  assert.match(jsonReg, /\{userId\}\/saved-scans/, 'worker registry must include the saved-scans prefix');
+});
+
+test('deleteOwnedStorageObjects removes saved-scans media (single and multiple objects)', async () => {
+  const userId = 'user-ss';
+  const storage = createStorageMock({
+    [`${userId}/saved-scans`]: [{ name: 'a.jpg' }, { name: 'b.jpg' }, { name: 'c.jpg' }],
+  });
+  const results = await deleteOwnedStorageObjects(storage.client, userId);
+  const removed = storage.removed.flatMap((e) => e.paths);
+  assert.ok(removed.includes(`${userId}/saved-scans/a.jpg`));
+  assert.ok(removed.includes(`${userId}/saved-scans/b.jpg`));
+  assert.ok(removed.includes(`${userId}/saved-scans/c.jpg`));
+  const ss = results.find((r) => r.prefix.endsWith('/saved-scans'));
+  assert.equal(ss.status, 'removed');
+});
+
+test('deleteOwnedStorageObjects leaves another user\'s saved-scans untouched (cross-user isolation)', async () => {
+  const userId = 'user-me';
+  const other = 'user-other';
+  const storage = createStorageMock({
+    [`${userId}/saved-scans`]: [{ name: 'mine.jpg' }],
+    [`${other}/saved-scans`]: [{ name: 'theirs.jpg' }],
+  });
+  await deleteOwnedStorageObjects(storage.client, userId);
+  const removed = storage.removed.flatMap((e) => e.paths);
+  assert.ok(removed.includes(`${userId}/saved-scans/mine.jpg`));
+  assert.ok(!removed.some((p) => p.startsWith(`${other}/`)), 'another user\'s media must never be touched');
+});
+
+test('deleteOwnedStorageObjects is idempotent for saved-scans (second run is a no-op)', async () => {
+  const userId = 'user-idem';
+  const storage = createStorageMock({ [`${userId}/saved-scans`]: [{ name: 'x.jpg' }] });
+  await deleteOwnedStorageObjects(storage.client, userId);
+  assert.ok(storage.removed.flatMap((e) => e.paths).includes(`${userId}/saved-scans/x.jpg`));
+  storage.removed.length = 0;
+  await deleteOwnedStorageObjects(storage.client, userId);
+  assert.equal(storage.removed.flatMap((e) => e.paths).length, 0, 'no objects remain to remove on the second run');
+});
+
+test('saved-scans deletion never issues a broad/bucket-wide delete', async () => {
+  const userId = 'user-safe';
+  const storage = createStorageMock({ [`${userId}/saved-scans`]: [{ name: 'x.jpg' }] });
+  await deleteOwnedStorageObjects(storage.client, userId);
+  for (const entry of storage.removed) {
+    for (const p of entry.paths) {
+      assert.ok(p.startsWith(`${userId}/`), `remove path must be user-scoped: ${p}`);
+      assert.ok(!p.includes('*') && !p.endsWith('/') && p.split('/').length >= 3, `no wildcard/folder-wide delete: ${p}`);
+    }
+  }
+});
+
+// --- P1-3: CLI manual-purge safety gates ----------------------------------
+const NOW = new Date('2026-07-23T00:00:00Z');
+
+test('assertCliPurgeEligible refuses a request still inside its grace period', () => {
+  assert.throws(
+    () => assertCliPurgeEligible(
+      { status: 'deactivated', grace_period_ends_at: '2026-08-10T00:00:00Z' },
+      NOW,
+    ),
+    /grace period has not elapsed/i,
+  );
+});
+
+test('assertCliPurgeEligible refuses a restored request', () => {
+  assert.throws(
+    () => assertCliPurgeEligible({ status: 'deactivated', restored_at: '2026-07-20T00:00:00Z' }, NOW),
+    /restored by the user/i,
+  );
+});
+
+test('assertCliPurgeEligible refuses an already-purged request', () => {
+  assert.throws(
+    () => assertCliPurgeEligible({ status: 'purged', purged_at: '2026-07-19T00:00:00Z' }, NOW),
+    /already purged/i,
+  );
+});
+
+test('assertCliPurgeEligible refuses a request under an active worker lease', () => {
+  assert.throws(
+    () => assertCliPurgeEligible(
+      { status: 'purging', worker_lease_expires_at: '2026-07-23T00:04:00Z' },
+      NOW,
+    ),
+    /active lease/i,
+  );
+});
+
+test('assertCliPurgeEligible allows a grace-elapsed, unclaimed request', () => {
+  assert.doesNotThrow(() =>
+    assertCliPurgeEligible(
+      { status: 'deactivated', grace_period_ends_at: '2026-07-01T00:00:00Z' },
+      NOW,
+    ),
+  );
+});
+
+test('assertCliPurgeEligible allows finishing a stale (crashed) purging claim', () => {
+  assert.doesNotThrow(() =>
+    assertCliPurgeEligible(
+      { status: 'purging', worker_lease_expires_at: '2026-07-22T23:00:00Z' },
+      NOW,
+    ),
+  );
+});
+
+test('cliEligibleStatuses restricts a stale purging row to a purging-only transition', () => {
+  assert.deepEqual(cliEligibleStatuses({ status: 'purging' }), ['purging']);
+  assert.deepEqual(cliEligibleStatuses({ status: 'deactivated' }), ['pending', 'processing', 'deactivated']);
+});
+
+// --- Controlled --override-dry-run gate: assertGlobalGuardrailsForManualPurge ---
+// Mock reads two app_config keys (worker_enabled, dry_run) and a scheduler
+// (pg_cron) surface. Fail-closed everywhere.
+function guardMock({ workerEnabled = false, dryRunEnabled = false, cronJobs = null, appConfigError = null } = {}) {
+  return {
+    rpc: async () => ({ data: null, error: { message: 'function not found' } }),
+    from: (table) => {
+      if (table === 'cron.job') {
+        return {
+          select: () => ({
+            ilike: () =>
+              Promise.resolve(
+                cronJobs
+                  ? { data: cronJobs, error: null }
+                  : { data: null, error: { message: 'relation "cron.job" does not exist' } },
+              ),
+          }),
+        };
+      }
+      return {
+        select: () => ({
+          eq: (_col, key) => ({
+            maybeSingle: async () => {
+              if (appConfigError) return { data: null, error: { message: appConfigError } };
+              const enabled = key === 'account_deletion_worker_enabled' ? workerEnabled : dryRunEnabled;
+              return { data: { value: { enabled } }, error: null };
+            },
+          }),
+        }),
+      };
+    },
+  };
+}
+
+test('override ABSENT while global dry-run ON -> refuse', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: true }), { overrideDryRun: false }),
+    /global dry-run .* is ON/i,
+  );
+});
+
+test('override PRESENT but worker ON -> refuse', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ workerEnabled: true, dryRunEnabled: true }), { overrideDryRun: true }),
+    /automated worker .* is ON/i,
+  );
+});
+
+test('override PRESENT but scheduler (pg_cron) job exists -> refuse', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(
+      guardMock({ dryRunEnabled: true, cronJobs: [{ jobname: 'x', command: "select net.http_post('.../process-account-deletions')" }] }),
+      { overrideDryRun: true },
+    ),
+    /scheduler must be disabled/i,
+  );
+});
+
+test('override PRESENT + worker OFF + scheduler OFF + dry-run ON -> proceed', async () => {
+  await assert.doesNotReject(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: true }), { overrideDryRun: true }),
+  );
+});
+
+test('override PRESENT but global dry-run already OFF -> refuse (state confusion)', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: false }), { overrideDryRun: true }),
+    /already OFF/i,
+  );
+});
+
+test('normal path (no override) proceeds only when dry-run OFF and worker OFF', async () => {
+  await assert.doesNotReject(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ dryRunEnabled: false }), { overrideDryRun: false }),
+  );
+});
+
+test('guardrail check fails closed when app_config cannot be read', async () => {
+  await assert.rejects(
+    () => assertGlobalGuardrailsForManualPurge(guardMock({ appConfigError: 'permission denied' }), { overrideDryRun: true }),
+    /could not confirm global guardrail state/i,
+  );
+});
+
+// parseArgs-level gates for the override (single-request, confirm, attestation)
+test('parseArgs: --override-dry-run without --request-id -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--user-id', 'u1', '--confirm-delete', '--override-dry-run', '--operator-confirm', 'ticket-123']),
+    /requires an exact --request-id/i,
+  );
+});
+
+test('parseArgs: --override-dry-run without --confirm-delete -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--request-id', 'r1', '--override-dry-run', '--operator-confirm', 'ticket-123']),
+    /requires --confirm-delete/i,
+  );
+});
+
+test('parseArgs: --override-dry-run without --operator-confirm -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--request-id', 'r1', '--confirm-delete', '--override-dry-run']),
+    /requires --operator-confirm/i,
+  );
+});
+
+test('parseArgs: --override-dry-run cannot batch (with --list-pending) -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--list-pending', '--override-dry-run', '--confirm-delete', '--operator-confirm', 'x123']),
+    /requires an exact --request-id|cannot be combined|exactly one selector/i,
+  );
+});
+
+test('parseArgs: --override-dry-run cannot combine with --user-id -> refuse', () => {
+  assert.throws(
+    () => parseArgs(['--request-id', 'r1', '--user-id', 'u1', '--confirm-delete', '--override-dry-run', '--operator-confirm', 'x123']),
+    /exactly one selector|cannot be combined/i,
+  );
+});
+
+test('parseArgs: valid single approved override request parses', () => {
+  const opts = parseArgs(['--request-id', 'r1', '--confirm-delete', '--override-dry-run', '--operator-confirm', 'approved-disposable-123']);
+  assert.equal(opts.requestId, 'r1');
+  assert.equal(opts.confirmDelete, true);
+  assert.equal(opts.overrideDryRun, true);
+  assert.equal(opts.operatorConfirm, 'approved-disposable-123');
+});
+
 test('deleteDirectUserRows deletes explicit non-cascade resources by user id', async () => {
   const calls = [];
   const supabase = {
@@ -263,10 +609,57 @@ test('processDeletionRequest deletes storage and direct rows before auth user de
     {},
   );
 
-  assert.equal(supabase.calls.at(-1).type, 'auth.deleteUser');
-  assert.equal(supabase.calls.at(-1).value, userId);
+  const authDeleteIndex = supabase.calls.findIndex((call) => call.type === 'auth.deleteUser');
+  assert.ok(authDeleteIndex >= 0, 'auth.deleteUser must be called');
+  assert.equal(supabase.calls[authDeleteIndex].value, userId);
+  // Only the best-effort "mark deletion_requests purged" bookkeeping update
+  // (deletion_requests now survives the auth delete via ON DELETE SET NULL)
+  // may run after the auth user is deleted.
+  const callsAfterAuthDelete = supabase.calls.slice(authDeleteIndex + 1);
+  assert.ok(
+    callsAfterAuthDelete.every((call) => call.type === 'update' && call.table === 'deletion_requests'),
+    'only the post-purge deletion_requests bookkeeping update may follow auth.deleteUser',
+  );
   assert.equal(result.userId, '12345678...');
   assert.notEqual(result.userId, userId);
+});
+
+test('controlled override execution is recorded as a distinct audit record', async () => {
+  const userId = '12345678-90ab-cdef-1234-567890abcdef';
+  const supabase = createSupabaseMock().client;
+  const result = await processDeletionRequest(
+    supabase,
+    { id: 'request-ovr', user_id: userId, requested_at: '2026-07-07T00:00:00Z', request_source: 'mobile_app', notes: null },
+    { overrideDryRun: true, operatorConfirm: 'approved-disposable-123' },
+  );
+  assert.ok(result.controlledOverride, 'controlledOverride must be present under override');
+  assert.equal(result.controlledOverride.event, 'CONTROLLED_DRY_RUN_OVERRIDE_PURGE');
+  assert.equal(result.controlledOverride.operatorConfirm, 'approved-disposable-123');
+  assert.equal(result.controlledOverride.globalDryRunRemainedOn, true);
+});
+
+test('normal (non-override) execution carries no controlled-override audit record', async () => {
+  const supabase = createSupabaseMock().client;
+  const result = await processDeletionRequest(
+    supabase,
+    { id: 'request-norm', user_id: '12345678-90ab-cdef-1234-567890abcdef', requested_at: '2026-07-07T00:00:00Z', request_source: 'mobile_app', notes: null },
+    {},
+  );
+  assert.equal(result.controlledOverride, null);
+});
+
+test('second execution is safe/idempotent: a concurrently-changed row aborts (0 rows guarded)', async () => {
+  // Simulate the row having moved under us (already purged / restored): the
+  // status-guarded mark-processing update matches 0 rows.
+  const supabase = createSupabaseMock({ updateResult: { data: [], error: null } }).client;
+  await assert.rejects(
+    () => processDeletionRequest(
+      supabase,
+      { id: 'request-2', user_id: '12345678-90ab-cdef-1234-567890abcdef', requested_at: '2026-07-07T00:00:00Z', request_source: 'mobile_app', notes: null },
+      {},
+    ),
+    /did not update exactly one eligible request/i,
+  );
 });
 
 test('processDeletionRequest transfers shared rooms before auth user deletion', async () => {
@@ -668,8 +1061,7 @@ test('deleteOwnedStorageObjects returns sanitized prefixes without full user id'
   const storage = createStorageMock({
     [`${userId}/scans`]: [{ name: 'scan.jpg' }],
     [`${userId}/inspirations`]: [{ name: 'inspiration.jpg' }],
-    // Phase 2: saved-scan remote media backing prefix.
-    [`${userId}/saved-scans`]: [{ name: 'saved-scan.jpg' }],
+    [`${userId}/saved-scans`]: [{ name: 'saved.jpg' }],
   });
 
   const results = await deleteOwnedStorageObjects(storage.client, userId);
@@ -681,11 +1073,55 @@ test('deleteOwnedStorageObjects returns sanitized prefixes without full user id'
   }
 });
 
+test('USER_DATA_RESOURCES includes the seven production-confirmed gap tables', () => {
+  const expected = {
+    user_stylist_preferences: 'user_id',
+    dressing_room_collab_idempotency: 'actor_id',
+    shared_room_memberships: 'recipient_user_id',
+    outfit_decision_votes: 'user_id',
+    stylechat_quota_events: 'user_id',
+    style_outfit_burst_usage: 'user_id',
+    style_outfit_daily_usage: 'user_id',
+  };
+
+  assert.deepEqual([...REQUIRED_REGISTRY_TABLES].sort(), Object.keys(expected).sort());
+
+  for (const [table, column] of Object.entries(expected)) {
+    const resource = USER_DATA_RESOURCES.find((entry) => entry.table === table);
+    assert.ok(resource, `${table} is missing from USER_DATA_RESOURCES`);
+    assert.equal(resource.column, column);
+    assert.equal(resource.action, 'auth_delete_cascade');
+    assert.equal(resource.optional, true);
+  }
+});
+
+test('deletion_requests survives the auth cascade (ON DELETE SET NULL) instead of cascading', () => {
+  const resource = USER_DATA_RESOURCES.find((entry) => entry.table === 'deletion_requests');
+  assert.ok(resource);
+  assert.equal(resource.column, 'user_id');
+  assert.equal(resource.action, 'survive_auth_delete');
+});
+
+test('verifyDeletionCompleteness excludes deletion_requests and documents why', async () => {
+  const userId = '12345678-90ab-cdef-1234-567890abcdef';
+  const supabase = createSupabaseMock({ authUser: null }).client;
+
+  const result = await verifyDeletionCompleteness(supabase, userId);
+
+  assert.equal(result.passed, true);
+  assert.ok(!result.residuals.some((r) => r.table === 'deletion_requests'));
+  assert.ok(Array.isArray(result.notes));
+  assert.ok(result.notes.some((n) => n.includes('deletion_requests')));
+});
+
 test('USER_DATA_RESOURCES covers all user-linked tables in migrations', () => {
   const migrationsDir = path.join(__dirname, '..', 'supabase', 'migrations');
   const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
   const mappedTables = new Set(USER_DATA_RESOURCES.map((resource) => resource.table));
-  const allowlist = new Set(['app_config', 'product_catalog']);
+  // deletion_state_transitions is an append-only audit-ledger table with no
+  // user_id column (request_id/actor instead), so it is intentionally not a
+  // USER_DATA_RESOURCES entry even once its migration lands.
+  const allowlist = new Set(['app_config', 'product_catalog', 'deletion_state_transitions']);
   const missing = [];
 
   for (const file of files) {
