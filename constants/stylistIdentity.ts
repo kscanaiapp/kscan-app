@@ -197,7 +197,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     id: 'stylist_portrait_01',
     kind: 'portrait',
     availability: 'ready',
-    accessibilityLabel: 'Stylist portrait with braided updo and cream blazer',
+    accessibilityLabel: 'Stylist portrait with long box braids and a black top',
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_01.jpg') : 1,
     selectable: true,
     persistable: true,
@@ -207,7 +207,7 @@ const PORTRAIT_PRESET_DEFINITIONS: StylistAvatarPresetPortraitReady[] = [
     id: 'stylist_portrait_02',
     kind: 'portrait',
     availability: 'ready',
-    accessibilityLabel: 'Stylist portrait with short hair, glasses, and red polo',
+    accessibilityLabel: 'Stylist portrait with short hair, trimmed beard, and blue polo',
     source: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/stylist_portrait_02.jpg') : 1,
     selectable: true,
     persistable: true,
@@ -428,7 +428,8 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
     'stylist_portrait_02',
     {
       speakingMotionMode: 'mouth_states',
-      mouthRegion: { x: 0.42, y: 0.49, width: 0.18, height: 0.09 },
+      // Recalibrated for the refreshed Avatar 02 subject (prior crop: y 0.49).
+      mouthRegion: { x: 0.43, y: 0.48, width: 0.17, height: 0.09 },
       mouthStateSources: {
         closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_closed.png') : 1,
         halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_half_open.png') : 1,

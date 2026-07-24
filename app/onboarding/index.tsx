@@ -188,10 +188,34 @@ export default function OnboardingScreen() {
     [moveToTermsOnce, user?.id],
   );
 
+  // Step 6 is a handoff spinner with no navigation of its own: it only clears
+  // when AuthGate observes onboarding completion and redirects to '/'. So the
+  // completion write must succeed before we show it, and every failure path has
+  // to land somewhere the tester can act on instead of an endless spinner.
   const goToHome = useCallback(async () => {
+    const resolvedUserId =
+      user?.id ??
+      (await supabase.auth.getSession()).data.session?.user?.id ??
+      null;
+
+    if (!resolvedUserId) {
+      // Session was lost mid-onboarding (expiry or refresh failure). Return to
+      // the auth choice so the tester can sign in and resume at Terms.
+      setStep(2);
+      setCreateError('Your session expired. Please sign in again to finish setup.');
+      return;
+    }
+
     setStep(6);
-    if (user?.id) {
-      await markOnboardingComplete(user.id);
+    try {
+      await markOnboardingComplete(resolvedUserId);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[onboarding] Unable to persist onboarding completion', error);
+      }
+      // Completion never landed, so AuthGate will never redirect. Fall back to
+      // the permissions step, where Continue re-runs this handoff.
+      setStep(5);
     }
   }, [user?.id]);
 

@@ -269,7 +269,10 @@ test('permissions remain playback-only and device TTS is absent from production 
 test('StyleChat wiring speaks only persisted new messages and scopes the header to playing', () => {
   const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
   const header = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'), 'utf8');
-  assert.match(hook, /result\.inserted && canSpeakNewMessages/);
+  // Greeting speech stays gated on a real persisted insert. The guard also
+  // requires result.message before recording its id for the retained attempt,
+  // so the eligibility clause is asserted with that operand in between.
+  assert.match(hook, /result\.inserted && result\.message && canSpeakNewMessages/);
   assert.match(hook, /messageId: savedAssistant\.id/);
   assert.match(hook, /voicePreference\.enabled/);
   assert.match(header, /speechState\.phase === 'playing'/);
