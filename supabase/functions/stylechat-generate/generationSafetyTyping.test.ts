@@ -19,10 +19,14 @@ Deno.test('GenerationRpcClient accepts PromiseLike rpc results (Supabase-compati
     rpc(fn, args) {
       calls.push({ fn, args });
       // Thenable without catch/finally — mirrors PostgrestFilterBuilder shape.
+      // The generic then() signature keeps it assignable to PromiseLike under
+      // the stricter TS bundled with Deno 2.8 (toolchain drift, not a contract
+      // change): a single-arg, non-generic then no longer satisfies PromiseLike.
       return {
-        then(
-          onfulfilled?: ((value: GenerationRpcResult) => unknown) | null,
-        ) {
+        then<TResult1 = GenerationRpcResult, TResult2 = never>(
+          onfulfilled?: ((value: GenerationRpcResult) => TResult1 | PromiseLike<TResult1>) | null,
+          onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+        ): PromiseLike<TResult1 | TResult2> {
           const result: GenerationRpcResult = {
             data: {
               operation_id: 'op-1',
@@ -35,7 +39,7 @@ Deno.test('GenerationRpcClient accepts PromiseLike rpc results (Supabase-compati
             },
             error: null,
           };
-          return Promise.resolve(result).then(onfulfilled ?? undefined);
+          return Promise.resolve(result).then(onfulfilled ?? undefined, onrejected ?? undefined);
         },
       };
     },
@@ -61,11 +65,13 @@ Deno.test('GenerationRpcClient accepts PromiseLike rpc results (Supabase-compati
     rpc(fn) {
       assert.equal(fn, 'mark_elise_generation_generating');
       return {
-        then(
-          onfulfilled?: ((value: GenerationRpcResult) => unknown) | null,
-        ) {
+        then<TResult1 = GenerationRpcResult, TResult2 = never>(
+          onfulfilled?: ((value: GenerationRpcResult) => TResult1 | PromiseLike<TResult1>) | null,
+          onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+        ): PromiseLike<TResult1 | TResult2> {
           return Promise.resolve({ data: true, error: null }).then(
             onfulfilled ?? undefined,
+            onrejected ?? undefined,
           );
         },
       };
