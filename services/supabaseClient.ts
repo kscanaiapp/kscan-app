@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { createAuthBootstrapStorage } from './authSessionBootstrap';
+import { secureSessionStorage } from './secureSessionStorage';
 
 const configuredUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const configuredAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -35,7 +35,10 @@ function getBootstrapRefreshClient() {
 }
 
 const authStorage = createAuthBootstrapStorage({
-  storage: AsyncStorage,
+  // Native Supabase sessions carry a refresh token, so the bootstrap-refresh
+  // layer is backed by the platform keystore/keychain (with safe migration from
+  // legacy AsyncStorage) rather than AsyncStorage directly.
+  storage: secureSessionStorage,
   refreshSession: async (refreshToken) => {
     const { data, error } = await getBootstrapRefreshClient().auth.refreshSession({
       refresh_token: refreshToken,
