@@ -1,0 +1,385 @@
+/**
+ * Retailer-neutral commerce query optimization + product filter/dedupe.
+ * Client-facing purchase URLs are never rewritten — only identity keys use
+ * canonicalization.
+ */
+
+import { QUALITY_TUNE_MIN_VALID_PRODUCTS } from './qualityTuneConfig.ts';
+import {
+  isGenericFashionLabel,
+  normalizeCategory,
+  normalizeColor,
+  normalizeMaterial,
+  normalizeSilhouette,
+} from './qualityTuneNormalize.ts';
+import type { RecommendedProduct } from './shoppingProvider.ts';
+
+export type WeightedCommerceQueries = {
+  primary: string;
+  fallback: string;
+};
+
+export type ProductFilterStats = {
+  productsBeforeDedupe: number;
+  productsAfterDedupe: number;
+  categoryMismatchRemovals: number;
+  identityKeyTypesUsed: string[];
+  removedReasons: Record<string, number>;
+};
+
+const FILLER = new Set([
+  'with', 'and', 'the', 'a', 'an', 'of', 'for', 'featuring', 'some', 'plus', 'in', 'to', 'on', 'at', 'by',
+  'oversized', 'minimalist', 'luxury', 'vintage', 'inspired', 'boyfriend', 'designer', 'premium',
+  'high-end', 'aesthetic', 'vibes', 'look',
+]);
+
+const TRACKING_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'ref', 'affiliate', 'aff', 'source', 'affiliate_id', 'irclickid', 'clickid',
+  'campaign', 'gclid', 'fbclid', 'msclkid', 'mc_eid', 'mc_cid', '_hsenc', '_hsmi',
+]);
+
+const DEMO_HOST_HINTS = [
+  'example.com', 'localhost', 'test.', 'demo.', 'placeholder', 'lorem',
+];
+
+function collapseSpaces(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+function usable(v: unknown): string {
+  if (typeof v !== 'string') return '';
+  const t = collapseSpaces(v);
+  if (!t) return '';
+  const lower = t.toLowerCase();
+  if (lower === 'unknown' || lower === 'n/a' || lower === 'none' || lower === 'null') return '';
+  if (isGenericFashionLabel(t)) return '';
+  return t;
+}
+
+function dedupeTokens(raw: string, maxLen = 200): string {
+  const words = collapseSpaces(raw).split(' ');
+  const kept: string[] = [];
+  const seen = new Set<string>();
+  for (const w of words) {
+    const lw = w.toLowerCase();
+    if (!lw) continue;
+    if (FILLER.has(lw)) continue;
+    if (seen.has(lw)) continue;
+    seen.add(lw);
+    kept.push(w);
+  }
+  return kept.join(' ').slice(0, maxLen);
+}
+
+/**
+ * Build weighted primary + deterministic fallback commerce queries.
+ * Brand excluded unless verified (logo / visible brand text).
+ */
+export function buildWeightedCommerceQueries(input: {
+  identification: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+  searchQueries?: string[];
+  originalText?: string;
+}): WeightedCommerceQueries {
+  const id = input.identification || {};
+  const attrs = input.attributes || {};
+
+  const logo = id.logo_detected === true;
+  const visible = usable(id.visible_brand_text);
+  const brandVerified = logo || !!visible;
+  const brand = brandVerified ? (usable(id.brand_guess) || visible) : '';
+
+  const category = usable(id.item_type) || usable(attrs.category);
+  const subtype = usable(id.subtype) || usable(attrs.itemType);
+  const color = usable(id.primary_color) || usable(attrs.color) ||
+    (Array.isArray(attrs.colorPalette) && typeof attrs.colorPalette[0] === 'string'
+      ? usable(attrs.colorPalette[0])
+      : '');
+  const silhouette = usable(id.silhouette) || usable(attrs.silhouette);
+  const material = usable(id.material_estimate) || usable(attrs.material) || usable(attrs.materialEstimate);
+  const pattern = usable(id.pattern) || usable(attrs.pattern);
+  const fit = usable(id.fit);
+  const construction = Array.isArray(id.distinctive_features)
+    ? usable(id.distinctive_features[0])
+    : '';
+  const style = Array.isArray(id.style_tags) ? usable(id.style_tags[0]) : usable(attrs.style);
+
+  // Prefer model search_queries[0] only when not generic/verbose luxury dump
+  const searchQueries = Array.isArray(input.searchQueries)
+    ? input.searchQueries
+    : Array.isArray(id.search_queries)
+    ? (id.search_queries as unknown[])
+    : [];
+  const firstQ = typeof searchQueries[0] === 'string' ? dedupeTokens(searchQueries[0]) : '';
+  const firstQWeak = !firstQ || firstQ.split(' ').length > 12 ||
+    /\b(luxury|designer|vintage-inspired|boyfriend)\b/i.test(firstQ);
+
+  const required = [category, subtype].filter(Boolean);
+  const highValue = [color, silhouette, material].filter(Boolean);
+  const optional = [pattern, fit, construction, style].filter(Boolean);
+
+  let primary = '';
+  if (!firstQWeak && firstQ) {
+    primary = firstQ;
+  } else {
+    primary = dedupeTokens([brand, ...required, ...highValue, ...optional.slice(0, 1)].filter(Boolean).join(' '));
+  }
+  if (!primary) {
+    primary = dedupeTokens([color, category || subtype, material].filter(Boolean).join(' ')) ||
+      dedupeTokens(usable(input.originalText));
+  }
+
+  // Fallback: strip optional + silhouette/material, keep color + strongest garment term
+  const garment = subtype || category;
+  const fallback = dedupeTokens([color, garment, /moto|biker/i.test(garment) ? '' : ''].filter(Boolean).join(' ')) ||
+    dedupeTokens([color, category].filter(Boolean).join(' ')) ||
+    dedupeTokens(garment);
+
+  return { primary, fallback: fallback === primary ? '' : fallback };
+}
+
+export function shouldRunFallbackQuery(
+  validProductCount: number,
+  threshold: number = QUALITY_TUNE_MIN_VALID_PRODUCTS,
+): boolean {
+  return validProductCount < threshold;
+}
+
+/** Canonicalize URL for identity only — do not use as client-facing URL. */
+export function canonicalizeUrlForIdentity(url: unknown): string | undefined {
+  if (typeof url !== 'string' || !url.trim()) return undefined;
+  try {
+    const u = new URL(url.trim());
+    u.hash = '';
+    u.hostname = u.hostname.toLowerCase();
+    // Remove known tracking params; keep unknown query params
+    const kept = new URLSearchParams();
+    u.searchParams.forEach((value, key) => {
+      if (TRACKING_PARAMS.has(key.toLowerCase())) return;
+      kept.append(key, value);
+    });
+    const qs = kept.toString();
+    let path = u.pathname;
+    if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+    return `${u.protocol}//${u.hostname}${path}${qs ? `?${qs}` : ''}`;
+  } catch {
+    return collapseSpaces(String(url)).toLowerCase() || undefined;
+  }
+}
+
+function normalizeTitle(title: unknown): string {
+  if (typeof title !== 'string') return '';
+  return collapseSpaces(title).toLowerCase();
+}
+
+function productIdentityKey(p: RecommendedProduct): { key: string; type: string } {
+  const rec = p as unknown as Record<string, unknown>;
+  const retailerId = typeof rec.retailerId === 'string'
+    ? String(rec.retailerId).toLowerCase()
+    : typeof p.source === 'string' ? p.source.toLowerCase() : '';
+  const sku = typeof rec.sku === 'string'
+    ? String(rec.sku).toLowerCase()
+    : typeof rec.SKU === 'string'
+    ? String(rec.SKU).toLowerCase()
+    : '';
+  if (retailerId && sku) return { key: `sku:${retailerId}|${sku}`, type: 'retailer_sku' };
+
+  const providerId = typeof p.id === 'string' && p.id.trim() ? p.id.trim().toLowerCase() : '';
+  if (providerId && !providerId.startsWith('http')) {
+    return { key: `pid:${providerId}`, type: 'provider_product_id' };
+  }
+
+  const canon = canonicalizeUrlForIdentity(p.productUrl);
+  if (canon) return { key: `url:${canon}`, type: 'canonical_url' };
+
+  const title = normalizeTitle(p.title);
+  const retailer = retailerId || (typeof p.source === 'string' ? p.source.toLowerCase() : '');
+  if (retailer && title) return { key: `rt:${retailer}|${title}`, type: 'retailer_title' };
+
+  const price = typeof p.price === 'string' ? p.price.toLowerCase() : '';
+  if (title && price) return { key: `tp:${title}|${price}|${retailer}`, type: 'title_price_retailer' };
+
+  return { key: `fallback:${title || 'unknown'}`, type: 'weak_fallback' };
+}
+
+function hasUsableImage(p: RecommendedProduct): boolean {
+  const url = typeof p.imageUrl === 'string' ? p.imageUrl.trim() : '';
+  if (!url) return false;
+  if (!/^https?:\/\//i.test(url)) return false;
+  return true;
+}
+
+function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
+  const url = typeof p.productUrl === 'string' ? p.productUrl.trim() : '';
+  if (!url) return false;
+  if (!/^https?:\/\//i.test(url)) return false;
+  try {
+    const u = new URL(url);
+    if (DEMO_HOST_HINTS.some((h) => u.hostname.includes(h))) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isDemoOrTestProduct(p: RecommendedProduct): boolean {
+  const title = normalizeTitle(p.title);
+  if (!title) return true;
+  if (/\b(test|demo|sample|placeholder|lorem|fallback product)\b/.test(title)) return true;
+  const src = typeof p.source === 'string' ? p.source.toLowerCase() : '';
+  if (src === 'demo' || src === 'test' || src === 'fallback') return true;
+  return false;
+}
+
+function priceMalformedRequired(p: RecommendedProduct): boolean {
+  // Price is optional for client contract — only drop when present but malformed
+  if (p.price === undefined || p.price === null || p.price === '') return false;
+  if (typeof p.price === 'number') return !Number.isFinite(p.price);
+  if (typeof p.price !== 'string') return true;
+  const t = p.price.trim();
+  if (!t) return false;
+  if (t === 'NaN' || t === 'null' || t === 'undefined') return true;
+  if (/[a-zA-Z]{8,}/.test(t) && !/[€$£¥]/.test(t) && !/\d/.test(t)) return true;
+  return false;
+}
+
+function productCategoryText(p: RecommendedProduct): string {
+  const rec = p as unknown as Record<string, unknown>;
+  return [
+    typeof p.title === 'string' ? p.title : '',
+    typeof rec.category === 'string' ? rec.category : '',
+    typeof rec.item_type === 'string' ? rec.item_type : '',
+    typeof p.type === 'string' ? p.type : '',
+  ].join(' ').toLowerCase();
+}
+
+function isCategoryMismatch(p: RecommendedProduct, garmentCategory: string): boolean {
+  const canon = normalizeCategory(garmentCategory);
+  if (!canon || canon === 'NON_FASHION' || canon === 'unknown') return false;
+  const text = productCategoryText(p);
+  if (!text.trim()) return false;
+
+  const productCat = normalizeCategory(text);
+  if (!productCat || productCat === canon) return false;
+
+  // Obvious mismatches only (conservative)
+  const conflicts: Record<string, string[]> = {
+    footwear: ['dress', 'blazer', 'bag', 'pants', 'top'],
+    bag: ['footwear', 'dress', 'blazer', 'pants'],
+    dress: ['footwear', 'bag', 'blazer'],
+    blazer: ['footwear', 'bag', 'dress'],
+    pants: ['footwear', 'bag', 'dress'],
+    outerwear: ['footwear', 'bag'],
+    top: ['footwear', 'bag'],
+  };
+  const bad = conflicts[canon] || [];
+  return bad.includes(productCat);
+}
+
+function scoreProduct(p: RecommendedProduct, garment: Record<string, unknown>): number {
+  let score = 0;
+  const text = productCategoryText(p);
+  const cat = normalizeCategory(typeof garment.item_type === 'string' ? garment.item_type : '');
+  const sub = typeof garment.subtype === 'string' ? garment.subtype.toLowerCase() : '';
+  const color = normalizeColor(typeof garment.primary_color === 'string' ? garment.primary_color : '');
+  const mat = normalizeMaterial(typeof garment.material_estimate === 'string' ? garment.material_estimate : '');
+  const sil = normalizeSilhouette(typeof garment.silhouette === 'string' ? garment.silhouette : '');
+  const pat = typeof garment.pattern === 'string' ? garment.pattern.toLowerCase() : '';
+
+  if (cat && (text.includes(cat) || normalizeCategory(text) === cat)) score += 8;
+  if (sub && text.includes(sub.toLowerCase())) score += 6;
+  if (color && text.includes(color.split('/')[0])) score += 4;
+  if (mat && text.includes(mat.split('/')[0])) score += 3;
+  if (sil && text.includes(sil.split('/')[0])) score += 2;
+  if (pat && pat !== 'solid' && text.includes(pat)) score += 1;
+  if (hasUsableImage(p)) score += 2;
+  if (hasValidPurchaseUrl(p)) score += 2;
+  if (p.price !== undefined && p.price !== null && p.price !== '' && !priceMalformedRequired(p)) score += 1;
+  return score;
+}
+
+/**
+ * Filter + dedupe products before returning to the app.
+ * Does not rename products ↔ purchaseOptions arrays.
+ */
+export function filterAndDedupeProducts(
+  products: RecommendedProduct[],
+  garmentIdentification: Record<string, unknown>,
+): { products: RecommendedProduct[]; stats: ProductFilterStats } {
+  const removedReasons: Record<string, number> = {};
+  const bump = (reason: string) => {
+    removedReasons[reason] = (removedReasons[reason] || 0) + 1;
+  };
+
+  const garmentCat = typeof garmentIdentification.item_type === 'string'
+    ? garmentIdentification.item_type
+    : '';
+
+  const validShaped: RecommendedProduct[] = [];
+  let categoryMismatchRemovals = 0;
+
+  for (const p of products) {
+    if (!p || typeof p !== 'object') {
+      bump('empty_shell');
+      continue;
+    }
+    if (isDemoOrTestProduct(p)) {
+      bump('demo_test');
+      continue;
+    }
+    if (!hasValidPurchaseUrl(p)) {
+      bump('missing_or_invalid_purchase_url');
+      continue;
+    }
+    if (!hasUsableImage(p)) {
+      bump('missing_image');
+      continue;
+    }
+    if (priceMalformedRequired(p)) {
+      bump('malformed_price');
+      continue;
+    }
+    if (isCategoryMismatch(p, garmentCat)) {
+      categoryMismatchRemovals += 1;
+      bump('category_mismatch');
+      continue;
+    }
+    validShaped.push(p);
+  }
+
+  const productsBeforeDedupe = validShaped.length;
+  const seen = new Set<string>();
+  const identityKeyTypesUsed: string[] = [];
+  const deduped: RecommendedProduct[] = [];
+
+  // Rank then dedupe so strongest listing wins
+  const ranked = [...validShaped].sort(
+    (a, b) => scoreProduct(b, garmentIdentification) - scoreProduct(a, garmentIdentification),
+  );
+
+  for (const p of ranked) {
+    const { key, type } = productIdentityKey(p);
+    if (seen.has(key)) {
+      bump('duplicate_identity');
+      continue;
+    }
+    seen.add(key);
+    if (!identityKeyTypesUsed.includes(type)) identityKeyTypesUsed.push(type);
+    // Preserve original purchase URL (no rewrite)
+    deduped.push(p);
+  }
+
+  return {
+    products: deduped,
+    stats: {
+      productsBeforeDedupe,
+      productsAfterDedupe: deduped.length,
+      categoryMismatchRemovals,
+      identityKeyTypesUsed,
+      removedReasons,
+    },
+  };
+}
+
+export { QUALITY_TUNE_MIN_VALID_PRODUCTS };

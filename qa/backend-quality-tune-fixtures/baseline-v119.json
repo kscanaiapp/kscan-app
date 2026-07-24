@@ -1,0 +1,160 @@
+{
+  "quality_tune": "off",
+  "generic_label_occurrence": 3,
+  "invalid_category_subtype_pairs": 1,
+  "note": "Passthrough fixture labels without quality tune modules",
+  "cases": [
+    {
+      "id": "black_moto_jacket",
+      "normalizedLabel": "moto jacket",
+      "commerceQuery": "black cropped faux leather moto jacket",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "navy_blazer",
+      "normalizedLabel": "sportcoat",
+      "commerceQuery": "navy tailored sport coat",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "wide_leg_trousers",
+      "normalizedLabel": "wide leg trousers",
+      "commerceQuery": "pants wide leg trousers charcoal wool blend wide-leg",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "pleated_skirt",
+      "normalizedLabel": "pleated skirt",
+      "commerceQuery": "dress pleated skirt black a-line",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "white_sneakers",
+      "normalizedLabel": "sneakers",
+      "commerceQuery": "footwear sneakers white leather low-top",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "ankle_boots",
+      "normalizedLabel": "ankle boots",
+      "commerceQuery": "footwear ankle boots black leather",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "structured_handbag",
+      "normalizedLabel": "hand bag",
+      "commerceQuery": "bag hand bag brown structured",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "knit_sweater",
+      "normalizedLabel": "knit sweater",
+      "commerceQuery": "top knit sweater cream knit",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "patterned_dress",
+      "normalizedLabel": "midi dress",
+      "commerceQuery": "dress midi dress multicolor flowing",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "ambiguous_outerwear",
+      "normalizedLabel": "bomber jacket",
+      "commerceQuery": "Clothing bomber jacket olive nylon",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "generic_provider_label",
+      "normalizedLabel": "unknown",
+      "commerceQuery": "Fashion Item unknown black leather",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "missing_subtype",
+      "normalizedLabel": "blazer",
+      "commerceQuery": "blazer navy",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "conflicting_category_subtype",
+      "normalizedLabel": "Straight-Leg Trousers",
+      "commerceQuery": "Skirt Straight-Leg Trousers black",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "duplicate_descriptors",
+      "normalizedLabel": "moto jacket",
+      "commerceQuery": "outerwear moto jacket black",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "color_synonyms",
+      "normalizedLabel": "tee shirt",
+      "commerceQuery": "top tee shirt off white",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "malformed_arrays",
+      "normalizedLabel": "trousers",
+      "commerceQuery": "pants trousers",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "empty_strings",
+      "normalizedLabel": "ankle boots",
+      "commerceQuery": "ankle boots black",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "speculative_brand",
+      "normalizedLabel": "handbag",
+      "commerceQuery": "Gucci bag handbag black",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    },
+    {
+      "id": "verbose_descriptors",
+      "normalizedLabel": "moto jacket",
+      "commerceQuery": "black cropped oversized minimalist luxury vintage-inspired faux lamb leather boyfriend moto biker jacket with silver hardware",
+      "validProductCount": 8,
+      "duplicateCount": 0,
+      "mismatchCount": 0
+    }
+  ]
+}

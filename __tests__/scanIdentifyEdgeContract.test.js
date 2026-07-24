@@ -259,26 +259,30 @@ test('edge source: accepts unknown source values without crashing', () => {
 test('edge source: text mode calls live shopping APIs', () => {
   assert.ok(
     EDGE_SOURCE.includes('getShoppingResults('),
-    'Must call getShoppingResults for text mode commerce',
+    'Must retain getShoppingResults for flag-off TextScan commerce',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('getScanCommerceResults('),
+    'Must support getScanCommerceResults for TextScan parity ON',
   );
 
-  // Locate the text mode branch that handles product recommendations.
-  // There are two "if (mode === 'text')" blocks; the second one is the
-  // product-recommendations branch that calls getShoppingResults.
+  // Locate the product-recommendations text branch.
   const firstTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')");
   assert.ok(firstTextBranch !== -1, "Must have 'if (mode === \\'text\\')' branch");
 
   const secondTextBranch = EDGE_SOURCE.indexOf("if (mode === 'text')", firstTextBranch + 1);
   const productRecBranchStart = secondTextBranch !== -1 ? secondTextBranch : firstTextBranch;
 
-  const elseBranchStart = EDGE_SOURCE.indexOf('} else {', productRecBranchStart);
-  assert.ok(elseBranchStart !== -1, 'Must have an else branch for image mode');
-
-  // The getShoppingResults call must live inside the text branch.
-  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
+  // Commerce calls may live in nested if/else (parity ON vs repaired-v122 OFF).
+  const shoppingCallIndex = EDGE_SOURCE.indexOf('getShoppingResults(', productRecBranchStart);
+  const routerCallIndex = EDGE_SOURCE.indexOf('getScanCommerceResults(', productRecBranchStart);
   assert.ok(
-    shoppingCallIndex > productRecBranchStart && shoppingCallIndex < elseBranchStart,
-    'getShoppingResults must be called inside the text mode branch',
+    shoppingCallIndex > productRecBranchStart || routerCallIndex > productRecBranchStart,
+    'Text mode product branch must call getShoppingResults and/or getScanCommerceResults',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('allowTextMode: true'),
+    'Parity ON TextScan must pass allowTextMode to the commerce router',
   );
 });
 
@@ -620,4 +624,168 @@ test('edge source: quota logs do not expose full user id, tokens, image, or text
     assert.equal(line.includes('bearerToken'), false, 'Quota log must not reference bearer token');
     assert.equal(line.includes('geminiKey'), false, 'Quota log must not reference gemini key');
   }
+});
+
+// ── Quality Tune v120 contract non-regression ──
+
+test('edge source: quality tune modules are wired without changing response field names', () => {
+  assert.ok(EDGE_SOURCE.includes('qualityTuneConfig'), 'Must import quality tune config');
+  assert.ok(EDGE_SOURCE.includes('applyQualityTaxonomyTune'), 'Must apply taxonomy tune');
+  assert.ok(EDGE_SOURCE.includes('isQualityTuneEnabled'), 'Must support rollback flag');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions'), 'Must preserve purchaseOptions');
+  assert.ok(EDGE_SOURCE.includes('detectedGarments'), 'Must preserve detectedGarments');
+  assert.ok(EDGE_SOURCE.includes('scanSessionId'), 'Must preserve scanSessionId validation path');
+  assert.ok(EDGE_SOURCE.includes('imageDigestPrefix'), 'Must preserve imageDigestPrefix validation path');
+  assert.equal(EDGE_SOURCE.includes('requiredQualityField'), false, 'Must not add invented required fields');
+});
+
+test('edge source: scanner intelligence modules are wired without contract changes', () => {
+  assert.ok(EDGE_SOURCE.includes('scannerIntelligenceConfig'), 'Must import intelligence config');
+  assert.ok(EDGE_SOURCE.includes('resolveScannerCategoryRoute'), 'Must route by category');
+  assert.ok(EDGE_SOURCE.includes('applyScannerQualityGate'), 'Must apply quality gate');
+  assert.ok(EDGE_SOURCE.includes('isScannerIntelligenceEnabled'), 'Must support intelligence rollback flag');
+  assert.ok(EDGE_SOURCE.includes('BACKEND_SCANNER_INTELLIGENCE_ENABLED') || EDGE_SOURCE.includes('isScannerIntelligenceEnabled'), 'Must gate intelligence');
+  assert.equal(EDGE_SOURCE.includes('requiredQualityScore'), false, 'Must not require quality score on client');
+  assert.equal(EDGE_SOURCE.includes('quality_score_value'), false, 'Must not expose quality_score_value in response builder');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions'), 'Must preserve purchaseOptions');
+  assert.ok(EDGE_SOURCE.includes('detectedGarments'), 'Must preserve detectedGarments');
+});
+
+test('edge source: commerce relevance modules are wired without contract changes', () => {
+  assert.ok(EDGE_SOURCE.includes('commerceRelevanceConfig'), 'Must import commerce relevance config');
+  assert.ok(EDGE_SOURCE.includes('isCommerceRelevanceEnabled'), 'Must support relevance rollback flag');
+  assert.ok(EDGE_SOURCE.includes('COMMERCE_RELEVANCE_VERSION'), 'Must version the relevance layer');
+  assert.ok(EDGE_SOURCE.includes('mapToFailureReason'), 'Must map privacy-safe failure reasons');
+  assert.ok(EDGE_SOURCE.includes('relevanceRoute') || EDGE_SOURCE.includes('relevanceEnabled'), 'Must gate relevance query path');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions'), 'Must preserve purchaseOptions');
+  assert.equal(EDGE_SOURCE.includes('requiredAgreementScore'), false, 'Must not require agreement score on client');
+});
+
+test('edge source: quality tune does not rename products or purchaseOptions arrays', () => {
+  assert.ok(EDGE_SOURCE.includes('recommendedProducts'), 'Must keep recommendedProducts');
+  assert.ok(EDGE_SOURCE.includes('purchaseOptions:'), 'Must keep purchaseOptions mapping');
+  assert.ok(EDGE_SOURCE.includes('similarityMatches'), 'Must keep similarityMatches');
+});
+
+
+// ── v122 hostile-audit regressions ──
+
+test('edge source: commerce route is recomputed from final identification, not the pre-model prompt route', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('const commerceCategoryRoute'),
+    'Must compute a distinct post-identification commerce route (legacy_single_item and TextScan commerce must not stay stuck on the pre-model general route)'
+  );
+  assert.equal(
+    EDGE_SOURCE.includes('relevanceRoute: categoryRoute,'),
+    false,
+    'Commerce relevance route must not reuse the raw pre-model categoryRoute variable'
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('relevanceRoute: commerceCategoryRoute'),
+    'Image-mode commerce must pass the post-identification commerceCategoryRoute'
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('categoryRoute: commerceCategoryRoute'),
+    'Text-mode filterAndDedupeProducts relevance option must use the post-identification commerceCategoryRoute'
+  );
+});
+
+test('edge source: commerceRelevance telemetry reports real filter/fallback stats, not hardcoded placeholders', () => {
+  assert.ok(
+    EDGE_SOURCE.includes('let commerceRelevanceStats'),
+    'Must capture real commerce filter stats for telemetry'
+  );
+  assert.equal(
+    /productsBeforeFilter:\s*finalRecommendedProducts\.length,\s*\n\s*productsAfterFilter:\s*finalRecommendedProducts\.length,/.test(EDGE_SOURCE),
+    false,
+    'productsBeforeFilter and productsAfterFilter must not both collapse to the same final-array length'
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('commerceRelevanceStats?.fallbackUsed ?? false'),
+    'commerceRelevance.fallbackUsed must reflect whether a fallback query actually ran, not a hardcoded false'
+  );
+});
+
+// ── v123 TextScan parity + outcome intelligence ──
+
+test('edge source: TextScan parity routes through getScanCommerceResults when enabled', () => {
+  assert.ok(EDGE_SOURCE.includes('textScanCommerceParityConfig'), 'Must import TextScan parity config');
+  assert.ok(EDGE_SOURCE.includes('isTextScanCommerceParityEnabled'), 'Must gate TextScan parity');
+  assert.ok(EDGE_SOURCE.includes('TEXTSCAN_COMMERCE_PARITY_VERSION'), 'Must version TextScan parity');
+  assert.ok(EDGE_SOURCE.includes('textScanParityEnabled'), 'Must compute textScanParityEnabled');
+  assert.ok(
+    EDGE_SOURCE.includes("allowTextMode: true"),
+    'TextScan parity path must pass allowTextMode to commerce router',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('getShoppingResults({ query: shoppingQuery, limit: 8 })'),
+    'Flag-off TextScan must retain repaired-v122 getShoppingResults path',
+  );
+});
+
+test('edge source: selected_item uses image commerce path after identification (not detection commerce)', () => {
+  assert.ok(
+    EDGE_SOURCE.includes("requestMode === 'selected_item'"),
+    'Must distinguish selected_item request mode',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('useSelectedItemProvider'),
+    'Must gate selected-item provider path',
+  );
+  // Detection must skip product commerce; selected_item falls through to image commerce after ID.
+  const detectionSkip = EDGE_SOURCE.includes('commerceSkipped') ||
+    EDGE_SOURCE.includes('multi_item_detection');
+  assert.ok(detectionSkip, 'Must preserve multi-item detection vs selected-item split');
+  assert.ok(
+    EDGE_SOURCE.includes("requestModeLabel") && EDGE_SOURCE.includes("'selected_item'"),
+    'Outcome/telemetry must label selected_item distinctly',
+  );
+});
+
+test('edge source: commerce outcome capture is wired fail-open', () => {
+  assert.ok(EDGE_SOURCE.includes('commerceOutcomeCapture'), 'Must import outcome capture');
+  assert.ok(EDGE_SOURCE.includes('captureCommerceOutcome'), 'Must call captureCommerceOutcome');
+  assert.ok(EDGE_SOURCE.includes('void captureCommerceOutcome'), 'Capture must be fire-and-forget');
+  assert.ok(EDGE_SOURCE.includes('requestStartedAt'), 'Early exits must use requestStartedAt, not Gemini clock');
+});
+
+test('edge source: non_fashion outcomes are captured, not silently dropped from telemetry (v120-v123 full-tree audit regression)', () => {
+  // Prior to this repair, the non_fashion branch returned `finalResponse`
+  // without ever calling captureCommerceOutcome, even though the outcome
+  // schema explicitly supports a 'non_fashion' status and a dedicated
+  // FAILURE_REASON_NON_FASHION reason. A whole legitimate outcome class was
+  // structurally invisible to scan_commerce_events.
+  const nonFashionBlockStart = EDGE_SOURCE.indexOf("status=non_fashion elapsedMs");
+  assert.ok(nonFashionBlockStart > -1, 'non_fashion final_status log must exist');
+  const nonFashionBlockEnd = EDGE_SOURCE.indexOf('if (!attributes) {', nonFashionBlockStart);
+  assert.ok(nonFashionBlockEnd > nonFashionBlockStart, 'must be able to bound the non_fashion branch');
+  const nonFashionBlock = EDGE_SOURCE.slice(nonFashionBlockStart, nonFashionBlockEnd);
+  assert.ok(
+    nonFashionBlock.includes('void captureCommerceOutcome'),
+    'non_fashion branch must call captureCommerceOutcome before returning',
+  );
+  assert.ok(
+    nonFashionBlock.includes("status: 'non_fashion'"),
+    'non_fashion outcome row must use the non_fashion status, not a generic failure',
+  );
+  assert.ok(
+    nonFashionBlock.includes('mapToFailureReason({ isNonFashion: true })'),
+    'non_fashion outcome row must use the dedicated non_fashion failure reason',
+  );
+});
+
+test('edge source: multi-item detection with zero valid garments is captured, not silently dropped from telemetry (v120-v123 full-tree audit regression)', () => {
+  const blockStart = EDGE_SOURCE.indexOf('multi_item_no_valid_garments mode=%s');
+  assert.ok(blockStart > -1, 'multi_item_no_valid_garments branch must exist');
+  const blockEnd = EDGE_SOURCE.indexOf('return json(normalized(\'failed\', safeFailed), 200);', blockStart);
+  assert.ok(blockEnd > blockStart, 'must be able to bound the multi_item_no_valid_garments branch');
+  const block = EDGE_SOURCE.slice(blockStart, blockEnd);
+  assert.ok(
+    block.includes('void captureCommerceOutcome'),
+    'multi_item_no_valid_garments branch must call captureCommerceOutcome before returning',
+  );
+  assert.ok(
+    block.includes("requestMode: 'multi_item_detection'"),
+    'must label the outcome row as multi_item_detection',
+  );
 });

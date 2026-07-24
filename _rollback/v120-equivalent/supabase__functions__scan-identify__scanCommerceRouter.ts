@@ -28,9 +28,7 @@ import {
   buildWeightedCommerceQueries,
   filterAndDedupeProducts,
   shouldRunFallbackQuery,
-  type CommerceRelevanceOptions,
 } from './qualityTuneCommerce.ts';
-import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,20 +41,6 @@ export type ScanCommerceInput = {
   limit?: number;
   /** Internal: prevent recursive quality-tune fallback loops. */
   disableQualityFallback?: boolean;
-  /** v121 intelligence — omit for exact v120 commerce query construction */
-  qualityDetailLevel?: 'specific' | 'moderate' | 'broad';
-  materialAllowed?: boolean;
-  brandAllowed?: boolean;
-  /** v122 commerce relevance — omit for exact v121 behavior */
-  relevanceEnabled?: boolean;
-  relevanceRoute?: ScannerCategoryRoute;
-  qualityBand?: 'high' | 'moderate' | 'low' | null;
-  /**
-   * v123 TextScan parity: when true, mode=text is accepted by this router.
-   * Callers must gate with BACKEND_TEXTSCAN_COMMERCE_PARITY_ENABLED.
-   * Image mode is unchanged regardless of this flag.
-   */
-  allowTextMode?: boolean;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
@@ -75,8 +59,6 @@ export type ScanCommerceResult = {
     productsAfterDedupe: number;
     categoryMismatchRemovals: number;
     identityKeyTypesUsed: string[];
-    productsBeforeFilter?: number;
-    retailerCount?: number;
   };
 };
 
@@ -622,7 +604,7 @@ export async function getScanCommerceResults(
   const started = Date.now();
   const providersTried: string[] = [];
 
-  if (input.mode !== 'image' && !(input.mode === 'text' && input.allowTextMode === true)) {
+  if (input.mode !== 'image') {
     return {
       products: [],
       provider: 'none',
@@ -647,10 +629,6 @@ export async function getScanCommerceResults(
   const qualityEnabled = isQualityTuneEnabled();
   let fallbackQuery = '';
   let query = '';
-  const relevanceOpts: CommerceRelevanceOptions | undefined =
-    input.relevanceEnabled && input.relevanceRoute
-      ? { enabled: true, categoryRoute: input.relevanceRoute, qualityBand: input.qualityBand }
-      : undefined;
 
   if (qualityEnabled) {
     if (input.disableQualityFallback) {
@@ -665,22 +643,6 @@ export async function getScanCommerceResults(
         attributes: input.attributes,
         searchQueries: input.searchQueries,
         originalText: input.originalText,
-        ...(input.qualityDetailLevel
-          ? {
-            detailLevel: input.qualityDetailLevel,
-            materialAllowed: input.materialAllowed,
-            brandAllowed: input.brandAllowed,
-          }
-          : {}),
-        ...(relevanceOpts
-          ? {
-            relevanceRoute: relevanceOpts.categoryRoute,
-            qualityBand: relevanceOpts.qualityBand,
-            materialAllowed: input.materialAllowed,
-            brandAllowed: input.brandAllowed,
-            detailLevel: input.qualityDetailLevel,
-          }
-          : {}),
       });
       query = weighted.primary;
       fallbackQuery = weighted.fallback;
@@ -730,11 +692,7 @@ export async function getScanCommerceResults(
       let products = dedupeProductsByUrl(kicksProducts).slice(0, MAX_RESULTS);
       let qualityTuneMeta: ScanCommerceResult['qualityTune'];
       if (qualityEnabled) {
-        const filtered = filterAndDedupeProducts(
-          products,
-          input.identification || {},
-          relevanceOpts,
-        );
+        const filtered = filterAndDedupeProducts(products, input.identification || {});
         products = filtered.products.slice(0, MAX_RESULTS);
         qualityTuneMeta = {
           fallbackUsed: false,
@@ -742,8 +700,6 @@ export async function getScanCommerceResults(
           productsAfterDedupe: filtered.stats.productsAfterDedupe,
           categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
           identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
-          productsBeforeFilter: filtered.stats.productsBeforeFilter,
-          retailerCount: filtered.stats.retailerCount,
         };
         // If quality filtering drops below threshold, continue provider cascade.
         if (
@@ -803,11 +759,7 @@ export async function getScanCommerceResults(
     let qualityTuneMeta: ScanCommerceResult['qualityTune'];
     let allowEarlyReturn = true;
     if (qualityEnabled) {
-      const filtered = filterAndDedupeProducts(
-        products,
-        input.identification || {},
-        relevanceOpts,
-      );
+      const filtered = filterAndDedupeProducts(products, input.identification || {});
       products = filtered.products.slice(0, MAX_RESULTS);
       qualityTuneMeta = {
         fallbackUsed: false,
@@ -815,8 +767,6 @@ export async function getScanCommerceResults(
         productsAfterDedupe: filtered.stats.productsAfterDedupe,
         categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
         identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
-        productsBeforeFilter: filtered.stats.productsBeforeFilter,
-        retailerCount: filtered.stats.retailerCount,
       };
       if (
         shouldRunFallbackQuery(products.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
@@ -869,11 +819,7 @@ export async function getScanCommerceResults(
   let fallbackUsed = false;
 
   if (qualityEnabled) {
-    const filtered = filterAndDedupeProducts(
-      merged,
-      input.identification || {},
-      relevanceOpts,
-    );
+    const filtered = filterAndDedupeProducts(merged, input.identification || {});
     merged = filtered.products.slice(0, MAX_RESULTS);
     qualityTuneMeta = {
       fallbackUsed: false,
@@ -881,8 +827,6 @@ export async function getScanCommerceResults(
       productsAfterDedupe: filtered.stats.productsAfterDedupe,
       categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
       identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
-      productsBeforeFilter: filtered.stats.productsBeforeFilter,
-      retailerCount: filtered.stats.retailerCount,
     };
 
     if (

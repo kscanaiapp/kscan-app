@@ -1,0 +1,37 @@
+{
+  "version": "v122",
+  "fixtureCount": 8,
+  "syntheticFixtures": 8,
+  "sanitizedProviderShapedFixtures": 1,
+  "v121FlagOffEquivalent": true,
+  "equivalentCases": 8,
+  "differingCases": 0,
+  "diffs": [],
+  "onSample": [
+    {
+      "id": "cropped_black_moto_jacket",
+      "template": "apparel",
+      "query": "black Moto Jacket cropped faux leather",
+      "band": "high"
+    },
+    {
+      "id": "navy_wide_leg_trousers",
+      "template": "apparel",
+      "query": "navy Wide-Leg Trousers wool",
+      "band": "high"
+    },
+    {
+      "id": "white_leather_sneakers",
+      "template": "footwear",
+      "query": "white sneakers low profile leather",
+      "band": "high"
+    },
+    {
+      "id": "black_square_toe_ankle_boots",
+      "template": "footwear",
+      "query": "black Ankle Boots square toe leather",
+      "band": "high"
+    }
+  ],
+  "note": "Fixture harness only — not production accuracy."
+}
