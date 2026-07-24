@@ -23,7 +23,11 @@
     "check:scan-readiness": "node scripts/check-scan-readiness.js",
     "smoke:scan-identify": "node scripts/smoke-scan-identify.js",
     "verify:android-manifest": "node scripts/check-android-manifest-compliance.js",
-    "test:android-manifest": "node --test __tests__/androidForegroundServiceCompliance.test.js"
+    "test:android-manifest": "node --test __tests__/androidForegroundServiceCompliance.test.js",
+    "test:kscan-icons:unit": "node --test __tests__/kscanProductIcons.unit.test.js",
+    "test:kscan-icons:integration": "node --test __tests__/kscanProductIcons.integration.test.js",
+    "test:kscan-icons": "npm run test:kscan-icons:unit && npm run test:kscan-icons:integration",
+    "generate:kscan-icon-evidence": "node scripts/generate-kscan-icon-evidence.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -57,6 +61,7 @@
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0"
   },
   "engines": {
