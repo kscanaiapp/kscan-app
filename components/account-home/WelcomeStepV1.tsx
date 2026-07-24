@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import {
   PrimaryButton,
   SecondaryButton,
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { usePresentationMotion } from '../../hooks/usePresentationMotion';
 
 interface WelcomeStepV1Props {
   onGetStarted: () => void;
@@ -23,11 +24,15 @@ interface WelcomeStepV1Props {
  * - Secondary "I Already Have An Account" CTA
  */
 export function WelcomeStepV1({ onGetStarted, onAlreadyHaveAccount }: WelcomeStepV1Props) {
+  // Presentation-only idle motion. The hero renders identically without it;
+  // motion is a transform layered on top and never gates anything below.
+  const presentationMotion = usePresentationMotion();
+
   return (
     <View style={styles.stepContent} testID="onboarding-welcome-screen-v1">
-      <Image
+      <Animated.Image
         source={require('../../assets/images/welcome-hero.png')}
-        style={styles.heroImage}
+        style={[styles.heroImage, presentationMotion]}
         resizeMode="cover"
         accessibilityLabel="Welcome to K Scan"
       />
