@@ -31,6 +31,7 @@ import {
   PrivacyFooter,
   StatusPill,
 } from '../../components/luxury';
+import { KScanIcon } from '../icons/kscan';
 import { HomeStylistCard } from './HomeStylistCard';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -38,7 +39,7 @@ import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureF
 
 
 interface FeatureChipProps {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   body: string;
   onPress?: () => void;
@@ -58,7 +59,14 @@ function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, a
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
     >
-      <Text style={styles.chipIcon}>{icon}</Text>
+      <View
+        style={styles.chipIconWrap}
+        accessible={false}
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+      >
+        {icon}
+      </View>
       <Text style={styles.chipTitle}>{title}</Text>
       <Text style={styles.chipBody}>{body}</Text>
       {children}
@@ -364,7 +372,7 @@ export default function HomeLuxuryTechV1() {
       {/* Static product education content — no backend integration required. */}
       <View style={styles.featuresRow}>
         <FeatureChip
-          icon="✦"
+          icon={<KScanIcon name="recent-scans" size={28} variant="standard" />}
           title="RECENT SCANS"
           body="Open your scan history."
           onPress={() => router.push('/library')}
@@ -373,7 +381,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to your scan history"
         />
         <FeatureChip
-          icon="◈"
+          icon={<KScanIcon name="visual-search" size={28} variant="standard" />}
           title="VISUAL SEARCH"
           body="Scan anything. Find it instantly."
           onPress={() => router.push('/scan')}
@@ -382,7 +390,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to the scan camera"
         />
         <FeatureChip
-          icon="◇"
+          icon={<KScanIcon name="save-organize" size={28} variant="standard" />}
           title="SAVE & ORGANIZE"
           body="Save your favorites to your closet."
           onPress={() => router.push('/library')}
@@ -391,7 +399,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to your saved looks and closet"
         />
         <FeatureChip
-          icon="◉"
+          icon={<KScanIcon name="dressing-rooms" size={28} variant="standard" />}
           title="DRESSING ROOMS"
           body="Compare, save, and decide."
           onPress={() => router.push('/dressing-rooms')}
@@ -407,7 +415,7 @@ export default function HomeLuxuryTechV1() {
           <SecondaryButton
             testID="home-luxury-textscan"
             title="TEXTSCAN"
-            icon={<Text style={styles.secondaryPillIcon}>✧</Text>}
+            icon={<KScanIcon name="textscan" size={20} variant="compact" />}
             onPress={handleOpenTextScan}
             loading={textScanNavigating}
             disabled={textScanNavigating}
@@ -586,9 +594,12 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
     ...SHADOWS.editorialSmall,
   },
-  chipIcon: {
-    fontSize: 20,
-    color: LUXURY.colors.goldBrushed,
+  chipIconWrap: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   chipTitle: {
     ...LUXURY.typography.sectionLabel,
@@ -656,10 +667,5 @@ const styles = StyleSheet.create({
   },
   voiceScanPillTextMuted: {
     color: LUXURY.colors.stone,
-  },
-  secondaryPillIcon: {
-    fontSize: 14,
-    color: LUXURY.colors.plum,
-    marginRight: SPACING.xs,
   },
 });
