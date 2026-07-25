@@ -86,6 +86,9 @@ function AttachmentChip({
         accessibilityRole="button"
         accessibilityLabel={`${ELISE_IDENTITY.removeAttachmentAccessibilityLabel}: ${draft.summary.title}`}
         style={styles.chipAction}
+        // 26px visual chip + 11px slop per edge = 48dp effective Android
+        // touch target without altering the accepted visual design.
+        hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
       >
         <Text style={styles.chipActionText}>✕</Text>
       </TouchableOpacity>

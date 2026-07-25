@@ -1,3 +1,9 @@
+import {
+  ELISE_FALLBACK_MODEL,
+  ELISE_PRIMARY_MODEL,
+  getConfiguredModel,
+} from './modelRouting.ts';
+
 export const ELISE_BACKEND_VERSION = 'elise-backend-foundation-r015';
 export const ELISE_PROMPT_VERSION = 'stylechat-prompt-v1';
 export const ELISE_CONTEXT_CONTRACT_VERSION = 'visual-context-v1';
@@ -38,6 +44,7 @@ export interface EliseBackendConfig {
   contextContractVersion: string;
   outputParserVersion: string;
   modelName: string;
+  fallbackModelName: string;
   burstLimitPerMinute: number;
   flags: EliseBackendFlags;
 }
@@ -45,8 +52,6 @@ export interface EliseBackendConfig {
 export interface EnvReader {
   get(name: string): string | undefined;
 }
-
-const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 function readTrimmed(env: EnvReader, name: string): string | undefined {
   const value = env.get(name)?.trim();
@@ -85,10 +90,14 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
     promptVersion: ELISE_PROMPT_VERSION,
     contextContractVersion: ELISE_CONTEXT_CONTRACT_VERSION,
     outputParserVersion: ELISE_OUTPUT_PARSER_VERSION,
-    modelName:
-      readTrimmed(env, 'STYLECHAT_GEMINI_MODEL') ||
-      readTrimmed(env, 'GEMINI_MODEL') ||
-      DEFAULT_MODEL,
+    // Frozen model map (modelRouting.ts): explicit workload vars only, allowlist-validated.
+    // Generic GEMINI_MODEL precedence and retired gemini-2.5 default removed.
+    modelName: getConfiguredModel((k) => env.get(k), 'STYLECHAT_GEMINI_MODEL', ELISE_PRIMARY_MODEL),
+    fallbackModelName: getConfiguredModel(
+      (k) => env.get(k),
+      'STYLECHAT_GEMINI_FALLBACK_MODEL',
+      ELISE_FALLBACK_MODEL,
+    ),
     burstLimitPerMinute: parsePositiveIntEnv(env, 'STYLECHAT_BURST_LIMIT_PER_MINUTE', 4, 60),
     flags: {
       aiEnabled: !((readTrimmed(env, 'STYLECHAT_AI_ENABLED') ?? '').toLowerCase() === 'false'),

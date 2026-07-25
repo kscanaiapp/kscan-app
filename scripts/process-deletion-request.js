@@ -24,6 +24,10 @@ const USER_DATA_RESOURCES = [
   // migration is carried as source only and is not applied in every
   // environment; deletion must still purge it wherever it does exist.
   { table: 'dressing_room_collab_idempotency', column: 'actor_id', action: 'auth_delete_cascade', optional: true },
+  // Elise generation/quota idempotency ledger (E-2). FK cascades on auth
+  // deletion; listed so the deletion audit records the purge. `optional`
+  // because environments predating the E-2 migration lack the table.
+  { table: 'elise_generation_operations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'shared_room_memberships', column: 'recipient_user_id', action: 'auth_delete_cascade' },
   { table: 'room_shares', column: 'owner_id', action: 'auth_delete_cascade' },
   { table: 'looks', column: 'user_id', action: 'auth_delete_cascade' },

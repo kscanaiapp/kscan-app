@@ -12,7 +12,9 @@ function env(values: Record<string, string | undefined>) {
 
 Deno.test('Elise backend config defaults preserve current behavior and default repair flags off', () => {
   const config = readEliseBackendConfig(env({}));
-  assert.equal(config.modelName, 'gemini-2.5-flash');
+  // Frozen model map (modelRouting.ts): production-accepted primary/fallback.
+  assert.equal(config.modelName, 'gemini-3.6-flash');
+  assert.equal(config.fallbackModelName, 'gemini-3.5-flash-lite');
   assert.equal(config.flags.aiEnabled, true);
   assert.equal(config.flags.contextNormalizationV1, false);
   assert.equal(config.flags.generationSafetyV1, false);
@@ -48,8 +50,16 @@ Deno.test('Elise backend config supports independent valid overrides and safe in
   assert.equal(config.flags.aiEnabled, false);
   assert.equal(config.flags.contextNormalizationV1, true);
   assert.equal(config.flags.generationSafetyV1, false);
-  assert.equal(config.modelName, 'custom-model');
+  // Allowlist routing: unknown model ids fall back to the frozen primary;
+  // retired ids are rejected; only allowlisted overrides take effect.
+  assert.equal(config.modelName, 'gemini-3.6-flash');
   assert.equal(config.burstLimitPerMinute, 60);
+  const allowlisted = readEliseBackendConfig(env({
+    STYLECHAT_GEMINI_MODEL: 'gemini-3.5-flash-lite',
+    STYLECHAT_GEMINI_FALLBACK_MODEL: 'gemini-1.5-flash',
+  }));
+  assert.equal(allowlisted.modelName, 'gemini-3.5-flash-lite');
+  assert.equal(allowlisted.fallbackModelName, 'gemini-3.5-flash-lite', 'retired fallback id must be rejected');
 });
 
 Deno.test('prompt hardening strips structured mutation attempts from model output', () => {
