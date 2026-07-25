@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { createAuthBootstrapStorage } from './authSessionBootstrap';
+import { secureSessionStorage } from './secureSessionStorage';
 
 const configuredUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const configuredAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -35,7 +35,8 @@ function getBootstrapRefreshClient() {
 }
 
 const authStorage = createAuthBootstrapStorage({
-  storage: AsyncStorage,
+  // Single seam for the session backend, matching the accepted iOS layering.
+  storage: secureSessionStorage,
   refreshSession: async (refreshToken) => {
     const { data, error } = await getBootstrapRefreshClient().auth.refreshSession({
       refresh_token: refreshToken,
@@ -51,6 +52,24 @@ export function takeAuthBootstrapStorageError(): unknown {
   const error = authBootstrapStorageError;
   authBootstrapStorageError = null;
   return error;
+}
+
+/**
+ * Durable-logout backstop. Supabase skips its own local cleanup when the global
+ * sign-out request fails (offline, 5xx), which would leave restorable session
+ * material behind for the next launch.
+ */
+export function clearPersistedAuthSessions(): Promise<void> {
+  return authStorage.clearPersistedSessions();
+}
+
+/**
+ * True when session material is still persisted but could not be renewed
+ * because of a transient failure — an actor awaiting recovery, not a signed-out
+ * one.
+ */
+export function hasPendingAuthSessionRecovery(): boolean {
+  return authStorage.hasPendingSessionRecovery();
 }
 
 export const supabase = createClient(url, anonKey, {
