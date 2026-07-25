@@ -77,13 +77,20 @@ test('multi-item Dressing Room add isolates item failures and suppresses duplica
   assert.match(modal, /Added \$\{result\.saved\} of \$\{result\.total\} items/);
 });
 
-test('QA profiles explicitly enable multi-image while production remains opt-in', () => {
+test('multi-image is enabled across every Android v26 build profile', () => {
+  // Android v26 owner ruling: multi-image Scanner ships as a release feature.
+  // The earlier posture kept production opt-in; that is no longer the accepted
+  // release configuration, and the flag must not be disabled to satisfy it.
   const flags = read('constants/featureFlags.ts');
   const eas = JSON.parse(read('eas.json'));
   assert.match(flags, /EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED === 'true'/);
-  assert.equal(eas.build.preview.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
-  assert.equal(eas.build.development.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
-  assert.equal(eas.build.production.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, undefined);
+  for (const profile of ['development', 'preview', 'production']) {
+    assert.equal(
+      eas.build[profile].env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED,
+      'true',
+      profile + ' must enable multi-image',
+    );
+  }
 });
 
 test('Android permission posture remains picker-based without broad media access', () => {

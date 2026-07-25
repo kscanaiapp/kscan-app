@@ -124,3 +124,6 @@ assets/stylist-avatars/portraits/raw/
 _rollback_v119/
 _v119_deployed_bundle/
 _v120_deployed_bundle/
+
+# LLM production probe harness state (fixture ids + generated passwords)
+.llm-probe-state.json

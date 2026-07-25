@@ -983,5 +983,7 @@ test('multi-image gate: single-image posture still reaches multi-item detection 
   assert.equal(eas.build.preview.env.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED, 'true');
   assert.equal(eas.build.preview.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
   assert.notEqual(eas.build.preview.env.EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI, 'true');
-  assert.equal(eas.build.production.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, undefined);
+  // Android v26 owner ruling: multi-image Scanner is a release feature, so the
+  // production profile enables it alongside preview and development.
+  assert.equal(eas.build.production.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
 });
