@@ -179,13 +179,31 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
  * scan has a local id. For cloud-only scans (no local_id), inserts a new row.
  *
  * If the matching row is soft-deleted, clears deleted_at to undelete.
+ *
+ * Gated by CLOUD_SAVED_SCANS_ENABLED: this is the background Library sync
+ * entry point and stays dark while that feature is deferred.
  */
 export async function saveScanToCloud(
   scan: SavedScanModel,
   client = supabase,
 ): Promise<SavedScanCloudResult> {
   if (!CLOUD_SAVED_SCANS_ENABLED) return disabledResult();
+  return upsertSavedScanRowForAttachment(scan, client);
+}
 
+/**
+ * Explicit, user-initiated saved_scan row creation for Elise visual
+ * attachments (V17 hotfix). Contract V2 sends server-resolved saved_scan
+ * REFERENCES, so attaching a Recent Scan requires a real cloud row — but
+ * the deployed production profile intentionally defers the broad Library
+ * background-sync feature, and the attachment saga must not depend on it.
+ * Only the attachment preparation sagas call this, per selected scan, on a
+ * direct user action; the Library sync gate above is unchanged.
+ */
+export async function upsertSavedScanRowForAttachment(
+  scan: SavedScanModel,
+  client = supabase,
+): Promise<SavedScanCloudResult> {
   const user = await getCurrentUser(client);
   if (!user) return unauthenticatedResult();
 

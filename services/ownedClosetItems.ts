@@ -8,12 +8,13 @@
 // Rules enforced by this module (see types/ownedClosetItem.ts):
 //   - Local-only ids are never presented as remote UUIDs.
 //   - No remote id is ever invented; remote backing comes only from the
-//     existing saved-scan cloud-sync path (savedScansCloud.saveScanToCloud).
+//     existing saved-scan cloud upsert (savedScansCloud —
+//     upsertSavedScanRowForAttachment for the explicit attachment saga).
 //   - No image binaries are uploaded or duplicated here.
 
 import { supabase } from './supabaseClient';
 import {
-  saveScanToCloud,
+  upsertSavedScanRowForAttachment,
   type SavedScanModel,
   type SavedScanRow,
 } from './savedScansCloud';
@@ -320,7 +321,10 @@ export async function ensureRemoteBackedOwnedItem(
 
   const localScan = input?.localScan;
   if (localScan && localScan.id === item.localId) {
-    const result = await saveScanToCloud(localScan);
+    // Explicit user-initiated attachment step (Contract V2 server-resolved
+    // reference), not background Library sync — must work while the
+    // CLOUD_SAVED_SCANS background-sync feature stays deferred.
+    const result = await upsertSavedScanRowForAttachment(localScan);
     if (!result.ok) throw new OwnedItemSyncError();
   }
 
