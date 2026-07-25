@@ -89,6 +89,9 @@ function loadService(mockClient, flags = { CLOUD_SAVED_SCANS_ENABLED: true }) {
   return loadTsModule('services/savedScansCloud.ts', {
     './supabaseClient': { supabase: mockClient },
     '../constants/featureFlags': flags,
+    // Real canonical commerce normalizer (pure; its only import is type-only),
+    // so the row mappers are exercised against production behavior.
+    './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
   });
 }
 

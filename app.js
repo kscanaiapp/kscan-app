@@ -26,7 +26,7 @@ import {
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
-import { saveScan } from './services/library';
+import { saveScan, selectPurchaseOptionsSnapshot } from './services/library';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
@@ -1053,6 +1053,9 @@ export default function App() {
             result={analysis?.result ?? ''}
             metadata={analysis?.metadata ?? EMPTY_METADATA}
             products={analysis?.products ?? []}
+            // Same snapshot shape that saveScan persists, so the live result and
+            // the reopened Recent Scan render the identical purchase cards.
+            purchaseOptions={selectPurchaseOptionsSnapshot(analysis)}
             confirmationCandidates={analysis?.confirmationCandidates ?? []}
             selectedCandidateId={selectedCandidateId}
             onSelectCandidate={selectConfirmationCandidate}

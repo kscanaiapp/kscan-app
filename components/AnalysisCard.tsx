@@ -51,6 +51,10 @@ export interface AnalysisCardProps {
     stylingSuggestions?: string[];
   };
   products?: Product[];
+  /** Durable live-commerce snapshot. Distinct from `products`, which is the
+   *  catalog similarity shelf. Rehydrated from the saved scan when a Recent
+   *  Scan is reopened, so the cards survive app relaunch. */
+  purchaseOptions?: Product[];
   confirmationCandidates?: OutfitConfirmationCandidate[];
   selectedCandidateId?: string | null;
   onSelectCandidate?: (candidateId: string) => void;
@@ -88,6 +92,7 @@ export function AnalysisCard({
   result,
   metadata,
   products = [],
+  purchaseOptions = [],
   confirmationCandidates = [],
   selectedCandidateId,
   onSelectCandidate,
@@ -363,6 +368,20 @@ export function AnalysisCard({
                   the structured object is present; otherwise UI is unchanged. */}
               {scanResultObject ? (
                 <ScanResultCard scanResultObject={scanResultObject} />
+              ) : null}
+
+              {/* Live commerce purchase options, rendered directly beneath the
+                  scan/analysis and ahead of the catalog shelf. Sourced from the
+                  durable snapshot on the saved scan, so a reopened Recent Scan
+                  shows the same cards as the original result with no Scanner
+                  navigation state involved. One option is enough to render;
+                  zero hides the section rather than inventing offers. */}
+              {priceDiscoveryEnabled && purchaseOptions.length >= 1 ? (
+                <ProductShelf
+                  products={purchaseOptions}
+                  label="WHERE TO BUY"
+                  testID="purchase-options-shelf"
+                />
               ) : null}
 
               {/* Catalog similarity matches: hide the entire section unless there

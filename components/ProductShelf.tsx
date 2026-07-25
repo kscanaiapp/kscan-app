@@ -61,6 +61,12 @@ export interface Product {
 
 interface ProductShelfProps {
   products: Product[];
+  /** Section heading. Defaults to the catalog similarity shelf label. */
+  label?: string;
+  /** Copy shown when `products` is empty. */
+  emptyTitle?: string;
+  emptyBody?: string;
+  testID?: string;
 }
 
 const CARD_WIDTH  = 144;
@@ -259,7 +265,13 @@ function CatalogProductImage({
   );
 }
 
-export function ProductShelf({ products }: ProductShelfProps) {
+export function ProductShelf({
+  products,
+  label = 'SIMILAR ITEMS',
+  emptyTitle = 'No similar items yet.',
+  emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.',
+  testID,
+}: ProductShelfProps) {
   const [linkErrorVisible, setLinkErrorVisible] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -268,11 +280,9 @@ export function ProductShelf({ products }: ProductShelfProps) {
 
   if (!products || products.length === 0) {
     return (
-      <View testID="product-shelf-empty" style={styles.emptyShelf}>
-        <Text style={styles.emptyShelfTitle}>No similar items yet.</Text>
-        <Text style={styles.emptyShelfBody}>
-          Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.
-        </Text>
+      <View testID={testID ? `${testID}-empty` : 'product-shelf-empty'} style={styles.emptyShelf}>
+        <Text style={styles.emptyShelfTitle}>{emptyTitle}</Text>
+        <Text style={styles.emptyShelfBody}>{emptyBody}</Text>
       </View>
     );
   }
@@ -294,9 +304,9 @@ export function ProductShelf({ products }: ProductShelfProps) {
   };
 
   return (
-    <View testID="product-shelf" style={styles.container}>
+    <View testID={testID ?? 'product-shelf'} style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>SIMILAR ITEMS</Text>
+        <Text style={styles.label}>{label}</Text>
         <View style={styles.labelLine} />
       </View>
 

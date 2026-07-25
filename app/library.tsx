@@ -84,6 +84,10 @@ interface SavedScan {
   attributes: ScanAttributes;
   result: string;
   products: Product[];
+  /** Durable commerce snapshot written by services/library.js saveScan and
+   *  re-normalized on load. Absent on scans saved before the snapshot existed;
+   *  those hydrate to [] and simply hide the purchase section. */
+  purchaseOptions?: Product[];
   source: string;
 }
 
@@ -466,6 +470,7 @@ export default function LibraryScreen() {
             silhouette: selectedScan.attributes.silhouette,
           }}
           products={selectedScan.products}
+          purchaseOptions={selectedScan.purchaseOptions ?? []}
           scanImageUri={selectedScan.imageUri ?? null}
           scanSourceId={selectedScan.id}
           scanSourceType="style_library_scan"

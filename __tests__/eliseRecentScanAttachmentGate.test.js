@@ -117,6 +117,7 @@ function loadCloud(flagEnabled, client) {
   return loadTsModule('services/savedScansCloud.ts', {
     './supabaseClient': { supabase: client },
     '../constants/featureFlags': { CLOUD_SAVED_SCANS_ENABLED: flagEnabled },
+    './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
     '@supabase/supabase-js': {},
   });
 }
