@@ -47,17 +47,58 @@ function loadModule(filename, requireMap = {}) {
   return mod.exports;
 }
 
-const shoppingProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts'));
-const farfetchProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/farfetchProvider.ts'));
-const kicksCrewProvider = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/kicksCrewProvider.ts'));
-const router = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/scanCommerceRouter.ts'), {
+const fn = (name) => path.join(ROOT, 'supabase/functions/scan-identify', name);
+
+const shoppingProvider = loadModule(fn('shoppingProvider.ts'));
+const farfetchProvider = loadModule(fn('farfetchProvider.ts'));
+const kicksCrewProvider = loadModule(fn('kicksCrewProvider.ts'));
+const qualityTuneConfig = loadModule(fn('qualityTuneConfig.ts'));
+const scanHelpers = loadModule(path.join(ROOT, 'supabase/functions/_shared/scanHelpers.ts'));
+const qualityTuneNormalize = loadModule(fn('qualityTuneNormalize.ts'), {
+  '../_shared/scanHelpers.ts': scanHelpers,
+});
+const scannerCategoryRoute = loadModule(fn('scannerCategoryRoute.ts'), {
+  '../_shared/scanHelpers.ts': scanHelpers,
+});
+const commerceRelevanceConfig = loadModule(fn('commerceRelevanceConfig.ts'));
+const commerceRelevanceColorMaterial = loadModule(fn('commerceRelevanceColorMaterial.ts'));
+const commerceRelevanceFailure = loadModule(fn('commerceRelevanceFailure.ts'));
+
+const commerceRelevanceQueries = loadModule(fn('commerceRelevanceQueries.ts'), {
+  './commerceRelevanceConfig.ts': commerceRelevanceConfig,
+  './commerceRelevanceColorMaterial.ts': commerceRelevanceColorMaterial,
+  './qualityTuneNormalize.ts': qualityTuneNormalize,
+});
+const commerceRelevanceAgreement = loadModule(fn('commerceRelevanceAgreement.ts'), {
+  './scannerCategoryRoute.ts': scannerCategoryRoute,
+  './qualityTuneNormalize.ts': qualityTuneNormalize,
+});
+const commerceRelevanceDiversity = loadModule(fn('commerceRelevanceDiversity.ts'), {
+  './commerceRelevanceConfig.ts': commerceRelevanceConfig,
+  './commerceRelevanceAgreement.ts': commerceRelevanceAgreement,
+});
+const qualityTuneCommerce = loadModule(fn('qualityTuneCommerce.ts'), {
+  './qualityTuneConfig.ts': qualityTuneConfig,
+  './qualityTuneNormalize.ts': qualityTuneNormalize,
+  './commerceRelevanceQueries.ts': commerceRelevanceQueries,
+  './commerceRelevanceAgreement.ts': commerceRelevanceAgreement,
+  './commerceRelevanceDiversity.ts': commerceRelevanceDiversity,
+  './commerceRelevanceFailure.ts': commerceRelevanceFailure,
+});
+
+const router = loadModule(fn('scanCommerceRouter.ts'), {
   './shoppingProvider.ts': shoppingProvider,
   './farfetchProvider.ts': farfetchProvider,
   './kicksCrewProvider.ts': kicksCrewProvider,
+  './qualityTuneConfig.ts': qualityTuneConfig,
+  './qualityTuneCommerce.ts': qualityTuneCommerce,
+  './scannerCategoryRoute.ts': scannerCategoryRoute,
 });
 
 function resetEnv() {
   ENV = {
+    // Pin the v119-equivalent router path; quality-tune-on behavior is covered by the qualityTune suites.
+    BACKEND_QUALITY_TUNE_ENABLED: 'false',
     SHOPPING_SERPER_API_KEY: 'serper-test-key',
     SHOPPING_BRAVE_API_KEY: 'brave-test-key',
     RAPIDAPI_KEY: 'rapidapi-test-key',
