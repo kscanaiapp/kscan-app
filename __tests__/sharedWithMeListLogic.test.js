@@ -34,7 +34,17 @@ function loadTsModule(relativePath, requireMap = {}) {
   return module.exports;
 }
 
-const logic = loadTsModule('services/sharedWithMeListLogic.ts');
+const logic = loadTsModule('services/sharedWithMeListLogic.ts', {
+  // Capability resolver mocked at flag-off (viewer) behavior so this suite
+  // keeps exercising the pure list logic; resolver behavior itself is
+  // covered by sharedRoomCollaborationHotfix.test.js.
+  './sharedRoomCapabilities': {
+    sharedRoomAccessA11y: (input) =>
+      input.availability === 'unavailable'
+        ? 'no longer available, shared, view only'
+        : 'shared, view only',
+  },
+});
 
 function makeRoom(overrides = {}) {
   return {

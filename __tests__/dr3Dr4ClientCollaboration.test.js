@@ -41,6 +41,13 @@ function loadTsModule(relativePath) {
     if (id === './supabaseClient' || id.endsWith('/supabaseClient')) {
       return { supabase: {} };
     }
+    if (id === 'expo-crypto') {
+      // Hermes-safe ID source (V17 hotfix): native module mocked for Node.
+      return {
+        randomUUID: () => '11111111-2222-4333-8444-555555555555',
+        getRandomBytes: (n) => new Uint8Array(n),
+      };
+    }
     if (id.includes('featureFlags')) {
       return {
         DRESSING_ROOM_COLLABORATION_V1: false,

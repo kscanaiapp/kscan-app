@@ -6,6 +6,7 @@ import type {
   SharedRoomMembershipSummary,
 } from './sharedRoomMemberships';
 import { normalizeRoomShareToken } from './roomDeepLinks';
+import { sharedRoomAccessA11y } from './sharedRoomCapabilities';
 
 export type SharedWithMePhase =
   | 'idle'
@@ -315,13 +316,20 @@ export function formatSharedRoomDialogTitle(
 
 export function sharedRoomAccessibilityLabel(room: SharedRoomMembershipSummary): string {
   const title = sharedRoomDisplayTitle(room);
+  // Access wording comes from the shared capability resolver so the spoken
+  // description always matches the visible pill (collaborator vs view only).
+  const access = sharedRoomAccessA11y({
+    isAuthenticated: true,
+    isOwner: false,
+    availability: room.availability,
+  });
   if (room.availability === 'unavailable') {
-    return `Shared Dressing Room, ${title}, no longer available, shared, view only`;
+    return `Shared Dressing Room, ${title}, ${access}`;
   }
   const count = Number.isSafeInteger(room.itemCount) && room.itemCount >= 0
     ? room.itemCount
     : 0;
-  return `Shared Dressing Room, ${title}, ${count} item${count === 1 ? '' : 's'}, shared, view only`;
+  return `Shared Dressing Room, ${title}, ${count} item${count === 1 ? '' : 's'}, ${access}`;
 }
 
 export function canOpenSharedRoom(room: SharedRoomMembershipSummary): boolean {

@@ -50,6 +50,7 @@ import {
   sharedRoomEnterDelayMs,
   sharedRoomItemCountLabel,
 } from '../../services/sharedWithMeListLogic';
+import { sharedRoomStatusLabel } from '../../services/sharedRoomCapabilities';
 import type { SharedRoomMembershipSummary } from '../../services/sharedRoomMemberships';
 import type { DressingRoom } from '../../types/styleObjects';
 
@@ -184,7 +185,11 @@ function SharedRoomCard({
         <View style={styles.cardBody}>
           <View style={styles.sharedPillRow}>
             <StatusPill
-              label={unavailable ? 'Shared · Unavailable' : 'Shared · View only'}
+              label={sharedRoomStatusLabel({
+                isAuthenticated: true,
+                isOwner: false,
+                availability: room.availability,
+              })}
               variant={unavailable ? 'neutral' : 'gold'}
             />
           </View>

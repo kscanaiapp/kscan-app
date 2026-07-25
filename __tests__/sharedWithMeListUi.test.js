@@ -180,10 +180,21 @@ test('shared indicator reuses existing visual language without a new icon librar
   assert.doesNotMatch(screen, /@expo\/vector-icons|react-native-vector-icons|lucide/);
 });
 
-test('shared cards visibly and accessibly communicate view-only state', () => {
-  assert.match(screen, /Shared · View only/);
-  assert.match(screen, /Shared · Unavailable/);
-  assert.match(logic, /shared, view only/);
+test('shared cards derive access copy from the capability resolver', () => {
+  // V17 hotfix: the card no longer hard-codes every shared room as
+  // "Shared · View only" — the pill and the spoken description both come
+  // from resolveSharedRoomCapabilities so collaborators are labeled
+  // accurately and viewers stay view-only.
+  assert.match(screen, /sharedRoomStatusLabel\(\{/);
+  assert.doesNotMatch(screen, /'Shared · View only'/);
+  assert.match(logic, /sharedRoomAccessA11y\(\{/);
+  const capabilities = fs.readFileSync(
+    path.join(__dirname, '..', 'services', 'sharedRoomCapabilities.ts'),
+    'utf8',
+  );
+  assert.match(capabilities, /'Shared · View only'/);
+  assert.match(capabilities, /'Shared · Collaborator'/);
+  assert.match(capabilities, /'Shared · Unavailable'/);
   assert.match(screen, /sharedRoomItemCountLabel\(room\)/);
   assert.match(screen, /accessibilityLabel=\{`Remove \$\{title\} from Shared with Me list`\}/);
 });

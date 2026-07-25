@@ -207,6 +207,16 @@ export const DRESSING_ROOM_REALTIME_SYNC_V1 =
 export const DRESSING_ROOM_READ_STATE_V1 =
   process.env.EXPO_PUBLIC_DRESSING_ROOM_READ_STATE_V1 === 'true';
 
+/**
+ * Shared-room item contributions (recipient add / edit-own / remove-own).
+ * Default OFF: requires the shared_room_item_contributions migration
+ * (created_by ownership + participant policies) in production before any
+ * control may point at these mutations. Chat and reactions are NOT gated
+ * here — their participant policies are already deployed.
+ */
+export const SHARED_ROOM_CONTRIBUTIONS_V1 =
+  process.env.EXPO_PUBLIC_SHARED_ROOM_CONTRIBUTIONS_V1 === 'true';
+
 // ── Scan Identification backend (KS-REL-008C) ────────────────────────────────
 /**
  * Routes the image Scan analyze call through the app-side `scan-identify`
