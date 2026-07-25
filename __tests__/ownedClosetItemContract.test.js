@@ -42,7 +42,7 @@ const ownedTypes = loadTsModule('types/ownedClosetItem.ts');
 
 const contract = loadTsModule('services/ownedClosetItems.ts', {
   './supabaseClient': { supabase: {} },
-  './savedScansCloud': { saveScanToCloud: async () => ({ ok: false }) },
+  './savedScansCloud': { upsertSavedScanRowForAttachment: async () => ({ ok: false }) },
   '../types/ownedClosetItem': ownedTypes,
 });
 

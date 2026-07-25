@@ -12,7 +12,7 @@ import {
   prepareImageForPrivacyUpload,
 } from '../privacyImageUpload';
 import { saveScan } from '../library';
-import { saveScanToCloud } from '../savedScansCloud';
+import { upsertSavedScanRowForAttachment } from '../savedScansCloud';
 import { ensureSavedScanMediaBacking } from '../savedScanMedia';
 import { supabase } from '../supabaseClient';
 import {
@@ -41,6 +41,9 @@ export type DirectImageAttachResult =
       ok: false;
       errorCode: 'PREPARATION_FAILED' | 'UPLOAD_FAILED' | 'RESOLUTION_FAILED';
       message: string;
+      /** Retry context only; never sent in the Contract V2 request. */
+      localScanId?: string;
+      savedScanId?: string;
     };
 
 function newOperationId(): string {
@@ -95,6 +98,8 @@ export async function resolvePreparedDirectImageAttachment(
     };
   }
 
+  let localScanId: string | undefined;
+  let savedScanId: string | undefined;
   try {
     const title = (options?.title ?? 'Photo').trim().slice(0, 80) || 'Photo';
     const category = (options?.category ?? 'tops').trim().slice(0, 80) || 'tops';
@@ -114,28 +119,50 @@ export async function resolvePreparedDirectImageAttachment(
         message: 'Could not save the photo. Please try again.',
       };
     }
+    localScanId = scan.id;
 
-    const cloudResult = await saveScanToCloud(scan);
+    // Explicit user-requested Elise preparation. Broad/passive Library sync
+    // remains gated inside saveScanToCloud; this operation creates only the
+    // one row/media backing required for the selected attachment.
+    const cloudResult = await upsertSavedScanRowForAttachment(scan);
     if (!cloudResult.ok) {
       return {
         ok: false,
         errorCode: 'UPLOAD_FAILED',
         message: 'Could not sync the photo. Please try again.',
+        localScanId,
       };
     }
 
-    const { data: row } = await supabase
-      .from('saved_scans')
-      .select('id')
-      .eq('local_id', scan.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-    const savedScanId = row?.id as string | undefined;
+    const resultData =
+      cloudResult.data && typeof cloudResult.data === 'object'
+        ? (cloudResult.data as { id?: unknown })
+        : null;
+    savedScanId = typeof resultData?.id === 'string' ? resultData.id : undefined;
+
+    // Backward-compatible fallback for a successful implementation that did
+    // not return the id. Scope explicitly by the authenticated user in
+    // addition to RLS; the caller never supplies ownership.
+    if (!savedScanId) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (userId) {
+        const { data: row } = await supabase
+          .from('saved_scans')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('local_id', scan.id)
+          .is('deleted_at', null)
+          .maybeSingle();
+        savedScanId = row?.id as string | undefined;
+      }
+    }
     if (!savedScanId) {
       return {
         ok: false,
         errorCode: 'RESOLUTION_FAILED',
         message: 'Could not finish attaching the photo. Please try again.',
+        localScanId,
       };
     }
 
@@ -148,6 +175,8 @@ export async function resolvePreparedDirectImageAttachment(
         ok: false,
         errorCode: media.retryable ? 'UPLOAD_FAILED' : 'RESOLUTION_FAILED',
         message: 'Could not prepare the photo for Elise. Please try again.',
+        localScanId,
+        savedScanId,
       };
     }
 
@@ -174,6 +203,8 @@ export async function resolvePreparedDirectImageAttachment(
       ok: false,
       errorCode: 'RESOLUTION_FAILED',
       message: 'Could not attach the photo. Please try again.',
+      ...(localScanId ? { localScanId } : {}),
+      ...(savedScanId ? { savedScanId } : {}),
     };
   }
 }

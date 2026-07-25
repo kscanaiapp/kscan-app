@@ -40,6 +40,7 @@ import {
 } from '../types/eliseVisualAttachments';
 import {
   ensureRemoteBackedOwnedItem,
+  normalizeLocalSavedScan,
 } from '../services/ownedClosetItems';
 import { ensureSavedScanMediaBacking } from '../services/savedScanMedia';
 import { recordAiStylistEvent } from '../services/styleMemoryEvents';
@@ -207,7 +208,10 @@ export function useStyleChatAttachments(sessionId: string) {
           }
           const media = await ensureSavedScanMediaBacking({
             savedScanId: current.sourceId,
-            localImageUri: draft.selection.localImageUri ?? item.imageUri,
+            localImageUri:
+              draft.selection.sanitizedImageUri ??
+              draft.selection.localImageUri ??
+              item.imageUri,
           });
           if (!media.ok && media.retryable) throw new Error('media');
           // Non-retryable media rejection: attach metadata-only is NOT allowed
@@ -575,8 +579,20 @@ export function useStyleChatAttachments(sessionId: string) {
           draftId,
           state: 'failed_retryable',
           selection: {
+            localScanId:
+              'localScanId' in result && typeof result.localScanId === 'string'
+                ? result.localScanId
+                : null,
             localImageUri: localUri,
             sanitizedImageUri: prepared.preparedUri,
+            remoteSourceType:
+              'savedScanId' in result && typeof result.savedScanId === 'string'
+                ? 'saved_scan'
+                : null,
+            remoteSourceId:
+              'savedScanId' in result && typeof result.savedScanId === 'string'
+                ? result.savedScanId
+                : null,
             retryCount: 1,
             lastErrorCode: failureCode,
             updatedAt: now(),
@@ -619,7 +635,6 @@ export function useStyleChatAttachments(sessionId: string) {
             itemCount: 1,
           },
         });
-        if (prepared) await cleanupPreparedDirectImage(prepared);
         return { ok: false, message: 'Could not prepare that photo. Please try again.' };
       }
     },
@@ -639,11 +654,38 @@ export function useStyleChatAttachments(sessionId: string) {
     (draftId: string, items: OwnedClosetItem[], localScans?: SavedScanModel[]) => {
       const draft = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
       if (!draft || draft.state !== 'failed_retryable') return;
-      const item = items.find(
+      const suppliedLocalScan = (localScans ?? []).find(
+        (scan) => scan.id === draft.selection.localScanId,
+      );
+      const retryImageUri =
+        draft.selection.sanitizedImageUri ?? draft.selection.localImageUri ?? null;
+      const localScan =
+        suppliedLocalScan ??
+        (draft.selection.localScanId && retryImageUri
+          ? ({
+              id: draft.selection.localScanId,
+              createdAt: draft.selection.updatedAt,
+              imageUri: retryImageUri,
+              thumbnailUri: retryImageUri,
+              attributes: {
+                category: 'tops',
+                silhouette: '',
+                color_palette: '',
+                material_estimate: null,
+                style_tags: [],
+                confidence_score: null,
+              },
+              result: `${draft.summary.title || 'Photo'} — attached for Elise`,
+              products: [],
+              source: 'upload',
+            } satisfies SavedScanModel)
+          : null);
+      const item =
+        items.find(
         (candidate) =>
           (draft.selection.localScanId && candidate.localId === draft.selection.localScanId) ||
           (draft.resolved?.attachmentType === 'owned_item' && candidate.sourceId === draft.resolved.sourceId),
-      );
+        ) ?? (localScan ? normalizeLocalSavedScan(localScan) : null);
       if (!item) {
         const savedScanId =
           draft.selection.remoteSourceType === 'saved_scan'
@@ -675,7 +717,8 @@ export function useStyleChatAttachments(sessionId: string) {
           try {
             const media = await ensureSavedScanMediaBacking({
               savedScanId,
-              localImageUri: draft.selection.localImageUri,
+              localImageUri:
+                draft.selection.sanitizedImageUri ?? draft.selection.localImageUri,
             });
             if (!media.ok && media.retryable) throw new Error('media');
             if (!media.ok) {
@@ -722,7 +765,6 @@ export function useStyleChatAttachments(sessionId: string) {
         })();
         return;
       }
-      const localScan = (localScans ?? []).find((scan) => scan.id === draft.selection.localScanId);
       void resolveOwnedItemDraft({ ...draft, state: 'selected' }, item, localScan);
     },
     [sessionId, resolveOwnedItemDraft],

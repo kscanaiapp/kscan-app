@@ -93,6 +93,15 @@ function successResult(data?: unknown): SavedScanCloudResult {
   return { ok: true, data };
 }
 
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const record = error as { code?: unknown; message?: unknown };
+  return (
+    record.code === '23505' ||
+    (typeof record.message === 'string' && /duplicate|unique constraint/i.test(record.message))
+  );
+}
+
 async function getCurrentUser(client = supabase): Promise<User | null> {
   const { data, error } = await client.auth.getSession();
   if (error || !data.session?.user) return null;
@@ -213,12 +222,14 @@ export async function upsertSavedScanRowForAttachment(
     // If a local_id exists, try to find an existing row first so we can
     // undelete it or update metadata without overwriting analysis_result.
     if (row.local_id) {
-      const { data: existing } = await client
+      const { data: existing, error: lookupError } = await client
         .from('saved_scans')
         .select('id, deleted_at, analysis_result, products')
         .eq('user_id', user.id)
         .eq('local_id', row.local_id)
         .maybeSingle();
+
+      if (lookupError) return networkResult();
 
       if (existing) {
         const updatePayload: Record<string, unknown> = {
@@ -251,20 +262,37 @@ export async function upsertSavedScanRowForAttachment(
         const { error: updateError } = await client
           .from('saved_scans')
           .update(updatePayload)
-          .eq('id', existing.id);
+          .eq('id', existing.id)
+          .eq('user_id', user.id);
 
         if (updateError) return networkResult();
-        return successResult();
+        return successResult({ id: existing.id });
       }
     }
 
     // No existing row → insert new.
+    // Local scans always receive a server-generated UUID. Never trust a
+    // caller-provided cloudId to choose another row's primary key.
+    const { id: _callerProvidedId, ...rowWithGeneratedId } = row;
+    const insertPayload = row.local_id ? rowWithGeneratedId : row;
     const { error: insertError } = await client
       .from('saved_scans')
-      .insert(row);
+      .insert(insertPayload);
 
-    if (insertError) return networkResult();
-    return successResult();
+    if (!insertError) return successResult();
+    if (!row.local_id || !isUniqueViolation(insertError)) return networkResult();
+
+    // Concurrent explicit/passive attempts can race between lookup and INSERT.
+    // The unique (user_id, local_id) index prevents duplication; resolve the
+    // winning row so every successful caller gets the same canonical id.
+    const { data: canonical, error: canonicalError } = await client
+      .from('saved_scans')
+      .select('id, deleted_at')
+      .eq('user_id', user.id)
+      .eq('local_id', row.local_id)
+      .maybeSingle();
+    if (canonicalError || !canonical || canonical.deleted_at != null) return networkResult();
+    return successResult({ id: canonical.id });
   } catch {
     return unknownResult();
   }

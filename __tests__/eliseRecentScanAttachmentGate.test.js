@@ -70,6 +70,7 @@ const SCAN = {
 /** Minimal PostgREST-shaped client covering the upsert paths. */
 function mockClient({ session = { user: { id: 'user-1' } }, existingRow = null } = {}) {
   const calls = { updates: 0, inserts: 0, lookups: 0 };
+  let row = existingRow;
   const client = {
     auth: { getSession: async () => ({ data: { session }, error: null }) },
     from(table) {
@@ -80,14 +81,30 @@ function mockClient({ session = { user: { id: 'user-1' } }, existingRow = null }
         is() { return this; },
         maybeSingle: async () => {
           calls.lookups += 1;
-          return { data: existingRow, error: null };
+          return { data: row, error: null };
         },
-        update() {
+        update(payload) {
           calls.updates += 1;
-          return { eq: async () => ({ error: null }) };
+          return {
+            eq() {
+              return {
+                eq: async () => {
+                  row = row ? { ...row, ...payload } : row;
+                  return { error: null };
+                },
+              };
+            },
+          };
         },
-        insert: async () => {
+        insert: async (payload) => {
           calls.inserts += 1;
+          row = {
+            id: '123e4567-e89b-42d3-a456-426614174000',
+            deleted_at: null,
+            analysis_result: {},
+            products: [],
+            ...payload,
+          };
           return { error: null };
         },
       };
@@ -156,6 +173,51 @@ test('Recent Scan saga wiring: ensureRemoteBackedOwnedItem uses the un-gated att
   assert.match(sagaBody, /upsertSavedScanRowForAttachment\(/, 'saga must call the attachment upsert');
   assert.doesNotMatch(sagaBody, /\bsaveScanToCloud\(/, 'saga must not call the gated sync entry point');
   assert.match(source, /upsertSavedScanRowForAttachment,/, 'attachment upsert must be imported');
+});
+
+test('production service chain resolves a local Recent Scan to the canonical row with the flag OFF', async () => {
+  const { client, calls } = mockClient();
+  const cloud = loadCloud(false, client);
+  const ownedTypes = loadTsModule('types/ownedClosetItem.ts');
+  const owned = loadTsModule('services/ownedClosetItems.ts', {
+    './supabaseClient': { supabase: client },
+    './savedScansCloud': cloud,
+    '../types/ownedClosetItem': ownedTypes,
+  });
+
+  const localItem = owned.normalizeLocalSavedScan(SCAN);
+  const resolved = await owned.ensureRemoteBackedOwnedItem(localItem, { localScan: SCAN });
+
+  assert.equal(resolved.remoteBacked, true);
+  assert.equal(resolved.sourceId, '123e4567-e89b-42d3-a456-426614174000');
+  assert.equal(resolved.localId, SCAN.id);
+  assert.equal(calls.inserts, 1);
+});
+
+test('the production service chain never substitutes the local id into Contract V2', async () => {
+  const { client } = mockClient();
+  const cloud = loadCloud(false, client);
+  const ownedTypes = loadTsModule('types/ownedClosetItem.ts');
+  const owned = loadTsModule('services/ownedClosetItems.ts', {
+    './supabaseClient': { supabase: client },
+    './savedScansCloud': cloud,
+    '../types/ownedClosetItem': ownedTypes,
+  });
+  const resolved = await owned.ensureRemoteBackedOwnedItem(
+    owned.normalizeLocalSavedScan(SCAN),
+    { localScan: SCAN },
+  );
+  const reference = {
+    attachmentType: 'owned_item',
+    sourceType: resolved.sourceType,
+    sourceId: resolved.sourceId,
+    contractVersion: '2',
+  };
+
+  assert.equal(reference.sourceType, 'saved_scan');
+  assert.notEqual(reference.sourceId, SCAN.id);
+  assert.equal('imageUri' in reference, false);
+  assert.equal('imageBytes' in reference, false);
 });
 
 test('Library background sync still uses the gated entry point (deferral preserved)', () => {
