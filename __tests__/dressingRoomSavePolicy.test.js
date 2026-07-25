@@ -50,15 +50,6 @@ function loadStyleObjects() {
       if (id.startsWith('node:')) return require(id);
       // Stub app/runtime deps — only used inside functions we are not calling here.
       if (id === './supabaseClient') return { supabase: {} };
-      if (id === './privacy/privacyBoundary') {
-        // Snapshot-policy tests never dispatch images; stub the gate open so
-        // module load succeeds. Closed-gate behavior is covered by
-        // privacyBoundaryEnforcement.test.js.
-        return {
-          isImageDispatchAllowed: () => true,
-          PrivacyDispatchBlockedError: class extends Error {},
-        };
-      }
       if (id === 'expo-file-system/legacy') return {};
       if (id === 'expo-image-manipulator') return {};
       if (id === './dressingRoomItemContract') {
@@ -145,15 +136,6 @@ function loadStyleObjectsWithExtensionCapture(flagOverrides) {
     require: (id) => {
       if (id.startsWith('node:')) return require(id);
       if (id === './supabaseClient') return { supabase: {} };
-      if (id === './privacy/privacyBoundary') {
-        // Snapshot-policy tests never dispatch images; stub the gate open so
-        // module load succeeds. Closed-gate behavior is covered by
-        // privacyBoundaryEnforcement.test.js.
-        return {
-          isImageDispatchAllowed: () => true,
-          PrivacyDispatchBlockedError: class extends Error {},
-        };
-      }
       if (id === 'expo-file-system/legacy') return {};
       if (id === 'expo-image-manipulator') return {};
       if (id === './dressingRoomItemContract') {

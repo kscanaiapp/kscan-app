@@ -46,12 +46,6 @@ function loadTsModule(relativePath, requireMap = {}) {
 const adapter = loadTsModule('services/scanIdentification.ts', {
   './supabaseClient': { supabase: {} },
   '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
-  // Normalization-only tests; the Zero-Knowledge gate is exercised in
-  // privacyBoundaryEnforcement.test.js and scanIdentification.test.js.
-  './privacy/privacyBoundary': {
-    isImageDispatchAllowed: () => true,
-    PRIVACY_DISPATCH_BLOCKED_MESSAGE: 'blocked',
-  },
 });
 const scanResultObject = loadTsModule('services/scanResultObject.ts');
 const scanTitleBuilder = loadTsModule('services/scanTitleBuilder.ts');

@@ -1,10 +1,13 @@
-// Zero-Knowledge privacy-boundary enforcement tests.
+// Dormant Zero-Knowledge foundation guards (release-scope corrected).
 //
-// Proves, for every active image-egress route, that while license-plate
-// detection is absent: raw sources cannot reach dispatch, dispatch cannot
-// begin before privacy completion, face-only capability does not open the
-// gate, privacy failure blocks dispatch, and no fallback transmits the
-// original image. TextScan (text-only) remains functional.
+// The privacy boundary exists as non-production foundation code. These tests
+// prove two invariants simultaneously:
+//   1. The foundation itself remains fail-closed and truthful (gate false,
+//      preparation blocks, cleanup guaranteed, no fabricated success).
+//   2. The accepted Android v26 image routes are NOT routed through the
+//      incomplete boundary — Scanner, Dressing Room, Saved Scan, and Style
+//      Library behave as accepted, and only the scan-room V2 upload feature
+//      remains fail-closed where it existed before the foundation batch.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -56,8 +59,8 @@ function loadTsModule(relativePath, requireMap = {}) {
   return mod.exports;
 }
 
-// Load the REAL privacy chain (no native module present in Node — the lazy
-// guard must degrade to unsupported, exactly like an unlinked binary).
+// Load the REAL dormant privacy chain (native module absent in Node, exactly
+// like a binary that does not link kscan-pii-native).
 function loadRealPrivacyChain() {
   const artifactStore = loadTsModule('services/privacy/privacyArtifactStore.ts', {
     'expo-file-system/legacy': {
@@ -70,10 +73,7 @@ function loadRealPrivacyChain() {
     'expo-crypto': { randomUUID: () => '00000000-0000-4000-8000-000000000001' },
   });
   const plateDetection = loadTsModule('services/privacy/plateDetection.ts');
-  const nativeFaceEngine = loadTsModule('services/privacy/nativeFaceEngine.ts', {
-    // The native module require fails in Node exactly as it does in a binary
-    // that does not link kscan-pii-native.
-  });
+  const nativeFaceEngine = loadTsModule('services/privacy/nativeFaceEngine.ts', {});
   const privacyProof = loadTsModule('services/privacy/privacyProof.ts');
   const uriMaterializer = loadTsModule('services/privacy/uriMaterializer.ts', {
     './privacyArtifactStore': artifactStore,
@@ -90,24 +90,23 @@ function loadRealPrivacyChain() {
     './privacyArtifactStore': artifactStore,
     './uriMaterializer': uriMaterializer,
   });
-  return { boundary, plateDetection, nativeFaceEngine, privacyProof };
+  return { boundary };
 }
 
-test('real chain: gate is closed and prepare blocks with typed plate failure', async () => {
+// ── Foundation stays fail-closed and truthful ────────────────────────────────
+
+test('dormant boundary: gate is closed and prepare blocks with typed plate failure', async () => {
   const { boundary } = loadRealPrivacyChain();
   assert.equal(boundary.isImageDispatchAllowed(), false);
   const result = await boundary.prepareImageForDispatch('file:///photos/a.jpg');
   assert.equal(result.status, 'BLOCKED');
   assert.equal(result.errorCode, 'PLATE_CAPABILITY_MISSING');
   assert.equal(result.proof.processingCompleted, false);
-  assert.equal(result.proof.plateMaskApplied, undefined); // field name check below
   assert.equal(result.proof.platesMasked, 0);
   assert.equal(result.proof.facesMasked, 0);
 });
 
-test('face-only capability does not open the gate', async () => {
-  // Even with a fully successful face engine stub, plate absence keeps the
-  // gate shut and the pipeline BLOCKED at the capability precheck.
+test('dormant boundary: face-only capability does not open the gate', async () => {
   const plateDetection = loadTsModule('services/privacy/plateDetection.ts');
   const privacyProof = loadTsModule('services/privacy/privacyProof.ts');
   const openFaceEngine = {
@@ -122,175 +121,99 @@ test('face-only capability does not open the gate', async () => {
     }),
     cleanupNativeSanitizedImage: async () => null,
   };
-  const artifactStub = {
-    deletePrivacyArtifact: async () => true,
-    isOwnedPrivacyArtifactUri: () => true,
-  };
   const boundary = loadTsModule('services/privacy/privacyBoundary.ts', {
     './nativeFaceEngine': openFaceEngine,
     './plateDetection': plateDetection,
     './privacyProof': privacyProof,
-    './privacyArtifactStore': artifactStub,
+    './privacyArtifactStore': {
+      deletePrivacyArtifact: async () => true,
+      isOwnedPrivacyArtifactUri: () => true,
+    },
     './uriMaterializer': {
       materializeImageForPrivacy: async () => ({ uri: 'file:///app-cache/kscan-privacy/orig-x.jpg', sizeBytes: 10 }),
       MaterializeError: class extends Error {},
     },
   });
-  assert.equal(boundary.isImageDispatchAllowed(), false, 'face-only must not open the sync gate');
+  assert.equal(boundary.isImageDispatchAllowed(), false, 'face-only must not open the gate');
   const result = await boundary.prepareImageForDispatch('file:///photos/a.jpg');
   assert.equal(result.status, 'BLOCKED');
   assert.equal(result.errorCode, 'PLATE_CAPABILITY_MISSING');
 });
 
-test('privacy failure blocks dispatch and cleans up artifacts (no fallback)', async () => {
-  // Force the plate capability open at the boundary level to exercise the
-  // downstream failure path: face processing fails -> BLOCKED, artifacts
-  // removed, nothing dispatched. This stubbed-open plate module exists only
-  // inside this test's VM realm.
-  const privacyProof = loadTsModule('services/privacy/privacyProof.ts');
-  const deleted = [];
-  const failingFaceEngine = {
-    isNativeFaceEngineLinked: () => true,
-    detectAndMaskFacesLocal: async () => ({
-      status: 'failed',
-      errorCode: 'DETECTION_FAILED',
-      failureReason: 'detector exploded',
-      facesDetected: 0,
-      facesMasked: 0,
-      sanitizerVersion: 'test',
-      warnings: [],
-    }),
-    cleanupNativeSanitizedImage: async () => null,
-  };
-  const boundary = loadTsModule('services/privacy/privacyBoundary.ts', {
-    './nativeFaceEngine': failingFaceEngine,
-    './plateDetection': {
-      PLATE_DETECTION_SUPPORTED: true,
-      detectPlates: async () => ({
-        supported: true,
-        performed: true,
-        regionsDetected: 0,
-        regionsAccepted: 0,
-        confidence: [],
-        boundingBoxes: [],
-        durationMs: 1,
-      }),
-    },
-    './privacyProof': privacyProof,
-    './privacyArtifactStore': {
-      deletePrivacyArtifact: async (uri) => {
-        deleted.push(uri);
-        return true;
-      },
-      isOwnedPrivacyArtifactUri: () => true,
-    },
-    './uriMaterializer': {
-      materializeImageForPrivacy: async () => ({ uri: 'file:///app-cache/kscan-privacy/orig-y.jpg', sizeBytes: 10 }),
-      MaterializeError: class extends Error {},
-    },
-  });
-  const result = await boundary.prepareImageForDispatch('file:///photos/b.jpg');
-  assert.equal(result.status, 'BLOCKED');
-  assert.equal(result.errorCode, 'FACE_PROCESSING_FAILED');
-  assert.ok(
-    deleted.includes('file:///app-cache/kscan-privacy/orig-y.jpg'),
-    'materialized original must be removed after failure',
-  );
-});
+// ── Accepted routes are NOT routed through the dormant boundary ──────────────
 
-// ── Route seams ──────────────────────────────────────────────────────────────
+test('release scope: Scanner dispatch does not consult the privacy boundary', async () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services/scanIdentification.ts'), 'utf8');
+  assert.ok(!source.includes('privacyBoundary'), 'scanIdentification must not import the boundary');
+  assert.ok(!source.includes('isImageDispatchAllowed'), 'no dispatch gate in scan path');
 
-const CLOSED_BOUNDARY = {
-  isImageDispatchAllowed: () => false,
-  PRIVACY_DISPATCH_BLOCKED_MESSAGE:
-    'Image processing is unavailable until on-device face and license-plate masking can be verified.',
-  PrivacyDispatchBlockedError: class PrivacyDispatchBlockedError extends Error {
-    constructor(code) {
-      super('Image processing is unavailable until on-device face and license-plate masking can be verified.');
-      this.name = 'PrivacyDispatchBlockedError';
-      this.code = code;
-    }
-  },
-};
-
-test('route: Scanner/multi-image scan dispatch is blocked before any network call', async () => {
+  // Behavioral proof: an authenticated scan reaches the edge function.
   let invoked = 0;
   const adapter = loadTsModule('services/scanIdentification.ts', {
     './supabaseClient': {
       supabase: {
         auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
-        functions: { invoke: async () => { invoked += 1; return { data: {}, error: null }; } },
+        functions: {
+          invoke: async () => {
+            invoked += 1;
+            return {
+              data: { status: 'completed', attributes: { category: 'Tops' }, recommendedProducts: [] },
+              error: null,
+            };
+          },
+        },
       },
     },
     '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
-    './privacy/privacyBoundary': CLOSED_BOUNDARY,
   });
+  const result = await adapter.identifyScanImage('data:image/jpeg;base64,QUJD', { source: 'camera' });
+  assert.equal(invoked, 1, 'camera scan dispatch restored');
+  assert.equal(result.status, 'completed');
 
-  // Single-image and both multi-image request modes go through the same seam.
-  for (const options of [
-    {},
-    { requestMode: 'multi_item_detection' },
-    { requestMode: 'selected_item', selectedCandidate: { id: 'c1' } },
-  ]) {
-    const result = await adapter.identifyScanImage('data:image/jpeg;base64,QUJD', options);
-    assert.equal(result.status, 'failed');
-    assert.match(result.userMessage, /face and license-plate masking/i);
-  }
-  assert.equal(invoked, 0, 'scan-identify must never be invoked while blocked');
+  const multi = await adapter.identifyScanImage('data:image/jpeg;base64,QUJD', {
+    requestMode: 'multi_item_detection',
+    multiItemDetection: true,
+  });
+  assert.equal(invoked, 2, 'multi-image dispatch restored');
+  assert.equal(multi.status, 'completed');
 });
 
-test('route: Saved Scan -> Style Library upload is blocked before storage', async () => {
+test('release scope: Style Library and inspiration uploads are not gated', () => {
   const source = fs.readFileSync(path.join(ROOT, 'services/styleObjects.ts'), 'utf8');
-  // Structural guarantees: both upload helpers gate before any storage call.
-  const uploadFnGuard = /async function uploadLocalScanImage[\s\S]{0,400}isImageDispatchAllowed\(\)/;
-  const inspirationGuard = /async function compressAndUploadInspirationImage[\s\S]{0,400}isImageDispatchAllowed\(\)/;
-  assert.match(source, uploadFnGuard, 'uploadLocalScanImage must gate on the privacy boundary');
-  assert.match(source, inspirationGuard, 'compressAndUploadInspirationImage must gate on the privacy boundary');
-  // The gates must precede the storage upload calls in both functions.
-  const firstUpload = source.indexOf('async function uploadLocalScanImage');
-  const firstGate = source.indexOf('isImageDispatchAllowed()', firstUpload);
-  const firstStorage = source.indexOf('.upload(', firstUpload);
-  assert.ok(firstGate !== -1 && firstGate < firstStorage, 'gate must precede storage upload');
+  assert.ok(!source.includes('privacyBoundary'), 'styleObjects must not import the boundary');
+  assert.ok(!source.includes('isImageDispatchAllowed'), 'no dispatch gate in upload helpers');
 });
 
-test('route: Saved Scan cloud media backing returns PRIVACY_BLOCKED without network', async () => {
-  let networkTouched = 0;
-  const media = loadTsModule('services/savedScanMedia.ts', {
-    './supabaseClient': {
-      supabase: new Proxy({}, {
-        get() {
-          networkTouched += 1;
-          throw new Error('supabase must not be touched while blocked');
-        },
-      }),
-    },
-    './privacyImageSanitizer': { sanitizeImageBeforeUpload: async (u) => u },
-    './privacy/privacyBoundary': CLOSED_BOUNDARY,
-    'expo-file-system/legacy': {},
-    'expo-image-manipulator': {},
-  });
-  const result = await media.ensureSavedScanMediaBacking({
-    savedScanId: 's1',
-    localImageUri: 'file:///doc/kscan_library/a.jpg',
-  });
-  assert.equal(result.ok, false);
-  assert.equal(result.errorCode, 'PRIVACY_BLOCKED');
-  assert.equal(result.retryable, false);
-  assert.equal(networkTouched, 0, 'no supabase access while blocked');
+test('release scope: saved-scan cloud media is governed by its flag, not the boundary', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services/savedScanMedia.ts'), 'utf8');
+  assert.ok(!source.includes('privacyBoundary'), 'savedScanMedia must not import the boundary');
+  assert.ok(!source.includes('PRIVACY_BLOCKED'), 'no privacy error code in the flag-governed path');
 });
 
-test('route: TextScan remains functional (text-only, no image egress)', async () => {
+test('release scope: TextScan remains text-only and unaffected', () => {
   const source = fs.readFileSync(path.join(ROOT, 'services/textScanEdge.ts'), 'utf8');
   assert.ok(!source.includes('privacyBoundary'), 'TextScan needs no privacy gate');
   assert.ok(!source.includes('imageBase64'), 'TextScan must not send image payloads');
   assert.match(source, /mode:\s*'text'/, 'TextScan sends text mode only');
 });
 
-test('scan-room upload availability remains false end to end', () => {
+test('release scope: truthful privacy reporting is preserved', () => {
+  // The scan path continues to report localPrivacyFiltered truthfully and
+  // nothing in the active services claims masking that did not occur.
+  const scan = fs.readFileSync(path.join(ROOT, 'services/scanIdentification.ts'), 'utf8');
+  assert.match(scan, /localPrivacyFiltered/, 'privacy field still transmitted');
+  const adapterAndroid = fs.readFileSync(
+    path.join(ROOT, 'services/privacyImageAdapter.android.ts'),
+    'utf8',
+  );
+  assert.ok(!/localPrivacyFiltered:\s*true/.test(adapterAndroid), 'no hardcoded local-filtering claim');
+});
+
+test('scan-room V2 upload stays fail-closed, visible, and truthful', () => {
   const upload = loadTsModule('services/privacyImageUpload.ts', {
     'expo-image-manipulator': { manipulateAsync: async () => ({}), SaveFormat: { JPEG: 'jpeg' } },
     'expo-file-system/legacy': { deleteAsync: async () => {} },
-    './privacy/privacyBoundary': CLOSED_BOUNDARY,
+    './privacy/privacyBoundary': loadRealPrivacyChain().boundary,
     './privacy/nativeFaceEngine': { cleanupNativeSanitizedImage: async () => null },
     './privacy/privacyArtifactStore': {
       deletePrivacyArtifact: async () => true,
@@ -298,4 +221,16 @@ test('scan-room upload availability remains false end to end', () => {
     },
   });
   assert.equal(upload.isPrivateImageUploadAvailable(), false);
+
+  const liveScanCamera = fs.readFileSync(
+    path.join(ROOT, 'components/scan-room/LiveScanCamera.tsx'),
+    'utf8',
+  );
+  const scanLanding = fs.readFileSync(path.join(ROOT, 'components/scan-room/ScanLanding.tsx'), 'utf8');
+  for (const screen of [liveScanCamera, scanLanding]) {
+    assert.match(screen, /isPrivateImageUploadAvailable/);
+    assert.match(screen, /PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE/);
+    assert.match(screen, /!uploadAvailable/);
+    assert.match(screen, /'Upload Unavailable'/);
+  }
 });

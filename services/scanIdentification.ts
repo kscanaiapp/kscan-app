@@ -19,10 +19,6 @@
 
 import { supabase } from './supabaseClient';
 import { SCAN_DIAGNOSTICS_ENABLED } from '../constants/build';
-import {
-  isImageDispatchAllowed,
-  PRIVACY_DISPATCH_BLOCKED_MESSAGE,
-} from './privacy/privacyBoundary';
 import type {
   ScanIdentifyRequest,
   ScanIdentifyResponse,
@@ -396,11 +392,6 @@ export async function identifyScanImage(
   image: string,
   options: IdentifyScanOptions = {},
 ): Promise<ScanIdentifyResponse> {
-  // Zero-Knowledge gate: while on-device face and license-plate masking is
-  // not available and verified, no image may be converted or dispatched.
-  // Fail closed — there is no raw-upload fallback.
-  if (!isImageDispatchAllowed()) return failed(PRIVACY_DISPATCH_BLOCKED_MESSAGE);
-
   if (!image || typeof image !== 'string') return failed();
 
   const imageBase64 = toRawBase64(image);
