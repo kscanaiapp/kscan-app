@@ -685,7 +685,24 @@ test('USER_DATA_RESOURCES covers all user-linked tables in migrations', () => {
   const migrationsDir = path.join(__dirname, '..', 'supabase', 'migrations');
   const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
   const mappedTables = new Set(USER_DATA_RESOURCES.map((resource) => resource.table));
-  const allowlist = new Set(['app_config', 'product_catalog']);
+  // Tables that are user-linked but deliberately absent from the explicit
+  // purge registry. Each is covered by a stronger database-level guarantee,
+  // verified against production:
+  //   user_device_sessions        user_id -> auth.users ON DELETE CASCADE, so
+  //                               auth.admin.deleteUser() removes it at purge.
+  //   deletion_state_transitions  retained compliance ledger, keyed by the
+  //                               pseudonymous subject_ref; request_id ->
+  //                               deletion_requests is ON DELETE RESTRICT so the
+  //                               audit trail of a deletion outlives the actor.
+  //   deletion_requests           user_id -> auth.users ON DELETE SET NULL, so
+  //                               the record survives with identity severed.
+  const allowlist = new Set([
+    'app_config',
+    'product_catalog',
+    'user_device_sessions',
+    'deletion_state_transitions',
+    'deletion_requests',
+  ]);
   const missing = [];
 
   for (const file of files) {
