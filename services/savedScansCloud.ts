@@ -268,14 +268,11 @@ export async function upsertSavedScanRowForAttachment(
           updatePayload.products = row.products;
         }
 
-        // Same non-destructive rule for the commerce snapshot: a metadata-only
-        // update must never reset stored offers to [], but a row that has none
-        // yet may still receive them (late enrichment / first cloud backfill).
-        const existingPurchaseOptions = (existing as { purchase_options?: unknown }).purchase_options;
-        const hasExistingPurchaseOptions =
-          Array.isArray(existingPurchaseOptions) && existingPurchaseOptions.length > 0;
-        const incomingPurchaseOptions = Array.isArray(row.purchase_options) ? row.purchase_options : [];
-        if (!hasExistingPurchaseOptions && incomingPurchaseOptions.length > 0) {
+        // Empty or omitted commerce remains non-destructive for attachment and
+        // metadata-only updates. A non-empty canonical snapshot is an explicit
+        // enrichment/re-save and replaces stale offers on the existing row.
+        const incomingPurchaseOptions = normalizePurchaseOptions(row.purchase_options);
+        if (incomingPurchaseOptions.length > 0) {
           updatePayload.purchase_options = incomingPurchaseOptions;
         }
 
@@ -458,14 +455,29 @@ export function mergeLocalAndCloudScans(
    * purchase options and the losing side does, carry the surviving snapshot
    * across. Winner selection itself is unchanged.
    */
+  const normalizedOptions = (scan: SavedScanModel) => {
+    const camelCase = normalizePurchaseOptions(scan.purchaseOptions);
+    if (camelCase.length > 0) return camelCase;
+    return normalizePurchaseOptions(
+      (scan as SavedScanModel & { purchase_options?: unknown }).purchase_options,
+    );
+  };
+
+  const withCanonicalCommerce = (scan: SavedScanModel): SavedScanModel => ({
+    ...scan,
+    purchaseOptions: normalizedOptions(scan),
+  });
+
   const withPreservedCommerce = (
     winner: SavedScanModel,
     loser: SavedScanModel,
   ): SavedScanModel => {
-    const winnerOptions = Array.isArray(winner.purchaseOptions) ? winner.purchaseOptions : [];
-    const loserOptions = Array.isArray(loser.purchaseOptions) ? loser.purchaseOptions : [];
-    if (winnerOptions.length > 0 || loserOptions.length === 0) return winner;
-    return { ...winner, purchaseOptions: loserOptions };
+    const winnerOptions = normalizedOptions(winner);
+    const loserOptions = normalizedOptions(loser);
+    return {
+      ...winner,
+      purchaseOptions: winnerOptions.length > 0 ? winnerOptions : loserOptions,
+    };
   };
 
   // Process local scans first.
@@ -490,14 +502,14 @@ export function mergeLocalAndCloudScans(
         merged.set(key, withPreservedCommerce(local, cloud)); // prefer local when no timestamps
       }
     } else {
-      merged.set(key, local);
+      merged.set(key, withCanonicalCommerce(local));
     }
   }
 
   // Add cloud-only scans.
   for (const [key, cloud] of cloudMap) {
     if (!merged.has(key)) {
-      merged.set(key, cloud);
+      merged.set(key, withCanonicalCommerce(cloud));
     }
   }
 

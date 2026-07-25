@@ -25,6 +25,11 @@ import {
 } from '../services/styleObjects';
 import type { ProductMatchSnapshotSource } from '../types/styleObjects';
 import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnapshot';
+import {
+  formatCommercePrice,
+  normalizePersistedCommerceUrl,
+  openPersistedCommerceUrl,
+} from '../services/dressingRoomCommerce';
 
 export interface Product {
   id?:         string;
@@ -103,7 +108,8 @@ function getProductImageUrl(product: Product | null | undefined): string | null 
     product.product_image_url,
   ];
   for (const c of candidates) {
-    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+    const safeUrl = normalizePersistedCommerceUrl(c);
+    if (safeUrl) return safeUrl;
   }
   return null;
 }
@@ -120,7 +126,8 @@ function getPurchaseUrl(product: Product | null | undefined): string | null {
     product.link,
   ];
   for (const c of candidates) {
-    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+    const safeUrl = normalizePersistedCommerceUrl(c);
+    if (safeUrl) return safeUrl;
   }
   return null;
 }
@@ -136,23 +143,7 @@ function getRetailer(product: Product | null | undefined): string | null {
 
 function formatPrice(product: Product | null | undefined): string | null {
   if (!product) return null;
-  const price = product.price;
-  if (price === null || price === undefined) return null;
-  if (typeof price === 'number') {
-    if (price <= 0 || !Number.isFinite(price)) return null;
-    const currency = String(product.currency || 'USD').toUpperCase();
-    try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price);
-    } catch {
-      return `$${price.toFixed(2)}`;
-    }
-  }
-  if (typeof price === 'string') {
-    const trimmed = price.trim();
-    if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return null;
-    return trimmed;
-  }
-  return null;
+  return formatCommercePrice(product.price, product.currency);
 }
 
 export function canAddProductToDressingRoom(product: Product | null | undefined) {
@@ -297,9 +288,11 @@ export function ProductShelf({
   const handleLinkPress = (url: string | null | undefined) => {
     if (!url) return;
     selectionTick();
-    Linking.openURL(url).catch(() => {
-      setLinkErrorVisible(true);
-      setTimeout(() => setLinkErrorVisible(false), 2000);
+    void openPersistedCommerceUrl(url, (safeUrl) => Linking.openURL(safeUrl)).then((opened) => {
+      if (!opened) {
+        setLinkErrorVisible(true);
+        setTimeout(() => setLinkErrorVisible(false), 2000);
+      }
     });
   };
 

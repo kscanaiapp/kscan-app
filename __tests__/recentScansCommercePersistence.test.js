@@ -20,7 +20,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = process.env.KSCAN_COMMERCE_SOURCE_ROOT
+  ? path.resolve(process.env.KSCAN_COMMERCE_SOURCE_ROOT)
+  : path.resolve(__dirname, '..');
 
 // ── Minimal TS/TSX module loader (recursive, RN-free) ───────────────────────
 const tsCache = new Map();
@@ -70,9 +72,9 @@ const appSource = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
 const cloudSource = fs.readFileSync(path.join(ROOT, 'services/savedScansCloud.ts'), 'utf8');
 
 // ── Pure re-implementations of the two library.js helpers ───────────────────
-// services/library.js imports expo-file-system, which cannot load under Node.
-// These mirror the exported helpers; the source assertions below prove the
-// shipped file actually calls them, so the behavior under test is the real one.
+// These are contract models retained for focused normalization coverage. The
+// separate recentScansCommerceActualRoundTrip suite loads the real library.js
+// module against an in-memory expo-file-system implementation.
 function selectPurchaseOptionsSnapshot(analysis) {
   if (!analysis || typeof analysis !== 'object') return [];
   const raw = Array.isArray(analysis.purchaseOptions)
@@ -266,7 +268,8 @@ test('purchase action opens the persisted URL via the canonical handler', () => 
   const reopened = reopen(serializeScan(analysis));
 
   // ProductShelf resolves the URL from data only.
-  assert.match(productShelfSource, /Linking\.openURL\(url\)/);
+  assert.match(productShelfSource, /openPersistedCommerceUrl\(url/);
+  assert.match(productShelfSource, /Linking\.openURL\(safeUrl\)/);
   assert.match(productShelfSource, /onPress=\{\(\) => handleLinkPress\(purchaseUrl\)\}/);
   // No callback/navigation prop is threaded into the shelf.
   assert.doesNotMatch(productShelfSource, /onPurchasePress|onProductPress|route\.params/);
@@ -287,7 +290,7 @@ test('purchase action opens the persisted URL via the canonical handler', () => 
 
 test('ProductShelf reads the purchase URL from persisted aliases', () => {
   assert.match(productShelfSource, /product\.purchaseUrl,[\s\S]*?product\.productUrl/);
-  assert.match(productShelfSource, /startsWith\('http'\)/);
+  assert.match(productShelfSource, /normalizePersistedCommerceUrl\(c\)/);
 });
 
 // ── 5. URL and image longevity ──────────────────────────────────────────────
@@ -379,10 +382,9 @@ test('non-commerce scan persists and reopens with no fake offers', () => {
 // ── 7. Update / merge behavior ──────────────────────────────────────────────
 
 test('metadata-only cloud update never resets stored commerce', () => {
-  assert.match(cloudSource, /hasExistingPurchaseOptions/);
   assert.match(
     cloudSource,
-    /if \(!hasExistingPurchaseOptions && incomingPurchaseOptions\.length > 0\) \{/,
+    /if \(incomingPurchaseOptions\.length > 0\) \{/,
   );
   assert.match(cloudSource, /select\('id, deleted_at, analysis_result, products, purchase_options'\)/);
 });
