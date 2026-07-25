@@ -41,8 +41,10 @@ const mobileContract = loadTsModule('types/styleChatAttachments.ts', {
   './fashionReasoning': {}, './ownedClosetItem': {},
 });
 const attachments = loadTsModule(path.join(FN, 'attachments.ts'));
+const attachmentProvenance = loadTsModule(path.join(FN, 'attachmentProvenance.ts'));
 const context = loadTsModule(path.join(FN, 'attachmentContext.ts'), {
   './attachments.ts': attachments,
+  './attachmentProvenance.ts': attachmentProvenance,
 });
 const actions = loadTsModule(path.join(FN, 'actions.ts'), {
   './attachmentContext.ts': context,

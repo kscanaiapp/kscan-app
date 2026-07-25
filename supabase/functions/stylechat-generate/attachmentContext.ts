@@ -10,8 +10,16 @@
 // NEVER contains: user ids, storage buckets/paths, signed URLs, raw
 // analysis_result blobs, product arrays, or Style Memory history.
 
-import type { OwnedSourceType, ParsedAttachment } from './attachments.ts';
+import type { OwnedSourceType, ParsedAttachment, SharedSourceType } from './attachments.ts';
 import { MAX_TOTAL_RESOLVED_ITEMS } from './attachments.ts';
+import type { EliseActorRelationship } from './eliseAdviceTypes.ts';
+import {
+  attachmentOwnershipNote,
+  relationshipForDressingRoomRow,
+  relationshipForLookItem,
+} from './attachmentProvenance.ts';
+
+type AttachmentItemSourceType = OwnedSourceType | SharedSourceType;
 
 export const MAX_ATTACHMENT_CONTEXT_CHARS = 4000;
 export const MAX_CONTEXT_HINT_CHARS = 200;
@@ -22,7 +30,15 @@ const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 
 export type ResolvedAttachmentItem = {
   /** Opaque action reference: the stable id actions may point at. */
-  ref: { sourceType: OwnedSourceType; sourceId: string };
+  ref: { sourceType: AttachmentItemSourceType; sourceId: string };
+  /**
+   * Server-derived ownership relationship. Authoritative for any ownership
+   * language — never inferred from attachmentType or the attached image. Only
+   * explicit owned provenance is 'owned'; scans/uploads/screenshots are
+   * 'scanned' (ownership unconfirmed), saved products are 'saved', shared-room
+   * items are 'shared'.
+   */
+  relationship: EliseActorRelationship;
   title: string;
   category: string | null;
   role: string;
@@ -39,6 +55,7 @@ export type ResolvedAttachmentItem = {
 
 export type ResolvedAttachment =
   | { attachmentType: 'owned_item'; items: [ResolvedAttachmentItem] }
+  | { attachmentType: 'shared_item'; items: [ResolvedAttachmentItem] }
   | {
       attachmentType: 'look';
       lookId: string;
@@ -61,12 +78,37 @@ export type AttachmentResolutionResult =
         | 'ATTACHMENT_LIMIT_EXCEEDED';
     };
 
+export type AttachmentDegradationOutcome =
+  | 'accepted'
+  | 'rejected_unauthorized'
+  | 'not_found'
+  | 'expired_reference'
+  | 'invalid_shape'
+  | 'image_unavailable'
+  | 'inspection_failed';
+
+export function attachmentOutcomeForResolution(
+  result: AttachmentResolutionResult,
+): AttachmentDegradationOutcome {
+  if (result.ok) return 'accepted';
+  if (result.errorCode === 'ATTACHMENT_NOT_OWNED') return 'rejected_unauthorized';
+  if (result.errorCode === 'ATTACHMENT_LIMIT_EXCEEDED') return 'invalid_shape';
+  return 'not_found';
+}
+
 // ── Injected data access (implemented in index.ts with the user client) ───────
 
 export type AttachmentDataSource = {
   /** Rows for the ids, ALREADY scoped to the authenticated user and active. */
   fetchSavedScans(ids: string[]): Promise<Array<Record<string, unknown>>>;
   fetchInspirationItems(ids: string[]): Promise<Array<Record<string, unknown>>>;
+  /** Owned dressing_room_items joined to rooms owned by the actor (RLS/user client). */
+  fetchDressingRoomItems?(ids: string[]): Promise<Array<Record<string, unknown>>>;
+  /**
+   * Shared dressing_room_items already authorized via resolveSharedRoomAccess
+   * (active share, not revoked/expired, share-owner matches room owner).
+   */
+  fetchSharedDressingRoomItems?(ids: string[]): Promise<Array<Record<string, unknown>>>;
   fetchLook(lookId: string): Promise<Record<string, unknown> | null>;
   fetchLookItems(lookId: string): Promise<Array<Record<string, unknown>>>;
 };
@@ -138,6 +180,9 @@ function savedScanToItem(row: Record<string, unknown>): ResolvedAttachmentItem {
 
   return {
     ref: { sourceType: 'saved_scan', sourceId: String(row.id).toLowerCase() },
+    // A saved scan may be a camera shot, an uploaded screenshot, or a genuine
+    // wardrobe item — saving does not prove ownership. Never 'owned'.
+    relationship: 'scanned',
     title: bound(row.title, 80) ?? category ?? 'Saved item',
     category,
     role: inferRole(category, subcategory),
@@ -160,6 +205,8 @@ function inspirationToItem(row: Record<string, unknown>): ResolvedAttachmentItem
   const media = mediaRefForInspiration(row);
   return {
     ref: { sourceType: 'inspiration_item', sourceId: String(row.id).toLowerCase() },
+    // Saved inspiration / product — available or saved, not owned.
+    relationship: 'saved',
     title: bound(row.note, 80) ?? category ?? 'Inspiration item',
     category,
     role: explicitRole ?? inferRole(category),
@@ -171,6 +218,55 @@ function inspirationToItem(row: Record<string, unknown>): ResolvedAttachmentItem
     brand: null,
     styleTags: [],
     media,
+  };
+}
+
+function mediaRefForDressingRoomItem(row: Record<string, unknown>): { bucket: string; path: string } | null {
+  const bucket = typeof row.storage_bucket === 'string' ? row.storage_bucket.trim() : '';
+  const path = typeof row.storage_path === 'string' ? row.storage_path.trim() : '';
+  if (bucket !== STYLE_LIBRARY_IMAGES_BUCKET || !path) return null;
+  return { bucket, path };
+}
+
+/**
+ * Maps an owned dressing_room_items row into bounded Elise evidence.
+ * Never exposes storage paths/URLs/product arrays in the text block — media
+ * is private for multimodal selection only.
+ */
+export function dressingRoomItemToEvidence(
+  row: Record<string, unknown>,
+  sourceType: AttachmentItemSourceType = 'dressing_room_item',
+): ResolvedAttachmentItem {
+  const snapshot =
+    row.snapshot_payload && typeof row.snapshot_payload === 'object'
+      ? (row.snapshot_payload as Record<string, unknown>)
+      : {};
+  const metadata =
+    snapshot.metadata && typeof snapshot.metadata === 'object'
+      ? (snapshot.metadata as Record<string, unknown>)
+      : {};
+  const category = bound(row.category) ?? bound(snapshot.category) ?? bound(metadata.category);
+  const defaultTitle = sourceType === 'shared_room_item' ? 'Shared room item' : 'Room item';
+  // Ownership follows the item's provenance, not the room. A shared-room item
+  // is always 'shared' (belongs to the room owner, not the requester); an owned
+  // room's item is classified from its source kind — presence in the user's own
+  // room is never treated as physical ownership.
+  const relationship: EliseActorRelationship =
+    sourceType === 'shared_room_item' ? 'shared' : relationshipForDressingRoomRow(row);
+  return {
+    ref: { sourceType, sourceId: String(row.id).toLowerCase() },
+    relationship,
+    title: bound(row.title, 80) ?? bound(snapshot.title, 80) ?? category ?? defaultTitle,
+    category,
+    role: inferRole(category, bound(metadata.itemType)),
+    color: bound(metadata.color),
+    pattern: null,
+    material: null,
+    silhouette: bound(metadata.silhouette),
+    fit: null,
+    brand: bound(row.brand) ?? bound(snapshot.brand) ?? bound(metadata.brand),
+    styleTags: [],
+    media: mediaRefForDressingRoomItem(row),
   };
 }
 
@@ -191,6 +287,8 @@ function lookItemToItem(row: Record<string, unknown>): ResolvedAttachmentItem | 
     ref: sourceType && sourceId
       ? { sourceType, sourceId: String(sourceId).toLowerCase() }
       : { sourceType: 'saved_scan', sourceId: '' },
+    // Ownership follows the underlying source ref, never assumed owned.
+    relationship: relationshipForLookItem(row),
     title: bound(snapshot.title, 80) ?? bound(row.title, 80) ?? 'Item',
     category,
     role: bound(row.item_role, 20) ?? inferRole(category, bound(snapshot.subcategory)),
@@ -214,22 +312,36 @@ export async function resolveStyleChatAttachments(
   const resolved: ResolvedAttachment[] = [];
   let totalItems = 0;
 
-  // Batch owned-item lookups.
+  // Batch owned / shared item lookups.
   const scanIds = new Set<string>();
   const inspirationIds = new Set<string>();
+  const roomItemIds = new Set<string>();
+  const sharedItemIds = new Set<string>();
   for (const attachment of attachments) {
     if (attachment.attachmentType === 'owned_item') {
-      (attachment.sourceType === 'saved_scan' ? scanIds : inspirationIds).add(attachment.sourceId);
+      if (attachment.sourceType === 'saved_scan') scanIds.add(attachment.sourceId);
+      else if (attachment.sourceType === 'inspiration_item') inspirationIds.add(attachment.sourceId);
+      else if (attachment.sourceType === 'dressing_room_item') roomItemIds.add(attachment.sourceId);
+    } else if (attachment.attachmentType === 'shared_item') {
+      sharedItemIds.add(attachment.sourceId);
     } else if (attachment.attachmentType === 'outfit_draft') {
       for (const ref of attachment.itemRefs) {
-        (ref.sourceType === 'saved_scan' ? scanIds : inspirationIds).add(ref.sourceId);
+        if (ref.sourceType === 'saved_scan') scanIds.add(ref.sourceId);
+        else if (ref.sourceType === 'inspiration_item') inspirationIds.add(ref.sourceId);
+        else if (ref.sourceType === 'dressing_room_item') roomItemIds.add(ref.sourceId);
       }
     }
   }
 
-  const [scanRows, inspirationRows] = await Promise.all([
+  const [scanRows, inspirationRows, roomItemRows, sharedItemRows] = await Promise.all([
     scanIds.size ? data.fetchSavedScans([...scanIds]) : Promise.resolve([]),
     inspirationIds.size ? data.fetchInspirationItems([...inspirationIds]) : Promise.resolve([]),
+    roomItemIds.size && data.fetchDressingRoomItems
+      ? data.fetchDressingRoomItems([...roomItemIds])
+      : Promise.resolve([]),
+    sharedItemIds.size && data.fetchSharedDressingRoomItems
+      ? data.fetchSharedDressingRoomItems([...sharedItemIds])
+      : Promise.resolve([]),
   ]);
 
   const itemByKey = new Map<string, ResolvedAttachmentItem>();
@@ -239,6 +351,22 @@ export async function resolveStyleChatAttachments(
   for (const row of inspirationRows) {
     if (row?.id) itemByKey.set(`inspiration_item:${String(row.id).toLowerCase()}`, inspirationToItem(row));
   }
+  for (const row of roomItemRows) {
+    if (row?.id) {
+      itemByKey.set(
+        `dressing_room_item:${String(row.id).toLowerCase()}`,
+        dressingRoomItemToEvidence(row, 'dressing_room_item'),
+      );
+    }
+  }
+  for (const row of sharedItemRows) {
+    if (row?.id) {
+      itemByKey.set(
+        `shared_room_item:${String(row.id).toLowerCase()}`,
+        dressingRoomItemToEvidence(row, 'shared_room_item'),
+      );
+    }
+  }
 
   for (const attachment of attachments) {
     if (attachment.attachmentType === 'owned_item') {
@@ -247,6 +375,12 @@ export async function resolveStyleChatAttachments(
       // three so record existence never leaks.
       if (!item) return { ok: false, errorCode: 'ATTACHMENT_NOT_OWNED' };
       resolved.push({ attachmentType: 'owned_item', items: [item] });
+      totalItems += 1;
+    } else if (attachment.attachmentType === 'shared_item') {
+      const item = itemByKey.get(`shared_room_item:${attachment.sourceId}`);
+      // Same generic rejection as owned — no existence leak for foreign/shared misses.
+      if (!item) return { ok: false, errorCode: 'ATTACHMENT_NOT_OWNED' };
+      resolved.push({ attachmentType: 'shared_item', items: [item] });
       totalItems += 1;
     } else if (attachment.attachmentType === 'look') {
       const lookRow = await data.fetchLook(attachment.lookId);
@@ -267,7 +401,7 @@ export async function resolveStyleChatAttachments(
         items,
       });
       totalItems += items.length;
-    } else {
+    } else if (attachment.attachmentType === 'outfit_draft') {
       // Outfit draft: every reference must independently resolve; one invalid
       // item rejects the entire draft atomically.
       const items: ResolvedAttachmentItem[] = [];
@@ -293,6 +427,8 @@ export async function resolveStyleChatAttachments(
 function describeItem(item: ResolvedAttachmentItem, index: number): string {
   const parts = [
     `  ${index}. [ref:${item.ref.sourceType}:${item.ref.sourceId || 'snapshot'}]`,
+    // Authoritative ownership note — the model must not contradict this.
+    `ownership=${attachmentOwnershipNote(item.relationship)}`,
     item.title,
     item.category ? `category=${item.category}` : null,
     `role=${item.role}`,
@@ -312,13 +448,18 @@ function describeItem(item: ResolvedAttachmentItem, index: number): string {
  * item lines from the end — it never splits an item line or breaks structure.
  */
 export function buildAttachmentContextBlock(resolved: ResolvedAttachment[]): string {
-  const lines: string[] = ['[Attached from the user\'s closet — verified items only]'];
+  const lines: string[] = [
+    '[Attached verified evidence — the per-item ownership= field is server-derived and authoritative; never claim ownership beyond it]',
+  ];
   let itemIndex = 0;
 
   for (const attachment of resolved) {
     if (attachment.attachmentType === 'owned_item') {
       itemIndex += 1;
       lines.push(describeItem(attachment.items[0], itemIndex));
+    } else if (attachment.attachmentType === 'shared_item') {
+      itemIndex += 1;
+      lines.push(`SHARED WITH YOU ${describeItem(attachment.items[0], itemIndex)}`);
     } else if (attachment.attachmentType === 'look') {
       const context = [
         attachment.occasion ? `occasion=${attachment.occasion}` : null,
@@ -330,7 +471,7 @@ export function buildAttachmentContextBlock(resolved: ResolvedAttachment[]): str
         itemIndex += 1;
         lines.push(describeItem(item, itemIndex));
       }
-    } else {
+    } else if (attachment.attachmentType === 'outfit_draft') {
       lines.push(`ATTACHED UNSAVED OUTFIT (${attachment.items.length} items):`);
       for (const item of attachment.items) {
         itemIndex += 1;

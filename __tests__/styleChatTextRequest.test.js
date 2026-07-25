@@ -69,6 +69,12 @@ function loadProvider(invoke) {
     if (specifier === '../../../types/styleChatAttachments') {
       return require('../types/styleChatAttachments.ts');
     }
+    if (specifier === '../../../constants/featureFlags') {
+      // DR-2 client gate. These text-only tests assert the v1 payload shape,
+      // which is unchanged when advice metadata is disabled (production
+      // default). Flag-on behavior is covered by dr2Integration.
+      return { ELISE_ADVICE_METADATA_CLIENT_V1: false };
+    }
     throw new Error(`Unexpected provider import: ${specifier}`);
   };
   const mod = { exports: {} };

@@ -10,6 +10,9 @@
 
 import { supabase } from '../../supabaseClient';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../../../constants/styleChat';
+import {
+  ELISE_ADVICE_METADATA_CLIENT_V1,
+} from '../../../constants/featureFlags';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
@@ -18,8 +21,10 @@ import {
   STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
   type StyleChatAttachment,
 } from '../../../types/styleChatAttachments';
+import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
 
 const EDGE_FN      = 'stylechat-generate';
+export const ELISE_VISUAL_COLLECTION_CONTRACT_VERSION = '1';
 // 20s: Edge Function runs Gemini at 12s plus multiple auth/quota/context queries
 // before Gemini starts. Client must wait longer than the worst-case server budget
 // so it does not abort while the backend is still succeeding.
@@ -37,7 +42,9 @@ export type EdgeChatStatus =
   // draft (text + attachments) and must NOT display an attachment-blind reply
   // as though the model saw the attachments.
   | 'attachments_unsupported'
-  | 'attachments_rejected';
+  | 'attachments_rejected'
+  | 'visual_collection_unsupported'
+  | 'visual_collection_rejected';
 
 /** Validated structured action passed through from the v2 backend. */
 export interface EdgeChatAction {
@@ -71,6 +78,13 @@ export interface EdgeChatResult {
   actions?: EdgeChatAction[];
   /** v2 only: safe error code for attachment failures. */
   errorCode?: string;
+  /**
+   * E-4 optional structured advice metadata.
+   * Older clients ignore this field; text remains authoritative.
+   * Applied only when ELISE_ADVICE_METADATA_CLIENT_V1 is enabled and object-shaped.
+   */
+  adviceMetadata?: EliseAdviceMetadataClient | Record<string, unknown>;
+  adviceContractVersion?: string;
 }
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
@@ -84,6 +98,63 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/** Copy only descriptive fields that are safe to send to StyleChat. */
+export function toServerSafeActiveContext(
+  context: StyleChatHandoffContext,
+): Omit<StyleChatHandoffContext, 'imageUri' | 'textScanId' | 'createdAt'> {
+  const visual = context.visualContext;
+  const visualCollection = context.visualCollection;
+  return {
+    source: context.source,
+    ...(context.query != null ? { query: context.query } : {}),
+    ...(context.category != null ? { category: context.category } : {}),
+    ...(context.color != null ? { color: context.color } : {}),
+    ...(context.silhouette != null ? { silhouette: context.silhouette } : {}),
+    ...(context.material != null ? { material: context.material } : {}),
+    ...(Array.isArray(context.descriptors) ? { descriptors: [...context.descriptors] } : {}),
+    ...(context.analysisText != null ? { analysisText: context.analysisText } : {}),
+    ...(visual
+      ? {
+          visualContext: {
+            source: visual.source,
+            title: visual.title,
+            summary: visual.summary ?? null,
+            category: visual.category ?? null,
+            colors: visual.colors ? [...visual.colors] : null,
+            materials: visual.materials ? [...visual.materials] : null,
+            silhouette: visual.silhouette ?? null,
+            styleAttributes: visual.styleAttributes ? [...visual.styleAttributes] : null,
+            brand: visual.brand ?? null,
+            confidence: visual.confidence ?? null,
+          },
+        }
+      : {}),
+    ...(visualCollection?.evidence?.length
+      ? {
+          visualCollection: {
+            evidence: visualCollection.evidence.map((entry) => ({
+              id: entry.id,
+              order: entry.order,
+              source: entry.source,
+              title: entry.title,
+              summary: entry.summary ?? null,
+              category: entry.category ?? null,
+              colors: entry.colors ? [...entry.colors] : null,
+              materials: entry.materials ? [...entry.materials] : null,
+              silhouette: entry.silhouette ?? null,
+              styleAttributes: entry.styleAttributes ? [...entry.styleAttributes] : null,
+              brand: entry.brand ?? null,
+              confidence: entry.confidence ?? null,
+            })),
+            ...(visualCollection.focusEvidenceId
+              ? { focusEvidenceId: visualCollection.focusEvidenceId }
+              : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 function normalizeStatus(status: unknown): EdgeChatStatus | null {
   return status === 'success'
     || status === 'limit_reached'
@@ -91,6 +162,8 @@ function normalizeStatus(status: unknown): EdgeChatStatus | null {
     || status === 'error'
     || status === 'attachments_unsupported'
     || status === 'attachments_rejected'
+    || status === 'visual_collection_unsupported'
+    || status === 'visual_collection_rejected'
     ? status
     : null;
 }
@@ -217,6 +290,7 @@ export class EdgeStyleChatProvider {
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
     activeContext?: StyleChatHandoffContext | null;
+    sourceMessageId?: string | null;
     /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
     attachments?: StyleChatAttachment[] | null;
     contextHint?: string | null;
@@ -224,12 +298,14 @@ export class EdgeStyleChatProvider {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), this.timeoutMs);
     const hasAttachments = Array.isArray(input.attachments) && input.attachments.length > 0;
+    const hasVisualCollection = Boolean(input.activeContext?.visualCollection?.evidence?.length);
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
         body: {
           sessionId: input.sessionId,
           message: input.message,
+          ...(input.sourceMessageId ? { sourceMessageId: input.sourceMessageId } : {}),
           // Additive/optional: sent only when weather-aware styling is enabled and a
           // rounded foreground fix is available. Requests without it stay valid.
           ...(input.weatherLocation && input.weatherLocation.enabled
@@ -243,7 +319,9 @@ export class EdgeStyleChatProvider {
             : {}),
           // Additive/optional active scan/upload/TextScan context. Sent while the user
           // has a visible context card in StyleChat. Requests without it stay valid.
-          ...(input.activeContext ? { activeContext: input.activeContext } : {}),
+          ...(input.activeContext
+            ? { activeContext: toServerSafeActiveContext(input.activeContext) }
+            : {}),
           // v2 Closet attachments: contractVersion is sent ONLY with attachments so
           // attachment-free requests remain exact v1 shapes.
           ...(hasAttachments
@@ -270,6 +348,18 @@ export class EdgeStyleChatProvider {
               const status = normalizeStatus(body.status);
               const bodyMessage = isRecord(body.message) ? body.message : {};
               const bodyContent = typeof bodyMessage.content === 'string' ? bodyMessage.content : '';
+              if (
+                hasVisualCollection &&
+                typeof body.errorCode === 'string' &&
+                body.errorCode.startsWith('VISUAL_COLLECTION_')
+              ) {
+                return {
+                  status: 'visual_collection_rejected',
+                  errorCode: body.errorCode,
+                  message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+                  usage: DEFAULT_USAGE,
+                };
+              }
               // v2: safe structured attachment failures (400/403/404 with errorCode).
               if (hasAttachments && typeof body.errorCode === 'string' && body.errorCode.length > 0) {
                 return {
@@ -314,9 +404,9 @@ export class EdgeStyleChatProvider {
         // Attachment-bearing sends must never degrade into an attachment-blind
         // answer: function-unavailable / 404 / 503 / network failures become an
         // explicit unsupported result so the caller preserves the draft.
-        if (hasAttachments) {
+        if (hasAttachments || hasVisualCollection) {
           return {
-            status: 'attachments_unsupported',
+            status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
             message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
             usage: DEFAULT_USAGE,
           };
@@ -364,6 +454,18 @@ export class EdgeStyleChatProvider {
       }
       const message = normalizeMessage(data.message, STYLE_CHAT_COPY.errorGeneric);
 
+      if (hasVisualCollection) {
+        const raw = data as unknown as Record<string, unknown>;
+        if (raw.visualCollectionContractVersion !== ELISE_VISUAL_COLLECTION_CONTRACT_VERSION) {
+          if (__DEV__) console.warn('[EdgeStyleChatProvider] backend lacks visual collection capability');
+          return {
+            status: 'visual_collection_unsupported',
+            message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+            usage: normalizeUsage(data.usage),
+          };
+        }
+      }
+
       // v2 capability detection: when attachments were sent, the backend must
       // acknowledge the contract. An older deployed function silently ignores
       // unknown fields and answers attachment-blind — that reply must NOT be
@@ -396,12 +498,25 @@ export class EdgeStyleChatProvider {
             }))
         : [];
 
-      // Validate and pass through the typed response.
+      // Optional advice metadata: flag OFF or non-object → omit (never crash).
+      const rawAdvice = (data as unknown as Record<string, unknown>).adviceMetadata;
+      const adviceContractVersion =
+        typeof (data as unknown as Record<string, unknown>).adviceContractVersion === 'string'
+          ? String((data as unknown as Record<string, unknown>).adviceContractVersion)
+          : undefined;
+      const includeAdvice =
+        ELISE_ADVICE_METADATA_CLIENT_V1 && isRecord(rawAdvice);
       return {
         status,
         message,
         usage: normalizeUsage(data.usage),
         ...(actions.length > 0 ? { actions } : {}),
+        ...(includeAdvice
+          ? {
+              adviceMetadata: rawAdvice,
+              ...(adviceContractVersion ? { adviceContractVersion } : {}),
+            }
+          : {}),
       };
 
     } catch (err: unknown) {
@@ -413,11 +528,11 @@ export class EdgeStyleChatProvider {
       } else if (__DEV__) {
         console.warn('[EdgeStyleChatProvider] unexpected client failure');
       }
-      if (hasAttachments) {
-        // Timeout/network with attachments: preserve the draft, never pretend
-        // the model saw the attachments.
+      if (hasAttachments || hasVisualCollection) {
+        // Timeout/network with evidence: preserve the draft, never pretend
+        // the model saw the collection or attachments.
         return {
-          status: 'attachments_unsupported',
+          status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
           message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
           usage: DEFAULT_USAGE,
         };
