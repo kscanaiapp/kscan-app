@@ -14,6 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { goBackOrHome } from '../services/navigationExit';
 
 import { PrivacyToggle } from '../components/PrivacyToggle';
 import { canToggleSaleSharing } from '../services/privacyPolicy';
@@ -340,7 +341,7 @@ export default function PrivacyScreen() {
       <KScanHeader
         title="Privacy"
         subtitle="YOUR DATA CONTROLS"
-        onBack={() => router.back()}
+        onBack={() => goBackOrHome(router)}
         backLabel="Back"
       />
 

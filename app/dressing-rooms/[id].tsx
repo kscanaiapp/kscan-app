@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBackOrHome } from '../../services/navigationExit';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
@@ -769,7 +770,7 @@ function DressingRoomDetailContent() {
       <KScanHeader
         title={room?.title || 'Untitled Room'}
         subtitle="ROOM DETAIL"
-        onBack={() => router.back()}
+        onBack={() => goBackOrHome(router)}
         backLabel="Back"
       />
       {blocking ? (

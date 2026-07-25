@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { goBackOrHome } from '../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -270,7 +271,7 @@ export default function LibraryScreen() {
       <KScanHeader
         title="Your Closet"
         subtitle="SAVED LOOKS & INSPIRATION"
-        onBack={() => router.back()}
+        onBack={() => goBackOrHome(router)}
         backLabel="Back"
       />
 

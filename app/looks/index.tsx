@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import { goBackOrHome } from '../../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
 
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
@@ -66,7 +67,7 @@ function LooksContent() {
       <KScanHeader
         title="Looks"
         subtitle="OUTFIT COMPOSITIONS"
-        onBack={() => router.back()}
+        onBack={() => goBackOrHome(router)}
         backLabel="Back"
       />
 

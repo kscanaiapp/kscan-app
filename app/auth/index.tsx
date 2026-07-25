@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { goBackOrOnboarding } from '../../services/navigationExit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore — expo-apple-authentication is not installed for Android builds; iOS-only feature
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -259,7 +260,7 @@ export default function AuthScreen() {
         <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
           <Pressable
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => goBackOrOnboarding(router)}
             accessibilityRole="button"
             accessibilityLabel="Cancel and go back"
           >
@@ -317,7 +318,7 @@ export default function AuthScreen() {
       <View style={[styles.header, { paddingTop: Math.max(insets.top, LAYOUT.safeTop) }]}>
         <Pressable
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => goBackOrOnboarding(router)}
           disabled={busy}
           accessibilityRole="button"
           accessibilityLabel="Cancel and go back"

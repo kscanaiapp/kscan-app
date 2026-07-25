@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { goBackOrAuth } from '../../services/navigationExit';
 import { supabase } from '../../services/supabaseClient';
 import { validateNewPassword } from '../../services/passwordReset';
 import { mapAuthError } from '../../services/authValidation';
@@ -58,7 +59,16 @@ export default function UpdatePasswordScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.header}>
-        <View style={styles.headerSide} />
+        <Pressable
+          style={styles.headerSide}
+          onPress={() => goBackOrAuth(router)}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel and go back"
+          accessibilityState={{ disabled: busy }}
+        >
+          <Text style={[styles.cancelText, busy && styles.disabled]}>Cancel</Text>
+        </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.brand}>K-SCAN</Text>
           <Text style={styles.screenTitle}>UPDATE PASSWORD</Text>
@@ -124,10 +134,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  headerSide: { width: 56 },
+  headerSide: {
+    minWidth: 56,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
   headerCenter: { flex: 1, alignItems: 'center' },
   brand: { ...TYPOGRAPHY.brand, fontSize: 16 },
   screenTitle: { ...TYPOGRAPHY.caption, marginTop: SPACING.xs, color: COLORS.accent },
+  cancelText: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, textTransform: 'none' },
+  disabled: { opacity: 0.5 },
   body: { flex: 1, padding: LAYOUT.screenPadding, justifyContent: 'center' },
   card: {
     borderWidth: 1,
