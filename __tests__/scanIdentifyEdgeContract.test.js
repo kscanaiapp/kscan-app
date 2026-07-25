@@ -78,7 +78,7 @@ test('edge source: image failures return safe app-compatible shape', () => {
 
 test('edge source: invalid image payload is rejected before Gemini', () => {
   const validationIndex = EDGE_SOURCE.indexOf('validateImageBase64(imageBase64)');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(validationIndex !== -1, 'Must validate image base64');
   assert.ok(geminiIndex !== -1, 'Must call Gemini after validation');
   assert.ok(validationIndex < geminiIndex, 'Image validation must run before Gemini');
@@ -86,7 +86,7 @@ test('edge source: invalid image payload is rejected before Gemini', () => {
 
 test('edge source: anonymous image scans are rate-limited before Gemini', () => {
   const rateLimitIndex = EDGE_SOURCE.indexOf('checkAnonymousImageRateLimit');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_WINDOW_MS'), 'Must define anonymous limiter window');
   assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_MAX'), 'Must define anonymous limiter maximum');
   assert.ok(rateLimitIndex !== -1, 'Must check anonymous rate limit');
@@ -221,9 +221,18 @@ test('edge source: Deno.serve is present', () => {
   assert.ok(EDGE_SOURCE.includes('Deno.serve'), 'Must use Deno.serve');
 });
 
-test('edge source: default model is gemini-1.5-flash', () => {
-  assert.ok(EDGE_SOURCE.includes("gemini-1.5-flash"), 'Default model must be gemini-1.5-flash');
-  assert.equal(EDGE_SOURCE.includes('gemini-2.0'), false, 'Must not use gemini-2.0 in TextScan path');
+test('edge source: routing is allowlist-bound with no retired model', () => {
+  // Android v26: Scanner runs gemini-3.6-flash with one gemini-3.5-flash-lite
+  // fallback; TextScan is pinned to gemini-3.5-flash-lite with one same-model
+  // retry. No retired identifier may remain, and the generic GEMINI_MODEL
+  // variable must not influence routing.
+  assert.equal(/gemini-1\.5|gemini-2\.0|gemini-2\.5/.test(EDGE_SOURCE), false, 'No retired model');
+  assert.equal(EDGE_SOURCE.includes("readTrimmedEnv('GEMINI_MODEL')"), false, 'No generic override');
+  assert.ok(
+    EDGE_SOURCE.includes("resolveRoutePlan(mode === 'text' ? 'textscan' : 'scanner'"),
+    'Surface routing is resolved through the shared allowlist',
+  );
+  assert.ok(EDGE_SOURCE.includes('nextAttemptModel(routePlan, attempt)'), 'Attempts are plan-bound');
 });
 
 test('edge source: text mode and image mode share auth, timeout, and error handling', () => {
@@ -528,7 +537,7 @@ test('edge source: production stage logs are present and do not leak sensitive d
 
 test('edge source: authenticated image scan checks DB quota before Gemini', () => {
   const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check');
   assert.ok(
     EDGE_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
@@ -543,7 +552,7 @@ test('edge source: authenticated TextScan checks DB quota before Gemini', () => 
   assert.ok(EDGE_SOURCE.includes("mode === 'text'"), 'Must branch on text mode');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check for text');
   const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(quotaIndex < geminiIndex, 'Text scan quota must run before Gemini');
 });
 
@@ -564,7 +573,7 @@ test('edge source: quota exceeded returns HTTP 200 rate_limited app-safe shape',
 
 test('edge source: quota exceeded does not call Gemini, commerce, or similarity', () => {
   const rateLimitReturn = EDGE_SOURCE.indexOf('return json(buildRateLimitedResponse(), 200)');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   const commerceIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
   const similarityIndex = EDGE_SOURCE.indexOf('buildImageSimilarityMatches');
   assert.ok(rateLimitReturn !== -1, 'Must return early on quota exceeded');

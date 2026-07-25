@@ -26,7 +26,11 @@
 //   - similarityMatches: image-mode catalog similarity products.
 //
 // Kill switch: set SCAN_IDENTIFY_AI_ENABLED=false (trim/case-insensitive) to disable.
-// Model precedence: SCAN_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL.
+// Model routing: allowlist-bound via _shared/llmModelRouting.ts. Scanner runs
+// gemini-3.6-flash with one gemini-3.5-flash-lite fallback; TextScan is pinned
+// to gemini-3.5-flash-lite with one same-model retry and never escalates.
+// SCAN_GEMINI_MODEL / SCAN_GEMINI_FALLBACK_MODEL may only select an already
+// approved model; the generic GEMINI_MODEL variable cannot influence routing.
 
 import {
   cleanAiJsonText,
@@ -57,6 +61,15 @@ import {
   type SimilarityMatch,
 } from './similarityMatcher.ts';
 import { captureScanIntelligence } from './scanIntelligenceCapture.ts';
+import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAccountActiveIfAuthenticated.ts';
+import {
+  classifyProviderHttpFailure,
+  isRetryableProviderFailure,
+  nextAttemptModel,
+  resolveRetryDelayMs,
+  resolveRoutePlan,
+  type ProviderFailureKind,
+} from '../_shared/llmModelRouting.ts';
 import {
   rawDetectedGarmentCount,
   sanitizeDetectedGarments,
@@ -136,7 +149,6 @@ const SIMILARITY_TIMEOUT_MS = 300;
 const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
 const TEXT_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_MIME = 'image/jpeg';
 const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const ANON_SCAN_RATE_LIMIT_MAX = 6;
@@ -1504,6 +1516,17 @@ Deno.serve(async (req) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
+  // ── 0. Account-state gate ───────────────────────────────────────────────────
+  // Runs before request parsing, rate limiting, quota reservation and any
+  // provider call, so a pending-deletion / deactivated / purged actor can never
+  // consume quota or reach Gemini. A valid JWT can outlive the client routing
+  // that blocks those accounts, so the server is the authority.
+  //
+  // Anonymous scanning is unaffected: with no Authorization header the guard
+  // returns null and the existing anonymous rate-limited path is used.
+  const accountGate = await assertAccountActiveIfAuthenticated(req);
+  if (accountGate) return accountGate;
+
   // ── 1. Verify authenticated user from JWT ────────────────────────────────────
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
@@ -1895,8 +1918,11 @@ Deno.serve(async (req) => {
     );
   }
 
-  const modelName =
-    readTrimmedEnv('SCAN_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+  // Routing is allowlist-bound. Scanner may use its approved fallback once;
+  // TextScan stays on Lite and gets one same-model retry with no escalation.
+  // The generic GEMINI_MODEL variable deliberately has no influence here.
+  const routePlan = resolveRoutePlan(mode === 'text' ? 'textscan' : 'scanner', readTrimmedEnv);
+  const modelName = routePlan.primaryModel;
   const timeoutMs = (() => {
     const raw = readTrimmedEnv('SCAN_GEMINI_TIMEOUT_MS');
     const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
@@ -1906,11 +1932,11 @@ Deno.serve(async (req) => {
   })();
 
   // ── 4. Call Gemini with a timeout guard ──────────────────────────────────────
-  const geminiUrl = (() => {
-    const u = new URL(`${GEMINI_API_BASE}/${modelName}:generateContent`);
+  const buildGeminiUrl = (model: string): string => {
+    const u = new URL(`${GEMINI_API_BASE}/${model}:generateContent`);
     u.searchParams.set('key', geminiKey);
     return u.toString();
-  })();
+  };
 
   const qualityTuneEnabled = isQualityTuneEnabled();
   // Intelligence requires quality-tune ON; when intelligence OFF → exact v120 behavior.
@@ -2017,26 +2043,70 @@ Deno.serve(async (req) => {
   const safeNonFashion = mode === 'text' ? SAFE_TEXT_NON_FASHION_MESSAGE : SAFE_NON_FASHION_MESSAGE;
 
   try {
-    const res = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiBody),
-      signal: controller.signal,
-    });
+    // Bounded attempt loop. One logical request: at most plan.maxAttempts
+    // provider calls, no loops, and no unapproved model can ever be selected.
+    // A permanent failure (4xx, auth, safety, quota/billing exhaustion,
+    // oversized context, invalid model) stops immediately.
+    let res!: Response;
+    let raw = '';
+    let servedModel = modelName;
+    let attempt = 0;
+    let lastFailureKind: ProviderFailureKind | null = null;
 
-    const raw = await res.text().catch(() => '');
+    while (attempt < routePlan.maxAttempts) {
+      attempt += 1;
+      const attemptModel = nextAttemptModel(routePlan, attempt);
+      if (!attemptModel) break;
+      servedModel = attemptModel;
+
+      res = await fetch(buildGeminiUrl(attemptModel), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geminiBody),
+        signal: controller.signal,
+      });
+      raw = await res.text().catch(() => '');
+
+      if (res.ok) break;
+
+      const attemptMeta = extractGeminiErrorMeta(raw);
+      lastFailureKind = classifyProviderHttpFailure(res.status, attemptMeta);
+      const canRetry = isRetryableProviderFailure(lastFailureKind)
+        && attempt < routePlan.maxAttempts
+        && nextAttemptModel(routePlan, attempt + 1) !== null;
+
+      console.warn(
+        '[scan-identify] gemini_attempt_failed uid=%s mode=%s surface=%s attempt=%d model=%s httpStatus=%d kind=%s retrying=%s',
+        logUserId,
+        mode,
+        routePlan.surface,
+        attempt,
+        attemptModel,
+        res.status,
+        lastFailureKind,
+        String(canRetry),
+      );
+
+      if (!canRetry) break;
+
+      const delayMs = resolveRetryDelayMs(attempt, res.headers.get('retry-after'));
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
     const elapsedMs = Date.now() - startedAt;
 
     if (!res.ok) {
       const meta = extractGeminiErrorMeta(raw);
       console.warn(
-        '[scan-identify] gemini_http_error uid=%s mode=%s source=%s httpStatus=%d code=%s status=%s elapsedMs=%d',
+        '[scan-identify] gemini_http_error uid=%s mode=%s source=%s httpStatus=%d code=%s status=%s kind=%s attempts=%d elapsedMs=%d',
         logUserId,
         mode,
         source,
         res.status,
         String(meta.code ?? 'none'),
         String(meta.status ?? 'none'),
+        String(lastFailureKind ?? 'none'),
+        attempt,
         elapsedMs,
       );
       // Audit log failure
@@ -2059,10 +2129,13 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      '[scan-identify] gemini_success elapsedMs=%d mode=%s source=%s',
+      '[scan-identify] gemini_success elapsedMs=%d mode=%s source=%s surface=%s model=%s attempt=%d',
       elapsedMs,
       mode,
       source,
+      routePlan.surface,
+      servedModel,
+      attempt,
     );
 
     let data: GeminiResponse;

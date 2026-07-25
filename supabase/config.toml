@@ -1,0 +1,73 @@
+# Supabase project configuration.
+#
+# Declares the JWT posture of every deployed Edge Function so a deploy can never
+# silently change it. Without this file the CLI applies its own default, which
+# would flip scan-identify from its deployed verify_jwt = false to true and
+# break the anonymous scan path that the function implements and rate limits
+# itself.
+#
+# Changing any verify_jwt value here changes production authentication
+# behaviour and is an owner decision, not a deployment side effect.
+
+project_id = "wyyuqfdxucjksghsmhry"
+
+# ── LLM surfaces ─────────────────────────────────────────────────────────────
+
+# Scanner + TextScan. Gateway JWT verification is intentionally off: the
+# function supports an anonymous, fingerprint-rate-limited scan path and
+# verifies the JWT itself when one is supplied. Authenticated callers are then
+# subject to the shared account-active guard before quota or any provider call.
+[functions.scan-identify]
+verify_jwt = false
+
+# Elise. Always authenticated; the function additionally applies the shared
+# account-active guard before attachment resolution, quota and the provider.
+[functions.stylechat-generate]
+verify_jwt = true
+
+# ── Account lifecycle ────────────────────────────────────────────────────────
+
+[functions.handle-user-deletion]
+verify_jwt = true
+
+# Restoration and worker entry points authenticate by signed token or worker
+# secret rather than a user JWT.
+[functions.restore-account]
+verify_jwt = false
+
+[functions.resend-restoration-email]
+verify_jwt = false
+
+[functions.process-account-deletions]
+verify_jwt = false
+
+# ── Privacy ──────────────────────────────────────────────────────────────────
+
+[functions.privacy-data-export]
+verify_jwt = true
+
+[functions.privacy-correction-request]
+verify_jwt = true
+
+# ── Commerce and media ───────────────────────────────────────────────────────
+
+[functions.product-search-deals]
+verify_jwt = true
+
+[functions.nike-shoe-details]
+verify_jwt = true
+
+[functions.kickscrew-sneaker-description]
+verify_jwt = true
+
+[functions.search-vinted-secondhand]
+verify_jwt = true
+
+[functions.tryon-clothes-pro]
+verify_jwt = true
+
+[functions.shared-room-image-url]
+verify_jwt = true
+
+[functions.stylist-speech]
+verify_jwt = true
