@@ -65,10 +65,21 @@ const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
 
-function loadAdapter(supabaseStub) {
+// The Zero-Knowledge boundary blocks all image dispatch while plate
+// detection is absent. These adapter tests exercise the downstream contract,
+// so the boundary is stubbed OPEN here; the real closed-gate behavior is
+// covered by privacyBoundaryEnforcement.test.js and the blocked test below.
+const OPEN_PRIVACY_BOUNDARY = {
+  isImageDispatchAllowed: () => true,
+  PRIVACY_DISPATCH_BLOCKED_MESSAGE:
+    'Image processing is unavailable until on-device face and license-plate masking can be verified.',
+};
+
+function loadAdapter(supabaseStub, privacyBoundary = OPEN_PRIVACY_BOUNDARY) {
   return loadTsModule('services/scanIdentification.ts', {
     './supabaseClient': { supabase: supabaseStub },
     '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
+    './privacy/privacyBoundary': privacyBoundary,
   });
 }
 
@@ -930,4 +941,36 @@ test('adapter: detected garment sanitizer drops unknown fields and duplicate ids
   assert.equal(result.detectedGarments[0].executable, undefined);
   assert.equal(result.detectedGarments[0].attributes.executable, undefined);
   assert.equal(result.detectedGarments[0].identification.system_prompt, undefined);
+});
+
+// ── Zero-Knowledge dispatch gate ─────────────────────────────────────────────
+
+test('identifyScanImage: closed privacy gate blocks before any dispatch', async () => {
+  let invoked = 0;
+  let sessionChecked = 0;
+  const supabaseStub = {
+    auth: {
+      getSession: async () => {
+        sessionChecked += 1;
+        return { data: { session: { user: { id: 'u1' } } } };
+      },
+    },
+    functions: {
+      invoke: async () => {
+        invoked += 1;
+        return { data: {}, error: null };
+      },
+    },
+  };
+  const blockedBoundary = {
+    isImageDispatchAllowed: () => false,
+    PRIVACY_DISPATCH_BLOCKED_MESSAGE:
+      'Image processing is unavailable until on-device face and license-plate masking can be verified.',
+  };
+  const adapter = loadAdapter(supabaseStub, blockedBoundary);
+  const result = await adapter.identifyScanImage('data:image/jpeg;base64,QUJD');
+  assert.equal(result.status, 'failed');
+  assert.match(result.userMessage, /face and license-plate masking/i);
+  assert.equal(invoked, 0, 'edge function must not be invoked');
+  assert.equal(sessionChecked, 0, 'gate must block before any other work');
 });

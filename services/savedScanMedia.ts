@@ -27,6 +27,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from './supabaseClient';
 import { sanitizeImageBeforeUpload } from './privacyImageSanitizer';
+import { isImageDispatchAllowed } from './privacy/privacyBoundary';
 
 export const SAVED_SCAN_MEDIA_BUCKET = 'style-library-images';
 export const SAVED_SCAN_MEDIA_MAX_BYTES = 5 * 1024 * 1024;
@@ -38,7 +39,7 @@ export type SavedScanMediaResult = {
   ok: boolean;
   bucket?: string;
   path?: string;
-  errorCode?: 'MEDIA_UPLOAD_FAILED' | 'MEDIA_FINALIZATION_FAILED' | 'IMAGE_REJECTED' | 'ATTACHMENT_NOT_OWNED';
+  errorCode?: 'MEDIA_UPLOAD_FAILED' | 'MEDIA_FINALIZATION_FAILED' | 'IMAGE_REJECTED' | 'ATTACHMENT_NOT_OWNED' | 'PRIVACY_BLOCKED';
   retryable?: boolean;
 };
 
@@ -110,6 +111,11 @@ export async function ensureSavedScanMediaBacking(input: {
   savedScanId: string;
   localImageUri?: string | null;
 }): Promise<SavedScanMediaResult> {
+  // Zero-Knowledge gate: cloud media backing fails closed until on-device
+  // face and license-plate masking is available and verified.
+  if (!isImageDispatchAllowed()) {
+    return { ok: false, errorCode: 'PRIVACY_BLOCKED', retryable: false };
+  }
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user?.id;
   if (!userId) return { ok: false, errorCode: 'ATTACHMENT_NOT_OWNED', retryable: false };

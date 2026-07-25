@@ -19,6 +19,10 @@ import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
 import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSpeechFiles';
+import {
+  cleanupAllPrivacyArtifacts,
+  sweepStalePrivacyArtifacts,
+} from '../services/privacy/privacyArtifactStore';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -55,6 +59,17 @@ function AuthGate() {
   const navigationRef = useNavigationContainerRef();
   const [navReady, setNavReady] = useState(false);
   const lastAuthTraceRef = useRef<string | null>(null);
+  const lastPrivacyActorRef = useRef<string | null | undefined>(undefined);
+
+  // Privacy-artifact hygiene: on sign-out or authenticated-actor change, no
+  // temporary image artifact may outlive the actor that created it.
+  useEffect(() => {
+    const actorId = session?.user?.id ?? null;
+    const previous = lastPrivacyActorRef.current;
+    lastPrivacyActorRef.current = actorId;
+    if (previous === undefined || previous === actorId) return;
+    void cleanupAllPrivacyArtifacts();
+  }, [session?.user?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -248,6 +263,8 @@ function AuthGate() {
 export default function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
+    // Bounded sweep of privacy-image artifacts left by interrupted runs.
+    void sweepStalePrivacyArtifacts();
   }, []);
 
   return (

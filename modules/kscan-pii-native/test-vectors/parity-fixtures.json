@@ -1,0 +1,130 @@
+{
+  "description": "Shared parity fixtures for kscan-pii-native. These are generated, non-person vectors used to keep Android, iOS, and TypeScript implementations aligned.",
+  "constants": {
+    "sanitizerVersion": "native-face-mask-poc-1.0.0",
+    "checksumAlgorithm": "fnv1a-dual-lane-64",
+    "acceptedUriSchemes": ["file"],
+    "acceptedMimeTypes": ["image/jpeg", "image/png"],
+    "outputMimeType": "image/png",
+    "maxWidth": 4096,
+    "maxHeight": 4096,
+    "maxPixels": 16777216,
+    "defaultPaddingRatio": 0.15,
+    "minPaddingRatio": 0.0,
+    "maxPaddingRatio": 0.5,
+    "iouDeduplicationThreshold": 0.5,
+    "redactionColor": { "r": 0, "g": 0, "b": 0, "a": 255 }
+  },
+  "checksumVectors": [
+    {
+      "name": "empty",
+      "bytes": [],
+      "expected": "811c9dc59e3779b900000000"
+    },
+    {
+      "name": "single-zero",
+      "bytes": [0],
+      "expected": "050c5d1f53a3c66700000001"
+    },
+    {
+      "name": "abc",
+      "bytes": [97, 98, 99],
+      "expected": "1a47e90bc574722700000003"
+    },
+    {
+      "name": "rgba-white-pixel",
+      "bytes": [255, 255, 255, 255],
+      "expected": "e3160fb1516de17c00000004"
+    },
+    {
+      "name": "rgba-black-pixel",
+      "bytes": [0, 0, 0, 255],
+      "expected": "dc9546585364785b00000004"
+    }
+  ],
+  "regionFixtures": [
+    {
+      "name": "inside-box",
+      "imageWidth": 8,
+      "imageHeight": 8,
+      "box": { "left": 2, "top": 2, "right": 5, "bottom": 5 },
+      "paddingRatio": 0.0,
+      "expected": { "x": 2, "y": 2, "width": 3, "height": 3 }
+    },
+    {
+      "name": "clamped-box",
+      "imageWidth": 8,
+      "imageHeight": 8,
+      "box": { "left": 6, "top": 6, "right": 12, "bottom": 12 },
+      "paddingRatio": 0.0,
+      "expected": { "x": 6, "y": 6, "width": 2, "height": 2 }
+    },
+    {
+      "name": "padding-box",
+      "imageWidth": 10,
+      "imageHeight": 10,
+      "box": { "left": 4, "top": 4, "right": 6, "bottom": 6 },
+      "paddingRatio": 0.5,
+      "expected": { "x": 3, "y": 3, "width": 4, "height": 4 }
+    },
+    {
+      "name": "fractional-outward-rounding",
+      "imageWidth": 10,
+      "imageHeight": 10,
+      "box": { "left": 2.2, "top": 2.2, "right": 5.8, "bottom": 5.8 },
+      "paddingRatio": 0.0,
+      "expected": { "x": 2, "y": 2, "width": 4, "height": 4 }
+    },
+    {
+      "name": "fully-outside",
+      "imageWidth": 8,
+      "imageHeight": 8,
+      "box": { "left": 10, "top": 10, "right": 12, "bottom": 12 },
+      "paddingRatio": 0.0,
+      "expected": null
+    }
+  ],
+  "iouFixtures": [
+    {
+      "name": "identical",
+      "a": { "x": 0, "y": 0, "width": 4, "height": 4 },
+      "b": { "x": 0, "y": 0, "width": 4, "height": 4 },
+      "expected": 1.0
+    },
+    {
+      "name": "heavy-overlap",
+      "a": { "x": 0, "y": 0, "width": 4, "height": 4 },
+      "b": { "x": 1, "y": 0, "width": 4, "height": 4 },
+      "expected": 0.42857142857142855
+    },
+    {
+      "name": "no-overlap",
+      "a": { "x": 0, "y": 0, "width": 2, "height": 2 },
+      "b": { "x": 4, "y": 4, "width": 2, "height": 2 },
+      "expected": 0.0
+    }
+  ],
+  "expectedFailures": [
+    {
+      "name": "empty-uri",
+      "imageUri": "",
+      "errorCode": "INVALID_INPUT"
+    },
+    {
+      "name": "https-uri",
+      "imageUri": "https://example.invalid/image.jpg",
+      "errorCode": "UNSUPPORTED_SCHEME"
+    },
+    {
+      "name": "data-uri",
+      "imageUri": "data:image/png;base64,abc",
+      "errorCode": "UNSUPPORTED_SCHEME"
+    },
+    {
+      "name": "padding-too-high",
+      "imageUri": "file:///tmp/test.jpg",
+      "paddingRatio": 0.6,
+      "errorCode": "INVALID_INPUT"
+    }
+  ]
+}

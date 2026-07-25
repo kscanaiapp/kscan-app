@@ -1,8 +1,10 @@
 // Focused fail-closed contract tests for services/privacyImageUpload.
-// The module is the DR-donor (1575143) fail-closed implementation: private
-// image upload is unavailable until on-device face and license-plate masking
-// is integrated and proven. Contract assertions mirror the donor's
-// eliseVisualContext coverage, scoped to this module only.
+// The module now fronts the integrated Zero-Knowledge pipeline: private
+// image upload stays unavailable until on-device face AND license-plate
+// masking is available and verified. Plate detection is absent, so every
+// preparation fails closed before any image work. These tests load the REAL
+// privacy chain (with the native module absent, exactly like an unlinked
+// binary).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -39,6 +41,42 @@ function loadTsModule(relativePath, requireMap = {}) {
   return module.exports;
 }
 
+// Load privacyImageUpload with its REAL privacy chain. The native module is
+// absent in Node (like an unlinked binary), so the lazy engine guard must
+// degrade to unsupported and everything stays fail-closed.
+function loadPrivacyUpload(expoMocks) {
+  const fsStub = expoMocks['expo-file-system/legacy'] ?? {};
+  const chainFs = {
+    cacheDirectory: 'file:///app-cache/',
+    makeDirectoryAsync: async () => {},
+    deleteAsync: async () => {},
+    readDirectoryAsync: async () => [],
+    getInfoAsync: async () => ({ exists: false }),
+    ...fsStub,
+  };
+  const artifactStore = loadTsModule('services/privacy/privacyArtifactStore.ts', {
+    'expo-file-system/legacy': chainFs,
+    'expo-crypto': { randomUUID: () => '00000000-0000-4000-8000-000000000001' },
+  });
+  const nativeFaceEngine = loadTsModule('services/privacy/nativeFaceEngine.ts', {});
+  const boundary = loadTsModule('services/privacy/privacyBoundary.ts', {
+    './nativeFaceEngine': nativeFaceEngine,
+    './plateDetection': loadTsModule('services/privacy/plateDetection.ts'),
+    './privacyProof': loadTsModule('services/privacy/privacyProof.ts'),
+    './privacyArtifactStore': artifactStore,
+    './uriMaterializer': loadTsModule('services/privacy/uriMaterializer.ts', {
+      './privacyArtifactStore': artifactStore,
+      'expo-file-system/legacy': chainFs,
+    }),
+  });
+  return loadTsModule('services/privacyImageUpload.ts', {
+    ...expoMocks,
+    './privacy/privacyBoundary': boundary,
+    './privacy/nativeFaceEngine': nativeFaceEngine,
+    './privacy/privacyArtifactStore': artifactStore,
+  });
+}
+
 test('metadata-only preparation is blocked before any re-encode', async () => {
   const manipResult = { uri: 'file:///cache/sanitized.jpg', width: 1024, height: 768 };
   let manipulateCalls = 0;
@@ -49,7 +87,7 @@ test('metadata-only preparation is blocked before any re-encode', async () => {
   const fileSystem = {
     deleteAsync: async () => {},
   };
-  const privacy = loadTsModule('services/privacyImageUpload.ts', {
+  const privacy = loadPrivacyUpload({
     'expo-image-manipulator': manipulator,
     'expo-file-system/legacy': fileSystem,
   });
@@ -63,7 +101,7 @@ test('metadata-only preparation is blocked before any re-encode', async () => {
 });
 
 test('prepareImageForPrivacyUpload rejects cloud placeholders', async () => {
-  const privacy = loadTsModule('services/privacyImageUpload.ts', {
+  const privacy = loadPrivacyUpload({
     'expo-image-manipulator': { SaveFormat: { JPEG: 'jpeg' }, manipulateAsync: async () => ({}) },
     'expo-file-system/legacy': { deleteAsync: async () => {} },
   });
@@ -75,7 +113,7 @@ test('prepareImageForPrivacyUpload rejects cloud placeholders', async () => {
 
 test('unavailable masking blocks before the metadata codec is called', async () => {
   let codecCalled = false;
-  const privacy = loadTsModule('services/privacyImageUpload.ts', {
+  const privacy = loadPrivacyUpload({
     'expo-image-manipulator': {
       SaveFormat: { JPEG: 'jpeg' },
       manipulateAsync: async () => { codecCalled = true; throw new Error('codec failure'); },
@@ -91,7 +129,7 @@ test('unavailable masking blocks before the metadata codec is called', async () 
 
 test('sanitized-derivative cleanup is safe on missing files', async () => {
   let deleted = [];
-  const privacy = loadTsModule('services/privacyImageUpload.ts', {
+  const privacy = loadPrivacyUpload({
     'expo-image-manipulator': { SaveFormat: { JPEG: 'jpeg' }, manipulateAsync: async () => ({}) },
     'expo-file-system/legacy': {
       deleteAsync: async (uri, opts) => { deleted.push({ uri, opts }); },

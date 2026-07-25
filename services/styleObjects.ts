@@ -2,6 +2,10 @@ import { supabase } from './supabaseClient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import {
+  isImageDispatchAllowed,
+  PrivacyDispatchBlockedError,
+} from './privacy/privacyBoundary';
+import {
   DRESSING_ROOM_CANONICAL_ITEM_V1,
   DRESSING_ROOM_COLLABORATION_V1,
   DRESSING_ROOM_COMMERCE_PRESERVATION_V1,
@@ -197,6 +201,11 @@ async function uploadLocalScanImage(input: {
   userId?: string | null;
   localImageUri?: string | null;
 }) {
+  // Zero-Knowledge gate: no image storage upload until on-device face and
+  // license-plate masking is available and verified. Fail closed.
+  if (!isImageDispatchAllowed()) {
+    throw new PrivacyDispatchBlockedError('PLATE_CAPABILITY_MISSING');
+  }
   const userId = requireAuthUserId(input.userId);
   const localImageUri = cleanText(input.localImageUri);
   if (!isLocalImageUri(localImageUri)) {
@@ -1290,6 +1299,11 @@ async function compressAndUploadInspirationImage(input: {
   localUri: string;
   storagePath: string;
 }): Promise<{ width: number | null; height: number | null }> {
+  // Zero-Knowledge gate: inspiration uploads fail closed until on-device
+  // face and license-plate masking is available and verified.
+  if (!isImageDispatchAllowed()) {
+    throw new PrivacyDispatchBlockedError('PLATE_CAPABILITY_MISSING');
+  }
   const prepared = await ImageManipulator.manipulateAsync(
     input.localUri,
     [{ resize: { width: 2048 } }],
