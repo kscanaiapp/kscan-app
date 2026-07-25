@@ -47,9 +47,9 @@ test('integration: Visual Search uses visual-search icon and keeps /scan', () =>
   assert.match(HOME, /accessibilityLabel="Open Visual Search"/);
 });
 
-test('integration: Save & Organize uses save-organize icon and keeps /library', () => {
+test('integration: Closet uses save-organize icon and keeps /library', () => {
   assert.match(HOME, /name="save-organize"/);
-  assert.match(HOME, /title="SAVE & ORGANIZE"/);
+  assert.match(HOME, /title="CLOSET"/);
   assert.match(HOME, /testID="home-luxury-feature-library"/);
   assert.match(HOME, /router\.push\('\/library'\)/);
   assert.match(HOME, /accessibilityLabel="Open Closet"/);
