@@ -760,7 +760,12 @@ test('malformed newer commerce cannot erase an older valid snapshot', () => {
 test('remote saved-scan image reference survives merge and remains the room snapshot authority', () => {
   const client = createMockClient({ session: { user: { id: 'user-1' } } });
   const svc = loadService(client);
-  const imageContract = loadTsModule('services/dressingRoomItemContract.ts');
+  // DR-1 split the canonical item contract into dedicated commerce and dedupe
+  // modules; supply them so this test exercises the real contract.
+  const imageContract = loadTsModule('services/dressingRoomItemContract.ts', {
+    './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
+    './dressingRoomDedupe': loadTsModule('services/dressingRoomDedupe.ts'),
+  });
   const local = makeScanModel({
     id: 'scan-image',
     ownerId: 'user-1',

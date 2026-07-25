@@ -19,6 +19,8 @@ test('normalizes external API shape with token, title, and public imageUrl', () 
       items: [
         {
           id: '11111111-2222-3333-4444-555555555555',
+          sourceId: '11111111-2222-3333-4444-555555555555',
+          sourceType: 'dressing_room_item',
           imageUrl: 'https://example.com/polo.jpg',
           category: 'polo shirt',
           color: 'beige',
@@ -32,6 +34,8 @@ test('normalizes external API shape with token, title, and public imageUrl', () 
   assert.equal(preview.token, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
   assert.equal(preview.title, 'Polos');
   assert.equal(preview.items[0].imageUrl, 'https://example.com/polo.jpg');
+  assert.equal(preview.items[0].sourceType, 'dressing_room_item');
+  assert.equal(preview.items[0].sourceId, preview.items[0].id);
   // The normalized preview deliberately drops private storage coordinates;
   // public-image items carry only a public HTTPS URL.
   assert.ok(!('imageStorageBucket' in preview.items[0]));
@@ -79,6 +83,27 @@ test('falls back to items.length when itemCount is missing', () => {
   assert.equal(preview.itemCount, 1);
   assert.equal(preview.maxItemsReturned, 1);
   assert.equal(preview.isCapped, false);
+  assert.equal(preview.items[0].sourceType, 'dressing_room_item');
+  assert.equal(preview.items[0].sourceId, preview.items[0].id);
+});
+
+test('preserves inspiration typed identity while dropping private storage fields', () => {
+  const preview = normalizeSharedRoomPreview({
+    shareToken: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    items: [{
+      id: '66666666-7777-8888-9999-000000000000',
+      sourceId: '66666666-7777-8888-9999-000000000000',
+      sourceType: 'inspiration_item',
+      imageUrl: null,
+      imageStorageBucket: 'style-library-images',
+      imageStoragePath: 'private/inspirations/image.jpg',
+    }],
+  });
+
+  assert.equal(preview.items[0].sourceType, 'inspiration_item');
+  assert.equal(preview.items[0].sourceId, '66666666-7777-8888-9999-000000000000');
+  assert.ok(!('imageStorageBucket' in preview.items[0]));
+  assert.ok(!('imageStoragePath' in preview.items[0]));
 });
 
 test('returns null for a malformed payload', () => {

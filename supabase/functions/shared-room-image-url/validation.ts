@@ -7,6 +7,17 @@
 /** Aligned with get_public_room_preview's preview_item_limit (24). */
 export const MAX_ITEM_IDS = 24;
 
+export const SHARED_ROOM_ITEM_SOURCE_TYPES = [
+  'dressing_room_item',
+  'inspiration_item',
+] as const;
+
+export type SharedRoomItemSourceType = typeof SHARED_ROOM_ITEM_SOURCE_TYPES[number];
+export type SharedRoomItemRef = {
+  sourceType: SharedRoomItemSourceType;
+  sourceId: string;
+};
+
 // Matches the real share-token contract (services/roomDeepLinks.js
 // normalizeRoomShareToken / public.get_public_room_preview): any URL-safe
 // token up to 160 chars, NOT strictly a UUID. Today's tokens happen to be
@@ -25,6 +36,35 @@ export function isValidShareToken(value: unknown): value is string {
 
 export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value);
+}
+
+export function isSharedRoomItemSourceType(value: unknown): value is SharedRoomItemSourceType {
+  return SHARED_ROOM_ITEM_SOURCE_TYPES.includes(value as SharedRoomItemSourceType);
+}
+
+export function sharedRoomItemRefKey(ref: SharedRoomItemRef): string {
+  return `${ref.sourceType}:${ref.sourceId}`;
+}
+
+/** Validates, deduplicates, and caps build-15 typed references as one batch. */
+export function sanitizeItemRefs(value: unknown): SharedRoomItemRef[] {
+  if (!Array.isArray(value)) return [];
+
+  const result: SharedRoomItemRef[] = [];
+  const seen = new Set<string>();
+  for (const candidate of value) {
+    if (!candidate || typeof candidate !== 'object') continue;
+    const raw = candidate as { sourceType?: unknown; sourceId?: unknown };
+    if (!isSharedRoomItemSourceType(raw.sourceType) || !isUuid(raw.sourceId)) continue;
+
+    const ref = { sourceType: raw.sourceType, sourceId: raw.sourceId.toLowerCase() };
+    const key = sharedRoomItemRefKey(ref);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(ref);
+    if (result.length === MAX_ITEM_IDS) break;
+  }
+  return result;
 }
 
 /**
@@ -46,6 +86,20 @@ export type DressingRoomItemStorageRow = {
 };
 
 export type ResolvedStorageRef = { bucket: string; path: string };
+
+export type InspirationRoomLinkRow = {
+  inspiration_id: string;
+  user_id: string;
+  deleted_at?: string | null;
+};
+
+export type InspirationItemStorageRow = {
+  id: string;
+  user_id: string;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+  deleted_at?: string | null;
+};
 
 /**
  * Resolves a durable storage reference for a dressing_room_items row,
@@ -89,6 +143,53 @@ export const ALLOWED_BUCKETS = new Set(['style-library-images']);
 
 export function isBucketAllowed(bucket: string): boolean {
   return ALLOWED_BUCKETS.has(bucket);
+}
+
+/**
+ * Enforces the private object conventions established by the write paths and
+ * database constraints. The room owner id stays server-side and is never
+ * included in the response.
+ */
+export function isApprovedPrivateStorageRef(
+  sourceType: SharedRoomItemSourceType,
+  ownerId: string,
+  ref: ResolvedStorageRef,
+): boolean {
+  if (!isUuid(ownerId) || !isBucketAllowed(ref.bucket)) return false;
+  const segments = ref.path.split('/');
+  if (segments.length !== 3 || segments[0].toLowerCase() !== ownerId.toLowerCase()) return false;
+  if (!/^[A-Za-z0-9._-]+[.]jpg$/.test(segments[2])) return false;
+
+  if (sourceType === 'inspiration_item') return segments[1] === 'inspirations';
+  return segments[1] === 'scans' || segments[1] === 'saved-scans';
+}
+
+/**
+ * Intersects inspiration rows with the already room-scoped active link rows.
+ * A deleted, detached, foreign-owner, or path-invalid row never yields a ref.
+ */
+export function resolveAuthorizedInspirationStorageRefs(
+  ownerId: string,
+  links: InspirationRoomLinkRow[],
+  items: InspirationItemStorageRow[],
+): Map<string, ResolvedStorageRef> {
+  const linkedIds = new Set(
+    links
+      .filter((row) => row.deleted_at == null && row.user_id.toLowerCase() === ownerId.toLowerCase())
+      .map((row) => row.inspiration_id.toLowerCase()),
+  );
+  const refs = new Map<string, ResolvedStorageRef>();
+
+  for (const row of items) {
+    const sourceId = row.id.toLowerCase();
+    if (row.deleted_at != null || row.user_id.toLowerCase() !== ownerId.toLowerCase()) continue;
+    if (!linkedIds.has(sourceId)) continue;
+    if (typeof row.storage_bucket !== 'string' || typeof row.storage_path !== 'string') continue;
+
+    const ref = { bucket: row.storage_bucket, path: row.storage_path };
+    if (isApprovedPrivateStorageRef('inspiration_item', ownerId, ref)) refs.set(sourceId, ref);
+  }
+  return refs;
 }
 
 /**

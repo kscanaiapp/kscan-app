@@ -17,6 +17,19 @@ export const OWNED_ITEM_CONTRACT_VERSION = 1;
 export const OWNED_ITEM_SOURCE_TYPES = ['saved_scan', 'inspiration_item'] as const;
 export type OwnedItemSourceType = (typeof OWNED_ITEM_SOURCE_TYPES)[number];
 
+/** DR-2 Dressing Room attachment source (stable UUID only; never ownership claims). */
+export const DRESSING_ROOM_ITEM_SOURCE_TYPE = 'dressing_room_item' as const;
+export type DressingRoomItemSourceType = typeof DRESSING_ROOM_ITEM_SOURCE_TYPE;
+
+/** DR-2 shared room attachment source (stable UUID only). */
+export const SHARED_ROOM_ITEM_SOURCE_TYPE = 'shared_room_item' as const;
+export type SharedRoomItemSourceType = typeof SHARED_ROOM_ITEM_SOURCE_TYPE;
+
+export type StyleChatItemSourceType =
+  | OwnedItemSourceType
+  | DressingRoomItemSourceType
+  | SharedRoomItemSourceType;
+
 /** Reference to an owned item that the server can independently verify. */
 export type OwnedItemRef = {
   sourceType: OwnedItemSourceType;

@@ -17,6 +17,10 @@ import { ScanButton } from '../ScanButton';
 import { ScanRoomHeader } from './ScanRoomHeader';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { LuxuryButton } from '../luxury/LuxuryButton';
+import {
+  isPrivateImageUploadAvailable,
+  PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
+} from '../../services/privacyImageUpload';
 
 interface LiveScanCameraProps {
   cameraRef: React.RefObject<any>;
@@ -59,6 +63,7 @@ export function LiveScanCamera({
 }: LiveScanCameraProps) {
   const { width: screenWidth } = useWindowDimensions();
   const [permission, requestPermission] = useCameraPermissions();
+  const uploadAvailable = isPrivateImageUploadAvailable();
 
   const viewfinderWidth = Math.min(screenWidth - SPACING.xl * 2, 420);
   const viewfinderHeight = viewfinderWidth * 1.25; // 4:5
@@ -94,11 +99,12 @@ export function LiveScanCamera({
           />
           <View style={styles.permissionAltActions}>
             <LuxuryButton
-              title="Upload Image"
+              title={uploadAvailable ? 'Upload Image' : 'Upload Unavailable'}
               variant="secondary"
               onPress={onUpload}
-              disabled={isAnalyzing}
-              accessibilityLabel="Upload an image instead"
+              disabled={isAnalyzing || !uploadAvailable}
+              accessibilityLabel={uploadAvailable ? 'Upload an image instead' : 'Upload unavailable'}
+              accessibilityHint={uploadAvailable ? undefined : PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE}
             />
             <LuxuryButton
               title="Back"
@@ -156,14 +162,25 @@ export function LiveScanCamera({
         <View style={styles.secondaryControls}>
           <TouchableOpacity
             onPress={onUpload}
-            disabled={isAnalyzing}
-            activeOpacity={isAnalyzing ? 1 : 0.78}
+            disabled={isAnalyzing || !uploadAvailable}
+            activeOpacity={isAnalyzing || !uploadAvailable ? 1 : 0.78}
             accessibilityRole="button"
-            accessibilityLabel="Upload image from library"
-            accessibilityState={{ disabled: isAnalyzing }}
-            style={[styles.controlPill, isAnalyzing && styles.controlPillDisabled]}
+            accessibilityLabel={uploadAvailable ? 'Upload image from library' : 'Upload unavailable'}
+            accessibilityHint={uploadAvailable ? undefined : PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE}
+            accessibilityState={{ disabled: isAnalyzing || !uploadAvailable }}
+            style={[
+              styles.controlPill,
+              (isAnalyzing || !uploadAvailable) && styles.controlPillDisabled,
+            ]}
           >
-            <Text style={[styles.controlPillText, isAnalyzing && styles.controlPillTextDisabled]}>Upload Image</Text>
+            <Text
+              style={[
+                styles.controlPillText,
+                (isAnalyzing || !uploadAvailable) && styles.controlPillTextDisabled,
+              ]}
+            >
+              {uploadAvailable ? 'Upload Image' : 'Upload Unavailable'}
+            </Text>
           </TouchableOpacity>
 
           {textScanEnabled && (

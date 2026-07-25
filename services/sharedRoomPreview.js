@@ -19,6 +19,8 @@ function normalizeItem(rawItem) {
   if (!rawItem || typeof rawItem !== 'object') {
     return {
       id: null,
+      sourceId: null,
+      sourceType: 'dressing_room_item',
       imageUrl: null,
       imageWidth: null,
       imageHeight: null,
@@ -30,7 +32,13 @@ function normalizeItem(rawItem) {
   }
 
   return {
-    id: rawItem.id ?? null,
+    // `id` remains as a compatibility alias for build 14. Build 15 uses the
+    // typed source identity when authorizing private-image resolution.
+    id: rawItem.id ?? rawItem.sourceId ?? null,
+    sourceId: rawItem.sourceId ?? rawItem.id ?? null,
+    sourceType: rawItem.sourceType === 'inspiration_item'
+      ? 'inspiration_item'
+      : 'dressing_room_item',
     imageUrl: rawItem.imageUrl ?? null,
     imageWidth: rawItem.imageWidth ?? null,
     imageHeight: rawItem.imageHeight ?? null,

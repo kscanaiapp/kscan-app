@@ -62,6 +62,27 @@ function loadStyleObjects() {
           resolveDressingRoomImageSource: () => ({ kind: 'none' }),
           hasUsableDressingRoomImageSource: () => false,
           describeMissingImageReason: () => "This item's image isn't available right now.",
+          buildCanonicalSnapshotExtension: () => ({ schemaVersion: 1, source: { kind: 'catalog_product' } }),
+          readSnapshotDedupeKey: () => null,
+        };
+      }
+      if (id === '../constants/featureFlags') {
+        return {
+          DRESSING_ROOM_CANONICAL_ITEM_V1: false,
+          DRESSING_ROOM_COMMERCE_PRESERVATION_V1: false,
+          DRESSING_ROOM_DEDUPE_V1: false,
+          SAVED_SCAN_CLOUD_IMAGES_V1: false,
+          DRESSING_ROOM_COLLABORATION_V1: false,
+          DRESSING_ROOM_REACTIONS_V1: false,
+        };
+      }
+      if (id === './dressingRoomCollaboration') {
+        return {
+          createCollabRequestId: () => '00000000-0000-4000-8000-000000000099',
+          getCollabActorGeneration: () => 1,
+          isCurrentCollabGeneration: () => true,
+          setItemReactionDesiredState: async () => ({ ok: true }),
+          bumpCollabActorGeneration: () => 1,
         };
       }
       throw new Error(`Unexpected require: ${id}`);
@@ -73,6 +94,132 @@ function loadStyleObjects() {
 
 const styleObjects = loadStyleObjects();
 const { buildProductMatchSnapshot, UnsupportedStyleObjectItemError, isRemoteImageUrl } = styleObjects;
+
+// ── DR-1 regression: Scan Result Object provenance must not be mislabeled ─────
+//
+// buildProductMatchSnapshot is the shared write path for BOTH:
+//   - genuine Catalog/ProductShelf saves (no scan involved), and
+//   - Scan Result Object primary-match saves (services/scanResultDressingRoom.ts),
+//     which set `scanId` + `kind: 'scanner_single'` on the source object.
+// Before the DR-1 repair, the canonical extension always hardcoded
+// kind: 'catalog_product' and never received a scanId, so a Scanner-originated
+// item was indistinguishable from a browsed catalog product to Elise/dedupe.
+// This loader captures the exact arguments forwarded to
+// buildCanonicalSnapshotExtension so both cases can be locked in.
+function loadStyleObjectsWithExtensionCapture(flagOverrides) {
+  const filename = path.join(ROOT, 'services', 'styleObjects.ts');
+  const source = fs.readFileSync(filename, 'utf8');
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const calls = [];
+  const mod = { exports: {} };
+  const sandbox = {
+    console,
+    exports: mod.exports,
+    module: mod,
+    Date,
+    Math,
+    Number,
+    Object,
+    Array,
+    JSON,
+    String,
+    Boolean,
+    Promise,
+    Set,
+    require: (id) => {
+      if (id.startsWith('node:')) return require(id);
+      if (id === './supabaseClient') return { supabase: {} };
+      if (id === 'expo-file-system/legacy') return {};
+      if (id === 'expo-image-manipulator') return {};
+      if (id === './dressingRoomItemContract') {
+        return {
+          isRemoteImageUrl: (value) => /^https?:\/\//i.test(String(value ?? '').trim()),
+          isLocalImageUri: () => false,
+          resolveDressingRoomImageSource: () => ({ kind: 'none' }),
+          hasUsableDressingRoomImageSource: () => false,
+          describeMissingImageReason: () => "This item's image isn't available right now.",
+          buildCanonicalSnapshotExtension: (input) => {
+            calls.push(input);
+            return { schemaVersion: 1, source: { kind: input.kind ?? 'catalog_product', scanId: input.scanId ?? null } };
+          },
+          readSnapshotDedupeKey: () => null,
+        };
+      }
+      if (id === '../constants/featureFlags') {
+        return {
+          DRESSING_ROOM_CANONICAL_ITEM_V1: false,
+          DRESSING_ROOM_COMMERCE_PRESERVATION_V1: false,
+          DRESSING_ROOM_DEDUPE_V1: false,
+          SAVED_SCAN_CLOUD_IMAGES_V1: false,
+          DRESSING_ROOM_COLLABORATION_V1: false,
+          DRESSING_ROOM_REACTIONS_V1: false,
+          ...flagOverrides,
+        };
+      }
+      if (id === './dressingRoomCollaboration') {
+        return {
+          createCollabRequestId: () => '00000000-0000-4000-8000-000000000099',
+          getCollabActorGeneration: () => 1,
+          isCurrentCollabGeneration: () => true,
+          setItemReactionDesiredState: async () => ({ ok: true }),
+          bumpCollabActorGeneration: () => 1,
+        };
+      }
+      throw new Error(`Unexpected require: ${id}`);
+    },
+  };
+  vm.runInNewContext(output, sandbox, { filename });
+  return { exports: mod.exports, calls };
+}
+
+test('buildProductMatchSnapshot: genuine catalog save stays catalog_product with no scanId', () => {
+  const { exports: mod, calls } = loadStyleObjectsWithExtensionCapture({ DRESSING_ROOM_CANONICAL_ITEM_V1: true });
+  mod.buildProductMatchSnapshot({
+    id: 'catalog-1',
+    title: 'Catalog Blazer',
+    imageUrl: 'https://example.com/blazer.jpg',
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].kind, 'catalog_product');
+  assert.equal(calls[0].scanId, null);
+});
+
+test('buildProductMatchSnapshot: Scan Result Object save is tagged scanner_single with scanId preserved', () => {
+  const { exports: mod, calls } = loadStyleObjectsWithExtensionCapture({ DRESSING_ROOM_CANONICAL_ITEM_V1: true });
+  mod.buildProductMatchSnapshot({
+    id: 'matched-product-1',
+    title: 'Scanned Jacket Match',
+    imageUrl: 'https://example.com/jacket.jpg',
+    // Set by services/scanResultDressingRoom.ts::buildDressingRoomSaveSource.
+    scanId: 'scan-result-object-42',
+    kind: 'scanner_single',
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].kind, 'scanner_single');
+  assert.equal(calls[0].scanId, 'scan-result-object-42');
+  // providerProductId still tracks the matched catalog product for dedupe.
+  assert.equal(calls[0].providerProductId, 'matched-product-1');
+});
+
+test('buildProductMatchSnapshot: a stray "kind" without "scanId" cannot spoof scanner_single', () => {
+  const { exports: mod, calls } = loadStyleObjectsWithExtensionCapture({ DRESSING_ROOM_CANONICAL_ITEM_V1: true });
+  mod.buildProductMatchSnapshot({
+    id: 'catalog-2',
+    title: 'Not Actually Scanned',
+    imageUrl: 'https://example.com/x.jpg',
+    kind: 'scanner_single',
+    // scanId intentionally omitted.
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].kind, 'catalog_product');
+});
 
 // ── isRemoteImageUrl ──────────────────────────────────────────────────────────
 

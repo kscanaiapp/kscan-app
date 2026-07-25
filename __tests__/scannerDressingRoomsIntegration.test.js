@@ -98,7 +98,13 @@ function loadLibraryModule() {
 
 test('saved scan with commerce keeps storage refs usable for Dressing Room add-item', async () => {
   const { library, store } = loadLibraryModule();
-  const contract = loadTsModule('services/dressingRoomItemContract.ts');
+  // DR-1 split the canonical item contract across dedicated commerce and
+  // dedupe modules; supply them so this Scanner→Dressing Room test keeps
+  // exercising the real contract rather than a stub.
+  const contract = loadTsModule('services/dressingRoomItemContract.ts', {
+    './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
+    './dressingRoomDedupe': loadTsModule('services/dressingRoomDedupe.ts'),
+  });
 
   const saved = await library.saveScan({
     photoUri: 'file:///tmp/dress.jpg',

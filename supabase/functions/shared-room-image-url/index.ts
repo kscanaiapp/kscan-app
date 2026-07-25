@@ -25,11 +25,18 @@
 
 import {
   encodeStorageObjectPath,
+  isApprovedPrivateStorageRef,
   isBucketAllowed,
   isValidShareToken,
+  resolveAuthorizedInspirationStorageRefs,
   resolveStorageRefFromRow,
   sanitizeItemIds,
+  sanitizeItemRefs,
+  sharedRoomItemRefKey,
   type DressingRoomItemStorageRow,
+  type InspirationItemStorageRow,
+  type InspirationRoomLinkRow,
+  type SharedRoomItemRef,
 } from './validation.ts';
 
 const ALLOWED_ORIGIN = 'https://kscan.app';
@@ -68,6 +75,9 @@ type RoomShareRow = {
   expires_at: string | null;
 };
 
+type DressingRoomRow = { id: string; user_id: string };
+type ActiveSharedRoom = { roomId: string; ownerId: string };
+
 /**
  * Resolves a share token to its room id using the service role, applying the
  * exact same activity/expiry rules as public.get_public_room_preview
@@ -75,7 +85,7 @@ type RoomShareRow = {
  * for any reason - malformed, unknown, revoked, or expired - so the caller
  * cannot distinguish these cases from the response.
  */
-async function resolveActiveRoomIdForToken(shareToken: string): Promise<string | null> {
+async function resolveActiveRoomForToken(shareToken: string): Promise<ActiveSharedRoom | null> {
   const supabaseUrl = env('SUPABASE_URL');
   const serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -100,7 +110,22 @@ async function resolveActiveRoomIdForToken(shareToken: string): Promise<string |
   if (!row) return null;
   if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return null;
 
-  return row.room_id ?? null;
+  if (!row.room_id) return null;
+
+  const roomParams = new URLSearchParams({
+    select: 'id,user_id',
+    id: `eq.${row.room_id}`,
+    limit: '1',
+  });
+  const roomRes = await fetch(`${supabaseUrl}/rest/v1/dressing_rooms?${roomParams.toString()}`, {
+    headers: restHeaders(serviceRoleKey),
+  });
+  if (!roomRes.ok) return null;
+  const rooms = (await roomRes.json()) as DressingRoomRow[];
+  const room = rooms[0];
+  if (!room?.id || !room.user_id) return null;
+
+  return { roomId: room.id, ownerId: room.user_id };
 }
 
 /**
@@ -109,8 +134,8 @@ async function resolveActiveRoomIdForToken(shareToken: string): Promise<string |
  * belong to this room are simply absent from the result - never an error,
  * never distinguishable from "doesn't exist at all".
  */
-async function loadRoomItemStorageRefs(
-  roomId: string,
+async function loadDressingRoomItemStorageRefs(
+  room: ActiveSharedRoom,
   itemIds: string[],
 ): Promise<Map<string, { bucket: string; path: string }>> {
   const supabaseUrl = env('SUPABASE_URL');
@@ -118,7 +143,7 @@ async function loadRoomItemStorageRefs(
 
   const params = new URLSearchParams({
     select: 'id,storage_bucket,storage_path,snapshot_payload',
-    dressing_room_id: `eq.${roomId}`,
+    dressing_room_id: `eq.${room.roomId}`,
     id: `in.(${itemIds.join(',')})`,
   });
 
@@ -132,7 +157,73 @@ async function loadRoomItemStorageRefs(
   const rows = (await res.json()) as DressingRoomItemStorageRow[];
   for (const row of rows) {
     const ref = resolveStorageRefFromRow(row);
-    if (ref) refs.set(row.id, ref);
+    if (ref && isApprovedPrivateStorageRef('dressing_room_item', room.ownerId, ref)) {
+      refs.set(row.id.toLowerCase(), ref);
+    }
+  }
+  return refs;
+}
+
+/** Loads active inspiration rows only through active links to this room. */
+async function loadInspirationItemStorageRefs(
+  room: ActiveSharedRoom,
+  inspirationIds: string[],
+): Promise<Map<string, { bucket: string; path: string }>> {
+  const supabaseUrl = env('SUPABASE_URL');
+  const serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
+  const linkParams = new URLSearchParams({
+    select: 'inspiration_id,user_id,deleted_at',
+    room_id: `eq.${room.roomId}`,
+    inspiration_id: `in.(${inspirationIds.join(',')})`,
+    deleted_at: 'is.null',
+  });
+  const linkRes = await fetch(
+    `${supabaseUrl}/rest/v1/dressing_room_inspiration_items?${linkParams.toString()}`,
+    { headers: restHeaders(serviceRoleKey) },
+  );
+  if (!linkRes.ok) return new Map();
+  const links = (await linkRes.json()) as InspirationRoomLinkRow[];
+  if (links.length === 0) return new Map();
+
+  const linkedIds = [...new Set(links.map((row) => row.inspiration_id.toLowerCase()))];
+  const itemParams = new URLSearchParams({
+    select: 'id,user_id,storage_bucket,storage_path,deleted_at',
+    id: `in.(${linkedIds.join(',')})`,
+    deleted_at: 'is.null',
+  });
+  const itemRes = await fetch(`${supabaseUrl}/rest/v1/inspiration_items?${itemParams.toString()}`, {
+    headers: restHeaders(serviceRoleKey),
+  });
+  if (!itemRes.ok) return new Map();
+  const items = (await itemRes.json()) as InspirationItemStorageRow[];
+  return resolveAuthorizedInspirationStorageRefs(room.ownerId, links, items);
+}
+
+async function loadSharedRoomItemStorageRefs(
+  room: ActiveSharedRoom,
+  itemRefs: SharedRoomItemRef[],
+): Promise<Map<string, { bucket: string; path: string }>> {
+  const dressingRoomIds = itemRefs
+    .filter((ref) => ref.sourceType === 'dressing_room_item')
+    .map((ref) => ref.sourceId);
+  const inspirationIds = itemRefs
+    .filter((ref) => ref.sourceType === 'inspiration_item')
+    .map((ref) => ref.sourceId);
+
+  const [dressingRoomRefs, inspirationRefs] = await Promise.all([
+    dressingRoomIds.length > 0
+      ? loadDressingRoomItemStorageRefs(room, dressingRoomIds)
+      : Promise.resolve(new Map<string, { bucket: string; path: string }>()),
+    inspirationIds.length > 0
+      ? loadInspirationItemStorageRefs(room, inspirationIds)
+      : Promise.resolve(new Map<string, { bucket: string; path: string }>()),
+  ]);
+
+  const refs = new Map<string, { bucket: string; path: string }>();
+  for (const ref of itemRefs) {
+    const source = ref.sourceType === 'dressing_room_item' ? dressingRoomRefs : inspirationRefs;
+    const storageRef = source.get(ref.sourceId);
+    if (storageRef) refs.set(sharedRoomItemRefKey(ref), storageRef);
   }
   return refs;
 }
@@ -176,30 +267,44 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = (await req.json()) as { shareToken?: unknown; itemIds?: unknown };
+    const body = (await req.json()) as {
+      shareToken?: unknown;
+      itemRefs?: unknown;
+      itemIds?: unknown;
+    };
 
     if (!isValidShareToken(body?.shareToken)) {
       return json({ error: 'Invalid share token or item ids' }, 400);
     }
 
-    const itemIds = sanitizeItemIds(body?.itemIds);
-    if (itemIds.length === 0) {
+    // Build 15 sends typed refs. A legacy build-14 itemIds request remains a
+    // dressing_room_item request with the exact same response keys as before.
+    const isLegacyRequest = body.itemRefs === undefined;
+    const itemRefs = isLegacyRequest
+      ? sanitizeItemIds(body.itemIds).map((sourceId) => ({
+          sourceType: 'dressing_room_item' as const,
+          sourceId: sourceId.toLowerCase(),
+        }))
+      : sanitizeItemRefs(body.itemRefs);
+    if (itemRefs.length === 0) {
       return json({ error: 'Invalid share token or item ids' }, 400);
     }
 
-    const roomId = await resolveActiveRoomIdForToken(body.shareToken);
-    if (!roomId) {
+    const room = await resolveActiveRoomForToken(body.shareToken);
+    if (!room) {
       // Generic response: does not distinguish unknown vs. revoked vs. expired.
       return json({ imageUrls: {} }, 404);
     }
 
-    const refs = await loadRoomItemStorageRefs(roomId, itemIds);
+    const refs = await loadSharedRoomItemStorageRefs(room, itemRefs);
 
     const imageUrls: Record<string, string | null> = {};
     await Promise.all(
-      itemIds.map(async (itemId) => {
-        const ref = refs.get(itemId);
-        imageUrls[itemId] = ref ? await createSignedImageUrl(ref.bucket, ref.path) : null;
+      itemRefs.map(async (itemRef) => {
+        const typedKey = sharedRoomItemRefKey(itemRef);
+        const responseKey = isLegacyRequest ? itemRef.sourceId : typedKey;
+        const ref = refs.get(typedKey);
+        imageUrls[responseKey] = ref ? await createSignedImageUrl(ref.bucket, ref.path) : null;
       }),
     );
 

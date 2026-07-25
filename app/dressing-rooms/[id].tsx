@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -17,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
@@ -52,7 +54,6 @@ import {
   listDressingRoomInspirationItems,
   removeDressingRoomItem,
   removeInspirationFromDressingRoom,
-  removeItemReaction,
   revokeRoomShare,
   ROOM_NOTE_MAX_LENGTH,
   ROOM_TITLE_MAX_LENGTH,
@@ -75,6 +76,10 @@ import {
 } from '../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../components/rooms/RoomMessagesPanel';
 import { RoomItemDetailModal } from '../../components/dressing-rooms/RoomItemDetailModal';
+import {
+  hasUsablePhotoLibraryAccess,
+  tryOpenPhotoLibrarySettings,
+} from '../../services/photoLibraryAccess';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
@@ -291,32 +296,67 @@ function DressingRoomDetailContent() {
   const [showInspirationModal, setShowInspirationModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<DressingRoomItem | null>(null);
   const [itemDetailVisible, setItemDetailVisible] = useState(false);
+  const roomLoadRequestId = useRef(0);
+  const inspirationLoadRequestId = useRef(0);
+  const roomLoadInFlightKey = useRef<string | null>(null);
+  const inspirationLoadInFlightKey = useRef<string | null>(null);
+  const activeActorIdRef = useRef<string | null>(user?.id ?? null);
+  const activeRoomIdRef = useRef(roomId);
+  activeActorIdRef.current = user?.id ?? null;
+  activeRoomIdRef.current = roomId;
 
   const loadInspirations = useCallback(async () => {
     if (!roomId) return;
+    const requestedActorId = user?.id ?? null;
+    const requestKey = `${requestedActorId ?? 'anonymous'}:${roomId}`;
+    if (inspirationLoadInFlightKey.current === requestKey) return;
+    inspirationLoadInFlightKey.current = requestKey;
+    const requestId = ++inspirationLoadRequestId.current;
     setInspirationLoading(true);
     try {
-      setInspirations(await listDressingRoomInspirationItems(roomId));
+      const nextInspirations = await listDressingRoomInspirationItems(roomId);
+      if (
+        requestId !== inspirationLoadRequestId.current ||
+        activeActorIdRef.current !== requestedActorId ||
+        activeRoomIdRef.current !== roomId
+      ) return;
+      setInspirations(nextInspirations);
     } catch {
       // Non-blocking — inspiration load failure does not block room usage.
     } finally {
-      setInspirationLoading(false);
+      if (inspirationLoadInFlightKey.current === requestKey) {
+        inspirationLoadInFlightKey.current = null;
+      }
+      if (requestId === inspirationLoadRequestId.current) {
+        setInspirationLoading(false);
+      }
     }
-  }, [roomId]);
+  }, [roomId, user?.id]);
 
   const reload = useCallback(async () => {
+    const requestedActorId = user?.id ?? null;
+    const requestKey = `${requestedActorId ?? 'anonymous'}:${roomId}`;
+    if (roomLoadInFlightKey.current === requestKey) return;
+    roomLoadInFlightKey.current = requestKey;
+    const requestId = ++roomLoadRequestId.current;
     if (!roomId) {
       setRoom(null);
       setItems([]);
       setSelectedIds([]);
       setError(DRESSING_ROOM_MISSING_ID_ERROR);
       setLoading(false);
+      roomLoadInFlightKey.current = null;
       return;
     }
     setLoading(true);
     setError(null);
     try {
       const detail = await getDressingRoomDetail(roomId);
+      if (
+        requestId !== roomLoadRequestId.current ||
+        activeActorIdRef.current !== requestedActorId ||
+        activeRoomIdRef.current !== roomId
+      ) return;
       setRoom(detail.room);
       setItems(detail.items);
       setNoteDraft(getRoomNoteDraft(detail.room.roomNote));
@@ -324,16 +364,41 @@ function DressingRoomDetailContent() {
       setShareError(null);
       setShareMessage(null);
     } catch (err: any) {
+      if (
+        requestId !== roomLoadRequestId.current ||
+        activeActorIdRef.current !== requestedActorId ||
+        activeRoomIdRef.current !== roomId
+      ) return;
       console.error('Load dressing room failed', err);
       setError(DRESSING_ROOM_LOAD_ERROR);
     } finally {
-      setLoading(false);
+      if (roomLoadInFlightKey.current === requestKey) {
+        roomLoadInFlightKey.current = null;
+      }
+      if (requestId === roomLoadRequestId.current) {
+        setLoading(false);
+      }
     }
-  }, [roomId]);
+  }, [roomId, user?.id]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void reload();
     void loadInspirations();
+    return () => {
+      roomLoadRequestId.current += 1;
+      inspirationLoadRequestId.current += 1;
+      roomLoadInFlightKey.current = null;
+      inspirationLoadInFlightKey.current = null;
+    };
+  }, [reload, loadInspirations]));
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      void reload();
+      void loadInspirations();
+    });
+    return () => subscription.remove();
   }, [reload, loadInspirations]);
 
   const reactionItemIds = useMemo(
@@ -612,9 +677,9 @@ function DressingRoomDetailContent() {
     setMutatingReactionItemId(itemId);
     try {
       if (currentReaction === reactionType) {
-        await removeItemReaction(itemId);
+        await setItemReaction(itemId, reactionType, { roomId: roomId ?? undefined, active: false });
       } else {
-        await setItemReaction(itemId, reactionType);
+        await setItemReaction(itemId, reactionType, { roomId: roomId ?? undefined, active: true });
       }
       await refreshItemReactions([itemId]);
     } catch {
@@ -622,12 +687,28 @@ function DressingRoomDetailContent() {
     } finally {
       setMutatingReactionItemId((current) => (current === itemId ? null : current));
     }
-  }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, selectedReactions]);
+  }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, roomId, selectedReactions]);
 
   const handleUploadInspiration = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Photo Access Required', 'Allow K Scan to access your photo library in Settings to upload inspiration.');
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!hasUsablePhotoLibraryAccess(permission)) {
+      Alert.alert(
+        'Photo Access Required',
+        'Allow K Scan to access your photo library in Settings to upload inspiration.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
+                if (!opened) {
+                  Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan.');
+                }
+              });
+            },
+          },
+        ],
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
