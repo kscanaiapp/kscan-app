@@ -21,6 +21,12 @@ function loadTsModule(relativePath) {
   });
   const module = { exports: {} };
   const requireFn = (id) => {
+    if (id === 'expo-crypto') {
+      return {
+        randomUUID: () => '11111111-1111-4111-8111-111111111111',
+        getRandomBytes: (length) => new Uint8Array(length),
+      };
+    }
     if (id === './supabaseClient' || id.endsWith('/supabaseClient')) {
       return { supabase: {} };
     }
