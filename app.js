@@ -21,6 +21,7 @@ import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
 import { candidateReviewDescriptor } from './services/multiImageScan';
 import { saveScan } from './services/library';
+import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
@@ -466,6 +467,11 @@ export default function App() {
     if (savedScanIdsByItem[item.id]) return savedScanIdsByItem[item.id];
     if (savingItemIdsRef.current.has(item.id)) return null;
     savingItemIdsRef.current.add(item.id);
+    // Capture (actorId, actorEpoch, requestId) BEFORE the async save. The
+    // persistence layer derives ownership from this and rejects the write if the
+    // actor changed while the scan was being persisted, so in-flight
+    // authenticated work can never be downgraded into an ownerless record.
+    const actorRequest = createActorRequest();
     try {
       const saved = await saveScan({
         photoUri: item.sourceImageUri,
@@ -484,10 +490,11 @@ export default function App() {
           },
         },
         source: item.source === 'camera' || item.source === 'upload' ? item.source : 'unknown',
-        ownerId: analysisActorId,
+        actorRequest,
       });
       if (saved) {
         if (currentActorIdRef.current !== analysisActorId) return null;
+        if (!isActorRequestCurrent(actorRequest)) return null;
         setSavedScanIdsByItem((current) => ({ ...current, [item.id]: saved.id }));
         setSavedToast(true);
         return saved.id;

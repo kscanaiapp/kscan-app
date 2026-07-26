@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { loadLibrary, deleteScan as removeScan } from '../services/library';
+import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   listCloudSavedScans,
@@ -36,8 +37,16 @@ export function useLibrary() {
     useCallback(() => {
       const requestGeneration = ++requestGenerationRef.current;
       let live = true;
+      // The local generation counter alone cannot distinguish a same-user
+      // sign-out / sign-back-in cycle: actorId and actorKey are identical
+      // afterwards. The monotonic actor epoch does, so hydration completions
+      // captured before the transition are rejected rather than repopulating
+      // the reauthenticated session with pre-transition state.
+      const actorRequest = createActorRequest();
       const isCurrent = () =>
-        live && requestGenerationRef.current === requestGeneration;
+        live &&
+        requestGenerationRef.current === requestGeneration &&
+        isActorRequestCurrent(actorRequest);
 
       setLoading(true);
       setSyncing(false);

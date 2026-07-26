@@ -38,6 +38,9 @@ function loadTsModule(relativePath, requireMap = {}) {
 
 function loadLibraryModule({ cloudCalls = [] } = {}) {
   const purchaseOptions = loadTsModule('services/purchaseOptions.ts');
+  // Ownership and actor transitions are under test here, so the REAL
+  // services/actorContext is used - never a permissive double.
+  const actorContext = loadTsModule('services/actorContext.js');
   const libraryPath = path.join(ROOT, 'services/library.js');
   const source = fs.readFileSync(libraryPath, 'utf8');
   const output = ts.transpileModule(source, {
@@ -89,13 +92,28 @@ function loadLibraryModule({ cloudCalls = [] } = {}) {
           },
         };
       }
+      if (id === './actorContext') return actorContext;
       if (id === './purchaseOptions') return purchaseOptions;
       if (id.startsWith('node:')) return require(id);
       throw new Error(`Unexpected require: ${id}`);
     },
   };
   vm.runInNewContext(output, sandbox, { filename: libraryPath });
-  return { library: module.exports, store, cloudCalls, purchaseOptions };
+  return { library: module.exports, store, cloudCalls, purchaseOptions, actorContext };
+}
+
+
+/**
+ * Real actor authority for these tests. Ownership is derived from the live
+ * services/actorContext, not chosen by the caller. The epoch advances only on an
+ * actual actor change, so repeated/concurrent saves for the SAME actor keep
+ * valid requests instead of invalidating each other.
+ */
+function authAs(actorContext, ownerId) {
+  if (actorContext.getActorContext().actorId !== ownerId) {
+    actorContext.advanceActorEpoch(ownerId);
+  }
+  return actorContext.createActorRequest();
 }
 
 test('normalizePurchaseOptions returns arrays unchanged for renderable entries', () => {
@@ -169,11 +187,11 @@ test('normalizePurchaseOptions collapses duplicate aliases deterministically', (
 
 test('saveScan persists purchaseOptions for camera and upload sources', async () => {
   for (const source of ['camera', 'upload']) {
-    const { library, store } = loadLibraryModule();
+    const { library, store, actorContext } = loadLibraryModule();
     const saved = await library.saveScan({
       photoUri: 'file:///tmp/photo.jpg',
       source,
-      ownerId: 'user-1',
+      actorRequest: authAs(actorContext, 'user-1'),
       analysis: {
         result: 'Navy blazer',
         metadata: { category: 'blazer', color: 'navy', silhouette: 'structured' },
@@ -197,7 +215,7 @@ test('saveScan persists purchaseOptions for camera and upload sources', async ()
 });
 
 test('loadLibrary normalizes stringified and legacy missing purchaseOptions', async () => {
-  const { library, store } = loadLibraryModule();
+  const { library, store, actorContext } = loadLibraryModule();
   store.json = JSON.stringify([
     {
       id: 'legacy',
@@ -227,7 +245,7 @@ test('loadLibrary normalizes stringified and legacy missing purchaseOptions', as
 });
 
 test('ownerless legacy records stay device-local and hidden from signed-in actors', async () => {
-  const { library, store } = loadLibraryModule();
+  const { library, store, actorContext } = loadLibraryModule();
   store.json = JSON.stringify([
     {
       id: 'ownerless',
@@ -260,7 +278,7 @@ test('ownerless legacy records stay device-local and hidden from signed-in actor
 });
 
 test('malformed local purchase options are ignored rather than promoted to explicit empty commerce', async () => {
-  const { library, store } = loadLibraryModule();
+  const { library, store, actorContext } = loadLibraryModule();
   store.json = JSON.stringify([{
     id: 'corrupt-commerce',
     ownerId: 'user-a',
@@ -281,18 +299,18 @@ test('malformed local purchase options are ignored rather than promoted to expli
 });
 
 test('concurrent local saves are serialized without losing either scan', async () => {
-  const { library } = loadLibraryModule();
+  const { library, actorContext } = loadLibraryModule();
   await Promise.all([
     library.saveScan({
       photoUri: 'file:///tmp/a.jpg',
       source: 'camera',
-      ownerId: 'user-a',
+      actorRequest: authAs(actorContext, 'user-a'),
       analysis: { result: 'A', metadata: {}, products: [], purchaseOptions: [] },
     }),
     library.saveScan({
       photoUri: 'file:///tmp/b.jpg',
       source: 'upload',
-      ownerId: 'user-a',
+      actorRequest: authAs(actorContext, 'user-a'),
       analysis: { result: 'B', metadata: {}, products: [], purchaseOptions: [] },
     }),
   ]);
@@ -306,11 +324,11 @@ test('saveScan clamps unknown source to a valid scan type', async () => {
   const VALID = new Set(['camera', 'upload', 'textscan', 'unknown']);
 
   for (const source of [undefined, null, 'scan', 'fixture', '', 'UPLOAD', 123]) {
-    const { library } = loadLibraryModule();
+    const { library, actorContext } = loadLibraryModule();
     const saved = await library.saveScan({
       photoUri: 'file:///tmp/photo.jpg',
       source,
-      ownerId: 'user-1',
+      actorRequest: authAs(actorContext, 'user-1'),
       analysis: { result: 'Test', metadata: {}, products: [], purchaseOptions: [] },
     });
     assert.ok(saved, `saveScan should succeed for source=${JSON.stringify(source)}`);
@@ -323,11 +341,11 @@ test('saveScan clamps unknown source to a valid scan type', async () => {
 
 test('saveScan preserves valid sources unchanged', async () => {
   for (const source of ['camera', 'upload', 'textscan', 'unknown']) {
-    const { library } = loadLibraryModule();
+    const { library, actorContext } = loadLibraryModule();
     const saved = await library.saveScan({
       photoUri: 'file:///tmp/photo.jpg',
       source,
-      ownerId: 'user-1',
+      actorRequest: authAs(actorContext, 'user-1'),
       analysis: { result: 'Test', metadata: {}, products: [], purchaseOptions: [] },
     });
     assert.ok(saved);
@@ -337,11 +355,11 @@ test('saveScan preserves valid sources unchanged', async () => {
 
 test('cloud save receives normalized array purchase_options args from local save', async () => {
   const cloudCalls = [];
-  const { library } = loadLibraryModule({ cloudCalls });
+  const { library, actorContext } = loadLibraryModule({ cloudCalls });
   await library.saveScan({
     photoUri: 'file:///tmp/photo.jpg',
     source: 'camera',
-    ownerId: 'user-1',
+    actorRequest: authAs(actorContext, 'user-1'),
     analysis: {
       result: 'Item',
       metadata: {},

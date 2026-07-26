@@ -33,6 +33,7 @@ import { LUXURY, SPACING } from '../../constants/theme';
 import { sanitizeImageBeforeUpload } from '../../services/privacyImageSanitizer';
 import { identifyScanImage } from '../../services/scanIdentification';
 import { saveScan } from '../../services/library';
+import { createActorRequest } from '../../services/actorContext';
 import { saveScanToCloud } from '../../services/savedScansCloud';
 import { supabase } from '../../services/supabaseClient';
 import { ensureSavedScanMediaBacking } from '../../services/savedScanMedia';
@@ -194,6 +195,11 @@ export function StyleChatPhotoIntake({
     setStep('saving');
     setSaveError(null);
 
+    // Captured at operation start and preserved through the whole async
+    // transaction. Ownership is derived from this, never chosen by this caller,
+    // and a stale context is rejected rather than written under the wrong owner.
+    const actorRequest = createActorRequest();
+
     try {
       // 1. Local Closet save through the existing library path.
       const scan = await saveScan({
@@ -203,6 +209,7 @@ export function StyleChatPhotoIntake({
           metadata: { category: finalCategory, color: color.trim() || undefined },
         },
         source: 'upload',
+        actorRequest,
       });
       if (!scan) throw new Error('save');
 

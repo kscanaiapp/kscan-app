@@ -1032,7 +1032,10 @@ test('an actor switch leaves no previous-actor state behind', () => {
   }
   assert.match(
     contextSource,
-    /noteActor\(usableSession\?\.user\.id \?\? null\)[\s\S]{0,320}resetActorScopedRuntimeState\(\)/,
+    // The reset now receives the incoming actor id so it can also advance the
+    // Recent Scan actor epoch. The behaviour asserted here is unchanged: the
+    // reset is still keyed to the actor boundary and still runs on every A -> B.
+    /noteActor\(usableSession\?\.user\.id \?\? null\)[\s\S]{0,320}resetActorScopedRuntimeState\([^)]*\)/,
     'the reset is keyed to the actor id, so A -> B always clears',
   );
   assert.match(

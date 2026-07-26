@@ -42,6 +42,9 @@ function loadTsModule(relativePath, requireMap = {}) {
 
 function loadLibraryModule() {
   const purchaseOptions = loadTsModule('services/purchaseOptions.ts');
+  // Ownership and actor transitions are under test here, so the REAL
+  // services/actorContext is used - never a permissive double.
+  const actorContext = loadTsModule('services/actorContext.js');
   const libraryPath = path.join(ROOT, 'services/library.js');
   const source = fs.readFileSync(libraryPath, 'utf8');
   const output = ts.transpileModule(source, {
@@ -87,17 +90,32 @@ function loadLibraryModule() {
           softDeleteCloudSavedScan: async () => ({ ok: false }),
         };
       }
+      if (id === './actorContext') return actorContext;
       if (id === './purchaseOptions') return purchaseOptions;
       if (id.startsWith('node:')) return require(id);
       throw new Error(`Unexpected require: ${id}`);
     },
   };
   vm.runInNewContext(output, sandbox, { filename: libraryPath });
-  return { library: module.exports, store };
+  return { library: module.exports, store, actorContext };
+}
+
+
+/**
+ * Real actor authority for these tests. Ownership is derived from the live
+ * services/actorContext, not chosen by the caller. The epoch advances only on an
+ * actual actor change, so repeated/concurrent saves for the SAME actor keep
+ * valid requests instead of invalidating each other.
+ */
+function authAs(actorContext, ownerId) {
+  if (actorContext.getActorContext().actorId !== ownerId) {
+    actorContext.advanceActorEpoch(ownerId);
+  }
+  return actorContext.createActorRequest();
 }
 
 test('saved scan with commerce keeps storage refs usable for Dressing Room add-item', async () => {
-  const { library, store } = loadLibraryModule();
+  const { library, store, actorContext } = loadLibraryModule();
   // DR-1 split the canonical item contract across dedicated commerce and
   // dedupe modules; supply them so this Scanner→Dressing Room test keeps
   // exercising the real contract rather than a stub.
@@ -109,7 +127,7 @@ test('saved scan with commerce keeps storage refs usable for Dressing Room add-i
   const saved = await library.saveScan({
     photoUri: 'file:///tmp/dress.jpg',
     source: 'upload',
-    ownerId: 'actor-a',
+    actorRequest: authAs(actorContext, 'actor-a'),
     analysis: {
       result: 'Black dress',
       metadata: { category: 'dress', color: 'black', silhouette: 'midi' },
@@ -157,11 +175,11 @@ test('saved scan with commerce keeps storage refs usable for Dressing Room add-i
 });
 
 test('actor B cannot see actor A saved commerce or room-add candidate', async () => {
-  const { library } = loadLibraryModule();
+  const { library, actorContext } = loadLibraryModule();
   await library.saveScan({
     photoUri: 'file:///tmp/a.jpg',
     source: 'camera',
-    ownerId: 'actor-a',
+    actorRequest: authAs(actorContext, 'actor-a'),
     analysis: {
       result: 'Coat',
       metadata: {},
@@ -177,7 +195,7 @@ test('actor B cannot see actor A saved commerce or room-add candidate', async ()
 });
 
 test('progressive multi-item save preserves stable group and source-image association', async () => {
-  const { library } = loadLibraryModule();
+  const { library, actorContext } = loadLibraryModule();
   const multiScan = {
     schemaVersion: 1,
     groupId: 'multi-scan-123',
@@ -190,7 +208,7 @@ test('progressive multi-item save preserves stable group and source-image associ
   const saved = await library.saveScan({
     photoUri: 'file:///tmp/a.jpg',
     source: 'upload',
-    ownerId: 'actor-a',
+    actorRequest: authAs(actorContext, 'actor-a'),
     analysis: {
       result: 'Blouse',
       metadata: { category: 'top' },

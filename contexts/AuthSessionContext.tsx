@@ -32,6 +32,7 @@ import { resetStylistIdentityStore } from '../stores/stylistIdentityStore';
 import { resetStylistVoicePreferenceState } from '../stores/stylistVoicePreferenceStore';
 import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
+import { advanceActorEpoch } from '../services/actorContext';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -71,7 +72,12 @@ export interface AuthSessionContextValue {
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
-function resetActorScopedRuntimeState(): void {
+function resetActorScopedRuntimeState(nextActorId: string | null): void {
+  // Advance the Recent Scan actor epoch FIRST. Every in-flight scanner save,
+  // library refresh and media write captured the previous epoch, so advancing
+  // here is what causes their late completions (including stale catch/finally
+  // handlers) to be rejected instead of repopulating the new actor's state.
+  advanceActorEpoch(nextActorId);
   invalidateAllMemoryCache();
   resetAttachmentStore();
   clearStyleChatHandoffContext();
@@ -130,7 +136,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         // Any actor boundary invalidates pending generation and native playback
         // before the new auth state can become visible to app consumers.
         void stopAvatarSpeechPlayback();
-        resetActorScopedRuntimeState();
+        resetActorScopedRuntimeState(usableSession?.user.id ?? null);
       }
       setSession(usableSession);
       if (event === 'SIGNED_IN') {
@@ -158,7 +164,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
             authActorBoundaryGuardRef.current.noteActor(null)
           ) {
             void stopAvatarSpeechPlayback();
-            resetActorScopedRuntimeState();
+            resetActorScopedRuntimeState(null);
           }
           // A transient failure leaves recoverable material in storage. The
           // actor is awaiting renewal, not signed out, so nothing is cleared and
@@ -319,7 +325,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     // re-persist their session.
     signedOutRef.current = true;
     await stopAvatarSpeechPlayback();
-    resetActorScopedRuntimeState();
+    resetActorScopedRuntimeState(null);
     setSession(null);
     setRecoveryPending(false);
 
