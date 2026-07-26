@@ -162,9 +162,9 @@ test('home: Visual Search button uses visual-search icon, keeps /scan', () => {
   assert.match(HOME, /accessibilityLabel="Open Visual Search"/);
 });
 
-test('home: Save & Organize button uses save-organize icon, keeps /library', () => {
+test('home: Closet button uses save-organize icon, keeps /library', () => {
   assert.match(HOME, /icon=\{<KScanIcon name="save-organize"/);
-  assert.match(HOME, /title="SAVE & ORGANIZE"/);
+  assert.match(HOME, /title="CLOSET"/);
   assert.match(HOME, /accessibilityLabel="Open Closet"/);
 });
 

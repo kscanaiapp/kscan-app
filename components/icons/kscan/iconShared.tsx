@@ -86,6 +86,7 @@ export function IconSvg({
       width={size}
       height={size}
       viewBox={KSCAN_ICON_VIEWBOX}
+      preserveAspectRatio="xMidYMid meet"
       {...a11y}
     >
       {children}

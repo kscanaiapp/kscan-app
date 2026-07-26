@@ -400,7 +400,7 @@ export default function HomeLuxuryTechV1() {
         />
         <FeatureChip
           icon={<KScanIcon name="save-organize" size={28} variant="standard" />}
-          title="SAVE & ORGANIZE"
+          title="CLOSET"
           body="Save your favorites to your closet."
           onPress={() => router.push('/library')}
           testID="home-luxury-feature-library"
