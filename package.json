@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "server": "node server.js",
+    "test:all": "node scripts/run-all-tests.js",
     "test:privacy": "node --test __tests__/privacyPolicy.test.js __tests__/privacyPreferenceMerge.test.js",
     "test:auth-privacy": "node --test __tests__/authPrivacy.test.js",
     "verify:supabase": "node scripts/verify-supabase.js",
