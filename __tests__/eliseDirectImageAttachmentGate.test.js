@@ -166,6 +166,12 @@ function buildHarness(options = {}) {
       },
       cleanupSanitizedImage: async () => {},
     },
+    // Elise-backed saves now carry an actor context; ownership authority itself
+    // is verified in recentScanAccountIsolation.test.js.
+    '../actorContext': {
+      createActorRequest: () => ({ actorId: 'test-actor', epoch: 1, requestId: 'req_test_1' }),
+      isActorRequestCurrent: () => true,
+    },
     '../library': {
       saveScan: async ({ photoUri, source }) => {
         order.push('local-save');

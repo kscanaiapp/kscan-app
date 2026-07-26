@@ -27,6 +27,7 @@ import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualC
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
 import { saveScan, selectPurchaseOptionsSnapshot } from './services/library';
+import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
@@ -421,12 +422,19 @@ export default function App() {
     ) return;
     hasSavedRef.current = true;
     let live = true;
-    saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan' }).then(saved => {
-      if (live && saved) {
-        setSavedScanId(saved.id);
-        setSavedToast(true);
-      }
-    });
+    // Capture (actorId, actorEpoch, requestId) BEFORE the async save. The
+    // persistence layer derives ownership from this and rejects the write if
+    // the actor changed while the scan was being persisted.
+    const actorRequest = createActorRequest();
+    saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan', actorRequest })
+      .then(saved => {
+        // Guard the visible result too: a save that committed under the previous
+        // actor must not surface a toast or selected id to the new one.
+        if (live && saved && isActorRequestCurrent(actorRequest)) {
+          setSavedScanId(saved.id);
+          setSavedToast(true);
+        }
+      });
     return () => { live = false; };
   }, [status, photo, analysis]);
 

@@ -134,7 +134,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function LibraryScreen() {
   const router = useRouter();
-  const { scans, loading, remove } = useLibrary();
+  const { scans, loading, remove, actorKey } = useLibrary();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { isAuthenticated, user } = useAuthSession();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
@@ -170,6 +170,16 @@ export default function LibraryScreen() {
   useEffect(() => {
     void loadInspirations();
   }, [loadInspirations]);
+
+  // Detail-view safety: an actor transition must immediately stop exposing the
+  // previous actor's scan. Clearing selectedScan unmounts the AnalysisCard
+  // modal, which also drops the selected image URI; the list renders safely
+  // with no selection, and a stale async result cannot reopen it because the
+  // scan is no longer present in this actor's projection.
+  useEffect(() => {
+    setSelectedScan(null);
+    setDressingRoomModalVisible(false);
+  }, [actorKey]);
 
   const handleOpenScan = (scan: SavedScan) => setSelectedScan(scan);
   const handleCloseScan = () => {

@@ -97,6 +97,13 @@ function loadLibrary(storage) {
       saveScanToCloud: async () => ({ ok: false, reason: 'disabled' }),
       softDeleteCloudSavedScan: async () => ({ ok: false, reason: 'disabled' }),
     },
+    // Ownership authority is covered by recentScanAccountIsolation.test.js.
+    // These cases exercise commerce persistence under a valid signed-out
+    // (ownerless) context, so the authority check is doubled out here.
+    './actorContext': {
+      resolveWriteAuthority: () => ({ ok: true, ownerId: null }),
+      isActorRequestCurrent: () => true,
+    },
   });
   return load('services/library.js');
 }

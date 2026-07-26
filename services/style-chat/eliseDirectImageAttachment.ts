@@ -12,6 +12,7 @@ import {
   prepareImageForPrivacyUpload,
 } from '../privacyImageUpload';
 import { saveScan } from '../library';
+import { createActorRequest } from '../actorContext';
 import { upsertSavedScanRowForAttachment } from '../savedScansCloud';
 import { ensureSavedScanMediaBacking } from '../savedScanMedia';
 import { supabase } from '../supabaseClient';
@@ -104,6 +105,9 @@ export async function resolvePreparedDirectImageAttachment(
     const title = (options?.title ?? 'Photo').trim().slice(0, 80) || 'Photo';
     const category = (options?.category ?? 'tops').trim().slice(0, 80) || 'tops';
 
+    // Elise-backed saves carry the same actor authority as Scanner saves:
+    // ownership is derived from the captured context and a stale context is
+    // rejected rather than writing under the wrong owner.
     const scan = await saveScan({
       photoUri: prepared.preparedUri,
       analysis: {
@@ -111,6 +115,7 @@ export async function resolvePreparedDirectImageAttachment(
         metadata: { category, color: undefined },
       },
       source: prepared.source === 'camera' ? 'camera' : 'upload',
+      actorRequest: createActorRequest(),
     });
     if (!scan) {
       return {

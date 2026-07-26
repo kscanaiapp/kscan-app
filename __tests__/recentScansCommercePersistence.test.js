@@ -196,7 +196,7 @@ test('saveScan persists purchaseOptions, not only products', () => {
   assert.match(librarySource, /purchaseOptions:\s*selectPurchaseOptionsSnapshot\(analysis\)/);
   assert.match(librarySource, /export function selectPurchaseOptionsSnapshot/);
   assert.match(librarySource, /export function hydrateSavedScan/);
-  assert.match(librarySource, /parsed\.map\(hydrateSavedScan\)/);
+  assert.match(librarySource, /parsed[\s\S]{0,80}\.map\(hydrateSavedScan\)/);
 });
 
 test('snapshot source never falls back to the catalog similarity shelf', () => {

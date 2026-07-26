@@ -34,6 +34,7 @@ import { sanitizeImageBeforeUpload } from '../../services/privacyImageSanitizer'
 import { SCANNER_IMAGE_MAX_WIDTH, SCANNER_IMAGE_JPEG_QUALITY } from '../../services/imageUtils';
 import { identifyScanImage } from '../../services/scanIdentification';
 import { saveScan } from '../../services/library';
+import { createActorRequest } from '../../services/actorContext';
 import { saveScanToCloud } from '../../services/savedScansCloud';
 import { supabase } from '../../services/supabaseClient';
 import { ensureSavedScanMediaBacking } from '../../services/savedScanMedia';
@@ -207,6 +208,8 @@ export function StyleChatPhotoIntake({
 
     try {
       // 1. Local Closet save through the existing library path.
+      //    Ownership is derived from this captured actor context, never chosen
+      //    by this caller, and the write is rejected if the actor changed.
       const scan = await saveScan({
         photoUri: imageUri,
         analysis: {
@@ -214,6 +217,7 @@ export function StyleChatPhotoIntake({
           metadata: { category: finalCategory, color: color.trim() || undefined },
         },
         source: 'upload',
+        actorRequest: createActorRequest(),
       });
       if (!scan) throw new Error('save');
 
