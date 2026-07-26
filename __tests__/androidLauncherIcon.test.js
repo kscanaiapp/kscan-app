@@ -10,7 +10,7 @@ test('Expo android adaptive icon config points at cream background and new asset
   assert.equal(appJson.expo.icon, './assets/icon.png');
   assert.equal(appJson.expo.android.icon, './assets/icon.png');
   assert.equal(appJson.expo.android.package, 'com.kscanai.app');
-  assert.equal(appJson.expo.android.versionCode, 24);
+  assert.equal(appJson.expo.android.versionCode, 25);
   assert.equal(appJson.expo.android.adaptiveIcon.foregroundImage, './assets/adaptive-icon.png');
   assert.equal(appJson.expo.android.adaptiveIcon.backgroundColor, '#F5E8D5');
   assert.equal(
