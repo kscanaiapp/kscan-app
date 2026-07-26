@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { mapAuthError } from '../../services/authValidation';
+import { goBackOrAuth } from '../../services/navigationExit';
 import { supabase } from '../../services/supabaseClient';
 
 export default function ResetPasswordScreen() {
@@ -51,7 +52,13 @@ export default function ResetPasswordScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} disabled={busy}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => goBackOrAuth(router)}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Text style={[styles.backText, busy && styles.disabled]}>Back</Text>
         </Pressable>
         <View style={styles.headerCenter}>

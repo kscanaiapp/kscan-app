@@ -92,7 +92,7 @@ test('builder preview supports remove and clear move controls (no drag-drop depe
 test('builder save has an in-flight guard, preserves the draft on error, blocks back-nav while saving', () => {
   assert.match(builderScreen, /if \(savingRef\.current\) return/);
   assert.match(builderScreen, /Draft state \(selection, title, context\) is intentionally preserved/);
-  assert.match(builderScreen, /onBack=\{saving \? undefined : \(\) => router\.back\(\)\}/);
+  assert.match(builderScreen, /onBack=\{saving \? undefined : \(\) => goBackOrHome\(router\)\}/);
   assert.match(builderScreen, /router\.replace\(`\/looks\/\$\{saved\.id\}`\)/);
 });
 
