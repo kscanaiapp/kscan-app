@@ -86,7 +86,7 @@ function load(platformOS = 'android') {
         softDeleteCloudSavedScan: async () => ({ ok: true }),
       };
     }
-    if (spec === './purchaseOptions') {
+    if (spec === './purchaseOptions' || spec === './dressingRoomCommerce') {
       return {
         isPurchaseOptionsSnapshot: (v) => Array.isArray(v),
         normalizePurchaseOptions: (v) => (Array.isArray(v) ? v.slice() : []),
@@ -443,7 +443,10 @@ test('SOURCE-DELETION-PRESERVES-CLOSET-MEDIA', async () => {
     scan, actorRequest: actorContext.createActorRequest(), ownerId: 'A',
   });
 
-  assert.equal(await library.deleteScan(scan.id, { ownerId: 'A' }), true);
+  // deleteScan's owner-scoping argument diverges between the release lines
+  // (Android: { ownerId, cloudId } — iOS: { actorRequest, actorId }). Passing
+  // both equivalent keys keeps this suite portable across both.
+  assert.equal(await library.deleteScan(scan.id, { ownerId: 'A', actorId: 'A' }), true);
 
   assert.equal(m.files.has(scan.imageUri), false, 'source media unlinked as usual');
   assert.ok(m.files.has(promoted.item.imageUri), 'Closet media must survive source deletion');
@@ -537,7 +540,7 @@ test('MEDIA-PERSIST-FAILURE-CREATES-NO-RECORD', async () => {
     if (spec === './savedScansCloud') {
       return { saveScanToCloud: async () => ({ ok: true }), softDeleteCloudSavedScan: async () => ({ ok: true }) };
     }
-    if (spec === './purchaseOptions') {
+    if (spec === './purchaseOptions' || spec === './dressingRoomCommerce') {
       return { isPurchaseOptionsSnapshot: () => false, normalizePurchaseOptions: () => [] };
     }
     return {};

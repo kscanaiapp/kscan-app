@@ -176,7 +176,7 @@ function load() {
         softDeleteCloudSavedScan: async () => ({ ok: true }),
       };
     }
-    if (spec === './purchaseOptions') {
+    if (spec === './purchaseOptions' || spec === './dressingRoomCommerce') {
       return {
         isPurchaseOptionsSnapshot: (v) => Array.isArray(v),
         normalizePurchaseOptions: (v) => (Array.isArray(v) ? v.slice() : []),
@@ -296,7 +296,7 @@ test('NULL-CLOSET-MEDIA-IS-NOT-TREATED-AS-SUCCESS', async () => {
     if (spec === './savedScansCloud') {
       return { saveScanToCloud: async () => ({ ok: true }), softDeleteCloudSavedScan: async () => ({ ok: true }) };
     }
-    if (spec === './purchaseOptions') {
+    if (spec === './purchaseOptions' || spec === './dressingRoomCommerce') {
       return { isPurchaseOptionsSnapshot: () => false, normalizePurchaseOptions: () => [] };
     }
     return {};
