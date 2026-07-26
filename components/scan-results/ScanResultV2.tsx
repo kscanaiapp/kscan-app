@@ -8,10 +8,10 @@ import {
   Modal,
   Animated,
   PanResponder,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import {
   COLORS,
   LUXURY,
@@ -36,8 +36,9 @@ import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const FROM_Y = SCREEN_HEIGHT * 0.36;
+// Sheet metrics derive from the live window (see useResponsiveLayout inside
+// the component) so rotation and split-view resizes never animate from a
+// stale offset.
 const SIMILAR_SCROLL_TOP_OFFSET = 20;
 
 function isRenderableSimilarFind(product: ProductMatch | null | undefined): product is ProductMatch {
@@ -109,6 +110,8 @@ export function ScanResultV2({
   testID,
 }: ScanResultV2Props) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight, modalMaxWidth } = useResponsiveLayout();
+  const fromY = windowHeight * 0.36;
   const router = useRouter();
 
   // Map legacy data into V2 shape
@@ -129,7 +132,7 @@ export function ScanResultV2({
     };
   }
 
-  const translateY = React.useRef(new Animated.Value(FROM_Y)).current;
+  const translateY = React.useRef(new Animated.Value(fromY)).current;
   const opacity = React.useRef(new Animated.Value(0)).current;
   const isExiting = React.useRef(false);
   const scrollViewRef = React.useRef<ScrollView>(null);
@@ -150,7 +153,7 @@ export function ScanResultV2({
 
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: FROM_Y,
+        toValue: fromY,
         duration: MOTION.exitDuration,
         useNativeDriver: true,
       }),
@@ -173,7 +176,7 @@ export function ScanResultV2({
   ).current;
 
   React.useEffect(() => {
-    translateY.setValue(FROM_Y);
+    translateY.setValue(fromY);
     opacity.setValue(0);
     isExiting.current = false;
 
@@ -236,13 +239,16 @@ export function ScanResultV2({
             style={[
               styles.cardWrap,
               {
+                width: '100%',
+                maxWidth: modalMaxWidth,
+                alignSelf: 'center',
                 marginBottom: Math.max(LAYOUT.modalBottomPadding, insets.bottom + SPACING.lg),
                 transform: [{ translateY }],
                 opacity,
               },
             ]}
           >
-            <View style={styles.card}>
+            <View style={[styles.card, { maxHeight: windowHeight * 0.92 }]}>
               <ScrollView
                 bounces={false}
                 showsVerticalScrollIndicator={false}
@@ -273,6 +279,11 @@ export function ScanResultV2({
           style={[
             styles.cardWrap,
             {
+              // Inert on phones; caps and centers the sheet on regular-width
+              // iPad windows so it never spans the full 1024-1366pt surface.
+              width: '100%',
+              maxWidth: modalMaxWidth,
+              alignSelf: 'center',
               marginBottom: Math.max(LAYOUT.modalBottomPadding, insets.bottom + SPACING.lg),
               transform: [{ translateY }],
               opacity,
@@ -282,7 +293,7 @@ export function ScanResultV2({
         >
           <View style={styles.glow} pointerEvents="none" />
 
-          <View style={styles.card}>
+          <View style={[styles.card, { maxHeight: windowHeight * 0.92 }]}>
             <ScrollView
               ref={scrollViewRef}
               bounces={false}
@@ -505,7 +516,7 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.border,
     overflow: 'hidden',
     backgroundColor: LUXURY.colors.pearl,
-    maxHeight: SCREEN_HEIGHT * 0.92,
+    // maxHeight set inline (responsive to live window height)
   },
   cardInner: {
     backgroundColor: LUXURY.colors.pearl,

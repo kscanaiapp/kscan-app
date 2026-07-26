@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { EmptyStateCard, InlineNotice, SecondaryButton } from '../luxury';
 import { ELISE_IDENTITY, ELISE_ATTACHMENT_COPY } from '../../constants/elise';
 import {
@@ -1165,6 +1166,10 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     gap: SPACING.sm,
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...SHADOWS.editorialRaised,
   },
   handle: {
@@ -1184,6 +1189,10 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.md,
     maxHeight: '84%',
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
   },
   pickerScroll: { flexGrow: 0 },
   pickerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },

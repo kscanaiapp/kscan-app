@@ -59,6 +59,7 @@ import {
   TYPOGRAPHY,
   viewfinder,
 } from './constants/theme';
+import { MEDIA_MAX_WIDTH, MODAL_MAX_WIDTH } from './services/responsiveLayout';
 
 const EMPTY_METADATA = {
   category: '',
@@ -1432,12 +1433,18 @@ const styles = StyleSheet.create({
   },
   preview: {
     width: '100%',
+    // Inert on phones; stops the captured garment from being aspect-cropped
+    // across a full iPad width on regular-width windows.
+    maxWidth: MEDIA_MAX_WIDTH,
+    alignSelf: 'center',
     height: LAYOUT.previewHeight,
     resizeMode: 'cover',
     borderRadius: LAYOUT.previewRadius,
   },
   previewFallback: {
     width: '100%',
+    maxWidth: MEDIA_MAX_WIDTH,
+    alignSelf: 'center',
     height: LAYOUT.previewHeight,
     borderRadius: LAYOUT.previewRadius,
     backgroundColor: COLORS.graphiteRaised,
@@ -1451,6 +1458,11 @@ const styles = StyleSheet.create({
     paddingBottom: LAYOUT.screenPadding,
     justifyContent: 'flex-start',
     gap: SPACING.sm,
+    // Inert on phones; keeps scanner CTAs a reachable width instead of
+    // stretching them across a regular-width iPad window.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
   },
   processingPanel: {
     minHeight: LAYOUT.actionsMinHeight - SPACING.lg,

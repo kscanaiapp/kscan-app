@@ -17,6 +17,7 @@ import {
   SHADOWS,
   SPACING,
 } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatHandoffSource } from '../../services/style-chat/styleChatHandoffContext';
 import type { DressingRoomItem } from '../../types/styleObjects';
@@ -204,6 +205,10 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.border,
     backgroundColor: LUXURY.colors.pearl,
     maxHeight: '88%',
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...SHADOWS.editorialRaised,
   },
   image: {

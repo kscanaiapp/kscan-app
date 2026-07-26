@@ -20,6 +20,7 @@ import {
 import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import {
   createDressingRoom,
   listDressingRooms,
@@ -241,6 +242,10 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.md,
     maxHeight: '86%',
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...LUXURY.cards.screen.shadow,
   },
   title: {

@@ -7,7 +7,6 @@ import {
   Modal,
   ScrollView,
   Animated,
-  Dimensions,
   PanResponder,
   Easing,
 } from 'react-native';
@@ -18,6 +17,7 @@ import { ScanResultCard } from './scan/ScanResultCard';
 import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   COLORS,
   LUXURY,
@@ -36,8 +36,9 @@ import type { OutfitConfirmationCandidate } from '../services/outfitConfirmation
 import { SavedItemUtilityPanel } from './free-tier/SavedItemUtilityPanel';
 import { normalizeItem, normalizeItems } from '../services/free-tier/itemNormalization';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const FROM_Y     = SCREEN_HEIGHT * 0.36;
+// Sheet metrics derive from the live window (see useResponsiveLayout inside
+// the component) so rotation and split-view resizes never animate from a
+// stale offset.
 const EMPTY_VALUE = '—';
 
 export interface AnalysisCardProps {
@@ -122,10 +123,12 @@ export function AnalysisCard({
   onAskStyleChat,
 }: AnalysisCardProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight, modalMaxWidth } = useResponsiveLayout();
+  const fromY = windowHeight * 0.36;
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
-  const translateY    = useRef(new Animated.Value(FROM_Y)).current;
+  const translateY    = useRef(new Animated.Value(fromY)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
   const chip1Opacity  = useRef(new Animated.Value(0)).current;
   const chip2Opacity  = useRef(new Animated.Value(0)).current;
@@ -138,7 +141,7 @@ export function AnalysisCard({
 
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: FROM_Y,
+        toValue: fromY,
         duration: MOTION.exitDuration,
         useNativeDriver: true,
       }),
@@ -161,7 +164,7 @@ export function AnalysisCard({
   ).current;
 
   useEffect(() => {
-    translateY.setValue(FROM_Y);
+    translateY.setValue(fromY);
     opacity.setValue(0);
     chip1Opacity.setValue(0);
     chip2Opacity.setValue(0);
@@ -217,6 +220,11 @@ export function AnalysisCard({
           style={[
             styles.cardWrap,
             {
+              // Inert on phones; caps and centers the sheet on regular-width
+              // iPad windows so it never spans the full 1024-1366pt surface.
+              width: '100%',
+              maxWidth: modalMaxWidth,
+              alignSelf: 'center',
               marginBottom: Math.max(LAYOUT.modalBottomPadding, insets.bottom + SPACING.lg),
               transform: [{ translateY }],
               opacity,
@@ -227,7 +235,7 @@ export function AnalysisCard({
           {/* Subtle gold glow behind card */}
           <View style={styles.glow} pointerEvents="none" />
 
-          <View style={styles.card}>
+          <View style={[styles.card, { maxHeight: windowHeight * 0.86 }]}>
             <View style={styles.headerBar} pointerEvents="box-none">
               <View style={styles.headerSpacer} />
               <TouchableOpacity
@@ -520,7 +528,7 @@ const styles = StyleSheet.create({
     borderColor:      LUXURY.colors.border,
     overflow:         'hidden',
     backgroundColor:  LUXURY.colors.pearl,
-    maxHeight:        SCREEN_HEIGHT * 0.86,
+    // maxHeight set inline (responsive to live window height)
   },
   headerBar: {
     zIndex: 2,

@@ -13,6 +13,7 @@ import {
   type ImageStyle,
 } from 'react-native';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import { selectionTick } from '../services/haptics';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
@@ -918,6 +919,10 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     maxHeight: '82%',
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
   },
   modalTitle: {
     ...LUXURY.typography.displayTitle,

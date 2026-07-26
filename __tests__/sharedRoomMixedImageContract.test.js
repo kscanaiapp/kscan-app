@@ -114,7 +114,9 @@ test('recipient image resolution is typed, refreshable, and never renders privat
 
 test('inspiration cards render in the same one-or-many grid but never enter reaction RPCs', () => {
   assert.match(screen, /<View style=\{styles\.itemGrid\}>/);
-  assert.match(screen, /style=\{\{ width: ITEM_GRID_CELL_W \}\}/);
+  // Every cell still carries an explicit width so the flexWrap grid cannot
+  // collapse; the value is now derived per-render from the live window.
+  assert.match(screen, /style=\{\{ width: itemGridCellWidth \}\}/);
   assert.match(screen, /item\.sourceType === 'dressing_room_item'/);
   assert.match(screen, /reactionItemId \? \(/);
 });

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
+import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   addScanImageToDressingRoom,
@@ -282,7 +283,10 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   keyboardContainer: {
+    // Inert on phones; caps the sheet on regular-width iPad windows.
     width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
   },
   card: {
     borderRadius: RADIUS.xl,

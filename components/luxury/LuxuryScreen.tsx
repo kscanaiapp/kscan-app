@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { CONTENT_MAX_WIDTH } from '../../services/responsiveLayout';
 
 export interface LuxuryScreenProps {
   children: React.ReactNode;
@@ -22,6 +23,12 @@ export interface LuxuryScreenProps {
   keyboardAvoiding?: boolean;
   /** Extra bottom padding to clear floating CTAs or home indicator. */
   bottomPadding?: number;
+  /**
+   * Maximum width of the centered content column on regular-width (iPad)
+   * windows. Has no effect on compact/phone widths. Pass null for full-bleed
+   * surfaces that must span the whole window.
+   */
+  maxContentWidth?: number | null;
   /** Override root style. */
   style?: ViewStyle;
   /** Override content container style. */
@@ -46,12 +53,21 @@ export function LuxuryScreen({
   safeArea = true,
   keyboardAvoiding = Platform.OS === 'ios',
   bottomPadding = SPACING.xxxl,
+  maxContentWidth = CONTENT_MAX_WIDTH,
   style,
   contentContainerStyle,
   accessibilityLabel,
   testID,
 }: LuxuryScreenProps) {
   const insets = useSafeAreaInsets();
+
+  // Centered content column: inert below maxContentWidth (every iPhone), caps
+  // and centers content on regular-width iPad windows instead of stretching
+  // phone layouts edge to edge.
+  const contentColumn =
+    maxContentWidth == null
+      ? null
+      : { width: '100%' as const, maxWidth: maxContentWidth, alignSelf: 'center' as const };
 
   const content = (
     <View
@@ -73,6 +89,7 @@ export function LuxuryScreen({
               paddingBottom: (safeArea ? insets.bottom : 0) + bottomPadding,
               paddingHorizontal: SPACING.lg,
             },
+            contentColumn,
             contentContainerStyle,
           ]}
           keyboardShouldPersistTaps="handled"
@@ -89,6 +106,7 @@ export function LuxuryScreen({
               paddingBottom: (safeArea ? insets.bottom : 0) + bottomPadding,
               paddingHorizontal: SPACING.lg,
             },
+            contentColumn,
             contentContainerStyle,
           ]}
         >

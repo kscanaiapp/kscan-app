@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Linking,
   ScrollView,
   StyleSheet,
@@ -25,6 +24,7 @@ import { LUXURY, SPACING } from '../../constants/theme';
 import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useLooks } from '../../hooks/useStyleObjects';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import type { Look } from '../../types/styleObjects';
 
 const OCCASION_LABELS: Record<string, string> = {
@@ -50,12 +50,18 @@ function lookTags(look: Look): string[] {
   return tags;
 }
 
-const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = SPACING.md;
 const H_PAD = SPACING.xl;
-const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
 
 function LooksContent() {
+  // Live window width: compact keeps the certified two-column phone grid,
+  // regular (iPad) widths gain columns and re-derive on rotation/resize.
+  const { gridCellWidth } = useResponsiveLayout();
+  const cardWidth = gridCellWidth({
+    horizontalPadding: H_PAD,
+    gap: CARD_GAP,
+    chromePadding: SPACING.lg,
+  });
   const { looks, loading, error, reload } = useLooks();
   const { isFeatureEnabled } = useFeatureFreeze();
   const blocking = loading || !!error;
@@ -128,7 +134,7 @@ function LooksContent() {
                   status="Look"
                   onPress={() => router.push(`/looks/${look.id}`)}
                   accessibilityLabel={`${look.title} look`}
-                  style={{ width: CARD_W }}
+                  style={{ width: cardWidth }}
                 />
               ))}
             </View>

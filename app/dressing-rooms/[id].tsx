@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
-  Dimensions,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -41,10 +40,12 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { AI_STYLIST_UI_ENABLED, ROOM_CHAT_ENABLED } from '../../constants/featureFlags';
 import { OutfitDecisionSection } from '../../components/dressing-rooms/OutfitDecisionSection';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import {
   createOrGetRoomShare,
   createLookFromDressingRoomItems,
@@ -82,8 +83,21 @@ import {
   tryOpenPhotoLibrarySettings,
 } from '../../services/photoLibraryAccess';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const INSPIRATION_CARD_W = Math.floor((SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2);
+// Inspiration cards stay paired two-per-row (the room composition model is
+// unchanged); their width is derived per-render from the live window width so
+// rotation and split-view resizes reflow without touching room state.
+const INSPIRATION_CARD_H_PAD = SPACING.xl;
+const INSPIRATION_CARD_GAP = SPACING.md;
+
+function useInspirationCardWidth(): number {
+  const { gridCellWidth } = useResponsiveLayout();
+  return gridCellWidth({
+    horizontalPadding: INSPIRATION_CARD_H_PAD,
+    gap: INSPIRATION_CARD_GAP,
+    chromePadding: SPACING.lg,
+    columns: 2,
+  });
+}
 
 const KSCAN_PUBLIC_BASE_URL = 'https://kscan.app';
 const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again.";
@@ -268,6 +282,7 @@ function CreateLookModal({
 }
 
 function DressingRoomDetailContent() {
+  const inspirationCardWidth = useInspirationCardWidth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated, user } = useAuthSession();
   const roomId = String(id || '');
@@ -964,8 +979,8 @@ function DressingRoomDetailContent() {
                 <>
                   {[0, 1, 2].map((row) => (
                     <View key={`inspiration-skeleton-row-${row}`} style={styles.inspirationRow}>
-                      <View style={styles.inspirationSkeletonTile} />
-                      <View style={styles.inspirationSkeletonTile} />
+                      <View style={[styles.inspirationSkeletonTile, { width: inspirationCardWidth, height: inspirationCardWidth }]} />
+                      <View style={[styles.inspirationSkeletonTile, { width: inspirationCardWidth, height: inspirationCardWidth }]} />
                     </View>
                   ))}
                 </>
@@ -984,7 +999,7 @@ function DressingRoomDetailContent() {
                       {b ? (
                         <RoomInspirationCard item={b} onRemove={handleRemoveInspiration} />
                       ) : (
-                        <View style={{ width: INSPIRATION_CARD_W }} />
+                        <View style={{ width: inspirationCardWidth }} />
                       )}
                     </View>
                   ))}
@@ -1057,16 +1072,17 @@ function RoomInspirationCard({
   item: InspirationItem;
   onRemove: (id: string) => void;
 }) {
+  const cardWidth = useInspirationCardWidth();
   return (
-    <View style={inspirationCardStyles.card}>
+    <View style={[inspirationCardStyles.card, { width: cardWidth }]}>
       {item.imageUrl ? (
         <Image
           source={{ uri: item.imageUrl }}
-          style={[inspirationCardStyles.thumb, { width: INSPIRATION_CARD_W, height: INSPIRATION_CARD_W }]}
+          style={[inspirationCardStyles.thumb, { width: cardWidth, height: cardWidth }]}
           resizeMode="cover"
         />
       ) : (
-        <View style={[inspirationCardStyles.thumb, inspirationCardStyles.thumbPlaceholder, { width: INSPIRATION_CARD_W, height: INSPIRATION_CARD_W }]} />
+        <View style={[inspirationCardStyles.thumb, inspirationCardStyles.thumbPlaceholder, { width: cardWidth, height: cardWidth }]} />
       )}
       {item.note ? (
         <View style={inspirationCardStyles.noteWrap}>
@@ -1089,7 +1105,7 @@ function RoomInspirationCard({
 
 const inspirationCardStyles = StyleSheet.create({
   card: {
-    width: INSPIRATION_CARD_W,
+    // width set inline (responsive)
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,
@@ -1274,8 +1290,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   inspirationSkeletonTile: {
-    width: INSPIRATION_CARD_W,
-    height: INSPIRATION_CARD_W,
+    // width/height set inline (responsive)
     borderRadius: RADIUS.lg,
     backgroundColor: LUXURY.colors.champagne,
     opacity: 0.55,
@@ -1292,6 +1307,10 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.border,
     backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...SHADOWS.editorialRaised,
   },
   modalTitle: {

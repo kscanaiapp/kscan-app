@@ -22,6 +22,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { COLORS, LUXURY, LAYOUT, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { FORM_MAX_WIDTH } from '../../services/responsiveLayout';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { supabase } from '../../services/supabaseClient';
@@ -640,6 +641,11 @@ const styles = StyleSheet.create({
   },
   scrollInner: {
     gap: SPACING.lg,
+    // Readable form column: inert on phones, caps and centers the sign-in
+    // form on regular-width iPad windows.
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
   },
   card: {
     borderWidth: 1,
