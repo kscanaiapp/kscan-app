@@ -8,6 +8,7 @@ import {
 import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { PrimaryButton } from '../luxury';
+import { KScanIcon } from '../icons/kscan';
 
 const DEFAULT_SUGGESTIONS = [
   'What should I wear tonight?',
@@ -47,7 +48,14 @@ export function HomeStylistCard({
     <View testID="home-stylist-card" style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <View style={styles.sectionHeaderLeft}>
-          <Text style={styles.sparkle}>✦</Text>
+          <View
+            style={styles.sectionHeaderIcon}
+            accessible={false}
+            importantForAccessibility="no"
+            accessibilityElementsHidden
+          >
+            <KScanIcon name="style" size={22} variant="compact" />
+          </View>
           <Text style={styles.sectionHeaderTitle} accessibilityRole="header">
             YOUR STYLIST
           </Text>
@@ -163,9 +171,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  sparkle: {
-    fontSize: 14,
-    color: LUXURY.colors.goldBrushed,
+  sectionHeaderIcon: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionHeaderTitle: {
     ...LUXURY.typography.sectionLabel,

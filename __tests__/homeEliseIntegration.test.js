@@ -80,7 +80,7 @@ test('Recent Scans tile routes to library without a Home-only library query', ()
 test('four-box feature grid remains with the required boxes', () => {
   assert.match(homeV1, /title="RECENT SCANS"/);
   assert.match(homeV1, /title="VISUAL SEARCH"/);
-  assert.match(homeV1, /title="SAVE & ORGANIZE"/);
+  assert.match(homeV1, /title="CLOSET"/);
   assert.match(homeV1, /title="DRESSING ROOMS"/);
 });
 
