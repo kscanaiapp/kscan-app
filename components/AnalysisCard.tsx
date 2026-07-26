@@ -126,6 +126,16 @@ export interface AnalysisCardProps {
   // Phase 2 (additive, optional): Ask StyleChat about this saved item.
   // Undefined leaves rendering and behavior unchanged.
   onAskStyleChat?: () => void;
+  /**
+   * Closet testing bundle (additive, optional): non-destructive promotion of
+   * this Recent Scan into the owned-inventory Closet.
+   *
+   * The scan itself — including its persisted commerce snapshot rendered above
+   * — is NOT modified by this action. Undefined leaves rendering unchanged.
+   */
+  onAddToCloset?: () => void;
+  /** 'saved' reflects an existing Closet item for this scan's lineage. */
+  closetState?: 'idle' | 'saving' | 'saved';
 }
 
 function sanitizeText(value?: string) {
@@ -147,6 +157,8 @@ export function AnalysisCard({
   onDismiss,
   onAddToDressingRoom,
   addToDressingRoomUnavailableReason,
+  onAddToCloset,
+  closetState = 'idle',
   onAskStyleChat,
 }: AnalysisCardProps) {
   const insets = useSafeAreaInsets();
@@ -345,6 +357,37 @@ export function AnalysisCard({
                   </Text>
                   <Text style={styles.scanRoomCtaReasonText}>{addToDressingRoomUnavailableReason}</Text>
                 </View>
+              ) : null}
+
+              {onAddToCloset ? (
+                closetState === 'saved' ? (
+                  <View
+                    style={[styles.scanRoomCta, styles.scanRoomCtaDisabled]}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: true }}
+                    accessibilityLabel="This scan is already in your Closet"
+                    testID="add-to-closet-saved"
+                  >
+                    <Text style={[styles.scanRoomCtaText, styles.scanRoomCtaTextDisabled]}>
+                      In Your Closet
+                    </Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.scanRoomCta}
+                    onPress={onAddToCloset}
+                    disabled={closetState === 'saving'}
+                    activeOpacity={0.86}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: closetState === 'saving' }}
+                    accessibilityLabel="Add this item to your Closet"
+                    testID="add-to-closet"
+                  >
+                    <Text style={styles.scanRoomCtaText}>
+                      {closetState === 'saving' ? 'Adding…' : 'Add to Closet'}
+                    </Text>
+                  </TouchableOpacity>
+                )
               ) : null}
 
               {onAskStyleChat ? (
