@@ -275,3 +275,35 @@ export const DRESSING_ROOM_READ_STATE_V1 =
 export const SAVED_SCAN_CLOUD_IMAGES_V1 =
   process.env.EXPO_PUBLIC_SAVED_SCAN_CLOUD_IMAGES_V1 === 'true';
 
+// ── Closet testing bundle (internal testing builds) ──────────────────────────
+/**
+ * Separates Closet from Recent Scans as distinct domains and enables the
+ * non-destructive "Add to Closet" promotion on Recent Scan detail.
+ *
+ * Default OFF: with the flag false the Library renders exactly as before and no
+ * Closet surface is reachable. Enabling changes only which datasets are listed
+ * and adds the promotion affordance — it never alters Recent Scan commerce.
+ *
+ * IMPORTANT: this flag gates UI and write ENTRY POINTS only. Once a Closet
+ * record exists on disk it is plain versioned JSON; reading, interpreting, and
+ * deleting it must never depend on the flag still being enabled.
+ */
+export const CLOSET_SEPARATION_V1 =
+  process.env.EXPO_PUBLIC_CLOSET_SEPARATION_V1 === 'true';
+
+/**
+ * Enables native camera / photo-library intake directly into the Closet.
+ * Subordinate to CLOSET_SEPARATION_V1 — direct intake with no Closet surface to
+ * land in is not a coherent state. Default OFF.
+ *
+ * Direct intake creates an owned-inventory item only. It never calls
+ * scan-identify, never generates purchase options, and never creates a Recent
+ * Scan.
+ */
+export const CLOSET_DIRECT_INTAKE_V1 =
+  process.env.EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1 === 'true';
+
+/** Resolved capability: direct intake requires the separation surface. */
+export const CLOSET_DIRECT_INTAKE_ACTIVE =
+  CLOSET_SEPARATION_V1 && CLOSET_DIRECT_INTAKE_V1;
+
