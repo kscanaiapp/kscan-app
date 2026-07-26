@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -195,12 +195,22 @@ export default function LibraryScreen() {
     void loadInspirations();
   }, [loadInspirations]);
 
+  // Monotonic open-sequence guard for the promoted-lineage lookup. The lookup's
+  // disk read serializes behind the Closet mutation queue, so its latency is
+  // unbounded; without this guard a lookup started for one scan could resolve
+  // after a different scan (or a different actor's session) is on screen and
+  // stamp a stale "In Your Closet" badge on it — falsely disabling promotion.
+  const scanOpenSeqRef = useRef(0);
+
   // Detail-view safety: an actor transition must immediately stop exposing the
   // previous actor's scan. Clearing selectedScan unmounts the AnalysisCard
   // modal, which also drops the selected image URI; the list renders safely
   // with no selection, and a stale async result cannot reopen it because the
-  // scan is no longer present in this actor's projection.
+  // scan is no longer present in this actor's projection. Invalidating the
+  // open sequence rejects any lineage lookup still in flight from the previous
+  // actor's session.
   useEffect(() => {
+    scanOpenSeqRef.current += 1;
     setSelectedScan(null);
     setDressingRoomModalVisible(false);
     // A stale "In Your Closet" badge must not survive an actor transition.
@@ -210,6 +220,7 @@ export default function LibraryScreen() {
   const closetActorId = isAuthenticated ? user?.id ?? null : null;
 
   const handleOpenScan = (scan: SavedScan) => {
+    const seq = ++scanOpenSeqRef.current;
     setSelectedScan(scan);
     setClosetState('idle');
     if (!CLOSET_SEPARATION_V1) return;
@@ -217,11 +228,12 @@ export default function LibraryScreen() {
     // "In Your Closet" rather than offering a duplicate promotion.
     void isScanPromoted(scan, closetActorId)
       .then((promoted) => {
-        if (promoted) setClosetState('saved');
+        if (promoted && scanOpenSeqRef.current === seq) setClosetState('saved');
       })
       .catch(() => null);
   };
   const handleCloseScan = () => {
+    scanOpenSeqRef.current += 1; // invalidate any in-flight lineage lookup
     setSelectedScan(null);
     setDressingRoomModalVisible(false);
     setClosetState('idle');
