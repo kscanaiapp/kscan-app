@@ -4,6 +4,7 @@
  * Security never depends on client feature flags — RPCs/RLS enforce access.
  * Flags only gate next-build UI/client wiring.
  */
+import * as ExpoCrypto from 'expo-crypto';
 import { supabase } from './supabaseClient';
 
 export const DR3_COLLAB_PAGE_SIZE = 30;
@@ -73,12 +74,18 @@ export type CollaborationRoomMessage = {
 
 /** Cryptographically strong UUIDv4 for idempotency keys. Never Date.now()+Math.random(). */
 export function createCollabRequestId(): string {
+  // Web/runtime crypto when present (web builds, newer engines).
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // Expo/RN fallback: RFC4122 v4 from getRandomValues
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  // Hermes may have no global Web Crypto. Use the already-installed native
+  // Expo module so Room Chat and reaction idempotency keys remain available.
+  if (typeof ExpoCrypto.randomUUID === 'function') {
+    return ExpoCrypto.randomUUID();
+  }
+  // RFC4122 v4 from expo-crypto secure bytes for runtimes where its UUID
+  // convenience API is unavailable.
+  const bytes = ExpoCrypto.getRandomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
