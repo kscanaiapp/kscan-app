@@ -680,3 +680,118 @@ test('OWNER-SCOPED-PURGE-LEAVES-OTHER-ACTORS-INTACT', async () => {
   assert.equal(again.ok, true);
   assert.equal(again.removed, 0);
 });
+
+// ── UPDATE METADATA CONTRACT (updateClosetItem) ──────────────────────────────
+
+test('UPDATE-EDITS-ONLY-APPROVED-METADATA', async () => {
+  const { closetLibrary, actorContext, m } = load();
+  actorContext.advanceActorEpoch('A');
+  const created = await closetLibrary.createClosetItem({
+    sourceUri: '/tmp/pick.jpg',
+    draft: { title: 'Coat', category: 'Outerwear', notes: 'old' },
+    actorRequest: actorContext.createActorRequest(),
+  });
+  assert.equal(created.ok, true, created.reason);
+
+  const updated = await closetLibrary.updateClosetItem(
+    created.item.id,
+    { title: 'Navy wool coat', category: 'Coats', notes: 'winter rotation' },
+    { actorRequest: actorContext.createActorRequest(), ownerId: 'A' }
+  );
+  assert.equal(updated.ok, true, updated.reason);
+  assert.equal(updated.item.title, 'Navy wool coat');
+  assert.equal(updated.item.category, 'Coats');
+  assert.equal(updated.item.notes, 'winter rotation');
+
+  // Identity, media, lineage, and ownership are immutable through update.
+  assert.equal(updated.item.id, created.item.id);
+  assert.equal(updated.item.imageUri, created.item.imageUri);
+  assert.equal(updated.item.thumbnailUri, created.item.thumbnailUri);
+  assert.equal(updated.item.ownerId, 'A');
+  assert.equal(updated.item.origin, created.item.origin);
+  assert.equal(updated.item.createdAt, created.item.createdAt);
+});
+
+test('UPDATE-CROSS-ACTOR-REJECTED', async () => {
+  const { closetLibrary, actorContext } = load();
+  actorContext.advanceActorEpoch('A');
+  const created = await closetLibrary.createClosetItem({
+    sourceUri: '/tmp/pick.jpg',
+    draft: { title: 'Coat' },
+    actorRequest: actorContext.createActorRequest(),
+  });
+
+  actorContext.advanceActorEpoch('B');
+  const result = await closetLibrary.updateClosetItem(
+    created.item.id,
+    { title: 'Hijacked' },
+    { actorRequest: actorContext.createActorRequest(), ownerId: 'B' }
+  );
+  // not_found for both missing and cross-actor: existence is not revealed.
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_found');
+
+  actorContext.advanceActorEpoch('A');
+  const [item] = await closetLibrary.loadCloset('A');
+  assert.equal(item.title, 'Coat', 'User B must not edit User A items');
+});
+
+test('UPDATE-STALE-REQUEST-REJECTED', async () => {
+  const { closetLibrary, actorContext } = load();
+  actorContext.advanceActorEpoch('A');
+  const created = await closetLibrary.createClosetItem({
+    sourceUri: '/tmp/pick.jpg',
+    draft: { title: 'Coat' },
+    actorRequest: actorContext.createActorRequest(),
+  });
+  const staleRequest = actorContext.createActorRequest();
+  actorContext.advanceActorEpoch(null);
+  actorContext.advanceActorEpoch('A'); // same user, new epoch
+
+  const result = await closetLibrary.updateClosetItem(
+    created.item.id,
+    { title: 'Stale write' },
+    { actorRequest: staleRequest, ownerId: 'A' }
+  );
+  assert.equal(result.ok, false, 'a pre-reauthentication update must not commit');
+
+  const [item] = await closetLibrary.loadCloset('A');
+  assert.equal(item.title, 'Coat');
+});
+
+test('UPDATE-CANNOT-PATCH-MEDIA-LINEAGE-OWNER-OR-COMMERCE', async () => {
+  const { closetLibrary, closetPromotion, actorContext, m } = load();
+  actorContext.advanceActorEpoch('A');
+  const created = await closetLibrary.createClosetItem({
+    sourceUri: '/tmp/pick.jpg',
+    draft: { title: 'Coat' },
+    actorRequest: actorContext.createActorRequest(),
+  });
+
+  const result = await closetLibrary.updateClosetItem(
+    created.item.id,
+    {
+      title: 'Kept',
+      imageUri: '/evil/other-users-file.jpg',
+      thumbnailUri: '/evil/thumb.jpg',
+      ownerId: 'B',
+      sourceLineageId: 'local:forged',
+      purchaseOptions: [{ url: 'https://retailer.example/buy' }],
+      price: '$999',
+    },
+    { actorRequest: actorContext.createActorRequest(), ownerId: 'A' }
+  );
+  assert.equal(result.ok, true, result.reason);
+
+  const [persisted] = JSON.parse(m.files.get('/doc/kscan_closet/kscan_closet.json'));
+  assert.equal(persisted.title, 'Kept');
+  assert.equal(persisted.imageUri, created.item.imageUri, 'media is immutable via update');
+  assert.equal(persisted.ownerId, 'A', 'ownership is immutable via update');
+  assert.equal(persisted.sourceLineageId, created.item.sourceLineageId ?? null);
+  for (const forbidden of closetPromotion.FORBIDDEN_CLOSET_FIELDS) {
+    assert.ok(
+      !Object.prototype.hasOwnProperty.call(persisted, forbidden),
+      `update must not admit commerce field "${forbidden}"`
+    );
+  }
+});
