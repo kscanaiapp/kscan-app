@@ -1,0 +1,268 @@
+# Phase 1 passive OWASP ZAP Baseline against an explicitly approved HTTPS staging target.
+# Findings are report-only. Missing approved variables skips successfully (no fallback).
+# SHA pinning note: actions resolved from official GitHub release refs on 2026-07-26.
+
+name: Security - ZAP Baseline Staging
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zap-baseline:
+    name: ZAP Baseline (staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ZAP_VERSION: "2.17.0"
+      ZAP_IMAGE_DIGEST: "sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
+      ZAP_IMAGE: "ghcr.io/zaproxy/zaproxy:stable@sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Check approved ZAP variables
+        id: vars
+        env:
+          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ZAP_STAGING_URL}" ] || [ -z "${ZAP_ALLOWED_HOST}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## OWASP ZAP Baseline"
+              echo
+              echo "ZAP Baseline was not executed because ZAP_STAGING_URL or"
+              echo "ZAP_ALLOWED_HOST is not configured."
+              echo
+              echo "No fallback target was scanned."
+              echo
+              echo "| Field | Value |"
+              echo "| --- | --- |"
+              echo "| Repository | ${GITHUB_REPOSITORY} |"
+              echo "| Branch | ${GITHUB_REF_NAME} |"
+              echo "| Commit SHA | ${GITHUB_SHA} |"
+              echo "| Event type | ${GITHUB_EVENT_NAME} |"
+              echo "| Workflow run ID | ${GITHUB_RUN_ID} |"
+              echo "| Scanner name | OWASP ZAP Baseline |"
+              echo "| Report-only verdict | SKIPPED_MISSING_VARS |"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Validate ZAP target
+        id: validate_target
+        if: steps.vars.outputs.configured == 'true'
+        env:
+          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
+        run: |
+          set -euo pipefail
+          META="$(node security/scripts/validate-zap-target.js "${ZAP_STAGING_URL}" "${ZAP_ALLOWED_HOST}")"
+          echo "${META}"
+          HOST="$(printf '%s' "${META}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hostname"])')"
+          echo "hostname=${HOST}" >> "$GITHUB_OUTPUT"
+
+      - name: HTTPS health check (approved host only)
+        id: health
+        if: steps.vars.outputs.configured == 'true'
+        env:
+          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          APPROVED_HOST: ${{ steps.validate_target.outputs.hostname }}
+        run: |
+          set -euo pipefail
+          START_MS="$(date +%s%3N)"
+          # Short timeout, limited redirects, no credentials, no body/cookie logging.
+          HEADERS="$(mktemp)"
+          set +e
+          STATUS="$(curl -sS \
+            --proto '=https' \
+            --tlsv1.2 \
+            --connect-timeout 5 \
+            --max-time 15 \
+            --max-redirs 3 \
+            --location \
+            --output /dev/null \
+            --dump-header "${HEADERS}" \
+            --write-out '%{http_code}' \
+            --url "${ZAP_STAGING_URL}")"
+          CURL_CODE=$?
+          set -e
+          END_MS="$(date +%s%3N)"
+          ELAPSED="$((END_MS - START_MS))"
+
+          # Ensure redirects stayed on the approved hostname when Location headers exist.
+          python3 - <<PY
+          import sys
+          approved = "${APPROVED_HOST}".lower()
+          path = "${HEADERS}"
+          with open(path, encoding="utf-8", errors="replace") as f:
+              for line in f:
+                  if line.lower().startswith("location:"):
+                      loc = line.split(":", 1)[1].strip()
+                      from urllib.parse import urlparse
+                      host = urlparse(loc).hostname
+                      if host and host.lower() != approved:
+                          print(f"Operational failure: redirect left approved host -> {host}")
+                          sys.exit(2)
+          print("redirect host checks passed")
+          PY
+
+          rm -f "${HEADERS}"
+
+          if [ "$CURL_CODE" -ne 0 ]; then
+            echo "Operational failure: health check curl failed with code ${CURL_CODE}"
+            exit 2
+          fi
+
+          case "${STATUS}" in
+            [23][0-9][0-9]|401|403)
+              ;;
+            *)
+              echo "Operational failure: unexpected health check HTTP status ${STATUS}"
+              exit 2
+              ;;
+          esac
+
+          echo "http_status=${STATUS}" >> "$GITHUB_OUTPUT"
+          echo "response_time_ms=${ELAPSED}" >> "$GITHUB_OUTPUT"
+          echo "Health check hostname=${APPROVED_HOST} status=${STATUS} response_time_ms=${ELAPSED}"
+          # Login-required responses still count as reachable.
+
+      - name: Run OWASP ZAP Baseline (passive, report-only findings)
+        id: zap
+        if: steps.vars.outputs.configured == 'true'
+        env:
+          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+        run: |
+          set -euo pipefail
+          START_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "start_time=${START_TIME}" >> "$GITHUB_OUTPUT"
+          install -d -m 0777 zap-out
+
+          # Official ZAP Docker image. Passive only (baseline). -I keeps warnings report-only.
+          # Bounded spider (-m) and overall timeout (-T). No active/full/API scan.
+          set +e
+          docker run --rm \
+            --mount "type=bind,source=${PWD}/.zap,target=/zap/wrk/.zap,readonly" \
+            --mount "type=bind,source=${PWD}/zap-out,target=/zap/wrk/zap-out" \
+            --workdir /zap/wrk \
+            -t "${ZAP_IMAGE}" \
+            zap-baseline.py \
+            -t "${ZAP_STAGING_URL}" \
+            -c .zap/baseline-rules.tsv \
+            -m 3 \
+            -T 10 \
+            -I \
+            -J zap-out/zap-baseline-report.json \
+            -w zap-out/zap-baseline-report.md \
+            -r zap-out/zap-baseline-report.html
+          CODE=$?
+          set -e
+
+          END_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "end_time=${END_TIME}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${CODE}" >> "$GITHUB_OUTPUT"
+
+          cp .zap/baseline-rules.tsv zap-out/baseline-rules.tsv
+
+          if [ ! -f zap-out/zap-baseline-report.json ]; then
+            echo "Operational failure: zap-baseline-report.json missing"
+            exit 2
+          fi
+          python3 - <<'PY'
+          import json
+          json.load(open("zap-out/zap-baseline-report.json", encoding="utf-8"))
+          print("zap-baseline-report.json: valid JSON")
+          PY
+
+          case "$CODE" in
+            0)
+              echo "ZAP baseline completed successfully."
+              exit 0
+              ;;
+            1)
+              echo "ZAP baseline reported FAIL-level findings (report-only in Phase 1)."
+              exit 0
+              ;;
+            2)
+              echo "ZAP baseline reported WARN-level findings (report-only in Phase 1)."
+              exit 0
+              ;;
+            3)
+              echo "Operational failure: ZAP baseline returned exit code 3"
+              exit 3
+              ;;
+            *)
+              echo "Operational failure: unexpected ZAP exit code ${CODE}"
+              exit 1
+              ;;
+          esac
+
+      - name: Summarize ZAP results
+        if: always() && steps.vars.outputs.configured == 'true' && hashFiles('zap-out/zap-baseline-report.json') != ''
+        env:
+          SCANNER_NAME: OWASP ZAP Baseline
+          SCANNER_VERSION: ${{ env.ZAP_VERSION }}
+          START_TIME: ${{ steps.zap.outputs.start_time }}
+          END_TIME: ${{ steps.zap.outputs.end_time }}
+          SUMMARY_FILE: zap-out/zap-summary.md
+          EXTRA_NOTES: |
+            Passive baseline only. No active scan, authenticated scan, or production target.
+            ZAP version=${{ env.ZAP_VERSION }}
+            Image digest=${{ env.ZAP_IMAGE_DIGEST }}
+            Health check status=${{ steps.health.outputs.http_status }} response_time_ms=${{ steps.health.outputs.response_time_ms }}
+            Hostname=${{ steps.validate_target.outputs.hostname }}
+        run: |
+          set -euo pipefail
+          COUNTS="$(python3 - <<'PY'
+          import json,collections
+          data=json.load(open("zap-out/zap-baseline-report.json", encoding="utf-8"))
+          c=collections.Counter()
+          site=(data.get("site") or [{}])[0]
+          for alert in site.get("alerts") or []:
+              risk=str(alert.get("riskdesc") or alert.get("riskcode") or "UNKNOWN")
+              c[risk] += 1
+          print(json.dumps(dict(c)))
+          PY
+          )"
+          TOTAL="$(python3 - <<'PY'
+          import json
+          data=json.load(open("zap-out/zap-baseline-report.json", encoding="utf-8"))
+          site=(data.get("site") or [{}])[0]
+          print(len(site.get("alerts") or []))
+          PY
+          )"
+          if [ "$TOTAL" -gt 0 ]; then VERDICT="FINDINGS_REPORTED"; else VERDICT="NO_FINDINGS"; fi
+          export FINDING_COUNTS="${COUNTS}"
+          export REPORT_ONLY_VERDICT="${VERDICT}"
+          node security/scripts/write-security-summary.js
+
+      - name: Upload ZAP artifact
+        if: always() && steps.vars.outputs.configured == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: zap-baseline-report-${{ github.run_number }}
+          path: |
+            zap-out/zap-baseline-report.html
+            zap-out/zap-baseline-report.json
+            zap-out/zap-baseline-report.md
+            zap-out/baseline-rules.tsv
+            zap-out/zap-summary.md
+          if-no-files-found: error
+          retention-days: 30
