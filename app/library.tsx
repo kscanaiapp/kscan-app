@@ -10,7 +10,7 @@ import {
   Linking,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { goBackOrHome } from '../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
@@ -49,10 +49,18 @@ import {
 import { LUXURY, SPACING } from '../constants/theme';
 import { ELISE_IDENTITY } from '../constants/elise';
 import { FREE_TIER_UTILITY_ENABLED } from '../constants/freeTierUtilityFlags';
-import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../constants/featureFlags';
+import {
+  AI_STYLIST_UI_ENABLED,
+  STYLECHAT_ATTACHMENTS_ENABLED,
+  CLOSET_SEPARATION_V1,
+  CLOSET_DIRECT_INTAKE_ACTIVE,
+} from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
 import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
+import { useCloset } from '../hooks/useCloset';
+import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
+import { isScanPromoted } from '../services/closetPromotion';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -147,6 +155,22 @@ export default function LibraryScreen() {
   const [selectedScan, setSelectedScan] = useState<SavedScan | null>(null);
   const [dressingRoomModalVisible, setDressingRoomModalVisible] = useState(false);
 
+  // ── Closet separation ──────────────────────────────────────────────────────
+  // The section is explicit route state, never inferred from which segment
+  // happens to be selected. A record's domain is determined by which store it
+  // came from, so a Recent Scan can never be classified as a Closet item (or
+  // vice versa) by navigating between segments.
+  const params = useLocalSearchParams<{ section?: string }>();
+  const requestedSection = params?.section === 'closet' ? 'closet' : 'recent';
+  const [section, setSection] = useState<'recent' | 'closet'>(requestedSection);
+  useEffect(() => {
+    setSection(requestedSection);
+  }, [requestedSection]);
+
+  const closet = useCloset();
+  const [closetIntakeVisible, setClosetIntakeVisible] = useState(false);
+  const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
+
   const [inspirations, setInspirations] = useState<InspirationItem[]>([]);
   const [inspirationLoading, setInspirationLoading] = useState(false);
   const [inspirationError, setInspirationError] = useState<string | null>(null);
@@ -179,12 +203,81 @@ export default function LibraryScreen() {
   useEffect(() => {
     setSelectedScan(null);
     setDressingRoomModalVisible(false);
+    // A stale "In Your Closet" badge must not survive an actor transition.
+    setClosetState('idle');
   }, [actorKey]);
 
-  const handleOpenScan = (scan: SavedScan) => setSelectedScan(scan);
+  const closetActorId = isAuthenticated ? user?.id ?? null : null;
+
+  const handleOpenScan = (scan: SavedScan) => {
+    setSelectedScan(scan);
+    setClosetState('idle');
+    if (!CLOSET_SEPARATION_V1) return;
+    // Reflect an existing Closet item for this lineage so a re-open shows
+    // "In Your Closet" rather than offering a duplicate promotion.
+    void isScanPromoted(scan, closetActorId)
+      .then((promoted) => {
+        if (promoted) setClosetState('saved');
+      })
+      .catch(() => null);
+  };
   const handleCloseScan = () => {
     setSelectedScan(null);
     setDressingRoomModalVisible(false);
+    setClosetState('idle');
+  };
+
+  /**
+   * Non-destructive promotion. The source scan is untouched: this only reads it
+   * and writes a separate Closet record, so the commerce snapshot rendered
+   * underneath this card is unchanged before and after.
+   */
+  const handleAddToCloset = async () => {
+    if (!selectedScan || closetState !== 'idle') return;
+    setClosetState('saving');
+    const result = (await closet.addFromScan(selectedScan)) as {
+      ok: boolean;
+      reason?: string;
+    };
+    if (result?.ok) {
+      setClosetState('saved');
+      return;
+    }
+    setClosetState('idle');
+    Alert.alert(
+      'Could not add to Closet',
+      result?.reason === 'android_requires_authenticated_actor'
+        ? 'Sign in to save items to your Closet.'
+        : result?.reason === 'no_local_media_to_promote'
+          ? 'This scan has no image saved on this device yet.'
+          : 'This item could not be added. Please try again.'
+    );
+  };
+
+  const handleClosetIntakeSave = async (
+    sourceUri: string,
+    draft: { title: string | null; category: string | null }
+  ): Promise<{ ok: boolean; reason?: string }> =>
+    (await closet.addFromUri(sourceUri, draft)) as { ok: boolean; reason?: string };
+
+  const handleDeleteClosetItem = (id: string) => {
+    Alert.alert(
+      'Remove from Closet?',
+      'This removes the item from your Closet. Your scans are not affected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const ok = await closet.remove(id);
+            if (!ok) {
+              Alert.alert('Could not remove', 'Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleUploadInspiration = async () => {
@@ -269,8 +362,18 @@ export default function LibraryScreen() {
     );
   };
 
+  // With separation OFF the screen renders exactly as before: no section tabs
+  // and no Closet surface. Nothing about Recent Scans changes either way.
+  const showRecentSection = !CLOSET_SEPARATION_V1 || section === 'recent';
+  const showClosetSection = CLOSET_SEPARATION_V1 && section === 'closet';
+
   const scanPairs = scans.reduce<[SavedScan, SavedScan | null][]>((pairs, scan, i) => {
     if (i % 2 === 0) pairs.push([scan, scans[i + 1] ?? null]);
+    return pairs;
+  }, []);
+
+  const closetPairs = closet.items.reduce<[any, any | null][]>((pairs, item, i) => {
+    if (i % 2 === 0) pairs.push([item, closet.items[i + 1] ?? null]);
     return pairs;
   }, []);
 
@@ -307,11 +410,100 @@ export default function LibraryScreen() {
         </View>
       ) : null}
 
+      {CLOSET_SEPARATION_V1 ? (
+        <View style={styles.subNav} accessibilityRole="tablist">
+          <TouchableOpacity
+            style={[styles.subNavTab, section === 'recent' && styles.subNavTabActive]}
+            onPress={() => router.setParams({ section: 'recent' })}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: section === 'recent' }}
+            accessibilityLabel="Recent Scans"
+            testID="library-section-recent"
+          >
+            <Text style={[styles.subNavText, section === 'recent' && styles.subNavTextActive]}>
+              RECENT SCANS
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.subNavTab, section === 'closet' && styles.subNavTabActive]}
+            onPress={() => router.setParams({ section: 'closet' })}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: section === 'closet' }}
+            accessibilityLabel="My Closet"
+            testID="library-section-closet"
+          >
+            <Text style={[styles.subNavText, section === 'closet' && styles.subNavTextActive]}>
+              MY CLOSET
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {showClosetSection ? (
+          <>
+            <SectionHeader
+              title="My Closet"
+              actionLabel={CLOSET_DIRECT_INTAKE_ACTIVE ? 'Add Item' : undefined}
+              onAction={
+                CLOSET_DIRECT_INTAKE_ACTIVE ? () => setClosetIntakeVisible(true) : undefined
+              }
+              actionAccessibilityLabel="Add an item to your Closet"
+            />
+            {closet.loading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+              </View>
+            ) : closet.items.length === 0 ? (
+              <EmptyStateCard
+                title="Your Closet is empty"
+                subtitle={
+                  CLOSET_DIRECT_INTAKE_ACTIVE
+                    ? 'Add items you own with Add Item, or add one from a recent scan.'
+                    : 'Open a recent scan and choose Add to Closet.'
+                }
+              />
+            ) : (
+              <View style={styles.grid}>
+                {closetPairs.map(([a, b]) => (
+                  <View key={a.id} style={styles.gridRow}>
+                    <SavedLookCard
+                      testID="closet-card"
+                      imageUrl={a.thumbnailUri ?? a.imageUri}
+                      title={a.title}
+                      subtitle={a.category ?? 'Owned item'}
+                      date={formatDate(a.createdAt)}
+                      status="Closet"
+                      onDelete={() => handleDeleteClosetItem(a.id)}
+                      style={{ width: CARD_W }}
+                    />
+                    {b ? (
+                      <SavedLookCard
+                        testID="closet-card"
+                        imageUrl={b.thumbnailUri ?? b.imageUri}
+                        title={b.title}
+                        subtitle={b.category ?? 'Owned item'}
+                        date={formatDate(b.createdAt)}
+                        status="Closet"
+                        onDelete={() => handleDeleteClosetItem(b.id)}
+                        style={{ width: CARD_W }}
+                      />
+                    ) : (
+                      <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        ) : null}
+
+        {showRecentSection ? (
+          <>
         <SectionHeader
           title="Saved Looks"
           actionLabel={aiStylistEnabled ? ELISE_IDENTITY.styleWithEliseLabel : undefined}
@@ -469,7 +661,17 @@ export default function LibraryScreen() {
             ))}
           </View>
         )}
+          </>
+        ) : null}
       </ScrollView>
+
+      {CLOSET_DIRECT_INTAKE_ACTIVE ? (
+        <ClosetIntakeModal
+          visible={closetIntakeVisible}
+          onClose={() => setClosetIntakeVisible(false)}
+          onSave={handleClosetIntakeSave}
+        />
+      ) : null}
 
       {/* Reopen saved scan — no backend call, no useKScan involvement */}
       {selectedScan && (
@@ -487,6 +689,8 @@ export default function LibraryScreen() {
           scanSourceType="style_library_scan"
           relatedSavedScans={scans}
           onDismiss={handleCloseScan}
+          onAddToCloset={CLOSET_SEPARATION_V1 ? handleAddToCloset : undefined}
+          closetState={closetState}
           onAddToDressingRoom={
             dressingRoomsEnabled && hasUsableDressingRoomImageSource({
               localUri: selectedScan.imageUri,
