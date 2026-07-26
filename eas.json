@@ -1,11 +1,12 @@
 {
   "cli": {
     "version": ">= 12.0.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "preview": {
       "distribution": "internal",
+      "autoIncrement": true,
       "android": {
         "buildType": "apk",
         "applicationArchivePath": "android/app/build/outputs/apk/release/app-release.apk"
@@ -46,7 +47,9 @@
         "EXPO_PUBLIC_FREE_TIER_STYLE_CHALLENGES_ENABLED": "true",
         "EXPO_PUBLIC_ENABLE_TEXTSCAN": "true",
         "EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED": "true",
-        "EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS": "false"
+        "EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS": "false",
+        "EXPO_PUBLIC_CLOSET_SEPARATION_V1": "true",
+        "EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1": "true"
       }
     },
     "development": {
