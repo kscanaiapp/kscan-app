@@ -267,17 +267,29 @@ export default function PrivacyScreen() {
     setDeletionConfirmVisible(false);
     setDeletionSubmitting(true);
     try {
+      // The service normalizer owns the backend field names. `accepted` means an
+      // active deletion lifecycle exists — NOT that the account was purged. No
+      // local Recent Scan or media cleanup happens here; permanent purge is a
+      // later, restorable-window-gated step.
       const result = await submitAccountDeletionRequest(supabase, session);
       setDeletionPending(true);
-      const confirmationMessage =
-        result.status === 'already_requested'
-          ? 'Request already pending. You have been signed out.'
-          : 'Deletion request submitted. You have been signed out.';
+      const confirmationMessage = result.alreadyRequested
+        ? 'Your account deletion request is already active. You have been signed out.'
+        : 'Your account deletion request was submitted. You have been signed out.';
       setMessage(confirmationMessage);
+
+      // Grace-window copy is appended only when the backend supplied a valid
+      // timestamp. Deletion is restorable until then, so this must never read
+      // as permanent removal.
+      const graceCopy = result.gracePeriodEndsAt
+        ? ` Your account can be restored using the email we sent, until ${new Date(
+            result.gracePeriodEndsAt,
+          ).toLocaleDateString()}.`
+        : ' Your account can be restored using the email we sent, during the grace period.';
 
       Alert.alert(
         'Account deletion request',
-        confirmationMessage,
+        `${confirmationMessage}${graceCopy}`,
         [
           {
             text: 'OK',
