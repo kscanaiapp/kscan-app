@@ -118,7 +118,7 @@ async function readAllLibrary() {
  * same id and silently overwrite each other's image. Media identity is
  * therefore separate from record identity, and creation is no-overwrite.
  */
-function createMediaAssetId() {
+export function createMediaAssetId() {
   mediaAssetCounter = (mediaAssetCounter + 1) % 0x100000;
   const rand = () => Math.floor(Math.random() * 0x100000000).toString(36);
   return `m_${Date.now().toString(36)}_${mediaAssetCounter.toString(36)}_${rand()}${rand()}`;
