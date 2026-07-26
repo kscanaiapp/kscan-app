@@ -33,8 +33,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { hasUsablePhotoLibraryAccess } = require('../../services/photoLibraryAccess');
+import { hasUsablePhotoLibraryAccess } from '../../services/photoLibraryAccess';
 
 type IntakeStep = 'choose' | 'details' | 'saving';
 
