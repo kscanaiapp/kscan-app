@@ -22,6 +22,8 @@ function loadTsModule(relativePath, requireMap = {}) {
   const sandbox = {
     __DEV__: false,
     console,
+    URL,
+    URLSearchParams,
     exports: module.exports,
     module,
     require: (id) => {
@@ -89,6 +91,9 @@ function loadService(mockClient, flags = { CLOUD_SAVED_SCANS_ENABLED: true }) {
   return loadTsModule('services/savedScansCloud.ts', {
     './supabaseClient': { supabase: mockClient },
     '../constants/featureFlags': flags,
+    // Real canonical commerce normalizer (pure; its only import is type-only),
+    // so the row mappers are exercised against production behavior.
+    './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
   });
 }
 
@@ -464,4 +469,146 @@ test('concurrent local + cloud save does not duplicate', async () => {
   // When a matching row exists, it should update, not insert.
   assert.equal(insertCalls.length, 0);
   assert.equal(updateCalls.length, 1);
+});
+
+test('non-empty commerce enrichment replaces stale options on an existing row', async () => {
+  const client = createMockClient({
+    session: { user: { id: 'user-1' } },
+    maybeSingleData: {
+      id: 'existing',
+      deleted_at: null,
+      analysis_result: { result: 'Existing' },
+      products: [{ id: 'similar' }],
+      purchase_options: [{ title: 'Stale', retailer: 'Old', productUrl: 'https://old.example.com/p' }],
+    },
+  });
+  const svc = loadService(client);
+  const incoming = [
+    { id: 'new-1', title: 'Current', retailer: 'New', purchaseUrl: 'https://new.example.com/p' },
+  ];
+
+  const result = await svc.saveScanToCloud(
+    makeScanModel({ id: 'scan_enrich', purchaseOptions: incoming }),
+    client,
+  );
+  assert.equal(result.ok, true);
+  const updateCall = client._calls.find(c => c.type === 'update');
+  assert.equal(updateCall.payload.purchase_options.length, 1);
+  assert.equal(updateCall.payload.purchase_options[0].productUrl, 'https://new.example.com/p');
+  assert.equal(updateCall.payload.purchase_options[0].productId, 'new-1');
+});
+
+test('empty or omitted commerce cannot clear an existing cloud snapshot', async () => {
+  for (const purchaseOptions of [[], undefined]) {
+    const client = createMockClient({
+      session: { user: { id: 'user-1' } },
+      maybeSingleData: {
+        id: 'existing',
+        deleted_at: null,
+        analysis_result: { result: 'Existing' },
+        products: [{ id: 'similar' }],
+        purchase_options: [{ title: 'Keep', retailer: 'Store', productUrl: 'https://store.example.com/p' }],
+      },
+    });
+    const svc = loadService(client);
+    const result = await svc.saveScanToCloud(
+      makeScanModel({ id: 'scan_metadata', purchaseOptions }),
+      client,
+    );
+    assert.equal(result.ok, true);
+    const updateCall = client._calls.find(c => c.type === 'update');
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(updateCall.payload, 'purchase_options'),
+      false,
+    );
+  }
+});
+
+test('merge normalizes malformed winner commerce and preserves valid loser options', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const olderLocal = makeScanModel({
+    id: 'scan_merge_commerce',
+    savedAt: '2026-07-24T00:00:00.000Z',
+    purchaseOptions: [
+      { title: 'Valid', retailer: 'Store', purchaseUrl: 'https://store.example.com/p' },
+    ],
+    metadata: { revision: 'older-local' },
+  });
+  const newerCloud = makeScanModel({
+    id: 'scan_merge_commerce',
+    savedAt: '2026-07-25T00:00:00.000Z',
+    purchaseOptions: [{ nope: true }, null, 'junk'],
+    metadata: { revision: 'newer-cloud' },
+  });
+
+  const [merged] = svc.mergeLocalAndCloudScans([olderLocal], [newerCloud]);
+  assert.equal(merged.metadata.revision, 'newer-cloud', 'newer record still wins');
+  assert.equal(merged.purchaseOptions.length, 1);
+  assert.equal(merged.purchaseOptions[0].productUrl, 'https://store.example.com/p');
+});
+
+test('merge covers inverse winner, aliases, equal timestamps, deletion, and ID isolation', () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const svc = loadService(client);
+  const commerce = [
+    { title: 'Offer', retailer: 'Store', purchaseUrl: 'https://store.example.com/p' },
+  ];
+
+  const [newerLocal] = svc.mergeLocalAndCloudScans(
+    [makeScanModel({ id: 'inverse', savedAt: '2026-07-26T00:00:00Z', purchaseOptions: [], metadata: { winner: 'local' } })],
+    [makeScanModel({ id: 'inverse', savedAt: '2026-07-25T00:00:00Z', purchaseOptions: commerce, metadata: { winner: 'cloud' } })],
+  );
+  assert.equal(newerLocal.metadata.winner, 'local');
+  assert.equal(newerLocal.purchaseOptions.length, 1);
+
+  const [bothHaveCommerce] = svc.mergeLocalAndCloudScans(
+    [makeScanModel({ id: 'both-commerce', savedAt: '2026-07-25T00:00:00Z', purchaseOptions: commerce })],
+    [makeScanModel({
+      id: 'both-commerce',
+      savedAt: '2026-07-26T00:00:00Z',
+      purchaseOptions: [
+        { title: 'Current', retailer: 'New', purchaseUrl: 'https://new.example.com/p' },
+      ],
+    })],
+  );
+  assert.equal(bothHaveCommerce.purchaseOptions.length, 1);
+  assert.equal(bothHaveCommerce.purchaseOptions[0].productUrl, 'https://new.example.com/p');
+
+  const localAlias = makeScanModel({
+    id: 'alias',
+    savedAt: '2026-07-25T00:00:00Z',
+    purchaseOptions: undefined,
+  });
+  localAlias.purchase_options = commerce;
+  const [aliased] = svc.mergeLocalAndCloudScans(
+    [localAlias],
+    [makeScanModel({ id: 'alias', savedAt: '2026-07-26T00:00:00Z', purchaseOptions: [] })],
+  );
+  assert.equal(aliased.purchaseOptions.length, 1);
+
+  const [equalTimestamp] = svc.mergeLocalAndCloudScans(
+    [makeScanModel({ id: 'equal', savedAt: '2026-07-25T00:00:00Z', purchaseOptions: commerce, metadata: { side: 'local' } })],
+    [makeScanModel({ id: 'equal', savedAt: '2026-07-25T00:00:00Z', purchaseOptions: [], metadata: { side: 'cloud' } })],
+  );
+  assert.equal(equalTimestamp.metadata.side, 'cloud');
+  assert.equal(equalTimestamp.purchaseOptions.length, 1);
+
+  const deletedCloud = makeScanModel({
+    id: 'deleted-cloud',
+    deletedAt: '2026-07-25T00:00:00Z',
+    purchaseOptions: commerce,
+  });
+  assert.equal(svc.mergeLocalAndCloudScans([], [deletedCloud]).length, 0);
+
+  const distinct = svc.mergeLocalAndCloudScans(
+    [makeScanModel({ id: 'scan-a', purchaseOptions: commerce })],
+    [makeScanModel({
+      id: 'scan-b',
+      purchaseOptions: [{ title: 'B', retailer: 'B', purchaseUrl: 'https://b.example.com/p' }],
+    })],
+  );
+  assert.equal(distinct.length, 2);
+  assert.equal(distinct.find((scan) => scan.id === 'scan-a').purchaseOptions[0].productUrl, 'https://store.example.com/p');
+  assert.equal(distinct.find((scan) => scan.id === 'scan-b').purchaseOptions[0].productUrl, 'https://b.example.com/p');
 });

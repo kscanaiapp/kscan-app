@@ -154,6 +154,7 @@ function buildHarness(options = {}) {
   const cloud = loadTsModule('services/savedScansCloud.ts', {
     './supabaseClient': { supabase: database.client },
     '../constants/featureFlags': { CLOUD_SAVED_SCANS_ENABLED: false },
+    './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
     '@supabase/supabase-js': {},
   });
   const service = loadTsModule('services/style-chat/eliseDirectImageAttachment.ts', {
@@ -352,6 +353,7 @@ test('concurrent same-user upserts resolve one logical row without a duplicate f
   const cloud = loadTsModule('services/savedScansCloud.ts', {
     './supabaseClient': { supabase: client },
     '../constants/featureFlags': { CLOUD_SAVED_SCANS_ENABLED: false },
+    './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
     '@supabase/supabase-js': {},
   });
   const scan = makeScan('scan-concurrent', 'file:///safe.jpg', 'camera');

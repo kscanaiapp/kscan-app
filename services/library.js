@@ -12,6 +12,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { saveScanToCloud, softDeleteCloudSavedScan } from './savedScansCloud';
+import { normalizePurchaseOptions } from './dressingRoomCommerce';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
 const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
@@ -74,6 +75,47 @@ async function persistScanImage(photoUri, id) {
   }
 }
 
+/**
+ * Select the durable commerce snapshot for a scan.
+ *
+ * Precedence is deliberate and must not be widened to `products`:
+ * scanIdentificationMapper maps `similarityMatches` → `products` (the catalog
+ * "similar items" shelf) and `recommendedProducts` → `purchaseOptions` (live
+ * commerce). Falling back to `products` would relabel similarity matches as
+ * purchase options. The `recommendedProducts` fallback covers the older
+ * backend shape where no `similarityMatches` field exists and the mapper
+ * leaves `purchaseOptions` undefined.
+ *
+ * Normalization is delegated to the canonical model in dressingRoomCommerce so
+ * Scanner, Dressing Room and Saved Scans share one commerce representation
+ * (bounded to 24 options, deduped, https-only, unknown fields stripped).
+ */
+export function selectPurchaseOptionsSnapshot(analysis) {
+  if (!analysis || typeof analysis !== 'object') return [];
+  const raw = Array.isArray(analysis.purchaseOptions)
+    ? analysis.purchaseOptions
+    : Array.isArray(analysis.recommendedProducts)
+      ? analysis.recommendedProducts
+      : [];
+  return normalizePurchaseOptions(raw);
+}
+
+/**
+ * Re-normalize a persisted scan on read so legacy records (saved before the
+ * commerce snapshot existed), null, and malformed payloads all hydrate into the
+ * canonical shape the purchase cards consume. Never invents offers: a record
+ * with no stored commerce hydrates to [].
+ */
+export function hydrateSavedScan(scan) {
+  if (!scan || typeof scan !== 'object') return scan;
+  const stored = Array.isArray(scan.purchaseOptions)
+    ? scan.purchaseOptions
+    : Array.isArray(scan.purchase_options)
+      ? scan.purchase_options
+      : [];
+  return { ...scan, purchaseOptions: normalizePurchaseOptions(stored) };
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -85,7 +127,7 @@ export async function loadLibrary() {
     if (!info.exists) return [];
     const raw    = await FileSystem.readAsStringAsync(LIBRARY_PATH);
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(hydrateSavedScan) : [];
   } catch {
     return [];
   }
@@ -125,6 +167,9 @@ export async function saveScan({ photoUri, analysis, source }) {
       },
       result:   analysis.result   ?? '',
       products: Array.isArray(analysis.products) ? analysis.products : [],
+      // Durable commerce snapshot. Without this the live purchase options exist
+      // only in transient Scanner state and are gone when the scan is reopened.
+      purchaseOptions: selectPurchaseOptionsSnapshot(analysis),
       source:   source || 'scan',
     };
 

@@ -47,6 +47,8 @@ function loadModule(relPath, mocks = {}) {
     exports: mod.exports,
     require: localRequire,
     console,
+    URL,
+    URLSearchParams,
   }, { filename });
   return mod.exports;
 }

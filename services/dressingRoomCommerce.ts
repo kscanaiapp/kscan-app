@@ -8,6 +8,26 @@ import type { CanonicalPurchaseOption } from '../types/canonicalDressingRoomItem
 const MAX_OPTIONS = 24;
 const MAX_TEXT = 200;
 const MAX_URL = 2000;
+const SENSITIVE_URL_QUERY_KEYS = new Set([
+  'access_token',
+  'api_key',
+  'apikey',
+  'authorization',
+  'awsaccesskeyid',
+  'credential',
+  'credentials',
+  'expires',
+  'expires_at',
+  'googleaccessid',
+  'id_token',
+  'jwt',
+  'key-pair-id',
+  'policy',
+  'secret',
+  'signature',
+  'sig',
+  'token',
+]);
 
 function cleanText(value: unknown, max = MAX_TEXT): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -19,10 +39,104 @@ function cleanText(value: unknown, max = MAX_TEXT): string | null {
   return text.slice(0, max);
 }
 
-function cleanHttpsUrl(value: unknown): string | null {
+/**
+ * Return only durable HTTPS commerce URLs.
+ *
+ * Merchant tracking/affiliate parameters are retained, but credentials,
+ * expiring object signatures, user-info credentials and JWT-shaped values are
+ * never allowed into a persisted purchase-option snapshot.
+ */
+export function normalizePersistedCommerceUrl(value: unknown): string | null {
   const text = cleanText(value, MAX_URL);
   if (!text || !/^https:\/\//i.test(text)) return null;
+
+  try {
+    const parsed = new URL(text);
+    if (parsed.protocol !== 'https:' || !parsed.hostname) return null;
+    if (parsed.username || parsed.password) return null;
+    if (/\/storage\/v1\/object\/sign\//i.test(parsed.pathname)) return null;
+
+    const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+    for (const rawKey of [...parsed.searchParams.keys(), ...hashParams.keys()]) {
+      const key = rawKey.toLowerCase();
+      if (
+        key.startsWith('x-amz-') ||
+        key.startsWith('x-goog-') ||
+        SENSITIVE_URL_QUERY_KEYS.has(key)
+      ) {
+        return null;
+      }
+    }
+
+    const decoded = (() => {
+      try {
+        return decodeURIComponent(text);
+      } catch {
+        return text;
+      }
+    })();
+    if (/(?:[?&#]|%3[ffb])(?:access_token|api_?key|authorization|credentials?|id_token|jwt|secret|sig(?:nature)?|token)=/i.test(decoded)) {
+      return null;
+    }
+    if (/(?:^|[/?&=])eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(?:$|[?&#/])/i.test(decoded)) {
+      return null;
+    }
+
+    return text;
+  } catch {
+    return null;
+  }
+}
+
+/** Format canonical string/number prices without dropping their currency. */
+export function formatCommercePrice(
+  price: unknown,
+  currency: unknown = 'USD',
+): string | null {
+  if (price === null || price === undefined) return null;
+
+  const currencyCode =
+    typeof currency === 'string' && /^[a-z]{3}$/i.test(currency.trim())
+      ? currency.trim().toUpperCase()
+      : 'USD';
+  const numeric =
+    typeof price === 'number'
+      ? price
+      : typeof price === 'string' && /^\d+(?:\.\d+)?$/.test(price.trim().replace(/,/g, ''))
+        ? Number(price.trim().replace(/,/g, ''))
+        : null;
+
+  if (numeric !== null) {
+    if (!Number.isFinite(numeric) || numeric <= 0) return null;
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+      }).format(numeric);
+    } catch {
+      return currencyCode === 'USD' ? `$${numeric.toFixed(2)}` : `${currencyCode} ${numeric.toFixed(2)}`;
+    }
+  }
+
+  if (typeof price !== 'string') return null;
+  const text = cleanText(price, 64);
+  if (!text || text === '0' || text === '0.00' || text === '$0.00') return null;
   return text;
+}
+
+/** Open a persisted commerce destination without leaking handler failures. */
+export async function openPersistedCommerceUrl(
+  value: unknown,
+  openUrl: (url: string) => Promise<unknown>,
+): Promise<boolean> {
+  const url = normalizePersistedCommerceUrl(value);
+  if (!url || typeof openUrl !== 'function') return false;
+  try {
+    await openUrl(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function cleanScore(value: unknown): number | null {
@@ -57,20 +171,20 @@ export function normalizePurchaseOptions(raw: unknown): CanonicalPurchaseOption[
     const record = entry as Record<string, unknown>;
 
     const productUrl =
-      cleanHttpsUrl(record.productUrl) ||
-      cleanHttpsUrl(record.product_url) ||
-      cleanHttpsUrl(record.purchaseUrl) ||
-      cleanHttpsUrl(record.purchase_url) ||
-      cleanHttpsUrl(record.url) ||
-      cleanHttpsUrl(record.link);
+      normalizePersistedCommerceUrl(record.productUrl) ||
+      normalizePersistedCommerceUrl(record.product_url) ||
+      normalizePersistedCommerceUrl(record.purchaseUrl) ||
+      normalizePersistedCommerceUrl(record.purchase_url) ||
+      normalizePersistedCommerceUrl(record.url) ||
+      normalizePersistedCommerceUrl(record.link);
     const affiliateUrl =
-      cleanHttpsUrl(record.affiliateUrl) ||
-      cleanHttpsUrl(record.affiliate_url);
+      normalizePersistedCommerceUrl(record.affiliateUrl) ||
+      normalizePersistedCommerceUrl(record.affiliate_url);
     const imageUrl =
-      cleanHttpsUrl(record.imageUrl) ||
-      cleanHttpsUrl(record.image_url) ||
-      cleanHttpsUrl(record.thumbnail) ||
-      cleanHttpsUrl(record.thumbnailUrl);
+      normalizePersistedCommerceUrl(record.imageUrl) ||
+      normalizePersistedCommerceUrl(record.image_url) ||
+      normalizePersistedCommerceUrl(record.thumbnail) ||
+      normalizePersistedCommerceUrl(record.thumbnailUrl);
 
     const title =
       cleanText(record.title) ||

@@ -25,6 +25,11 @@ import {
 } from '../services/styleObjects';
 import type { ProductMatchSnapshotSource } from '../types/styleObjects';
 import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnapshot';
+import {
+  formatCommercePrice,
+  normalizePersistedCommerceUrl,
+  openPersistedCommerceUrl,
+} from '../services/dressingRoomCommerce';
 
 export interface Product {
   id?:         string;
@@ -61,6 +66,12 @@ export interface Product {
 
 interface ProductShelfProps {
   products: Product[];
+  /** Section heading. Defaults to the catalog similarity shelf label. */
+  label?: string;
+  /** Copy shown when `products` is empty. */
+  emptyTitle?: string;
+  emptyBody?: string;
+  testID?: string;
 }
 
 const CARD_WIDTH  = 144;
@@ -97,7 +108,8 @@ function getProductImageUrl(product: Product | null | undefined): string | null 
     product.product_image_url,
   ];
   for (const c of candidates) {
-    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+    const safeUrl = normalizePersistedCommerceUrl(c);
+    if (safeUrl) return safeUrl;
   }
   return null;
 }
@@ -114,7 +126,8 @@ function getPurchaseUrl(product: Product | null | undefined): string | null {
     product.link,
   ];
   for (const c of candidates) {
-    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
+    const safeUrl = normalizePersistedCommerceUrl(c);
+    if (safeUrl) return safeUrl;
   }
   return null;
 }
@@ -130,23 +143,7 @@ function getRetailer(product: Product | null | undefined): string | null {
 
 function formatPrice(product: Product | null | undefined): string | null {
   if (!product) return null;
-  const price = product.price;
-  if (price === null || price === undefined) return null;
-  if (typeof price === 'number') {
-    if (price <= 0 || !Number.isFinite(price)) return null;
-    const currency = String(product.currency || 'USD').toUpperCase();
-    try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price);
-    } catch {
-      return `$${price.toFixed(2)}`;
-    }
-  }
-  if (typeof price === 'string') {
-    const trimmed = price.trim();
-    if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return null;
-    return trimmed;
-  }
-  return null;
+  return formatCommercePrice(product.price, product.currency);
 }
 
 export function canAddProductToDressingRoom(product: Product | null | undefined) {
@@ -259,7 +256,13 @@ function CatalogProductImage({
   );
 }
 
-export function ProductShelf({ products }: ProductShelfProps) {
+export function ProductShelf({
+  products,
+  label = 'SIMILAR ITEMS',
+  emptyTitle = 'No similar items yet.',
+  emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.',
+  testID,
+}: ProductShelfProps) {
   const [linkErrorVisible, setLinkErrorVisible] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -268,11 +271,9 @@ export function ProductShelf({ products }: ProductShelfProps) {
 
   if (!products || products.length === 0) {
     return (
-      <View testID="product-shelf-empty" style={styles.emptyShelf}>
-        <Text style={styles.emptyShelfTitle}>No similar items yet.</Text>
-        <Text style={styles.emptyShelfBody}>
-          Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.
-        </Text>
+      <View testID={testID ? `${testID}-empty` : 'product-shelf-empty'} style={styles.emptyShelf}>
+        <Text style={styles.emptyShelfTitle}>{emptyTitle}</Text>
+        <Text style={styles.emptyShelfBody}>{emptyBody}</Text>
       </View>
     );
   }
@@ -287,16 +288,18 @@ export function ProductShelf({ products }: ProductShelfProps) {
   const handleLinkPress = (url: string | null | undefined) => {
     if (!url) return;
     selectionTick();
-    Linking.openURL(url).catch(() => {
-      setLinkErrorVisible(true);
-      setTimeout(() => setLinkErrorVisible(false), 2000);
+    void openPersistedCommerceUrl(url, (safeUrl) => Linking.openURL(safeUrl)).then((opened) => {
+      if (!opened) {
+        setLinkErrorVisible(true);
+        setTimeout(() => setLinkErrorVisible(false), 2000);
+      }
     });
   };
 
   return (
-    <View testID="product-shelf" style={styles.container}>
+    <View testID={testID ?? 'product-shelf'} style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>SIMILAR ITEMS</Text>
+        <Text style={styles.label}>{label}</Text>
         <View style={styles.labelLine} />
       </View>
 

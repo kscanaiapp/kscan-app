@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import type { User } from '@supabase/supabase-js';
 import { CLOUD_SAVED_SCANS_ENABLED } from '../constants/featureFlags';
+import { normalizePurchaseOptions } from './dressingRoomCommerce';
 
 /**
  * Safe result shape for all cloud saved-scan operations.
@@ -23,6 +24,11 @@ export interface SavedScanRow {
   scan_type: string | null;
   analysis_result: Record<string, unknown>;
   products: unknown[];
+  /** Durable commerce snapshot. Column already exists in production
+   *  (saved_scans.purchase_options jsonb NOT NULL DEFAULT '[]'), so mapping it
+   *  needs no migration. Optional here so legacy rows selected without the
+   *  column still map. */
+  purchase_options?: unknown[];
   image_uri: string | null;
   thumbnail_uri: string | null;
   source: string;
@@ -64,6 +70,7 @@ export interface SavedScanModel {
   };
   result: string;
   products: unknown[];
+  purchaseOptions?: unknown[];
   source: string;
   savedAt?: string;
   updatedAt?: string;
@@ -126,6 +133,7 @@ export function mapSavedScanToRow(
     scan_type: scan.source || 'unknown',
     analysis_result: scan.result ? { result: scan.result, metadata: scan.attributes } : {},
     products: Array.isArray(scan.products) ? scan.products : [],
+    purchase_options: normalizePurchaseOptions(scan.purchaseOptions),
     image_uri: scan.imageUri ?? null,
     thumbnail_uri: scan.thumbnailUri ?? null,
     source: 'mobile',
@@ -173,6 +181,7 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
     },
     result: resultText,
     products,
+    purchaseOptions: normalizePurchaseOptions(row.purchase_options),
     source: row.scan_type || row.source || 'unknown',
     savedAt: row.saved_at,
     updatedAt: row.updated_at,
@@ -224,7 +233,7 @@ export async function upsertSavedScanRowForAttachment(
     if (row.local_id) {
       const { data: existing, error: lookupError } = await client
         .from('saved_scans')
-        .select('id, deleted_at, analysis_result, products')
+        .select('id, deleted_at, analysis_result, products, purchase_options')
         .eq('user_id', user.id)
         .eq('local_id', row.local_id)
         .maybeSingle();
@@ -257,6 +266,14 @@ export async function upsertSavedScanRowForAttachment(
         const hasExistingProducts = Array.isArray(existingProducts) && existingProducts.length > 0;
         if (!hasExistingProducts) {
           updatePayload.products = row.products;
+        }
+
+        // Empty or omitted commerce remains non-destructive for attachment and
+        // metadata-only updates. A non-empty canonical snapshot is an explicit
+        // enrichment/re-save and replaces stale offers on the existing row.
+        const incomingPurchaseOptions = normalizePurchaseOptions(row.purchase_options);
+        if (incomingPurchaseOptions.length > 0) {
+          updatePayload.purchase_options = incomingPurchaseOptions;
         }
 
         const { error: updateError } = await client
@@ -432,6 +449,37 @@ export function mergeLocalAndCloudScans(
 
   const merged = new Map<string, SavedScanModel>();
 
+  /**
+   * Timestamp resolution decides which whole record wins, but it must not
+   * silently reset a stored commerce snapshot to []. If the winning side has no
+   * purchase options and the losing side does, carry the surviving snapshot
+   * across. Winner selection itself is unchanged.
+   */
+  const normalizedOptions = (scan: SavedScanModel) => {
+    const camelCase = normalizePurchaseOptions(scan.purchaseOptions);
+    if (camelCase.length > 0) return camelCase;
+    return normalizePurchaseOptions(
+      (scan as SavedScanModel & { purchase_options?: unknown }).purchase_options,
+    );
+  };
+
+  const withCanonicalCommerce = (scan: SavedScanModel): SavedScanModel => ({
+    ...scan,
+    purchaseOptions: normalizedOptions(scan),
+  });
+
+  const withPreservedCommerce = (
+    winner: SavedScanModel,
+    loser: SavedScanModel,
+  ): SavedScanModel => {
+    const winnerOptions = normalizedOptions(winner);
+    const loserOptions = normalizedOptions(loser);
+    return {
+      ...winner,
+      purchaseOptions: winnerOptions.length > 0 ? winnerOptions : loserOptions,
+    };
+  };
+
   // Process local scans first.
   for (const [key, local] of localMap) {
     const cloud = cloudMap.get(key);
@@ -440,23 +488,28 @@ export function mergeLocalAndCloudScans(
       const localTime = Date.parse(local.savedAt || local.createdAt || '0');
       const cloudTime = Date.parse(cloud.savedAt || cloud.createdAt || '0');
       if (!Number.isNaN(cloudTime) && !Number.isNaN(localTime)) {
-        merged.set(key, cloudTime >= localTime ? cloud : local);
+        merged.set(
+          key,
+          cloudTime >= localTime
+            ? withPreservedCommerce(cloud, local)
+            : withPreservedCommerce(local, cloud),
+        );
       } else if (!Number.isNaN(localTime)) {
-        merged.set(key, local);
+        merged.set(key, withPreservedCommerce(local, cloud));
       } else if (!Number.isNaN(cloudTime)) {
-        merged.set(key, cloud);
+        merged.set(key, withPreservedCommerce(cloud, local));
       } else {
-        merged.set(key, local); // prefer local when no timestamps
+        merged.set(key, withPreservedCommerce(local, cloud)); // prefer local when no timestamps
       }
     } else {
-      merged.set(key, local);
+      merged.set(key, withCanonicalCommerce(local));
     }
   }
 
   // Add cloud-only scans.
   for (const [key, cloud] of cloudMap) {
     if (!merged.has(key)) {
-      merged.set(key, cloud);
+      merged.set(key, withCanonicalCommerce(cloud));
     }
   }
 
