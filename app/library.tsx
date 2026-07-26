@@ -177,6 +177,18 @@ export default function LibraryScreen() {
   }, [loadInspirations]);
 
   const closetActorId = isAuthenticated ? user?.id ?? null : null;
+  const actorKey = closetActorId ? `user:${closetActorId}` : 'device-local';
+
+  // Detail-view safety (parity with the iOS line): an actor transition must
+  // immediately stop exposing the previous actor's scan. Clearing selectedScan
+  // unmounts the AnalysisCard modal, which also drops the selected image URI,
+  // and resets the Closet affordance so a stale "In Your Closet" badge cannot
+  // survive an account switch.
+  useEffect(() => {
+    setSelectedScan(null);
+    setDressingRoomModalVisible(false);
+    setClosetState('idle');
+  }, [actorKey]);
 
   const handleOpenScan = (scan: SavedScan) => {
     setSelectedScan(scan);
