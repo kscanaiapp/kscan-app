@@ -24,11 +24,16 @@ test('integration: live router home renders HomeLuxuryTechV1', () => {
   assert.match(LIVE_HOME, /return <HomeLuxuryTechV1 \/>/);
 });
 
-test('integration: Elise / YOUR STYLIST entry uses Style icon', () => {
-  assert.match(STYLIST_CARD, /name="style"/);
+// Cross-platform parity contract. The YOUR STYLIST section header is a
+// DECORATIVE sparkle on both iOS and Android; it is deliberately not a
+// product icon. iOS enforces the same contract in kscanProductIcons.test.js
+// ('preserve: YOUR STYLIST section-header sparkle is untouched'). Keep these
+// two assertions semantically equivalent - diverging them silently breaks the
+// other platform's accepted suite.
+test('integration: YOUR STYLIST header keeps the decorative sparkle (cross-platform parity)', () => {
+  assert.match(STYLIST_CARD, /<Text style=\{styles\.sparkle\}>✦<\/Text>/);
   assert.match(STYLIST_CARD, /YOUR STYLIST/);
-  assert.match(STYLIST_CARD, /accessibilityElementsHidden/);
-  assert.doesNotMatch(STYLIST_CARD, /styles\.sparkle|>✦</);
+  assert.doesNotMatch(STYLIST_CARD, /KScanIcon/);
 });
 
 test('integration: Recent Scans chip uses recent-scans icon and keeps /library', () => {
