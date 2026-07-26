@@ -31,7 +31,7 @@ import {
   PrivacyFooter,
 } from '../../../components/luxury';
 import { LUXURY, SPACING } from '../../../constants/theme';
-import { AI_STYLIST_UI_ENABLED, ROOM_CHAT_ENABLED } from '../../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED } from '../../../constants/featureFlags';
 import { OutfitDecisionSection } from '../../../components/dressing-rooms/OutfitDecisionSection';
 import { getPublicRoomDecisionPreview } from '../../../services/outfitDecisions';
 import { useAuthSession } from '../../../contexts/AuthSessionContext';
@@ -70,6 +70,7 @@ import {
   captureSharedRoomMembershipAfterPreview,
   createMembershipCaptureAttemptTracker,
 } from '../../../services/captureSharedRoomMembership';
+import { resolveSharedRoomCapabilities } from '../../../services/sharedRoomCapabilities';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const ITEM_GRID_GAP = SPACING.md;
@@ -443,16 +444,28 @@ function WebFallbackActions({
 function SharedRoomChatSection({
   token,
   roomId,
+  canChat,
+  autoJoin,
   onJoined,
 }: {
   token: string;
   roomId: string | null;
+  canChat: boolean;
+  autoJoin: boolean;
   onJoined: (roomId: string) => void;
 }) {
   const { isAuthenticated } = useAuthSession();
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const joinInFlight = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleJoin = useCallback(async () => {
     if (joinInFlight.current) return;
@@ -461,18 +474,30 @@ function SharedRoomChatSection({
     setJoinError(null);
     try {
       const joinedRoomId = await joinSharedRoom(token);
-      onJoined(joinedRoomId);
+      if (mountedRef.current) {
+        onJoined(joinedRoomId);
+      }
     } catch (err: any) {
       // err.message is a friendly string from services/roomMessages - never a
       // raw Supabase/RLS error and never a token.
-      setJoinError(typeof err?.message === 'string' ? err.message : ROOM_JOIN_ERROR);
+      if (mountedRef.current) {
+        setJoinError(typeof err?.message === 'string' ? err.message : ROOM_JOIN_ERROR);
+      }
     } finally {
       joinInFlight.current = false;
-      setJoining(false);
+      if (mountedRef.current) {
+        setJoining(false);
+      }
     }
   }, [onJoined, token]);
 
-  if (!ROOM_CHAT_ENABLED || !isAuthenticated) {
+  useEffect(() => {
+    if (autoJoin && canChat && isAuthenticated && !roomId) {
+      void handleJoin();
+    }
+  }, [autoJoin, canChat, handleJoin, isAuthenticated, roomId]);
+
+  if (!canChat || !isAuthenticated) {
     return null;
   }
 
@@ -500,7 +525,7 @@ function SharedRoomChatSection({
 }
 
 export default function SharedRoomScreen() {
-  const { token } = useLocalSearchParams<{ token: string }>();
+  const { token, mode } = useLocalSearchParams<{ token: string; mode?: string }>();
   const { isAuthenticated, loading: authLoading, user } = useAuthSession();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
@@ -540,6 +565,18 @@ export default function SharedRoomScreen() {
   const rawToken = typeof token === 'string' ? token.trim() : '';
   const normalizedRouteToken = normalizeRoomShareToken(rawToken);
   routeTokenRef.current = normalizedRouteToken;
+  const collaboratorMode = mode === 'collaborator' && Platform.OS !== 'web';
+  const routeAvailability =
+    state.phase === 'available'
+      ? 'available'
+      : state.phase === 'empty'
+        ? 'empty'
+        : 'unavailable';
+  const capabilities = resolveSharedRoomCapabilities({
+    isAuthenticated,
+    isOwner: false,
+    availability: routeAvailability,
+  });
   const membershipPreviewToken =
     state.phase === 'available' || state.phase === 'empty'
       ? state.preview.token
@@ -712,6 +749,9 @@ export default function SharedRoomScreen() {
 
   useEffect(() => {
     membershipCaptureTracker.current.reset();
+    setJoinedRoomId(null);
+    setSelectedReactions({});
+    setMutatingReactionItemId(null);
   }, [user?.id]);
 
   // Account-anchored Shared with Me capture: non-blocking side effect after a
@@ -832,7 +872,7 @@ export default function SharedRoomScreen() {
         }
       }
 
-      if (!isAuthenticated || !joinedRoomId) {
+      if (!capabilities.canReact || !joinedRoomId) {
         if (!cancelled) {
           setSelectedReactions(
             Object.fromEntries(itemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
@@ -860,7 +900,7 @@ export default function SharedRoomScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, joinedRoomId, state]);
+  }, [capabilities.canReact, joinedRoomId, state]);
 
   const refreshItemReactions = useCallback(async (itemIds: string[]) => {
     const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
@@ -879,7 +919,7 @@ export default function SharedRoomScreen() {
       }));
     }
 
-    if (!isAuthenticated || !joinedRoomId) {
+    if (!capabilities.canReact || !joinedRoomId) {
       setSelectedReactions((current) => ({
         ...current,
         ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
@@ -896,10 +936,10 @@ export default function SharedRoomScreen() {
         ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
       }));
     }
-  }, [isAuthenticated, joinedRoomId]);
+  }, [capabilities.canReact, joinedRoomId]);
 
   const handleReact = useCallback(async (itemId: string, reactionType: DressingRoomReactionType) => {
-    if (!isAuthenticated || !joinedRoomId || mutatingReactionItemId === itemId) return;
+    if (!capabilities.canReact || !joinedRoomId || mutatingReactionItemId === itemId) return;
 
     const currentReaction = selectedReactions[itemId] ?? null;
     setMutatingReactionItemId(itemId);
@@ -916,7 +956,7 @@ export default function SharedRoomScreen() {
       setMutatingReactionItemId((current) => (current === itemId ? null : current));
     }
   }, [
-    isAuthenticated,
+    capabilities.canReact,
     joinedRoomId,
     mutatingReactionItemId,
     refreshItemReactions,
@@ -1053,7 +1093,14 @@ export default function SharedRoomScreen() {
               title="No visible items"
               subtitle="This shared room does not have any visible items right now."
             />
-            <SharedRoomChatSection token={rawToken} roomId={joinedRoomId} onJoined={setJoinedRoomId} />
+            <SharedRoomChatSection
+              key={`chat:${user?.id ?? 'signed-out'}:${normalizedRouteToken ?? 'invalid'}`}
+              token={rawToken}
+              roomId={joinedRoomId}
+              canChat={capabilities.canChat}
+              autoJoin={collaboratorMode}
+              onJoined={setJoinedRoomId}
+            />
           </ScrollView>
         );
       }
@@ -1108,7 +1155,7 @@ export default function SharedRoomScreen() {
                     const imageKey = item.sourceId
                       ? getSharedRoomImageKey({ sourceType: item.sourceType, sourceId: item.sourceId })
                       : '';
-                    const canReact = Boolean(isAuthenticated && joinedRoomId && reactionItemId);
+                    const canReact = Boolean(capabilities.canReact && joinedRoomId && reactionItemId);
                     return (
                       <SharedScanCard
                         key={imageKey || `item-${index}`}
@@ -1146,7 +1193,14 @@ export default function SharedRoomScreen() {
               />
             ) : null}
 
-            <SharedRoomChatSection token={rawToken} roomId={joinedRoomId} onJoined={setJoinedRoomId} />
+            <SharedRoomChatSection
+              key={`chat:${user?.id ?? 'signed-out'}:${normalizedRouteToken ?? 'invalid'}`}
+              token={rawToken}
+              roomId={joinedRoomId}
+              canChat={capabilities.canChat}
+              autoJoin={collaboratorMode}
+              onJoined={setJoinedRoomId}
+            />
 
             <SecondaryButton
               title="View in Browser"

@@ -230,11 +230,11 @@ test('public room preview exposes item ids and gates reactions: anonymous read-o
   // anonymous viewers. The privacy gate is enforced two ways in the screen:
   //   1. Loading "my" reactions is skipped unless signed in AND joined the room.
   //   2. The reaction UI is interactive only when `canReact` (auth + joinedRoomId).
-  assert.match(publicRoomScreen, /if \(!isAuthenticated \|\| !joinedRoomId\)/);
-  assert.match(publicRoomScreen, /const canReact = Boolean\(isAuthenticated && joinedRoomId/);
+  assert.match(publicRoomScreen, /if \(!capabilities\.canReact \|\| !joinedRoomId\)/);
+  assert.match(publicRoomScreen, /const canReact = Boolean\(capabilities\.canReact && joinedRoomId/);
   assert.match(publicRoomScreen, /onReact=\{canReact \? handleReact : undefined\}/);
   // handleReact itself refuses to mutate when not signed-in/joined.
-  assert.match(publicRoomScreen, /if \(!isAuthenticated \|\| !joinedRoomId \|\| mutatingReactionItemId === itemId\) return;/);
+  assert.match(publicRoomScreen, /if \(!capabilities\.canReact \|\| !joinedRoomId \|\| mutatingReactionItemId === itemId\) return;/);
 });
 
 test('audit migration hardens legacy public room preview storage and response bounds', () => {

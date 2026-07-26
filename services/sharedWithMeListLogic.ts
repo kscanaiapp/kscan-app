@@ -339,7 +339,14 @@ export function canOpenSharedRoom(room: SharedRoomMembershipSummary): boolean {
 
 export function buildSharedRoomNativePath(shareToken: string): string | null {
   const normalizedToken = normalizeRoomShareToken(shareToken);
-  return normalizedToken ? `/rooms/${encodeURIComponent(normalizedToken)}` : null;
+  // Shared-With-Me is an authenticated, account-anchored surface. The route
+  // stays token-based so public links retain one canonical implementation,
+  // while this mode asks the screen to upgrade a signed-in recipient through
+  // the server-validated join RPC. A normal /rooms/{token} link remains a
+  // preview until the viewer explicitly joins.
+  return normalizedToken
+    ? `/rooms/${encodeURIComponent(normalizedToken)}?mode=collaborator`
+    : null;
 }
 
 /**

@@ -33,6 +33,7 @@ import {
 } from '../../services/roomMessages';
 import {
   bumpCollabActorGeneration,
+  createCollabRequestId,
   getCollabActorGeneration,
   isCurrentCollabGeneration,
   startCollaborationBoundedRefresh,
@@ -141,6 +142,10 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   const accessVersionRef = useRef(0);
   const newestCursorRef = useRef<MessageCursor | null>(null);
   const syncStopRef = useRef<null | (() => void)>(null);
+  const pendingSendRef = useRef<{
+    logicalKey: string;
+    clientMessageId: string;
+  } | null>(null);
 
   const clearInteractiveState = useCallback(() => {
     setMessages([]);
@@ -149,6 +154,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     newestCursorRef.current = null;
     setDraft('');
     setSendError(null);
+    pendingSendRef.current = null;
   }, []);
 
   const load = useCallback(async () => {
@@ -358,8 +364,18 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     const sendGeneration = getCollabActorGeneration();
     const parentMessageId =
       threadsEnabled() && replyTo && !replyTo.parentMessageId ? replyTo.id : null;
+    const logicalKey = `${normalizedDraft}\u0000${parentMessageId ?? ''}`;
+    const pending = pendingSendRef.current;
+    const clientMessageId =
+      pending?.logicalKey === logicalKey
+        ? pending.clientMessageId
+        : createCollabRequestId();
+    pendingSendRef.current = { logicalKey, clientMessageId };
     try {
-      const sent = await sendRoomMessage(roomId, draft, { parentMessageId });
+      const sent = await sendRoomMessage(roomId, draft, {
+        parentMessageId,
+        clientMessageId,
+      });
       if (!isCurrentCollabGeneration(sendGeneration) || accessRevoked) {
         return;
       }
@@ -369,6 +385,9 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
         id: sent.id,
         direction: 'newer',
       };
+      if (pendingSendRef.current?.clientMessageId === clientMessageId) {
+        pendingSendRef.current = null;
+      }
       setDraft('');
       setReplyTo(null);
     } catch (err: any) {

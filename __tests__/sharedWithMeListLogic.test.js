@@ -522,7 +522,7 @@ test('available and empty rooms are openable; unavailable is not', () => {
 
 test('canonical token route contains no private ids', () => {
   const route = logic.buildSharedRoomNativePath('active-token-a');
-  assert.equal(route, '/rooms/active-token-a');
+  assert.equal(route, '/rooms/active-token-a?mode=collaborator');
   assert.doesNotMatch(route, /room_id|membership|owner/i);
   assert.equal(logic.buildSharedRoomNativePath('bad token!'), null);
 });

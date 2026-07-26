@@ -112,6 +112,17 @@ test('no unguarded global-crypto dereference remains on the collaboration path',
   assert.match(source, /import \* as ExpoCrypto from 'expo-crypto';/);
 });
 
+test('Room Chat retains one request id across a recoverable retry of the same logical draft', () => {
+  const panel = fs.readFileSync(
+    path.join(ROOT, 'components/rooms/RoomMessagesPanel.tsx'),
+    'utf8',
+  );
+  assert.match(panel, /pendingSendRef/);
+  assert.match(panel, /pending\?\.logicalKey === logicalKey[\s\S]*pending\.clientMessageId/);
+  assert.match(panel, /sendRoomMessage\(roomId, draft, \{[\s\S]*clientMessageId/);
+  assert.match(panel, /pendingSendRef\.current = null/);
+});
+
 // ── Capability resolver ──────────────────────────────────────────────────────
 
 function loadCapabilities(flags) {
@@ -207,7 +218,7 @@ test('contributions flag alone enables item capabilities and collaborator status
 
 // ── Contributions migration (local, additive, owner-safe) ────────────────────
 
-test('contributions migration is additive, scoped, and reuses the canonical membership predicate', () => {
+test('contributions migration uses a current room-scoped participant/share predicate', () => {
   const migration = fs.readFileSync(
     path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
     'utf8',
@@ -215,13 +226,65 @@ test('contributions migration is additive, scoped, and reuses the canonical memb
   assert.doesNotMatch(migration, /\b(drop\s+table|truncate|delete\s+from)\b/i, 'additive only');
   assert.doesNotMatch(migration, /using\s*\(\s*true\s*\)/i, 'no unrestricted USING');
   assert.doesNotMatch(migration, /with\s+check\s*\(\s*true\s*\)/i, 'no unrestricted WITH CHECK');
-  assert.match(migration, /add column if not exists created_by uuid references auth\.users\(id\)/);
+  assert.match(migration, /add column if not exists created_by uuid[\s\S]*references auth\.users\(id\) on delete cascade/);
   assert.match(migration, /alter column created_by set default auth\.uid\(\)/, 'contributor identity is server-derived');
+  assert.match(migration, /alter column created_by set not null/);
   assert.match(migration, /created_by = \(select auth\.uid\(\)\)/, 'mutations pinned to the authenticated actor');
-  const predicateUses = migration.match(/public\.can_access_room_messages\(dressing_room_id\)/g) ?? [];
-  assert.ok(predicateUses.length >= 4, 'every policy reuses the deployed participant predicate');
-  assert.doesNotMatch(migration, /on public\.dressing_rooms/i, 'room administration untouched');
-  assert.doesNotMatch(migration, /shared_room_memberships/i, 'no parallel membership predicate invented');
+  const predicateUses = migration.match(/public\.can_contribute_to_dressing_room\(dressing_room_id\)/g) ?? [];
+  assert.ok(predicateUses.length >= 4, 'every contribution policy uses the current-access predicate');
+  assert.doesNotMatch(migration, /public\.can_access_room_messages\(dressing_room_id\)/);
+  assert.match(migration, /drp\.joined_via_share_id/);
+  assert.match(migration, /rs\.room_id = p_room_id/);
+  assert.match(migration, /rs\.is_active = true/);
+  assert.match(migration, /rs\.revoked_at is null/);
+  assert.match(migration, /rs\.expires_at is null or rs\.expires_at > now\(\)/);
+  assert.match(migration, /set search_path = ''/);
+  assert.match(migration, /revoke all on function public\.can_contribute_to_dressing_room\(uuid\) from public/);
+});
+
+test('contribution UPDATE cannot reassign contributor identity or move an item between rooms', () => {
+  const migration = fs.readFileSync(
+    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
+    'utf8',
+  );
+  assert.match(migration, /before update of created_by, dressing_room_id/);
+  assert.match(migration, /new\.created_by is distinct from old\.created_by/);
+  assert.match(migration, /new\.dressing_room_id is distinct from old\.dressing_room_id/);
+  assert.match(migration, /revoke all on function public\.guard_dressing_room_item_contribution_identity\(\)[\s\S]*from public, anon, authenticated/);
+  assert.match(migration, /for update[\s\S]*using \([\s\S]*created_by = \(select auth\.uid\(\)\)[\s\S]*with check \([\s\S]*created_by = \(select auth\.uid\(\)\)/);
+});
+
+test('contribution DELETE remains own-item-only while existing owner policies are untouched', () => {
+  const migration = fs.readFileSync(
+    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
+    'utf8',
+  );
+  assert.match(migration, /for delete[\s\S]*created_by = \(select auth\.uid\(\)\)[\s\S]*can_contribute_to_dressing_room/);
+  assert.doesNotMatch(migration, /drop policy if exists "Users can (insert|update|delete) own dressing room items"/);
+  const grants = fs.readFileSync(
+    path.join(ROOT, 'supabase/migrations/202606180001_fix_staging_grants_saved_scans_soft_delete.sql'),
+    'utf8',
+  );
+  assert.match(grants, /grant select, insert, update, delete on table[\s\S]*public\.dressing_room_items[\s\S]*to authenticated/);
+});
+
+test('Shared-With-Me route upgrades only collaborator-mode authenticated sessions and consumes capabilities', () => {
+  const listLogic = fs.readFileSync(path.join(ROOT, 'services/sharedWithMeListLogic.ts'), 'utf8');
+  const route = fs.readFileSync(path.join(ROOT, 'app/(public)/rooms/[token].tsx'), 'utf8');
+  assert.match(listLogic, /\/rooms\/\$\{encodeURIComponent\(normalizedToken\)\}\?mode=collaborator/);
+  assert.match(route, /mode === 'collaborator' && Platform\.OS !== 'web'/);
+  assert.match(route, /resolveSharedRoomCapabilities\(\{/);
+  assert.match(route, /canChat=\{capabilities\.canChat\}/);
+  assert.match(route, /autoJoin=\{collaboratorMode\}/);
+  assert.match(route, /capabilities\.canReact && joinedRoomId/);
+  assert.match(route, /setJoinedRoomId\(null\)[\s\S]*\[user\?\.id\]/);
+});
+
+test('public preview cannot receive collaborator controls from a query mode alone', () => {
+  const route = fs.readFileSync(path.join(ROOT, 'app/(public)/rooms/[token].tsx'), 'utf8');
+  assert.match(route, /resolveSharedRoomCapabilities\(\{[\s\S]*isAuthenticated/);
+  assert.match(route, /if \(!canChat \|\| !isAuthenticated\)/);
+  assert.match(route, /autoJoin && canChat && isAuthenticated && !roomId/);
 });
 
 test('client contributions gate defaults OFF and is absent from the production profile', () => {
