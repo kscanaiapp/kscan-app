@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBackOrHome } from '../../../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -549,11 +550,7 @@ export default function SharedRoomScreen() {
   const likelyInAppBrowser = isLikelyInAppBrowser(webUserAgent);
 
   const handleBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
+    goBackOrHome(router);
   }, []);
 
   const load = useCallback(

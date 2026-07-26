@@ -256,6 +256,7 @@ function createLibraryHarness() {
         return completion.promise;
       },
     },
+    '../services/navigationExit': { goBackOrHome: () => {} },
   };
 
   const filename = path.join(ROOT, 'app/library.tsx');

@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { goBackOrAuth } from '../../services/navigationExit';
 import {
   resendRestorationEmail,
   restoreAccountWithToken,
@@ -102,6 +103,15 @@ export default function AccountRestoreScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + SPACING.xl }]}>
       <StatusBar style="light" />
+      <Pressable
+        style={styles.exitButton}
+        onPress={() => goBackOrAuth(router)}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        testID="restore-exit"
+      >
+        <Text style={styles.exitText}>Back</Text>
+      </Pressable>
       <Text style={styles.title}>Restore account</Text>
       <Text style={styles.body}>
         Use your emailed restoration link within 30 days of requesting deletion. After restore, you
@@ -157,6 +167,17 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.title,
     color: COLORS.chrome,
     marginBottom: SPACING.sm,
+  },
+  exitButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  exitText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.electricCyan,
   },
   body: {
     ...TYPOGRAPHY.body,

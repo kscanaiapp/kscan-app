@@ -263,6 +263,7 @@ export function AnalysisCard({
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
+  const isLibraryScan = scanSourceType === 'style_library_scan';
 
   return (
     <Modal transparent animationType="none" onRequestClose={runExit}>
@@ -283,6 +284,21 @@ export function AnalysisCard({
           <View style={styles.glow} pointerEvents="none" />
 
           <View style={styles.card}>
+            <View style={styles.headerBar} pointerEvents="box-none">
+              <View style={styles.headerSpacer} />
+              <TouchableOpacity
+                testID="analysis-card-close"
+                onPress={runExit}
+                activeOpacity={0.78}
+                accessibilityRole="button"
+                accessibilityLabel="Close this screen"
+                style={styles.closeButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+
             <ScrollView
               bounces={false}
               showsVerticalScrollIndicator={false}
@@ -429,15 +445,16 @@ export function AnalysisCard({
                 <SecondhandShelf items={secondhand.items} />
               ) : null}
 
-              {/* Primary CTA */}
+              {/* Primary CTA — library reopen dismisses; live scan returns to capture. */}
               <TouchableOpacity
                 style={styles.cta}
                 onPress={runExit}
                 activeOpacity={0.86}
                 accessibilityRole="button"
-                accessibilityLabel="Scan another item"
+                accessibilityLabel={isLibraryScan ? 'Close this screen' : 'Scan another item'}
+                testID={isLibraryScan ? 'analysis-card-done' : 'analysis-card-scan-again'}
               >
-                <Text style={styles.ctaText}>Scan Again</Text>
+                <Text style={styles.ctaText}>{isLibraryScan ? 'Done' : 'Scan Again'}</Text>
               </TouchableOpacity>
 
               {/* Free-tier per-item utilities for saved library scans */}
@@ -497,10 +514,35 @@ const styles = StyleSheet.create({
     backgroundColor:  LUXURY.colors.pearl,
     maxHeight:        SCREEN_HEIGHT * 0.86,
   },
+  headerBar: {
+    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingHorizontal: card.paddingHorizontal,
+    paddingTop: SPACING.md,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  closeButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+  },
+  closeButtonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    textTransform: 'none',
+  },
   cardInner: {
     backgroundColor:   LUXURY.colors.pearl,
     paddingHorizontal: card.paddingHorizontal,
-    paddingVertical:   card.paddingVertical,
+    paddingTop:        SPACING.sm,
+    paddingBottom:     card.paddingVertical,
   },
   grip: {
     alignSelf:       'center',

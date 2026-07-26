@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBackOrHome } from '../../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
 
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
@@ -332,7 +333,7 @@ function CreateLookContent() {
       <KScanHeader
         title={editingLookId ? 'Edit Look' : 'Create a Look'}
         subtitle="FROM YOUR CLOSET"
-        onBack={saving ? undefined : () => router.back()}
+        onBack={saving ? undefined : () => goBackOrHome(router)}
         backLabel="Back"
       />
 

@@ -8,6 +8,7 @@ import {
   Linking,
 } from 'react-native';
 import { router } from 'expo-router';
+import { goBackOrHome } from '../../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
 import {
   LuxuryScreen,
@@ -174,7 +175,7 @@ export default function TextScanScreen() {
 
   const handleBack = () => {
     if (viewState === 'input') {
-      router.back();
+      goBackOrHome(router);
     } else {
       setViewState('input');
     }

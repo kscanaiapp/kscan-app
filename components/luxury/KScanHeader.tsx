@@ -74,7 +74,7 @@ export function KScanHeader({
             onPress={onBack}
             style={styles.backButton}
             accessibilityRole="button"
-            accessibilityLabel={backLabel}
+            accessibilityLabel={backLabel === 'Back' ? 'Go back' : backLabel}
           >
             <Text style={styles.backChevron}>‹</Text>
             <Text style={styles.backLabel}>{backLabel}</Text>

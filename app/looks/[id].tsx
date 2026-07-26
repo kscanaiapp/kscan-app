@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBackOrHome } from '../../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
 
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
@@ -188,7 +189,7 @@ function LookDetailContent() {
       <KScanHeader
         title={look?.title || 'Look'}
         subtitle="LOOK DETAIL"
-        onBack={() => router.back()}
+        onBack={() => goBackOrHome(router)}
         backLabel="Back"
       />
 
