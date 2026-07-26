@@ -79,6 +79,7 @@
     },
     "production": {
       "distribution": "store",
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
       },
@@ -110,7 +111,9 @@
         "EXPO_PUBLIC_ELISE_SHARED_ROOM_EVIDENCE_V1": "true",
         "EXPO_PUBLIC_AI_STYLIST_ENABLED": "true",
         "EXPO_PUBLIC_AI_STYLIST_BACKEND_ENABLED": "true",
-        "EXPO_PUBLIC_STYLECHAT_ATTACHMENTS_ENABLED": "true"
+        "EXPO_PUBLIC_STYLECHAT_ATTACHMENTS_ENABLED": "true",
+        "EXPO_PUBLIC_CLOSET_SEPARATION_V1": "true",
+        "EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1": "true"
       }
     }
   },
