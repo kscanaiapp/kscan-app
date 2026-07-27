@@ -1,0 +1,260 @@
+/**
+ * Edge Function source-parity gate tests (IMG-006).
+ *
+ * Phase 2A established that the deployed production bundles content-match the
+ * Android function trees while the iOS branch carried a different, independently
+ * deployable copy — and that nothing in the repository would notice. These tests
+ * cover the gate that closes that hole:
+ *
+ *   scripts/edge-function-manifest-lib.js      bundle/tree resolution + hashing
+ *   scripts/generate-edge-function-manifest.js manifest generation + staleness
+ *   scripts/check-edge-function-parity.js      the drift gate itself
+ *   scripts/deploy-edge-functions.js           the approved deployment path
+ *   config/edge-function-manifest.json         the committed canonical manifest
+ *
+ * Drift is proven by mutating a THROWAWAY COPY of the function trees in the OS
+ * temp directory and asserting the gate fails there. The repository working tree
+ * is never modified, so a failing run cannot leave the checkout dirty.
+ *
+ * Pure Node (node:test). No network, no Supabase CLI, no deployment.
+ */
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync, spawnSync } = require('node:child_process');
+
+const {
+  APPROVED_PROJECT_REF,
+  GOVERNED_FUNCTIONS,
+  buildParity,
+  resolveBundle,
+} = require('../scripts/edge-function-manifest-lib.js');
+
+const REPO_ROOT = path.join(__dirname, '..');
+const MANIFEST_PATH = path.join(REPO_ROOT, 'config', 'edge-function-manifest.json');
+const CHECKER = 'scripts/check-edge-function-parity.js';
+const GENERATOR = 'scripts/generate-edge-function-manifest.js';
+
+function runNode(repoRoot, scriptRelativePath, args = []) {
+  const result = spawnSync(process.execPath, [path.join(repoRoot, scriptRelativePath), ...args], {
+    encoding: 'utf8',
+    cwd: repoRoot,
+  });
+  return {
+    status: result.status,
+    output: `${result.stdout || ''}${result.stderr || ''}`,
+  };
+}
+
+/**
+ * Materializes a self-contained throwaway repository containing only what the
+ * gate reads. Because the scripts resolve their repo root from their own
+ * location, copying them in is what redirects the gate at the fixture — no
+ * environment override exists, so there is no bypass for a real deploy.
+ */
+function makeFixtureRepo(t, { gitInit = false } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-edge-parity-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  for (const script of [
+    'edge-function-manifest-lib.js',
+    'generate-edge-function-manifest.js',
+    'check-edge-function-parity.js',
+    'deploy-edge-functions.js',
+  ]) {
+    fs.copyFileSync(path.join(REPO_ROOT, 'scripts', script), path.join(root, 'scripts', script));
+  }
+
+  fs.mkdirSync(path.join(root, 'config'), { recursive: true });
+  fs.copyFileSync(MANIFEST_PATH, path.join(root, 'config', 'edge-function-manifest.json'));
+
+  fs.mkdirSync(path.join(root, 'supabase', 'functions'), { recursive: true });
+  fs.copyFileSync(
+    path.join(REPO_ROOT, 'supabase', 'config.toml'),
+    path.join(root, 'supabase', 'config.toml'),
+  );
+  for (const dir of [...GOVERNED_FUNCTIONS, '_shared']) {
+    fs.cpSync(
+      path.join(REPO_ROOT, 'supabase', 'functions', dir),
+      path.join(root, 'supabase', 'functions', dir),
+      { recursive: true },
+    );
+  }
+
+  if (gitInit) {
+    const git = (...args) => execFileSync('git', ['-C', root, ...args], { stdio: 'ignore' });
+    git('init', '-q');
+    git('config', 'user.email', 'gate@example.invalid');
+    git('config', 'user.name', 'Parity Gate Fixture');
+    git('add', '-A');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'fixture');
+  }
+
+  return root;
+}
+
+function fixturePath(root, ...segments) {
+  return path.join(root, 'supabase', 'functions', ...segments);
+}
+
+// ── The committed manifest ───────────────────────────────────────────────────
+
+test('committed manifest governs both identification functions and the approved project', () => {
+  assert.ok(fs.existsSync(MANIFEST_PATH), 'config/edge-function-manifest.json must be committed');
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+
+  assert.deepEqual(manifest.parity.expectedFunctions, ['scan-identify', 'stylechat-generate']);
+  assert.equal(manifest.parity.approvedProjectRef, APPROVED_PROJECT_REF);
+
+  for (const fn of manifest.parity.functions) {
+    assert.ok(fn.bundleFileCount > 0, `${fn.name} must resolve a non-empty deployable bundle`);
+    assert.match(fn.bundleHash, /^[0-9a-f]{64}$/);
+    assert.match(fn.treeHash, /^[0-9a-f]{64}$/);
+    // The tree is a superset of the bundle: tests and unreachable modules are
+    // gated for drift but are not part of what actually deploys.
+    assert.ok(fn.treeFileCount >= fn.bundleFileCount);
+  }
+});
+
+test('provenance is excluded from parity so both platform branches converge', () => {
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+  const parityText = JSON.stringify(manifest.parity);
+  assert.ok(manifest.provenance, 'provenance block must exist');
+  assert.ok(manifest.provenance.generatedFromGitSha, 'provenance must record the source Git SHA');
+  assert.ok(manifest.provenance.generatedAtUtc, 'provenance must record generation time');
+  assert.ok(
+    !parityText.includes(manifest.provenance.generatedFromGitSha),
+    'branch-specific Git SHA must not leak into the gated parity section',
+  );
+  assert.ok(
+    !parityText.includes(manifest.provenance.generatedAtUtc),
+    'generation timestamp must not leak into the gated parity section',
+  );
+});
+
+test('the deployable bundle pulls in the required shared modules', () => {
+  const scanBundle = resolveBundle(REPO_ROOT, 'scan-identify').localFiles;
+  assert.ok(
+    scanBundle.includes('supabase/functions/_shared/llmModelRouting.ts'),
+    'scan-identify must deploy the shared allowlist-bound model router',
+  );
+  assert.ok(
+    scanBundle.includes('supabase/functions/_shared/deletion/assertAccountActiveIfAuthenticated.ts'),
+    'scan-identify must deploy the shared account-state guard',
+  );
+
+  const chatBundle = resolveBundle(REPO_ROOT, 'stylechat-generate').localFiles;
+  assert.ok(
+    chatBundle.includes('supabase/functions/_shared/deletion/common.ts'),
+    'stylechat-generate must deploy the shared account-active guard',
+  );
+
+  // Remote specifiers are described but never fetched: the gate must stay
+  // deterministic and usable offline.
+  for (const name of GOVERNED_FUNCTIONS) {
+    for (const specifier of buildParity(REPO_ROOT, [name]).functions[0].remoteSpecifiers) {
+      assert.ok(
+        /^(npm:|jsr:|https:)/.test(specifier),
+        `unexpected non-remote specifier recorded: ${specifier}`,
+      );
+    }
+  }
+});
+
+// ── The gate passes on a synchronized tree ───────────────────────────────────
+
+test('parity gate passes against this checkout', () => {
+  const result = runNode(REPO_ROOT, CHECKER);
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, /EDGE FUNCTION PARITY: PASS/);
+});
+
+test('manifest is current for this checkout', () => {
+  const result = runNode(REPO_ROOT, GENERATOR, ['--check']);
+  assert.equal(result.status, 0, result.output);
+});
+
+// ── The gate fails on every drift shape ──────────────────────────────────────
+
+test('drift: a modified deployable file fails the gate', (t) => {
+  const root = makeFixtureRepo(t);
+  const target = fixturePath(root, 'scan-identify', 'index.ts');
+
+  assert.equal(runNode(root, CHECKER).status, 0, 'fixture must start synchronized');
+
+  const original = fs.readFileSync(target, 'utf8');
+  fs.writeFileSync(target, `${original}\n// intentional drift\n`);
+
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /EDGE FUNCTION PARITY: FAIL/);
+  assert.match(drifted.output, /content differs supabase\/functions\/scan-identify\/index\.ts/);
+  assert.match(drifted.output, /deployable bundle hash differs/);
+
+  // Removing the alteration restores parity — the gate is reversible, not sticky.
+  fs.writeFileSync(target, original);
+  assert.equal(runNode(root, CHECKER).status, 0);
+});
+
+test('drift: a modified non-deployed tree file still fails the gate', (t) => {
+  const root = makeFixtureRepo(t);
+  const target = fixturePath(root, 'scan-identify', 'qualityTune.test.ts');
+  fs.appendFileSync(target, '\n// intentional drift\n');
+
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /function tree hash differs/);
+});
+
+test('drift: a missing required shared module fails the gate', (t) => {
+  const root = makeFixtureRepo(t);
+  fs.rmSync(fixturePath(root, '_shared', 'llmModelRouting.ts'));
+
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /Unresolved local module|missing file/);
+});
+
+test('drift: an extra file in a governed function directory fails the gate', (t) => {
+  const root = makeFixtureRepo(t);
+  fs.writeFileSync(fixturePath(root, 'stylechat-generate', 'unexpected.ts'), 'export const x = 1;\n');
+
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /unexpected file not in manifest/);
+});
+
+test('drift: a non-approved project reference fails the gate', (t) => {
+  const root = makeFixtureRepo(t);
+  const configPath = path.join(root, 'supabase', 'config.toml');
+  fs.writeFileSync(
+    configPath,
+    fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, 'yzqjvdfgefveprobvvyw'),
+  );
+
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /Project reference mismatch/);
+});
+
+test('drift: a missing config.toml fails the gate instead of passing by default', (t) => {
+  const root = makeFixtureRepo(t);
+  fs.rmSync(path.join(root, 'supabase', 'config.toml'));
+
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /cannot prove\s+which Supabase project/);
+});
+
+test('staleness: an out-of-date manifest is reported as stale', (t) => {
+  const root = makeFixtureRepo(t);
+  fs.appendFileSync(fixturePath(root, 'scan-identify', 'similarityMatcher.ts'), '\n// drift\n');
+
+  const stale = runNode(root, GENERATOR, ['--check']);
+  assert.equal(stale.status, 1);
+  assert.match(stale.output, /manifest is stale/i);
+});
