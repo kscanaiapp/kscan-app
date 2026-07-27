@@ -1,0 +1,454 @@
+{
+  "provenance": {
+    "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
+    "generatedAtUtc": "2026-07-27T18:07:39.961Z",
+    "generatedFromGitSha": "7a05c4a838791e77338c8f0aa0340bb1ecc86e8f"
+  },
+  "parity": {
+    "manifestVersion": "edge-function-manifest-v1",
+    "approvedProjectRef": "wyyuqfdxucjksghsmhry",
+    "expectedFunctions": [
+      "scan-identify",
+      "stylechat-generate"
+    ],
+    "functions": [
+      {
+        "name": "scan-identify",
+        "entry": "supabase/functions/scan-identify/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 29,
+        "treeFileCount": 35,
+        "bundleHash": "45a5c69e8346228cd724eceea88b5d8eb530e942355a87940dadf18267dc24c4",
+        "treeHash": "e1ae3dddebeda0091a12f0b93c86e1cd6354bbef3592004cc26defaf9da0614a",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/catalogRetrieval.ts",
+            "sha256": "36df6c3c86cbed1d4c0d8df820cc4fe95389118ed4b2222d219df36df57cfe1e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/assertAccountActiveIfAuthenticated.ts",
+            "sha256": "bc8998c1f6e4fb2cd76b4a126974cdb681cb37451b041253f0558678061b8661",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/llmModelRouting.ts",
+            "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/scanHelpers.ts",
+            "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceOutcomeCapture.ts",
+            "sha256": "5e4aee263402910e01f7cd7912c1e65c193d50ec4dfc7e0c09975a41bd345b8a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceOutcomeCaptureConfig.ts",
+            "sha256": "2c031579d1f9594ea3cf95b8d469b4cb1a84861772d5b7ec99a599b42aa7116a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRelevance.test.ts",
+            "sha256": "0ede65132745ef9f54255d43cedb64bbd05daa6cc6544889ce96c8d0be002827",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRelevanceAgreement.ts",
+            "sha256": "68cf5b7915d89669c105ef7aec9c96fc816695ffa1f25af1d3c188a92a99c662",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRelevanceColorMaterial.ts",
+            "sha256": "a30ccc822b96e3a94a681a0edfc8be0d278e9b44947475f6f0140c48bfe42bcf",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRelevanceConfig.ts",
+            "sha256": "5415c9b9ce779a5121da64a7c30fdc3484cd0cc7769492d0297aa1f73c18ae17",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRelevanceDiversity.ts",
+            "sha256": "8d3594f1c83c4361053ed8814144d927e29306c07553b3e9438ac62e46f96fe6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRelevanceFailure.ts",
+            "sha256": "43f41679b1ad7593a56da54027d0be3a7f2207d96b8f5a74ae9928591f2fbc4f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRelevanceQueries.ts",
+            "sha256": "e211c89949dba7e4d5df7e6b7c5d68c6081633d7c505f2b81ae21c3f9a63f779",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/farfetchProvider.ts",
+            "sha256": "964d3e762e7f4270a2e6774f431ea446b49f406b9905bbcee1a7b94ed9e3cfbe",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/index.ts",
+            "sha256": "c8d2e97e529d987bcc22af96fed83ff1b7fa1a44a5471fd88da64e1e0d680c7b",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
+            "sha256": "2ede064d186a568a0d2653862ca95a275ed26668b6c619e62b30100852d97bbf",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/multiItemGarments.test.ts",
+            "sha256": "2a5d1e21b006ff0d286e525529d97afdc701c8c9ef97b8fd75c3a42581d41076",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/multiItemGarments.ts",
+            "sha256": "6b91ff2b7978cc4a7975d0b4590e966633f1c260281c900316843c23d9260a16",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/qualityTune.test.ts",
+            "sha256": "3921e646ea6a02497fe982fcd2fb68e58dd704031ba20e4f813d5e749bf0a301",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
+            "sha256": "b81fa7f36374740c0a8884f0ae446651f6f2c8c1d76788415a567c44296507de",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/qualityTuneConfig.ts",
+            "sha256": "a42b08d900327d3cf8d6713aef9d074d5b2680c73ae3b244b767ed814c0aff70",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/qualityTuneNormalize.ts",
+            "sha256": "04e7ced94dd2d09f7de8b3a808411b24e58eed2a529368210cb5c1af26c30713",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/qualityTuneTelemetry.ts",
+            "sha256": "1ac173e6d7771928f5462696f27732ec1331a8b2919d932f25b549b65f522b1d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
+            "sha256": "eebe939ea6d4d1dd88c26b6eabf597da904e2cecc587065ed5bd7a2a3889940f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scanIntelligenceCapture.ts",
+            "sha256": "9e6e3f3ddef8123ab97f2a700ddd7aefc581bcd1b6600d1b9aded32b2d19f074",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scannerCategoryRoute.ts",
+            "sha256": "27fa543783719298c1bb10c799098ed349b131c8646814a30ba6a07e515eb7a0",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scannerIntelligence.test.ts",
+            "sha256": "a725c531f5882ccf0987258c07de2529d0b530b197b4fa76becd2c6b946e7890",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/scannerIntelligenceConfig.ts",
+            "sha256": "cff584c4617cf2e3229c262cae7e87c39a7dbc42f432fcebba65549d2da6a7b2",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
+            "sha256": "504c61acb73580cb8a2aeab1b33f8b1f0507cdb76d890cb0e27a80282868048c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/selectedItemBoundary.ts",
+            "sha256": "d0c63f1a2fd4b10b81a623e077f85f0ac66eb31af37f4c8eae6088826990d7cc",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+            "sha256": "cac78839f76265e0687fa6512de2e473c86008107ceb42c361a08a84c18aa4c4",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/similarityMatcher.ts",
+            "sha256": "5a95c4aafbb1fbd25ff8d1b3e724ec55dbc19d9b107770303e2093d6eb192401",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/textScanCommerceParityConfig.ts",
+            "sha256": "2b2ceba5790935244cbb6e8f90cd6d176e522284c4f7ee7b834be478347021de",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/textScanOutcome.v123.test.ts",
+            "sha256": "e4eeb6f27710d750c726ad9ea9ff0b434bc094982dee9928a277ab6f5ab07f96",
+            "bundle": false
+          }
+        ]
+      },
+      {
+        "name": "stylechat-generate",
+        "entry": "supabase/functions/stylechat-generate/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2",
+          "npm:@supabase/supabase-js@2.105.4"
+        ],
+        "bundleFileCount": 33,
+        "treeFileCount": 47,
+        "bundleHash": "da901de825ac248ae2a925491ef5688adbc393504a3af5601c6f259f187f3560",
+        "treeHash": "115a24073ec34fc9926ed8071699778be9c52c3d7167c0c6f71c840ce4d306aa",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/llmModelRouting.ts",
+            "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/actions.ts",
+            "sha256": "11a709f544b84421cf659144e3dfd8976f720727625785c3bd2d64f909e1925b",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/activeContext.ts",
+            "sha256": "85c5efd90db6290ccbc61c7bb88788341e924f7fa5faa6686f207382b659c7ab",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/attachmentContext.ts",
+            "sha256": "7cc4a0f56378c41b57a8fb7fd66858d2d1657e69aeff72113b813abe7676a071",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/attachmentOwnership.test.ts",
+            "sha256": "22c9b441bf27caa91fd4f16a14c699efaa6345fbc65e52719ba57a399552ba2d",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/attachmentProvenance.ts",
+            "sha256": "2d0227146bd6029fe93a22aa1035a1fc092bbc79ab71bfd5fbc73cc26d586eb3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/attachments.ts",
+            "sha256": "ff023894ca9a09cc60191c7cdab1a068f637ed9604b110a0d2688de8258ec739",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/contextMessages.test.ts",
+            "sha256": "e60ddf84c348ad4172b8f0bff0d8fdb2f3bd35f1a9136ecfea91ef751086c3f8",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/contextMessages.ts",
+            "sha256": "d3aea3a3280b6dbf6254c984ba8d765af9f367e96bb3285e5dbfc8c1e111018f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/dr2Integration.test.ts",
+            "sha256": "3a145c4b6907fde059be846f921141d1dd4c529cecaaec9c3ca8c6e5292f11e0",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/dr2SharedAuthorization.test.ts",
+            "sha256": "b5670e749b41ea1bfc9c6cad9a67db38b8413d4eec1dc4b834b3ce09558e934d",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseAdviceE4.test.ts",
+            "sha256": "b896a97eba2fff2c7a1de776996c8201f513bbaa6d0631b426f382d80130a0ac",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseAdviceIntents.ts",
+            "sha256": "78e13d63dffa24240e55fa6cfe07db4f622a6acfb9fc4c8757928c1a28567275",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
+            "sha256": "2397b01dcc89df2efaf54cf8e5bbf9ffb361d42ebef0151d4113977ef146b931",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts",
+            "sha256": "2b2c3aa38a29697fdd7dd174399427aeb27ff15a0975d50107bc12b01d52cc77",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseAdviceTypes.ts",
+            "sha256": "d7873d6cf566212a7ed7f374879c3fdb8966415319d8c8df2ec2988a3986cda8",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseCompatibilityScoring.ts",
+            "sha256": "a51be03013bcd2c2f04102ab457e32da69f6ba7ce291ff9658c115f5c0e17022",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseConfig.test.ts",
+            "sha256": "d96f2a89849e4fe544dbff8afed8fe1dfe18ec644bffb6367e38aa874257230d",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
+            "sha256": "d4f78c097e1aea3c6e588476e1e8efbe65e3ac71db10942b378bfe7240f5ee1b",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseE2HostileAudit.test.ts",
+            "sha256": "22cd4797e50f0d5728fd67d7023df9fdabdf9b91b9b10e6ba5424f013aa54e79",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseE4HostileAudit.test.ts",
+            "sha256": "2f1d05d52b57b997b8a5698822fa51eefd2892fe87d336c23a53c4b89851bb0b",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseFashionFeatures.ts",
+            "sha256": "c620fb79d33cdd6d4ea2e921c60aa85e9cf735230d2ec86542a553e606d23256",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseFocusResolution.ts",
+            "sha256": "1ffb215eadb6cde55f7aeb185f5846e5f926e996afa541f4fb57c4ee0bfc8fc8",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseGenerationResilience.test.ts",
+            "sha256": "5f0d1621a9f24b1ecc66ffde472e0cf158b647f2e194d02f2e76ac4bedf1efa0",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseGenerationTypes.ts",
+            "sha256": "703d01923044f683f725188c8ab8c7bb0ae517fc4b4afc8ad1e8c93b25c8e914",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseOutputValidation.ts",
+            "sha256": "e985325cc8968b83c6dc4e6140e91556f730b69ffb5d5b3d33aa135fa635d79f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseProviderRetry.ts",
+            "sha256": "ecca73c3f270e3932aa54ff3765715bbb0d26a2290643801ec65b23b50fcd61e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseResourceResolvers.ts",
+            "sha256": "f829a792661167e462b75f610767cee83b4ca157f428f546fb93d29bdff4352a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseRoomItemEvidence.ts",
+            "sha256": "3eaa45d96922174c2e742d18f0f66c08217be9909242267893710cb9dd34e647",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseSharedRoomAccess.ts",
+            "sha256": "b33261b4e6ad6d0f7a361a1590950aa28f702b38be248685b16cac4e5ffbf00f",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseStructuredGrounding.ts",
+            "sha256": "baf629bf52cd97f13cee7ba2bd925ce301d24880f1fa664b36aa84114d49e6e7",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.test.ts",
+            "sha256": "f33c0af3d12ba9fe309a1b7f42a691f39760504ad8d38aa6e8ef9f8f76011df3",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.ts",
+            "sha256": "1f605bbe7fa256a49daed994ad006e8a73955ecd3e3933a162c6bb2501a24b29",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseVisualContextTypes.ts",
+            "sha256": "7575dc5cdb1adaa331e8bcde1c5b0c8dd5d53ebe8604bc8d87b1688f2c8533a6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
+            "sha256": "bae6a899f2307c1428766f291fafab61247d97635f826ac4159024ca08e405c8",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseWardrobeRetrieval.ts",
+            "sha256": "a2bc85f382951cf0d731d97ea14baefdc435c3cc69996ff5c39538f0427371ed",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/generationSafety.ts",
+            "sha256": "1ba6e643be41679d8fa7752ee4e211c64ada5ad72b7ec5e40c1b35a2f4b8af14",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/generationSafetyTyping.test.ts",
+            "sha256": "191e16e1b331639528933de64ef3b6cc7ba223e3cdd76bfdc58818b857029ebd",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/index.ts",
+            "sha256": "371fc411e659a849ae03b137d22ddf317272b622ec434730d66e63f3e6da2944",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/modelRouting.ts",
+            "sha256": "71685aa222aa7a1c06313b696107d7f44a1b5dc912baca08be90b1262cf024ca",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/multimodal.ts",
+            "sha256": "5a2add9b2fbbe324eed61a90e193424a3f24a276907dfa51d11816913fa01822",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/promptHardening.ts",
+            "sha256": "a14643b1205f9dc21e448fb0f8239f73adf8babb2078b9f9b658675b81543e38",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/styleDnaContext.ts",
+            "sha256": "8c3c3a2d75cc8907e2fc39e4e1b4ede5e2f775e2d6c6c5ae4fe8d85381302e9a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/telemetry.ts",
+            "sha256": "852113bea6bd6db4578f3fc1b34b42ac362c4577e15e180004d6072ee06a251d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/visualContext.test.ts",
+            "sha256": "e1a039f6402b72805b131950fd4c0bfdb9bb28d5231b4a69fa63474b3f6eb511",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/visualContext.ts",
+            "sha256": "88d6c12a280eb4aa7bc7f973cb20fc7001940c4838313a8b88b7f21615fc3681",
+            "bundle": true
+          }
+        ]
+      }
+    ]
+  }
+}
