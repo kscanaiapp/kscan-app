@@ -257,6 +257,8 @@ test('camera and gallery uploads use the same Scanner request schema', async () 
   await adapter.identifyScanImage(TINY_DATA_URI, { source: 'upload' });
 
   assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].localPrivacyFiltered, false);
+  assert.equal(bodies[1].localPrivacyFiltered, false);
   assert.deepEqual(Object.keys(bodies[0]).sort(), Object.keys(bodies[1]).sort());
   assert.deepEqual(
     { ...bodies[0], source: 'input', clientTimestamp: 'timestamp' },
