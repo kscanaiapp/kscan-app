@@ -56,6 +56,24 @@ import {
   getScanCommerceResults,
   type ScanCommerceResult,
 } from './scanCommerceRouter.ts';
+// Phase 2B.1 activation. Explicit `.ts` specifiers (Deno requirement) also put
+// both modules into the governed scan-identify dependency closure, so the
+// manifest/parity gate covers them from here on.
+import {
+  buildTechnicalFailureResultV2,
+  buildTransitionalResponse,
+  buildV2Telemetry,
+  findJsonUnsafePath,
+  resolveCommerceDecision,
+  routeScanIdentifyRequest,
+  validateFashionIdentificationResultV2,
+  type InternalScanRequest,
+  type V2Telemetry,
+} from './v2Activation.ts';
+import {
+  normalizeToV2,
+  type FashionIdentificationResultV2,
+} from '../_shared/fashionIdentificationV2.ts';
 import {
   findSimilarityMatches,
   type SimilarityMatch,
@@ -902,6 +920,32 @@ function buildDisplayResult(
   return Object.keys(out).length ? out : undefined;
 }
 
+/**
+ * Emits the bounded V2 adoption line.
+ *
+ * Every field is an enum, a boolean or a count — see buildV2Telemetry, which is
+ * the only thing allowed to construct this. Notably absent: the evidence id,
+ * image bytes or references, local URIs, the request body, filenames, user or
+ * device identifiers, and raw provider output.
+ */
+function logV2Telemetry(telemetry: V2Telemetry): void {
+  console.log(
+    '[scan-identify] v2_adoption path=%s intent=%s intentDefaulted=%s mode=%s entryPath=%s platform=%s evidence=%d status=%s resolution=%s commerce=%s skipReason=%s validated=%s',
+    telemetry.contractPath,
+    telemetry.intent,
+    String(telemetry.intentDefaulted),
+    telemetry.mode,
+    telemetry.entryPath ?? 'none',
+    telemetry.platform ?? 'none',
+    telemetry.evidenceCount,
+    telemetry.status ?? 'none',
+    telemetry.resolutionLevel ?? 'none',
+    String(telemetry.commerceExecuted),
+    telemetry.skipReason ?? 'none',
+    String(telemetry.responseValidationOk),
+  );
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -1561,21 +1605,52 @@ Deno.serve(async (req) => {
     return json({ ...normalized('failed', INVALID_IMAGE_MESSAGE), error: 'Invalid JSON' }, 400);
   }
 
-  const mode = typeof body.mode === 'string' ? body.mode.toLowerCase() : 'image';
-  const source = safeString(body.source) ?? 'unknown';
-  const multiItemRequested = body.multiItemDetection === true;
+  // ── 2a. Contract-version routing (Phase 2B.1) ───────────────────────────────
+  // Runs before any interpretation of the body. An unknown contract version must
+  // never fall through to legacy: a client asking for a contract this build does
+  // not implement would otherwise get a response shaped for a different contract
+  // with no way to detect the substitution.
+  const contractRoute = routeScanIdentifyRequest(body);
+  if (contractRoute.kind === 'contract_error') {
+    return json(contractRoute.body, contractRoute.httpStatus);
+  }
+  const internalRequest: InternalScanRequest = contractRoute.internal;
+  const isV2Request = contractRoute.kind === 'v2';
+
+  // A V2 request carries `mode: detect_items | identify_selected_item`, which
+  // collides with the legacy `mode: image | text`. V2 is always an image
+  // request; its own mode travels in internalRequest.resolvedMode.
+  const mode = isV2Request
+    ? 'image'
+    : typeof body.mode === 'string'
+    ? body.mode.toLowerCase()
+    : 'image';
+  // V2 sends a structured source object, so the legacy string read would yield
+  // 'unknown'. The specific entry path is preserved instead.
+  const source = isV2Request
+    ? internalRequest.entryPath ?? 'unknown'
+    : safeString(body.source) ?? 'unknown';
+  const multiItemRequested = isV2Request
+    ? internalRequest.multiItemDetection
+    : body.multiItemDetection === true;
   const multiItemEnabled =
     Deno.env.get('SCAN_MULTI_ITEM_ENABLED')?.trim().toLowerCase() === 'true';
   const useMultiItemProvider =
     mode === 'image' &&
     multiItemEnabled &&
     multiItemRequested;
-  const requestMode = body.requestMode === 'selected_item'
+  const requestMode = isV2Request
+    ? internalRequest.requestMode
+    : body.requestMode === 'selected_item'
     ? 'selected_item'
     : body.requestMode === 'multi_item_detection'
     ? 'multi_item_detection'
     : 'legacy_single_item';
-  const selectedCandidate = sanitizeSelectedCandidate(body.selectedCandidate);
+  // The V2 candidate was already validated and mapped into exactly the shape
+  // sanitizeSelectedCandidate produces, so the downstream pipeline is unchanged.
+  const selectedCandidate = isV2Request
+    ? internalRequest.selectedCandidate
+    : sanitizeSelectedCandidate(body.selectedCandidate);
   const useSelectedItemProvider =
     useMultiItemProvider &&
     requestMode === 'selected_item' &&
@@ -1584,7 +1659,9 @@ Deno.serve(async (req) => {
     useMultiItemProvider && requestMode !== 'selected_item';
   const scanSessionId = safeCorrelationId(body.scanSessionId) ?? crypto.randomUUID();
   const suppliedImageDigestPrefix = safeDigestPrefix(body.imageDigestPrefix);
-  const appPlatform = typeof body.appPlatform === 'string' && body.appPlatform.trim()
+  const appPlatform = isV2Request
+    ? internalRequest.platform ?? null
+    : typeof body.appPlatform === 'string' && body.appPlatform.trim()
     ? body.appPlatform.trim()
     : null;
   const appVersion = typeof body.appVersion === 'string' && body.appVersion.trim()
@@ -1728,7 +1805,14 @@ Deno.serve(async (req) => {
     }
   } else {
     // Accept either a raw base64 string or a data URI; strip the prefix server-side.
-    imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : '';
+    // V2 carries the payload inside the single validated evidence entry; legacy
+    // carries it at the top level. Both converge here, so every downstream
+    // guard (size, base64 shape, magic-byte sniff, digest) is unchanged.
+    imageBase64 = isV2Request
+      ? internalRequest.imageBase64 ?? ''
+      : typeof body.imageBase64 === 'string'
+      ? body.imageBase64
+      : '';
     imageBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '').trim();
 
     if (!imageBase64) {
@@ -2586,6 +2670,45 @@ Deno.serve(async (req) => {
     const completedNormalizedId = normalizeIdentification(
       completedResponseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
     );
+
+    // ── Canonical V2 normalization (Phase 2B.1) ─────────────────────────────
+    // ONE normalized result. The legacy fields built above and the V2 result
+    // built here are two projections of the same sanitized identification,
+    // which is what makes them structurally unable to disagree. There is no
+    // second visual-classification pipeline.
+    const v2EvidenceIds = internalRequest.evidenceId ? [internalRequest.evidenceId] : [];
+    const v2DetectionCandidates = useMultiItemDetectionProvider && detectedGarments.length > 0
+      ? detectedGarments.map((garment) => ({
+        candidateId: garment.candidateId,
+        // Every candidate keeps the id of the image it came from, so the
+        // follow-up selected-item request stays correlated to this detection.
+        evidenceId: v2EvidenceIds[0] ?? '',
+        category: garment.category ?? null,
+        subtype: garment.subtype ?? null,
+        ...(garment.bounds ? { bounds: garment.bounds } : {}),
+      }))
+      : undefined;
+    const v2Result: FashionIdentificationResultV2 = normalizeToV2({
+      requestId: internalRequest.requestId ?? scanId,
+      outcome: v2DetectionCandidates ? 'multiple_items_need_selection' : 'classified',
+      evidenceIds: v2EvidenceIds,
+      identification: completedResponseWithAttributes.identification as
+        | Record<string, unknown>
+        | undefined,
+      attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
+      ...(v2DetectionCandidates ? { candidates: v2DetectionCandidates } : {}),
+    });
+
+    // ── Hard commerce decision (Phase 2B.1) ─────────────────────────────────
+    // Evaluated HERE, before any commerce client, catalog query, similarity
+    // matcher or network promise exists. Starting providers and discarding the
+    // results later would still spend the quota, the latency and the
+    // third-party calls that style intent exists to avoid.
+    const commerceDecision = resolveCommerceDecision({
+      intent: internalRequest.intent,
+      resolvedMode: internalRequest.resolvedMode,
+      status: v2Result.status,
+    });
     // Product recommendations.
     //   - Text mode: real shopping providers (Serper primary, Brave fallback).
     //   - Image (camera) mode: live commerce router first, then catalog
@@ -2871,6 +2994,32 @@ Deno.serve(async (req) => {
         commerceSkipped: true,
         reason: 'multi_item_detection_only',
       };
+    } else if (isV2Request && !commerceDecision.run) {
+      // Phase 2B.1 short-circuit. Deliberately gated on isV2Request: legacy
+      // commerce behaviour must not shift during activation, and the two skips
+      // legacy already performs (detection, anonymous) are handled by the
+      // branches around this one. Nothing below is constructed — no KicksCrew,
+      // Farfetch, Serper or Brave client, no product_catalog query, no
+      // similarity matcher, no network promise.
+      console.log(
+        '[scan-identify] commerce_skipped reason=%s intent=%s mode=%s',
+        commerceDecision.skipReason ?? 'unknown',
+        internalRequest.intent,
+        internalRequest.resolvedMode,
+      );
+      finalRecommendedProducts = [];
+      finalSimilarityMatches = [];
+      rankedProductsForAudit = [];
+      shoppingMeta = {
+        provider: 'none',
+        query: '',
+        count: 0,
+        providersTried: [],
+        catalogCount: 0,
+        similarityMatches: 0,
+        commerceSkipped: true,
+        reason: commerceDecision.skipReason ?? 'unknown',
+      };
     } else if (isAnonymousImageAnalysis) {
       console.log(
         '[scan-identify] commerce_skipped reason=anonymous_image_analysis mode=%s source=%s',
@@ -3012,7 +3161,7 @@ Deno.serve(async (req) => {
       };
     }
 
-    const finalResponse = withSafeImageArrays(
+    const legacyFinalResponse = withSafeImageArrays(
       {
         ...completedResponseWithAttributes,
         ...(mode === 'image' ? { scanId, scanSessionId, imageDigestPrefix } : {}),
@@ -3034,6 +3183,45 @@ Deno.serve(async (req) => {
         shoppingMeta,
       },
     );
+
+    // ── Transitional response (Phase 2B.1) ──────────────────────────────────
+    // Legacy fields are untouched and legacy requests receive exactly what they
+    // received before. A V2 request additionally gets `contractVersion` and
+    // `identificationV2`, both derived from the same normalized result.
+    //
+    // The result is validated AND checked for JSON safety before it is
+    // attached. `undefined` is the failure that matters: it passes an in-memory
+    // check and then silently deletes its key during serialization, so the
+    // client receives a contract the server believed it had sent.
+    let finalResponse: Record<string, unknown> = legacyFinalResponse;
+    if (isV2Request) {
+      const v2Validation = validateFashionIdentificationResultV2(v2Result);
+      const unsafePath = findJsonUnsafePath(v2Result);
+      if (v2Validation.ok && unsafePath === null) {
+        finalResponse = buildTransitionalResponse(legacyFinalResponse, v2Result);
+      } else {
+        // Scrubbed category only — never the offending value, which would put
+        // provider output into a log line.
+        console.warn(
+          '[scan-identify] v2_response_validation_failed category=%s jsonUnsafe=%s',
+          v2Validation.ok ? 'json_unsafe' : v2Validation.category,
+          String(unsafePath !== null),
+        );
+        // A V2 client still receives a bounded, parseable technical-failure
+        // contract rather than an opaque 500 or a malformed identificationV2.
+        finalResponse = buildTransitionalResponse(
+          legacyFinalResponse,
+          buildTechnicalFailureResultV2(internalRequest.requestId ?? scanId, v2EvidenceIds),
+        );
+      }
+      logV2Telemetry(buildV2Telemetry({
+        internal: internalRequest,
+        evidenceCount: v2EvidenceIds.length,
+        result: v2Result,
+        commerce: commerceDecision,
+        responseValidationOk: v2Validation.ok && unsafePath === null,
+      }));
+    }
     if (mode === 'image' && auth.isAuthenticated) {
       await captureImageModeScanIntelligence({
         scanId,
