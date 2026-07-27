@@ -332,20 +332,6 @@ export function useKScan(actorId = null) {
       if (operationId === null) return;
 
       try {
-        const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permStatus !== 'granted') {
-          // Permission denial is a controlled outcome, not an error. Release the
-          // guard first, then restore the guidance alert that the prior app.js
-          // upload flow showed — without it, tapping Upload silently does nothing.
-          clearInFlight(operationId);
-          Alert.alert(
-            'Photo Access Required',
-            'Allow K Scan to access your photo library to upload a scan image.',
-            [{ text: 'OK' }],
-          );
-          return;
-        }
-
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 1,
@@ -356,25 +342,30 @@ export function useKScan(actorId = null) {
         });
 
         if (isOperationValid(operationId)) {
-          if (!result.canceled && Array.isArray(result.assets) && result.assets.length > 0) {
-            const images = normalizeImageSelections(
-              MULTI_IMAGE_SCANNER_ENABLED ? result.assets : result.assets.slice(0, 1),
-              'upload',
-              append ? selectedImages : [],
-            );
-            // Source-image collection mutated → invalidate all downstream state.
-            invalidateScanPipeline();
-            setSelectedImages(images);
-            setPhoto({ ...images[0], source: images[0].source });
-            setError(null);
-            setAnalysis(null);
-            setScanItems([]);
-            setSelectedScanItemId(null);
-            setAnalysisActorId(null);
-            setNonFashionMessage(null);
-            secondhandRequestRef.current += 1;
-            setStatus('preview');
+          if (result?.canceled) return;
+          if (!Array.isArray(result?.assets) || result.assets.length === 0) {
+            throw new Error('EMPTY_IMAGE_SELECTION');
           }
+          if (result.assets.some((asset) => asset?.type && asset.type !== 'image')) {
+            throw new Error('UNSUPPORTED_MEDIA');
+          }
+          const images = normalizeImageSelections(
+            MULTI_IMAGE_SCANNER_ENABLED ? result.assets : result.assets.slice(0, 1),
+            'upload',
+            append ? selectedImages : [],
+          );
+          // Source-image collection mutated → invalidate all downstream state.
+          invalidateScanPipeline();
+          setSelectedImages(images);
+          setPhoto({ ...images[0], source: images[0].source });
+          setError(null);
+          setAnalysis(null);
+          setScanItems([]);
+          setSelectedScanItemId(null);
+          setAnalysisActorId(null);
+          setNonFashionMessage(null);
+          secondhandRequestRef.current += 1;
+          setStatus('preview');
         }
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {

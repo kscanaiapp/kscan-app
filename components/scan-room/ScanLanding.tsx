@@ -12,10 +12,6 @@ import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { LuxuryButton } from '../luxury/LuxuryButton';
 import { PrivacyFooter } from '../luxury/PrivacyFooter';
 import { ScanRoomHeader } from './ScanRoomHeader';
-import {
-  isPrivateImageUploadAvailable,
-  PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
-} from '../../services/privacyImageUpload';
 
 interface ScanLandingProps {
   onOpenCamera: () => void;
@@ -46,8 +42,6 @@ export function ScanLanding({
   textScanEnabled = false,
   testID,
 }: ScanLandingProps) {
-  const uploadAvailable = isPrivateImageUploadAvailable();
-
   return (
     <ScrollView
       style={styles.root}
@@ -106,16 +100,12 @@ export function ScanLanding({
           testID="scan-room-open-camera"
         />
         <LuxuryButton
-          title={uploadAvailable ? 'Upload Image' : 'Upload Unavailable'}
+          title="Upload Image"
           variant="secondary"
           onPress={onUploadImage}
-          disabled={disabled || !uploadAvailable}
-          accessibilityLabel={uploadAvailable ? 'Upload an image from your library' : 'Upload unavailable'}
-          accessibilityHint={
-            uploadAvailable
-              ? 'Opens the image picker for an uploaded scan'
-              : PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE
-          }
+          disabled={disabled}
+          accessibilityLabel="Upload an image from your library"
+          accessibilityHint="Opens the image picker for an uploaded scan"
           testID="scan-room-upload-image"
         />
         {textScanEnabled && (
