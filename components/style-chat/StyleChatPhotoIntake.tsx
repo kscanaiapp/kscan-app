@@ -30,7 +30,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
-import { sanitizeImageBeforeUpload } from '../../services/privacyImageSanitizer';
+import {
+  getPrivacySanitizerStatus,
+  sanitizeImageBeforeUpload,
+} from '../../services/privacyImageSanitizer';
 import { SCANNER_IMAGE_MAX_WIDTH, SCANNER_IMAGE_JPEG_QUALITY } from '../../services/imageUtils';
 import { identifyScanImage } from '../../services/scanIdentification';
 import { saveScan } from '../../services/library';
@@ -137,6 +140,10 @@ export function StyleChatPhotoIntake({
       }
       if (operationId !== operationIdRef.current) return;
       setImageUri(sanitizedUri);
+      const sanitizerStatus = getPrivacySanitizerStatus();
+      const localPrivacyFiltered =
+        sanitizerStatus.faceBlurApplied === true &&
+        sanitizerStatus.plateMaskApplied === true;
 
       // Identify through the existing guarded service (its own timeout+abort).
       // Reuse Scanner-compatible compress settings (896 / 0.65).
@@ -159,7 +166,7 @@ export function StyleChatPhotoIntake({
             // which read localPrivacyFiltered — NOT the un-integrated structured
             // privacyProof migration). The image is already re-encoded and
             // metadata-stripped above via the accepted Scanner 896 / 0.65 path.
-            localPrivacyFiltered: true,
+            localPrivacyFiltered,
             signal: abortRef.current?.signal,
           })
         : null;

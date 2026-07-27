@@ -161,7 +161,7 @@ test('photo intake keeps scanner protections: op id, abort, late-result discard,
   assert.match(intakeSource, /getPrivacySanitizerStatus/);
   assert.match(intakeSource, /identifyScanImage/);
   assert.doesNotMatch(intakeSource, /localPrivacyFiltered:\s*true/);
-  assert.match(intakeSource, /localPrivacyFiltered:\s*localPrivacyFiltered/);
+  assert.match(intakeSource, /localPrivacyFiltered\s*,/);
   // Save-through-Closet is mandatory: attach only after saveScan + cloud sync.
   assert.match(intakeSource, /saveScan\(/);
   assert.match(intakeSource, /saveScanToCloud/);
