@@ -23,7 +23,10 @@
     "verify:apple-submission": "node scripts/verify-apple-submission.js",
     "check:scan-readiness": "node scripts/check-scan-readiness.js",
     "smoke:scan-identify": "node scripts/smoke-scan-identify.js",
-    "test:kscan-icons": "node --test __tests__/kscanProductIcons.test.js"
+    "test:kscan-icons": "node --test __tests__/kscanProductIcons.test.js",
+    "generate:edge-manifest": "node scripts/generate-edge-function-manifest.js",
+    "verify:edge-parity": "node scripts/check-edge-function-parity.js",
+    "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
