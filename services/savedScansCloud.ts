@@ -239,8 +239,10 @@ export function mapSavedScanToRow(
     analysis_result: scan.result ? { result: scan.result, metadata: scan.attributes } : {},
     products: Array.isArray(scan.products) ? scan.products.slice() : [],
     purchase_options: purchaseOptions,
-    image_uri: scan.imageUri ?? null,
-    thumbnail_uri: scan.thumbnailUri ?? null,
+    // Device-local file paths are neither portable nor governed cloud metadata.
+    // Remote media is represented only by the actor-bound storage fields below.
+    image_uri: null,
+    thumbnail_uri: null,
     source: 'mobile',
     saved_at: scan.savedAt || scan.createdAt || new Date().toISOString(),
     deleted_at: scan.deletedAt ?? null,
