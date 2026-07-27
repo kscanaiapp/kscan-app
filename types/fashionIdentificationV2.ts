@@ -130,6 +130,14 @@ export type FashionIdentificationPrivacyV2 = {
 export type FashionSelectedCandidateV2 = {
   candidateId: string;
   evidenceId: string;
+  /**
+   * Preliminary category from the detection step. Required because the existing
+   * selected-item pipeline needs it and the detection response already supplies
+   * it — carrying it through is lossless, whereas re-deriving or defaulting it
+   * would be guessing at which garment the user picked.
+   */
+  category: string;
+  subtype?: string;
   bounds?: { x: number; y: number; width: number; height: number };
   detectionDigest?: string;
 };

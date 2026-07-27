@@ -129,6 +129,14 @@ export type FashionIdentificationPrivacyV2 = {
 export type FashionSelectedCandidateV2 = {
   candidateId: string;
   evidenceId: string;
+  /**
+   * Preliminary category from the detection step. Required because the existing
+   * selected-item pipeline needs it and the detection response already supplies
+   * it — carrying it through is lossless, whereas re-deriving or defaulting it
+   * would be guessing at which garment the user picked.
+   */
+  category: string;
+  subtype?: string;
   bounds?: { x: number; y: number; width: number; height: number };
   detectionDigest?: string;
 };
@@ -254,6 +262,13 @@ function inEnum<T extends readonly string[]>(vocab: T, value: unknown): value is
   return typeof value === 'string' && (vocab as readonly string[]).includes(value);
 }
 
+/**
+ * The only accepted evidence-id shape. Client-supplied and echoed verbatim, so
+ * it must be incapable of carrying a filesystem path, a URI, a device asset
+ * identifier, a filename, or anything user-identifying.
+ */
+export const EVIDENCE_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
+
 // ── Contract-version dispatch ────────────────────────────────────────────────
 
 export type ContractVersionClass = 'v2' | 'legacy' | 'unsupported';
@@ -291,6 +306,7 @@ export type ValidationFailure = {
     | 'invalid_source'
     | 'invalid_privacy'
     | 'invalid_evidence'
+    | 'invalid_evidence_id'
     | 'too_many_evidence_entries'
     | 'duplicate_evidence_id'
     | 'invalid_transport'
@@ -389,12 +405,20 @@ export function validateFashionIdentificationRequestV2(body: unknown): Validatio
   for (const entry of evidence) {
     if (!isRecord(entry)) return fail('invalid_evidence', 'Each evidence entry must be an object.');
     const evidenceId = str(entry.evidenceId);
-    if (!evidenceId || evidenceId.length > 80) {
-      return fail('invalid_evidence', 'evidenceId is required on every evidence entry.');
+    if (!evidenceId) {
+      return fail('invalid_evidence_id', 'evidenceId is required on every evidence entry.');
     }
-    // A local filesystem path must never be used as an identifier.
-    if (/[\\/]/.test(evidenceId) || /^[a-z]+:/i.test(evidenceId)) {
-      return fail('invalid_evidence', 'evidenceId must not be a URI or filesystem path.');
+    // A single strict format instead of a blocklist. A blocklist has to
+    // anticipate every shape of leak — `file://`, `content://`, `ph://`, a
+    // Windows path, a bare filename with an extension, an email-like id, a
+    // query string. An allowlist of [A-Za-z0-9-] excludes all of them by
+    // construction, and the 8-char floor keeps a client from using a counter
+    // that would collide across sessions.
+    if (!EVIDENCE_ID_PATTERN.test(evidenceId)) {
+      return fail(
+        'invalid_evidence_id',
+        'evidenceId must match ^[A-Za-z0-9-]{8,64}$ and must never be a path, URI, filename, or user identifier.',
+      );
     }
     if (seenEvidenceIds.has(evidenceId)) {
       return fail('duplicate_evidence_id', 'Duplicate evidenceId within one request.');
@@ -469,10 +493,11 @@ export function validateFashionIdentificationRequestV2(body: unknown): Validatio
     if (!isRecord(raw)) return fail('invalid_selected_candidate', 'selectedCandidate must be an object.');
     const candidateId = str(raw.candidateId);
     const evidenceId = str(raw.evidenceId);
-    if (!candidateId || !evidenceId) {
+    const candidateCategory = str(raw.category);
+    if (!candidateId || !evidenceId || !candidateCategory) {
       return fail(
         'invalid_selected_candidate',
-        'selectedCandidate requires candidateId and evidenceId.',
+        'selectedCandidate requires candidateId, evidenceId and category.',
       );
     }
     // Selection must correlate to evidence actually present in this request.
@@ -482,7 +507,9 @@ export function validateFashionIdentificationRequestV2(body: unknown): Validatio
         'selectedCandidate.evidenceId does not match any evidence in this request.',
       );
     }
-    selectedCandidate = { candidateId, evidenceId };
+    selectedCandidate = { candidateId, evidenceId, category: candidateCategory };
+    const candidateSubtype = str(raw.subtype);
+    if (candidateSubtype) selectedCandidate.subtype = candidateSubtype;
     if (isRecord(raw.bounds)) {
       const b = raw.bounds;
       const values = [b.x, b.y, b.width, b.height].map((v) => (typeof v === 'number' ? v : NaN));

@@ -130,9 +130,8 @@
       "properties": {
         "evidenceId": {
           "type": "string",
-          "minLength": 1,
-          "maxLength": 80,
-          "description": "Stable request/response correlation id. Never a device asset id and never a local filesystem path."
+          "pattern": "^[A-Za-z0-9-]{8,64}$",
+          "description": "Stable request/response correlation id, client-supplied and echoed verbatim. The allowlisted charset makes a path, URI, filename, device asset id, or user identifier unrepresentable by construction rather than by blocklist."
         },
         "sequenceIndex": { "type": "integer", "minimum": 0 },
         "angleHint": { "$ref": "#/definitions/angleHint" },
@@ -182,11 +181,14 @@
         "privacy": { "$ref": "#/definitions/privacy" },
         "selectedCandidate": {
           "type": "object",
-          "required": ["candidateId", "evidenceId"],
+          "description": "category is required because the existing selected-item pipeline needs it and the detection response already supplies it. Carrying it is lossless; defaulting it would be guessing which garment the user picked.",
+          "required": ["candidateId", "evidenceId", "category"],
           "additionalProperties": false,
           "properties": {
             "candidateId": { "type": "string", "minLength": 1, "maxLength": 80 },
-            "evidenceId": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "evidenceId": { "type": "string", "pattern": "^[A-Za-z0-9-]{8,64}$" },
+            "category": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "subtype": { "type": "string", "maxLength": 80 },
             "bounds": {
               "type": "object",
               "required": ["x", "y", "width", "height"],
