@@ -306,6 +306,11 @@ test('production Scanner runAnalysis enables multi-item detection on scan-identi
 
   assert.equal(sentOptions.multiItemDetection, true);
   assert.equal(sentOptions.requestMode, 'multi_item_detection');
+  assert.equal(
+    sentOptions.localPrivacyFiltered,
+    false,
+    'passthrough preparation must not attest that local privacy filtering occurred',
+  );
   assert.match(sentOptions.scanSessionId, /^scan_/);
   assert.equal(sentOptions.imageDigestPrefix, 'aaaaaaaaaaaa');
 });
@@ -349,6 +354,8 @@ test('selected-item request reuses the exact prepared image, digest, and scan se
   assert.equal(calls[1].options.imageDigestPrefix, calls[0].options.imageDigestPrefix);
   assert.equal(calls[0].options.requestMode, 'multi_item_detection');
   assert.equal(calls[1].options.requestMode, 'selected_item');
+  assert.equal(calls[0].options.localPrivacyFiltered, false);
+  assert.equal(calls[1].options.localPrivacyFiltered, false);
   assert.equal(calls[1].options.selectedCandidate.candidateId, 'garment-1-blazer');
   assert.equal(calls[1].options.selectedCandidate.category, 'blazer');
   assert.equal(calls[1].options.selectedCandidate.bounds.x, 0.1);
