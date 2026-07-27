@@ -19,17 +19,23 @@
 
 ## Approved deploy command
 
+Superseded by Phase 2A.5 (IMG-006). The approved path is the guarded wrapper —
+see [docs/edge-function-deployment.md](edge-function-deployment.md):
+
 ```bash
-supabase functions deploy scan-identify --project-ref wyyuqfdxucjksghsmhry
+node scripts/deploy-edge-functions.js --function scan-identify --confirm-deploy scan-identify
 ```
 
 Deploy **only** `scan-identify`. Do not change JWT posture, schema, or unrelated functions.
 
-Preserve `--no-verify-jwt` only if the repository-approved workflow for this function requires it to keep `verify_jwt=false`. Confirm with:
+JWT posture is no longer a command-line flag to remember: `supabase/config.toml`
+pins `scan-identify` to `verify_jwt = false`, and the parity gate fails if that
+file is missing or points at a project other than the approved production one.
 
-```bash
-supabase functions deploy --help
-```
+Do **not** invoke `supabase functions deploy scan-identify` directly. The raw
+command performs none of the manifest, project-reference, tree-parity or
+clean-checkout verification, and Phase 2A confirmed it would happily ship a
+non-canonical branch copy.
 
 If the CLI would flip JWT verification on, use the project’s existing documented flag to keep `verify_jwt=false`.
 

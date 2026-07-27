@@ -35,13 +35,16 @@ Defaults for this release: all three default ON when unset (after validation).
 
 ## Approved deploy command
 
-```powershell
-npx supabase functions deploy scan-identify `
-  --project-ref wyyuqfdxucjksghsmhry `
-  --no-verify-jwt
+Superseded by Phase 2A.5 (IMG-006). The approved path is the guarded wrapper —
+see [docs/edge-function-deployment.md](edge-function-deployment.md):
+
+```bash
+node scripts/deploy-edge-functions.js --function scan-identify --confirm-deploy scan-identify
 ```
 
-Deploy **only** `scan-identify`. Confirm JWT posture remains `verify_jwt=false`.
+Deploy **only** `scan-identify`. JWT posture is pinned to `verify_jwt = false`
+by `supabase/config.toml` rather than by a remembered CLI flag. Do not invoke
+`supabase functions deploy` directly — it skips every parity check.
 
 ## Rollback order
 

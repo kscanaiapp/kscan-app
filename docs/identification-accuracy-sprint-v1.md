@@ -103,6 +103,15 @@ labels recalibrated; non-fashion/unknown still return no products.
 
 Edge Function source changed. Deploy was **NOT** performed in this session (deno
 check unavailable here; deploy gated on Edge Function checks passing locally).
-Deploy when ready with:
-`supabase functions deploy scan-identify --project-ref wyyuqfdxucjksghsmhry`
-(App Staging only — do not deploy to Production).
+Deploy when ready through the guarded path — see
+[docs/edge-function-deployment.md](edge-function-deployment.md):
+
+```bash
+node scripts/deploy-edge-functions.js --function scan-identify --confirm-deploy scan-identify
+```
+
+Note (Phase 2A.5, IMG-006): the parity gate pins the approved target to the
+production project `wyyuqfdxucjksghsmhry`. An App Staging deploy of a governed
+function is therefore blocked at step 2 and requires an owner-approved change to
+`APPROVED_PROJECT_REF` in `scripts/edge-function-manifest-lib.js`. Do not work
+around it with a raw `supabase functions deploy`.
