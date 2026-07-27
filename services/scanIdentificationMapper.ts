@@ -18,6 +18,10 @@ import type { ScanIdentifyResponse, FashionAttributes, DetailedIdentification, R
 import type { ScanResultObject } from '../types/scanResultObject';
 import { createScanResultObject } from './scanResultObject';
 import { buildScanTitle, deriveBrandConfidence, type BrandConfidence } from './scanTitleBuilder';
+import {
+  buildIdentificationSnapshot,
+  type PersistedIdentificationSnapshotV1,
+} from './identificationSnapshot';
 import { SCAN_IDENTITY_DEBUG } from '../constants/build';
 
 export type MappedScanMetadata = {
@@ -47,6 +51,16 @@ export type MappedFashionAnalysis = {
   type: 'fashion';
   result: string;
   metadata: MappedScanMetadata;
+  /**
+   * Durable versioned identification (IMG-008).
+   *
+   * `metadata` above is the legacy display shape and necessarily discards
+   * subtype, secondary colours, brand evidence, construction details and
+   * distinctive features. This carries them through to persistence so a
+   * reopened scan can be reconstructed. Built from the response, not from
+   * `metadata`, because `metadata` has already lost them.
+   */
+  identificationSnapshot?: PersistedIdentificationSnapshotV1 | null;
   /** Catalog similarity matches (legacy ProductShelf / V2 Similar Finds). */
   products: RankedScanProduct[];
   /** Live commerce purchase options when the backend separates them. */
@@ -215,6 +229,15 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
       purchaseOptions,
       displayResult: resp.displayResult,
     };
+
+    // Durable identification snapshot (IMG-008). Built from the response so it
+    // keeps the fields `metadata` drops. Wrapped for the same reason as below:
+    // an enrichment failure must never break the existing analysis contract.
+    try {
+      analysis.identificationSnapshot = buildIdentificationSnapshot(resp);
+    } catch {
+      analysis.identificationSnapshot = null;
+    }
 
     // Additive Part 2 enrichment. Wrapped so a failure here can never break the
     // existing analysis contract — on any error we simply omit the field.

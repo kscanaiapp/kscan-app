@@ -62,6 +62,8 @@ const scanTitleBuilderModule = loadTsModule('services/scanTitleBuilder.ts');
 const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   './scanResultObject': scanResultObjectModule,
   './scanTitleBuilder': scanTitleBuilderModule,
+  // IMG-008: the mapper now also builds the durable identification snapshot.
+  './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
   '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
 

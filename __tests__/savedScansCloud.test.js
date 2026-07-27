@@ -106,6 +106,8 @@ function loadService(mockClient, flags = { CLOUD_SAVED_SCANS_ENABLED: true }) {
     './supabaseClient': { supabase: mockClient },
     '../constants/featureFlags': flags,
     './purchaseOptions': loadTsModule('services/purchaseOptions.ts'),
+    // IMG-008: the row mapper now validates the durable identification snapshot.
+    './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
   });
 }
 
