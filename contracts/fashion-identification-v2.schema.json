@@ -1,0 +1,388 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kscan.ai/contracts/fashion-identification-v2.schema.json",
+  "title": "Fashion Identification Contract v2",
+  "description": "Canonical, runtime-neutral fashion identification contract shared by the Supabase Edge Functions, the Android client, the iOS client, and future clients. This file is the single source of truth for the contract vocabularies. The Deno mirror (supabase/functions/_shared/fashionIdentificationV2.ts) and the client mirror (types/fashionIdentificationV2.ts) are held to it by __tests__/fashionIdentificationContractParity.test.js. Changing a vocabulary here without changing both mirrors fails that test.",
+  "x-contract-version": "fashion-identification-v2",
+
+  "definitions": {
+    "contractVersion": {
+      "type": "string",
+      "enum": ["fashion-identification-v2"],
+      "description": "Mandatory on every V2 request and echoed on every V2 result. Absent means legacy; anything else is an unsupported version and must be rejected rather than guessed."
+    },
+
+    "intent": {
+      "type": "string",
+      "enum": ["identify_and_shop", "identify_for_style"],
+      "description": "Phase 2B supports exactly two active intents. identify_only is deliberately NOT implemented in this phase; no unused branch is created or tested."
+    },
+
+    "mode": {
+      "type": "string",
+      "enum": ["detect_items", "identify_selected_item", "identify_item_collection"],
+      "description": "Preserves the existing two-step Scanner flow. identify_item_collection is reserved for Phase 2D multi-angle fusion and is not transport-bearing in Phase 2B."
+    },
+
+    "entryPath": {
+      "type": "string",
+      "enum": [
+        "scanner_camera",
+        "scanner_gallery",
+        "elise_camera",
+        "elise_gallery",
+        "elise_header_gallery",
+        "scanner_handoff"
+      ],
+      "description": "Never reduced to a generic camera/upload. elise_header_gallery is distinct from elise_gallery because its evidence has a transient lifecycle (see Phase 2B addendum 15)."
+    },
+
+    "platform": {
+      "type": "string",
+      "enum": ["android", "ios", "glasses", "other"]
+    },
+
+    "angleHint": {
+      "type": "string",
+      "enum": ["front", "back", "side", "detail", "logo", "label", "unknown"]
+    },
+
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "partial",
+        "insufficient_visual_evidence",
+        "non_fashion",
+        "multiple_items_need_selection",
+        "technical_failure"
+      ],
+      "description": "insufficient_visual_evidence (visual uncertainty) and technical_failure (provider timeout / malformed response) are separate states and must never be collapsed."
+    },
+
+    "resolutionLevel": {
+      "type": "string",
+      "enum": [
+        "exact_product",
+        "model_family",
+        "brand_and_subtype",
+        "subtype",
+        "category",
+        "unknown"
+      ]
+    },
+
+    "brandProvenance": {
+      "type": "string",
+      "enum": [
+        "visual",
+        "visible_text",
+        "logo_shape",
+        "catalog_corroboration",
+        "commerce_corroboration",
+        "unknown"
+      ]
+    },
+
+    "imageMetadata": {
+      "type": "object",
+      "description": "Governed metadata only. Raw EXIF is never accepted as an open-ended object.",
+      "required": ["schemaVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": { "type": "string", "enum": ["image-metadata-v1"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "mimeType": { "type": "string", "enum": ["image/jpeg"] },
+        "fileSizeBucket": { "type": "string" },
+        "contentHash": { "type": "string" }
+      }
+    },
+
+    "transport": {
+      "description": "Exactly one transport per evidence object.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "imageBase64"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["jpeg_base64"] },
+            "imageBase64": { "type": "string", "minLength": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "referenceId"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["authorized_image_reference"] },
+            "referenceId": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+
+    "evidence": {
+      "type": "object",
+      "required": ["evidenceId", "sequenceIndex", "transport", "metadata"],
+      "additionalProperties": false,
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Stable request/response correlation id. Never a device asset id and never a local filesystem path."
+        },
+        "sequenceIndex": { "type": "integer", "minimum": 0 },
+        "angleHint": { "$ref": "#/definitions/angleHint" },
+        "transport": { "$ref": "#/definitions/transport" },
+        "metadata": { "$ref": "#/definitions/imageMetadata" }
+      }
+    },
+
+    "privacy": {
+      "type": "object",
+      "description": "Truthful attestation. Face and plate masking remain deferred in Phase 2B, so localFaceMaskApplied and localPlateMaskApplied are always false. They must NOT be inferred true from JPEG re-encoding, EXIF removal, resizing, or URI normalization.",
+      "required": ["localFaceMaskApplied", "localPlateMaskApplied", "rawExifTransmitted"],
+      "additionalProperties": false,
+      "properties": {
+        "localFaceMaskApplied": { "type": "boolean", "enum": [false] },
+        "localPlateMaskApplied": { "type": "boolean", "enum": [false] },
+        "rawExifTransmitted": { "type": "boolean", "enum": [false] }
+      }
+    },
+
+    "request": {
+      "type": "object",
+      "required": ["contractVersion", "requestId", "intent", "mode", "source", "evidence", "privacy"],
+      "additionalProperties": false,
+      "properties": {
+        "contractVersion": { "$ref": "#/definitions/contractVersion" },
+        "requestId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "intent": { "$ref": "#/definitions/intent" },
+        "mode": { "$ref": "#/definitions/mode" },
+        "source": {
+          "type": "object",
+          "required": ["entryPath", "platform"],
+          "additionalProperties": false,
+          "properties": {
+            "entryPath": { "$ref": "#/definitions/entryPath" },
+            "platform": { "$ref": "#/definitions/platform" },
+            "appVersion": { "type": "string" }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "description": "Array-based so Phase 2D can extend without a domain-model change. In Phase 2B exactly one transport-bearing entry is permitted per HTTP invocation; an oversized request is rejected with a client-actionable error rather than silently truncated to evidence[0].",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/definitions/evidence" }
+        },
+        "privacy": { "$ref": "#/definitions/privacy" },
+        "selectedCandidate": {
+          "type": "object",
+          "required": ["candidateId", "evidenceId"],
+          "additionalProperties": false,
+          "properties": {
+            "candidateId": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "evidenceId": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "bounds": {
+              "type": "object",
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false,
+              "properties": {
+                "x": { "type": "number", "minimum": 0, "maximum": 1 },
+                "y": { "type": "number", "minimum": 0, "maximum": 1 },
+                "width": { "type": "number", "minimum": 0, "maximum": 1 },
+                "height": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
+            "detectionDigest": { "type": "string", "maxLength": 80 }
+          }
+        }
+      }
+    },
+
+    "brandEvidence": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "evidenceId": { "type": "string" },
+        "type": { "type": "string" },
+        "observation": { "type": ["string", "null"] },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "result": {
+      "type": "object",
+      "required": [
+        "contractVersion",
+        "requestId",
+        "status",
+        "resolutionLevel",
+        "item",
+        "confidence",
+        "exactProduct",
+        "evidence",
+        "conflicts",
+        "compatibility"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "contractVersion": { "$ref": "#/definitions/contractVersion" },
+        "requestId": { "type": "string" },
+        "status": { "$ref": "#/definitions/status" },
+        "resolutionLevel": { "$ref": "#/definitions/resolutionLevel" },
+        "item": {
+          "type": "object",
+          "required": ["category", "subtype", "brand", "colors", "material", "silhouette", "pattern", "attributes"],
+          "additionalProperties": false,
+          "properties": {
+            "category": { "type": ["string", "null"] },
+            "subtype": { "type": ["string", "null"] },
+            "brand": {
+              "type": "object",
+              "required": ["value", "confidence", "provenance", "evidence"],
+              "additionalProperties": false,
+              "properties": {
+                "value": { "type": ["string", "null"] },
+                "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+                "provenance": { "$ref": "#/definitions/brandProvenance" },
+                "evidence": { "type": "array", "items": { "$ref": "#/definitions/brandEvidence" } }
+              }
+            },
+            "colors": {
+              "type": "object",
+              "required": ["primary", "secondary"],
+              "additionalProperties": false,
+              "properties": {
+                "primary": { "type": ["string", "null"] },
+                "secondary": { "type": "array", "items": { "type": "string" } }
+              }
+            },
+            "material": { "type": "array", "items": { "type": "string" } },
+            "silhouette": { "type": "array", "items": { "type": "string" } },
+            "pattern": { "type": "array", "items": { "type": "string" } },
+            "attributes": {
+              "type": "object",
+              "required": ["pockets", "visible", "distinctive"],
+              "additionalProperties": false,
+              "properties": {
+                "fit": { "type": ["string", "null"] },
+                "length": { "type": ["string", "null"] },
+                "sleeve": { "type": ["string", "null"] },
+                "neckline": { "type": ["string", "null"] },
+                "collar": { "type": ["string", "null"] },
+                "closure": { "type": ["string", "null"] },
+                "pockets": { "type": "array", "items": { "type": "string" } },
+                "visible": { "type": "array", "items": { "type": "string" } },
+                "distinctive": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "description": "The current provider supplies ONE broad confidence score. Fields it cannot support are null. Copying a single global score into five fields would fabricate precision that does not exist and is forbidden until Phase 2C.",
+          "required": ["category", "subtype", "brand", "modelFamily", "exactProduct"],
+          "additionalProperties": false,
+          "properties": {
+            "category": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "subtype": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "brand": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "modelFamily": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "exactProduct": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+          }
+        },
+        "exactProduct": {
+          "type": ["object", "null"],
+          "required": ["brand", "model", "sku", "confidence"],
+          "additionalProperties": false,
+          "properties": {
+            "brand": { "type": ["string", "null"] },
+            "model": { "type": ["string", "null"] },
+            "sku": { "type": ["string", "null"] },
+            "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["evidenceId", "observations"],
+            "additionalProperties": false,
+            "properties": {
+              "evidenceId": { "type": "string" },
+              "observations": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "candidates": {
+          "type": "array",
+          "description": "Present only for status multiple_items_need_selection. Every candidate carries its originating evidenceId so selection stays correlated.",
+          "items": {
+            "type": "object",
+            "required": ["candidateId", "evidenceId", "category", "subtype"],
+            "additionalProperties": false,
+            "properties": {
+              "candidateId": { "type": "string" },
+              "evidenceId": { "type": "string" },
+              "category": { "type": ["string", "null"] },
+              "subtype": { "type": ["string", "null"] },
+              "bounds": {
+                "type": "object",
+                "required": ["x", "y", "width", "height"],
+                "additionalProperties": false,
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" },
+                  "width": { "type": "number" },
+                  "height": { "type": "number" }
+                }
+              },
+              "detectionDigest": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["field", "description", "evidenceIds"],
+            "additionalProperties": false,
+            "properties": {
+              "field": { "type": "string" },
+              "description": { "type": "string" },
+              "evidenceIds": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "unknownReason": { "type": ["string", "null"] },
+        "compatibility": {
+          "type": "object",
+          "required": ["legacyProjectionAvailable", "globalConfidence"],
+          "additionalProperties": false,
+          "properties": {
+            "legacyProjectionAvailable": { "type": "boolean" },
+            "globalConfidence": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1,
+              "description": "The single broad provider score, retained here truthfully rather than being split across the five confidence dimensions."
+            },
+            "commerceSkippedReason": { "type": ["string", "null"] }
+          }
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/definitions/request" },
+    { "$ref": "#/definitions/result" }
+  ]
+}
