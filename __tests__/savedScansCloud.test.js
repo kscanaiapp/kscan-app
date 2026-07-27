@@ -324,7 +324,7 @@ test('mapSavedScanRowToModel converts snake_case to camelCase', async () => {
   assert.equal(model.source, row.scan_type);
 });
 
-test('mapSavedScanToRow converts camelCase to snake_case', async () => {
+test('mapSavedScanToRow converts camelCase without uploading device-local paths', async () => {
   const client = createMockClient({ session: { user: { id: 'user-1' } } });
   const svc = loadService(client);
   const model = makeScanModel({ id: 'scan_local_2', cloudId: 'cloud-2' });
@@ -334,8 +334,8 @@ test('mapSavedScanToRow converts camelCase to snake_case', async () => {
   assert.equal(row.id, 'cloud-2');
   assert.equal(row.source, 'mobile');
   assert.equal(row.title, model.attributes.category);
-  assert.equal(row.image_uri, model.imageUri);
-  assert.equal(row.thumbnail_uri, model.thumbnailUri);
+  assert.equal(row.image_uri, null);
+  assert.equal(row.thumbnail_uri, null);
   assert.equal(row.scan_type, model.source);
 });
 
