@@ -25,6 +25,7 @@ import {
   type EliseVisualPreparationJob,
 } from '../services/style-chat/eliseVisualContextQueue';
 import { buildEliseVisualContext } from '../services/style-chat/buildEliseVisualContext';
+import { prepareVisualContextEvidence } from '../services/style-chat/eliseVisualContextEvidence';
 import { setDraftComposerText } from '../services/style-chat/styleChatAttachmentStore';
 import {
   ELISE_VISUAL_CONTEXT_MAX_ENTRIES,
@@ -150,6 +151,53 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
       try {
         const prepared = await prepareImageForPrivacyUpload(rawUri);
         sanitizedUri = prepared.sanitizedUri;
+
+        // Show the local preview immediately, but keep the entry in `analyzing`
+        // until the backend has actually seen the image. Marking it `ready`
+        // here — as this path used to — is what let the composer present Elise
+        // as image-aware while `stylechat-generate` received nothing (IMG-007).
+        const previewApplied = updateVisualContextEntryIfCurrent(
+          jobActorKey,
+          jobSessionId,
+          entryId,
+          revision,
+          (entry) => ({
+            ...entry,
+            status: 'analyzing',
+            title: 'Identifying photo…',
+            sanitizedPreviewUri: prepared.sanitizedUri,
+            privacyPolicy: prepared.policy,
+          }) as EliseVisualContextEntry,
+        );
+        if (!previewApplied) {
+          // Removed, restarted, or actor-switched during preparation.
+          void cleanupSanitizedImage(prepared.sanitizedUri);
+          return;
+        }
+
+        const evidence = await prepareVisualContextEvidence({
+          sanitizedUri: prepared.sanitizedUri,
+        });
+
+        if (!evidence.ok) {
+          if (evidence.reason === 'cancelled') return;
+          // Honest terminal state. No structured fields are written, so a
+          // failed entry can never be sent as grounded visual context.
+          updateVisualContextEntryIfCurrent(
+            jobActorKey,
+            jobSessionId,
+            entryId,
+            revision,
+            (entry) => ({
+              ...entry,
+              status: evidence.reason === 'non_fashion' ? 'blocked' : 'failed',
+              title: evidence.message,
+              summary: null,
+            }) as EliseVisualContextEntry,
+          );
+          return;
+        }
+
         const applied = updateVisualContextEntryIfCurrent(
           jobActorKey,
           jobSessionId,
@@ -157,14 +205,17 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
           revision,
           (entry) => ({
             ...entry,
+            ...evidence.fields,
             status: 'ready',
-            title: entry.title || 'Uploaded photo',
+            savedScanId: evidence.savedScanId,
             sanitizedPreviewUri: prepared.sanitizedUri,
             privacyPolicy: prepared.policy,
           }) as EliseVisualContextEntry,
         );
-        if (!applied && sanitizedUri) {
-          void cleanupSanitizedImage(sanitizedUri);
+        if (!applied) {
+          // The staged saved scan is a durable, actor-owned record; it is left
+          // in the user's library rather than deleted behind their back.
+          void cleanupSanitizedImage(prepared.sanitizedUri);
         }
       } catch (error) {
         if (sanitizedUri) void cleanupSanitizedImage(sanitizedUri);

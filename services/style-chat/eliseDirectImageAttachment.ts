@@ -89,7 +89,22 @@ export async function prepareEliseDirectImage(
  */
 export async function resolvePreparedDirectImageAttachment(
   prepared: PreparedDirectImage,
-  options?: { title?: string; category?: string; signal?: AbortSignal },
+  options?: {
+    title?: string;
+    category?: string;
+    signal?: AbortSignal;
+    /**
+     * Real identification output to persist instead of the placeholder.
+     *
+     * The direct composer path deliberately skips scan-identify, so it has
+     * nothing better than `"<title> — attached for Elise"` to store. The Elise
+     * header-gallery path (IMG-007) does call scan-identify first, and passing
+     * its mapped analysis here means the saved scan and its cloud row carry the
+     * actual result rather than a placeholder that would then need a second
+     * write to correct.
+     */
+    analysis?: { result?: string; metadata?: Record<string, unknown> } & Record<string, unknown>;
+  },
 ): Promise<DirectImageAttachResult> {
   if (options?.signal?.aborted) {
     return {
@@ -110,7 +125,7 @@ export async function resolvePreparedDirectImageAttachment(
     // rejected rather than writing under the wrong owner.
     const scan = await saveScan({
       photoUri: prepared.preparedUri,
-      analysis: {
+      analysis: options?.analysis ?? {
         result: `${title} — attached for Elise`,
         metadata: { category, color: undefined },
       },
