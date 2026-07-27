@@ -367,6 +367,7 @@ f306822 fix(elise): report truthful local privacy filtering
 53d5930 fix(elise): preserve structured identification
 5168471 test(privacy): expose cloud local-path persistence
 45872f7 fix(privacy): keep device paths out of cloud rows
+f1bbc58 fix(elise): type privacy attestation contract
 ```
 
 iOS:
@@ -382,9 +383,12 @@ iOS:
 0450855 fix(elise): preserve structured identification
 498debd test(privacy): expose cloud local-path persistence
 ec410de fix(privacy): keep device paths out of cloud rows
+2cacb9b fix(elise): type privacy attestation contract
 ```
 
 Every regression was observed failing before its fix and passing after it. Rollback is the individual fix commit; no schema/data migration or deployment is involved.
+
+Post-repair validation: Android `scripts/run-all-tests.js` passed 2,054/2,054; iOS passed 1,879/1,879. Focused privacy/Elise/cloud-media suites also passed. Repository-wide `tsc --noEmit` still exits non-zero on pre-existing rollback/Deno configuration and missing optional Expo/SVG package declarations; after the final repair it reports no errors in the changed audit files.
 
 ## 12. Explicit answers
 
