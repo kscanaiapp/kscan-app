@@ -148,9 +148,9 @@ export function StyleChatPhotoIntake({
       if (operationId !== operationIdRef.current) return;
       setImageUri(sanitizedUri);
       const sanitizerStatus = getPrivacySanitizerStatus();
-      const localPrivacyFiltered =
-        sanitizerStatus.faceBlurApplied === true &&
-        sanitizerStatus.plateMaskApplied === true;
+      const localPrivacyFiltered = Boolean(
+        sanitizerStatus.faceBlurApplied && sanitizerStatus.plateMaskApplied
+      );
 
       // Identify through the existing guarded service (its own timeout+abort).
       // Reuse Scanner-compatible compress settings (896 / 0.65).
