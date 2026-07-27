@@ -36,6 +36,25 @@ function loadTsModule(relativePath, requireMap = {}) {
 
 const multiImageScan = loadTsModule('services/multiImageScan.ts', {
   '../types/scanIdentification': {},
+  '../types/fashionIdentificationV2': {},
+  './scannerEvidenceGateway': {},
+  './scannerIdentificationV2': {},
+});
+
+// Phase 2B.2: the REAL Scanner V2 adapter and orchestrator, so this file
+// exercises the actual request builder, validator and fallback policy rather
+// than a re-implementation of them. Only the transport is stubbed.
+const fashionIdentificationV2Types = loadTsModule('types/fashionIdentificationV2.ts', {});
+const scannerEvidenceGateway = loadTsModule('services/scannerEvidenceGateway.ts', {
+  'expo-crypto': {
+    randomUUID: undefined,
+    getRandomBytes: (n) => Uint8Array.from({ length: n }, (_, i) => (i * 37 + 11) & 0xff),
+  },
+});
+const scannerIdentificationV2 = loadTsModule('services/scannerIdentificationV2.ts', {
+  '../types/fashionIdentificationV2': fashionIdentificationV2Types,
+  './scannerEvidenceGateway': scannerEvidenceGateway,
+  '../constants/featureFlags': { resolveScannerIdentificationV2Enabled: () => false },
 });
 
 function stripImports(source) {
@@ -127,8 +146,30 @@ function loadScannerHarness({
   buildSecondhandSearchRequest = () => null,
   searchVintedSecondhand = async () => ({ enabled: false, items: [] }),
   initialActorId = 'user-a',
+  // Phase 2B.2 rollout flag for this Scanner session. Defaults to DISABLED so
+  // every existing test in this file keeps describing the legacy path.
+  scannerV2Enabled = false,
 } = {}) {
   const identifyCalls = [];
+  let evidenceIdCounter = 0;
+  // The one stubbed layer: the transport. Records every request the adapter
+  // actually emits, including the V2 envelope, so tests can assert on the wire
+  // shape rather than on an intermediate.
+  const transportStub = async (image, options) => {
+    const call = { image, options, mode: options.requestMode };
+    identifyCalls.push(call);
+    if (options.requestMode === 'selected_item') {
+      return selectedItemResponder(image, options, identifyCalls);
+    }
+    return detectionResponder(image, options);
+  };
+  const scannerScanRequest = loadTsModule('services/scannerScanRequest.ts', {
+    './scanIdentification': { identifyScanImage: transportStub },
+    '../types/scanIdentification': {},
+    '../types/fashionIdentificationV2': fashionIdentificationV2Types,
+    './scannerEvidenceGateway': scannerEvidenceGateway,
+    './scannerIdentificationV2': scannerIdentificationV2,
+  });
   const hookPath = path.join(ROOT, 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
   source = source.replace(
@@ -226,14 +267,17 @@ function loadScannerHarness({
       return refSlots[index];
     },
     AbortController: MockAbortController,
-    identifyScanImage: async (image, options) => {
-      const call = { image, options, mode: options.requestMode };
-      identifyCalls.push(call);
-      if (options.requestMode === 'selected_item') {
-        return selectedItemResponder(image, options, identifyCalls);
-      }
-      return detectionResponder(image, options);
-    },
+    // Phase 2B.2: the hook reaches the network only through the Scanner
+    // adapter. The transport below is the single stub; everything above it —
+    // evidence gateway, request builder, response validator, fallback policy —
+    // is the real implementation.
+    beginScannerV2Session: () => ({ enabled: scannerV2Enabled === true }),
+    createEvidenceId: () => `evidence-${String((evidenceIdCounter += 1)).padStart(4, '0')}-test`,
+    prepareScannerEvidence: scannerEvidenceGateway.prepareScannerEvidence,
+    runScannerIdentification: (input) => scannerScanRequest.runScannerIdentification({
+      ...input,
+      transport: transportStub,
+    }),
     normalizeImageSelections: multiImageScan.normalizeImageSelections,
     removeImageSelection: multiImageScan.removeImageSelection,
     buildMultiScanCandidates: multiImageScan.buildMultiScanCandidates,
@@ -974,8 +1018,15 @@ test('multi-image gate: single-image posture still reaches multi-item detection 
   const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
   const hook = read('hooks/useKScan.js');
   // Detection always requests bounded multi-item mode regardless of the
-  // multi-image picker gate.
-  assert.match(hook, /multiItemDetection: true/);
+  // multi-image picker gate. Phase 2B.2 moved the request-shaping decision out
+  // of the hook and into the shared Scanner adapter, so the assertion follows
+  // it there — the hook now states the mode declaratively instead.
+  assert.match(
+    read('services/scannerScanRequest.ts'),
+    /multiItemDetection: true/,
+    'the Scanner adapter must still request bounded multi-item detection',
+  );
+  assert.match(hook, /mode: 'detect_items'/);
   assert.match(hook, /allowsMultipleSelection: MULTI_IMAGE_SCANNER_ENABLED/);
   const eas = JSON.parse(read('eas.json'));
   assert.equal(eas.build.preview.env.EXPO_PUBLIC_SCAN_ROOM_V2_UI, 'true');

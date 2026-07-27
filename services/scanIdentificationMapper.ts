@@ -20,8 +20,12 @@ import { createScanResultObject } from './scanResultObject';
 import { buildScanTitle, deriveBrandConfidence, type BrandConfidence } from './scanTitleBuilder';
 import {
   buildIdentificationSnapshot,
+  buildIdentificationSnapshotV2,
   type PersistedIdentificationSnapshotV1,
+  type PersistedIdentificationSnapshotV2,
 } from './identificationSnapshot';
+import { buildScannerV2Display, type ScannerV2Display } from './scannerV2Display';
+import type { FashionIdentificationResultV2 } from '../types/fashionIdentificationV2';
 import { SCAN_IDENTITY_DEBUG } from '../constants/build';
 
 export type MappedScanMetadata = {
@@ -61,6 +65,14 @@ export type MappedFashionAnalysis = {
    * `metadata`, because `metadata` has already lost them.
    */
   identificationSnapshot?: PersistedIdentificationSnapshotV1 | null;
+  /**
+   * Durable fashion-identification-v2 envelope (Phase 2B.2).
+   *
+   * Present only when the Scanner V2 path produced a validated result. Legacy
+   * Scanner scans and every Elise/StyleChat mapping omit it entirely, which is
+   * what keeps a V2 write from ever being fabricated for a legacy operation.
+   */
+  identificationSnapshotV2?: PersistedIdentificationSnapshotV2 | null;
   /** Catalog similarity matches (legacy ProductShelf / V2 Similar Finds). */
   products: RankedScanProduct[];
   /** Live commerce purchase options when the backend separates them. */
@@ -151,11 +163,68 @@ function buildMetadata(
 }
 
 /**
+ * Overlays a validated V2 identity onto the legacy display metadata.
+ *
+ * AUTHORITY (Phase 2B.2): when V2 validates, it is the identity. The legacy
+ * fields in the same transitional response are a projection of the same
+ * normalized result, so they cannot legitimately disagree — but if they ever do,
+ * the V2 view wins rather than being silently overwritten by its own projection.
+ *
+ * Every value arrives through the null-safe display projection, so an absent
+ * V2 field becomes an empty string and never the text "null". A field the V2
+ * result does not carry leaves the legacy value in place instead of blanking a
+ * populated field.
+ */
+function applyV2Identity(
+  metadata: MappedScanMetadata,
+  display: ScannerV2Display,
+): MappedScanMetadata {
+  const next: MappedScanMetadata = { ...metadata };
+  if (display.category) next.category = display.category;
+  if (display.colorLabel) next.color = display.colorLabel;
+  if (display.silhouette.length) next.silhouette = display.silhouette.join(', ');
+  if (display.subtype || display.category) {
+    next.itemType = display.subtype || display.category;
+  }
+  if (display.material.length) next.materialEstimate = display.material.join(', ');
+  if (display.pattern.length) next.pattern = display.pattern.join(', ');
+  if (display.visibleAttributes.length) next.styleTags = display.visibleAttributes;
+  // Absent confidence stays absent. Writing 0 would assert certainty of
+  // non-match, which is the opposite of "unknown".
+  if (display.confidence !== undefined) next.confidenceScore = display.confidence;
+  next.primaryItem = display.subtype || display.category || next.primaryItem;
+  next.displayCategory = display.category || next.displayCategory;
+  if (display.material.length) next.material = display.material.join(', ');
+  if (display.visibleAttributes.length) next.styleDescriptors = display.visibleAttributes;
+  // A null brand is a real answer, not a missing one: it must not resurrect a
+  // legacy brand guess the V2 normalization already rejected.
+  next.brand = display.brand || null;
+  return next;
+}
+
+export type MapScanIdentifyOptions = {
+  /**
+   * A V2 result that has ALREADY passed `validateScannerV2Response`.
+   *
+   * Scanner-only. Elise and StyleChat call this mapper with no options and get
+   * byte-identical output to today.
+   */
+  identificationV2?: FashionIdentificationResultV2 | null;
+  /** Evidence source, recorded on the V2 snapshot envelope. */
+  source?: 'camera' | 'gallery';
+  /** Injected so persistence timestamps stay deterministic under test. */
+  now?: () => string;
+};
+
+/**
  * Convert a normalized scan-identify response into legacy analysis state.
  * Throws (via {@link createScanError}) on `failed` so the existing useKScan
  * catch path renders the safe error state.
  */
-export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedScanAnalysis {
+export function mapScanIdentifyToAnalysis(
+  resp: ScanIdentifyResponse,
+  options: MapScanIdentifyOptions = {},
+): MappedScanAnalysis {
   if (!resp || typeof resp !== 'object') {
     throw createScanError(DEFAULT_FAILED_MESSAGE);
   }
@@ -185,7 +254,7 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('[scanIdentificationMapper] mapped products=' + products.length + ' purchaseOptions=' + (purchaseOptions?.length ?? 0));
     }
-    const metadata = buildMetadata(resp.attributes, resp.identification);
+    let metadata = buildMetadata(resp.attributes, resp.identification);
 
     // Conservative brand attribution: do not hallucinate brands.
     const geminiBrand = resp.identification?.brand_guess ?? resp.identification?.visible_brand_text ?? null;
@@ -197,6 +266,19 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
     );
     metadata.brand = brand;
     metadata.brandConfidence = brandConfidence;
+
+    // ── V2 authority (Phase 2B.2) ───────────────────────────────────────────
+    // Applied AFTER the legacy metadata is fully built, so V2 overwrites the
+    // legacy projection rather than the reverse.
+    const v2Result = options.identificationV2 ?? null;
+    const v2Display = v2Result ? buildScannerV2Display(v2Result) : null;
+    if (v2Display) {
+      metadata = applyV2Identity(metadata, v2Display);
+      // A V2 result with no brand must not keep a confidence describing the
+      // legacy brand guess it just replaced. The title builder treats an absent
+      // brand as unbranded, so the confidence is dropped rather than downgraded.
+      if (!v2Display.brand) metadata.brandConfidence = undefined;
+    }
 
     const title = buildScanTitle({
       rawVisionTitle: result,
@@ -222,10 +304,16 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
 
     const analysis: MappedFashionAnalysis = {
       type: 'fashion',
-      result,
-      title,
+      // A V2 result line is preferred only when it actually says something. An
+      // empty projection must not blank a usable legacy summary.
+      result: (v2Display && v2Display.result) || result,
+      title: (v2Display && v2Display.title) || title,
       metadata,
       products,
+      // Commerce is UNCHANGED by Phase 2B.2. Purchase options keep coming from
+      // the legacy-compatible field, with the same parser, shape, ordering,
+      // dedupe and ranking. V2 identity never reinterprets a commerce match,
+      // and a commerce match never implies an identity.
       purchaseOptions,
       displayResult: resp.displayResult,
     };
@@ -237,6 +325,22 @@ export function mapScanIdentifyToAnalysis(resp: ScanIdentifyResponse): MappedSca
       analysis.identificationSnapshot = buildIdentificationSnapshot(resp);
     } catch {
       analysis.identificationSnapshot = null;
+    }
+
+    // Durable V2 envelope (Phase 2B.2). Written only when a validated V2 result
+    // was supplied, so a legacy or Elise mapping never gains this field.
+    if (v2Result) {
+      try {
+        const nowIso = (options.now ?? (() => new Date().toISOString()))();
+        analysis.identificationSnapshotV2 = buildIdentificationSnapshotV2({
+          identification: v2Result,
+          purchaseOptions: purchaseOptions ?? [],
+          source: options.source === 'gallery' ? 'gallery' : 'camera',
+          createdAt: nowIso,
+        });
+      } catch {
+        analysis.identificationSnapshotV2 = null;
+      }
     }
 
     // Additive Part 2 enrichment. Wrapped so a failure here can never break the

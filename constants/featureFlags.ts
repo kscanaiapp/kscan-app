@@ -153,6 +153,34 @@ export const SCAN_IDENTIFY_BACKEND_ENABLED =
 export const MULTI_IMAGE_SCANNER_ENABLED =
   process.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED === 'true';
 
+// ── Scanner fashion-identification-v2 rollout (Phase 2B.2) ───────────────────
+/**
+ * Routes Scanner image identification through the canonical
+ * `fashion-identification-v2` contract (intent `identify_and_shop`).
+ *
+ * WHY BUILD-TIME: this repository has no runtime per-feature rollout service.
+ * The remote `mobile_feature_freeze` config is a kill-switch keyed by feature
+ * name — it can disable a shipped feature, but it cannot enable an unshipped
+ * one, so inverting it into a rollout flag would misrepresent what it means.
+ * Every other staged rollout here uses the same EXPO_PUBLIC build-time
+ * constant, so this follows that convention rather than introducing a second
+ * flag system for one phase.
+ *
+ * Default false, and only the exact string "true" opts in: the deployed
+ * production `scan-identify` does not yet serve V2, so a build that has not
+ * explicitly opted in must keep the legacy path byte-for-byte.
+ *
+ * Scanner only. Elise, StyleChat and Closet intake are unaffected by this flag.
+ */
+export function resolveScannerIdentificationV2Enabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_SCANNER_IDENTIFICATION_V2_ENABLED,
+): boolean {
+  return value === 'true';
+}
+
+/** Scanner V2 identification rollout. Disabled by default. */
+export const SCANNER_IDENTIFICATION_V2_ENABLED = resolveScannerIdentificationV2Enabled();
+
 // ── AI Stylist expansion (inactive rollout) ──────────────────────────────────
 /**
  * Master switch for the AI Stylist expansion UI: Library MY LOOKS sub-nav,

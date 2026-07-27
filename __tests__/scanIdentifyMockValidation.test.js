@@ -54,6 +54,8 @@ const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   './scanTitleBuilder': scanTitleBuilder,
   // IMG-008: the mapper now also builds the durable identification snapshot.
   './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
+  // Phase 2B.2 null-safe V2 display projection, loaded for real.
+  './scannerV2Display': loadTsModule('services/scannerV2Display.ts'),
   '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
 

@@ -320,6 +320,8 @@ function loadLibraryModule() {
     },
     './actorContext': actorContext,
     './purchaseOptions': purchaseOptions,
+    // Phase 2B.2: library.js hydrates each history record independently.
+    './identificationSnapshot': snapshotModule,
   });
 
   return { library, store, cloudCalls, actorContext };

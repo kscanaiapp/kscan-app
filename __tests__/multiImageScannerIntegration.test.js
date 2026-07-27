@@ -22,8 +22,14 @@ test('all selected images enter the bounded v119 request pipeline in stable orde
   const hook = read('hooks/useKScan.js');
   // Parallel per-image detection tolerates partial source failure.
   assert.match(hook, /Promise\.allSettled\(imagesForAttempt\.map/);
-  assert.match(hook, /requestMode:\s*'multi_item_detection'/);
-  assert.match(hook, /requestMode:\s*'selected_item'/);
+  // Phase 2B.2 moved legacy request-mode shaping into the shared Scanner
+  // adapter; the hook now declares the contract mode for each stage and the
+  // adapter maps it onto the wire fields. Both halves are asserted so the
+  // detection/selection split cannot silently collapse.
+  assert.match(hook, /mode:\s*'detect_items'/);
+  assert.match(hook, /mode:\s*'identify_selected_item'/);
+  const adapter = read('services/scannerScanRequest.ts');
+  assert.match(adapter, /requestMode:\s*isSelected[\s\S]{0,80}'selected_item'[\s\S]{0,40}'multi_item_detection'/);
   assert.match(hook, /scanSessionId:\s*candidate\.detectionResponse\.scanSessionId/);
   assert.match(hook, /imageDigestPrefix:\s*candidate\.detectionResponse\.imageDigestPrefix/);
   assert.match(hook, /buildMultiScanCandidates\(detectionResponses\)/);

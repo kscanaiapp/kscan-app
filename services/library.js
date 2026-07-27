@@ -13,6 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { saveScanToCloud, softDeleteCloudSavedScan } from './savedScansCloud';
 import { isPurchaseOptionsSnapshot, normalizePurchaseOptions } from './purchaseOptions';
+import { hydrateScanHistory } from './identificationSnapshot';
 import { resolveWriteAuthority, isActorRequestCurrent } from './actorContext';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
@@ -52,7 +53,14 @@ async function readAllLibrary() {
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed)) return [];
 
-  return parsed.map((scan) => {
+  // Per-record hydration (Phase 2B.2). Recent Scans legitimately holds V2, V1,
+  // unversioned legacy and — after any past partial write — corrupt entries in
+  // one array. A single `.map()` over them lets one bad record throw and take
+  // the entire history with it, which reads to the user as "all my scans are
+  // gone". Each record is therefore isolated: a failure drops only that record,
+  // order is preserved, and nothing is rewritten on read.
+  const { records } = hydrateScanHistory(parsed, (scan) => {
+    if (!scan || typeof scan !== 'object' || Array.isArray(scan)) return null;
     const hasValidPurchaseOptions = isPurchaseOptionsSnapshot(scan.purchaseOptions);
     const purchaseOptions = normalizePurchaseOptions(scan.purchaseOptions);
     return {
@@ -67,6 +75,7 @@ async function readAllLibrary() {
           : undefined,
     };
   });
+  return records;
 }
 
 function enqueueLibraryMutation(operation) {
@@ -363,6 +372,14 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
               },
             },
           }
+        : {}),
+      // Durable fashion-identification-v2 envelope (Phase 2B.2). Written only
+      // when the Scanner V2 path produced a validated result; every legacy and
+      // Elise save omits it, so a record never claims a contract it did not use.
+      // Carries no Base64, evidence id, candidate id, detection digest, bounds,
+      // local URI or raw provider output — see identificationSnapshot.ts.
+      ...(analysis.identificationSnapshotV2
+        ? { identificationSnapshotV2: analysis.identificationSnapshotV2 }
         : {}),
       result:          analysis.result   ?? '',
       products:        Array.isArray(analysis.products) ? analysis.products.slice() : [],

@@ -3,6 +3,9 @@ import type {
   ScanIdentifyResponse,
   ScanSelectedCandidate,
 } from '../types/scanIdentification';
+import type { FashionIdentificationResultV2 } from '../types/fashionIdentificationV2';
+import type { PreparedScannerEvidence } from './scannerEvidenceGateway';
+import type { ScannerCandidateCorrelation } from './scannerIdentificationV2';
 
 export const MAX_SCAN_IMAGES = 5;
 export const MAX_MULTI_SCAN_ITEMS = 5;
@@ -23,6 +26,13 @@ export type DetectionBatchResult = {
   preparedImage: string;
   /** True only when a real local privacy filter ran on this prepared image. */
   preparedPrivacyFiltered?: boolean;
+  /** Phase 2B.2 evidence this image's candidates were detected in. */
+  evidence?: PreparedScannerEvidence;
+  evidenceId?: string;
+  identificationV2?: FashionIdentificationResultV2 | null;
+  /** Server-issued V2 candidate correlation for this evidence only. */
+  v2Candidates?: ScannerCandidateCorrelation[];
+  contractPath?: 'v2' | 'legacy';
 };
 
 export type MultiScanCandidate = {
@@ -38,6 +48,17 @@ export type MultiScanCandidate = {
   garment: DetectedGarment | null;
   selectedCandidate: ScanSelectedCandidate | null;
   detectionResponse: ScanIdentifyResponse;
+  /**
+   * Phase 2B.2 correlation, bound to the evidence this candidate was detected
+   * in. Absent on the legacy path.
+   *
+   * This is what makes multi-image selection safe: a candidate carries the
+   * identity of ITS OWN source image, so selecting it can never reach for
+   * another image's derivative or another image's evidence id. Array position
+   * is never used as identity.
+   */
+  evidence?: PreparedScannerEvidence;
+  v2Correlation?: ScannerCandidateCorrelation | null;
 };
 
 export type MultiScanItem = Omit<MultiScanCandidate, 'preparedImage'> & {
@@ -114,6 +135,35 @@ function candidateFingerprint(imageId: string, garment: DetectedGarment): string
 }
 
 /**
+ * Builds the immutable selection tuple for one detected garment.
+ *
+ * The category and bounds come from DETECTION — they are not re-derived or
+ * reclassified, because doing so would be the client guessing at which garment
+ * the user picked. The detection digest is echoed only when the server actually
+ * issued one for this exact candidate under this exact evidence id.
+ */
+function correlationForGarment(
+  evidenceId: string,
+  garment: DetectedGarment,
+  v2Candidates: ReadonlyArray<ScannerCandidateCorrelation> | undefined,
+): ScannerCandidateCorrelation {
+  const match = Array.isArray(v2Candidates)
+    ? v2Candidates.find(
+      (candidate) =>
+        candidate.candidateId === garment.candidateId && candidate.evidenceId === evidenceId,
+    )
+    : undefined;
+  return {
+    evidenceId,
+    candidateId: garment.candidateId,
+    category: match?.category ?? garment.category,
+    ...(match?.subtype ?? garment.subtype ? { subtype: match?.subtype ?? garment.subtype } : {}),
+    ...(match?.bounds ?? garment.bounds ? { bounds: match?.bounds ?? garment.bounds } : {}),
+    ...(match?.detectionDigest ? { detectionDigest: match.detectionDigest } : {}),
+  };
+}
+
+/**
  * Flattens per-image v119 detection responses in stable image/garment order.
  * The global five-item cap prevents a five-image request from expanding into
  * an unbounded result surface. No candidate is invented for empty responses.
@@ -147,6 +197,22 @@ export function buildMultiScanCandidates(
             ...(garment.bounds ? { bounds: garment.bounds } : {}),
           },
           detectionResponse: batch.response,
+          ...(batch.evidence ? { evidence: batch.evidence } : {}),
+          // Prefer the server's own V2 candidate record for this candidateId.
+          // The detection digest is taken ONLY from it — never computed, never
+          // copied from another evidence id, never substituted with a session
+          // id. When the backend supplies no V2 candidate row, the correlation
+          // is still bound to this image's evidence, and the digest simply
+          // stays absent rather than being invented.
+          ...(batch.evidenceId
+            ? {
+              v2Correlation: correlationForGarment(
+                batch.evidenceId,
+                garment,
+                batch.v2Candidates,
+              ),
+            }
+            : {}),
         });
         if (out.length >= MAX_MULTI_SCAN_ITEMS) return out;
       }

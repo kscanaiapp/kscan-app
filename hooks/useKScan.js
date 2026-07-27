@@ -5,8 +5,10 @@ import {
   MULTI_IMAGE_SCANNER_ENABLED,
   SCAN_IDENTIFY_BACKEND_ENABLED,
 } from '../constants/featureFlags';
-import { identifyScanImage } from '../services/scanIdentification';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
+import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
+import { beginScannerV2Session } from '../services/scannerIdentificationV2';
+import { runScannerIdentification } from '../services/scannerScanRequest';
 import {
   buildSecondhandSearchRequest,
   searchVintedSecondhand,
@@ -148,6 +150,11 @@ export function useKScan(actorId = null) {
   // Synchronous CTA duplicate lock for the selected-item queue.
   const queueInFlightRef = useRef(false);
   const queueAbortControllerRef = useRef(null);
+  // Session-latched Scanner V2 rollout decision (Phase 2B.2). Resolved once at
+  // the start of each Scanner session and read by every stage of it. Defaults
+  // to disabled so a session that somehow starts without resolving stays on the
+  // legacy path rather than opting itself in.
+  const scannerV2SessionRef = useRef({ enabled: false });
   currentActorRef.current = normalizedActorId;
 
   // Clears all candidate/selection/queue state and invalidates every pending
@@ -546,6 +553,11 @@ export function useKScan(actorId = null) {
 
       // A new attempt supersedes any previous candidates, selection, or queue.
       invalidateScanPipeline();
+      // Resolve the Scanner V2 rollout flag ONCE for this session and latch it.
+      // Detection, selection, identification and persistence all read this same
+      // value, so a flag change between capture and selection can never make
+      // the two halves of one scan speak different contracts.
+      scannerV2SessionRef.current = beginScannerV2Session();
       const generation = scanGenerationRef.current;
       const attemptActor = currentActorRef.current;
       recordScanLatencyMarker('scan_submit', generation, imagesForAttempt.length);
@@ -676,22 +688,56 @@ export function useKScan(actorId = null) {
           if (dispatchedRequestCount === imagesForAttempt.length) {
             recordScanLatencyMarker('all_detection_requests_sent', generation);
           }
-          const response = await identifyScanImage(adapted.uri, {
-            source: image.source === 'upload' ? 'upload' : 'camera',
+          // ONE evidence object, ONE HTTP request, per source image. Each image
+          // gets its own evidence id, so a five-image batch is five correlated
+          // detections — never one combined payload and never a batch collapsed
+          // to its first image.
+          const evidence = prepareScannerEvidence({
+            preparedImage: adapted.uri,
+            source: image.source === 'upload' ? 'gallery' : 'camera',
+            evidenceId: createEvidenceId(),
+          });
+          if (!evidence) {
+            throw userSafeError(
+              'prepared evidence unavailable',
+              'The selected outfit image could not be prepared. Please choose it again.',
+            );
+          }
+          const outcome = await runScannerIdentification({
+            mode: 'detect_items',
+            evidence,
+            platform: 'android',
+            requestId: createEvidenceId(),
+            sessionFlag: scannerV2SessionRef.current,
             localPrivacyFiltered: adapted.localPrivacyFiltered,
-            multiItemDetection: true,
-            requestMode: 'multi_item_detection',
             signal: attemptController?.signal,
           });
+          const response = outcome.response;
           if (!firstResponseMarked) {
             firstResponseMarked = true;
             recordScanLatencyMarker('first_detection_response', generation);
+          }
+          // A V2 response that failed validation is a real failure, not a
+          // reason to retry on the legacy contract. Surfacing it as this
+          // image's failure keeps sibling images unaffected.
+          if (outcome.v2ValidationFailure || outcome.rejection) {
+            throw userSafeError(
+              'scanner v2 contract failure',
+              'We couldn’t complete the scan. Please try again.',
+            );
           }
           return {
             image,
             preparedImage: adapted.uri,
             preparedPrivacyFiltered: adapted.localPrivacyFiltered,
             response,
+            // Correlation for the follow-up selected-item request. Bound to the
+            // evidence these candidates were actually detected in.
+            evidence,
+            evidenceId: evidence.evidenceId,
+            identificationV2: outcome.identificationV2,
+            v2Candidates: outcome.candidates,
+            contractPath: outcome.contractPath,
           };
         }));
         recordScanLatencyMarker('all_detection_responses_settled', generation);
@@ -885,6 +931,11 @@ export function useKScan(actorId = null) {
         let detailResponse = candidate.detectionResponse;
         let detailStatus = 'complete';
         let requestFailed = false;
+        // Validated V2 identity for this selected item, when the session ran on
+        // the V2 contract. Stays null on the legacy path, which is what keeps a
+        // legacy operation from ever writing a V2 snapshot.
+        let detailIdentificationV2 = null;
+        let detailEvidenceSource = candidate.source === 'upload' ? 'gallery' : 'camera';
 
         if (candidate.selectedCandidate) {
           const requestController = new AbortController();
@@ -893,18 +944,34 @@ export function useKScan(actorId = null) {
             recordScanLatencyMarker('first_selected_request_sent', generation);
           }
           try {
-            // Source continuity: the candidate's own prepared image, session,
-            // and digest — never the first image, never re-prepared.
-            detailResponse = await identifyScanImage(candidate.preparedImage, {
-              source: candidate.source === 'upload' ? 'upload' : 'camera',
+            // Source continuity: the candidate's own prepared image, evidence,
+            // session and digest — never the first image, never re-prepared,
+            // never recompressed. The evidence object is reused verbatim, so
+            // the bytes identified here are the exact bytes detection saw.
+            const selectedEvidence = candidate.evidence ?? prepareScannerEvidence({
+              preparedImage: candidate.preparedImage,
+              source: candidate.source === 'upload' ? 'gallery' : 'camera',
+              evidenceId: candidate.v2Correlation?.evidenceId,
+            });
+            if (!selectedEvidence) throw userSafeError('prepared evidence unavailable', ITEM_FAILURE_NOTICE);
+            const outcome = await runScannerIdentification({
+              mode: 'identify_selected_item',
+              evidence: selectedEvidence,
+              platform: 'android',
+              requestId: createEvidenceId(),
+              sessionFlag: scannerV2SessionRef.current,
+              selectedCandidate: candidate.v2Correlation ?? undefined,
+              legacyCorrelation: {
+                scanSessionId: candidate.detectionResponse.scanSessionId,
+                imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
+              },
               localPrivacyFiltered: candidate.preparedPrivacyFiltered === true,
-              multiItemDetection: true,
-              requestMode: 'selected_item',
-              scanSessionId: candidate.detectionResponse.scanSessionId,
-              imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
-              selectedCandidate: candidate.selectedCandidate,
               signal: requestController.signal,
             });
+            detailResponse = outcome.response;
+            detailIdentificationV2 = outcome.identificationV2;
+            detailEvidenceSource = selectedEvidence.source;
+            if (outcome.v2ValidationFailure || outcome.rejection) requestFailed = true;
           } catch (err) {
             if (__DEV__) console.warn('[useKScan] selected_item request failed', err?.message);
             requestFailed = true;
@@ -947,6 +1014,10 @@ export function useKScan(actorId = null) {
             setQueueNotice(ITEM_FAILURE_NOTICE);
             continue;
           }
+          // The partial fallback presents detection's own garment, which never
+          // carried a completed V2 identity. Keeping a V2 result here would
+          // attach an identity to a response that did not produce it.
+          detailIdentificationV2 = null;
         }
 
         const item = {
@@ -959,7 +1030,10 @@ export function useKScan(actorId = null) {
           selectedCandidate: candidate.selectedCandidate,
           detectionResponse: candidate.detectionResponse,
           label: candidateLabel(candidate),
-          analysis: mapScanIdentifyToAnalysis(detailResponse),
+          analysis: mapScanIdentifyToAnalysis(detailResponse, {
+            identificationV2: detailIdentificationV2,
+            source: detailEvidenceSource,
+          }),
           detailStatus,
         };
 

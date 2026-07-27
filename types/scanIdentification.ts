@@ -130,6 +130,20 @@ export type ScanIdentifyResponse = {
   displayResult?: DisplayResult;
   /** Present only for the bounded multi-item detection request mode. */
   detectedGarments?: DetectedGarment[];
+  /**
+   * Transitional fashion-identification-v2 fields (Phase 2B.2). Present only on
+   * a response to a V2 request; a legacy request never receives them.
+   *
+   * `identificationV2` is deliberately `unknown`: it is carried across the
+   * transport uninterpreted and is validated in exactly one place,
+   * `services/scannerIdentificationV2.ts`. Typing it as the result shape here
+   * would let unvalidated provider output be read as if it were already proven.
+   */
+  contractVersion?: string;
+  identificationV2?: unknown;
+  /** Bounded contract-error signal for a non-2xx. Never carries a body. */
+  httpStatus?: number;
+  contractErrorCode?: string;
 };
 
 export type MatchConfidenceTier =

@@ -65,6 +65,20 @@ export type IdentifyScanOptions = {
   scanSessionId?: string;
   imageDigestPrefix?: string;
   selectedCandidate?: ScanSelectedCandidate;
+  /**
+   * Scanner-only fashion-identification-v2 envelope (Phase 2B.2).
+   *
+   * When present, this object is sent as the request body instead of the legacy
+   * shape, and the legacy correlation fields above are merged alongside it
+   * because the deployed handler still reads `scanSessionId` /
+   * `imageDigestPrefix` from the top level on both contract paths.
+   *
+   * ABSENT BY DEFAULT, AND THAT IS LOAD-BEARING: Elise's attachment path and
+   * StyleChat share this transport and never pass it, so their request body,
+   * ordering and error handling stay byte-for-byte what they are today. Only
+   * `services/scannerIdentificationV2.ts` supplies this field.
+   */
+  contractRequestV2?: Record<string, unknown>;
 };
 
 function failed(userMessage = NEUTRAL_FAILED_MESSAGE): ScanIdentifyResponse {
@@ -339,6 +353,62 @@ function logScanFailure(
 }
 
 /**
+ * Extracts a bounded contract error from a failed invoke.
+ *
+ * supabase-js reports a non-2xx as a `FunctionsHttpError` carrying the raw
+ * `Response` on `.context`. Only the HTTP status and the enum `error.code` are
+ * read; the message and body are never surfaced, because a body can contain
+ * request content. Every step is guarded — a body that is not JSON, a Response
+ * already consumed, or an unexpected error shape simply yields null and the
+ * caller treats it as an ordinary network failure.
+ */
+async function readContractError(
+  error: unknown,
+): Promise<{ httpStatus: number; code: string } | null> {
+  try {
+    const context = (error as { context?: unknown })?.context as
+      | { status?: unknown; json?: () => Promise<unknown> }
+      | undefined;
+    if (!context || typeof context.status !== 'number') return null;
+    if (typeof context.json !== 'function') return null;
+    const body = await context.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    const inner = (body as Record<string, unknown>).error;
+    if (!inner || typeof inner !== 'object' || Array.isArray(inner)) return null;
+    const code = (inner as Record<string, unknown>).code;
+    if (typeof code !== 'string' || !code.trim()) return null;
+    return { httpStatus: context.status, code: code.trim() };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Attaches the additive transitional V2 fields to an already-normalized
+ * response, for EVERY outcome branch.
+ *
+ * Applied to failure and non-fashion branches too, and that matters: a V2
+ * `insufficient_visual_evidence` or `technical_failure` result arrives on the
+ * legacy `failed` branch, and the Scanner adapter has to tell those apart. If
+ * the envelope were only carried on `completed`, every non-success V2 status
+ * would collapse into one indistinguishable legacy failure.
+ *
+ * The payload is carried UNINTERPRETED — the Scanner V2 adapter is the only
+ * code that validates it. Normalizing it here would let a malformed payload
+ * acquire structure it never had on the wire.
+ */
+function withTransitionalV2(
+  out: ScanIdentifyResponse,
+  src: Record<string, unknown>,
+): ScanIdentifyResponse {
+  if (typeof src.contractVersion === 'string') out.contractVersion = src.contractVersion;
+  if (Object.prototype.hasOwnProperty.call(src, 'identificationV2')) {
+    out.identificationV2 = src.identificationV2;
+  }
+  return out;
+}
+
+/**
  */
 export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyResponse {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return failed();
@@ -351,12 +421,15 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
       : undefined;
 
   if (rawStatus.includes('non')) {
-    return { status: 'non_fashion', recommendedProducts: [], userMessage: userMessage ?? NON_FASHION_MESSAGE };
+    return withTransitionalV2(
+      { status: 'non_fashion', recommendedProducts: [], userMessage: userMessage ?? NON_FASHION_MESSAGE },
+      src,
+    );
   }
 
   if (rawStatus === 'completed') {
     const attributes = normalizeAttributes(src.attributes);
-    if (!attributes) return failed();
+    if (!attributes) return withTransitionalV2(failed(), src);
     const out: ScanIdentifyResponse = {
       status: 'completed',
       recommendedProducts: normalizeRecommendedProducts(src.recommendedProducts),
@@ -374,13 +447,16 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
     if (Object.prototype.hasOwnProperty.call(src, 'similarityMatches')) {
       out.similarityMatches = normalizeRecommendedProducts(src.similarityMatches);
     }
-    return out;
+    return withTransitionalV2(out, src);
   }
 
   // Anything else (including explicit 'failed') maps to a safe failure. Only an
   // explicit image-quality signal keeps lighting/retake guidance; otherwise we
   // discard any generic backend userMessage and use the neutral message.
-  return failed(resolveFailedUserMessage(userMessage, hasImageQualitySignal(src)));
+  return withTransitionalV2(
+    failed(resolveFailedUserMessage(userMessage, hasImageQualitySignal(src))),
+    src,
+  );
 }
 
 /**
@@ -414,7 +490,7 @@ export async function identifyScanImage(
     return failed(SIGN_IN_REQUIRED_MESSAGE);
   }
 
-  const requestBody: ScanIdentifyRequest = {
+  const legacyRequestBody: ScanIdentifyRequest = {
     imageBase64,
     source: options.source === 'upload' ? 'upload' : 'camera',
     localPrivacyFiltered: options.localPrivacyFiltered ?? false,
@@ -425,6 +501,19 @@ export async function identifyScanImage(
     ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
     ...(options.selectedCandidate ? { selectedCandidate: options.selectedCandidate } : {}),
   };
+
+  // Phase 2B.2: a Scanner V2 envelope replaces the legacy body. The two
+  // correlation fields are merged alongside it because the deployed handler
+  // reads them from the top level on BOTH contract paths and hard-fails a
+  // selected-item request whose image digest is absent. They are server-issued
+  // values carried forward unchanged, not client-invented ones.
+  const requestBody: Record<string, unknown> = options.contractRequestV2
+    ? {
+      ...options.contractRequestV2,
+      ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
+      ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
+    }
+    : (legacyRequestBody as unknown as Record<string, unknown>);
 
   const ac = new AbortController();
   const externalSignal = options.signal;
@@ -458,7 +547,17 @@ export async function identifyScanImage(
 
     if (error) {
       logScanFailure('invoke_error', { hasPayload: false, backendMessage: error?.message });
-      return failed(NETWORK_MESSAGE);
+      // A bounded contract error (HTTP 400 with a stable `error.code`) is the
+      // one failure the Scanner V2 adapter must be able to branch on. Reading
+      // it costs nothing on the legacy path, where 400s do not occur, and it
+      // never surfaces the response body — only the enum code and the status.
+      const contractError = await readContractError(error);
+      const out = failed(NETWORK_MESSAGE);
+      if (contractError) {
+        out.httpStatus = contractError.httpStatus;
+        out.contractErrorCode = contractError.code;
+      }
+      return out;
     }
 
     const reason = classifyRawResponse(data);
