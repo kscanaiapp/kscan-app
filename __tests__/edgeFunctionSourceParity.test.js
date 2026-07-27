@@ -37,6 +37,7 @@ const REPO_ROOT = path.join(__dirname, '..');
 const MANIFEST_PATH = path.join(REPO_ROOT, 'config', 'edge-function-manifest.json');
 const CHECKER = 'scripts/check-edge-function-parity.js';
 const GENERATOR = 'scripts/generate-edge-function-manifest.js';
+const DEPLOYER = 'scripts/deploy-edge-functions.js';
 
 function runNode(repoRoot, scriptRelativePath, args = []) {
   const result = spawnSync(process.execPath, [path.join(repoRoot, scriptRelativePath), ...args], {
@@ -257,4 +258,65 @@ test('staleness: an out-of-date manifest is reported as stale', (t) => {
   const stale = runNode(root, GENERATOR, ['--check']);
   assert.equal(stale.status, 1);
   assert.match(stale.output, /manifest is stale/i);
+});
+
+// ── The approved deployment path ─────────────────────────────────────────────
+
+test('deploy guard: a synchronized tree reaches a dry run and deploys nothing', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+
+  const dryRun = runNode(root, DEPLOYER);
+  assert.equal(dryRun.status, 0, dryRun.output);
+  assert.match(dryRun.output, /DRY RUN — nothing was deployed/);
+  assert.match(dryRun.output, /Git SHA\s+:/);
+  assert.match(dryRun.output, /tree   hash [0-9a-f]{64}/);
+  assert.match(dryRun.output, /bundle hash [0-9a-f]{64}/);
+  // Verification alone must never invoke the CLI.
+  assert.ok(!/Deploying scan-identify/.test(dryRun.output));
+  assert.ok(!/Deployment complete/.test(dryRun.output));
+});
+
+test('deploy guard: drift aborts before any deployment step', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+  fs.appendFileSync(fixturePath(root, 'stylechat-generate', 'index.ts'), '\n// intentional drift\n');
+
+  const blocked = runNode(root, DEPLOYER, ['--function', 'stylechat-generate']);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /ABORTED/);
+  assert.match(blocked.output, /Nothing was deployed/);
+  assert.ok(!/Deploying stylechat-generate/.test(blocked.output));
+});
+
+test('deploy guard: uncommitted function source aborts the deploy', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+  // Regenerate so the manifest matches, leaving only the "uncommitted" problem.
+  fs.appendFileSync(fixturePath(root, 'scan-identify', 'index.ts'), '\n// local edit\n');
+  assert.equal(runNode(root, GENERATOR).status, 0);
+
+  const blocked = runNode(root, DEPLOYER, ['--function', 'scan-identify']);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /Uncommitted changes under supabase\/functions/);
+  assert.match(blocked.output, /Nothing was deployed/);
+});
+
+test('deploy guard: refuses functions the manifest does not govern', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+
+  const blocked = runNode(root, DEPLOYER, ['--function', 'handle-user-deletion']);
+  assert.equal(blocked.status, 2);
+  assert.match(blocked.output, /Not governed by the parity manifest/);
+});
+
+test('deploy guard: a wrong project reference aborts before deployment', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+  const configPath = path.join(root, 'supabase', 'config.toml');
+  fs.writeFileSync(
+    configPath,
+    fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, 'yzqjvdfgefveprobvvyw'),
+  );
+
+  const blocked = runNode(root, DEPLOYER);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /ABORTED|not the approved production reference|Project reference mismatch/);
+  assert.ok(!/Deployment complete/.test(blocked.output));
 });

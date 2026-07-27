@@ -26,7 +26,8 @@
     "test:kscan-icons": "node --test __tests__/kscanProductIcons.test.js",
     "generate:edge-manifest": "node scripts/generate-edge-function-manifest.js",
     "verify:edge-parity": "node scripts/check-edge-function-parity.js",
-    "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js"
+    "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js",
+    "deploy:edge-functions": "node scripts/deploy-edge-functions.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

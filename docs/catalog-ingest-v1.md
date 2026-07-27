@@ -143,8 +143,12 @@ Expected: non-zero counts for each category you seeded.
 
 ## Deploy Edge Function
 
+Use the guarded path — see [docs/edge-function-deployment.md](edge-function-deployment.md).
+A raw `supabase functions deploy` runs no parity verification and can ship a
+non-canonical branch copy.
+
 ```bash
-supabase functions deploy scan-identify --project-ref wyyuqfdxucjksghsmhry
+node scripts/deploy-edge-functions.js --function scan-identify --confirm-deploy scan-identify
 ```
 
 ---

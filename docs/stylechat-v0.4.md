@@ -436,7 +436,15 @@ v0.4 enforces a single flat cap of 25/day for all users. After beta usage data i
 
 1. Apply migration: `supabase db push --project-ref yzqjvdfgefveprobvvyw`
 2. Set secrets (see §5)
-3. Deploy Edge Function: `supabase functions deploy stylechat-generate --project-ref yzqjvdfgefveprobvvyw`
+3. Deploy Edge Function through the guarded path — see
+   [docs/edge-function-deployment.md](edge-function-deployment.md):
+   `node scripts/deploy-edge-functions.js --function stylechat-generate --confirm-deploy stylechat-generate`
+
+   Historical note (Phase 2A.5, IMG-006): this checklist previously named
+   project `yzqjvdfgefveprobvvyw`. Phase 2A confirmed that project holds only a
+   stale `stylechat-generate` v47 and is **not** the production backend; the
+   audited clients use `wyyuqfdxucjksghsmhry`. The parity gate now pins that
+   approved reference, so the old command would be rejected at step 2.
 4. Test kill switch: set `STYLECHAT_AI_ENABLED=false`, send a StyleChat message, confirm fallback string
 5. Test live AI: set `STYLECHAT_AI_ENABLED=true`, send a style question, confirm Gemini response
 6. Test quota: consume 25 messages, confirm limit notice on 26th (not persisted as assistant row)
