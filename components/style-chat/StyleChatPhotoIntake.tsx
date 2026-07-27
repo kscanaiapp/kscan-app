@@ -36,6 +36,10 @@ import {
 } from '../../services/privacyImageSanitizer';
 import { SCANNER_IMAGE_MAX_WIDTH, SCANNER_IMAGE_JPEG_QUALITY } from '../../services/imageUtils';
 import { identifyScanImage } from '../../services/scanIdentification';
+import {
+  mapScanIdentifyToAnalysis,
+  type MappedFashionAnalysis,
+} from '../../services/scanIdentificationMapper';
 import { saveScan } from '../../services/library';
 import { createActorRequest } from '../../services/actorContext';
 import { saveScanToCloud } from '../../services/savedScansCloud';
@@ -73,6 +77,7 @@ export function StyleChatPhotoIntake({
   const [category, setCategory] = useState('');
   const [color, setColor] = useState('');
   const [resultText, setResultText] = useState('');
+  const [identifiedAnalysis, setIdentifiedAnalysis] = useState<MappedFashionAnalysis | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Guard contract: monotonic op id + abort; late results are discarded.
@@ -88,6 +93,7 @@ export function StyleChatPhotoIntake({
     setCategory('');
     setColor('');
     setResultText('');
+    setIdentifiedAnalysis(null);
     setSaveError(null);
   }, []);
 
@@ -125,6 +131,7 @@ export function StyleChatPhotoIntake({
     inFlightRef.current = true;
     const localUri = picked.assets[0].uri;
     setImageUri(localUri);
+    setIdentifiedAnalysis(null);
     setSaveError(null);
 
     try {
@@ -172,20 +179,28 @@ export function StyleChatPhotoIntake({
         : null;
       if (operationId !== operationIdRef.current) return; // late result discard
 
-      const meta = (identification as any)?.metadata ?? {};
+      let mapped: ReturnType<typeof mapScanIdentifyToAnalysis> | null = null;
+      try {
+        mapped = identification ? mapScanIdentifyToAnalysis(identification) : null;
+      } catch {
+        mapped = null;
+      }
       const identifiedCategory =
-        typeof meta.category === 'string' && meta.category.trim() ? meta.category.trim() : '';
+        mapped?.type === 'fashion' && mapped.metadata.category.trim()
+          ? mapped.metadata.category.trim()
+          : '';
       // Only a completed identification with a category proceeds to review;
       // failed / non_fashion / missing-category all offer the manual path.
-      if (!identification || (identification as any).status !== 'completed' || !identifiedCategory) {
+      if (!mapped || mapped.type !== 'fashion' || !identifiedCategory) {
         setStep('identify_failed');
         return;
       }
 
+      setIdentifiedAnalysis(mapped);
       setTitle(identifiedCategory);
       setCategory(identifiedCategory);
-      setColor(typeof meta.color === 'string' ? meta.color : '');
-      setResultText(typeof (identification as any).result === 'string' ? (identification as any).result : '');
+      setColor(mapped.metadata.color);
+      setResultText(mapped.result);
       setStep('review');
     } finally {
       if (operationId === operationIdRef.current) inFlightRef.current = false;
@@ -217,12 +232,23 @@ export function StyleChatPhotoIntake({
       // 1. Local Closet save through the existing library path.
       //    Ownership is derived from this captured actor context, never chosen
       //    by this caller, and the write is rejected if the actor changed.
+      const analysis = identifiedAnalysis
+        ? {
+            ...identifiedAnalysis,
+            result: resultText || identifiedAnalysis.result,
+            metadata: {
+              ...identifiedAnalysis.metadata,
+              category: finalCategory,
+              color: color.trim() || identifiedAnalysis.metadata.color,
+            },
+          }
+        : {
+            result: resultText || `${finalTitle} — added from StyleChat`,
+            metadata: { category: finalCategory, color: color.trim() || undefined },
+          };
       const scan = await saveScan({
         photoUri: imageUri,
-        analysis: {
-          result: resultText || `${finalTitle} — added from StyleChat`,
-          metadata: { category: finalCategory, color: color.trim() || undefined },
-        },
+        analysis,
         source: 'upload',
         actorRequest: createActorRequest(),
       });
@@ -278,7 +304,7 @@ export function StyleChatPhotoIntake({
     } finally {
       savingRef.current = false;
     }
-  }, [title, category, color, resultText, imageUri, onAttached, onClose, resetState]);
+  }, [title, category, color, resultText, imageUri, identifiedAnalysis, onAttached, onClose, resetState]);
 
   const handleCancel = () => {
     operationIdRef.current += 1;
