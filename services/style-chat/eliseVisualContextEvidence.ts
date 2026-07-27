@@ -49,19 +49,36 @@ export type VisualContextEvidenceFailureReason =
   | 'non_fashion'
   | 'staging_failed';
 
+export type VisualContextEvidenceSuccess = {
+  ok: true;
+  /** Stable actor-owned reference proving the image has authorized backing. */
+  savedScanId: string;
+  fields: VisualContextEvidenceFields;
+};
+
+export type VisualContextEvidenceFailure = {
+  ok: false;
+  reason: VisualContextEvidenceFailureReason;
+  /** User-facing, non-technical. Never claims the image was understood. */
+  message: string;
+};
+
 export type VisualContextEvidenceResult =
-  | {
-      ok: true;
-      /** Stable actor-owned reference proving the image has authorized backing. */
-      savedScanId: string;
-      fields: VisualContextEvidenceFields;
-    }
-  | {
-      ok: false;
-      reason: VisualContextEvidenceFailureReason;
-      /** User-facing, non-technical. Never claims the image was understood. */
-      message: string;
-    };
+  | VisualContextEvidenceSuccess
+  | VisualContextEvidenceFailure;
+
+/**
+ * Explicit type predicate rather than a bare `!result.ok` check.
+ *
+ * Callers use the failure branch inside store-update callbacks, where relying
+ * on control-flow narrowing of the boolean discriminant does not survive under
+ * this project's compiler settings.
+ */
+export function isVisualContextEvidenceFailure(
+  result: VisualContextEvidenceResult,
+): result is VisualContextEvidenceFailure {
+  return result.ok === false;
+}
 
 const IDENTIFICATION_FAILED_MESSAGE = 'Could not identify this photo';
 const NON_FASHION_MESSAGE = 'No clothing found in this photo';

@@ -25,7 +25,10 @@ import {
   type EliseVisualPreparationJob,
 } from '../services/style-chat/eliseVisualContextQueue';
 import { buildEliseVisualContext } from '../services/style-chat/buildEliseVisualContext';
-import { prepareVisualContextEvidence } from '../services/style-chat/eliseVisualContextEvidence';
+import {
+  isVisualContextEvidenceFailure,
+  prepareVisualContextEvidence,
+} from '../services/style-chat/eliseVisualContextEvidence';
 import { setDraftComposerText } from '../services/style-chat/styleChatAttachmentStore';
 import {
   ELISE_VISUAL_CONTEXT_MAX_ENTRIES,
@@ -179,8 +182,10 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
           sanitizedUri: prepared.sanitizedUri,
         });
 
-        if (!evidence.ok) {
+        if (isVisualContextEvidenceFailure(evidence)) {
           if (evidence.reason === 'cancelled') return;
+          const failureStatus = evidence.reason === 'non_fashion' ? 'blocked' : 'failed';
+          const failureTitle = evidence.message;
           // Honest terminal state. No structured fields are written, so a
           // failed entry can never be sent as grounded visual context.
           updateVisualContextEntryIfCurrent(
@@ -190,8 +195,8 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
             revision,
             (entry) => ({
               ...entry,
-              status: evidence.reason === 'non_fashion' ? 'blocked' : 'failed',
-              title: evidence.message,
+              status: failureStatus,
+              title: failureTitle,
               summary: null,
             }) as EliseVisualContextEntry,
           );
