@@ -5,6 +5,7 @@ const isDev = typeof __DEV__ !== 'undefined' && __DEV__ === true;
 const SANITIZER_STATUS = Object.freeze({
   faceDetectionAvailable: false,
   faceBlurApplied: false,
+  plateMaskApplied: false,
   mode: 'passthrough',
 });
 

@@ -159,6 +159,7 @@ test('photo intake keeps scanner protections: op id, abort, late-result discard,
   assert.match(intakeSource, /!== operationIdRef\.current/); // stale results discarded
   assert.match(intakeSource, /sanitizeImageBeforeUpload/);
   assert.match(intakeSource, /getPrivacySanitizerStatus/);
+  assert.match(intakeSource, /faceBlurApplied\s*&&\s*sanitizerStatus\.plateMaskApplied/);
   assert.match(intakeSource, /identifyScanImage/);
   assert.doesNotMatch(intakeSource, /localPrivacyFiltered:\s*true/);
   assert.match(intakeSource, /localPrivacyFiltered\s*,/);
