@@ -54,6 +54,7 @@ function createScanSession(sourceImageUri) {
     sourceUriHash: null,
     preparedImageUri: null,
     imageDigestPrefix: null,
+    localPrivacyFiltered: false,
   };
 }
 
@@ -515,8 +516,11 @@ export function useKScan() {
           session.preparedImageUri = sanitized;
           session.imageDigestPrefix = await digestPrefix(rawImageBase64(sanitized));
         }
+        const sanitizerStatus = getPrivacySanitizerStatus();
+        session.localPrivacyFiltered =
+          sanitizerStatus.faceBlurApplied === true &&
+          sanitizerStatus.plateMaskApplied === true;
         if (__DEV__) {
-          const sanitizerStatus = getPrivacySanitizerStatus();
           console.warn(
             '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
             sanitizerStatus.mode +
@@ -541,7 +545,7 @@ export function useKScan() {
 
         const identifyResponse = await identifyScanImage(sanitized, {
           source: photo.source === 'upload' ? 'upload' : 'camera',
-          localPrivacyFiltered: true,
+          localPrivacyFiltered: session.localPrivacyFiltered,
           multiItemDetection: true,
           requestMode: 'multi_item_detection',
           scanSessionId: session.scanSessionId,
@@ -672,7 +676,7 @@ export function useKScan() {
 
       const identifyResponse = await identifyScanImage(session.preparedImageUri, {
         source: photo.source === 'upload' ? 'upload' : 'camera',
-        localPrivacyFiltered: true,
+        localPrivacyFiltered: session.localPrivacyFiltered,
         multiItemDetection: true,
         requestMode: 'selected_item',
         scanSessionId: session.scanSessionId,
