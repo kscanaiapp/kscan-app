@@ -124,6 +124,10 @@ function loadEvidenceModule(overrides = {}) {
   // this repair depends on, so stubbing it would prove nothing.
   const scanIdentificationMapper = loadTsModule('services/scanIdentificationMapper.ts', {
     './scanTitleBuilder': loadTsModule('services/scanTitleBuilder.ts', {}),
+    // IMG-008: the mapper now also builds the durable identification snapshot.
+    './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts', {
+      '../types/scanIdentification': {},
+    }),
     './scanResultObject': loadTsModule('services/scanResultObject.ts', {
       '../types/scanIdentification': {},
       '../types/scanResultObject': {},

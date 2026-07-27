@@ -94,6 +94,8 @@ function loadService(mockClient, flags = { CLOUD_SAVED_SCANS_ENABLED: true }) {
     // Real canonical commerce normalizer (pure; its only import is type-only),
     // so the row mappers are exercised against production behavior.
     './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
+    // IMG-008: the row mapper now validates the durable identification snapshot.
+    './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
   });
 }
 

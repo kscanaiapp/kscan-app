@@ -289,6 +289,29 @@ export async function loadCompleteLibrary() {
  * Reference-checked against the complete manifest so a path that a surviving
  * record (any actor) already references is never unlinked.
  */
+/**
+ * Which UI path produced this identification (IMG-008 snapshot provenance).
+ *
+ * A caller that knows its own entry point supplies it. Otherwise the scan
+ * source gives the only honest approximation available here, and anything
+ * unrecognised stays `unknown` rather than being guessed at.
+ */
+const VALID_ENTRY_PATHS = new Set([
+  'scanner_camera',
+  'scanner_gallery',
+  'elise_gallery',
+  'elise_camera',
+  'scanner_handoff',
+  'unknown',
+]);
+
+function resolveEntryPath(entryPath, source) {
+  if (VALID_ENTRY_PATHS.has(entryPath)) return entryPath;
+  if (source === 'camera' || source === 'scan') return 'scanner_camera';
+  if (source === 'upload') return 'scanner_gallery';
+  return 'unknown';
+}
+
 async function cleanupRejectedMedia(paths) {
   const candidates = paths.filter(Boolean);
   if (candidates.length === 0) return [];
@@ -312,7 +335,7 @@ async function cleanupRejectedMedia(paths) {
  * @param {string|null} [opts.ownerId] - optional echo of the expected owner; must agree
  * @returns {SavedScan|null} the saved object, or null when rejected or on failure
  */
-export async function saveScan({ photoUri, analysis, source, actorRequest, ownerId }) {
+export async function saveScan({ photoUri, analysis, source, actorRequest, ownerId, entryPath }) {
   // Pre-flight authority check: reject before spending work on media.
   const preAuthority = resolveWriteAuthority(actorRequest, ownerId);
   if (!preAuthority.ok) return null;
@@ -343,14 +366,35 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
       ownerId: owner,         // null === ownerless signed-out partition
       imageUri,               // null if persistence failed; legacy scans may not have it
       thumbnailUri,          // null if generation failed
+      // Legacy display shape. Kept for backward compatibility with every
+      // existing reader, but no longer blanked out: material, style tags and
+      // confidence were hardcoded to null/[] here even when the model had
+      // supplied them (IMG-008).
       attributes: {
         category:          analysis.metadata?.category   ?? '',
         silhouette:        analysis.metadata?.silhouette ?? '',
         color_palette:     analysis.metadata?.color      ?? '',
-        material_estimate: null,
-        style_tags:        [],
-        confidence_score:  null,
+        material_estimate: analysis.metadata?.materialEstimate ?? analysis.metadata?.material ?? null,
+        style_tags:        Array.isArray(analysis.metadata?.styleTags) ? analysis.metadata.styleTags.slice() : [],
+        confidence_score:  typeof analysis.metadata?.confidenceScore === 'number'
+          ? analysis.metadata.confidenceScore
+          : null,
       },
+      // Durable versioned identification. The row and this record already
+      // accept arbitrary JSON, so the rich result is preserved without any
+      // schema or RLS change. Absent for saves that never ran identification
+      // (e.g. a direct Elise attachment), which hydrate from the legacy fields.
+      ...(analysis.identificationSnapshot
+        ? {
+            identificationSnapshot: {
+              ...analysis.identificationSnapshot,
+              source: {
+                ...analysis.identificationSnapshot.source,
+                entryPath: resolveEntryPath(entryPath, source),
+              },
+            },
+          }
+        : {}),
       result:   analysis.result   ?? '',
       products: Array.isArray(analysis.products) ? analysis.products : [],
       // Durable commerce snapshot. Without this the live purchase options exist

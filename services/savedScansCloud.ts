@@ -2,6 +2,10 @@ import { supabase } from './supabaseClient';
 import type { User } from '@supabase/supabase-js';
 import { CLOUD_SAVED_SCANS_ENABLED } from '../constants/featureFlags';
 import { normalizePurchaseOptions } from './dressingRoomCommerce';
+import {
+  sanitizeIdentificationSnapshot,
+  type PersistedIdentificationSnapshotV1,
+} from './identificationSnapshot';
 
 /**
  * Safe result shape for all cloud saved-scan operations.
@@ -68,6 +72,13 @@ export interface SavedScanModel {
     style_tags: string[];
     confidence_score: number | null;
   };
+  /**
+   * Durable versioned identification (IMG-008). Absent on legacy rows and on
+   * saves that never ran identification; those hydrate from `attributes`.
+   * Commerce results stay in `purchaseOptions` — a retailer result must never
+   * be able to mutate the immutable visual identification.
+   */
+  identificationSnapshot?: PersistedIdentificationSnapshotV1 | null;
   result: string;
   products: unknown[];
   purchaseOptions?: unknown[];
@@ -131,7 +142,19 @@ export function mapSavedScanToRow(
     local_id: scan.id || null,
     title: scan.attributes?.category || null,
     scan_type: scan.source || 'unknown',
-    analysis_result: scan.result ? { result: scan.result, metadata: scan.attributes } : {},
+    // The column already accepts arbitrary JSON, so the versioned
+    // identification snapshot travels alongside the legacy shape rather than
+    // replacing it (IMG-008). Older clients keep reading `result`/`metadata`;
+    // newer ones reconstruct the full result. No schema or RLS change.
+    analysis_result: scan.result
+      ? {
+          result: scan.result,
+          metadata: scan.attributes,
+          ...(scan.identificationSnapshot
+            ? { identificationSnapshot: scan.identificationSnapshot }
+            : {}),
+        }
+      : {},
     products: Array.isArray(scan.products) ? scan.products : [],
     purchase_options: normalizePurchaseOptions(scan.purchaseOptions),
     // Device-local file paths are neither portable nor governed cloud metadata.
@@ -165,6 +188,8 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
     ? analysis.metadata as Record<string, unknown>
     : {};
 
+  const hydratedSnapshot = sanitizeIdentificationSnapshot(analysis.identificationSnapshot);
+
   return {
     cloudId: row.id,
     id: row.local_id || row.id,
@@ -181,6 +206,14 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
       style_tags: Array.isArray(meta.style_tags) ? meta.style_tags : [],
       confidence_score: typeof meta.confidence_score === 'number' ? meta.confidence_score : null,
     },
+    // Versioned first, legacy fields second. The value is validated on the way
+    // in, so a malformed payload degrades to legacy display instead of
+    // propagating. A row written before this contract — or by a newer client
+    // using a version this build does not understand — still hydrates from
+    // `attributes` rather than becoming unreadable.
+    ...(hydratedSnapshot && !('unsupported' in hydratedSnapshot)
+      ? { identificationSnapshot: hydratedSnapshot }
+      : {}),
     result: resultText,
     products,
     purchaseOptions: normalizePurchaseOptions(row.purchase_options),

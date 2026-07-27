@@ -118,6 +118,8 @@ function loadCloud(flagEnabled, client) {
     './supabaseClient': { supabase: client },
     '../constants/featureFlags': { CLOUD_SAVED_SCANS_ENABLED: flagEnabled },
     './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
+    // IMG-008: the row mapper now validates the durable identification snapshot.
+    './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
     '@supabase/supabase-js': {},
   });
 }
