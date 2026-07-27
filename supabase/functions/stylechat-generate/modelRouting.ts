@@ -1,15 +1,20 @@
 // modelRouting.ts — Elise / StyleChat Gemini model selection.
 // Workload vars only. Generic GEMINI_MODEL must not control routing.
+//
+// The allowlist itself is owned by _shared/llmModelRouting.ts so Scanner,
+// TextScan and Elise cannot drift apart. This module keeps the Elise-facing
+// API and its failure taxonomy.
+import {
+  APPROVED_MODELS,
+  ELISE_FALLBACK_MODEL as SHARED_ELISE_FALLBACK_MODEL,
+  ELISE_PRIMARY_MODEL as SHARED_ELISE_PRIMARY_MODEL,
+  isRetiredModelId as sharedIsRetiredModelId,
+} from '../_shared/llmModelRouting.ts';
 
-export const ELISE_PRIMARY_MODEL = 'gemini-3.6-flash';
-export const ELISE_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+export const ELISE_PRIMARY_MODEL = SHARED_ELISE_PRIMARY_MODEL;
+export const ELISE_FALLBACK_MODEL = SHARED_ELISE_FALLBACK_MODEL;
 
-export const ALLOWED_MODELS = new Set<string>([
-  ELISE_PRIMARY_MODEL,
-  ELISE_FALLBACK_MODEL,
-]);
-
-const RETIRED_PREFIXES = ['gemini-1.5-', 'gemini-2.0-', 'gemini-2.5-'] as const;
+export const ALLOWED_MODELS = APPROVED_MODELS;
 
 export type ProviderFailureKind =
   | 'timeout'
@@ -32,8 +37,7 @@ export function readTrimmedEnvValue(
 }
 
 export function isRetiredModelId(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return RETIRED_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+  return sharedIsRetiredModelId(model);
 }
 
 export function resolveAllowedModel(candidate: string | undefined, fallback: string): string {

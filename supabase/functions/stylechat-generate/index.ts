@@ -14,9 +14,12 @@
 //   - Response sanitized before returning to mobile
 //
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
-// Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-2.5-flash).
+// Model routing: allowlist-bound via _shared/llmModelRouting.ts. Elise runs
+// gemini-3.6-flash with one gemini-3.5-flash-lite fallback. Only explicit
+// STYLECHAT_* workload vars apply, and only to already approved models.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
+import { assertAccountActive } from '../_shared/deletion/common.ts';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
 import {
   parseActiveContext,
@@ -110,8 +113,6 @@ const GREETING_HISTORY_BUFFER    = 3;
 const GEMINI_TIMEOUT_MS          = 12_000;
 const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Stable GA default; operator should set STYLECHAT_GEMINI_MODEL at deployment.
-const DEFAULT_MODEL = 'gemini-2.5-flash';
 const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Local rollback switch for the explainable-recommendation slice (Option A). Setting this
@@ -839,19 +840,23 @@ Deno.serve(async (req) => {
   // (403 + ACCOUNT_PENDING_DELETION) instead of surfacing the RPC guard as an
   // opaque 500. No quota is reserved and no provider is reached. The quota RPCs
   // keep their own guard as defense in depth.
-  {
-    const { data: lifecycleRow } = await userClient
-      .from('profiles')
-      .select('account_status')
-      .eq('id', userId)
-      .maybeSingle();
-    const accountStatus = lifecycleRow?.account_status;
-    if (accountStatus === 'pending_deletion' || accountStatus === 'locked') {
+  //
+  // Enforced through the shared hostile-audit guard rather than a local status
+  // list: it is service-role scoped (so an RLS-hidden row cannot read as
+  // "active"), fails closed on every non-active status and on account_locked_at,
+  // and resolves a missing profile against the Auth record plus the current
+  // effective deletion state instead of treating absence as active.
+  try {
+    await assertAccountActive(userId);
+  } catch (error) {
+    if (error instanceof Response) {
       return json(
         { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
         403,
       );
     }
+    console.error('[stylechat-generate] account_guard_error');
+    return json({ error: 'Account unavailable.', errorCode: 'ACCOUNT_PENDING_DELETION' }, 403);
   }
 
   // ── 3. Parse and validate request body ──────────────────────────────────────
@@ -885,7 +890,7 @@ Deno.serve(async (req) => {
   const isAiDisabled = !config.flags.aiEnabled;
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
   // Model name is trimmed but never lowercased; preserves exact operator config.
-  const modelName = config.modelName || DEFAULT_MODEL;
+  const modelName = config.modelName;
 
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const message   = typeof body.message   === 'string' ? body.message.trim()   : '';

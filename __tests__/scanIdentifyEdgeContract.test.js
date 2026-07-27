@@ -78,7 +78,7 @@ test('edge source: image failures return safe app-compatible shape', () => {
 
 test('edge source: invalid image payload is rejected before Gemini', () => {
   const validationIndex = EDGE_SOURCE.indexOf('validateImageBase64(imageBase64)');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(validationIndex !== -1, 'Must validate image base64');
   assert.ok(geminiIndex !== -1, 'Must call Gemini after validation');
   assert.ok(validationIndex < geminiIndex, 'Image validation must run before Gemini');
@@ -86,7 +86,7 @@ test('edge source: invalid image payload is rejected before Gemini', () => {
 
 test('edge source: anonymous image scans are rate-limited before Gemini', () => {
   const rateLimitIndex = EDGE_SOURCE.indexOf('checkAnonymousImageRateLimit');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_WINDOW_MS'), 'Must define anonymous limiter window');
   assert.ok(EDGE_SOURCE.includes('ANON_SCAN_RATE_LIMIT_MAX'), 'Must define anonymous limiter maximum');
   assert.ok(rateLimitIndex !== -1, 'Must check anonymous rate limit');
@@ -221,15 +221,18 @@ test('edge source: Deno.serve is present', () => {
   assert.ok(EDGE_SOURCE.includes('Deno.serve'), 'Must use Deno.serve');
 });
 
-test('edge source: frozen model map — no retired models, no generic GEMINI_MODEL', () => {
-  // Routing is sourced from modelRouting.ts (frozen map). index.ts must reference the
-  // explicit workload-model helpers and must not carry a retired default or generic precedence.
-  assert.ok(EDGE_SOURCE.includes('SCANNER_PRIMARY_MODEL'), 'Scanner primary must come from the frozen map');
-  assert.ok(EDGE_SOURCE.includes('TEXTSCAN_PRIMARY_MODEL'), 'TextScan model must come from the frozen map');
-  assert.ok(EDGE_SOURCE.includes('getConfiguredModel'), 'Model selection must go through the allowlist helper');
-  assert.equal(/readTrimmedEnv\(['"]GEMINI_MODEL['"]\)/.test(EDGE_SOURCE), false, 'Generic GEMINI_MODEL precedence must be removed');
-  assert.equal(/DEFAULT_MODEL\s*=\s*['"]gemini-1\.5/.test(EDGE_SOURCE), false, 'Retired gemini-1.5 default must be removed');
-  assert.equal(EDGE_SOURCE.includes('gemini-2.0'), false, 'Must not use gemini-2.0');
+test('edge source: routing is allowlist-bound with no retired model', () => {
+  // Android v26: Scanner runs gemini-3.6-flash with one gemini-3.5-flash-lite
+  // fallback; TextScan is pinned to gemini-3.5-flash-lite with one same-model
+  // retry. No retired identifier may remain, and the generic GEMINI_MODEL
+  // variable must not influence routing.
+  assert.equal(/gemini-1\.5|gemini-2\.0|gemini-2\.5/.test(EDGE_SOURCE), false, 'No retired model');
+  assert.equal(EDGE_SOURCE.includes("readTrimmedEnv('GEMINI_MODEL')"), false, 'No generic override');
+  assert.ok(
+    EDGE_SOURCE.includes("resolveRoutePlan(mode === 'text' ? 'textscan' : 'scanner'"),
+    'Surface routing is resolved through the shared allowlist',
+  );
+  assert.ok(EDGE_SOURCE.includes('nextAttemptModel(routePlan, attempt)'), 'Attempts are plan-bound');
 });
 
 test('edge source: text mode and image mode share auth, timeout, and error handling', () => {
@@ -534,7 +537,7 @@ test('edge source: production stage logs are present and do not leak sensitive d
 
 test('edge source: authenticated image scan checks DB quota before Gemini', () => {
   const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check');
   assert.ok(
     EDGE_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
@@ -549,7 +552,7 @@ test('edge source: authenticated TextScan checks DB quota before Gemini', () => 
   assert.ok(EDGE_SOURCE.includes("mode === 'text'"), 'Must branch on text mode');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check for text');
   const quotaIndex = EDGE_SOURCE.indexOf('checkAuthenticatedScanQuota');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(quotaIndex < geminiIndex, 'Text scan quota must run before Gemini');
 });
 
@@ -570,7 +573,7 @@ test('edge source: quota exceeded returns HTTP 200 rate_limited app-safe shape',
 
 test('edge source: quota exceeded does not call Gemini, commerce, or similarity', () => {
   const rateLimitReturn = EDGE_SOURCE.indexOf('return json(buildRateLimitedResponse(), 200)');
-  const geminiIndex = EDGE_SOURCE.indexOf('fetch(geminiUrl');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   const commerceIndex = EDGE_SOURCE.indexOf('getShoppingResults(');
   const similarityIndex = EDGE_SOURCE.indexOf('buildImageSimilarityMatches');
   assert.ok(rateLimitReturn !== -1, 'Must return early on quota exceeded');
@@ -753,4 +756,45 @@ test('edge source: commerce outcome capture is wired fail-open', () => {
   assert.ok(EDGE_SOURCE.includes('captureCommerceOutcome'), 'Must call captureCommerceOutcome');
   assert.ok(EDGE_SOURCE.includes('void captureCommerceOutcome'), 'Capture must be fire-and-forget');
   assert.ok(EDGE_SOURCE.includes('requestStartedAt'), 'Early exits must use requestStartedAt, not Gemini clock');
+});
+
+test('edge source: non_fashion outcomes are captured, not silently dropped from telemetry (v120-v123 full-tree audit regression)', () => {
+  // Prior to this repair, the non_fashion branch returned `finalResponse`
+  // without ever calling captureCommerceOutcome, even though the outcome
+  // schema explicitly supports a 'non_fashion' status and a dedicated
+  // FAILURE_REASON_NON_FASHION reason. A whole legitimate outcome class was
+  // structurally invisible to scan_commerce_events.
+  const nonFashionBlockStart = EDGE_SOURCE.indexOf("status=non_fashion elapsedMs");
+  assert.ok(nonFashionBlockStart > -1, 'non_fashion final_status log must exist');
+  const nonFashionBlockEnd = EDGE_SOURCE.indexOf('if (!attributes) {', nonFashionBlockStart);
+  assert.ok(nonFashionBlockEnd > nonFashionBlockStart, 'must be able to bound the non_fashion branch');
+  const nonFashionBlock = EDGE_SOURCE.slice(nonFashionBlockStart, nonFashionBlockEnd);
+  assert.ok(
+    nonFashionBlock.includes('void captureCommerceOutcome'),
+    'non_fashion branch must call captureCommerceOutcome before returning',
+  );
+  assert.ok(
+    nonFashionBlock.includes("status: 'non_fashion'"),
+    'non_fashion outcome row must use the non_fashion status, not a generic failure',
+  );
+  assert.ok(
+    nonFashionBlock.includes('mapToFailureReason({ isNonFashion: true })'),
+    'non_fashion outcome row must use the dedicated non_fashion failure reason',
+  );
+});
+
+test('edge source: multi-item detection with zero valid garments is captured, not silently dropped from telemetry (v120-v123 full-tree audit regression)', () => {
+  const blockStart = EDGE_SOURCE.indexOf('multi_item_no_valid_garments mode=%s');
+  assert.ok(blockStart > -1, 'multi_item_no_valid_garments branch must exist');
+  const blockEnd = EDGE_SOURCE.indexOf('return json(normalized(\'failed\', safeFailed), 200);', blockStart);
+  assert.ok(blockEnd > blockStart, 'must be able to bound the multi_item_no_valid_garments branch');
+  const block = EDGE_SOURCE.slice(blockStart, blockEnd);
+  assert.ok(
+    block.includes('void captureCommerceOutcome'),
+    'multi_item_no_valid_garments branch must call captureCommerceOutcome before returning',
+  );
+  assert.ok(
+    block.includes("requestMode: 'multi_item_detection'"),
+    'must label the outcome row as multi_item_detection',
+  );
 });
