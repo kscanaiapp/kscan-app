@@ -28,6 +28,13 @@ test('scan-identify remains guarded before review', () => {
   assert.match(photoIntake, /step === 'review'/);
 });
 
+test('completed identification uses the shared mapper and preserves its structured analysis', () => {
+  assert.match(photoIntake, /mapScanIdentifyToAnalysis/);
+  assert.doesNotMatch(photoIntake, /identification as any\)\?\.metadata/);
+  assert.match(photoIntake, /setIdentifiedAnalysis\(mapped\)/);
+  assert.match(photoIntake, /\.\.\.identifiedAnalysis/);
+});
+
 test('explicit save confirmation remains before attachment is created', () => {
   assert.match(photoIntake, /saveScan/);
   assert.match(photoIntake, /onAttached/);
