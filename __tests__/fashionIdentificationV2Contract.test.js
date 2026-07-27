@@ -58,7 +58,7 @@ const V2 = loadTsModule('supabase/functions/_shared/fashionIdentificationV2.ts')
 
 function validEvidence(overrides = {}) {
   return {
-    evidenceId: 'ev_1',
+    evidenceId: 'ev-00000001',
     sequenceIndex: 0,
     transport: { type: 'jpeg_base64', imageBase64: 'AAAA' },
     metadata: { schemaVersion: 'image-metadata-v1', width: 896, height: 1194, mimeType: 'image/jpeg' },
@@ -112,7 +112,7 @@ test('a well-formed v2 request validates and preserves evidence identity', () =>
   assert.equal(result.ok, true);
   assert.equal(result.request.intent, 'identify_and_shop');
   assert.equal(result.request.evidence.length, 1);
-  assert.equal(result.request.evidence[0].evidenceId, 'ev_1');
+  assert.equal(result.request.evidence[0].evidenceId, 'ev-00000001');
   assert.equal(result.request.source.entryPath, 'scanner_camera');
 });
 
@@ -159,7 +159,7 @@ test('a client claiming local privacy filtering is rejected, not trusted', () =>
 test('more than one evidence entry is rejected explicitly, never silently truncated', () => {
   const result = V2.validateFashionIdentificationRequestV2(
     validRequest({
-      evidence: [validEvidence(), validEvidence({ evidenceId: 'ev_2', sequenceIndex: 1 })],
+      evidence: [validEvidence(), validEvidence({ evidenceId: 'ev-00000002', sequenceIndex: 1 })],
     }),
   );
   assert.equal(result.ok, false);
@@ -178,13 +178,19 @@ test('duplicate evidence ids within one request are rejected', () => {
   assert.equal(single.ok, true);
 });
 
-test('an evidence id that is a URI or filesystem path is rejected', () => {
-  for (const evidenceId of ['file:///tmp/a.jpg', 'C:\\Users\\a.jpg', 'ph://ABC-123', 'a/b']) {
+test('an evidence id that is a path, URI, filename, or user identifier is rejected', () => {
+  // An allowlisted charset excludes all of these by construction. A blocklist
+  // would have to anticipate each shape individually.
+  for (const evidenceId of [
+    'file:///tmp/a.jpg', 'C:\\Users\\a.jpg', 'ph://ABC-123', 'a/b',
+    'content://media/1', 'photo.jpg', 'user@example.com', 'id?scan=1',
+    'short', 'has space', 'under_score', 'a'.repeat(65),
+  ]) {
     const result = V2.validateFashionIdentificationRequestV2(
       validRequest({ evidence: [validEvidence({ evidenceId })] }),
     );
     assert.equal(result.ok, false, `${evidenceId} must be rejected`);
-    assert.equal(result.errorCode, 'invalid_evidence');
+    assert.equal(result.errorCode, 'invalid_evidence_id');
   }
 });
 
@@ -241,7 +247,7 @@ test('selected-item mode requires a candidate correlated to present evidence', (
   const mismatched = V2.validateFashionIdentificationRequestV2(
     validRequest({
       mode: 'identify_selected_item',
-      selectedCandidate: { candidateId: 'c1', evidenceId: 'ev_other' },
+      selectedCandidate: { candidateId: 'c1', evidenceId: 'ev-00000099' },
     }),
   );
   assert.equal(mismatched.ok, false);
@@ -250,12 +256,30 @@ test('selected-item mode requires a candidate correlated to present evidence', (
   const ok = V2.validateFashionIdentificationRequestV2(
     validRequest({
       mode: 'identify_selected_item',
-      selectedCandidate: { candidateId: 'c1', evidenceId: 'ev_1', detectionDigest: 'dig_1' },
+      selectedCandidate: {
+        candidateId: 'c1',
+        evidenceId: 'ev-00000001',
+        category: 'footwear',
+        detectionDigest: 'dig_1',
+      },
     }),
   );
   assert.equal(ok.ok, true);
-  assert.equal(ok.request.selectedCandidate.evidenceId, 'ev_1');
+  assert.equal(ok.request.selectedCandidate.evidenceId, 'ev-00000001');
   assert.equal(ok.request.selectedCandidate.detectionDigest, 'dig_1');
+  // Carried through losslessly for the existing selected-item pipeline.
+  assert.equal(ok.request.selectedCandidate.category, 'footwear');
+});
+
+test('a selected candidate without the detection category is rejected, not defaulted', () => {
+  const result = V2.validateFashionIdentificationRequestV2(
+    validRequest({
+      mode: 'identify_selected_item',
+      selectedCandidate: { candidateId: 'c1', evidenceId: 'ev-00000001' },
+    }),
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.errorCode, 'invalid_selected_candidate');
 });
 
 test('a malformed v2 request fails with a machine code distinct from any visual outcome', () => {
@@ -273,7 +297,7 @@ test('a malformed v2 request fails with a machine code distinct from any visual 
 
 // ── Normalization: the deterministic system fixtures ─────────────────────────
 
-const EVIDENCE_IDS = ['ev_1'];
+const EVIDENCE_IDS = ['ev-00000001'];
 
 test('FIXTURE unbranded subtype — tan chore jacket stays a useful result', () => {
   const result = V2.normalizeToV2({
@@ -331,7 +355,7 @@ test('FIXTURE visually branded item — supplied brand and subtype survive norma
   assert.ok(evidenceTypes.includes('logo_detected'));
   assert.ok(evidenceTypes.includes('brand_guess'));
   // Evidence stays correlated to the originating image.
-  assert.equal(result.item.brand.evidence[0].evidenceId, 'ev_1');
+  assert.equal(result.item.brand.evidence[0].evidenceId, 'ev-00000001');
   // No client may reduce this to "Grey Footwear".
   assert.ok(result.item.brand.value && result.item.subtype);
 });
@@ -400,8 +424,8 @@ test('FIXTURE multiple items produces a selection state with correlated candidat
     evidenceIds: EVIDENCE_IDS,
     identification: { item_type: 'outfit' },
     candidates: [
-      { candidateId: 'c1', evidenceId: 'ev_1', category: 'top', subtype: 'shirt' },
-      { candidateId: 'c2', evidenceId: 'ev_1', category: 'bottom', subtype: 'trouser' },
+      { candidateId: 'c1', evidenceId: 'ev-00000001', category: 'top', subtype: 'shirt' },
+      { candidateId: 'c2', evidenceId: 'ev-00000001', category: 'bottom', subtype: 'trouser' },
     ],
   });
 
@@ -409,7 +433,7 @@ test('FIXTURE multiple items produces a selection state with correlated candidat
   assert.equal(result.candidates.length, 2);
   // Candidate and evidence identifiers must both survive for the second step.
   for (const candidate of result.candidates) {
-    assert.equal(candidate.evidenceId, 'ev_1');
+    assert.equal(candidate.evidenceId, 'ev-00000001');
     assert.ok(candidate.candidateId);
   }
   // Unrelated items must not be merged into one identity.
@@ -569,12 +593,12 @@ test('the result echoes contract version, request id, and evidence ids', () => {
   const result = V2.normalizeToV2({
     requestId: 'req_abc',
     outcome: 'classified',
-    evidenceIds: ['ev_9'],
+    evidenceIds: ['ev-00000009'],
     identification: { item_type: 'jacket', subtype: 'chore jacket', visual_observation: 'tan jacket' },
   });
   assert.equal(result.contractVersion, 'fashion-identification-v2');
   assert.equal(result.requestId, 'req_abc');
-  assert.deepEqual(result.evidence.map((e) => e.evidenceId), ['ev_9']);
+  assert.deepEqual(result.evidence.map((e) => e.evidenceId), ['ev-00000009']);
   // Spread into a host array: values built inside the vm sandbox carry that
   // realm's Array prototype, which deepStrictEqual compares by identity.
   assert.deepEqual([...result.evidence[0].observations], ['tan jacket']);
