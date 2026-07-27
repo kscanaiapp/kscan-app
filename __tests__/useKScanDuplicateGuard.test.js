@@ -195,11 +195,16 @@ function loadUseKScanWithMocks({
     AbortController: MockAbortController,
     analyzeImage,
     identifyScanImage,
-    normalizeImageSelections: (assets, source) => assets.map((asset, index) => ({
-      id: `image-${index}`,
-      uri: asset.uri,
-      source,
-    })),
+    normalizeImageSelections: (assets, source) => {
+      if (!Array.isArray(assets) || assets.some((asset) => !asset?.uri)) {
+        throw new Error('MALFORMED_IMAGE');
+      }
+      return assets.map((asset, index) => ({
+        id: `image-${index}`,
+        uri: asset.uri,
+        source,
+      }));
+    },
     removeImageSelection: (images, imageId) => images.filter((image) => image.id !== imageId),
     buildMultiScanCandidates: (batches) => batches.flatMap(({ image, preparedImage, response }) => (
       response?.status === 'completed' ? [{
@@ -642,6 +647,40 @@ test('picker cancellation clears the guard', async () => {
   assert.equal(hook.isAnalyzing, false, 'guard clears after picker cancellation');
 });
 
+for (const imagePickerResult of [
+  { canceled: false, assets: [] },
+  { canceled: false, assets: [{}] },
+  { canceled: false, assets: [{ uri: 'file://video.mp4', type: 'video' }] },
+]) {
+  test(`malformed picker result ${JSON.stringify(imagePickerResult)} fails safely`, async () => {
+    const hook = loadUseKScanWithMocks({
+      initialStatus: 'idle',
+      initialPhoto: null,
+      imagePickerResult,
+    });
+
+    await hook.selectGalleryPhoto();
+
+    assert.equal(hook.status, 'error');
+    assert.equal(hook.photo, null);
+    assert.equal(hook.isAnalyzing, false);
+  });
+}
+
+test('picker rejection fails safely and remains retryable', async () => {
+  const hook = loadUseKScanWithMocks({
+    initialStatus: 'idle',
+    initialPhoto: null,
+    launchImageLibraryAsync: async () => { throw new Error('picker failed'); },
+  });
+
+  await hook.selectGalleryPhoto();
+
+  assert.equal(hook.status, 'error');
+  assert.equal(hook.photo, null);
+  assert.equal(hook.isAnalyzing, false);
+});
+
 test('gallery selection reaches preview with the uploaded image', async () => {
   const hook = loadUseKScanWithMocks({
     initialStatus: 'idle',
@@ -682,18 +721,19 @@ test('rapid gallery taps produce one picker', async () => {
   await Promise.all(runs);
 });
 
-test('gallery permission denial clears the guard and surfaces guidance', async () => {
+test('denied broad media permission does not block the permission-light picker', async () => {
   const hook = loadUseKScanWithMocks({
     initialStatus: 'idle',
     mediaPermissionStatus: 'denied',
+    imagePickerResult: { canceled: false, assets: [{ uri: 'file://picked.jpg' }] },
   });
 
   await hook.selectGalleryPhoto();
 
-  assert.equal(hook.status, 'idle', 'status stays idle on permission denial');
-  assert.equal(hook.isAnalyzing, false, 'guard must clear on permission denial');
-  assert.equal(hook.alertCalls.length, 1, 'user must be told how to enable photo access');
-  assert.match(hook.alertCalls[0][0], /Photo Access Required/);
+  assert.equal(hook.status, 'preview');
+  assert.equal(hook.photo?.uri, 'file://picked.jpg');
+  assert.equal(hook.isAnalyzing, false);
+  assert.equal(hook.alertCalls.length, 0);
 });
 
 // ── Analysis lifecycle ───────────────────────────────────────────────────────

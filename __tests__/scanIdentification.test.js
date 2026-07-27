@@ -232,6 +232,32 @@ test('identifyScanImage: success path returns normalized completed', async () =>
   assert.equal(typeof sentBody.clientTimestamp, 'string');
 });
 
+test('camera and gallery uploads use the same Scanner request schema', async () => {
+  const bodies = [];
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: {
+      invoke: async (_fn, opts) => {
+        bodies.push(JSON.parse(JSON.stringify(opts.body)));
+        return {
+          data: { status: 'completed', recommendedProducts: [], attributes: { category: 'Tops' } },
+          error: null,
+        };
+      },
+    },
+  });
+
+  await adapter.identifyScanImage(TINY_DATA_URI, { source: 'camera' });
+  await adapter.identifyScanImage(TINY_DATA_URI, { source: 'upload' });
+
+  assert.equal(bodies.length, 2);
+  assert.deepEqual(Object.keys(bodies[0]).sort(), Object.keys(bodies[1]).sort());
+  assert.deepEqual(
+    { ...bodies[0], source: 'input', clientTimestamp: 'timestamp' },
+    { ...bodies[1], source: 'input', clientTimestamp: 'timestamp' },
+  );
+});
+
 test('identifyScanImage: invoke error → failed', async () => {
   const adapter = loadAdapter({
     auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },

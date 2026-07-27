@@ -143,7 +143,7 @@ test('sanitized-derivative cleanup is safe on missing files', async () => {
   assert.equal(deleted.length, 1);
 });
 
-test('scan-room upload controls stay visible, disabled, and truthful', () => {
+test('Scanner gallery controls are independent of the dormant privacy foundation', () => {
   const liveScanCamera = fs.readFileSync(
     path.join(ROOT, 'components/scan-room/LiveScanCamera.tsx'),
     'utf8',
@@ -153,11 +153,9 @@ test('scan-room upload controls stay visible, disabled, and truthful', () => {
     'utf8',
   );
   for (const screen of [liveScanCamera, scanLanding]) {
-    assert.match(screen, /isPrivateImageUploadAvailable/);
-    assert.match(screen, /PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE/);
-    // Control remains rendered with an explicit disabled state and honest label,
-    // not silently hidden or bypassed.
-    assert.match(screen, /!uploadAvailable/);
-    assert.match(screen, /'Upload Unavailable'/);
+    assert.doesNotMatch(screen, /isPrivateImageUploadAvailable/);
+    assert.doesNotMatch(screen, /PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE/);
+    assert.doesNotMatch(screen, /Upload Unavailable/);
+    assert.match(screen, /Upload Image/);
   }
 });

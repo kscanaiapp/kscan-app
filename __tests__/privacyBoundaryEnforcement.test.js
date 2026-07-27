@@ -4,10 +4,9 @@
 // prove two invariants simultaneously:
 //   1. The foundation itself remains fail-closed and truthful (gate false,
 //      preparation blocks, cleanup guaranteed, no fabricated success).
-//   2. The accepted Android v26 image routes are NOT routed through the
-//      incomplete boundary — Scanner, Dressing Room, Saved Scan, and Style
-//      Library behave as accepted, and only the scan-room V2 upload feature
-//      remains fail-closed where it existed before the foundation batch.
+//   2. The accepted Android image routes are NOT routed through the incomplete
+//      boundary — Scanner, Dressing Room, Saved Scan, and Style Library keep
+//      their independently validated preparation and dispatch contracts.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -209,7 +208,7 @@ test('release scope: truthful privacy reporting is preserved', () => {
   assert.ok(!/localPrivacyFiltered:\s*true/.test(adapterAndroid), 'no hardcoded local-filtering claim');
 });
 
-test('scan-room V2 upload stays fail-closed, visible, and truthful', () => {
+test('scan-room V2 upload is not gated by the dormant privacy foundation', () => {
   const upload = loadTsModule('services/privacyImageUpload.ts', {
     'expo-image-manipulator': { manipulateAsync: async () => ({}), SaveFormat: { JPEG: 'jpeg' } },
     'expo-file-system/legacy': { deleteAsync: async () => {} },
@@ -228,9 +227,9 @@ test('scan-room V2 upload stays fail-closed, visible, and truthful', () => {
   );
   const scanLanding = fs.readFileSync(path.join(ROOT, 'components/scan-room/ScanLanding.tsx'), 'utf8');
   for (const screen of [liveScanCamera, scanLanding]) {
-    assert.match(screen, /isPrivateImageUploadAvailable/);
-    assert.match(screen, /PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE/);
-    assert.match(screen, /!uploadAvailable/);
-    assert.match(screen, /'Upload Unavailable'/);
+    assert.doesNotMatch(screen, /isPrivateImageUploadAvailable/);
+    assert.doesNotMatch(screen, /PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE/);
+    assert.doesNotMatch(screen, /Upload Unavailable/);
+    assert.match(screen, /Upload Image/);
   }
 });
