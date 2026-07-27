@@ -123,6 +123,9 @@ function loadEvidenceModule(overrides = {}) {
   // The real shared Scanner mapper — not a stand-in. Its output is the contract
   // this repair depends on, so stubbing it would prove nothing.
   const scanIdentificationMapper = loadTsModule('services/scanIdentificationMapper.ts', {
+    // Phase 2B.2: the null-safe V2 display projection, loaded for real so the
+    // mapper's V2 branch is exercised rather than simulated.
+    './scannerV2Display': loadTsModule('services/scannerV2Display.ts', {}),
     './scanTitleBuilder': loadTsModule('services/scanTitleBuilder.ts', {}),
     // IMG-008: the mapper now also builds the durable identification snapshot.
     './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts', {

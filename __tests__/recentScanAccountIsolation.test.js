@@ -96,6 +96,21 @@ ${transpile(relPath)}
         softDeleteCloudSavedScan: async (ref) => { cloudCalls.deleted.push(ref); return { ok: true }; },
       };
     }
+    if (spec === './identificationSnapshot') return {
+      hydrateScanHistory: (rawRecords, hydrateOne) => {
+        if (!Array.isArray(rawRecords)) return { records: [], corruptedCount: 0 };
+        const records = [];
+        let corruptedCount = 0;
+        for (const rawRecord of rawRecords) {
+          try {
+            const hydrated = hydrateOne(rawRecord);
+            if (hydrated) records.push(hydrated);
+            else corruptedCount += 1;
+          } catch { corruptedCount += 1; }
+        }
+        return { records, corruptedCount };
+      },
+    };
     if (spec === './dressingRoomCommerce') {
       return { normalizePurchaseOptions: (v) => (Array.isArray(v) ? v.slice() : []) };
     }

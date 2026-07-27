@@ -117,6 +117,21 @@ function loadCloud(flagEnabled, client) {
   return loadTsModule('services/savedScansCloud.ts', {
     './supabaseClient': { supabase: client },
     '../constants/featureFlags': { CLOUD_SAVED_SCANS_ENABLED: flagEnabled },
+    './identificationSnapshot': {
+      hydrateScanHistory: (rawRecords, hydrateOne) => {
+        if (!Array.isArray(rawRecords)) return { records: [], corruptedCount: 0 };
+        const records = [];
+        let corruptedCount = 0;
+        for (const rawRecord of rawRecords) {
+          try {
+            const hydrated = hydrateOne(rawRecord);
+            if (hydrated) records.push(hydrated);
+            else corruptedCount += 1;
+          } catch { corruptedCount += 1; }
+        }
+        return { records, corruptedCount };
+      },
+    },
     './dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts'),
     // IMG-008: the row mapper now validates the durable identification snapshot.
     './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),

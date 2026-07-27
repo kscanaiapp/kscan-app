@@ -3,8 +3,11 @@ import type { User } from '@supabase/supabase-js';
 import { CLOUD_SAVED_SCANS_ENABLED } from '../constants/featureFlags';
 import { normalizePurchaseOptions } from './dressingRoomCommerce';
 import {
+  hydrateScanHistory,
   sanitizeIdentificationSnapshot,
+  sanitizeIdentificationSnapshotV2,
   type PersistedIdentificationSnapshotV1,
+  type PersistedIdentificationSnapshotV2,
 } from './identificationSnapshot';
 
 /**
@@ -79,6 +82,11 @@ export interface SavedScanModel {
    * be able to mutate the immutable visual identification.
    */
   identificationSnapshot?: PersistedIdentificationSnapshotV1 | null;
+  /**
+   * Durable fashion-identification-v2 envelope (Phase 2B.2). Absent on every
+   * legacy and V1 row, which continue to hydrate exactly as before.
+   */
+  identificationSnapshotV2?: PersistedIdentificationSnapshotV2 | null;
   result: string;
   products: unknown[];
   purchaseOptions?: unknown[];
@@ -150,6 +158,12 @@ export function mapSavedScanToRow(
       ? {
           result: scan.result,
           metadata: scan.attributes,
+          // Phase 2B.2 V2 envelope. Travels in the same already-JSON column
+          // alongside the legacy shape, so older clients keep reading
+          // `result`/`metadata` unchanged. No schema, type or RLS change.
+          ...(scan.identificationSnapshotV2
+            ? { identificationSnapshotV2: scan.identificationSnapshotV2 }
+            : {}),
           ...(scan.identificationSnapshot
             ? { identificationSnapshot: scan.identificationSnapshot }
             : {}),
@@ -189,6 +203,10 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
     : {};
 
   const hydratedSnapshot = sanitizeIdentificationSnapshot(analysis.identificationSnapshot);
+  // Independent of the V1 hydration above: a malformed V2 blob must not stop a
+  // valid V1 snapshot on the same row from loading, and an invalid V2 payload
+  // never outranks a valid V1 one.
+  const hydratedSnapshotV2 = sanitizeIdentificationSnapshotV2(analysis.identificationSnapshotV2);
 
   return {
     cloudId: row.id,
@@ -214,6 +232,7 @@ export function mapSavedScanRowToModel(row: SavedScanRow): SavedScanModel {
     ...(hydratedSnapshot && !('unsupported' in hydratedSnapshot)
       ? { identificationSnapshot: hydratedSnapshot }
       : {}),
+    ...(hydratedSnapshotV2 ? { identificationSnapshotV2: hydratedSnapshotV2 } : {}),
     result: resultText,
     products,
     purchaseOptions: normalizePurchaseOptions(row.purchase_options),
@@ -372,7 +391,13 @@ export async function listCloudSavedScans(
     if (error) return networkResult();
 
     const rows: SavedScanRow[] = Array.isArray(data) ? data : [];
-    const models = rows.map(mapSavedScanRowToModel);
+    // Per-record hydration (Phase 2B.2): one unreadable cloud row must not
+    // discard every other row in the response. Previously a single throwing row
+    // fell through to the outer catch and returned an unknown-state result for
+    // the whole history.
+    const { records: models } = hydrateScanHistory<SavedScanModel>(rows, (row) =>
+      mapSavedScanRowToModel(row as SavedScanRow),
+    );
     return successResult(models);
   } catch {
     return unknownResult();

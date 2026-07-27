@@ -61,6 +61,9 @@ const scanResultObjectModule = loadTsModule('services/scanResultObject.ts');
 const scanTitleBuilderModule = loadTsModule('services/scanTitleBuilder.ts');
 const outfitDetectionBridgeModule = loadTsModule('services/outfitConfirmation/outfitDetectionBridge.ts');
 const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
+  // Phase 2B.2: the null-safe V2 display projection, loaded for real so the
+  // mapper's V2 branch is exercised rather than simulated.
+  './scannerV2Display': loadTsModule('services/scannerV2Display.ts', {}),
   './scanResultObject': scanResultObjectModule,
   './scanTitleBuilder': scanTitleBuilderModule,
   // IMG-008: the mapper now also builds the durable identification snapshot.

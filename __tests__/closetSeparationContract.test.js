@@ -86,6 +86,21 @@ function load(platformOS = 'android') {
         softDeleteCloudSavedScan: async () => ({ ok: true }),
       };
     }
+    if (spec === './identificationSnapshot') return {
+      hydrateScanHistory: (rawRecords, hydrateOne) => {
+        if (!Array.isArray(rawRecords)) return { records: [], corruptedCount: 0 };
+        const records = [];
+        let corruptedCount = 0;
+        for (const rawRecord of rawRecords) {
+          try {
+            const hydrated = hydrateOne(rawRecord);
+            if (hydrated) records.push(hydrated);
+            else corruptedCount += 1;
+          } catch { corruptedCount += 1; }
+        }
+        return { records, corruptedCount };
+      },
+    };
     if (spec === './purchaseOptions' || spec === './dressingRoomCommerce') {
       return {
         isPurchaseOptionsSnapshot: (v) => Array.isArray(v),
@@ -540,6 +555,21 @@ test('MEDIA-PERSIST-FAILURE-CREATES-NO-RECORD', async () => {
     if (spec === './savedScansCloud') {
       return { saveScanToCloud: async () => ({ ok: true }), softDeleteCloudSavedScan: async () => ({ ok: true }) };
     }
+    if (spec === './identificationSnapshot') return {
+      hydrateScanHistory: (rawRecords, hydrateOne) => {
+        if (!Array.isArray(rawRecords)) return { records: [], corruptedCount: 0 };
+        const records = [];
+        let corruptedCount = 0;
+        for (const rawRecord of rawRecords) {
+          try {
+            const hydrated = hydrateOne(rawRecord);
+            if (hydrated) records.push(hydrated);
+            else corruptedCount += 1;
+          } catch { corruptedCount += 1; }
+        }
+        return { records, corruptedCount };
+      },
+    };
     if (spec === './purchaseOptions' || spec === './dressingRoomCommerce') {
       return { isPurchaseOptionsSnapshot: () => false, normalizePurchaseOptions: () => [] };
     }

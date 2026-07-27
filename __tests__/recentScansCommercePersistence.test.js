@@ -196,7 +196,11 @@ test('saveScan persists purchaseOptions, not only products', () => {
   assert.match(librarySource, /purchaseOptions:\s*selectPurchaseOptionsSnapshot\(analysis\)/);
   assert.match(librarySource, /export function selectPurchaseOptionsSnapshot/);
   assert.match(librarySource, /export function hydrateSavedScan/);
-  assert.match(librarySource, /parsed[\s\S]{0,80}\.map\(hydrateSavedScan\)/);
+  // Every persisted record is still hydrated through hydrateSavedScan on read.
+  // Phase 2B.2 replaced the array-wide `.map()` with per-record hydration so a
+  // single corrupt entry can no longer empty the whole history, so the
+  // assertion follows the call into that helper.
+  assert.match(librarySource, /hydrateScanHistory\(parsed,[\s\S]{0,200}hydrateSavedScan\(scan\)/);
 });
 
 test('snapshot source never falls back to the catalog similarity shelf', () => {

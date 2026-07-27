@@ -3,7 +3,9 @@ import { AccessibilityInfo } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
-import { identifyScanImage } from '../services/scanIdentification';
+import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
+import { beginScannerV2Session } from '../services/scannerIdentificationV2';
+import { runScannerIdentification } from '../services/scannerScanRequest';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import {
   buildSecondhandSearchRequest,
@@ -55,6 +57,13 @@ function createScanSession(sourceImageUri) {
     preparedImageUri: null,
     imageDigestPrefix: null,
     localPrivacyFiltered: false,
+    // One session is one prepared image, so it is exactly one piece of
+    // evidence (Phase 2B.2). Minting the id here gives the lifecycle for free:
+    // the id survives detection → selection for an unchanged image, and a new
+    // capture, retake or replacement gallery item builds a new session and
+    // therefore new evidence. Candidates tied to the previous id are dropped
+    // with the session that held them.
+    evidenceId: createEvidenceId(),
   };
 }
 
@@ -124,6 +133,13 @@ export function useKScan() {
   const initialMultiItemAnalysisRef = useRef(null);
   const retryRequestModeRef = useRef('multi_item_detection');
   const prevIsAnalyzingRef = useRef(false);
+  // Session-latched Scanner V2 rollout decision (Phase 2B.2). Resolved once at
+  // the start of each Scanner session and read by every stage of it — detection,
+  // selection, identification and persistence — so a flag change between
+  // capture and selection can never make the two halves of one scan speak
+  // different contracts. Defaults to disabled so a session that somehow starts
+  // without resolving stays on the legacy path rather than opting itself in.
+  const scannerV2SessionRef = useRef({ enabled: false });
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -369,6 +385,12 @@ export function useKScan() {
       const operationId = startInFlight();
       if (operationId === null) return;
 
+      // Resolve the Scanner V2 rollout flag ONCE for this session and latch it.
+      // Detection, selection, identification and persistence all read this same
+      // value, so a flag change between capture and selection can never make
+      // the two halves of one scan speak different contracts.
+      scannerV2SessionRef.current = beginScannerV2Session();
+
       logAnalyzeDiag({
         event: 'scan_analyze_accepted',
         source: 'runAnalysis',
@@ -543,18 +565,53 @@ export function useKScan() {
         }
         usedScanIdentify = true;
 
-        const identifyResponse = await identifyScanImage(sanitized, {
-          source: photo.source === 'upload' ? 'upload' : 'camera',
+        const evidenceSource = photo.source === 'upload' ? 'gallery' : 'camera';
+        // ONE evidence object per HTTP request. iOS Scanner is single-image, so
+        // this is the session's one piece of evidence, reused verbatim through
+        // selection without any re-preparation.
+        const evidence = prepareScannerEvidence({
+          preparedImage: sanitized,
+          source: evidenceSource,
+          evidenceId: session.evidenceId,
+        });
+        if (!evidence) {
+          throw userSafeError(
+            'prepared evidence unavailable',
+            'The selected outfit image could not be prepared. Please choose it again.',
+          );
+        }
+        session.evidenceId = evidence.evidenceId;
+
+        const outcome = await runScannerIdentification({
+          mode: 'detect_items',
+          evidence,
+          platform: 'ios',
+          requestId: createEvidenceId(),
+          sessionFlag: scannerV2SessionRef.current,
+          legacyCorrelation: {
+            scanSessionId: session.scanSessionId,
+            imageDigestPrefix: session.imageDigestPrefix,
+          },
           localPrivacyFiltered: session.localPrivacyFiltered,
-          multiItemDetection: true,
-          requestMode: 'multi_item_detection',
-          scanSessionId: session.scanSessionId,
-          imageDigestPrefix: session.imageDigestPrefix,
           signal: activeAbortControllerRef.current?.signal,
         });
+        // A malformed V2 payload is a real backend failure, never a reason to
+        // silently retry on the legacy contract.
+        if (outcome.v2ValidationFailure || outcome.rejection) {
+          throw userSafeError(
+            'scanner v2 contract failure',
+            'We couldn’t complete the scan. Please try again.',
+          );
+        }
+        const identifyResponse = outcome.response;
+        session.v2Candidates = outcome.candidates;
+        session.evidenceSource = evidenceSource;
 
         // Throws a user-safe error on 'failed' → handled by the catch below.
-        const data = mapScanIdentifyToAnalysis(identifyResponse);
+        const data = mapScanIdentifyToAnalysis(identifyResponse, {
+          identificationV2: outcome.identificationV2,
+          source: evidenceSource,
+        });
         if (Array.isArray(data.confirmationCandidates) && data.confirmationCandidates.length > 0) {
           initialMultiItemAnalysisRef.current = data;
           setSelectedCandidateId(data.confirmationCandidates[0].id);
@@ -674,22 +731,72 @@ export function useKScan() {
         });
       }
 
-      const identifyResponse = await identifyScanImage(session.preparedImageUri, {
-        source: photo.source === 'upload' ? 'upload' : 'camera',
-        localPrivacyFiltered: session.localPrivacyFiltered,
-        multiItemDetection: true,
-        requestMode: 'selected_item',
-        scanSessionId: session.scanSessionId,
-        imageDigestPrefix: session.imageDigestPrefix,
-        signal: activeAbortControllerRef.current?.signal,
-        selectedCandidate: {
-          candidateId: candidate.id,
-          category: candidate.category,
-          subtype: candidate.subtype,
-          bounds: candidate.bounds,
-        },
+      const evidenceSource = session.evidenceSource
+        ?? (photo.source === 'upload' ? 'gallery' : 'camera');
+      // The SAME prepared derivative and the SAME evidence id detection used.
+      // Nothing is recompressed, re-oriented or re-prepared, and no new
+      // evidence id is minted for an unchanged image.
+      const evidence = prepareScannerEvidence({
+        preparedImage: session.preparedImageUri,
+        source: evidenceSource,
+        evidenceId: session.evidenceId,
       });
-      const data = mapScanIdentifyToAnalysis(identifyResponse);
+      if (!evidence) {
+        throw userSafeError(
+          'prepared evidence unavailable',
+          'The original outfit image is no longer available. Please start a new scan.',
+        );
+      }
+
+      // Prefer the server's own V2 candidate record for this candidateId. The
+      // detection digest comes ONLY from it — never computed here, never copied
+      // from another evidence id, never substituted with the session id.
+      const v2Candidate = Array.isArray(session.v2Candidates)
+        ? session.v2Candidates.find(
+          (entry) => entry.candidateId === candidate.id
+            && entry.evidenceId === evidence.evidenceId,
+        )
+        : undefined;
+
+      const outcome = await runScannerIdentification({
+        mode: 'identify_selected_item',
+        evidence,
+        platform: 'ios',
+        requestId: createEvidenceId(),
+        sessionFlag: scannerV2SessionRef.current,
+        selectedCandidate: {
+          evidenceId: evidence.evidenceId,
+          candidateId: candidate.id,
+          // Category comes FROM detection and is carried through unchanged.
+          category: v2Candidate?.category ?? candidate.category,
+          ...(v2Candidate?.subtype ?? candidate.subtype
+            ? { subtype: v2Candidate?.subtype ?? candidate.subtype }
+            : {}),
+          ...(v2Candidate?.bounds ?? candidate.bounds
+            ? { bounds: v2Candidate?.bounds ?? candidate.bounds }
+            : {}),
+          ...(v2Candidate?.detectionDigest
+            ? { detectionDigest: v2Candidate.detectionDigest }
+            : {}),
+        },
+        legacyCorrelation: {
+          scanSessionId: session.scanSessionId,
+          imageDigestPrefix: session.imageDigestPrefix,
+        },
+        localPrivacyFiltered: session.localPrivacyFiltered,
+        signal: activeAbortControllerRef.current?.signal,
+      });
+      if (outcome.v2ValidationFailure || outcome.rejection) {
+        throw userSafeError(
+          'scanner v2 contract failure',
+          'We couldn’t analyze the selected garment. Please try again.',
+        );
+      }
+      const identifyResponse = outcome.response;
+      const data = mapScanIdentifyToAnalysis(identifyResponse, {
+        identificationV2: outcome.identificationV2,
+        source: evidenceSource,
+      });
       if (data.type === 'non-fashion') {
         throw userSafeError(
           'selected garment not identified',

@@ -25,6 +25,7 @@
 // attribute is null or an empty list, never an invented default.
 
 import type { ScanIdentifyResponse } from '../types/scanIdentification';
+import type { FashionIdentificationResultV2 } from '../types/fashionIdentificationV2';
 
 export const IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION = 'fashion-identification-v1';
 
@@ -348,4 +349,184 @@ export function hydrateIdentificationSnapshot(scan: unknown): HydratedIdentifica
   if (sanitized) return sanitized;
 
   return snapshotFromLegacyAttributes(scan.attributes);
+}
+
+// ── fashion-identification-v2 snapshot (Phase 2B.2) ──────────────────────────
+//
+// ADDITIVE ONLY. Everything above keeps its exact behaviour, because Elise and
+// StyleChat read through it and Phase 2B.2 is a Scanner-only migration.
+//
+// No database migration and no regenerated types: the local record and the
+// cloud `analysis_result` column already accept arbitrary JSON, which is the
+// same property IMG-008 relied on.
+
+export const IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION_V2 = 'fashion-identification-v2';
+export const IDENTIFICATION_SNAPSHOT_VERSION_V2 = 2 as const;
+
+const STATUSES_V2 = [
+  'completed',
+  'partial',
+  'insufficient_visual_evidence',
+  'non_fashion',
+  'multiple_items_need_selection',
+  'technical_failure',
+] as const;
+
+export type IdentificationSnapshotSource = 'camera' | 'gallery';
+
+/**
+ * The persisted V2 envelope.
+ *
+ * DELIBERATELY ABSENT, and asserted absent by test: Base64, evidence ids,
+ * candidate ids, detection digests, candidate bounds, raw EXIF, local URIs,
+ * filenames, the raw provider response and the full request body. Every one of
+ * those is either request-scoped correlation data that means nothing after the
+ * operation ends, or content that must never reach durable storage.
+ *
+ * `purchaseOptions` stays the existing commerce type, unparsed and unranked —
+ * Phase 2B.2 does not touch the commerce contract.
+ */
+export type PersistedIdentificationSnapshotV2<TPurchaseOption = unknown> = {
+  snapshotVersion: typeof IDENTIFICATION_SNAPSHOT_VERSION_V2;
+  contractVersion: typeof IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION_V2;
+  identification: FashionIdentificationResultV2;
+  purchaseOptions: TPurchaseOption[];
+  source: IdentificationSnapshotSource;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function isIdentificationSnapshotSource(
+  value: unknown,
+): value is IdentificationSnapshotSource {
+  return value === 'camera' || value === 'gallery';
+}
+
+export function buildIdentificationSnapshotV2<TPurchaseOption = unknown>(input: {
+  identification: FashionIdentificationResultV2;
+  purchaseOptions?: TPurchaseOption[] | null;
+  source: IdentificationSnapshotSource;
+  createdAt: string;
+  updatedAt?: string;
+}): PersistedIdentificationSnapshotV2<TPurchaseOption> | null {
+  if (!isRecord(input) || !isRecord(input.identification)) return null;
+  if (input.identification.contractVersion !== IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION_V2) {
+    return null;
+  }
+  const createdAt = str(input.createdAt);
+  if (!createdAt) return null;
+  return {
+    snapshotVersion: IDENTIFICATION_SNAPSHOT_VERSION_V2,
+    contractVersion: IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION_V2,
+    identification: input.identification,
+    purchaseOptions: Array.isArray(input.purchaseOptions) ? input.purchaseOptions.slice() : [],
+    source: isIdentificationSnapshotSource(input.source) ? input.source : 'camera',
+    createdAt,
+    updatedAt: str(input.updatedAt) ?? createdAt,
+  };
+}
+
+/**
+ * Minimal structural gate for a stored V2 snapshot.
+ *
+ * Only the invariants persistence itself depends on are re-checked here. The
+ * full contract validation already ran at the response boundary before this was
+ * ever written, and re-running it on read would let a later validator revision
+ * silently orphan rows that were valid when saved.
+ */
+export function sanitizeIdentificationSnapshotV2(
+  value: unknown,
+): PersistedIdentificationSnapshotV2 | null {
+  if (!isRecord(value)) return null;
+  if (value.snapshotVersion !== IDENTIFICATION_SNAPSHOT_VERSION_V2) return null;
+  if (value.contractVersion !== IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION_V2) return null;
+
+  const identification = value.identification;
+  if (!isRecord(identification)) return null;
+  if (identification.contractVersion !== IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION_V2) return null;
+  if (!isRecord(identification.item)) return null;
+  if (!(STATUSES_V2 as readonly string[]).includes(String(identification.status))) return null;
+
+  const createdAt = str(value.createdAt);
+  if (!createdAt) return null;
+
+  return {
+    snapshotVersion: IDENTIFICATION_SNAPSHOT_VERSION_V2,
+    contractVersion: IDENTIFICATION_SNAPSHOT_CONTRACT_VERSION_V2,
+    identification: identification as unknown as FashionIdentificationResultV2,
+    purchaseOptions: Array.isArray(value.purchaseOptions) ? value.purchaseOptions.slice() : [],
+    source: isIdentificationSnapshotSource(value.source) ? value.source : 'camera',
+    createdAt,
+    updatedAt: str(value.updatedAt) ?? createdAt,
+  };
+}
+
+export type HydratedScanIdentification =
+  | { kind: 'v2'; snapshot: PersistedIdentificationSnapshotV2 }
+  | { kind: 'v1'; snapshot: PersistedIdentificationSnapshotV1 }
+  | { kind: 'unsupported'; contractVersion: string }
+  | null;
+
+/**
+ * Per-record hydration for one saved scan.
+ *
+ * Precedence: a valid V2 snapshot, then a valid V1 snapshot, then a
+ * reconstruction from the unversioned legacy fields. An INVALID newer format
+ * never outranks a valid older one — a corrupt V2 blob on a row that also has
+ * usable V1 data must not make that row unreadable.
+ *
+ * Never throws, never rewrites the record it read.
+ */
+export function hydrateScanIdentificationRecord(scan: unknown): HydratedScanIdentification {
+  if (!isRecord(scan)) return null;
+
+  const v2 = sanitizeIdentificationSnapshotV2(scan.identificationSnapshotV2);
+  if (v2) return { kind: 'v2', snapshot: v2 };
+
+  const v1 = sanitizeIdentificationSnapshot(scan.identificationSnapshot);
+  if (v1 && !('unsupported' in v1)) return { kind: 'v1', snapshot: v1 };
+
+  const legacy = snapshotFromLegacyAttributes(scan.attributes);
+  if (legacy) return { kind: 'v1', snapshot: legacy };
+
+  if (v1 && 'unsupported' in v1) {
+    return { kind: 'unsupported', contractVersion: v1.contractVersion };
+  }
+  return null;
+}
+
+export type ScanHistoryHydration<TRecord> = {
+  records: TRecord[];
+  /** Count only. The offending record is never logged or echoed. */
+  corruptedCount: number;
+};
+
+/**
+ * Hydrates a mixed history collection one record at a time.
+ *
+ * WHY PER RECORD: Recent Scans legitimately contains V2, V1, unversioned legacy
+ * and — after any past partial write — corrupt entries side by side. A single
+ * try/catch around the whole array turns one bad row into an empty history, so
+ * each record is isolated and a failure drops only that record. Order is
+ * preserved, valid records are kept, and nothing is rewritten on read:
+ * compatibility stays lazy and per record rather than an eager migration on
+ * first launch.
+ */
+export function hydrateScanHistory<TRecord>(
+  rawRecords: unknown,
+  hydrateOne: (record: unknown) => TRecord | null,
+): ScanHistoryHydration<TRecord> {
+  if (!Array.isArray(rawRecords)) return { records: [], corruptedCount: 0 };
+  const records: TRecord[] = [];
+  let corruptedCount = 0;
+  for (const rawRecord of rawRecords) {
+    try {
+      const hydrated = hydrateOne(rawRecord);
+      if (hydrated) records.push(hydrated);
+      else corruptedCount += 1;
+    } catch {
+      corruptedCount += 1;
+    }
+  }
+  return { records, corruptedCount };
 }

@@ -28,6 +28,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { saveScanToCloud, softDeleteCloudSavedScan } from './savedScansCloud';
 import { normalizePurchaseOptions } from './dressingRoomCommerce';
 import { resolveWriteAuthority, isActorRequestCurrent } from './actorContext';
+import { hydrateScanHistory } from './identificationSnapshot';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
 const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
@@ -104,7 +105,16 @@ async function readAllLibrary() {
     const raw = await FileSystem.readAsStringAsync(LIBRARY_PATH);
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(s => s && typeof s === 'object').map(hydrateSavedScan);
+    // Per-record hydration (Phase 2B.2). Recent Scans legitimately holds V2, V1,
+    // unversioned legacy and — after any past partial write — corrupt entries in
+    // one array. The previous `.map()` let a single throwing record fall through
+    // to the outer catch and return an EMPTY history, which reads to the user as
+    // "all my scans are gone". Each record is now isolated: a failure drops only
+    // that record, order is preserved, and nothing is rewritten on read.
+    const { records } = hydrateScanHistory(parsed, (scan) => (
+      scan && typeof scan === 'object' && !Array.isArray(scan) ? hydrateSavedScan(scan) : null
+    ));
+    return records;
   } catch {
     return [];
   }
@@ -394,6 +404,14 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
               },
             },
           }
+        : {}),
+      // Durable fashion-identification-v2 envelope (Phase 2B.2). Written only
+      // when the Scanner V2 path produced a validated result; every legacy and
+      // Elise save omits it, so a record never claims a contract it did not use.
+      // Carries no Base64, evidence id, candidate id, detection digest, bounds,
+      // local URI or raw provider output — see identificationSnapshot.ts.
+      ...(analysis.identificationSnapshotV2
+        ? { identificationSnapshotV2: analysis.identificationSnapshotV2 }
         : {}),
       result:   analysis.result   ?? '',
       products: Array.isArray(analysis.products) ? analysis.products : [],

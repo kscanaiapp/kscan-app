@@ -95,6 +95,9 @@ function loadUseKScanWithMocks({
   const alertCalls = [];
   const effectCleanups = [];
   const effectEntries = [];
+  // Deterministic evidence ids: the real generator is crypto-backed, which
+  // would make request assertions unstable.
+  let evidenceIdCounter = 0;
 
   const context = {
     module: { exports: {} },
@@ -154,6 +157,58 @@ function loadUseKScanWithMocks({
     AbortController: MockAbortController,
     analyzeImage,
     identifyScanImage,
+    // Phase 2B.2 seam. The hook no longer calls identifyScanImage directly; it
+    // goes through the Scanner adapter. These stubs keep every existing
+    // assertion in this file meaningful — each Scanner request still lands on
+    // the injected identifyScanImage exactly once — while exercising the new
+    // path. The session flag defaults to DISABLED here, so this file continues
+    // to describe the legacy behaviour it was written for.
+    beginScannerV2Session: () => ({ enabled: false }),
+    createEvidenceId: () => `test-evidence-${(evidenceIdCounter += 1)}`,
+    prepareScannerEvidence: ({ preparedImage, source, evidenceId }) => {
+      if (typeof preparedImage !== 'string' || !preparedImage) return null;
+      return {
+        evidenceId: evidenceId || `test-evidence-${(evidenceIdCounter += 1)}`,
+        imageBase64: preparedImage.replace(/^data:[^;]+;base64,/, '').trim(),
+        mimeType: 'image/jpeg',
+        source: source === 'gallery' ? 'gallery' : 'camera',
+      };
+    },
+    runScannerIdentification: async (input) => ({
+      contractPath: 'legacy',
+      response: await identifyScanImage(input.evidence.imageBase64, {
+        source: input.evidence.source === 'gallery' ? 'upload' : 'camera',
+        localPrivacyFiltered: input.localPrivacyFiltered === true,
+        multiItemDetection: true,
+        requestMode: input.mode === 'identify_selected_item'
+          ? 'selected_item'
+          : 'multi_item_detection',
+        ...(input.legacyCorrelation?.scanSessionId
+          ? { scanSessionId: input.legacyCorrelation.scanSessionId }
+          : {}),
+        ...(input.legacyCorrelation?.imageDigestPrefix
+          ? { imageDigestPrefix: input.legacyCorrelation.imageDigestPrefix }
+          : {}),
+        ...(input.selectedCandidate
+          ? {
+            selectedCandidate: {
+              candidateId: input.selectedCandidate.candidateId,
+              category: input.selectedCandidate.category,
+              ...(input.selectedCandidate.subtype
+                ? { subtype: input.selectedCandidate.subtype }
+                : {}),
+              ...(input.selectedCandidate.bounds
+                ? { bounds: input.selectedCandidate.bounds }
+                : {}),
+            },
+          }
+          : {}),
+        ...(input.signal ? { signal: input.signal } : {}),
+      }),
+      identificationV2: null,
+      candidates: [],
+      fallbackUsed: false,
+    }),
     mapScanIdentifyToAnalysis: (response) => response,
     compressForUpload,
     sanitizeImageBeforeUpload: async (image) => image,
