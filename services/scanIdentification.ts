@@ -409,7 +409,7 @@ export async function identifyScanImage(
   const requestBody: ScanIdentifyRequest = {
     imageBase64,
     source: options.source === 'upload' ? 'upload' : 'camera',
-    localPrivacyFiltered: options.localPrivacyFiltered ?? true,
+    localPrivacyFiltered: options.localPrivacyFiltered ?? false,
     ...(options.multiItemDetection === true ? { multiItemDetection: true } : {}),
     ...(options.requestMode ? { requestMode: options.requestMode } : {}),
     ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
