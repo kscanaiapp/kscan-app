@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AccessibilityInfo, Alert } from 'react-native';
+import { AccessibilityInfo } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
@@ -248,20 +248,6 @@ export function useKScan() {
       if (operationId === null) return;
 
       try {
-        const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permStatus !== 'granted') {
-          // Permission denial is a controlled outcome, not an error. Release the
-          // guard first, then restore the guidance alert that the prior app.js
-          // upload flow showed — without it, tapping Upload silently does nothing.
-          clearInFlight(operationId);
-          Alert.alert(
-            'Photo Access Required',
-            'Allow K Scan to access your photo library to upload a scan image.',
-            [{ text: 'OK' }],
-          );
-          return;
-        }
-
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 1,
@@ -270,20 +256,23 @@ export function useKScan() {
         });
 
         if (isOperationValid(operationId)) {
-          if (!result.canceled && result.assets?.[0]?.uri) {
-            const uri = result.assets[0].uri;
-            const session = createScanSession(uri);
-            multiItemSessionRef.current = session;
-            initialMultiItemAnalysisRef.current = null;
-            retryRequestModeRef.current = 'multi_item_detection';
-            setSelectedCandidateId(null);
-            setPhoto({ uri, source: 'upload', scanSessionId: session.scanSessionId });
-            setError(null);
-            setAnalysis(null);
-            setNonFashionMessage(null);
-            secondhandRequestRef.current += 1;
-            setStatus('preview');
+          if (result?.canceled) return;
+          const asset = result?.assets?.[0];
+          if (!asset?.uri || (asset.type && asset.type !== 'image')) {
+            throw new Error('INVALID_IMAGE_SELECTION');
           }
+          const uri = asset.uri;
+          const session = createScanSession(uri);
+          multiItemSessionRef.current = session;
+          initialMultiItemAnalysisRef.current = null;
+          retryRequestModeRef.current = 'multi_item_detection';
+          setSelectedCandidateId(null);
+          setPhoto({ uri, source: 'upload', scanSessionId: session.scanSessionId });
+          setError(null);
+          setAnalysis(null);
+          setNonFashionMessage(null);
+          secondhandRequestRef.current += 1;
+          setStatus('preview');
         }
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
