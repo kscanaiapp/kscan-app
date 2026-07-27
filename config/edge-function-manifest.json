@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-27T18:07:39.961Z",
-    "generatedFromGitSha": "7a05c4a838791e77338c8f0aa0340bb1ecc86e8f"
+    "generatedAtUtc": "2026-07-27T21:16:51.186Z",
+    "generatedFromGitSha": "770744e22dcd1d49cd88d152080d2949af1106f0"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -18,10 +18,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 29,
-        "treeFileCount": 35,
-        "bundleHash": "45a5c69e8346228cd724eceea88b5d8eb530e942355a87940dadf18267dc24c4",
-        "treeHash": "e1ae3dddebeda0091a12f0b93c86e1cd6354bbef3592004cc26defaf9da0614a",
+        "bundleFileCount": 31,
+        "treeFileCount": 37,
+        "bundleHash": "bdcedb5a3a7968a67e802edfb63d07ba892cc01407898e0b8723c20f07e2a0d4",
+        "treeHash": "ae31eebb058981a4a3de342beb5e2e7d1a01450bbc068f69bd5bd5ecb665ea3f",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -36,6 +36,11 @@
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
             "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
+            "sha256": "9d3101ac04a5034ba3f008ef2cc7bfa4a1881bcf840278a57f9aefdfb47ba628",
             "bundle": true
           },
           {
@@ -100,7 +105,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "c8d2e97e529d987bcc22af96fed83ff1b7fa1a44a5471fd88da64e1e0d680c7b",
+            "sha256": "9b4b8f52e76a95a9924c378a0680cf87b4c72799b5d9cde73bac52429796a96b",
             "bundle": true
           },
           {
@@ -197,6 +202,11 @@
             "path": "supabase/functions/scan-identify/textScanOutcome.v123.test.ts",
             "sha256": "e4eeb6f27710d750c726ad9ea9ff0b434bc094982dee9928a277ab6f5ab07f96",
             "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/v2Activation.ts",
+            "sha256": "ac11ec3af8d726b09ccb41338a906c208e85923d481497bd3199bf6f35aa9062",
+            "bundle": true
           }
         ]
       },
