@@ -65,15 +65,39 @@ export const FALLBACK_ESTIMATED_OUTPUT_BYTES = 3 * 1024 * 1024;
 // ── Path ownership ───────────────────────────────────────────────────────────
 
 /**
+ * A canonical path containing a `..` segment.
+ *
+ * `canonicalizeMediaPath` normalizes the scheme, the separators and the case —
+ * it does NOT resolve relative segments, and it must not start to: it is the
+ * shared identity function for media references across three stores, and making
+ * it resolve paths would change what "the same asset" means for all of them.
+ *
+ * That leaves a prefix check exposed to exactly one shape:
+ *
+ *     kscan_closet_candidates/images/../../kscan_closet/images/x.jpg
+ *
+ * which starts with the candidate root as a STRING and resolves outside it as a
+ * PATH. No writer in this repository can produce one — candidate media paths are
+ * built from a minted asset id — but a hand-edited or corrupted manifest can, and
+ * the file that traversal reaches is a committed Closet image. Rejected here, once,
+ * for every caller.
+ */
+function hasTraversalSegment(canonicalPath) {
+  return canonicalPath.split('/').includes('..');
+}
+
+/**
  * True only for a path inside the candidate media roots.
  *
  * Defence in depth against the one catastrophic bug in this area: passing a
  * committed-Closet or Recent-Scan path into candidate cleanup. Prefix comparison
- * uses the canonical form so `file://` and casing differences cannot slip past.
+ * uses the canonical form so `file://` and casing differences cannot slip past,
+ * and a path that could climb back out of the root is refused outright.
  */
 export function isCandidateOwnedPath(uri) {
   const canonical = canonicalizeMediaPath(uri);
   if (!canonical) return false;
+  if (hasTraversalSegment(canonical)) return false;
   const imagesRoot = canonicalizeMediaPath(CANDIDATE_IMAGES_DIR);
   const thumbsRoot = canonicalizeMediaPath(CANDIDATE_THUMBS_DIR);
   if (!imagesRoot || !thumbsRoot) return false;
