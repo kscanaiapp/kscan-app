@@ -447,3 +447,78 @@ test('the same photo routed twice yields one candidate, not two', async () => {
   assert.equal(second.candidateId, first.candidateId, 'the existing candidate is returned');
   assert.equal((await env.store.listClosetCandidates(req)).candidates.length, 1);
 });
+
+test('batch intake preserves picker order, candidate-owned media, and shared identity', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  const eligible = [];
+  const assets = ['a', 'b', 'c'].map((name) => {
+    const uri = `/picker/${name}.jpg`;
+    seedSource(env.m, uri);
+    return { uri, assetId: `asset-${name}` };
+  });
+  const result = await env.store.createClosetCandidateBatch(req, {
+    assets,
+    sourceType: 'gallery',
+    batchId: 'batch_picker_order',
+    ownerId: 'user-a',
+    onCandidateCreated: (candidate) => eligible.push(candidate.candidateImageUri),
+  });
+  assert.equal(result.kind, 'created');
+  assert.deepEqual(result.createdSourceIndexes, [0, 1, 2]);
+  const listed = await env.store.listClosetCandidatesByBatch(req, 'batch_picker_order');
+  const ordered = listed.candidates.sort((a, b) => a.batchPosition - b.batchPosition);
+  assert.deepEqual(ordered.map((candidate) => candidate.batchPosition), [0, 1, 2]);
+  assert.deepEqual(ordered.map((candidate) => candidate.sourceId), ['asset-a', 'asset-b', 'asset-c']);
+  assert.equal(new Set(ordered.map((candidate) => candidate.candidateId)).size, 3);
+  for (const candidate of ordered) {
+    assert.equal(candidate.originalImageUri, null);
+    assert.ok(candidate.candidateImageUri.startsWith('/doc/kscan_closet_candidates/images/'));
+    assert.ok(eligible.includes(candidate.candidateImageUri));
+  }
+});
+
+test('batch intake accepts only the deterministic capacity prefix', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  for (let index = 0; index < 36; index += 1) {
+    const uri = `/picker/existing-${index}.jpg`;
+    seedSource(env.m, uri);
+    assert.equal((await env.store.createClosetCandidate(req, {
+      sourceUri: uri, sourceType: 'gallery', ownerId: 'user-a',
+    })).kind, 'created');
+  }
+  const assets = Array.from({ length: 8 }, (_, index) => {
+    const uri = `/picker/new-${index}.jpg`;
+    seedSource(env.m, uri);
+    return { uri };
+  });
+  const result = await env.store.createClosetCandidateBatch(req, {
+    assets, sourceType: 'gallery', batchId: 'batch_capacity', ownerId: 'user-a',
+  });
+  assert.equal(result.kind, 'partial');
+  assert.equal(result.acceptedForCapacityCount, 4);
+  assert.deepEqual(result.rejectedForCapacityIndexes, [4, 5, 6, 7]);
+  assert.deepEqual(result.createdSourceIndexes, [0, 1, 2, 3]);
+  assert.equal((await env.store.listClosetCandidatesByBatch(req, 'batch_capacity')).candidates.length, 4);
+});
+
+test('batch intake rejects oversized selections and preserves successful siblings after a failure', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  const oversized = await env.store.createClosetCandidateBatch(req, {
+    assets: Array.from({ length: 9 }, (_, index) => ({ uri: `/picker/too-many-${index}.jpg` })),
+    sourceType: 'gallery', ownerId: 'user-a',
+  });
+  assert.equal(oversized.kind, 'rejected');
+  assert.equal(oversized.code, 'candidate_batch_limit_exceeded');
+  seedSource(env.m, '/picker/first.jpg');
+  seedSource(env.m, '/picker/third.jpg');
+  const partial = await env.store.createClosetCandidateBatch(req, {
+    assets: [{ uri: '/picker/first.jpg' }, { uri: '/picker/missing.jpg' }, { uri: '/picker/third.jpg' }],
+    sourceType: 'gallery', batchId: 'batch_partial', ownerId: 'user-a',
+  });
+  assert.equal(partial.kind, 'partial');
+  assert.deepEqual(partial.failedSourceIndexes, [1]);
+  assert.deepEqual(partial.createdSourceIndexes, [0, 2]);
+});

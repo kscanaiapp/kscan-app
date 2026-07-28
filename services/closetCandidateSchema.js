@@ -127,6 +127,11 @@ function cleanNonNegativeInt(value) {
   return Math.floor(value);
 }
 
+function cleanBatchPosition(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+  return Math.floor(value);
+}
+
 function cleanDuplicateMatch(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const algorithmVersion = CLOSET_CANDIDATE_DUPLICATE_ALGORITHMS.includes(
@@ -178,13 +183,16 @@ export function buildClosetCandidateRecord(draft, ownerId, now, options = {}) {
 
     candidateId: cleanText(options.candidateId, 120) || createClosetCandidateId(),
     batchId: cleanText(options.batchId, 120) || createClosetBatchId(),
+    batchPosition: cleanBatchPosition(options.batchPosition),
     ownerId: typeof ownerId === 'string' && ownerId.trim() ? ownerId.trim() : null,
 
     sourceType: source,
     sourceId: cleanText(draft?.sourceId, 300),
     sourceLineageId: cleanText(draft?.sourceLineageId, 300),
 
-    originalImageUri: cleanText(draft?.originalImageUri, 2000),
+    // External picker and camera URIs are intentionally never persisted in a
+    // candidate manifest. Candidate-owned media is the only durable source.
+    originalImageUri: null,
     candidateImageUri: cleanText(draft?.candidateImageUri, 2000),
     candidateThumbnailUri: cleanText(draft?.candidateThumbnailUri, 2000),
 
@@ -251,8 +259,18 @@ export function migrateCandidateV0ToV1(raw) {
   };
 }
 
+/** v1 -> v2: Build 1 records retain a stable null batch-order fallback. */
+export function migrateCandidateV1ToV2(raw) {
+  return {
+    ...raw,
+    schemaVersion: 2,
+    batchPosition: cleanBatchPosition(raw?.batchPosition),
+  };
+}
+
 const MIGRATIONS = Object.freeze({
   0: migrateCandidateV0ToV1,
+  1: migrateCandidateV1ToV2,
 });
 
 /**
@@ -326,7 +344,14 @@ export function migrateClosetCandidateRecord(rawRecord) {
         ? working.ownerId.trim()
         : null,
       cleanIsoDate(working.updatedAt, createdAt),
-      { candidateId, batchId, createdAt, expiresAt, updatedAt: working.updatedAt },
+      {
+        candidateId,
+        batchId,
+        batchPosition: working.batchPosition,
+        createdAt,
+        expiresAt,
+        updatedAt: working.updatedAt,
+      },
     );
 
     return { ok: true, record, migratedFrom };
@@ -379,5 +404,6 @@ export const __closetCandidateSchemaInternals = {
   cleanTextArray,
   cleanConfidence,
   cleanDuplicateMatch,
+  cleanBatchPosition,
   MIGRATIONS,
 };

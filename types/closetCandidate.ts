@@ -25,10 +25,10 @@
 // this build.
 
 /** Record schema version. Serialization must never depend on a feature flag. */
-export const CLOSET_CANDIDATE_SCHEMA_VERSION = 1;
+export const CLOSET_CANDIDATE_SCHEMA_VERSION = 2;
 
 /** Highest schema version this build knows how to read. */
-export const CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION = 1;
+export const CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION = 2;
 
 // ── Vocabularies ─────────────────────────────────────────────────────────────
 
@@ -133,6 +133,7 @@ export type ClosetCandidateDuplicateAlgorithm =
 export const CLOSET_CANDIDATE_ERROR_CODES = [
   // Intake / capacity
   'candidate_limit_reached',
+  'candidate_batch_limit_exceeded',
   'candidate_storage_insufficient',
   // Media
   'candidate_media_unreadable',
@@ -260,6 +261,8 @@ export type ClosetCandidate = {
 
   candidateId: string;
   batchId: string;
+  /** Immutable picker-order position. Legacy Build 1 records use null. */
+  batchPosition: number | null;
   ownerId: string | null;
 
   sourceType: ClosetCandidateSource;
@@ -267,6 +270,7 @@ export type ClosetCandidate = {
   /** Promotion lineage, shaped exactly like services/closetPromotion.js emits. */
   sourceLineageId?: string | null;
 
+  /** External picker/camera URIs are never persisted as durable candidate state. */
   originalImageUri: string | null;
   candidateImageUri: string | null;
   candidateThumbnailUri: string | null;

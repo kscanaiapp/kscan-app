@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import {
   listClosetCandidates,
   createClosetCandidate,
+  createClosetCandidateBatch,
   manuallyClassifyClosetCandidate,
   retryClosetCandidate,
   rejectClosetCandidate,
@@ -18,7 +19,10 @@ import {
 } from '../services/closetCandidateClassification';
 import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
-import { CLOSET_CANDIDATE_STAGING_ACTIVE } from '../constants/featureFlags';
+import {
+  CLOSET_CANDIDATE_STAGING_ACTIVE,
+  CLOSET_BATCH_REVIEW_V2_ACTIVE,
+} from '../constants/featureFlags';
 
 /**
  * Closet CANDIDATE staging state for the minimal Build 1 status surface.
@@ -173,6 +177,50 @@ export function useClosetCandidates() {
     [actorId, busy, refresh],
   );
 
+  /**
+   * Build 2's bounded gallery entry point. This remains unavailable unless the
+   * additional V2 capability is active, preserving Build 1's single intake when
+   * V2 is off. Each newly durable candidate becomes eligible for the existing
+   * reconnect-aware queue; the picker never waits for network work.
+   */
+  const addFromAssets = useCallback(
+    async (assets, intake = {}) => {
+      if (!CLOSET_BATCH_REVIEW_V2_ACTIVE) {
+        return { kind: 'rejected', code: 'candidate_invalid_transition' };
+      }
+      if (busy) return { kind: 'rejected', code: 'candidate_invalid_transition' };
+      setBusy(true);
+      const actorRequest = createActorRequest();
+      try {
+        const result = await createClosetCandidateBatch(actorRequest, {
+          assets,
+          sourceType: intake.sourceType === 'camera' ? 'camera' : 'gallery',
+          batchId: intake.batchId || createClosetBatchId(),
+          sourceLineageId: intake.sourceLineageId,
+          sourceId: intake.sourceId,
+          draft: intake.draft,
+          ownerId: actorId,
+          onCandidateCreated: () => {
+            // The batch coordinator calls this only after that candidate's
+            // manifest write completed. Do not await classification: durable
+            // local acknowledgement and modal closure must not depend on it.
+            void requeueClosetCandidatesOnReconnect(actorRequest)
+              .then(() => {
+                if (isActorRequestCurrent(actorRequest)) void refresh();
+              })
+              .catch(() => null);
+          },
+        });
+        if (!isActorRequestCurrent(actorRequest)) return result;
+        await refresh();
+        return result;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [actorId, busy, refresh],
+  );
+
   const retry = useCallback(
     async (candidateId) => {
       const actorRequest = createActorRequest();
@@ -242,7 +290,9 @@ export function useClosetCandidates() {
     loading,
     busy,
     stagingActive: CLOSET_CANDIDATE_STAGING_ACTIVE,
+    batchIntakeActive: CLOSET_BATCH_REVIEW_V2_ACTIVE,
     addFromUri,
+    addFromAssets,
     retry,
     reject,
     remove,

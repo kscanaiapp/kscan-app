@@ -55,6 +55,7 @@ import {
   CLOSET_SEPARATION_V1,
   CLOSET_DIRECT_INTAKE_ACTIVE,
   CLOSET_CANDIDATE_STAGING_ACTIVE,
+  CLOSET_BATCH_REVIEW_V2_ACTIVE,
 } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
@@ -302,6 +303,34 @@ export default function LibraryScreen() {
       candidateIntake: (uri, intake) => closetCandidates.addFromUri(uri, intake),
       createBatchId: createClosetBatchId,
     })) as { ok: boolean; reason?: string };
+
+  const handleClosetIntakeBatchSave = async (
+    assets: ImagePicker.ImagePickerAsset[],
+    draft: { title: string | null; category: string | null },
+    sourceType: 'camera' | 'gallery',
+  ) => {
+    const outcome = await closetCandidates.addFromAssets(assets, {
+      sourceType,
+      draft,
+    });
+    const acceptedCount =
+      typeof outcome.acceptedCount === 'number' ? outcome.acceptedCount : 0;
+    return {
+      ok: Array.isArray(outcome.createdCandidateIds) && outcome.createdCandidateIds.length > 0,
+      reason: typeof outcome.code === 'string' ? outcome.code : undefined,
+      batchOutcome: {
+        selectedCount: typeof outcome.selectedCount === 'number' ? outcome.selectedCount : 0,
+        acceptedCount,
+        rejectedForCapacityCount:
+          typeof outcome.rejectedForCapacityCount === 'number'
+            ? outcome.rejectedForCapacityCount
+            : 0,
+        failedSourceIndexes: Array.isArray(outcome.failedSourceIndexes)
+          ? outcome.failedSourceIndexes
+          : [],
+      },
+    };
+  };
 
   const handleDeleteClosetItem = (id: string) => {
     Alert.alert(
@@ -725,7 +754,9 @@ export default function LibraryScreen() {
           visible={closetIntakeVisible}
           onClose={() => setClosetIntakeVisible(false)}
           onSave={handleClosetIntakeSave}
+          onSaveBatch={handleClosetIntakeBatchSave}
           stagingActive={CLOSET_CANDIDATE_STAGING_ACTIVE}
+          batchIntakeActive={CLOSET_BATCH_REVIEW_V2_ACTIVE}
         />
       ) : null}
 

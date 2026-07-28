@@ -72,6 +72,7 @@ export const CLOSET_CANDIDATE_PROTECTED_FIELDS = Object.freeze([
   'schemaVersion',
   'candidateId',
   'batchId',
+  'batchPosition',
   'ownerId',
   'candidateImageUri',
   'candidateThumbnailUri',
@@ -566,7 +567,9 @@ export async function createClosetCandidate(actorRequest, input = {}) {
         sourceType: input.sourceType,
         sourceId: input.sourceId,
         sourceLineageId: lineage,
-        originalImageUri: sourceUri,
+        // Picker and camera URIs are ephemeral external inputs. Only verified
+        // candidate-owned derivatives may become durable references.
+        originalImageUri: null,
         candidateImageUri: imageUri,
         candidateThumbnailUri: thumbnailUri,
         title: input.draft?.title,
@@ -589,6 +592,7 @@ export async function createClosetCandidate(actorRequest, input = {}) {
       {
         candidateId: createClosetCandidateId(),
         batchId: input.batchId || createClosetBatchId(),
+        batchPosition: input.batchPosition,
         createdAt: new Date(nowMs).toISOString(),
         expiresAt: new Date(nowMs + CLOSET_CANDIDATE_TTL_MS).toISOString(),
         updatedAt: new Date(nowMs).toISOString(),
@@ -714,6 +718,112 @@ export async function createClosetCandidate(actorRequest, input = {}) {
  * share the same epoch check, the same visibility scope, the same expiry rule and
  * the same protected-field handling.
  */
+/** Maximum gallery assets accepted by a Build 2 intake operation. */
+export const CLOSET_CANDIDATE_BATCH_MAX_ITEMS = 8;
+
+/**
+ * Creates a picker-ordered batch without making it all-or-nothing. Each
+ * candidate is durable independently, so a later source failure cannot erase
+ * an already acknowledged candidate.
+ */
+export async function createClosetCandidateBatch(actorRequest, input = {}) {
+  const authority = resolveCandidateAuthority(actorRequest, input.ownerId);
+  const assets = Array.isArray(input.assets) ? input.assets : [];
+  const selectedCount = assets.length;
+  const batchId = typeof input.batchId === 'string' && input.batchId.trim()
+    ? input.batchId.trim()
+    : createClosetBatchId();
+  const emptyOutcome = (code) => ({
+    kind: 'rejected',
+    code,
+    batchId,
+    selectedCount,
+    acceptedCount: 0,
+    acceptedForCapacityCount: 0,
+    rejectedForCapacityCount: 0,
+    rejectedForCapacityIndexes: [],
+    failedSourceIndexes: [],
+    createdCandidateIds: [],
+    createdSourceIndexes: [],
+    duplicateSourceIndexes: [],
+    sourceOutcomes: [],
+  });
+
+  if (!authority.ok) return emptyOutcome(authority.errorCode);
+  if (selectedCount < 1 || selectedCount > CLOSET_CANDIDATE_BATCH_MAX_ITEMS) {
+    return emptyOutcome('candidate_batch_limit_exceeded');
+  }
+
+  const nowMs = input.nowMs ?? Date.now();
+  const existing = await listClosetCandidates(actorRequest, { nowMs });
+  if (!existing.ok) return emptyOutcome(existing.errorCode);
+
+  const unresolvedCount = existing.candidates.filter((entry) => isUnresolvedStatus(entry.status)).length;
+  const acceptedCount = Math.min(
+    selectedCount,
+    Math.max(0, CLOSET_CANDIDATE_MAX_UNRESOLVED - unresolvedCount),
+  );
+  const rejectedForCapacityIndexes = Array.from(
+    { length: selectedCount - acceptedCount },
+    (_, offset) => acceptedCount + offset,
+  );
+  const createdCandidateIds = [];
+  const createdSourceIndexes = [];
+  const duplicateSourceIndexes = [];
+  const failedSourceIndexes = [];
+  const sourceOutcomes = [];
+
+  // Only this deterministic picker-order prefix touches media. The rejected
+  // suffix is never stat'ed, normalized, hashed, classified, or persisted.
+  for (let sourceIndex = 0; sourceIndex < acceptedCount; sourceIndex += 1) {
+    const asset = assets[sourceIndex];
+    const sourceUri = typeof asset?.uri === 'string' ? asset.uri.trim() : '';
+    const result = await createClosetCandidate(actorRequest, {
+      sourceUri,
+      sourceType: input.sourceType,
+      sourceId: typeof asset?.assetId === 'string' ? asset.assetId : input.sourceId,
+      sourceLineageId: input.sourceLineageId,
+      batchId,
+      batchPosition: sourceIndex,
+      draft: input.draft,
+      ownerId: authority.ownerId,
+      nowMs,
+    });
+    const candidateId = result.candidate?.candidateId ?? null;
+    sourceOutcomes.push({ sourceIndex, kind: result.kind, code: result.code ?? null, candidateId });
+    if (result.kind === 'created' && candidateId) {
+      createdCandidateIds.push(candidateId);
+      createdSourceIndexes.push(sourceIndex);
+      // The manifest has already been durably replaced by createClosetCandidate.
+      // Notification failures must never turn an acknowledged candidate back
+      // into an intake failure, so the queue handoff remains best-effort.
+      if (typeof input.onCandidateCreated === 'function') {
+        await Promise.resolve(input.onCandidateCreated(result.candidate)).catch(() => null);
+      }
+    }
+    if (result.kind === 'deduped_candidate' || result.kind === 'duplicate_of_closet') {
+      duplicateSourceIndexes.push(sourceIndex);
+    }
+    if (result.kind === 'rejected') failedSourceIndexes.push(sourceIndex);
+    if (!isActorRequestCurrent(actorRequest)) break;
+  }
+
+  return {
+    kind: failedSourceIndexes.length || rejectedForCapacityIndexes.length ? 'partial' : 'created',
+    batchId,
+    selectedCount,
+    acceptedCount,
+    acceptedForCapacityCount: acceptedCount,
+    rejectedForCapacityCount: rejectedForCapacityIndexes.length,
+    rejectedForCapacityIndexes,
+    failedSourceIndexes,
+    createdCandidateIds,
+    createdSourceIndexes,
+    duplicateSourceIndexes,
+    sourceOutcomes,
+  };
+}
+
 async function mutateCandidate(actorRequest, candidateId, mutate, options = {}) {
   const authority = resolveCandidateAuthority(actorRequest, options.ownerId);
   if (!authority.ok) return { ok: false, errorCode: authority.errorCode };
@@ -746,6 +856,7 @@ async function mutateCandidate(actorRequest, candidateId, mutate, options = {}) 
       next.ownerId = current.ownerId;
       next.candidateId = current.candidateId;
       next.batchId = current.batchId;
+      next.batchPosition = current.batchPosition;
       next.createdAt = current.createdAt;
       next.expiresAt = current.expiresAt;
       next.updatedAt = new Date(nowMs).toISOString();

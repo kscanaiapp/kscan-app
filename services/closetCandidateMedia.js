@@ -177,7 +177,11 @@ async function moveToFreshCandidatePath(sourceUri, dir, seedAssetId, fs) {
     const existing = await fs.getInfoAsync(destPath).catch(() => ({ exists: false }));
     if (!existing?.exists) {
       await fs.moveAsync({ from: sourceUri, to: destPath });
-      return destPath;
+      const persisted = await fs.getInfoAsync(destPath).catch(() => ({ exists: false }));
+      if (persisted?.exists) return destPath;
+      // A move that resolves without a readable destination is not ownership.
+      // The caller will fail intake rather than acknowledging a phantom file.
+      return null;
     }
     assetId = createMediaAssetId();
   }
