@@ -75,6 +75,21 @@ function loadProvider(invoke) {
       // default). Flag-on behavior is covered by dr2Integration.
       return { ELISE_ADVICE_METADATA_CLIENT_V1: false };
     }
+    // Phase 2B.3: the provider verifies a canonical fashion context is
+    // transport-safe before sending it.
+    //
+    // Stubbed to THROW rather than to return a value. This file's contract is the
+    // exact-shape v1 payload, and the provider must short-circuit on a null
+    // context before this module is ever consulted — so a call reaching here is
+    // itself the failure these tests exist to catch. The real implementation is
+    // covered directly in eliseFashionContextV2.test.js.
+    if (specifier === '../eliseFashionContextV2') {
+      return {
+        prepareContextForTransport: () => {
+          throw new Error('text-only send must not consult the fashion-context gate');
+        },
+      };
+    }
     throw new Error(`Unexpected provider import: ${specifier}`);
   };
   const mod = { exports: {} };

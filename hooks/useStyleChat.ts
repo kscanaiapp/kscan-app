@@ -43,6 +43,14 @@ export type SendAttachmentsInput = {
   references: StyleChatAttachment[];
   drafts: DraftAttachment[];
   contextHint?: string | null;
+  /**
+   * Canonical Elise fashion identity for this send (Phase 2B.3).
+   *
+   * Part of the immutable send snapshot for the same reason the references are:
+   * it must describe the attachments as they were when the user pressed send, not
+   * as they are when the response lands.
+   */
+  fashionContext?: unknown;
   /** Called only after a successful attachment-aware send. */
   onSent?: () => void;
 };
@@ -455,6 +463,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
                 attachments: sendAttachments!.references,
                 contextHint: sendAttachments!.contextHint ?? null,
               }
+            : {}),
+          // Phase 2B.3: additive and independent of `attachments`. Sent whenever
+          // the snapshot carries a canonical identity, including for a reused
+          // Scanner/Recent Scan identity that has no new attachment reference.
+          ...(sendAttachments?.fashionContext
+            ? { fashionContextV2: sendAttachments.fashionContext }
             : {}),
         });
         if (!isCurrentSend()) return;

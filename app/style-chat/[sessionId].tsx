@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Alert,
   View,
@@ -58,6 +58,10 @@ import {
   setDraftComposerText,
 } from '../../services/style-chat/styleChatAttachmentStore';
 import { stopAvatarSpeechPlayback } from '../../services/avatarSpeech';
+import {
+  contextFromReusedV2,
+  routeEliseAttachment,
+} from '../../services/style-chat/eliseAttachmentRouting';
 
 export default function StyleChatSessionScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -89,6 +93,27 @@ export default function StyleChatSessionScreen() {
   }, [userKey]);
 
   const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
+
+  /**
+   * Canonical identity carried by a Scanner handoff, reused rather than re-run.
+   *
+   * Routed on the attachment SOURCE (`scanner_handoff`), not on "there is an
+   * image": the handoff always has an image, and routing on image presence is
+   * exactly how a garment Scanner already identified would be identified a second
+   * time — a second charge, a second chance to disagree with itself.
+   *
+   * null when Scanner ran the legacy contract, which leaves the descriptive
+   * `activeContext` fields as the only grounding, exactly as today.
+   */
+  const handoffFashionContext = useMemo(() => {
+    if (!handoffContext?.identificationV2) return null;
+    const route = routeEliseAttachment({
+      source: 'scanner_handoff',
+      identificationV2: handoffContext.identificationV2,
+    });
+    if (route.kind !== 'reuse_v2') return null;
+    return contextFromReusedV2('scanner_handoff', route.identification);
+  }, [handoffContext]);
   const [composerText, setComposerTextState] = useState(() => getDraftComposerText(stableSessionId));
 
   useEffect(() => {
@@ -445,10 +470,24 @@ export default function StyleChatSessionScreen() {
               // text only). The snapshot is immutable for this operation.
               if (!chatAttachments.canSendWithAttachments) return;
               const snapshot = chatAttachments.snapshotForSend();
+              // Phase 2B.3: an image-backed message must not claim visual
+              // grounding it does not have. When identities exist but none is
+              // usable, the send is refused rather than quietly downgraded to a
+              // text-only send whose reply the transcript would show beside a photo.
+              if (snapshot.fashionContextBlockedReason) {
+                Alert.alert(
+                  'Attachment',
+                  'Elise could not read that photo well enough to advise on it. Retry it, or remove it to send just your message.',
+                );
+                return;
+              }
               void sendMessage(text, {
                 attachments: {
                   references: snapshot.references,
                   drafts: snapshot.drafts,
+                  ...(snapshot.fashionContext
+                    ? { fashionContext: snapshot.fashionContext }
+                    : {}),
                   onSent: () => {
                     chatAttachments.clearAttachments();
                     setComposerText('');
@@ -457,8 +496,20 @@ export default function StyleChatSessionScreen() {
               });
               return;
             }
+            // Phase 2B.3: a Scanner handoff carrying a canonical identity sends it
+            // through the same additive field as every other Elise source, so
+            // there is one identity contract on the wire.
             void sendMessage(text, {
               onUserMessagePersisted: () => setComposerText(''),
+              ...(handoffFashionContext
+                ? {
+                  attachments: {
+                    references: [],
+                    drafts: [],
+                    fashionContext: handoffFashionContext,
+                  },
+                }
+                : {}),
             });
           }}
           disabled={
@@ -473,8 +524,12 @@ export default function StyleChatSessionScreen() {
         <StyleChatPhotoIntake
           visible={photoIntakeVisible}
           onClose={() => setPhotoIntakeVisible(false)}
-          onAttached={(resolved, summary) => {
-            const result = chatAttachments.addResolvedOwnedItem(resolved, summary);
+          onAttached={(resolved, summary, fashionContext) => {
+            const result = chatAttachments.addResolvedOwnedItem(
+              resolved,
+              summary,
+              fashionContext,
+            );
             if (!result.ok) {
               Alert.alert('Attachment', result.message);
             }

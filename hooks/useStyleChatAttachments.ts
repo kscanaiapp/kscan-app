@@ -35,6 +35,7 @@ import {
 } from '../services/ownedClosetItems';
 import { ensureSavedScanMediaBacking } from '../services/savedScanMedia';
 import { recordAiStylistEvent } from '../services/styleMemoryEvents';
+import { resolveSendFashionContext } from '../services/style-chat/eliseSendContext';
 import type { OwnedClosetItem, OwnedItemSourceType } from '../types/ownedClosetItem';
 import type { OutfitVariation } from '../types/fashionReasoning';
 import type { SavedScanModel } from '../services/savedScansCloud';
@@ -306,7 +307,19 @@ export function useStyleChatAttachments(sessionId: string) {
 
   /** Adds a fully-resolved photo-intake result (already row+media backed). */
   const addResolvedOwnedItem = useCallback(
-    (resolved: StyleChatAttachment, summary: StyleChatAttachmentSummary): AddAttachmentResult => {
+    (
+      resolved: StyleChatAttachment,
+      summary: StyleChatAttachmentSummary,
+      /**
+       * Canonical identity from the intake (Phase 2B.3).
+       *
+       * Held on the DRAFT, not merged into `resolved`: `resolved` is the
+       * attachment-reference contract the backend has always received, and
+       * widening it would change an established payload. This travels in the
+       * separate top-level `fashionContextV2` request field.
+       */
+      fashionContext?: unknown,
+    ): AddAttachmentResult => {
       const validation = validateAddition(resolved, attachmentItemCount(resolved, summary.itemCount));
       if (!validation.ok) return validation;
       upsertDraftAttachment(sessionId, {
@@ -315,6 +328,7 @@ export function useStyleChatAttachments(sessionId: string) {
         selection: { retryCount: 0, updatedAt: now() },
         resolved,
         summary,
+        ...(fashionContext ? { fashionContext, identificationState: 'ready' as const } : {}),
       });
       return { ok: true };
     },
@@ -424,7 +438,34 @@ export function useStyleChatAttachments(sessionId: string) {
     [sessionId],
   );
 
-  const snapshotForSend = useCallback(() => snapshotReadyAttachments(sessionId), [sessionId]);
+  const snapshotForSend = useCallback(() => {
+    const snapshot = snapshotReadyAttachments(sessionId);
+    // Phase 2B.3: the canonical identities of the ready drafts, in source order.
+    const fashionContextDecision = resolveSendFashionContext(
+      getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled'),
+    );
+    return {
+      ...snapshot,
+      fashionContext:
+        fashionContextDecision.kind === 'send' ? fashionContextDecision.context : null,
+      /**
+       * Set when visual attachments exist but carry nothing groundable. The
+       * composer must not send an image-backed message in this state: the reply
+       * would be written without the image while the transcript shows it.
+       */
+      fashionContextBlockedReason:
+        fashionContextDecision.kind === 'blocked' ? fashionContextDecision.reason : null,
+      /**
+       * True while an attachment is still identifying.
+       *
+       * The existing `canSendWithAttachments` gate already blocks a send with any
+       * pending attachment, so this is a second, explicit statement of the same
+       * rule rather than the only thing enforcing it — a send must never claim
+       * visual grounding for a garment that has not been identified yet.
+       */
+      fashionContextPending: fashionContextDecision.kind === 'pending',
+    };
+  }, [sessionId]);
 
   // One-time entry handoff consumption (Case 2 navigation). Re-evaluate when
   // the session id changes so a handoff set while the screen was mounted for

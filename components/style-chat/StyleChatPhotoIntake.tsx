@@ -50,6 +50,32 @@ import {
   type StyleChatAttachment,
   type StyleChatAttachmentSummary,
 } from '../../types/styleChatAttachments';
+import type { EliseFashionContextV2 } from '../../types/fashionIdentificationV2';
+import { identifyDirectImageForStyle } from '../../services/style-chat/eliseDirectImageIdentification';
+import { beginEliseV2Session } from '../../services/style-chat/eliseIdentificationV2';
+import {
+  describeIdentification,
+  groundableItems,
+  primaryColorOf,
+  summaryOf,
+} from '../../services/style-chat/eliseFashionContextV2';
+
+/**
+ * Colour and summary for the review screen, read from the context's styling-safe
+ * identity via the shared display helpers.
+ *
+ * Reading the shared helpers rather than re-deriving here means the review field,
+ * the chip label and what Elise is told all come from one place and cannot
+ * diverge.
+ */
+function canonicalPrimaryColor(context: EliseFashionContextV2 | null): string {
+  return primaryColorOf(groundableItems(context)[0]?.identification);
+}
+
+function canonicalSummary(context: EliseFashionContextV2 | null): string {
+  const identity = groundableItems(context)[0]?.identification;
+  return summaryOf(identity) || describeIdentification(identity);
+}
 
 type IntakeStep =
   | 'idle'
@@ -68,7 +94,12 @@ export function StyleChatPhotoIntake({
 }: {
   visible: boolean;
   onClose: () => void;
-  onAttached: (resolved: StyleChatAttachment, summary: StyleChatAttachmentSummary) => void;
+  onAttached: (
+    resolved: StyleChatAttachment,
+    summary: StyleChatAttachmentSummary,
+    /** Canonical identity; present only on the V2 path (Phase 2B.3). */
+    fashionContext?: EliseFashionContextV2,
+  ) => void;
 }) {
   const [step, setStep] = useState<IntakeStep>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -78,12 +109,24 @@ export function StyleChatPhotoIntake({
   const [resultText, setResultText] = useState('');
   const [identifiedAnalysis, setIdentifiedAnalysis] = useState<MappedFashionAnalysis | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Canonical V2 identity for this intake, when the flag produced one. */
+  const [fashionContext, setFashionContext] = useState<EliseFashionContextV2 | null>(null);
+  /** Bounded, honest copy for the identify-failed step. */
+  const [identifyFailureMessage, setIdentifyFailureMessage] = useState<string | null>(null);
 
   // Guard contract: monotonic op id + abort; late results are discarded.
   const operationIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const savingRef = useRef(false);
+  /**
+   * Elise V2 flag, latched once per intake operation.
+   *
+   * Resolved in `startPicker` and read in the save handler, so identification and
+   * the save that follows it cannot disagree about which contract this intake ran
+   * under. A new pick resolves it again.
+   */
+  const v2FlagRef = useRef<{ readonly enabled: boolean }>({ enabled: false });
 
   const resetState = useCallback(() => {
     setStep('idle');
@@ -94,6 +137,8 @@ export function StyleChatPhotoIntake({
     setResultText('');
     setIdentifiedAnalysis(null);
     setSaveError(null);
+    setFashionContext(null);
+    setIdentifyFailureMessage(null);
   }, []);
 
   useEffect(() => {
@@ -132,6 +177,11 @@ export function StyleChatPhotoIntake({
     setImageUri(localUri);
     setIdentifiedAnalysis(null);
     setSaveError(null);
+    setFashionContext(null);
+    setIdentifyFailureMessage(null);
+    // Latched here, once, for this whole intake operation.
+    const v2Flag = beginEliseV2Session();
+    v2FlagRef.current = v2Flag;
 
     try {
       // Privacy boundary FIRST — a rejected image is never saved or uploaded.
@@ -159,6 +209,63 @@ export function StyleChatPhotoIntake({
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true },
       );
       if (operationId !== operationIdRef.current) return;
+
+      // ── Phase 2B.3: canonical identify_for_style when latched on ───────────
+      // The SAME 1024/0.8 derivative computed above is reused — this path's
+      // existing preparation settings are preserved exactly, and no second
+      // recompression pass runs.
+      //
+      // This path is ITEM-oriented: the review screen edits one garment's title,
+      // category and colour, so several detected candidates require an explicit
+      // choice rather than a silent pick of the first.
+      //
+      // WHY THIS MATTERS HERE SPECIFICALLY: the legacy call below sends no intent,
+      // and the backend defaults an intentless request to `identify_and_shop`. An
+      // Elise styling attachment has therefore been paying for commerce providers
+      // and catalog retrieval it never used. `identify_for_style` short-circuits
+      // all of it before a single provider initializes.
+      if (v2Flag.enabled && prepared.base64) {
+        const outcome = await identifyDirectImageForStyle({
+          preparedUri: sanitizedUri,
+          source: 'photo_library',
+          requestId: `intake_${operationId}`,
+          sessionFlag: v2Flag,
+          policy: 'item',
+          ...(abortRef.current?.signal ? { signal: abortRef.current.signal } : {}),
+          isCurrent: () => operationId === operationIdRef.current,
+        });
+        if (operationId !== operationIdRef.current) return; // late result discard
+
+        if (outcome.kind === 'identified') {
+          setFashionContext(outcome.context);
+          setTitle(outcome.title);
+          setCategory(outcome.category);
+          // Colour comes from the canonical identity, filtered — never a
+          // template-interpolated nullable that could render "null".
+          setColor(canonicalPrimaryColor(outcome.context));
+          setResultText(canonicalSummary(outcome.context));
+          // The legacy mapped analysis is intentionally left null: the saved
+          // record is built from the canonical identity instead, so the durable
+          // row and Elise's grounding describe the same garment.
+          setIdentifiedAnalysis(null);
+          setStep('review');
+          return;
+        }
+        if (outcome.kind === 'cancelled') return;
+        if (outcome.kind === 'no_evidence' || outcome.kind === 'needs_selection') {
+          // Honest terminal state with the existing manual/retry affordances.
+          setIdentifyFailureMessage(
+            outcome.kind === 'needs_selection'
+              ? 'I found more than one item in this photo. Try a photo of one piece.'
+              : outcome.message,
+          );
+          setStep('identify_failed');
+          return;
+        }
+        // `legacy_fallback` — the backend does not implement the contract. Fall
+        // through to the unchanged legacy call below.
+      }
+
       const identification = prepared.base64
         ? await identifyScanImage(prepared.base64, {
             source: 'upload',
@@ -267,6 +374,13 @@ export function StyleChatPhotoIntake({
       if (!media.ok) throw new Error('media');
 
       // 4. Hand the stable contract back to the composer draft.
+      //
+      // The canonical identity rides alongside it when this intake ran under V2.
+      // The user may have edited the title, category or colour on the review
+      // screen; those edits govern the SAVED RECORD and the chip, and the
+      // canonical identity still governs what Elise is told the garment is. They
+      // are different claims — a user renaming a jacket "work coat" has not
+      // reclassified it — so neither overwrites the other.
       onAttached(
         {
           attachmentType: 'owned_item',
@@ -280,6 +394,7 @@ export function StyleChatPhotoIntake({
           imageUri: scan.thumbnailUri ?? scan.imageUri ?? imageUri,
           itemCount: 1,
         },
+        fashionContext ?? undefined,
       );
       void recordAiStylistEvent({
         eventType: 'stylechat_image_saved_and_attached',
@@ -343,7 +458,10 @@ export function StyleChatPhotoIntake({
               <InlineNotice
                 variant="info"
                 title="Identification"
-                body="I couldn’t identify this item. You can add basic details or try another photo."
+                body={
+                  identifyFailureMessage ??
+                  'I couldn’t identify this item. You can add basic details or try another photo.'
+                }
               />
               <PrimaryButton
                 title="Add Details Manually"

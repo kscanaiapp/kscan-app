@@ -88,6 +88,14 @@ import {
   requiresImageInspection,
   selectImagesForInspection,
 } from './multimodal.ts';
+import {
+  allowsIndependentImageClassification,
+  buildFashionContextBlock,
+  ELISE_FASHION_CONTEXT_V2,
+  parseFashionContextV2,
+  type FashionContextErrorCode,
+  type ParsedFashionContextV2,
+} from './fashionContextV2.ts';
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
 import type { EliseWardrobeDataSource } from './eliseWardrobeRetrieval.ts';
 import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
@@ -873,6 +881,9 @@ Deno.serve(async (req) => {
     attachments?: unknown;
     contractVersion?: unknown;
     contextHint?: unknown;
+    // Phase 2B.3 — canonical Elise fashion identity. Additive and optional:
+    // absent on every current client, and absence must change nothing.
+    fashionContextV2?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -914,6 +925,32 @@ Deno.serve(async (req) => {
   const sourceMessageId = typeof body.sourceMessageId === 'string'
     ? body.sourceMessageId.trim()
     : null;
+
+  // ── Phase 2B.3: canonical Elise fashion context ────────────────────────────
+  // ABSENT is the case that matters most: every current client omits this field,
+  // and a request without it must take exactly the path it takes today. Only a
+  // present field is parsed at all.
+  //
+  // A malformed present field is a bounded failure that yields NO fashion
+  // grounding. It deliberately does not fall through to an independent visual
+  // guess — "the structured identity looked wrong so I classified it myself" is
+  // the conflicting-identity defect this contract exists to remove.
+  let fashionContextV2: ParsedFashionContextV2 | null = null;
+  let fashionContextError: FashionContextErrorCode | null = null;
+  if (body.fashionContextV2 != null) {
+    const parsedFashionContext = parseFashionContextV2(body.fashionContextV2);
+    if (parsedFashionContext.ok) {
+      fashionContextV2 = parsedFashionContext.context;
+    } else {
+      fashionContextError = parsedFashionContext.code;
+      // The CODE only. The context body never reaches a log line.
+      console.log(
+        '[stylechat-generate] fashionContextV2 rejected uid=%s code=%s',
+        userId.slice(0, 8),
+        parsedFashionContext.code,
+      );
+    }
+  }
 
   // Optional, additive active scan/upload/TextScan context for grounding.
   // Flag OFF: legacy parseActiveContext path (accepted foundation behavior).
@@ -1913,10 +1950,25 @@ Deno.serve(async (req) => {
       ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
       : systemTextWithStyleDna);
 
-  const systemTextForModel =
+  const systemTextForModelWithAdvice =
     !config.flags.structuredGroundingV1 && advicePromptBlock
       ? `${systemTextForModelBase}\n\n${advicePromptBlock}`
       : systemTextForModelBase;
+
+  // ── Phase 2B.3: canonical fashion identity, appended last ──────────────────
+  // Last on purpose. Every earlier block is descriptive context the model may
+  // reason with; this one is an AUTHORITY statement about what the items are, and
+  // it has to be the final word on identity rather than something an earlier
+  // grounding block can be read as qualifying.
+  //
+  // Appended only when groundable evidence exists, so a fully failed attachment
+  // can never produce a block that implies the image was understood.
+  const fashionContextBlock = fashionContextV2
+    ? buildFashionContextBlock(fashionContextV2)
+    : null;
+  const systemTextForModel = fashionContextBlock
+    ? `${systemTextForModelWithAdvice}\n\n${fashionContextBlock}`
+    : systemTextForModelWithAdvice;
 
   // ── V2: verified attachment context + structured-action instructions ─────────
   // Attachment-free messages (v1 AND v2-without-attachments) keep the exact v1
@@ -1963,8 +2015,22 @@ Deno.serve(async (req) => {
   // bounded bytes, approved MIME types, downloaded server-side under the
   // caller's own storage authorization. Bytes are never logged, never persisted
   // in chat history, and no signed URL ever reaches the client or the logs.
+  //
+  // PHASE 2B.3 SHORT-CIRCUIT: skipped entirely once canonical identity exists.
+  // `scan-identify` already answered "what is this" under intent
+  // identify_for_style, and a second visual read of the same garment can only
+  // cost money, add latency, and produce an identity that disagrees with the
+  // authoritative one. The identity block above is the answer; pixels add nothing
+  // to it.
   let inspectedImageCount = 0;
-  if (resolvedAttachments.length > 0 && requiresImageInspection(message)) {
+  const mayInspectImages = allowsIndependentImageClassification(fashionContextV2);
+  if (!mayInspectImages) {
+    console.log(
+      '[stylechat-generate] multimodal skipped uid=%s reason=canonical_fashion_context',
+      userId.slice(0, 8),
+    );
+  }
+  if (mayInspectImages && resolvedAttachments.length > 0 && requiresImageInspection(message)) {
     const selections = selectImagesForInspection(resolvedAttachments);
     let totalImageBytes = 0;
     const imageParts: GeminiPart[] = [];
@@ -2410,6 +2476,36 @@ Deno.serve(async (req) => {
     responseMessage.why_this_works = whyThisWorks.trim();
   }
 
+  /**
+   * Additive Phase 2B.3 response fields.
+   *
+   * Emits NOTHING unless the client actually sent `fashionContextV2`, so every
+   * existing response — v1, v2, text-only, streaming — keeps its exact current
+   * shape byte for byte. No existing field is removed, renamed or retyped.
+   *
+   * When the field WAS sent, the client learns which of three things happened:
+   * accepted and grounded, rejected with a bounded code, or (neither field
+   * present) reached a deployment that predates this support and therefore
+   * answered without the identity — which the client must not present as a
+   * grounded reply.
+   */
+  function fashionContextResponseFields(): Record<string, unknown> {
+    if (body.fashionContextV2 == null) return {};
+    if (fashionContextV2) {
+      return {
+        fashionContextVersion: ELISE_FASHION_CONTEXT_V2,
+        fashionContextAccepted: true,
+        fashionContextItems: fashionContextV2.groundable.length,
+      };
+    }
+    return {
+      fashionContextVersion: ELISE_FASHION_CONTEXT_V2,
+      fashionContextAccepted: false,
+      // Bounded code only. Never the context body, and never a provider message.
+      ...(fashionContextError ? { fashionContextErrorCode: fashionContextError } : {}),
+    };
+  }
+
   // V1 responses keep the exact existing shape. V2 responses additively carry
   // the contract version, a capability signal (so clients can detect that a
   // deployed function does NOT support attachments and avoid attachment-blind
@@ -2423,6 +2519,7 @@ Deno.serve(async (req) => {
       ...(activeContext?.visualCollection?.evidence.length
         ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
         : {}),
+      ...fashionContextResponseFields(),
       ...(adviceMetadata && config.flags.adviceMetadataClientV1
         ? {
             adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
@@ -2445,6 +2542,7 @@ Deno.serve(async (req) => {
     ...(activeContext?.visualCollection?.evidence.length
       ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
       : {}),
+    ...fashionContextResponseFields(),
     ...(adviceMetadata && config.flags.adviceMetadataClientV1
       ? {
           adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,

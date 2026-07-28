@@ -1121,6 +1121,16 @@ export default function App() {
             onAskStyleChat={styleChatEnabled ? () => {
               const source = activePhoto?.source === 'upload' ? 'upload' : 'camera';
               const meta = analysis?.metadata ?? {};
+              // Phase 2B.3: when Scanner produced a canonical V2 identity, hand
+              // THAT to Elise alongside the legacy display fields. The identity is
+              // reused verbatim — Elise never re-identifies a garment Scanner
+              // already identified, so the handoff costs no second scan and the
+              // two surfaces cannot disagree about what the item is.
+              //
+              // Absent when Scanner ran on the legacy contract, which leaves the
+              // descriptive fields as the only context exactly as today.
+              const scannerIdentificationV2 =
+                analysis?.identificationSnapshotV2?.identification ?? null;
               setStyleChatHandoffContext({
                 source,
                 imageUri: activePhoto?.uri ?? null,
@@ -1131,6 +1141,9 @@ export default function App() {
                 descriptors: Array.isArray(meta.styleTags) ? meta.styleTags : undefined,
                 analysisText: analysis?.result || null,
                 createdAt: new Date().toISOString(),
+                ...(scannerIdentificationV2
+                  ? { identificationV2: scannerIdentificationV2 }
+                  : {}),
               });
               router.push('/style-chat');
             } : undefined}

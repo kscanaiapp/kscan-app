@@ -14,6 +14,7 @@ import {
   ELISE_ADVICE_METADATA_CLIENT_V1,
 } from '../../../constants/featureFlags';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
+import { prepareContextForTransport } from '../eliseFashionContextV2';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
@@ -96,6 +97,30 @@ const DEFAULT_USAGE: EdgeChatUsage = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * The last gate before a canonical fashion context crosses the wire.
+ *
+ * Returns the ROUND-TRIPPED value, not the original object. That is deliberate:
+ * what the backend receives is the serialized form, so the serialized form is
+ * what must be validated and what must be sent. Returning the original would let
+ * an object that only survives serialization by luck pass a check performed on a
+ * different value.
+ *
+ * Returns null on any failure, and null means the field is simply omitted — the
+ * request stays valid and the caller's own blocked-state handling decides whether
+ * an image-backed message may be sent at all.
+ */
+export function toTransportableFashionContext(value: unknown): unknown | null {
+  if (value == null) return null;
+  const prepared = prepareContextForTransport(value);
+  if (prepared.kind !== 'ok') return null;
+  try {
+    return JSON.parse(JSON.stringify(prepared.context));
+  } catch {
+    return null;
+  }
 }
 
 /** Copy only descriptive fields that are safe to send to StyleChat. */
@@ -294,11 +319,25 @@ export class EdgeStyleChatProvider {
     /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
     attachments?: StyleChatAttachment[] | null;
     contextHint?: string | null;
+    /**
+     * Canonical Elise fashion identity (Phase 2B.3).
+     *
+     * Additive and INDEPENDENT of `attachments`: a reused Scanner or Recent Scan
+     * identity carries no new attachment reference, and a Closet attachment
+     * carries a reference with no fresh identification. Tying the two together
+     * would make one of those cases unsendable.
+     */
+    fashionContextV2?: unknown;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), this.timeoutMs);
     const hasAttachments = Array.isArray(input.attachments) && input.attachments.length > 0;
     const hasVisualCollection = Boolean(input.activeContext?.visualCollection?.evidence?.length);
+    // Verified serializable before transport. A context carrying a function, a
+    // ref, a setter or an AbortController would be silently mangled by
+    // JSON.stringify and arrive at the backend missing required fields; refusing
+    // it here keeps that from becoming a server-side validation failure.
+    const fashionContext = toTransportableFashionContext(input.fashionContextV2);
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
@@ -331,6 +370,10 @@ export class EdgeStyleChatProvider {
                 ...(input.contextHint ? { contextHint: input.contextHint } : {}),
               }
             : {}),
+          // Phase 2B.3 — canonical fashion identity. Present ONLY when the caller
+          // actually supplied one, so a text-only request stays a byte-for-byte v1
+          // body and no existing request shape changes.
+          ...(fashionContext ? { fashionContextV2: fashionContext } : {}),
         },
         signal: ac.signal,
       });

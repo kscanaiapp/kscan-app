@@ -168,6 +168,35 @@ export type DraftAttachment = {
   resolved?: StyleChatAttachment | null;
   /** Bounded display summary for chips/bubbles. */
   summary: StyleChatAttachmentSummary;
+  /**
+   * Canonical fashion identity for this attachment (Phase 2B.3).
+   *
+   * Deliberately a SEPARATE field from `resolved`, not part of it: `resolved` is
+   * the attachment reference contract the backend has always received, and
+   * widening it would change an established payload. This travels in its own
+   * top-level `fashionContextV2` request field instead.
+   *
+   * Typed loosely here to keep this module free of a runtime import cycle
+   * (`eliseFashionContextV2` imports the contract types, which import nothing
+   * back). Every read path validates it before use, so the loose type never
+   * becomes a trust boundary.
+   */
+  fashionContext?: unknown;
+  /**
+   * Per-attachment identification outcome (Phase 2B.3).
+   *
+   * Distinct from `state`, which describes the ATTACHMENT lifecycle (sanitizing,
+   * creating_record, ready). This describes what identification actually
+   * concluded, so a `ready` attachment can still honestly report that its garment
+   * was only partly identified.
+   */
+  identificationState?:
+    | 'ready'
+    | 'partial'
+    | 'insufficient_evidence'
+    | 'non_fashion'
+    | 'technical_failure'
+    | null;
 };
 
 // ── Validation (pure; shared by client and tests) ─────────────────────────────
