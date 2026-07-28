@@ -1,0 +1,97 @@
+{
+  "manifestVersion": "cross-path-parity-manifest-v1",
+  "note": "Every file below must be byte-identical on the Android and iOS lines. Regenerate on the canonical tree and commit the identical manifest on both branches.",
+  "fileCount": 20,
+  "groups": {
+    "backend": [
+      {
+        "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
+        "sha256": "987bb1b8e4909eb8cadb317849ba70645543361a3b682afd4962bce45c060a5b"
+      },
+      {
+        "path": "supabase/functions/scan-identify/index.ts",
+        "sha256": "dcc7732abce278e7b90e000e388932b3041a32bb608d5b2cabeeddfc4808efc6"
+      },
+      {
+        "path": "supabase/functions/scan-identify/v2Activation.ts",
+        "sha256": "ac11ec3af8d726b09ccb41338a906c208e85923d481497bd3199bf6f35aa9062"
+      },
+      {
+        "path": "supabase/functions/stylechat-generate/fashionContextV2.ts",
+        "sha256": "8d9e2c2b76150c010b4fe44b4c54b7c09660cb16b0e7299090a9b3467a1bf420"
+      },
+      {
+        "path": "supabase/functions/stylechat-generate/index.ts",
+        "sha256": "3bdc942385d7313c38f85fac7c8ef0edd8116cee101bbe34f6e94f4ca8645d85"
+      }
+    ],
+    "contract": [
+      {
+        "path": "contracts/fashion-identification-v2.schema.json",
+        "sha256": "55279248763a89365b35258efc1482499cf7a442ce61fedd12b998e538c27b12"
+      },
+      {
+        "path": "types/fashionIdentificationV2.ts",
+        "sha256": "ebed4c8d2c624389e7360f28e5d6ebaaf6d3350facf13ca5a9030b48c9bc3ec5"
+      }
+    ],
+    "eliseIntent": [
+      {
+        "path": "services/style-chat/eliseAttachmentRouting.ts",
+        "sha256": "06c955baca705f648dd71406398cdda58de94e7197e86e23d91df35f8624848b"
+      },
+      {
+        "path": "services/style-chat/eliseDirectImageIdentification.ts",
+        "sha256": "0bdecde56c0cc61dbc9e05659c281343409e946a7b1e770d30061cac94d58561"
+      },
+      {
+        "path": "services/style-chat/eliseFashionContextV2.ts",
+        "sha256": "71bee96cd9aa7579d3e09e18d5e5d33b63eea2acbb9521f3abaa6d35aa666ce9"
+      },
+      {
+        "path": "services/style-chat/eliseIdentificationV2.ts",
+        "sha256": "0536bbcbb60c56540787bc738df4b5cd112605bc26f496c4efcea700d74cc316"
+      },
+      {
+        "path": "services/style-chat/eliseIdentifyForStyle.ts",
+        "sha256": "21d4f806f06e4d36a403e4fc418f4850950bda59ded8ad4e6a25478dbcd55084"
+      },
+      {
+        "path": "services/style-chat/eliseSendContext.ts",
+        "sha256": "d33696fb60f5e0e399fe574b1a8d97b23c4d32ab39630e55727a2152fcc2fd61"
+      },
+      {
+        "path": "services/style-chat/eliseVisualContextV2Projection.ts",
+        "sha256": "50daee41134e9c32babf7b757b0fad1cfdc86cf6447d35daed90d8818e2fae09"
+      }
+    ],
+    "scannerIntent": [
+      {
+        "path": "services/scannerEvidenceGateway.ts",
+        "sha256": "1a69292faa1911280f0c4bde9c848d57bc7c872ea1e0f26d7b03cdb3f35460a0"
+      },
+      {
+        "path": "services/scannerIdentificationV2.ts",
+        "sha256": "805ae9736d9c2c10f60ed2376747ff880f0588fa6dc4ae1fab9238a12174e4c0"
+      },
+      {
+        "path": "services/scannerScanRequest.ts",
+        "sha256": "bf5c16cbca15448f2da8639822c4fc1c382b4c7de039eb1826902229c065cd32"
+      }
+    ],
+    "sharedCore": [
+      {
+        "path": "services/fashionEvidenceGateway.ts",
+        "sha256": "cd92704d46dd2ed7b34d0af1fa359128f89d4620785c39d500b9ea94921a937b"
+      },
+      {
+        "path": "services/fashionIdentificationV2Core.ts",
+        "sha256": "c98f4a3b3098a7110767bed2df8e04ee333dfa9900798e91689cc5735752ed5d"
+      },
+      {
+        "path": "services/identificationSnapshot.ts",
+        "sha256": "24b1c734a31ba561adfd6b6a8c3446fba3b0e92f88bd7008e888e1f02e7e4d9e"
+      }
+    ]
+  }
+}
