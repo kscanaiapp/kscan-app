@@ -498,6 +498,13 @@ const CLOSET_CANDIDATE_SOURCES = [
   'services/closetTelemetry.ts',
   'hooks/useClosetCandidates.js',
   'components/closet/ClosetCandidateStatusPanel.tsx',
+  // Build 2 Phase 2: the review projection, the one eligibility predicate, the
+  // transient selection hook and the review surface join the same side-effect
+  // governance as everything else on the candidate path.
+  'services/closetBatchReview.ts',
+  'services/closetCandidateReviewEligibility.ts',
+  'hooks/useClosetBatchSelection.ts',
+  'components/closet/ClosetBatchReviewPanel.tsx',
 ];
 
 function readCandidateSources() {
