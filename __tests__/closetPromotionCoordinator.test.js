@@ -1520,17 +1520,33 @@ test('the promotion payload is an allowlist, and drops everything a candidate ca
     { clientRequestId: 'req-1' },
   );
 
+  // The complete payload, named. Every key is a deliberate line in the mapper;
+  // anything the candidate carries that is not here does not reach the Closet.
   assert.deepEqual(Object.keys(draft).sort(), [
+    'brand',
     'category',
     'clientRequestId',
+    'clothingType',
+    'material',
     'notes',
     'origin',
+    'primaryColor',
+    'secondaryColors',
+    'size',
     'sourceCandidateId',
+    'subtype',
     'title',
   ]);
   assert.equal(draft.sourceCandidateId, 'candidate_1');
-  assert.equal(draft.title, 'Acme Bomber');
   assert.equal(draft.origin, 'direct_intake');
+
+  // STRUCTURED TAXONOMY IS CARRIED AS FIELDS, not folded into the title.
+  assert.equal(draft.category, 'Outerwear');
+  assert.equal(draft.clothingType, 'Jacket');
+  assert.equal(draft.subtype, 'Bomber');
+  assert.equal(draft.brand, 'Acme');
+  // The title is still a display label built from them, and is not the storage.
+  assert.equal(draft.title, 'Acme Bomber');
   // A candidate with no category is not a promotable payload at all.
   assert.equal(env.promotion.buildClosetPromotionDraft({ candidateId: 'c' }), null);
   assert.equal(env.promotion.buildClosetPromotionDraft(null), null);

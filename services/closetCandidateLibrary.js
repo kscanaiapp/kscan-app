@@ -36,6 +36,7 @@ import {
 } from '../types/closetCandidate';
 import {
   buildClosetCandidateRecord,
+  clearManuallyAuthoredConfidence,
   createClosetCandidateId,
   createClosetBatchId,
   migrateClosetCandidateRecord,
@@ -1024,10 +1025,18 @@ export async function manuallyClassifyClosetCandidate(
     return { ok: false, errorCode: 'candidate_invalid_transition' };
   }
 
+  // THE AUTOMATED CONFIDENCE FOR WHAT THE USER JUST AUTHORED IS DROPPED with the
+  // same patch that writes their answer, so the record is never momentarily in a
+  // state where a classifier's score sits beside a value the classifier did not
+  // produce. Scores for fields the user did not touch are preserved.
+  const confidence = loaded.ok
+    ? clearManuallyAuthoredConfidence(loaded.candidate.confidence, normalized.fields)
+    : null;
+
   const patched = await updateClosetCandidate(
     actorRequest,
     candidateId,
-    normalized.fields,
+    { ...normalized.fields, confidence },
     options,
   );
   if (!patched.ok) return patched;

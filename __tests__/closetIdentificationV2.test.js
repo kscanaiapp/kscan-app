@@ -364,6 +364,31 @@ test('colour and material confidence are null rather than borrowed', () => {
   assert.equal(outcome.classification.confidence.material, null);
 });
 
+test('a confidence outside the contract range is unavailable, never clamped', () => {
+  // CLAMPING IS THE DANGEROUS DIRECTION. Turning a malformed 5 into 1 would hand
+  // every downstream consumer the strongest claim the system can make, produced
+  // by a response the backend never sent. Out of range means "we cannot read
+  // this", which is what null says.
+  for (const value of [1.5, 5, 42, -0.1, -1]) {
+    const outcome = adapter.resolveClassificationOutcome(
+      v2Result({ confidence: { category: value, subtype: null, brand: null, modelFamily: null, exactProduct: null } }),
+    );
+    assert.equal(
+      outcome.classification.confidence.category,
+      null,
+      `out-of-range confidence ${value} was accepted`,
+    );
+  }
+
+  // The boundaries themselves are valid, and zero is an answer rather than a gap.
+  for (const value of [0, 0.5, 1]) {
+    const outcome = adapter.resolveClassificationOutcome(
+      v2Result({ confidence: { category: value, subtype: null, brand: null, modelFamily: null, exactProduct: null } }),
+    );
+    assert.equal(outcome.classification.confidence.category, value, `rejected valid ${value}`);
+  }
+});
+
 test('clothingType is never populated from classification', () => {
   // The contract has no clothing-type concept distinct from item.category, so
   // writing both would be redundant names for one thing.

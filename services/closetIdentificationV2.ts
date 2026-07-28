@@ -283,9 +283,18 @@ function textArray(value: unknown, limit = 8): string[] {
   return out;
 }
 
+/**
+ * A confidence from the response, or null.
+ *
+ * OUT OF RANGE IS REJECTED, NOT CLAMPED, for the same reason the store rejects
+ * it: clamping a malformed 5 to 1 manufactures maximum certainty out of a broken
+ * response, and every consumer downstream would then be reasoning about a number
+ * the backend never sent. `0` is preserved — it is an answer, not a gap.
+ */
 function confidenceOrNull(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-  return Math.max(0, Math.min(1, value));
+  if (value < 0 || value > 1) return null;
+  return value;
 }
 
 /**
