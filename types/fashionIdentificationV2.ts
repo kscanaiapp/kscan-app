@@ -20,6 +20,16 @@ export const FASHION_IDENTIFICATION_CONTRACT_V2 = 'fashion-identification-v2' as
 export const FASHION_IDENTIFICATION_INTENTS = [
   'identify_and_shop',
   'identify_for_style',
+  // Closet Upgrade Build 1. Classification-only staging intake.
+  //
+  // WHY A THIRD INTENT RATHER THAN REUSING identify_for_style: both skip
+  // commerce, but they are not the same request. A style request produces a
+  // transient styling context and is allowed to be discarded; a Closet request
+  // produces metadata that is persisted onto a durable candidate the user will
+  // review and promote. Collapsing them would make it impossible to gate,
+  // meter, or reason about either one independently — and a Closet response
+  // arriving on a styling path (or the reverse) would be undetectable.
+  'identify_for_closet',
 ] as const;
 
 export const FASHION_IDENTIFICATION_MODES = [
@@ -35,6 +45,8 @@ export const FASHION_IDENTIFICATION_ENTRY_PATHS = [
   'elise_gallery',
   'elise_header_gallery',
   'scanner_handoff',
+  'closet_camera',
+  'closet_gallery',
 ] as const;
 
 export const FASHION_IDENTIFICATION_PLATFORMS = [

@@ -6,7 +6,7 @@
     "backend": [
       {
         "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-        "sha256": "987bb1b8e4909eb8cadb317849ba70645543361a3b682afd4962bce45c060a5b"
+        "sha256": "b041a899aea90bf091b337a486087fe58670fd27058d51b8a6a4b5f86b1d6699"
       },
       {
         "path": "supabase/functions/scan-identify/index.ts",
@@ -28,11 +28,11 @@
     "contract": [
       {
         "path": "contracts/fashion-identification-v2.schema.json",
-        "sha256": "55279248763a89365b35258efc1482499cf7a442ce61fedd12b998e538c27b12"
+        "sha256": "53d8644a40648136f6462c4f44c902bb14996cdd5dac16beaeff0e2d799b7bd1"
       },
       {
         "path": "types/fashionIdentificationV2.ts",
-        "sha256": "ebed4c8d2c624389e7360f28e5d6ebaaf6d3350facf13ca5a9030b48c9bc3ec5"
+        "sha256": "f46c7395c15e1231b20ad442154ebca9308e1eac6ed40a7c6f924e4ab58e7651"
       }
     ],
     "eliseIntent": [

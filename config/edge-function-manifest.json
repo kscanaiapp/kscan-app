@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-28T04:13:52.815Z",
-    "generatedFromGitSha": "8bff4bb4753fa510b0f6f3c20efd7efdba92031d"
+    "generatedAtUtc": "2026-07-28T14:57:24.271Z",
+    "generatedFromGitSha": "2fc2719aa9c0a37e357fa020a0e7657160974f0b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -20,8 +20,8 @@
         ],
         "bundleFileCount": 31,
         "treeFileCount": 39,
-        "bundleHash": "28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589",
-        "treeHash": "f3eb6e60847294e430ace8a34554afd9e28e1b94110096b75a05529b39271314",
+        "bundleHash": "9d645f5eb5bb04f22e57f7e517edf6917e0e45437dec6c1e7231a14afcd39632",
+        "treeHash": "712886158d371a5d6ecaa4557fd72877cf777fd5c343ede5db9716ffd0684aa2",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -40,7 +40,7 @@
           },
           {
             "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-            "sha256": "987bb1b8e4909eb8cadb317849ba70645543361a3b682afd4962bce45c060a5b",
+            "sha256": "b041a899aea90bf091b337a486087fe58670fd27058d51b8a6a4b5f86b1d6699",
             "bundle": true
           },
           {

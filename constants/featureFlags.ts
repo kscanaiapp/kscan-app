@@ -377,3 +377,65 @@ export const CLOSET_DIRECT_INTAKE_V1 =
 export const CLOSET_DIRECT_INTAKE_ACTIVE =
   CLOSET_SEPARATION_V1 && CLOSET_DIRECT_INTAKE_V1;
 
+// ── Closet candidate staging (Closet Upgrade Build 1) ────────────────────────
+/**
+ * Enables the durable ClosetCandidate staging layer: candidate-owned media, exact
+ * duplicate detection, classification-only identification, and the minimal
+ * candidate status surface.
+ *
+ * SUBORDINATE TO BOTH EXISTING CLOSET FLAGS. Staging candidates with no Closet
+ * surface to review them in, or with no direct-intake entry point to create them
+ * from, is not a coherent state — so the derived capability below fails closed
+ * when either parent is off, rather than this flag standing alone.
+ *
+ * WHY BUILD-TIME: identical to the Scanner and Elise V2 rollout flags. This
+ * repository has no runtime per-feature rollout service; the remote
+ * `mobile_feature_freeze` config is a kill-switch keyed by feature name, so it can
+ * disable a shipped feature but cannot enable an unshipped one. Inverting it into
+ * a rollout flag would misrepresent what it means, and a second flag system for
+ * one build is worse than following the established convention.
+ *
+ * DEFAULT OFF IN EVERY SHIPPING PROFILE, and only the exact string "true" opts in.
+ * The deployed `scan-identify` does not yet accept `identify_for_closet`, so a
+ * build that has not explicitly opted in must keep every current Closet path
+ * byte-for-byte what it is today. Flag OFF is not a degraded mode — it is exactly
+ * today's behaviour.
+ *
+ * ENABLING THIS BEFORE THE BACKEND IS DEPLOYED PRODUCES A HARD FAILURE BY DESIGN:
+ * the Closet adapter has no legacy fallback (a legacy request would shop and
+ * create a Recent Scan), so an un-deployed backend answers
+ * `classification_contract_rejected` rather than silently degrading.
+ */
+export function resolveClosetCandidateStagingEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1,
+): boolean {
+  return value === 'true';
+}
+
+/** Candidate staging rollout. Disabled by default. */
+export const CLOSET_CANDIDATE_STAGING_V1 = resolveClosetCandidateStagingEnabled();
+
+/**
+ * Resolved capability. Both parents must be on.
+ *
+ * Gates UI and write ENTRY POINTS only. Once a candidate record exists on disk it
+ * is plain versioned JSON: reading, migrating, cleaning up and deleting it must
+ * never depend on the flag still being enabled — the same rule the committed
+ * Closet already follows.
+ */
+export const CLOSET_CANDIDATE_STAGING_ACTIVE =
+  CLOSET_SEPARATION_V1 && CLOSET_DIRECT_INTAKE_V1 && CLOSET_CANDIDATE_STAGING_V1;
+
+/**
+ * Pure resolver for the derived capability, for tests and for any caller that
+ * needs to evaluate the composition against explicit inputs rather than against
+ * the build-time constants.
+ */
+export function resolveClosetCandidateStagingActive(
+  separation: boolean = CLOSET_SEPARATION_V1,
+  directIntake: boolean = CLOSET_DIRECT_INTAKE_V1,
+  staging: boolean = CLOSET_CANDIDATE_STAGING_V1,
+): boolean {
+  return separation === true && directIntake === true && staging === true;
+}
+

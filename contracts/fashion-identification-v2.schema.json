@@ -14,8 +14,8 @@
 
     "intent": {
       "type": "string",
-      "enum": ["identify_and_shop", "identify_for_style"],
-      "description": "Phase 2B supports exactly two active intents. identify_only is deliberately NOT implemented in this phase; no unused branch is created or tested."
+      "enum": ["identify_and_shop", "identify_for_style", "identify_for_closet"],
+      "description": "Three active consumer intents. identify_for_closet (Closet Upgrade Build 1) is classification-only: it runs no commerce and leaves no Scanner-domain artifact behind, exactly like identify_for_style, but it is a SEPARATE intent because a Closet request must never be interpretable as a styling request and vice versa. identify_only is deliberately NOT implemented; no unused branch is created or tested."
     },
 
     "mode": {
@@ -32,9 +32,11 @@
         "elise_camera",
         "elise_gallery",
         "elise_header_gallery",
-        "scanner_handoff"
+        "scanner_handoff",
+        "closet_camera",
+        "closet_gallery"
       ],
-      "description": "Never reduced to a generic camera/upload. elise_header_gallery is distinct from elise_gallery because its evidence has a transient lifecycle (see Phase 2B addendum 15)."
+      "description": "Never reduced to a generic camera/upload. elise_header_gallery is distinct from elise_gallery because its evidence has a transient lifecycle (see Phase 2B addendum 15). closet_camera and closet_gallery are distinct from every scanner_* and elise_* path because Closet intake stages a durable candidate rather than producing a Recent Scan or a styling context."
     },
 
     "platform": {
