@@ -2436,3 +2436,67 @@ test('gate: commerce content inside an ALLOWED field is refused', () => {
   clean.items[0].identification.unknownReason = 'label partially obscured';
   assert.equal(fashionContext.prepareContextForTransport(clean).kind, 'ok');
 });
+
+// ── Phase 2B.3 hostile-audit hardening proofs ────────────────────────────────
+
+test('hardening: evidenceIds inside a conflicts entry is refused by the identity validator', () => {
+  const canonical = validV2Result({
+    conflicts: [{ field: 'brand', description: 'two logos', evidenceIds: ['evidence-aaaaaaaa'] }],
+  });
+  const identity = fashionContext.projectCanonicalToEliseIdentity(canonical);
+  assert.equal(fashionContext.validateEliseIdentity(identity), null, 'the projection itself stays clean');
+
+  // A hand-built identity smuggling the canonical decoration back in must fail
+  // BOTH independent gates: the conflict-entry key allowlist and the deep
+  // forbidden-key scan (which now knows the plural form).
+  const hostile = JSON.parse(JSON.stringify(identity));
+  hostile.conflicts = [{ field: 'brand', description: 'two logos', evidenceIds: ['evidence-aaaaaaaa'] }];
+  assert.equal(fashionContext.validateEliseIdentity(hostile), 'conflict_key_evidenceIds');
+  assert.notEqual(
+    fashionContext.findForbiddenContextPath({ conflicts: hostile.conflicts }),
+    null,
+    'the deep scan must also refuse the plural evidenceIds key',
+  );
+});
+
+test('reuse: a partial canonical result stays partial through contextFromReusedV2', () => {
+  const context = routing.contextFromReusedV2('scanner_handoff', validV2Result({ status: 'partial' }));
+  assert.ok(context, 'a partial identity is still reusable');
+  assert.equal(
+    context.items[0].state,
+    'partial',
+    'reuse must not upgrade partial to ready — uncertainty survives the handoff',
+  );
+});
+
+test('reuse: a non-groundable stored status cannot masquerade as grounding', () => {
+  for (const status of ['insufficient_visual_evidence', 'non_fashion', 'technical_failure']) {
+    const context = routing.contextFromReusedV2('recent_scan', validV2Result({ status }));
+    assert.equal(context, null, `${status} must not produce a groundable context`);
+  }
+});
+
+test('fallback: the paid legacy response is threaded through the direct outcome', async () => {
+  const paid = { status: 'completed', recommendedProducts: [], auditMarker: 'paid-once' };
+  let calls = 0;
+  const mod = loadDirectIdentification(async (image, options) => {
+    calls += 1;
+    if (options.contractRequestV2) {
+      return { status: 'failed', httpStatus: 400, contractErrorCode: 'UNSUPPORTED_CONTRACT_VERSION', recommendedProducts: [] };
+    }
+    return paid;
+  });
+  const outcome = await mod.identifyDirectImageForStyle({
+    preparedUri: 'file:///sanitized.jpg',
+    source: 'photo_library',
+    requestId: 'op-fallback-thread-1',
+    sessionFlag: enabledFlag,
+  });
+  assert.equal(outcome.kind, 'legacy_fallback');
+  assert.equal(
+    outcome.legacyResponse && outcome.legacyResponse.auditMarker,
+    'paid-once',
+    'the already-paid legacy response must ride along for the caller to reuse',
+  );
+  assert.equal(calls, 2, 'one V2 attempt plus the single legacy retry — a caller reusing the response never bills a third scan');
+});

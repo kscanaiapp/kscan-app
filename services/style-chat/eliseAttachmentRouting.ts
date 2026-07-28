@@ -251,8 +251,20 @@ export function contextFromReusedV2(
   // Delegates to the one builder, so a reused identity is validated and projected
   // by exactly the same code as a freshly identified one. Constructing the context
   // literal here would be a second construction path that could drift.
+  //
+  // The item state PRESERVES the identification's own uncertainty: a partial
+  // result reused from a Scanner handoff is still partial. Hardcoding `ready`
+  // here would strip the "some details were not confirmed" honesty the rest of
+  // the pipeline maintains for freshly identified images. A stored result in
+  // any non-groundable terminal status is not reusable as grounding at all.
+  const state = identification.status === 'partial'
+    ? 'partial'
+    : identification.status === 'completed'
+      ? 'ready'
+      : null;
+  if (!state) return null;
   return buildEliseFashionContextV2({
     source,
-    items: [{ sourceIndex: 0, state: 'ready', identification }],
+    items: [{ sourceIndex: 0, state, identification }],
   });
 }

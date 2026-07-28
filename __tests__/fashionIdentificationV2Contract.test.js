@@ -205,6 +205,11 @@ test('exactly one transport is permitted per evidence entry', () => {
   assert.equal(both.ok, false);
   assert.equal(both.errorCode, 'invalid_transport');
 
+  // Phase 2B.3 hostile audit: the reference transport is DECLARED by the
+  // contract but not adapted by any deployment — the request adapter maps only
+  // jpeg_base64, so a request accepted here previously died later as a generic
+  // "no image provided" HTTP 200 failure. Until the capability is actually
+  // served, the honest contract answer is a bounded rejection at the boundary.
   const reference = V2.validateFashionIdentificationRequestV2(
     validRequest({
       evidence: [validEvidence({
@@ -212,7 +217,9 @@ test('exactly one transport is permitted per evidence entry', () => {
       })],
     }),
   );
-  assert.equal(reference.ok, true);
+  assert.equal(reference.ok, false);
+  assert.equal(reference.errorCode, 'invalid_transport');
+  assert.match(reference.message, /not yet served/);
 });
 
 test('raw EXIF cannot ride along in governed metadata', () => {

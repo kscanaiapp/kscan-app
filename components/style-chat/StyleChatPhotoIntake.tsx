@@ -211,9 +211,12 @@ export function StyleChatPhotoIntake({
       if (operationId !== operationIdRef.current) return;
 
       // ── Phase 2B.3: canonical identify_for_style when latched on ───────────
-      // The SAME 1024/0.8 derivative computed above is reused — this path's
-      // existing preparation settings are preserved exactly, and no second
-      // recompression pass runs.
+      // The V2 adapter prepares its OWN derivative from `sanitizedUri` (the
+      // shared 896px/0.75 analysis settings inside
+      // `compressSanitizedImageForAnalysis`), so the 1024/0.8 derivative above
+      // is used only by the legacy path below. Two preparations exist while
+      // both contracts coexist; collapsing them is a post-rollout cleanup, not
+      // something this phase may do by silently changing legacy bytes.
       //
       // This path is ITEM-oriented: the review screen edits one garment's title,
       // category and colour, so several detected candidates require an explicit
@@ -224,6 +227,11 @@ export function StyleChatPhotoIntake({
       // Elise styling attachment has therefore been paying for commerce providers
       // and catalog retrieval it never used. `identify_for_style` short-circuits
       // all of it before a single provider initializes.
+      // Populated only when the V2 orchestrator already performed its one
+      // permitted legacy retry (UNSUPPORTED_CONTRACT_VERSION). Reused below —
+      // discarding a paid response and purchasing a third identification of
+      // the same bytes was the composition defect the hostile audit found.
+      let paidLegacyResponse: Awaited<ReturnType<typeof identifyScanImage>> | null = null;
       if (v2Flag.enabled && prepared.base64) {
         const outcome = await identifyDirectImageForStyle({
           preparedUri: sanitizedUri,
@@ -263,16 +271,20 @@ export function StyleChatPhotoIntake({
           return;
         }
         // `legacy_fallback` — the backend does not implement the contract. Fall
-        // through to the unchanged legacy call below.
+        // through to the unchanged legacy handling below, reusing the response
+        // the orchestrator's single permitted retry already paid for.
+        if (outcome.kind === 'legacy_fallback' && outcome.legacyResponse !== undefined) {
+          paidLegacyResponse = outcome.legacyResponse;
+        }
       }
 
-      const identification = prepared.base64
+      const identification = paidLegacyResponse ?? (prepared.base64
         ? await identifyScanImage(prepared.base64, {
             source: 'upload',
             localPrivacyFiltered,
             signal: abortRef.current?.signal,
           })
-        : null;
+        : null);
       if (operationId !== operationIdRef.current) return; // late result discard
 
       let mapped: ReturnType<typeof mapScanIdentifyToAnalysis> | null = null;
@@ -331,6 +343,19 @@ export function StyleChatPhotoIntake({
 
     try {
       // 1. Local Closet save through the existing library path.
+      //
+      // On the V2 path (`identifiedAnalysis` null, `fashionContext` set) the
+      // durable metadata is enriched from the styling-safe identity. Without
+      // this, a flag-on save silently dropped material, silhouette, style tags
+      // and confidence that the legacy mapped analysis had always persisted —
+      // a strictly poorer durable record for the same garment. The canonical
+      // result itself is deliberately NOT persisted here: it carries transport
+      // correlation the projection exists to contain.
+      const savedIdentity = groundableItems(fashionContext)[0]?.identification ?? null;
+      const savedStyleTags = [
+        ...(savedIdentity?.pattern ?? []),
+        ...(savedIdentity?.attributes?.distinctive ?? []),
+      ];
       const analysis = identifiedAnalysis
         ? {
             ...identifiedAnalysis,
@@ -343,7 +368,20 @@ export function StyleChatPhotoIntake({
           }
         : {
             result: resultText || `${finalTitle} — added from StyleChat`,
-            metadata: { category: finalCategory, color: color.trim() || undefined },
+            metadata: {
+              category: finalCategory,
+              color: color.trim() || undefined,
+              ...(savedIdentity?.material?.length
+                ? { material: savedIdentity.material.join(', ') }
+                : {}),
+              ...(savedIdentity?.silhouette?.length
+                ? { silhouette: savedIdentity.silhouette[0] }
+                : {}),
+              ...(savedStyleTags.length ? { styleTags: savedStyleTags } : {}),
+              ...(typeof savedIdentity?.globalConfidence === 'number'
+                ? { confidenceScore: savedIdentity.globalConfidence }
+                : {}),
+            },
           };
       const scan = await saveScan({
         photoUri: imageUri,
@@ -411,7 +449,7 @@ export function StyleChatPhotoIntake({
     } finally {
       savingRef.current = false;
     }
-  }, [title, category, color, resultText, imageUri, identifiedAnalysis, onAttached, onClose, resetState]);
+  }, [title, category, color, resultText, imageUri, identifiedAnalysis, fashionContext, onAttached, onClose, resetState]);
 
   const handleCancel = () => {
     operationIdRef.current += 1;

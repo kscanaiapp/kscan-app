@@ -2,8 +2,12 @@
 //
 // THE SINGLE NETWORK ENTRY POINT FOR ELISE IDENTIFICATION. Direct camera, direct
 // gallery and every image of a header-gallery selection call
-// `identifyPreparedImageForStyle`. The path-governance test asserts that no
-// active Elise path calls `identifyScanImage` directly once the flag is on.
+// `identifyPreparedImageForStyle`. With the flag on, a direct legacy
+// `identifyScanImage` call happens in exactly one place — the bounded
+// UNSUPPORTED_CONTRACT_VERSION fallback below — and its response is handed to
+// callers so none of them re-purchases it. Flag-off paths are untouched legacy
+// by definition. The fallback-governance tests in
+// `__tests__/eliseIdentificationV2Migration.test.js` pin both properties.
 //
 // Kept separate from `eliseIdentificationV2.ts` so that module stays pure —
 // request building, validation and telemetry there are testable with no
