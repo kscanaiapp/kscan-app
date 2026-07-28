@@ -48,10 +48,13 @@ import {
 import {
   CANDIDATE_DIR,
   CANDIDATE_MANIFEST_PATH,
+  CANDIDATE_MANIFEST_TEMP_PATH,
+  CANDIDATE_MANIFEST_BACKUP_PATH,
   preflightCandidateStorage,
   deriveCandidateMedia,
   computeCandidateContentHash,
   unlinkUnreferencedCandidateMedia,
+  sweepOrphanedCandidateMedia,
 } from './closetCandidateMedia';
 import { emitClosetCandidateEvent } from './closetTelemetry';
 
@@ -118,13 +121,122 @@ function enqueue(operation) {
   return result;
 }
 
+/**
+ * Atomically replace the manifest.
+ *
+ * WHY NOT A DIRECT WRITE: `writeAsStringAsync` onto the canonical path truncates
+ * first and streams second. A force-kill, a full disk or a killed process in that
+ * window leaves a half-written manifest, and the read path's fail-to-empty then
+ * reports every candidate as gone.
+ *
+ * The sequence is write-verify-swap, and it never leaves the store with no
+ * manifest at all:
+ *
+ *   1. discard any stale temp from an earlier interrupted write
+ *   2. write the replacement BESIDE the canonical file
+ *   3. read it back and compare — an unverified replacement is never swapped in
+ *   4. move the current manifest aside to `.bak` (still the last valid manifest)
+ *   5. move the verified replacement into place
+ *   6. drop the backup
+ *
+ * A crash between 4 and 5 is the one window that leaves no canonical manifest,
+ * and `recoverManifestFromBackup` closes it on the next read.
+ */
 async function persistCandidates(records) {
   await FileSystem.makeDirectoryAsync(CANDIDATE_DIR, { intermediates: true }).catch(
     () => null,
   );
-  await FileSystem.writeAsStringAsync(CANDIDATE_MANIFEST_PATH, JSON.stringify(records), {
+  const payload = JSON.stringify(records);
+
+  await FileSystem.deleteAsync(CANDIDATE_MANIFEST_TEMP_PATH, { idempotent: true }).catch(
+    () => null,
+  );
+  await FileSystem.writeAsStringAsync(CANDIDATE_MANIFEST_TEMP_PATH, payload, {
     encoding: FileSystem.EncodingType.UTF8,
   });
+
+  // Durability gate. A truncated or unreadable temp file must never replace a
+  // good manifest, so the swap only happens if the bytes read back match.
+  let verified = null;
+  try {
+    verified = await FileSystem.readAsStringAsync(CANDIDATE_MANIFEST_TEMP_PATH, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+  } catch {
+    verified = null;
+  }
+  if (verified !== payload) {
+    await FileSystem.deleteAsync(CANDIDATE_MANIFEST_TEMP_PATH, { idempotent: true }).catch(
+      () => null,
+    );
+    const error = new Error('closet_candidate_manifest_unverified');
+    error.code = 'candidate_persist_failed';
+    throw error;
+  }
+
+  const existing = await FileSystem.getInfoAsync(CANDIDATE_MANIFEST_PATH).catch(() => ({
+    exists: false,
+  }));
+  if (existing?.exists) {
+    await FileSystem.deleteAsync(CANDIDATE_MANIFEST_BACKUP_PATH, { idempotent: true }).catch(
+      () => null,
+    );
+    await FileSystem.moveAsync({
+      from: CANDIDATE_MANIFEST_PATH,
+      to: CANDIDATE_MANIFEST_BACKUP_PATH,
+    });
+  }
+
+  try {
+    await FileSystem.moveAsync({
+      from: CANDIDATE_MANIFEST_TEMP_PATH,
+      to: CANDIDATE_MANIFEST_PATH,
+    });
+  } catch (error) {
+    // Put the last valid manifest back rather than leaving the store empty.
+    const backup = await FileSystem.getInfoAsync(CANDIDATE_MANIFEST_BACKUP_PATH).catch(
+      () => ({ exists: false }),
+    );
+    if (backup?.exists) {
+      await FileSystem.moveAsync({
+        from: CANDIDATE_MANIFEST_BACKUP_PATH,
+        to: CANDIDATE_MANIFEST_PATH,
+      }).catch(() => null);
+    }
+    throw error;
+  }
+
+  await FileSystem.deleteAsync(CANDIDATE_MANIFEST_BACKUP_PATH, { idempotent: true }).catch(
+    () => null,
+  );
+}
+
+/**
+ * Close the crash window inside `persistCandidates`: the manifest was moved aside
+ * but the replacement had not landed yet. The backup IS the last valid manifest,
+ * so it is restored rather than discarded.
+ */
+async function recoverManifestFromBackup() {
+  const canonical = await FileSystem.getInfoAsync(CANDIDATE_MANIFEST_PATH).catch(() => ({
+    exists: false,
+  }));
+  if (canonical?.exists) return false;
+  const backup = await FileSystem.getInfoAsync(CANDIDATE_MANIFEST_BACKUP_PATH).catch(() => ({
+    exists: false,
+  }));
+  if (!backup?.exists) return false;
+  try {
+    await FileSystem.moveAsync({
+      from: CANDIDATE_MANIFEST_BACKUP_PATH,
+      to: CANDIDATE_MANIFEST_PATH,
+    });
+    emitClosetCandidateEvent('closet_candidate_store_recovered', {
+      errorCode: 'candidate_store_recovery_required',
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -133,8 +245,14 @@ async function persistCandidates(records) {
  * A record that fails migration is SKIPPED, not dropped from disk and not
  * repaired: a corrupt or future-version entry must never block the rest of the
  * store from loading, and must never be silently deleted on a read path.
+ *
+ * `corrupt` and `skipped` are not diagnostics — they are a WRITE INTERLOCK.
+ * `readCandidatesForMutation` refuses to hand a reduced record set to a writer,
+ * because persisting it is exactly what would delete the entries this read could
+ * not interpret.
  */
 async function readAllCandidates() {
+  await recoverManifestFromBackup();
   const info = await FileSystem.getInfoAsync(CANDIDATE_MANIFEST_PATH);
   if (!info.exists) return { records: [], skipped: 0, raw: [] };
 
@@ -151,18 +269,47 @@ async function readAllCandidates() {
 
   const records = [];
   let skipped = 0;
+  let futureSchema = 0;
   for (const entry of parsed) {
     const migrated = migrateClosetCandidateRecord(entry);
-    if (migrated.ok) records.push(migrated.record);
-    else skipped += 1;
+    if (migrated.ok) {
+      records.push(migrated.record);
+      continue;
+    }
+    skipped += 1;
+    if (migrated.errorCode === 'candidate_store_future_schema') futureSchema += 1;
   }
   if (skipped > 0) {
     emitClosetCandidateEvent('closet_candidate_cleanup_failed', {
-      errorCode: 'candidate_store_corrupt',
+      errorCode: futureSchema > 0 ? 'candidate_store_future_schema' : 'candidate_store_corrupt',
       countBucket: bucketCount(skipped),
     });
   }
-  return { records, skipped, raw: parsed };
+  return { records, skipped, raw: parsed, futureSchema };
+}
+
+/**
+ * The mutation-side read. Fails closed whenever the manifest could not be read
+ * completely, so no writer can rewrite the file from a partial view of it.
+ *
+ * Reads (list/get) deliberately do NOT use this: showing the user the candidates
+ * that ARE readable is correct, and is not destructive.
+ */
+async function readCandidatesForMutation() {
+  const state = await readAllCandidates();
+  if (state.corrupt) {
+    return { ok: false, errorCode: 'candidate_store_recovery_required' };
+  }
+  if ((state.skipped ?? 0) > 0) {
+    return {
+      ok: false,
+      errorCode:
+        (state.futureSchema ?? 0) > 0
+          ? 'candidate_store_future_schema'
+          : 'candidate_store_recovery_required',
+    };
+  }
+  return { ok: true, records: state.records };
 }
 
 function isVisibleToActor(record, actorId) {
@@ -217,8 +364,11 @@ async function cleanupCandidateMedia(paths) {
   const wanted = paths.filter(Boolean);
   if (wanted.length === 0) return [];
   try {
-    const { records } = await readAllCandidates();
-    return await unlinkUnreferencedCandidateMedia(wanted, records);
+    // Deleting against a PARTIAL reference set could unlink media that a record
+    // we failed to read still owns. A leak is recoverable; a wrong delete is not.
+    const state = await readCandidatesForMutation();
+    if (!state.ok) return wanted;
+    return await unlinkUnreferencedCandidateMedia(wanted, state.records);
   } catch {
     return wanted;
   }
@@ -386,23 +536,28 @@ export async function createClosetCandidate(actorRequest, input = {}) {
     // in `duplicate` and is NEVER classified automatically.
     const committedItems = await loadCloset(post.ownerId).catch(() => []);
     let closetHashMatch = null;
+    let suspiciousCollisionSeen = false;
     for (const item of committedItems) {
       if (isSuspiciousHashCollision(item, signature)) {
-        // FAIL CLOSED. A digest match with a disagreeing byte length is not
-        // evidence of sameness; treating it as one would risk suppressing a
-        // genuinely different garment. The user's source media is untouched.
-        emitClosetCandidateEvent('closet_candidate_duplicate_detected', {
-          algorithmVersion: signature.contentHashVersion,
-          outcome: 'suspicious_signature_mismatch',
-          scope: 'committed_closet',
-        });
-        closetHashMatch = null;
-        break;
+        // FAIL CLOSED on THIS item only. A digest match with a disagreeing byte
+        // length is not evidence of sameness; treating it as one would risk
+        // suppressing a genuinely different garment. But one inconsistent item
+        // must not end the scan — a genuine exact match later in the Closet is
+        // still a genuine exact match. The user's source media is untouched.
+        suspiciousCollisionSeen = true;
+        continue;
       }
       if (sameExactSignature(item, signature)) {
         closetHashMatch = item;
         break;
       }
+    }
+    if (suspiciousCollisionSeen) {
+      emitClosetCandidateEvent('closet_candidate_duplicate_detected', {
+        algorithmVersion: signature.contentHashVersion,
+        outcome: 'suspicious_signature_mismatch',
+        scope: 'committed_closet',
+      });
     }
 
     const record = buildClosetCandidateRecord(
@@ -450,7 +605,11 @@ export async function createClosetCandidate(actorRequest, input = {}) {
       // Last-moment actor check inside the serialized section.
       if (!isActorRequestCurrent(actorRequest)) return { outcome: 'stale' };
 
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) {
+        return { outcome: 'store_unreadable', errorCode: readState.errorCode };
+      }
+      const records = readState.records;
 
       // (6) ACTIVE-CANDIDATE collision, re-checked here because another intake
       // for the same photo may have committed while this one wrote media.
@@ -492,6 +651,12 @@ export async function createClosetCandidate(actorRequest, input = {}) {
     if (committed.outcome === 'limit') {
       await cleanupCandidateMedia([imageUri, thumbnailUri]);
       return { kind: 'rejected', code: 'candidate_limit_reached' };
+    }
+    if (committed.outcome === 'store_unreadable') {
+      // Nothing was written. This attempt's own media is the only thing to undo,
+      // and `cleanupCandidateMedia` is itself interlocked against a partial read.
+      await cleanupCandidateMedia([imageUri, thumbnailUri]);
+      return { kind: 'rejected', code: committed.errorCode };
     }
     if (committed.outcome === 'deduped') {
       // The redundant media this attempt created is dropped. The survivor's own
@@ -558,7 +723,9 @@ async function mutateCandidate(actorRequest, candidateId, mutate, options = {}) 
       if (!isActorRequestCurrent(actorRequest)) {
         return { ok: false, errorCode: 'candidate_actor_stale' };
       }
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) return { ok: false, errorCode: readState.errorCode };
+      const records = readState.records;
       const index = records.findIndex(
         (entry) =>
           entry.candidateId === candidateId && isVisibleToActor(entry, authority.ownerId),
@@ -740,9 +907,10 @@ export async function rejectClosetCandidate(actorRequest, candidateId, options =
  *   1. persist the record with its media URIs CLEARED
  *   2. only then unlink the files
  *
- * A crash between the two leaks two files, which a later sweep collects. The
- * reverse order would leave a surviving record pointing at files that no longer
- * exist — a broken thumbnail the user sees, rather than garbage they do not.
+ * A crash between the two leaks two files, which `sweepOrphanedClosetCandidateMedia`
+ * collects on the next focus. The reverse order would leave a surviving record
+ * pointing at files that no longer exist — a broken thumbnail the user sees,
+ * rather than garbage they do not.
  *
  * The reference check runs against the ALREADY-CLEARED record set, which is the
  * defect this exists to avoid: passing the un-cleared set would show the rejected
@@ -751,7 +919,9 @@ export async function rejectClosetCandidate(actorRequest, candidateId, options =
 async function releaseRejectedCandidateMedia(actorRequest, candidateId) {
   try {
     return await enqueue(async () => {
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) return { candidate: null, mediaFailures: [] };
+      const records = readState.records;
       const index = records.findIndex((entry) => entry.candidateId === candidateId);
       if (index === -1) return { candidate: null, mediaFailures: [] };
 
@@ -781,7 +951,9 @@ export async function deleteClosetCandidate(actorRequest, candidateId, options =
       if (!isActorRequestCurrent(actorRequest)) {
         return { ok: false, errorCode: 'candidate_actor_stale' };
       }
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) return { ok: false, errorCode: readState.errorCode };
+      const records = readState.records;
       const target = records.find(
         (entry) =>
           entry.candidateId === candidateId && isVisibleToActor(entry, authority.ownerId),
@@ -812,7 +984,9 @@ export async function deleteClosetCandidateBatch(actorRequest, batchId, options 
       if (!isActorRequestCurrent(actorRequest)) {
         return { ok: false, errorCode: 'candidate_actor_stale' };
       }
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) return { ok: false, errorCode: readState.errorCode };
+      const records = readState.records;
       const doomed = records.filter(
         (entry) => entry.batchId === batchId && isVisibleToActor(entry, authority.ownerId),
       );
@@ -842,7 +1016,11 @@ export async function cleanupExpiredClosetCandidates(actorRequest, options = {})
   const nowMs = options.nowMs ?? Date.now();
   try {
     return await enqueue(async () => {
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) {
+        return { ok: false, errorCode: readState.errorCode, removed: 0, mediaFailures: [] };
+      }
+      const records = readState.records;
       // Scoped to the captured actor. A sweep that removed every actor's expired
       // records would be a cross-actor write dressed as housekeeping.
       const doomed = records.filter(
@@ -896,7 +1074,11 @@ export async function recoverInterruptedClosetCandidates(actorRequest, options =
       if (!isActorRequestCurrent(actorRequest)) {
         return { ok: false, errorCode: 'candidate_actor_stale', requeued: 0, failed: 0 };
       }
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) {
+        return { ok: false, errorCode: readState.errorCode, requeued: 0, failed: 0 };
+      }
+      const records = readState.records;
       let requeued = 0;
       let failed = 0;
       const updated = records.map((entry) => {
@@ -947,7 +1129,9 @@ export async function purgeLocalClosetCandidatesForOwner(capturedOwnerId) {
   if (!owner) return { ok: false, removed: 0, mediaFailures: [] };
   try {
     return await enqueue(async () => {
-      const { records } = await readAllCandidates();
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) return { ok: false, removed: 0, mediaFailures: [] };
+      const records = readState.records;
       const doomed = records.filter((entry) => (entry.ownerId || null) === owner);
       if (doomed.length === 0) return { ok: true, removed: 0, mediaFailures: [] };
       const survivors = records.filter((entry) => (entry.ownerId || null) !== owner);
@@ -963,11 +1147,61 @@ export async function purgeLocalClosetCandidatesForOwner(capturedOwnerId) {
   }
 }
 
+/**
+ * Collect candidate media that no surviving record references.
+ *
+ * The reference-driven cleanup paths can only unlink a file some record still
+ * points at, so media whose record is already gone — a crash between the manifest
+ * write and the unlink, an unlink failure nobody retried — is unreachable by every
+ * other path. This is the only collector for it.
+ *
+ * Runs inside the mutation queue so it cannot observe a half-applied write, and
+ * refuses to run at all on a partial read: `readCandidatesForMutation` failing
+ * means some record could not be interpreted, and a sweep would treat that
+ * record's media as unowned.
+ */
+export async function sweepOrphanedClosetCandidateMedia(actorRequest, options = {}) {
+  const authority = resolveCandidateAuthority(actorRequest, options.ownerId);
+  if (!authority.ok) {
+    return { ok: false, errorCode: authority.errorCode, deleted: 0, failed: 0 };
+  }
+  try {
+    return await enqueue(async () => {
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) {
+        return { ok: false, errorCode: readState.errorCode, deleted: 0, failed: 0 };
+      }
+      // The reference set spans EVERY actor partition: another actor's candidate
+      // media is not this actor's to collect.
+      const result = await sweepOrphanedCandidateMedia(readState.records, {
+        manifestComplete: true,
+        nowMs: options.nowMs,
+        graceMs: options.graceMs,
+      });
+      if (result.deleted > 0 || result.failed > 0) {
+        emitClosetCandidateEvent('closet_candidate_cleanup_failed', {
+          errorCode: result.failed > 0 ? 'candidate_cleanup_failed' : null,
+          countBucket: bucketCount(result.deleted),
+        });
+      }
+      return {
+        ok: result.ok === true && result.failed === 0,
+        skipped: result.skipped === true,
+        deleted: result.deleted,
+        failed: result.failed,
+      };
+    });
+  } catch {
+    return { ok: false, errorCode: 'candidate_cleanup_failed', deleted: 0, failed: 0 };
+  }
+}
+
 /** Test seam only. Not used by production code. */
 export const __closetCandidateInternals = {
   CANDIDATE_DIR,
   CANDIDATE_MANIFEST_PATH,
   readAllCandidates,
+  readCandidatesForMutation,
   sameExactSignature,
   isSuspiciousHashCollision,
   isExpired,

@@ -280,6 +280,26 @@ const REGISTRY: Readonly<Record<ClosetCandidateErrorCode, ClosetCandidateErrorSp
       transition: null,
       recovery: 'none',
     },
+    candidate_store_future_schema: {
+      // A NEWER build wrote this record. Not retryable and not repairable by this
+      // build: the only correct action is to leave it alone, which is why the
+      // transition is null and the recovery is none.
+      retryable: false,
+      message: 'Some drafts were saved by a newer version of the app.',
+      category: 'persistence',
+      transition: null,
+      recovery: 'none',
+    },
+    candidate_store_recovery_required: {
+      // Emitted when a MUTATION is refused because the manifest could not be read
+      // completely. Refusing is the repair: rewriting the manifest from a partial
+      // read is what silently destroys the records the read could not interpret.
+      retryable: false,
+      message: 'Your drafts could not be read completely, so nothing was changed.',
+      category: 'persistence',
+      transition: null,
+      recovery: 'none',
+    },
   });
 
 export function isClosetCandidateErrorCode(

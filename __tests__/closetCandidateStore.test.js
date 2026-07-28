@@ -46,29 +46,75 @@ function runModule(rel, requireShim) {
  */
 function memfs() {
   const files = new Map();
+  const modified = new Map();
   let freeBytes = 10 * 1024 * 1024 * 1024;
+  /** Injected faults, keyed by operation, for crash-window tests. */
+  const faults = { write: null, move: null };
   const api = {
     documentDirectory: '/doc/',
     EncodingType: { UTF8: 'utf8', Base64: 'base64' },
     async makeDirectoryAsync() {},
     async getInfoAsync(p) {
       if (!files.has(p)) return { exists: false };
-      return { exists: true, size: Buffer.from(files.get(p), 'utf8').length };
+      return {
+        exists: true,
+        size: Buffer.from(files.get(p), 'utf8').length,
+        // Seconds, matching expo-file-system.
+        modificationTime: (modified.get(p) ?? 0) / 1000,
+      };
     },
     async readAsStringAsync(p) {
       if (!files.has(p)) throw new Error('ENOENT');
       return files.get(p);
     },
     async writeAsStringAsync(p, c) {
+      if (faults.write) {
+        const fault = faults.write;
+        faults.write = null;
+        // Simulate a torn write: the bytes that landed are NOT the bytes asked
+        // for, which is exactly what a force-kill mid-stream leaves behind.
+        if (fault.mode === 'truncate') {
+          files.set(p, String(c).slice(0, Math.max(1, Math.floor(String(c).length / 2))));
+          modified.set(p, Date.now());
+          return;
+        }
+        throw new Error('ENOSPC');
+      }
       files.set(p, c);
+      modified.set(p, Date.now());
     },
     async moveAsync({ from, to }) {
+      if (faults.move) {
+        const fault = faults.move;
+        // `after` lets a test survive the manifest→backup move and fail only the
+        // temp→manifest move, which is the one real crash window in the swap.
+        if (fault.after > 0) {
+          fault.after -= 1;
+        } else {
+          faults.move = null;
+          throw new Error('EIO');
+        }
+      }
       if (!files.has(from)) throw new Error('ENOENT');
       files.set(to, files.get(from));
+      modified.set(to, modified.get(from) ?? Date.now());
       files.delete(from);
+      modified.delete(from);
     },
     async deleteAsync(p) {
       files.delete(p);
+      modified.delete(p);
+    },
+    async readDirectoryAsync(dir) {
+      if (typeof dir !== 'string') throw new Error('EINVAL');
+      const names = [];
+      for (const key of files.keys()) {
+        if (!key.startsWith(dir)) continue;
+        const rest = key.slice(dir.length);
+        if (!rest || rest.includes('/')) continue;
+        names.push(rest);
+      }
+      return names;
     },
     async getFreeDiskStorageAsync() {
       return freeBytes;
@@ -82,6 +128,18 @@ function memfs() {
     },
     removeFreeDiskApi() {
       delete api.getFreeDiskStorageAsync;
+    },
+    removeReadDirectoryApi() {
+      delete api.readDirectoryAsync;
+    },
+    setModified(p, ms) {
+      modified.set(p, ms);
+    },
+    failNextWrite(mode = 'throw') {
+      faults.write = { mode };
+    },
+    failMoveAfter(n) {
+      faults.move = { after: n };
     },
   };
 }
@@ -1020,8 +1078,20 @@ test('a corrupt candidate manifest never prevents the committed Closet from load
 
   const closet = await env.closetLibrary.loadCloset('user-a');
   assert.equal(closet.length, 1);
+
+  // The sweep now FAILS CLOSED on an unreadable manifest instead of proceeding.
+  // Proceeding would have rewritten the manifest from the empty record set the
+  // read was able to produce, destroying whatever the corrupt bytes still held.
   const swept = await env.store.cleanupExpiredClosetCandidates(req);
-  assert.equal(swept.ok, true);
+  assert.equal(swept.ok, false);
+  assert.equal(swept.errorCode, 'candidate_store_recovery_required');
+
+  // The corrupt bytes are still on disk, untouched — recovery is still possible.
+  assert.equal(
+    env.m.files.get('/doc/kscan_closet_candidates/kscan_closet_candidates.json'),
+    'garbage',
+  );
+  // And the invariant this test is named for holds regardless.
   assert.equal((await env.closetLibrary.loadCloset('user-a')).length, 1);
 });
 
@@ -1205,4 +1275,184 @@ test('the owner purge primitive removes only that owner’s candidates', async (
 
   const reqB2 = asActor(env.actorContext, 'user-b');
   assert.equal((await env.store.listClosetCandidates(reqB2)).candidates.length, 1);
+});
+
+// ── Durable manifest replacement (audit repair A) ────────────────────────────
+//
+// The manifest is swapped in atomically: write beside, verify, retain the old
+// copy, move into place. These cover the windows a force-kill can land in.
+
+const MANIFEST = '/doc/kscan_closet_candidates/kscan_closet_candidates.json';
+const MANIFEST_TMP = MANIFEST + '.tmp';
+const MANIFEST_BAK = MANIFEST + '.bak';
+
+test('a torn manifest write never replaces the last valid manifest', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const first = await stage(env, req, '/picker/a.jpg');
+  assert.equal(first.kind, 'created');
+  const good = env.m.files.get(MANIFEST);
+  assert.ok(good.includes(first.candidate.candidateId));
+
+  // The NEXT manifest write lands truncated, as a force-kill mid-stream would.
+  env.m.failNextWrite('truncate');
+  seedSource(env.m, '/picker/b.jpg');
+  const second = await stage(env, req, '/picker/b.jpg');
+
+  // The write is refused, not swapped in.
+  assert.equal(second.kind, 'rejected');
+  assert.equal(env.m.files.get(MANIFEST), good);
+  // No debris is left behind for the next read to trip over.
+  assert.equal(env.m.files.has(MANIFEST_TMP), false);
+
+  // And the store still reads exactly the candidate that was durably committed.
+  const listed = await env.store.listClosetCandidates(req);
+  assert.equal(listed.ok, true);
+  assert.equal(listed.candidates.length, 1);
+  assert.equal(listed.candidates[0].candidateId, first.candidate.candidateId);
+});
+
+test('a crash between retiring the manifest and installing its replacement is recovered', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const first = await stage(env, req, '/picker/a.jpg');
+  assert.equal(first.kind, 'created');
+  const good = env.m.files.get(MANIFEST);
+
+  // The process died after the manifest was moved aside but before the
+  // replacement landed. Only the backup survives; the next read repairs it.
+  env.m.files.delete(MANIFEST);
+  env.m.files.set(MANIFEST_BAK, good);
+
+  const listed = await env.store.listClosetCandidates(req);
+  assert.equal(listed.ok, true);
+  assert.equal(listed.candidates.length, 1);
+  assert.equal(listed.candidates[0].candidateId, first.candidate.candidateId);
+  assert.equal(env.m.files.get(MANIFEST), good);
+  assert.equal(env.m.files.has(MANIFEST_BAK), false);
+});
+
+// ── No clobbering of records a read could not interpret (audit repair B) ─────
+
+test('a mutation after a corrupt read fails closed and leaves the bytes on disk', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  env.m.files.set(MANIFEST, 'not json at all');
+
+  seedSource(env.m, '/picker/a.jpg');
+  const created = await stage(env, req, '/picker/a.jpg');
+  assert.equal(created.kind, 'rejected');
+  assert.equal(created.code, 'candidate_store_recovery_required');
+
+  // The unreadable bytes are still there to be recovered by hand or by a newer
+  // build. This is the whole point: a write must not be a silent delete.
+  assert.equal(env.m.files.get(MANIFEST), 'not json at all');
+});
+
+test('a future-schema record is never dropped by an unrelated write', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  const future = {
+    schemaVersion: 99,
+    candidateId: 'candidate_from_a_newer_build',
+    batchId: 'batch_future',
+    ownerId: 'user-a',
+    status: 'queued',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    expiresAt: '2999-01-01T00:00:00.000Z',
+  };
+  env.m.files.set(MANIFEST, JSON.stringify([future]));
+
+  // Every mutating entry point refuses, and names the reason precisely.
+  seedSource(env.m, '/picker/a.jpg');
+  const created = await stage(env, req, '/picker/a.jpg');
+  assert.equal(created.kind, 'rejected');
+  assert.equal(created.code, 'candidate_store_future_schema');
+
+  const swept = await env.store.cleanupExpiredClosetCandidates(req);
+  assert.equal(swept.ok, false);
+  assert.equal(swept.errorCode, 'candidate_store_future_schema');
+
+  const recovered = await env.store.recoverInterruptedClosetCandidates(req);
+  assert.equal(recovered.ok, false);
+  assert.equal(recovered.errorCode, 'candidate_store_future_schema');
+
+  // The newer build's record is byte-for-byte intact.
+  assert.deepEqual(JSON.parse(env.m.files.get(MANIFEST)), [future]);
+});
+
+test('a partial read never lets cleanup unlink media it cannot account for', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const created = await stage(env, req, '/picker/a.jpg');
+  assert.equal(created.kind, 'created');
+  const imageUri = created.candidate.candidateImageUri;
+
+  // Corrupt the manifest, then ask the store to delete the candidate. It cannot
+  // know what else references that media, so it must not delete anything.
+  env.m.files.set(MANIFEST, '{ truncated');
+  const removed = await env.store.deleteClosetCandidate(req, created.candidate.candidateId);
+  assert.equal(removed.ok, false);
+  assert.equal(removed.errorCode, 'candidate_store_recovery_required');
+  assert.equal(env.m.files.has(imageUri), true);
+});
+
+// ── Orphan media sweep (audit repair C) ──────────────────────────────────────
+
+test('the sweep collects unreferenced candidate media and nothing else', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const kept = await stage(env, req, '/picker/a.jpg');
+  assert.equal(kept.kind, 'created');
+
+  // An orphan: media with no record, older than the in-flight grace period.
+  const orphan = '/doc/kscan_closet_candidates/images/orphan_asset.jpg';
+  env.m.files.set(orphan, 'orphaned-bytes');
+  env.m.setModified(orphan, Date.now() - 60 * 60 * 1000);
+
+  // A committed-Closet file, which the sweep must never even consider.
+  const committed = '/doc/kscan_closet/images/committed.jpg';
+  env.m.files.set(committed, 'committed-bytes');
+  env.m.setModified(committed, 0);
+
+  const result = await env.store.sweepOrphanedClosetCandidateMedia(req);
+  assert.equal(result.ok, true);
+  assert.equal(result.deleted, 1);
+  assert.equal(env.m.files.has(orphan), false);
+  assert.equal(env.m.files.has(committed), true);
+  assert.equal(env.m.files.has(kept.candidate.candidateImageUri), true);
+  assert.equal(env.m.files.has(kept.candidate.candidateThumbnailUri), true);
+});
+
+test('the sweep spares in-flight media and refuses to run on a partial read', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  await stage(env, req, '/picker/a.jpg');
+
+  // Written just now: an intake that has not reached the manifest yet.
+  const inFlight = '/doc/kscan_closet_candidates/images/in_flight.jpg';
+  env.m.files.set(inFlight, 'fresh-bytes');
+  env.m.setModified(inFlight, Date.now());
+
+  const spared = await env.store.sweepOrphanedClosetCandidateMedia(req);
+  assert.equal(spared.ok, true);
+  assert.equal(spared.deleted, 0);
+  assert.equal(env.m.files.has(inFlight), true);
+
+  // With an unreadable manifest the sweep must not delete anything at all: it
+  // cannot tell an orphan from a record it merely failed to parse.
+  const stale = '/doc/kscan_closet_candidates/images/stale.jpg';
+  env.m.files.set(stale, 'stale-bytes');
+  env.m.setModified(stale, 0);
+  env.m.files.set(MANIFEST, 'garbage');
+
+  const refused = await env.store.sweepOrphanedClosetCandidateMedia(req);
+  assert.equal(refused.ok, false);
+  assert.equal(refused.errorCode, 'candidate_store_recovery_required');
+  assert.equal(env.m.files.has(stale), true);
 });

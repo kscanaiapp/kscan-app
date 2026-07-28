@@ -445,7 +445,10 @@ test('an unsupported FUTURE schema version is rejected, never reinterpreted', ()
     expiresAt: '2026-07-08T00:00:00.000Z',
   });
   assert.equal(result.ok, false);
-  assert.equal(result.errorCode, 'candidate_store_corrupt');
+  // Reported DISTINCTLY from corruption. A newer build wrote this record; it is
+  // intact, unreadable by us, and must never be treated as damaged data that a
+  // write may discard.
+  assert.equal(result.errorCode, 'candidate_store_future_schema');
 });
 
 test('malformed records are rejected with a stable recovery code and never throw', () => {

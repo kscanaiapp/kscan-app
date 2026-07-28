@@ -280,8 +280,11 @@ export function migrateClosetCandidateRecord(rawRecord) {
         ? Math.floor(declared)
         : 0;
 
+    // A NEWER build wrote this record. It is not corrupt and it is not ours to
+    // rewrite: reporting it distinctly is what lets the store refuse to persist a
+    // reduced record set that would delete it.
     if (version > CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION) {
-      return { ok: false, errorCode: 'candidate_store_corrupt' };
+      return { ok: false, errorCode: 'candidate_store_future_schema' };
     }
 
     const migratedFrom = version;
