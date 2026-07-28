@@ -96,10 +96,18 @@ export function retryBackoffMs(automaticRetryCount, random = Math.random) {
   return Math.max(0, Math.round(base + jitter));
 }
 
-/** True when a candidate's automatic backoff has elapsed. */
+/**
+ * True when a candidate's automatic backoff has elapsed.
+ *
+ * Keyed on `attemptCount`, not `automaticRetryCount`. A candidate that has NEVER
+ * been attempted starts immediately; every RE-attempt waits. Keying on the retry
+ * counter would let the first retry — the one immediately after a failure, and
+ * therefore the one most likely to hit the same fault — fire with no delay at all.
+ * The DELAY is still derived from `automaticRetryCount`, so it grows per retry.
+ */
 export function isRetryEligible(candidate, nowMs, random = Math.random) {
   if (!candidate) return false;
-  if ((candidate.automaticRetryCount ?? 0) <= 0) return true;
+  if ((candidate.attemptCount ?? 0) <= 0) return true;
   const last = Date.parse(candidate.lastAttemptAt ?? '');
   if (!Number.isFinite(last)) return true;
   return nowMs - last >= retryBackoffMs(candidate.automaticRetryCount, random);
@@ -409,10 +417,21 @@ async function settle(actorRequest, candidateId, nowMs, startedFrom, result) {
     return { kind: 'deferred', errorCode };
   }
 
-  // An abort returns the candidate to `queued` rather than failing it. The user
-  // (or an actor switch) cancelled the work; nothing about the candidate is wrong.
+  // An abort returns the candidate to a PRISTINE `queued` state — no error code.
+  //
+  // Nothing about the candidate is wrong: the user navigated away, switched
+  // actors, or cancelled. Leaving `candidate_request_aborted` on the record would
+  // be worse than useless, because the queue skips any candidate whose error is
+  // not automatically retryable — so navigating away mid-classification would
+  // strand the candidate in `queued` forever, with no retry affordance, looking
+  // like it was simply never picked up.
   if (errorCode === 'candidate_request_aborted') {
-    await transitionClosetCandidate(actorRequest, candidateId, { to: 'queued', errorCode }, { nowMs });
+    await transitionClosetCandidate(
+      actorRequest,
+      candidateId,
+      { to: 'queued', errorCode: null },
+      { nowMs },
+    );
     emitClosetCandidateEvent('closet_candidate_request_aborted', { aborted: true, errorCode });
     return { kind: 'deferred', errorCode };
   }
@@ -453,16 +472,51 @@ export async function runClosetCandidateQueue(actorRequest, options = {}) {
   const listed = await listClosetCandidates(actorRequest, { nowMs });
   if (!listed.ok) return { ok: false, errorCode: listed.errorCode, started: 0 };
 
-  const pending = listed.candidates.filter((candidate) => {
-    if (candidate.status !== 'queued' && candidate.status !== 'waiting_for_network') return false;
-    if (inFlight.has(candidate.candidateId)) return false;
-    // A candidate whose previous failure is not automatically retryable waits for
-    // an explicit manual retry — re-running it would spend an identification unit
-    // on an outcome that is already determined.
-    if (candidate.errorCode && !isAutomaticallyRetryable(candidate.errorCode)) return false;
-    if (!hasAutomaticBudget(candidate)) return false;
-    return isRetryEligible(candidate, nowMs, options.random);
-  });
+  const waiting = listed.candidates.filter(
+    (candidate) =>
+      (candidate.status === 'queued' || candidate.status === 'waiting_for_network') &&
+      !inFlight.has(candidate.candidateId),
+  );
+
+  /**
+   * PERMANENTLY ineligible for automatic work — as distinct from merely inside a
+   * backoff window.
+   *
+   * Either the automatic budget is spent, or the last failure is one that
+   * retrying cannot fix (re-running it would spend an identification unit on an
+   * outcome that is already determined).
+   */
+  const isPermanentlyIneligible = (candidate) =>
+    !hasAutomaticBudget(candidate) ||
+    (candidate.errorCode && !isAutomaticallyRetryable(candidate.errorCode));
+
+  /**
+   * Move permanently-ineligible pending candidates to `failed`.
+   *
+   * WITHOUT THIS THEY STRAND. A candidate the runner will never pick up again is
+   * still displayed as `queued` — "Waiting to start" — and `queued` offers no
+   * retry affordance, because `queued -> queued` is a self-transition the state
+   * machine rejects. So the user would watch something wait forever with no way
+   * to act on it. `failed` is the honest state: it carries the real reason and it
+   * is the one state a manual retry can legally leave.
+   */
+  for (const candidate of waiting) {
+    if (!isPermanentlyIneligible(candidate)) continue;
+    await transitionClosetCandidate(
+      actorRequest,
+      candidate.candidateId,
+      {
+        to: 'failed',
+        errorCode: candidate.errorCode ?? 'classification_provider_failed',
+      },
+      { nowMs },
+    );
+  }
+
+  const pending = waiting.filter(
+    (candidate) =>
+      !isPermanentlyIneligible(candidate) && isRetryEligible(candidate, nowMs, options.random),
+  );
 
   // Oldest first: a candidate that has waited longest is the one the user is most
   // likely still expecting.

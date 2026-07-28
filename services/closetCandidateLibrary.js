@@ -666,7 +666,11 @@ export async function transitionClosetCandidate(
       if (transition.attempt === 'manual' || transition.attempt === 'automatic') {
         draft.attemptCount = (current.attemptCount ?? 0) + 1;
         draft.lastAttemptAt = new Date(nowMs).toISOString();
-        if (transition.attempt === 'automatic') {
+        // A RETRY is an attempt that is not the first. Incrementing on the first
+        // automatic attempt too would spend one of the two retries before
+        // anything had failed, giving 2 automatic attempts where the policy is 1
+        // attempt + 2 retries = 3.
+        if (transition.attempt === 'automatic' && (current.attemptCount ?? 0) >= 1) {
           draft.automaticRetryCount = (current.automaticRetryCount ?? 0) + 1;
         }
       }

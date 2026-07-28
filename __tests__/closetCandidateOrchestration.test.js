@@ -473,6 +473,7 @@ test('an in-flight request is aborted and the candidate returns to queued', asyn
   assert.equal(outcome.errorCode, 'candidate_request_aborted');
   const after = await reload(env, req, candidate.candidateId);
   assert.equal(after.status, 'queued', 'a cancelled candidate is not a failed candidate');
+  assert.equal(after.errorCode, null, 'a cancellation leaves no error on the record');
 });
 
 test('actor A -> actor B mid-request: the late completion writes to NEITHER actor', async () => {
@@ -607,7 +608,10 @@ test('a retryable failure fails the candidate and is picked up by the next queue
   assert.equal(outcome.errorCode, 'classification_rate_limited');
   const after = await reload(env, req, candidate.candidateId);
   assert.equal(after.status, 'failed');
-  assert.equal(after.automaticRetryCount, 1);
+  assert.equal(after.attemptCount, 1);
+  // The FIRST automatic attempt is not a retry. Counting it would spend one of
+  // the two retries before anything had failed.
+  assert.equal(after.automaticRetryCount, 0);
 });
 
 test('automatic retry stops at the budget and never spends a fourth attempt', async () => {
@@ -630,9 +634,77 @@ test('automatic retry stops at the budget and never spends a fourth attempt', as
   }
 
   const after = await reload(env, req, candidate.candidateId);
-  assert.equal(after.automaticRetryCount, 2, 'exactly MAX_AUTOMATIC_RETRIES automatic attempts');
-  assert.ok(after.attemptCount <= 3, `attemptCount ${after.attemptCount} exceeded the total budget`);
-  assert.equal(env.transport.calls.length, 2);
+  // 1 initial automatic attempt + MAX_AUTOMATIC_RETRIES retries = 3 total.
+  assert.equal(after.automaticRetryCount, 2, 'exactly MAX_AUTOMATIC_RETRIES retries');
+  assert.equal(after.attemptCount, 3, 'exactly MAX_TOTAL_ATTEMPTS automatic attempts');
+  assert.equal(env.transport.calls.length, 3);
+  // And it ends visibly actionable rather than silently parked.
+  assert.equal(after.status, 'failed');
+});
+
+test('an aborted candidate resumes on the next pass instead of stranding', async () => {
+  const env = load();
+  env.connectivity.resetClosetConnectivityProvider();
+  env.transport.handler = (options, signal) =>
+    new Promise((resolve) => {
+      signal.addEventListener('abort', () => resolve({ status: 'failed' }));
+    });
+
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const candidate = await stage(env, req, '/picker/a.jpg');
+
+  const pending = env.classification.classifyClosetCandidate(req, candidate.candidateId);
+  while (env.classification.inFlightClosetClassificationCount() === 0) {
+    await new Promise((r) => setImmediate(r));
+  }
+  env.classification.cancelAllClosetClassifications();
+  await pending;
+
+  const aborted = await reload(env, req, candidate.candidateId);
+  assert.equal(aborted.status, 'queued');
+  // A pristine queue entry: an aborted request is work not done, not work failed.
+  // Carrying `candidate_request_aborted` here would make the runner skip it
+  // forever, because that code is not automatically retryable.
+  assert.equal(aborted.errorCode, null);
+
+  // Navigating back re-runs the queue and the candidate simply resumes.
+  env.transport.handler = async () => ({ status: 'completed', identificationV2: okResult() });
+  const pass = await env.classification.runClosetCandidateQueue(req, {
+    nowMs: Date.now() + 120_000,
+  });
+  assert.equal(pass.started, 1);
+  assert.equal((await reload(env, req, candidate.candidateId)).status, 'ready_for_review');
+});
+
+test('a pending candidate the runner will never pick up is failed, never stranded', async () => {
+  const env = load();
+  env.connectivity.resetClosetConnectivityProvider();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const candidate = await stage(env, req, '/picker/a.jpg');
+
+  // A queued candidate carrying a failure that retrying cannot fix.
+  await env.store.transitionClosetCandidate(req, candidate.candidateId, {
+    to: 'failed',
+    errorCode: 'classification_quota_exhausted',
+  });
+  await env.store.transitionClosetCandidate(req, candidate.candidateId, {
+    to: 'queued',
+    errorCode: 'classification_quota_exhausted',
+  });
+
+  const pass = await env.classification.runClosetCandidateQueue(req);
+  assert.equal(pass.started, 0);
+  assert.equal(env.transport.calls.length, 0);
+
+  const after = await reload(env, req, candidate.candidateId);
+  // `queued` offers no retry affordance and `queued -> queued` is illegal, so
+  // leaving it there would be a permanent dead end for the user.
+  assert.equal(after.status, 'failed');
+  assert.equal(after.errorCode, 'classification_quota_exhausted');
+  // `failed -> queued` is the legal manual-retry edge, so the user is not stuck.
+  assert.equal((await env.store.retryClosetCandidate(req, candidate.candidateId)).ok, true);
 });
 
 test('a non-retryable failure is never automatically retried', async () => {
@@ -668,6 +740,10 @@ test('a non-retryable failure is never automatically retried', async () => {
   });
   assert.equal(second.started, 0);
   assert.equal(env.transport.calls.length, before, 'a contract rejection was retried');
+  // It is returned to `failed` so the user still has a visible, actionable state.
+  const settled = await reload(env, req, candidate.candidateId);
+  assert.equal(settled.status, 'failed');
+  assert.equal(settled.errorCode, 'classification_contract_rejected');
 });
 
 test('the UI does not offer retry for a failure retrying cannot fix', () => {
