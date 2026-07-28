@@ -1,10 +1,17 @@
-// Scanner-only evidence gateway (Phase 2B.2).
+// Scanner evidence gateway (Phase 2B.2, re-based on the shared gateway in 2B.3).
 //
-// WHAT THIS IS: the single boundary between the existing Phase 2A.5 clean-frame
-// preparation and the fashion-identification-v2 transport. Every Scanner image —
-// camera, gallery, each image of an Android batch — becomes exactly one
-// PreparedScannerEvidence here, and nothing else in Scanner is allowed to build
-// a transport evidence object.
+// WHAT THIS IS: Scanner's view of the single boundary between the existing
+// Phase 2A.5 clean-frame preparation and the fashion-identification-v2
+// transport. Every Scanner image — camera, gallery, each image of an Android
+// batch — becomes exactly one PreparedScannerEvidence here, and nothing else in
+// Scanner is allowed to build a transport evidence object.
+//
+// WHAT CHANGED IN 2B.3: id minting, id validation and derivative wrapping moved
+// to `fashionEvidenceGateway.ts` so Elise consumes the same code rather than a
+// copy. Scanner's public API is unchanged — every symbol below kept its name,
+// signature and behaviour, and `PreparedScannerEvidence` still narrows `source`
+// to the two values Scanner can actually produce. This file is now the
+// Scanner-shaped view of the shared boundary, not a second implementation.
 //
 // WHAT THIS IS NOT: an image pipeline. Orientation, resizing, compression, MIME
 // resolution, metadata stripping and payload-size enforcement already happened
@@ -12,21 +19,22 @@
 // would produce a second derivative, which is exactly the correlation bug this
 // boundary exists to prevent: the bytes detection ran on must be the bytes the
 // selected-item request re-sends.
-//
-// SCANNER ONLY. Elise's attachment path does not route through this module and
-// its behaviour is unchanged by Phase 2B.2.
 
-import * as ExpoCrypto from 'expo-crypto';
+import {
+  createEvidenceId,
+  EVIDENCE_ID_PATTERN,
+  isValidEvidenceId,
+  prepareFashionEvidence,
+} from './fashionEvidenceGateway';
+
+export { createEvidenceId, EVIDENCE_ID_PATTERN, isValidEvidenceId };
 
 /**
- * The contract's evidence-id format. Deliberately an allowlist rather than a
- * blocklist: `[A-Za-z0-9-]` cannot express a `file://`/`content://`/`ph://`
- * URI, a Windows path, a bare filename with an extension, an email, or a query
- * string, so an entire class of accidental PII leaks is excluded by
- * construction rather than by remembering to strip each shape.
+ * Scanner captures from a camera or a gallery. `header_gallery` exists in the
+ * shared type for Elise's multi-reference intake and is deliberately not
+ * reachable from Scanner: narrowing here means a Scanner caller cannot pass one
+ * by accident and end up sending an Elise entry path.
  */
-export const EVIDENCE_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
-
 export type ScannerEvidenceSource = 'camera' | 'gallery';
 
 /**
@@ -44,41 +52,6 @@ export type PreparedScannerEvidence = {
   source: ScannerEvidenceSource;
 };
 
-/**
- * Cryptographically strong evidence id.
- *
- * Mirrors the proven secure-random chain already used for collaboration
- * idempotency keys (Web Crypto → expo-crypto UUID → expo-crypto random bytes),
- * because Hermes may ship without global Web Crypto. A v4 UUID is 36 chars of
- * `[0-9a-f-]`, so it satisfies EVIDENCE_ID_PATTERN.
- *
- * Never derived from a filename, path, timestamp, asset id, user id, or an
- * image hash: all of those are either correlatable across sessions or carry
- * user data into a field that is echoed back in responses.
- */
-export function createEvidenceId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  if (typeof ExpoCrypto.randomUUID === 'function') {
-    return ExpoCrypto.randomUUID();
-  }
-  const bytes = ExpoCrypto.getRandomBytes(16);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-export function isValidEvidenceId(value: unknown): value is string {
-  return typeof value === 'string' && EVIDENCE_ID_PATTERN.test(value);
-}
-
-/** Strips a data-URI prefix so only raw base64 crosses the boundary. */
-function toRawBase64(image: string): string {
-  return image.replace(/^data:[^;]+;base64,/, '').trim();
-}
-
 export type PrepareScannerEvidenceInput = {
   /** The already-prepared Phase 2A.5 derivative (data URI or raw base64). */
   preparedImage: string;
@@ -94,7 +67,7 @@ export type PrepareScannerEvidenceInput = {
 };
 
 /**
- * Wraps one already-prepared derivative as transport-ready evidence.
+ * Wraps one already-prepared derivative as transport-ready Scanner evidence.
  *
  * Returns null rather than throwing when the derivative is unusable: an empty
  * or malformed image is a controlled Scanner outcome, not an exception the
@@ -103,25 +76,11 @@ export type PrepareScannerEvidenceInput = {
 export function prepareScannerEvidence(
   input: PrepareScannerEvidenceInput,
 ): PreparedScannerEvidence | null {
-  if (!input || typeof input.preparedImage !== 'string') return null;
-  const imageBase64 = toRawBase64(input.preparedImage);
-  if (!imageBase64) return null;
-
-  // A caller-supplied id is only honoured when it is genuinely a valid evidence
-  // id. Silently accepting a URI or filename here is precisely how a local path
-  // would reach the wire.
-  const evidenceId = isValidEvidenceId(input.evidenceId)
-    ? input.evidenceId
-    : createEvidenceId();
-
+  if (!input) return null;
+  // `source` is re-narrowed rather than forwarded blind: the shared gateway
+  // accepts `header_gallery`, and a Scanner evidence object must never claim it.
   const source: ScannerEvidenceSource = input.source === 'gallery' ? 'gallery' : 'camera';
-
-  return {
-    evidenceId,
-    imageBase64,
-    mimeType: 'image/jpeg',
-    ...(Number.isFinite(input.width) ? { width: Math.trunc(input.width as number) } : {}),
-    ...(Number.isFinite(input.height) ? { height: Math.trunc(input.height as number) } : {}),
-    source,
-  };
+  const prepared = prepareFashionEvidence({ ...input, source });
+  if (!prepared) return null;
+  return { ...prepared, source };
 }

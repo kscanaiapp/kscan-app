@@ -45,17 +45,42 @@ function loadTsModule(relativePath, requireMap = {}) {
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
+/**
+ * Source with comments removed.
+ *
+ * The intent assertions below are about what the code SENDS. Reading raw source
+ * would also match a comment that merely explains the architecture — which is how
+ * "Elise must never reference the shopping intent" would fail on a doc block
+ * describing why Scanner uses it. Stripping comments keeps the assertion pointed
+ * at behaviour.
+ */
+function readCode(rel) {
+  return read(rel)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
 // Deterministic secure-random substitute. The real generator is crypto-backed,
 // which would make evidence-id assertions unstable.
 let cryptoCounter = 0;
 const contractTypes = loadTsModule('types/fashionIdentificationV2.ts', {});
-const evidenceGateway = loadTsModule('services/scannerEvidenceGateway.ts', {
+// Phase 2B.3 re-based the Scanner gateway onto the shared one. Scanner's own
+// public API is unchanged, so every assertion below still runs against
+// `services/scannerEvidenceGateway.ts` — only the module graph beneath it grew.
+const sharedEvidenceGateway = loadTsModule('services/fashionEvidenceGateway.ts', {
   'expo-crypto': {
     getRandomBytes: (n) => {
       cryptoCounter += 1;
       return Uint8Array.from({ length: n }, (_, i) => (i * 31 + cryptoCounter * 7) & 0xff);
     },
   },
+});
+const sharedV2Core = loadTsModule('services/fashionIdentificationV2Core.ts', {
+  '../types/fashionIdentificationV2': contractTypes,
+  './fashionEvidenceGateway': sharedEvidenceGateway,
+});
+const evidenceGateway = loadTsModule('services/scannerEvidenceGateway.ts', {
+  './fashionEvidenceGateway': sharedEvidenceGateway,
 });
 const snapshotModule = loadTsModule('services/identificationSnapshot.ts', {
   '../types/scanIdentification': {},
@@ -69,6 +94,7 @@ function loadAdapter(flagEnabled) {
   return loadTsModule('services/scannerIdentificationV2.ts', {
     '../types/fashionIdentificationV2': contractTypes,
     './scannerEvidenceGateway': evidenceGateway,
+    './fashionIdentificationV2Core': sharedV2Core,
     '../constants/featureFlags': {
       resolveScannerIdentificationV2Enabled: () => flagEnabled,
     },
@@ -991,11 +1017,77 @@ test('isolation: Elise and StyleChat never construct a Scanner V2 request', () =
   assert.ok(eliseFiles.length > 0, 'the Elise intake surface must exist to be audited');
   for (const rel of eliseFiles) {
     const source = read(rel);
-    assert.doesNotMatch(source, /contractRequestV2/, `${rel} must not send a V2 envelope`);
+    assert.doesNotMatch(source, /contractRequestV2/, `${rel} must not send a V2 envelope directly`);
     assert.doesNotMatch(source, /runScannerIdentification/, `${rel} must not use the Scanner adapter`);
     assert.doesNotMatch(source, /scannerEvidenceGateway/, `${rel} must not use the Scanner evidence gateway`);
-    assert.doesNotMatch(source, /identify_for_style|identify_and_shop/, `${rel} must not set a contract intent yet`);
+    assert.doesNotMatch(source, /scannerIdentificationV2/, `${rel} must not use the Scanner V2 adapter`);
+    assert.doesNotMatch(source, /beginScannerV2Session/, `${rel} must not latch the Scanner flag`);
+    // Phase 2B.3 SUPERSEDES the Phase 2B.2 form of this assertion.
+    //
+    // 2B.2 required that Elise set no contract intent at all, because Elise had
+    // not been migrated. 2B.3 migrates it, so the invariant becomes the stronger
+    // one: Elise reaches the contract only through its OWN adapter, and the
+    // shopping intent must be unreachable from an Elise surface. Keeping the old
+    // "no intent" form would now assert that the migration did not happen.
+    assert.doesNotMatch(
+      readCode(rel),
+      /identify_and_shop/,
+      `${rel} must never reference the shopping intent in code`,
+    );
   }
+});
+
+test('isolation: Elise reaches scan-identify only through the Elise adapter', () => {
+  // The Elise adapter is the only module allowed to name the style intent, and it
+  // writes the constant itself rather than accepting one from a caller — so there
+  // is no argument any Elise surface could pass to make Elise shop.
+  const adapterSource = readCode('services/style-chat/eliseIdentificationV2.ts');
+  assert.match(
+    adapterSource,
+    /export const ELISE_INTENT = 'identify_for_style' as const;/,
+    'the Elise intent is a module constant',
+  );
+  assert.match(adapterSource, /intent: ELISE_INTENT,/, 'the request writes the constant');
+  assert.doesNotMatch(
+    adapterSource,
+    /identify_and_shop/,
+    'the Elise adapter must never name the shopping intent',
+  );
+  // `intent` must not be an input field: an intent parameter is precisely how a
+  // caller could smuggle the shopping intent through an Elise request.
+  assert.doesNotMatch(
+    adapterSource,
+    /^\s*intent\??:\s*Fashion/m,
+    'EliseV2RequestInput must not accept an intent',
+  );
+
+  // Elise's orchestrator must not delegate to the Scanner request builder, which
+  // would inject the shopping intent no matter what the Elise surface intended.
+  const orchestratorSource = readCode('services/style-chat/eliseIdentifyForStyle.ts');
+  assert.doesNotMatch(orchestratorSource, /buildScannerV2Request/);
+  assert.doesNotMatch(orchestratorSource, /runScannerIdentification/);
+  assert.doesNotMatch(orchestratorSource, /SCANNER_INTENT/);
+  assert.doesNotMatch(orchestratorSource, /identify_and_shop/);
+});
+
+test('isolation: the Elise and Scanner rollout flags are independent', () => {
+  const flags = read('constants/featureFlags.ts');
+  assert.match(flags, /EXPO_PUBLIC_ELISE_IDENTIFICATION_V2_ENABLED/);
+  assert.match(flags, /EXPO_PUBLIC_SCANNER_IDENTIFICATION_V2_ENABLED/);
+  // Neither resolver may read the other's variable: one flag enabling the other
+  // consumer is the coupling this separation exists to prevent.
+  const eliseResolver = flags.slice(flags.indexOf('resolveEliseIdentificationV2Enabled'));
+  assert.doesNotMatch(
+    eliseResolver.slice(0, 400),
+    /EXPO_PUBLIC_SCANNER_IDENTIFICATION_V2_ENABLED/,
+    'the Elise flag must not read the Scanner variable',
+  );
+  const scannerResolverIndex = flags.indexOf('resolveScannerIdentificationV2Enabled(');
+  assert.doesNotMatch(
+    flags.slice(scannerResolverIndex, scannerResolverIndex + 400),
+    /EXPO_PUBLIC_ELISE_IDENTIFICATION_V2_ENABLED/,
+    'the Scanner flag must not read the Elise variable',
+  );
 });
 
 test('isolation: the shared transport keeps legacy behaviour when no V2 envelope is passed', () => {

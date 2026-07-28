@@ -45,15 +45,28 @@ const multiImageScan = loadTsModule('services/multiImageScan.ts', {
 // exercises the actual request builder, validator and fallback policy rather
 // than a re-implementation of them. Only the transport is stubbed.
 const fashionIdentificationV2Types = loadTsModule('types/fashionIdentificationV2.ts', {});
-const scannerEvidenceGateway = loadTsModule('services/scannerEvidenceGateway.ts', {
+// Phase 2B.3 re-based the Scanner gateway and adapter onto the shared, intent-
+// neutral modules so Elise consumes the same code rather than a copy. Scanner's
+// public API is unchanged, so every assertion below still runs against
+// `scannerEvidenceGateway` / `scannerIdentificationV2` — only the module graph
+// beneath them grew.
+const sharedEvidenceGateway = loadTsModule('services/fashionEvidenceGateway.ts', {
   'expo-crypto': {
     randomUUID: undefined,
     getRandomBytes: (n) => Uint8Array.from({ length: n }, (_, i) => (i * 37 + 11) & 0xff),
   },
 });
+const sharedV2Core = loadTsModule('services/fashionIdentificationV2Core.ts', {
+  '../types/fashionIdentificationV2': fashionIdentificationV2Types,
+  './fashionEvidenceGateway': sharedEvidenceGateway,
+});
+const scannerEvidenceGateway = loadTsModule('services/scannerEvidenceGateway.ts', {
+  './fashionEvidenceGateway': sharedEvidenceGateway,
+});
 const scannerIdentificationV2 = loadTsModule('services/scannerIdentificationV2.ts', {
   '../types/fashionIdentificationV2': fashionIdentificationV2Types,
   './scannerEvidenceGateway': scannerEvidenceGateway,
+  './fashionIdentificationV2Core': sharedV2Core,
   '../constants/featureFlags': { resolveScannerIdentificationV2Enabled: () => false },
 });
 
