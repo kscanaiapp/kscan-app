@@ -322,6 +322,32 @@ function stateForStatus(result: FashionIdentificationResultV2): EliseIdentifyRes
 }
 
 /**
+ * Maps a DETECTION status onto the caller-facing outcome.
+ *
+ * `multiple_items_need_selection` is the backend's NORMAL answer to a
+ * `detect_items` request that found garments: `scan-identify` sets that outcome
+ * whenever the multi-item detection provider returned at least one candidate,
+ * and every V2 detection request enables that provider. It is a continue
+ * signal, not a failure.
+ *
+ * Routing it through `stateForStatus` would hit the `default` branch and
+ * classify each real multi-candidate detection as `technical_failure`,
+ * discarding the candidates the request just paid for — while Scanner, which
+ * does not map status to a state at all, carries the same candidates forward.
+ * That divergence is the defect; the two paths must read one canonical status
+ * the same way.
+ *
+ * Kept separate from `stateForStatus` because the selected-item stage is a
+ * different question: a SELECTION that came back "still needs selection" is
+ * genuinely anomalous and must stay a failure there.
+ */
+function detectionStateForStatus(result: FashionIdentificationResultV2): EliseIdentifyResultState {
+  return result.status === 'multiple_items_need_selection'
+    ? 'ready'
+    : stateForStatus(result);
+}
+
+/**
  * Identify ONE prepared image for styling.
  *
  * Runs detection, then resolves candidates according to `policy`, then runs one
@@ -402,7 +428,7 @@ export async function identifyPreparedImageForStyle(input: {
 
   // Detection itself may terminate the operation honestly: non-fashion and
   // insufficient evidence are real answers, not failures to work around.
-  const detectionState = stateForStatus(detection.identificationV2);
+  const detectionState = detectionStateForStatus(detection.identificationV2);
   if (detectionState === 'non_fashion' || detectionState === 'insufficient_evidence') {
     return { state: detectionState, identifications: [], candidates: [], fallbackUsed: false };
   }
