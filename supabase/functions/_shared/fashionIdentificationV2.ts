@@ -441,14 +441,15 @@ export function validateFashionIdentificationRequestV2(body: unknown): Validatio
       }
       normalizedTransport = { type: 'jpeg_base64', imageBase64 };
     } else if (transport.type === 'authorized_image_reference') {
-      const referenceId = str(transport.referenceId);
-      if (!referenceId) {
-        return fail('invalid_transport', 'authorized_image_reference transport requires referenceId.');
-      }
-      if (transport.imageBase64 !== undefined) {
-        return fail('invalid_transport', 'Exactly one transport may be used per evidence entry.');
-      }
-      normalizedTransport = { type: 'authorized_image_reference', referenceId };
+      // Declared by the contract but not yet adapted by any deployment: the
+      // request adapter maps only jpeg_base64 onto the internal request, so
+      // accepting this here would validate a request that then dies later as a
+      // generic "no image provided" failure. A bounded rejection at the
+      // contract boundary is the honest answer until the capability is served.
+      return fail(
+        'invalid_transport',
+        'authorized_image_reference transport is not yet served by this deployment.',
+      );
     } else {
       return fail('invalid_transport', 'Unknown transport type.');
     }
@@ -872,4 +873,19 @@ export function shouldRunCommerce(input: {
     return { run: false, skippedReason: 'insufficient_visual_evidence' };
   }
   return { run: true, skippedReason: null };
+}
+
+/**
+ * Whether a scan may persist Scanner-domain artifacts — per-user scan
+ * intelligence rows and commerce outcome rows.
+ *
+ * `identify_for_style` produces a styling context and nothing else: it must
+ * leave no per-user Scanner record behind, on success OR failure. An
+ * intelligence row carrying category/brand/colour for a style request is an
+ * implicit Recent-Scan-shaped artifact, and a commerce outcome row for a scan
+ * that ran no commerce is a false record. Quota accounting is usage, not an
+ * artifact, and is unaffected by this gate.
+ */
+export function shouldCaptureScanArtifacts(intent: FashionIdentificationIntent): boolean {
+  return intent !== 'identify_for_style';
 }

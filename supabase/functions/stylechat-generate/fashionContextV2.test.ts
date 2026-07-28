@@ -245,10 +245,12 @@ Deno.test('failed items are retained alongside groundable ones and counted hones
 Deno.test('items are ordered by sourceIndex regardless of array order', () => {
   const parsed = parseFashionContextV2(context({
     source: 'header_gallery',
+    // Markers use an ALLOWED field: `requestId` is transport correlation and is
+    // now a forbidden key at every depth, exactly as on the client.
     items: [
-      { sourceIndex: 2, state: 'ready', identification: identification({ requestId: 'third' }) },
-      { sourceIndex: 0, state: 'ready', identification: identification({ requestId: 'first' }) },
-      { sourceIndex: 1, state: 'ready', identification: identification({ requestId: 'second' }) },
+      { sourceIndex: 2, state: 'ready', identification: identification({ subtype: 'Third Jacket' }) },
+      { sourceIndex: 0, state: 'ready', identification: identification({ subtype: 'First Jacket' }) },
+      { sourceIndex: 1, state: 'ready', identification: identification({ subtype: 'Second Jacket' }) },
     ],
   }));
   assertEquals(parsed.ok, true);
@@ -289,8 +291,8 @@ Deno.test('the block keeps items distinct and forbids merging', () => {
   const parsed = parseFashionContextV2(context({
     source: 'header_gallery',
     items: [
-      { sourceIndex: 0, state: 'ready', identification: identification({ requestId: 'a' }) },
-      { sourceIndex: 1, state: 'ready', identification: identification({ requestId: 'b' }) },
+      { sourceIndex: 0, state: 'ready', identification: identification() },
+      { sourceIndex: 1, state: 'ready', identification: identification() },
     ],
   }));
   assertEquals(parsed.ok, true);
@@ -490,7 +492,7 @@ Deno.test('imperative text inside a value is neutralized as inert data', () => {
 });
 
 Deno.test('control characters and runaway whitespace are normalized', () => {
-  const messy = identification({ subtype: '  Chore    Jacket  ' });
+  const messy = identification({ subtype: '  Chore\u0000\u001f   Jacket  ' });
   const parsed = parseFashionContextV2(context({
     items: [{ sourceIndex: 0, state: 'ready', identification: messy }],
   }));
@@ -505,4 +507,84 @@ Deno.test('an empty groundable set yields no block rather than an empty one', ()
     buildFashionContextBlock({ source: 'direct_gallery', items: [], groundable: [] }),
     null,
   );
+});
+
+// ── Phase 2B.3 hostile-audit hardening proofs ───────────────────────────────
+
+Deno.test('a REJECTED context disables independent image classification', () => {
+  // A malformed present field parses to no context PLUS a rejection code. That
+  // combination must not be classified independently: the client claimed
+  // canonical grounding and the claim failed, which is a bounded failure — not
+  // an absent field.
+  assertEquals(allowsIndependentImageClassification(null, 'FASHION_CONTEXT_VERSION'), false);
+  // Absent field (no rejection code) keeps the pre-2B.3 behaviour exactly.
+  assertEquals(allowsIndependentImageClassification(null, null), true);
+  assertEquals(allowsIndependentImageClassification(null), true);
+});
+
+Deno.test('a whole raw canonical FashionIdentificationResultV2 is refused', () => {
+  const canonical = {
+    contractVersion: 'fashion-identification-v2',
+    requestId: 'fidv2_req_1',
+    status: 'completed',
+    item: { category: 'outerwear', subtype: 'chore jacket' },
+    evidence: [{ evidenceId: 'evidence-1', sequenceIndex: 0 }],
+    candidates: [{ candidateId: 'cand-1', bounds: { x: 0, y: 0, width: 1, height: 1 } }],
+    compatibility: { globalConfidence: 0.9 },
+  };
+  const parsed = parseFashionContextV2(canonical);
+  assertEquals(parsed.ok, false);
+  if (!parsed.ok) assertEquals(parsed.code, 'FASHION_CONTEXT_FORBIDDEN_FIELD');
+});
+
+Deno.test('evidenceIds (plural) nested inside a conflicts element is refused', () => {
+  const parsed = parseFashionContextV2(context({
+    items: [{
+      sourceIndex: 0,
+      state: 'ready',
+      identification: identification({
+        conflicts: [{ field: 'brand', description: 'two logos', evidenceIds: ['evidence-1'] }],
+      }),
+    }],
+  }));
+  assertEquals(parsed.ok, false);
+  if (!parsed.ok) assertEquals(parsed.code, 'FASHION_CONTEXT_FORBIDDEN_FIELD');
+});
+
+Deno.test('commerce content inside an allowed string field is refused server-side', () => {
+  for (const hostile of [
+    'https://shop.example/buy-now',
+    'available at www.retailer.com today',
+    'a steal at $129',
+    'priced 129.00 USD',
+  ]) {
+    const parsed = parseFashionContextV2(context({
+      items: [{
+        sourceIndex: 0,
+        state: 'ready',
+        identification: identification({
+          attributes: {
+            fit: hostile, length: null, sleeve: null, neckline: null, collar: null,
+            closure: null, pockets: [], visible: [], distinctive: [],
+          },
+        }),
+      }],
+    }));
+    assertEquals(parsed.ok, false, `expected rejection for: ${hostile}`);
+    if (!parsed.ok) assertEquals(parsed.code, 'FASHION_CONTEXT_FORBIDDEN_FIELD');
+  }
+});
+
+Deno.test('the canonical identity block is assembled AFTER the attachment blocks', async () => {
+  // Source-level order assertion, matching this suite's governance style: in
+  // the prompt assembly, the fashion identity block must come after the
+  // attachment instruction/context entries so it is the final word on identity.
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const assembly = source.indexOf('const systemTextWithAttachments = [');
+  assertEquals(assembly >= 0, true);
+  const window = source.slice(assembly, assembly + 600);
+  const attachmentIdx = window.indexOf('attachmentContextBlock');
+  const fashionIdx = window.indexOf('fashionContextBlock');
+  assertEquals(attachmentIdx >= 0, true);
+  assertEquals(fashionIdx > attachmentIdx, true);
 });

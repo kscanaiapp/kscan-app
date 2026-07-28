@@ -1966,25 +1966,28 @@ Deno.serve(async (req) => {
   const fashionContextBlock = fashionContextV2
     ? buildFashionContextBlock(fashionContextV2)
     : null;
-  const systemTextForModel = fashionContextBlock
-    ? `${systemTextForModelWithAdvice}\n\n${fashionContextBlock}`
-    : systemTextForModelWithAdvice;
 
   // ── V2: verified attachment context + structured-action instructions ─────────
   // Attachment-free messages (v1 AND v2-without-attachments) keep the exact v1
-  // prompt: this block is appended only when verified attachments exist.
+  // prompt: these blocks are appended only when verified attachments exist —
+  // and the canonical identity block is appended AFTER them, so the attachment
+  // descriptors (which carry their own per-item category/brand text) can never
+  // be read as qualifying or superseding the authoritative identity.
   const attachmentContextBlock =
     resolvedAttachments.length > 0 ? buildAttachmentContextBlock(resolvedAttachments) : null;
-  const systemTextWithAttachments = attachmentContextBlock
-    ? [
-        systemTextForModel,
-        ATTACHMENT_INSTRUCTIONS,
-        attachmentContextBlock,
-        contextHint ? `[Context hint from the user's flow: ${contextHint}]` : null,
-      ]
-        .filter(Boolean)
-        .join('\n\n')
-    : systemTextForModel;
+  const systemTextWithAttachments = [
+    systemTextForModelWithAdvice,
+    ...(attachmentContextBlock
+      ? [
+          ATTACHMENT_INSTRUCTIONS,
+          attachmentContextBlock,
+          contextHint ? `[Context hint from the user's flow: ${contextHint}]` : null,
+        ]
+      : []),
+    fashionContextBlock,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   // Map history to Gemini conversation turns.
   // Gemini requires alternating user/model turns; merge consecutive same-role messages.
@@ -2023,11 +2026,18 @@ Deno.serve(async (req) => {
   // authoritative one. The identity block above is the answer; pixels add nothing
   // to it.
   let inspectedImageCount = 0;
-  const mayInspectImages = allowsIndependentImageClassification(fashionContextV2);
+  // A REJECTED context also disables independent inspection: the request
+  // claimed canonical grounding and the claim was refused, which is a bounded
+  // failure — not an invitation to classify the image a second time.
+  const mayInspectImages = allowsIndependentImageClassification(
+    fashionContextV2,
+    fashionContextError,
+  );
   if (!mayInspectImages) {
     console.log(
-      '[stylechat-generate] multimodal skipped uid=%s reason=canonical_fashion_context',
+      '[stylechat-generate] multimodal skipped uid=%s reason=%s',
       userId.slice(0, 8),
+      fashionContextError !== null ? 'fashion_context_rejected' : 'canonical_fashion_context',
     );
   }
   if (mayInspectImages && resolvedAttachments.length > 0 && requiresImageInspection(message)) {

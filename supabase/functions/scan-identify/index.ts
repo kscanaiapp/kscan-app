@@ -72,6 +72,7 @@ import {
 } from './v2Activation.ts';
 import {
   normalizeToV2,
+  shouldCaptureScanArtifacts,
   type FashionIdentificationResultV2,
 } from '../_shared/fashionIdentificationV2.ts';
 import {
@@ -121,7 +122,7 @@ import {
   TEXTSCAN_COMMERCE_PARITY_VERSION,
 } from './textScanCommerceParityConfig.ts';
 import {
-  captureCommerceOutcome,
+  captureCommerceOutcome as persistCommerceOutcomeRow,
 } from './commerceOutcomeCapture.ts';
 import {
   buildRoutedIdentifyPrompt,
@@ -1617,6 +1618,18 @@ Deno.serve(async (req) => {
   const internalRequest: InternalScanRequest = contractRoute.internal;
   const isV2Request = contractRoute.kind === 'v2';
 
+  // Style-intent scans persist NO Scanner-domain artifacts — no per-user scan
+  // intelligence row, no commerce outcome row, on success or failure. The gate
+  // wraps the capture entry points once so every existing call site inherits
+  // it; quota accounting is usage, not an artifact, and is not gated here.
+  const captureScanArtifacts = shouldCaptureScanArtifacts(internalRequest.intent);
+  const captureCommerceOutcome: typeof persistCommerceOutcomeRow = (input, envGet) => {
+    if (!captureScanArtifacts) {
+      return Promise.resolve({ attempted: false, ok: true, reason: 'style_intent' as string | null });
+    }
+    return persistCommerceOutcomeRow(input, envGet);
+  };
+
   // A V2 request carries `mode: detect_items | identify_selected_item`, which
   // collides with the legacy `mode: image | text`. V2 is always an image
   // request; its own mode travels in internalRequest.resolvedMode.
@@ -2544,7 +2557,7 @@ Deno.serve(async (req) => {
           },
         },
       );
-      if (mode === 'image' && auth.isAuthenticated) {
+      if (mode === 'image' && auth.isAuthenticated && captureScanArtifacts) {
         await captureImageModeScanIntelligence({
           scanId,
           userId,
@@ -3222,7 +3235,7 @@ Deno.serve(async (req) => {
         responseValidationOk: v2Validation.ok && unsafePath === null,
       }));
     }
-    if (mode === 'image' && auth.isAuthenticated) {
+    if (mode === 'image' && auth.isAuthenticated && captureScanArtifacts) {
       await captureImageModeScanIntelligence({
         scanId,
         userId,
