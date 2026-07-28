@@ -964,3 +964,100 @@ test('a duplicate-state candidate is never classified automatically', async () =
   assert.equal(queued.started, 0);
   assert.equal(env.transport.calls.length, 0);
 });
+
+// ── Latched-offline recovery (audit repair D) ────────────────────────────────
+
+test('a latched offline belief is escapable without an app restart', async () => {
+  const env = load();
+  // The REAL reactive default provider, not an injected stub: the defect being
+  // certified here lives in how that provider latches.
+  env.connectivity.resetClosetConnectivityProvider();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const candidate = await stage(env, req, '/picker/a.jpg');
+
+  // 1. One transport-level network failure latches the port offline.
+  env.transport.handler = async () => {
+    throw new Error('Network request failed');
+  };
+  await env.classification.classifyClosetCandidate(req, candidate.candidateId);
+  assert.equal((await reload(env, req, candidate.candidateId)).status, 'waiting_for_network');
+  assert.equal(env.connectivity.isClosetOnline instanceof Function, true);
+  assert.equal(await env.connectivity.isClosetOnline(), false, 'the port latched offline');
+
+  // 2. Connectivity is genuinely back.
+  env.transport.handler = async () => ({
+    status: 'completed',
+    identificationV2: okResult(),
+  });
+  const callsBeforeRecovery = env.transport.calls.length;
+
+  // 3. The BARE queue cannot recover: the offline preflight parks the candidate
+  //    again without ever touching the network. This is the defect.
+  const bare = await env.classification.runClosetCandidateQueue(req);
+  assert.equal(bare.started, 0);
+  assert.equal(
+    env.transport.calls.length,
+    callsBeforeRecovery,
+    'the bare queue never attempts a request while the belief is latched',
+  );
+  assert.equal((await reload(env, req, candidate.candidateId)).status, 'waiting_for_network');
+
+  // 4. The reconnect entry point — what focus and manual retry now call —
+  //    refreshes the belief first, so the candidate re-enters the bounded queue.
+  //    The clock is advanced past the retry backoff the spent attempt earned;
+  //    the backoff is orthogonal to the latch this test is about.
+  const recovered = await env.classification.requeueClosetCandidatesOnReconnect(req, {
+    nowMs: Date.now() + 5 * 60 * 1000,
+  });
+  assert.equal(recovered.ok, true);
+  assert.equal(recovered.started, 1);
+
+  // 5. Classification succeeds in the SAME session.
+  const settled = await reload(env, req, candidate.candidateId);
+  assert.equal(settled.status, 'ready_for_review');
+  assert.equal(settled.category, 'Outerwear');
+  assert.equal(await env.connectivity.isClosetOnline(), true);
+});
+
+test('the recovery pass stays bounded and does not resurrect determined failures', async () => {
+  const env = load();
+  env.connectivity.resetClosetConnectivityProvider();
+  const req = asActor(env.actorContext, 'user-a');
+
+  // Four parked candidates plus one that failed for a non-retryable reason.
+  const parked = [];
+  for (let i = 0; i < 4; i += 1) {
+    seedSource(env.m, `/picker/p${i}.jpg`);
+    parked.push((await stage(env, req, `/picker/p${i}.jpg`)).candidateId);
+  }
+  seedSource(env.m, '/picker/auth.jpg');
+  const authFailed = (await stage(env, req, '/picker/auth.jpg')).candidateId;
+
+  env.transport.handler = async () => ({ status: 'failed', httpStatus: 401 });
+  await env.classification.classifyClosetCandidate(req, authFailed);
+  assert.equal((await reload(env, req, authFailed)).errorCode, 'classification_auth_failed');
+
+  env.transport.handler = async () => {
+    throw new Error('Network request failed');
+  };
+  for (const id of parked) {
+    await env.classification.classifyClosetCandidate(req, id);
+  }
+
+  env.transport.handler = async () => ({
+    status: 'completed',
+    identificationV2: okResult(),
+  });
+  const callsBefore = env.transport.calls.length;
+  const pass = await env.classification.requeueClosetCandidatesOnReconnect(req, {
+    nowMs: Date.now() + 5 * 60 * 1000,
+  });
+
+  // Concurrency two is preserved by the recovery path.
+  assert.equal(pass.started, 2);
+  assert.equal(env.transport.calls.length - callsBefore, 2);
+  // The auth failure is never re-attempted by a reconnect.
+  assert.equal((await reload(env, req, authFailed)).status, 'failed');
+  assert.equal((await reload(env, req, authFailed)).errorCode, 'classification_auth_failed');
+});

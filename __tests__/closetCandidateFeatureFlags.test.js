@@ -188,6 +188,55 @@ test('the hook gates only write entry points, never reads or cleanup', () => {
   );
 });
 
+test('the hook drives the queue through the reconnect entry point, never the bare queue', () => {
+  // WHY THIS IS LOCKED: the default connectivity port latches offline on the
+  // first transport failure and only `requeueClosetCandidatesOnReconnect` clears
+  // that latch. A hook that calls `runClosetCandidateQueue` directly strands every
+  // parked candidate in `waiting_for_network` until the app is restarted — the
+  // behaviour proven recoverable in closetCandidateOrchestration.test.js. Screen
+  // focus and manual retry are the only foreground signals this build has, so
+  // both must go through the refresh.
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useClosetCandidates.js'), 'utf8');
+  const callSites = hook.match(/run(?:Closet)?CandidateQueue\(actorRequest\)/g) ?? [];
+  assert.equal(
+    callSites.length,
+    0,
+    'the hook must not call runClosetCandidateQueue directly; use the reconnect entry point',
+  );
+
+  const hydrate = hook.slice(hook.indexOf('const hydrate'), hook.indexOf('useFocusEffect(hydrate)'));
+  assert.ok(
+    hydrate.includes('requeueClosetCandidatesOnReconnect'),
+    'focus/foreground must refresh connectivity before running the queue',
+  );
+
+  const retry = hook.slice(hook.indexOf('const retry ='), hook.indexOf('const reject ='));
+  assert.ok(
+    retry.includes('requeueClosetCandidatesOnReconnect'),
+    'manual retry must refresh connectivity before running the queue',
+  );
+});
+
+test('the orphan-media sweep is actually wired, and is not flag-gated', () => {
+  // A collector nobody calls is the defect it was written to fix: media whose
+  // record is gone is unreachable by every reference-driven path, so if this
+  // call site disappears the files leak for the life of the install.
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useClosetCandidates.js'), 'utf8');
+  const hydrate = hook.slice(hook.indexOf('const hydrate'), hook.indexOf('useFocusEffect(hydrate)'));
+  assert.ok(
+    hydrate.includes('sweepOrphanedClosetCandidateMedia'),
+    'the sweep must run on focus/foreground',
+  );
+  const sweepLine = hydrate
+    .split('\n')
+    .find((line) => line.includes('await sweepOrphanedClosetCandidateMedia'));
+  assert.ok(sweepLine, 'failed to isolate the sweep call');
+  assert.ok(
+    !sweepLine.includes('CLOSET_CANDIDATE_STAGING_ACTIVE'),
+    'collecting orphaned files must not depend on the flag still being on',
+  );
+});
+
 // ── Feature freeze ───────────────────────────────────────────────────────────
 
 test('the existing mobile feature-freeze mechanism is extended, not duplicated', () => {

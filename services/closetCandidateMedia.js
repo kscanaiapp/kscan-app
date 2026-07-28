@@ -30,6 +30,9 @@ import { CLOSET_CANDIDATE_CONTENT_HASH_VERSION } from '../types/closetCandidate'
 
 export const CANDIDATE_DIR = FileSystem.documentDirectory + 'kscan_closet_candidates/';
 export const CANDIDATE_MANIFEST_PATH = CANDIDATE_DIR + 'kscan_closet_candidates.json';
+/** Staging and retention paths for the atomic manifest swap. */
+export const CANDIDATE_MANIFEST_TEMP_PATH = CANDIDATE_MANIFEST_PATH + '.tmp';
+export const CANDIDATE_MANIFEST_BACKUP_PATH = CANDIDATE_MANIFEST_PATH + '.bak';
 export const CANDIDATE_IMAGES_DIR = CANDIDATE_DIR + 'images/';
 export const CANDIDATE_THUMBS_DIR = CANDIDATE_DIR + 'thumbnails/';
 
@@ -368,6 +371,94 @@ export async function unlinkUnreferencedCandidateMedia(
     }
   }
   return failures;
+}
+
+/**
+ * Bounded orphan sweep over the candidate media roots.
+ *
+ * WHY THIS EXISTS: every other cleanup path is reference-driven — it can only
+ * remove a file some record still points at. Files whose record is gone are
+ * therefore unreachable by definition: media orphaned by a crash between the
+ * manifest write and the unlink, by an unlink that returned a failure nobody
+ * retried, or by a record that could not be migrated. Without a directory scan
+ * they accumulate for the life of the install.
+ *
+ * SAFETY RULES, in the order they matter:
+ *   - The caller must pass `manifestComplete: true`. A sweep driven by a partial
+ *     read would treat every record it could not interpret as absent and delete
+ *     media that is still owned. Refusing is the correct behaviour.
+ *   - Only the candidate-owned image and thumbnail roots are enumerated. The
+ *     committed Closet and Recent Scan roots are never listed, let alone deleted
+ *     from, and every path is re-checked with `isCandidateOwnedPath` anyway.
+ *   - A file younger than the grace period is kept: it may belong to an intake
+ *     that is mid-flight and has not yet been written into the manifest.
+ *   - Enumeration is optional. When the platform has no `readDirectoryAsync`,
+ *     the sweep reports `skipped` rather than guessing.
+ *
+ * Never throws. Returns a scrubbed, bounded result.
+ */
+export const CANDIDATE_ORPHAN_GRACE_MS = 10 * 60 * 1000;
+
+export async function sweepOrphanedCandidateMedia(survivingRecords, options = {}) {
+  const fs = options.FileSystem ?? FileSystem;
+  if (options.manifestComplete !== true) {
+    return { ok: false, skipped: true, reason: 'manifest_incomplete', deleted: 0, failed: 0 };
+  }
+  if (typeof fs.readDirectoryAsync !== 'function') {
+    return { ok: false, skipped: true, reason: 'unsupported', deleted: 0, failed: 0 };
+  }
+
+  const nowMs = typeof options.nowMs === 'number' ? options.nowMs : Date.now();
+  const graceMs =
+    typeof options.graceMs === 'number' ? options.graceMs : CANDIDATE_ORPHAN_GRACE_MS;
+
+  const referenced = new Set();
+  for (const record of Array.isArray(survivingRecords) ? survivingRecords : []) {
+    if (!record || typeof record !== 'object') continue;
+    for (const uri of [record.candidateImageUri, record.candidateThumbnailUri]) {
+      const canonical = canonicalizeMediaPath(uri);
+      if (canonical) referenced.add(canonical);
+    }
+  }
+
+  let deleted = 0;
+  let failed = 0;
+  for (const dir of [CANDIDATE_IMAGES_DIR, CANDIDATE_THUMBS_DIR]) {
+    let entries;
+    try {
+      entries = await fs.readDirectoryAsync(dir);
+    } catch {
+      // A root that does not exist yet has nothing to sweep.
+      continue;
+    }
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      if (typeof entry !== 'string' || !entry) continue;
+      const path = dir + entry;
+      // Belt and braces: the path was built from a candidate root, and is still
+      // re-verified before anything is deleted.
+      if (!isCandidateOwnedPath(path)) continue;
+      const canonical = canonicalizeMediaPath(path);
+      if (!canonical || referenced.has(canonical)) continue;
+
+      // In-progress intake protection.
+      try {
+        const info = await fs.getInfoAsync(path);
+        const modifiedMs =
+          typeof info?.modificationTime === 'number' ? info.modificationTime * 1000 : null;
+        if (modifiedMs !== null && nowMs - modifiedMs < graceMs) continue;
+      } catch {
+        continue;
+      }
+
+      try {
+        await fs.deleteAsync(path, { idempotent: true });
+        deleted += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+  }
+  return { ok: true, skipped: false, deleted, failed };
 }
 
 /** Test seam only. Not used by production code. */

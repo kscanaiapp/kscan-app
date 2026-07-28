@@ -29,7 +29,18 @@
  *
  * HONEST LIMITATION, recorded rather than papered over: without a reachability
  * API there is no push signal on reconnect. Recovery from `waiting_for_network`
- * is driven by app foreground, Closet screen focus, and the user's manual retry.
+ * is driven by Closet screen focus (this build's foreground signal), the user's
+ * manual retry, and a new intake — all three call
+ * `requeueClosetCandidatesOnReconnect`, which invokes `refresh()` below BEFORE
+ * the offline preflight runs.
+ *
+ * THAT WIRING IS LOAD-BEARING, NOT INCIDENTAL. `noteFailure` latches this port
+ * offline, and the preflight then parks candidates without issuing a request —
+ * so `noteSuccess` can never fire on its own. `refresh()` is the ONLY path back
+ * to optimism. A caller that runs the queue directly instead of going through
+ * the reconnect entry point strands every parked candidate until the app is
+ * restarted; `closetCandidateFeatureFlags.test.js` locks the call sites and
+ * `closetCandidateOrchestration.test.js` proves the recovery end to end.
  */
 
 /**

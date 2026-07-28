@@ -176,6 +176,14 @@ export const CLOSET_CANDIDATE_ERROR_CODES = [
   'candidate_store_corrupt',
   'candidate_persist_failed',
   'candidate_cleanup_failed',
+  // A record on disk declares a schema version this build cannot read. It is NOT
+  // corrupt — a newer build wrote it, and downgrading must not destroy it.
+  'candidate_store_future_schema',
+  // The manifest could not be read completely (unparseable, or one or more
+  // records were skipped). Mutations fail closed on this code rather than
+  // rewriting the manifest from the reduced set they were able to read, which
+  // would silently delete whatever the read could not interpret.
+  'candidate_store_recovery_required',
 ] as const;
 
 export type ClosetCandidateErrorCode = typeof CLOSET_CANDIDATE_ERROR_CODES[number];

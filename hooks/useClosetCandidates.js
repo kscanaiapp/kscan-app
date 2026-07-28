@@ -10,10 +10,11 @@ import {
   deleteClosetCandidate,
   cleanupExpiredClosetCandidates,
   recoverInterruptedClosetCandidates,
+  sweepOrphanedClosetCandidateMedia,
 } from '../services/closetCandidateLibrary';
 import { createClosetBatchId } from '../services/closetCandidateSchema';
 import {
-  runClosetCandidateQueue,
+  requeueClosetCandidatesOnReconnect,
   cancelAllClosetClassifications,
 } from '../services/closetCandidateClassification';
 import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
@@ -56,7 +57,17 @@ export function useClosetCandidates() {
    *   1. expire   — a lapsed candidate must never be recovered or requeued
    *   2. recover  — interrupted `classifying` records, bounded by interruptionCount
    *   3. list     — what the user sees
-   *   4. run      — at most two classifications, flag permitting
+   *   4. run      — at most two classifications, flag permitting, AFTER the
+   *                 connectivity port is given a chance to become optimistic again
+   *
+   * STEP 4 USES THE RECONNECT ENTRY POINT, NOT THE BARE QUEUE. The default
+   * connectivity provider is reactive: a transport failure latches it offline, and
+   * the only paths back to optimism are a completed request (which the offline
+   * preflight now prevents from ever being attempted) or an explicit refresh.
+   * Calling `runClosetCandidateQueue` directly here left that latch permanent for
+   * the rest of the session — every focus and every manual retry re-parked the
+   * candidate without ever touching the network. Screen focus IS the foreground
+   * signal this build has, so it is where the refresh belongs.
    */
   const hydrate = useCallback(() => {
     const requestGeneration = ++requestGenerationRef.current;
@@ -78,8 +89,16 @@ export function useClosetCandidates() {
         if (!isCurrent()) return;
         setSnapshot({ actorKey, candidates: result.ok ? result.candidates : [] });
         setLoading(false);
+        // Collect media whose record is already gone. Runs AFTER the list so it
+        // never delays what the user sees, and is flag-independent for the same
+        // reason cleanup is: files on disk must remain collectable after the
+        // flag is turned off. It refuses to run on a partial manifest read.
+        await sweepOrphanedClosetCandidateMedia(actorRequest);
+        if (!isCurrent()) return;
         if (CLOSET_CANDIDATE_STAGING_ACTIVE) {
-          await runClosetCandidateQueue(actorRequest);
+          // Bounded: one pass, concurrency two, actor epoch and expiry revalidated
+          // per candidate by the runner itself.
+          await requeueClosetCandidatesOnReconnect(actorRequest);
           if (!isCurrent()) return;
           await refresh();
         }
@@ -141,7 +160,10 @@ export function useClosetCandidates() {
         if (!isActorRequestCurrent(actorRequest)) return result;
         await refresh();
         if (result.kind === 'created') {
-          await runClosetCandidateQueue(actorRequest);
+          // Staging a photo is a deliberate foreground action, so it clears a
+          // latched offline belief too. Otherwise a single earlier network blip
+          // would park every subsequent intake without ever trying the network.
+          await requeueClosetCandidatesOnReconnect(actorRequest);
           if (isActorRequestCurrent(actorRequest)) await refresh();
         }
         return result;
@@ -159,7 +181,11 @@ export function useClosetCandidates() {
       if (!isActorRequestCurrent(actorRequest)) return result;
       await refresh();
       if (result.ok && CLOSET_CANDIDATE_STAGING_ACTIVE) {
-        await runClosetCandidateQueue(actorRequest);
+        // The user tapping retry is a first-class "I believe I am online again"
+        // signal, so it clears the latched offline belief before the queue runs.
+        // Without this the retry transitions the record to `queued` and the
+        // offline preflight immediately re-parks it, forever.
+        await requeueClosetCandidatesOnReconnect(actorRequest);
         if (isActorRequestCurrent(actorRequest)) await refresh();
       }
       return result;
