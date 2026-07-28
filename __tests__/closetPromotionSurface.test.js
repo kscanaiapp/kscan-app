@@ -960,4 +960,9 @@ test('the candidate hook cancels the queue on background and on actor change', (
   assert.ok(/promotionLiveRef\.current = false;\s*promotionGenerationRef\.current \+= 1;/.test(hook));
   // A stale consumer settles nothing.
   assert.ok(hook.includes('if (!isCurrent()) return;'));
+  assert.match(
+    hook,
+    /onProgress: async \(event\) => \{\s*if \(!isCurrent\(\)\) return;/,
+    'the progress callback must reject a stale actor epoch before updating state',
+  );
 });

@@ -554,6 +554,8 @@ test('PHASE4-COMMITTED-SWEEP-NEVER-TOUCHES-OTHER-ROOTS: candidate and Recent Sca
   const env = load();
   const req = asActor(env.actorContext, 'user-a');
   const candidate = await stageReady(env, req, '/pick/a.jpg');
+  env.m.modified.set(candidate.candidateImageUri, Date.now() - DAY_MS);
+  env.m.modified.set(candidate.candidateThumbnailUri, Date.now() - DAY_MS);
   const scanFile = LIBRARY_IMAGES + 'scan.jpg';
   env.m.files.set(scanFile, 'scan');
   env.m.modified.set(scanFile, Date.now() - DAY_MS);
@@ -722,6 +724,31 @@ test('PHASE4-PATH-OWNERSHIP: the two roots are mutually exclusive and traversal 
     isClosetOwnedMediaPath(CLOSET_IMAGES + '../../kscan_closet_candidates/images/v.jpg'),
     false,
   );
+  // URI parsers may decode these segments before filesystem resolution. The
+  // ownership boundary must reject both encoded dots and encoded separators.
+  assert.equal(
+    isCandidateOwnedPath(
+      CANDIDATE_IMAGES + '%2e%2e/%2e%2e/kscan_closet/images/victim.jpg',
+    ),
+    false,
+  );
+  assert.equal(
+    isClosetOwnedMediaPath(
+      CLOSET_IMAGES + '%2e%2e%2f%2e%2e%2fkscan_closet_candidates/images/v.jpg',
+    ),
+    false,
+  );
+  assert.equal(
+    isCandidateOwnedPath(CANDIDATE_IMAGES + '%252e%252e%255coutside.jpg'),
+    false,
+  );
+  assert.equal(isCandidateOwnedPath(CANDIDATE_IMAGES + '/../images/victim.jpg'), false);
+  assert.equal(isCandidateOwnedPath('/doc/kscan_closet_candidates/images-evil/a.jpg'), false);
+  assert.equal(isClosetOwnedMediaPath('/doc/kscan_closet/images-evil/a.jpg'), false);
+  assert.equal(isCandidateOwnedPath('https://example.test/doc/kscan_closet_candidates/images/a.jpg'), false);
+  assert.equal(isClosetOwnedMediaPath('/absolute/external/a.jpg'), false);
+  assert.equal(isCandidateOwnedPath(CANDIDATE_IMAGES + 'nested\\..\\..\\outside.jpg'), false);
+  assert.equal(isClosetOwnedMediaPath(CLOSET_IMAGES + 'nested//a.jpg'), true);
   // Scheme and case still normalize, so a legitimate reference is unaffected.
   assert.equal(isCandidateOwnedPath('file://' + CANDIDATE_IMAGES + 'A.JPG'), true);
 });
@@ -974,7 +1001,7 @@ test('PHASE4-RELEASE-PRIMITIVE-REFUSES-A-DRAFT: a non-saved candidate keeps its 
 test('PHASE4-STORAGE-MANIFEST-WRITE-FAILS: cleanup that cannot persist deletes nothing', async () => {
   const env = load();
   const req = asActor(env.actorContext, 'user-a');
-  const { candidate } = await stageAndPromote(env, req, '/pick/a.jpg');
+  const { candidate, committed } = await stageAndPromote(env, req, '/pick/a.jpg');
   const stored = candidateOnDisk(env, candidate.candidateId);
 
   env.m.hooks.beforeWrite = (p) =>
@@ -987,6 +1014,10 @@ test('PHASE4-STORAGE-MANIFEST-WRITE-FAILS: cleanup that cannot persist deletes n
   assert.ok(env.m.files.has(stored.candidateImageUri), 'files survive a failed manifest write');
   env.m.hooks.beforeWrite = null;
   assert.equal(candidateOnDisk(env, candidate.candidateId).candidateImageUri, stored.candidateImageUri);
+  const closet = await env.closetLibrary.loadCloset('user-a');
+  assert.equal(closet.length, 1, 'cleanup failure cannot erase the committed record');
+  assert.equal(closet[0].id, committed.id);
+  assert.ok(env.m.files.has(committed.imageUri), 'cleanup failure cannot erase committed media');
 });
 
 test('PHASE4-STORAGE-DELETE-FAILS-AFTER-WRITE: the record is cleared and the file is collected later', async () => {

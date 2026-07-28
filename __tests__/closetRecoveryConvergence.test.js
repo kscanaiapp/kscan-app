@@ -650,6 +650,15 @@ test('PHASE4-CLEANUP-BLOCKED-ON-TAXONOMY: an unverifiable committed taxonomy ret
 
 // ── Actor and epoch isolation ────────────────────────────────────────────────
 
+test('PHASE4-ENTRY-ACTOR-GUARD: a stale request is rejected before recovery starts', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services/closetRecovery.js'), 'utf8');
+  const entry = source.slice(
+    source.indexOf('export async function runClosetStartupRecovery'),
+    source.indexOf('const key = recoveryKey(actorRequest)'),
+  );
+  assert.match(entry, /if \(!isActorRequestCurrent\(actorRequest\)\) return emptyResult\('actor_stale'\)/);
+});
+
 test('PHASE4-ACTOR-CHANGE: a recovery pass whose actor changed mutates nothing further', async () => {
   const env = load();
   const req = asActor(env.actorContext, 'user-a');
