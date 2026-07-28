@@ -380,8 +380,12 @@ test('shared core: both intents are constants, neither is a caller-supplied para
   assert.equal(eliseBuilt.request.intent, 'identify_for_style');
 });
 
-test('shared core: exactly two modules construct a V2 contract request body', () => {
-  // A third would be an un-governed path into `scan-identify`.
+test('shared core: exactly three modules construct a V2 contract request body', () => {
+  // A FOURTH would be an un-governed path into `scan-identify`.
+  //
+  // Widened from two to three by Closet Upgrade Build 1. The list is pinned
+  // exactly, not counted, so a new caller has to be added here deliberately —
+  // which is the review moment where its intent gets decided.
   const walk = (dir, acc = []) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.name === 'node_modules' || entry.name === '__tests__') continue;
@@ -396,6 +400,7 @@ test('shared core: exactly two modules construct a V2 contract request body', ()
     .map((file) => path.relative(ROOT, file).replace(/\\/g, '/'))
     .sort();
   assert.deepEqual(callers, [
+    'services/closetCandidateClassification.js',
     'services/scannerScanRequest.ts',
     'services/style-chat/eliseIdentifyForStyle.ts',
   ]);
