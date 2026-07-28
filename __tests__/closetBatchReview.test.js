@@ -56,14 +56,21 @@ function load() {
     // outside the predicate's world; reaching for any of them fails here.
     throw new Error(`the eligibility predicate must stay pure: ${spec}`);
   });
+  // THE SAME LOCK, applied to the promotion vocabulary: it must import NOTHING at
+  // runtime, so the projection gaining promotion copy cannot smuggle in a
+  // persistence dependency behind it.
+  const promotionContract = runModule('services/closetCandidatePromotionContract.ts', (spec) => {
+    throw new Error(`the promotion contract must import nothing: ${spec}`);
+  });
   const projection = runModule('services/closetBatchReview.ts', (spec) => {
     if (spec === '../types/closetCandidate') return types;
     if (spec === './closetCandidateStateMachine') return stateMachine;
     if (spec === './closetCandidateErrors') return errors;
     if (spec === './closetCandidateReviewEligibility') return eligibility;
+    if (spec === './closetCandidatePromotionContract') return promotionContract;
     throw new Error(`the projection must not import ${spec}`);
   });
-  return { types, stateMachine, errors, eligibility, projection };
+  return { types, stateMachine, errors, eligibility, projection, promotionContract };
 }
 
 const ENV = load();
@@ -391,13 +398,146 @@ test('a non-retryable failure is counted apart from a retryable one', () => {
   );
 });
 
-test('resolved records are not listed as items awaiting review', () => {
+test('a discarded record is not listed; a promoted one is', () => {
   const result = project([
     candidate({ candidateId: 'gone', status: 'rejected', batchPosition: 0 }),
     candidate({ candidateId: 'kept', status: 'ready_for_review', batchPosition: 1 }),
+    candidate({
+      candidateId: 'added',
+      status: 'saved',
+      batchPosition: 2,
+      promotedClosetItemId: 'closet_1',
+    }),
   ]);
-  assert.deepEqual(result.groups[0].items.map((item) => item.candidateId), ['kept']);
-  assert.equal(result.groups[0].totalCount, 1);
+  // Rejected is something the user threw away. Promoted is the visible outcome of
+  // what they just did, and it keeps its place in the batch.
+  assert.deepEqual(result.groups[0].items.map((item) => item.candidateId), ['kept', 'added']);
+  assert.equal(result.groups[0].totalCount, 2);
+  assert.equal(result.groups[0].promotedCount, 1);
+});
+
+// ── Promotion continuity ─────────────────────────────────────────────────────
+
+test('a promoted item is inert, carries its committed id, and keeps its position', () => {
+  const group = project([
+    candidate({ candidateId: 'a', batchPosition: 0 }),
+    candidate({
+      candidateId: 'b',
+      batchPosition: 1,
+      status: 'saved',
+      promotedClosetItemId: 'closet_b',
+      promotedAt: '2026-07-28T11:00:00.000Z',
+    }),
+    candidate({ candidateId: 'c', batchPosition: 2 }),
+  ]).groups[0];
+
+  assert.deepEqual(group.items.map((item) => item.candidateId), ['a', 'b', 'c']);
+  const item = group.items[1];
+  assert.equal(item.promotionState, 'promoted');
+  assert.equal(item.committedClosetItemId, 'closet_b');
+  assert.equal(item.statusLabel, 'Added to Closet');
+  assert.equal(item.selectionEligible, false);
+  assert.deepEqual(item.availableActions, [], 'a promoted item must offer nothing');
+  assert.equal(item.statusMessage, null);
+  assert.equal(group.eligibleCount, 2);
+  assert.equal(group.promotedCount, 1);
+});
+
+test('a promoted item past its draft lifetime still reads as added, never as expired', () => {
+  const group = project([
+    candidate({
+      candidateId: 'a',
+      status: 'saved',
+      promotedClosetItemId: 'closet_a',
+      expiresAt: new Date(NOW - 1000).toISOString(),
+    }),
+  ]).groups[0];
+  assert.equal(group.items[0].statusLabel, 'Added to Closet');
+  assert.equal(group.items[0].promotionState, 'promoted');
+  assert.deepEqual(group.items[0].availableActions, []);
+  assert.equal(group.promotedCount, 1);
+  assert.equal(group.expiredCount, 0);
+});
+
+test('the running operation projects exactly one active card and neutral pending ones', () => {
+  const group = project(
+    [
+      candidate({ candidateId: 'a', batchPosition: 0 }),
+      candidate({ candidateId: 'b', batchPosition: 1 }),
+      candidate({ candidateId: 'c', batchPosition: 2 }),
+    ],
+    { promotion: { activeCandidateId: 'b', pendingCandidateIds: ['c'] } },
+  ).groups[0];
+
+  const [a, b, c] = group.items;
+  assert.equal(a.promotionState, 'idle');
+  assert.equal(b.promotionState, 'active');
+  assert.equal(c.promotionState, 'pending');
+  assert.equal(b.statusLabel, 'Adding to Closet');
+  assert.equal(c.statusLabel, 'Waiting to be added');
+  assert.notEqual(c.statusLabel, b.statusLabel, 'a pending item must not look like a saving one');
+
+  // The active card is withheld from selection and offers nothing that could race
+  // its own write; a pending one is untouched and still selectable.
+  assert.equal(b.selectionEligible, false);
+  assert.deepEqual(b.availableActions, []);
+  assert.equal(c.selectionEligible, true);
+  assert.equal(group.eligibleCount, 2);
+});
+
+test('a late progress event cannot reverse a terminal promoted state', () => {
+  // The record says `saved`; a stale overlay still claims this candidate is the
+  // active one. The durable answer wins.
+  const group = project(
+    [
+      candidate({
+        candidateId: 'a',
+        status: 'saved',
+        promotedClosetItemId: 'closet_a',
+      }),
+    ],
+    { promotion: { activeCandidateId: 'a', pendingCandidateIds: ['a'] } },
+  ).groups[0];
+  assert.equal(group.items[0].promotionState, 'promoted');
+  assert.equal(group.items[0].statusLabel, 'Added to Closet');
+  assert.equal(group.promotedCount, 1);
+});
+
+test('selection reconciliation drops a candidate the moment it becomes promoted', () => {
+  const before = project([
+    candidate({ candidateId: 'a', batchPosition: 0 }),
+    candidate({ candidateId: 'b', batchPosition: 1 }),
+  ]);
+  assert.deepEqual(
+    ENV.projection.reconcileClosetBatchSelection(['a', 'b'], before),
+    ['a', 'b'],
+  );
+
+  const after = project([
+    candidate({
+      candidateId: 'a',
+      batchPosition: 0,
+      status: 'saved',
+      promotedClosetItemId: 'closet_a',
+    }),
+    candidate({ candidateId: 'b', batchPosition: 1 }),
+  ]);
+  assert.deepEqual(ENV.projection.reconcileClosetBatchSelection(['a', 'b'], after), ['b']);
+  assert.deepEqual(ENV.projection.selectableClosetBatchCandidateIds(after), ['b']);
+});
+
+test('the batch comparator the coordinator shares is the display order', () => {
+  const rows = [
+    { candidateId: 'z', batchPosition: null, createdAt: '2026-07-28T09:00:00.000Z' },
+    { candidateId: 'b', batchPosition: 1, createdAt: '2026-07-28T10:00:00.000Z' },
+    { candidateId: 'a', batchPosition: 0, createdAt: '2026-07-28T10:00:00.000Z' },
+    { candidateId: 'y', batchPosition: null, createdAt: '2026-07-28T08:00:00.000Z' },
+  ];
+  assert.deepEqual(
+    rows.slice().sort(ENV.projection.compareClosetBatchOrder).map((row) => row.candidateId),
+    ['a', 'b', 'y', 'z'],
+    'positioned items first in picker order, then unpositioned by creation time',
+  );
 });
 
 // ── User-facing vocabulary ───────────────────────────────────────────────────
@@ -551,7 +691,7 @@ test('every non-review status is ineligible with a precise reason', () => {
 test('data and identity failures are ineligible', () => {
   const cases = [
     [null, 'missing_record'],
-    [candidate({ schemaVersion: 3 }), 'unsupported_schema'],
+    [candidate({ schemaVersion: 4 }), 'unsupported_schema'],
     [candidate({ schemaVersion: undefined }), 'unsupported_schema'],
     [candidate({ candidateId: '' }), 'corrupt_record'],
     [candidate({ batchId: '' }), 'corrupt_record'],
@@ -570,6 +710,97 @@ test('data and identity failures are ineligible', () => {
     assert.equal(result.selectable, false);
     assert.equal(result.blockedReason, reason);
   }
+});
+
+// ── Commit-time promotion eligibility ────────────────────────────────────────
+
+function promotable(record, overrides = {}) {
+  return ENV.eligibility.getClosetCandidatePromotionEligibility(record, {
+    actorId: 'actor-a',
+    nowMs: NOW,
+    mediaOwned: true,
+    mediaReadable: true,
+    ...overrides,
+  });
+}
+
+test('promotion eligibility is stricter than selection, never looser', () => {
+  // The one state that promotes, with verified media.
+  assert.deepEqual(promotable(candidate()), { promotable: true, blockedReason: null });
+
+  // Everything selection refuses, promotion refuses for the same named reason.
+  const refusals = {
+    queued: 'processing',
+    preparing: 'processing',
+    classifying: 'processing',
+    saving: 'processing',
+    waiting_for_network: 'waiting_for_network',
+    needs_manual_classification: 'needs_details',
+    failed: 'failed',
+    duplicate: 'duplicate_unresolved',
+    saved: 'terminal',
+    rejected: 'terminal',
+  };
+  for (const [status, reason] of Object.entries(refusals)) {
+    const result = promotable(candidate({ status }));
+    assert.equal(result.promotable, false, `${status} was promotable`);
+    assert.equal(result.blockedReason, reason, `wrong reason for ${status}`);
+  }
+
+  for (const [record, reason] of [
+    [null, 'missing_record'],
+    [candidate({ schemaVersion: 4 }), 'unsupported_schema'],
+    [candidate({ candidateId: '' }), 'corrupt_record'],
+    [candidate({ ownerId: 'actor-b' }), 'foreign_actor'],
+    [candidate({ expiresAt: new Date(NOW - 1).toISOString() }), 'expired'],
+    [candidate({ category: null }), 'missing_category'],
+    [candidate({ candidateImageUri: null }), 'missing_media'],
+  ]) {
+    const result = promotable(record);
+    assert.equal(result.promotable, false);
+    assert.equal(result.blockedReason, reason);
+  }
+});
+
+test('a candidate outside the submitted batch is refused by name', () => {
+  assert.equal(promotable(candidate(), { batchId: 'batch-1' }).promotable, true);
+  const foreign = promotable(candidate({ batchId: 'batch-other' }), { batchId: 'batch-1' });
+  assert.equal(foreign.promotable, false);
+  assert.equal(foreign.blockedReason, 'foreign_batch');
+  // With no batch declared, batch scope is simply not asserted.
+  assert.equal(promotable(candidate({ batchId: 'batch-other' })).promotable, true);
+});
+
+test('unverified media fails closed rather than getting the benefit of the doubt', () => {
+  // The caller did not check.
+  for (const context of [
+    { mediaOwned: undefined, mediaReadable: undefined },
+    { mediaOwned: null, mediaReadable: null },
+    { mediaReadable: undefined },
+    { mediaOwned: undefined },
+  ]) {
+    const result = promotable(candidate(), context);
+    assert.equal(result.promotable, false);
+    assert.equal(result.blockedReason, 'missing_media');
+  }
+  // The caller checked, and the media is not the candidate's own.
+  const foreign = promotable(candidate(), { mediaOwned: false });
+  assert.equal(foreign.promotable, false);
+  assert.equal(foreign.blockedReason, 'foreign_media');
+  // The caller checked, and the bytes are gone.
+  const gone = promotable(candidate(), { mediaReadable: false });
+  assert.equal(gone.promotable, false);
+  assert.equal(gone.blockedReason, 'missing_media');
+});
+
+test('the promotion reason vocabulary is a superset of the selection one', () => {
+  const selection = ENV.eligibility.CLOSET_CANDIDATE_SELECTION_BLOCKED_REASONS;
+  const promotion = ENV.eligibility.CLOSET_CANDIDATE_PROMOTION_BLOCKED_REASONS;
+  for (const reason of selection) {
+    assert.ok(promotion.includes(reason), `promotion dropped the reason ${reason}`);
+  }
+  assert.ok(promotion.includes('foreign_batch'));
+  assert.ok(promotion.includes('foreign_media'));
 });
 
 test('expiry outranks every other block, so the least actionable reason is reported', () => {

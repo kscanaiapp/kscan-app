@@ -12,9 +12,12 @@
 // formed here is exactly how a duplicate becomes selectable on one surface and not
 // another.
 //
-// NO PROMOTION, AND NO PLACEHOLDER FOR ONE. There is no "Add selected to Closet",
-// disabled or otherwise. Selecting items is a complete, honest step; a control the
-// build cannot complete is not.
+// PROMOTION IS REACHABLE FROM HERE, AND ONLY AS A CALL. "Add selected to Closet"
+// hands a snapshot of selected ids to the one hook api this screen owns, which
+// hands it to the promotion coordinator. This component does not write the
+// committed manifest, does not copy committed media, does not touch candidate
+// storage, and does not decide what may be promoted — it renders the projection's
+// answer and reports the operation's own progress back.
 //
 // NO WRITES TO CANDIDATE STORAGE FROM HERE. Every mutation goes through the one
 // hook instance the screen owns, which goes through the service funnel.
@@ -22,7 +25,7 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { SecondaryButton } from '../luxury';
+import { PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { useClosetCandidates } from '../../hooks/useClosetCandidates';
 import { useClosetBatchSelection } from '../../hooks/useClosetBatchSelection';
@@ -32,6 +35,10 @@ import {
   type ClosetBatchReviewGroup,
   type ClosetBatchReviewItem,
 } from '../../services/closetBatchReview';
+import {
+  CLOSET_PROMOTION_ACTION_LABEL,
+  describeClosetPromotionProgress,
+} from '../../services/closetCandidatePromotionContract';
 import {
   ClosetCandidateManualClassifyModal,
   type ManualClassifyTarget,
@@ -46,6 +53,7 @@ import {
  */
 function summaryParts(group: ClosetBatchReviewGroup): string[] {
   const parts: string[] = [];
+  if (group.promotedCount) parts.push(`${group.promotedCount} added to Closet`);
   if (group.readyCount) parts.push(`${group.readyCount} ready`);
   if (group.processingCount) parts.push(`${group.processingCount} processing`);
   if (group.waitingCount) parts.push(`${group.waitingCount} waiting for connection`);
@@ -82,6 +90,9 @@ export function ClosetBatchReviewPanel({
     retry,
     remove,
     classifyManually,
+    promoteSelected,
+    promotion,
+    promoting,
   } = api;
   const [manualTarget, setManualTarget] = useState<ManualClassifyTarget | null>(null);
 
@@ -92,8 +103,17 @@ export function ClosetBatchReviewPanel({
         actorEpoch: actorEpoch ?? null,
         candidates,
         activeBatchId: activeBatchId ?? null,
+        // The RUNNING operation, passed through untouched. Which card is active
+        // and which are still waiting is the operation's answer, not this
+        // component's — and the promoted state comes from the record regardless.
+        promotion: promoting
+          ? {
+            activeCandidateId: promotion?.activeCandidateId ?? null,
+            pendingCandidateIds: promotion?.pendingCandidateIds ?? null,
+          }
+          : null,
       }),
-    [actorId, actorEpoch, candidates, activeBatchId],
+    [actorId, actorEpoch, candidates, activeBatchId, promoting, promotion],
   );
 
   const selection = useClosetBatchSelection(projection);
@@ -156,7 +176,39 @@ export function ClosetBatchReviewPanel({
             {`${selection.selectedCount} selected`}
           </Text>
         ) : null}
+        {promoting ? (
+          <Text
+            style={styles.headerProgress}
+            accessibilityLiveRegion="polite"
+            testID="closet-batch-promotion-progress"
+          >
+            {describeClosetPromotionProgress({
+              completedCount: promotion?.completedCount ?? 0,
+              requestedCount: promotion?.requestedCount ?? 0,
+            })}
+          </Text>
+        ) : null}
         <View style={styles.headerActions}>
+          {/*
+            THE PRODUCTION PROMOTION ACTION.
+
+            Offered only when this build has V2 active (this whole panel does not
+            mount otherwise), at least one currently eligible item is selected, and
+            no operation is already running. It hands the selection snapshot to the
+            hook and nothing else — no eligibility decision, no write, no ordering.
+          */}
+          {selection.selectedCount ? (
+            <PrimaryButton
+              title={CLOSET_PROMOTION_ACTION_LABEL}
+              onPress={() => {
+                void promoteSelected([...selection.selectedCandidateIds]);
+              }}
+              disabled={promoting}
+              loading={promoting}
+              accessibilityLabel={`${CLOSET_PROMOTION_ACTION_LABEL}, ${selection.selectedCount} selected`}
+              testID="closet-batch-promote"
+            />
+          ) : null}
           {selection.canSelectAllReady ? (
             <SecondaryButton
               title="Select all ready"
@@ -193,7 +245,18 @@ export function ClosetBatchReviewPanel({
 
             <View style={styles.body}>
               {/* Status is carried by words, never by colour alone. */}
-              <Text style={styles.status}>{item.statusLabel}</Text>
+              <Text style={styles.status} testID={`closet-batch-status-${item.candidateId}`}>
+                {item.statusLabel}
+              </Text>
+              {/* The one actively promoting card, and only ever one. */}
+              {item.promotionState === 'active' ? (
+                <ActivityIndicator
+                  size="small"
+                  color={LUXURY.colors.plum}
+                  accessibilityLabel={`${item.statusLabel}, ${item.displaySummary ?? 'Unidentified item'}`}
+                  testID={`closet-batch-promoting-${item.candidateId}`}
+                />
+              ) : null}
               {item.displaySummary ? (
                 <Text style={styles.detail}>{item.displaySummary}</Text>
               ) : null}
@@ -325,6 +388,10 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   headerSelected: {
+    fontSize: 12,
+    color: LUXURY.colors.ink,
+  },
+  headerProgress: {
     fontSize: 12,
     color: LUXURY.colors.ink,
   },

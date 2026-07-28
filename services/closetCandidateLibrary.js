@@ -88,6 +88,11 @@ export const CLOSET_CANDIDATE_PROTECTED_FIELDS = Object.freeze([
   'automaticRetryCount',
   'interruptionCount',
   'status',
+  // The promotion tombstone. Writable ONLY by finalizeClosetCandidatePromotion,
+  // from a committed Closet item it has already read back. A component that
+  // could set these could claim an item was promoted that never was.
+  'promotedClosetItemId',
+  'promotedAt',
 ]);
 
 /** Fields the classification orchestrator and manual entry may write. */
@@ -1036,6 +1041,90 @@ export async function manuallyClassifyClosetCandidate(
 }
 
 /**
+ * FINALIZE A PROMOTION: record that this candidate became a committed item.
+ *
+ * The ONE writer of the promotion tombstone. `closetItemId` is supplied by the
+ * promotion coordinator from a committed Closet item it has already written AND
+ * read back — never from a patch, never from a component, and never from the
+ * candidate itself. That is why `promotedClosetItemId` and `promotedAt` are in
+ * the protected list: no generic patch or transition can reach them.
+ *
+ * IDEMPOTENT. A candidate already `saved` for the SAME committed item answers ok
+ * without a second transition, which is what makes the "committed write landed,
+ * finalization did not" crash window repairable by simply retrying. A candidate
+ * already `saved` for a DIFFERENT item is refused rather than reassigned.
+ *
+ * EXPIRY IS ALLOWED HERE, and only here. The committed item already exists and is
+ * durable; refusing to record that fact because the candidate lapsed in the
+ * meantime would leave the store permanently unable to tell the truth about it,
+ * and every retry would re-enter the same unfinalizable state. Expiry is what
+ * stops a lapsed candidate from BEING promoted, and that gate runs before the
+ * committed write — twice.
+ */
+export async function finalizeClosetCandidatePromotion(
+  actorRequest,
+  candidateId,
+  options = {},
+) {
+  const closetItemId =
+    typeof options.closetItemId === 'string' && options.closetItemId.trim()
+      ? options.closetItemId.trim().slice(0, 120)
+      : null;
+  if (!closetItemId) return { ok: false, errorCode: 'candidate_invalid_transition' };
+
+  return mutateCandidate(
+    actorRequest,
+    candidateId,
+    (current, nowMs) => {
+      const stamp = new Date(nowMs).toISOString();
+
+      if (current.status === 'saved') {
+        if (current.promotedClosetItemId !== closetItemId) {
+          return { errorCode: 'candidate_invalid_transition' };
+        }
+        // Already finalized for this exact item. Re-persisted rather than
+        // special-cased out of the funnel so there is one write path, one actor
+        // check and one allowlist rebuild for every finalization.
+        return { record: { ...current } };
+      }
+
+      const evaluated = evaluateTransition(current.status, 'saved');
+      if (evaluated.kind !== 'ok') return { errorCode: 'candidate_invalid_transition' };
+
+      const record = buildClosetCandidateRecord(
+        {
+          ...current,
+          status: 'saved',
+          errorCode: null,
+          promotedClosetItemId: closetItemId,
+          // A repair keeps the ORIGINAL promotion time when one is already
+          // recorded, so a retry cannot backdate or advance the moment the item
+          // actually became durable.
+          promotedAt: current.promotedAt ?? stamp,
+        },
+        current.ownerId,
+        stamp,
+        {
+          candidateId: current.candidateId,
+          batchId: current.batchId,
+          batchPosition: current.batchPosition,
+          createdAt: current.createdAt,
+          expiresAt: current.expiresAt,
+          updatedAt: stamp,
+        },
+      );
+      // The allowlist builder normalizes counters; re-assert the ledger so a
+      // promotion cannot quietly reset the attempt history.
+      record.attemptCount = current.attemptCount ?? 0;
+      record.automaticRetryCount = current.automaticRetryCount ?? 0;
+      record.interruptionCount = current.interruptionCount ?? 0;
+      return { record };
+    },
+    { ...options, allowExpired: true },
+  );
+}
+
+/**
  * Manual retry.
  *
  * Deliberately does NOT reset createdAt, expiresAt, interruptionCount or the
@@ -1190,8 +1279,19 @@ export async function cleanupExpiredClosetCandidates(actorRequest, options = {})
       const records = readState.records;
       // Scoped to the captured actor. A sweep that removed every actor's expired
       // records would be a cross-actor write dressed as housekeeping.
+      //
+      // A PROMOTED TOMBSTONE IS NEVER COLLECTED HERE. The 7-day candidate clock
+      // is the lifetime of an UNRESOLVED draft; a promoted record is the store's
+      // only durable evidence that a committed item came from this candidate, and
+      // it is what the provenance repair path, the batch projection and Phase 4's
+      // media-cleanup certification all read. Retention and collection of these
+      // records is a Phase 4 decision — it is deliberately NOT assumed to be the
+      // same seven days.
       const doomed = records.filter(
-        (entry) => isVisibleToActor(entry, authority.ownerId) && isExpired(entry, nowMs),
+        (entry) =>
+          isVisibleToActor(entry, authority.ownerId) &&
+          isExpired(entry, nowMs) &&
+          entry.status !== 'saved',
       );
       if (doomed.length === 0) {
         emitClosetCandidateEvent('closet_candidate_cleanup_completed', { countBucket: '0' });

@@ -15,21 +15,27 @@
 // READ, never minted, never repaired, never migrated for presentation — a legacy
 // record is grouped as it is, not rewritten so it sorts more conveniently.
 //
-// NO PROMOTION. Phase 2 stops at "the user has chosen some items". There is no
-// `Add selected to Closet`, no provenance field, no committed-media copy, and not
-// even a disabled placeholder for one — an affordance that cannot complete is a
-// promise the build does not keep. Serialized promotion is Phase 3.
+// STILL NO WRITES IN PHASE 3. Promotion added a caller, not a second writer: the
+// coordinator in services/closetCandidatePromotion.js owns the committed write and
+// the candidate tombstone, and this module only READS what that produced. It shows
+// a promoted candidate because the record on disk says `saved`, and it shows the
+// transient "Adding to Closet" card because the caller passed in which candidate
+// the running operation is on — never because it inferred either.
 
 import {
   type ClosetCandidate,
   type ClosetCandidateStatus,
 } from '../types/closetCandidate';
-import { isTerminalStatus, statusUIMetadata } from './closetCandidateStateMachine';
+import { statusUIMetadata } from './closetCandidateStateMachine';
 import { closetCandidateErrorMessage, isUserRetryable } from './closetCandidateErrors';
 import {
   getClosetCandidateReviewEligibility,
   type ClosetCandidateSelectionBlockedReason,
 } from './closetCandidateReviewEligibility';
+import {
+  CLOSET_PROMOTION_ACTIVE_LABEL,
+  CLOSET_PROMOTION_PENDING_LABEL,
+} from './closetCandidatePromotionContract';
 
 // ── Vocabulary ───────────────────────────────────────────────────────────────
 
@@ -63,6 +69,24 @@ export const CLOSET_BATCH_REVIEW_DUPLICATE_MESSAGE =
 /** A candidate past its lifetime. Shown instead of the status it was last in. */
 export const CLOSET_BATCH_REVIEW_EXPIRED_LABEL = 'Expired';
 
+/**
+ * Where a candidate sits relative to a promotion operation.
+ *
+ *   idle      not part of any running operation
+ *   pending   submitted, waiting its turn — NOT saving, and never rendered as if
+ *             it were; the operation has not touched it yet
+ *   active    the ONE candidate the serialized queue is working on right now
+ *   promoted  durable: the record says `saved` and carries a committed item id
+ *
+ * Only `promoted` comes from the record. `pending` and `active` are OVERLAY state
+ * supplied by the running operation and are never persisted — a durable in-flight
+ * status would survive a crash as a candidate stuck mid-promotion with no sweep to
+ * release it until Phase 4 adds one.
+ */
+export const CLOSET_BATCH_PROMOTION_STATES = ['idle', 'pending', 'active', 'promoted'] as const;
+
+export type ClosetBatchPromotionState = typeof CLOSET_BATCH_PROMOTION_STATES[number];
+
 /** Why an expired candidate can only be removed. */
 export const CLOSET_BATCH_REVIEW_EXPIRED_MESSAGE =
   'This photo waited too long for review. Add it again to try once more.';
@@ -94,6 +118,11 @@ export type ClosetBatchReviewItem = {
   selectionEligible: boolean;
   selectionBlockedReason: ClosetCandidateSelectionBlockedReason | null;
   availableActions: readonly ClosetBatchReviewAction[];
+
+  /** Idle / pending / active / promoted. See CLOSET_BATCH_PROMOTION_STATES. */
+  promotionState: ClosetBatchPromotionState;
+  /** The committed Closet item this candidate became, once it has become one. */
+  committedClosetItemId: string | null;
 };
 
 export type ClosetBatchReviewGroup = {
@@ -115,6 +144,8 @@ export type ClosetBatchReviewGroup = {
   unresolvableFailureCount: number;
   duplicateCount: number;
   expiredCount: number;
+  /** Candidates in this batch that are already committed Closet items. */
+  promotedCount: number;
 
   eligibleCount: number;
   selectedEligibleCount: number;
@@ -141,6 +172,15 @@ export type ClosetBatchReviewProjectionInput = {
   activeBatchId?: string | null;
   selectedCandidateIds?: Iterable<string> | null;
   nowMs?: number;
+  /**
+   * The RUNNING promotion operation, if any. Read-only overlay: nothing here is
+   * persisted, and an operation belonging to another actor or another batch is
+   * simply not passed in by the caller that owns the operation.
+   */
+  promotion?: {
+    activeCandidateId?: string | null;
+    pendingCandidateIds?: Iterable<string> | null;
+  } | null;
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -175,7 +215,19 @@ function resolveActions(
   status: ClosetCandidateStatus,
   errorCode: unknown,
   expired: boolean,
+  promotionState: ClosetBatchPromotionState,
 ): readonly ClosetBatchReviewAction[] {
+  // A promoted candidate offers NOTHING. It cannot be retried (terminal), cannot
+  // be edited, and must not be removed: the tombstone is what proves the committed
+  // item came from it, and deleting it is Phase 4's decision to make, not a button.
+  //
+  // The ACTIVE candidate offers nothing either, for the length of its own
+  // operation only. Retry or remove landing mid-promotion would race a write that
+  // is already past its last cancellation checkpoint.
+  if (promotionState === 'promoted' || promotionState === 'active') {
+    return Object.freeze([] as ClosetBatchReviewAction[]);
+  }
+
   // An expired record can only be discarded. Every mutation except deletion is
   // refused by the store with `candidate_expired`, so offering retry or manual
   // details here would be an affordance that provably fails.
@@ -192,6 +244,34 @@ function resolveActions(
   if (meta.canRetry && (!errorCode || isUserRetryable(errorCode))) actions.push('retry');
   if (meta.canReject) actions.push('remove');
   return Object.freeze(actions);
+}
+
+/**
+ * THE batch display order, exported so promotion cannot invent a second one.
+ *
+ * batchPosition ascending; a record with no position sorts AFTER every positioned
+ * one, then by createdAt, then by candidateId. Never by URI or filename, which
+ * encode nothing about picker order. The promotion coordinator processes items in
+ * exactly this order, so "the third card" and "the third promotion" are the same
+ * item — a separate comparator there is precisely how those two drift apart.
+ */
+export function compareClosetBatchOrder(
+  a: { batchPosition?: unknown; createdAt?: unknown; candidateId?: unknown },
+  b: { batchPosition?: unknown; createdAt?: unknown; candidateId?: unknown },
+): number {
+  const pa = typeof a?.batchPosition === 'number' && Number.isFinite(a.batchPosition)
+    ? a.batchPosition
+    : null;
+  const pb = typeof b?.batchPosition === 'number' && Number.isFinite(b.batchPosition)
+    ? b.batchPosition
+    : null;
+  if (pa !== null && pb !== null && pa !== pb) return pa - pb;
+  if (pa !== null && pb === null) return -1;
+  if (pa === null && pb !== null) return 1;
+  const ca = String(a?.createdAt ?? '');
+  const cb = String(b?.createdAt ?? '');
+  if (ca !== cb) return ca.localeCompare(cb);
+  return String(a?.candidateId ?? '').localeCompare(String(b?.candidateId ?? ''));
 }
 
 function toIterableSet(ids: Iterable<string> | null | undefined): Set<string> {
@@ -219,9 +299,12 @@ function toIterableSet(ids: Iterable<string> | null | undefined): Set<string> {
  *            positioned one and then by createdAt, then candidateId — never by
  *            URI or filename, which encode nothing about picker order.
  *
- * TERMINAL RECORDS ARE OMITTED. `saved` and `rejected` are resolved; a review
- * surface that listed them would count them in "8 items" and offer a row with no
- * available action. They remain on disk and remain readable — this is a view.
+ * `rejected` RECORDS ARE OMITTED; `saved` ONES ARE NOT. A rejected candidate is
+ * something the user discarded and does not want to see again. A promoted one is
+ * the opposite: it is the visible outcome of the action they just took, it keeps
+ * its original batch position so the group does not reflow underneath them, and it
+ * survives a restart because the projection reads it from the record rather than
+ * from the operation that produced it. It is inert — unselectable, no actions.
  */
 export function getClosetBatchReviewProjection(
   input: ClosetBatchReviewProjectionInput,
@@ -234,6 +317,8 @@ export function getClosetBatchReviewProjection(
   const nowMs = typeof input?.nowMs === 'number' ? input.nowMs : Date.now();
   const selected = toIterableSet(input?.selectedCandidateIds);
   const source = Array.isArray(input?.candidates) ? input.candidates : [];
+  const activePromotionId = normalizeId(input?.promotion?.activeCandidateId);
+  const pendingPromotionIds = toIterableSet(input?.promotion?.pendingCandidateIds);
 
   const buckets = new Map<
     string,
@@ -248,7 +333,7 @@ export function getClosetBatchReviewProjection(
     // never share a group, and a foreign record is not merely unselectable here —
     // it is absent.
     if (normalizeId(record.ownerId) !== actorId) continue;
-    if (isTerminalStatus(record.status)) continue;
+    if (record.status === 'rejected') continue;
 
     const batchId = normalizeId(record.batchId);
     // A record with no usable batch id becomes its own group keyed on its
@@ -264,17 +349,7 @@ export function getClosetBatchReviewProjection(
   const groups: ClosetBatchReviewGroup[] = [];
 
   for (const [groupId, bucket] of buckets) {
-    const ordered = bucket.records.slice().sort((a, b) => {
-      const pa = typeof a.batchPosition === 'number' ? a.batchPosition : null;
-      const pb = typeof b.batchPosition === 'number' ? b.batchPosition : null;
-      if (pa !== null && pb !== null && pa !== pb) return pa - pb;
-      if (pa !== null && pb === null) return -1;
-      if (pa === null && pb !== null) return 1;
-      const ca = String(a.createdAt ?? '');
-      const cb = String(b.createdAt ?? '');
-      if (ca !== cb) return ca.localeCompare(cb);
-      return String(a.candidateId ?? '').localeCompare(String(b.candidateId ?? ''));
-    });
+    const ordered = bucket.records.slice().sort(compareClosetBatchOrder);
 
     let batchCreatedAt: string | null = null;
     let processingCount = 0;
@@ -285,6 +360,7 @@ export function getClosetBatchReviewProjection(
     let unresolvableFailureCount = 0;
     let duplicateCount = 0;
     let expiredCount = 0;
+    let promotedCount = 0;
     let eligibleCount = 0;
     let selectedEligibleCount = 0;
 
@@ -300,7 +376,23 @@ export function getClosetBatchReviewProjection(
       const rawStatus = record.status as ClosetCandidateStatus;
       const candidateId = String(record.candidateId);
 
-      if (expired) expiredCount += 1;
+      // PROMOTION STATE IS RESOLVED ONCE, HERE, and everything else reads it.
+      // The durable answer wins: a record that is already `saved` is promoted no
+      // matter what a late progress event or a stale overlay claims, which is what
+      // makes a terminal promoted card impossible to reverse.
+      const committedClosetItemId = text(record.promotedClosetItemId);
+      const promotionState: ClosetBatchPromotionState =
+        rawStatus === 'saved'
+          ? 'promoted'
+          : candidateId === activePromotionId
+            ? 'active'
+            : pendingPromotionIds.has(candidateId)
+              ? 'pending'
+              : 'idle';
+      const promoted = promotionState === 'promoted';
+
+      if (promoted) promotedCount += 1;
+      else if (expired) expiredCount += 1;
       else if (rawStatus === 'duplicate') duplicateCount += 1;
       else if (rawStatus === 'ready_for_review') readyCount += 1;
       else if (rawStatus === 'needs_manual_classification') needsDetailsCount += 1;
@@ -310,7 +402,12 @@ export function getClosetBatchReviewProjection(
         else unresolvableFailureCount += 1;
       } else processingCount += 1;
 
-      if (eligibility.selectable) {
+      // A promoted candidate is not selectable because the predicate already says
+      // so (`saved` is terminal). The ACTIVE one is withheld here instead: its
+      // record is still `ready_for_review` and genuinely still selectable — it is
+      // this operation, not its state, that makes offering a checkbox wrong.
+      const selectionEligible = eligibility.selectable && promotionState !== 'active';
+      if (selectionEligible) {
         eligibleCount += 1;
         if (selected.has(candidateId)) selectedEligibleCount += 1;
       }
@@ -336,19 +433,34 @@ export function getClosetBatchReviewProjection(
         displayBrand: text(record.brand),
         displaySummary: summarize([displayCategory, displayType, displaySubtype, displayColor]),
         status: rawStatus,
-        statusLabel: expired ? CLOSET_BATCH_REVIEW_EXPIRED_LABEL : status.progressLabel,
-        statusMessage: expired
-          ? CLOSET_BATCH_REVIEW_EXPIRED_MESSAGE
-          : rawStatus === 'duplicate'
-            ? CLOSET_BATCH_REVIEW_DUPLICATE_MESSAGE
-            // Registry copy only. A raw backend error string is never displayed.
-            : record.errorCode
-              ? closetCandidateErrorMessage(record.errorCode)
-              : null,
+        // A promoted card says where the item IS, even after its draft lifetime
+        // has lapsed: "Expired" on something that is sitting in the user's Closet
+        // would be simply false.
+        statusLabel: promoted
+          ? status.progressLabel
+          : promotionState === 'active'
+            ? CLOSET_PROMOTION_ACTIVE_LABEL
+            : promotionState === 'pending'
+              ? CLOSET_PROMOTION_PENDING_LABEL
+              : expired
+                ? CLOSET_BATCH_REVIEW_EXPIRED_LABEL
+                : status.progressLabel,
+        statusMessage: promoted || promotionState === 'active' || promotionState === 'pending'
+          ? null
+          : expired
+            ? CLOSET_BATCH_REVIEW_EXPIRED_MESSAGE
+            : rawStatus === 'duplicate'
+              ? CLOSET_BATCH_REVIEW_DUPLICATE_MESSAGE
+              // Registry copy only. A raw backend error string is never displayed.
+              : record.errorCode
+                ? closetCandidateErrorMessage(record.errorCode)
+                : null,
         expired,
-        selectionEligible: eligibility.selectable,
-        selectionBlockedReason: eligibility.blockedReason,
-        availableActions: resolveActions(rawStatus, record.errorCode, expired),
+        selectionEligible,
+        selectionBlockedReason: selectionEligible ? null : eligibility.blockedReason,
+        availableActions: resolveActions(rawStatus, record.errorCode, expired, promotionState),
+        promotionState,
+        committedClosetItemId,
       };
     });
 
@@ -372,6 +484,7 @@ export function getClosetBatchReviewProjection(
       unresolvableFailureCount,
       duplicateCount,
       expiredCount,
+      promotedCount,
       eligibleCount,
       selectedEligibleCount,
       items: Object.freeze(items),

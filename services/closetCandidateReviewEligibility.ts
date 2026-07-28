@@ -162,3 +162,92 @@ export function isClosetCandidateSelectable(
 ): boolean {
   return getClosetCandidateReviewEligibility(candidate, context).selectable === true;
 }
+
+// ── Promotion eligibility (Build 2, Phase 3) ─────────────────────────────────
+//
+// SELECTION IS A LIGHTER PRE-CHECK; THIS IS THE COMMIT-TIME AUTHORITY. Both live
+// here, and this one DELEGATES to the one above rather than restating it, so a
+// rule can never hold on one surface and not the other. Everything it adds is a
+// question selection has no business answering: does this candidate belong to the
+// batch that was actually submitted, and has its media been verified — not merely
+// referenced — right now.
+//
+// STILL PURE. The two media facts are resolved by the coordinator (which owns the
+// filesystem) and passed in as booleans, so the whole matrix stays directly
+// testable and the predicate keeps its no-I/O lock.
+
+export const CLOSET_CANDIDATE_PROMOTION_BLOCKED_REASONS = [
+  'missing_record',
+  'unsupported_schema',
+  'corrupt_record',
+  'foreign_actor',
+  'foreign_batch',
+  'expired',
+  'duplicate_unresolved',
+  'processing',
+  'waiting_for_network',
+  'needs_details',
+  'failed',
+  'terminal',
+  'missing_category',
+  'missing_media',
+  'foreign_media',
+] as const;
+
+export type ClosetCandidatePromotionBlockedReason =
+  typeof CLOSET_CANDIDATE_PROMOTION_BLOCKED_REASONS[number];
+
+export type ClosetCandidatePromotionEligibilityContext =
+  ClosetCandidateReviewEligibilityContext & {
+    /** The batch actually submitted. A candidate outside it is never promoted. */
+    batchId?: string | null;
+    /** Verified: the media reference points inside the candidate media roots. */
+    mediaOwned?: boolean | null;
+    /** Verified: the referenced bytes exist and could be read, just now. */
+    mediaReadable?: boolean | null;
+  };
+
+export type ClosetCandidatePromotionEligibility =
+  | { promotable: true; blockedReason: null }
+  | { promotable: false; blockedReason: ClosetCandidatePromotionBlockedReason };
+
+/**
+ * The single commit-time decision point.
+ *
+ * FAILS CLOSED ON UNVERIFIED MEDIA. `mediaOwned` and `mediaReadable` must be
+ * explicit booleans: a caller that has not checked gets `missing_media` rather
+ * than the benefit of the doubt, because the alternative is a committed item
+ * whose media turned out not to exist.
+ */
+export function getClosetCandidatePromotionEligibility(
+  candidate: Partial<ClosetCandidate> | null | undefined,
+  context: ClosetCandidatePromotionEligibilityContext,
+): ClosetCandidatePromotionEligibility {
+  const blocked = (
+    blockedReason: ClosetCandidatePromotionBlockedReason,
+  ): ClosetCandidatePromotionEligibility => ({ promotable: false, blockedReason });
+
+  // Everything selection already decides, decided once, in the same order.
+  const selection = getClosetCandidateReviewEligibility(candidate, context);
+  if (!selection.selectable) return blocked(selection.blockedReason);
+
+  const record = candidate as Partial<ClosetCandidate>;
+
+  // Batch scope. The submitted snapshot names one batch; an id from another one
+  // reaching the coordinator means the surface and the operation disagree, and a
+  // promotion spanning two unrelated intakes is never what the user asked for.
+  const requestedBatchId = normalizeId(context?.batchId);
+  if (requestedBatchId && normalizeId(record.batchId) !== requestedBatchId) {
+    return blocked('foreign_batch');
+  }
+
+  if (context?.mediaOwned !== true) {
+    // A reference that does not resolve inside the candidate media roots is
+    // either a picker URI that should never have been persisted or a path from
+    // another domain. Neither may become the source of a committed copy.
+    return blocked(context?.mediaOwned === false ? 'foreign_media' : 'missing_media');
+  }
+  if (context?.mediaReadable !== true) return blocked('missing_media');
+
+  return { promotable: true, blockedReason: null };
+}

@@ -101,6 +101,17 @@ function buildClosetRecord(draft, ownerId, now) {
     schemaVersion: CLOSET_ITEM_SCHEMA_VERSION,
     id,
     ownerId,
+    // INTERNAL PROVENANCE (Build 2, Phase 3). The staged ClosetCandidate this
+    // item was promoted from, scoped by ownerId like every other field here.
+    //
+    // Not user-facing, not editable (updateClosetItem patches title/category/
+    // notes only), optional on every pre-Build-2 record, and the key the
+    // promotion coordinator asks "has this actor already committed this
+    // candidate?" with. It is deliberately NOT globally unique: two actors may
+    // legitimately hold items whose provenance strings collide, and the manifest
+    // is one file shared by every actor partition, so every lookup pairs it with
+    // the owner.
+    sourceCandidateId: cleanText(draft.sourceCandidateId, 120),
     imageUri: draft.imageUri ?? null,
     thumbnailUri: draft.thumbnailUri ?? null,
     title: cleanText(draft.title) || 'Closet item',
@@ -161,18 +172,201 @@ async function moveToFreshClosetPath(sourceUri, dir, seedAssetId) {
   return null;
 }
 
+// ── Stable promotion media destination (Build 2, Phase 3) ────────────────────
+
+/** Filesystem-safe form of an opaque id. Lossless for uuids and minted ids. */
+function slugifyIdentity(value, max) {
+  return String(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, max);
+}
+
+/** FNV-1a. Not a security primitive — it only disambiguates slugified ids. */
+function identityChecksum(value) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash ^ value.charCodeAt(index)) * 16777619) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+/**
+ * THE STABLE COMMITTED-MEDIA DESTINATION for a candidate promotion.
+ *
+ *     same actor + same source candidate  ->  same logical destination
+ *
+ * Derived from the promotion identity and NOTHING else: not the category, the
+ * colour, the brand, the source URI, the batch position, the taxonomy, or the
+ * clock. A retry after an interrupted attempt therefore resolves to the file the
+ * previous attempt already wrote instead of minting a new random asset id and
+ * leaving the old one behind on every attempt.
+ *
+ * The owner is part of the NAME rather than of a directory, because the two
+ * media roots are flat and shared by every actor partition. Both components are
+ * slugified (lossless for a uuid and for the minted candidate id shape) and the
+ * checksum is taken over the RAW pair, so two identities that slugify alike
+ * still resolve to different files.
+ */
+export function closetPromotionMediaAssetId(ownerId, sourceCandidateId) {
+  const candidateId = cleanText(sourceCandidateId, 120);
+  if (!candidateId) return null;
+  const owner =
+    typeof ownerId === 'string' && ownerId.trim() ? ownerId.trim() : 'device-local';
+  return `cand_${slugifyIdentity(owner, 48)}_${slugifyIdentity(candidateId, 72)}_${identityChecksum(
+    `${owner}|${candidateId}`
+  )}`;
+}
+
+/**
+ * Which committed item, if any, owns each media path in the WHOLE manifest.
+ *
+ * Every actor partition plus the ownerless one, for the same reason
+ * `unlinkUnreferencedMedia` spans them: this map is what decides whether a file
+ * already sitting at a stable destination is another item's media (fail closed)
+ * or this promotion identity's own leftover (verify and reuse).
+ */
+async function collectClosetMediaOwners() {
+  const owners = new Map();
+  let items = [];
+  try {
+    items = await readAllCloset();
+  } catch {
+    // A manifest we cannot read cannot prove a destination is free. Callers
+    // treat an empty map as "unknown", and the write below fails closed on any
+    // pre-existing file it cannot attribute.
+    return { ok: false, owners };
+  }
+  for (const item of items) {
+    for (const uri of [item.imageUri, item.thumbnailUri]) {
+      const canonical = canonicalizeMediaPath(uri);
+      if (!canonical) continue;
+      if (owners.has(canonical)) continue;
+      owners.set(canonical, {
+        itemId: item.id ?? null,
+        ownerId: item.ownerId ?? null,
+        sourceCandidateId: item.sourceCandidateId ?? null,
+      });
+    }
+  }
+  return { ok: true, owners };
+}
+
+/**
+ * Place a freshly produced derivative at its STABLE destination.
+ *
+ * The rules, in the order they are applied:
+ *
+ *   1. A destination referenced by a committed item with a DIFFERENT identity is
+ *      a conflict, and the write FAILS CLOSED. It is never overwritten, and the
+ *      promotion never falls back to a random path — a fallback would silently
+ *      restore the "new file on every retry" behaviour this exists to remove.
+ *   2. A destination referenced by an item with THIS identity is that item's own
+ *      media. It is reused as-is (the redundant temp is discarded). This is the
+ *      window where a concurrent attempt committed first; the serialized commit
+ *      check then dedups this attempt onto that item.
+ *   3. An UNREFERENCED file at the destination is a leftover from an interrupted
+ *      attempt by this same identity — no other identity can address this path.
+ *      It is verified by CONTENT, not by existence: identical bytes are reused,
+ *      anything else is replaced.
+ *   4. A move that does not leave a readable file is not ownership, and is
+ *      reported as a failure rather than acknowledged.
+ */
+async function placeAtStableClosetPath(producedUri, dir, assetId, context) {
+  if (typeof producedUri !== 'string' || !producedUri.trim()) {
+    return { ok: false, reason: 'media_persist_failed' };
+  }
+  const destPath = dir + assetId + '.jpg';
+  const canonical = canonicalizeMediaPath(destPath);
+  const owner = canonical ? context.owners.get(canonical) : null;
+
+  if (owner) {
+    const sameIdentity =
+      (owner.ownerId ?? null) === (context.ownerId ?? null) &&
+      owner.sourceCandidateId === context.sourceCandidateId;
+    if (!sameIdentity) {
+      await discardClosetTemp(producedUri);
+      return { ok: false, reason: 'media_destination_conflict' };
+    }
+    const existing = await FileSystem.getInfoAsync(destPath).catch(() => ({ exists: false }));
+    if (existing?.exists) {
+      await discardClosetTemp(producedUri);
+      return { ok: true, path: destPath, reused: true };
+    }
+  } else if (!context.ownersKnown) {
+    // We could not read the manifest, so we cannot attribute an existing file.
+    const existing = await FileSystem.getInfoAsync(destPath).catch(() => ({ exists: false }));
+    if (existing?.exists) {
+      await discardClosetTemp(producedUri);
+      return { ok: false, reason: 'media_destination_conflict' };
+    }
+  }
+
+  const existing = await FileSystem.getInfoAsync(destPath).catch(() => ({ exists: false }));
+  if (existing?.exists) {
+    if (await sameFileBytes(destPath, producedUri)) {
+      await discardClosetTemp(producedUri);
+      return { ok: true, path: destPath, reused: true };
+    }
+    await FileSystem.deleteAsync(destPath, { idempotent: true }).catch(() => null);
+  }
+
+  try {
+    await FileSystem.moveAsync({ from: producedUri, to: destPath });
+  } catch {
+    return { ok: false, reason: 'media_persist_failed' };
+  }
+  const persisted = await FileSystem.getInfoAsync(destPath).catch(() => ({ exists: false }));
+  if (!persisted?.exists) return { ok: false, reason: 'media_persist_failed' };
+  return { ok: true, path: destPath, reused: false };
+}
+
+/**
+ * Exact byte equality, via the Base64 encoding of both files.
+ *
+ * Base64 is a bijection over byte strings, so equal encodings mean equal bytes —
+ * the same equality semantics the candidate content hash relies on, without
+ * adding a digest dependency to this module. Any read failure answers `false`,
+ * so an unverifiable file is replaced rather than trusted.
+ */
+async function sameFileBytes(left, right) {
+  try {
+    const encoding = FileSystem.EncodingType?.Base64 ?? 'base64';
+    const [a, b] = await Promise.all([
+      FileSystem.readAsStringAsync(left, { encoding }),
+      FileSystem.readAsStringAsync(right, { encoding }),
+    ]);
+    if (typeof a !== 'string' || typeof b !== 'string' || !a || !b) return false;
+    return a === b;
+  } catch {
+    return false;
+  }
+}
+
+/** Best-effort removal of a manipulator temp file. Never throws. */
+async function discardClosetTemp(uri) {
+  if (typeof uri !== 'string' || !uri.trim()) return;
+  try {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+  } catch {
+    /* a stranded cache file is not a reason to fail a promotion */
+  }
+}
+
 /**
  * Derive a Closet-OWNED image + thumbnail from any source URI.
  *
  * ImageManipulator always writes a fresh file into the OS cache, which is then
  * moved into Closet storage. The source URI is therefore never moved, never
  * consumed, and never referenced by the resulting record — which is what makes
- * promotion non-destructive to the originating Recent Scan.
+ * promotion non-destructive to the originating Recent Scan or candidate.
+ *
+ * `stable` switches the destination from a fresh random asset id to the
+ * identity-derived one. It is set ONLY from a promotion identity the caller
+ * already resolved, never from a caller-supplied filename.
  */
-async function deriveClosetMedia(sourceUri) {
+async function deriveClosetMedia(sourceUri, stable = null) {
   await ensureDirs();
   let imageUri = null;
   let thumbnailUri = null;
+  let failure = 'media_persist_failed';
 
   try {
     const full = await ImageManipulator.manipulateAsync(
@@ -180,13 +374,19 @@ async function deriveClosetMedia(sourceUri) {
       [{ resize: { width: IMAGE_WIDTH } }],
       { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
     );
-    imageUri = await moveToFreshClosetPath(full.uri, IMAGES_DIR, createMediaAssetId());
+    if (stable) {
+      const placed = await placeAtStableClosetPath(full?.uri, IMAGES_DIR, stable.assetId, stable);
+      imageUri = placed.ok ? placed.path : null;
+      if (!placed.ok) failure = placed.reason;
+    } else {
+      imageUri = await moveToFreshClosetPath(full.uri, IMAGES_DIR, createMediaAssetId());
+    }
   } catch {
     imageUri = null;
   }
 
   // A Closet item with no durable image is not a usable owned-inventory record.
-  if (!imageUri) return { ok: false, imageUri: null, thumbnailUri: null };
+  if (!imageUri) return { ok: false, reason: failure, imageUri: null, thumbnailUri: null };
 
   try {
     const thumb = await ImageManipulator.manipulateAsync(
@@ -194,7 +394,15 @@ async function deriveClosetMedia(sourceUri) {
       [{ resize: { width: THUMB_WIDTH } }],
       { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
     );
-    thumbnailUri = await moveToFreshClosetPath(thumb.uri, THUMBS_DIR, createMediaAssetId());
+    if (stable) {
+      // A thumbnail conflict is NOT fatal, exactly as a thumbnail failure is not:
+      // the item still owns a full image, and refusing the whole promotion over a
+      // 160px derivative would be a worse answer than showing no thumbnail.
+      const placed = await placeAtStableClosetPath(thumb?.uri, THUMBS_DIR, stable.assetId, stable);
+      thumbnailUri = placed.ok ? placed.path : null;
+    } else {
+      thumbnailUri = await moveToFreshClosetPath(thumb.uri, THUMBS_DIR, createMediaAssetId());
+    }
   } catch {
     thumbnailUri = null; // thumbnail failure is non-fatal
   }
@@ -220,6 +428,40 @@ async function cleanupRejectedClosetMedia(paths) {
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * True only for a path inside the COMMITTED Closet media roots.
+ *
+ * The mirror image of services/closetCandidateMedia.js#isCandidateOwnedPath, and
+ * the check that lets a caller prove a committed item owns its media rather than
+ * pointing at a candidate-domain or Recent Scan file.
+ */
+export function isClosetOwnedMediaPath(uri) {
+  const canonical = canonicalizeMediaPath(uri);
+  if (!canonical) return false;
+  const imagesRoot = canonicalizeMediaPath(IMAGES_DIR);
+  const thumbsRoot = canonicalizeMediaPath(THUMBS_DIR);
+  if (!imagesRoot || !thumbsRoot) return false;
+  return canonical.startsWith(imagesRoot) || canonical.startsWith(thumbsRoot);
+}
+
+/**
+ * Read-back verification for a committed item's media.
+ *
+ * Both halves matter: the reference must be a Closet-owned path (so the item is
+ * not quietly borrowing a candidate's file), and the bytes must actually be there
+ * (so "committed" is not just a manifest entry). Fails closed on any error.
+ */
+export async function verifyClosetItemMedia(item) {
+  const uri = item && typeof item === 'object' ? item.imageUri : null;
+  if (!isClosetOwnedMediaPath(uri)) return false;
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    return info?.exists === true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Load Closet items for an actor. Returns [] on any error.
@@ -264,6 +506,19 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
     return { ok: false, reason: 'missing_source_media' };
   }
 
+  // PROVENANCE IDEMPOTENCY FIRST, before any content lookup and before any media
+  // work. "This actor already committed an item from this candidate" is a
+  // stronger and cheaper answer than "some item has the same content", and
+  // conflating the two is what would let a retry create a second item.
+  const sourceCandidateId = cleanText(draft?.sourceCandidateId, 120);
+  if (sourceCandidateId) {
+    const promoted = await findClosetItemBySourceCandidate(
+      sourceCandidateId,
+      preAuthority.ownerId
+    );
+    if (promoted) return { ok: true, item: promoted, deduped: true };
+  }
+
   // Idempotency pre-check: a committed item for this lineage short-circuits
   // before any media work, so a double tap cannot duplicate an item or spend
   // a second image write.
@@ -273,11 +528,27 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
     if (existing) return { ok: true, item: existing, deduped: true };
   }
 
+  // A promotion writes to a STABLE, identity-derived destination; every other
+  // intake keeps the fresh random asset id it has always used.
+  let stable = null;
+  if (sourceCandidateId) {
+    const assetId = closetPromotionMediaAssetId(preAuthority.ownerId, sourceCandidateId);
+    if (!assetId) return { ok: false, reason: 'media_persist_failed' };
+    const attribution = await collectClosetMediaOwners();
+    stable = {
+      assetId,
+      ownerId: preAuthority.ownerId,
+      sourceCandidateId,
+      owners: attribution.owners,
+      ownersKnown: attribution.ok,
+    };
+  }
+
   let imageUri = null;
   let thumbnailUri = null;
   try {
-    const media = await deriveClosetMedia(sourceUri);
-    if (!media.ok) return { ok: false, reason: 'media_persist_failed' };
+    const media = await deriveClosetMedia(sourceUri, stable);
+    if (!media.ok) return { ok: false, reason: media.reason ?? 'media_persist_failed' };
     imageUri = media.imageUri;
     thumbnailUri = media.thumbnailUri;
 
@@ -304,6 +575,19 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
       if (!isActorRequestCurrent(actorRequest)) return null;
 
       const existing = await readAllCloset();
+
+      // Provenance commit-check, ahead of the lineage one for the same reason the
+      // pre-check is: another attempt for the same candidate may have committed
+      // while this one was writing media.
+      if (record.sourceCandidateId) {
+        const promoted = existing.find(
+          (item) =>
+            !item.deletedAt &&
+            item.sourceCandidateId === record.sourceCandidateId &&
+            (item.ownerId || null) === (record.ownerId || null)
+        );
+        if (promoted) return { item: promoted, deduped: true };
+      }
 
       // Idempotency commit-check: another in-flight promotion for the same
       // lineage may have committed while this one was writing media.
@@ -339,6 +623,33 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
   }
 }
 
+/**
+ * PROVENANCE LOOKUP: has this actor already committed an item originating from
+ * this candidate?
+ *
+ * Actor-scoped, exactly like the lineage lookup. Two different actors may hold
+ * items carrying the same provenance string without either being visible to the
+ * other, which is why the pair — not the id alone — is the identity.
+ */
+export async function findClosetItemBySourceCandidate(sourceCandidateId, ownerId) {
+  const candidateId = cleanText(sourceCandidateId, 120);
+  if (!candidateId) return null;
+  try {
+    await closetMutationQueue;
+    const items = await readAllCloset();
+    return (
+      items.find(
+        (item) =>
+          !item.deletedAt &&
+          item.sourceCandidateId === candidateId &&
+          (item.ownerId || null) === (ownerId ?? null)
+      ) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
 /** Idempotency lookup: owner + stable source lineage. */
 export async function findClosetItemByLineage(sourceLineageId, ownerId) {
   const lineage = cleanText(sourceLineageId, 300);
@@ -360,8 +671,13 @@ export async function findClosetItemByLineage(sourceLineageId, ownerId) {
 }
 
 /**
- * Update approved editable metadata on a Closet item. Media and lineage are
- * immutable here; ownership is re-derived and never taken from the caller.
+ * Update approved editable metadata on a Closet item.
+ *
+ * Title, category and notes are the ONLY writable fields. Media, lineage,
+ * candidate provenance and identity are immutable here — the next record is
+ * spread from the persisted one and only the three approved keys are replaced,
+ * so a patch naming `sourceCandidateId` changes nothing. Ownership is re-derived
+ * from the captured actor and is never taken from the caller.
  */
 export async function updateClosetItem(id, patch, { actorRequest, ownerId } = {}) {
   const authority = resolveWriteAuthority(actorRequest, ownerId);

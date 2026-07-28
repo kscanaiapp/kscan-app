@@ -35,9 +35,17 @@ import {
  * allowed rejection from `ready_for_review` would strand exactly the records a
  * user most wants gone.
  *
- * `ready_for_review -> saving -> saved` is REPRESENTABLE but NOT REACHABLE from
- * Build 1 UI. Build 1 exposes no promotion affordance. The edges exist so Build 2
- * adds a caller, not a second state machine.
+ * `ready_for_review -> saved` is PHASE 3 PROMOTION, and it is a single durable
+ * step ON PURPOSE. The in-flight "Adding to Closet" state is an in-memory
+ * operation overlay, not a persisted status, so a crash mid-promotion leaves a
+ * plain reviewable candidate rather than a record stranded in `saving` — a
+ * non-terminal status that counts against the unresolved cap, blocks selection,
+ * and has no recovery sweep until Phase 4. The record only moves once the
+ * committed item has been written AND read back.
+ *
+ * `saving` remains representable, and `saving -> saved` / `saving ->
+ * ready_for_review` remain legal, so Phase 4 can introduce a durable in-flight
+ * state with a recovery sweep behind it without reopening this matrix.
  *
  * `duplicate -> queued` is the "Add anyway" edge, likewise representable and not
  * reachable in Build 1.
@@ -57,7 +65,7 @@ export const CLOSET_CANDIDATE_TRANSITIONS: Readonly<
     'rejected',
   ],
   needs_manual_classification: ['ready_for_review', 'failed', 'rejected'],
-  ready_for_review: ['saving', 'rejected'],
+  ready_for_review: ['saving', 'saved', 'rejected'],
   duplicate: ['queued', 'rejected'],
   failed: ['queued', 'rejected'],
   saving: ['saved', 'ready_for_review', 'failed'],
@@ -190,14 +198,16 @@ const UI_METADATA: Readonly<Record<ClosetCandidateStatus, ClosetCandidateStatusU
       canReject: true,
     },
     saving: {
-      progressLabel: 'Saving to Closet',
+      progressLabel: 'Adding to Closet',
       isActionable: false,
       canRetry: false,
       canEditMetadata: false,
       canReject: false,
     },
     saved: {
-      progressLabel: 'Saved',
+      // The promoted card's copy. Says where the item IS, not what happened to
+      // the record: "Saved" would read as a draft the user still has to finish.
+      progressLabel: 'Added to Closet',
       isActionable: false,
       canRetry: false,
       canEditMetadata: false,

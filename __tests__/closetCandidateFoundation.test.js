@@ -84,9 +84,9 @@ const connectivity = runModule('services/closetConnectivity.js', () => ({}));
 
 // ── Canonical contract ───────────────────────────────────────────────────────
 
-test('candidate schema version is 2 and does not depend on a feature flag', () => {
-  assert.equal(types.CLOSET_CANDIDATE_SCHEMA_VERSION, 2);
-  assert.equal(types.CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION, 2);
+test('candidate schema version is 3 and does not depend on a feature flag', () => {
+  assert.equal(types.CLOSET_CANDIDATE_SCHEMA_VERSION, 3);
+  assert.equal(types.CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION, 3);
 });
 
 test('the exact-hash version names normalized bytes, not perceptual similarity', () => {
@@ -130,6 +130,9 @@ test('every allowed transition in the specified chain is legal', () => {
     // Representable for Build 2, unreachable from Build 1 UI.
     ['ready_for_review', 'saving'],
     ['saving', 'saved'],
+    // Phase 3 promotion: ONE durable step, taken only after the committed item
+    // has been written and read back. The in-flight state is an overlay.
+    ['ready_for_review', 'saved'],
   ];
   for (const [from, to] of allowed) {
     assert.equal(stateMachine.canTransition(from, to), true, `${from} -> ${to}`);
@@ -399,7 +402,7 @@ test('expiresAt is createdAt + 7 days and is stamped once', () => {
   );
 });
 
-test('a greenfield v2 record round-trips through migration unchanged in identity', () => {
+test('a greenfield v3 record round-trips through migration unchanged in identity', () => {
   const now = '2026-07-28T00:00:00.000Z';
   const original = schema.buildClosetCandidateRecord(
     { sourceType: 'camera', category: 'Shirt' },
@@ -409,7 +412,7 @@ test('a greenfield v2 record round-trips through migration unchanged in identity
   );
   const migrated = schema.migrateClosetCandidateRecord(original);
   assert.equal(migrated.ok, true);
-  assert.equal(migrated.migratedFrom, 2);
+  assert.equal(migrated.migratedFrom, 3);
   assert.equal(migrated.record.candidateId, original.candidateId);
   assert.equal(migrated.record.batchId, original.batchId);
   assert.equal(migrated.record.batchPosition, 2);
@@ -448,9 +451,60 @@ test('the v0 -> v1 migration mechanism actually runs', () => {
   const migrated = schema.migrateClosetCandidateRecord(raw);
   assert.equal(migrated.ok, true);
   assert.equal(migrated.migratedFrom, 0);
-  assert.equal(migrated.record.schemaVersion, 2);
+  assert.equal(migrated.record.schemaVersion, 3);
   // The raw record must never be mutated in place.
   assert.deepEqual(raw, frozenCopy);
+});
+
+test('the v2 -> v3 migration adds an empty promotion tombstone, never a fabricated one', () => {
+  const migrated = schema.migrateClosetCandidateRecord({
+    schemaVersion: 2,
+    candidateId: 'candidate_v2',
+    batchId: 'batch_v2',
+    batchPosition: 1,
+    ownerId: 'owner-1',
+    sourceType: 'gallery',
+    status: 'ready_for_review',
+    category: 'Outerwear',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    expiresAt: '2026-07-08T00:00:00.000Z',
+  });
+  assert.equal(migrated.ok, true);
+  assert.equal(migrated.record.schemaVersion, 3);
+  assert.equal(migrated.record.promotedClosetItemId, null);
+  assert.equal(migrated.record.promotedAt, null);
+  // Everything the record already carried survives the step untouched.
+  assert.equal(migrated.record.status, 'ready_for_review');
+  assert.equal(migrated.record.batchPosition, 1);
+  assert.equal(migrated.record.category, 'Outerwear');
+});
+
+test('a promotion tombstone survives reconstruction through the allowlist', () => {
+  const migrated = schema.migrateClosetCandidateRecord({
+    schemaVersion: 3,
+    candidateId: 'candidate_promoted',
+    batchId: 'batch_promoted',
+    batchPosition: 0,
+    ownerId: 'owner-1',
+    sourceType: 'gallery',
+    status: 'saved',
+    category: 'Outerwear',
+    candidateImageUri: '/doc/kscan_closet_candidates/images/a.jpg',
+    promotedClosetItemId: 'closet_abc',
+    promotedAt: '2026-07-02T00:00:00.000Z',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    expiresAt: '2026-07-08T00:00:00.000Z',
+  });
+  assert.equal(migrated.ok, true);
+  assert.equal(migrated.record.promotedClosetItemId, 'closet_abc');
+  assert.equal(migrated.record.promotedAt, '2026-07-02T00:00:00.000Z');
+  assert.equal(migrated.record.status, 'saved');
+  // The tombstone keeps pointing at its own candidate media, which is what keeps
+  // the orphan collector away from those files until Phase 4 owns cleanup.
+  assert.equal(
+    migrated.record.candidateImageUri,
+    '/doc/kscan_closet_candidates/images/a.jpg',
+  );
 });
 
 test('an unsupported FUTURE schema version is rejected, never reinterpreted', () => {

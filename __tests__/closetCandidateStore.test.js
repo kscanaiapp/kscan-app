@@ -310,7 +310,7 @@ test('a candidate is created with owned media, a hash, and a 7-day lifetime', as
 
   assert.equal(candidate.ownerId, 'user-a');
   assert.equal(candidate.status, 'queued');
-  assert.equal(candidate.schemaVersion, 2);
+  assert.equal(candidate.schemaVersion, 3);
   assert.ok(candidate.candidateId.startsWith('candidate_'));
   assert.ok(candidate.batchId.startsWith('batch_'));
   assert.equal(candidate.contentHashVersion, 'sha256-normalized-v1');
