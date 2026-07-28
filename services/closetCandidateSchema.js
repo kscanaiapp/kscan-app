@@ -335,6 +335,44 @@ export function migrateClosetCandidateRecord(rawRecord) {
   }
 }
 
+/**
+ * Validate and normalize a MANUAL classification submission.
+ *
+ * Pure, and separated from the write on purpose: validation that runs inside the
+ * store would have to reject a half-applied patch, whereas a rejection here means
+ * nothing was ever handed to the store and the candidate is provably unchanged.
+ *
+ * CATEGORY IS THE ONLY REQUIRED FIELD. It is what the backend failed to produce
+ * and what `hasUsableTaxonomy` needs before a candidate may reach review. Brand,
+ * material, size, product name, retailer, SKU and price are deliberately NOT
+ * collected: Build 1 is a wardrobe intake, not a commerce record, and asking for
+ * them would turn a one-tap fix into a form.
+ *
+ * The bounds match `buildClosetCandidateRecord` exactly. Duplicating a shorter
+ * limit here would silently truncate what the store would otherwise have kept.
+ */
+export function normalizeManualClassificationInput(fields) {
+  const category = cleanText(fields?.category, 80);
+  if (!category) {
+    return { ok: false, errorCode: 'classification_requires_manual_category' };
+  }
+
+  // Only the five taxonomy fields are extracted — everything else in the input,
+  // protected fields included, is simply never forwarded. Protected fields stay
+  // untouchable twice over: they cannot leave this function, and
+  // `updateClosetCandidate` rejects any patch that names one regardless.
+  return {
+    ok: true,
+    fields: {
+      category,
+      clothingType: cleanText(fields?.clothingType, 80),
+      subtype: cleanText(fields?.subtype, 80),
+      primaryColor: cleanText(fields?.primaryColor, 60),
+      secondaryColors: cleanTextArray(fields?.secondaryColors, 60, 8),
+    },
+  };
+}
+
 /** Test seam only. Not used by production code. */
 export const __closetCandidateSchemaInternals = {
   cleanText,

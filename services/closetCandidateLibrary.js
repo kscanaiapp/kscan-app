@@ -39,6 +39,7 @@ import {
   createClosetCandidateId,
   createClosetBatchId,
   migrateClosetCandidateRecord,
+  normalizeManualClassificationInput,
 } from './closetCandidateSchema';
 import {
   evaluateTransition,
@@ -864,6 +865,61 @@ export async function transitionClosetCandidate(
       record.interruptionCount = draft.interruptionCount ?? 0;
       return { record };
     },
+    options,
+  );
+}
+
+/**
+ * Manual classification: the user supplies the taxonomy the backend could not.
+ *
+ * TWO AUTHORITIES, ONE SEQUENCE. The field patch is user-authored content and
+ * goes through `updateClosetCandidate` (protected-field gate, allowlist rebuild);
+ * the status change is a state-machine decision and goes through
+ * `transitionClosetCandidate` (`needs_manual_classification → ready_for_review`
+ * legality). The transition is attempted only after the patch actually
+ * persisted, so a validation failure provably leaves the candidate unchanged.
+ *
+ * Everything the mutation funnel already guarantees applies to both steps:
+ * actor-epoch revalidation, expiry enforcement, and the createdAt / expiresAt /
+ * interruptionCount / retry-ledger pins. `errorCode` is cleared by the
+ * transition because the record is no longer describing a failure.
+ *
+ * Lives in the service layer, not the hook, so it is directly executable in
+ * tests — the hook is a thin caller that adds input validation for the UI.
+ */
+export async function manuallyClassifyClosetCandidate(
+  actorRequest,
+  candidateId,
+  fields,
+  options = {},
+) {
+  const normalized = normalizeManualClassificationInput(fields);
+  if (!normalized.ok) return { ok: false, errorCode: normalized.errorCode };
+
+  // Manual classification is FOR one state. Checking before the patch matters:
+  // patching first and letting the transition fail would leave a queued or
+  // classifying candidate carrying user-authored taxonomy it never asked for.
+  // A candidate the read cannot surface (expired, missing, other actor) is NOT
+  // rejected here — the mutation funnel below owns those cases and names them
+  // precisely (`candidate_expired` rather than a generic not-found), and it
+  // persists nothing on the way to saying so.
+  const loaded = await getClosetCandidate(actorRequest, candidateId, options);
+  if (loaded.ok && loaded.candidate.status !== 'needs_manual_classification') {
+    return { ok: false, errorCode: 'candidate_invalid_transition' };
+  }
+
+  const patched = await updateClosetCandidate(
+    actorRequest,
+    candidateId,
+    normalized.fields,
+    options,
+  );
+  if (!patched.ok) return patched;
+
+  return transitionClosetCandidate(
+    actorRequest,
+    candidateId,
+    { to: 'ready_for_review', errorCode: null },
     options,
   );
 }

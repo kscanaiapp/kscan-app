@@ -3,8 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import {
   listClosetCandidates,
   createClosetCandidate,
-  updateClosetCandidate,
-  transitionClosetCandidate,
+  manuallyClassifyClosetCandidate,
   retryClosetCandidate,
   rejectClosetCandidate,
   deleteClosetCandidate,
@@ -227,12 +226,10 @@ export function useClosetCandidates() {
   const classifyManually = useCallback(
     async (candidateId, fields) => {
       const actorRequest = createActorRequest();
-      const patched = await updateClosetCandidate(actorRequest, candidateId, fields);
-      if (!patched.ok) return patched;
-      const advanced = await transitionClosetCandidate(actorRequest, candidateId, {
-        to: 'ready_for_review',
-        errorCode: null,
-      });
+      // Validation, the protected-field gate, and the authoritative
+      // needs_manual_classification → ready_for_review transition all live in
+      // the service. The hook only refreshes what the user sees.
+      const advanced = await manuallyClassifyClosetCandidate(actorRequest, candidateId, fields);
       if (isActorRequestCurrent(actorRequest)) await refresh();
       return advanced;
     },

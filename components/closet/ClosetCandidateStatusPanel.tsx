@@ -16,7 +16,7 @@
 // services/closetCandidateStateMachine.ts#statusUIMetadata for why a persisted
 // copy would drift from the status it claims to describe.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import { SecondaryButton } from '../luxury';
@@ -27,6 +27,7 @@ import {
   closetCandidateErrorMessage,
   isUserRetryable,
 } from '../../services/closetCandidateErrors';
+import { ClosetCandidateManualClassifyModal } from './ClosetCandidateManualClassifyModal';
 
 /** Category / subtype / colour, in that order, skipping what is absent. */
 function describe(candidate: {
@@ -56,7 +57,14 @@ export function ClosetCandidateStatusPanel({
    */
   api: ReturnType<typeof useClosetCandidates>;
 }) {
-  const { candidates, loading, retry, remove } = api;
+  const { candidates, loading, retry, remove, classifyManually } = api;
+  const [manualTarget, setManualTarget] = useState<{
+    candidateId: string;
+    category?: string | null;
+    clothingType?: string | null;
+    subtype?: string | null;
+    primaryColor?: string | null;
+  } | null>(null);
 
   if (loading) {
     return (
@@ -81,6 +89,12 @@ export function ClosetCandidateStatusPanel({
         // this particular failure could help. Both must agree before we offer it.
         const showRetry =
           meta.canRetry && (!candidate.errorCode || isUserRetryable(candidate.errorCode));
+        // The manual path exists for exactly one state in Build 1: a candidate
+        // the backend could not categorize. `ready_for_review` also allows
+        // metadata edits in the state machine, but offering an editor there
+        // would grow this surface beyond "the smallest thing that unblocks".
+        const showManual =
+          meta.canEditMetadata && candidate.status === 'needs_manual_classification';
         return (
           <View key={candidate.candidateId} style={styles.row}>
             {candidate.candidateThumbnailUri ? (
@@ -106,6 +120,22 @@ export function ClosetCandidateStatusPanel({
             </View>
 
             <View style={styles.actions}>
+              {showManual ? (
+                <SecondaryButton
+                  title="Add details"
+                  onPress={() => {
+                    setManualTarget({
+                      candidateId: candidate.candidateId,
+                      category: candidate.category ?? null,
+                      clothingType: candidate.clothingType ?? null,
+                      subtype: candidate.subtype ?? null,
+                      primaryColor: candidate.primaryColor ?? null,
+                    });
+                  }}
+                  accessibilityLabel="Add a category for this photo yourself"
+                  testID={`closet-candidate-manual-${candidate.candidateId}`}
+                />
+              ) : null}
               {showRetry ? (
                 <SecondaryButton
                   title="Try again"
@@ -129,6 +159,11 @@ export function ClosetCandidateStatusPanel({
         );
       })}
 
+      <ClosetCandidateManualClassifyModal
+        target={manualTarget}
+        onClose={() => setManualTarget(null)}
+        onSubmit={classifyManually}
+      />
     </View>
   );
 }
