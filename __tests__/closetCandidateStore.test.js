@@ -478,7 +478,8 @@ test('attempt bookkeeping increments only when an attempt is declared', async ()
     attempt: 'automatic',
   });
   assert.equal(classifying.candidate.attemptCount, 1);
-  assert.equal(classifying.candidate.automaticRetryCount, 1);
+  // The first automatic attempt is not a RETRY.
+  assert.equal(classifying.candidate.automaticRetryCount, 0);
 
   const failed = await env.store.transitionClosetCandidate(req, id, {
     to: 'failed',
@@ -509,7 +510,34 @@ test('manual retry does not reset createdAt, expiresAt or interruptionCount', as
   assert.equal(retried.candidate.interruptionCount, created.candidate.interruptionCount);
   // The full retry history is preserved, not rewound.
   assert.equal(retried.candidate.attemptCount, 2);
-  assert.equal(retried.candidate.automaticRetryCount, 1);
+  assert.equal(retried.candidate.automaticRetryCount, 0);
+});
+
+test('the automatic retry ledger counts retries, not the first attempt', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/a.jpg');
+  const id = (await stage(env, req, '/picker/a.jpg')).candidate.candidateId;
+
+  const expected = [
+    // [attemptCount after start, automaticRetryCount after start]
+    [1, 0],
+    [2, 1],
+    [3, 2],
+  ];
+  for (const [attemptCount, automaticRetryCount] of expected) {
+    const started = await env.store.transitionClosetCandidate(req, id, {
+      to: 'classifying',
+      attempt: 'automatic',
+    });
+    assert.equal(started.candidate.attemptCount, attemptCount);
+    assert.equal(started.candidate.automaticRetryCount, automaticRetryCount);
+    await env.store.transitionClosetCandidate(req, id, {
+      to: 'failed',
+      errorCode: 'classification_timeout',
+    });
+    await env.store.transitionClosetCandidate(req, id, { to: 'queued' });
+  }
 });
 
 // ── Exact duplicate collisions ───────────────────────────────────────────────
