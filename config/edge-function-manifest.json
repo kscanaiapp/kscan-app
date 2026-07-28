@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-28T01:56:54.065Z",
-    "generatedFromGitSha": "57011cfc181090e91a9b2faa5b6321ba72172deb"
+    "generatedAtUtc": "2026-07-28T02:57:18.868Z",
+    "generatedFromGitSha": "75f07bf90ff45a4f4bc28c63d762945883f43770"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -20,8 +20,8 @@
         ],
         "bundleFileCount": 31,
         "treeFileCount": 38,
-        "bundleHash": "bdcedb5a3a7968a67e802edfb63d07ba892cc01407898e0b8723c20f07e2a0d4",
-        "treeHash": "2848c882639c43acbcf863385f721cb0fab3dd8fb5f0dc2276f5e24da3e17eff",
+        "bundleHash": "28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589",
+        "treeHash": "df80472c9ef44a9ca5bd33be04c4b06b100aaa53a78c743411d7c84dd7a2419f",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -40,7 +40,7 @@
           },
           {
             "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-            "sha256": "9d3101ac04a5034ba3f008ef2cc7bfa4a1881bcf840278a57f9aefdfb47ba628",
+            "sha256": "987bb1b8e4909eb8cadb317849ba70645543361a3b682afd4962bce45c060a5b",
             "bundle": true
           },
           {
@@ -105,7 +105,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "9b4b8f52e76a95a9924c378a0680cf87b4c72799b5d9cde73bac52429796a96b",
+            "sha256": "dcc7732abce278e7b90e000e388932b3041a32bb608d5b2cabeeddfc4808efc6",
             "bundle": true
           },
           {
@@ -195,7 +195,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/styleIntentCommerceGate.test.ts",
-            "sha256": "a8c22cee6d3ee75fbafda8cda95bf9f22f806c887ab0d18c7a3c0f2b63c693f3",
+            "sha256": "a2a67b30285fc5d24c58118e6d0c2e951009d3e18d1fc6ea12d6b86965bd7f31",
             "bundle": false
           },
           {
@@ -224,8 +224,8 @@
         ],
         "bundleFileCount": 34,
         "treeFileCount": 49,
-        "bundleHash": "27ad9cb1d3b924c4944f5ce150752984a2fa201f1b406cbd105b614fe39f4e9d",
-        "treeHash": "ede1a62c7420dafc98d7f6827e11a3764454e7902c66ac073add057dca87be3f",
+        "bundleHash": "b09177cf7be1d469129335d6f5e06ead41fbf24720b613618e3e377ba678e324",
+        "treeHash": "d3b91adaf981e957baf7fcc9d238de996c6b054424eaf7cca41eae0f5343c20a",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -414,12 +414,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/fashionContextV2.test.ts",
-            "sha256": "f69375359d1a25b4eff30b75f2f3e5490833dedfa866600087fa81bd0e5dc6a7",
+            "sha256": "32d349c96db0d910ffde4b4319258aa66c38af0a6523f2a209ddfcf901b62f76",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/fashionContextV2.ts",
-            "sha256": "d9923ce85dcd7d4fc0a24c0193cd5ba03985cf5165c42b060a99202dc978058d",
+            "sha256": "8d9e2c2b76150c010b4fe44b4c54b7c09660cb16b0e7299090a9b3467a1bf420",
             "bundle": true
           },
           {
@@ -434,7 +434,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "d8d5bf2976029dbbf90f093362921b33f87b1a7ab3c581aa9cc5d1c2af02ab96",
+            "sha256": "3bdc942385d7313c38f85fac7c8ef0edd8116cee101bbe34f6e94f4ca8645d85",
             "bundle": true
           },
           {

@@ -186,3 +186,63 @@ Deno.test('the skip reason reaches telemetry as a bounded value', () => {
   assertMatch(indexSource, /reason: commerceDecision\.skipReason \?\? 'unknown'/);
   assertMatch(indexSource, /commerce_skipped reason=%s intent=%s mode=%s/);
 });
+
+// ── 3. Scanner-domain artifact suppression (Phase 2B.3 hostile audit) ────────
+//
+// A successful `identify_for_style` scan must leave no Scanner-domain record
+// behind: no per-user scan intelligence row, no commerce outcome row. Both were
+// previously written for style scans because their gates predated the intent.
+
+Deno.test('shouldCaptureScanArtifacts suppresses style intent only', async () => {
+  const { shouldCaptureScanArtifacts } = await import('../_shared/fashionIdentificationV2.ts');
+  assertEquals(shouldCaptureScanArtifacts('identify_for_style'), false);
+  assertEquals(shouldCaptureScanArtifacts('identify_and_shop'), true);
+});
+
+Deno.test('index.ts gates BOTH capture entry points on the artifact decision', async () => {
+  // Placement proof in this suite's source-assertion style: the wrapper is
+  // defined once, every commerce-outcome call resolves to it, and both
+  // intelligence-capture sites carry the artifact condition.
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  assert(source.includes('const captureScanArtifacts = shouldCaptureScanArtifacts(internalRequest.intent)'));
+  assert(source.includes('const captureCommerceOutcome: typeof persistCommerceOutcomeRow'));
+  // The raw persister is referenced exactly twice: the import alias and the
+  // guarded wrapper. No call site bypasses the gate.
+  const rawUses = source.split('persistCommerceOutcomeRow').length - 1;
+  assertEquals(rawUses, 3); // import alias, wrapper type, wrapper call
+  const intelligenceSites = source.match(/captureImageModeScanIntelligence\(\{/g) ?? [];
+  assertEquals(intelligenceSites.length, 2);
+  const gatedIntelligence = source.match(
+    /auth\.isAuthenticated && captureScanArtifacts\) \{\s*\n\s*await captureImageModeScanIntelligence/g,
+  ) ?? [];
+  assertEquals(gatedIntelligence.length, 2);
+});
+
+Deno.test('the unserved authorized_image_reference transport is a bounded rejection', async () => {
+  const { validateFashionIdentificationRequestV2 } = await import('../_shared/fashionIdentificationV2.ts');
+  const request = {
+    contractVersion: 'fashion-identification-v2',
+    requestId: 'req_audit_transport_1',
+    intent: 'identify_for_style',
+    mode: 'detect_items',
+    source: { platform: 'ios', entryPath: 'elise_gallery' },
+    privacy: {
+      localFaceMaskApplied: false,
+      localPlateMaskApplied: false,
+      localPrivacyFiltered: false,
+      rawExifTransmitted: false,
+    },
+    evidence: [{
+      evidenceId: 'evidence-1',
+      sequenceIndex: 0,
+      transport: { type: 'authorized_image_reference', referenceId: 'ref-1' },
+      metadata: { schemaVersion: 'image-metadata-v1' },
+    }],
+  };
+  const result = validateFashionIdentificationRequestV2(request);
+  assertEquals(result.ok, false);
+  if (!result.ok) {
+    assertEquals(result.errorCode, 'invalid_transport');
+    assertMatch(result.message, /not yet served/);
+  }
+});
