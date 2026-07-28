@@ -421,6 +421,24 @@ export function closetPromotionMediaAssetId(ownerId, sourceCandidateId) {
 }
 
 /**
+ * The two committed-media paths a promotion identity resolves to.
+ *
+ * Exported so the Phase 4 recovery coordinator can PROTECT the destinations an
+ * in-flight promotion has reserved without knowing where the Closet media roots
+ * are. The asset id is derived by `closetPromotionMediaAssetId` and nothing else
+ * may choose it, which is what keeps "the file this promotion will write" and
+ * "the file the sweep must not delete" the same string by construction.
+ */
+export function closetPromotionMediaPaths(ownerId, sourceCandidateId) {
+  const assetId = closetPromotionMediaAssetId(ownerId, sourceCandidateId);
+  if (!assetId) return null;
+  return {
+    imageUri: IMAGES_DIR + assetId + '.jpg',
+    thumbnailUri: THUMBS_DIR + assetId + '.jpg',
+  };
+}
+
+/**
  * Which committed item, if any, owns each media path in the WHOLE manifest.
  *
  * Every actor partition plus the ownerless one, for the same reason
@@ -644,6 +662,12 @@ async function cleanupRejectedClosetMedia(paths) {
 export function isClosetOwnedMediaPath(uri) {
   const canonical = canonicalizeMediaPath(uri);
   if (!canonical) return false;
+  // A `..` segment starts inside the root as a STRING and resolves outside it as
+  // a PATH. `canonicalizeMediaPath` normalizes scheme, separators and case but
+  // deliberately does not resolve relative segments — it is the shared asset
+  // identity function for three stores — so the prefix check refuses them here.
+  // Mirrors services/closetCandidateMedia.js#isCandidateOwnedPath exactly.
+  if (canonical.split('/').includes('..')) return false;
   const imagesRoot = canonicalizeMediaPath(IMAGES_DIR);
   const thumbsRoot = canonicalizeMediaPath(THUMBS_DIR);
   if (!imagesRoot || !thumbsRoot) return false;
@@ -1012,6 +1036,195 @@ export async function deleteClosetItem(id, { ownerId } = {}) {
     });
   } catch {
     return false;
+  }
+}
+
+// ── Committed-media orphan sweep (Build 2, Phase 4) ──────────────────────────
+
+/**
+ * How recently a committed media file may have been written and still be swept.
+ *
+ * A file younger than this may belong to a promotion that is between its media
+ * write and its manifest write. That window is short and the cost of waiting one
+ * more pass is nothing, so it is kept rather than reasoned about.
+ */
+export const CLOSET_MEDIA_ORPHAN_GRACE_MS = 10 * 60 * 1000;
+
+/**
+ * Bounded traversal. A sweep is housekeeping, not a task the user is waiting on,
+ * so it stops at a fixed budget and resumes on the next pass rather than walking
+ * an arbitrarily large directory during startup.
+ */
+export const CLOSET_MEDIA_SWEEP_MAX_FILES = 200;
+
+/**
+ * Read the committed manifest for the SWEEP specifically.
+ *
+ * Different from `readAllCloset` in exactly one way, and it is the difference that
+ * makes deletion safe: `readAllCloset` answers `[]` both for "there is no manifest
+ * yet" and for "the manifest is not an array". To a reference-driven sweep those
+ * are opposite facts — the first means every file is genuinely unreferenced, the
+ * second means we have no idea what is referenced. They are separated here, and
+ * anything that is not a complete, interpretable array of objects REFUSES.
+ */
+async function readClosetManifestForSweep() {
+  let info;
+  try {
+    info = await FileSystem.getInfoAsync(CLOSET_PATH);
+  } catch {
+    return { ok: false, reason: 'manifest_unreadable' };
+  }
+  if (!info?.exists) return { ok: true, entries: [] };
+
+  let parsed;
+  try {
+    parsed = JSON.parse(await FileSystem.readAsStringAsync(CLOSET_PATH));
+  } catch {
+    return { ok: false, reason: 'manifest_unreadable' };
+  }
+  if (!Array.isArray(parsed)) return { ok: false, reason: 'manifest_unreadable' };
+  for (const entry of parsed) {
+    // One entry we cannot attribute makes the whole reference set incomplete.
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { ok: false, reason: 'manifest_incomplete' };
+    }
+  }
+  return { ok: true, entries: parsed };
+}
+
+/**
+ * Collect COMMITTED media that no committed record references.
+ *
+ * THE MIRROR IMAGE of services/closetCandidateMedia.js#sweepOrphanedCandidateMedia,
+ * and deliberately a SEPARATE FUNCTION over a SEPARATE ROOT rather than one sweep
+ * parameterised by a directory. A shared implementation is one wrong argument away
+ * from enumerating the candidate root with committed rules, which is the single
+ * catastrophic mistake in this area.
+ *
+ * The rules, in the order they matter:
+ *
+ *   - The manifest must be COMPLETE. A read that could not be interpreted refuses
+ *     the sweep outright; it never treats "unreadable" as "unreferenced".
+ *   - The reference set is built from the RAW entries, including records this
+ *     build cannot migrate. A future-schema or otherwise unhydratable row still
+ *     names its media, and that media is still owned. Hydrating first would drop
+ *     exactly the references that most need protecting.
+ *   - Deterministic destinations reserved by active atomic work are protected by
+ *     the caller passing them in (see `closetPromotionMediaPaths`).
+ *   - Only the two committed roots are enumerated, and every path is re-checked
+ *     with `isClosetOwnedMediaPath` before anything is deleted. The candidate root
+ *     is never listed, opened, or compared against.
+ *   - Deletion failures are counted, never thrown, and never retried in a loop.
+ *
+ * Runs inside the committed mutation queue so it cannot observe a half-applied
+ * write. Never throws.
+ */
+export async function sweepOrphanedClosetMedia(options = {}) {
+  const empty = (reason) => ({
+    ok: false,
+    skipped: true,
+    reason,
+    scanned: 0,
+    deleted: 0,
+    failed: 0,
+    retained: 0,
+    truncated: false,
+  });
+
+  if (typeof FileSystem.readDirectoryAsync !== 'function') return empty('unsupported');
+
+  try {
+    return await enqueueClosetMutation(async () => {
+      const state = await readClosetManifestForSweep();
+      if (!state.ok) return empty(state.reason);
+
+      const nowMs = typeof options.nowMs === 'number' ? options.nowMs : Date.now();
+      const graceMs =
+        typeof options.graceMs === 'number' && Number.isFinite(options.graceMs)
+          ? options.graceMs
+          : CLOSET_MEDIA_ORPHAN_GRACE_MS;
+      const maxFiles =
+        typeof options.maxFiles === 'number' && Number.isFinite(options.maxFiles) && options.maxFiles > 0
+          ? Math.floor(options.maxFiles)
+          : CLOSET_MEDIA_SWEEP_MAX_FILES;
+
+      const referenced = new Set();
+      for (const entry of state.entries) {
+        for (const uri of [entry.imageUri, entry.thumbnailUri]) {
+          const canonical = canonicalizeMediaPath(uri);
+          if (canonical) referenced.add(canonical);
+        }
+      }
+      for (const uri of Array.isArray(options.protectedPaths) ? options.protectedPaths : []) {
+        const canonical = canonicalizeMediaPath(uri);
+        if (canonical) referenced.add(canonical);
+      }
+
+      let scanned = 0;
+      let deleted = 0;
+      let failed = 0;
+      let retained = 0;
+      let truncated = false;
+
+      for (const dir of [IMAGES_DIR, THUMBS_DIR]) {
+        if (truncated) break;
+        let entries;
+        try {
+          entries = await FileSystem.readDirectoryAsync(dir);
+        } catch {
+          // A root that does not exist yet has nothing to sweep.
+          continue;
+        }
+        for (const name of Array.isArray(entries) ? entries : []) {
+          if (typeof name !== 'string' || !name) continue;
+          if (scanned >= maxFiles) {
+            truncated = true;
+            break;
+          }
+          scanned += 1;
+
+          const path = dir + name;
+          // Belt and braces: the path was built from a committed root, and is
+          // still re-verified as committed-owned before anything is deleted.
+          if (!isClosetOwnedMediaPath(path)) {
+            retained += 1;
+            continue;
+          }
+          const canonical = canonicalizeMediaPath(path);
+          if (!canonical || referenced.has(canonical)) {
+            retained += 1;
+            continue;
+          }
+
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(path);
+            const modifiedMs =
+              typeof fileInfo?.modificationTime === 'number'
+                ? fileInfo.modificationTime * 1000
+                : null;
+            if (modifiedMs !== null && nowMs - modifiedMs < graceMs) {
+              retained += 1;
+              continue;
+            }
+          } catch {
+            // A file we cannot stat is a file we cannot prove is collectable.
+            retained += 1;
+            continue;
+          }
+
+          try {
+            await FileSystem.deleteAsync(path, { idempotent: true });
+            deleted += 1;
+          } catch {
+            failed += 1;
+          }
+        }
+      }
+
+      return { ok: true, skipped: false, reason: null, scanned, deleted, failed, retained, truncated };
+    });
+  } catch {
+    return empty('unexpected_error');
   }
 }
 

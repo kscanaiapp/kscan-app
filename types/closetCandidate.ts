@@ -220,6 +220,28 @@ export const CLOSET_CANDIDATE_MAX_UNRESOLVED = 40;
 export const CLOSET_CANDIDATE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
+ * SAVED-TOMBSTONE RETENTION (Build 2, Phase 4).
+ *
+ * DELIBERATELY THE SAME INTERVAL as `CLOSET_CANDIDATE_TTL_MS`, and deliberately
+ * derived from it rather than written out again: the candidate domain has exactly
+ * one governing retention interval, and a second hand-written duration here would
+ * be a magic number that drifts the first time either is tuned.
+ *
+ * WHAT IS DIFFERENT IS THE ANCHOR, and only the anchor. `expiresAt` measures a
+ * DRAFT's lifetime from `createdAt`; a promotion tombstone does not exist until
+ * `promotedAt`, and the evidence it carries — that this committed item came from
+ * this candidate — only becomes relevant at that instant. Measuring it from
+ * `createdAt` would make a candidate promoted on day six retirable on day seven,
+ * one day after the only thing the record is now for came into being.
+ *
+ * AGE IS NEVER SUFFICIENT ON ITS OWN. Reaching this age makes a tombstone
+ * ELIGIBLE for the verification sequence in services/closetRecovery.js; every
+ * provenance, media and cleanup check still has to pass before anything is
+ * removed. See `retirePromotedClosetCandidate`.
+ */
+export const CLOSET_CANDIDATE_TOMBSTONE_RETENTION_MS = CLOSET_CANDIDATE_TTL_MS;
+
+/**
  * Automatic-retry budget.
  *
  * `MAX_AUTOMATIC_RETRIES` retries after the first attempt, so at most

@@ -25,6 +25,7 @@ import {
 } from '../services/actorContext';
 import { resolveClosetBatchFocus } from '../services/closetBatchReview';
 import { promoteSelectedClosetCandidates } from '../services/closetCandidatePromotion';
+import { runClosetStartupRecovery } from '../services/closetRecovery';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
@@ -145,6 +146,26 @@ export function useClosetCandidates() {
         // flag is turned off. It refuses to run on a partial manifest read.
         await sweepOrphanedClosetCandidateMedia(actorRequest);
         if (!isCurrent()) return;
+        // PHASE 4 CONVERGENCE. Single-flight per actor epoch, bounded, yielding,
+        // and stopped at its own safe checkpoints by `isCurrent` — which covers
+        // sign-out, actor change, epoch change and unmount in one predicate. It
+        // runs after the list for the same reason the sweep does: nothing the
+        // user is waiting for depends on it. It never starts a promotion.
+        const recovered = await runClosetStartupRecovery(actorRequest, {
+          shouldContinue: isCurrent,
+        });
+        if (!isCurrent()) return;
+        // Re-read only when something actually converged, so an ordinary launch
+        // with nothing to repair costs no extra manifest read.
+        if (
+          recovered.finalizedCount > 0 ||
+          recovered.repairedCount > 0 ||
+          recovered.cleanedCount > 0 ||
+          recovered.retiredCount > 0
+        ) {
+          await refresh();
+          if (!isCurrent()) return;
+        }
         if (CLOSET_CANDIDATE_STAGING_ACTIVE) {
           // Bounded: one pass, concurrency two, actor epoch and expiry revalidated
           // per candidate by the runner itself.

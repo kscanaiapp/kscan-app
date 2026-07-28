@@ -33,6 +33,7 @@ import {
   CLOSET_CANDIDATE_MAX_UNRESOLVED,
   CLOSET_CANDIDATE_MAX_INTERRUPTIONS,
   CLOSET_CANDIDATE_TTL_MS,
+  CLOSET_CANDIDATE_TOMBSTONE_RETENTION_MS,
 } from '../types/closetCandidate';
 import {
   buildClosetCandidateRecord,
@@ -415,6 +416,48 @@ export async function getClosetCandidate(actorRequest, candidateId, options = {}
   const candidate = result.candidates.find((entry) => entry.candidateId === candidateId);
   if (!candidate) return { ok: false, errorCode: 'candidate_store_corrupt' };
   return { ok: true, candidate };
+}
+
+/**
+ * THE RECOVERY READ (Build 2, Phase 4).
+ *
+ * Two things distinguish it from `listClosetCandidates`, and recovery needs both:
+ *
+ *   FAIL-CLOSED. It goes through `readCandidatesForMutation`, so a manifest that
+ *   could not be read completely refuses rather than reporting a reduced set.
+ *   Everything recovery does with this list is potentially destructive, and a
+ *   record the read could not interpret would otherwise look like a record whose
+ *   media is unowned.
+ *
+ *   NO EXPIRY FILTER. A promotion tombstone outlives the 7-day draft clock by
+ *   design, so the normal read hides exactly the records Phase 4 exists to
+ *   reconcile. Expiry is still a hard gate on PROMOTION; it is not a reason to be
+ *   unable to see that a candidate was already committed.
+ *
+ * Actor-scoped like every other read here. Never throws.
+ */
+export async function listClosetCandidatesForRecovery(actorRequest, options = {}) {
+  const authority = resolveCandidateAuthority(actorRequest, options.ownerId);
+  if (!authority.ok) return { ok: false, errorCode: authority.errorCode, candidates: [] };
+  try {
+    return await enqueue(async () => {
+      if (!isActorRequestCurrent(actorRequest)) {
+        return { ok: false, errorCode: 'candidate_actor_stale', candidates: [] };
+      }
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) {
+        return { ok: false, errorCode: readState.errorCode, candidates: [] };
+      }
+      return {
+        ok: true,
+        candidates: readState.records.filter((record) =>
+          isVisibleToActor(record, authority.ownerId),
+        ),
+      };
+    });
+  } catch {
+    return { ok: false, errorCode: 'candidate_store_corrupt', candidates: [] };
+  }
 }
 
 /** Candidates in one intake batch. Build 2's review surface addresses a batch. */
@@ -1131,6 +1174,176 @@ export async function finalizeClosetCandidatePromotion(
     },
     { ...options, allowExpired: true },
   );
+}
+
+/**
+ * RELEASE THE CANDIDATE-OWNED MEDIA OF A VERIFIED PROMOTED CANDIDATE (Phase 4).
+ *
+ * The store-side half of candidate-media cleanup. Every product decision about
+ * WHETHER to clean up — is the committed item there, is its media independent and
+ * readable, does its taxonomy verify, is an operation still using it — belongs to
+ * services/closetRecovery.js. What lives here is the part that must not be
+ * expressible anywhere else: the ordered, serialized, actor-checked write.
+ *
+ * `saved` IS NOT AUTHORIZATION, and this is the check that makes that structural.
+ * The caller must name the committed item it verified, and it must be the item
+ * this tombstone already records. A caller that only knows the status cannot
+ * satisfy that, so no amount of "it says saved" reaches a delete.
+ *
+ * ORDER, and it is the same order `releaseRejectedCandidateMedia` uses:
+ *   1. persist the record with its media URIs CLEARED
+ *   2. only then unlink the files
+ *
+ * A crash between the two leaks two files, which the candidate orphan sweep
+ * collects. The reverse order would leave a surviving tombstone pointing at files
+ * that no longer exist. A persistence failure throws BEFORE anything is unlinked,
+ * so the files and the record stay consistent with each other.
+ *
+ * `unlinkUnreferencedCandidateMedia` re-checks `isCandidateOwnedPath` on every
+ * path, so a committed-Closet or Recent Scan path handed to this function is
+ * dropped rather than deleted. Idempotent: a tombstone whose media is already
+ * gone answers ok without a write.
+ */
+export async function releasePromotedCandidateMedia(actorRequest, candidateId, options = {}) {
+  const authority = resolveCandidateAuthority(actorRequest, options.ownerId);
+  if (!authority.ok) {
+    return { ok: false, errorCode: authority.errorCode, mediaFailures: [] };
+  }
+  const closetItemId =
+    typeof options.closetItemId === 'string' && options.closetItemId.trim()
+      ? options.closetItemId.trim().slice(0, 120)
+      : null;
+  if (!closetItemId) {
+    return { ok: false, errorCode: 'candidate_invalid_transition', mediaFailures: [] };
+  }
+
+  try {
+    return await enqueue(async () => {
+      if (!isActorRequestCurrent(actorRequest)) {
+        return { ok: false, errorCode: 'candidate_actor_stale', mediaFailures: [] };
+      }
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) {
+        return { ok: false, errorCode: readState.errorCode, mediaFailures: [] };
+      }
+      const records = readState.records;
+      const index = records.findIndex(
+        (entry) =>
+          entry.candidateId === candidateId && isVisibleToActor(entry, authority.ownerId),
+      );
+      if (index === -1) {
+        return { ok: false, errorCode: 'candidate_store_corrupt', mediaFailures: [] };
+      }
+
+      const target = records[index];
+      if (target.status !== 'saved') {
+        return { ok: false, errorCode: 'candidate_invalid_transition', mediaFailures: [] };
+      }
+      if (target.promotedClosetItemId !== closetItemId) {
+        return { ok: false, errorCode: 'candidate_invalid_transition', mediaFailures: [] };
+      }
+
+      const doomed = [target.candidateThumbnailUri, target.candidateImageUri].filter(Boolean);
+      if (doomed.length === 0) {
+        // A missing candidate file is ALREADY CLEANED, not corruption.
+        return { ok: true, alreadyClean: true, candidate: target, mediaFailures: [] };
+      }
+
+      const cleared = { ...target, candidateImageUri: null, candidateThumbnailUri: null };
+      const updated = records.slice();
+      updated[index] = cleared;
+
+      await persistCandidates(updated);
+      const failures = await unlinkUnreferencedCandidateMedia(doomed, updated);
+      return {
+        ok: failures.length === 0,
+        alreadyClean: false,
+        candidate: cleared,
+        mediaFailures: failures,
+        errorCode: failures.length === 0 ? null : 'candidate_cleanup_failed',
+      };
+    });
+  } catch {
+    return { ok: false, errorCode: 'candidate_cleanup_failed', mediaFailures: [] };
+  }
+}
+
+/**
+ * RETIRE A VERIFIED, CLEANED PROMOTION TOMBSTONE (Phase 4).
+ *
+ * The ONLY path that removes a `saved` candidate record, and every precondition
+ * it enforces is one that age alone cannot satisfy:
+ *
+ *   status is `saved`                    a draft is never retired by this path
+ *   the caller names the committed item   and it is the one this record records
+ *   candidate media is already ABSENT     cleanup ran and completed first
+ *   `promotedAt` is parseable             an unstamped tombstone is never aged
+ *   promotedAt + retention <= now         the governing interval, from the right
+ *                                         anchor (see the constant's note)
+ *
+ * The retention interval is read from the contract module, NOT from an argument.
+ * A caller that could pass its own window could retire a tombstone the instant it
+ * was written, which is precisely the failure this ordering exists to prevent.
+ * `nowMs` remains injectable because a clock is not a policy.
+ *
+ * REMOVES THE CANDIDATE RECORD AND NOTHING ELSE. It never touches the committed
+ * Closet, never unlinks committed media, and — because cleanup has already run —
+ * has no candidate media left to unlink. A failure here leaves the committed item
+ * exactly as it was.
+ */
+export async function retirePromotedClosetCandidate(actorRequest, candidateId, options = {}) {
+  const authority = resolveCandidateAuthority(actorRequest, options.ownerId);
+  if (!authority.ok) return { ok: false, errorCode: authority.errorCode, removed: 0 };
+
+  const closetItemId =
+    typeof options.closetItemId === 'string' && options.closetItemId.trim()
+      ? options.closetItemId.trim().slice(0, 120)
+      : null;
+  if (!closetItemId) {
+    return { ok: false, errorCode: 'candidate_invalid_transition', removed: 0 };
+  }
+  const nowMs = options.nowMs ?? Date.now();
+
+  try {
+    return await enqueue(async () => {
+      if (!isActorRequestCurrent(actorRequest)) {
+        return { ok: false, errorCode: 'candidate_actor_stale', removed: 0 };
+      }
+      const readState = await readCandidatesForMutation();
+      if (!readState.ok) return { ok: false, errorCode: readState.errorCode, removed: 0 };
+
+      const records = readState.records;
+      const target = records.find(
+        (entry) =>
+          entry.candidateId === candidateId && isVisibleToActor(entry, authority.ownerId),
+      );
+      if (!target) return { ok: false, errorCode: 'candidate_store_corrupt', removed: 0 };
+      if (target.status !== 'saved') {
+        return { ok: false, errorCode: 'candidate_invalid_transition', removed: 0 };
+      }
+      if (target.promotedClosetItemId !== closetItemId) {
+        return { ok: false, errorCode: 'candidate_invalid_transition', removed: 0 };
+      }
+      if (target.candidateImageUri || target.candidateThumbnailUri) {
+        // Retiring the record while its media survives would strand the files
+        // beyond the reach of every reference-driven path.
+        return { ok: false, errorCode: 'candidate_cleanup_failed', removed: 0 };
+      }
+
+      const promotedAtMs = Date.parse(target.promotedAt ?? '');
+      if (!Number.isFinite(promotedAtMs)) {
+        return { ok: false, errorCode: 'candidate_invalid_transition', removed: 0 };
+      }
+      if (nowMs < promotedAtMs + CLOSET_CANDIDATE_TOMBSTONE_RETENTION_MS) {
+        return { ok: false, errorCode: 'candidate_invalid_transition', removed: 0 };
+      }
+
+      await persistCandidates(records.filter((entry) => entry !== target));
+      return { ok: true, removed: 1 };
+    });
+  } catch {
+    return { ok: false, errorCode: 'candidate_persist_failed', removed: 0 };
+  }
 }
 
 /**

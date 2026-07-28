@@ -241,6 +241,23 @@ function taxonomyGaps(item, payload) {
   return gaps;
 }
 
+/**
+ * THE TWO COMPARATORS, EXPORTED FOR PHASE 4 RECOVERY.
+ *
+ * Aliases rather than a second implementation, and deliberately not moved into a
+ * shared module: promotion is where the candidate -> committed taxonomy mapping
+ * lives, and a recovery pass that judged "was this taxonomy preserved" by
+ * different rules than the write that produced it would eventually disagree with
+ * it. One definition, two callers.
+ *
+ * The distinction between them is the whole basis of Phase 4's repair decision:
+ * every GAP is a mismatch, so `mismatches \ gaps` is exactly the set of fields the
+ * committed record holds a DIFFERENT non-absent value for — a user edit, which is
+ * repaired by nobody and fails recovery closed.
+ */
+export const closetPromotionTaxonomyGaps = taxonomyGaps;
+export const closetPromotionTaxonomyMismatches = taxonomyMismatches;
+
 // ── Per-item outcome helpers ─────────────────────────────────────────────────
 
 function itemResult(entry, status, extra = {}) {
