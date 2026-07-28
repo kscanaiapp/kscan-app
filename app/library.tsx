@@ -54,12 +54,14 @@ import {
   STYLECHAT_ATTACHMENTS_ENABLED,
   CLOSET_SEPARATION_V1,
   CLOSET_DIRECT_INTAKE_ACTIVE,
+  CLOSET_CANDIDATE_STAGING_ACTIVE,
 } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
 import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
 import { useCloset } from '../hooks/useCloset';
 import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
+import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
 import { isScanPromoted } from '../services/closetPromotion';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -466,6 +468,16 @@ export default function LibraryScreen() {
               }
               actionAccessibilityLabel="Add an item to your Closet"
             />
+            {/*
+              Candidate staging surface (Closet Upgrade Build 1).
+
+              Mounted ONLY when the derived capability is active, so a build with
+              the flag off performs no candidate disk read, starts no
+              classification, and renders exactly what it renders today. The panel
+              lists STAGED candidates; the committed Closet grid below is
+              unchanged and remains the only owned-inventory view.
+            */}
+            {CLOSET_CANDIDATE_STAGING_ACTIVE ? <ClosetCandidateStatusPanel /> : null}
             {closet.loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
