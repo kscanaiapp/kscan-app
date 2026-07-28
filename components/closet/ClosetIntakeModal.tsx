@@ -41,16 +41,29 @@ export function ClosetIntakeModal({
   visible,
   onClose,
   onSave,
+  stagingActive = false,
 }: {
   visible: boolean;
   onClose: () => void;
+  /**
+   * When candidate staging is on this photo goes to a REVIEW QUEUE, not into the
+   * committed Closet. The copy has to say so — a button reading "Save to Closet"
+   * that stages something for review is a promise the build does not keep, and
+   * Build 1 has no promotion step to make it true later.
+   */
+  stagingActive?: boolean;
   onSave: (
     sourceUri: string,
-    draft: { title: string | null; category: string | null }
+    draft: { title: string | null; category: string | null },
+    // Which picker produced the image. Carried through because the candidate
+    // contract distinguishes `closet_camera` from `closet_gallery`, and a gallery
+    // photo reported as a camera capture would assert provenance we do not have.
+    sourceType: 'camera' | 'gallery'
   ) => Promise<{ ok: boolean; reason?: string }>;
 }) {
   const [step, setStep] = useState<IntakeStep>('choose');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [sourceType, setSourceType] = useState<'camera' | 'gallery'>('gallery');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +85,7 @@ export function ClosetIntakeModal({
   const reset = useCallback(() => {
     setStep('choose');
     setImageUri(null);
+    setSourceType('gallery');
     setTitle('');
     setCategory('');
     setError(null);
@@ -95,7 +109,11 @@ export function ClosetIntakeModal({
   );
 
   const handlePicked = useCallback(
-    (operationId: number, result: ImagePicker.ImagePickerResult) => {
+    (
+      operationId: number,
+      result: ImagePicker.ImagePickerResult,
+      pickedFrom: 'camera' | 'gallery'
+    ) => {
       if (!isCurrent(operationId)) return;
       // Cancellation is a no-op: the user stays on the chooser with no error.
       if (result.canceled) return;
@@ -106,6 +124,7 @@ export function ClosetIntakeModal({
         return;
       }
       setImageUri(uri);
+      setSourceType(pickedFrom);
       setError(null);
       setStep('details');
     },
@@ -130,7 +149,7 @@ export function ClosetIntakeModal({
         quality: 1,
         allowsEditing: false,
       });
-      handlePicked(operationId, result);
+      handlePicked(operationId, result, 'camera');
     } catch {
       if (isCurrent(operationId)) {
         setError('The camera could not be opened. Please try again.');
@@ -161,7 +180,7 @@ export function ClosetIntakeModal({
         allowsMultipleSelection: false,
         selectionLimit: 1,
       });
-      handlePicked(operationId, result);
+      handlePicked(operationId, result, 'gallery');
     } catch {
       if (isCurrent(operationId)) {
         setError('That image could not be loaded. Please choose another.');
@@ -178,10 +197,14 @@ export function ClosetIntakeModal({
     setStep('saving');
     setError(null);
     try {
-      const result = await onSave(imageUri, {
-        title: title.trim() || null,
-        category: category.trim() || null,
-      });
+      const result = await onSave(
+        imageUri,
+        {
+          title: title.trim() || null,
+          category: category.trim() || null,
+        },
+        sourceType
+      );
       if (!isCurrent(operationId)) return;
       if (result.ok) {
         onClose();
@@ -203,7 +226,7 @@ export function ClosetIntakeModal({
     } finally {
       inFlightRef.current = false;
     }
-  }, [imageUri, title, category, onSave, onClose, startOperation, isCurrent]);
+  }, [imageUri, title, category, sourceType, onSave, onClose, startOperation, isCurrent]);
 
   return (
     <Modal
@@ -218,7 +241,9 @@ export function ClosetIntakeModal({
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.heading}>Add to Closet</Text>
           <Text style={styles.sub}>
-            Items you own. No prices, no shopping — just your wardrobe.
+            {stagingActive
+              ? "Items you own. We'll identify the photo and hold it for your review — nothing is added to your Closet yet."
+              : 'Items you own. No prices, no shopping — just your wardrobe.'}
           </Text>
 
           {error ? <InlineNotice variant="error" body={error} testID="closet-intake-error" /> : null}
@@ -265,7 +290,7 @@ export function ClosetIntakeModal({
               ) : (
                 <>
                   <PrimaryButton
-                    title="Save to Closet"
+                    title={stagingActive ? 'Add for review' : 'Save to Closet'}
                     onPress={handleSave}
                     testID="closet-intake-save"
                   />

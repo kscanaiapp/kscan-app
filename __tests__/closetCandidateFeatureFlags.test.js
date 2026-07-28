@@ -153,7 +153,9 @@ test('the candidate surface is mounted only under the derived capability', () =>
   const library = fs.readFileSync(path.join(ROOT, 'app', 'library.tsx'), 'utf8');
   assert.ok(library.includes('CLOSET_CANDIDATE_STAGING_ACTIVE'));
   assert.ok(
-    /CLOSET_CANDIDATE_STAGING_ACTIVE \? <ClosetCandidateStatusPanel \/> : null/.test(library),
+    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}\s*\/>\s*\) : null/.test(
+      library,
+    ),
     'the candidate panel must be gated on the derived capability',
   );
 });
