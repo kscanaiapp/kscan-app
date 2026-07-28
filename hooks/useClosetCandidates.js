@@ -17,7 +17,12 @@ import {
   requeueClosetCandidatesOnReconnect,
   cancelAllClosetClassifications,
 } from '../services/closetCandidateClassification';
-import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
+import {
+  createActorRequest,
+  getActorContext,
+  isActorRequestCurrent,
+} from '../services/actorContext';
+import { resolveClosetBatchFocus } from '../services/closetBatchReview';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
@@ -45,7 +50,24 @@ export function useClosetCandidates() {
   const { isAuthenticated, user } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;
   const actorKey = actorId ? `user:${actorId}` : 'device-local';
+  /**
+   * The monotonic actor epoch, read at render.
+   *
+   * AuthSessionContext advances the epoch synchronously BEFORE it publishes the
+   * new session, and publishing the session is what re-renders every consumer of
+   * useAuthSession — this hook included. So by the time this line runs again the
+   * epoch is already the new one, which is what lets a same-user sign-out /
+   * sign-back-in cycle be distinguished at all: actorId and actorKey are
+   * identical across it and only the epoch moves.
+   */
+  const { epoch: actorEpoch } = getActorContext();
   const requestGenerationRef = useRef(0);
+  /**
+   * Which batch the review surface is looking at. NAVIGATION STATE, not candidate
+   * persistence: it is never written to disk, and losing it costs nothing because
+   * the projection falls back deterministically to the newest group.
+   */
+  const [activeBatchId, setActiveBatchId] = useState(null);
 
   /** Re-read from disk under a fresh actor request. */
   const refresh = useCallback(async () => {
@@ -134,6 +156,18 @@ export function useClosetCandidates() {
   }, [actorKey]);
 
   /**
+   * An actor transition drops the review navigation context.
+   *
+   * Not a safety mechanism — the projection is actor-scoped and a foreign batch id
+   * simply matches nothing — but leaving one actor's batch id pointing into another
+   * actor's surface is meaningless state, and meaningless state is where a later
+   * bug hides.
+   */
+  useEffect(() => {
+    setActiveBatchId(null);
+  }, [actorKey, actorEpoch]);
+
+  /**
    * Stage one photo. `busy` is the double-tap guard; the store is independently
    * idempotent, capped and actor-guarded, so a race that slips past the UI guard
    * still cannot produce a duplicate or a cross-actor write.
@@ -213,6 +247,14 @@ export function useClosetCandidates() {
         });
         if (!isActorRequestCurrent(actorRequest)) return result;
         await refresh();
+        // FOCUS FOLLOWS DURABILITY. `resolveClosetBatchFocus` returns a batch id
+        // only when this intake actually created a record in it, so a total
+        // failure and a capacity rejection with nothing accepted both leave the
+        // current review context exactly where it was. Classification has not run
+        // yet and is not waited for: the batch is worth showing the moment its
+        // records exist.
+        const focusBatchId = resolveClosetBatchFocus(result);
+        if (focusBatchId) setActiveBatchId(focusBatchId);
         return result;
       } finally {
         setBusy(false);
@@ -289,6 +331,10 @@ export function useClosetCandidates() {
     candidates,
     loading,
     busy,
+    actorId,
+    actorEpoch,
+    activeBatchId,
+    setActiveBatchId,
     stagingActive: CLOSET_CANDIDATE_STAGING_ACTIVE,
     batchIntakeActive: CLOSET_BATCH_REVIEW_V2_ACTIVE,
     addFromUri,

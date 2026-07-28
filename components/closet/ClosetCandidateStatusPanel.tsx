@@ -21,7 +21,9 @@ import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import { SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { CLOSET_BATCH_REVIEW_V2_ACTIVE } from '../../constants/featureFlags';
 import { useClosetCandidates } from '../../hooks/useClosetCandidates';
+import { ClosetBatchReviewPanel } from './ClosetBatchReviewPanel';
 import { statusUIMetadata } from '../../services/closetCandidateStateMachine';
 import {
   closetCandidateErrorMessage,
@@ -65,6 +67,15 @@ export function ClosetCandidateStatusPanel({
     subtype?: string | null;
     primaryColor?: string | null;
   } | null>(null);
+
+  // BUILD 2 REVIEW MODE. This surface stays the Library's one candidate mount
+  // point; the ordered batch review is a MODE of it, reached through a narrowly
+  // scoped component rather than a new top-level route. With the additional V2
+  // capability off, everything below is byte-for-byte Build 1 — the flag-off path
+  // is not a degraded review surface, it is exactly today's status list.
+  if (CLOSET_BATCH_REVIEW_V2_ACTIVE) {
+    return <ClosetBatchReviewPanel api={api} />;
+  }
 
   if (loading) {
     return (
