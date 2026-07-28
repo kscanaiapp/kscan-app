@@ -25,6 +25,15 @@ export const FASHION_IDENTIFICATION_CONTRACT_V2 = 'fashion-identification-v2' as
 export const FASHION_IDENTIFICATION_INTENTS = [
   'identify_and_shop',
   'identify_for_style',
+  // Closet Upgrade Build 1. Classification-only staging intake.
+  //
+  // WHY A THIRD INTENT RATHER THAN REUSING identify_for_style: both skip
+  // commerce, but they are not the same request. A style request produces a
+  // transient styling context; a Closet request produces metadata persisted onto
+  // a durable candidate the user will review and promote. Collapsing them would
+  // make it impossible to gate or meter either independently, and a Closet
+  // response arriving on a styling path would be undetectable.
+  'identify_for_closet',
 ] as const;
 
 export const FASHION_IDENTIFICATION_MODES = [
@@ -40,6 +49,8 @@ export const FASHION_IDENTIFICATION_ENTRY_PATHS = [
   'elise_gallery',
   'elise_header_gallery',
   'scanner_handoff',
+  'closet_camera',
+  'closet_gallery',
 ] as const;
 
 export const FASHION_IDENTIFICATION_PLATFORMS = [
@@ -849,21 +860,41 @@ export function projectV2ToLegacy(
 // ── Intent-aware commerce gating ─────────────────────────────────────────────
 
 export const COMMERCE_SKIPPED_STYLE_INTENT = 'style_intent';
+export const COMMERCE_SKIPPED_CLOSET_INTENT = 'closet_intent';
+
+/**
+ * Intents that must NEVER reach a commerce provider.
+ *
+ * Kept as a set rather than a chain of `!==` comparisons so that adding a fourth
+ * non-commerce intent is one edit in one place. An intent absent from this set
+ * shops; that default is deliberate and is asserted by test for every member of
+ * the intent vocabulary, so a newly added intent cannot silently inherit it.
+ */
+const NON_COMMERCE_INTENTS: Record<string, string> = {
+  identify_for_style: COMMERCE_SKIPPED_STYLE_INTENT,
+  identify_for_closet: COMMERCE_SKIPPED_CLOSET_INTENT,
+};
 
 /**
  * The single decision point for whether commerce may run.
  *
- * Commerce runs only for identify_and_shop. For identify_for_style every
- * provider is skipped before it is called — never called and then discarded,
- * which would spend the quota and the latency for a result nobody reads.
- * A non-fashion or failed outcome never runs commerce regardless of intent.
+ * Commerce runs only for identify_and_shop. For identify_for_style and
+ * identify_for_closet every provider is skipped before it is called — never
+ * called and then discarded, which would spend the quota and the latency for a
+ * result nobody reads. A non-fashion or failed outcome never runs commerce
+ * regardless of intent.
+ *
+ * The intent test comes FIRST and is unconditional. Ordering it ahead of the
+ * status checks is what makes "a Closet request never shops" true for every
+ * outcome, including the successful ones.
  */
 export function shouldRunCommerce(input: {
   intent: FashionIdentificationIntent;
   status: FashionIdentificationStatus;
 }): { run: boolean; skippedReason: string | null } {
-  if (input.intent === 'identify_for_style') {
-    return { run: false, skippedReason: COMMERCE_SKIPPED_STYLE_INTENT };
+  const nonCommerce = NON_COMMERCE_INTENTS[input.intent as string];
+  if (nonCommerce) {
+    return { run: false, skippedReason: nonCommerce };
   }
   if (input.status === 'non_fashion') return { run: false, skippedReason: 'non_fashion' };
   if (input.status === 'technical_failure') {
@@ -879,13 +910,19 @@ export function shouldRunCommerce(input: {
  * Whether a scan may persist Scanner-domain artifacts — per-user scan
  * intelligence rows and commerce outcome rows.
  *
- * `identify_for_style` produces a styling context and nothing else: it must
- * leave no per-user Scanner record behind, on success OR failure. An
- * intelligence row carrying category/brand/colour for a style request is an
- * implicit Recent-Scan-shaped artifact, and a commerce outcome row for a scan
- * that ran no commerce is a false record. Quota accounting is usage, not an
- * artifact, and is unaffected by this gate.
+ * `identify_for_style` produces a styling context and nothing else, and
+ * `identify_for_closet` produces classification metadata for a device-local
+ * candidate and nothing else. Neither may leave a per-user Scanner record
+ * behind, on success OR failure. An intelligence row carrying
+ * category/brand/colour for one of these is an implicit Recent-Scan-shaped
+ * artifact, and a commerce outcome row for a scan that ran no commerce is a
+ * false record. Quota accounting is usage, not an artifact, and is unaffected by
+ * this gate — one selected image is one identification unit on every intent.
+ *
+ * Derived from the same NON_COMMERCE_INTENTS set that gates commerce, so the two
+ * exclusions cannot drift apart: an intent that is not allowed to shop is not
+ * allowed to leave a Scanner artifact either.
  */
 export function shouldCaptureScanArtifacts(intent: FashionIdentificationIntent): boolean {
-  return intent !== 'identify_for_style';
+  return !NON_COMMERCE_INTENTS[intent as string];
 }
