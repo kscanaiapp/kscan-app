@@ -219,6 +219,76 @@ test('the hook drives the queue through the reconnect entry point, never the bar
   );
 });
 
+test('the library intake actually routes to candidate staging when the capability is on', () => {
+  // DEAD-CODE LOCK. The original Build 1 shipped with every candidate unit green
+  // and the one production intake path wired straight to the committed Closet —
+  // the pipeline was unreachable and no test noticed. This lock fails the moment
+  // that wiring disappears again.
+  const screen = fs.readFileSync(path.join(ROOT, 'app', 'library.tsx'), 'utf8');
+  assert.ok(
+    screen.includes('const closetCandidates = useClosetCandidates()'),
+    'the screen must own a candidate-hook instance',
+  );
+
+  const fork = screen.slice(
+    screen.indexOf('routeClosetIntake({'),
+    screen.indexOf('createBatchId: createClosetBatchId'),
+  );
+  assert.ok(fork.length > 0, 'the intake handler must go through routeClosetIntake');
+  assert.ok(
+    fork.includes('stagingActive: CLOSET_CANDIDATE_STAGING_ACTIVE'),
+    'the fork must be driven by the derived capability, not a raw flag',
+  );
+  assert.ok(
+    fork.includes('closetCandidates.addFromUri'),
+    'the candidate destination must be the candidate hook',
+  );
+  assert.ok(
+    fork.includes('closet.addFromUri'),
+    'the committed destination must remain the legacy direct intake',
+  );
+
+  // The panel renders from the SAME hook instance the intake writes through.
+  assert.ok(
+    /<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}/.test(screen),
+    'the panel must receive the screen’s candidate-hook instance',
+  );
+});
+
+test('manual classification has a production caller end to end', () => {
+  // DEAD-CODE LOCK, second edge: needs_manual_classification must not regress to
+  // a Remove-only dead end. Panel action -> modal -> hook -> service, each link
+  // asserted so removing any one of them fails here.
+  const panel = fs.readFileSync(
+    path.join(ROOT, 'components', 'closet', 'ClosetCandidateStatusPanel.tsx'),
+    'utf8',
+  );
+  assert.ok(panel.includes("title=\"Add details\""), 'the panel must offer the manual action');
+  assert.ok(
+    panel.includes('ClosetCandidateManualClassifyModal'),
+    'the panel must mount the manual editor',
+  );
+  assert.ok(
+    panel.includes('onSubmit={classifyManually}'),
+    'the editor must submit through the hook',
+  );
+
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useClosetCandidates.js'), 'utf8');
+  assert.ok(
+    hook.includes('manuallyClassifyClosetCandidate(actorRequest, candidateId, fields)'),
+    'the hook must delegate to the authoritative service sequence',
+  );
+
+  const modal = fs.readFileSync(
+    path.join(ROOT, 'components', 'closet', 'ClosetCandidateManualClassifyModal.tsx'),
+    'utf8',
+  );
+  assert.ok(
+    !/\bstatus\s*[:=]/.test(modal.replace(/\/\/[^\n]*/g, '')),
+    'the editor must never touch status directly',
+  );
+});
+
 test('the orphan-media sweep is actually wired, and is not flag-gated', () => {
   // A collector nobody calls is the defect it was written to fix: media whose
   // record is gone is unreachable by every reference-driven path, so if this
