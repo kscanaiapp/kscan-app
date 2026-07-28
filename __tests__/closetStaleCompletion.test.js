@@ -255,6 +255,28 @@ function createLibraryHarness() {
     '../components/closet/ClosetCandidateStatusPanel': {
       ClosetCandidateStatusPanel: 'ClosetCandidateStatusPanel',
     },
+    // Candidate intake wiring (Build 1 addendum). Inert here: staging is off in
+    // this harness, so these are import-shape mocks, not behaviour under test.
+    '../hooks/useClosetCandidates': {
+      useClosetCandidates: () => ({
+        candidates: [],
+        loading: false,
+        busy: false,
+        stagingActive: false,
+        addFromUri: async () => ({ kind: 'rejected', code: 'candidate_invalid_transition' }),
+        retry: async () => ({ ok: false }),
+        reject: async () => ({ ok: false }),
+        remove: async () => ({ ok: false }),
+        classifyManually: async () => ({ ok: false }),
+        refresh: async () => {},
+      }),
+    },
+    '../services/closetIntakeRouting': {
+      routeClosetIntake: async () => ({ ok: false, reason: 'closet_intake_unavailable' }),
+    },
+    '../services/closetCandidateSchema': {
+      createClosetBatchId: () => 'batch_test',
+    },
     '../services/closetPromotion': {
       isScanPromoted: (scan, ownerId) => {
         const completion = deferred();

@@ -44,8 +44,19 @@ function describe(candidate: {
   return parts.length ? parts.join(' · ') : null;
 }
 
-export function ClosetCandidateStatusPanel() {
-  const { candidates, loading, retry, remove } = useClosetCandidates();
+export function ClosetCandidateStatusPanel({
+  api,
+}: {
+  /**
+   * The screen's ONE `useClosetCandidates()` instance, passed down so intake and
+   * this panel observe the same snapshot. REQUIRED rather than defaulted: if this
+   * component mounted its own instance, a candidate staged through the screen's
+   * instance would not appear here until the next focus, and every focus would
+   * run a second hydrate/queue pass for nothing.
+   */
+  api: ReturnType<typeof useClosetCandidates>;
+}) {
+  const { candidates, loading, retry, remove } = api;
 
   if (loading) {
     return (
@@ -117,6 +128,7 @@ export function ClosetCandidateStatusPanel() {
           </View>
         );
       })}
+
     </View>
   );
 }

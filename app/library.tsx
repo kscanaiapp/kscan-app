@@ -56,6 +56,9 @@ import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilityS
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
 import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
 import { useCloset } from '../hooks/useCloset';
+import { useClosetCandidates } from '../hooks/useClosetCandidates';
+import { routeClosetIntake } from '../services/closetIntakeRouting';
+import { createClosetBatchId } from '../services/closetCandidateSchema';
 import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
 import { isScanPromoted } from '../services/closetPromotion';
@@ -152,6 +155,10 @@ export default function LibraryScreen() {
   }, [requestedSection]);
 
   const closet = useCloset();
+  // The ONE candidate-hook instance for this screen. Intake routes through it
+  // and the status panel renders from it, so a staged photo appears immediately
+  // rather than on the next focus.
+  const closetCandidates = useClosetCandidates();
   const [closetIntakeVisible, setClosetIntakeVisible] = useState(false);
   const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -249,11 +256,33 @@ export default function LibraryScreen() {
     );
   };
 
+  /**
+   * THE Closet intake fork.
+   *
+   * With staging active the photo becomes a CANDIDATE — candidate-owned media, a
+   * durable manifest record, and a classification queue entry — and the committed
+   * Closet is not written at all. With staging off this is exactly the direct
+   * intake that shipped before, unchanged.
+   *
+   * The decision lives in services/closetIntakeRouting.js rather than here so it
+   * can be executed in a test with both destinations stubbed. The screen supplies
+   * the two real destinations and nothing else: it never normalizes media and
+   * never writes to either manifest itself.
+   */
   const handleClosetIntakeSave = async (
     sourceUri: string,
-    draft: { title: string | null; category: string | null }
+    draft: { title: string | null; category: string | null },
+    sourceType: 'camera' | 'gallery'
   ): Promise<{ ok: boolean; reason?: string }> =>
-    (await closet.addFromUri(sourceUri, draft)) as { ok: boolean; reason?: string };
+    (await routeClosetIntake({
+      stagingActive: CLOSET_CANDIDATE_STAGING_ACTIVE,
+      sourceUri,
+      sourceType,
+      draft,
+      committedIntake: (uri, intakeDraft) => closet.addFromUri(uri, intakeDraft),
+      candidateIntake: (uri, intake) => closetCandidates.addFromUri(uri, intake),
+      createBatchId: createClosetBatchId,
+    })) as { ok: boolean; reason?: string };
 
   const handleDeleteClosetItem = (id: string) => {
     Alert.alert(
@@ -458,7 +487,9 @@ export default function LibraryScreen() {
               lists STAGED candidates; the committed Closet grid below is
               unchanged and remains the only owned-inventory view.
             */}
-            {CLOSET_CANDIDATE_STAGING_ACTIVE ? <ClosetCandidateStatusPanel /> : null}
+            {CLOSET_CANDIDATE_STAGING_ACTIVE ? (
+              <ClosetCandidateStatusPanel api={closetCandidates} />
+            ) : null}
             {closet.loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
@@ -675,6 +706,7 @@ export default function LibraryScreen() {
           visible={closetIntakeVisible}
           onClose={() => setClosetIntakeVisible(false)}
           onSave={handleClosetIntakeSave}
+          stagingActive={CLOSET_CANDIDATE_STAGING_ACTIVE}
         />
       ) : null}
 
