@@ -424,3 +424,29 @@ export function resolveClosetCandidateStagingActive(
   return separation === true && directIntake === true && staging === true;
 }
 
+/**
+ * Closet Build 2 batch review is an additional, fail-closed capability. Turning
+ * on Build 1 staging alone preserves the certified single-image flow.
+ */
+export function resolveClosetBatchReviewV2Enabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2,
+): boolean {
+  return value === 'true';
+}
+
+export const CLOSET_BATCH_REVIEW_V2 = resolveClosetBatchReviewV2Enabled();
+
+export const CLOSET_BATCH_REVIEW_V2_ACTIVE =
+  CLOSET_CANDIDATE_STAGING_ACTIVE && CLOSET_BATCH_REVIEW_V2;
+
+export function resolveClosetBatchReviewV2Active(
+  separation: boolean = CLOSET_SEPARATION_V1,
+  directIntake: boolean = CLOSET_DIRECT_INTAKE_V1,
+  staging: boolean = CLOSET_CANDIDATE_STAGING_V1,
+  batchReview: boolean = CLOSET_BATCH_REVIEW_V2,
+): boolean {
+  return (
+    resolveClosetCandidateStagingActive(separation, directIntake, staging) &&
+    batchReview === true
+  );
+}

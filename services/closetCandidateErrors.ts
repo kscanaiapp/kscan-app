@@ -91,6 +91,13 @@ const REGISTRY: Readonly<Record<ClosetCandidateErrorCode, ClosetCandidateErrorSp
       transition: null,
       recovery: 'remove_candidates',
     },
+    candidate_batch_limit_exceeded: {
+      retryable: false,
+      message: 'Choose up to 8 items at a time.',
+      category: 'capacity',
+      transition: null,
+      recovery: 'none',
+    },
     candidate_storage_insufficient: {
       retryable: false,
       message: 'There is not enough free space on this device to save this photo.',

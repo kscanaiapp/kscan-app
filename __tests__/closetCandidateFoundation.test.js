@@ -84,9 +84,9 @@ const connectivity = runModule('services/closetConnectivity.js', () => ({}));
 
 // ── Canonical contract ───────────────────────────────────────────────────────
 
-test('candidate schema version is 1 and does not depend on a feature flag', () => {
-  assert.equal(types.CLOSET_CANDIDATE_SCHEMA_VERSION, 1);
-  assert.equal(types.CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION, 1);
+test('candidate schema version is 2 and does not depend on a feature flag', () => {
+  assert.equal(types.CLOSET_CANDIDATE_SCHEMA_VERSION, 2);
+  assert.equal(types.CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION, 2);
 });
 
 test('the exact-hash version names normalized bytes, not perceptual similarity', () => {
@@ -399,21 +399,38 @@ test('expiresAt is createdAt + 7 days and is stamped once', () => {
   );
 });
 
-test('a greenfield v1 record round-trips through migration unchanged in identity', () => {
+test('a greenfield v2 record round-trips through migration unchanged in identity', () => {
   const now = '2026-07-28T00:00:00.000Z';
   const original = schema.buildClosetCandidateRecord(
     { sourceType: 'camera', category: 'Shirt' },
     'owner-1',
     now,
+    { batchPosition: 2 },
   );
   const migrated = schema.migrateClosetCandidateRecord(original);
   assert.equal(migrated.ok, true);
-  assert.equal(migrated.migratedFrom, 1);
+  assert.equal(migrated.migratedFrom, 2);
   assert.equal(migrated.record.candidateId, original.candidateId);
   assert.equal(migrated.record.batchId, original.batchId);
+  assert.equal(migrated.record.batchPosition, 2);
   assert.equal(migrated.record.ownerId, 'owner-1');
   assert.equal(migrated.record.createdAt, original.createdAt);
   assert.equal(migrated.record.expiresAt, original.expiresAt);
+});
+
+test('a Build 1 record without batch position remains readable as unordered', () => {
+  const migrated = schema.migrateClosetCandidateRecord({
+    schemaVersion: 1,
+    candidateId: 'candidate_build_1',
+    batchId: 'batch_build_1',
+    ownerId: 'owner-1',
+    sourceType: 'gallery',
+    status: 'queued',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    expiresAt: '2026-07-08T00:00:00.000Z',
+  });
+  assert.equal(migrated.ok, true);
+  assert.equal(migrated.record.batchPosition, null);
 });
 
 test('the v0 -> v1 migration mechanism actually runs', () => {
@@ -431,7 +448,7 @@ test('the v0 -> v1 migration mechanism actually runs', () => {
   const migrated = schema.migrateClosetCandidateRecord(raw);
   assert.equal(migrated.ok, true);
   assert.equal(migrated.migratedFrom, 0);
-  assert.equal(migrated.record.schemaVersion, 1);
+  assert.equal(migrated.record.schemaVersion, 2);
   // The raw record must never be mutated in place.
   assert.deepEqual(raw, frozenCopy);
 });

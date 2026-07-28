@@ -310,7 +310,7 @@ test('a candidate is created with owned media, a hash, and a 7-day lifetime', as
 
   assert.equal(candidate.ownerId, 'user-a');
   assert.equal(candidate.status, 'queued');
-  assert.equal(candidate.schemaVersion, 1);
+  assert.equal(candidate.schemaVersion, 2);
   assert.ok(candidate.candidateId.startsWith('candidate_'));
   assert.ok(candidate.batchId.startsWith('batch_'));
   assert.equal(candidate.contentHashVersion, 'sha256-normalized-v1');
@@ -328,9 +328,10 @@ test('a candidate is created with owned media, a hash, and a 7-day lifetime', as
   assert.ok(!candidate.candidateImageUri.startsWith('/doc/kscan_closet/images/'));
   assert.ok(!candidate.candidateImageUri.startsWith('/doc/kscan_library/'));
 
-  // The picker-owned original is preserved, never moved or consumed.
+  // The picker-owned original is never moved or consumed, but its ephemeral URI
+  // is not retained in durable candidate state.
   assert.equal(env.m.files.has('/picker/a.jpg'), true);
-  assert.equal(candidate.originalImageUri, '/picker/a.jpg');
+  assert.equal(candidate.originalImageUri, null);
 
   // The candidate manifest is its own file.
   assert.equal(env.m.files.has('/doc/kscan_closet_candidates/kscan_closet_candidates.json'), true);
@@ -869,7 +870,7 @@ test('platform URI forms are accepted as sources', async () => {
     seedSource(env.m, uri);
     const result = await stage(env, req, uri);
     assert.equal(result.kind, 'created', uri);
-    assert.equal(result.candidate.originalImageUri, uri);
+    assert.equal(result.candidate.originalImageUri, null);
     assert.equal(env.m.files.has(uri), true, `${uri} must not be consumed`);
   }
 });

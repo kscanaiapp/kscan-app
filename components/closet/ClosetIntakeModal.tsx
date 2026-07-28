@@ -37,11 +37,24 @@ import { hasUsablePhotoLibraryAccess } from '../../services/photoLibraryAccess';
 
 type IntakeStep = 'choose' | 'details' | 'saving';
 
+type IntakeSaveResult = {
+  ok: boolean;
+  reason?: string;
+  batchOutcome?: {
+    selectedCount: number;
+    acceptedCount: number;
+    rejectedForCapacityCount: number;
+    failedSourceIndexes: number[];
+  };
+};
+
 export function ClosetIntakeModal({
   visible,
   onClose,
   onSave,
+  onSaveBatch,
   stagingActive = false,
+  batchIntakeActive = false,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -52,6 +65,7 @@ export function ClosetIntakeModal({
    * Build 1 has no promotion step to make it true later.
    */
   stagingActive?: boolean;
+  batchIntakeActive?: boolean;
   onSave: (
     sourceUri: string,
     draft: { title: string | null; category: string | null },
@@ -59,10 +73,16 @@ export function ClosetIntakeModal({
     // contract distinguishes `closet_camera` from `closet_gallery`, and a gallery
     // photo reported as a camera capture would assert provenance we do not have.
     sourceType: 'camera' | 'gallery'
-  ) => Promise<{ ok: boolean; reason?: string }>;
+  ) => Promise<IntakeSaveResult>;
+  onSaveBatch?: (
+    assets: ImagePicker.ImagePickerAsset[],
+    draft: { title: string | null; category: string | null },
+    sourceType: 'camera' | 'gallery'
+  ) => Promise<IntakeSaveResult>;
 }) {
   const [step, setStep] = useState<IntakeStep>('choose');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [pickedAssets, setPickedAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [sourceType, setSourceType] = useState<'camera' | 'gallery'>('gallery');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
@@ -85,6 +105,7 @@ export function ClosetIntakeModal({
   const reset = useCallback(() => {
     setStep('choose');
     setImageUri(null);
+    setPickedAssets([]);
     setSourceType('gallery');
     setTitle('');
     setCategory('');
@@ -117,13 +138,15 @@ export function ClosetIntakeModal({
       if (!isCurrent(operationId)) return;
       // Cancellation is a no-op: the user stays on the chooser with no error.
       if (result.canceled) return;
-      const asset = Array.isArray(result.assets) ? result.assets[0] : null;
+      const assets = Array.isArray(result.assets) ? result.assets : [];
+      const asset = assets[0] ?? null;
       const uri = asset?.uri;
       if (typeof uri !== 'string' || !uri.trim()) {
         setError('That image could not be loaded. Please choose another.');
         return;
       }
       setImageUri(uri);
+      setPickedAssets(assets);
       setSourceType(pickedFrom);
       setError(null);
       setStep('details');
@@ -177,8 +200,10 @@ export function ClosetIntakeModal({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 1,
         allowsEditing: false,
-        allowsMultipleSelection: false,
-        selectionLimit: 1,
+        allowsMultipleSelection: batchIntakeActive,
+        selectionLimit: batchIntakeActive ? 8 : 1,
+        // iOS only guarantees returned selection order when this is enabled.
+        orderedSelection: batchIntakeActive,
       });
       handlePicked(operationId, result, 'gallery');
     } catch {
@@ -188,7 +213,7 @@ export function ClosetIntakeModal({
     } finally {
       inFlightRef.current = false;
     }
-  }, [startOperation, handlePicked, isCurrent]);
+  }, [startOperation, handlePicked, isCurrent, batchIntakeActive]);
 
   const handleSave = useCallback(async () => {
     if (!imageUri) return;
@@ -197,16 +222,27 @@ export function ClosetIntakeModal({
     setStep('saving');
     setError(null);
     try {
-      const result = await onSave(
-        imageUri,
-        {
-          title: title.trim() || null,
-          category: category.trim() || null,
-        },
-        sourceType
-      );
+      const draft = {
+        title: title.trim() || null,
+        category: category.trim() || null,
+      };
+      const result = batchIntakeActive && onSaveBatch
+        ? await onSaveBatch(pickedAssets, draft, sourceType)
+        : await onSave(imageUri, draft, sourceType);
       if (!isCurrent(operationId)) return;
       if (result.ok) {
+        const outcome = result.batchOutcome;
+        if (outcome?.rejectedForCapacityCount) {
+          Alert.alert(
+            'Review area full',
+            `Accepted ${outcome.acceptedCount} items. Your review area is full at 40 items. Review or remove existing items before adding the remaining ${outcome.rejectedForCapacityCount}.`,
+          );
+        } else if (outcome?.failedSourceIndexes.length) {
+          Alert.alert(
+            'Some items need another try',
+            `${outcome.acceptedCount - outcome.failedSourceIndexes.length} items were added for review. Choose the remaining items again.`,
+          );
+        }
         onClose();
         return;
       }
@@ -226,7 +262,19 @@ export function ClosetIntakeModal({
     } finally {
       inFlightRef.current = false;
     }
-  }, [imageUri, title, category, sourceType, onSave, onClose, startOperation, isCurrent]);
+  }, [
+    imageUri,
+    pickedAssets,
+    title,
+    category,
+    sourceType,
+    onSave,
+    onSaveBatch,
+    batchIntakeActive,
+    onClose,
+    startOperation,
+    isCurrent,
+  ]);
 
   return (
     <Modal
@@ -257,7 +305,7 @@ export function ClosetIntakeModal({
                 testID="closet-intake-camera"
               />
               <SecondaryButton
-                title="Choose from Library"
+                title={batchIntakeActive ? 'Choose up to 8 from Library' : 'Choose from Library'}
                 onPress={pickFromLibrary}
                 accessibilityLabel="Choose a photo from your library to add to your Closet"
                 testID="closet-intake-library"

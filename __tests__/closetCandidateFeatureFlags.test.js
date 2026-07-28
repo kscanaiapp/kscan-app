@@ -68,6 +68,22 @@ test('only the exact string "true" opts in', () => {
   );
 });
 
+test('batch review V2 is separately fail-closed and requires every Build 1 parent', () => {
+  const enabled = loadFlags({
+    EXPO_PUBLIC_CLOSET_SEPARATION_V1: ON,
+    EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1: ON,
+    EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1: ON,
+    EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2: ON,
+  });
+  assert.equal(enabled.CLOSET_BATCH_REVIEW_V2_ACTIVE, true);
+  assert.equal(enabled.resolveClosetBatchReviewV2Active(true, true, true, true), true);
+  assert.equal(enabled.resolveClosetBatchReviewV2Active(true, true, true, false), false);
+  assert.equal(enabled.resolveClosetBatchReviewV2Active(false, true, true, true), false);
+  assert.equal(enabled.resolveClosetBatchReviewV2Active(true, false, true, true), false);
+  assert.equal(enabled.resolveClosetBatchReviewV2Active(true, true, false, true), false);
+  assert.equal(loadFlags({ EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2: 'TRUE' }).CLOSET_BATCH_REVIEW_V2, false);
+});
+
 // ── Derived capability ───────────────────────────────────────────────────────
 
 test('the derived capability requires all three flags', () => {
@@ -124,6 +140,16 @@ test('no shipping profile enables candidate staging', () => {
       env.EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1,
       'true',
       `profile ${profileName} enables candidate staging`,
+    );
+  }
+});
+
+test('no shipping profile enables Build 2 batch review', () => {
+  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
+    assert.notEqual(
+      profile?.env?.EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2,
+      'true',
+      `profile ${profileName} enables batch review`,
     );
   }
 });
@@ -253,6 +279,23 @@ test('the library intake actually routes to candidate staging when the capabilit
     /<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}/.test(screen),
     'the panel must receive the screen’s candidate-hook instance',
   );
+});
+
+test('the production Closet intake surface reaches bounded batch intake only when V2 is active', () => {
+  const library = fs.readFileSync(path.join(ROOT, 'app', 'library.tsx'), 'utf8');
+  const modal = fs.readFileSync(
+    path.join(ROOT, 'components', 'closet', 'ClosetIntakeModal.tsx'),
+    'utf8',
+  );
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useClosetCandidates.js'), 'utf8');
+  assert.ok(library.includes('CLOSET_BATCH_REVIEW_V2_ACTIVE'));
+  assert.ok(library.includes('onSaveBatch={handleClosetIntakeBatchSave}'));
+  assert.ok(modal.includes('allowsMultipleSelection: batchIntakeActive'));
+  assert.ok(modal.includes('selectionLimit: batchIntakeActive ? 8 : 1'));
+  assert.ok(modal.includes('orderedSelection: batchIntakeActive'));
+  assert.ok(hook.includes('createClosetCandidateBatch'));
+  assert.ok(hook.includes('CLOSET_BATCH_REVIEW_V2_ACTIVE'));
+  assert.ok(hook.includes('addFromAssets'));
 });
 
 test('manual classification has a production caller end to end', () => {
