@@ -1,0 +1,160 @@
+// Narrow structured logging adapter for the Closet candidate layer.
+//
+// THIS IS NOT AN ANALYTICS SDK, and no analytics vendor is added by this build.
+// It is a bounded, allowlisted event sink with one default sink (a dev console
+// line) and an injectable seam so tests and any future owner-approved transport
+// can replace it without touching a call site.
+//
+// TWO ALLOWLISTS, NOT ONE. The event name must be known, AND every property must
+// be a known key whose value survives a strict scrub. A blocklist of forbidden
+// fields would have to anticipate every future field name; an allowlist drops an
+// unanticipated one by construction.
+//
+// NEVER EMITTED, and asserted absent by test: raw image bytes, Base64, local or
+// remote URIs, filenames, asset ids, user-entered titles, brand or product
+// descriptions, actor ids in plaintext, emails, access tokens, backend prompts,
+// and raw backend responses.
+//
+// BUSINESS LOGIC MUST NOT DEPEND ON THIS. Every function here swallows its own
+// failures and returns void: a telemetry fault is never allowed to fail an
+// intake, a classification, or a cleanup.
+
+export const CLOSET_CANDIDATE_EVENTS = [
+  'closet_candidate_created',
+  'closet_candidate_media_prepared',
+  'closet_candidate_duplicate_detected',
+  'closet_candidate_classification_started',
+  'closet_candidate_classified',
+  'closet_candidate_manual_classification_required',
+  'closet_candidate_waiting_for_network',
+  'closet_candidate_classification_failed',
+  'closet_candidate_retry_started',
+  'closet_candidate_request_aborted',
+  'closet_candidate_expired',
+  'closet_candidate_cleanup_completed',
+  'closet_candidate_cleanup_failed',
+] as const;
+
+export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
+
+/**
+ * The complete property allowlist.
+ *
+ * Every entry is an enum, a boolean, a coarse bucket, or a bounded contract code.
+ * There is deliberately no free-text property: a single free-text field is all it
+ * takes for a caller to pass a brand name, a title, or an exception message that
+ * quotes a request body.
+ */
+export const CLOSET_CANDIDATE_EVENT_PROPERTIES = [
+  'sourceType',
+  'status',
+  'previousStatus',
+  'errorCode',
+  'algorithmVersion',
+  'outcome',
+  'scope',
+  'resultStatus',
+  'resolutionLevel',
+  'entryPath',
+  'platform',
+  'requestMode',
+  'attemptBucket',
+  'countBucket',
+  'latencyBucket',
+  'candidateCountBucket',
+  'hasThumbnail',
+  'freeSpaceKnown',
+  'automatic',
+  'mediaFailed',
+  'aborted',
+] as const;
+
+export type ClosetCandidateEventProperty =
+  typeof CLOSET_CANDIDATE_EVENT_PROPERTIES[number];
+
+export type ClosetCandidateEventPayload = Partial<
+  Record<ClosetCandidateEventProperty, string | number | boolean | null>
+>;
+
+export type ClosetTelemetrySink = (
+  event: ClosetCandidateEvent,
+  payload: ClosetCandidateEventPayload,
+) => void;
+
+const EVENT_SET = new Set<string>(CLOSET_CANDIDATE_EVENTS);
+const PROPERTY_SET = new Set<string>(CLOSET_CANDIDATE_EVENT_PROPERTIES);
+
+/**
+ * Bounded scrub applied to every value that survives the key allowlist.
+ *
+ * Strings are capped at 64 characters and must match a conservative
+ * `[A-Za-z0-9_.:-]` shape. That pattern cannot express a `file://`, `content://`
+ * or `ph://` URI, a Windows path, a bare filename with an extension, an email, or
+ * a query string — the same allowlist-by-shape reasoning the evidence-id format
+ * uses. Numbers must be finite. Everything else is dropped.
+ */
+const SAFE_STRING = /^[A-Za-z0-9_.:-]{1,64}$/;
+
+function scrub(value: unknown): string | number | boolean | null | undefined {
+  if (value === null) return null;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') return SAFE_STRING.test(value) ? value : undefined;
+  return undefined;
+}
+
+function devSink(event: ClosetCandidateEvent, payload: ClosetCandidateEventPayload): void {
+  // Dev only. A production console line is still a log line, and this module has
+  // no durable queue by design (see the note on offline queuing below).
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    // eslint-disable-next-line no-console
+    console.log('[closetTelemetry]', event, payload);
+  }
+}
+
+let sink: ClosetTelemetrySink = devSink;
+
+/**
+ * Replace the sink. Test seam, and the single integration point if an
+ * owner-approved transport is ever added.
+ *
+ * NO DURABLE OFFLINE QUEUE IS BUILT HERE. There is no existing reusable
+ * offline-queue pattern in this repository to follow, and inventing one for
+ * telemetry would create a second persistence surface with its own corruption,
+ * growth and privacy characteristics — for data that, by construction, nothing
+ * depends on.
+ */
+export function setClosetTelemetrySink(next: ClosetTelemetrySink | null): void {
+  sink = typeof next === 'function' ? next : devSink;
+}
+
+export function resetClosetTelemetrySink(): void {
+  sink = devSink;
+}
+
+/**
+ * Emit one bounded event. Unknown event names and unknown properties are dropped
+ * silently; a telemetry mistake must never become a runtime error on a path that
+ * is already handling a failure.
+ */
+export function emitClosetCandidateEvent(
+  event: string,
+  payload: Record<string, unknown> = {},
+): void {
+  try {
+    if (!EVENT_SET.has(event)) return;
+    const safe: ClosetCandidateEventPayload = {};
+    for (const [key, value] of Object.entries(payload ?? {})) {
+      if (!PROPERTY_SET.has(key)) continue;
+      const scrubbed = scrub(value);
+      if (scrubbed === undefined) continue;
+      (safe as Record<string, unknown>)[key] = scrubbed;
+    }
+    sink(event as ClosetCandidateEvent, safe);
+  } catch {
+    /* telemetry never propagates */
+  }
+}
+
+/** Test seam only. Not used by production code. */
+export const __closetTelemetryInternals = { scrub, SAFE_STRING };
