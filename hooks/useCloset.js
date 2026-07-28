@@ -6,6 +6,7 @@ import {
   createClosetItem,
 } from '../services/closetLibrary';
 import { promoteScanToCloset } from '../services/closetPromotion';
+import { getClosetItemProjections } from '../services/closetItemProjection';
 import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 
@@ -21,6 +22,12 @@ import { useAuthSession } from '../contexts/AuthSessionContext';
  * rather than rendered under the new actor. The monotonic actor epoch is what
  * makes a same-user sign-out / sign-back-in cycle rejectable — the actorId and
  * actorKey are identical across that transition.
+ *
+ * WHAT THE SCREEN RECEIVES IS A PROJECTION. Records are read through
+ * services/closetItemProjection.ts, which exposes the structured taxonomy and
+ * drops the service-only fields — the candidate provenance, the scan lineage ids
+ * and the client request id. This hook is the UI boundary, so it is where "a
+ * screen cannot render provenance" stops being a convention and becomes true.
  */
 export function useCloset() {
   const [snapshot, setSnapshot] = useState({ actorKey: null, items: [] });
@@ -46,7 +53,7 @@ export function useCloset() {
     void loadCloset(actorId)
       .then((items) => {
         if (!isCurrent()) return;
-        setSnapshot({ actorKey, items });
+        setSnapshot({ actorKey, items: getClosetItemProjections(items) });
         setLoading(false);
       })
       .catch(() => {
@@ -70,7 +77,7 @@ export function useCloset() {
     const actorRequest = createActorRequest();
     const items = await loadCloset(actorId);
     if (!isActorRequestCurrent(actorRequest)) return;
-    setSnapshot({ actorKey, items });
+    setSnapshot({ actorKey, items: getClosetItemProjections(items) });
   }, [actorId, actorKey]);
 
   /**

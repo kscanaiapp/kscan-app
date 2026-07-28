@@ -38,8 +38,11 @@ import {
   isActorRequestCurrent,
 } from './actorContext';
 import {
+  CLOSET_ITEM_TAXONOMY_FIELDS,
   createClosetItem,
   findClosetItemBySourceCandidate,
+  isAbsentClosetTaxonomyValue,
+  repairClosetItemTaxonomy,
   verifyClosetItemMedia,
 } from './closetLibrary';
 import {
@@ -111,6 +114,50 @@ function text(value, max = 200) {
   return trimmed.slice(0, max);
 }
 
+function textList(value, max = 60, limit = 8) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const entry of value) {
+    const item = text(entry, max);
+    if (!item) continue;
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/**
+ * THE CANONICAL TAXONOMY MAPPING, candidate -> committed Closet.
+ *
+ * One field to one field, named explicitly on both sides. The candidate is never
+ * spread: a taxonomy concept that exists on a candidate and has no committed home
+ * must be visible as a missing line HERE, not as a value that quietly evaporates
+ * in the store's allowlist.
+ *
+ * ABSENT STAYS ABSENT. A missing brand is null, never "Unknown"; a missing colour
+ * is never read off the material list; and nothing is ever recovered by parsing
+ * the title, which is a display string and not a record of anything.
+ */
+export function buildClosetPromotionTaxonomy(candidate) {
+  if (!candidate || typeof candidate !== 'object') return null;
+  const category = text(candidate.category, 80);
+  if (!category) return null;
+  return {
+    category,
+    clothingType: text(candidate.clothingType, 80),
+    subtype: text(candidate.subtype, 80),
+    brand: text(candidate.brand, 120),
+    primaryColor: text(candidate.primaryColor, 60),
+    secondaryColors: textList(candidate.secondaryColors, 60, 8),
+    material: textList(candidate.material, 60, 8),
+    size: text(candidate.size, 40),
+  };
+}
+
 /**
  * EXPLICIT ALLOWLIST MAPPER, candidate -> committed Closet draft.
  *
@@ -124,32 +171,74 @@ function text(value, max = 200) {
  * commerce field — none of which exist on a committed record and none of which
  * describe an owned garment.
  *
- * ALSO NOT PROMOTED, AND THIS IS A KNOWN GAP RATHER THAN AN OVERSIGHT: clothing
- * type, subtype, primary and secondary colours, material and size. The committed
- * Closet record has no field for them today, and adding one is a committed-schema
- * migration, not a promotion change. What survives is folded into the title so
- * the user still recognises the item; the rest waits for that migration.
+ * THE TITLE IS A DISPLAY LABEL, NOT STORAGE. It is still composed from brand and
+ * descriptor because that is what the Closet card shows, but every part of it now
+ * also exists as its own structured field. Nothing may parse it back.
  */
 export function buildClosetPromotionDraft(candidate, options = {}) {
   if (!candidate || typeof candidate !== 'object') return null;
   const candidateId = text(candidate.candidateId, 120);
   if (!candidateId) return null;
 
-  const category = text(candidate.category, 80);
-  if (!category) return null;
+  const taxonomy = buildClosetPromotionTaxonomy(candidate);
+  if (!taxonomy) return null;
 
-  const brand = text(candidate.brand, 120);
-  const descriptor = text(candidate.subtype, 80) ?? text(candidate.clothingType, 80) ?? category;
-  const title = [brand, descriptor].filter(Boolean).join(' ') || category;
+  const descriptor = taxonomy.subtype ?? taxonomy.clothingType ?? taxonomy.category;
+  const title = [taxonomy.brand, descriptor].filter(Boolean).join(' ') || taxonomy.category;
 
   return {
     title,
-    category,
+    ...taxonomy,
     notes: text(candidate.notes, 500),
     origin: 'direct_intake',
     sourceCandidateId: candidateId,
     clientRequestId: text(options.clientRequestId, 300),
   };
+}
+
+// ── Taxonomy verification ────────────────────────────────────────────────────
+
+function sameTaxonomyValue(expected, actual) {
+  if (Array.isArray(expected)) {
+    if (!Array.isArray(actual) || actual.length !== expected.length) return false;
+    return expected.every((entry, index) => actual[index] === entry);
+  }
+  return actual === expected;
+}
+
+/**
+ * Taxonomy the payload carried that the committed record does NOT match.
+ *
+ * A field the payload left empty is not checked: an absent brand is a legitimate
+ * outcome, and demanding equality on it would fail a promotion for the crime of
+ * not knowing something.
+ */
+function taxonomyMismatches(item, payload) {
+  const mismatched = [];
+  for (const field of CLOSET_ITEM_TAXONOMY_FIELDS) {
+    const expected = payload?.[field];
+    if (isAbsentClosetTaxonomyValue(expected)) continue;
+    if (!sameTaxonomyValue(expected, item?.[field])) mismatched.push(field);
+  }
+  return mismatched;
+}
+
+/**
+ * Taxonomy the payload carried that the committed record is simply MISSING.
+ *
+ * Strictly narrower than a mismatch, and that is the point. An item promoted by
+ * Phase 3 — before the committed schema could store taxonomy — is missing fields
+ * and is repairable. An item whose brand the user later changed is not missing
+ * anything, and a retry must leave that edit alone.
+ */
+function taxonomyGaps(item, payload) {
+  const gaps = [];
+  for (const field of CLOSET_ITEM_TAXONOMY_FIELDS) {
+    const expected = payload?.[field];
+    if (isAbsentClosetTaxonomyValue(expected)) continue;
+    if (isAbsentClosetTaxonomyValue(item?.[field])) gaps.push(field);
+  }
+  return gaps;
 }
 
 // ── Per-item outcome helpers ─────────────────────────────────────────────────
@@ -277,12 +366,38 @@ async function promoteOneClosetCandidate(actorRequest, entry, context) {
       // is this phase's.
       return itemResult(entry, 'failed', { errorCode: 'candidate_persist_failed' });
     }
+
+    // IN-PLACE TAXONOMY REPAIR for an item promoted before the committed schema
+    // could carry any. Only genuinely MISSING fields are filled, so the item id,
+    // its media, its provenance and anything the user has since edited are all
+    // left exactly as they are — and no second item is ever created.
+    const gaps = taxonomyGaps(promoted, draft);
+    let current = promoted;
+    if (gaps.length > 0) {
+      const repair = await repairClosetItemTaxonomy(promoted.id, draft, {
+        actorRequest,
+        ownerId: actorRequest.actorId ?? null,
+      });
+      if (!repair.ok) {
+        // The committed item is intact; only the backfill failed. The candidate
+        // is deliberately left unfinalized so the next attempt tries again.
+        return itemResult(entry, 'failed', { errorCode: 'candidate_persist_failed' });
+      }
+      current = await findClosetItemBySourceCandidate(
+        candidate.candidateId,
+        actorRequest.actorId ?? null,
+      );
+      if (!current || current.id !== promoted.id || taxonomyGaps(current, draft).length > 0) {
+        return itemResult(entry, 'failed', { errorCode: 'candidate_persist_failed' });
+      }
+    }
+
     const repaired = await finalizeClosetCandidatePromotion(actorRequest, candidate.candidateId, {
-      closetItemId: promoted.id,
+      closetItemId: current.id,
       nowMs,
     });
     return itemResult(entry, 'already_promoted', {
-      committedClosetItemId: promoted.id,
+      committedClosetItemId: current.id,
       errorCode: repaired.ok ? null : repaired.errorCode,
     });
   }
@@ -330,6 +445,14 @@ async function promoteOneClosetCandidate(actorRequest, entry, context) {
     return itemResult(entry, 'actor_changed', { errorCode: 'candidate_actor_stale' });
   }
   if (!(await verifyClosetItemMedia(readBack))) {
+    return itemResult(entry, 'failed', { errorCode: 'candidate_persist_failed' });
+  }
+  // TAXONOMY IS VERIFIED, NOT ASSUMED. A write that stored the item but dropped
+  // its subtype is a silent loss, and reporting it as a promotion is exactly how
+  // this phase's defect reached production-shaped code in the first place. Every
+  // field the payload actually carried must be readable back; a field the payload
+  // left empty is not demanded.
+  if (taxonomyMismatches(readBack, draft).length > 0) {
     return itemResult(entry, 'failed', { errorCode: 'candidate_persist_failed' });
   }
 

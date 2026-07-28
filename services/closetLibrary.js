@@ -43,8 +43,20 @@ const THUMBS_DIR    = CLOSET_DIR + 'thumbnails/';
 const THUMB_WIDTH   = 160;
 const IMAGE_WIDTH   = 1440;
 
-/** Record schema version — serialization must not depend on any feature flag. */
-export const CLOSET_ITEM_SCHEMA_VERSION = 1;
+/**
+ * Record schema version — serialization must not depend on any feature flag.
+ *
+ * v2 adds STRUCTURED FASHION TAXONOMY (brand, clothing type, subtype, primary and
+ * secondary colours, material, size) alongside the category v1 already had.
+ * Before it, promotion could only preserve a category and folded the rest into
+ * the title string — which made the title the sole storage for machine-readable
+ * facts and left "Acme Bomber" as the only trace that a brand and a subtype had
+ * ever been identified. Nothing downstream may parse a title to recover them.
+ */
+export const CLOSET_ITEM_SCHEMA_VERSION = 2;
+
+/** Highest schema version this build knows how to read. */
+export const CLOSET_ITEM_MAX_SUPPORTED_SCHEMA_VERSION = 2;
 
 export const CLOSET_ORIGINS = ['direct_intake', 'recent_scan'];
 
@@ -74,6 +86,83 @@ function cleanText(value, max = 200) {
   const text = value.trim();
   if (!text) return null;
   return text.slice(0, max);
+}
+
+/**
+ * Bounded, de-duplicated scalar list.
+ *
+ * The bounds match services/closetCandidateSchema.js exactly (60 characters, 8
+ * entries). A shorter limit here would silently truncate taxonomy the candidate
+ * store had already accepted, which is the same class of quiet loss this whole
+ * phase exists to remove. Non-strings and empty strings are dropped rather than
+ * coerced, and de-duplication is case-insensitive so a retry cannot grow a list.
+ */
+function cleanTextArray(value, max = 60, limit = 8) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const entry of value) {
+    const text = cleanText(entry, max);
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+// ── Structured taxonomy vocabulary ───────────────────────────────────────────
+
+/**
+ * The committed taxonomy fields, named ONCE.
+ *
+ * Every consumer — the record builder, the repair path, promotion's read-back
+ * verification and the read projection — works from this list, so a field can
+ * never be preserved by one of them and quietly dropped by another.
+ */
+export const CLOSET_ITEM_TAXONOMY_FIELDS = Object.freeze([
+  'category',
+  'clothingType',
+  'subtype',
+  'brand',
+  'primaryColor',
+  'secondaryColors',
+  'material',
+  'size',
+]);
+
+const CLOSET_ITEM_TAXONOMY_LIST_FIELDS = Object.freeze(['secondaryColors', 'material']);
+
+/** Bounds are the candidate store's, field for field. See cleanTextArray. */
+const CLOSET_ITEM_TAXONOMY_BOUNDS = Object.freeze({
+  category: 80,
+  clothingType: 80,
+  subtype: 80,
+  brand: 120,
+  primaryColor: 60,
+  secondaryColors: 60,
+  material: 60,
+  size: 40,
+});
+
+/**
+ * ONE normalizer, so the builder and the repair path cannot drift into
+ * disagreeing about what a valid brand or colour list is.
+ */
+function normalizeClosetTaxonomyValue(field, value) {
+  const max = CLOSET_ITEM_TAXONOMY_BOUNDS[field];
+  if (!max) return null;
+  return CLOSET_ITEM_TAXONOMY_LIST_FIELDS.includes(field)
+    ? cleanTextArray(value, max, 8)
+    : cleanText(value, max);
+}
+
+/** True when a stored taxonomy value is absent — null, or an empty list. */
+export function isAbsentClosetTaxonomyValue(value) {
+  if (Array.isArray(value)) return value.length === 0;
+  return value === null || value === undefined || value === '';
 }
 
 /**
@@ -115,7 +204,23 @@ function buildClosetRecord(draft, ownerId, now) {
     imageUri: draft.imageUri ?? null,
     thumbnailUri: draft.thumbnailUri ?? null,
     title: cleanText(draft.title) || 'Closet item',
-    category: cleanText(draft.category, 80),
+
+    // STRUCTURED FASHION TAXONOMY (v2). Machine-readable, each field storing one
+    // fact. The title is a display label built FROM these; it is never the place
+    // they live, and nothing may parse it to get them back.
+    //
+    // Bounds are the candidate store's, field for field. Absent stays absent:
+    // a missing brand is null, never "Unknown", and a missing colour is never
+    // read off the material list.
+    category: normalizeClosetTaxonomyValue('category', draft.category),
+    clothingType: normalizeClosetTaxonomyValue('clothingType', draft.clothingType),
+    subtype: normalizeClosetTaxonomyValue('subtype', draft.subtype),
+    brand: normalizeClosetTaxonomyValue('brand', draft.brand),
+    primaryColor: normalizeClosetTaxonomyValue('primaryColor', draft.primaryColor),
+    secondaryColors: normalizeClosetTaxonomyValue('secondaryColors', draft.secondaryColors),
+    material: normalizeClosetTaxonomyValue('material', draft.material),
+    size: normalizeClosetTaxonomyValue('size', draft.size),
+
     notes: cleanText(draft.notes, 500),
     origin,
     sourceLocalScanId: cleanText(draft.sourceLocalScanId),
@@ -125,6 +230,106 @@ function buildClosetRecord(draft, ownerId, now) {
     createdAt: now,
     updatedAt: now,
   };
+}
+
+// ── Schema migration and reconstruction (v2) ─────────────────────────────────
+
+/**
+ * v1 -> v2: structured taxonomy.
+ *
+ * Nothing is invented and nothing is derived. A v1 record has never carried a
+ * brand, a subtype or a colour, and the title it does carry is a display string
+ * that may or may not contain one — parsing it would manufacture facts the store
+ * never recorded. Every new field therefore resolves to its canonical empty
+ * value through the allowlist builder.
+ */
+function migrateClosetItemV1ToV2(raw) {
+  return { ...raw, schemaVersion: 2 };
+}
+
+const CLOSET_ITEM_MIGRATIONS = Object.freeze({
+  0: migrateClosetItemV1ToV2,
+  1: migrateClosetItemV1ToV2,
+});
+
+/**
+ * Read one persisted Closet record safely.
+ *
+ * LAZY, NEVER EAGER. Migration happens on the READ path and the result is not
+ * written back: a v1 record on disk stays a v1 record until something has a real
+ * reason to rewrite it. Rewriting the whole manifest merely to add empty fields
+ * would touch every record the user owns to change nothing they can see.
+ *
+ * Fails CLOSED and never throws:
+ *   - a non-object, or a record with no usable id, is rejected
+ *   - a FUTURE schemaVersion is rejected rather than guessed at, because reading
+ *     a newer record with older rules is how fields get silently dropped
+ *   - the record is reconstructed through the allowlist, so an unknown key on
+ *     disk is not carried into memory and cannot be written back
+ *
+ * A rejected record is skipped by the reader. It is never repaired in place and
+ * never deleted — `readAllCloset` keeps returning the RAW array to every writer,
+ * so a record this function cannot interpret still survives the next write.
+ */
+export function migrateClosetItemRecord(rawRecord) {
+  try {
+    if (!rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) {
+      return { ok: false, reason: 'closet_store_corrupt' };
+    }
+
+    const declared = rawRecord.schemaVersion;
+    let version =
+      typeof declared === 'number' && Number.isFinite(declared) && declared >= 0
+        ? Math.floor(declared)
+        : 1;
+    if (version > CLOSET_ITEM_MAX_SUPPORTED_SCHEMA_VERSION) {
+      return { ok: false, reason: 'closet_store_future_schema' };
+    }
+
+    const migratedFrom = version;
+    let working = rawRecord;
+    while (version < CLOSET_ITEM_SCHEMA_VERSION) {
+      const step = CLOSET_ITEM_MIGRATIONS[version];
+      if (typeof step !== 'function') return { ok: false, reason: 'closet_store_corrupt' };
+      working = step(working);
+      const next =
+        typeof working?.schemaVersion === 'number' ? Math.floor(working.schemaVersion) : NaN;
+      if (!Number.isFinite(next) || next <= version) {
+        return { ok: false, reason: 'closet_store_corrupt' };
+      }
+      version = next;
+    }
+
+    // Identity is not something a reader may mint. A record with no id cannot be
+    // addressed, updated or deleted, so it is not a record.
+    const id = cleanText(working.id, 200);
+    if (!id) return { ok: false, reason: 'closet_store_corrupt' };
+
+    const ownerId =
+      typeof working.ownerId === 'string' && working.ownerId.trim()
+        ? working.ownerId.trim()
+        : null;
+    const record = buildClosetRecord({ ...working, id }, ownerId, working.updatedAt);
+
+    // Fields the builder stamps rather than carries. Re-asserted from the record
+    // on disk so reconstruction cannot restart a lifetime or resurrect a
+    // soft-deleted row.
+    record.createdAt = typeof working.createdAt === 'string' ? working.createdAt : record.createdAt;
+    record.updatedAt = typeof working.updatedAt === 'string' ? working.updatedAt : record.createdAt;
+    record.imageUri = working.imageUri ?? null;
+    record.thumbnailUri = working.thumbnailUri ?? null;
+    if (working.deletedAt) record.deletedAt = working.deletedAt;
+
+    return { ok: true, record, migratedFrom };
+  } catch {
+    return { ok: false, reason: 'closet_store_corrupt' };
+  }
+}
+
+/** Reconstructed record, or null when it cannot be interpreted. Never throws. */
+function hydrateClosetItem(rawRecord) {
+  const migrated = migrateClosetItemRecord(rawRecord);
+  return migrated.ok ? migrated.record : null;
 }
 
 function enqueueClosetMutation(operation) {
@@ -474,6 +679,18 @@ export async function loadCloset(actorId = undefined) {
     const parsed = await readAllCloset();
     return parsed
       .filter((item) => !item.deletedAt && isVisibleToActor(item, actorId))
+      // VALIDATED, NOT TRANSFORMED. A record this build must not interpret — a
+      // newer schema — or cannot address — no id — is omitted here rather than
+      // read with the wrong rules. It stays on disk untouched, because every
+      // writer reads the complete RAW array and so cannot drop it.
+      //
+      // The records themselves are returned as they are persisted. Reconstructing
+      // through the allowlist here would strip fields this store does not own but
+      // other subsystems legitimately read off a committed record — the candidate
+      // store's exact-hash duplicate check being the live example. Canonical shape
+      // for a SCREEN is the projection's job (services/closetItemProjection.ts),
+      // which is where the UI boundary actually is.
+      .filter((item) => migrateClosetItemRecord(item).ok)
       .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
   } catch {
     return [];
@@ -586,7 +803,7 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
             item.sourceCandidateId === record.sourceCandidateId &&
             (item.ownerId || null) === (record.ownerId || null)
         );
-        if (promoted) return { item: promoted, deduped: true };
+        if (promoted) return { item: hydrateClosetItem(promoted) ?? promoted, deduped: true };
       }
 
       // Idempotency commit-check: another in-flight promotion for the same
@@ -598,7 +815,7 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
             item.sourceLineageId === record.sourceLineageId &&
             (item.ownerId || null) === (record.ownerId || null)
         );
-        if (dupe) return { item: dupe, deduped: true };
+        if (dupe) return { item: hydrateClosetItem(dupe) ?? dupe, deduped: true };
       }
 
       await persistCloset([record, ...existing]);
@@ -637,14 +854,15 @@ export async function findClosetItemBySourceCandidate(sourceCandidateId, ownerId
   try {
     await closetMutationQueue;
     const items = await readAllCloset();
-    return (
-      items.find(
-        (item) =>
-          !item.deletedAt &&
-          item.sourceCandidateId === candidateId &&
-          (item.ownerId || null) === (ownerId ?? null)
-      ) ?? null
+    const found = items.find(
+      (item) =>
+        !item.deletedAt &&
+        item.sourceCandidateId === candidateId &&
+        (item.ownerId || null) === (ownerId ?? null)
     );
+    // Hydrated, because promotion's read-back verifies TAXONOMY on what this
+    // returns: a raw v1 row would be missing the fields it is about to check.
+    return found ? hydrateClosetItem(found) : null;
   } catch {
     return null;
   }
@@ -657,14 +875,13 @@ export async function findClosetItemByLineage(sourceLineageId, ownerId) {
   try {
     await closetMutationQueue;
     const items = await readAllCloset();
-    return (
-      items.find(
-        (item) =>
-          !item.deletedAt &&
-          item.sourceLineageId === lineage &&
-          (item.ownerId || null) === (ownerId ?? null)
-      ) ?? null
+    const found = items.find(
+      (item) =>
+        !item.deletedAt &&
+        item.sourceLineageId === lineage &&
+        (item.ownerId || null) === (ownerId ?? null)
     );
+    return found ? hydrateClosetItem(found) : null;
   } catch {
     return null;
   }
@@ -711,6 +928,62 @@ export async function updateClosetItem(id, patch, { actorRequest, ownerId } = {}
     updated[index] = next;
     await persistCloset(updated);
     return { ok: true, item: next };
+  }).catch(() => ({ ok: false, reason: 'unexpected_error' }));
+}
+
+/**
+ * BACKFILL taxonomy onto an item that was committed before it could carry any.
+ *
+ * DELIBERATELY NOT A GENERAL UPDATE. It fills fields that are ABSENT and touches
+ * nothing else: a value already on the record wins, because the record may have
+ * been edited since and a promotion retry is not a licence to overwrite what the
+ * user has. Nothing outside the taxonomy list can be reached at all, so identity,
+ * ownership, media, provenance and lineage are untouchable here by construction.
+ *
+ * This exists for exactly one situation: an item promoted by Phase 3, before the
+ * committed schema could store anything but a category. A retry finds it by
+ * provenance and repairs it in place rather than creating a second item.
+ */
+export async function repairClosetItemTaxonomy(id, taxonomy, { actorRequest, ownerId } = {}) {
+  const authority = resolveWriteAuthority(actorRequest, ownerId);
+  if (!authority.ok) return { ok: false, reason: authority.reason };
+  if (!taxonomy || typeof taxonomy !== 'object' || Array.isArray(taxonomy)) {
+    return { ok: false, reason: 'nothing_to_repair' };
+  }
+
+  return enqueueClosetMutation(async () => {
+    if (!isActorRequestCurrent(actorRequest)) {
+      return { ok: false, reason: 'stale_actor_context' };
+    }
+    const items = await readAllCloset();
+    const index = items.findIndex(
+      (item) => item.id === id && isVisibleToActor(item, authority.ownerId)
+    );
+    if (index === -1) return { ok: false, reason: 'not_found' };
+
+    const current = hydrateClosetItem(items[index]);
+    if (!current) return { ok: false, reason: 'unreadable_record' };
+
+    const filled = [];
+    const next = { ...current };
+    for (const field of CLOSET_ITEM_TAXONOMY_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(taxonomy, field)) continue;
+      if (!isAbsentClosetTaxonomyValue(next[field])) continue;
+      const value = normalizeClosetTaxonomyValue(field, taxonomy[field]);
+      if (isAbsentClosetTaxonomyValue(value)) continue;
+      next[field] = value;
+      filled.push(field);
+    }
+
+    if (filled.length === 0) return { ok: true, item: current, filled: [] };
+
+    next.updatedAt = new Date().toISOString();
+    const updated = items.slice();
+    // Written back through the allowlist so the repaired row is a clean v2
+    // record rather than a v1 row wearing new keys.
+    updated[index] = next;
+    await persistCloset(updated);
+    return { ok: true, item: next, filled };
   }).catch(() => ({ ok: false, reason: 'unexpected_error' }));
 }
 

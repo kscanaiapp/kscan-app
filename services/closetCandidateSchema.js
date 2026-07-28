@@ -98,10 +98,23 @@ function cleanTextArray(value, max = 80, limit = 12) {
   return out;
 }
 
+/**
+ * A classification confidence, or nothing.
+ *
+ * OUT OF RANGE IS UNAVAILABLE, NOT CLAMPED. Clamping 5 to 1 turns a malformed
+ * response into the strongest possible claim the system can make — the one
+ * direction a validation bug must never fail in. A value outside [0, 1] is not a
+ * confidence this build knows how to read, so it is reported as absent.
+ *
+ * ZERO IS A VALUE, NOT A GAP. `0` means "no confidence at all", which is a real
+ * and useful answer; treating it as missing would silently upgrade it to
+ * "unknown" and hide exactly the cases most worth seeing.
+ */
 function cleanConfidenceValue(value) {
   if (value === null) return null;
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-  return Math.max(0, Math.min(1, value));
+  if (value < 0 || value > 1) return null;
+  return value;
 }
 
 function cleanConfidence(value) {
@@ -424,8 +437,57 @@ export function normalizeManualClassificationInput(fields) {
   };
 }
 
+/**
+ * Which confidence key, if any, describes a manually authorable taxonomy field.
+ *
+ * `clothingType` has no entry because the backend never produces one — it is a
+ * manual-entry field by contract (see services/closetIdentificationV2.ts), so
+ * there has never been an automated score to invalidate.
+ */
+const MANUAL_FIELD_CONFIDENCE_KEYS = Object.freeze({
+  category: 'category',
+  subtype: 'subtype',
+  primaryColor: 'color',
+  secondaryColors: 'color',
+});
+
+/**
+ * Drop the automated confidence for fields the USER just authored.
+ *
+ * WHY THIS IS NOT COSMETIC: a confidence score is a claim about a value the
+ * classifier produced. Once the user has replaced that value, the old score
+ * describes something that is no longer on the record — and presenting it beside
+ * the correction would credit the system with the user's answer, or worse, cast
+ * doubt on it. The honest state is "no automated confidence for this field".
+ *
+ * UNRELATED SCORES SURVIVE. Correcting a category says nothing about the brand
+ * the classifier read off a label, so `brand` and `material` are untouched.
+ *
+ * Pure. Returns the reduced object, or null when nothing is left.
+ */
+export function clearManuallyAuthoredConfidence(confidence, fields) {
+  const current = cleanConfidence(confidence);
+  if (!current) return null;
+
+  const authored = new Set();
+  for (const [field, key] of Object.entries(MANUAL_FIELD_CONFIDENCE_KEYS)) {
+    const value = fields?.[field];
+    const supplied = Array.isArray(value) ? value.length > 0 : cleanText(value, 200) !== null;
+    if (supplied) authored.add(key);
+  }
+  if (authored.size === 0) return current;
+
+  const next = {};
+  for (const [key, value] of Object.entries(current)) {
+    if (authored.has(key)) continue;
+    next[key] = value;
+  }
+  return Object.keys(next).length ? next : null;
+}
+
 /** Test seam only. Not used by production code. */
 export const __closetCandidateSchemaInternals = {
+  MANUAL_FIELD_CONFIDENCE_KEYS,
   cleanText,
   cleanTextArray,
   cleanConfidence,
