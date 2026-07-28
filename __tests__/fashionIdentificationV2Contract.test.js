@@ -581,17 +581,82 @@ test('shop intent runs commerce only for a real identification', () => {
   }
 });
 
-test('non-fashion invokes no commerce under either intent', () => {
+test('non-fashion invokes no commerce under any intent', () => {
   for (const intent of V2.FASHION_IDENTIFICATION_INTENTS) {
     assert.equal(V2.shouldRunCommerce({ intent, status: 'non_fashion' }).run, false);
   }
 });
 
-test('the commerce gate has no third intent branch', () => {
+/**
+ * The intent vocabulary is pinned EXACTLY.
+ *
+ * Widened from two to three by Closet Upgrade Build 1. The guard's purpose is
+ * unchanged: an intent added without a reviewed commerce decision fails here
+ * rather than silently inheriting the shopping default. The companion assertion
+ * below is the one that actually matters — every intent must be explicitly
+ * proven to shop or not shop.
+ */
+test('the intent vocabulary is exactly the three reviewed intents', () => {
   assert.deepEqual([...V2.FASHION_IDENTIFICATION_INTENTS], [
     'identify_and_shop',
     'identify_for_style',
+    'identify_for_closet',
   ]);
+});
+
+test('every intent has an explicit, reviewed commerce decision', () => {
+  const EXPECTED_COMMERCE = {
+    identify_and_shop: true,
+    identify_for_style: false,
+    identify_for_closet: false,
+  };
+  for (const intent of V2.FASHION_IDENTIFICATION_INTENTS) {
+    assert.ok(
+      Object.prototype.hasOwnProperty.call(EXPECTED_COMMERCE, intent),
+      `intent ${intent} has no reviewed commerce decision`,
+    );
+    // Checked across EVERY status, so a non-commerce intent cannot shop on some
+    // outcome that was not considered when it was added.
+    for (const status of V2.FASHION_IDENTIFICATION_STATUSES) {
+      const gate = V2.shouldRunCommerce({ intent, status });
+      if (!EXPECTED_COMMERCE[intent]) {
+        assert.equal(gate.run, false, `${intent}/${status} ran commerce`);
+        assert.ok(gate.skippedReason, `${intent}/${status} skipped with no reason`);
+      }
+    }
+  }
+});
+
+test('identify_for_closet never shops and reports its own skip reason', () => {
+  for (const status of V2.FASHION_IDENTIFICATION_STATUSES) {
+    const gate = V2.shouldRunCommerce({ intent: 'identify_for_closet', status });
+    assert.equal(gate.run, false, status);
+    assert.equal(gate.skippedReason, V2.COMMERCE_SKIPPED_CLOSET_INTENT, status);
+  }
+  // A distinct reason from style intent: the two must remain tellable apart in
+  // telemetry, or a Closet regression would look like a styling one.
+  assert.notEqual(V2.COMMERCE_SKIPPED_CLOSET_INTENT, V2.COMMERCE_SKIPPED_STYLE_INTENT);
+});
+
+test('identify_for_closet captures no Scanner-domain artifact', () => {
+  assert.equal(V2.shouldCaptureScanArtifacts('identify_for_closet'), false);
+  assert.equal(V2.shouldCaptureScanArtifacts('identify_for_style'), false);
+  assert.equal(V2.shouldCaptureScanArtifacts('identify_and_shop'), true);
+  // The commerce gate and the artifact gate must agree for every intent: an
+  // intent not allowed to shop is not allowed to leave a Recent-Scan-shaped row.
+  for (const intent of V2.FASHION_IDENTIFICATION_INTENTS) {
+    const shops = V2.shouldRunCommerce({ intent, status: 'completed' }).run;
+    assert.equal(V2.shouldCaptureScanArtifacts(intent), shops, intent);
+  }
+});
+
+test('closet entry paths are first-class and never collapsed onto scanner or elise', () => {
+  assert.ok(V2.FASHION_IDENTIFICATION_ENTRY_PATHS.includes('closet_camera'));
+  assert.ok(V2.FASHION_IDENTIFICATION_ENTRY_PATHS.includes('closet_gallery'));
+  for (const entryPath of ['closet_camera', 'closet_gallery']) {
+    assert.ok(!entryPath.startsWith('scanner_'), entryPath);
+    assert.ok(!entryPath.startsWith('elise_'), entryPath);
+  }
 });
 
 // ── Evidence correlation through the result ──────────────────────────────────

@@ -233,6 +233,9 @@ function createLibraryHarness() {
       AI_STYLIST_UI_ENABLED: false,
       CLOSET_DIRECT_INTAKE_ACTIVE: false,
       CLOSET_SEPARATION_V1: true,
+      // Closet Upgrade Build 1: the candidate staging surface is off here, which
+      // is the shipping configuration these stale-completion assertions describe.
+      CLOSET_CANDIDATE_STAGING_ACTIVE: false,
       STYLECHAT_ATTACHMENTS_ENABLED: false,
     },
     '../components/free-tier/FreeTierUtilitySection': { FreeTierUtilitySection: 'FreeTierUtilitySection' },
@@ -249,6 +252,9 @@ function createLibraryHarness() {
       }),
     },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    '../components/closet/ClosetCandidateStatusPanel': {
+      ClosetCandidateStatusPanel: 'ClosetCandidateStatusPanel',
+    },
     '../services/closetPromotion': {
       isScanPromoted: (scan, ownerId) => {
         const completion = deferred();
