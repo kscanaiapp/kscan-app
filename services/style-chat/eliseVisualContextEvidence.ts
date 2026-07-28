@@ -297,6 +297,10 @@ export async function prepareVisualContextEvidence(input: {
   // the backend reported rather than demanding a per-garment selection the existing
   // UX has no affordance for.
   const sessionFlag = input.sessionFlag ?? beginEliseV2Session();
+  // Populated only when the V2 orchestrator already performed its one permitted
+  // legacy retry (UNSUPPORTED_CONTRACT_VERSION). Reused below instead of paying
+  // for a third identification of the same bytes.
+  let paidLegacyResponse: Awaited<ReturnType<typeof identifyScanImage>> | null = null;
   if (sessionFlag.enabled) {
     const evidence = prepareFashionEvidence({
       preparedImage: imageBase64,
@@ -334,11 +338,22 @@ export async function prepareVisualContextEvidence(input: {
           signal,
         });
       }
-      // `legacy_fallback` (the backend does not implement V2) falls through to the
-      // unchanged path below. `technical_failure` also falls through rather than
-      // failing the reference outright: the legacy contract is a real, working
-      // route on this deployment, and refusing to use it would make a V2-flagged
-      // build strictly worse than a flag-off one for the same photo.
+      if (outcome.state === 'technical_failure') {
+        // A timeout, 500 or quota failure on a deployment that DOES serve V2
+        // says nothing about contract support. Falling through to the legacy
+        // envelope here would issue an intentless request the backend defaults
+        // to identify_and_shop — a style photo entering the commerce path — and
+        // bill a second identification for a transient error. The reference
+        // fails retryable instead, exactly like the direct-attachment path.
+        return { ok: false, reason: 'identification_failed', message: IDENTIFICATION_FAILED_MESSAGE };
+      }
+      // `legacy_fallback` (the backend does not implement V2) falls through to
+      // the unchanged path below — the ONLY state that does. When the
+      // orchestrator already performed its one permitted legacy retry, that
+      // paid response is reused rather than re-purchased.
+      if (outcome.state === 'legacy_fallback' && outcome.legacyResponse !== undefined) {
+        paidLegacyResponse = outcome.legacyResponse;
+      }
     }
   }
 
@@ -346,7 +361,7 @@ export async function prepareVisualContextEvidence(input: {
   // `localPrivacyFiltered` stays false: the derivative is a metadata-stripping
   // re-encode, which is not face or plate masking and must not be reported as
   // such.
-  const response = await identifyScanImage(imageBase64, {
+  const response = paidLegacyResponse ?? await identifyScanImage(imageBase64, {
     source: 'upload',
     localPrivacyFiltered: false,
     signal,

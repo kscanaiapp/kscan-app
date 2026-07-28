@@ -50,7 +50,7 @@ import {
 } from '../../services/style-dna/localStyleDnaProfile';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
-import { AI_STYLIST_UI_ENABLED, ELISE_VISUAL_ATTACHMENTS_V1_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import { AI_STYLIST_UI_ENABLED, ELISE_LEGACY_PHOTO_INTAKE_ENABLED, ELISE_VISUAL_ATTACHMENTS_V1_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
@@ -414,6 +414,14 @@ export default function StyleChatSessionScreen() {
       (AI_STYLIST_UI_ENABLED && STYLECHAT_ATTACHMENTS_ENABLED)) &&
     (ELISE_VISUAL_ATTACHMENTS_V1_ENABLED || isStylistFeatureEnabled('aiStylist'));
   const visualAttachmentsEnabled = ELISE_VISUAL_ATTACHMENTS_V1_ENABLED;
+  // The LEGACY photo intake (pre-visual-attachment modal, legacy scan-identify
+  // contract) requires an EXPLICIT opt-in on top of the composed flags. The
+  // previous `attachmentsEnabled && !visualAttachmentsEnabled` gate failed
+  // open: omitting the visual-attachments variable from a profile that enables
+  // attachments would silently revive this route. Absence of a variable must
+  // never activate a dormant identification path.
+  const legacyPhotoIntakeEnabled =
+    attachmentsEnabled && !visualAttachmentsEnabled && ELISE_LEGACY_PHOTO_INTAKE_ENABLED;
   const chatAttachments = useStyleChatAttachments(sessionId ?? '');
   const [photoIntakeVisible, setPhotoIntakeVisible] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
@@ -553,7 +561,7 @@ export default function StyleChatSessionScreen() {
           onDirectImage={(uri, source) => chatAttachments.addDirectImage(uri, source)}
           onAddDressingRoomItem={(input) => chatAttachments.addDressingRoomItem(input)}
           onAddSharedItem={(input) => chatAttachments.addSharedItem(input)}
-          onUploadPhoto={visualAttachmentsEnabled ? undefined : () => setPhotoIntakeVisible(true)}
+          onUploadPhoto={legacyPhotoIntakeEnabled ? () => setPhotoIntakeVisible(true) : undefined}
           onRemove={chatAttachments.removeAttachment}
           onRetry={(draftId, items, localScans) =>
             chatAttachments.retryAttachment(draftId, items, localScans)
@@ -655,7 +663,7 @@ export default function StyleChatSessionScreen() {
           sendBusy={isSending}
         />
       </View>
-      {attachmentsEnabled && !visualAttachmentsEnabled ? (
+      {legacyPhotoIntakeEnabled ? (
         <StyleChatPhotoIntake
           visible={photoIntakeVisible}
           onClose={() => setPhotoIntakeVisible(false)}

@@ -46,6 +46,10 @@ const FORBIDDEN_CONTEXT_KEYS = new Set([
   'imagebase64',
   'base64',
   'evidenceid',
+  // Plural form: the canonical contract nests `conflicts[].evidenceIds`, and a
+  // key scan that only knows the singular accepts exactly that nesting.
+  'evidenceids',
+  'requestid',
   'candidateid',
   'detectiondigest',
   'bounds',
@@ -64,6 +68,13 @@ const FORBIDDEN_CONTEXT_KEYS = new Set([
   'recommendedproducts',
   'similaritymatches',
   'retailerurl',
+  'retailername',
+  'producturl',
+  'affiliateurl',
+  'imageurl',
+  'purchaseurl',
+  'price',
+  'sku',
   'userid',
   'deviceid',
   'actorkey',
@@ -96,6 +107,7 @@ const COMMERCE_CONTENT =
  * the named members of it.
  */
 const CONTEXT_KEYS: ReadonlySet<string> = new Set(['contractVersion', 'source', 'items']);
+const CONFLICT_ENTRY_KEYS: ReadonlySet<string> = new Set(['field', 'description']);
 const ITEM_KEYS: ReadonlySet<string> = new Set(['sourceIndex', 'state', 'identification']);
 const IDENTITY_KEYS: ReadonlySet<string> = new Set([
   'identityVersion', 'status', 'resolutionLevel', 'category', 'subtype', 'brand',
@@ -501,6 +513,18 @@ export function validateEliseIdentity(value: unknown): string | null {
 
   for (const key of ['material', 'silhouette', 'pattern', 'conflicts']) {
     if (!Array.isArray(value[key])) return key;
+  }
+
+  // Conflict entries are the one nested shape the canonical contract decorates
+  // with transport correlation (`evidenceIds`). The projection rebuilds them as
+  // exactly {field, description}; anything wider is a canonical leak.
+  for (const entry of value.conflicts as unknown[]) {
+    if (!isRecord(entry)) return 'conflict_entry';
+    const strayConflictKey = unknownKey(entry, CONFLICT_ENTRY_KEYS);
+    if (strayConflictKey) return `conflict_key_${strayConflictKey}`;
+    if (typeof entry.field !== 'string' || typeof entry.description !== 'string') {
+      return 'conflict_entry';
+    }
   }
 
   const attributes = value.attributes;

@@ -324,6 +324,22 @@ export const ELISE_VISUAL_ATTACHMENTS_V1_ENABLED =
   process.env.EXPO_PUBLIC_ELISE_VISUAL_ATTACHMENTS_V1_ENABLED === 'true';
 
 /**
+ * Explicit opt-in for the LEGACY StyleChat photo intake (the pre-visual-
+ * attachment modal, still on the legacy scan-identify contract).
+ *
+ * Phase 2B.3 hostile audit: the previous gate was
+ * `attachmentsEnabled && !visualAttachmentsEnabled`, which fails OPEN — merely
+ * OMITTING EXPO_PUBLIC_ELISE_VISUAL_ATTACHMENTS_V1_ENABLED from a profile that
+ * enables attachments would silently revive the legacy intake and its
+ * intentless legacy identification. A dormant route must not be one missing
+ * environment variable away from active. The legacy surface now additionally
+ * requires this exact-string opt-in; no governed profile sets it, and absence
+ * of a variable can never activate it.
+ */
+export const ELISE_LEGACY_PHOTO_INTAKE_ENABLED =
+  process.env.EXPO_PUBLIC_ELISE_LEGACY_PHOTO_INTAKE_ENABLED === 'true';
+
+/**
  * Elise E-4 optional structured advice metadata on the client. Additive: text
  * remains authoritative; applied only when enabled and object-shaped.
  */

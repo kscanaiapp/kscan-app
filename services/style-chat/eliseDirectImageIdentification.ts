@@ -75,8 +75,15 @@ export type DirectImageIdentificationOutcome =
     }
   | { kind: 'needs_selection'; candidateCount: number }
   | { kind: 'cancelled' }
-  /** The backend does not implement V2 — the caller runs its unchanged path. */
-  | { kind: 'legacy_fallback' };
+  /**
+   * The backend does not implement V2 — the caller runs its unchanged path.
+   *
+   * When the orchestrator already performed its one permitted legacy retry,
+   * that PAID response rides along so the caller can reuse it instead of
+   * billing a third identification for the same bytes. Absent when the flag
+   * was off and no network call happened at all.
+   */
+  | { kind: 'legacy_fallback'; legacyResponse?: EliseIdentifyResult['legacyResponse'] };
 
 const INSUFFICIENT_MESSAGE = 'Could not see enough detail in this photo';
 const NON_FASHION_MESSAGE = 'No clothing found in this photo';
@@ -134,7 +141,12 @@ export function outcomeFromIdentifyResult(
   source: 'camera' | 'photo_library',
 ): DirectImageIdentificationOutcome {
   if (result.state === 'cancelled') return { kind: 'cancelled' };
-  if (result.state === 'legacy_fallback') return { kind: 'legacy_fallback' };
+  if (result.state === 'legacy_fallback') {
+    return {
+      kind: 'legacy_fallback',
+      ...(result.legacyResponse !== undefined ? { legacyResponse: result.legacyResponse } : {}),
+    };
+  }
   if (result.state === 'needs_selection') {
     return { kind: 'needs_selection', candidateCount: result.candidates.length };
   }
