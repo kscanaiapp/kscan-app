@@ -83,7 +83,21 @@ export const FALLBACK_ESTIMATED_OUTPUT_BYTES = 3 * 1024 * 1024;
  * for every caller.
  */
 function hasTraversalSegment(canonicalPath) {
-  return canonicalPath.split('/').includes('..');
+  let decoded = canonicalPath;
+  for (let pass = 0; pass < 4; pass += 1) {
+    const normalized = decoded.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+    if (normalized.split('/').includes('..')) return true;
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) return false;
+      decoded = next.toLowerCase();
+    } catch {
+      // Malformed escaping is not a path this deletion boundary can own safely.
+      return true;
+    }
+  }
+  // Retain fail-closed behaviour for unusually deep percent encoding.
+  return /%(?:25)*(?:2e|2f|5c)/i.test(decoded);
 }
 
 /**

@@ -667,7 +667,20 @@ export function isClosetOwnedMediaPath(uri) {
   // deliberately does not resolve relative segments — it is the shared asset
   // identity function for three stores — so the prefix check refuses them here.
   // Mirrors services/closetCandidateMedia.js#isCandidateOwnedPath exactly.
-  if (canonical.split('/').includes('..')) return false;
+  let decoded = canonical;
+  for (let pass = 0; pass < 4; pass += 1) {
+    const normalized = decoded.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+    if (normalized.split('/').includes('..')) return false;
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next.toLowerCase();
+    } catch {
+      // Malformed escaping is not a path this deletion boundary can own safely.
+      return false;
+    }
+  }
+  if (/%(?:25)*(?:2e|2f|5c)/i.test(decoded)) return false;
   const imagesRoot = canonicalizeMediaPath(IMAGES_DIR);
   const thumbsRoot = canonicalizeMediaPath(THUMBS_DIR);
   if (!imagesRoot || !thumbsRoot) return false;
