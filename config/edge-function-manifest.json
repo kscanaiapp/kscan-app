@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-28T02:57:35.972Z",
-    "generatedFromGitSha": "7d294023bb5d5b286d65e7df49b4a0b229939e0d"
+    "generatedAtUtc": "2026-07-28T04:17:12.098Z",
+    "generatedFromGitSha": "01897d0b41033d296bc802cb66c14965aab856dd"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -19,9 +19,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 31,
-        "treeFileCount": 38,
+        "treeFileCount": 39,
         "bundleHash": "28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589",
-        "treeHash": "df80472c9ef44a9ca5bd33be04c4b06b100aaa53a78c743411d7c84dd7a2419f",
+        "treeHash": "f3eb6e60847294e430ace8a34554afd9e28e1b94110096b75a05529b39271314",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -122,6 +122,11 @@
             "path": "supabase/functions/scan-identify/multiItemGarments.ts",
             "sha256": "6b91ff2b7978cc4a7975d0b4590e966633f1c260281c900316843c23d9260a16",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
+            "sha256": "b3b8ef0c9a6d540c3cfc521b56115c4412e3e04faddc4ed01e50fa87a1e54675",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/qualityTune.test.ts",
