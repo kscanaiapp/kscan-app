@@ -70,10 +70,11 @@ Deno.test('normalizer: intent is not an input to identity normalization', () => 
   );
 });
 
-Deno.test('normalizer: the same provider output yields an identical identity for both intents', () => {
+Deno.test('normalizer: the same provider output yields an identical identity for all intents', () => {
   // The normalizer takes no intent, so the only way an intent could change the
   // identity is through a caller that pre-processes differently. Normalizing the
-  // same input twice and comparing in full is the behavioural half of the proof.
+  // same input for every governed intent and comparing in full is the
+  // behavioural half of the proof.
   const results = FASHION_IDENTIFICATION_INTENTS.map(() =>
     normalizeToV2({
       requestId: 'req-cross-path',
@@ -83,8 +84,10 @@ Deno.test('normalizer: the same provider output yields an identical identity for
       attributes: { ...PROVIDER_ATTRIBUTES },
     })
   );
-  assertEquals(results.length, 2);
-  assertEquals(JSON.stringify(results[0]), JSON.stringify(results[1]));
+  assert(results.length >= 2, 'cross-path parity requires multiple governed intents');
+  for (const result of results.slice(1)) {
+    assertEquals(JSON.stringify(results[0]), JSON.stringify(result));
+  }
   // And the identity actually resolved, so this is not two identical empties.
   assertEquals(results[0].status, 'completed');
   assertEquals(results[0].item.category, 'Outerwear');
