@@ -39,6 +39,19 @@ import { identifyScanImage } from '../scanIdentification';
 import { mapScanIdentifyToAnalysis } from '../scanIdentificationMapper';
 import { resolvePreparedDirectImageAttachment } from './eliseDirectImageAttachment';
 import type { EliseVisualContextInput } from '../../types/eliseVisualContext';
+import type { FashionIdentificationResultV2 } from '../../types/fashionIdentificationV2';
+import { prepareFashionEvidence } from '../fashionEvidenceGateway';
+import {
+  identifyPreparedImageForStyle,
+  type EliseIdentificationTransport,
+} from './eliseIdentifyForStyle';
+import {
+  beginEliseV2Session,
+  createEvidenceId,
+  type EliseV2SessionFlag,
+} from './eliseIdentificationV2';
+import { currentIdentificationPlatform } from './eliseDirectImageIdentification';
+import { projectV2ToVisualContextFields } from './eliseVisualContextV2Projection';
 
 /** Structured, server-safe descriptive fields derived from identification. */
 export type VisualContextEvidenceFields = Omit<EliseVisualContextInput, 'source'>;
@@ -54,6 +67,17 @@ export type VisualContextEvidenceSuccess = {
   /** Stable actor-owned reference proving the image has authorized backing. */
   savedScanId: string;
   fields: VisualContextEvidenceFields;
+  /**
+   * Canonical V2 identity for this reference (Phase 2B.3).
+   *
+   * Present only when the Elise V2 flag was latched on for this operation AND the
+   * backend served the contract. Absent on the legacy path, which is why `fields`
+   * remains the display projection for both paths rather than being derived from
+   * this.
+   */
+  identificationV2?: FashionIdentificationResultV2;
+  /** `ready` or `partial`, matching the canonical status. */
+  identificationState?: 'ready' | 'partial';
 };
 
 export type VisualContextEvidenceFailure = {
@@ -149,6 +173,76 @@ export function toVisualContextFields(
 }
 
 /**
+ * Stages a V2-identified header-gallery reference.
+ *
+ * Identical staging saga to the legacy branch — the same actor-bound saveScan,
+ * the same cloud row, the same private media backing — so the only difference
+ * between the two paths is WHICH identity was written, never how ownership or
+ * media authorization was obtained.
+ *
+ * The analysis persisted with the saved scan is projected from the canonical
+ * identity rather than from provider prose, so the durable record and the model's
+ * grounding describe the same garment.
+ */
+async function finishVisualContextEvidence(input: {
+  identification: FashionIdentificationResultV2 | undefined;
+  identificationState: 'ready' | 'partial';
+  sanitizedUri: string;
+  previewUri?: string;
+  signal?: AbortSignal;
+}): Promise<VisualContextEvidenceResult> {
+  const projected = projectV2ToVisualContextFields(input.identification);
+  if (!projected || !input.identification) {
+    // Canonical identity with no category AND no subtype cannot title a reference.
+    return { ok: false, reason: 'identification_failed', message: IDENTIFICATION_FAILED_MESSAGE };
+  }
+  const fields: VisualContextEvidenceFields = projected;
+
+  const staged = await resolvePreparedDirectImageAttachment(
+    {
+      previewUri: input.previewUri ?? input.sanitizedUri,
+      preparedUri: input.sanitizedUri,
+      source: 'photo_library',
+      operationId: `vctx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    },
+    {
+      title: fields.title,
+      category: fields.category as string,
+      ...(input.signal ? { signal: input.signal } : {}),
+      analysis: {
+        result: fields.summary ?? fields.title,
+        metadata: {
+          category: fields.category,
+          ...(fields.colors?.length ? { color: fields.colors.join(', ') } : {}),
+          ...(fields.brand ? { brand: fields.brand } : {}),
+          ...(fields.materials?.length ? { material: fields.materials[0] } : {}),
+          ...(fields.silhouette ? { silhouette: fields.silhouette } : {}),
+          ...(fields.styleAttributes?.length ? { styleTags: fields.styleAttributes } : {}),
+          ...(fields.confidence !== null ? { confidenceScore: fields.confidence } : {}),
+        },
+      },
+    },
+  );
+
+  if (!staged.ok) {
+    return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
+  }
+  const savedScanId =
+    staged.resolved.attachmentType === 'owned_item' ? staged.resolved.sourceId : null;
+  if (!savedScanId) {
+    return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
+  }
+
+  return {
+    ok: true,
+    savedScanId,
+    fields,
+    identificationV2: input.identification,
+    identificationState: input.identificationState,
+  };
+}
+
+/**
  * Identify a sanitized header-gallery derivative and give it authorized remote
  * backing.
  *
@@ -160,6 +254,15 @@ export async function prepareVisualContextEvidence(input: {
   sanitizedUri: string;
   previewUri?: string;
   signal?: AbortSignal;
+  /**
+   * Latched once per header-gallery selection by the caller and passed to every
+   * image of that selection, so a flag change cannot make image 1 speak V2 while
+   * image 4 speaks legacy inside one attachment operation.
+   */
+  sessionFlag?: EliseV2SessionFlag;
+  /** Injected in tests. */
+  transport?: EliseIdentificationTransport;
+  isCurrent?: () => boolean;
 }): Promise<VisualContextEvidenceResult> {
   const { sanitizedUri, signal } = input;
 
@@ -184,7 +287,62 @@ export async function prepareVisualContextEvidence(input: {
     return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
   }
 
-  // ── 2. The current scan-identify contract, with real image bytes ───────────
+  // ── 2a. Phase 2B.3: canonical identification when latched on ───────────────
+  // The SAME derivative computed above is reused — nothing is recompressed and no
+  // second base64 pass runs, so the bytes detection sees are the bytes the
+  // selected-item request re-sends.
+  //
+  // The header gallery is OUTFIT-ORIENTED: its whole purpose is several references
+  // reasoned about together, so a multi-candidate image identifies the bounded set
+  // the backend reported rather than demanding a per-garment selection the existing
+  // UX has no affordance for.
+  const sessionFlag = input.sessionFlag ?? beginEliseV2Session();
+  if (sessionFlag.enabled) {
+    const evidence = prepareFashionEvidence({
+      preparedImage: imageBase64,
+      source: 'header_gallery',
+      evidenceId: createEvidenceId(),
+    });
+    if (evidence) {
+      const outcome = await identifyPreparedImageForStyle({
+        evidence,
+        entryPath: 'header_gallery',
+        platform: currentIdentificationPlatform(),
+        requestId: evidence.evidenceId,
+        sessionFlag,
+        policy: 'outfit',
+        ...(signal ? { signal } : {}),
+        ...(input.transport ? { transport: input.transport } : {}),
+        ...(input.isCurrent ? { isCurrent: input.isCurrent } : {}),
+      });
+
+      if (outcome.state === 'cancelled') {
+        return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
+      }
+      if (outcome.state === 'non_fashion') {
+        return { ok: false, reason: 'non_fashion', message: NON_FASHION_MESSAGE };
+      }
+      if (outcome.state === 'insufficient_evidence') {
+        return { ok: false, reason: 'identification_failed', message: IDENTIFICATION_FAILED_MESSAGE };
+      }
+      if (outcome.state === 'ready' || outcome.state === 'partial') {
+        return finishVisualContextEvidence({
+          identification: outcome.identifications[0],
+          identificationState: outcome.state,
+          sanitizedUri,
+          previewUri: input.previewUri,
+          signal,
+        });
+      }
+      // `legacy_fallback` (the backend does not implement V2) falls through to the
+      // unchanged path below. `technical_failure` also falls through rather than
+      // failing the reference outright: the legacy contract is a real, working
+      // route on this deployment, and refusing to use it would make a V2-flagged
+      // build strictly worse than a flag-off one for the same photo.
+    }
+  }
+
+  // ── 2b. The current scan-identify contract, with real image bytes ──────────
   // `localPrivacyFiltered` stays false: the derivative is a metadata-stripping
   // re-encode, which is not face or plate masking and must not be reported as
   // such.

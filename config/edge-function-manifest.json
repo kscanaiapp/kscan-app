@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-27T21:25:38.223Z",
-    "generatedFromGitSha": "1a5468cb010a5349e2229d9d0b855fad628366bf"
+    "generatedAtUtc": "2026-07-28T01:56:54.065Z",
+    "generatedFromGitSha": "57011cfc181090e91a9b2faa5b6321ba72172deb"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -19,9 +19,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 31,
-        "treeFileCount": 37,
+        "treeFileCount": 38,
         "bundleHash": "bdcedb5a3a7968a67e802edfb63d07ba892cc01407898e0b8723c20f07e2a0d4",
-        "treeHash": "ae31eebb058981a4a3de342beb5e2e7d1a01450bbc068f69bd5bd5ecb665ea3f",
+        "treeHash": "2848c882639c43acbcf863385f721cb0fab3dd8fb5f0dc2276f5e24da3e17eff",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -194,6 +194,11 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/styleIntentCommerceGate.test.ts",
+            "sha256": "a8c22cee6d3ee75fbafda8cda95bf9f22f806c887ab0d18c7a3c0f2b63c693f3",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/scan-identify/textScanCommerceParityConfig.ts",
             "sha256": "2b2ceba5790935244cbb6e8f90cd6d176e522284c4f7ee7b834be478347021de",
             "bundle": true
@@ -217,10 +222,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 33,
-        "treeFileCount": 47,
-        "bundleHash": "da901de825ac248ae2a925491ef5688adbc393504a3af5601c6f259f187f3560",
-        "treeHash": "115a24073ec34fc9926ed8071699778be9c52c3d7167c0c6f71c840ce4d306aa",
+        "bundleFileCount": 34,
+        "treeFileCount": 49,
+        "bundleHash": "27ad9cb1d3b924c4944f5ce150752984a2fa201f1b406cbd105b614fe39f4e9d",
+        "treeHash": "ede1a62c7420dafc98d7f6827e11a3764454e7902c66ac073add057dca87be3f",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -408,6 +413,16 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/fashionContextV2.test.ts",
+            "sha256": "f69375359d1a25b4eff30b75f2f3e5490833dedfa866600087fa81bd0e5dc6a7",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/fashionContextV2.ts",
+            "sha256": "d9923ce85dcd7d4fc0a24c0193cd5ba03985cf5165c42b060a99202dc978058d",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/stylechat-generate/generationSafety.ts",
             "sha256": "1ba6e643be41679d8fa7752ee4e211c64ada5ad72b7ec5e40c1b35a2f4b8af14",
             "bundle": true
@@ -419,7 +434,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "371fc411e659a849ae03b137d22ddf317272b622ec434730d66e63f3e6da2944",
+            "sha256": "d8d5bf2976029dbbf90f093362921b33f87b1a7ab3c581aa9cc5d1c2af02ab96",
             "bundle": true
           },
           {

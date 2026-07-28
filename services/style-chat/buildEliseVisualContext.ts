@@ -28,6 +28,15 @@ export type BuildEliseVisualContextInput = {
   privacyPolicy?: EliseVisualContextEntry['privacyPolicy'];
   order?: number;
   revision?: number;
+  /**
+   * Canonical V2 identity, when the producing path had one (Phase 2B.3).
+   *
+   * Supplied by the Scanner handoff so Elise reuses Scanner's identity instead of
+   * re-identifying the same garment. Omitted on every legacy path, which is what
+   * keeps a V2 identity from being fabricated for an operation that never ran one.
+   */
+  identificationV2?: unknown;
+  identificationState?: 'ready' | 'partial' | null;
 };
 
 export function buildEliseVisualContext(input: BuildEliseVisualContextInput): EliseVisualContextEntry {
@@ -53,6 +62,12 @@ export function buildEliseVisualContext(input: BuildEliseVisualContextInput): El
     privacyPolicy: input.privacyPolicy,
     createdAt: Date.now(),
     revision: input.revision ?? 0,
+    ...(input.identificationV2
+      ? {
+        identificationV2: input.identificationV2,
+        identificationState: input.identificationState ?? 'ready',
+      }
+      : {}),
   };
 }
 

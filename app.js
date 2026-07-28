@@ -471,6 +471,17 @@ export default function App() {
       const meta = analysis?.metadata ?? {};
       const source = photo?.source === 'upload' ? 'upload' : 'scan';
 
+      // Phase 2B.3: when Scanner produced a canonical V2 identity, hand THAT to
+      // Elise rather than only the legacy display metadata. The identity is
+      // reused verbatim — Elise never re-identifies a garment Scanner already
+      // identified, so the handoff costs no second scan and the two surfaces
+      // cannot disagree about what the item is.
+      //
+      // Absent when Scanner ran on the legacy contract, which leaves the
+      // descriptive fields below as the only context exactly as today.
+      const scannerIdentificationV2 =
+        analysis?.identificationSnapshotV2?.identification ?? null;
+
       appendVisualContextEntry(actorKey, returnToSessionId, buildEliseVisualContext({
         actorKey,
         sessionId: returnToSessionId,
@@ -485,6 +496,13 @@ export default function App() {
         styleAttributes: meta.styleTags || meta.styleDescriptors || undefined,
         brand: meta.brand || null,
         confidence: typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined,
+        ...(scannerIdentificationV2
+          ? {
+            identificationV2: scannerIdentificationV2,
+            identificationState:
+              scannerIdentificationV2.status === 'partial' ? 'partial' : 'ready',
+          }
+          : {}),
       }));
 
       router.replace(`/style-chat/${returnToSessionId}`);

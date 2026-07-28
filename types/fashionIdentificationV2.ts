@@ -245,13 +245,156 @@ export type PreparedFashionEvidence = {
   privacy: FashionIdentificationPrivacyV2;
 };
 
+// ── Elise canonical fashion context (Phase 2B.3) ─────────────────────────────
+
+export const ELISE_FASHION_CONTEXT_V2 = 'elise-fashion-context-v2' as const;
+
 /**
- * Elise's grounded styling context.
+ * Where an Elise attachment came from.
  *
- * `identification` is authoritative for category, subtype, brand, colour,
- * material and visible attributes. Authorized imagery may enrich styling
- * interpretation (proportion, composition, how a piece is worn) but must never
- * silently overwrite the canonical identity.
+ * `direct_camera` / `direct_gallery` / `header_gallery` are raw images that
+ * require identification. `recent_scan` / `scanner_handoff` already carry a
+ * structured identity to be reused. `closet` / `dressing_room` are authorized
+ * structured items that must not be re-identified merely because an image
+ * exists. Routing is decided on THIS value, never on "does it have an image".
+ */
+export const ELISE_FASHION_CONTEXT_SOURCES = [
+  'direct_camera',
+  'direct_gallery',
+  'header_gallery',
+  'recent_scan',
+  'scanner_handoff',
+  'closet',
+  'dressing_room',
+] as const;
+
+export type EliseFashionContextSource = typeof ELISE_FASHION_CONTEXT_SOURCES[number];
+
+/**
+ * Per-source outcome. Kept separate from the identification result because a
+ * failed or evidence-less source still occupies a slot in the collection and the
+ * user still needs a retry or remove affordance for it — but only `ready` and
+ * `partial` may ever reach the model as styling evidence.
+ */
+export const ELISE_FASHION_ITEM_STATES = [
+  'ready',
+  'partial',
+  'insufficient_evidence',
+  'non_fashion',
+  'technical_failure',
+] as const;
+
+export type EliseFashionItemState = typeof ELISE_FASHION_ITEM_STATES[number];
+
+export const ELISE_FASHION_IDENTITY_V2 = 'elise-fashion-identity-v2' as const;
+
+/**
+ * The styling-safe PROJECTION of a canonical identification result.
+ *
+ * WHY A DISTINCT TYPE RATHER THAN THE CANONICAL RESULT: the canonical
+ * `FashionIdentificationResultV2` legitimately carries transport correlation —
+ * `evidence[].evidenceId`, `candidates[].evidenceId`, `brand.evidence[].evidenceId`
+ * and `conflicts[].evidenceIds` — because a selected-item request has to be tied
+ * to the image detection ran on. Every one of those is forbidden in an Elise
+ * context.
+ *
+ * Deleting them from a copy and continuing to call it a
+ * `FashionIdentificationResultV2` would be worse than a separate type: the object
+ * would no longer satisfy the contract it claims, anything validating it as the
+ * canonical result would be validating a lie, and the nested cases are easy to
+ * miss (an incomplete strip that leaves `brand.evidence[]` alone still leaks).
+ *
+ * So this is a COPY of only the styling-relevant fields, with its own version
+ * marker, validated on its own terms. The canonical result stays intact and valid
+ * wherever it is held; this is what crosses the wire to StyleChat.
+ *
+ * DELIBERATELY ABSENT: requestId, evidence[], candidates[], brand.evidence[],
+ * conflicts[].evidenceIds, exactProduct.sku, compatibility.* — correlation,
+ * transport bookkeeping, or commerce metadata, none of it styling information.
+ */
+export type EliseFashionIdentityV2 = {
+  identityVersion: typeof ELISE_FASHION_IDENTITY_V2;
+  status: FashionIdentificationStatus;
+  resolutionLevel: FashionIdentificationResolutionLevel;
+  category: string | null;
+  subtype: string | null;
+  brand: {
+    value: string | null;
+    confidence: number | null;
+    provenance: FashionIdentificationBrandProvenance;
+  };
+  colors: { primary: string | null; secondary: string[] };
+  material: string[];
+  silhouette: string[];
+  pattern: string[];
+  attributes: {
+    fit: string | null;
+    length: string | null;
+    sleeve: string | null;
+    neckline: string | null;
+    collar: string | null;
+    closure: string | null;
+    pockets: string[];
+    visible: string[];
+    distinctive: string[];
+  };
+  confidence: {
+    category: number | null;
+    subtype: number | null;
+    brand: number | null;
+    modelFamily: number | null;
+    exactProduct: number | null;
+  };
+  /** Only ever populated at `exact_product` resolution. Never carries a SKU. */
+  exactProduct: { brand: string | null; model: string | null } | null;
+  /** Field-level disagreements, without the evidence ids that produced them. */
+  conflicts: Array<{ field: string; description: string }>;
+  unknownReason: string | null;
+  /** Global confidence, carried as the single honest number the contract reports. */
+  globalConfidence: number | null;
+};
+
+/**
+ * One garment in Elise's canonical context.
+ *
+ * `identification` is the styling-safe projection, not the canonical result — see
+ * `EliseFashionIdentityV2` for why those must be different types.
+ *
+ * `sourceIndex` preserves the original selection order of a multi-image
+ * attachment. It exists because asynchronous completion order is not selection
+ * order, and identity must never be inferred from array position after the fact.
+ */
+export type EliseFashionContextItemV2 = {
+  sourceIndex: number;
+  state: EliseFashionItemState;
+  /** Present only for `ready` and `partial`. */
+  identification?: EliseFashionIdentityV2;
+};
+
+/**
+ * Elise's grounded styling context — the single downstream contract.
+ *
+ * `identification` inside each item is authoritative for category, subtype,
+ * brand, colour, material, pattern, silhouette, fit, visible attributes and
+ * confidence. Authorized imagery may enrich styling interpretation (proportion,
+ * composition, how a piece is worn) but must never silently overwrite the
+ * canonical identity.
+ *
+ * DELIBERATELY ABSENT, and asserted absent by test: Base64, evidence ids,
+ * candidate ids, detection digests, bounds, local URIs, raw provider responses,
+ * retailer URLs, purchase options, commerce ranking, user ids and device ids.
+ */
+export type EliseFashionContextV2 = {
+  contractVersion: typeof ELISE_FASHION_CONTEXT_V2;
+  source: EliseFashionContextSource;
+  items: EliseFashionContextItemV2[];
+};
+
+/**
+ * @deprecated Phase 2B.1 forward declaration, superseded by
+ * `EliseFashionContextV2`. It described a single item with an image-reference
+ * list; the shipped contract is multi-item, source-tagged and carries no image
+ * references at all. Retained only so the rename is visible in review.
  */
 export type EliseVisualContextV2 = {
   contractVersion: 'elise-visual-context-v2';

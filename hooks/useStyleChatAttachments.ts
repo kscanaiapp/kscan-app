@@ -51,6 +51,12 @@ import {
 } from '../services/style-chat/eliseDirectImageAttachment';
 import { orderAttachmentsForSend } from '../services/style-chat/eliseVisualAttachmentDedup';
 import { trackEliseAttachmentTelemetry } from '../services/style-chat/eliseVisualAttachmentTelemetry';
+import {
+  identifyDirectImageForStyle,
+  type DirectImageIdentificationOutcome,
+} from '../services/style-chat/eliseDirectImageIdentification';
+import { beginEliseV2Session } from '../services/style-chat/eliseIdentificationV2';
+import { resolveSendFashionContext } from '../services/style-chat/eliseSendContext';
 import type { OwnedClosetItem, OwnedItemSourceType } from '../types/ownedClosetItem';
 import type { OutfitVariation } from '../types/fashionReasoning';
 import type { SavedScanModel } from '../services/savedScansCloud';
@@ -531,14 +537,100 @@ export function useStyleChatAttachments(sessionId: string) {
           return { ok: false, message: 'Attachment removed.' };
         }
 
+        // ── Phase 2B.3: canonical identification before staging ──────────────
+        // Flag ON: the photo is identified through `identify_for_style` and the
+        // staged title/category come from that identity. Flag OFF: the exact
+        // previous call below, hardcoded 'tops' included.
+        //
+        // Identify FIRST, stage SECOND. Staging first would write a placeholder
+        // saved record and cloud row, then need a second write to correct it — and
+        // an identification failure would leave an orphaned row and uploaded media
+        // behind. This order yields one correct write and no orphans.
+        const v2Flag = beginEliseV2Session();
+        let identified: DirectImageIdentificationOutcome | null = null;
+        if (v2Flag.enabled) {
+          updateDraftAttachment(sessionId, {
+            draftId,
+            state: 'identifying',
+            selection: {
+              localImageUri: localUri,
+              sanitizedImageUri: prepared.preparedUri,
+              retryCount: 0,
+              updatedAt: now(),
+            },
+            resolved: null,
+            summary: {
+              title: 'Identifying photo…',
+              subtitle: 'Photo',
+              imageUri: prepared.previewUri,
+              itemCount: 1,
+            },
+          });
+          identified = await identifyDirectImageForStyle({
+            preparedUri: prepared.preparedUri,
+            source,
+            ...(prepared.width !== undefined ? { width: prepared.width } : {}),
+            ...(prepared.height !== undefined ? { height: prepared.height } : {}),
+            requestId: prepared.operationId,
+            sessionFlag: v2Flag,
+            // The draft disappearing mid-flight stops the second network stage.
+            isCurrent: () =>
+              getDraftAttachments(sessionId).some((entry) => entry.draftId === draftId),
+          });
+
+          if (identified.kind === 'cancelled') {
+            await cleanupPreparedDirectImage(prepared);
+            return { ok: false, message: 'Attachment removed.' };
+          }
+          // An identification that produced no usable garment must NOT be staged.
+          // Staging it would create a saved record and a cloud row for a photo
+          // Elise cannot describe, and present a ready chip for it.
+          if (identified.kind === 'no_evidence' || identified.kind === 'needs_selection') {
+            const message = identified.kind === 'needs_selection'
+              ? 'Several items found. Attach a photo of one piece, or scan it.'
+              : identified.message;
+            updateDraftAttachment(sessionId, {
+              draftId,
+              state: 'failed_retryable',
+              selection: {
+                localImageUri: localUri,
+                sanitizedImageUri: prepared.preparedUri,
+                retryCount: 1,
+                lastErrorCode: identified.kind === 'needs_selection'
+                  ? 'MULTIPLE_CANDIDATES'
+                  : identified.identificationState,
+                updatedAt: now(),
+              },
+              resolved: null,
+              identificationState:
+                identified.kind === 'needs_selection' ? null : identified.identificationState,
+              summary: {
+                title: message,
+                subtitle: 'Photo',
+                imageUri: prepared.previewUri,
+                itemCount: 1,
+              },
+            });
+            return { ok: false, message };
+          }
+        }
+
         const result = await resolvePreparedDirectImageAttachment(prepared, {
-          title: 'Photo',
-          category: 'tops',
+          // Derived from canonical identity when V2 produced one; otherwise the
+          // unchanged legacy defaults.
+          title: identified?.kind === 'identified' ? identified.title : 'Photo',
+          category: identified?.kind === 'identified' ? identified.category : 'tops',
         });
         if (result.ok) {
           updateDraftAttachment(sessionId, {
             draftId,
             state: 'ready',
+            ...(identified?.kind === 'identified'
+              ? {
+                fashionContext: identified.context,
+                identificationState: identified.identificationState,
+              }
+              : {}),
             selection: {
               localImageUri: localUri,
               sanitizedImageUri: prepared.preparedUri,
@@ -826,10 +918,36 @@ export function useStyleChatAttachments(sessionId: string) {
       })
       .filter(Boolean) as StyleChatAttachment[];
 
+    // Phase 2B.3: the canonical identities of the ready drafts, assembled in
+    // SOURCE order (not completion order, and not the focus ordering above —
+    // focus is a multimodal priority hint for the attachment array, whereas
+    // fashion-context order is which garment is which).
+    const fashionContextDecision = resolveSendFashionContext(
+      getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled'),
+    );
+
     return {
       ...snapshot,
       references: orderedRefs.length ? orderedRefs : snapshot.references,
       focusedDraftId: getFocusedDraftId(sessionId),
+      fashionContext:
+        fashionContextDecision.kind === 'send' ? fashionContextDecision.context : null,
+      /**
+       * Set when visual attachments exist but carry nothing groundable. The
+       * composer must not send an image-backed message in this state: the reply
+       * would be written without the image while the transcript shows it.
+       */
+      fashionContextBlockedReason:
+        fashionContextDecision.kind === 'blocked' ? fashionContextDecision.reason : null,
+      /**
+       * True while an attachment is still identifying.
+       *
+       * The existing `canSendWithAttachments` gate already blocks a send with any
+       * pending attachment, so this is a second, explicit statement of the same
+       * rule rather than the only thing enforcing it — a send must never claim
+       * visual grounding for a garment that has not been identified yet.
+       */
+      fashionContextPending: fashionContextDecision.kind === 'pending',
     };
   }, [sessionId]);
 

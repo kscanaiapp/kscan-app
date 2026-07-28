@@ -29,6 +29,23 @@ export type StyleChatHandoffContext = {
   visualContext?: EliseVisualContextInput | null;
   /** Bounded ordered collection for multi-reference reasoning. */
   visualCollection?: EliseVisualCollectionInput | null;
+  /**
+   * Canonical V2 identity from the Scanner result that produced this handoff
+   * (Phase 2B.3).
+   *
+   * Present only when Scanner actually ran the V2 contract. Its purpose is REUSE:
+   * Elise validates and forwards it instead of re-identifying a garment Scanner
+   * already identified, so the handoff spends no second scan and the two surfaces
+   * cannot report different identities for one photo.
+   *
+   * Client-local like `imageUri` — it is NOT part of the server-safe projection
+   * `toServerSafeActiveContext` produces, and travels in the separate top-level
+   * `fashionContextV2` request field instead.
+   *
+   * Typed loosely to keep this ephemeral bridge free of a contract dependency.
+   * Every read path validates before use.
+   */
+  identificationV2?: unknown;
 };
 
 let currentHandoff: StyleChatHandoffContext | null = null;

@@ -171,6 +171,33 @@ function loadEvidenceModule(overrides = {}) {
     '../scanIdentificationMapper': scanIdentificationMapper,
     './eliseDirectImageAttachment': eliseDirectImageAttachment,
     '../../types/eliseVisualContext': {},
+    '../../types/fashionIdentificationV2': {},
+    // Phase 2B.3 added a V2 branch ahead of the legacy one. These tests cover the
+    // LEGACY path, so the flag resolves OFF and the V2 branch is never entered —
+    // which is exactly the "flag-off preserves current behaviour" property. The
+    // V2 branch has its own coverage in eliseHeaderGalleryV2.test.js.
+    '../fashionEvidenceGateway': {
+      prepareFashionEvidence: () => {
+        throw new Error('flag-off header gallery must not build V2 evidence');
+      },
+    },
+    './eliseIdentifyForStyle': {
+      identifyPreparedImageForStyle: () => {
+        throw new Error('flag-off header gallery must not call identify_for_style');
+      },
+    },
+    './eliseIdentificationV2': {
+      beginEliseV2Session: () => ({ enabled: false }),
+      createEvidenceId: () => 'evidence-should-not-be-used',
+    },
+    './eliseDirectImageIdentification': {
+      currentIdentificationPlatform: () => 'ios',
+    },
+    './eliseVisualContextV2Projection': {
+      projectV2ToVisualContextFields: () => {
+        throw new Error('flag-off header gallery must not project a V2 identity');
+      },
+    },
   });
 
   return { mod, calls };

@@ -4,6 +4,17 @@ export type EliseVisualPreparationJob = {
   entryId: string;
   rawUri: string;
   revision: number;
+  /**
+   * Elise V2 rollout flag, latched once for the whole selection (Phase 2B.3).
+   *
+   * Carried ON THE JOB rather than read inside the worker: a six-image selection
+   * queues six jobs that run over several seconds at concurrency 2, and a worker
+   * that re-read the flag could identify the first two images under one contract
+   * and the rest under another inside a single attachment operation.
+   *
+   * Typed loosely to keep this queue free of a dependency on the adapter module.
+   */
+  sessionFlag?: { readonly enabled: boolean };
 };
 
 type QueueOptions = {

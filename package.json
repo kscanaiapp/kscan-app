@@ -27,7 +27,8 @@
     "generate:edge-manifest": "node scripts/generate-edge-function-manifest.js",
     "verify:edge-parity": "node scripts/check-edge-function-parity.js",
     "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js",
-    "deploy:edge-functions": "node scripts/deploy-edge-functions.js"
+    "deploy:edge-functions": "node scripts/deploy-edge-functions.js",
+    "test:backend": "node scripts/run-backend-tests.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

@@ -137,6 +137,7 @@ export default function StyleChatSessionScreen() {
     hasReadyEntry,
     hasBlockedEntry,
     remainingSlots,
+    fashionContextV2: visualFashionContext,
     getRemainingCapacity,
     startScan,
     startUpload,
@@ -596,10 +597,24 @@ export default function StyleChatSessionScreen() {
                 );
                 return;
               }
+              // Phase 2B.3: an image-backed message must not claim visual
+              // grounding it does not have. When identities exist but none is
+              // usable, the send is refused rather than quietly downgraded to a
+              // text-only send whose reply the transcript would show beside a photo.
+              if (snapshot.fashionContextBlockedReason) {
+                Alert.alert(
+                  'Attachment',
+                  'Elise could not read that photo well enough to advise on it. Retry it, or remove it to send just your message.',
+                );
+                return;
+              }
               await sendMessage(text, {
                 attachments: {
                   references: snapshot.references,
                   drafts: snapshot.drafts,
+                  ...(snapshot.fashionContext
+                    ? { fashionContext: snapshot.fashionContext }
+                    : {}),
                   onSent: () => {
                     chatAttachments.clearAttachments();
                     if (hasReadyEntry) clearVisualContext();
@@ -610,7 +625,21 @@ export default function StyleChatSessionScreen() {
               return;
             }
             if (hasReadyEntry) {
-              const sent = await sendMessage(text);
+              // Phase 2B.3: header-gallery references carry canonical identity
+              // when the flag is on. It rides the same additive field as every
+              // other Elise source, so there is one identity contract on the wire.
+              const sent = await sendMessage(
+                text,
+                visualFashionContext
+                  ? {
+                    attachments: {
+                      references: [],
+                      drafts: [],
+                      fashionContext: visualFashionContext,
+                    },
+                  }
+                  : undefined,
+              );
               if (!sent) return;
               // Only clear the visual context and draft after a successful send.
               clearVisualContext();

@@ -256,6 +256,33 @@ export function resolveScannerIdentificationV2Enabled(
 /** Scanner V2 identification rollout. Disabled by default. */
 export const SCANNER_IDENTIFICATION_V2_ENABLED = resolveScannerIdentificationV2Enabled();
 
+// ── Elise fashion-identification-v2 rollout (Phase 2B.3) ─────────────────────
+/**
+ * Routes Elise's visual attachment identification through the canonical
+ * `fashion-identification-v2` contract with intent `identify_for_style`.
+ *
+ * DELIBERATELY SEPARATE FROM THE SCANNER FLAG. They gate different consumers of
+ * one identification core and will not become safe to enable at the same moment:
+ * Scanner's V2 path keeps commerce, Elise's must have none, and Elise
+ * additionally depends on `stylechat-generate` accepting `fashionContextV2`.
+ * One shared flag would make it impossible to roll out either without the other,
+ * and a Scanner regression would force an Elise rollback for no reason.
+ *
+ * Default false, and only the exact string "true" opts in: the deployed
+ * production backend does not yet serve this to Elise, so a build that has not
+ * explicitly opted in must keep every current Elise path unchanged.
+ *
+ * Flag OFF is not a degraded mode — it is exactly today's behaviour.
+ */
+export function resolveEliseIdentificationV2Enabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_ELISE_IDENTIFICATION_V2_ENABLED,
+): boolean {
+  return value === 'true';
+}
+
+/** Elise V2 identification rollout. Disabled by default. Scanner is unaffected. */
+export const ELISE_IDENTIFICATION_V2_ENABLED = resolveEliseIdentificationV2Enabled();
+
 // ── AI Stylist expansion (inactive rollout) ──────────────────────────────────
 /**
  * Master switch for the AI Stylist expansion UI: Library MY LOOKS sub-nav,

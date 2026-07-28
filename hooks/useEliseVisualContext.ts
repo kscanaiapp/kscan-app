@@ -34,6 +34,8 @@ import {
   ELISE_VISUAL_CONTEXT_MAX_ENTRIES,
   type EliseVisualContextEntry,
 } from '../types/eliseVisualContext';
+import { beginEliseV2Session } from '../services/style-chat/eliseIdentificationV2';
+import { buildEliseFashionContextV2 } from '../services/style-chat/eliseFashionContextV2';
 
 function blockedPrivacyPolicy(): EliseVisualContextEntry['privacyPolicy'] {
   return {
@@ -180,6 +182,15 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
 
         const evidence = await prepareVisualContextEvidence({
           sanitizedUri: prepared.sanitizedUri,
+          // Latched once for the whole selection by `startUpload`, so image 1 and
+          // image 4 of one attachment operation cannot speak different contracts.
+          ...(job.sessionFlag ? { sessionFlag: job.sessionFlag } : {}),
+          isCurrent: () => isVisualContextEntryRevisionCurrent(
+            jobActorKey,
+            jobSessionId,
+            entryId,
+            revision,
+          ),
         });
 
         if (isVisualContextEvidenceFailure(evidence)) {
@@ -215,6 +226,14 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
             savedScanId: evidence.savedScanId,
             sanitizedPreviewUri: prepared.sanitizedUri,
             privacyPolicy: prepared.policy,
+            // Present only on the V2 path. Absent leaves the legacy behaviour
+            // exactly as it is, including the descriptive-only server payload.
+            ...(evidence.identificationV2
+              ? {
+                identificationV2: evidence.identificationV2,
+                identificationState: evidence.identificationState ?? 'ready',
+              }
+              : {}),
           }) as EliseVisualContextEntry,
         );
         if (!applied) {
@@ -288,6 +307,10 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
 
     if (result.canceled || !result.assets?.length) return;
 
+    // Latched ONCE for this whole selection, before any image is queued. Every
+    // image of one attachment operation therefore speaks the same contract.
+    const sessionFlag = beginEliseV2Session();
+
     let skipped = 0;
     for (const asset of result.assets) {
       const entry = buildEliseVisualContext({
@@ -307,6 +330,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
           entryId: appended.entry.id,
           rawUri: asset.uri,
           revision: appended.revision,
+          sessionFlag,
         });
       } else {
         skipped += 1;
@@ -347,10 +371,28 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
         actorKey,
         sessionId,
         entryId,
-        (e) => ({ ...e, status: 'preparing', title: 'Preparing upload…' }) as EliseVisualContextEntry,
+        (e) => ({
+          ...e,
+          status: 'preparing',
+          title: 'Preparing upload…',
+          // A retry is a NEW identification operation. Clearing the previous
+          // identity means a failed retry cannot leave the stale one attached and
+          // looking current.
+          identificationV2: undefined,
+          identificationState: null,
+        }) as EliseVisualContextEntry,
       );
       if (revision !== null) {
-        enqueuePreparation({ actorKey, sessionId, entryId, rawUri, revision });
+        // A retry is a new operation and resolves the flag again — which is the
+        // one place a flag change is allowed to take effect.
+        enqueuePreparation({
+          actorKey,
+          sessionId,
+          entryId,
+          rawUri,
+          revision,
+          sessionFlag: beginEliseV2Session(),
+        });
       }
     },
     [actorKey, sessionId, enqueuePreparation],
@@ -381,6 +423,39 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
     clearVisualContextCollection(actorKey, sessionId);
   }, [actorKey, sessionId]);
 
+  /**
+   * The header gallery's canonical context, aggregated in SOURCE order.
+   *
+   * `order` is the user's selection order and is 1-based, so it becomes a 0-based
+   * `sourceIndex`. Completion order is deliberately not used: at concurrency 2 a
+   * six-image selection settles out of order, and letting that decide item
+   * numbering is how "the fourth photo" silently becomes "the first item".
+   *
+   * null whenever no ready entry carries a canonical identity — including the
+   * whole legacy path — so a flag-off build sends nothing new.
+   */
+  const fashionContextV2 = (() => {
+    const identified = entries
+      .filter((entry) => entry.status === 'ready' && entry.identificationV2)
+      .sort((left, right) => left.order - right.order);
+    if (identified.length === 0) return null;
+    // Provenance must stay truthful. When every identified reference came back
+    // from the Scanner handoff the source is `scanner_handoff` — those garments
+    // were scanned, not uploaded, and the prompt's provenance line differs.
+    // A mixed selection reports `header_gallery`, the broader and weaker claim.
+    const allFromScanner = identified.every((entry) => entry.source === 'scan');
+    return buildEliseFashionContextV2({
+      source: allFromScanner ? 'scanner_handoff' : 'header_gallery',
+      items: identified.map((entry, index) => ({
+        // Re-indexed densely: a removed entry leaves a gap in `order`, and a gap
+        // would make the indices non-contiguous for no benefit.
+        sourceIndex: index,
+        state: entry.identificationState === 'partial' ? 'partial' : 'ready',
+        identification: entry.identificationV2 as never,
+      })),
+    });
+  })();
+
   return {
     collection,
     entries,
@@ -389,6 +464,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
     hasBlockedEntry,
     hasUnsendableEntry,
     remainingSlots,
+    fashionContextV2,
     getRemainingCapacity,
     startScan,
     startUpload,

@@ -73,6 +73,20 @@ export type EliseVisualContextEntry = EliseVisualContextInput & {
   revision: number;
   /** Privacy policy applied to the derivative. */
   privacyPolicy?: EliseVisualContextPrivacyPolicy;
+  /**
+   * Canonical V2 identity for this reference (Phase 2B.3).
+   *
+   * Client-local, exactly like `sanitizedPreviewUri` and `rawImageUri`: it is NOT
+   * part of `EliseVisualContextInput` and therefore cannot reach the server
+   * through the descriptive `visualCollection` payload. It travels in the separate
+   * top-level `fashionContextV2` field instead.
+   *
+   * Typed loosely to keep this platform-neutral model free of a dependency on the
+   * contract module. Every read path validates before use.
+   */
+  identificationV2?: unknown;
+  /** Canonical outcome for this reference: `ready` or `partial`. */
+  identificationState?: 'ready' | 'partial' | null;
 };
 
 /** Legacy alias kept for existing imports while the collection lands. */
