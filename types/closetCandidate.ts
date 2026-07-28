@@ -24,11 +24,20 @@
 // `closet_item`. Renaming those is deliberate deferred naming debt, not part of
 // this build.
 
-/** Record schema version. Serialization must never depend on a feature flag. */
-export const CLOSET_CANDIDATE_SCHEMA_VERSION = 2;
+/**
+ * Record schema version. Serialization must never depend on a feature flag.
+ *
+ * v3 adds the PROMOTION TOMBSTONE fields (`promotedClosetItemId`, `promotedAt`).
+ * The bump is deliberate rather than an optional-field addition at v2: a record
+ * carrying promotion provenance but declaring v2 would be read, reconstructed
+ * through an older build's allowlist, and written back with the provenance
+ * silently dropped — destroying the only durable evidence that the candidate was
+ * already committed. Declaring v3 makes an older build refuse the record instead.
+ */
+export const CLOSET_CANDIDATE_SCHEMA_VERSION = 3;
 
 /** Highest schema version this build knows how to read. */
-export const CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION = 2;
+export const CLOSET_CANDIDATE_MAX_SUPPORTED_SCHEMA_VERSION = 3;
 
 // ── Vocabularies ─────────────────────────────────────────────────────────────
 
@@ -81,6 +90,11 @@ export type ClosetCandidateStatus = typeof CLOSET_CANDIDATE_STATUSES[number];
  * against the unresolved cap and is never automatically requeued.
  *
  * `saved` is terminal-by-promotion (Build 2). `rejected` is terminal-by-user.
+ *
+ * A `saved` record is the PROMOTION TOMBSTONE. It keeps its batch identity, its
+ * batch position and its candidate-owned media so the review surface can keep
+ * showing it in place, and so Phase 4 has something to reconcile against when it
+ * takes ownership of candidate-media cleanup and startup recovery.
  */
 export const CLOSET_CANDIDATE_TERMINAL_STATUSES: readonly ClosetCandidateStatus[] = [
   'saved',
@@ -304,6 +318,19 @@ export type ClosetCandidate = {
 
   errorCode?: ClosetCandidateErrorCode | null;
   lastAttemptAt?: string | null;
+
+  /**
+   * PROMOTION TOMBSTONE (Build 2, Phase 3). Set exactly once, by the candidate
+   * store's finalization primitive, AFTER the committed Closet item has been
+   * written and read back. Never patchable, never accepted from a component, and
+   * never set by a generic transition — see CLOSET_CANDIDATE_PROTECTED_FIELDS.
+   *
+   * `promotedClosetItemId` is what makes a promoted candidate answerable without
+   * consulting the committed manifest, and it is what the batch projection shows
+   * as "Added to Closet" after a restart.
+   */
+  promotedClosetItemId?: string | null;
+  promotedAt?: string | null;
 
   createdAt: string;
   updatedAt: string;

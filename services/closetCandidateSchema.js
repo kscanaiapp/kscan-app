@@ -235,6 +235,14 @@ export function buildClosetCandidateRecord(draft, ownerId, now, options = {}) {
       ? cleanIsoDate(draft.lastAttemptAt, null)
       : null,
 
+    // PROMOTION TOMBSTONE (v3). Written only by the store's finalization
+    // primitive, which supplies them from a verified committed Closet item — not
+    // from a caller patch. Present-but-null on every pre-Build-2 record.
+    promotedClosetItemId: cleanText(draft?.promotedClosetItemId, 120),
+    promotedAt: typeof draft?.promotedAt === 'string'
+      ? cleanIsoDate(draft.promotedAt, null)
+      : null,
+
     createdAt,
     updatedAt: cleanIsoDate(options.updatedAt, now),
     expiresAt,
@@ -268,9 +276,27 @@ export function migrateCandidateV1ToV2(raw) {
   };
 }
 
+/**
+ * v2 -> v3: the promotion tombstone.
+ *
+ * Nothing is invented. A pre-Phase-3 record has never been promoted, so both
+ * fields resolve to null through the allowlist builder — and deriving a value
+ * from `status: 'saved'` would be a fabrication, because no v2 record can be in
+ * that status (Build 1 and Phase 2 expose no promotion caller at all).
+ */
+export function migrateCandidateV2ToV3(raw) {
+  return {
+    ...raw,
+    schemaVersion: 3,
+    promotedClosetItemId: cleanText(raw?.promotedClosetItemId, 120),
+    promotedAt: typeof raw?.promotedAt === 'string' ? cleanIsoDate(raw.promotedAt, null) : null,
+  };
+}
+
 const MIGRATIONS = Object.freeze({
   0: migrateCandidateV0ToV1,
   1: migrateCandidateV1ToV2,
+  2: migrateCandidateV2ToV3,
 });
 
 /**

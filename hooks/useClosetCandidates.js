@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import {
   listClosetCandidates,
@@ -23,6 +24,7 @@ import {
   isActorRequestCurrent,
 } from '../services/actorContext';
 import { resolveClosetBatchFocus } from '../services/closetBatchReview';
+import { promoteSelectedClosetCandidates } from '../services/closetCandidatePromotion';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
@@ -68,6 +70,29 @@ export function useClosetCandidates() {
    * the projection falls back deterministically to the newest group.
    */
   const [activeBatchId, setActiveBatchId] = useState(null);
+
+  /**
+   * The RUNNING promotion operation, as the surface sees it.
+   *
+   * Purely observational and never persisted: the durable answer to "was this
+   * promoted" is the candidate record's own status, which the projection reads.
+   * This exists so the screen can show which card is being worked on, how far the
+   * operation has got, and that a second submission is not available.
+   *
+   * Stamped with the actor key and epoch it was started under, exactly like the
+   * candidate snapshot, so a late settle after an actor change is discarded rather
+   * than rendered under whoever is signed in when it lands.
+   */
+  const [promotion, setPromotion] = useState(null);
+  /**
+   * Cooperative cancellation for the running operation.
+   *
+   * A ref rather than state because the coordinator polls it synchronously at its
+   * safe checkpoints, between candidates — a state read would be a frame behind
+   * and would let one more candidate start after the app had already backgrounded.
+   */
+  const promotionLiveRef = useRef(false);
+  const promotionGenerationRef = useRef(0);
 
   /** Re-read from disk under a fresh actor request. */
   const refresh = useCallback(async () => {
@@ -165,6 +190,39 @@ export function useClosetCandidates() {
    */
   useEffect(() => {
     setActiveBatchId(null);
+  }, [actorKey, actorEpoch]);
+
+  /**
+   * BACKGROUNDING COOPERATIVELY STOPS THE PROMOTION QUEUE.
+   *
+   * It clears the continue flag and nothing else. The coordinator reads it at its
+   * own safe boundaries — before loading a candidate, before the storage preflight,
+   * before the committed write — and never mid-write: a forced interruption during
+   * an atomic manifest replacement is the one thing that could leave the store
+   * genuinely damaged, and it is worth far more than the work it would save.
+   *
+   * Candidates that never started are NOT failures and are never persisted as any:
+   * they are reported as not attempted and stay exactly as reviewable as they were.
+   * Coming back to the foreground does not resume anything — the user asks again.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') promotionLiveRef.current = false;
+    });
+    return () => {
+      // An unmount stops the dequeue for the same reason a background does. Work
+      // already inside a critical section still finishes: the service layer owns
+      // it, and it revalidates the actor before every write regardless.
+      promotionLiveRef.current = false;
+      subscription?.remove?.();
+    };
+  }, []);
+
+  /** An actor transition invalidates the queue AND the operation the UI shows. */
+  useEffect(() => {
+    promotionLiveRef.current = false;
+    promotionGenerationRef.current += 1;
+    setPromotion(null);
   }, [actorKey, actorEpoch]);
 
   /**
@@ -326,7 +384,111 @@ export function useClosetCandidates() {
     [refresh],
   );
 
+  /**
+   * PROMOTE THE SUBMITTED SELECTION into the committed Closet.
+   *
+   * The hook contributes exactly three things and decides nothing else:
+   *   - the flag gate, so the action does not exist when V2 is off
+   *   - the snapshot handoff, taken once at submission
+   *   - stale-settle rejection, so progress from a previous actor, a previous
+   *     epoch or a superseded operation is dropped instead of rendered
+   *
+   * Eligibility, ordering, serialization, idempotency, the committed write and the
+   * candidate tombstone all belong to the service. A second opinion formed here is
+   * how a component ends up being the thing that decides what may be committed.
+   */
+  const promoteSelected = useCallback(
+    async (candidateIds) => {
+      if (!CLOSET_BATCH_REVIEW_V2_ACTIVE) {
+        return { ok: false, errorCode: 'candidate_invalid_transition' };
+      }
+      if (promotionLiveRef.current) {
+        return { ok: false, errorCode: 'candidate_invalid_transition', alreadyRunning: true };
+      }
+
+      const submitted = Array.isArray(candidateIds) ? [...candidateIds] : [];
+      if (submitted.length === 0) {
+        return { ok: false, errorCode: 'candidate_invalid_transition' };
+      }
+
+      const generation = ++promotionGenerationRef.current;
+      const startedUnder = { actorKey, actorEpoch };
+      const isCurrent = () =>
+        promotionGenerationRef.current === generation &&
+        startedUnder.actorKey === actorKey &&
+        startedUnder.actorEpoch === actorEpoch;
+
+      promotionLiveRef.current = true;
+      const batchId = activeBatchId ?? null;
+      setPromotion({
+        ...startedUnder,
+        batchId,
+        requestedCount: submitted.length,
+        completedCount: 0,
+        promotedCount: 0,
+        alreadyPromotedCount: 0,
+        failedCount: 0,
+        activeCandidateId: submitted[0] ?? null,
+        pendingCandidateIds: submitted,
+        results: [],
+        done: false,
+      });
+
+      try {
+        const result = await promoteSelectedClosetCandidates({
+          actorId,
+          actorEpoch,
+          batchId,
+          candidateIds: submitted,
+          shouldContinue: () => promotionLiveRef.current === true,
+          onProgress: async (event) => {
+            // A stale consumer settles nothing. Checked before the state write AND
+            // before the re-read, so a completed candidate from a previous actor
+            // can never repaint the current one's surface.
+            if (!isCurrent()) return;
+            const settled = new Set(event.resultsSoFar.map((entry) => entry.candidateId));
+            const remaining = submitted.filter(
+              (id) => !settled.has(id) && id !== event.activeCandidateId,
+            );
+            setPromotion({
+              ...startedUnder,
+              batchId: event.batchId,
+              requestedCount: event.requestedCount,
+              completedCount: event.completedCount,
+              promotedCount: event.promotedCount,
+              alreadyPromotedCount: event.alreadyPromotedCount,
+              failedCount: event.failedCount,
+              activeCandidateId: event.activeCandidateId ?? null,
+              pendingCandidateIds: remaining,
+              results: event.resultsSoFar,
+              done: event.done,
+            });
+            // Re-read after every per-item outcome so the promoted card appears as
+            // soon as its record says so, rather than eight items later. The
+            // authoritative projection, not the progress event, is what renders it.
+            await refresh();
+          },
+        });
+        if (!isCurrent()) return result;
+        await refresh();
+        setPromotion((current) =>
+          current && current.actorKey === actorKey && current.actorEpoch === actorEpoch
+            ? { ...current, activeCandidateId: null, pendingCandidateIds: [], done: true }
+            : current,
+        );
+        return result;
+      } finally {
+        promotionLiveRef.current = false;
+      }
+    },
+    [actorEpoch, actorId, actorKey, activeBatchId, refresh],
+  );
+
   const candidates = snapshot.actorKey === actorKey ? snapshot.candidates : [];
+  const activePromotion =
+    promotion && promotion.actorKey === actorKey && promotion.actorEpoch === actorEpoch
+      ? promotion
+      : null;
   return {
     candidates,
     loading,
@@ -337,12 +499,15 @@ export function useClosetCandidates() {
     setActiveBatchId,
     stagingActive: CLOSET_CANDIDATE_STAGING_ACTIVE,
     batchIntakeActive: CLOSET_BATCH_REVIEW_V2_ACTIVE,
+    promotion: activePromotion,
+    promoting: activePromotion ? activePromotion.done !== true : false,
     addFromUri,
     addFromAssets,
     retry,
     reject,
     remove,
     classifyManually,
+    promoteSelected,
     refresh,
   };
 }

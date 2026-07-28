@@ -49,11 +49,17 @@ const eligibility = runModule('services/closetCandidateReviewEligibility.ts', (s
   if (spec === './closetCandidateStateMachine') return stateMachine;
   throw new Error(`unexpected import: ${spec}`);
 });
+// Loaded with a shim that refuses EVERY specifier: the promotion vocabulary is
+// pure by construction, so a persistence import appearing in it fails here.
+const promotionContract = runModule('services/closetCandidatePromotionContract.ts', (spec) => {
+  throw new Error(`the promotion contract must import nothing: ${spec}`);
+});
 const review = runModule('services/closetBatchReview.ts', (spec) => {
   if (spec === '../types/closetCandidate') return types;
   if (spec === './closetCandidateStateMachine') return stateMachine;
   if (spec === './closetCandidateErrors') return errors;
   if (spec === './closetCandidateReviewEligibility') return eligibility;
+  if (spec === './closetCandidatePromotionContract') return promotionContract;
   throw new Error(`unexpected import: ${spec}`);
 });
 

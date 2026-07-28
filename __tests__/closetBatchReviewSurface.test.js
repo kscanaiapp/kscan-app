@@ -265,10 +265,18 @@ function mountLibrary(options = {}) {
     stagingActive = true,
     candidates = [],
     activeBatchId = null,
+    promotion = null,
+    promoting = false,
   } = options;
 
   const renderer = createRenderer();
-  const calls = { retry: [], remove: [], classifyManually: [], setActiveBatchId: [] };
+  const calls = {
+    retry: [],
+    remove: [],
+    classifyManually: [],
+    setActiveBatchId: [],
+    promoteSelected: [],
+  };
 
   const featureFlags = {
     AI_STYLIST_UI_ENABLED: false,
@@ -335,11 +343,15 @@ function mountLibrary(options = {}) {
     if (spec === './closetCandidateStateMachine') return stateMachine;
     throw new Error(`unexpected import: ${spec}`);
   });
+  const promotionContract = runModule('services/closetCandidatePromotionContract.ts', (spec) => {
+    throw new Error(`the promotion contract must import nothing: ${spec}`);
+  });
   const batchReview = runModule('services/closetBatchReview.ts', (spec) => {
     if (spec === '../types/closetCandidate') return types;
     if (spec === './closetCandidateStateMachine') return stateMachine;
     if (spec === './closetCandidateErrors') return errors;
     if (spec === './closetCandidateReviewEligibility') return eligibility;
+    if (spec === './closetCandidatePromotionContract') return promotionContract;
     throw new Error(`unexpected import: ${spec}`);
   });
   const selectionHook = runModule('hooks/useClosetBatchSelection.ts', (spec) => {
@@ -361,6 +373,15 @@ function mountLibrary(options = {}) {
     setActiveBatchId: (next) => calls.setActiveBatchId.push(next),
     stagingActive,
     batchIntakeActive: batchReviewActive,
+    promotion,
+    promoting,
+    // The surface may only REACH promotion; the coordinator's own suite proves
+    // what it then does. What matters here is that the production control exists
+    // and hands the selection snapshot to this one api.
+    promoteSelected: async (ids) => {
+      calls.promoteSelected.push([...ids]);
+      return { ok: true };
+    },
     addFromUri: async () => ({ kind: 'rejected', code: 'candidate_invalid_transition' }),
     addFromAssets: async () => ({ kind: 'rejected', code: 'candidate_invalid_transition' }),
     retry: async (id) => {
@@ -393,6 +414,7 @@ function mountLibrary(options = {}) {
       if (spec === '../../hooks/useClosetCandidates') return candidateHook;
       if (spec === '../../hooks/useClosetBatchSelection') return selectionHook;
       if (spec === '../../services/closetBatchReview') return batchReview;
+      if (spec === '../../services/closetCandidatePromotionContract') return promotionContract;
       if (spec === './ClosetCandidateManualClassifyModal') return manualModal;
       throw new Error(`unexpected batch-review import: ${spec}`);
     },
