@@ -172,6 +172,31 @@ export const PRIVATE_DRESSING_ROOM_V1 =
   process.env.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1 === 'true';
 
 /**
+ * Phase 3 slot swaps, undo and outfit comparison.
+ *
+ * Default OFF; only the literal string 'true' enables it, so missing, false
+ * and malformed all fail closed.
+ */
+export const PRIVATE_DRESSING_ROOM_INTERACTIONS_V1 =
+  process.env.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_INTERACTIONS_V1 === 'true';
+
+/**
+ * NESTED, and this derived constant is the ONLY thing any caller reads.
+ *
+ * Interactions require the workspace itself, so the Phase 3 flag can never
+ * override the Phase 2 flag — turning interactions on without the workspace
+ * yields nothing, by construction rather than by every call site remembering
+ * to check both. Mirrors CLOSET_CANDIDATE_STAGING_ACTIVE above, so no second
+ * flag evaluator is introduced.
+ *
+ * With this OFF, Phase 2 outfit viewing remains fully functional: no swap
+ * controls, no undo, no comparison, and no interaction storage is read,
+ * created or mutated.
+ */
+export const PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE =
+  PRIVATE_DRESSING_ROOM_V1 && PRIVATE_DRESSING_ROOM_INTERACTIONS_V1;
+
+/**
  * DR-2: client may send owned dressing_room_item stable-ID attachments.
  * Default OFF — next-build activation only.
  */
