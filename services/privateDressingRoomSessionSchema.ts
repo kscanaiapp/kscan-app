@@ -186,9 +186,22 @@ export function revisePrivateDressingRoomSession(
 
 // ── Validation ───────────────────────────────────────────────────────────────
 
-export type PrivateDressingRoomSessionMigration =
-  | { ok: true; record: PrivateDressingRoomSession }
-  | { ok: false; errorCode: PrivateDressingRoomSessionErrorCode };
+/**
+ * FLAT, not a discriminated union, deliberately.
+ *
+ * This project compiles without `strictNullChecks` (expo/tsconfig.base sets no
+ * `strict`), and under that setting TypeScript does not narrow a union by a
+ * BOOLEAN literal discriminant: `if (!result.ok)` leaves `result` unnarrowed and
+ * every field access on the failure branch is an error. Carrying all fields on
+ * one shape is what this repository already does for TS result objects
+ * (services/legalAcceptance.ts, services/closetCandidatePromotionContract.ts),
+ * and it lets a caller read `errorCode` without a cast or a type guard.
+ */
+export type PrivateDressingRoomSessionMigration = {
+  ok: boolean;
+  record: PrivateDressingRoomSession | null;
+  errorCode: PrivateDressingRoomSessionErrorCode | null;
+};
 
 /**
  * Validate one raw persisted record and RECONSTRUCT it through the allowlist.
@@ -201,28 +214,28 @@ export function migratePrivateDressingRoomSessionRecord(
   raw: unknown,
 ): PrivateDressingRoomSessionMigration {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { ok: false, errorCode: 'session_store_corrupt' };
+    return { ok: false, record: null, errorCode: 'session_store_corrupt' };
   }
   const record = raw as Record<string, unknown>;
 
   const version = record.schemaVersion;
   if (typeof version !== 'number' || !Number.isFinite(version) || version < 1) {
-    return { ok: false, errorCode: 'session_store_corrupt' };
+    return { ok: false, record: null, errorCode: 'session_store_corrupt' };
   }
   if (version > PRIVATE_DRESSING_ROOM_SESSION_MAX_SUPPORTED_SCHEMA_VERSION) {
-    return { ok: false, errorCode: 'session_store_future_schema' };
+    return { ok: false, record: null, errorCode: 'session_store_future_schema' };
   }
 
   const sessionId = cleanText(record.sessionId, PRIVATE_DRESSING_ROOM_SESSION_BOUNDS.sessionId);
-  if (!sessionId) return { ok: false, errorCode: 'session_store_corrupt' };
+  if (!sessionId) return { ok: false, record: null, errorCode: 'session_store_corrupt' };
 
   if (!isPrivateDressingRoomSessionStatus(record.status)) {
-    return { ok: false, errorCode: 'session_store_corrupt' };
+    return { ok: false, record: null, errorCode: 'session_store_corrupt' };
   }
 
   const createdAt = cleanTimestamp(record.createdAt);
   const updatedAt = cleanTimestamp(record.updatedAt);
-  if (!createdAt || !updatedAt) return { ok: false, errorCode: 'session_store_corrupt' };
+  if (!createdAt || !updatedAt) return { ok: false, record: null, errorCode: 'session_store_corrupt' };
 
   // `actorId` is intentionally NOT rejected when null: null is the signed-out
   // device-local partition, not a malformed value. A non-string, non-null
@@ -230,6 +243,7 @@ export function migratePrivateDressingRoomSessionRecord(
   // which compares against the LIVE actor rather than trusting the file.
   return {
     ok: true,
+    errorCode: null,
     record: {
       sessionId,
       actorId: normalizeActorId(record.actorId),
