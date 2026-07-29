@@ -11,7 +11,7 @@
  * returns; it does not decide any of it.
  */
 
-import { canMakeMoreCasual } from './privateDressingRoomCasualness';
+import { isOnCasualnessLadder } from './privateDressingRoomCasualness';
 import type { EliseStatus } from './privateDressingRoomEliseOrchestration';
 
 export const PRIVATE_ELISE_COPY = Object.freeze({
@@ -28,6 +28,7 @@ export const PRIVATE_ELISE_COPY = Object.freeze({
   loadingCasual: 'Making this look more casual…',
 
   successCasual: 'This look is now more casual.',
+  successAnchor: 'Building around your item.',
   clarification: 'I need a little more detail about the occasion.',
   unsupportedOccasion: "I couldn't match that to a supported occasion. Choose an option below.",
   alreadyCasual: 'This look is already at its most casual. Try changing the occasion or anchor.',
@@ -56,9 +57,12 @@ export function eliseStatusCopy(status: EliseStatus | null | undefined): string 
     case 'success':
       if (status.operation === 'make_more_casual') return PRIVATE_ELISE_COPY.successCasual;
       if (status.operation === 'build_around_item') {
+        // NEVER the loading string. Device QA found a completed action showing
+        // "Building around this item…" — a progress message, ellipsis and all —
+        // because itemType was unset. A finished operation must read as finished.
         return status.itemType
           ? `Building around your ${status.itemType}.`
-          : PRIVATE_ELISE_COPY.loadingAnchor;
+          : PRIVATE_ELISE_COPY.successAnchor;
       }
       return status.occasion ? `Using “${status.occasion}” for this occasion.` : null;
     case 'clarification':
@@ -122,10 +126,13 @@ export function eliseAffordances(input: {
   const enabled = input.eliseEnabled && input.sessionActive;
   return {
     showOccasionEntry: enabled,
-    // Offered only for a real current look whose occasion has somewhere less
-    // formal to go. An action that can only fail is not offered.
-    showMakeMoreCasual:
-      enabled && input.hasEffectiveLook && canMakeMoreCasual(input.currentOccasion),
+    // Offered for a real current look whose occasion is ON the formality ladder
+    // — INCLUDING the floor. At the floor the action explains itself with the
+    // approved "already at its most casual" copy; hiding it there (which is what
+    // gating on `canMakeMoreCasual` did) left that copy unreachable and told the
+    // user nothing. Off-ladder occasions (travel, neutral) are still not
+    // offered, because there the transition has no meaning at all.
+    showMakeMoreCasual: enabled && input.hasEffectiveLook && isOnCasualnessLadder(input.currentOccasion),
     canSubmitOccasion: enabled && !input.busy,
   };
 }

@@ -589,10 +589,12 @@ test('the submit control is disabled while a request is running', () => {
   assert.equal(busy.canSubmitOccasion, false, 'no second request may be queued');
 });
 
-test('Make It More Casual is offered only when it can succeed', () => {
+test('Make It More Casual is offered across the ladder, including the floor', () => {
   const base = { eliseEnabled: true, sessionActive: true, hasEffectiveLook: true, busy: false };
   assert.equal(ux.eliseAffordances({ ...base, currentOccasion: 'Dinner' }).showMakeMoreCasual, true);
-  assert.equal(ux.eliseAffordances({ ...base, currentOccasion: 'Weekend' }).showMakeMoreCasual, false);
+  // The FLOOR stays offered so the approved already-most-casual copy is
+  // reachable; device QA found that hiding it left that copy unreachable.
+  assert.equal(ux.eliseAffordances({ ...base, currentOccasion: 'Weekend' }).showMakeMoreCasual, true);
   assert.equal(ux.eliseAffordances({ ...base, currentOccasion: 'Travel' }).showMakeMoreCasual, false);
   assert.equal(
     ux.eliseAffordances({ ...base, hasEffectiveLook: false, currentOccasion: 'Dinner' })
@@ -610,4 +612,45 @@ test('the occasion input is bounded and rejects whitespace', () => {
     ux.normalizeOccasionInput('x'.repeat(500)).length,
     ux.PRIVATE_ELISE_INPUT_MAX_LENGTH,
   );
+});
+
+test('a completed action never renders a loading message', () => {
+  // Device QA found build_around_item success rendering "Building around this
+  // item…" — the progress copy — because itemType was unset.
+  const loadingStrings = [
+    ux.PRIVATE_ELISE_COPY.loadingOccasion,
+    ux.PRIVATE_ELISE_COPY.loadingAnchor,
+    ux.PRIVATE_ELISE_COPY.loadingCasual,
+  ];
+  for (const operation of ['interpret_occasion', 'build_around_item', 'make_more_casual']) {
+    for (const extra of [{}, { itemType: 'trousers' }, { occasion: 'Dinner' }]) {
+      const copy = ux.eliseStatusCopy({ kind: 'success', operation, ...extra });
+      if (copy === null) continue;
+      assert.ok(!loadingStrings.includes(copy), `${operation} success rendered loading copy: ${copy}`);
+      assert.doesNotMatch(copy, /…$/, `${operation} success ends in an ellipsis: ${copy}`);
+    }
+  }
+});
+
+test('the anchor success copy names the garment from its own taxonomy', async () => {
+  const { deps, statuses } = harness({
+    invoke: replyWith((body) => ({
+      schemaVersion: 'private-dressing-room-elise-v1',
+      requestId: body.requestId,
+      intent: 'build_around_item',
+      status: 'success',
+      anchorRef: body.anchorRef,
+    })),
+  });
+  await orchestration.buildAroundItem(deps, {
+    instruction: 'build around this',
+    anchorClosetItemId: 'anchor-1',
+    closetItems: CLOSET,
+    currentOccasion: 'Work',
+  });
+  const final = statuses[statuses.length - 1];
+  assert.equal(final.kind, 'success');
+  // CLOSET's anchor-1 is category Outerwear / clothingType Blazer.
+  assert.equal(final.itemType, 'blazer');
+  assert.equal(ux.eliseStatusCopy(final), 'Building around your blazer.');
 });

@@ -274,7 +274,32 @@ export async function buildAroundItem(
     kind: 'anchor',
     anchorClosetItemId: input.anchorClosetItemId,
   });
-  return published(deps.publish, { kind: 'success', operation: 'build_around_item' });
+  return published(deps.publish, {
+    kind: 'success',
+    operation: 'build_around_item',
+    // Named from the anchor's OWN normalized taxonomy, so the approved success
+    // copy reads "Building around your trousers." rather than falling back to a
+    // progress message. Never provider-authored.
+    itemType: describeAnchorType(input.anchorClosetItemId, input.closetItems),
+  });
+}
+
+/**
+ * A short, lower-cased garment word for the success copy.
+ *
+ * Most specific field first, matching the slot classifier's own precedence. It
+ * returns undefined rather than a guess when the record carries no taxonomy —
+ * the copy layer then uses a completed-sounding fallback.
+ */
+function describeAnchorType(
+  anchorClosetItemId: string,
+  closetItems: readonly ClosetItemProjection[],
+): string | undefined {
+  const item = (closetItems ?? []).find((entry) => entry && entry.id === anchorClosetItemId);
+  if (!item) return undefined;
+  const label = item.subtype ?? item.clothingType ?? item.category;
+  if (typeof label !== 'string' || !label.trim()) return undefined;
+  return label.trim().toLowerCase().slice(0, 40);
 }
 
 /**
