@@ -348,6 +348,27 @@ export const PRIVATE_ELISE_REQUEST_ERRORS = [
 ] as const;
 export type PrivateEliseRequestError = (typeof PRIVATE_ELISE_REQUEST_ERRORS)[number];
 
+/**
+ * Failure narrowing for both parse results.
+ *
+ * These exist because the mobile tsconfig (expo/tsconfig.base) does not enable
+ * `strictNullChecks`, and without it TypeScript will not narrow a union on a
+ * BOOLEAN discriminant — `if (!result.ok)` leaves `result` as the full union and
+ * `result.error` is an error. A user-defined type predicate narrows either way,
+ * so consumers read the failure reason without a cast.
+ */
+export function isEliseRequestFailure(
+  result: PrivateEliseRequestParse,
+): result is { ok: false; error: PrivateEliseRequestError } {
+  return result.ok === false;
+}
+
+export function isEliseResponseFailure(
+  result: PrivateEliseResponseParse,
+): result is { ok: false; error: PrivateEliseResponseError } {
+  return result.ok === false;
+}
+
 function textField(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
