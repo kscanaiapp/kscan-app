@@ -713,7 +713,7 @@ function DressingRoomDetailContent() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 1,
       allowsEditing: false,
       allowsMultipleSelection: false,

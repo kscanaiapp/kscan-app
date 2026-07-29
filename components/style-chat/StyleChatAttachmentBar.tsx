@@ -384,7 +384,7 @@ export function StyleChatAttachmentBar({
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 1,
         allowsEditing: false,
       });
@@ -416,7 +416,7 @@ export function StyleChatAttachmentBar({
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 1,
         allowsEditing: false,
         allowsMultipleSelection: false,
