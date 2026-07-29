@@ -330,6 +330,23 @@ export const DRESSING_ROOM_READ_STATE_V1 =
 export const SAVED_SCAN_CLOUD_IMAGES_V1 =
   process.env.EXPO_PUBLIC_SAVED_SCAN_CLOUD_IMAGES_V1 === 'true';
 
+// ── Private Dressing Room (Build 3: Dressing Rooms V1, Phase 1) ──────────────
+/**
+ * The device-local, actor-private Dressing Room workspace under
+ * /stylist/dressing-room. Default OFF; only the literal string 'true' enables
+ * it, so a missing, false or malformed value all fail closed.
+ *
+ * INDEPENDENT OF THE COLLABORATIVE FREEZE. `dressingRooms` in
+ * NON_CORE_FEATURE_KEYS freezes the COLLABORATIVE cloud product; it says
+ * nothing about this workspace, and this flag says nothing about that product.
+ * The two are orthogonal on purpose: freezing a cloud surface that has
+ * membership, RLS and share tokens is a different decision from shipping a
+ * private local one, and tying them would make each undeployable without the
+ * other.
+ */
+export const PRIVATE_DRESSING_ROOM_V1 =
+  process.env.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1 === 'true';
+
 // ── Closet testing bundle (internal testing builds) ──────────────────────────
 /**
  * Separates Closet from Recent Scans as distinct domains and enables the
