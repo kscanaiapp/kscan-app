@@ -134,10 +134,6 @@ function statusKindFor(
 }
 
 function published(publish: ElisePublisher, status: EliseStatus): EliseOutcome {
-  // TEMPORARY QA DIAGNOSTIC (Phase 4 final blocker window). REMOVE BEFORE COMMIT.
-  if (typeof __DEV__ !== 'undefined' && __DEV__ === true) {
-    console.log(`[elise-life] status_published kind=${status.kind} op=${status.operation ?? "none"}`);
-  }
   publish.setStatus(status);
   return { applied: status.kind === 'success', status };
 }
