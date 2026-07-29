@@ -1,0 +1,66 @@
+{
+  "experimentId": "static-baseline-shell-0.1.0",
+  "sourceSha": "4b36878798d16b925e163aae5ed7ed1e0b896198",
+  "scanIdentifyTreeHash": "1e6ec21160ec3bc9c3f834ba59677acb6e3c9e2c",
+  "sharedContractTreeHash": "1e8acdd4ebf3b6de480352c23d06597ded6ee44d",
+  "datasetVersion": "0.1.0",
+  "pipelineVersion": "static-harness-0.1.0",
+  "promptVersion": "production-unmodified-not-executed",
+  "modelConfiguration": {
+    "provider": "none",
+    "note": "Paid model evaluation not authorized in Phase 0A static harness",
+    "productionAllowlistDocumented": {
+      "scannerPrimary": "gemini-3.6-flash",
+      "scannerFallback": "gemini-3.5-flash-lite"
+    }
+  },
+  "schemaVersion": "fashion-identification-v2",
+  "preprocessingVersion": "none",
+  "thresholdVersion": "documented-production-not-executed",
+  "retrievalVersion": "documented-production-not-executed",
+  "rerankingVersion": "documented-production-not-executed",
+  "startedAt": "2026-07-29T16:29:33.007Z",
+  "completedAt": "2026-07-29T16:29:33.007Z",
+  "caseCount": 8,
+  "metrics": {
+    "caseCount": 8,
+    "meanPenalty": 5.25,
+    "categoryCorrectRate": 0,
+    "clothingTypeCorrectRate": 0,
+    "subtypeCorrectRate": null,
+    "primaryColorCorrectRate": null,
+    "brandPrecisionSignals": {
+      "concretePredictions": 0,
+      "correct": 0,
+      "falsePositives": 0
+    },
+    "exactProductSignals": {
+      "concretePredictions": 0,
+      "incorrectExactMatchClaims": 0
+    },
+    "abstention": {
+      "correct": 7,
+      "incorrect": 1
+    },
+    "schemaParseFailureRate": 0,
+    "dispositionTotals": {
+      "unknown_when_evidence_exists": 18,
+      "unscorable": 62,
+      "correct_abstention": 7,
+      "incorrect_abstention": 1
+    }
+  },
+  "latency": {
+    "totalMs": 0,
+    "perCaseMs": []
+  },
+  "modelCallCount": 0,
+  "costEstimate": {
+    "currency": "USD",
+    "amount": 0,
+    "note": "no paid calls"
+  },
+  "notes": "Static shell only. Empty predictions. Not a measured production baseline. Paid baseline requires explicit authorization.",
+  "scoringContractVersion": "0.1.0",
+  "deployedScanIdentifyVersionObserved": 140
+}
