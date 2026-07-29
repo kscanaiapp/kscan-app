@@ -1,0 +1,181 @@
+{
+  "curationVersion": "0.1.0",
+  "curationDate": "2026-07-29",
+  "method": "Every candidate opened and viewed. Category membership is NOT treated as evidence of subject. An image with no decision here is NOT curated and is never admitted by default.",
+  "decidedBy": "build-lead visual review (single reviewer; NOT two independent reviews)",
+  "decisions": {
+    "tiera-footwear-490ae0ba2a": {
+      "keep": true,
+      "category": "footwear",
+      "clothingType": "boot",
+      "subtype": "knee_high_boot",
+      "primaryColor": "black",
+      "material": "leather",
+      "brand": "not_visible",
+      "brandVisible": false,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "sceneTags": [
+        "person_wearing_product",
+        "studio"
+      ],
+      "difficultyTags": [
+        "strong_colour_cast"
+      ],
+      "visiblePerson": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "labelConfidence": "high",
+      "note": "Black patent lace-up knee/thigh-high boots on legs, red backdrop. Clear footwear subject, no face."
+    },
+    "tiera-footwear-7bab044fbf": {
+      "keep": false,
+      "reason": "Subject is footprints in snow; the boots are a tiny distant object. Also carries a third-party 500px watermark, which is a licensing red flag on a supposedly free file."
+    },
+    "tiera-footwear-f0ba5ffd53": {
+      "keep": false,
+      "reason": "Three identifiable people donning hazmat suits. Subject is the people and suits, not footwear, and three faces are clearly visible."
+    },
+    "tiera-footwear-f249813dd0": {
+      "keep": true,
+      "category": "footwear",
+      "clothingType": "boot",
+      "subtype": "ski_boot",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "brand": "not_visible",
+      "brandVisible": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "sceneTags": [
+        "store_display",
+        "retail_shelf",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame"
+      ],
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "trademark_visible_incidental",
+      "labelConfidence": "medium",
+      "note": "Retail ski-boot display wall. Doubles as the store_display stratum and carries visible brand SIGNAGE (Salomon, Rossignol, Lange) — brand text is on the shelf label, not the garment, so brand ground truth stays not_visible. Third-party trademarks visible incidentally."
+    },
+    "tiera-skirt-8f16ef5c8e": {
+      "keep": true,
+      "category": "skirt",
+      "clothingType": "skirt",
+      "subtype": "unknown",
+      "primaryColor": "blue",
+      "secondaryColors": [
+        "red",
+        "white"
+      ],
+      "material": "unknown",
+      "pattern": "striped",
+      "brand": "not_applicable",
+      "brandVisible": false,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "sceneTags": [
+        "flat_lay",
+        "museum_documentation"
+      ],
+      "difficultyTags": [
+        "colour_calibration_chart_in_frame"
+      ],
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "labelConfidence": "medium",
+      "note": "Museum flat-lay of a striped woven skirt. Genuine garment subject. A colour calibration chart is in frame and is tagged as a difficulty, not hidden."
+    },
+    "tiera-skirt-d7e0b3f373": {
+      "keep": false,
+      "reason": "A 1940s magazine advertisement — illustration plus body text, not a photograph of a garment. Not a usable identification case."
+    },
+    "tiera-top-0b40a58dff": {
+      "keep": false,
+      "reason": "Three identifiable people at an event, faces fully visible. Subject is the people, not a garment."
+    },
+    "tiera-top-1144bf2cff": {
+      "keep": false,
+      "reason": "Good market-stall t-shirt display, but a partially identifiable face is in frame and no masked derivative is approved. Re-consider after masking; also carries third-party political imagery."
+    },
+    "tiera-top-485911abee": {
+      "keep": false,
+      "reason": "Excellent trade-show t-shirt display, but two identifiable faces in frame. Re-consider after masking."
+    },
+    "tiera-outerwear-0b5fd2b653": {
+      "keep": true,
+      "category": "outerwear",
+      "clothingType": "coat",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_applicable",
+      "brandVisible": false,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "sceneTags": [
+        "flat_lay",
+        "museum_documentation"
+      ],
+      "difficultyTags": [
+        "historic_artifact",
+        "unusual_material"
+      ],
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "labelConfidence": "medium",
+      "note": "Flat-lay of a historic coat-form garment on white. Clean garment subject, no people. Unusual material is tagged as a difficulty rather than guessed at."
+    },
+    "tiera-outerwear-0e07b2e685": {
+      "keep": false,
+      "reason": "Extreme close-up of printed textile pattern. No garment silhouette, no identifiable item — subject is the fabric, not a wearable."
+    },
+    "tiera-pants-24e666e3bd": {
+      "keep": true,
+      "category": "pants",
+      "clothingType": "jeans",
+      "subtype": "unknown",
+      "primaryColor": "blue",
+      "secondaryColors": [
+        "beige"
+      ],
+      "material": "denim",
+      "pattern": "solid",
+      "brand": "not_visible",
+      "brandVisible": false,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "sceneTags": [
+        "flat_lay",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "partial_framing"
+      ],
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "labelConfidence": "high",
+      "note": "Close-packed denim jeans/shorts, cropped. Strong denim material case and a genuine partial-framing case."
+    }
+  },
+  "curationRule": "Any image containing an identifiable face is REJECTED in this pass, because no masked derivative has been produced or approved. Consistent rule, applied even where the image would otherwise be a good case.",
+  "progress": {
+    "curated": 12,
+    "keep": 5,
+    "reject": 7,
+    "keepRate": 0.417
+  }
+}

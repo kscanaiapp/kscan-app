@@ -164,6 +164,24 @@ async function getPolite(url, options, attempts = 4) {
 
 const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 
+/**
+ * List files that are MEMBERS OF A COMMONS CATEGORY.
+ *
+ * Preferred over free-text search. Search matches on topic and returned
+ * subject-wrong images — a screen-printing factory floor came back for
+ * "t-shirt clothing" and would have been labelled top/product. Category
+ * membership is curated by Commons editors and is far more precise about what
+ * the image actually depicts.
+ */
+async function categoryMembers(category, limit) {
+  const title = category.startsWith('Category:') ? category : `Category:${category}`;
+  const url =
+    `${COMMONS_API}?action=query&format=json&list=categorymembers` +
+    `&cmtitle=${encodeURIComponent(title)}&cmtype=file&cmlimit=${limit}`;
+  const data = await getPolite(url);
+  return ((data.query && data.query.categorymembers) || []).map((m) => m.title);
+}
+
 /** Search Commons for candidate files. */
 async function searchCommons(term, limit) {
   const url =
@@ -353,9 +371,14 @@ async function main(argv = process.argv.slice(2)) {
   for (const spec of plan.specs) {
     let titles = [];
     try {
-      titles = await searchCommons(spec.search, spec.searchLimit || 8);
+      titles = spec.commonsCategory
+        ? await categoryMembers(spec.commonsCategory, spec.searchLimit || 20)
+        : await searchCommons(spec.search, spec.searchLimit || 8);
     } catch (error) {
-      rejected.push({ search: spec.search, reason: `search failed: ${error.message}` });
+      rejected.push({
+        source: spec.commonsCategory || spec.search,
+        reason: `retrieval failed: ${error.message}`,
+      });
       continue;
     }
     let taken = 0;
@@ -380,7 +403,13 @@ async function main(argv = process.argv.slice(2)) {
         rejected.push({ title: result.title || title, reason: result.reason, licence: result.licenceShortName });
         continue;
       }
-      accepted.push({ ...result, retrievalDate, repository: 'Wikimedia Commons' });
+      accepted.push({
+        ...result,
+        retrievalDate,
+        repository: 'Wikimedia Commons',
+        retrievalMethod: spec.commonsCategory ? `category:${spec.commonsCategory}` : `search:${spec.search}`,
+        curationStatus: 'pending_visual_curation',
+      });
       taken += 1;
     }
     if (args.limit && accepted.length >= args.limit) break;
@@ -426,4 +455,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { classifyLicence, stripJpegMetadata, hasJpegMetadata, sha256, ACCEPTED_LICENCES, HARD_REJECT };
+module.exports = { categoryMembers, classifyLicence, stripJpegMetadata, hasJpegMetadata, sha256, ACCEPTED_LICENCES, HARD_REJECT };
