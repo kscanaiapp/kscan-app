@@ -128,7 +128,24 @@ export function resolveMoreCasualOccasion(
   return { supported: true, occasion, fromGroup, toGroup };
 }
 
-/** True when the action should be offered at all for this occasion. */
+/** True when the action would actually change the occasion. */
 export function canMakeMoreCasual(currentOccasion: string | null | undefined): boolean {
   return resolveMoreCasualOccasion(currentOccasion).supported;
+}
+
+/**
+ * Is this occasion ON the formality ladder at all?
+ *
+ * DISTINCT FROM `canMakeMoreCasual`, and the distinction is what makes the floor
+ * explicable. Device QA found that gating the control on `canMakeMoreCasual`
+ * hid it at `casual`, which left the approved "already at its most casual" copy
+ * unreachable — the user pressed nothing and learned nothing.
+ *
+ * `casual` IS on the ladder: it is the floor, and saying so is useful. `travel`
+ * and `neutral` are not on it at all, and offering an action there would promise
+ * a transition that has no meaning for the current state.
+ */
+export function isOnCasualnessLadder(currentOccasion: string | null | undefined): boolean {
+  const group = occasionGroupFor(currentOccasion);
+  return group === 'evening' || group === 'work' || group === 'smart_casual' || group === 'casual';
 }
