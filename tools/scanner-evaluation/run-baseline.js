@@ -30,6 +30,7 @@ const ontology = require('./lib/ontology');
 const resultState = require('./lib/resultState');
 const fallbackTracking = require('./lib/fallbackTracking');
 const runnerState = require('./lib/runnerState');
+const { verifyFrozenDataset } = require('./lib/frozenDataset');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -63,7 +64,14 @@ function parseArgs(argv) {
       case '--resume': args.resume = true; break;
       case '--start-case': args.startCase = next(); break;
       case '--case-id': args.caseId = next(); break;
-      case '--max-calls': args.maxCalls = Number(next()); break;
+      case '--max-calls': {
+        const raw = next();
+        args.maxCalls = Number(raw);
+        if (!Number.isSafeInteger(args.maxCalls) || args.maxCalls < 0) {
+          throw new Error(`--max-calls must be a non-negative integer, received ${raw}`);
+        }
+        break;
+      }
       case '--manifest': args.manifest = next(); break;
       case '--help': args.help = true; break;
       default:
@@ -248,7 +256,7 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   const datasetVersion = JSON.parse(
     fs.readFileSync(path.join(ROOT, 'evals/scanner-accuracy/dataset-version.json'), 'utf8')
   );
-  const manifestPath = path.join(ROOT, args.manifest);
+  const manifestPath = path.resolve(ROOT, args.manifest);
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const validated = validateManifest(manifest, { expectedDatasetVersion: manifest.datasetVersion });
   if (!validated.ok) {
@@ -257,8 +265,63 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     return { ok: false, errors: validated.errors };
   }
 
+  if (manifest.datasetVersion !== datasetVersion.datasetVersion) {
+    const errors = [{
+      check: 'dataset_version',
+      message: `manifest dataset version ${manifest.datasetVersion} does not match active governed version ${datasetVersion.datasetVersion}`,
+    }];
+    console.error(JSON.stringify({ ok: false, stage: 'dataset_version', errors }, null, 2));
+    process.exitCode = 1;
+    return { ok: false, stage: 'dataset_version', errors };
+  }
+
+  let frozenDataset = null;
+  if (datasetVersion.activeFreeze) {
+    const expectedManifest = datasetVersion.activeFreeze.manifest;
+    const selectedManifest = path.relative(ROOT, manifestPath).replace(/\\/g, '/');
+    if (selectedManifest !== expectedManifest) {
+      const errors = [{
+        check: 'canonical_manifest',
+        message: `active dataset version ${datasetVersion.datasetVersion} must use ${expectedManifest}`,
+      }];
+      console.error(JSON.stringify({ ok: false, stage: 'frozen_dataset', errors }, null, 2));
+      process.exitCode = 1;
+      return { ok: false, stage: 'frozen_dataset', errors };
+    }
+    const frozen = verifyFrozenDataset(
+      manifestPath,
+      path.join(ROOT, datasetVersion.activeFreeze.freezeRecord)
+    );
+    if (!frozen.ok) {
+      console.error(JSON.stringify({ ok: false, stage: 'frozen_dataset', errors: frozen.errors }, null, 2));
+      process.exitCode = 1;
+      return { ok: false, stage: 'frozen_dataset', errors: frozen.errors, frozen };
+    }
+    frozenDataset = frozen;
+  }
+
   const outputDir = args.outputDir ? path.resolve(args.outputDir) : null;
   if (args.execute && !outputDir) throw new Error('--execute requires --output-dir');
+  if (args.execute && args.maxCalls == null) throw new Error('--execute requires an explicit --max-calls ceiling');
+  if (args.execute && executor === unauthorizedExecutor) unauthorizedExecutor();
+
+  if (outputDir && !args.resume) {
+    const collisionNames = args.dryRun
+      ? ['dry-run-plan.json']
+      : [runnerState.RUN_MANIFEST, 'baseline-report.json'];
+    const collisions = collisionNames.filter((name) => fs.existsSync(path.join(outputDir, name)));
+    if (collisions.length > 0) {
+      throw new Error(`output path collision: ${collisions.join(', ')} already exists; use a new output directory`);
+    }
+  }
+  if (outputDir && args.resume) {
+    const priorRun = runnerState.readRunManifest(outputDir);
+    if (priorRun && priorRun.datasetVersion !== manifest.datasetVersion) {
+      throw new Error(
+        `invalid resume state: run manifest dataset version ${priorRun.datasetVersion} does not match ${manifest.datasetVersion}`
+      );
+    }
+  }
 
   const selection = runnerState.selectCases(validated.cases, {
     outputDir: outputDir || path.join(ROOT, '.eval-noop'),
@@ -297,6 +360,19 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     scoringContractVersion: SCORING_CONTRACT_VERSION,
     ontologyVersions: ontology.ONTOLOGY_VERSIONS,
     resultStateMappingVersion: resultState.MAPPING_VERSION,
+    measurementLimits: {
+      benchmarkClassification: frozenDataset ? frozenDataset.frozenAs : null,
+      notARealWorldSmartGlassesBenchmark: frozenDataset
+        ? frozenDataset.notARealWorldSmartGlassesBenchmark
+        : null,
+      notAComprehensiveBrandAccuracyCorpus: frozenDataset
+        ? frozenDataset.notAComprehensiveBrandAccuracyCorpus
+        : null,
+      positiveBrandSupport: frozenDataset ? frozenDataset.positiveBrandSupport : null,
+      exactProductPrecision: 'not_measured',
+      incorrectExactMatchRate: 'not_measured',
+      exactProductMeasurementCeiling: 'MC-1',
+    },
     caseCount: validated.cases.length,
     selectedCaseCount: selection.toProcess.length,
     skippedAlreadyComplete: selection.skipped,
@@ -310,6 +386,8 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
       modelCallsExecuted: 0,
       networkCallsExecuted: 0,
       persistenceWritesExecuted: 0,
+      adapterInvoked: false,
+      costUsd: '0.00',
       commerceEnabled: false,
       productionEndpointContacted: false,
     },
@@ -331,6 +409,10 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
       selectedCaseCount: selection.toProcess.length,
       plannedCallCount,
       executedCallCount: budget.executed,
+      actualProviderCallCount: 0,
+      unexpectedNetworkAttemptCount: 0,
+      adapterInvoked: false,
+      costUsd: '0.00',
       blockedCaseCount: blocked.length,
       blocked,
       planPath,
@@ -340,10 +422,28 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     return { ...summary, planDocument, budget };
   }
 
+  if (blocked.length > 0) {
+    const summary = {
+      ok: false,
+      mode: 'execute',
+      stage: 'preflight',
+      selectedCaseCount: selection.toProcess.length,
+      blockedCaseCount: blocked.length,
+      blocked,
+      plannedCallCount,
+      executedCallCount: 0,
+      message: 'execution refused because one or more governed cases failed preflight',
+    };
+    console.error(JSON.stringify(summary, null, 2));
+    process.exitCode = 1;
+    return summary;
+  }
+
   // ── Execution path ─────────────────────────────────────────────────────────
   const cancellation = runnerState.installCancellation();
   const events = [];
   const scored = [];
+  const executionFailures = [];
   let cancelledAt = null;
   let ceilingHit = false;
 
@@ -380,6 +480,7 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
           failedAt: stamp,
           error: String(error && error.message ? error.message : error),
         });
+        executionFailures.push(plan.caseId);
         continue;
       }
 
@@ -408,15 +509,20 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   const neutral = durable.map((r) => r.profiles.neutral);
   const trust = durable.map((r) => r.profiles.trust_weighted);
 
+  const executionComplete = !ceilingHit && !cancelledAt && executionFailures.length === 0
+    && scored.length === plans.length;
   const report = {
-    ok: true,
+    ok: executionComplete,
     mode: 'execute',
+    completionStatus: executionComplete ? 'complete' : 'incomplete',
     datasetVersion: manifest.datasetVersion,
     completedCaseCount: durable.length,
     executedCallCount: budget.executed,
     hardCallCeiling: planDocument.hardCallCeiling,
+    measurementLimits: planDocument.measurementLimits,
     ceilingHit,
     cancelledAt,
+    failedCaseIds: executionFailures,
     profiles: {
       neutral: fallbackTracking.buildDualPathReport(neutral, events, aggregateScores),
       trust_weighted: fallbackTracking.buildDualPathReport(trust, events, aggregateScores),
@@ -424,7 +530,8 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   };
   const reportPath = path.join(outputDir, 'baseline-report.json');
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  console.log(JSON.stringify({ ok: true, reportPath, completedCaseCount: durable.length, executedCallCount: budget.executed }, null, 2));
+  console.log(JSON.stringify({ ok: report.ok, reportPath, completedCaseCount: durable.length, executedCallCount: budget.executed }, null, 2));
+  if (!report.ok) process.exitCode = 1;
   return report;
 }
 

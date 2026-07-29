@@ -23,6 +23,15 @@ Git worktree. Opaque object names. Every image sanitised — all JPEG APPn and C
 segments stripped (EXIF, XMP, Photoshop IRB) — with original and sanitised SHA-256
 both recorded.
 
+Reproduce the freeze and governed-image verification with:
+
+```powershell
+$env:KSCAN_EVAL_STORAGE_ROOT = 'C:\Users\jsmit\KScan-eval-storage-private\tier-a'
+node tools/scanner-evaluation/verify-frozen-dataset.js `
+  --manifest evals/scanner-accuracy/tier-a-manifest.v0.3.0.json `
+  --freeze-record evals/scanner-accuracy/tier-a-freeze.v0.3.0.json
+```
+
 ### Composition
 
 | Category | Cases |

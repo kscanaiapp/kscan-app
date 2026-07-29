@@ -1,13 +1,22 @@
 {
-  "datasetVersion": "0.1.0",
-  "status": "foundation",
+  "datasetVersion": "0.3.0",
+  "status": "frozen_pilot",
   "createdAt": "2026-07-29T00:00:00.000Z",
-  "description": "Phase 0A governed contract seed. Approved QA fixture references only; no fabricated labels for unobserved fields.",
-  "targetCaseRange": {
+  "description": "Active LICENSED-WEB-IMAGE PILOT BENCHMARK frozen for Phase 1 readiness measurement.",
+  "activeFreeze": {
+    "manifest": "evals/scanner-accuracy/tier-a-manifest.v0.3.0.json",
+    "freezeRecord": "evals/scanner-accuracy/tier-a-freeze.v0.3.0.json",
+    "classification": "LICENSED-WEB-IMAGE PILOT BENCHMARK",
+    "caseCount": 41,
+    "imageCount": 56,
+    "development": 33,
+    "holdout": 8
+  },
+  "originalFoundationTargetCaseRange": {
     "min": 150,
     "max": 300
   },
-  "seedCaseCount": 8,
+  "originalFoundationSeedCaseCount": 8,
   "schemaId": "dataset-manifest.schema.json",
   "scoringContractVersion": "0.2.0",
   "experimentRecordVersion": "0.1.0",
@@ -18,7 +27,7 @@
     "Image bytes are not duplicated into evals/; only hashes and governed refs.",
     "scoringContractVersion advanced to 0.2.0 in Phase 0B. The scorer changed behaviour deliberately: ontology-driven comparison replaces substring matching, and an abstention against a not_visible label now scores correct instead of being dropped from the denominator. Results produced under 0.1.0 and 0.2.0 are not comparable."
   ],
-  "pendingVersion": {
+  "supersededBlockedVersionProposal": {
     "datasetVersion": "0.2.0",
     "status": "BLOCKED — NOT FROZEN",
     "intendedCaseCount": 75,

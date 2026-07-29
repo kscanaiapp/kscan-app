@@ -11,11 +11,19 @@ node tools/scanner-evaluation/validate-dataset.js evals/scanner-accuracy/manifes
 node tools/scanner-evaluation/score-fields.js <labels.json> <predictions.json>
 node tools/scanner-evaluation/compare-candidates.js <baseline.json> <candidate.json>
 node tools/scanner-evaluation/regression-gate.js <baseline.json> <candidate.json> --mode report_only
-node tools/scanner-evaluation/run-baseline.js
+node tools/scanner-evaluation/verify-frozen-dataset.js \
+  --manifest evals/scanner-accuracy/tier-a-manifest.v0.3.0.json \
+  --freeze-record evals/scanner-accuracy/tier-a-freeze.v0.3.0.json
+node tools/scanner-evaluation/run-baseline.js --dry-run \
+  --manifest evals/scanner-accuracy/tier-a-manifest.v0.3.0.json \
+  --output-dir <dir>
 ```
 
-`run-baseline.js` produces a **static shell only** (empty predictions, zero model calls).
-Paid model evaluation requires explicit owner authorization.
+The frozen verifier requires `KSCAN_EVAL_STORAGE_ROOT` and verifies the four
+recorded frozen inputs plus every governed image hash. `run-baseline.js` performs
+the same verification before planning. Its dry run produces a **static shell
+only** (empty predictions, zero model calls). Paid model evaluation requires
+approved cases, explicit owner authorization, and an injected certified adapter.
 
 ## Tests
 
