@@ -141,10 +141,16 @@ export function buildCanonicalSource(input: {
     scanId: cleanId(input.scanId) ?? (kind.startsWith('scanner') || kind === 'textscan' ? sourceId : null),
     scanSessionId: cleanId(input.scanSessionId),
     selectedItemId: cleanId(input.selectedItemId),
+    // A Closet item's identity is its closetItemId, never a synthesized
+    // savedScanId. The Build 2 device Closet is the authority for owned
+    // garments: `sourceId` on a `closet_item` IS the closet item id, and
+    // writing it into `savedScanId` invented a saved-scan reference that was
+    // never real — which then keyed dedupe as `saved_scan:` and let a Closet
+    // item collide with an actual saved scan that happened to share the id.
     savedScanId:
-      cleanId(input.savedScanId) ??
-      (kind === 'saved_scan' || kind === 'closet_item' ? sourceId : null),
-    closetItemId: cleanId(input.closetItemId),
+      cleanId(input.savedScanId) ?? (kind === 'saved_scan' ? sourceId : null),
+    closetItemId:
+      cleanId(input.closetItemId) ?? (kind === 'closet_item' ? sourceId : null),
     inspirationItemId:
       cleanId(input.inspirationItemId) ??
       (kind === 'inspiration_item' ? sourceId : null),
@@ -169,6 +175,7 @@ export function buildCanonicalSnapshotExtension(input: {
   scanSessionId?: string | null;
   selectedItemId?: string | null;
   savedScanId?: string | null;
+  closetItemId?: string | null;
   inspirationItemId?: string | null;
   providerProductId?: string | null;
   backendVersion?: string | null;
