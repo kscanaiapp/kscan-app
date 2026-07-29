@@ -706,32 +706,174 @@ export async function verifyClosetItemMedia(item) {
 }
 
 /**
+ * Outcome codes for a typed Closet read.
+ *
+ * `RECOVERED_WITH_ITEMS` / `RECOVERED_EMPTY` exist in the contract but are NOT
+ * produced by any current code path, and that is a property of the store rather
+ * than an oversight: `persistCloset` writes the committed manifest directly and
+ * keeps no `.bak`, so there is nothing to recover FROM. (The candidate store, by
+ * contrast, does write-verify-swap with a backup — see
+ * services/closetCandidateLibrary.js.) The codes are carried here so a caller's
+ * exhaustive handling stays correct if this store ever gains that durability,
+ * and `readClosetManifest` is the single place that would set `recovered`.
+ * Giving the committed Closet a backup is a Build 2 durability change and is
+ * deliberately out of Phase 2 scope.
+ */
+export const CLOSET_LOAD_CODES = Object.freeze({
+  SUCCESS_WITH_ITEMS: 'SUCCESS_WITH_ITEMS',
+  SUCCESS_EMPTY: 'SUCCESS_EMPTY',
+  RECOVERED_WITH_ITEMS: 'RECOVERED_WITH_ITEMS',
+  RECOVERED_EMPTY: 'RECOVERED_EMPTY',
+  READ_FAILED: 'READ_FAILED',
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  FUTURE_SCHEMA: 'FUTURE_SCHEMA',
+  ACTOR_CHANGED: 'ACTOR_CHANGED',
+});
+
+/**
+ * Read + interpret the manifest once, reporting WHY rather than just what.
+ *
+ * Separated from `loadClosetTyped` only so the raw-read failure and the
+ * per-record interpretation failure stay distinguishable; the caller collapses
+ * them into a single outcome.
+ */
+async function readClosetManifest() {
+  let parsed;
+  try {
+    parsed = await readAllCloset();
+  } catch {
+    // A read or JSON failure. Reported, never repaired and never truncated on
+    // disk — a transient fault must not cost the user their Closet.
+    return { read: false, raw: [], records: [], skipped: 0, futureSchema: 0, recovered: false };
+  }
+
+  const records = [];
+  let skipped = 0;
+  let futureSchema = 0;
+  for (const item of parsed) {
+    const migrated = migrateClosetItemRecord(item);
+    if (migrated.ok) {
+      // VALIDATED, NOT TRANSFORMED. The RAW persisted record is kept, never
+      // `migrated.record`: reconstructing through the allowlist here would strip
+      // fields this store does not own but other subsystems legitimately read
+      // off a committed record — the candidate store's exact-hash duplicate
+      // check being the live example. Canonical shape for a SCREEN is the
+      // projection's job (services/closetItemProjection.ts), which is where the
+      // UI boundary actually is.
+      //
+      // A record that fails is SKIPPED here and left untouched on disk, because
+      // every writer reads the complete raw array and so cannot drop it.
+      records.push(item);
+      continue;
+    }
+    skipped += 1;
+    if (migrated.reason === 'closet_store_future_schema') futureSchema += 1;
+  }
+  return { read: true, raw: parsed, records, skipped, futureSchema, recovered: false };
+}
+
+/**
+ * Load Closet items for an actor WITH a typed outcome.
+ *
+ * THE SINGLE SOURCE OF TRUTH for reading the committed Closet. `loadCloset`
+ * below is a thin compatibility wrapper over this function, so there is exactly
+ * one read implementation rather than two that can drift.
+ *
+ * WHY THIS EXISTS: `loadCloset` answers `[]` for an empty Closet and for a
+ * failed read alike, so a caller cannot tell "you own nothing" from "we could
+ * not look". That is fine for a list screen and wrong for anything that must
+ * explain itself to the user.
+ *
+ * PARTIAL INTERPRETATION IS STILL SUCCESS. When some records are readable and
+ * others are not, the readable ones are returned with `ok: true` and the count
+ * surfaced in `skipped` — matching the pre-existing behavior exactly. Only a
+ * manifest that yielded NOTHING despite containing entries is a failure.
+ *
+ * @param {string|null|undefined} [actorId] — null selects the ownerless
+ *   device-local partition; undefined returns every partition (tests only).
+ * @param {{actorRequest?: object}} [options] — when supplied, the captured
+ *   actor request is revalidated after the await and a stale one is refused.
+ * @returns {Promise<{ok: boolean, items: object[], code: string,
+ *   recovered: boolean, skipped: number, message: string|null}>}
+ */
+export async function loadClosetTyped(actorId = undefined, options = {}) {
+  const fail = (code, message) => ({
+    ok: false,
+    items: [],
+    code,
+    recovered: false,
+    skipped: 0,
+    message,
+  });
+
+  try {
+    await closetMutationQueue;
+    const state = await readClosetManifest();
+
+    // Revalidated AFTER the await: the actor may have changed while reading, and
+    // handing the new actor the previous actor's rows is the one outcome that
+    // must never happen.
+    const actorRequest = options?.actorRequest;
+    if (actorRequest !== undefined && !isActorRequestCurrent(actorRequest)) {
+      return fail(CLOSET_LOAD_CODES.ACTOR_CHANGED, 'The signed-in account changed.');
+    }
+
+    if (!state.read) {
+      return fail(CLOSET_LOAD_CODES.READ_FAILED, "We couldn't load your Closet.");
+    }
+
+    // Every entry was unreadable. Distinguish "a newer app wrote this" from
+    // "this is damaged", because only one of them is a corruption.
+    if (state.records.length === 0 && state.raw.length > 0) {
+      return state.futureSchema > 0
+        ? fail(
+            CLOSET_LOAD_CODES.FUTURE_SCHEMA,
+            'Your Closet was saved by a newer version of K Scan.',
+          )
+        : fail(CLOSET_LOAD_CODES.VALIDATION_FAILED, "We couldn't read your Closet.");
+    }
+
+    const items = state.records
+      .filter((item) => !item.deletedAt && isVisibleToActor(item, actorId))
+      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+
+    const empty = items.length === 0;
+    const code = state.recovered
+      ? empty
+        ? CLOSET_LOAD_CODES.RECOVERED_EMPTY
+        : CLOSET_LOAD_CODES.RECOVERED_WITH_ITEMS
+      : empty
+        ? CLOSET_LOAD_CODES.SUCCESS_EMPTY
+        : CLOSET_LOAD_CODES.SUCCESS_WITH_ITEMS;
+
+    return {
+      ok: true,
+      items,
+      code,
+      recovered: state.recovered,
+      skipped: state.skipped,
+      message: null,
+    };
+  } catch {
+    // Never throws into a caller. No exception text and no filesystem path is
+    // exposed: `message` is user-facing copy, not a diagnostic.
+    return fail(CLOSET_LOAD_CODES.READ_FAILED, "We couldn't load your Closet.");
+  }
+}
+
+/**
  * Load Closet items for an actor. Returns [] on any error.
+ *
+ * COMPATIBILITY SURFACE, unchanged for every existing caller. It now delegates
+ * to `loadClosetTyped` and discards the outcome, which is exactly the old
+ * contract: the items on success, `[]` on failure or emptiness.
+ *
  * @param {string|null|undefined} [actorId] — null selects the ownerless
  *   device-local partition; undefined returns every partition (tests only).
  */
 export async function loadCloset(actorId = undefined) {
-  try {
-    await closetMutationQueue;
-    const parsed = await readAllCloset();
-    return parsed
-      .filter((item) => !item.deletedAt && isVisibleToActor(item, actorId))
-      // VALIDATED, NOT TRANSFORMED. A record this build must not interpret — a
-      // newer schema — or cannot address — no id — is omitted here rather than
-      // read with the wrong rules. It stays on disk untouched, because every
-      // writer reads the complete RAW array and so cannot drop it.
-      //
-      // The records themselves are returned as they are persisted. Reconstructing
-      // through the allowlist here would strip fields this store does not own but
-      // other subsystems legitimately read off a committed record — the candidate
-      // store's exact-hash duplicate check being the live example. Canonical shape
-      // for a SCREEN is the projection's job (services/closetItemProjection.ts),
-      // which is where the UI boundary actually is.
-      .filter((item) => migrateClosetItemRecord(item).ok)
-      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
-  } catch {
-    return [];
-  }
+  const result = await loadClosetTyped(actorId);
+  return result.ok ? result.items : [];
 }
 
 /**
