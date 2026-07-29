@@ -197,6 +197,35 @@ export const PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE =
   PRIVATE_DRESSING_ROOM_V1 && PRIVATE_DRESSING_ROOM_INTERACTIONS_V1;
 
 /**
+ * Phase 4 Elise orchestration: bounded occasion interpretation, Build Around
+ * This, and the on-device Make It More Casual action.
+ *
+ * Default OFF; only the literal string 'true' enables it, so missing, false and
+ * malformed all fail closed.
+ */
+export const PRIVATE_DRESSING_ROOM_ELISE_V1 =
+  process.env.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_ELISE_V1 === 'true';
+
+/**
+ * NESTED TWICE, and this derived constant is the ONLY thing any caller reads.
+ *
+ * Elise orchestrates interactions, and interactions require the workspace, so
+ * the Phase 4 flag can never override either one below it. Mirrors
+ * PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE above rather than introducing a
+ * second flag evaluator.
+ *
+ * With this OFF: no Phase 4 UI renders, no Edge Function is invoked, no alias
+ * map is built, and Phases 1–3.5 behave exactly as they did before — including
+ * the manual occasion chips, which Phase 4 only ever adds to.
+ *
+ * IMPORTANT: this is a BUILD-TIME flag. It is read once at bundle time, so a
+ * Metro server started without it yields a flag-OFF app no matter what the
+ * device does later.
+ */
+export const PRIVATE_DRESSING_ROOM_ELISE_ACTIVE =
+  PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE && PRIVATE_DRESSING_ROOM_ELISE_V1;
+
+/**
  * DR-2: client may send owned dressing_room_item stable-ID attachments.
  * Default OFF — next-build activation only.
  */
