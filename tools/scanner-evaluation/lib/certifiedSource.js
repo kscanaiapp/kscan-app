@@ -181,6 +181,120 @@ function verifyCertifiedBoundaries(ref) {
   return { ref: target, ok: checks.every((c) => c.ok), checks };
 }
 
+// ── Certified source ROOT (filesystem) verification ──────────────────────────
+
+/**
+ * Resolve the certified source root from an explicit CLI argument or an
+ * environment variable. No absolute workstation path is ever committed, and no
+ * symlink is used.
+ *
+ * @param {string[]} argv
+ */
+function resolveCertRoot(argv = []) {
+  const index = argv.indexOf('--cert-root');
+  if (index >= 0 && argv[index + 1] && !argv[index + 1].startsWith('--')) {
+    return { root: argv[index + 1], via: '--cert-root' };
+  }
+  if (process.env.KSCAN_CERT_V140_ROOT) {
+    return { root: process.env.KSCAN_CERT_V140_ROOT, via: 'KSCAN_CERT_V140_ROOT' };
+  }
+  return { root: null, via: null };
+}
+
+/** Deployable extensions inside the scan-identify function directory. */
+const DEPLOYABLE_RE = /\.ts$/;
+const TEST_RE = /\.test\.ts$/;
+
+/**
+ * Verify a filesystem root IS the certified v140 source.
+ *
+ * Fails closed on: a differing file, a missing file, an extra deployable file,
+ * a wrong root, the research Scanner tree, or a differing bundle hash.
+ *
+ * @param {string|null} rootPath
+ */
+function verifyCertRoot(rootPath) {
+  const record = loadRecord();
+  const failures = [];
+
+  if (!rootPath) {
+    return {
+      ok: false,
+      root: null,
+      failures: [{ code: 'no_cert_root', message: 'no --cert-root argument and no KSCAN_CERT_V140_ROOT set' }],
+    };
+  }
+  if (!fs.existsSync(rootPath)) {
+    return { ok: false, root: rootPath, failures: [{ code: 'root_missing', message: `path does not exist: ${rootPath}` }] };
+  }
+
+  const derived = [];
+  for (const file of record.files) {
+    const absolute = path.join(rootPath, file.path);
+    if (!fs.existsSync(absolute)) {
+      failures.push({ code: 'file_missing', path: file.path });
+      continue;
+    }
+    const actual = sha256(fs.readFileSync(absolute));
+    derived.push({ path: file.path, sha256: actual, bundle: file.bundle });
+    if (actual !== file.sha256) {
+      failures.push({ code: 'file_differs', path: file.path, expected: file.sha256, actual, bundle: file.bundle });
+    }
+  }
+
+  // An EXTRA deployable file in the function directory means the root carries
+  // code the certified closure does not — it is not the certified source.
+  const fnDir = path.join(rootPath, 'supabase/functions/scan-identify');
+  const known = new Set(record.files.map((f) => f.path));
+  if (fs.existsSync(fnDir)) {
+    for (const name of fs.readdirSync(fnDir)) {
+      if (!DEPLOYABLE_RE.test(name) || TEST_RE.test(name)) continue;
+      const relative = `supabase/functions/scan-identify/${name}`;
+      if (!known.has(relative)) failures.push({ code: 'extra_deployable_file', path: relative });
+    }
+  } else {
+    failures.push({ code: 'function_dir_missing', path: 'supabase/functions/scan-identify' });
+  }
+
+  const bundleHash = derived.length ? aggregateHash(derived.filter((d) => d.bundle)) : null;
+  if (bundleHash !== record.bundleHash) {
+    failures.push({
+      code: 'bundle_hash_mismatch',
+      expected: record.bundleHash,
+      actual: bundleHash,
+      hint:
+        bundleHash === null
+          ? 'no certified files were readable at this root'
+          : 'this root is NOT certified v140 — if it is the research branch it has drifted forward past the certification commit',
+    });
+  }
+
+  return {
+    ok: failures.length === 0,
+    root: rootPath,
+    bundleHash,
+    expectedBundleHash: record.bundleHash,
+    fileCount: derived.length,
+    expectedFileCount: record.treeFileCount,
+    bundleFileCount: derived.filter((d) => d.bundle).length,
+    expectedBundleFileCount: record.bundleFileCount,
+    failures,
+  };
+}
+
+/** Throwing form for adapter construction — the adapter must never start on a bad root. */
+function requireCertRoot(argv = []) {
+  const { root, via } = resolveCertRoot(argv);
+  const result = verifyCertRoot(root);
+  if (!result.ok) {
+    const codes = result.failures.map((f) => f.code).join(', ');
+    const error = new Error(`certified v140 source root rejected (${codes})`);
+    error.verification = result;
+    throw error;
+  }
+  return { ...result, via };
+}
+
 module.exports = {
   RECORD_PATH,
   loadRecord,
@@ -191,4 +305,7 @@ module.exports = {
   verifyClosure,
   compareToCertified,
   verifyCertifiedBoundaries,
+  resolveCertRoot,
+  verifyCertRoot,
+  requireCertRoot,
 };
