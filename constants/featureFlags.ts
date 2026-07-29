@@ -416,6 +416,34 @@ export const ELISE_LEGACY_PHOTO_INTAKE_ENABLED =
  */
 export const ELISE_ADVICE_METADATA_CLIENT_V1 =
   process.env.EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1 === 'true';
+/**
+ * DEVELOPMENT-ONLY starting route, for runtime QA harnesses.
+ *
+ * WHY THIS EXISTS AND NOT A DEEP LINK. Inside an Expo dev client the
+ * `kscan://` VIEW intent does not reach expo-router — the dev client owns the
+ * scheme — so `adb shell am start -d kscan://stylist/dressing-room` lands on
+ * Home with the auth gate reporting `guardAction: 'allow'`. It is not a routing
+ * guard problem and no URL form fixes it. Automated QA therefore had to reach
+ * deep routes by tapping through the UI, where cached coordinates go stale after
+ * every reload and a stray tap silently sends the run somewhere else.
+ *
+ * This is the dev-only equivalent: Metro's own process environment names the
+ * route to land on once, after the auth gate has settled.
+ *
+ * IMPOSSIBLE IN A RELEASE BUILD. `__DEV__` is checked with an inline literal so
+ * the branch folds, and it is evaluated BEFORE the variable is read. Absent from
+ * every EAS profile — asserted by test — so a production build has nothing to
+ * honour. It adds no user-visible control and changes no production route.
+ *
+ *     EXPO_PUBLIC_DEV_INITIAL_ROUTE=/stylist/dressing-room
+ */
+export const DEV_INITIAL_ROUTE: string | null =
+  typeof __DEV__ !== 'undefined' && __DEV__ === true
+    ? (process.env.EXPO_PUBLIC_DEV_INITIAL_ROUTE ?? '').trim().startsWith('/')
+      ? (process.env.EXPO_PUBLIC_DEV_INITIAL_ROUTE ?? '').trim()
+      : null
+    : null;
+
 // ── Closet testing bundle (internal testing builds) ──────────────────────────
 /**
  * Separates Closet from Recent Scans as distinct domains and enables the
