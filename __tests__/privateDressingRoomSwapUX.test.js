@@ -292,10 +292,12 @@ test('session discard clears interaction memory and deletes interaction files', 
 });
 
 test('an actor transition clears Phase 3 ephemeral and pending confirmation', () => {
-  const body = HOOK.slice(
-    HOOK.indexOf('/** An actor transition invalidates every snapshot'),
-    HOOK.indexOf('const view = useMemo'),
-  );
+  // The effect moved above useFocusEffect(hydrate) so invalidation precedes
+  // hydration (cold deep-link repair), and its comment became a block, so the
+  // slice anchors on the sentence rather than the old single-line JSDoc.
+  const start = HOOK.indexOf('An actor transition invalidates every snapshot');
+  assert.ok(start > -1, 'missing the actor-transition effect');
+  const body = HOOK.slice(start, HOOK.indexOf('\n  useFocusEffect(hydrate);'));
   assert.match(body, /setInteraction\(IDLE_INTERACTION\)/);
   assert.match(body, /setPreview\(null\)/);
   assert.match(body, /setSlotEditor\(CLOSED_EDITOR\)/);
