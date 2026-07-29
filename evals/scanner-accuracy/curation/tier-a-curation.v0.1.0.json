@@ -74,7 +74,7 @@
       "primaryColor": "unknown",
       "material": "unknown",
       "brand": "not_visible",
-      "brandVisible": true,
+      "brandVisible": false,
       "expectedResultType": "identified_style",
       "expectedAbstention": false,
       "sceneTags": [
@@ -90,7 +90,9 @@
       "plateReviewState": "no_plate_present",
       "trademarkReviewState": "trademark_visible_incidental",
       "labelConfidence": "medium",
-      "note": "Retail ski-boot display wall. Doubles as the store_display stratum and carries visible brand SIGNAGE (Salomon, Rossignol, Lange) — brand text is on the shelf label, not the garment, so brand ground truth stays not_visible. Third-party trademarks visible incidentally."
+      "note": "Retail ski-boot display wall. Doubles as the store_display stratum and carries visible brand SIGNAGE (Salomon, Rossignol, Lange) — brand text is on the shelf label, not the garment, so brand ground truth stays not_visible. Third-party trademarks visible incidentally.",
+      "brandEvidenceKind": null,
+      "brandEvidenceNote": "Salomon/Rossignol/Lange text is on the retail SHELF LABEL, not on any boot. Does not qualify as product brand evidence."
     },
     "tiera-skirt-8f16ef5c8e": {
       "keep": true,
@@ -448,7 +450,9 @@
         "flash_lit",
         "dark_background"
       ],
-      "note": "Round sunglasses with THOM BROWNE NEW YORK legible on the cleaning cloth, box and case. FIRST directly brand-evidenced case in the corpus. The evidence is the product's own packaging text, not a frame stamp — recorded explicitly so the evidence basis is auditable. Also a genuine low-light case."
+      "note": "Round sunglasses with THOM BROWNE NEW YORK legible on the cleaning cloth, box and case. FIRST directly brand-evidenced case in the corpus. The evidence is the product's own packaging text, not a frame stamp — recorded explicitly so the evidence basis is auditable. Also a genuine low-light case.",
+      "brandEvidenceKind": "packaging_text",
+      "brandEvidenceSource": "THOM BROWNE NEW YORK legible on the cleaning cloth, box and case in the photograph itself"
     },
     "tiera-NON_FASHION-635218364b": {
       "keep": true,
@@ -829,7 +833,9 @@
         "tiera-outerwear-635315c42c": "material_detail"
       },
       "trueMultiImage": true,
-      "note": "Independently captured views carrying different evidence, not crops of one file. The material-detail view is a legitimate set member per the capture spec view taxonomy, but is NOT usable as a standalone identification case."
+      "note": "Independently captured views carrying different evidence, not crops of one file. The material-detail view is a legitimate set member per the capture spec view taxonomy, but is NOT usable as a standalone identification case.",
+      "identityEvidence": "Commons filenames 01/02/03 of one museum object; confirmed visually as the same garment",
+      "identityConfirmed": true
     },
     "set-501xx-jeans": {
       "description": "One pair of dark indigo jeans, front and back, flat on a wood floor. Same garment, two independently captured views, CC BY-SA 4.0.",
@@ -842,7 +848,9 @@
         "tiera-pants-b0514ee815": "back"
       },
       "trueMultiImage": true,
-      "note": "The back view shows arcuate pocket stitching and a small red tab. The filename says 501xx but a FILENAME is not image evidence, and no wordmark is legible, so brand stays not_visible."
+      "note": "The back view shows arcuate pocket stitching and a small red tab. The filename says 501xx but a FILENAME is not image evidence, and no wordmark is legible, so brand stays not_visible.",
+      "identityEvidence": "Filenames 501xx-front / 501xx-back; confirmed visually as one pair on the same floor",
+      "identityConfirmed": true
     }
   }
 }

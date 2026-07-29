@@ -182,6 +182,44 @@ async function categoryMembers(category, limit) {
   return ((data.query && data.query.categorymembers) || []).map((m) => m.title);
 }
 
+/**
+ * Group category members that depict the SAME physical object.
+ *
+ * Institutional and museum uploads name multi-view sequences systematically —
+ * "X 01.jpg", "X 02.jpg", "X front.jpg", "X back.jpg". Stripping that trailing
+ * view token yields a shared object stem. This is how the fishskin-jacket set
+ * was found, and it is the only reliable programmatic route to TRUE same-item
+ * sets.
+ *
+ * A group is a CANDIDATE set only. Shared object identity is confirmed visually
+ * during curation before any set is admitted — a matching filename stem is
+ * evidence, not proof.
+ */
+function groupBySameObject(titles, minMembers = 2) {
+  const VIEW_TOKEN =
+    /[\s_-]+(?:0*\d{1,3}|front|back|side|rear|detail|verso|recto|top|bottom|left|right|inside|outside|obverse|reverse)$/i;
+  const groups = new Map();
+
+  for (const title of titles) {
+    const bare = title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
+    let stem = bare;
+    // Strip up to two trailing view tokens ("jacket 01", "coat back 2").
+    for (let i = 0; i < 2; i += 1) {
+      const next = stem.replace(VIEW_TOKEN, '');
+      if (next === stem) break;
+      stem = next;
+    }
+    if (stem === bare) continue; // no view token: not part of a named sequence
+    const key = stem.trim().toLowerCase();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(title);
+  }
+
+  return [...groups.entries()]
+    .filter(([, members]) => members.length >= minMembers)
+    .map(([stem, members]) => ({ stem, members: members.sort() }));
+}
+
 /** Search Commons for candidate files. */
 async function searchCommons(term, limit) {
   const url =
@@ -381,6 +419,80 @@ async function main(argv = process.argv.slice(2)) {
       });
       continue;
     }
+    // Object-category mode: the CATEGORY itself is the object identity.
+    //
+    // Museum object-level categories (e.g. "Category:Dress MET C.I.39.68")
+    // contain multiple documented views of ONE accessioned object. That is
+    // stronger evidence of shared identity than a filename stem, and the
+    // accession number is documented catalog attribution in its own right.
+    if (spec.objectCategory) {
+      const setId = `set-${(spec.commonsCategory || '')
+        .replace(/^Category:/, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 48)}`;
+      const members = [];
+      for (const title of titles.slice(0, spec.maxMembers || 3)) {
+        let result;
+        try {
+          result = await acquireOne(title, spec, args.storage, args.dryRun);
+        } catch (error) {
+          rejected.push({ title, reason: `error: ${error.message}`, setId });
+          continue;
+        }
+        if (result.rejected) {
+          rejected.push({ title: result.title || title, reason: result.reason, setId });
+          continue;
+        }
+        members.push({ ...result, retrievalDate, repository: 'Wikimedia Commons',
+          retrievalMethod: `object-category:${spec.commonsCategory}`,
+          sameItemSetIdCandidate: setId,
+          objectIdentityEvidence: spec.commonsCategory,
+          accessionNumber: spec.accession || null,
+          documentedMaker: spec.maker || null,
+          curationStatus: 'pending_visual_curation',
+          setIdentityConfirmed: false });
+      }
+      if (members.length < 2) {
+        members.forEach((m) => { m.setUsable = false; m.setNote = 'fewer than 2 members survived licence/privacy gates'; });
+      } else {
+        members.forEach((m) => { m.setUsable = true; });
+      }
+      accepted.push(...members);
+      continue;
+    }
+
+    // Set mode: acquire whole same-object groups, never loose singles.
+    if (spec.sameItemSets) {
+      const groups = groupBySameObject(titles, spec.minMembers || 2).slice(0, spec.wantSets || 2);
+      for (const group of groups) {
+        const setId = `set-${group.stem.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)}`;
+        const acquiredMembers = [];
+        for (const title of group.members.slice(0, spec.maxMembers || 4)) {
+          let result;
+          try {
+            result = await acquireOne(title, spec, args.storage, args.dryRun);
+          } catch (error) {
+            rejected.push({ title, reason: `error: ${error.message}`, setId });
+            continue;
+          }
+          if (result.rejected) {
+            rejected.push({ title: result.title || title, reason: result.reason, setId });
+            continue;
+          }
+          acquiredMembers.push({ ...result, retrievalDate, repository: 'Wikimedia Commons',
+            retrievalMethod: `category-set:${spec.commonsCategory}`, sameItemSetIdCandidate: setId,
+            sameItemSetStem: group.stem, curationStatus: 'pending_visual_curation',
+            setIdentityConfirmed: false });
+        }
+        // A set of one is not a set. Members are still recorded, flagged unusable as a set.
+        if (acquiredMembers.length < 2) {
+          acquiredMembers.forEach((m) => { m.setUsable = false; m.setNote = 'fewer than 2 members survived licence/privacy gates'; });
+        } else {
+          acquiredMembers.forEach((m) => { m.setUsable = true; });
+        }
+        accepted.push(...acquiredMembers);
+      }
+      continue;
+    }
+
     let taken = 0;
     for (const title of titles) {
       if (taken >= (spec.want || 1)) break;
@@ -455,4 +567,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { categoryMembers, classifyLicence, stripJpegMetadata, hasJpegMetadata, sha256, ACCEPTED_LICENCES, HARD_REJECT };
+module.exports = { groupBySameObject, categoryMembers, classifyLicence, stripJpegMetadata, hasJpegMetadata, sha256, ACCEPTED_LICENCES, HARD_REJECT };
