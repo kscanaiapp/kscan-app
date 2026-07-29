@@ -41,7 +41,10 @@ import {
 } from './privateDressingRoomCasualness';
 import { occasionGroupFor } from './privateDressingRoomComposer';
 import type { ClosetItemProjection } from './closetItemProjection';
-import type { PrivateEliseOccasion } from '../types/privateDressingRoomElise';
+import type {
+  PrivateEliseOccasion,
+  PrivateEliseResponse,
+} from '../types/privateDressingRoomElise';
 
 // ── Published status ─────────────────────────────────────────────────────────
 
@@ -100,7 +103,41 @@ export type EliseOutcome = {
   status: EliseStatus;
 };
 
+/**
+ * The status a NON-SUCCESS response publishes, or null when it is a success.
+ *
+ * EXHAUSTIVE ON PURPOSE. Device QA found `safe_failure` being published as
+ * `unsupported`, because the code was `if (status !== 'success') unsupported`.
+ * For build_around_item that rendered "This item can't be used as the anchor for
+ * a look yet." for what was actually a transient backend failure — telling the
+ * user their garment is unusable when the truth was "try again". A backend
+ * failure and an unsupported request are different facts and must not share a
+ * bucket.
+ */
+function statusKindFor(
+  status: PrivateEliseResponse['status'],
+): Exclude<EliseStatusKind, 'idle' | 'loading' | 'success' | 'already_casual'> | null {
+  switch (status) {
+    case 'success':
+      return null;
+    case 'clarification_required':
+      return 'clarification';
+    case 'unsupported':
+      return 'unsupported';
+    case 'safe_failure':
+    case 'invalid_request':
+      // Both are "we could not do this", not "this is not supported".
+      return 'failed';
+    default:
+      return 'failed';
+  }
+}
+
 function published(publish: ElisePublisher, status: EliseStatus): EliseOutcome {
+  // TEMPORARY QA DIAGNOSTIC (Phase 4 final blocker window). REMOVE BEFORE COMMIT.
+  if (typeof __DEV__ !== 'undefined' && __DEV__ === true) {
+    console.log(`[elise-life] status_published kind=${status.kind} op=${status.operation ?? "none"}`);
+  }
   publish.setStatus(status);
   return { applied: status.kind === 'success', status };
 }
@@ -170,10 +207,11 @@ export async function interpretOccasion(
   if (!acceptance.accepted) return { applied: false, status: IDLE_ELISE_STATUS };
 
   const response = acceptance.response;
-  if (response.status === 'clarification_required') {
-    return published(deps.publish, { kind: 'clarification', operation: 'interpret_occasion' });
+  const nonSuccess = statusKindFor(response.status);
+  if (nonSuccess) {
+    return published(deps.publish, { kind: nonSuccess, operation: 'interpret_occasion' });
   }
-  if (response.status !== 'success' || !response.normalizedOccasion) {
+  if (!response.normalizedOccasion) {
     return published(deps.publish, { kind: 'unsupported', operation: 'interpret_occasion' });
   }
 
@@ -257,11 +295,9 @@ export async function buildAroundItem(
   if (!acceptance.accepted) return { applied: false, status: IDLE_ELISE_STATUS };
 
   const response = acceptance.response;
-  if (response.status === 'clarification_required') {
-    return published(deps.publish, { kind: 'clarification', operation: 'build_around_item' });
-  }
-  if (response.status !== 'success') {
-    return published(deps.publish, { kind: 'unsupported', operation: 'build_around_item' });
+  const nonSuccess = statusKindFor(response.status);
+  if (nonSuccess) {
+    return published(deps.publish, { kind: nonSuccess, operation: 'build_around_item' });
   }
   // The returned alias must decode, through THIS request's map, to the anchor
   // the client selected. Anything else is a rejection, not a correction.
