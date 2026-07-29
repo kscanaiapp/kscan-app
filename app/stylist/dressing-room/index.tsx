@@ -460,11 +460,12 @@ export default function PrivateDressingRoomScreen() {
               a tap, rather than from a failure afterwards.
             */}
             {interactionsEnabled && canUndo ? (
-              <View testID="undo-section">
+              <View style={styles.stackedAction} testID="undo-section">
                 <SecondaryButton
                   title={PRIVATE_WORKSPACE_COPY.undo}
                   onPress={() => void undoLastSwap()}
                   disabled={busy || undoAvailability === 'blocked_prior_item_missing'}
+                  style={styles.uniformAction}
                   accessibilityLabel={
                     undoAvailability === 'blocked_prior_item_missing'
                       ? `Undo the last outfit change, unavailable. ${PRIVATE_WORKSPACE_COPY.undoBlockedPriorItemMissing}`
@@ -489,6 +490,7 @@ export default function PrivateDressingRoomScreen() {
                 title={PRIVATE_COMPARISON_COPY.entry}
                 onPress={() => void openComparison()}
                 disabled={busy}
+                style={styles.stackedAction}
                 accessibilityLabel="Compare two outfits"
                 testID="compare-entry-button"
               />
@@ -753,6 +755,7 @@ export default function PrivateDressingRoomScreen() {
                 title={PRIVATE_WORKSPACE_COPY.discard}
                 onPress={() => setConfirmingDiscard(true)}
                 disabled={busy}
+                style={styles.uniformAction}
                 accessibilityLabel="Discard the Dressing Room session"
                 testID="discard-session-button"
               />
@@ -1205,6 +1208,18 @@ const styles = StyleSheet.create({
   usesLine: { marginTop: SPACING.md, fontSize: 13, color: LUXURY.colors.plum },
   // Sits directly beneath the disabled Undo control it explains.
   undoBlockedText: { marginTop: SPACING.xs, fontSize: 13, color: LUXURY.colors.ink },
+  /*
+   * SecondaryButton is a fixed-height pill that centres itself and sizes to
+   * `max(minWidth, label + padding)`, so "Undo Last Change", "Compare Looks"
+   * and "Discard Session" each rendered at a different width. It also carries
+   * no vertical margin, so stacked pills sat flush and their gold outlines read
+   * as overlapping.
+   *
+   * Stretching them to the column width makes the three uniform without
+   * touching the shared button component, which every other screen uses.
+   */
+  stackedAction: { marginTop: SPACING.sm, alignSelf: 'stretch' },
+  uniformAction: { alignSelf: 'stretch' },
 
   // ── Phase 3 slot editing ───────────────────────────────────────────────────
   slotAction: {
