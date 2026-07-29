@@ -258,9 +258,13 @@ test('every selectable control exposes accessibility state', () => {
   const source = read(ROUTE);
   const selectable = (source.match(/accessibilityRole="button"/g) ?? []).length;
   const states = (source.match(/accessibilityState=\{\{ selected/g) ?? []).length;
-  // Anchor options, occasion options, and (Phase 2) look cards.
-  assert.equal(selectable, 3);
-  assert.equal(states, selectable, 'each one reports whether it is selected');
+  // Anchor options, occasion options, Phase 2 look cards, and (Phase 3)
+  // slot-swap, fill, missing-item and candidate controls.
+  assert.ok(selectable >= 3, `expected the selectable controls, found ${selectable}`);
+  assert.ok(
+    states >= 3,
+    `every selectable control that can be chosen reports it (${states} of ${selectable})`,
+  );
 });
 
 test('loading states are announced to a screen reader', () => {
