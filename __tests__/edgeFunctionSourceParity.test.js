@@ -104,11 +104,18 @@ function fixturePath(root, ...segments) {
 
 // ── The committed manifest ───────────────────────────────────────────────────
 
-test('committed manifest governs both identification functions and the approved project', () => {
+test('committed manifest governs every governed function and the approved project', () => {
   assert.ok(fs.existsSync(MANIFEST_PATH), 'config/edge-function-manifest.json must be committed');
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
 
-  assert.deepEqual(manifest.parity.expectedFunctions, ['scan-identify', 'stylechat-generate']);
+  // Spelled out rather than derived from GOVERNED_FUNCTIONS: widening the gate
+  // must fail this assertion first, so it stays a decision and not a side
+  // effect. style-outfit-generate joined in Build 3 Phase 4.
+  assert.deepEqual(manifest.parity.expectedFunctions, [
+    'scan-identify',
+    'style-outfit-generate',
+    'stylechat-generate',
+  ]);
   assert.equal(manifest.parity.approvedProjectRef, APPROVED_PROJECT_REF);
 
   for (const fn of manifest.parity.functions) {

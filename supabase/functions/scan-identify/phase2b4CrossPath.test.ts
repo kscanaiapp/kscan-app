@@ -255,13 +255,20 @@ function inventoryOperations(functionName: string) {
   return found;
 }
 
-Deno.test('inventory: both governed functions are covered by the manifest closure', () => {
+Deno.test('inventory: every governed function is covered by the manifest closure', () => {
   const manifest = JSON.parse(readRepoFile('config/edge-function-manifest.json')) as {
     parity: { expectedFunctions: string[] };
   };
-  assertEquals(manifest.parity.expectedFunctions.sort(), ['scan-identify', 'stylechat-generate']);
+  // style-outfit-generate joined the governed set in Build 3 Phase 4, when it
+  // became the host of the versioned private Dressing Room contract.
+  assertEquals(manifest.parity.expectedFunctions.sort(), [
+    'scan-identify',
+    'style-outfit-generate',
+    'stylechat-generate',
+  ]);
   assert(bundleClosure('scan-identify').length > 0);
   assert(bundleClosure('stylechat-generate').length > 0);
+  assert(bundleClosure('style-outfit-generate').length > 0);
 });
 
 /**

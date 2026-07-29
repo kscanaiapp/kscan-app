@@ -54,13 +54,24 @@ const APPROVED_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
 /**
  * Functions whose source is governed by this gate.
  *
- * Deliberately scoped to the image-identification loop that Phase 2A audited
- * and Phase 2A.5 is clearing. Other Edge Functions (notably the account
- * -lifecycle family) also differ between the branches; that divergence is
- * reported by `scripts/check-edge-function-parity.js --report-ungoverned` and
- * is an explicit owner decision, not something this phase silently rewrites.
+ * Originally scoped to the image-identification loop that Phase 2A audited and
+ * Phase 2A.5 cleared. Other Edge Functions (notably the account-lifecycle
+ * family) also differ between the branches; that divergence is reported by
+ * `scripts/check-edge-function-parity.js --report-ungoverned` and is an explicit
+ * owner decision, not something a phase silently rewrites.
+ *
+ * `style-outfit-generate` joined in Build 3 Phase 4, and the reason is the exact
+ * failure this gate exists to prevent: it is DEPLOYED and ACTIVE, yet its
+ * `index.ts` had drifted between the platform branches — iOS carried the
+ * allowlist-bound model router that production actually runs, Android still had
+ * the retired generic default — and nothing in the repository objected, because
+ * the function was outside this list.
+ *
+ * It is also required rather than optional: scripts/deploy-edge-functions.js
+ * refuses to deploy any function absent from the manifest, so hosting the
+ * versioned private Dressing Room contract here means governing it here.
  */
-const GOVERNED_FUNCTIONS = ['scan-identify', 'stylechat-generate'];
+const GOVERNED_FUNCTIONS = ['scan-identify', 'stylechat-generate', 'style-outfit-generate'];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');
 const CONFIG_RELATIVE_PATH = path.join('supabase', 'config.toml');

@@ -1,7 +1,21 @@
 // style-outfit-generate — Secure server-side owned-closet outfit generation.
 //
-// SOURCE ONLY — NOT DEPLOYED in this build. Follows the proven
-// stylechat-generate security architecture:
+// DEPLOYMENT STATUS. This file previously said "SOURCE ONLY — NOT DEPLOYED in
+// this build". That is no longer true and was corrected in Build 3 Phase 4: the
+// function is ACTIVE in the approved project (wyyuqfdxucjksghsmhry). Its only
+// client caller, services/styleOutfits.ts, is still gated OFF by
+// AI_STYLIST_BACKEND_ENABLED, so the unversioned path carries no live traffic —
+// but the endpoint is reachable, and reasoning about it as unreachable source
+// would be wrong.
+//
+// TWO CONTRACTS LIVE HERE. The unversioned path below resolves its candidate
+// pool SERVER-side from the caller's saved_scans / inspiration_items. The
+// versioned private Dressing Room path (schemaVersion
+// "private-dressing-room-elise-v1") consumes a CLIENT-supplied sanitized
+// projection and never queries either table, because that Closet is
+// device-local. See privateDressingRoomEliseHandler.ts.
+//
+// Follows the proven stylechat-generate security architecture:
 //   - Supabase JWT verified via auth.getUser() before any data access
 //   - User identity derived from the token, never from the request body
 //   - The candidate pool is queried server-side from the caller's own
@@ -30,6 +44,14 @@ import {
   type CandidateItem,
   type ParsedStyleOutfitRequest,
 } from './validation.ts';
+import { ELISE_PRIMARY_MODEL, getConfiguredModel } from './modelRouting.ts';
+import { parsePrivateEliseRequest } from './privateDressingRoomEliseContract.ts';
+import {
+  formatEliseLog,
+  handleVersionedEliseRequest,
+  isSupportedEliseSchemaVersion,
+  isVersionedEliseRequest,
+} from './privateDressingRoomEliseHandler.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -38,7 +60,11 @@ const CORS_HEADERS = {
 };
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Frozen model map (modelRouting.ts): explicit workload var only,
+// allowlist-validated. Generic GEMINI_MODEL precedence and the retired
+// gemini-2.5 default removed (LLM-01/LLM-02 parity with scan-identify
+// and stylechat-generate).
+const STYLE_OUTFIT_PRIMARY_MODEL = ELISE_PRIMARY_MODEL;
 const GEMINI_TIMEOUT_MS = 15_000;
 const MAX_PROMPT_CANDIDATES = 60;
 const DEFAULT_DAILY_LIMIT = 10;
@@ -292,6 +318,91 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
+  // 3a. VERSIONED BRANCH — private Dressing Room (Build 3, Phase 4).
+  //
+  // Dispatch is on `schemaVersion`, a key no existing caller sends, and it is
+  // checked BEFORE parseStyleOutfitRequest so the two contracts can never be
+  // confused: an unversioned body has no schemaVersion and falls straight
+  // through untouched, and a Phase 4 body carries no `mode` for the unversioned
+  // parser to accept. Presence alone routes here — Phase 4 behaviour is never
+  // inferred from arbitrary extra fields.
+  //
+  // THE SERVER WARDROBE QUERY BELOW IS NOT REACHED ON THIS PATH. The private
+  // Dressing Room's Closet is device-local; saved_scans and inspiration_items
+  // hold nothing about it, so this branch returns before they are queried and
+  // hands the handler no client to query them with.
+  if (isVersionedEliseRequest(body)) {
+    const eliseKey = Deno.env.get('GEMINI_API_KEY');
+    if (!eliseKey) {
+      console.error('[style-outfit-generate] GEMINI_API_KEY not configured');
+      return json({ error: 'AI provider not configured' }, 500);
+    }
+    const eliseModel =
+      getConfiguredModel(readTrimmedEnv, 'STYLE_OUTFIT_GEMINI_MODEL', STYLE_OUTFIT_PRIMARY_MODEL);
+
+    // Quotas are reserved only once the request is known to be well formed, so
+    // a malformed Phase 4 body cannot burn a user's generation. Deliberately
+    // the SAME counters as the unversioned path: one Elise budget per user, and
+    // no new RPC, table or migration.
+    if (isSupportedEliseSchemaVersion(body) && parsePrivateEliseRequest(body).ok) {
+      const eliseBurstLimit = readIntEnv('STYLE_OUTFIT_BURST_LIMIT_PER_MINUTE', DEFAULT_BURST_LIMIT);
+      const { data: eliseBurst, error: eliseBurstError } = await userClient.rpc(
+        'check_and_increment_style_outfit_burst',
+        { p_limit: eliseBurstLimit },
+      );
+      if (eliseBurstError) {
+        if (
+          typeof eliseBurstError.message === 'string' &&
+          /not available for Elise/i.test(eliseBurstError.message)
+        ) {
+          return json(
+            { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+            403,
+          );
+        }
+        console.error('[style-outfit-generate] burst RPC error');
+        return json({ error: 'Usage check failed' }, 500);
+      }
+      const eliseBurstRow = Array.isArray(eliseBurst) ? eliseBurst[0] : eliseBurst;
+      if (!eliseBurstRow || typeof eliseBurstRow.allowed !== 'boolean') {
+        console.error('[style-outfit-generate] usage_check_failed gate=burst reason=malformed_rpc_response');
+        return json({ error: 'Usage check failed' }, 500);
+      }
+      if (!eliseBurstRow.allowed) {
+        return json({ error: 'Too many requests', errorCode: 'BURST_LIMIT' }, 429);
+      }
+
+      const eliseDailyLimit = readIntEnv('STYLE_OUTFIT_DAILY_LIMIT', DEFAULT_DAILY_LIMIT);
+      const { data: eliseDaily, error: eliseDailyError } = await userClient.rpc(
+        'increment_style_outfit_daily_usage',
+        { p_limit: eliseDailyLimit },
+      );
+      if (eliseDailyError) {
+        console.error('[style-outfit-generate] daily RPC error');
+        return json({ error: 'Usage check failed' }, 500);
+      }
+      const eliseDailyRow = Array.isArray(eliseDaily) ? eliseDaily[0] : eliseDaily;
+      if (!eliseDailyRow || typeof eliseDailyRow.limit_reached !== 'boolean') {
+        console.error('[style-outfit-generate] usage_check_failed gate=daily reason=malformed_rpc_response');
+        return json({ error: 'Usage check failed' }, 500);
+      }
+      if (eliseDailyRow.limit_reached) {
+        return json({ error: 'Daily limit reached', errorCode: 'QUOTA_EXCEEDED' }, 429);
+      }
+    }
+
+    const eliseResult = await handleVersionedEliseRequest({
+      body,
+      aiDisabled: readTrimmedEnv('STYLE_OUTFIT_AI_ENABLED')?.toLowerCase() === 'false',
+      callProvider: ({ systemText, userText, attempt }) =>
+        callGeminiJson(eliseModel, eliseKey, systemText, userText, attempt),
+    });
+    // Sanitized envelope only: no body, no candidates, no prompt, no provider
+    // output, and no user id — Supabase retains these logs.
+    console.log(formatEliseLog(eliseResult.log));
+    return json(eliseResult.body, eliseResult.httpStatus);
+  }
+
   const parseResult = parseStyleOutfitRequest(body);
   if (!parseResult.ok) {
     return json({ error: parseResult.error }, 400);
@@ -318,7 +429,7 @@ Deno.serve(async (req) => {
     return json({ error: 'AI provider not configured' }, 500);
   }
   const modelName =
-    readTrimmedEnv('STYLE_OUTFIT_GEMINI_MODEL') || readTrimmedEnv('GEMINI_MODEL') || DEFAULT_MODEL;
+    getConfiguredModel(readTrimmedEnv, 'STYLE_OUTFIT_GEMINI_MODEL', STYLE_OUTFIT_PRIMARY_MODEL);
 
   // 4. Ownership + sufficiency validation BEFORE any quota reservation.
   //    Deterministic rejections (foreign / unowned anchor, insufficient owned
