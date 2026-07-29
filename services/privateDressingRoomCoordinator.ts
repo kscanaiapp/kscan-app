@@ -26,6 +26,7 @@ import type {
   PrivateDressingRoomSessionErrorCode,
 } from '../types/privateDressingRoomSession';
 import { PRIVATE_SLOT_DISPLAY_ORDER } from '../types/privateDressingRoomComposition';
+import type { PrivateSwapResultCode } from '../types/privateDressingRoomInteraction';
 import type {
   PrivateDressingRoomSlot,
   PrivateLookCompleteness,
@@ -421,6 +422,103 @@ export function canRetryComposition(errorCode: PrivateWorkspaceErrorCode | null)
   );
 }
 
+// ── Slot editing (Phase 3) ───────────────────────────────────────────────────
+
+export type PrivateSlotEditorStatus =
+  | 'closed'
+  | 'loading'
+  | 'ready'
+  | 'no_candidates'
+  | 'anchor_locked'
+  | 'applying'
+  | 'failed';
+
+/**
+ * EPHEMERAL preview identity.
+ *
+ * A preview is not merely "the candidate the user tapped" — it carries enough
+ * context to PROVE what is being applied. Apply consults this, never an
+ * arbitrary id handed in by the UI, so a candidate that was previewed under a
+ * context that has since moved cannot be committed.
+ *
+ * `generation` increments on every new preview, which is what makes the
+ * Preview A → Preview B → Apply A race rejectable: A's generation is no longer
+ * current even though its look, slot and candidate all still look plausible.
+ *
+ * Never persisted. Cleared on apply, cancel, editor close, context change,
+ * route exit and app background.
+ */
+export type PrivateSlotPreview = {
+  generation: number;
+  lookId: string;
+  slot: PrivateDressingRoomSlot;
+  candidateClosetItemId: string;
+  sessionId: string;
+  compositionId: string;
+  inputFingerprint: string;
+  actorEpoch: number;
+};
+
+export type PrivateSlotPreviewRequest = Omit<PrivateSlotPreview, 'generation'>;
+
+/**
+ * May this preview be applied?
+ *
+ * Every identity component must still match. Returning a REASON rather than a
+ * boolean keeps the rejection explainable — the UI needs to distinguish "you
+ * previewed something else" from "your account changed".
+ */
+export function validatePreviewForApply(
+  preview: PrivateSlotPreview | null | undefined,
+  request: {
+    generation: number;
+    lookId: string;
+    slot: PrivateDressingRoomSlot;
+    candidateClosetItemId: string;
+    sessionId: string;
+    compositionId: string;
+    inputFingerprint: string;
+    actorEpoch: number;
+  },
+): { ok: boolean; reason: PrivateSwapResultCode | null } {
+  if (!preview) return { ok: false, reason: 'STALE_PREVIEW' };
+  if (preview.generation !== request.generation) return { ok: false, reason: 'STALE_PREVIEW' };
+  if (preview.lookId !== request.lookId) return { ok: false, reason: 'STALE_PREVIEW' };
+  if (preview.slot !== request.slot) return { ok: false, reason: 'STALE_PREVIEW' };
+  if (preview.candidateClosetItemId !== request.candidateClosetItemId) {
+    return { ok: false, reason: 'STALE_PREVIEW' };
+  }
+  if (preview.actorEpoch !== request.actorEpoch) return { ok: false, reason: 'ACTOR_CHANGED' };
+  if (
+    preview.sessionId !== request.sessionId ||
+    preview.compositionId !== request.compositionId ||
+    preview.inputFingerprint !== request.inputFingerprint
+  ) {
+    return { ok: false, reason: 'INTERACTION_STALE' };
+  }
+  return { ok: true, reason: null };
+}
+
+/**
+ * Would changing the anchor or occasion discard work the user can see?
+ *
+ * Only then is a destructive-change confirmation warranted; asking on an
+ * untouched workspace would be noise.
+ */
+export function contextChangeDiscardsWork(input: {
+  hasOverrides: boolean;
+  hasHistory: boolean;
+  hasComparison: boolean;
+  hasPreview: boolean;
+}): boolean {
+  return !!(
+    input?.hasOverrides ||
+    input?.hasHistory ||
+    input?.hasComparison ||
+    input?.hasPreview
+  );
+}
+
 /** Copy for each workspace state. Kept here so both platforms read identically. */
 export const PRIVATE_WORKSPACE_COPY = Object.freeze({
   actorLoading: 'Getting things ready…',
@@ -453,6 +551,30 @@ export const PRIVATE_WORKSPACE_COPY = Object.freeze({
   retry: 'Try again',
   returnToCloset: 'Return to Closet',
   noPurchaseNeeded: 'No purchase needed',
+  // Phase 3 slot editing. States what happened, gives one action, blames nobody.
+  anchorLocked: 'Change the anchor from the Dressing Room header.',
+  noAlternatives: "We couldn't find another Closet item for this slot.",
+  applyFailed: "We couldn't save this change. Try again.",
+  interactionCorrupt:
+    "We couldn't restore your outfit edits. Reset the edits to return to the generated outfits.",
+  swappedItemMissing: 'This swapped item is no longer in your Closet.',
+  stalePreview: 'That option is no longer selected. Choose it again.',
+  priorItemUnavailable: "The item we'd put back is no longer in your Closet.",
+  swapAction: 'Swap',
+  chooseItem: 'Choose item',
+  anchorLockedLabel: 'Locked anchor',
+  applySwap: 'Apply swap',
+  cancelSwap: 'Cancel',
+  undo: 'Undo last change',
+  restoreOriginal: 'Restore original',
+  resetEdits: 'Reset edits',
+  chooseAnother: 'Choose another item',
+  addToCloset: 'Add an item to your Closet',
+  editsDiscardedAnchor: 'Changing the anchor will discard your current outfit edits. Continue?',
+  editsDiscardedOccasion:
+    'Changing the occasion will discard your current outfit edits. Continue?',
+  keepEditing: 'Keep my edits',
+  continueChange: 'Continue',
 });
 
 /** User-facing strings for the bounded look-label codes. */
