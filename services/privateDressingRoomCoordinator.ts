@@ -519,6 +519,57 @@ export function contextChangeDiscardsWork(input: {
   );
 }
 
+/**
+ * Why Undo is or is not offered.
+ *
+ * `blocked_prior_item_missing` is the case the store already refuses: the
+ * newest operation would put back a garment that has since left the Closet, and
+ * restoring it would resurrect something the user does not own. Surfacing it as
+ * state rather than as a post-tap failure is what lets the route disable the
+ * control and say why.
+ */
+export type PrivateUndoAvailability =
+  | 'available'
+  | 'empty'
+  | 'blocked_prior_item_missing'
+  | 'busy';
+
+/**
+ * Resolve Undo availability from the NEWEST history operation only.
+ *
+ * Deliberately never inspects older operations: undo is strictly sequential, so
+ * a blocked newest operation blocks the whole stack rather than silently
+ * skipping to one that still works.
+ *
+ * A Closet that did not load is NOT evidence that the prior item is gone — with
+ * no projections we cannot tell, so nothing is claimed and the control stays
+ * enabled for the store to adjudicate. This is the same rule that keeps a
+ * Closet fault from being reported as a missing swapped item.
+ */
+export function resolveUndoAvailability(input: {
+  interactionsEnabled: boolean;
+  busy: boolean;
+  closetLoaded: boolean;
+  historyLength: number;
+  newestBeforeClosetItemId: string | null;
+  availableClosetItemIds: readonly string[];
+}): PrivateUndoAvailability {
+  if (!input?.interactionsEnabled) return 'empty';
+  if (!input.historyLength || input.historyLength <= 0) return 'empty';
+
+  // A fill has no prior item to restore, so it can never be blocked this way.
+  const before = input.newestBeforeClosetItemId ?? null;
+  if (before !== null && input.closetLoaded) {
+    const available = input.availableClosetItemIds ?? [];
+    if (!available.includes(before)) return 'blocked_prior_item_missing';
+  }
+
+  // Checked last: a blocked undo stays blocked while an unrelated operation
+  // runs, rather than briefly looking merely busy.
+  if (input.busy) return 'busy';
+  return 'available';
+}
+
 /** Copy for each workspace state. Kept here so both platforms read identically. */
 export const PRIVATE_WORKSPACE_COPY = Object.freeze({
   actorLoading: 'Getting things ready…',
@@ -560,6 +611,10 @@ export const PRIVATE_WORKSPACE_COPY = Object.freeze({
   swappedItemMissing: 'This swapped item is no longer in your Closet.',
   stalePreview: 'That option is no longer selected. Choose it again.',
   priorItemUnavailable: "The item we'd put back is no longer in your Closet.",
+  // Shown next to a DISABLED Undo, before the user taps it. States what is
+  // unavailable, why, and that the outfit they are looking at has not changed.
+  undoBlockedPriorItemMissing:
+    'The previous item is no longer in your Closet, so this change cannot be undone. Your outfit has not changed.',
   swapAction: 'Swap',
   chooseItem: 'Choose item',
   anchorLockedLabel: 'Locked anchor',

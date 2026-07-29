@@ -58,11 +58,13 @@ import {
 import type { ComparisonProjection } from '../services/privateDressingRoomComparison';
 import {
   contextChangeDiscardsWork,
+  resolveUndoAvailability,
   validatePreviewForApply,
 } from '../services/privateDressingRoomCoordinator';
 import type {
   PrivateSlotEditorStatus,
   PrivateSlotPreview,
+  PrivateUndoAvailability,
 } from '../services/privateDressingRoomCoordinator';
 import type { PrivateDressingRoomInteractionState } from '../types/privateDressingRoomInteraction';
 import type { PrivateSwapResultCode } from '../types/privateDressingRoomInteraction';
@@ -247,6 +249,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   missingSwappedItems: { lookId: string; slot: PrivateDressingRoomSlot; closetItemId: string }[];
   effectiveLooks: EffectiveLook[];
   canUndo: boolean;
+  undoAvailability: PrivateUndoAvailability;
   hasEdits: boolean;
   slotEditor: SlotEditorState;
   preview: PrivateSlotPreview | null;
@@ -1278,10 +1281,34 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     [actorKey, busy, interactionContext, current.composition, activeInteraction.state, view.closetItems, closetLoaded],
   );
 
+  /**
+   * Why Undo is or is not offered, derived from the newest persisted operation.
+   *
+   * Computed as STATE rather than discovered on tap, so the route can disable
+   * the control and explain itself instead of failing after the user commits to
+   * the action.
+   */
+  const undoAvailability = useMemo<PrivateUndoAvailability>(() => {
+    const history = activeInteraction.state?.history ?? [];
+    const newest = history.length > 0 ? history[history.length - 1] : null;
+    return resolveUndoAvailability({
+      interactionsEnabled: PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE,
+      busy,
+      closetLoaded,
+      historyLength: history.length,
+      newestBeforeClosetItemId: newest?.beforeClosetItemId ?? null,
+      availableClosetItemIds: view.closetItems.map((item) => item.id),
+    });
+  }, [activeInteraction.state, busy, closetLoaded, view.closetItems]);
+
   /** Undo the newest persisted operation. Never a redo. */
   const undoLastSwap = useCallback(async () => {
     if (!PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE) return;
     if (busy || !interactionContext || !current.composition) return;
+    // PREFLIGHT. The store refuses this too, but refusing here keeps a blocked
+    // undo from costing a manifest read and a busy flicker for an answer the
+    // hook already has.
+    if (undoAvailability === 'blocked_prior_item_missing') return;
     setBusy(true);
     const actorRequest = createActorRequest();
     try {
@@ -1319,7 +1346,15 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     } finally {
       setBusy(false);
     }
-  }, [actorKey, busy, interactionContext, current.composition, view.closetItems, closetLoaded]);
+  }, [
+    actorKey,
+    busy,
+    interactionContext,
+    current.composition,
+    view.closetItems,
+    closetLoaded,
+    undoAvailability,
+  ]);
 
   const resetCorruptInteraction = useCallback(async () => {
     if (!PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE || busy) return;
@@ -1525,6 +1560,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     missingSwappedItems: activeInteraction.missing,
     effectiveLooks,
     canUndo: (activeInteraction.state?.history.length ?? 0) > 0,
+    undoAvailability,
     hasEdits: hasPersistedEdits,
     slotEditor,
     preview,

@@ -411,7 +411,14 @@ test('Apply and Cancel have distinct labels', () => {
 });
 
 test('undo, restore and comparison controls are labelled', () => {
-  assert.match(ROUTE, /accessibilityLabel="Undo the last outfit change"/);
+  // Undo's label is conditional: when the prior item has left the Closet it
+  // announces that it is unavailable and why (P3-B2), so both branches are
+  // asserted rather than one literal string.
+  assert.match(ROUTE, /'Undo the last outfit change'/);
+  assert.match(
+    ROUTE,
+    /`Undo the last outfit change, unavailable\. \$\{PRIVATE_WORKSPACE_COPY\.undoBlockedPriorItemMissing\}`/,
+  );
   assert.match(ROUTE, /accessibilityLabel="Compare two outfits"/);
   assert.match(ROUTE, /accessibilityLabel="Close the comparison"/);
   assert.match(ROUTE, /accessibilityLabel="Reset your outfit edits"/);

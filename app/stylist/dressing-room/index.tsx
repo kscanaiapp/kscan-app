@@ -151,6 +151,7 @@ export default function PrivateDressingRoomScreen() {
     missingSwappedItems,
     effectiveLooks,
     canUndo,
+    undoAvailability,
     slotEditor,
     preview,
     comparison,
@@ -450,15 +451,37 @@ export default function PrivateDressingRoomScreen() {
                 ))
               : null}
 
-            {/* Undo appears only when persisted history exists. Never a redo. */}
+            {/*
+              Undo appears only when persisted history exists. Never a redo.
+
+              When the item it would put back has left the Closet the control
+              stays VISIBLE but disabled, with the reason stated next to it —
+              the user learns the change is not reversible before committing to
+              a tap, rather than from a failure afterwards.
+            */}
             {interactionsEnabled && canUndo ? (
-              <SecondaryButton
-                title={PRIVATE_WORKSPACE_COPY.undo}
-                onPress={() => void undoLastSwap()}
-                disabled={busy}
-                accessibilityLabel="Undo the last outfit change"
-                testID="undo-button"
-              />
+              <View testID="undo-section">
+                <SecondaryButton
+                  title={PRIVATE_WORKSPACE_COPY.undo}
+                  onPress={() => void undoLastSwap()}
+                  disabled={busy || undoAvailability === 'blocked_prior_item_missing'}
+                  accessibilityLabel={
+                    undoAvailability === 'blocked_prior_item_missing'
+                      ? `Undo the last outfit change, unavailable. ${PRIVATE_WORKSPACE_COPY.undoBlockedPriorItemMissing}`
+                      : 'Undo the last outfit change'
+                  }
+                  testID="undo-button"
+                />
+                {undoAvailability === 'blocked_prior_item_missing' ? (
+                  <Text
+                    style={styles.undoBlockedText}
+                    accessibilityLiveRegion="polite"
+                    testID="undo-blocked-reason"
+                  >
+                    {PRIVATE_WORKSPACE_COPY.undoBlockedPriorItemMissing}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
 
             {interactionsEnabled && canCompareLooks ? (
@@ -1180,6 +1203,8 @@ const styles = StyleSheet.create({
   slotName: { width: 96, fontSize: 12, color: LUXURY.colors.plum },
   slotItem: { flex: 1, fontSize: 14, color: LUXURY.colors.ink },
   usesLine: { marginTop: SPACING.md, fontSize: 13, color: LUXURY.colors.plum },
+  // Sits directly beneath the disabled Undo control it explains.
+  undoBlockedText: { marginTop: SPACING.xs, fontSize: 13, color: LUXURY.colors.ink },
 
   // ── Phase 3 slot editing ───────────────────────────────────────────────────
   slotAction: {
