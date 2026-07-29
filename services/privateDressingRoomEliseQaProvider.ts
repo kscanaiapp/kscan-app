@@ -13,12 +13,18 @@
  *     __DEV__ === true
  *     EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_ELISE_QA_PROVIDER === 'controlled'
  *
- * The scenario table is built inside a `__DEV__` branch, mirroring
- * constants/qaFixtures.js, so Metro eliminates it from release bundles rather
- * than shipping dormant mock code. Outside `__DEV__` this module exports a
- * factory that can only return null, and the caller then has nothing to select
- * but the real provider. `__tests__/privateDressingRoomEliseQaProvider.test.js`
- * proves release selection resolves to production regardless of the variable.
+ * WHAT IS AND IS NOT ELIMINATED, measured against a real `expo export` rather
+ * than assumed. The scenario BODIES are built inside an inline `__DEV__` branch
+ * (a literal, not a function call — Metro cannot fold a call), so the response
+ * builder folds away in release. The trigger STRINGS in ELISE_QA_SCENARIOS do
+ * still appear in the release bundle: the array is a module-level export, and a
+ * `__DEV__` guard does not keep exported data out of a Metro bundle. Those
+ * strings are inert — no reachable release code path consumes them, because
+ * `__DEV__` is false and the factory can then only return null.
+ *
+ * The property that matters is therefore ACTIVATION, not absence:
+ * `__tests__/privateDressingRoomEliseQaProvider.test.js` proves a release runtime
+ * resolves the real provider under every value of the QA variable.
  *
  * WHAT IT DELIBERATELY DOES NOT DO:
  *   - it does not bypass the response validator; it returns a BODY, and
@@ -58,7 +64,7 @@ function isDevRuntime(): boolean {
  * first so a release build never even reads the variable.
  */
 export function isControlledEliseProviderEnabled(): boolean {
-  if (!isDevRuntime()) return false;
+  if (!(typeof __DEV__ !== 'undefined' && __DEV__ === true)) return false;
   return process.env[ELISE_QA_PROVIDER_ENV] === ELISE_QA_PROVIDER_SETTING;
 }
 
@@ -159,7 +165,7 @@ export function inspectEliseQaRequest(body: unknown): EliseQaRequestInspection {
  * acceptable, which is why "qa unknown alias" is able to fail the way a hostile
  * backend would.
  */
-const SCENARIOS = isDevRuntime()
+const SCENARIOS = typeof __DEV__ !== 'undefined' && __DEV__ === true
   ? {
       respond(scenario: EliseQaScenario, body: Record<string, unknown>): unknown {
         const base = {
@@ -209,6 +215,7 @@ const SCENARIOS = isDevRuntime()
  * produce — so the caller has nothing to fall back to but the real provider.
  */
 export function createControlledEliseInvoke(): ControlledInvoke | null {
+  if (!(typeof __DEV__ !== 'undefined' && __DEV__ === true)) return null;
   if (!isControlledEliseProviderEnabled() || !SCENARIOS) return null;
 
   return (name, options) => {
