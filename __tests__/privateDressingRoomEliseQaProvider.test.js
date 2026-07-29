@@ -183,11 +183,15 @@ test('both gates together arm it, and only then', async () => {
   assert.equal(result.data.schemaVersion, 'private-dressing-room-elise-v1');
 });
 
-test('the release bundle carries no scenario table', () => {
-  // Mirrors constants/qaFixtures.js: the table is built inside a __DEV__ branch
-  // so Metro can eliminate it rather than shipping dormant mock code.
+test('the scenario bodies sit behind an inline __DEV__ literal', () => {
+  // A FUNCTION CALL cannot be folded by Metro; only an inline literal can. An
+  // expo export proved the earlier isDevRuntime() form left the branch intact.
+  // Note this asserts foldability of the response BUILDER, not absence of the
+  // trigger strings — those are exported data and do remain in the bundle,
+  // inert, because __DEV__ is false and the factory can then only return null.
   const source = fs.readFileSync(path.join(ROOT, QA_PATH), 'utf8');
-  assert.match(source, /const SCENARIOS = isDevRuntime\(\)/);
+  assert.ok("const SCENARIOS = typeof __DEV__ !== 'undefined' && __DEV__ === true".length > 0 && source.includes("const SCENARIOS = typeof __DEV__ !== 'undefined' && __DEV__ === true"),
+    "the scenario table must sit behind an INLINE __DEV__ literal, not a function call");
   assert.match(source, /: null;/);
   // And the gate checks __DEV__ before it ever reads the variable.
   const gate = source.slice(source.indexOf('export function isControlledEliseProviderEnabled'));
