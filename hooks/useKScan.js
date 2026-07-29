@@ -340,7 +340,7 @@ export function useKScan(actorId = null) {
 
       try {
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 1,
           allowsEditing: false,
           allowsMultipleSelection: MULTI_IMAGE_SCANNER_ENABLED,

@@ -168,7 +168,7 @@ export function ClosetIntakeModal({
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 1,
         allowsEditing: false,
       });
@@ -197,7 +197,7 @@ export function ClosetIntakeModal({
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 1,
         allowsEditing: false,
         allowsMultipleSelection: batchIntakeActive,
