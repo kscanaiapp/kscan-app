@@ -94,7 +94,18 @@ const DISPOSITIONS = Object.freeze({
   UNDER_IDENTIFICATION: 'under_identification',
   INCORRECT: 'incorrect',
   UNSCORABLE: 'unscorable',
+  /**
+   * Phase 0C reclassification of MC-1. The deployed contract cannot express an
+   * exact-product outcome at all, so the question is not asked rather than
+   * answered badly. Distinct from UNSCORABLE, which means this particular case
+   * could not be scored; NOT_MEASURED means the METRIC is out of scope for the
+   * contract under test.
+   */
+  NOT_MEASURED: 'not_measured',
 });
+
+/** The literal string every out-of-scope metric reports. */
+const NOT_MEASURED = 'not_measured';
 
 function hasExactProductClaim(result) {
   const ep = result && result.exactProduct;
@@ -238,6 +249,24 @@ function scoreResultState(label, result) {
     };
   }
 
+  // MC-1, as reclassified in Phase 0C. When the label expected an exact-product
+  // outcome, the deployed contract cannot produce one under ANY model behaviour.
+  // Scoring that as under-identification would attribute a contract limitation
+  // to the model, so the case is NOT scored on this axis at all. It is retained
+  // and tagged for a future contract that can express exact-product results.
+  if (expected === RESULT_STATES.LIKELY_EXACT_MATCH) {
+    return {
+      field: 'expectedResultType',
+      expected,
+      actual,
+      disposition: DISPOSITIONS.NOT_MEASURED,
+      notes:
+        'exact-product outcome is not expressible by the deployed contract (MC-1); not scored, retained for future evaluation',
+      futureExactProductEvaluation: true,
+      basis: observed.basis,
+    };
+  }
+
   return {
     field: 'expectedResultType',
     expected,
@@ -245,9 +274,6 @@ function scoreResultState(label, result) {
     disposition: DISPOSITIONS.UNDER_IDENTIFICATION,
     notes: `produced ${actual} where ${expected} was supportable`,
     underIdentification: true,
-    // MC-1: when the target was likely_exact_match, this is forced by the
-    // contract, not chosen by the model. Reports must separate the two.
-    contractCeilingAttributable: expected === RESULT_STATES.LIKELY_EXACT_MATCH,
     basis: observed.basis,
   };
 }
@@ -304,6 +330,7 @@ module.exports = {
   MAPPING_VERSION,
   RESULT_STATES,
   DISPOSITIONS,
+  NOT_MEASURED,
   PRODUCTION_STATUSES,
   PRODUCTION_RESOLUTION_LEVELS,
   REACHABLE_RESOLUTION_LEVELS,

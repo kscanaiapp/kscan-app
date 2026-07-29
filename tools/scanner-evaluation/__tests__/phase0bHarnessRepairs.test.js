@@ -21,6 +21,7 @@ const {
   scoreField,
   scoreCase,
   scoreCaseAllProfiles,
+  scoreExactProduct,
   aggregateScores,
   penaltyFor,
 } = require('../lib/scoreFields');
@@ -203,14 +204,55 @@ test('result state: expected closest matches, actual incorrect exact claim -> un
   assert.equal(scored.disposition, resultState.DISPOSITIONS.UNSUPPORTED_CERTAINTY);
 });
 
-test('result state: expected exact match, actual reliable style identity -> under-identification', () => {
+// Phase 0C reclassified MC-1. Scoring an exact-product expectation as
+// under-identification attributed a contract limitation to the model, so the
+// case is no longer scored on this axis at all — it is retained and tagged.
+test('result state: expected exact match is NOT_MEASURED, not under-identification', () => {
   const scored = resultState.scoreResultState(
     { expectedResultType: 'likely_exact_match', category: 'footwear' },
     styleResult
   );
+  assert.equal(scored.disposition, resultState.DISPOSITIONS.NOT_MEASURED);
+  assert.equal(scored.futureExactProductEvaluation, true);
+  assert.notEqual(scored.disposition, resultState.DISPOSITIONS.UNDER_IDENTIFICATION);
+});
+
+test('under-identification still fires where the contract CAN express the target', () => {
+  // closest_matches -> insufficient_evidence is a real under-identification:
+  // nothing in the contract prevented a style-level answer here.
+  const scored = resultState.scoreResultState(
+    { expectedResultType: 'identified_style', category: 'footwear' },
+    { status: 'insufficient_visual_evidence', resolutionLevel: 'unknown', exactProduct: null }
+  );
   assert.equal(scored.disposition, resultState.DISPOSITIONS.UNDER_IDENTIFICATION);
-  // MC-1: forced by the contract, not chosen by the model.
-  assert.equal(scored.contractCeilingAttributable, true);
+});
+
+test('exact-product metrics report not_measured rather than a zero', () => {
+  const label = {
+    caseId: 'ep-1', datasetVersion: '0.1.0', category: 'footwear', clothingType: 'sneaker',
+    subtype: 'unknown', primaryColor: 'red', secondaryColors: 'unknown', material: 'unknown',
+    pattern: 'unknown', brand: 'not_visible', exactProduct: 'Nike Air Force 1',
+    expectedResultType: 'likely_exact_match', expectedAbstention: false,
+  };
+  const metrics = aggregateScores([scoreCase(label, styleResult)]);
+  assert.equal(metrics.exactProduct.exactProductPrecision, 'not_measured');
+  assert.equal(metrics.exactProduct.incorrectExactMatchRate, 'not_measured');
+  assert.notEqual(metrics.exactProduct.exactProductPrecision, 0);
+  assert.equal(metrics.exactProduct.futureExactProductEvaluationCases, 1);
+  assert.equal(metrics.underIdentification.count, 0, 'MC-1 cases must not inflate under-identification');
+});
+
+test('an exact-product claim in a prediction is surfaced as a runner-fidelity fault', () => {
+  const scored = scoreExactProduct('Nike Air Force 1', 'Nike Air Force 1', 'likely_exact_match');
+  assert.equal(scored.disposition, DISPOSITIONS.NOT_MEASURED);
+  assert.equal(scored.unexpectedExactProductClaim, true);
+  assert.match(scored.notes, /certified v140 path cannot emit/);
+});
+
+test('not_measured carries zero penalty in every profile', () => {
+  for (const profile of ['neutral', 'trust_weighted']) {
+    assert.equal(penaltyFor('exactProduct', DISPOSITIONS.NOT_MEASURED, profile), 0);
+  }
 });
 
 test('result state: expected non-fashion, actual fashion identity -> unsupported_certainty', () => {
@@ -714,8 +756,12 @@ test('commerce metrics are marked not_measured', () => {
   const metrics = aggregateScores([]);
   assert.equal(metrics.commerce.commerceLinkValidity, 'not_measured');
   assert.equal(metrics.commerce.retailerRelevance, 'not_measured');
-  assert.equal(metrics.commerce.duplicateSellerListings, 'not_measured');
+  assert.equal(metrics.commerce.duplicateRetailerRate, 'not_measured');
   assert.equal(metrics.commerce.commerceCostUsd, 0);
+  // Explicitly NOT zero — a zero would read as a measured perfect result.
+  for (const key of ['commerceLinkValidity', 'retailerRelevance', 'duplicateRetailerRate']) {
+    assert.notEqual(metrics.commerce[key], 0);
+  }
 });
 
 test('evaluation code imports nothing from production runtime modules', () => {

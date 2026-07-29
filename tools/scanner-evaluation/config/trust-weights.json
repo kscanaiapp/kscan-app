@@ -1,6 +1,6 @@
 {
   "configId": "field-trust-weights",
-  "configVersion": "1.0.0",
+  "configVersion": "1.1.0",
   "createdAt": "2026-07-29T00:00:00.000Z",
   "status": "PROPOSED — final blocking weights remain an owner decision after the first baseline",
   "purpose": "Field-specific trust weighting. Every baseline report must be emitted under BOTH profiles so the weighting choice is visible rather than baked in.",
@@ -30,7 +30,8 @@
         "correct_abstention": 0,
         "incorrect_abstention": 1,
         "under_identification": 1,
-        "unscorable": 0
+        "unscorable": 0,
+        "not_measured": 0
       }
     },
     "trust_weighted": {
@@ -58,7 +59,8 @@
         "correct_abstention": 0,
         "incorrect_abstention": 1.25,
         "under_identification": 1,
-        "unscorable": 0
+        "unscorable": 0,
+        "not_measured": 0
       },
       "fieldDispositionOverrides": {
         "_comment": "Extra multiplier applied ON TOP of the disposition multiplier, for the specific (field, disposition) pairs where trust impact is disproportionate.",
@@ -75,5 +77,6 @@
     "why_these_exact_numbers_are_not_settled": "The magnitudes below are inherited from the Phase 0A disposition model and have NOT been validated against measured data — no baseline has run. They are a starting proposal. Publishing them as final blocking thresholds before a baseline exists would be fabricating a calibration.",
     "ownerDecisionRequired": true
   },
-  "reportingRule": "A baseline report that presents only one profile is non-compliant. Both profiles must appear, and any metric that changes rank order between profiles must be called out explicitly."
+  "reportingRule": "A baseline report that presents only one profile is non-compliant. Both profiles must appear, and any metric that changes rank order between profiles must be called out explicitly.",
+  "notMeasuredRule": "A not_measured disposition carries zero penalty in every profile. It means the metric is out of scope for the contract under test (see MC-1), NOT that the model scored perfectly."
 }

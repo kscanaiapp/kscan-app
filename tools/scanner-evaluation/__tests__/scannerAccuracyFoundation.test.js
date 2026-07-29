@@ -218,10 +218,16 @@ test('brand false-positive scoring', () => {
   assert.equal(scored.brandFalsePositive, true);
 });
 
-test('incorrect exact-match scoring', () => {
+// Phase 0C reclassified MC-1: exact product is NOT MEASURED under the deployed
+// contract, which hardcodes exactProduct: null. Scoring it produced a number
+// that described the contract rather than the model. A prediction that does
+// carry an exact product cannot have come from the certified v140 path, so it
+// is surfaced as a runner-fidelity fault instead of a model error.
+test('exact product is not_measured, and a claim is flagged as a runner fault', () => {
   const scored = scoreExactProduct('unknown', 'Nike Air Force 1', 'insufficient_evidence');
-  assert.equal(scored.incorrectExactMatch, true);
-  assert.equal(scored.disposition, DISPOSITIONS.UNSUPPORTED_CERTAINTY);
+  assert.equal(scored.disposition, DISPOSITIONS.NOT_MEASURED);
+  assert.equal(scored.unexpectedExactProductClaim, true);
+  assert.equal(scored.penalty, 0);
 });
 
 test('correct abstention', () => {

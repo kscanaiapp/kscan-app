@@ -47,6 +47,8 @@ const DISPOSITIONS = Object.freeze({
   INCORRECT_ABSTENTION: 'incorrect_abstention',
   UNDER_IDENTIFICATION: 'under_identification',
   UNSCORABLE: 'unscorable',
+  /** Metric is out of scope for the contract under test. Carries zero penalty. */
+  NOT_MEASURED: 'not_measured',
 });
 
 const PROFILES = Object.freeze({ NEUTRAL: 'neutral', TRUST_WEIGHTED: 'trust_weighted' });
@@ -282,31 +284,50 @@ function scoreBrand(groundTruth, prediction, options = {}) {
 }
 
 /**
- * Exact product. Note measurement ceiling MC-1: the deployed V2 path always
- * returns exactProduct: null, so a concrete prediction here can only originate
- * from a non-production runner or a changed bundle.
+ * Exact product — NOT MEASURED under the deployed contract (MC-1, as
+ * reclassified in Phase 0C).
+ *
+ * The deployed V2 path hardcodes `exactProduct: null` and never claims
+ * exact_product or model_family resolution, so the field cannot be populated by
+ * any model behaviour. Scoring it would produce a number that describes the
+ * contract, not the model:
+ *
+ *   - a "0% exact-product precision" would read as a model failure;
+ *   - a "0 incorrect exact matches" would read as proof of good calibration.
+ *
+ * Both are misreadings, so neither number is produced. The case is retained and
+ * tagged `futureExactProductEvaluation` for a contract that can express it.
+ *
+ * The one exception is a prediction that DOES carry an exact-product value. That
+ * cannot come from the certified v140 path, so it is surfaced loudly rather than
+ * scored — it means the runner is not exercising the certified bundle.
  */
 function scoreExactProduct(groundTruth, prediction, expectedResultType, options = {}) {
-  const base = scoreField('exactProduct', groundTruth, prediction, options);
-  const claimedUnderInsufficientEvidence =
-    expectedResultType === 'insufficient_evidence' && isConcrete(prediction);
+  const profileName = options.profile || DEFAULT_PROFILE;
 
-  if (claimedUnderInsufficientEvidence && base.disposition !== DISPOSITIONS.UNSUPPORTED_CERTAINTY) {
+  if (isConcrete(prediction)) {
     return {
       ...result(
         'exactProduct',
-        DISPOSITIONS.UNSUPPORTED_CERTAINTY,
-        'exact product claimed under insufficient evidence',
+        DISPOSITIONS.NOT_MEASURED,
+        'prediction carries an exact product, which the certified v140 path cannot emit — verify the runner is exercising the certified bundle',
         {},
-        options.profile || DEFAULT_PROFILE
+        profileName
       ),
-      incorrectExactMatch: true,
+      unexpectedExactProductClaim: true,
+      futureExactProductEvaluation: true,
     };
   }
+
   return {
-    ...base,
-    incorrectExactMatch:
-      base.disposition === DISPOSITIONS.UNSUPPORTED_CERTAINTY && isConcrete(prediction),
+    ...result(
+      'exactProduct',
+      DISPOSITIONS.NOT_MEASURED,
+      'exact product is not expressible by the deployed contract (MC-1); retained for future evaluation',
+      {},
+      profileName
+    ),
+    futureExactProductEvaluation: true,
   };
 }
 
@@ -403,10 +424,13 @@ function scoreCase(label, prediction, options = {}) {
     dispositionCounts,
     flags: {
       brandFalsePositive: fields.some((f) => f.brandFalsePositive),
-      incorrectExactMatch: fields.some((f) => f.incorrectExactMatch),
       nonFashionFalsePositive: fields.some((f) => f.nonFashionFalsePositive),
       underIdentification: fields.some((f) => f.disposition === DISPOSITIONS.UNDER_IDENTIFICATION),
-      contractCeilingAttributable: fields.some((f) => f.contractCeilingAttributable),
+      // MC-1: retained and tagged, never scored.
+      futureExactProductEvaluation:
+        fields.some((f) => f.futureExactProductEvaluation) || label.futureExactProductEvaluation === true,
+      // Would mean the runner is not exercising the certified v140 bundle.
+      unexpectedExactProductClaim: fields.some((f) => f.unexpectedExactProductClaim),
       schemaParseFailure: Boolean(pred.schemaParseFailure),
       fallbackInvoked: Boolean(pred.fallbackInvoked),
     },
@@ -445,20 +469,30 @@ function aggregateScores(caseScores) {
     primaryColorCorrectRate: null,
     materialCorrectRate: null,
     brandPrecisionSignals: { concretePredictions: 0, correct: 0, falsePositives: 0 },
-    exactProductSignals: { concretePredictions: 0, incorrectExactMatchClaims: 0 },
+    exactProduct: {
+      // MC-1. Reported as the literal string, never as 0, so a reader cannot
+      // mistake an unasked question for a measured result.
+      exactProductPrecision: 'not_measured',
+      incorrectExactMatchRate: 'not_measured',
+      futureExactProductEvaluationCases: 0,
+      unexpectedExactProductClaims: 0,
+      note:
+        'The deployed contract hardcodes exactProduct: null and never claims exact_product or model_family resolution. These metrics are out of scope for this contract, not zero. Cases are retained and tagged futureExactProductEvaluation.',
+    },
     abstention: { correct: 0, incorrect: 0 },
     nonFashion: { cases: 0, correct: 0, falsePositives: 0, incorrectAbstentions: 0 },
     nonFashionFalsePositiveRate: null,
-    underIdentification: { count: 0, contractCeilingAttributable: 0 },
+    underIdentification: { count: 0 },
     schemaParseFailureRate: 0,
     fallbackInvocationRate: 0,
     dispositionTotals: {},
     commerce: {
       commerceLinkValidity: 'not_measured',
       retailerRelevance: 'not_measured',
-      duplicateSellerListings: 'not_measured',
+      duplicateRetailerRate: 'not_measured',
       commerceCostUsd: 0,
-      note: 'Commerce disabled for the identification baseline. No commerce claim may be made from this run.',
+      note:
+        'Commerce is disabled for the identification baseline via shouldRunCommerce(identify_for_style). These are not_measured, NOT zero, and may not enter any candidate pass/fail decision until a separate authorized commerce evaluation exists.',
     },
   };
 
@@ -481,13 +515,13 @@ function aggregateScores(caseScores) {
     if (score.flags.schemaParseFailure) schemaFailures += 1;
     if (score.flags.fallbackInvoked) fallbacks += 1;
     if (score.flags.brandFalsePositive) metrics.brandPrecisionSignals.falsePositives += 1;
-    if (score.flags.incorrectExactMatch) metrics.exactProductSignals.incorrectExactMatchClaims += 1;
-    if (score.flags.underIdentification) {
-      metrics.underIdentification.count += 1;
-      if (score.flags.contractCeilingAttributable) {
-        metrics.underIdentification.contractCeilingAttributable += 1;
-      }
+    if (score.flags.futureExactProductEvaluation) {
+      metrics.exactProduct.futureExactProductEvaluationCases += 1;
     }
+    if (score.flags.unexpectedExactProductClaim) {
+      metrics.exactProduct.unexpectedExactProductClaims += 1;
+    }
+    if (score.flags.underIdentification) metrics.underIdentification.count += 1;
 
     for (const field of score.fields) {
       metrics.dispositionTotals[field.disposition] =
@@ -500,9 +534,6 @@ function aggregateScores(caseScores) {
         } else if (field.brandFalsePositive) {
           metrics.brandPrecisionSignals.concretePredictions += 1;
         }
-      }
-      if (field.field === 'exactProduct' && field.incorrectExactMatch) {
-        metrics.exactProductSignals.concretePredictions += 1;
       }
       if (field.field === 'abstention') {
         if (field.disposition === DISPOSITIONS.CORRECT_ABSTENTION) metrics.abstention.correct += 1;
