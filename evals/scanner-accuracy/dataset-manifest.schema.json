@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kscan.local/evals/scanner-accuracy/dataset-manifest.schema.json",
+  "title": "KScanScannerAccuracyCase",
+  "description": "Governed golden-dataset case contract for Scanner Accuracy & Trust V2. Phase 0A.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "caseId",
+    "datasetVersion",
+    "imageReferences",
+    "imageHashes",
+    "imageCount",
+    "sameItemAcrossImages",
+    "category",
+    "clothingType",
+    "subtype",
+    "primaryColor",
+    "secondaryColors",
+    "material",
+    "pattern",
+    "brand",
+    "exactProduct",
+    "expectedResultType",
+    "expectedAbstention",
+    "reviewStatus",
+    "reviewerCount",
+    "labelConfidence",
+    "sourceClass",
+    "authorizationStatus",
+    "privacyDisposition",
+    "notes"
+  ],
+  "properties": {
+    "caseId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$",
+      "description": "Opaque case identifier. Must not embed actor IDs, emails, or local paths."
+    },
+    "datasetVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "imageReferences": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["refType", "refValue"],
+        "properties": {
+          "refType": {
+            "type": "string",
+            "enum": [
+              "governed_qa_fixture",
+              "governed_hash_only",
+              "synthetic_text_proxy",
+              "licensed_apparel",
+              "internally_generated"
+            ]
+          },
+          "refValue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Governed relative fixture id or opaque reference. No absolute local paths."
+          }
+        }
+      }
+    },
+    "imageHashes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      }
+    },
+    "imageCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sameItemAcrossImages": {
+      "type": ["boolean", "string"],
+      "enum": [true, false, "unknown", "not_applicable"]
+    },
+    "category": { "$ref": "#/$defs/uncertainString" },
+    "clothingType": { "$ref": "#/$defs/uncertainString" },
+    "subtype": { "$ref": "#/$defs/uncertainString" },
+    "primaryColor": { "$ref": "#/$defs/uncertainString" },
+    "secondaryColors": {
+      "oneOf": [
+        { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        { "type": "string", "enum": ["unknown", "not_visible", "not_applicable"] }
+      ]
+    },
+    "material": { "$ref": "#/$defs/uncertainString" },
+    "pattern": { "$ref": "#/$defs/uncertainString" },
+    "brand": { "$ref": "#/$defs/uncertainString" },
+    "exactProduct": { "$ref": "#/$defs/uncertainString" },
+    "expectedResultType": {
+      "type": "string",
+      "enum": [
+        "likely_exact_match",
+        "closest_matches",
+        "identified_style",
+        "insufficient_evidence"
+      ]
+    },
+    "expectedAbstention": { "type": "boolean" },
+    "reviewStatus": {
+      "type": "string",
+      "enum": ["draft", "pending_review", "approved", "rejected", "needs_masking"]
+    },
+    "reviewerCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "labelConfidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"]
+    },
+    "sourceClass": {
+      "type": "string",
+      "enum": [
+        "kscan_qa_fixture",
+        "approved_tester_image",
+        "closet_correction_authorized",
+        "licensed_apparel",
+        "internally_generated",
+        "synthetic_text_proxy"
+      ]
+    },
+    "authorizationStatus": {
+      "type": "string",
+      "enum": [
+        "approved_internal_eval",
+        "approved_qa_fixture",
+        "pending_authorization",
+        "unauthorized",
+        "synthetic_no_image"
+      ]
+    },
+    "privacyDisposition": {
+      "type": "string",
+      "enum": [
+        "hash_and_label_only",
+        "governed_fixture_reference",
+        "synthetic_text_only",
+        "masked_derivative_approved",
+        "blocked_private"
+      ]
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  },
+  "$defs": {
+    "uncertainString": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Concrete label or uncertainty token: unknown | not_visible | not_applicable"
+    }
+  }
+}

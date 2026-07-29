@@ -1,0 +1,20 @@
+{
+  "datasetVersion": "0.1.0",
+  "status": "foundation",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "description": "Phase 0A governed contract seed. Approved QA fixture references only; no fabricated labels for unobserved fields.",
+  "targetCaseRange": {
+    "min": 150,
+    "max": 300
+  },
+  "seedCaseCount": 8,
+  "schemaId": "dataset-manifest.schema.json",
+  "scoringContractVersion": "0.1.0",
+  "experimentRecordVersion": "0.1.0",
+  "regressionGateVersion": "0.1.0",
+  "notes": [
+    "Do not invent ground truth to inflate case count.",
+    "Paid model baseline is not authorized in Phase 0A.",
+    "Image bytes are not duplicated into evals/; only hashes and governed refs."
+  ]
+}
