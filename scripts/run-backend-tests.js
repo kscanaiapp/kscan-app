@@ -36,9 +36,16 @@ const TEST_SUFFIX = '.test.ts';
  *
  * Deliberately an explicit list, not "every directory under functions/". A new
  * function appearing should be a decision to include it, not an accident of
- * directory layout — and the release gates speak about these two by name.
+ * directory layout — and the release gates speak about these by name.
+ *
+ * `style-outfit-generate` was added in Build 3 Phase 4, and it was a decision:
+ * it hosts the versioned private Dressing Room contract, it is deployed
+ * (project wyyuqfdxucjksghsmhry, ACTIVE), and it had no backend coverage at all
+ * before that phase. Discovery also found its `index.ts` had drifted between the
+ * platform branches while nothing in the repository objected — precisely the
+ * Phase 2A failure this list exists to prevent.
  */
-const GOVERNED = ['scan-identify', 'stylechat-generate', '_shared'];
+const GOVERNED = ['scan-identify', 'stylechat-generate', 'style-outfit-generate', '_shared'];
 
 const requested = process.argv.slice(2);
 const targets = requested.length > 0 ? requested : GOVERNED;
