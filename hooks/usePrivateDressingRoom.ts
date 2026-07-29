@@ -43,6 +43,41 @@ import type {
   PrivateWorkspaceView,
 } from '../services/privateDressingRoomCoordinator';
 
+/**
+ * Lightweight active-session probe for entry points.
+ *
+ * Reads the private session domain and nothing else — no Closet load, no
+ * projection work, and emphatically no collaborative room state. It exists so
+ * the Stylist entry can say "Resume" instead of "Start" without mounting the
+ * whole workspace, and it never mutates.
+ */
+export function usePrivateDressingRoomStatus(): { hasActiveSession: boolean } {
+  const { isAuthenticated, user, loading: actorLoading } = useAuthSession();
+  const actorId = isAuthenticated ? user?.id ?? null : null;
+  const actorKey = actorId ? `user:${actorId}` : 'device-local';
+  const [state, setState] = useState<{ actorKey: string | null; active: boolean }>({
+    actorKey: null,
+    active: false,
+  });
+
+  const probe = useCallback(() => {
+    if (!PRIVATE_DRESSING_ROOM_V1 || actorLoading) return undefined;
+    let live = true;
+    const actorRequest = createActorRequest();
+    void loadActiveSession(actorRequest).then((result) => {
+      if (!live || !isActorRequestCurrent(actorRequest)) return;
+      setState({ actorKey, active: result.ok && result.session !== null });
+    });
+    return () => {
+      live = false;
+    };
+  }, [actorKey, actorLoading]);
+
+  useFocusEffect(probe);
+
+  return { hasActiveSession: state.actorKey === actorKey && state.active };
+}
+
 type ClosetSnapshot = {
   actorKey: string | null;
   status: ClosetLoadStatus;

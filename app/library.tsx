@@ -52,6 +52,7 @@ import {
   CLOSET_DIRECT_INTAKE_ACTIVE,
   CLOSET_CANDIDATE_STAGING_ACTIVE,
   CLOSET_BATCH_REVIEW_V2_ACTIVE,
+  PRIVATE_DRESSING_ROOM_V1,
 } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
@@ -313,6 +314,27 @@ export default function LibraryScreen() {
     };
   };
 
+  /**
+   * Private Dressing Room entry for a Closet item.
+   *
+   * Flag-gated: with the workspace off this contributes no props at all, so the
+   * card renders exactly as it does today. Only the selected `closetItemId` is
+   * passed — the route validates it against the actor's own Closet before it can
+   * become an anchor. This is additive and leaves the collaborative
+   * "Add to Room" action on the scan/inspiration cards untouched.
+   */
+  const closetOutfitAction = (id: string) =>
+    PRIVATE_DRESSING_ROOM_V1
+      ? {
+          viewLabel: 'Build an outfit',
+          onPress: () =>
+            router.push({
+              pathname: '/stylist/dressing-room',
+              params: { closetItemId: id },
+            }),
+        }
+      : {};
+
   const handleDeleteClosetItem = (id: string) => {
     Alert.alert(
       'Remove from Closet?',
@@ -544,6 +566,7 @@ export default function LibraryScreen() {
                       date={formatDate(a.createdAt)}
                       status="Closet"
                       onDelete={() => handleDeleteClosetItem(a.id)}
+                      {...closetOutfitAction(a.id)}
                       style={{ width: CARD_W }}
                     />
                     {b ? (
@@ -555,6 +578,7 @@ export default function LibraryScreen() {
                         date={formatDate(b.createdAt)}
                         status="Closet"
                         onDelete={() => handleDeleteClosetItem(b.id)}
+                        {...closetOutfitAction(b.id)}
                         style={{ width: CARD_W }}
                       />
                     ) : (
