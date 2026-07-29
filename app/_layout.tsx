@@ -9,6 +9,7 @@ import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContex
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { DEV_INITIAL_ROUTE } from '../constants/featureFlags';
 import { resolveOnboardingCompletion, subscribeOnboardingCompletion } from '../services/onboardingCompletion';
 import {
   getRoutingGuardState,
@@ -55,6 +56,8 @@ function AuthGate() {
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const lastRedirectRef = useRef<string | null>(null);
+  // DEVELOPMENT-ONLY: makes the QA route jump strictly one-shot.
+  const devJumpRef = useRef(false);
   const authCallbackSeenRef = useRef(false);
   const navigationRef = useNavigationContainerRef();
   const [navReady, setNavReady] = useState(false);
@@ -229,6 +232,27 @@ function AuthGate() {
       lastRedirectRef.current = null;
     }
   }, [guardState.action]);
+
+  /**
+   * DEVELOPMENT-ONLY one-shot route jump for runtime QA harnesses.
+   *
+   * `DEV_INITIAL_ROUTE` is null in any release build, so this effect is inert
+   * there and the branch folds. It runs AFTER the auth gate settles to `allow`,
+   * so it can never race the guard or send an unauthenticated actor into a
+   * protected route — the guard keeps full authority over routing, and this only
+   * asks for one push once the guard has already decided the actor may be here.
+   *
+   * `devJumpRef` makes it strictly one-shot: without it, `pathname` changing
+   * would re-arm the push and fight any later navigation the user performs.
+   */
+  useEffect(() => {
+    if (!DEV_INITIAL_ROUTE || devJumpRef.current) return;
+    if (!navReady || waitingForAuthCallbackRoute) return;
+    if (guardState.action !== 'allow') return;
+    devJumpRef.current = true;
+    traceAuthLifecycle('dev-initial-route', { outcome: 'push', redirectTo: DEV_INITIAL_ROUTE, route: pathname });
+    router.push(DEV_INITIAL_ROUTE as never);
+  }, [guardState.action, navReady, waitingForAuthCallbackRoute, pathname]);
 
   if (waitingForAuthCallbackRoute) {
     return <Stack screenOptions={{ headerShown: false }} />;
