@@ -124,8 +124,11 @@ test('the no-candidate state is explanatory and links to Closet intake', () => {
   const body = ROUTE.slice(ROUTE.indexOf('testID="no-candidates"'), ROUTE.indexOf('slotEditor.status === \'failed\''));
   assert.match(body, /PRIVATE_WORKSPACE_COPY\.noAlternatives/);
   assert.match(body, /testID="add-to-closet-button"/);
-  // The verified Closet intake lives in library.tsx, not Scanner.
-  assert.match(body, /router\.push\('\/library'\)/);
+  // Closet intake lives on library section=closet, not Scanner or Recent.
+  assert.match(
+    body,
+    /router\.push\(\{\s*pathname:\s*'\/library',\s*params:\s*\{\s*section:\s*'closet'\s*\}\s*\}\)/,
+  );
   assert.equal(/scan/i.test(body), false, 'must not hardcode Scanner');
 });
 
@@ -237,6 +240,57 @@ test('a missing swapped item offers Restore Original and Choose Another', () => 
 test('a Closet load failure is not turned into a missing-item state', () => {
   const body = HOOK.slice(HOOK.indexOf('const loadInteractionFor'), HOOK.indexOf('const hydrate'));
   assert.match(body, /missing: closetOk \? reconciled\.missingOverrides : \[\]/);
+  // Production hydrate must thread the typed Closet result — a default of
+  // closetOk=true would turn every Closet fault into SWAPPED_ITEM_MISSING.
+  const hydrate = HOOK.slice(HOOK.indexOf('const hydrate'), HOOK.indexOf('useFocusEffect(hydrate)'));
+  const threaded = [...hydrate.matchAll(/await loadInteractionFor\(([\s\S]*?)\);/g)];
+  assert.equal(threaded.length, 2, 'hydrate has exactly two loadInteractionFor call sites');
+  for (const [, args] of threaded) {
+    assert.match(args, /closetResult\.ok/, 'each hydrate call must pass closetResult.ok');
+  }
+});
+
+test('successful apply, restore and undo re-reconcile missing swapped items', () => {
+  for (const action of ['const applySlotCandidate', 'const restoreOriginalSlot', 'const undoLastSwap']) {
+    const start = HOOK.indexOf(action);
+    assert.ok(start > -1, `missing ${action}`);
+    const body = HOOK.slice(start, start + 4500);
+    assert.match(
+      body,
+      /reconcileInteractionState\(/,
+      `${action} must re-reconcile missing after a successful mutate`,
+    );
+  }
+});
+
+test('session discard clears interaction memory and deletes interaction files', () => {
+  const body = HOOK.slice(HOOK.indexOf('const discardSession'), HOOK.indexOf('const resetSession'));
+  assert.match(body, /setInteraction\(\{ \.\.\.IDLE_INTERACTION/);
+  assert.match(body, /discardInteractionState/);
+});
+
+test('an actor transition clears Phase 3 ephemeral and pending confirmation', () => {
+  const body = HOOK.slice(
+    HOOK.indexOf('/** An actor transition invalidates every snapshot'),
+    HOOK.indexOf('const view = useMemo'),
+  );
+  assert.match(body, /setInteraction\(IDLE_INTERACTION\)/);
+  assert.match(body, /setPreview\(null\)/);
+  assert.match(body, /setSlotEditor\(CLOSED_EDITOR\)/);
+  assert.match(body, /setComparing\(false\)/);
+  assert.match(body, /setPendingContextChange\(null\)/);
+});
+
+test('a route-supplied anchor goes through context-change confirmation', () => {
+  const start = HOOK.indexOf('Apply a route-supplied Closet item ONCE');
+  assert.ok(start > -1, 'missing route-supplied anchor effect');
+  const body = HOOK.slice(start, start + 900);
+  assert.match(body, /requestContextChange\(\{\s*kind:\s*'anchor'/);
+  assert.equal(
+    /void setAnchor\(intent\)/.test(body),
+    false,
+    'route must not bypass confirmation via raw setAnchor',
+  );
 });
 
 // ── Corrupt interaction ──────────────────────────────────────────────────────
