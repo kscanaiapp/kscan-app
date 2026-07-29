@@ -50,4 +50,4 @@ Approved evaluation scoring requires `authorizationStatus` ∈ `{approved_qa_fix
 
 ## Terminology
 
-Do not use the phrase “Style DNA”. Use “Signature Style” only if personalization terminology is genuinely required. Build 4 does not expand personalization scope.
+Retired personalization branding terms must not be restored. Use “Signature Style” only if personalization terminology is genuinely required. Build 4 does not expand personalization scope.
