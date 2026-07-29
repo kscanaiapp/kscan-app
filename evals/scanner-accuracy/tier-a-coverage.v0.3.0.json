@@ -1,0 +1,393 @@
+{
+  "benchmarkKind": "LICENSED-WEB-IMAGE PILOT BENCHMARK",
+  "notARealWorldSmartGlassesBenchmark": true,
+  "notAComprehensiveBrandAccuracyCorpus": true,
+  "curated": 62,
+  "kept": 56,
+  "rejected": 6,
+  "freezeGates": {
+    "sameItemSets": {
+      "have": 12,
+      "need": 10,
+      "met": true
+    },
+    "distinctGarmentCategories": {
+      "have": 8,
+      "need": 5,
+      "met": true
+    },
+    "contextualCueOnlyCases": {
+      "have": 3,
+      "need": 3,
+      "met": true
+    },
+    "noReliableEvidenceCases": {
+      "have": 40,
+      "need": 5,
+      "met": true
+    },
+    "ambiguousCases": {
+      "have": 11,
+      "need": 3,
+      "met": true
+    }
+  },
+  "brandEvidence": {
+    "positive": {
+      "cases": 13,
+      "distinctObjects": 8,
+      "distinctBrands": [
+        "adidas",
+        "flonflon",
+        "nike",
+        "thom browne",
+        "vignon"
+      ],
+      "support": "EXPLORATORY",
+      "interpretation": "Positive brand recognition is EXPLORATORY only: 13 cases rest on just 8 distinct physical objects and 5 brands. Report directional signal, never a brand-accuracy rate.",
+      "cases_detail": [
+        {
+          "caseId": "tiera-accessory-7a2df42046",
+          "brand": "thom browne",
+          "evidence": "packaging_text",
+          "evidenceSource": "THOM BROWNE NEW YORK legible on the cleaning cloth, box and case in the photograph itself",
+          "sameItemSetId": null
+        },
+        {
+          "caseId": "tiera-footwear-393f9de296",
+          "brand": "nike",
+          "evidence": "legible_logo_on_product",
+          "evidenceSource": "Grey Nike Swoosh on the quarter panel plus a NIKE wordmark on the heel, both legible on the product in the photograph",
+          "sameItemSetId": "set-nike-sb-dunk-low-pro"
+        },
+        {
+          "caseId": "tiera-footwear-7a9de3b7c7",
+          "brand": "nike",
+          "evidence": "legible_logo_on_product",
+          "evidenceSource": "Swoosh on the quarter panel and SB tongue label legible on the product",
+          "sameItemSetId": "set-nike-sb-dunk-low-pro"
+        },
+        {
+          "caseId": "tiera-top-6c62615187",
+          "brand": "flonflon",
+          "evidence": "legible_label_or_tag",
+          "evidenceSource": "Hand-inked maker label reading 'Coiff Flonflon 200' sewn into the garment, photographed close-up; MET accession 2005.191",
+          "sameItemSetId": null
+        },
+        {
+          "caseId": "tiera-footwear-6584e83686",
+          "brand": "adidas",
+          "evidence": "legible_logo_on_product",
+          "evidenceSource": "adidas wordmark and three-stripe mark legible on the tongue and insole of both boots",
+          "sameItemSetId": null
+        },
+        {
+          "caseId": "tiera-footwear-537f81fab6",
+          "brand": "adidas",
+          "evidence": "legible_logo_on_product",
+          "evidenceSource": "adidas wordmark on the tongue, three stripes on the quarter, adiPRENE text on the midsole",
+          "sameItemSetId": null
+        },
+        {
+          "caseId": "tiera-footwear-f1c90b7808",
+          "brand": "adidas",
+          "evidence": "legible_logo_on_product",
+          "evidenceSource": "adidas wordmark legible on the tongues of the foreground black pair. The display header also carries the mark, but the qualifying evidence is the product-level wordmark, not the signage.",
+          "sameItemSetId": null
+        },
+        {
+          "caseId": "tiera-dress-a2d7e27d23",
+          "brand": "vignon",
+          "evidence": "documented_museum_attribution",
+          "evidenceSource": "MET object category plus accession C.I.69.14.12; maker Vignon",
+          "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-12"
+        },
+        {
+          "caseId": "tiera-dress-94142ee9b3",
+          "brand": "vignon",
+          "evidence": "documented_museum_attribution",
+          "evidenceSource": "MET object category plus accession C.I.69.14.12; maker Vignon",
+          "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-12"
+        },
+        {
+          "caseId": "tiera-dress-13d239c14e",
+          "brand": "vignon",
+          "evidence": "documented_museum_attribution",
+          "evidenceSource": "MET object category plus accession C.I.69.14.12; maker Vignon",
+          "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-12"
+        },
+        {
+          "caseId": "tiera-dress-ae74cca75e",
+          "brand": "vignon",
+          "evidence": "documented_museum_attribution",
+          "evidenceSource": "MET object category plus accession C.I.69.14.3; maker Vignon",
+          "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-3"
+        },
+        {
+          "caseId": "tiera-dress-48dcec9f2c",
+          "brand": "vignon",
+          "evidence": "documented_museum_attribution",
+          "evidenceSource": "MET object category plus accession C.I.69.14.3; maker Vignon",
+          "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-3"
+        },
+        {
+          "caseId": "tiera-dress-17d993ebdb",
+          "brand": "vignon",
+          "evidence": "documented_museum_attribution",
+          "evidenceSource": "MET object category plus accession C.I.69.14.3; maker Vignon",
+          "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-3"
+        }
+      ]
+    },
+    "falsePositiveCohorts": {
+      "contextual_cue_only": {
+        "cases": 3,
+        "expectedBrandOutcome": "naming_the_in_frame_brand_as_the_product_brand_is_a_false_positive",
+        "measures": "brand attributed to the product from environment-level branding: store signage, shelf labels, branded backgrounds, or trade-dress resemblance with no legible mark",
+        "cases_detail": [
+          {
+            "caseId": "tiera-footwear-f249813dd0",
+            "why": "Salomon/Rossignol/Lange text is on the retail SHELF LABEL, not on any boot. Does not qualify as product brand evidence."
+          },
+          {
+            "caseId": "tiera-footwear-3a7c0a4f46",
+            "why": "A three-stripe motif is present but there is NO legible wordmark anywhere. Trade dress alone is not brand evidence, the same ruling applied to the jeans red tab."
+          },
+          {
+            "caseId": "tiera-footwear-181bcf34e6",
+            "why": "The adidas Trefoil and wordmark appear on the WALL PANELS, not on any identifiable product. Signage is not product brand evidence, the same ruling as the demoted ski-boot shelf label."
+          }
+        ]
+      },
+      "no_reliable_evidence": {
+        "cases": 40,
+        "expectedBrandOutcome": "any_brand_claim_is_a_false_positive",
+        "measures": "brand invented with no defensible visual signal at all",
+        "caseIds": [
+          "tiera-footwear-490ae0ba2a",
+          "tiera-footwear-f0ba5ffd53",
+          "tiera-skirt-8f16ef5c8e",
+          "tiera-top-0b40a58dff",
+          "tiera-top-1144bf2cff",
+          "tiera-top-485911abee",
+          "tiera-outerwear-0b5fd2b653",
+          "tiera-pants-24e666e3bd",
+          "tiera-pants-97037f4477",
+          "tiera-pants-b0514ee815",
+          "tiera-outerwear-eb7918784a",
+          "tiera-outerwear-635315c42c",
+          "tiera-bag-1d00530785",
+          "tiera-top-c9ade2205d",
+          "tiera-top-97c77cbd99",
+          "tiera-accessory-521e3b1022",
+          "tiera-bag-1610b00ea6",
+          "tiera-accessory-396b72f77b",
+          "tiera-accessory-e2f0db2378",
+          "tiera-accessory-a53e61e148",
+          "tiera-bag-cdf287c82d",
+          "tiera-top-4dbef79f7b",
+          "tiera-dress-d3a98e8fd9",
+          "tiera-footwear-dffdbb9aa5",
+          "tiera-top-c4756278a3",
+          "tiera-top-69ab63f298",
+          "tiera-top-cec6580f66",
+          "tiera-top-b95206ccaa",
+          "tiera-top-69e798d3fd",
+          "tiera-top-b617b165f6",
+          "tiera-top-19b59a2169",
+          "tiera-top-642edd36d5",
+          "tiera-top-84a6e8da8d",
+          "tiera-top-131cb86388",
+          "tiera-footwear-88eb9844ef",
+          "tiera-footwear-e4f0ab91f2",
+          "tiera-footwear-6da54cc7bb",
+          "tiera-non_fashion-635218364b",
+          "tiera-non_fashion-87857eed80",
+          "tiera-non_fashion-323cd4e23c"
+        ]
+      }
+    }
+  },
+  "validSets": [
+    {
+      "setId": "set-fishskin-jacket",
+      "members": 3,
+      "identityEvidence": "Commons filenames 01/02/03 of one museum object; confirmed visually as the same garment"
+    },
+    {
+      "setId": "set-501xx-jeans",
+      "members": 2,
+      "identityEvidence": "Filenames 501xx-front / 501xx-back; confirmed visually as one pair on the same floor"
+    },
+    {
+      "setId": "set-nike-sb-dunk-low-pro",
+      "members": 3,
+      "identityEvidence": "Commons files '2023 Nike SB Dunk Low Pro (1)/(2)/(3)'. Two members were opened and confirmed to show the same pair on the same white ground."
+    },
+    {
+      "setId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "members": 3,
+      "identityEvidence": "MET object category plus accession C.I.69.14.12; maker Vignon -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "members": 3,
+      "identityEvidence": "MET object category plus accession C.I.69.14.3; maker Vignon -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "members": 3,
+      "identityEvidence": "Nordiska museet inventory record carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-dr-kt-nordiska-museet-nm-0021070e",
+      "members": 2,
+      "identityEvidence": "Nordiska museet inventory number NM.0021070E -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-dr-kt-nordiska-museet-nm-0053061d",
+      "members": 2,
+      "identityEvidence": "Nordiska museet inventory number NM.0053061D -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-dr-kt-nordiska-museet-nm-0057203c",
+      "members": 3,
+      "identityEvidence": "Nordiska museet inventory number NM.0057203C -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-balschoen-van-wit-satijn-met-strikken-op",
+      "members": 2,
+      "identityEvidence": "Rijksmuseum object title carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-bottine-van-ambassadeur-allard-merens-ng",
+      "members": 2,
+      "identityEvidence": "Rijksmuseum object title carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    },
+    {
+      "setId": "set-damesschoen-van-ivoorwit-satijn-met-roze",
+      "members": 2,
+      "identityEvidence": "Rijksmuseum object title carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member"
+    }
+  ],
+  "invalidSets": [],
+  "categoryCoverage": {
+    "footwear": 14,
+    "skirt": 1,
+    "top": 15,
+    "outerwear": 3,
+    "pants": 3,
+    "bag": 3,
+    "accessory": 6,
+    "dress": 8,
+    "non_fashion": 3
+  },
+  "ambiguousCaseIds": [
+    "tiera-top-485911abee",
+    "tiera-accessory-7a2df42046",
+    "tiera-top-c9ade2205d",
+    "tiera-dress-d3a98e8fd9",
+    "tiera-top-6c62615187",
+    "tiera-footwear-f1c90b7808",
+    "tiera-footwear-3a7c0a4f46",
+    "tiera-footwear-181bcf34e6",
+    "tiera-non_fashion-635218364b",
+    "tiera-non_fashion-87857eed80",
+    "tiera-non_fashion-323cd4e23c"
+  ],
+  "otherStrata": {
+    "person_wearing_product": 4,
+    "studio": 2,
+    "strong_colour_cast": 1,
+    "in_use": 1,
+    "outdoor": 3,
+    "multi_item": 11,
+    "multiple_people": 2,
+    "cluttered_scene": 1,
+    "activity_in_progress": 1,
+    "product_partly_handled": 1,
+    "store_display": 8,
+    "retail_shelf": 1,
+    "multiple_items_in_frame": 6,
+    "flat_lay": 7,
+    "museum_documentation": 24,
+    "colour_calibration_chart_in_frame": 1,
+    "event": 1,
+    "indoor": 1,
+    "multiple_garments_in_frame": 1,
+    "printed_faces_on_garment": 2,
+    "busy_background": 1,
+    "market_stall": 1,
+    "third_party_political_imagery": 1,
+    "retail_interior": 5,
+    "trade_show": 1,
+    "many_items_in_frame": 3,
+    "hangers_and_price_tags": 1,
+    "overhead_lighting": 1,
+    "same_item_set": 25,
+    "historic_artifact": 21,
+    "unusual_material": 2,
+    "partial_framing": 2,
+    "angled_view": 2,
+    "partial_brand_indicator": 1,
+    "product_shot": 12,
+    "white_background": 4,
+    "utility_not_fashion_bag": 1,
+    "with_packaging": 1,
+    "low_light": 4,
+    "flash_lit": 1,
+    "dark_background": 1,
+    "overhead_view": 1,
+    "distant_view": 2,
+    "posters_of_people_on_wall": 1,
+    "non_western_garment": 1,
+    "mannequins": 1,
+    "distant_indistinct_figure_at_frame_edge": 1,
+    "three_similar_items": 1,
+    "photographic_print_depicting_objects": 1,
+    "shallow_depth_of_field": 1,
+    "busy_bokeh_background": 1,
+    "novelty_item": 1,
+    "printed_faces_on_object": 1,
+    "macro": 2,
+    "extreme_close_up": 1,
+    "handmade": 1,
+    "out_of_focus": 1,
+    "soft_focus_blur": 1,
+    "small_object": 1,
+    "on_mannequin": 2,
+    "extra_object_in_frame_teddy_bear": 1,
+    "cropped": 1,
+    "shop_window": 1,
+    "through_glass": 1,
+    "reflection": 1,
+    "specular_reflection": 1,
+    "shot_through_glass": 1,
+    "mirrored_text_in_reflection": 1,
+    "reflected_figures_in_background": 1,
+    "black_on_white": 2,
+    "label_view": 1,
+    "label_only_no_garment_silhouette": 1,
+    "handwritten_script": 1,
+    "retail": 1,
+    "very_busy_patterned_background": 1,
+    "cropped_at_ankle": 1,
+    "people_in_background": 1,
+    "third_party_signage": 1,
+    "white_on_white": 1,
+    "brand_like_motif_without_legible_mark": 1,
+    "brand_signage_not_product_mark": 1,
+    "non_fashion_negative": 3,
+    "museum_case": 1,
+    "text_on_non_fashion_object": 1,
+    "behind_glass": 1,
+    "museum_vitrine": 2,
+    "prominent_legible_text_on_non_apparel_object": 2,
+    "glass_case_reflections": 2
+  },
+  "licenceBreakdown": {
+    "recorded_in_acquisition_report": 56
+  },
+  "pilotFreezeEligible": true,
+  "freezeVerdict": "BREADTH GATES MET — eligible for pilot freeze as a LICENSED-WEB-IMAGE PILOT BENCHMARK. The positive brand count is NOT a gate and is reported with its support level."
+}

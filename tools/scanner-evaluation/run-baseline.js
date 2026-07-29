@@ -81,6 +81,42 @@ function sha256OfFile(absolutePath) {
 }
 
 /**
+ * Resolve an image reference to an absolute path.
+ *
+ * Tier A images live in governed storage OUTSIDE every Git worktree and are
+ * addressed by a logical `storage://bucket/path` URI. Joining such a URI onto the
+ * repo root can never resolve, which previously made every governed case fail
+ * preflight with a misleading "missing governed image".
+ *
+ * Fails CLOSED: if the storage root is not configured, that is reported as a
+ * configuration error, never silently reinterpreted as a repo-relative path — the
+ * latter would let a same-named file inside the repo masquerade as governed data.
+ */
+function resolveImageRef(refValue) {
+  if (!/^[a-z0-9+.-]+:\/\//i.test(refValue)) {
+    return path.join(ROOT, refValue);
+  }
+  const root = process.env.KSCAN_EVAL_STORAGE_ROOT;
+  if (!root) {
+    throw new Error(
+      `governed storage ref ${refValue} cannot be resolved: set KSCAN_EVAL_STORAGE_ROOT to the governed storage root`
+    );
+  }
+  // storage://<bucket>/tier-a/<caseId>/<viewId>  ->  <root>/<caseId>/<viewId>.jpg
+  const withoutScheme = refValue.replace(/^[a-z0-9+.-]+:\/\//i, '');
+  const parts = withoutScheme.split('/').filter(Boolean);
+  const tierIdx = parts.findIndex((p) => p === 'tier-a');
+  const tail = tierIdx >= 0 ? parts.slice(tierIdx + 1) : parts.slice(1);
+  const candidate = path.join(root, ...tail);
+  // The manifest records the logical view name with no extension.
+  if (fs.existsSync(candidate)) return candidate;
+  for (const ext of ['.jpg', '.jpeg', '.png']) {
+    if (fs.existsSync(candidate + ext)) return candidate + ext;
+  }
+  return candidate;
+}
+
+/**
  * Validate one governed case without calling anything.
  * Every check here is a gate: a case that fails is never executed.
  */
@@ -98,7 +134,13 @@ function preflightCase(caseRecord) {
 
   const resolvedImages = [];
   refs.forEach((ref, index) => {
-    const absolute = path.join(ROOT, ref.refValue);
+    let absolute;
+    try {
+      absolute = resolveImageRef(ref.refValue);
+    } catch (err) {
+      findings.push({ severity: 'blocking', check: 'storage_root', message: err.message });
+      return;
+    }
     const expected = hashes[index];
     if (!fs.existsSync(absolute)) {
       findings.push({ severity: 'blocking', check: 'image_present', message: `missing governed image: ${ref.refValue}` });

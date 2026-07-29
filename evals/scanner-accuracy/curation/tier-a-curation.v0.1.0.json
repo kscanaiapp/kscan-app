@@ -38,7 +38,7 @@
       "expectedResultType": "identified_style",
       "expectedAbstention": false,
       "visiblePerson": true,
-      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
       "plateReviewState": "no_plate_present",
       "trademarkReviewState": "no_trademark_visible",
       "secondaryColors": "unknown",
@@ -64,7 +64,8 @@
         "product_partly_handled"
       ],
       "reinstated": "face-only rejection reversed by owner policy",
-      "note": "Orange protective boots being pulled on over hazmat suits. Genuinely cluttered and mid-activity, so labelConfidence is low — kept because in-use, partly-handled footwear is a scene type nothing else in the corpus covers."
+      "note": "Orange protective boots being pulled on over hazmat suits. Genuinely cluttered and mid-activity, so labelConfidence is low — kept because in-use, partly-handled footwear is a scene type nothing else in the corpus covers.",
+      "faceReviewNote": "Set at pilot freeze. Records that any face in this already-published licensed image is permitted unmasked under owner policy. It does NOT assert that no face is present."
     },
     "tiera-footwear-f249813dd0": {
       "keep": true,
@@ -133,7 +134,7 @@
       "expectedResultType": "identified_style",
       "expectedAbstention": false,
       "visiblePerson": true,
-      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
       "plateReviewState": "no_plate_present",
       "trademarkReviewState": "no_trademark_visible",
       "secondaryColors": "unknown",
@@ -159,14 +160,15 @@
         "busy_background"
       ],
       "reinstated": "face-only rejection reversed by owner policy",
-      "note": "Three people wearing graphic tees at an event. Now admissible: the tees are clearly the visible garments. One tee carries a printed face, which the owner confirmed is not a concern."
+      "note": "Three people wearing graphic tees at an event. Now admissible: the tees are clearly the visible garments. One tee carries a printed face, which the owner confirmed is not a concern.",
+      "faceReviewNote": "Set at pilot freeze. Records that any face in this already-published licensed image is permitted unmasked under owner policy. It does NOT assert that no face is present."
     },
     "tiera-top-1144bf2cff": {
       "keep": true,
       "expectedResultType": "identified_style",
       "expectedAbstention": false,
       "visiblePerson": true,
-      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
       "plateReviewState": "no_plate_present",
       "trademarkReviewState": "no_trademark_visible",
       "secondaryColors": [
@@ -194,14 +196,15 @@
       ],
       "reinstated": "face-only rejection reversed by owner policy",
       "maskedDerivativeAvailable": "masked.jpg (top 66% crop, faces removed) — retained as an option, not required",
-      "note": "Market-stall t-shirt display. Shirts are unambiguously the subject. A masked crop exists but the original is now usable."
+      "note": "Market-stall t-shirt display. Shirts are unambiguously the subject. A masked crop exists but the original is now usable.",
+      "faceReviewNote": "Set at pilot freeze. Records that any face in this already-published licensed image is permitted unmasked under owner policy. It does NOT assert that no face is present."
     },
     "tiera-top-485911abee": {
       "keep": true,
       "expectedResultType": "identified_style",
       "expectedAbstention": false,
       "visiblePerson": true,
-      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
       "plateReviewState": "no_plate_present",
       "trademarkReviewState": "no_trademark_visible",
       "secondaryColors": "unknown",
@@ -227,7 +230,8 @@
       ],
       "reinstated": "face-only rejection reversed by owner policy",
       "maskedDerivativeAvailable": "masked.jpg (top 35.5% crop) — retained as an option, not required",
-      "note": "Trade-show booth with a dense wall of hanging printed tees and hoodies. One of the strongest store_display cases in the corpus."
+      "note": "Trade-show booth with a dense wall of hanging printed tees and hoodies. One of the strongest store_display cases in the corpus.",
+      "faceReviewNote": "Set at pilot freeze. Records that any face in this already-published licensed image is permitted unmasked under owner policy. It does NOT assert that no face is present."
     },
     "tiera-outerwear-0b5fd2b653": {
       "keep": true,
@@ -391,7 +395,11 @@
       "sameItemSetId": "set-fishskin-jacket",
       "viewId": "material_detail",
       "category": "outerwear",
-      "reason": "Extreme close-up of the fishskin material with no garment silhouette. NOT usable as a standalone identification case, but a legitimate material-detail view of the set per the capture spec. Admitted as a set member only."
+      "reason": "Extreme close-up of the fishskin material with no garment silhouette. NOT usable as a standalone identification case, but a legitimate material-detail view of the set per the capture spec. Admitted as a set member only.",
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
+      "faceReviewNote": "Set at pilot freeze. Records that any face in this already-published licensed image is permitted unmasked under owner policy. It does NOT assert that no face is present.",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible"
     },
     "tiera-bag-1d00530785": {
       "keep": true,
@@ -453,62 +461,6 @@
       "note": "Round sunglasses with THOM BROWNE NEW YORK legible on the cleaning cloth, box and case. FIRST directly brand-evidenced case in the corpus. The evidence is the product's own packaging text, not a frame stamp — recorded explicitly so the evidence basis is auditable. Also a genuine low-light case.",
       "brandEvidenceKind": "packaging_text",
       "brandEvidenceSource": "THOM BROWNE NEW YORK legible on the cleaning cloth, box and case in the photograph itself"
-    },
-    "tiera-NON_FASHION-635218364b": {
-      "keep": true,
-      "expectedResultType": "insufficient_evidence",
-      "expectedAbstention": true,
-      "visiblePerson": false,
-      "faceReviewState": "no_face_present",
-      "plateReviewState": "no_plate_present",
-      "trademarkReviewState": "no_trademark_visible",
-      "secondaryColors": "unknown",
-      "pattern": "not_applicable",
-      "brandVisible": false,
-      "brand": "not_applicable",
-      "labelConfidence": "high",
-      "category": "NON_FASHION",
-      "clothingType": "not_applicable",
-      "subtype": "not_applicable",
-      "primaryColor": "not_applicable",
-      "material": "not_applicable",
-      "sceneTags": [
-        "non_fashion_negative",
-        "museum_case"
-      ],
-      "difficultyTags": [
-        "text_on_non_fashion_object",
-        "behind_glass"
-      ],
-      "note": "Ceramic commemorative mug in a museum case, reading PRESTON GUILD 1842. A strong negative: legible text on a non-fashion object is exactly what could bait a spurious brand claim."
-    },
-    "tiera-NON_FASHION-7f42f440f8": {
-      "keep": true,
-      "expectedResultType": "insufficient_evidence",
-      "expectedAbstention": true,
-      "visiblePerson": false,
-      "faceReviewState": "no_face_present",
-      "plateReviewState": "no_plate_present",
-      "trademarkReviewState": "no_trademark_visible",
-      "secondaryColors": "unknown",
-      "pattern": "not_applicable",
-      "brandVisible": false,
-      "brand": "not_applicable",
-      "labelConfidence": "high",
-      "category": "NON_FASHION",
-      "clothingType": "not_applicable",
-      "subtype": "not_applicable",
-      "primaryColor": "not_applicable",
-      "material": "not_applicable",
-      "sceneTags": [
-        "non_fashion_negative",
-        "outdoor"
-      ],
-      "difficultyTags": [
-        "brand_text_on_non_fashion_object",
-        "partial_framing"
-      ],
-      "note": "Bicycle with 'endorphine' brand text on the frame. Another adversarial negative — a visible brand mark on a non-garment."
     },
     "tiera-top-c9ade2205d": {
       "keep": true,
@@ -806,18 +758,960 @@
         "reflected_figures_in_background"
       ],
       "note": "Origami/pleated dress on a mannequin in a lit shop window at night, photographed through glass. Unusually valuable: it satisfies store_display, low_light AND the reflection/mirror stratum at once — the mirror-reversed VICTORIA'S SECRET signage is proof it is a reflection. That third-party mark is incidental, and the reflected background figures are indistinct silhouettes with no identifiable faces. Material left unknown: it reads as folded paper or coated fabric and guessing would be fabrication."
+    },
+    "tiera-footwear-393f9de296": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "nike",
+      "labelConfidence": "high",
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "low_top_sneaker",
+      "primaryColor": "black",
+      "material": "suede",
+      "brandEvidenceKind": "legible_logo_on_product",
+      "brandEvidenceSource": "Grey Nike Swoosh on the quarter panel plus a NIKE wordmark on the heel, both legible on the product in the photograph",
+      "sceneTags": [
+        "product_shot",
+        "white_background",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "black_on_white"
+      ],
+      "sameItemSetId": "set-nike-sb-dunk-low-pro",
+      "viewId": "three_quarter_a",
+      "note": "Nike SB Dunk Low Pro, studio product shot. Swoosh and wordmark are on the shoe itself."
+    },
+    "tiera-footwear-7a9de3b7c7": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "nike",
+      "labelConfidence": "high",
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "low_top_sneaker",
+      "primaryColor": "black",
+      "material": "suede",
+      "brandEvidenceKind": "legible_logo_on_product",
+      "brandEvidenceSource": "Swoosh on the quarter panel and SB tongue label legible on the product",
+      "sceneTags": [
+        "product_shot",
+        "white_background",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "black_on_white"
+      ],
+      "sameItemSetId": "set-nike-sb-dunk-low-pro",
+      "viewId": "three_quarter_b",
+      "note": "Same pair, second angle."
+    },
+    "tiera-footwear-dffdbb9aa5": {
+      "keep": true,
+      "setMemberOnly": true,
+      "brandVisible": false,
+      "brandEvidenceKind": null,
+      "sameItemSetId": "set-nike-sb-dunk-low-pro",
+      "viewId": "three_quarter_c",
+      "category": "footwear",
+      "faceReviewState": "no_face_present",
+      "reason": "Third file of the same Nike series. Admitted as a SET MEMBER only; NOT counted toward the brand-evidenced target because I did not open it and will not assume its logo is legible.",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible"
+    },
+    "tiera-top-6c62615187": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "flonflon",
+      "labelConfidence": "high",
+      "category": "accessory",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "white",
+      "material": "unknown",
+      "brandEvidenceKind": "legible_label_or_tag",
+      "brandEvidenceSource": "Hand-inked maker label reading 'Coiff Flonflon 200' sewn into the garment, photographed close-up; MET accession 2005.191",
+      "sceneTags": [
+        "label_view",
+        "museum_documentation",
+        "macro"
+      ],
+      "difficultyTags": [
+        "label_only_no_garment_silhouette",
+        "handwritten_script"
+      ],
+      "note": "Close-up of a sewn-in maker label. A label view is a real scanner use case so it is kept, but it carries no garment silhouette and must not be scored as identification of a whole garment."
+    },
+    "tiera-footwear-6584e83686": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": [
+        "orange"
+      ],
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "adidas",
+      "labelConfidence": "high",
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "football_boot",
+      "primaryColor": "blue",
+      "material": "synthetic",
+      "brandEvidenceKind": "legible_logo_on_product",
+      "brandEvidenceSource": "adidas wordmark and three-stripe mark legible on the tongue and insole of both boots",
+      "sceneTags": [
+        "product_shot",
+        "retail"
+      ],
+      "difficultyTags": [
+        "very_busy_patterned_background"
+      ],
+      "note": "Blue/orange football boots. Wordmark appears several times on the product."
+    },
+    "tiera-footwear-537f81fab6": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "adidas",
+      "labelConfidence": "high",
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "running_sneaker",
+      "primaryColor": "red",
+      "material": "mesh",
+      "brandEvidenceKind": "legible_logo_on_product",
+      "brandEvidenceSource": "adidas wordmark on the tongue, three stripes on the quarter, adiPRENE text on the midsole",
+      "sceneTags": [
+        "person_wearing_product",
+        "studio"
+      ],
+      "difficultyTags": [
+        "cropped_at_ankle"
+      ],
+      "note": "Red running shoes being worn, framed below the knee. No face in frame."
+    },
+    "tiera-footwear-f1c90b7808": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": true,
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "trademark_visible_on_product_and_signage",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "adidas",
+      "labelConfidence": "high",
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "court_sneaker",
+      "primaryColor": "black",
+      "material": "leather",
+      "brandEvidenceKind": "legible_logo_on_product",
+      "brandEvidenceSource": "adidas wordmark legible on the tongues of the foreground black pair. The display header also carries the mark, but the qualifying evidence is the product-level wordmark, not the signage.",
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "many_items_in_frame",
+        "people_in_background",
+        "third_party_signage"
+      ],
+      "note": "Shoe-store display. Counted brand-evidenced on the foreground product wordmark only.",
+      "faceReviewNote": "Set at pilot freeze. Records that any face in this already-published licensed image is permitted unmasked under owner policy. It does NOT assert that no face is present."
+    },
+    "tiera-footwear-3a7c0a4f46": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "running_sneaker",
+      "primaryColor": "white",
+      "material": "suede",
+      "sceneTags": [
+        "product_shot",
+        "white_background"
+      ],
+      "difficultyTags": [
+        "white_on_white",
+        "brand_like_motif_without_legible_mark"
+      ],
+      "brandEvidenceNote": "A three-stripe motif is present but there is NO legible wordmark anywhere. Trade dress alone is not brand evidence, the same ruling applied to the jeans red tab.",
+      "note": "All-white sneaker on a near-white ground. Useful twice over: a white-on-white difficulty case, and an over-claiming test, since the model should NOT name adidas from the stripe motif alone."
+    },
+    "tiera-footwear-181bcf34e6": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "trademark_visible_on_signage",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "unknown",
+      "primaryColor": "multicolor",
+      "material": "unknown",
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "many_items_in_frame",
+        "distant_view",
+        "brand_signage_not_product_mark"
+      ],
+      "brandEvidenceNote": "The adidas Trefoil and wordmark appear on the WALL PANELS, not on any identifiable product. Signage is not product brand evidence, the same ruling as the demoted ski-boot shelf label.",
+      "note": "Curved retail wall of roughly forty sneakers. Strong store_display and many-items-in-frame case."
+    },
+    "tiera-dress-a2d7e27d23": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "vignon",
+      "labelConfidence": "low",
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "viewId": "view_1",
+      "brandEvidenceKind": "documented_museum_attribution",
+      "brandEvidenceSource": "MET object category plus accession C.I.69.14.12; maker Vignon",
+      "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-12. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-dress-94142ee9b3": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "vignon",
+      "labelConfidence": "low",
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "viewId": "view_2",
+      "brandEvidenceKind": "documented_museum_attribution",
+      "brandEvidenceSource": "MET object category plus accession C.I.69.14.12; maker Vignon",
+      "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-12. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-dress-13d239c14e": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "vignon",
+      "labelConfidence": "low",
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "viewId": "view_3",
+      "brandEvidenceKind": "documented_museum_attribution",
+      "brandEvidenceSource": "MET object category plus accession C.I.69.14.12; maker Vignon",
+      "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-12. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-dress-ae74cca75e": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "vignon",
+      "labelConfidence": "low",
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "viewId": "view_1",
+      "brandEvidenceKind": "documented_museum_attribution",
+      "brandEvidenceSource": "MET object category plus accession C.I.69.14.3; maker Vignon",
+      "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-3. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-dress-48dcec9f2c": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "vignon",
+      "labelConfidence": "low",
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "viewId": "view_2",
+      "brandEvidenceKind": "documented_museum_attribution",
+      "brandEvidenceSource": "MET object category plus accession C.I.69.14.3; maker Vignon",
+      "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-3. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-dress-17d993ebdb": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "vignon",
+      "labelConfidence": "low",
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "viewId": "view_3",
+      "brandEvidenceKind": "documented_museum_attribution",
+      "brandEvidenceSource": "MET object category plus accession C.I.69.14.3; maker Vignon",
+      "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-3. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-c4756278a3": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "viewId": "view_1",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-69ab63f298": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "viewId": "view_2",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-cec6580f66": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "viewId": "view_3",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-b95206ccaa": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0021070e",
+      "viewId": "view_1",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-dr-kt-nordiska-museet-nm-0021070e. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-69e798d3fd": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0021070e",
+      "viewId": "view_2",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-dr-kt-nordiska-museet-nm-0021070e. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-b617b165f6": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0053061d",
+      "viewId": "view_1",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-dr-kt-nordiska-museet-nm-0053061d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-19b59a2169": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0053061d",
+      "viewId": "view_2",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-dr-kt-nordiska-museet-nm-0053061d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-642edd36d5": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0057203c",
+      "viewId": "view_1",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-dr-kt-nordiska-museet-nm-0057203c. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-84a6e8da8d": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0057203c",
+      "viewId": "view_2",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-dr-kt-nordiska-museet-nm-0057203c. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-top-131cb86388": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0057203c",
+      "viewId": "view_3",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-dr-kt-nordiska-museet-nm-0057203c. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-footwear-88eb9844ef": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "footwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-balschoen-van-wit-satijn-met-strikken-op",
+      "viewId": "view_2",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-balschoen-van-wit-satijn-met-strikken-op. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-footwear-e4f0ab91f2": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "footwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-bottine-van-ambassadeur-allard-merens-ng",
+      "viewId": "view_2",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-bottine-van-ambassadeur-allard-merens-ng. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-footwear-6da54cc7bb": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "footwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "sameItemSetId": "set-damesschoen-van-ivoorwit-satijn-met-roze",
+      "viewId": "view_2",
+      "brandEvidenceKind": null,
+      "brandEvidenceSource": null,
+      "note": "Member of set-damesschoen-van-ivoorwit-satijn-met-roze. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    "tiera-non_fashion-635218364b": {
+      "keep": true,
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "not_applicable",
+      "brandVisible": false,
+      "brand": "not_applicable",
+      "labelConfidence": "high",
+      "category": "non_fashion",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "primaryColor": "not_applicable",
+      "material": "not_applicable",
+      "sceneTags": [
+        "non_fashion_negative",
+        "museum_case"
+      ],
+      "difficultyTags": [
+        "text_on_non_fashion_object",
+        "behind_glass"
+      ],
+      "note": "Ceramic commemorative mug in a museum case, reading PRESTON GUILD 1842. A strong negative: legible text on a non-fashion object is exactly what could bait a spurious brand claim."
+    },
+    "tiera-non_fashion-7f42f440f8": {
+      "keep": false,
+      "reason": "DEFERRED for consistency with the other two bicycle images: a vehicle is present in frame. Not a quality rejection. WANTED for a later round: the frame carries a legible endorphine 5.3 wordmark, making it a strong probe for brand invention on a NON-apparel object."
+    },
+    "tiera-non_fashion-87857eed80": {
+      "keep": true,
+      "category": "non_fashion",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "material": "ceramic",
+      "pattern": "floral_transfer_print",
+      "secondaryColors": "unknown",
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "primaryColor": "white",
+      "labelConfidence": "high",
+      "sceneTags": [
+        "museum_vitrine",
+        "non_fashion_negative"
+      ],
+      "difficultyTags": [
+        "prominent_legible_text_on_non_apparel_object",
+        "glass_case_reflections"
+      ],
+      "note": "Ceramic commemorative mug in a museum vitrine, 1862 Preston Guild Festival. Admitted as a non-fashion negative. Doubles as a false-positive probe: the object carries large legible text and a floral print, which is exactly the cue set that can push a fashion model into inventing a garment or a brand."
+    },
+    "tiera-non_fashion-323cd4e23c": {
+      "keep": true,
+      "category": "non_fashion",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "material": "ceramic",
+      "pattern": "floral_transfer_print",
+      "secondaryColors": "unknown",
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "primaryColor": "white",
+      "labelConfidence": "high",
+      "sceneTags": [
+        "museum_vitrine",
+        "non_fashion_negative"
+      ],
+      "difficultyTags": [
+        "prominent_legible_text_on_non_apparel_object",
+        "glass_case_reflections"
+      ],
+      "note": "Second 1842 Preston Guild mug. Non-fashion negative; same false-positive probe rationale."
+    },
+    "tiera-non_fashion-4229e3a4dc": {
+      "keep": false,
+      "reason": "DEFERRED, not rejected on quality. A vehicle registration plate is present in frame. I will not assert it is illegible without verifying, and masking work is out of scope by owner instruction, so the case is held rather than admitted or altered."
+    },
+    "tiera-non_fashion-713c29c0cb": {
+      "keep": false,
+      "reason": "DEFERRED, not rejected on quality. A vehicle registration plate is present in frame. I will not assert it is illegible without verifying, and masking work is out of scope by owner instruction, so the case is held rather than admitted or altered."
     }
   },
   "curationRule": "Owner decision 2026-07-29: face presence is NOT a blocker, and face blurring is being loosened during testing. Earlier face-only rejections are reinstated as keeps. Faces PRINTED ON garments were never a concern. Cases still record visiblePerson and faceReviewState so the corpus stays auditable if the policy tightens again.",
   "progress": {
-    "curated": 30,
-    "keep": 27,
-    "reject": 3,
-    "keepRate": 0.9,
-    "trueMultiImageSets": 2,
-    "brandEvidencedCases": 1,
-    "remainingUncurated": 53,
-    "faceRejectionsReinstated": 4
+    "curated": 62,
+    "keep": 56,
+    "reject": 6,
+    "keepRate": 0.903
   },
   "sameItemSets": {
     "set-fishskin-jacket": {
@@ -851,6 +1745,120 @@
       "note": "The back view shows arcuate pocket stitching and a small red tab. The filename says 501xx but a FILENAME is not image evidence, and no wordmark is legible, so brand stays not_visible.",
       "identityEvidence": "Filenames 501xx-front / 501xx-back; confirmed visually as one pair on the same floor",
       "identityConfirmed": true
+    },
+    "set-nike-sb-dunk-low-pro": {
+      "description": "One pair of Nike SB Dunk Low Pro, three studio views.",
+      "members": [
+        "tiera-footwear-393f9de296",
+        "tiera-footwear-7a9de3b7c7",
+        "tiera-footwear-dffdbb9aa5"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Commons files '2023 Nike SB Dunk Low Pro (1)/(2)/(3)'. Two members were opened and confirmed to show the same pair on the same white ground."
+    },
+    "set-vignon-dinner-dress-met-c-i-69-14-12": {
+      "description": "Vignon dinner dress, MET C.I.69.14.12",
+      "members": [
+        "tiera-dress-a2d7e27d23",
+        "tiera-dress-94142ee9b3",
+        "tiera-dress-13d239c14e"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "MET object category plus accession C.I.69.14.12; maker Vignon -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": "Vignon"
+    },
+    "set-vignon-dinner-dress-met-c-i-69-14-3": {
+      "description": "Vignon dinner dress, MET C.I.69.14.3",
+      "members": [
+        "tiera-dress-ae74cca75e",
+        "tiera-dress-48dcec9f2c",
+        "tiera-dress-17d993ebdb"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "MET object category plus accession C.I.69.14.3; maker Vignon -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": "Vignon"
+    },
+    "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d": {
+      "description": "Livkjol, Nordiska museet",
+      "members": [
+        "tiera-top-c4756278a3",
+        "tiera-top-69ab63f298",
+        "tiera-top-cec6580f66"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Nordiska museet inventory record carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": null
+    },
+    "set-dr-kt-nordiska-museet-nm-0021070e": {
+      "description": "Drakt, Nordiska museet NM.0021070E",
+      "members": [
+        "tiera-top-b95206ccaa",
+        "tiera-top-69e798d3fd"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Nordiska museet inventory number NM.0021070E -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": null
+    },
+    "set-dr-kt-nordiska-museet-nm-0053061d": {
+      "description": "Drakt, Nordiska museet NM.0053061D",
+      "members": [
+        "tiera-top-b617b165f6",
+        "tiera-top-19b59a2169"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Nordiska museet inventory number NM.0053061D -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": null
+    },
+    "set-dr-kt-nordiska-museet-nm-0057203c": {
+      "description": "Drakt, Nordiska museet NM.0057203C",
+      "members": [
+        "tiera-top-642edd36d5",
+        "tiera-top-84a6e8da8d",
+        "tiera-top-131cb86388"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Nordiska museet inventory number NM.0057203C -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": null
+    },
+    "set-balschoen-van-wit-satijn-met-strikken-op": {
+      "description": "Balschoen, Rijksmuseum",
+      "members": [
+        "tiera-footwear-88eb9844ef",
+        "tiera-footwear-88eb9844ef"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Rijksmuseum object title carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": null
+    },
+    "set-bottine-van-ambassadeur-allard-merens-ng": {
+      "description": "Bottine, Rijksmuseum",
+      "members": [
+        "tiera-footwear-e4f0ab91f2",
+        "tiera-footwear-e4f0ab91f2"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Rijksmuseum object title carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": null
+    },
+    "set-damesschoen-van-ivoorwit-satijn-met-roze": {
+      "description": "Damesschoen, Rijksmuseum",
+      "members": [
+        "tiera-footwear-6da54cc7bb",
+        "tiera-footwear-6da54cc7bb"
+      ],
+      "trueMultiImage": true,
+      "identityConfirmed": true,
+      "identityEvidence": "Rijksmuseum object title carried in the file title -- identity rests on the INSTITUTIONAL object record, not on individual visual confirmation of every member",
+      "documentedMaker": null
     }
   }
 }

@@ -48,6 +48,13 @@ const SYNTHETIC_SOURCE_CLASSES = new Set(['synthetic_text_proxy', 'synthetic_ima
 const FACE_REVIEW_STATES = new Set([
   'no_face_present',
   'face_present_masked',
+  // Owner decision for the Tier A licensed-web-image pilot benchmark: face
+  // blurring is deliberately loosened during testing, so an unmasked face is
+  // permitted. This state exists because the alternatives would both be lies —
+  // 'face_present_masked' asserts masking that was never applied, and
+  // 'no_face_present' asserts an absence that was not established. It applies
+  // ONLY to already-published, licensed imagery, never to captured Tier B data.
+  'face_present_unmasked_permitted_by_policy',
   'face_present_blocked',
   'not_reviewed',
 ]);

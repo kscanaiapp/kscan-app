@@ -29,7 +29,7 @@ const path = require('path');
 const { validateCase } = require('./lib/datasetValidate');
 const { splitDataset, validateSplit } = require('./lib/datasetSplit');
 
-const DATASET_VERSION = '0.2.0';
+const DATASET_VERSION = '0.3.0';
 
 function parseArgs(argv) {
   const get = (flag) => {
@@ -48,23 +48,29 @@ function parseArgs(argv) {
  * Turn one accepted acquisition record plus its curation decision into a
  * governed case. Labels come from curation, never from the search term.
  */
-function toCase(record, decision) {
+function toCase(record, decision, siblings = []) {
   const licence = record.licence || {};
   const attributionText = licence.attributionRequired
     ? `${record.author} — ${licence.licenceId}${licence.licenceVersion ? ` ${licence.licenceVersion}` : ''}`
     : null;
 
+  // A same-item set becomes ONE case carrying every view, not N unrelated cases.
+  // Emitting the views separately would both erase the multi-image stratum and
+  // silently over-weight that garment in every aggregate score.
+  const views = [record, ...siblings];
+
   return {
-    caseId: record.caseId,
+    caseId: decision.sameItemSetId || record.caseId,
     datasetVersion: DATASET_VERSION,
 
     // ── Governed storage: reference and hashes only, never bytes in Git ──
-    imageReferences: [
-      { refType: 'governed_object_storage', refValue: record.governedStorageRef },
-    ],
-    imageHashes: [`sha256:${record.sanitizedSha256}`],
-    imageCount: 1,
-    sameItemAcrossImages: 'not_applicable',
+    imageReferences: views.map((v) => ({
+      refType: 'governed_object_storage', refValue: v.governedStorageRef,
+    })),
+    imageHashes: views.map((v) => `sha256:${v.sanitizedSha256}`),
+    imageCount: views.length,
+    sameItemAcrossImages: views.length > 1 ? true : 'not_applicable',
+    sameItemSetId: decision.sameItemSetId || null,
 
     // ── Licence and provenance evidence ──
     provenance: {
@@ -97,6 +103,9 @@ function toCase(record, decision) {
     exactProduct: 'unknown',
     expectedResultType: decision.expectedResultType,
     expectedAbstention: Boolean(decision.expectedAbstention),
+    // The split validator recognises the non-fashion stratum by this flag, so it
+    // must be emitted or non-fashion negatives are invisible to stratification.
+    nonFashion: decision.category === 'non_fashion',
     sceneTags: decision.sceneTags || [],
     difficultyTags: decision.difficultyTags || [],
     brandVisible: decision.brandVisible === true,
@@ -150,6 +159,8 @@ function main(argv = process.argv.slice(2)) {
   const cases = [];
   const skipped = [];
 
+  // Pass 1: admit only images that carry an explicit keep decision.
+  const admitted = [];
   for (const record of report.accepted || []) {
     const decision = decisions.get(record.caseId);
     if (!decision) {
@@ -160,7 +171,34 @@ function main(argv = process.argv.slice(2)) {
       skipped.push({ caseId: record.caseId, reason: decision.reason || 'curated out' });
       continue;
     }
-    cases.push(toCase(record, decision));
+    admitted.push({ record, decision });
+  }
+
+  // Pass 2: collapse each same-item set into one multi-image case. The set's
+  // PRIMARY member is the first admitted view that carries full labels; a
+  // setMemberOnly view can contribute an image but must never define the labels.
+  const setGroups = new Map();
+  for (const a of admitted) {
+    const sid = a.decision.sameItemSetId;
+    if (!sid) continue;
+    if (!setGroups.has(sid)) setGroups.set(sid, []);
+    setGroups.get(sid).push(a);
+  }
+
+  const consumed = new Set();
+  for (const [sid, members] of setGroups) {
+    const primary = members.find((m) => m.decision.setMemberOnly !== true) || members[0];
+    const others = members.filter((m) => m !== primary);
+    cases.push(toCase(primary.record, primary.decision, others.map((m) => m.record)));
+    for (const m of members) consumed.add(m.record.caseId);
+    if (!curation.sameItemSets || !curation.sameItemSets[sid]) {
+      skipped.push({ caseId: sid, reason: 'set referenced by a decision but not registered in sameItemSets' });
+    }
+  }
+
+  for (const a of admitted) {
+    if (consumed.has(a.record.caseId)) continue;
+    cases.push(toCase(a.record, a.decision));
   }
 
   // Validate every case under the full contract, including exclusion registry.
