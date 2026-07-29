@@ -33,6 +33,7 @@ import type {
 
 let compositionIdCounter = 0;
 let lookIdCounter = 0;
+let requestIdCounter = 0;
 
 // ── Identifiers ──────────────────────────────────────────────────────────────
 
@@ -79,6 +80,23 @@ export function createCompositionId(): string {
 export function createLookId(): string {
   lookIdCounter = (lookIdCounter + 1) % 0x100000;
   return `drlook_${Date.now().toString(36)}_${lookIdCounter.toString(36)}_${randomSuffix()}`;
+}
+
+/**
+ * A request id for one Elise request (Build 3, Phase 4).
+ *
+ * HEX ONLY, and that is load-bearing rather than cosmetic: the Phase 4 alias
+ * format takes the first 8 hex characters of this value as its request
+ * fragment, so two requests must not share a prefix. `randomSuffix()` supplies
+ * 16 hex characters of entropy and leads, with the counter and timestamp after
+ * it purely for readability in a bug report.
+ *
+ * It is NOT derived from the closet, actor, user or session — an alias must
+ * carry no identity, and an id built from one would.
+ */
+export function createRequestId(): string {
+  requestIdCounter = (requestIdCounter + 1) % 0x100000;
+  return `${randomSuffix()}${requestIdCounter.toString(16).padStart(5, '0')}${Date.now().toString(16)}`;
 }
 
 // ── Field hygiene ────────────────────────────────────────────────────────────

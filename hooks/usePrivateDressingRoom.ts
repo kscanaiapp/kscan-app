@@ -33,7 +33,17 @@ import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   PRIVATE_DRESSING_ROOM_V1,
   PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE,
+  PRIVATE_DRESSING_ROOM_ELISE_ACTIVE,
 } from '../constants/featureFlags';
+import {
+  IDLE_ELISE_STATUS,
+  cancelActiveEliseRequest,
+  askElise as runAskElise,
+  makeMoreCasual as runMakeMoreCasual,
+  type EliseStatus,
+} from '../services/privateDressingRoomEliseOrchestration';
+import { createEliseRequestCoordinator } from '../services/privateDressingRoomEliseClient';
+import { createRequestId } from '../services/privateDressingRoomCompositionSchema';
 import {
   applySlotOverride,
   clearComparedLooks as clearComparedLooksStore,
@@ -269,6 +279,13 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   confirmContextChange: () => Promise<void>;
   cancelContextChange: () => void;
   refreshInteraction: (actorRequest: unknown) => Promise<void>;
+
+  // ── Phase 4 ────────────────────────────────────────────────────────────────
+  eliseEnabled: boolean;
+  eliseStatus: EliseStatus;
+  askElise: (instruction: string) => Promise<void>;
+  makeMoreCasual: () => Promise<void>;
+  cancelElise: () => void;
 } {
   const { isAuthenticated, user, loading: actorLoading } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;
@@ -1330,6 +1347,112 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     await applyContextChange(pendingContextChange);
   }, [pendingContextChange, applyContextChange]);
 
+  // ── Phase 4: Elise orchestration ───────────────────────────────────────────
+  //
+  // The coordinator is per-mount, so two Dressing Room mounts can never see each
+  // other's request-local aliases. Every ordering rule lives in
+  // services/privateDressingRoomEliseOrchestration.ts; this hook only supplies
+  // dependencies and publishes what that module emits.
+
+  const eliseCoordinatorRef = useRef(createEliseRequestCoordinator());
+  const [eliseStatus, setEliseStatus] = useState<EliseStatus>(IDLE_ELISE_STATUS);
+
+  /**
+   * The lifecycle context a response is compared against.
+   *
+   * Read through a ref so the comparison sees the state at RESPONSE time rather
+   * than a value captured in a closure when the request started — which is the
+   * whole point of comparing.
+   */
+  const eliseSnapshotRef = useRef<() => {
+    actorId: string | null;
+    sessionId: string | null;
+    sessionStatus: string | null;
+    compositionFingerprint: string | null;
+    activeLookId: string | null;
+  }>(() => ({
+    actorId: null,
+    sessionId: null,
+    sessionStatus: null,
+    compositionFingerprint: null,
+    activeLookId: null,
+  }));
+  eliseSnapshotRef.current = () => ({
+    actorId: view.session?.actorId ?? null,
+    sessionId: view.session?.sessionId ?? null,
+    sessionStatus: view.status === 'active' ? 'active' : view.status ?? null,
+    compositionFingerprint: current.composition?.inputFingerprint ?? null,
+    activeLookId: current.composition?.activeLookId ?? null,
+  });
+
+  const eliseDeps = useMemo(
+    () => ({
+      eliseEnabled: PRIVATE_DRESSING_ROOM_ELISE_ACTIVE,
+      coordinator: eliseCoordinatorRef.current,
+      publish: { setStatus: setEliseStatus },
+      requestContextChange: (change: ContextChangeConfirmation) => requestContextChange(change),
+      snapshot: () => eliseSnapshotRef.current(),
+      newRequestId: createRequestId,
+    }),
+    [requestContextChange],
+  );
+
+  /**
+   * The one bounded Elise entry point.
+   *
+   * Dispatches to build_around_item when the session already has an anchor and
+   * to interpret_occasion when it does not. Phase 4 must not add a third Build
+   * Around This surface, and this needs none: both intents are the user
+   * describing what they want.
+   */
+  const askElise = useCallback(
+    async (instruction: string) => {
+      await runAskElise(eliseDeps, {
+        instruction,
+        currentOccasion: view.session?.occasion ?? null,
+        anchorClosetItemId: view.session?.anchorClosetItemId ?? null,
+        closetItems: closet.items,
+      });
+    },
+    [eliseDeps, closet.items, view.session],
+  );
+
+  const makeMoreCasual = useCallback(async () => {
+    await runMakeMoreCasual(eliseDeps, {
+      currentOccasion: view.session?.occasion ?? null,
+    });
+  }, [eliseDeps, view.session]);
+
+  /**
+   * Cancel Elise before ANY governed manual context change.
+   *
+   * The confirmation modal must never open above a request that can still
+   * mutate the composition the modal is asking about, so cancellation happens
+   * before the manual flow starts rather than when it completes.
+   */
+  const cancelElise = useCallback(() => {
+    cancelActiveEliseRequest({
+      coordinator: eliseCoordinatorRef.current,
+      publish: { setStatus: setEliseStatus },
+    });
+  }, []);
+
+  const requestContextChangeWithElise = useCallback(
+    async (change: ContextChangeConfirmation) => {
+      cancelElise();
+      await requestContextChange(change);
+    },
+    [cancelElise, requestContextChange],
+  );
+
+  /** Route unmount is terminal: abort, invalidate, and drop every alias map. */
+  useEffect(() => {
+    const coordinator = eliseCoordinatorRef.current;
+    return () => {
+      coordinator.dispose();
+    };
+  }, []);
+
   /**
    * Backgrounding clears an unapplied preview immediately.
    *
@@ -1419,9 +1542,19 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     openComparison,
     setComparedLooks,
     closeComparison,
-    requestContextChange,
+    // Phase 4 wraps this so a manual change always cancels Elise first. The
+    // unwrapped function is not exported: there must be no path that changes
+    // context while a response can still land on it.
+    requestContextChange: requestContextChangeWithElise,
     confirmContextChange,
     cancelContextChange,
     refreshInteraction,
+
+    // ── Phase 4 ──────────────────────────────────────────────────────────────
+    eliseEnabled: PRIVATE_DRESSING_ROOM_ELISE_ACTIVE,
+    eliseStatus,
+    askElise,
+    makeMoreCasual,
+    cancelElise,
   };
 }

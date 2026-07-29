@@ -23,6 +23,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -52,6 +53,15 @@ import type { ResolvedLookItem } from '../../../services/privateDressingRoomCoor
 import { PRIVATE_SLOT_LABELS } from '../../../types/privateDressingRoomComposition';
 import type { PrivateDressingRoomSlot } from '../../../types/privateDressingRoomComposition';
 import { PRIVATE_COMPARISON_COPY } from '../../../services/privateDressingRoomComparison';
+import {
+  PRIVATE_ELISE_COPY,
+  PRIVATE_ELISE_INPUT_MAX_LENGTH,
+  eliseAffordances as resolveEliseAffordances,
+  eliseAnnouncement as getEliseAnnouncement,
+  eliseStatusCopy,
+  isEliseBusy,
+  normalizeOccasionInput,
+} from '../../../services/privateDressingRoomEliseUx';
 
 const OCCASIONS = ['Work', 'Dinner', 'Weekend', 'Event', 'Travel'];
 
@@ -99,6 +109,10 @@ export default function PrivateDressingRoomScreen() {
   const params = useLocalSearchParams();
   const workspace = usePrivateDressingRoom(params?.closetItemId);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  // Phase 4 occasion entry. Local draft only: nothing typed here is persisted,
+  // and it is cleared whenever the sheet closes.
+  const [occasionSheetOpen, setOccasionSheetOpen] = useState(false);
+  const [occasionDraft, setOccasionDraft] = useState('');
   const { width } = useWindowDimensions();
   const isWide = width >= TABLET_MIN_WIDTH;
 
@@ -169,7 +183,45 @@ export default function PrivateDressingRoomScreen() {
     closeComparison,
     confirmContextChange,
     cancelContextChange,
+    // Phase 4. All inert while the nested Elise flag is OFF.
+    eliseEnabled,
+    eliseStatus,
+    askElise,
+    makeMoreCasual,
+    cancelElise,
   } = workspace;
+
+  // ── Phase 4 derived presentation ──────────────────────────────────────────
+  //
+  // Every decision below is made in services/privateDressingRoomEliseUx.ts, so
+  // the copy and the availability rules are testable without a renderer.
+  const eliseAffordances = resolveEliseAffordances({
+    eliseEnabled,
+    sessionActive: status === 'active',
+    hasEffectiveLook: effectiveLooks.length > 0,
+    currentOccasion: session?.occasion ?? null,
+    busy,
+  });
+  const eliseStatusMessage = eliseStatusCopy(eliseStatus);
+  const eliseAnnouncement = getEliseAnnouncement(eliseStatus);
+  const eliseBusy = isEliseBusy(eliseStatus);
+  const occasionDraftValue = normalizeOccasionInput(occasionDraft);
+
+  const submitOccasionDescription = useCallback(() => {
+    const instruction = normalizeOccasionInput(occasionDraft);
+    if (!instruction || eliseBusy) return;
+    setOccasionSheetOpen(false);
+    setOccasionDraft('');
+    void askElise(instruction);
+  }, [occasionDraft, eliseBusy, askElise]);
+
+  const dismissOccasionSheet = useCallback(() => {
+    setOccasionSheetOpen(false);
+    setOccasionDraft('');
+    // Closing the sheet is the established cancellation gesture for this
+    // surface, so it cancels the request rather than leaving it running.
+    cancelElise();
+  }, [cancelElise]);
 
   const editorLook = effectiveLooks.find((look) => look.lookId === slotEditor.lookId) ?? null;
   const anchorId = session?.anchorClosetItemId ?? null;
@@ -723,7 +775,55 @@ export default function PrivateDressingRoomScreen() {
                   </TouchableOpacity>
                 );
               })}
+
+              {/*
+                ADDITIVE ONLY. Appended after the existing chips — none of them
+                is removed, renamed or reordered by Phase 4, and with the Elise
+                flag OFF this entry does not render at all.
+              */}
+              {eliseAffordances.showOccasionEntry ? (
+                <TouchableOpacity
+                  style={styles.occasionChip}
+                  onPress={() => setOccasionSheetOpen(true)}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: busy }}
+                  accessibilityLabel="Describe a different occasion"
+                  testID="occasion-other-option"
+                >
+                  <Text style={styles.occasionText}>{PRIVATE_ELISE_COPY.occasionEntryLabel}</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
+
+            {/*
+              Transient Elise status: between the context summary and the look
+              content, per the established status region. It never creates chat
+              history, never covers the looks, and never intercepts taps.
+            */}
+            {eliseStatusMessage ? (
+              <View
+                style={styles.eliseStatus}
+                pointerEvents="none"
+                accessibilityLiveRegion={
+                  eliseAnnouncement?.politeness === 'assertive' ? 'assertive' : 'polite'
+                }
+                accessibilityRole="text"
+                testID="elise-status"
+              >
+                <Text style={styles.eliseStatusText}>{eliseStatusMessage}</Text>
+              </View>
+            ) : null}
+
+            {eliseAffordances.showMakeMoreCasual ? (
+              <SecondaryButton
+                title={PRIVATE_ELISE_COPY.makeMoreCasual}
+                onPress={() => void makeMoreCasual()}
+                disabled={busy || eliseBusy}
+                accessibilityLabel="Make this look more casual"
+                testID="elise-more-casual"
+              />
+            ) : null}
 
             {renderOutfits()}
 
@@ -1094,6 +1194,52 @@ export default function PrivateDressingRoomScreen() {
           </View>
         </View>
       </Modal>
+
+      {/*
+        Phase 4 bounded occasion entry.
+        NOT A CHAT. One short description, one request, no history. The manual
+        chips stay reachable behind it, and dismissing cancels the request.
+      */}
+      <Modal
+        visible={occasionSheetOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={dismissOccasionSheet}
+      >
+        <View style={styles.sheetBackdrop}>
+          <View style={styles.sheet} testID="elise-occasion-sheet">
+            <SectionHeader title={PRIVATE_ELISE_COPY.occasionSheetTitle} />
+            <TextInput
+              style={styles.eliseInput}
+              value={occasionDraft}
+              onChangeText={setOccasionDraft}
+              placeholder={PRIVATE_ELISE_COPY.occasionSheetPlaceholder}
+              placeholderTextColor={LUXURY.colors.plum}
+              maxLength={PRIVATE_ELISE_INPUT_MAX_LENGTH}
+              editable={!eliseBusy}
+              multiline={false}
+              returnKeyType="done"
+              onSubmitEditing={submitOccasionDescription}
+              accessibilityLabel={PRIVATE_ELISE_COPY.occasionSheetTitle}
+              testID="elise-occasion-input"
+            />
+            <PrimaryButton
+              title={PRIVATE_ELISE_COPY.occasionSubmit}
+              onPress={submitOccasionDescription}
+              // Disabled while a request runs so a second cannot be queued.
+              disabled={busy || eliseBusy || !occasionDraftValue}
+              accessibilityLabel="Ask Elise to interpret this occasion"
+              testID="elise-occasion-submit"
+            />
+            <SecondaryButton
+              title={PRIVATE_ELISE_COPY.cancel}
+              onPress={dismissOccasionSheet}
+              accessibilityLabel="Cancel and keep the current occasion"
+              testID="elise-occasion-cancel"
+            />
+          </View>
+        </View>
+      </Modal>
     </LuxuryScreen>
   );
 }
@@ -1150,6 +1296,23 @@ const styles = StyleSheet.create({
   },
   occasionChipSelected: { borderColor: LUXURY.colors.plum, borderWidth: 2 },
   occasionText: { color: LUXURY.colors.ink, fontSize: 14 },
+  // Phase 4 transient status. Deliberately flat and unobtrusive: it reports,
+  // it does not compete with the looks below it.
+  eliseStatus: { paddingVertical: SPACING.sm, marginBottom: SPACING.sm },
+  eliseStatusText: { color: LUXURY.colors.ink, fontSize: 14, lineHeight: 20 },
+  eliseInput: {
+    borderWidth: 1,
+    borderColor: LUXURY.colors.champagne,
+    borderRadius: 10,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.md,
+    color: LUXURY.colors.ink,
+    fontSize: 15,
+    // 48dp minimum: the route touch-target gate applies to every control
+    // here, and an input is a touch target.
+    minHeight: 48,
+  },
 
   // ── Outfit options ─────────────────────────────────────────────────────────
   lookRow: { paddingVertical: SPACING.sm },

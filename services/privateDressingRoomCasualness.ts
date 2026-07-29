@@ -84,6 +84,19 @@ export type CasualnessOutcome =
     };
 
 /**
+ * Narrows an unsupported outcome.
+ *
+ * A predicate rather than `if (!outcome.supported)` because this repository does
+ * not enable `strictNullChecks`, and without it TypeScript will not narrow a
+ * union on a boolean discriminant.
+ */
+export function isUnsupportedCasualness(
+  outcome: CasualnessOutcome,
+): outcome is Extract<CasualnessOutcome, { supported: false }> {
+  return outcome.supported === false;
+}
+
+/**
  * Resolves the next-less-formal occasion for the current one.
  *
  * PURE. Takes the session's occasion text, returns either the occasion to move
