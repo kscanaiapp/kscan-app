@@ -460,6 +460,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       const record = sessionResult.ok ? sessionResult.session : null;
       if (!record) {
         setComposition({ ...IDLE_COMPOSITION, actorKey });
+        setInteraction({ ...IDLE_INTERACTION, actorKey });
         return;
       }
 
@@ -482,6 +483,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
           errorCode: 'COMPOSITION_CORRUPT',
           recovered: false,
         });
+        setInteraction({ ...IDLE_INTERACTION, actorKey });
         return;
       }
 
@@ -513,6 +515,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
           items,
           fingerprint,
           isCurrent,
+          closetResult.ok,
         );
         return;
       }
@@ -525,6 +528,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
           errorCode: anchorMissing ? 'ANCHOR_MISSING' : null,
           recovered: false,
         });
+        setInteraction({ ...IDLE_INTERACTION, actorKey });
         return;
       }
 
@@ -537,14 +541,22 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       );
       if (!isCurrent()) return;
       setComposition(next);
-      await loadInteractionFor(actorRequest, record, next.composition, items, fingerprint, isCurrent);
+      await loadInteractionFor(
+        actorRequest,
+        record,
+        next.composition,
+        items,
+        fingerprint,
+        isCurrent,
+        closetResult.ok,
+      );
     })();
 
     return () => {
       live = false;
       if (generationRef.current === generation) generationRef.current += 1;
     };
-  }, [actorId, actorKey, actorLoading, composeAndPersist]);
+  }, [actorId, actorKey, actorLoading, composeAndPersist, loadInteractionFor]);
 
   // Route focus: the established route-scoped revalidation seam (useCloset.js).
   useFocusEffect(hydrate);
@@ -570,6 +582,11 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     setCloset({ actorKey: null, status: 'loading', items: [] });
     setSession({ actorKey: null, result: null });
     setComposition(IDLE_COMPOSITION);
+    setInteraction(IDLE_INTERACTION);
+    setPreview(null);
+    setSlotEditor(CLOSED_EDITOR);
+    setComparing(false);
+    setPendingContextChange(null);
   }, [actorKey]);
 
   const view = useMemo(
@@ -794,7 +811,15 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       // The composition is already invalid by status fingerprint; cleanup is
       // best-effort and the discard stays authoritative if it fails.
       setComposition({ ...IDLE_COMPOSITION, actorKey });
+      setInteraction({ ...IDLE_INTERACTION, actorKey });
+      setPreview(null);
+      setSlotEditor(CLOSED_EDITOR);
+      setComparing(false);
+      setPendingContextChange(null);
       await discardCompositionSet(actorRequest);
+      if (PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE) {
+        await discardInteractionState(actorRequest);
+      }
     } finally {
       setBusy(false);
     }
@@ -809,7 +834,15 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       if (!isActorRequestCurrent(actorRequest)) return;
       setSession({ actorKey, result });
       setComposition({ ...IDLE_COMPOSITION, actorKey });
+      setInteraction({ ...IDLE_INTERACTION, actorKey });
+      setPreview(null);
+      setSlotEditor(CLOSED_EDITOR);
+      setComparing(false);
+      setPendingContextChange(null);
       await discardCompositionSet(actorRequest);
+      if (PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE) {
+        await discardInteractionState(actorRequest);
+      }
     } finally {
       setBusy(false);
     }
@@ -1095,11 +1128,17 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       }
       // Only the PERSISTED state is published.
       setPreview(null);
+      const reconciled = reconcileInteractionState(
+        result.interaction,
+        view.closetItems.map((item) => item.id),
+        (current.composition?.looks ?? []).map((look) => look.lookId),
+      );
       setInteraction((previous) => ({
         ...previous,
         actorKey,
         state: result.interaction,
         corrupt: false,
+        missing: closetLoaded ? reconciled.missingOverrides : [],
       }));
       setSlotEditor(CLOSED_EDITOR);
     } finally {
@@ -1114,6 +1153,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     activeInteraction.state,
     view.closetItems,
     view.session,
+    closetLoaded,
   ]);
 
   /** Return one slot to its generated item. A normal reversible operation. */
@@ -1149,7 +1189,17 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
         if (!isActorRequestCurrent(actorRequest)) return;
         if (result.ok && !result.stale) {
           setPreview(null);
-          setInteraction((previous) => ({ ...previous, actorKey, state: result.interaction }));
+          const reconciled = reconcileInteractionState(
+            result.interaction,
+            view.closetItems.map((item) => item.id),
+            (current.composition?.looks ?? []).map((look) => look.lookId),
+          );
+          setInteraction((previous) => ({
+            ...previous,
+            actorKey,
+            state: result.interaction,
+            missing: closetLoaded ? reconciled.missingOverrides : [],
+          }));
           setSlotEditor(CLOSED_EDITOR);
         } else {
           setSlotEditor((previous) => ({
@@ -1162,7 +1212,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
         setBusy(false);
       }
     },
-    [actorKey, busy, interactionContext, current.composition, activeInteraction.state],
+    [actorKey, busy, interactionContext, current.composition, activeInteraction.state, view.closetItems, closetLoaded],
   );
 
   /** Undo the newest persisted operation. Never a redo. */
@@ -1184,7 +1234,17 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       if (!isActorRequestCurrent(actorRequest)) return;
       if (result.ok && !result.stale && result.resultCode === 'APPLIED') {
         setPreview(null);
-        setInteraction((previous) => ({ ...previous, actorKey, state: result.interaction }));
+        const reconciled = reconcileInteractionState(
+          result.interaction,
+          view.closetItems.map((item) => item.id),
+          (current.composition?.looks ?? []).map((look) => look.lookId),
+        );
+        setInteraction((previous) => ({
+          ...previous,
+          actorKey,
+          state: result.interaction,
+          missing: closetLoaded ? reconciled.missingOverrides : [],
+        }));
       } else {
         // A blocked undo leaves state exactly as it was — it does not skip to an
         // older operation.
@@ -1196,7 +1256,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     } finally {
       setBusy(false);
     }
-  }, [actorKey, busy, interactionContext, current.composition, view.closetItems]);
+  }, [actorKey, busy, interactionContext, current.composition, view.closetItems, closetLoaded]);
 
   const resetCorruptInteraction = useCallback(async () => {
     if (!PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE || busy) return;
@@ -1370,9 +1430,14 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     const intent = resolveRouteAnchorIntent(view, routeClosetItemId);
     if (!intent || routeAppliedRef.current === intent || busy) return;
     routeAppliedRef.current = intent;
-    if (view.status === 'active') void setAnchor(intent);
-    else void startSession({ anchorClosetItemId: intent });
-  }, [view, routeClosetItemId, busy, setAnchor, startSession]);
+    if (view.status === 'active') {
+      // Same confirmation path as chip-driven anchor changes: persisted edits
+      // must not be silently discarded by a deep-link.
+      void requestContextChange({ kind: 'anchor', anchorClosetItemId: intent });
+    } else {
+      void startSession({ anchorClosetItemId: intent });
+    }
+  }, [view, routeClosetItemId, busy, requestContextChange, startSession]);
 
   return {
     ...view,

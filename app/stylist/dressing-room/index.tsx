@@ -246,7 +246,7 @@ export default function PrivateDressingRoomScreen() {
           />
           <SecondaryButton
             title={PRIVATE_WORKSPACE_COPY.returnToCloset}
-            onPress={() => router.push('/library')}
+            onPress={() => router.push({ pathname: '/library', params: { section: 'closet' } })}
             accessibilityLabel="Return to your Closet"
             testID="return-to-closet-button"
           />
@@ -855,7 +855,7 @@ export default function PrivateDressingRoomScreen() {
                   title={PRIVATE_WORKSPACE_COPY.addToCloset}
                   onPress={() => {
                     closeSlotEditor();
-                    router.push('/library');
+                    router.push({ pathname: '/library', params: { section: 'closet' } });
                   }}
                   accessibilityLabel="Add an item to your Closet"
                   testID="add-to-closet-button"
