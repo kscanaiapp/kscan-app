@@ -111,30 +111,34 @@
     },
     "tiera-outerwear-0b5fd2b653": {
       "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
       "category": "outerwear",
-      "clothingType": "coat",
+      "clothingType": "jacket",
       "subtype": "unknown",
       "primaryColor": "unknown",
       "material": "unknown",
-      "pattern": "unknown",
-      "brand": "not_applicable",
-      "brandVisible": false,
-      "expectedResultType": "identified_style",
-      "expectedAbstention": false,
       "sceneTags": [
         "flat_lay",
-        "museum_documentation"
+        "museum_documentation",
+        "same_item_set"
       ],
       "difficultyTags": [
         "historic_artifact",
         "unusual_material"
       ],
-      "visiblePerson": false,
-      "faceReviewState": "no_face_present",
-      "plateReviewState": "no_plate_present",
-      "trademarkReviewState": "no_trademark_visible",
-      "labelConfidence": "medium",
-      "note": "Flat-lay of a historic coat-form garment on white. Clean garment subject, no people. Unusual material is tagged as a difficulty rather than guessed at."
+      "sameItemSetId": "set-fishskin-jacket",
+      "viewId": "back",
+      "note": "Same fishskin jacket, back view. Reclassified from a standalone case into a set member once the set was identified."
     },
     "tiera-outerwear-0e07b2e685": {
       "keep": false,
@@ -169,13 +173,557 @@
       "trademarkReviewState": "no_trademark_visible",
       "labelConfidence": "high",
       "note": "Close-packed denim jeans/shorts, cropped. Strong denim material case and a genuine partial-framing case."
+    },
+    "tiera-pants-97037f4477": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "pants",
+      "clothingType": "jeans",
+      "subtype": "unknown",
+      "primaryColor": "blue",
+      "material": "denim",
+      "sceneTags": [
+        "flat_lay",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "angled_view"
+      ],
+      "sameItemSetId": "set-501xx-jeans",
+      "viewId": "front",
+      "note": "Dark indigo jeans, front, flat on wood floor. Button fly visible. Front view of a true two-view same-item set."
+    },
+    "tiera-pants-b0514ee815": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "pants",
+      "clothingType": "jeans",
+      "subtype": "unknown",
+      "primaryColor": "blue",
+      "material": "denim",
+      "sceneTags": [
+        "flat_lay",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "angled_view",
+        "partial_brand_indicator"
+      ],
+      "sameItemSetId": "set-501xx-jeans",
+      "viewId": "back",
+      "note": "Same jeans, back. Arcuate pocket stitching and a small red tab are visible. Trade-dress indicators are NOT legible brand text, so brand stays not_visible — this is a good test of whether the model over-claims a brand from trade dress alone."
+    },
+    "tiera-outerwear-eb7918784a": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "outerwear",
+      "clothingType": "jacket",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "flat_lay",
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact",
+        "unusual_material"
+      ],
+      "sameItemSetId": "set-fishskin-jacket",
+      "viewId": "front",
+      "note": "Fishskin jacket, front, with closures and decorative motifs visible. Material deliberately left unknown rather than guessed."
+    },
+    "tiera-outerwear-635315c42c": {
+      "keep": true,
+      "setMemberOnly": true,
+      "standaloneUsable": false,
+      "sameItemSetId": "set-fishskin-jacket",
+      "viewId": "material_detail",
+      "category": "outerwear",
+      "reason": "Extreme close-up of the fishskin material with no garment silhouette. NOT usable as a standalone identification case, but a legitimate material-detail view of the set per the capture spec. Admitted as a set member only."
+    },
+    "tiera-bag-1d00530785": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "trademark_visible_on_product",
+      "secondaryColors": [
+        "orange"
+      ],
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "bag",
+      "clothingType": "tote",
+      "subtype": "unknown",
+      "primaryColor": "black",
+      "material": "nylon",
+      "sceneTags": [
+        "product_shot",
+        "white_background"
+      ],
+      "difficultyTags": [
+        "utility_not_fashion_bag"
+      ],
+      "note": "Open tool bag on white. A genuine bag, but a utility tool bag rather than a fashion bag — a legitimate category edge case. A small maker logo is on the product."
+    },
+    "tiera-accessory-7a2df42046": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "trademark_visible_on_packaging",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": true,
+      "brand": "thom browne",
+      "labelConfidence": "high",
+      "category": "accessory",
+      "clothingType": "eyewear",
+      "subtype": "round_sunglasses",
+      "primaryColor": "black",
+      "material": "metal",
+      "sceneTags": [
+        "product_shot",
+        "with_packaging",
+        "low_light"
+      ],
+      "difficultyTags": [
+        "low_light",
+        "flash_lit",
+        "dark_background"
+      ],
+      "note": "Round sunglasses with THOM BROWNE NEW YORK legible on the cleaning cloth, box and case. FIRST directly brand-evidenced case in the corpus. The evidence is the product's own packaging text, not a frame stamp — recorded explicitly so the evidence basis is auditable. Also a genuine low-light case."
+    },
+    "tiera-NON_FASHION-635218364b": {
+      "keep": true,
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "not_applicable",
+      "brandVisible": false,
+      "brand": "not_applicable",
+      "labelConfidence": "high",
+      "category": "NON_FASHION",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "primaryColor": "not_applicable",
+      "material": "not_applicable",
+      "sceneTags": [
+        "non_fashion_negative",
+        "museum_case"
+      ],
+      "difficultyTags": [
+        "text_on_non_fashion_object",
+        "behind_glass"
+      ],
+      "note": "Ceramic commemorative mug in a museum case, reading PRESTON GUILD 1842. A strong negative: legible text on a non-fashion object is exactly what could bait a spurious brand claim."
+    },
+    "tiera-NON_FASHION-7f42f440f8": {
+      "keep": true,
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "not_applicable",
+      "brandVisible": false,
+      "brand": "not_applicable",
+      "labelConfidence": "high",
+      "category": "NON_FASHION",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "primaryColor": "not_applicable",
+      "material": "not_applicable",
+      "sceneTags": [
+        "non_fashion_negative",
+        "outdoor"
+      ],
+      "difficultyTags": [
+        "brand_text_on_non_fashion_object",
+        "partial_framing"
+      ],
+      "note": "Bicycle with 'endorphine' brand text on the frame. Another adversarial negative — a visible brand mark on a non-garment."
+    },
+    "tiera-top-c9ade2205d": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "material": "unknown",
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item",
+        "overhead_view"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "distant_view",
+        "posters_of_people_on_wall"
+      ],
+      "note": "Boutique interior from above, garments on racks and hangers. Genuine store_display. Wall posters depict people, but those are photographs-of-photographs rather than identifiable people present in the scene."
+    },
+    "tiera-top-97c77cbd99": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": [
+        "gold"
+      ],
+      "pattern": "embroidered",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "red",
+      "material": "unknown",
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item",
+        "non_western_garment"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "mannequins",
+        "distant_indistinct_figure_at_frame_edge"
+      ],
+      "note": "Sari/lehenga shop with mannequins and hanging garments. Valuable non-Western garment coverage the rest of the corpus lacks. Mannequins are not people; one distant indistinct figure sits at the left frame edge with no identifiable face."
+    },
+    "tiera-accessory-521e3b1022": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": [
+        "black",
+        "green"
+      ],
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "accessory",
+      "clothingType": "hat",
+      "subtype": "fedora",
+      "primaryColor": "brown",
+      "material": "unknown",
+      "sceneTags": [
+        "flat_lay",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "three_similar_items"
+      ],
+      "note": "Three felt fedoras on purple cloth. Clean hat case, and a useful multiple-similar-items test."
+    },
+    "tiera-bag-1610b00ea6": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "printed_photographic",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "bag",
+      "clothingType": "clutch",
+      "subtype": "unknown",
+      "primaryColor": "multicolor",
+      "material": "cotton",
+      "sceneTags": [
+        "product_shot"
+      ],
+      "difficultyTags": [
+        "photographic_print_depicting_objects"
+      ],
+      "note": "Zippered cosmetic pouch with lace trim, printed with a photographic gourd/pumpkin pattern. Adversarial in a useful way: the print depicts real objects, which could pull an identifier toward the printed content instead of the bag."
+    },
+    "tiera-accessory-396b72f77b": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "accessory",
+      "clothingType": "eyewear",
+      "subtype": "oversized_sunglasses",
+      "primaryColor": "black",
+      "material": "acetate",
+      "sceneTags": [
+        "product_shot",
+        "outdoor"
+      ],
+      "difficultyTags": [
+        "shallow_depth_of_field",
+        "busy_bokeh_background"
+      ],
+      "note": "Oversized black sunglasses resting on a concrete ledge outdoors. Clean eyewear case."
+    },
+    "tiera-accessory-e2f0db2378": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "flag_print",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "accessory",
+      "clothingType": "eyewear",
+      "subtype": "round_sunglasses",
+      "primaryColor": "multicolor",
+      "material": "acetate",
+      "sceneTags": [
+        "product_shot",
+        "museum_documentation"
+      ],
+      "difficultyTags": [
+        "novelty_item",
+        "printed_faces_on_object"
+      ],
+      "note": "1976 novelty campaign sunglasses with a chain and portrait medallions. Adversarial in a useful way: printed human faces appear ON the accessory, which should not trigger person handling."
+    },
+    "tiera-accessory-a53e61e148": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "accessory",
+      "clothingType": "jewelry",
+      "subtype": "necklace",
+      "primaryColor": "blue",
+      "material": "unknown",
+      "sceneTags": [
+        "product_shot",
+        "macro"
+      ],
+      "difficultyTags": [
+        "partial_framing",
+        "extreme_close_up"
+      ],
+      "note": "Flower-petal pendant on a cord, close-up. Genuine jewellery subject; petals are cropped, so it doubles as a partial-framing case."
+    },
+    "tiera-bag-cdf287c82d": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "bag",
+      "clothingType": "clutch",
+      "subtype": "unknown",
+      "primaryColor": "brown",
+      "material": "unknown",
+      "sceneTags": [
+        "product_shot",
+        "handmade"
+      ],
+      "difficultyTags": [
+        "out_of_focus",
+        "soft_focus_blur",
+        "small_object"
+      ],
+      "note": "Small handmade button-flap pouch on a wooden surface. Genuinely soft-focus — kept deliberately as a BLUR case, with labelConfidence low to match. Material left unknown rather than guessed from a blurred image."
+    },
+    "tiera-top-4dbef79f7b": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "marled",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "top",
+      "clothingType": "sweater",
+      "subtype": "turtleneck",
+      "primaryColor": "multicolor",
+      "material": "knit",
+      "sceneTags": [
+        "product_shot",
+        "on_mannequin"
+      ],
+      "difficultyTags": [
+        "extra_object_in_frame_teddy_bear",
+        "cropped"
+      ],
+      "note": "Multicoloured marled knit turtleneck on a wooden artist's mannequin, with a toy bear in frame. Strong knit-material case; the extra object is tagged rather than ignored."
+    },
+    "tiera-dress-d3a98e8fd9": {
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": false,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "trademark_visible_in_reflection",
+      "secondaryColors": "unknown",
+      "pattern": "geometric_folded",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "dress",
+      "clothingType": "dress",
+      "subtype": "shift_dress",
+      "primaryColor": "orange",
+      "material": "unknown",
+      "sceneTags": [
+        "store_display",
+        "shop_window",
+        "through_glass",
+        "reflection",
+        "low_light",
+        "on_mannequin"
+      ],
+      "difficultyTags": [
+        "low_light",
+        "specular_reflection",
+        "shot_through_glass",
+        "mirrored_text_in_reflection",
+        "reflected_figures_in_background"
+      ],
+      "note": "Origami/pleated dress on a mannequin in a lit shop window at night, photographed through glass. Unusually valuable: it satisfies store_display, low_light AND the reflection/mirror stratum at once — the mirror-reversed VICTORIA'S SECRET signage is proof it is a reflection. That third-party mark is incidental, and the reflected background figures are indistinct silhouettes with no identifiable faces. Material left unknown: it reads as folded paper or coated fabric and guessing would be fabrication."
     }
   },
   "curationRule": "Any image containing an identifiable face is REJECTED in this pass, because no masked derivative has been produced or approved. Consistent rule, applied even where the image would otherwise be a good case.",
   "progress": {
-    "curated": 12,
-    "keep": 5,
+    "curated": 30,
+    "keep": 23,
     "reject": 7,
-    "keepRate": 0.417
+    "keepRate": 0.767,
+    "trueMultiImageSets": 2,
+    "brandEvidencedCases": 1,
+    "remainingUncurated": 53
+  },
+  "sameItemSets": {
+    "set-fishskin-jacket": {
+      "description": "Hezhe (Nanai) fishskin jacket, 1875-1900, museum documentation. Four independently captured views of ONE physical garment, all CC0.",
+      "members": [
+        "tiera-outerwear-eb7918784a",
+        "tiera-outerwear-0b5fd2b653",
+        "tiera-outerwear-635315c42c"
+      ],
+      "views": {
+        "tiera-outerwear-eb7918784a": "front",
+        "tiera-outerwear-0b5fd2b653": "back",
+        "tiera-outerwear-635315c42c": "material_detail"
+      },
+      "trueMultiImage": true,
+      "note": "Independently captured views carrying different evidence, not crops of one file. The material-detail view is a legitimate set member per the capture spec view taxonomy, but is NOT usable as a standalone identification case."
+    },
+    "set-501xx-jeans": {
+      "description": "One pair of dark indigo jeans, front and back, flat on a wood floor. Same garment, two independently captured views, CC BY-SA 4.0.",
+      "members": [
+        "tiera-pants-97037f4477",
+        "tiera-pants-b0514ee815"
+      ],
+      "views": {
+        "tiera-pants-97037f4477": "front",
+        "tiera-pants-b0514ee815": "back"
+      },
+      "trueMultiImage": true,
+      "note": "The back view shows arcuate pocket stitching and a small red tab. The filename says 501xx but a FILENAME is not image evidence, and no wordmark is legible, so brand stays not_visible."
+    }
   }
 }
