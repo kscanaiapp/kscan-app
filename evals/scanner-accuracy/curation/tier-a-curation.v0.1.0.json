@@ -34,8 +34,37 @@
       "reason": "Subject is footprints in snow; the boots are a tiny distant object. Also carries a third-party 500px watermark, which is a licensing red flag on a supposedly free file."
     },
     "tiera-footwear-f0ba5ffd53": {
-      "keep": false,
-      "reason": "Three identifiable people donning hazmat suits. Subject is the people and suits, not footwear, and three faces are clearly visible."
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": true,
+      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "unknown",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "low",
+      "category": "footwear",
+      "clothingType": "boot",
+      "subtype": "rubber_boot",
+      "primaryColor": "orange",
+      "material": "unknown",
+      "sceneTags": [
+        "person_wearing_product",
+        "in_use",
+        "outdoor",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_people",
+        "cluttered_scene",
+        "activity_in_progress",
+        "product_partly_handled"
+      ],
+      "reinstated": "face-only rejection reversed by owner policy",
+      "note": "Orange protective boots being pulled on over hazmat suits. Genuinely cluttered and mid-activity, so labelConfidence is low — kept because in-use, partly-handled footwear is a scene type nothing else in the corpus covers."
     },
     "tiera-footwear-f249813dd0": {
       "keep": true,
@@ -98,16 +127,105 @@
       "reason": "A 1940s magazine advertisement — illustration plus body text, not a photograph of a garment. Not a usable identification case."
     },
     "tiera-top-0b40a58dff": {
-      "keep": false,
-      "reason": "Three identifiable people at an event, faces fully visible. Subject is the people, not a garment."
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": true,
+      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "graphic_print",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "medium",
+      "category": "top",
+      "clothingType": "t_shirt",
+      "subtype": "graphic_tee",
+      "primaryColor": "black",
+      "material": "cotton",
+      "sceneTags": [
+        "person_wearing_product",
+        "event",
+        "indoor",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_people",
+        "multiple_garments_in_frame",
+        "printed_faces_on_garment",
+        "busy_background"
+      ],
+      "reinstated": "face-only rejection reversed by owner policy",
+      "note": "Three people wearing graphic tees at an event. Now admissible: the tees are clearly the visible garments. One tee carries a printed face, which the owner confirmed is not a concern."
     },
     "tiera-top-1144bf2cff": {
-      "keep": false,
-      "reason": "Good market-stall t-shirt display, but a partially identifiable face is in frame and no masked derivative is approved. Re-consider after masking; also carries third-party political imagery."
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": true,
+      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": [
+        "blue"
+      ],
+      "pattern": "graphic_print",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "top",
+      "clothingType": "t_shirt",
+      "subtype": "graphic_tee",
+      "primaryColor": "white",
+      "material": "cotton",
+      "sceneTags": [
+        "store_display",
+        "market_stall",
+        "outdoor",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "printed_faces_on_garment",
+        "third_party_political_imagery"
+      ],
+      "reinstated": "face-only rejection reversed by owner policy",
+      "maskedDerivativeAvailable": "masked.jpg (top 66% crop, faces removed) — retained as an option, not required",
+      "note": "Market-stall t-shirt display. Shirts are unambiguously the subject. A masked crop exists but the original is now usable."
     },
     "tiera-top-485911abee": {
-      "keep": false,
-      "reason": "Excellent trade-show t-shirt display, but two identifiable faces in frame. Re-consider after masking."
+      "keep": true,
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "visiblePerson": true,
+      "faceReviewState": "face_present_permitted_by_owner_policy",
+      "plateReviewState": "no_plate_present",
+      "trademarkReviewState": "no_trademark_visible",
+      "secondaryColors": "unknown",
+      "pattern": "graphic_print",
+      "brandVisible": false,
+      "brand": "not_visible",
+      "labelConfidence": "high",
+      "category": "top",
+      "clothingType": "t_shirt",
+      "subtype": "graphic_tee",
+      "primaryColor": "multicolor",
+      "material": "cotton",
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item",
+        "trade_show"
+      ],
+      "difficultyTags": [
+        "many_items_in_frame",
+        "hangers_and_price_tags",
+        "overhead_lighting"
+      ],
+      "reinstated": "face-only rejection reversed by owner policy",
+      "maskedDerivativeAvailable": "masked.jpg (top 35.5% crop) — retained as an option, not required",
+      "note": "Trade-show booth with a dense wall of hanging printed tees and hoodies. One of the strongest store_display cases in the corpus."
     },
     "tiera-outerwear-0b5fd2b653": {
       "keep": true,
@@ -686,15 +804,16 @@
       "note": "Origami/pleated dress on a mannequin in a lit shop window at night, photographed through glass. Unusually valuable: it satisfies store_display, low_light AND the reflection/mirror stratum at once — the mirror-reversed VICTORIA'S SECRET signage is proof it is a reflection. That third-party mark is incidental, and the reflected background figures are indistinct silhouettes with no identifiable faces. Material left unknown: it reads as folded paper or coated fabric and guessing would be fabrication."
     }
   },
-  "curationRule": "Any image containing an identifiable face is REJECTED in this pass, because no masked derivative has been produced or approved. Consistent rule, applied even where the image would otherwise be a good case.",
+  "curationRule": "Owner decision 2026-07-29: face presence is NOT a blocker, and face blurring is being loosened during testing. Earlier face-only rejections are reinstated as keeps. Faces PRINTED ON garments were never a concern. Cases still record visiblePerson and faceReviewState so the corpus stays auditable if the policy tightens again.",
   "progress": {
     "curated": 30,
-    "keep": 23,
-    "reject": 7,
-    "keepRate": 0.767,
+    "keep": 27,
+    "reject": 3,
+    "keepRate": 0.9,
     "trueMultiImageSets": 2,
     "brandEvidencedCases": 1,
-    "remainingUncurated": 53
+    "remainingUncurated": 53,
+    "faceRejectionsReinstated": 4
   },
   "sameItemSets": {
     "set-fishskin-jacket": {
