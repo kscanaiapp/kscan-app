@@ -19,6 +19,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -49,6 +50,8 @@ import {
 } from '../../../services/privateDressingRoomCoordinator';
 import type { ResolvedLookItem } from '../../../services/privateDressingRoomCoordinator';
 import { PRIVATE_SLOT_LABELS } from '../../../types/privateDressingRoomComposition';
+import type { PrivateDressingRoomSlot } from '../../../types/privateDressingRoomComposition';
+import { PRIVATE_COMPARISON_COPY } from '../../../services/privateDressingRoomComparison';
 
 const OCCASIONS = ['Work', 'Dinner', 'Weekend', 'Event', 'Travel'];
 
@@ -132,10 +135,8 @@ export default function PrivateDressingRoomScreen() {
     canReset,
     busy,
     startSession,
-    setAnchor,
     clearAnchor,
-    setOccasion,
-    clearOccasion,
+    requestContextChange,
     discardSession,
     resetSession,
     compositionStatus,
@@ -145,7 +146,41 @@ export default function PrivateDressingRoomScreen() {
     rebuildOutfits,
     retry,
     resetComposition,
+    // Phase 3. All inert while the nested flag is OFF.
+    interactionsEnabled,
+    interactionCorrupt,
+    missingSwappedItems,
+    effectiveLooks,
+    canUndo,
+    slotEditor,
+    preview,
+    comparison,
+    comparing,
+    canCompareLooks,
+    pendingContextChange,
+    openSlotEditor,
+    closeSlotEditor,
+    previewSlotCandidate,
+    applySlotCandidate,
+    restoreOriginalSlot,
+    undoLastSwap,
+    resetCorruptInteraction,
+    openComparison,
+    closeComparison,
+    confirmContextChange,
+    cancelContextChange,
   } = workspace;
+
+  const editorLook = effectiveLooks.find((look) => look.lookId === slotEditor.lookId) ?? null;
+  const anchorId = session?.anchorClosetItemId ?? null;
+  const closetById = new Map(closetItems.map((item) => [item.id, item]));
+
+  /** A slot row's override state, used to decide whether Restore Original shows. */
+  const overrideFor = (lookId: string | null, slot: PrivateDressingRoomSlot | null) => {
+    if (!lookId || !slot) return null;
+    const look = effectiveLooks.find((entry) => entry.lookId === lookId);
+    return look?.items.find((item) => item.slot === slot && item.overridden) ?? null;
+  };
 
   /**
    * The outfit section.
@@ -349,22 +384,93 @@ export default function PrivateDressingRoomScreen() {
                 body="Built from the pieces already in your Closet."
               />
             ) : null}
-            {active.items.map((entry) => (
-              <View
-                key={entry.closetItemId}
-                style={styles.slotRow}
-                // Slot BEFORE garment, so a screen reader announces the role first.
-                accessibilityLabel={`${PRIVATE_SLOT_LABELS[entry.slot]}: ${
-                  entry.item?.title ?? 'no longer in your Closet'
-                }`}
-                testID="active-look-slot"
-              >
-                <Text style={styles.slotName}>{PRIVATE_SLOT_LABELS[entry.slot]}</Text>
-                <Text style={styles.slotItem}>
-                  {entry.item?.title ?? PRIVATE_WORKSPACE_COPY.lookStale}
-                </Text>
-              </View>
-            ))}
+            {active.items.map((entry) => {
+              const isAnchor = !!anchorId && entry.closetItemId === anchorId;
+              const edited = !!overrideFor(active.lookId, entry.slot);
+              return (
+                <View
+                  key={entry.closetItemId}
+                  style={styles.slotRow}
+                  // Slot BEFORE garment, so a screen reader announces the role first.
+                  accessibilityLabel={[
+                    `${PRIVATE_SLOT_LABELS[entry.slot]}: ${
+                      entry.item?.title ?? 'no longer in your Closet'
+                    }`,
+                    isAnchor ? PRIVATE_WORKSPACE_COPY.anchorLockedLabel : '',
+                    edited ? 'edited' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                  testID="active-look-slot"
+                >
+                  <Text style={styles.slotName}>{PRIVATE_SLOT_LABELS[entry.slot]}</Text>
+                  <Text style={styles.slotItem}>
+                    {entry.item?.title ?? PRIVATE_WORKSPACE_COPY.lookStale}
+                    {edited ? ' · edited' : ''}
+                  </Text>
+                  {interactionsEnabled ? (
+                    isAnchor ? (
+                      // The anchor is locked: no enabled swap control exists.
+                      <Text style={styles.slotLocked} testID="anchor-locked-label">
+                        {PRIVATE_WORKSPACE_COPY.anchorLockedLabel}
+                      </Text>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.slotAction}
+                        onPress={() => void openSlotEditor(active.lookId, entry.slot)}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Swap ${PRIVATE_SLOT_LABELS[entry.slot]}`}
+                        testID="slot-swap-button"
+                      >
+                        <Text style={styles.slotActionText}>{PRIVATE_WORKSPACE_COPY.swapAction}</Text>
+                      </TouchableOpacity>
+                    )
+                  ) : null}
+                </View>
+              );
+            })}
+
+            {/* An explicitly missing slot can be FILLED, never invented. */}
+            {interactionsEnabled
+              ? active.missingSlots.map((slot) => (
+                  <View key={`missing-${slot}`} style={styles.slotRow} testID="fillable-slot">
+                    <Text style={styles.slotName}>{PRIVATE_SLOT_LABELS[slot]}</Text>
+                    <Text style={styles.slotItem}>{PRIVATE_COMPARISON_COPY.missing}</Text>
+                    <TouchableOpacity
+                      style={styles.slotAction}
+                      onPress={() => void openSlotEditor(active.lookId, slot)}
+                      disabled={busy}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Choose ${PRIVATE_SLOT_LABELS[slot]}`}
+                      testID="slot-fill-button"
+                    >
+                      <Text style={styles.slotActionText}>{PRIVATE_WORKSPACE_COPY.chooseItem}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              : null}
+
+            {/* Undo appears only when persisted history exists. Never a redo. */}
+            {interactionsEnabled && canUndo ? (
+              <SecondaryButton
+                title={PRIVATE_WORKSPACE_COPY.undo}
+                onPress={() => void undoLastSwap()}
+                disabled={busy}
+                accessibilityLabel="Undo the last outfit change"
+                testID="undo-button"
+              />
+            ) : null}
+
+            {interactionsEnabled && canCompareLooks ? (
+              <SecondaryButton
+                title={PRIVATE_COMPARISON_COPY.entry}
+                onPress={() => void openComparison()}
+                disabled={busy}
+                accessibilityLabel="Compare two outfits"
+                testID="compare-entry-button"
+              />
+            ) : null}
             <Text style={styles.usesLine}>
               {`Uses ${active.itemCount} Closet item${active.itemCount === 1 ? '' : 's'}`}
             </Text>
@@ -535,7 +641,11 @@ export default function PrivateDressingRoomScreen() {
                     <TouchableOpacity
                       key={item.id}
                       style={[styles.closetChip, selected ? styles.closetChipSelected : null]}
-                      onPress={() => void setAnchor(item.id)}
+                      // Routed through the coordinator so a change that would
+                      // discard persisted edits asks first.
+                      onPress={() =>
+                        void requestContextChange({ kind: 'anchor', anchorClosetItemId: item.id })
+                      }
                       disabled={busy}
                       accessibilityRole="button"
                       accessibilityState={{ selected, disabled: busy }}
@@ -567,7 +677,12 @@ export default function PrivateDressingRoomScreen() {
                   <TouchableOpacity
                     key={occasion}
                     style={[styles.occasionChip, selected ? styles.occasionChipSelected : null]}
-                    onPress={() => void (selected ? clearOccasion() : setOccasion(occasion))}
+                    onPress={() =>
+                      void requestContextChange({
+                        kind: 'occasion',
+                        occasion: selected ? null : occasion,
+                      })
+                    }
                     disabled={busy}
                     accessibilityRole="button"
                     accessibilityState={{ selected, disabled: busy }}
@@ -635,7 +750,321 @@ export default function PrivateDressingRoomScreen() {
           body={PRIVATE_WORKSPACE_COPY.routeItemUnavailable}
         />
       ) : null}
+
+      {/* Corrupt EDITS never cost the user their outfits. */}
+      {interactionsEnabled && interactionCorrupt ? (
+        <View testID="interaction-corrupt">
+          <InlineNotice
+            variant="error"
+            title="Edits not restored"
+            body={PRIVATE_WORKSPACE_COPY.interactionCorrupt}
+          />
+          <SecondaryButton
+            title={PRIVATE_WORKSPACE_COPY.resetEdits}
+            onPress={() => void resetCorruptInteraction()}
+            disabled={busy}
+            accessibilityLabel="Reset your outfit edits"
+            testID="reset-edits-button"
+          />
+        </View>
+      ) : null}
+
+      {/* A swapped garment that has left the Closet is never silently replaced. */}
+      {interactionsEnabled && missingSwappedItems.length > 0 ? (
+        <View testID="swapped-item-missing">
+          <InlineNotice
+            variant="info"
+            title="Item unavailable"
+            body={PRIVATE_WORKSPACE_COPY.swappedItemMissing}
+          />
+          {missingSwappedItems.map((entry) => (
+            <View key={`${entry.lookId}-${entry.slot}`} style={styles.slotRow}>
+              <Text style={styles.slotName}>{PRIVATE_SLOT_LABELS[entry.slot]}</Text>
+              <TouchableOpacity
+                style={styles.slotAction}
+                onPress={() => void restoreOriginalSlot(entry.lookId, entry.slot)}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel={`Restore the original ${PRIVATE_SLOT_LABELS[entry.slot]}`}
+                testID="missing-restore-button"
+              >
+                <Text style={styles.slotActionText}>
+                  {PRIVATE_WORKSPACE_COPY.restoreOriginal}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.slotAction}
+                onPress={() => void openSlotEditor(entry.lookId, entry.slot)}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel={`Choose another ${PRIVATE_SLOT_LABELS[entry.slot]}`}
+                testID="missing-choose-button"
+              >
+                <Text style={styles.slotActionText}>{PRIVATE_WORKSPACE_COPY.chooseAnother}</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       {renderBody()}
+
+      {/* ── Slot editor ─────────────────────────────────────────────────── */}
+      <Modal
+        visible={interactionsEnabled && slotEditor.status !== 'closed'}
+        transparent
+        animationType="slide"
+        onRequestClose={closeSlotEditor}
+      >
+        <View style={styles.sheetBackdrop}>
+          <View style={styles.sheet} testID="slot-editor">
+            <SectionHeader
+              title={`Change ${slotEditor.slot ? PRIVATE_SLOT_LABELS[slotEditor.slot] : ''}`}
+              subtitle={
+                slotEditor.candidates?.currentClosetItemId
+                  ? `Current: ${
+                      closetById.get(slotEditor.candidates.currentClosetItemId)?.title ?? ''
+                    }`
+                  : PRIVATE_COMPARISON_COPY.missing
+              }
+            />
+
+            {slotEditor.status === 'loading' ? (
+              <View style={styles.loadingWrap} accessibilityLiveRegion="polite">
+                <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+              </View>
+            ) : null}
+
+            {slotEditor.status === 'anchor_locked' ? (
+              <InlineNotice
+                variant="info"
+                title={PRIVATE_WORKSPACE_COPY.anchorLockedLabel}
+                body={PRIVATE_WORKSPACE_COPY.anchorLocked}
+              />
+            ) : null}
+
+            {/* Never an empty list with no explanation. */}
+            {slotEditor.status === 'no_candidates' ? (
+              <View testID="no-candidates">
+                <InlineNotice
+                  variant="info"
+                  title="No alternatives"
+                  body={PRIVATE_WORKSPACE_COPY.noAlternatives}
+                />
+                <SecondaryButton
+                  title={PRIVATE_WORKSPACE_COPY.addToCloset}
+                  onPress={() => {
+                    closeSlotEditor();
+                    router.push('/library');
+                  }}
+                  accessibilityLabel="Add an item to your Closet"
+                  testID="add-to-closet-button"
+                />
+              </View>
+            ) : null}
+
+            {slotEditor.status === 'failed' ? (
+              <InlineNotice
+                variant="error"
+                title="Couldn't change this piece"
+                body={
+                  slotEditor.resultCode === 'STALE_PREVIEW'
+                    ? PRIVATE_WORKSPACE_COPY.stalePreview
+                    : PRIVATE_WORKSPACE_COPY.applyFailed
+                }
+              />
+            ) : null}
+
+            {slotEditor.status === 'ready' || slotEditor.status === 'applying' ? (
+              <ScrollView style={styles.candidateList} testID="candidate-list">
+                {(slotEditor.candidates?.candidates ?? []).map((candidate) => {
+                  const previewed = preview?.candidateClosetItemId === candidate.closetItemId;
+                  return (
+                    <TouchableOpacity
+                      key={candidate.closetItemId}
+                      style={[styles.candidateRow, previewed ? styles.candidateRowSelected : null]}
+                      onPress={() => previewSlotCandidate(candidate.closetItemId)}
+                      disabled={busy || slotEditor.status === 'applying'}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: previewed, disabled: busy }}
+                      accessibilityLabel={[
+                        candidate.item.title,
+                        candidate.item.brand ?? '',
+                        candidate.item.primaryColor ?? '',
+                        previewed ? 'previewed' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
+                      testID="candidate-option"
+                    >
+                      <LookThumb
+                        entry={{
+                          slot: slotEditor.slot!,
+                          closetItemId: candidate.closetItemId,
+                          item: candidate.item,
+                        }}
+                      />
+                      <View style={styles.candidateText}>
+                        <Text style={styles.slotItem}>{candidate.item.title}</Text>
+                        {candidate.item.brand || candidate.item.primaryColor ? (
+                          <Text style={styles.lookMeta}>
+                            {[candidate.item.brand, candidate.item.primaryColor]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+
+            {/* Preview and Apply are distinct: tapping a card never persists. */}
+            {slotEditor.status === 'ready' || slotEditor.status === 'applying' ? (
+              <PrimaryButton
+                title={PRIVATE_WORKSPACE_COPY.applySwap}
+                onPress={() => void applySlotCandidate()}
+                disabled={busy || !preview || slotEditor.status === 'applying'}
+                accessibilityLabel="Apply this swap"
+                testID="apply-swap-button"
+              />
+            ) : null}
+
+            {overrideFor(slotEditor.lookId, slotEditor.slot) ? (
+              <SecondaryButton
+                title={PRIVATE_WORKSPACE_COPY.restoreOriginal}
+                onPress={() =>
+                  void restoreOriginalSlot(slotEditor.lookId!, slotEditor.slot!)
+                }
+                disabled={busy}
+                accessibilityLabel={`Restore the original ${
+                  slotEditor.slot ? PRIVATE_SLOT_LABELS[slotEditor.slot] : 'item'
+                }`}
+                testID="restore-original-button"
+              />
+            ) : null}
+
+            <SecondaryButton
+              title={PRIVATE_WORKSPACE_COPY.cancelSwap}
+              onPress={closeSlotEditor}
+              accessibilityLabel="Cancel and close without changing this piece"
+              testID="cancel-swap-button"
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Comparison ──────────────────────────────────────────────────── */}
+      <Modal
+        visible={interactionsEnabled && comparing && !!comparison?.available}
+        transparent
+        animationType="slide"
+        onRequestClose={() => void closeComparison()}
+      >
+        <View style={styles.sheetBackdrop}>
+          <View style={styles.sheet} testID="comparison-view">
+            <SectionHeader
+              title={PRIVATE_COMPARISON_COPY.title}
+              subtitle={`${comparison?.leftLabel ?? ''} · ${comparison?.rightLabel ?? ''}`}
+            />
+            {/* The shared anchor is resolved ONCE and pinned, not repeated. */}
+            {comparison?.anchorRow ? (
+              <View style={styles.anchorPin} testID="comparison-anchor-pin">
+                <Text style={styles.slotName}>
+                  {PRIVATE_SLOT_LABELS[comparison.anchorRow.slot]}
+                </Text>
+                <Text style={styles.slotItem}>
+                  {closetById.get(comparison.anchorRow.left?.closetItemId ?? '')?.title ?? ''}
+                </Text>
+                <Text style={styles.lookMeta}>{PRIVATE_COMPARISON_COPY.anchorRow}</Text>
+              </View>
+            ) : null}
+
+            <ScrollView testID="comparison-rows">
+              {(comparison?.rows ?? [])
+                .filter((row) => !row.anchor)
+                .map((row) => (
+                  <View
+                    key={row.slot}
+                    style={[styles.compareRow, row.different ? styles.compareRowDifferent : null]}
+                    accessibilityLabel={[
+                      PRIVATE_SLOT_LABELS[row.slot],
+                      `${comparison?.leftLabel}: ${
+                        row.left
+                          ? closetById.get(row.left.closetItemId)?.title ?? 'unavailable'
+                          : PRIVATE_COMPARISON_COPY.missing
+                      }`,
+                      `${comparison?.rightLabel}: ${
+                        row.right
+                          ? closetById.get(row.right.closetItemId)?.title ?? 'unavailable'
+                          : PRIVATE_COMPARISON_COPY.missing
+                      }`,
+                      row.different ? PRIVATE_COMPARISON_COPY.differs : PRIVATE_COMPARISON_COPY.same,
+                    ].join(', ')}
+                    testID="comparison-row"
+                  >
+                    <Text style={styles.slotName}>{PRIVATE_SLOT_LABELS[row.slot]}</Text>
+                    <View style={isWide ? styles.compareColumnsWide : styles.compareColumns}>
+                      <Text style={styles.compareCell}>
+                        {row.left
+                          ? closetById.get(row.left.closetItemId)?.title ?? '—'
+                          : PRIVATE_COMPARISON_COPY.missing}
+                      </Text>
+                      <Text style={styles.compareCell}>
+                        {row.right
+                          ? closetById.get(row.right.closetItemId)?.title ?? '—'
+                          : PRIVATE_COMPARISON_COPY.missing}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+            </ScrollView>
+
+            <SecondaryButton
+              title={PRIVATE_COMPARISON_COPY.close}
+              onPress={() => void closeComparison()}
+              accessibilityLabel="Close the comparison"
+              testID="close-comparison-button"
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Destructive context change ──────────────────────────────────── */}
+      <Modal
+        visible={!!pendingContextChange}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelContextChange}
+      >
+        <View style={styles.sheetBackdrop}>
+          <View style={styles.sheet} testID="context-change-confirm">
+            <InlineNotice
+              variant="info"
+              title="Discard your edits?"
+              body={
+                pendingContextChange?.kind === 'anchor'
+                  ? PRIVATE_WORKSPACE_COPY.editsDiscardedAnchor
+                  : PRIVATE_WORKSPACE_COPY.editsDiscardedOccasion
+              }
+            />
+            <PrimaryButton
+              title={PRIVATE_WORKSPACE_COPY.continueChange}
+              onPress={() => void confirmContextChange()}
+              disabled={busy}
+              accessibilityLabel="Continue and discard the outfit edits"
+              testID="confirm-context-change-button"
+            />
+            <SecondaryButton
+              title={PRIVATE_WORKSPACE_COPY.keepEditing}
+              onPress={cancelContextChange}
+              accessibilityLabel="Keep my outfit edits"
+              testID="cancel-context-change-button"
+            />
+          </View>
+        </View>
+      </Modal>
     </LuxuryScreen>
   );
 }
@@ -748,4 +1177,56 @@ const styles = StyleSheet.create({
   slotName: { width: 96, fontSize: 12, color: LUXURY.colors.plum },
   slotItem: { flex: 1, fontSize: 14, color: LUXURY.colors.ink },
   usesLine: { marginTop: SPACING.md, fontSize: 13, color: LUXURY.colors.plum },
+
+  // ── Phase 3 slot editing ───────────────────────────────────────────────────
+  slotAction: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    marginLeft: SPACING.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.champagne,
+  },
+  slotActionText: { fontSize: 13, color: LUXURY.colors.plum },
+  slotLocked: { fontSize: 12, color: LUXURY.colors.plum, marginLeft: SPACING.sm },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: {
+    maxHeight: '85%',
+    padding: SPACING.lg,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  candidateList: { maxHeight: 320 },
+  candidateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.champagne,
+  },
+  candidateRowSelected: { borderColor: LUXURY.colors.plum, borderWidth: 2 },
+  candidateText: { flex: 1, marginLeft: SPACING.md },
+
+  // ── Comparison ─────────────────────────────────────────────────────────────
+  anchorPin: {
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderRadius: 12,
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  compareRow: {
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.champagne,
+  },
+  compareRowDifferent: { borderLeftWidth: 3, borderLeftColor: LUXURY.colors.plum, paddingLeft: SPACING.sm },
+  /** Phone: stacked cells. Tablet: true two columns at the SAME Phase 2 breakpoint. */
+  compareColumns: { flexDirection: 'column' },
+  compareColumnsWide: { flexDirection: 'row', justifyContent: 'space-between' },
+  compareCell: { flex: 1, fontSize: 14, color: LUXURY.colors.ink, paddingVertical: 2 },
 });

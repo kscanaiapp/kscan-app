@@ -146,10 +146,13 @@ test('the active look lists every occupied slot explicitly', () => {
 
 test('the slot name is announced BEFORE the garment name', () => {
   const detail = SOURCE.slice(SOURCE.indexOf('testID="active-look-detail"'), SOURCE.indexOf('const renderBody'));
-  assert.match(
-    detail,
-    /accessibilityLabel=\{`\$\{PRIVATE_SLOT_LABELS\[entry\.slot\]\}: \$\{[\s\S]*?\}`\}/,
-  );
+  // Phase 3 composes the label from parts (slot, anchor lock, edited state).
+  // The slot label must still lead.
+  assert.match(detail, /`\$\{PRIVATE_SLOT_LABELS\[entry\.slot\]\}: \$\{/);
+  const labelStart = detail.indexOf('accessibilityLabel={[');
+  const slotFirst = detail.indexOf('${PRIVATE_SLOT_LABELS[entry.slot]}:', labelStart);
+  const titleAfter = detail.indexOf('entry.item?.title', labelStart);
+  assert.ok(labelStart > -1 && slotFirst > -1 && titleAfter > slotFirst);
 });
 
 test('the active look states how many Closet items it uses', () => {
