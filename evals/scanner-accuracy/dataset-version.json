@@ -9,12 +9,65 @@
   },
   "seedCaseCount": 8,
   "schemaId": "dataset-manifest.schema.json",
-  "scoringContractVersion": "0.1.0",
+  "scoringContractVersion": "0.2.0",
   "experimentRecordVersion": "0.1.0",
   "regressionGateVersion": "0.1.0",
   "notes": [
     "Do not invent ground truth to inflate case count.",
-    "Paid model baseline is not authorized in Phase 0A.",
-    "Image bytes are not duplicated into evals/; only hashes and governed refs."
-  ]
+    "Paid model baseline is not authorized.",
+    "Image bytes are not duplicated into evals/; only hashes and governed refs.",
+    "scoringContractVersion advanced to 0.2.0 in Phase 0B. The scorer changed behaviour deliberately: ontology-driven comparison replaces substring matching, and an abstention against a not_visible label now scores correct instead of being dropped from the denominator. Results produced under 0.1.0 and 0.2.0 are not comparable."
+  ],
+  "pendingVersion": {
+    "datasetVersion": "0.2.0",
+    "status": "BLOCKED — NOT FROZEN",
+    "intendedCaseCount": 75,
+    "intendedDevelopmentCount": 60,
+    "intendedHoldoutCount": 15,
+    "actualAdmissibleCaseCount": 4,
+    "actualAdmissibleAfterMaskingCount": 7,
+    "shortfall": 67,
+    "freezeGate": "tools/scanner-evaluation/freeze-dataset.js",
+    "freezeGateResult": "FREEZE REFUSED",
+    "failedFreezeGates": [
+      "phase0b_case_validation",
+      "case_count",
+      "authorization_verified",
+      "two_reviewer_labeling",
+      "split_present"
+    ],
+    "blockers": [
+      {
+        "id": "DS-1",
+        "blocker": "Only 8 real apparel photographs are accessible; the target is 75.",
+        "evidence": "evals/scanner-accuracy/fixtures-inventory.v0.2.0.json",
+        "resolvedBy": "owner-approved image sourcing — see docs/scanner-accuracy/phase0b-dataset-sourcing-plan.md"
+      },
+      {
+        "id": "DS-2",
+        "blocker": "Authorization is unverified for all 8. Registration in constants/qaFixtures.js is not a licence or a use record.",
+        "evidence": "fixtures-inventory finding INV-1",
+        "resolvedBy": "owner produces a licence / provenance record per image, or replaces them"
+      },
+      {
+        "id": "DS-3",
+        "blocker": "1 of 8 is rejected on consent grounds and 3 of 8 need approved masked derivatives.",
+        "evidence": "fixtures-inventory findings INV-2 and INV-3; docs/scanner-accuracy/phase0b-privacy-retention.md",
+        "resolvedBy": "owner decision on the rejected fixture; masked derivatives produced and approved"
+      },
+      {
+        "id": "DS-4",
+        "blocker": "No reviewer is staffed, so two independent reviews, agreement measurement and adjudication cannot happen.",
+        "evidence": "evals/scanner-accuracy/labels/reviewer-assignment.json",
+        "resolvedBy": "owner assigns primary, secondary and adjudicator"
+      },
+      {
+        "id": "DS-5",
+        "blocker": "Zero multi-image same-item sets and zero exact-product-knowable cases exist in any accessible source.",
+        "evidence": "fixtures-inventory coverageGapAgainstTarget.hardestGaps",
+        "resolvedBy": "sourcing; note that exact-product measurement is additionally capped by MC-1"
+      }
+    ],
+    "whyNotFrozenAnyway": "Freezing a 4-case or 8-case manifest and calling it the first baseline would misrepresent an 8-image smoke test as a measurement dataset. The gate refuses, and no partial freeze was written."
+  }
 }

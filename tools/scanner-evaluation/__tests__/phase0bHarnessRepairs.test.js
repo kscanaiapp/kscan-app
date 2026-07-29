@@ -27,6 +27,7 @@ const {
 const { validateCase } = require('../lib/datasetValidate');
 const { splitDataset, validateSplit } = require('../lib/datasetSplit');
 const runBaseline = require('../run-baseline');
+const freezeDataset = require('../freeze-dataset');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const O = ontology.OUTCOMES;
@@ -666,6 +667,45 @@ test('synthetic cases may not carry brand or exact-product ground truth', () => 
   const result = validateCase(bad, { requirePhase0bPrivacy: true });
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => /synthetic/i.test(e.message)));
+});
+
+// ── Dataset freeze ───────────────────────────────────────────────────────────
+
+test('freeze gate refuses the current dataset and names every failing precondition', () => {
+  const evaluation = freezeDataset.evaluateFreeze(
+    path.join(ROOT, 'evals/scanner-accuracy/manifests/seed-qa-fixtures.v0.1.0.json')
+  );
+  assert.equal(evaluation.ok, false, 'an 8-case unreviewed dataset must not be freezable');
+  for (const expected of ['case_count', 'authorization_verified', 'two_reviewer_labeling', 'split_present']) {
+    assert.ok(evaluation.failedGates.includes(expected), `expected failing gate: ${expected}`);
+  }
+  // The count gate must state the shortfall rather than merely failing.
+  const countGate = evaluation.gates.find((g) => g.gate === 'case_count');
+  assert.equal(countGate.detail.required, freezeDataset.TARGET_CASE_COUNT);
+  assert.equal(countGate.detail.shortfall, freezeDataset.TARGET_CASE_COUNT - evaluation.caseCount);
+});
+
+test('freeze gate detects a dataset-version mismatch between manifest and cases', () => {
+  const dir = tmpDir('freeze-mismatch');
+  const manifestPath = path.join(dir, 'mismatch.json');
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({
+      datasetVersion: '0.2.0',
+      cases: [{ ...governedCase(), datasetVersion: '0.1.0' }],
+    }),
+    'utf8'
+  );
+  const evaluation = freezeDataset.evaluateFreeze(manifestPath);
+  assert.equal(evaluation.ok, false);
+  assert.ok(evaluation.failedGates.includes('structural_validation'));
+});
+
+test('freeze gate records a manifest hash so a frozen dataset is tamper-evident', () => {
+  const evaluation = freezeDataset.evaluateFreeze(
+    path.join(ROOT, 'evals/scanner-accuracy/manifests/seed-qa-fixtures.v0.1.0.json')
+  );
+  assert.match(evaluation.manifestSha256, /^[a-f0-9]{64}$/);
 });
 
 // ── Commerce and boundary ────────────────────────────────────────────────────
