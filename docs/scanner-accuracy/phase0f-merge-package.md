@@ -157,3 +157,43 @@ Until then the existing proof stands and no action is required.
 3. **Android: nothing to do.**
 
 Landing iOS and master converges all three lines on one containment mechanism.
+
+---
+
+## Phase 0G addendum — merge type verified
+
+Re-verified at Phase 0G opening. **All six target-SHA guards MATCH; nothing has
+drifted.**
+
+| Ref | SHA | Guard |
+|---|---|---|
+| `origin/master` | `9bb0b57ed9c4869047a795fb0544e962bc306d4a` | MATCH |
+| `release/ios-v18-build-prep` | `435e4bae1df0c6d50c22cdad42a80eb5d460ff69` | MATCH |
+| `release/android-v27-build-prep` | `37b7141431f8b33029918ce15d28d2ba422eae38` | MATCH |
+| `integration/master-qa-fixture-containment` | `08f0d0ef5aa387eac20945b64e161feaab6c04aa` | MATCH |
+| `integration/ios-qa-fixture-containment-ternary` | `70c5b7c68872110b522458a9fddf405c3cf82bab` | MATCH |
+| `fix/qa-fixture-production-containment` (superseded) | `4c7201292def6314a3982621040541bfdc000165` | MATCH |
+
+### Both merges are fast-forwards
+
+| Merge | Relationship | Behind/ahead | Changed files |
+|---|---|---|---|
+| `integration/master-qa-fixture-containment` → `master` | target **is an ancestor** | 0 / 1 | `constants/qaFixtures.js` |
+| `integration/ios-qa-fixture-containment-ternary` → `release/ios-v18-build-prep` | target **is an ancestor** | 0 / 1 | `constants/qaFixtures.js` |
+
+Consequences, and they matter for risk:
+
+1. **No conflict is possible.** A fast-forward has nothing to reconcile.
+2. **The post-merge tree is identical to the integration tip** — `12be8db1…` for
+   master, `60aff96a…` for iOS. So the export evidence already gathered *at those
+   tips* (8 → 0 in both cases) **is** the post-merge evidence. A post-merge export
+   cannot produce a different result, because it would be exporting the same tree.
+3. A post-merge export is therefore a confirmation step, not a discovery step. It
+   is still worth running once after each merge as a regression guard.
+
+### If a target advances before the merge
+
+The fast-forward property is what makes this safe, and it is exactly what a moved
+target destroys. If either target advances, the merge stops being a fast-forward
+and this evidence no longer applies: recreate the integration branch from the new
+tip, re-export, and re-run attribution before merging.
