@@ -25,6 +25,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { createControlledEliseInvoke } from './privateDressingRoomEliseQaProvider';
 import {
   evaluateResponseCurrency,
   isStaleCurrency,
@@ -69,6 +70,22 @@ const defaultInvoke: EliseInvoke = (name, options) =>
   }>;
 
 /**
+ * The provider factory. THE one place a provider is chosen.
+ *
+ * Production is the default and the fallback. The controlled QA provider can be
+ * selected only when its own dual gate holds — `__DEV__` plus an explicit
+ * process-local setting — and outside `__DEV__` its factory can only return
+ * null, so a release build has nothing to select but `defaultInvoke`. There is
+ * deliberately no environment variable here that could route production traffic
+ * anywhere: the decision lives with the QA module, which cannot exist in a
+ * release bundle.
+ */
+export function resolveEliseInvoke(): EliseInvoke {
+  const controlled = createControlledEliseInvoke();
+  return controlled ?? defaultInvoke;
+}
+
+/**
  * Sends one planned request and validates the reply against that plan.
  *
  * The response is checked with the SHARED contract validator, bound to this
@@ -82,7 +99,7 @@ export async function sendEliseRequest(input: {
   invoke?: EliseInvoke;
   timeoutMs?: number;
 }): Promise<EliseTransportOutcome> {
-  const invoke = input.invoke ?? defaultInvoke;
+  const invoke = input.invoke ?? resolveEliseInvoke();
   const timeoutMs = input.timeoutMs ?? ELISE_INVOKE_TIMEOUT_MS;
 
   const controller = new AbortController();

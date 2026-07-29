@@ -296,6 +296,11 @@ export async function askElise(
     closetItems: readonly ClosetItemProjection[];
   },
 ): Promise<EliseOutcome> {
+  // Guarded here as well as in both delegates. The flag check is a local
+  // property of every public entry point rather than something inherited, so a
+  // later refactor that does work before dispatching cannot lose it.
+  if (!deps.eliseEnabled) return { applied: false, status: IDLE_ELISE_STATUS };
+
   if (input.anchorClosetItemId) {
     return buildAroundItem(deps, {
       instruction: input.instruction,
