@@ -30,6 +30,7 @@ const { splitDataset, validateSplit } = require('../lib/datasetSplit');
 const runBaseline = require('../run-baseline');
 const freezeDataset = require('../freeze-dataset');
 const certifiedSource = require('../lib/certifiedSource');
+const trackingGuard = require('../check-build4-tracking');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const O = ontology.OUTCOMES;
@@ -798,6 +799,40 @@ test('freeze gate records a manifest hash so a frozen dataset is tamper-evident'
     path.join(ROOT, 'evals/scanner-accuracy/manifests/seed-qa-fixtures.v0.1.0.json')
   );
   assert.match(evaluation.manifestSha256, /^[a-f0-9]{64}$/);
+});
+
+// ── Build 4 tracking guard (Phase 0C Lane D) ─────────────────────────────────
+
+test('tracking guard detects the tools/ exclude hazard', () => {
+  const exclude = trackingGuard.readExcludeRules();
+  const shadowed = trackingGuard.shadowedRoots(exclude.rules);
+  // The bare `tools/` rule shadows the harness root. If this ever stops being
+  // true the guard is still correct — but the hazard note in the handoff docs
+  // would need revisiting, so the assertion is on the mechanism, not the rule.
+  assert.ok(Array.isArray(shadowed));
+  assert.ok(
+    trackingGuard.shadowedRoots(['tools/']).includes('tools/scanner-evaluation'),
+    'a bare tools/ rule must be reported as shadowing the harness root'
+  );
+  assert.deepEqual(trackingGuard.shadowedRoots(['unrelated/']), []);
+});
+
+test('tracking guard enumerates every authorized Build 4 root', () => {
+  assert.deepEqual(trackingGuard.AUTHORIZED_ROOTS, [
+    'evals/scanner-accuracy',
+    'tools/scanner-evaluation',
+    'experiments/scanner-accuracy-v2',
+    'docs/scanner-accuracy',
+  ]);
+});
+
+test('every authorized Build 4 file on disk is tracked by git', () => {
+  // This is the backstop for the exclude hazard: a clean `git status` is NOT
+  // evidence that harness work was committed.
+  const report = trackingGuard.main(['--base', 'cf39d9ac']);
+  assert.deepEqual(report.tracking.untracked, [], 'untracked authorized files must be staged with git add -f');
+  assert.deepEqual(report.boundary.outsideAuthorizedRoots, [], 'Build 4 must not change files outside its roots');
+  assert.equal(report.ok, true);
 });
 
 // ── Commerce and boundary ────────────────────────────────────────────────────

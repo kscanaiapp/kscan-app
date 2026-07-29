@@ -121,19 +121,28 @@ IFD structure disproved it, and the corrected result is recorded here.
 | outerwear.jpg | partial (jaw, mouth, chin) | none | none | owner review: mask or admit |
 | bottom_skirt.jpg | full, identifiable | none | **identifiable private dwelling** | **REJECTED** |
 
-### Rejected
+### Excluded pending provenance
 
-**`assets/qa_fixtures/bottom_skirt.jpg` — rejected, `blocked_private`.**
+**`assets/qa_fixtures/bottom_skirt.jpg` — excluded, `blocked_private`.**
 
-A candid personal photograph rather than a commercial or licensed image. The
-subject is identifiable, of indeterminate and possibly minor age, in a private
-residential interior. No model release, licence or provenance record exists.
-Consent cannot be established, so no masked derivative resolves it.
+Observable: one identifiable person, face unobscured, in an interior residential
+stairwell with identifying detail; composition characteristic of a casual
+personal photograph rather than the commercial imagery the other fixtures use.
 
-It is committed under `assets/` and is therefore a candidate for inclusion in
-shipped application bundles. Whether it currently ships, and whether it should
-be removed from the repository entirely, is an owner decision outside Phase 0B
-scope. It is recorded here because this audit is what found it.
+Unknown: source, copyright holder, licence, model release, capture date, and the
+subject's age. None of these exists in the repository.
+
+The basis for exclusion is **undocumented provenance combined with an
+identifiable person in a private setting**. Age, legal status and absence of
+permission are *not* asserted — none has been independently verified. Masking
+would address identifiability but not the provenance gap, which is why the file
+is excluded rather than remediated.
+
+Empirically confirmed to have shipped: all eight fixture md5s appear in a
+production Expo export dated 2026-07-13. The `__DEV__` gate was added on
+2026-07-28 and has not reached `origin/master` or `release/ios-v18-build-prep`.
+
+Full escalation: `docs/scanner-accuracy/phase0c-fixture-escalation.md`.
 
 ### Authorization — unresolved for all eight
 

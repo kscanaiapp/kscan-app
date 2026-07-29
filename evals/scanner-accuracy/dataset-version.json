@@ -51,9 +51,9 @@
       },
       {
         "id": "DS-3",
-        "blocker": "1 of 8 is rejected on consent grounds and 3 of 8 need approved masked derivatives.",
-        "evidence": "fixtures-inventory findings INV-2 and INV-3; docs/scanner-accuracy/phase0b-privacy-retention.md",
-        "resolvedBy": "owner decision on the rejected fixture; masked derivatives produced and approved"
+        "blocker": "1 of 8 is excluded pending provenance (INV-2) and 3 of 8 need approved masked derivatives (INV-3).",
+        "evidence": "fixtures-inventory findings INV-2 and INV-3; docs/scanner-accuracy/phase0b-privacy-retention.md; docs/scanner-accuracy/phase0c-fixture-escalation.md",
+        "resolvedBy": "owner establishes provenance for the excluded fixture or replaces it; masked derivatives produced and approved. Age and permission are not asserted — see the escalation report."
       },
       {
         "id": "DS-4",
