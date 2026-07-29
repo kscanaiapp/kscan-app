@@ -28,6 +28,21 @@ export function computeDressingRoomDedupeKey(input: {
   const roomId = clean(input.dressingRoomId);
   if (!roomId) return { key: null, strategy: null };
 
+  // CLOSET AUTHORITY FIRST. A committed Closet item may legitimately carry the
+  // scan lineage it was promoted from, but the garment's identity is the Closet
+  // record — not the scan that happened to produce it. Keying such an item by
+  // its lineage would let the same garment enter one room twice (once from the
+  // Closet, once from the scan) and would let it collide with a saved scan.
+  // This branch cannot change any pre-existing key: nothing populated
+  // `closetItemId` before this correction.
+  const closetItemId = clean(input.source.closetItemId);
+  if (closetItemId) {
+    return {
+      key: `closet:${closetItemId}:room:${roomId}`,
+      strategy: 'closet_item_id+room',
+    };
+  }
+
   const scanId = clean(input.source.scanId);
   const selectedItemId = clean(input.source.selectedItemId);
   if (scanId && selectedItemId) {

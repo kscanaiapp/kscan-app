@@ -145,3 +145,192 @@ test('legacy image contract tests still hold for storage preference', () => {
   });
   assert.equal(source.kind, 'storage');
 });
+
+// ── Canonical Closet item identity (Build 3 Phase 1, Stage 2) ────────────────
+//
+// The Build 2 device Closet is the authority for owned garments. A
+// `closet_item` therefore carries `closetItemId` and NOT a synthesized
+// `savedScanId` — the saved scan it was promoted from (if any) is lineage, not
+// identity.
+
+test('closet_item preserves closetItemId from sourceId', () => {
+  const source = contract.buildCanonicalSource({
+    sourceType: 'closet_item',
+    sourceId: 'closet-abc',
+  });
+  assert.equal(source.kind, 'closet_item');
+  assert.equal(source.closetItemId, 'closet-abc');
+});
+
+test('closet_item preserves an explicitly supplied closetItemId', () => {
+  const source = contract.buildCanonicalSource({
+    kind: 'closet_item',
+    sourceId: 'ignored-source-id',
+    closetItemId: 'closet-explicit',
+  });
+  assert.equal(source.closetItemId, 'closet-explicit');
+});
+
+test('closet_item does NOT synthesize a savedScanId', () => {
+  const source = contract.buildCanonicalSource({
+    sourceType: 'closet_item',
+    sourceId: 'closet-abc',
+  });
+  assert.equal(source.savedScanId, null);
+});
+
+test('a closet_item promoted from a saved scan keeps both, identity stays Closet', () => {
+  const source = contract.buildCanonicalSource({
+    sourceType: 'closet_item',
+    sourceId: 'closet-abc',
+    savedScanId: 'saved-lineage-1',
+  });
+  assert.equal(source.closetItemId, 'closet-abc');
+  assert.equal(source.savedScanId, 'saved-lineage-1');
+  const key = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-1', source });
+  assert.equal(key.key, 'closet:closet-abc:room:room-1');
+  assert.equal(key.strategy, 'closet_item_id+room');
+});
+
+test('saved_scan retains its savedScanId fallback behavior', () => {
+  const source = contract.buildCanonicalSource({
+    sourceType: 'style_library_scan',
+    sourceId: 'saved-1',
+  });
+  assert.equal(source.kind, 'saved_scan');
+  assert.equal(source.savedScanId, 'saved-1');
+  assert.equal(source.closetItemId, null);
+});
+
+test('product and inspiration identities are unchanged', () => {
+  const product = contract.buildCanonicalSource({
+    sourceType: 'product_match',
+    sourceId: 'prod-1',
+  });
+  assert.equal(product.kind, 'catalog_product');
+  assert.equal(product.providerProductId, 'prod-1');
+  assert.equal(product.closetItemId, null);
+  assert.equal(product.savedScanId, null);
+
+  const inspiration = contract.buildCanonicalSource({
+    sourceType: 'upload_inspiration',
+    sourceId: 'insp-1',
+  });
+  assert.equal(inspiration.kind, 'inspiration_item');
+  assert.equal(inspiration.inspirationItemId, 'insp-1');
+  assert.equal(inspiration.closetItemId, null);
+});
+
+test('scanner identities are unchanged', () => {
+  const scan = contract.buildCanonicalSource({
+    sourceType: 'live_scan',
+    sourceId: 'scan-1',
+  });
+  assert.equal(scan.kind, 'scanner_single');
+  assert.equal(scan.scanId, 'scan-1');
+  assert.equal(scan.closetItemId, null);
+});
+
+test('malformed closet identity fails closed', () => {
+  for (const bad of [null, undefined, '', '   ', 42, {}, []]) {
+    const source = contract.buildCanonicalSource({
+      sourceType: 'closet_item',
+      sourceId: bad,
+      closetItemId: bad,
+    });
+    assert.equal(source.closetItemId, null, `expected null for ${JSON.stringify(bad)}`);
+    assert.equal(source.savedScanId, null);
+    const key = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-1', source });
+    assert.equal(key.key, null);
+    assert.equal(key.strategy, null);
+  }
+});
+
+test('same Closet item in the same room dedupes to one key', () => {
+  const source = contract.buildCanonicalSource({
+    sourceType: 'closet_item',
+    sourceId: 'closet-abc',
+  });
+  const a = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-1', source });
+  const b = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-1', source });
+  assert.equal(a.key, b.key);
+  assert.equal(a.key, 'closet:closet-abc:room:room-1');
+});
+
+test('same Closet item in different rooms stays room-scoped', () => {
+  const source = contract.buildCanonicalSource({
+    sourceType: 'closet_item',
+    sourceId: 'closet-abc',
+  });
+  const a = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-1', source });
+  const b = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-2', source });
+  assert.notEqual(a.key, b.key);
+  assert.equal(b.key, 'closet:closet-abc:room:room-2');
+});
+
+test('Closet and saved-scan identities sharing an id do not collide', () => {
+  const closet = contract.buildCanonicalSource({
+    sourceType: 'closet_item',
+    sourceId: 'shared-id',
+  });
+  const saved = contract.buildCanonicalSource({
+    sourceType: 'style_library_scan',
+    sourceId: 'shared-id',
+  });
+  const closetKey = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-1', source: closet });
+  const savedKey = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: 'room-1', source: saved });
+  assert.notEqual(closetKey.key, savedKey.key);
+  assert.equal(closetKey.key, 'closet:shared-id:room:room-1');
+  assert.equal(savedKey.key, 'saved_scan:shared-id:room:room-1');
+});
+
+test('existing product and inspiration dedupe keys remain stable', () => {
+  const product = dedupe.computeDressingRoomDedupeKey({
+    dressingRoomId: 'room-1',
+    source: { kind: 'catalog_product', providerProductId: 'prod-1' },
+  });
+  assert.equal(product.key, 'product:prod-1:room:room-1');
+  assert.equal(product.strategy, 'provider_product_id+room');
+
+  const inspiration = dedupe.computeDressingRoomDedupeKey({
+    dressingRoomId: 'room-1',
+    source: { kind: 'inspiration_item', inspirationItemId: 'insp-1' },
+  });
+  assert.equal(inspiration.key, 'inspiration:insp-1:room:room-1');
+  assert.equal(inspiration.strategy, 'inspiration_item_id+room');
+});
+
+test('a missing Closet id falls through to the pre-existing strategies', () => {
+  const scan = dedupe.computeDressingRoomDedupeKey({
+    dressingRoomId: 'room-1',
+    source: { kind: 'closet_item', closetItemId: null, scanId: 'scan-1', selectedItemId: 'item-9' },
+  });
+  assert.equal(scan.key, 'scan:scan-1:item:item-9:room:room-1');
+  assert.equal(scan.strategy, 'scan_id+selected_item_id+room');
+});
+
+test('a Closet item without a room id yields no key', () => {
+  const source = contract.buildCanonicalSource({
+    sourceType: 'closet_item',
+    sourceId: 'closet-abc',
+  });
+  const key = dedupe.computeDressingRoomDedupeKey({ dressingRoomId: '', source });
+  assert.equal(key.key, null);
+  assert.equal(key.strategy, null);
+});
+
+test('collaborative add-to-room extension still builds for a Closet item', () => {
+  const extension = contract.buildCanonicalSnapshotExtension({
+    dressingRoomId: 'room-1',
+    sourceType: 'closet_item',
+    sourceId: 'closet-abc',
+    includeCommerce: false,
+    includeDedupe: true,
+  });
+  assert.equal(extension.schemaVersion, 1);
+  assert.equal(extension.source.kind, 'closet_item');
+  assert.equal(extension.source.closetItemId, 'closet-abc');
+  assert.equal(extension.source.savedScanId, null);
+  assert.equal(extension.dedupeKey, 'closet:closet-abc:room:room-1');
+  assert.equal(extension.dedupeStrategy, 'closet_item_id+room');
+});
