@@ -1,14 +1,15 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-29T01:19:23.958Z",
-    "generatedFromGitSha": "01cc4fca9d279b9a6bf85f986168e1fced329d59"
+    "generatedAtUtc": "2026-07-29T17:32:56.502Z",
+    "generatedFromGitSha": "862f3737a3ad429767512d7eaaedd2f021b3f817"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
     "approvedProjectRef": "wyyuqfdxucjksghsmhry",
     "expectedFunctions": [
       "scan-identify",
+      "style-outfit-generate",
       "stylechat-generate"
     ],
     "functions": [
@@ -21,7 +22,7 @@
         "bundleFileCount": 31,
         "treeFileCount": 39,
         "bundleHash": "9d645f5eb5bb04f22e57f7e517edf6917e0e45437dec6c1e7231a14afcd39632",
-        "treeHash": "31827147874765408e7fe3ceb1dd90990c82f754581b4276cc09ba0a6bd79e86",
+        "treeHash": "e6921e1d8a64253a1aadff93c252bce2b901a74e7d74797081baaeb68b8d6724",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -125,7 +126,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "b471d458c3fdc4c8c275c8549e2e6f37de6697e0f21f04c461e1d7b1891d3f12",
+            "sha256": "076a74ea2c1ad4199e4ddb78c01f5cfdee130517ab23fb2183bda9095076a6bf",
             "bundle": false
           },
           {
@@ -475,6 +476,59 @@
           {
             "path": "supabase/functions/stylechat-generate/visualContext.ts",
             "sha256": "88d6c12a280eb4aa7bc7f973cb20fc7001940c4838313a8b88b7f21615fc3681",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "style-outfit-generate",
+        "entry": "supabase/functions/style-outfit-generate/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2.105.4"
+        ],
+        "bundleFileCount": 6,
+        "treeFileCount": 8,
+        "bundleHash": "1ae7ba6d5d36e2c72f088eb1cd2629169594e8c0265cadd2443029591f7ba237",
+        "treeHash": "585913f392783308510c746be0585277aa78417d6981591855693b2a34b97abd",
+        "files": [
+          {
+            "path": "supabase/functions/style-outfit-generate/index.ts",
+            "sha256": "e33050039e9c078c4df3fa205638de5e1ccee6ededeb1ebf0722a64b08e2a1a9",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/modelRouting.ts",
+            "sha256": "194b6e9f540ed019a8150cf9c754ff1260912b6751800cde64211d91220866ab",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/privateDressingRoomElise.test.ts",
+            "sha256": "c963a89c261828f39e3c2200c0d7bf07d77191863b2e9a1036d5c8c7b66e994b",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.test.ts",
+            "sha256": "059181a521ea86fe5d6d99c516b7198e265ed8451639831603c0b73846468b81",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.ts",
+            "sha256": "edc1e68a178d1386d7855b32268903d300d62ccb65a9b9d225c77664fdd5030a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseHandler.ts",
+            "sha256": "f46d48ce79b56ec39f4c0b648155372ef0f7741de7fd2ff7b96ab718deb2e55c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/reasoningContract.ts",
+            "sha256": "cddc01d2eb0b0b76f0fce221d8722d3a7bf6fc03442bf13e4612e747d16a70b2",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/validation.ts",
+            "sha256": "dc12a93417747b5c5ec20a79a6fcb98aa21b0392ceb0b6b08cfc793c22fe0234",
             "bundle": true
           }
         ]
