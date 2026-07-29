@@ -13,6 +13,9 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 const ROUTE = read('app/stylist/dressing-room/index.tsx');
 const HOOK = read('hooks/usePrivateDressingRoom.ts');
+// Hydration and session teardown live in a production module the hook and the
+// lifecycle suite both call (P3-B3).
+const LIFECYCLE = read('services/privateDressingRoomLifecycle.ts');
 
 // ── Production reachability ──────────────────────────────────────────────────
 
@@ -67,12 +70,23 @@ test('every Phase 3 hook action short-circuits on the nested flag', () => {
 });
 
 test('interaction loading itself is gated at one entry point', () => {
-  const start = HOOK.indexOf('const loadInteractionFor');
-  const body = HOOK.slice(start, HOOK.indexOf('const hydrate'));
-  assert.match(body, /if \(!PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE/);
-  const guard = body.indexOf('PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE');
+  // The gate now lives in the production lifecycle module, where it can be
+  // exercised in BOTH states by the integration suite instead of being a
+  // compile-time constant no test can flip.
+  const body = LIFECYCLE.slice(
+    LIFECYCLE.indexOf('export async function loadInteractionSnapshot'),
+    LIFECYCLE.indexOf('export async function discardPrivateDressingRoomSession'),
+  );
+  const guard = body.indexOf('if (!input.interactionsEnabled');
   const load = body.indexOf('await loadInteractionState(');
-  assert.ok(guard > -1 && load > guard, 'the guard precedes any store read');
+  assert.ok(guard > -1, 'the single gate must exist');
+  assert.ok(load > guard, 'the guard precedes any store read');
+  // And the hook passes the real flag through it.
+  assert.match(
+    HOOK,
+    /interactionsEnabled: PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE/,
+    'the hook supplies the production flag',
+  );
 });
 
 test('every Phase 3 control in the route is gated on interactionsEnabled', () => {
@@ -238,15 +252,15 @@ test('a missing swapped item offers Restore Original and Choose Another', () => 
 });
 
 test('a Closet load failure is not turned into a missing-item state', () => {
-  const body = HOOK.slice(HOOK.indexOf('const loadInteractionFor'), HOOK.indexOf('const hydrate'));
-  assert.match(body, /missing: closetOk \? reconciled\.missingOverrides : \[\]/);
-  // Production hydrate must thread the typed Closet result — a default of
-  // closetOk=true would turn every Closet fault into SWAPPED_ITEM_MISSING.
-  const hydrate = HOOK.slice(HOOK.indexOf('const hydrate'), HOOK.indexOf('useFocusEffect(hydrate)'));
-  const threaded = [...hydrate.matchAll(/await loadInteractionFor\(([\s\S]*?)\);/g)];
-  assert.equal(threaded.length, 2, 'hydrate has exactly two loadInteractionFor call sites');
-  for (const [, args] of threaded) {
-    assert.match(args, /closetResult\.ok/, 'each hydrate call must pass closetResult.ok');
+  assert.match(LIFECYCLE, /input\.closetOk \? reconciled\.missingOverrides : \[\]/);
+  // Production must thread the TYPED Closet result. `closetOk` is no longer
+  // reachable as a caller-supplied value anywhere in the hydration path — the
+  // divergence that let this defect ship (P3-B3).
+  const hydrate = LIFECYCLE.slice(LIFECYCLE.indexOf('export async function hydratePrivateDressingRoom'));
+  const threaded = [...hydrate.matchAll(/closetOk: ([A-Za-z.]+)/g)].map(([, value]) => value);
+  assert.ok(threaded.length >= 1, 'hydration must thread a Closet-ok value');
+  for (const value of threaded) {
+    assert.equal(value, 'closetResult.ok', 'it must come from the typed result');
   }
 });
 
@@ -264,9 +278,17 @@ test('successful apply, restore and undo re-reconcile missing swapped items', ()
 });
 
 test('session discard clears interaction memory and deletes interaction files', () => {
-  const body = HOOK.slice(HOOK.indexOf('const discardSession'), HOOK.indexOf('const resetSession'));
-  assert.match(body, /setInteraction\(\{ \.\.\.IDLE_INTERACTION/);
+  // Memory clearing is the hook's; the persisted cleanup is the shared
+  // production sequence both the hook and the lifecycle suite run.
+  const hook = HOOK.slice(HOOK.indexOf('const endSession = useCallback'), HOOK.indexOf('const discardSession'));
+  assert.match(hook, /setInteraction\(\{ \.\.\.IDLE_INTERACTION/);
+  assert.match(hook, /discardPrivateDressingRoomSession\(/);
+  const body = LIFECYCLE.slice(
+    LIFECYCLE.indexOf('export async function discardPrivateDressingRoomSession'),
+    LIFECYCLE.indexOf('export async function hydratePrivateDressingRoom'),
+  );
   assert.match(body, /discardInteractionState/);
+  assert.match(body, /input\.interactionsEnabled/, 'Phase 3 OFF cleans up no interaction storage');
 });
 
 test('an actor transition clears Phase 3 ephemeral and pending confirmation', () => {

@@ -56,6 +56,14 @@ const coordinator = loadModule('services/privateDressingRoomCoordinator.ts');
 const projection = loadModule('services/closetItemProjection.ts');
 
 const HOOK = fs.readFileSync(path.join(ROOT, 'hooks/usePrivateDressingRoom.ts'), 'utf8');
+// The hydration ordering the hook used to contain now lives in a production
+// module that both the hook and the lifecycle suite call (P3-B3), so the
+// orchestration contract is asserted against whichever file owns each rule.
+const LIFECYCLE = fs.readFileSync(
+  path.join(ROOT, 'services/privateDressingRoomLifecycle.ts'),
+  'utf8',
+);
+const WORKSPACE = `${HOOK}\n${LIFECYCLE}`;
 
 function project(id, fields = {}) {
   return projection.getClosetItemProjection({ id, title: id, ...fields });
@@ -382,9 +390,13 @@ test('error copy states what happened without blaming or leaking internals', () 
 // ── Hook orchestration contract ──────────────────────────────────────────────
 
 test('the hook uses the TYPED Closet loader, so empty and failed stay distinct', () => {
-  assert.match(HOOK, /import \{ loadClosetTyped \} from '\.\.\/services\/closetLibrary'/);
-  assert.equal(/\bloadCloset\(/.test(HOOK), false, 'the untyped wrapper must not be used here');
-  assert.match(HOOK, /loadClosetTyped\(actorId, \{ actorRequest \}\)/);
+  assert.match(LIFECYCLE, /import \{ loadClosetTyped \} from '\.\/closetLibrary'/);
+  assert.equal(
+    /\bloadCloset\(/.test(WORKSPACE),
+    false,
+    'the untyped wrapper must not be used here',
+  );
+  assert.match(LIFECYCLE, /loadClosetTyped\(input\.actorId, \{ actorRequest: input\.actorRequest \}\)/);
 });
 
 test('a context change hides the old composition BEFORE building a replacement', () => {
@@ -396,7 +408,10 @@ test('a context change hides the old composition BEFORE building a replacement',
 });
 
 test('the replacement is published only after persistence succeeds', () => {
-  const body = HOOK.slice(HOOK.indexOf('const composeAndPersist'), HOOK.indexOf('const hydrate'));
+  const body = LIFECYCLE.slice(
+    LIFECYCLE.indexOf('export async function composeAndPersistComposition'),
+    LIFECYCLE.indexOf('export async function loadInteractionSnapshot'),
+  );
   assert.match(body, /const saved = await replaceCompositionSet\(/);
   assert.match(body, /if \(!saved\.ok\)/);
   // The success path returns the PERSISTED composition, not the composed one.
@@ -404,17 +419,24 @@ test('the replacement is published only after persistence succeeds', () => {
 });
 
 test('a valid restored composition is not recomposed', () => {
-  const body = HOOK.slice(HOOK.indexOf('const hydrate'), HOOK.indexOf('useFocusEffect(hydrate)'));
+  const body = LIFECYCLE.slice(LIFECYCLE.indexOf('export async function hydratePrivateDressingRoom'));
   assert.match(body, /RESTORE WITHOUT RECOMPOSING/);
   const restoreAt = body.indexOf('if (stored.composition)');
-  const composeAt = body.indexOf('await composeAndPersist(');
+  const composeAt = body.indexOf('await composeAndPersistComposition(');
   assert.ok(restoreAt > -1 && composeAt > restoreAt, 'restore returns before composing');
 });
 
 test('every asynchronous step revalidates the actor', () => {
-  const guards = HOOK.match(/isCurrent\(\)/g) ?? [];
+  // The hook owns the freshness predicate; the module checks it after every
+  // await. Both halves must be present.
+  const guards = WORKSPACE.match(/isCurrent\(\)/g) ?? [];
   assert.ok(guards.length >= 8, `expected pervasive actor guards, found ${guards.length}`);
   assert.match(HOOK, /isActorRequestCurrent\(actorRequest\)/);
+  assert.match(
+    HOOK,
+    /isCurrent = \(\) =>\s*live && generationRef\.current === generation && isActorRequestCurrent\(actorRequest\)/,
+    'the hook supplies the predicate the module enforces',
+  );
 });
 
 test('the actor transition effect invalidates every snapshot', () => {
@@ -439,10 +461,15 @@ test('selection never alters look contents', () => {
 });
 
 test('discarding a session does not depend on composition cleanup succeeding', () => {
-  const body = HOOK.slice(HOOK.indexOf('const discardSession'), HOOK.indexOf('const resetSession'));
+  const body = LIFECYCLE.slice(
+    LIFECYCLE.indexOf('export async function discardPrivateDressingRoomSession'),
+    LIFECYCLE.indexOf('export async function hydratePrivateDressingRoom'),
+  );
   const discardAt = body.indexOf('discardActiveSession(');
   const cleanupAt = body.indexOf('discardCompositionSet(');
   assert.ok(discardAt > -1 && cleanupAt > discardAt, 'the session discard lands first');
+  // And a throwing cleanup cannot turn a successful discard into a failure.
+  assert.match(body, /try \{\s*await discardCompositionSet/);
 });
 
 test('resetting a corrupt composition never touches the session', () => {
@@ -462,22 +489,22 @@ test('the hook never mutates the Closet or a collaborative room', () => {
     'shareLooksToRoom',
     'saveLook',
   ]) {
-    assert.equal(HOOK.includes(forbidden), false, `hook must not call ${forbidden}`);
+    assert.equal(WORKSPACE.includes(forbidden), false, `workspace must not call ${forbidden}`);
   }
 });
 
 test('the hook makes no remote call', () => {
-  const imports = HOOK.match(/^import .*$/gm) ?? [];
+  const imports = WORKSPACE.match(/^import .*$/gm) ?? [];
   for (const line of imports) {
     for (const forbidden of ['supabase', 'styleOutfits', 'outfitDecisions', 'styleObjects']) {
       assert.equal(line.includes(forbidden), false, `must not import ${forbidden}`);
     }
   }
-  assert.equal(/fetch\(|\.invoke\(/.test(HOOK), false);
+  assert.equal(/fetch\(|\.invoke\(/.test(WORKSPACE), false);
 });
 
 test('the hook reads no raw Closet manifest', () => {
-  assert.equal(HOOK.includes('FileSystem'), false);
-  assert.equal(HOOK.includes('kscan_closet'), false);
-  assert.match(HOOK, /getClosetItemProjections/);
+  assert.equal(WORKSPACE.includes('FileSystem'), false);
+  assert.equal(WORKSPACE.includes('kscan_closet'), false);
+  assert.match(LIFECYCLE, /getClosetItemProjections/, 'garments arrive only as projections');
 });

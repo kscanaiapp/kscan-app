@@ -116,6 +116,7 @@ const effective = loadModule('services/privateDressingRoomEffectiveLook.ts');
 const candidates = loadModule('services/privateDressingRoomCandidates.ts');
 const comparison = loadModule('services/privateDressingRoomComparison.ts');
 const coordinator = loadModule('services/privateDressingRoomCoordinator.ts');
+const lifecycle = loadModule('services/privateDressingRoomLifecycle.ts');
 
 const CLOSET_MANIFEST = 'file:///doc/kscan_closet/kscan_closet.json';
 const INTERACTION_MANIFEST = interactionStore.INTERACTION_MANIFEST_PATH;
@@ -168,105 +169,89 @@ function reset(actorId = 'user-a') {
 }
 
 /**
- * The hook's sequence, expressed once.
+ * THE PRODUCTION ORCHESTRATION, CALLED DIRECTLY.
  *
- * Steps 1-12 of the documented initialization: actor -> typed Closet ->
- * session -> composition -> fingerprint -> interaction -> reconcile -> derive.
- * `interactionsEnabled` models the nested flag so the OFF path can be proven.
+ * This used to be a reimplementation of the hook's ordering that also accepted
+ * `closetOk` as an argument. The Phase 3 audit found that divergence had hidden
+ * a real defect: production derived that value from the typed Closet result, so
+ * a Closet load failure became a missing-swapped-item state and no test noticed.
+ *
+ * `services/privateDressingRoomLifecycle.ts` now owns the sequence and the hook
+ * does nothing but publish what it emits, so the assertions below run the same
+ * code path the device runs. Nothing here chooses ordering, and nothing here
+ * supplies derived truth — `closetOk`, `missing`, `corrupt` and the interaction
+ * gate all come back from production.
+ *
+ * The only doubles remain the filesystem, Platform, expo-crypto and
+ * services/library.js at the media-helper boundary.
  */
-async function harness(request, { interactionsEnabled = true, closetOk = true } = {}) {
-  const closetResult = await closetLibrary.loadClosetTyped('user-a', { actorRequest: request });
-  const items = closetResult.ok ? projection.getClosetItemProjections(closetResult.items) : [];
-
-  const sessionResult = await sessionStore.loadActiveSession(request);
-  const session = sessionResult.ok ? sessionResult.session : null;
-  if (!session) return { items, session: null, composition: null, interaction: null, looks: [] };
-
-  const fingerprint = compositionSchema.buildCompositionFingerprint({
-    actorId: session.actorId,
-    sessionId: session.sessionId,
-    status: session.status,
-    anchorClosetItemId: session.anchorClosetItemId,
-    occasion: session.occasion,
+async function harness(request, { interactionsEnabled = true } = {}) {
+  const published = { closet: [], session: [], composition: [], interaction: [] };
+  const result = await lifecycle.hydratePrivateDressingRoom({
+    actorId: 'user-a',
+    actorRequest: request,
+    interactionsEnabled,
+    publish: {
+      closet: (snapshot) => published.closet.push(snapshot),
+      session: (value) => published.session.push(value),
+      composition: (snapshot) => published.composition.push(snapshot),
+      interaction: (snapshot) => published.interaction.push(snapshot),
+    },
   });
 
-  let stored = await compositionStore.loadCompositionSet(request, fingerprint);
-  let composition = stored.ok ? stored.composition : null;
-
-  if (!composition && stored.ok) {
-    const composed = composer.composePrivateOutfits({
-      session: {
-        actorId: session.actorId,
-        sessionId: session.sessionId,
-        status: session.status,
-        anchorClosetItemId: session.anchorClosetItemId,
-        occasion: session.occasion,
-      },
-      closet: { ok: closetResult.ok, items: closetResult.items },
-    });
-    if (composed.looks.length > 0) {
-      const saved = await compositionStore.replaceCompositionSet(request, {
-        sessionId: session.sessionId,
-        inputFingerprint: fingerprint,
-        looks: composed.looks,
-      });
-      composition = saved.ok ? saved.composition : null;
-    }
-  }
-  if (!composition) return { items, session, composition: null, interaction: null, looks: [] };
-
-  const context = {
-    sessionId: session.sessionId,
-    compositionId: composition.compositionId,
-    inputFingerprint: fingerprint,
-  };
-
-  // THE NESTED GATE. With interactions OFF nothing below runs.
-  if (!interactionsEnabled) {
-    return {
-      items,
-      session,
-      composition,
-      context,
-      interaction: null,
-      looks: effective.projectEffectiveLooks(composition.looks, null),
-      interactionsEnabled: false,
-    };
-  }
-
-  const loaded = await interactionStore.loadInteractionState(request, context);
-  const state = loaded.ok && !loaded.stale ? loaded.interaction : null;
-  const reconciled = state
-    ? interactionStore.reconcileInteractionState(
-        state,
-        items.map((item) => item.id),
-        composition.looks.map((look) => look.lookId),
+  const composition = result.composition.composition;
+  const state = result.interaction.state;
+  const looks = composition
+    ? effective.projectEffectiveLooks(
+        composition.looks,
+        interactionsEnabled ? effective.indexOverrides(state?.overrides ?? []) : null,
       )
-    : { missingOverrides: [], unknownLookIds: [], comparedLookIdsValid: false };
+    : [];
 
-  const looks = effective.projectEffectiveLooks(
-    composition.looks,
-    effective.indexOverrides(state?.overrides ?? []),
-  );
+  const history = state?.history ?? [];
+  const newest = history.length > 0 ? history[history.length - 1] : null;
 
   return {
-    items,
-    session,
+    published,
+    items: result.closet.items,
+    closetOk: result.closet.ok,
+    closetStatus: result.closet.status,
+    session: result.session?.ok ? result.session.session : null,
     composition,
-    context,
+    compositionStatus: result.composition.status,
+    compositionError: result.composition.errorCode,
+    context: result.context,
     interaction: state,
-    corrupt: !loaded.ok,
-    // A Closet load failure is never converted into a missing-item state.
-    missing: closetOk ? reconciled.missingOverrides : [],
+    corrupt: result.interaction.corrupt,
+    missing: result.interaction.missing,
     looks,
-    canUndo: (state?.history.length ?? 0) > 0,
+    // Derived through the SAME resolver the hook uses, so a blocked Undo is
+    // proven against production logic rather than a local reimplementation.
+    undoAvailability: coordinator.resolveUndoAvailability({
+      interactionsEnabled,
+      busy: false,
+      closetLoaded: result.closet.ok,
+      historyLength: history.length,
+      newestBeforeClosetItemId: newest?.beforeClosetItemId ?? null,
+      availableClosetItemIds: result.closet.items.map((item) => item.id),
+    }),
+    canUndo: history.length > 0,
     comparedLookIds: state?.comparedLookIds ?? [],
-    interactionsEnabled: true,
+    interactionsEnabled,
   };
 }
 
 async function startSession(request, input) {
   return sessionStore.startActiveSession(request, input);
+}
+
+/** The persisted interaction records belonging to one actor. */
+function interactionRecordsFor(actorId) {
+  const raw = files.get(INTERACTION_MANIFEST);
+  if (!raw) return [];
+  const parsed = JSON.parse(raw);
+  const records = Array.isArray(parsed) ? parsed : parsed?.records ?? [];
+  return records.filter((record) => record?.actorId === actorId);
 }
 
 function nonAnchorSlot(look, anchorId) {
@@ -644,7 +629,12 @@ test('COMPARISON LIFECYCLE: select a pair, swap a compared look, comparison upda
   const alternatives = candidates.rankSlotCandidates({
     look: left, slot, closetItems: state.items, anchorClosetItemId: 'blazer',
   });
-  if (alternatives.candidates.length === 0) return;
+  // Asserted, not skipped: without a candidate this test would silently pass
+  // having proven nothing about comparison updates.
+  assert.ok(
+    alternatives.candidates.length > 0,
+    `fixture must offer an alternative for ${slot}, got none`,
+  );
   const candidate = alternatives.candidates[0].closetItemId;
 
   await interactionStore.applySlotOverride(request, state.context, {
@@ -696,7 +686,10 @@ test('COMPARISON LIFECYCLE: a swap on a NON-compared look leaves the pair untouc
   const alternatives = candidates.rankSlotCandidates({
     look: other, slot, closetItems: state.items, anchorClosetItemId: 'blazer',
   });
-  if (alternatives.candidates.length === 0) return;
+  assert.ok(
+    alternatives.candidates.length > 0,
+    `fixture must offer an alternative for ${slot}, got none`,
+  );
   await interactionStore.applySlotOverride(request, state.context, {
     lookId: other.lookId, slot, kind: 'replace',
     beforeClosetItemId: other.items.find((i) => i.slot === slot).closetItemId,
@@ -865,7 +858,12 @@ test('MISSING ITEM: a Closet load failure is never reported as a missing swapped
   });
 
   faults.failClosetRead = true;
-  const failed = await harness(request, { closetOk: false });
+  // THE DEFECT THE OLD HARNESS HID. `closetOk` is no longer an argument: it is
+  // derived by production from the typed Closet result, so this now proves the
+  // real classification rather than a value the test supplied to itself.
+  const failed = await harness(request);
+  assert.equal(failed.closetOk, false, 'production classified the read as a fault');
+  assert.equal(failed.closetStatus, 'failed');
   assert.deepEqual(failed.missing, [], 'a fault is not a deletion');
 });
 
@@ -973,8 +971,22 @@ test('SESSION DISCARD: old edits cannot load into a new session', async () => {
     baseClosetItemId: top.closetItemId,
   });
 
-  await sessionStore.discardActiveSession(request);
-  await interactionStore.discardInteractionState(request);
+  // PRODUCTION SEQUENCE. The old harness performed the interaction cleanup
+  // itself, which is precisely why a hook that skipped it would have passed.
+  const settled = [];
+  const discarded = await lifecycle.discardPrivateDressingRoomSession({
+    actorRequest: request,
+    interactionsEnabled: true,
+    mode: 'discard',
+    onSessionSettled: (value) => settled.push(value),
+  });
+  assert.equal(settled.length, 1, 'memory is dropped as soon as the session write lands');
+  assert.equal(discarded.cleanedComposition, true, 'composition cleanup was attempted');
+  assert.equal(discarded.cleanedInteraction, true, 'interaction cleanup was attempted');
+  // Actor-scoped: the record for THIS actor is removed and the manifest is
+  // rewritten. The file itself must survive — deleting it would take another
+  // actor's edits with it.
+  assert.equal(interactionRecordsFor('user-a').length, 0, "this actor's record is gone");
 
   const afterDiscard = await harness(request);
   assert.equal(afterDiscard.session, null);
@@ -999,8 +1011,17 @@ test('SESSION DISCARD: a cleanup failure cannot resurrect the edits', async () =
     baseClosetItemId: top.closetItemId,
   });
 
-  // Discard the session and DO NOT clean up the interaction record.
-  await sessionStore.discardActiveSession(request);
+  // Discard through production with the nested gate CLOSED, so the interaction
+  // record is deliberately left behind — the flag-OFF path must not touch
+  // interaction storage even while cleaning up.
+  const discarded = await lifecycle.discardPrivateDressingRoomSession({
+    actorRequest: request,
+    interactionsEnabled: false,
+    mode: 'discard',
+  });
+  assert.equal(discarded.cleanedInteraction, false, 'Phase 3 OFF performed no interaction cleanup');
+  assert.equal(interactionRecordsFor('user-a').length, 1, 'the orphan record survives on disk');
+
   await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
   const fresh = await harness(request);
   assert.equal(fresh.interaction, null, 'identity validation hides the orphan');
@@ -1096,4 +1117,231 @@ test('the anchor slot can never be swapped through the real ranker', async () =>
   });
   assert.equal(ranked.code, 'ANCHOR_LOCKED');
   assert.deepEqual(ranked.candidates, []);
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 13.10 P3-B1: composition identity governs interaction identity
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Apply one override to the first look and return what was edited. */
+async function applyOneOverride(request, state) {
+  const look = state.looks[0];
+  const top = look.items.find((item) => item.slot === 'top');
+  assert.ok(top, 'fixture must produce a top slot to edit');
+  const applied = await interactionStore.applySlotOverride(request, state.context, {
+    lookId: look.lookId,
+    slot: 'top',
+    kind: 'replace',
+    beforeClosetItemId: top.closetItemId,
+    afterClosetItemId: 'knit',
+    baseClosetItemId: top.closetItemId,
+  });
+  assert.equal(applied.ok, true, 'the override persisted');
+  return { look, top };
+}
+
+test('P3-B1: a CONTEXT CHANGE cannot carry old edits onto the new composition', async () => {
+  reset();
+  const request = actorContext.createActorRequest();
+  await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
+  const state = await harness(request);
+  const { look } = await applyOneOverride(request, state);
+
+  const edited = await harness(request);
+  assert.ok(edited.interaction, 'the edit is live before the change');
+  assert.equal(edited.undoAvailability, 'available');
+
+  // The user changes the occasion. This is what the governed path does.
+  await sessionStore.updateActiveSession(request, { occasion: 'Evening' });
+  const after = await harness(request);
+
+  assert.ok(after.composition, 'a replacement composition exists');
+  assert.notEqual(
+    after.composition.compositionId,
+    state.composition.compositionId,
+    'the composition identity changed',
+  );
+  assert.equal(after.interaction, null, 'no interaction state attached to the new composition');
+  assert.equal(after.undoAvailability, 'empty', 'Undo is not offered for a discarded history');
+  assert.deepEqual(after.comparedLookIds, []);
+  for (const entry of after.looks) {
+    assert.equal(entry.edited, false, 'no old override renders under the new context');
+    assert.equal(entry.lookId === look.lookId, false, 'old lookIds do not survive');
+  }
+});
+
+test('P3-B1: a FAILED cleanup still cannot resurrect edits onto a new composition', async () => {
+  reset();
+  const request = actorContext.createActorRequest();
+  await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
+  const state = await harness(request);
+  await applyOneOverride(request, state);
+  assert.equal(interactionRecordsFor('user-a').length, 1);
+
+  // Change context WITHOUT discarding the interaction record, i.e. the
+  // best-effort cleanup failed. Identity validation is what has to save us.
+  await sessionStore.updateActiveSession(request, { anchorClosetItemId: 'shirt' });
+  const after = await harness(request);
+
+  assert.equal(interactionRecordsFor('user-a').length, 1, 'the orphan is still on disk');
+  assert.equal(after.interaction, null, 'but it is never loaded against the new identity');
+  for (const entry of after.looks) assert.equal(entry.edited, false);
+});
+
+test('P3-B1: an automatic REBUILD clears interaction identity', async () => {
+  reset();
+  const request = actorContext.createActorRequest();
+  await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
+  const state = await harness(request);
+  await applyOneOverride(request, state);
+
+  // A rebuild replaces the composition for the SAME session context, exactly as
+  // rebuildOutfits does after invalidating.
+  await lifecycle.composeAndPersistComposition({
+    actorRequest: request,
+    session: state.session,
+    items: state.items,
+    closetOk: true,
+  });
+  const after = await harness(request);
+
+  assert.ok(after.composition);
+  assert.notEqual(
+    after.composition.compositionId,
+    state.composition.compositionId,
+    'the rebuild produced a new composition identity',
+  );
+  assert.equal(after.interaction, null, 'edits do not follow the rebuild');
+  assert.equal(after.undoAvailability, 'empty');
+  for (const entry of after.looks) assert.equal(entry.edited, false);
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 13.11 P3-B2: a blocked Undo through the real store
+// ═════════════════════════════════════════════════════════════════════════════
+
+test('P3-B2: Undo is BLOCKED, writes nothing, and keeps the history intact', async () => {
+  reset();
+  const request = actorContext.createActorRequest();
+  await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
+  const state = await harness(request);
+  const { top } = await applyOneOverride(request, state);
+
+  const before = await harness(request);
+  assert.equal(before.undoAvailability, 'available');
+
+  // The garment the undo would put back leaves the Closet.
+  seedCloset(WARDROBE.filter((record) => record.id !== top.closetItemId));
+  const blocked = await harness(request);
+  assert.equal(
+    blocked.undoAvailability,
+    'blocked_prior_item_missing',
+    'the state is known BEFORE the user taps',
+  );
+
+  const manifestBefore = files.get(INTERACTION_MANIFEST);
+  const result = await interactionStore.undoLastSwap(request, blocked.context, {
+    availableClosetItemIds: blocked.items.map((item) => item.id),
+  });
+  assert.equal(result.resultCode, 'PRIOR_ITEM_UNAVAILABLE');
+  assert.equal(files.get(INTERACTION_MANIFEST), manifestBefore, 'NO write occurred');
+
+  const after = await harness(request);
+  assert.equal(after.interaction.history.length, 1, 'the history is intact');
+  assert.equal(after.canUndo, true, 'the operation was not consumed');
+  assert.equal(after.undoAvailability, 'blocked_prior_item_missing');
+});
+
+test('P3-B2: a blocked Undo does not skip to an OLDER operation', async () => {
+  reset();
+  const request = actorContext.createActorRequest();
+  await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
+  const state = await harness(request);
+  const look = state.looks[0];
+  const top = look.items.find((item) => item.slot === 'top');
+  const shoes = look.items.find((item) => item.slot === 'footwear');
+  assert.ok(top && shoes, 'fixture must produce a top and footwear to edit');
+
+  // Operation 1: an undoable footwear change. Pick the alternative the look is
+  // not already wearing — replacing an item with itself is a NO_OP.
+  const otherShoe = shoes.closetItemId === 'boots' ? 'loafers' : 'boots';
+  const first = await interactionStore.applySlotOverride(request, state.context, {
+    lookId: look.lookId, slot: 'footwear', kind: 'replace',
+    beforeClosetItemId: shoes.closetItemId, afterClosetItemId: otherShoe,
+    baseClosetItemId: shoes.closetItemId,
+  });
+  assert.equal(first.resultCode, 'APPLIED', `first override: ${first.resultCode}`);
+  // Operation 2 (newest): its prior item is about to disappear.
+  const second = await interactionStore.applySlotOverride(request, state.context, {
+    lookId: look.lookId, slot: 'top', kind: 'replace',
+    beforeClosetItemId: top.closetItemId, afterClosetItemId: 'knit',
+    baseClosetItemId: top.closetItemId,
+  });
+  assert.equal(second.resultCode, 'APPLIED', `second override: ${second.resultCode}`);
+
+  seedCloset(WARDROBE.filter((record) => record.id !== top.closetItemId));
+  const blocked = await harness(request);
+  assert.equal(blocked.interaction.history.length, 2);
+  assert.equal(blocked.undoAvailability, 'blocked_prior_item_missing');
+
+  const result = await interactionStore.undoLastSwap(request, blocked.context, {
+    availableClosetItemIds: blocked.items.map((item) => item.id),
+  });
+  assert.equal(result.resultCode, 'PRIOR_ITEM_UNAVAILABLE');
+
+  const after = await harness(request);
+  assert.equal(after.interaction.history.length, 2, 'neither operation was removed');
+  // The older, still-undoable footwear change was NOT reversed.
+  const footwear = after.looks
+    .find((entry) => entry.lookId === look.lookId)
+    ?.items.find((item) => item.slot === 'footwear');
+  assert.equal(footwear.closetItemId, otherShoe, 'the older operation is untouched');
+});
+
+test('P3-B2: a blocked Undo survives a restart and recovers when the item returns', async () => {
+  reset();
+  const request = actorContext.createActorRequest();
+  await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
+  const state = await harness(request);
+  const { top } = await applyOneOverride(request, state);
+
+  seedCloset(WARDROBE.filter((record) => record.id !== top.closetItemId));
+
+  // Relaunch as the same actor.
+  actorContext.advanceActorEpoch('user-a');
+  const relaunch = actorContext.createActorRequest();
+  const restarted = await harness(relaunch);
+  assert.equal(
+    restarted.undoAvailability,
+    'blocked_prior_item_missing',
+    'the blocked state is derived from persisted history, not memory',
+  );
+
+  // The garment comes back — reconciliation must re-enable Undo.
+  seedCloset(WARDROBE);
+  const recovered = await harness(relaunch);
+  assert.equal(recovered.undoAvailability, 'available');
+
+  const result = await interactionStore.undoLastSwap(relaunch, recovered.context, {
+    availableClosetItemIds: recovered.items.map((item) => item.id),
+    resolveBaseClosetItemId: () => null,
+  });
+  assert.equal(result.resultCode, 'APPLIED', 'the undo now succeeds');
+});
+
+test('P3-B2: a Closet FAULT never reports a blocked Undo', async () => {
+  reset();
+  const request = actorContext.createActorRequest();
+  await startSession(request, { anchorClosetItemId: 'blazer', occasion: 'Work' });
+  const state = await harness(request);
+  await applyOneOverride(request, state);
+
+  faults.failClosetRead = true;
+  const faulted = await harness(request);
+  assert.equal(faulted.closetOk, false);
+  assert.notEqual(
+    faulted.undoAvailability,
+    'blocked_prior_item_missing',
+    'an unreadable Closet is not evidence the prior item was deleted',
+  );
 });
