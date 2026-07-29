@@ -101,22 +101,26 @@ for the paid accuracy baseline, not for further adapter work.
 
 ## 5. Containment merge authority
 
-- [ ] Merge `fix/qa-fixture-production-containment` into `release/ios-v18-build-prep`
-- [ ] Authorize equivalent integration branches for `origin/master` and the Android release line
-- [ ] Confirm which iOS and Android branches are the **current** active release lines
+Technical status — **all resolved, nothing here is an open technical question**:
 
-Evidence: a fresh production export from `release/ios-v18-build-prep` contains
-all eight fixture images; the same export after the repair contains zero.
+| Target | Status | Evidence |
+|---|---|---|
+| master | **MERGE-READY** | `integration/master-qa-fixture-containment` `08f0d0e`, export 8 -> 0 |
+| iOS | **MERGE-READY** | `integration/ios-qa-fixture-containment-ternary` `70c5b7c`, export 8 -> 0, 1873 tests green |
+| Android | **VERIFIED CLEAN** | `37b7141` export 45 assets, 0 fixtures. No repair needed |
+| Certified adapter | **COMPLETE** | Populated V2 item through the certified path, zero external requests |
 
-`origin/master` (`9bb0b57`) and the iOS release and integration lines are all
-still ungated today. `origin/master` is 21 ahead / 284–305 behind the release
-branches, so it is **not** currently the parent of those lines — which is why the
-current active release line per platform needs owner confirmation before further
-integration branches are cut.
+All three lines now use one mechanism: the plain `__DEV__` ternary, default Metro
+config. Full detail in `phase0f-merge-package.md`.
 
-**This phase authorizes MERGE-READY only. No merge was performed.**
+Open owner decisions:
 
----
+- [ ] Authorize the **iOS** merge — `integration/ios-qa-fixture-containment-ternary` into `release/ios-v18-build-prep`, only while the target equals `435e4bae1df0c6d50c22cdad42a80eb5d460ff69`
+- [ ] Authorize the **master** merge — `integration/master-qa-fixture-containment` into `master`, only while `origin/master` equals `9bb0b57ed9c4869047a795fb0544e962bc306d4a`
+- [ ] Acknowledge that master carries **2 pre-existing test failures**, attributed over 10 isolated runs as deterministic and not caused by the containment change, and deliberately not repaired in this phase
+- [ ] Confirm disposal of the superseded branch `fix/qa-fixture-production-containment` (`4c72012`) — retained, marked DO NOT MERGE, not deleted
+
+Recommended order: iOS first (fully green, most exposed), then master.
 
 ## 6. Escalation still open
 

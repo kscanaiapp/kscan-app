@@ -333,7 +333,10 @@ async function main() {
     handlerError = error instanceof Error ? error.message : String(error);
   }
 
+  // The certified response carries the V2 result nested under
+  // `identificationV2` alongside the legacy projection, not at the top level.
   const result = payload as Json | null;
+  const v2 = (result?.identificationV2 ?? null) as Json | null;
   const report = JSON.stringify(
       {
         scenario,
@@ -343,17 +346,24 @@ async function main() {
         handlerError,
         // Redacted environment: names only, never values.
         envVarNames: envKeys,
-        observed: result
+        legacyStatus: result?.status ?? null,
+        v2Present: Boolean(v2),
+        observed: v2
           ? {
-              contractVersion: result.contractVersion ?? null,
-              status: result.status ?? null,
-              resolutionLevel: result.resolutionLevel ?? null,
-              itemCategory: (result.item as Json | undefined)?.category ?? null,
-              itemSubtype: (result.item as Json | undefined)?.subtype ?? null,
-              exactProduct: result.exactProduct ?? null,
+              contractVersion: v2.contractVersion ?? null,
+              status: v2.status ?? null,
+              resolutionLevel: v2.resolutionLevel ?? null,
+              itemCategory: (v2.item as Json | undefined)?.category ?? null,
+              itemSubtype: (v2.item as Json | undefined)?.subtype ?? null,
+              itemPrimaryColor:
+                ((v2.item as Json | undefined)?.colors as Json | undefined)?.primary ?? null,
+              itemMaterial: (v2.item as Json | undefined)?.material ?? null,
+              confidence: v2.confidence ?? null,
+              exactProduct: v2.exactProduct ?? null,
+              conflicts: v2.conflicts ?? null,
               commerceSkippedReason:
-                (result.compatibility as Json | undefined)?.commerceSkippedReason ?? null,
-              unknownReason: result.unknownReason ?? null,
+                (v2.compatibility as Json | undefined)?.commerceSkippedReason ?? null,
+              unknownReason: v2.unknownReason ?? null,
             }
           : null,
         counters,
