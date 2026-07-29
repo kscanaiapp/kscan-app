@@ -1,11 +1,11 @@
-# Scanner Accuracy Source Map — Build 4 Phase 0A
+# Scanner Accuracy Source Map â€” Build 4 Phase 0A
 
-**Research worktree:** `C:\Users\jsmit\KScan-scanner-accuracy-v2-evals`  
-**Research branch:** `research/scanner-accuracy-v2-evals`  
-**Source SHA (research base):** `4b36878798d16b925e163aae5ed7ed1e0b896198`  
+**Research worktree:** `C:\Users\jsmit\KScan-scanner-accuracy-v2-evals`
+**Research branch:** `research/scanner-accuracy-v2-evals`
+**Source SHA (research base):** `4b36878798d16b925e163aae5ed7ed1e0b896198`
 **Mapping mode:** read-only against production Scanner sources (not modified)
 
-Legend: **measured** (runtime metadata) · **statically verified** (source) · **designed** · **not tested**
+Legend: **measured** (runtime metadata) Â· **statically verified** (source) Â· **designed** Â· **not tested**
 
 ---
 
@@ -33,13 +33,13 @@ Local research SHA `4b36878` is an isolation base from Build 3 iOS tip-at-time. 
 | Content SHA256 `llmModelRouting.ts` | `4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c` |
 | Manifest `scan-identify.treeHash` (informational) | `31827147874765408e7fe3ceb1dd90990c82f754581b4276cc09ba0a6bd79e86` |
 
-**Discrepancy note:** There is no single `FUNCTION_VERSION` constant in source. Layer versions are `v120`–`v123`. Deployed Supabase function version is the integer **140**. Planning docs mentioning older integers must yield to measured version 140.
+**Discrepancy note:** There is no single `FUNCTION_VERSION` constant in source. Layer versions are `v120`â€“`v123`. Deployed Supabase function version is the integer **140**. Planning docs mentioning older integers must yield to measured version 140.
 
 ---
 
 ## Model / provider configuration (statically verified)
 
-**Provider:** Google Generative Language API (`generativelanguage.googleapis.com/v1beta`)  
+**Provider:** Google Generative Language API (`generativelanguage.googleapis.com/v1beta`)
 **Auth env:** `GEMINI_API_KEY` (never printed)
 
 From `supabase/functions/_shared/llmModelRouting.ts`:
@@ -79,7 +79,7 @@ Env rollback gates exist per layer (defaults generally ON unless explicitly disa
 
 ### Response paths
 
-- Legacy wire: `status` ∈ `{completed, non_fashion, failed}` + attributes / products / similarity
+- Legacy wire: `status` âˆˆ `{completed, non_fashion, failed}` + attributes / products / similarity
 - V2: `FashionIdentificationResultV2` with `status`, `resolutionLevel`, `item`, `confidence`, `exactProduct`, `candidates`, `unknownReason`
 
 Shared SoT: `contracts/fashion-identification-v2.schema.json` mirrored by `supabase/functions/_shared/fashionIdentificationV2.ts` and client `types/fashionIdentificationV2.ts`.
@@ -91,16 +91,16 @@ Shared SoT: `contracts/fashion-identification-v2.schema.json` mirrored by `supab
 | Concern | Current behavior |
 |---------|------------------|
 | Exact-product claims | V2 vocabulary exists; `normalizeToV2` currently forces `exactProduct: null` (does not invent precision) |
-| Similar-product claims | Live `recommendedProducts` + catalog `similarityMatches` via metadata score (≥60), not vectors |
+| Similar-product claims | Live `recommendedProducts` + catalog `similarityMatches` via metadata score (â‰¥60), not vectors |
 | Category-only / partial | V2 `partial` when category without subtype; legacy may project as `completed` |
 | Insufficient evidence | `insufficient_visual_evidence`; commerce skipped |
 | Multi-item | Detection mode returns candidates; commerce skipped until `selected_item` |
 | Multi-image | V2 allows `evidence[]` but backend rejects >1 today (`MULTIPLE_EVIDENCE_NOT_SUPPORTED`) |
 | Brand / material | Prompt + quality tune suppress speculative values; quality gate may broaden commerce queries |
-| Confidence | Global score bands High ≥0.80 / Med 0.60–0.79 / Low &lt;0.60; per-field V2 confidence mostly deferred |
+| Confidence | Global score bands High â‰¥0.80 / Med 0.60â€“0.79 / Low &lt;0.60; per-field V2 confidence mostly deferred |
 | Abstention | Prefer unknown / non_fashion / insufficient_visual_evidence over wrong certainty |
 | Duplicate products | Commerce URL/SKU dedupe; capture duplicate-in-flight blocks; no vector garment dedupe |
-| Commerce links | Cascade KicksCrew → Farfetch → Serper → Brave; relevance rerank v122 |
+| Commerce links | Cascade KicksCrew â†’ Farfetch â†’ Serper â†’ Brave; relevance rerank v122 |
 | Persistence | `scan_intelligence_events`, `scan_commerce_events` (shop intent gated) |
 | Telemetry / privacy | Scrubbed metrics; block images/base64/prompts/emails/tokens from logs |
 | Face/plate masking | Client privacy flags exist; production masking **not claimed complete** (`localFaceMaskApplied: false` literal in paths) |
@@ -125,7 +125,7 @@ Shared SoT: `contracts/fashion-identification-v2.schema.json` mirrored by `supab
 
 ## Downstream consumers
 
-Scanner → Recent Scans → Commerce shelves → Closet intake → Dressing Rooms → Elise.
+Scanner â†’ Recent Scans â†’ Commerce shelves â†’ Closet intake â†’ Dressing Rooms â†’ Elise.
 
 Scanner identity errors propagate across all of these surfaces. Build 4 evaluation remains offline and must not alter those production paths in this phase.
 
@@ -136,8 +136,8 @@ Scanner identity errors propagate across all of these surfaces. Build 4 evaluati
 | Asset | Authorization |
 |-------|---------------|
 | `assets/qa_fixtures/*.jpg` + `constants/qaFixtures.js` | Approved QA fixtures (DEV-gated); Build 4 references by hash/governed path |
-| `__tests__/fixtures/scanAccuracyCases.js` | Synthetic text proxies — not visual GT |
-| `qa/backend-quality-tune-fixtures/*` | Synthetic text — not statistical accuracy |
+| `__tests__/fixtures/scanAccuracyCases.js` | Synthetic text proxies â€” not visual GT |
+| `qa/backend-quality-tune-fixtures/*` | Synthetic text â€” not statistical accuracy |
 
 Ordinary production user images: **not authorized**.
 
