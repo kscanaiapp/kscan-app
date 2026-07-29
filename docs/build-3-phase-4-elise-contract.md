@@ -449,10 +449,10 @@ Project target, from `supabase/config.toml` and matched against the manifest's
 
     wyyuqfdxucjksghsmhry
 
-Required function environment — Phase 4 introduces **no new variable**:
-`GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and optionally
-`STYLE_OUTFIT_AI_ENABLED`, `STYLE_OUTFIT_GEMINI_MODEL`,
-`STYLE_OUTFIT_DAILY_LIMIT`, `STYLE_OUTFIT_BURST_LIMIT_PER_MINUTE`.
+Required function environment — Phase 4 introduces **no new variable**. See the
+corrected inventory in the pre-deployment section below, which also records the
+two `STYLECHAT_*` variables that are present in the shared model-routing module
+but inert in this function.
 
 Verify first — this form is a dry run and never deploys:
 
@@ -545,3 +545,302 @@ Every runtime claim requires sanitized evidence.
 - `build_around_item` is reachable only when the session already has an anchor.
   That is deliberate — Phase 4 was not permitted to add a third Build Around This
   entry point, so the existing bounded entry dispatches by anchor presence.
+
+---
+
+# Pre-deployment verification window
+
+Run 2026-07-29, after the five implementation commits were accepted. **No Edge
+Function was deployed.** `style-outfit-generate` is still `version 1`, with
+`updated_at == created_at`, confirmed at the end of the window.
+
+## 1. SHA roles, resolved from Git history
+
+| Role | iOS | Android |
+| --- | --- | --- |
+| **Implementation SHA** (five Phase 4 commits, no docs) | `7d1291b` | `12097e2` |
+| **Documentation HEAD** (adds the package document only) | `5908ea0` | `48c045c` |
+| **Previous function-source SHA** (establishing commit) | `cc62af1` | — none — |
+| Certified application baseline containing it | `a6070d8` | `af9cf96` |
+
+The branch HEAD differs from the reported source-package SHA because a sixth,
+documentation-only commit was added after certification. Verified: that commit
+touches no file under `supabase/functions/` — the complete list of commits
+touching the function after the baseline is `862f373`, `dab19a2`, `73750da`
+(iOS) / `9876040`, `4471004`, `b411203` (Android), all Phase 4 implementation
+commits.
+
+### The rollback source is proven, not assumed
+
+    DEPLOYED SOURCE BYTE COMPARISON: AVAILABLE AND PASSED
+
+`supabase functions download style-outfit-generate --use-api` returns the
+deployed source, so this did not have to rest on circumstantial evidence. The
+download was taken into a scratch directory; no worktree was touched.
+
+Deployed `version 1` contains exactly four files, and each is **byte-identical**
+to the iOS function subtree at `a6070d8`:
+
+| File | Deployed SHA-256 | vs iOS `a6070d8` | vs Android `af9cf96` |
+| --- | --- | --- | --- |
+| `index.ts` | `f8c338bf6ec374e8…` | **IDENTICAL** | DIFFERS |
+| `modelRouting.ts` | `194b6e9f540ed019…` | **IDENTICAL** | absent |
+| `reasoningContract.ts` | `cddc01d2eb0b0b76…` | **IDENTICAL** | IDENTICAL |
+| `validation.ts` | `dc12a93417747b5c…` | **IDENTICAL** | IDENTICAL |
+
+`a6070d8` is therefore **not merely an application baseline** — its function
+subtree *is* the previously deployed implementation. The subtree was established
+by `cc62af1` ("activate three approved features and fix stylist model routing"),
+and no commit between `cc62af1` and `a6070d8` touches the function, so the two
+are interchangeable as rollback sources. `cc62af1` is the narrower, more precise
+answer; `a6070d8` is the one to check out because it is also the certified
+application baseline.
+
+**Android `af9cf96` is confirmed invalid as a rollback source.** This is now a
+measurement rather than an inference.
+
+## 2. Deployment package validated against source
+
+A 63-check verification ran the package's own claims against the code:
+schema-version identity, documented request/response fields, the candidate
+allowlist, the absent-field and withheld-field claims, the candidate cap, the
+endpoint, the rollback command, and the referenced SHAs. **61 of 63 passed**, and
+every synthetic example in the package was fed through the real validators and
+accepted.
+
+The two failures were **documentation gaps, not source defects**, and are
+corrected below: `STYLECHAT_GEMINI_MODEL` and `STYLECHAT_GEMINI_FALLBACK_MODEL`
+appear in the bundle but were absent from the package's environment list.
+
+### Corrected environment inventory
+
+Every variable the deployable bundle can read, and its actual status:
+
+| Variable | Status |
+| --- | --- |
+| `SUPABASE_URL` | required — injected by the platform |
+| `SUPABASE_ANON_KEY` | required — injected by the platform |
+| `GEMINI_API_KEY` | required — owner-supplied secret, already configured |
+| `STYLE_OUTFIT_AI_ENABLED` | optional kill switch, already configured |
+| `STYLE_OUTFIT_GEMINI_MODEL` | optional, allowlist-validated |
+| `STYLE_OUTFIT_DAILY_LIMIT` | optional, defaults to 10 |
+| `STYLE_OUTFIT_BURST_LIMIT_PER_MINUTE` | optional, defaults to 3 |
+| `STYLECHAT_GEMINI_MODEL` | **inert in this function** |
+| `STYLECHAT_GEMINI_FALLBACK_MODEL` | **inert in this function** |
+
+The last two are read only by `modelRouting.ts#resolveEliseModels`, which
+`style-outfit-generate` never calls — it calls `getConfiguredModel(...,
+'STYLE_OUTFIT_GEMINI_MODEL', ...)`. They are present because the module is shared
+with `stylechat-generate`. Setting them has no effect here.
+
+**Phase 4 introduces no new environment variable.** Proven by diffing the
+variable set of the deployed v1 bundle against the candidate bundle: the two sets
+are identical.
+
+## 3. Parity and test governance, re-verified
+
+| Check | iOS | Android |
+| --- | --- | --- |
+| `generate-edge-function-manifest.js --check` | CURRENT | CURRENT |
+| `check-edge-function-parity.js` | PASS | PASS |
+| Governed functions | `scan-identify, style-outfit-generate, stylechat-generate` | same |
+| Backend Deno suite (floor 225) | 225 / 225 | 225 / 225 |
+| `deno.lock` in worktree | absent | absent |
+
+## 4. Provider mode
+
+    CONTROLLED MOCK PROVIDER — NOT AVAILABLE AT THE SERVED BOUNDARY
+    PROVIDER-DEPENDENT SUCCESS TESTS: NOT VERIFIED AT THE HTTP ENTRY POINT
+
+`GEMINI_API_BASE` is a hardcoded constant in `index.ts` with no environment
+override, so a controlled provider cannot be substituted at the served function
+boundary without modifying production source — which the governing addendum
+forbids. Provider-response handling is covered instead through the production
+`callProvider` seam in the Deno suite.
+
+**Disclosure.** Runs with the kill switch off produced **8 outbound requests** to
+`generativelanguage.googleapis.com` using an invalid placeholder key
+(`synthetic-invalid-placeholder-not-a-real-credential`). All 8 were rejected with
+`HTTP 400` at key validation — 4 initial attempts and 4 retries, matching the
+documented single-retry behaviour. No real credential was used and no real
+provider work occurred. Every payload was synthetic.
+
+## 5. Local Edge Function runtime
+
+    LOCAL FUNCTION RUNTIME: PASS
+
+The **real, unmodified** function was served under
+`supabase-edge-runtime-1.74.2` (Deno v2.1.4). Because another worktree's local
+stack already held the default ports, an isolated scratch project on shifted
+ports was used, and the six served files were hash-verified byte-identical to the
+governed worktree before serving. Auth, PostgREST and the two quota RPCs were
+real local services with a synthetic local user; no production service was
+called.
+
+**The Phase 4 module graph loads in the actual edge runtime.** This is evidence
+the Deno unit suite cannot give: a mirror can be textually perfect and still fail
+to resolve in the deployable bundle.
+
+| Case | HTTP | Body |
+| --- | --- | --- |
+| `OPTIONS` preflight | 200 | CORS |
+| missing `Authorization` | 401 | `Missing authorization` |
+| valid `interpret_occasion` | 200 | Phase 4 structured body |
+| valid `build_around_item` | 200 | Phase 4 structured body |
+| malformed candidate (`closetItemId`) | 400 | `INVALID_REQUEST` |
+| unknown intent | 400 | `INVALID_REQUEST` |
+| unknown schema version | 400 | `UNSUPPORTED_SCHEMA_VERSION` |
+| candidate count 21 (over cap) | 400 | `INVALID_REQUEST` |
+| alias from another request | 400 | `INVALID_REQUEST` |
+| raw Closet id as alias | 400 | `INVALID_REQUEST` |
+| non-anchor `lockedRefs` | 400 | `INVALID_REQUEST` |
+| provider transport failure | 200 | `safe_failure` after exactly one retry |
+| legacy `style_item` | routed to legacy path | |
+| legacy `style_event` | routed to legacy path | |
+| legacy unsupported mode | 400 | `Unsupported mode` |
+| legacy wrong `contractVersion` | 400 | `Unsupported contract version` |
+
+    LEGACY ENTRY-POINT ROUTING: PASS
+    LEGACY PROVIDER RUNTIME: NOT VERIFIED (no controlled provider)
+
+### Server wardrobe bypass — deterministic, with a positive control
+
+Scan counters were tried first and **rejected as evidence**:
+`pg_stat_user_tables` is updated asynchronously, so per-request attribution was
+unreliable — one Phase 4 request appeared to accrue a scan that belonged to the
+preceding legacy request. Presenting that would have been misleading.
+
+The decisive test instead **removed the wardrobe tables entirely**:
+
+| Request | Result with `saved_scans` and `inspiration_items` dropped |
+| --- | --- |
+| legacy `style_event` | **500** `Unable to load closet` |
+| legacy `style_item` | **500** `Unable to load closet` |
+| Phase 4 `interpret_occasion` | **200**, unaffected |
+| Phase 4 `build_around_item` | **200**, unaffected |
+| Phase 4 unknown version | **400**, unaffected |
+
+A path that cannot run without those tables fails; the Phase 4 path is
+indifferent to their existence. That is the bypass, observed rather than read.
+
+### No persistence
+
+After the full matrix, `public` contained only the seeded `profiles` table. No
+table was created and no row was inserted, updated or deleted by any Phase 4
+request. The supplied projection was not persisted.
+
+### Sanitized logging, confirmed at runtime
+
+Every Phase 4 log line carried exactly the six documented fields, e.g.
+
+    private_elise version=private-dressing-room-elise-v1 intent=build_around_item
+      req=3f9a2b1c candidates=2 durationMs=1 outcome=kill_switch
+
+Rejections logged their classification only
+(`outcome=invalid_request:invalid_candidates`). A search of the complete function
+log for the instruction text, candidate metadata, aliases and colours returned
+**zero occurrences** of each — including a request deliberately containing a venue
+name and a personal name.
+
+## 6. Android device QA
+
+    ANDROID PHASE 4 DEVICE QA: NOT VERIFIED — PRECONDITIONS UNMET
+
+Verified on `emulator-5554` (Pixel_8_Pro) against Metro started from the Android
+worktree with the Phase 4 flags in its process env and a cleared transform cache:
+
+- the app bundles and boots: **1719 modules** (Phase 3.5 baseline was 1713, so the
+  Phase 4 client modules are in the real bundle)
+- **no JS error, no LogBox overlay, no crash**
+- `sessionPresent: true` — **the Phase 3.5 authentication blocker is resolved**
+
+Three preconditions block the substantive matrix, and none is a Phase 4 defect:
+
+1. **The Closet is empty.** `kscan_closet` is absent from the app's AsyncStorage.
+   Without Closet items there is no composition, no effective look and no
+   anchor, so Make It More Casual, Build Around This, the context-change races
+   and the candidate-cap runtime check are all unreachable. Populating it means
+   either running the production intake pipeline or injecting a fixture into app
+   storage; neither was authorized for this window.
+2. **The private Dressing Room route was not reached.** Deep links via `adb`
+   (both `kscan://` and the dev-client `/--/` form) returned to Home, and the
+   `/stylist` entry (`testID="private-dressing-room-entry"`, gated on
+   `PRIVATE_DRESSING_ROOM_V1`) was not located through UI automation. This is a
+   navigation-harness limitation; it is **not** evidence that the flag gate
+   failed, and it is not evidence that it worked.
+3. **No controlled provider is reachable from the device.**
+   `EXPO_PUBLIC_SUPABASE_URL` points at production, whose `style-outfit-generate`
+   is still `version 1` and rejects Phase 4 bodies; and the app has no dev-only
+   provider-injection seam. Adding one would be exactly the "hidden environment
+   variable that can silently route production traffic to a mock" the addendum
+   prohibits, so it was not added.
+
+Consequently the following remain unverified on device: flag OFF/ON rendering
+difference, "Other…" additivity, input bounds and duplicate-submit blocking,
+clarification / unsupported / safe-failure / network-unavailable copy,
+backend-version-unavailable copy, all request-race and cancellation cases,
+Build Around This, Make It More Casual, runtime privacy inspection of the
+transport body, the large-Closet cap, and the keyboard / screen-reader /
+large-text checks.
+
+    LARGE-CLOSET RUNTIME CAP: NOT VERIFIED
+    RUNTIME PRIVACY INSPECTION (TRANSPORT BODY): NOT VERIFIED ON DEVICE
+    CLOSET BUILD AN OUTFIT ENTRY: NOT EXERCISED (Closet empty)
+
+## 7. iOS runtime
+
+    IOS PHASE 4 RUNTIME: NOT VERIFIED
+
+No macOS host or iOS simulator is available on this machine. No Android evidence
+has been reinterpreted as iOS evidence.
+
+## 8. Staging and rollback dry run
+
+    STAGING DEPLOYMENT: NOT AVAILABLE
+    ROLLBACK REDEPLOYMENT: NOT DRY-RUN TESTED
+
+The organization has two Supabase projects: `wyyuqfdxucjksghsmhry`
+(KScan App Production) and `yzqjvdfgefveprobvvyw` (K Scan Privacy Controls).
+Neither is a staging mirror for `style-outfit-generate`, and no ungoverned
+project was created. The rollback *source* is proven byte-identical to deployed
+v1, but the rollback *redeployment* has not been executed anywhere.
+
+## 9. Source changes
+
+**None.** No source defect was found by local serving, so the static
+certification from the implementation commits stands unchanged: iOS 3723/3723 and
+0 diagnostics, Android 3852/3852 and exactly 82 diagnostics, backend 225/225,
+parity PASS, exports PASS. Only this document changed.
+
+## 10. Hygiene
+
+- no temporary provider configuration, endpoint override, mock or diagnostic is
+  committed — all local QA artefacts live in the session scratchpad
+- the committed function source is identical to what was served
+- `deno.lock` absent from both worktrees
+- the Phase 4 flag appears nowhere in `eas.json` on either branch
+- both worktrees clean, 0 uncommitted, 0 unpushed
+- the local QA stack was stopped; the unrelated stack from another worktree was
+  left running and untouched
+
+## 11. Verdict
+
+    PHASE 4 PRE-DEPLOYMENT PARTIALLY CERTIFIED — DEVICE QA OUTSTANDING
+
+The stronger verdict is **not** claimed. Local Edge Function runtime passes,
+legacy routing passes through the real entry point, the rollback source is proven
+byte-for-byte, and the package now matches source — but Android Phase 4 device QA
+did not run, so the condition list for
+`PHASE 4 PRE-DEPLOYMENT CERTIFIED` is not met.
+
+To close the gap, three owner decisions are needed:
+
+1. seed or authorize seeding of a Closet on the emulator (a handful of items is
+   enough)
+2. confirm how the private Dressing Room should be reached for automated QA, or
+   accept manual navigation
+3. decide whether a governed, development-only provider-injection seam may be
+   added for controlled device QA — it is the only way to exercise the success,
+   clarification, race and cancellation paths on a device
+
+No Edge Function has been deployed.
