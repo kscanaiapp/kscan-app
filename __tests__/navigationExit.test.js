@@ -223,6 +223,10 @@ test('complete user-visible route inventory has an explicit exit classification'
     { file: 'app/looks/[id].tsx', kind: 'back-or-home' },
     { file: 'app/looks/create.tsx', kind: 'back-or-home' },
     { file: 'app/stylist/index.tsx', kind: 'back-or-home' },
+    // Private Dressing Room workspace (Build 3 Phase 1). Back-or-home so a
+    // deep link into the workspace cannot trap the user with an empty stack,
+    // which is also the Android hardware-back path.
+    { file: 'app/stylist/dressing-room/index.tsx', kind: 'back-or-home' },
     { file: 'app/text-scan/index.tsx', kind: 'back-or-home' },
     { file: 'app/(public)/rooms/[token].tsx', kind: 'back-or-home' },
     { file: 'app/style-chat/index.tsx', kind: 'home-dismiss' },
