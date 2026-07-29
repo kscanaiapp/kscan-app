@@ -38,7 +38,12 @@ import {
   SecondaryButton,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
-import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import {
+  AI_STYLIST_UI_ENABLED,
+  PRIVATE_DRESSING_ROOM_V1,
+  STYLECHAT_ATTACHMENTS_ENABLED,
+} from '../../constants/featureFlags';
+import { usePrivateDressingRoomStatus } from '../../hooks/usePrivateDressingRoom';
 import { ELISE_IDENTITY, ELISE_LOADING_COPY } from '../../constants/elise';
 import { setAttachmentHandoff } from '../../services/style-chat/styleChatAttachmentStore';
 import { STYLECHAT_ATTACHMENT_CONTRACT_VERSION } from '../../types/styleChatAttachments';
@@ -154,6 +159,7 @@ function StylistContent() {
   }>();
 
   const { items, loading: closetLoading } = useOwnedClosetItems();
+  const { hasActiveSession: hasActiveDressingRoom } = usePrivateDressingRoomStatus();
 
   const itemByKey = useMemo(() => {
     const map = new Map<string, OwnedClosetItem>();
@@ -541,6 +547,25 @@ function StylistContent() {
           disabled={generating}
           accessibilityLabel="Build a look manually"
         />
+        {/*
+          Private Dressing Room entry. Flag-gated, so no control appears at all
+          when the workspace is off. The label depends on a lightweight
+          active-session probe through the private session domain — it reads no
+          collaborative room state and mutates nothing.
+        */}
+        {PRIVATE_DRESSING_ROOM_V1 ? (
+          <SecondaryButton
+            title={hasActiveDressingRoom ? 'Resume Dressing Room' : 'Start a Dressing Room'}
+            onPress={() => router.push('/stylist/dressing-room')}
+            disabled={generating}
+            accessibilityLabel={
+              hasActiveDressingRoom
+                ? 'Resume your Dressing Room session'
+                : 'Start a Dressing Room session'
+            }
+            testID="private-dressing-room-entry"
+          />
+        ) : null}
 
         {/* Results */}
         {generating ? (
