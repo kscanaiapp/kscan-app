@@ -1,0 +1,266 @@
+{
+  "recordId": "certified-scan-identify-v140",
+  "recordVersion": "1.0.0",
+  "purpose": "Pinned identity of the certified scan-identify v140 source. Every hash here was re-derived from the git object store, not copied from the manifest. The evaluation adapter must be built from THIS tree, never from the research branch HEAD.",
+  "deployedVersion": 140,
+  "certifiedBranches": {
+    "ios": {
+      "branch": "cert/ios-phase-2b4-cross-path-v2",
+      "sha": "f5f4ed2eda4984db0658c3209fece223acd33188"
+    },
+    "android": {
+      "branch": "cert/android-phase-2b4-cross-path-v2",
+      "sha": "b9b092683352e67982dd9b84fcb4ae559794bd47"
+    }
+  },
+  "scanIdentifyTreeHash": "4db44335f853482386d7edf14b857600cb221ac2",
+  "entry": "supabase/functions/scan-identify/index.ts",
+  "remoteSpecifiers": [
+    "npm:@supabase/supabase-js@2"
+  ],
+  "bundleFileCount": 31,
+  "treeFileCount": 39,
+  "bundleHash": "28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589",
+  "treeHash": "f3eb6e60847294e430ace8a34554afd9e28e1b94110096b75a05529b39271314",
+  "hashAlgorithm": {
+    "perFile": "sha256 over raw file bytes",
+    "aggregate": "sha256 over sorted 'path:sha256\\n' entries; bundle files only for bundleHash",
+    "reproducedFrom": "scripts/edge-function-manifest-lib.js::aggregateHash (read-only)"
+  },
+  "files": [
+    {
+      "path": "supabase/functions/_shared/catalogRetrieval.ts",
+      "sha256": "36df6c3c86cbed1d4c0d8df820cc4fe95389118ed4b2222d219df36df57cfe1e",
+      "bundle": true,
+      "byteLength": 12077
+    },
+    {
+      "path": "supabase/functions/_shared/deletion/assertAccountActiveIfAuthenticated.ts",
+      "sha256": "bc8998c1f6e4fb2cd76b4a126974cdb681cb37451b041253f0558678061b8661",
+      "bundle": true,
+      "byteLength": 918
+    },
+    {
+      "path": "supabase/functions/_shared/deletion/common.ts",
+      "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+      "bundle": true,
+      "byteLength": 17381
+    },
+    {
+      "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
+      "sha256": "987bb1b8e4909eb8cadb317849ba70645543361a3b682afd4962bce45c060a5b",
+      "bundle": true,
+      "byteLength": 33083
+    },
+    {
+      "path": "supabase/functions/_shared/llmModelRouting.ts",
+      "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+      "bundle": true,
+      "byteLength": 8641
+    },
+    {
+      "path": "supabase/functions/_shared/scanHelpers.ts",
+      "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+      "bundle": true,
+      "byteLength": 25763
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceOutcomeCapture.ts",
+      "sha256": "5e4aee263402910e01f7cd7912c1e65c193d50ec4dfc7e0c09975a41bd345b8a",
+      "bundle": true,
+      "byteLength": 9130
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceOutcomeCaptureConfig.ts",
+      "sha256": "2c031579d1f9594ea3cf95b8d469b4cb1a84861772d5b7ec99a599b42aa7116a",
+      "bundle": true,
+      "byteLength": 1174
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceRelevance.test.ts",
+      "sha256": "0ede65132745ef9f54255d43cedb64bbd05daa6cc6544889ce96c8d0be002827",
+      "bundle": false,
+      "byteLength": 22254
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceRelevanceAgreement.ts",
+      "sha256": "68cf5b7915d89669c105ef7aec9c96fc816695ffa1f25af1d3c188a92a99c662",
+      "bundle": true,
+      "byteLength": 12897
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceRelevanceColorMaterial.ts",
+      "sha256": "a30ccc822b96e3a94a681a0edfc8be0d278e9b44947475f6f0140c48bfe42bcf",
+      "bundle": true,
+      "byteLength": 9616
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceRelevanceConfig.ts",
+      "sha256": "5415c9b9ce779a5121da64a7c30fdc3484cd0cc7769492d0297aa1f73c18ae17",
+      "bundle": true,
+      "byteLength": 2325
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceRelevanceDiversity.ts",
+      "sha256": "8d3594f1c83c4361053ed8814144d927e29306c07553b3e9438ac62e46f96fe6",
+      "bundle": true,
+      "byteLength": 7383
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceRelevanceFailure.ts",
+      "sha256": "43f41679b1ad7593a56da54027d0be3a7f2207d96b8f5a74ae9928591f2fbc4f",
+      "bundle": true,
+      "byteLength": 7778
+    },
+    {
+      "path": "supabase/functions/scan-identify/commerceRelevanceQueries.ts",
+      "sha256": "e211c89949dba7e4d5df7e6b7c5d68c6081633d7c505f2b81ae21c3f9a63f779",
+      "bundle": true,
+      "byteLength": 11467
+    },
+    {
+      "path": "supabase/functions/scan-identify/farfetchProvider.ts",
+      "sha256": "964d3e762e7f4270a2e6774f431ea446b49f406b9905bbcee1a7b94ed9e3cfbe",
+      "bundle": true,
+      "byteLength": 13691
+    },
+    {
+      "path": "supabase/functions/scan-identify/index.ts",
+      "sha256": "dcc7732abce278e7b90e000e388932b3041a32bb608d5b2cabeeddfc4808efc6",
+      "bundle": true,
+      "byteLength": 137335
+    },
+    {
+      "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
+      "sha256": "2ede064d186a568a0d2653862ca95a275ed26668b6c619e62b30100852d97bbf",
+      "bundle": true,
+      "byteLength": 16126
+    },
+    {
+      "path": "supabase/functions/scan-identify/multiItemGarments.test.ts",
+      "sha256": "2a5d1e21b006ff0d286e525529d97afdc701c8c9ef97b8fd75c3a42581d41076",
+      "bundle": false,
+      "byteLength": 3584
+    },
+    {
+      "path": "supabase/functions/scan-identify/multiItemGarments.ts",
+      "sha256": "6b91ff2b7978cc4a7975d0b4590e966633f1c260281c900316843c23d9260a16",
+      "bundle": true,
+      "byteLength": 7799
+    },
+    {
+      "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
+      "sha256": "b3b8ef0c9a6d540c3cfc521b56115c4412e3e04faddc4ed01e50fa87a1e54675",
+      "bundle": false,
+      "byteLength": 19335
+    },
+    {
+      "path": "supabase/functions/scan-identify/qualityTune.test.ts",
+      "sha256": "3921e646ea6a02497fe982fcd2fb68e58dd704031ba20e4f813d5e749bf0a301",
+      "bundle": false,
+      "byteLength": 9467
+    },
+    {
+      "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
+      "sha256": "b81fa7f36374740c0a8884f0ae446651f6f2c8c1d76788415a567c44296507de",
+      "bundle": true,
+      "byteLength": 22317
+    },
+    {
+      "path": "supabase/functions/scan-identify/qualityTuneConfig.ts",
+      "sha256": "a42b08d900327d3cf8d6713aef9d074d5b2680c73ae3b244b767ed814c0aff70",
+      "bundle": true,
+      "byteLength": 1378
+    },
+    {
+      "path": "supabase/functions/scan-identify/qualityTuneNormalize.ts",
+      "sha256": "04e7ced94dd2d09f7de8b3a808411b24e58eed2a529368210cb5c1af26c30713",
+      "bundle": true,
+      "byteLength": 17876
+    },
+    {
+      "path": "supabase/functions/scan-identify/qualityTuneTelemetry.ts",
+      "sha256": "1ac173e6d7771928f5462696f27732ec1331a8b2919d932f25b549b65f522b1d",
+      "bundle": true,
+      "byteLength": 10408
+    },
+    {
+      "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
+      "sha256": "eebe939ea6d4d1dd88c26b6eabf597da904e2cecc587065ed5bd7a2a3889940f",
+      "bundle": true,
+      "byteLength": 28997
+    },
+    {
+      "path": "supabase/functions/scan-identify/scanIntelligenceCapture.ts",
+      "sha256": "9e6e3f3ddef8123ab97f2a700ddd7aefc581bcd1b6600d1b9aded32b2d19f074",
+      "bundle": true,
+      "byteLength": 9306
+    },
+    {
+      "path": "supabase/functions/scan-identify/scannerCategoryRoute.ts",
+      "sha256": "27fa543783719298c1bb10c799098ed349b131c8646814a30ba6a07e515eb7a0",
+      "bundle": true,
+      "byteLength": 12411
+    },
+    {
+      "path": "supabase/functions/scan-identify/scannerIntelligence.test.ts",
+      "sha256": "a725c531f5882ccf0987258c07de2529d0b530b197b4fa76becd2c6b946e7890",
+      "bundle": false,
+      "byteLength": 14660
+    },
+    {
+      "path": "supabase/functions/scan-identify/scannerIntelligenceConfig.ts",
+      "sha256": "cff584c4617cf2e3229c262cae7e87c39a7dbc42f432fcebba65549d2da6a7b2",
+      "bundle": true,
+      "byteLength": 1499
+    },
+    {
+      "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
+      "sha256": "504c61acb73580cb8a2aeab1b33f8b1f0507cdb76d890cb0e27a80282868048c",
+      "bundle": true,
+      "byteLength": 21570
+    },
+    {
+      "path": "supabase/functions/scan-identify/selectedItemBoundary.ts",
+      "sha256": "d0c63f1a2fd4b10b81a623e077f85f0ac66eb31af37f4c8eae6088826990d7cc",
+      "bundle": false,
+      "byteLength": 1365
+    },
+    {
+      "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+      "sha256": "cac78839f76265e0687fa6512de2e473c86008107ceb42c361a08a84c18aa4c4",
+      "bundle": true,
+      "byteLength": 16407
+    },
+    {
+      "path": "supabase/functions/scan-identify/similarityMatcher.ts",
+      "sha256": "5a95c4aafbb1fbd25ff8d1b3e724ec55dbc19d9b107770303e2093d6eb192401",
+      "bundle": true,
+      "byteLength": 13246
+    },
+    {
+      "path": "supabase/functions/scan-identify/styleIntentCommerceGate.test.ts",
+      "sha256": "a2a67b30285fc5d24c58118e6d0c2e951009d3e18d1fc6ea12d6b86965bd7f31",
+      "bundle": false,
+      "byteLength": 10711
+    },
+    {
+      "path": "supabase/functions/scan-identify/textScanCommerceParityConfig.ts",
+      "sha256": "2b2ceba5790935244cbb6e8f90cd6d176e522284c4f7ee7b834be478347021de",
+      "bundle": true,
+      "byteLength": 1610
+    },
+    {
+      "path": "supabase/functions/scan-identify/textScanOutcome.v123.test.ts",
+      "sha256": "e4eeb6f27710d750c726ad9ea9ff0b434bc094982dee9928a277ab6f5ab07f96",
+      "bundle": false,
+      "byteLength": 5621
+    },
+    {
+      "path": "supabase/functions/scan-identify/v2Activation.ts",
+      "sha256": "ac11ec3af8d726b09ccb41338a906c208e85923d481497bd3199bf6f35aa9062",
+      "bundle": true,
+      "byteLength": 23302
+    }
+  ]
+}

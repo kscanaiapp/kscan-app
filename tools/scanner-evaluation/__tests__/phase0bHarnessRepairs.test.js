@@ -29,6 +29,7 @@ const { validateCase } = require('../lib/datasetValidate');
 const { splitDataset, validateSplit } = require('../lib/datasetSplit');
 const runBaseline = require('../run-baseline');
 const freezeDataset = require('../freeze-dataset');
+const certifiedSource = require('../lib/certifiedSource');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const O = ontology.OUTCOMES;
@@ -709,6 +710,55 @@ test('synthetic cases may not carry brand or exact-product ground truth', () => 
   const result = validateCase(bad, { requirePhase0bPrivacy: true });
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => /synthetic/i.test(e.message)));
+});
+
+// ── Certified v140 source (Phase 0C Lane C) ──────────────────────────────────
+
+test('certified v140 closure verifies byte-for-byte from the git object store', () => {
+  const result = certifiedSource.verifyClosure(null);
+  assert.equal(result.ok, true, JSON.stringify(result.mismatches.slice(0, 3)));
+  assert.equal(result.bundleHash, '28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589');
+  assert.equal(result.bundleFileCount, 31);
+  assert.equal(result.fileCount, 39);
+  assert.equal(result.mismatches.length, 0);
+  assert.equal(result.missing.length, 0);
+});
+
+test('the research branch is NOT the certified v140 source', () => {
+  // Phase 0B wrongly treated HEAD as the equivalence basis. It descends from the
+  // certification commit but drifted forward by the identify_for_closet work.
+  const comparison = certifiedSource.compareToCertified('HEAD');
+  assert.equal(comparison.isCertifiedSource, false);
+  assert.notEqual(comparison.candidateBundleHash, comparison.certifiedBundleHash);
+  assert.ok(
+    comparison.bundleDrift.includes('supabase/functions/_shared/fashionIdentificationV2.ts'),
+    'the contract module must be reported as drifted'
+  );
+  assert.match(comparison.verdict, /NOT the certified/);
+});
+
+test('certified source boundary properties hold', () => {
+  const result = certifiedSource.verifyCertifiedBoundaries(null);
+  assert.equal(result.ok, true);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.check, c]));
+  assert.equal(byName.commerce_gated_by_intent.ok, true);
+  assert.equal(byName.exact_product_null.ok, true);
+  assert.equal(byName.identify_for_closet_absent.ok, true);
+  assert.deepEqual(byName.intents_are_v140.observed, ['identify_and_shop', 'identify_for_style']);
+});
+
+test('a tampered certified record is detected rather than believed', () => {
+  // The record is cross-checked against re-derived hashes, so corrupting an
+  // expected hash must surface as a mismatch, not pass silently.
+  const record = certifiedSource.loadRecord();
+  const original = record.files.find((f) => f.path.endsWith('index.ts') && f.bundle);
+  assert.ok(original, 'index.ts must be in the bundle closure');
+  assert.match(original.sha256, /^[a-f0-9]{64}$/);
+  // Recomputing the aggregate with one altered entry must change the bundle hash.
+  const entries = record.files.filter((f) => f.bundle).map((f) => ({ path: f.path, sha256: f.sha256 }));
+  const tampered = entries.map((e) => (e.path === original.path ? { ...e, sha256: 'f'.repeat(64) } : e));
+  assert.notEqual(certifiedSource.aggregateHash(tampered), record.bundleHash);
+  assert.equal(certifiedSource.aggregateHash(entries), record.bundleHash);
 });
 
 // ── Dataset freeze ───────────────────────────────────────────────────────────
