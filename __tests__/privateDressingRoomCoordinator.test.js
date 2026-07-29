@@ -425,7 +425,12 @@ test('the coordinator imports nothing from the collaborative room domain', () =>
 });
 
 test('the hook never calls Closet or collaborative mutations', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'hooks/usePrivateDressingRoom.ts'), 'utf8');
+  // Hydration ordering moved into a production lifecycle module (P3-B3), so the
+  // read-only guarantee is asserted across both halves of the workspace.
+  const source = [
+    fs.readFileSync(path.join(ROOT, 'hooks/usePrivateDressingRoom.ts'), 'utf8'),
+    fs.readFileSync(path.join(ROOT, 'services/privateDressingRoomLifecycle.ts'), 'utf8'),
+  ].join('\n');
   for (const forbidden of [
     'createClosetItem',
     'updateClosetItem',

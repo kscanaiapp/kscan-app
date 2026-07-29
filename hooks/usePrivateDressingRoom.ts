@@ -21,9 +21,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { loadClosetTyped } from '../services/closetLibrary';
-import { getClosetItemProjections } from '../services/closetItemProjection';
 import type { ClosetItemProjection } from '../services/closetItemProjection';
+import {
+  composeAndPersistComposition,
+  discardPrivateDressingRoomSession,
+  hydratePrivateDressingRoom,
+  loadInteractionSnapshot,
+} from '../services/privateDressingRoomLifecycle';
 import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
@@ -34,7 +38,6 @@ import {
   applySlotOverride,
   clearComparedLooks as clearComparedLooksStore,
   discardInteractionState,
-  loadInteractionState,
   reconcileInteractionState,
   resetCorruptInteractionState,
   restoreBaseSlot,
@@ -71,25 +74,18 @@ import type { PrivateSwapResultCode } from '../types/privateDressingRoomInteract
 import type { PrivateDressingRoomSlot } from '../types/privateDressingRoomComposition';
 import { getActorContext } from '../services/actorContext';
 import {
-  discardActiveSession,
   loadActiveSession,
-  resetCorruptSession,
   startActiveSession,
   updateActiveSession,
 } from '../services/privateDressingRoomSessionStore';
 import type { PrivateSessionResult } from '../services/privateDressingRoomSessionStore';
 import {
   discardCompositionSet,
-  loadCompositionSet,
-  reconcileCompositionSet,
-  replaceCompositionSet,
   resetCorruptComposition,
   setActiveLook,
 } from '../services/privateDressingRoomCompositionStore';
 import { buildCompositionFingerprint } from '../services/privateDressingRoomCompositionSchema';
-import { composePrivateOutfits } from '../services/privateDressingRoomComposer';
 import {
-  compositionStatusForComposerCode,
   isCompositionReady,
   resolveCompositionLooks,
   resolvePrivateWorkspaceView,
@@ -332,10 +328,8 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   );
 
   /**
-   * Compose from a known-good context and persist the result.
-   *
-   * Publishing happens ONLY after persistence succeeds, so the UI can never
-   * show outfits that would vanish on the next launch.
+   * Compose and persist. A thin actor-stamping wrapper around the production
+   * lifecycle module, which owns the ordering.
    */
   const composeAndPersist = useCallback(
     async (
@@ -345,53 +339,15 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       closetOk: boolean,
       isCurrent: () => boolean,
     ): Promise<CompositionSnapshot> => {
-      const fingerprint = buildCompositionFingerprint({
-        actorId: sessionRecord.actorId,
-        sessionId: sessionRecord.sessionId,
-        status: sessionRecord.status,
-        anchorClosetItemId: sessionRecord.anchorClosetItemId,
-        occasion: sessionRecord.occasion,
-      });
-
-      const composed = composePrivateOutfits({
-        session: {
-          actorId: sessionRecord.actorId,
-          sessionId: sessionRecord.sessionId,
-          status: sessionRecord.status,
-          anchorClosetItemId: sessionRecord.anchorClosetItemId,
-          occasion: sessionRecord.occasion,
-        },
-        closet: { ok: closetOk, items },
+      const snapshot = await composeAndPersistComposition({
+        actorRequest,
+        session: sessionRecord,
+        items,
+        closetOk,
+        isCurrent,
         isActorCurrent: () => isActorRequestCurrent(actorRequest),
       });
-
-      const mapped = compositionStatusForComposerCode(composed.code);
-      if (composed.looks.length === 0) {
-        return { actorKey, ...mapped, composition: null, recovered: false };
-      }
-
-      const saved = await replaceCompositionSet(actorRequest, {
-        sessionId: sessionRecord.sessionId,
-        inputFingerprint: fingerprint,
-        looks: composed.looks,
-      });
-      if (!isCurrent()) return IDLE_COMPOSITION;
-      if (!saved.ok) {
-        return {
-          actorKey,
-          status: 'failed',
-          composition: null,
-          errorCode: 'PERSISTENCE_FAILED',
-          recovered: false,
-        };
-      }
-      return {
-        actorKey,
-        status: mapped.status,
-        composition: saved.composition,
-        errorCode: null,
-        recovered: false,
-      };
+      return { actorKey, ...snapshot };
     },
     [actorKey],
   );
@@ -399,13 +355,9 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   /**
    * Load and reconcile interaction state for a resolved composition.
    *
-   * SHORT-CIRCUITS WHEN THE NESTED FLAG IS OFF: no store read, no reconciliation,
-   * no candidate work. That is the Phase 2 view-only guarantee, enforced here at
-   * the single entry point rather than at every call site.
-   *
-   * An override is never shown before reconciliation has run, and a Closet load
-   * failure is never converted into a missing-swapped-item state — with no
-   * projections we simply cannot tell, so nothing is claimed.
+   * The gate, the reconciliation and the "a Closet fault is not a missing item"
+   * rule all live in the lifecycle module; this only stamps the actor and
+   * publishes.
    */
   const loadInteractionFor = useCallback(
     async (
@@ -417,59 +369,32 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       isCurrent: () => boolean,
       closetOk = true,
     ) => {
-      if (!PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE || !compositionRecord) {
-        setInteraction({ ...IDLE_INTERACTION, actorKey });
-        return;
-      }
-      setInteraction({ ...IDLE_INTERACTION, actorKey, loading: true });
-
-      const context: InteractionContext = {
-        sessionId: sessionRecord.sessionId,
-        compositionId: compositionRecord.compositionId,
-        inputFingerprint: fingerprint,
-      };
-      const loaded = await loadInteractionState(actorRequest, context);
-      if (!isCurrent()) return;
-
-      if (!loaded.ok) {
-        // Corrupt EDITS do not cost the user their outfits: the Phase 2
-        // composition stays exactly as it is and only Reset Edits is offered.
-        setInteraction({
-          ...IDLE_INTERACTION,
-          actorKey,
-          corrupt: true,
-        });
-        return;
-      }
-
-      const state = loaded.stale ? null : loaded.interaction;
-      const reconciled = state
-        ? reconcileInteractionState(
-            state,
-            items.map((item) => item.id),
-            compositionRecord.looks.map((look) => look.lookId),
-          )
-        : { missingOverrides: [], unknownLookIds: [], comparedLookIdsValid: false };
-
-      setInteraction({
-        actorKey,
-        state,
-        loading: false,
-        corrupt: false,
-        recovered: loaded.recovered === 'backup',
-        // Only meaningful when the Closet actually loaded.
-        missing: closetOk ? reconciled.missingOverrides : [],
+      const snapshot = await loadInteractionSnapshot({
+        actorRequest,
+        interactionsEnabled: PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE,
+        session: sessionRecord,
+        composition: compositionRecord,
+        items,
+        fingerprint,
+        closetOk,
+        isCurrent,
+        onLoading: () => setInteraction({ ...IDLE_INTERACTION, actorKey, loading: true }),
       });
+      // Null means the caller went stale mid-read; leave state untouched.
+      if (!snapshot) return;
+      setInteraction({ actorKey, ...snapshot });
     },
     [actorKey],
   );
 
   /**
-   * Read Closet, session and composition for the CURRENT actor, composing when
-   * a valid context has no current composition.
+   * Revalidate the workspace for the CURRENT actor.
    *
-   * One generation token covers all three reads, so a stale trio can never be
-   * combined with a fresh one into a view that never existed.
+   * THE ORDERING IS NOT HERE. `hydratePrivateDressingRoom` owns the sequence and
+   * every early return; this supplies the freshness predicate and publishes each
+   * stage into React state as it resolves. One generation token covers all
+   * reads, so a stale trio can never be combined with a fresh one into a view
+   * that never existed.
    */
   const hydrate = useCallback(() => {
     if (!PRIVATE_DRESSING_ROOM_V1 || actorLoading) return undefined;
@@ -484,119 +409,25 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     setSession({ actorKey, result: null });
     setComposition({ ...IDLE_COMPOSITION, actorKey, status: 'building' });
 
-    void (async () => {
-      // TYPED load: an empty Closet and a failed read are finally different
-      // things, so the workspace never shows "your Closet is empty" for a fault.
-      const closetResult = await loadClosetTyped(actorId, { actorRequest });
-      if (!isCurrent()) return;
-      const items = closetResult.ok ? getClosetItemProjections(closetResult.items) : [];
-      const status: ClosetLoadStatus = closetResult.ok ? 'loaded' : 'failed';
-      setCloset({ actorKey, status, items });
-
-      const sessionResult = await loadActiveSession(actorRequest);
-      if (!isCurrent()) return;
-      setSession({ actorKey, result: sessionResult });
-
-      const record = sessionResult.ok ? sessionResult.session : null;
-      if (!record) {
-        setComposition({ ...IDLE_COMPOSITION, actorKey });
-        setInteraction({ ...IDLE_INTERACTION, actorKey });
-        return;
-      }
-
-      const fingerprint = buildCompositionFingerprint({
-        actorId: record.actorId,
-        sessionId: record.sessionId,
-        status: record.status,
-        anchorClosetItemId: record.anchorClosetItemId,
-        occasion: record.occasion,
-      });
-
-      const stored = await loadCompositionSet(actorRequest, fingerprint);
-      if (!isCurrent()) return;
-
-      if (!stored.ok) {
-        setComposition({
-          actorKey,
-          status: 'corrupt',
-          composition: null,
-          errorCode: 'COMPOSITION_CORRUPT',
-          recovered: false,
-        });
-        setInteraction({ ...IDLE_INTERACTION, actorKey });
-        return;
-      }
-
-      const anchorMissing =
-        !!record.anchorClosetItemId && !items.some((item) => item.id === record.anchorClosetItemId);
-
-      // RESTORE WITHOUT RECOMPOSING. A valid stored composition is returned as
-      // it was left; foregrounding must not silently produce different outfits.
-      if (stored.composition) {
-        const reconciled = reconcileCompositionSet(
-          stored.composition,
-          items.map((item) => item.id),
-          record.anchorClosetItemId,
-        );
-        setComposition({
-          actorKey,
-          status: reconciled.staleLookIds.length > 0 || reconciled.anchorMissing ? 'stale' : 'ready',
-          composition: stored.composition,
-          errorCode:
-            reconciled.staleLookIds.length > 0 || reconciled.anchorMissing
-              ? 'COMPOSITION_STALE'
-              : null,
-          recovered: stored.recovered === 'backup',
-        });
-        await loadInteractionFor(
-          actorRequest,
-          record,
-          stored.composition,
-          items,
-          fingerprint,
-          isCurrent,
-          closetResult.ok,
-        );
-        return;
-      }
-
-      if (!isCompositionReady({ session: record, anchorMissing })) {
-        setComposition({
-          actorKey,
-          status: 'idle',
-          composition: null,
-          errorCode: anchorMissing ? 'ANCHOR_MISSING' : null,
-          recovered: false,
-        });
-        setInteraction({ ...IDLE_INTERACTION, actorKey });
-        return;
-      }
-
-      const next = await composeAndPersist(
-        actorRequest,
-        record,
-        items,
-        closetResult.ok,
-        isCurrent,
-      );
-      if (!isCurrent()) return;
-      setComposition(next);
-      await loadInteractionFor(
-        actorRequest,
-        record,
-        next.composition,
-        items,
-        fingerprint,
-        isCurrent,
-        closetResult.ok,
-      );
-    })();
+    void hydratePrivateDressingRoom({
+      actorId,
+      actorRequest,
+      interactionsEnabled: PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE,
+      isCurrent,
+      publish: {
+        closet: (snapshot) =>
+          setCloset({ actorKey, status: snapshot.status, items: snapshot.items }),
+        session: (result) => setSession({ actorKey, result }),
+        composition: (snapshot) => setComposition({ actorKey, ...snapshot }),
+        interaction: (snapshot) => setInteraction({ actorKey, ...snapshot }),
+      },
+    });
 
     return () => {
       live = false;
       if (generationRef.current === generation) generationRef.current += 1;
     };
-  }, [actorId, actorKey, actorLoading, composeAndPersist, loadInteractionFor]);
+  }, [actorId, actorKey, actorLoading]);
 
   // Route focus: the established route-scoped revalidation seam (useCloset.js).
   useFocusEffect(hydrate);
@@ -846,53 +677,46 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     [mutateContext],
   );
 
-  const discardSession = useCallback(async () => {
-    if (busy) return;
-    setBusy(true);
-    const actorRequest = createActorRequest();
-    try {
-      const result = await discardActiveSession(actorRequest);
-      if (!isActorRequestCurrent(actorRequest)) return;
-      setSession({ actorKey, result });
-      // The composition is already invalid by status fingerprint; cleanup is
-      // best-effort and the discard stays authoritative if it fails.
-      setComposition({ ...IDLE_COMPOSITION, actorKey });
-      setInteraction({ ...IDLE_INTERACTION, actorKey });
-      setPreview(null);
-      setSlotEditor(CLOSED_EDITOR);
-      setComparing(false);
-      setPendingContextChange(null);
-      await discardCompositionSet(actorRequest);
-      if (PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE) {
-        await discardInteractionState(actorRequest);
+  /**
+   * End the session and drop everything scoped to it.
+   *
+   * The ordering — session write, then memory, then best-effort cleanup — lives
+   * in the lifecycle module so the integration suite exercises the same
+   * sequence instead of performing the cleanup itself.
+   */
+  const endSession = useCallback(
+    async (mode: 'discard' | 'reset') => {
+      if (busy) return;
+      setBusy(true);
+      const actorRequest = createActorRequest();
+      try {
+        await discardPrivateDressingRoomSession({
+          actorRequest,
+          interactionsEnabled: PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE,
+          mode,
+          isCurrent: () => isActorRequestCurrent(actorRequest),
+          onSessionSettled: (result) => {
+            setSession({ actorKey, result });
+            // The composition is already invalid by status fingerprint; cleanup
+            // is best-effort and the discard stays authoritative if it fails.
+            setComposition({ ...IDLE_COMPOSITION, actorKey });
+            setInteraction({ ...IDLE_INTERACTION, actorKey });
+            setPreview(null);
+            setSlotEditor(CLOSED_EDITOR);
+            setComparing(false);
+            setPendingContextChange(null);
+          },
+        });
+      } finally {
+        setBusy(false);
       }
-    } finally {
-      setBusy(false);
-    }
-  }, [actorKey, busy]);
+    },
+    [actorKey, busy],
+  );
 
-  const resetSession = useCallback(async () => {
-    if (busy) return;
-    setBusy(true);
-    const actorRequest = createActorRequest();
-    try {
-      const result = await resetCorruptSession(actorRequest);
-      if (!isActorRequestCurrent(actorRequest)) return;
-      setSession({ actorKey, result });
-      setComposition({ ...IDLE_COMPOSITION, actorKey });
-      setInteraction({ ...IDLE_INTERACTION, actorKey });
-      setPreview(null);
-      setSlotEditor(CLOSED_EDITOR);
-      setComparing(false);
-      setPendingContextChange(null);
-      await discardCompositionSet(actorRequest);
-      if (PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE) {
-        await discardInteractionState(actorRequest);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }, [actorKey, busy]);
+  const discardSession = useCallback(() => endSession('discard'), [endSession]);
+
+  const resetSession = useCallback(() => endSession('reset'), [endSession]);
 
   /** Persist which option is current. Never alters a look's contents. */
   const selectLook = useCallback(
