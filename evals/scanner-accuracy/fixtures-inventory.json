@@ -1,0 +1,126 @@
+{
+  "inventoryVersion": "0.1.0",
+  "generatedAt": "2026-07-29T00:00:00.000Z",
+  "sourceSha": "4b36878798d16b925e163aae5ed7ed1e0b896198",
+  "summary": {
+    "approvedFixtureCount": 8,
+    "unauthorizedFixtureCount": 0,
+    "syntheticTextProxySources": 2,
+    "committedRawUserImages": 0
+  },
+  "approved": [
+    {
+      "fixtureId": "qa_footwear",
+      "governedRef": "assets/qa_fixtures/footwear.jpg",
+      "sha256": "sha256:8c4f330f9a966ca41ee4b1558849528bf094acfc5bfb195723c8033b8c61b3b5",
+      "byteLength": 180294,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "footwear",
+      "notes": "DEV-only QA fixture registered in constants/qaFixtures.js. Approved for internal evaluation by governed reference and hash only."
+    },
+    {
+      "fixtureId": "qa_outerwear",
+      "governedRef": "assets/qa_fixtures/outerwear.jpg",
+      "sha256": "sha256:0cf370dcccf7de4b9a0d41ed0a87ca6545e55ba99aaaab95d01cb2e4fe7b7ea0",
+      "byteLength": 318631,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "outerwear"
+    },
+    {
+      "fixtureId": "qa_top",
+      "governedRef": "assets/qa_fixtures/top.jpg",
+      "sha256": "sha256:592ede7f86ecdc99d93e6e7785123e61f4e385b79e19a727636986caf51d3677",
+      "byteLength": 51879,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "tops"
+    },
+    {
+      "fixtureId": "qa_bottom_jeans",
+      "governedRef": "assets/qa_fixtures/bottom_jeans.jpg",
+      "sha256": "sha256:04c0ca5bed1bee26e83be98b9a992619b0777811a7fb8a99fe955939334bbd8c",
+      "byteLength": 95686,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "bottoms"
+    },
+    {
+      "fixtureId": "qa_bottom_skirt",
+      "governedRef": "assets/qa_fixtures/bottom_skirt.jpg",
+      "sha256": "sha256:3488934132872918e05c6663c87322c994b84ecf989dbad865d32501b2d58ae7",
+      "byteLength": 206614,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "bottoms"
+    },
+    {
+      "fixtureId": "qa_dress",
+      "governedRef": "assets/qa_fixtures/dress.jpg",
+      "sha256": "sha256:d9e10c855e41543a906ad0c202a9403b9cea7d3d75a198ab11fecdf9710fdded",
+      "byteLength": 40008,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "dresses"
+    },
+    {
+      "fixtureId": "qa_accessory",
+      "governedRef": "assets/qa_fixtures/accessory.jpg",
+      "sha256": "sha256:2ec5f6763298d21b070e195b52cd8ec2a6343389f2bdfa1a291df5738e736fce",
+      "byteLength": 146638,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "accessories"
+    },
+    {
+      "fixtureId": "qa_non_fashion",
+      "governedRef": "assets/qa_fixtures/non_fashion.jpg",
+      "sha256": "sha256:5820e6a08b6c58e43f85072fb29d30e6489d4159cb52d4c9c50729a7475b4938",
+      "byteLength": 24483,
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "intendedCategoryHint": "non_fashion",
+      "notes": "Non-fashion control. Expected abstention / insufficient evidence for fashion identity claims."
+    }
+  ],
+  "syntheticTextProxySources": [
+    {
+      "sourceId": "scan_accuracy_cases_text_proxies",
+      "governedRef": "__tests__/fixtures/scanAccuracyCases.js",
+      "sourceClass": "synthetic_text_proxy",
+      "authorizationStatus": "synthetic_no_image",
+      "privacyDisposition": "synthetic_text_only",
+      "notes": "Text proxies only. Not visual ground truth. May seed future labeled cases after human review."
+    },
+    {
+      "sourceId": "backend_quality_tune_fixtures",
+      "governedRef": "qa/backend-quality-tune-fixtures/",
+      "sourceClass": "synthetic_text_proxy",
+      "authorizationStatus": "synthetic_no_image",
+      "privacyDisposition": "synthetic_text_only",
+      "notes": "Synthetic fashion text for deterministic quality-tune regression. Not a statistical accuracy study."
+    }
+  ],
+  "unauthorized": [],
+  "blockedPendingAuthorization": [
+    {
+      "class": "ordinary_production_user_images",
+      "status": "blocked",
+      "notes": "Not approved for Build 4 evaluation export or commit."
+    },
+    {
+      "class": "closet_corrections_live",
+      "status": "schema_only_this_phase",
+      "notes": "Correction-event schema may be designed; live import not authorized."
+    }
+  ]
+}
