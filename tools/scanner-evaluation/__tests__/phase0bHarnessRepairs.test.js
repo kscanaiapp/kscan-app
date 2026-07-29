@@ -461,21 +461,27 @@ test('multi-image: a set without reviewer same-item confirmation is not scorable
 
 // ── 4.11 Dry run and resume ──────────────────────────────────────────────────
 
-test('dry run makes zero model calls and writes zero case results', () => {
+// Phase 0H: the only manifest that exists is the Phase 0A seed, and every one of
+// its cases now references excluded_pending_provenance imagery. The runner
+// therefore fails closed at the MANIFEST gate, before planning anything. That is
+// the exclusion registry reaching all the way through the runner.
+test('dry run fails closed when every case references excluded imagery', () => {
   const dir = tmpDir('dryrun');
   const result = runBaseline.main(['--dry-run', '--output-dir', dir], {
-    executor: () => { throw new Error('executor must never be called in a dry run'); },
+    executor: () => {
+      throw new Error('executor must never be called in a dry run');
+    },
     now: '2026-07-29T00:00:00.000Z',
   });
-  assert.equal(result.mode, 'dry_run');
-  assert.equal(result.executedCallCount, 0);
-  assert.equal(result.budget.executed, 0);
-  assert.ok(result.plannedCallCount > 0, 'a dry run must still plan the call graph');
+  // main() sets process.exitCode on refusal; we assert via the return value, so
+  // clear it or the deliberate refusal would fail the whole test file.
+  process.exitCode = 0;
+  assert.equal(result.ok, false, 'a manifest of excluded imagery must not validate');
+  const excluded = (result.errors || []).filter((e) => /excluded from evaluation use/.test(e.message));
+  assert.equal(excluded.length, 8, 'all eight seed cases must be rejected');
+  // Nothing was planned, nothing executed, nothing written.
+  assert.equal(result.mode, undefined, 'the run never reached the dry-run stage');
   assert.equal(fs.existsSync(path.join(dir, runnerState.CASES_DIR)), false, 'cases/ must not be created');
-  assert.equal(result.planDocument.guarantees.modelCallsExecuted, 0);
-  assert.equal(result.planDocument.guarantees.networkCallsExecuted, 0);
-  assert.equal(result.planDocument.guarantees.persistenceWritesExecuted, 0);
-  assert.equal(result.planDocument.guarantees.commerceEnabled, false);
 });
 
 test('dry run validates hashes, authorization, privacy and expected result state', () => {
@@ -611,7 +617,7 @@ function governedCase(overrides = {}) {
   return {
     caseId: 'gov-1',
     datasetVersion: '0.2.0',
-    imageReferences: [{ refType: 'governed_qa_fixture', refValue: 'assets/qa_fixtures/top.jpg' }],
+    imageReferences: [{ refType: 'governed_object_storage', refValue: 'storage://build4-scanner-evals/gov-1/front' }],
     imageHashes: [`sha256:${'a'.repeat(64)}`],
     imageCount: 1,
     sameItemAcrossImages: 'not_applicable',

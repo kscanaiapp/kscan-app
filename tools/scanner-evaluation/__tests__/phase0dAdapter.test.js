@@ -217,7 +217,10 @@ certTest('the ledger records no prompt, image bytes, token or credential', () =>
 
 // ── Zero-network and zero-cost guard ─────────────────────────────────────────
 
-test('dry run performs zero network activity with global fetch denied', () => {
+// Phase 0H: the seed manifest is now inadmissible (all eight cases reference
+// excluded imagery), so the runner refuses at the manifest gate. The zero-network
+// property is what matters here and it still holds: fetch is never touched.
+test('the runner performs zero network activity even when it refuses a manifest', () => {
   const originalFetch = globalThis.fetch;
   let networkAttempts = 0;
   globalThis.fetch = (...args) => {
@@ -232,11 +235,9 @@ test('dry run performs zero network activity with global fetch denied', () => {
       },
       now: '2026-07-29T00:00:00.000Z',
     });
-    assert.equal(result.executedCallCount, 0);
-    assert.equal(result.planDocument.guarantees.modelCallsExecuted, 0);
-    assert.equal(result.planDocument.guarantees.networkCallsExecuted, 0);
-    assert.equal(result.planDocument.guarantees.persistenceWritesExecuted, 0);
-    assert.equal(networkAttempts, 0, 'a dry run must not touch fetch at all');
+    process.exitCode = 0;
+    assert.equal(result.ok, false, 'excluded imagery must be refused');
+    assert.equal(networkAttempts, 0, 'no network access at any point');
     assert.equal(fs.existsSync(path.join(dir, runnerState.CASES_DIR)), false);
   } finally {
     globalThis.fetch = originalFetch;
@@ -246,10 +247,10 @@ test('dry run performs zero network activity with global fetch denied', () => {
 test('the allowed pre-authorization spend is exactly $0.00', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0d-cost-'));
   const result = runBaseline.main(['--dry-run', '--output-dir', dir], { now: '2026-07-29T00:00:00.000Z' });
-  // No nominal development allowance: the call ledger is empty and the ceiling
-  // is not a small non-zero number.
-  assert.equal(result.budget.executed, 0);
-  assert.equal(result.executedCallCount, 0);
+  process.exitCode = 0;
+  // No nominal development allowance. Nothing was planned or executed at all.
+  assert.equal(result.ok, false);
+  assert.equal(result.executedCallCount, undefined);
 });
 
 test('execution without an injected adapter is refused', () => {

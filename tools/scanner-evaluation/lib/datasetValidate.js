@@ -4,6 +4,8 @@
  * Uncertainty tokens allowed on governed label fields.
  * Never invent concrete ground truth merely to fill a field.
  */
+const exclusionRegistry = require('./exclusionRegistry');
+
 const UNCERTAINTY_TOKENS = new Set(['unknown', 'not_visible', 'not_applicable']);
 
 const EXPECTED_RESULT_TYPES = new Set([
@@ -490,6 +492,13 @@ function validateCase(caseRecord, options = {}) {
   if (options.requirePhase0bPrivacy) validatePrivacyAndRetention(errors, caseRecord);
   validateReviewMetadata(errors, caseRecord, options);
   validateSyntheticRestrictions(errors, caseRecord);
+
+  // Exclusion registry is ALWAYS enforced — never behind an option flag. An
+  // excluded image must not be admissible under any validation profile.
+  for (const violation of exclusionRegistry.findExclusionViolations(caseRecord)) {
+    pushError(errors, violation.path, violation.message);
+  }
+
   return { ok: errors.length === 0, errors };
 }
 
@@ -545,6 +554,7 @@ function validateManifest(manifest, options = {}) {
 }
 
 module.exports = {
+  exclusionRegistry,
   UNCERTAINTY_TOKENS,
   EXPECTED_RESULT_TYPES,
   REQUIRED_FIELDS,

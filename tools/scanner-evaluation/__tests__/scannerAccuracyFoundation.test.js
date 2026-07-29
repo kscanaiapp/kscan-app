@@ -40,10 +40,12 @@ function baseCase(overrides = {}) {
     caseId: 'qa-test-001',
     datasetVersion: '0.1.0',
     imageReferences: [
-      { refType: 'governed_qa_fixture', refValue: 'assets/qa_fixtures/top.jpg' },
+      { refType: 'governed_qa_fixture', refValue: 'storage://build4-scanner-evals/base-1/front' },
     ],
     imageHashes: [
-      'sha256:592ede7f86ecdc99d93e6e7785123e61f4e385b79e19a727636986caf51d3677',
+      // Not a real fixture hash: the eight QA fixtures are excluded and would be
+      // rejected on the content-hash axis.
+      'sha256:1111111111111111111111111111111111111111111111111111111111111111',
     ],
     imageCount: 1,
     sameItemAcrossImages: 'not_applicable',
@@ -105,11 +107,19 @@ function completeExperiment(overrides = {}) {
   return { ...base, ...overrides, metrics: { ...base.metrics, ...(overrides.metrics || {}) } };
 }
 
-test('dataset schema validation accepts seed manifest', () => {
+// Phase 0H: every seed-manifest case references a fixture that is now
+// excluded_pending_provenance, so the manifest is correctly REJECTED. The
+// structural contract still holds — only the exclusion fires.
+test('seed manifest is rejected because its fixtures are excluded pending provenance', () => {
   const manifest = JSON.parse(fs.readFileSync(SEED_MANIFEST, 'utf8'));
   const result = validateManifest(manifest, { expectedDatasetVersion: '0.1.0' });
-  assert.equal(result.ok, true);
+  // Still parses and still yields eight structurally-valid cases...
   assert.equal(result.cases.length, 8);
+  // ...but every one is inadmissible, because all eight reference imagery that
+  // is excluded_pending_provenance. This is the intended Phase 0H outcome.
+  assert.equal(result.ok, false);
+  const excluded = result.errors.filter((e) => /excluded from evaluation use/.test(e.message));
+  assert.equal(excluded.length, 8, 'all eight seed cases must be rejected by the registry');
 });
 
 test('unknown field handling is valid on labels', () => {
