@@ -57,7 +57,11 @@ export function isNeutralColor(color?: string): boolean {
   return NEUTRAL_KEYWORDS.some((k) => lower.includes(k));
 }
 
-function colorFamily(color?: string): string | null {
+/**
+ * Exported additively so the private Dressing Room composer can reuse this
+ * vocabulary instead of declaring a parallel one. Behaviour is unchanged.
+ */
+export function colorFamily(color?: string): string | null {
   if (!color) return null;
   const lower = color.toLowerCase();
   for (const [family, keywords] of COLOR_FAMILIES) {
