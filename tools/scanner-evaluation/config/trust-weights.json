@@ -1,0 +1,79 @@
+{
+  "configId": "field-trust-weights",
+  "configVersion": "1.0.0",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "status": "PROPOSED — final blocking weights remain an owner decision after the first baseline",
+  "purpose": "Field-specific trust weighting. Every baseline report must be emitted under BOTH profiles so the weighting choice is visible rather than baked in.",
+  "profiles": {
+    "neutral": {
+      "description": "Every field weighted 1. No disposition weighted above another beyond the shared penalty multipliers. This is the control profile.",
+      "fieldWeights": {
+        "category": 1,
+        "clothingType": 1,
+        "subtype": 1,
+        "primaryColor": 1,
+        "secondaryColors": 1,
+        "material": 1,
+        "pattern": 1,
+        "brand": 1,
+        "exactProduct": 1,
+        "expectedResultType": 1,
+        "abstention": 1,
+        "nonFashion": 1
+      },
+      "dispositionMultipliers": {
+        "correct": 0,
+        "acceptably_broad": 0.25,
+        "incorrect": 1,
+        "unsupported_certainty": 1,
+        "unknown_when_evidence_exists": 1,
+        "correct_abstention": 0,
+        "incorrect_abstention": 1,
+        "under_identification": 1,
+        "unscorable": 0
+      }
+    },
+    "trust_weighted": {
+      "description": "Proposed profile. An unsupported-certainty error on brand or exact product costs more than an ordinary colour or material miss, because a confident wrong brand is the failure a user acts on and loses money to.",
+      "fieldWeights": {
+        "category": 3,
+        "clothingType": 2,
+        "subtype": 2,
+        "primaryColor": 1.5,
+        "secondaryColors": 1,
+        "material": 1.5,
+        "pattern": 1,
+        "brand": 3,
+        "exactProduct": 4,
+        "expectedResultType": 3,
+        "abstention": 3,
+        "nonFashion": 3
+      },
+      "dispositionMultipliers": {
+        "correct": 0,
+        "acceptably_broad": 0.25,
+        "incorrect": 1,
+        "unsupported_certainty": 1.75,
+        "unknown_when_evidence_exists": 0.75,
+        "correct_abstention": 0,
+        "incorrect_abstention": 1.25,
+        "under_identification": 1,
+        "unscorable": 0
+      },
+      "fieldDispositionOverrides": {
+        "_comment": "Extra multiplier applied ON TOP of the disposition multiplier, for the specific (field, disposition) pairs where trust impact is disproportionate.",
+        "brand.unsupported_certainty": 1.5,
+        "exactProduct.unsupported_certainty": 1.5,
+        "nonFashion.unsupported_certainty": 1.5
+      }
+    }
+  },
+  "rationale": {
+    "why_brand_and_exact_product_dominate": "A wrong colour is a cosmetic error the user corrects in a second. A confidently wrong brand or exact product sends the user to buy the wrong item. The asymmetry is about consequence, not about how often the field is wrong.",
+    "why_unsupported_certainty_above_incorrect": "An 'incorrect' value is a visible mistake the user can catch. 'Unsupported certainty' means the model asserted something the evidence never supported — the user has no signal that it is wrong. Trust erodes on the second kind.",
+    "why_unknown_when_evidence_exists_is_cheap": "Answering 'unknown' when the label was knowable is a missed opportunity, not a betrayal. It is penalised below an outright error on purpose, so the harness never pressures the model away from honest abstention.",
+    "why_these_exact_numbers_are_not_settled": "The magnitudes below are inherited from the Phase 0A disposition model and have NOT been validated against measured data — no baseline has run. They are a starting proposal. Publishing them as final blocking thresholds before a baseline exists would be fabricating a calibration.",
+    "ownerDecisionRequired": true
+  },
+  "reportingRule": "A baseline report that presents only one profile is non-compliant. Both profiles must appear, and any metric that changes rank order between profiles must be called out explicitly."
+}

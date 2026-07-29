@@ -240,9 +240,13 @@ test('incorrect abstention', () => {
   assert.equal(scored.disposition, DISPOSITIONS.INCORRECT_ABSTENTION);
 });
 
-test('unscorable fields when both sides uncertain', () => {
+// Phase 0B section 4.6 changed this deliberately. Phase 0A returned UNSCORABLE
+// when both sides were uncertain, which dropped the case from the denominator
+// and so flattered any model that abstained. Declining an attribute that is
+// genuinely not visible is a CORRECT answer and is now counted as one.
+test('abstention against a not_visible label is correct, not unscorable', () => {
   const scored = scoreField('pattern', 'not_visible', 'unknown');
-  assert.equal(scored.disposition, DISPOSITIONS.UNSCORABLE);
+  assert.equal(scored.disposition, DISPOSITIONS.CORRECT);
   assert.equal(scored.penalty, 0);
 });
 
