@@ -88,7 +88,17 @@ certTest('the adapter refuses to construct against a non-certified root', () => 
     () => createCertifiedAdapter({ certRoot: RESEARCH_ROOT }),
     /certified v140 source root rejected/
   );
-  assert.throws(() => createCertifiedAdapter({ argv: [] }), /certified v140 source root rejected/);
+  // With neither --cert-root nor the environment variable, construction must be
+  // refused. The env var is cleared for this assertion specifically: leaving an
+  // ambient KSCAN_CERT_V140_ROOT in place would satisfy the fallback and turn a
+  // negative test into a false failure depending on how the suite was invoked.
+  const previous = process.env.KSCAN_CERT_V140_ROOT;
+  delete process.env.KSCAN_CERT_V140_ROOT;
+  try {
+    assert.throws(() => createCertifiedAdapter({ argv: [] }), /certified v140 source root rejected/);
+  } finally {
+    if (previous !== undefined) process.env.KSCAN_CERT_V140_ROOT = previous;
+  }
 });
 
 certTest('the adapter uses the certified production model route', () => {

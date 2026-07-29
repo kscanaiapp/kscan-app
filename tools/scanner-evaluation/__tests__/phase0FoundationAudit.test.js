@@ -104,11 +104,17 @@ test('v0.3.0 dry run verifies the freeze then blocks all drafts with explicit ze
 test('execute mode refuses draft cases without writing a successful execution artifact', () => {
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0-execute-refusal-'));
   let adapterInvocations = 0;
+  // Execution is now split-scoped, so the denominator is the 33 development cases
+  // rather than all 41. A run that spanned both splits would break the holdout seal.
   const result = withStorageRoot(() => runBaseline.main([
     '--execute',
     '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
     '--output-dir', outputDir,
     '--max-calls', '0',
+    '--max-usd', '10.00',
+    '--pricing-record', 'evals/scanner-accuracy/pricing/gemini-pricing.2026-07-29.json',
+    '--split', 'development',
+    '--capture-preparation', 'certified_client_equivalent',
   ], {
     executor: () => { adapterInvocations += 1; },
     now: '2026-07-29T00:00:00.000Z',
@@ -116,7 +122,7 @@ test('execute mode refuses draft cases without writing a successful execution ar
   process.exitCode = 0;
   assert.equal(result.ok, false);
   assert.equal(result.stage, 'preflight');
-  assert.equal(result.blockedCaseCount, 41);
+  assert.equal(result.blockedCaseCount, 33);
   assert.equal(result.executedCallCount, 0);
   assert.equal(adapterInvocations, 0);
   assert.equal(fs.existsSync(path.join(outputDir, 'run-manifest.json')), false);

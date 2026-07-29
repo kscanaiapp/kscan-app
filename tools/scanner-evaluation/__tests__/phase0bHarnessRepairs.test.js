@@ -488,23 +488,27 @@ test('dry run validates hashes, authorization, privacy and expected result state
   const manifest = JSON.parse(
     fs.readFileSync(path.join(ROOT, 'evals/scanner-accuracy/manifests/seed-qa-fixtures.v0.1.0.json'), 'utf8')
   );
-  const good = runBaseline.preflightCase(manifest.cases[0]);
-  assert.equal(good.ok, true);
+  // The capture-preparation mode is declared explicitly so this test isolates the
+  // hash, authorization, privacy and result-state gates. The preparation gate
+  // itself is covered separately in phase1ExecutionGates.
+  const prepared = { capturePreparation: 'certified_client_equivalent' };
+  const good = runBaseline.preflightCase(manifest.cases[0], prepared);
+  assert.equal(good.ok, true, JSON.stringify(good.findings));
   assert.equal(good.resolvedImages.length, 1);
 
   const tampered = { ...manifest.cases[0], imageHashes: [`sha256:${'0'.repeat(64)}`] };
-  const bad = runBaseline.preflightCase(tampered);
+  const bad = runBaseline.preflightCase(tampered, prepared);
   assert.equal(bad.ok, false);
   assert.ok(bad.findings.some((f) => f.check === 'image_hash'));
 
   const unauthorized = { ...manifest.cases[0], authorizationStatus: 'pending_authorization' };
-  assert.equal(runBaseline.preflightCase(unauthorized).ok, false);
+  assert.equal(runBaseline.preflightCase(unauthorized, prepared).ok, false);
 
   const blockedPrivacy = { ...manifest.cases[0], privacyDisposition: 'blocked_private' };
-  assert.equal(runBaseline.preflightCase(blockedPrivacy).ok, false);
+  assert.equal(runBaseline.preflightCase(blockedPrivacy, prepared).ok, false);
 
   const badState = { ...manifest.cases[0], expectedResultType: 'made_up_state' };
-  assert.equal(runBaseline.preflightCase(badState).ok, false);
+  assert.equal(runBaseline.preflightCase(badState, prepared).ok, false);
 });
 
 test('the runner ships no executor, so --execute cannot make a paid call by accident', () => {

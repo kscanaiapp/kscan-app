@@ -31,6 +31,10 @@ const resultState = require('./lib/resultState');
 const fallbackTracking = require('./lib/fallbackTracking');
 const runnerState = require('./lib/runnerState');
 const { verifyFrozenDataset } = require('./lib/frozenDataset');
+const capturePreparation = require('./lib/capturePreparation');
+const costLedger = require('./lib/costLedger');
+const runIdentity = require('./lib/runIdentity');
+const providerAccounting = require('./lib/providerAccounting');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -48,6 +52,13 @@ function parseArgs(argv) {
     caseId: null,
     maxCalls: null,
     manifest: 'evals/scanner-accuracy/manifests/seed-qa-fixtures.v0.1.0.json',
+    split: null,
+    maxUsd: null,
+    pricingRecord: null,
+    holdoutSeal: null,
+    capturePreparation: null,
+    adapterId: null,
+    certifiedBundleSha256: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -73,6 +84,32 @@ function parseArgs(argv) {
         break;
       }
       case '--manifest': args.manifest = next(); break;
+      case '--split': {
+        const value = next();
+        if (!runIdentity.SPLITS.includes(value)) {
+          throw new Error(`--split must be one of ${runIdentity.SPLITS.join(', ')}, received ${value}`);
+        }
+        args.split = value;
+        break;
+      }
+      case '--max-usd': {
+        const raw = next();
+        args.maxUsd = Number(raw);
+        if (!Number.isFinite(args.maxUsd) || args.maxUsd < 0) {
+          throw new Error(`--max-usd must be a non-negative number, received ${raw}`);
+        }
+        break;
+      }
+      case '--pricing-record': args.pricingRecord = next(); break;
+      case '--holdout-seal': args.holdoutSeal = next(); break;
+      case '--capture-preparation': {
+        // Validated here so an unknown mode fails at argument parse time rather
+        // than after preflight has already resolved images.
+        args.capturePreparation = capturePreparation.resolveMode(next());
+        break;
+      }
+      case '--adapter-id': args.adapterId = next(); break;
+      case '--certified-bundle-sha256': args.certifiedBundleSha256 = next(); break;
       case '--help': args.help = true; break;
       default:
         throw new Error(`unknown argument: ${arg}`);
@@ -128,8 +165,9 @@ function resolveImageRef(refValue) {
  * Validate one governed case without calling anything.
  * Every check here is a gate: a case that fails is never executed.
  */
-function preflightCase(caseRecord) {
+function preflightCase(caseRecord, options = {}) {
   const findings = [];
+  const preparationMode = capturePreparation.resolveMode(options.capturePreparation);
   const refs = Array.isArray(caseRecord.imageReferences) ? caseRecord.imageReferences : [];
   const hashes = Array.isArray(caseRecord.imageHashes) ? caseRecord.imageHashes : [];
 
@@ -163,7 +201,24 @@ function preflightCase(caseRecord) {
       });
       return;
     }
-    resolvedImages.push({ refValue: ref.refValue, refType: ref.refType, hash: actual, byteLength: fs.statSync(absolute).size });
+    const byteLength = fs.statSync(absolute).size;
+
+    // The certified path rejects an oversized base64 payload BEFORE calling the
+    // provider, and the production client never posts an original. Both are
+    // checked here so neither can quietly become a "Scanner failure".
+    const payload = capturePreparation.evaluateImage(
+      { byteLength, refValue: ref.refValue },
+      { mode: preparationMode }
+    );
+    for (const finding of payload.findings) findings.push(finding);
+
+    resolvedImages.push({
+      refValue: ref.refValue,
+      refType: ref.refType,
+      hash: actual,
+      byteLength,
+      base64Length: payload.base64Length,
+    });
   });
 
   const approved = new Set(['approved_internal_eval', 'approved_qa_fixture']);
@@ -200,6 +255,7 @@ function preflightCase(caseRecord) {
     ok: findings.every((f) => f.severity !== 'blocking'),
     findings,
     resolvedImages,
+    capturePreparationMode: preparationMode,
   };
 }
 
@@ -303,7 +359,77 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   const outputDir = args.outputDir ? path.resolve(args.outputDir) : null;
   if (args.execute && !outputDir) throw new Error('--execute requires --output-dir');
   if (args.execute && args.maxCalls == null) throw new Error('--execute requires an explicit --max-calls ceiling');
+  // Adapter absence stays the FIRST refusal after the call ceiling. It is the
+  // strongest safety property in the file — no adapter means no transport exists
+  // at all — so it must not be shadowed by an economic gate that only matters for
+  // a run that could otherwise actually spend money.
   if (args.execute && executor === unauthorizedExecutor) unauthorizedExecutor();
+  // A call ceiling does not bound money: cost per attempt varies by model and by
+  // token count, so spend needs its own explicit ceiling.
+  if (args.execute && args.maxUsd == null) throw new Error('--execute requires an explicit --max-usd spend ceiling');
+  if (args.execute && !args.pricingRecord) {
+    throw new Error(
+      '--execute requires --pricing-record naming a verified pricing file. There is no built-in price table, '
+        + 'because stale pricing is how a spend ceiling gets silently exceeded.'
+    );
+  }
+  if (args.execute && !args.split) {
+    throw new Error(
+      '--execute requires --split development|holdout. A single run may never span both: the holdout is the only '
+        + 'check between a tuned harness and a self-confirming result, and observing it alongside development destroys it.'
+    );
+  }
+
+  // ── Split isolation ────────────────────────────────────────────────────────
+  const partition = runIdentity.partitionBySplit(validated.cases, manifest.split);
+  if (partition.unassigned.length > 0) {
+    const errors = [{
+      check: 'split_membership',
+      message: `cases assigned to neither split: ${partition.unassigned.join(', ')}`,
+    }];
+    console.error(JSON.stringify({ ok: false, stage: 'split', errors }, null, 2));
+    process.exitCode = 1;
+    return { ok: false, stage: 'split', errors };
+  }
+
+  const splitCases = args.split === runIdentity.SPLIT_HOLDOUT
+    ? partition.holdout
+    : args.split === runIdentity.SPLIT_DEVELOPMENT
+      ? partition.development
+      : validated.cases;
+
+  // ── Holdout seal ───────────────────────────────────────────────────────────
+  let holdoutSeal = null;
+  if (args.split === runIdentity.SPLIT_HOLDOUT) {
+    const sealRecord = args.holdoutSeal
+      ? JSON.parse(fs.readFileSync(path.resolve(ROOT, args.holdoutSeal), 'utf8'))
+      : null;
+    const sealCheck = runIdentity.verifyHoldoutSeal(sealRecord, partition.holdout, {
+      datasetAggregateSha256: frozenDataset ? frozenDataset.aggregateSha256 : undefined,
+    });
+    if (!sealCheck.ok) {
+      console.error(JSON.stringify({ ok: false, stage: 'holdout_seal', errors: sealCheck.errors }, null, 2));
+      process.exitCode = 1;
+      return { ok: false, stage: 'holdout_seal', errors: sealCheck.errors };
+    }
+    holdoutSeal = { ...sealRecord, verifiedLockedLabelSha256: sealCheck.observedLockedLabelSha256 };
+  }
+
+  // ── Verified pricing and the spend ledger ──────────────────────────────────
+  let pricing = null;
+  let ledger = null;
+  if (args.pricingRecord) {
+    pricing = JSON.parse(fs.readFileSync(path.resolve(ROOT, args.pricingRecord), 'utf8'));
+    const validatedPricing = costLedger.validatePricing(pricing);
+    if (!validatedPricing.ok) {
+      console.error(JSON.stringify({ ok: false, stage: 'pricing', errors: validatedPricing.errors }, null, 2));
+      process.exitCode = 1;
+      return { ok: false, stage: 'pricing', errors: validatedPricing.errors };
+    }
+  }
+  if (args.execute) {
+    ledger = new costLedger.CostLedger({ ceilingUsd: args.maxUsd, pricing });
+  }
 
   if (outputDir && !args.resume) {
     const collisionNames = args.dryRun
@@ -314,16 +440,43 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
       throw new Error(`output path collision: ${collisions.join(', ')} already exists; use a new output directory`);
     }
   }
+  // ── Run identity ───────────────────────────────────────────────────────────
+  const researchSha = git(['rev-parse', 'HEAD']);
+  const stamp = now || new Date().toISOString();
+  const adapterId = args.adapterId || 'v140';
+  const identity = {
+    runId: runIdentity.buildRunId({
+      datasetVersion: manifest.datasetVersion,
+      adapterId,
+      timestamp: stamp,
+      mode: args.dryRun ? 'dry_run' : 'execute',
+      researchSha,
+      split: args.split || runIdentity.SPLIT_DEVELOPMENT,
+    }),
+    datasetVersion: manifest.datasetVersion,
+    datasetAggregateSha256: frozenDataset ? frozenDataset.aggregateSha256 : null,
+    adapterId,
+    certifiedBundleSha256: args.certifiedBundleSha256 || null,
+    split: args.split || null,
+    scoringContractVersion: SCORING_CONTRACT_VERSION,
+    capturePreparationMode: capturePreparation.resolveMode(args.capturePreparation),
+    hardCallCeiling: args.maxCalls == null ? null : args.maxCalls,
+    spendCeilingUsd: args.maxUsd == null ? null : args.maxUsd,
+  };
+
   if (outputDir && args.resume) {
     const priorRun = runnerState.readRunManifest(outputDir);
-    if (priorRun && priorRun.datasetVersion !== manifest.datasetVersion) {
-      throw new Error(
-        `invalid resume state: run manifest dataset version ${priorRun.datasetVersion} does not match ${manifest.datasetVersion}`
-      );
-    }
+    // Resume previously compared only the dataset version — the one field least
+    // likely to differ. Every field that changes what a result MEANS is compared.
+    //
+    // runId embeds a timestamp, so a resume legitimately carries a different one.
+    // The prior run's id is ADOPTED (the run continues under one identity) while
+    // every other identity field must still match exactly.
+    if (priorRun && priorRun.runId) identity.runId = priorRun.runId;
+    runIdentity.assertResumable(priorRun, identity);
   }
 
-  const selection = runnerState.selectCases(validated.cases, {
+  const selection = runnerState.selectCases(splitCases, {
     outputDir: outputDir || path.join(ROOT, '.eval-noop'),
     resume: args.resume,
     startCase: args.startCase,
@@ -331,12 +484,17 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   });
 
   const budget = new runnerState.CallBudget(args.maxCalls == null ? Infinity : args.maxCalls);
+  // The ceiling that actually bounds provider billing is on ATTEMPTS, not on
+  // logical calls: the certified route permits SCANNER_MAX_ATTEMPTS per call.
+  const account = new providerAccounting.ProviderAccount({
+    maxAttempts: args.maxCalls == null ? Number.MAX_SAFE_INTEGER : args.maxCalls,
+  });
   const preflights = [];
   const plans = [];
   const blocked = [];
 
   for (const caseRecord of selection.toProcess) {
-    const preflight = preflightCase(caseRecord);
+    const preflight = preflightCase(caseRecord, { capturePreparation: args.capturePreparation });
     preflights.push(preflight);
     if (!preflight.ok) {
       blocked.push({ caseId: caseRecord.caseId, findings: preflight.findings.filter((f) => f.severity === 'blocking') });
@@ -348,12 +506,55 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   }
 
   const plannedCallCount = plans.reduce((sum, p) => sum + p.plannedCallCount, 0);
-  const stamp = now || new Date().toISOString();
+  const maxAttemptsPerCall = 2; // certified SCANNER_MAX_ATTEMPTS
+
+  /**
+   * Worst-case token usage for one provider attempt, read from the verified
+   * pricing record rather than assumed here. Output is projected at the certified
+   * hard cap so the ceiling holds even when a response runs long.
+   */
+  const perAttemptUsage = pricing
+    ? {
+      inputTokens:
+        pricing.imageTokenModel.appliedToCertifiedClientPayload.imageTokensPerAttempt
+        + pricing.certifiedRouteParameters.assumedTextInputTokensPerAttempt,
+      maxOutputTokens: pricing.certifiedRouteParameters.maxOutputTokens,
+    }
+    : null;
+
+  const costProjection = pricing
+    ? costLedger.projectRun({
+      callCount: plannedCallCount,
+      attemptsPerCall: maxAttemptsPerCall,
+      primaryModel: 'gemini-3.6-flash',
+      fallbackModel: 'gemini-3.5-flash-lite',
+      perCall: perAttemptUsage,
+      fallbackPerCall: perAttemptUsage,
+      pricing,
+      ceilingUsd: args.maxUsd,
+    })
+    : null;
 
   const planDocument = {
+    runId: identity.runId,
+    runIdentity: identity,
     generatedAt: stamp,
     mode: args.dryRun ? 'dry_run' : 'execute',
-    sourceSha: git(['rev-parse', 'HEAD']),
+    sourceSha: researchSha,
+    split: args.split,
+    splitCounts: {
+      development: partition.development.length,
+      holdout: partition.holdout.length,
+    },
+    capturePreparation: capturePreparation.summarize(
+      plans.flatMap((p) => p.calls.map((c) => ({ byteLength: c.byteLength }))),
+      { mode: args.capturePreparation }
+    ),
+    certifiedPayloadContract: capturePreparation.CERTIFIED_CONTRACT,
+    holdoutSeal: holdoutSeal
+      ? { sealedAt: holdoutSeal.sealedAt, lockedLabelSha256: holdoutSeal.lockedLabelSha256 }
+      : null,
+    costProjection,
     datasetVersion: manifest.datasetVersion,
     datasetVersionFileVersion: datasetVersion.datasetVersion,
     manifest: args.manifest,
@@ -405,21 +606,29 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     const summary = {
       ok: blocked.length === 0,
       mode: 'dry_run',
+      runId: identity.runId,
+      split: args.split,
       caseCount: validated.cases.length,
       selectedCaseCount: selection.toProcess.length,
       plannedCallCount,
       executedCallCount: budget.executed,
-      actualProviderCallCount: 0,
-      unexpectedNetworkAttemptCount: 0,
+      // Counted, not asserted: in dry run the executor is never reached, so these
+      // read zero because nothing happened rather than because a comment says so.
+      actualProviderCallCount: account.counters.providerAttempts,
+      fallbackAttemptCount: account.counters.fallbackAttempts,
+      retryCount: account.counters.retries,
+      unexpectedNetworkAttemptCount: account.counters.unexpectedNetworkAttempts,
       adapterInvoked: false,
       costUsd: '0.00',
+      costProjection,
+      capturePreparation: planDocument.capturePreparation,
       blockedCaseCount: blocked.length,
       blocked,
       planPath,
     };
     console.log(JSON.stringify(summary, null, 2));
     if (blocked.length > 0) process.exitCode = 1;
-    return { ...summary, planDocument, budget };
+    return { ...summary, planDocument, budget, account };
   }
 
   if (blocked.length > 0) {
@@ -447,14 +656,18 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   let cancelledAt = null;
   let ceilingHit = false;
 
+  let costCeilingHit = false;
+
   try {
+    // The run manifest carries the FULL identity, so a later resume can compare
+    // every field that changes what a result means, not just the dataset version.
     runnerState.writeRunManifest(outputDir, {
+      ...identity,
       startedAt: stamp,
-      datasetVersion: manifest.datasetVersion,
-      scoringContractVersion: SCORING_CONTRACT_VERSION,
       ontologyVersions: ontology.ONTOLOGY_VERSIONS,
-      hardCallCeiling: planDocument.hardCallCeiling,
       plannedCallCount,
+      pricingSource: pricing ? pricing.source : null,
+      pricingRetrievedAt: pricing ? pricing.retrievedAt : null,
       resume: args.resume,
     });
 
@@ -466,20 +679,34 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
       const caseRecord = validated.cases.find((c) => c.caseId === plan.caseId);
 
       let perImageResults;
+      const caseStartedAt = Date.now();
       try {
+        // Gate BEFORE the attempt on both ceilings. The spend projection uses the
+        // worst case for the attempt, because refusing on the average would let
+        // the final call overshoot the ceiling it was supposed to respect.
+        for (let i = 0; i < plan.plannedCallCount; i += 1) {
+          account.authorizeAttempt();
+          if (ledger) ledger.authorize('gemini-3.6-flash', perAttemptUsage);
+        }
         budget.consume(plan.plannedCallCount);
-        perImageResults = executor(plan, caseRecord);
+        perImageResults = executor(plan, caseRecord, { account, ledger });
       } catch (error) {
-        if (error instanceof runnerState.CallCeilingExceeded) {
+        if (error instanceof runnerState.CallCeilingExceeded
+          || error instanceof providerAccounting.AttemptCeilingExceeded) {
           ceilingHit = true;
+          break;
+        }
+        if (error instanceof costLedger.CostCeilingExceeded) {
+          costCeilingHit = true;
           break;
         }
         runnerState.writeFailure(outputDir, plan.caseId, {
           caseId: plan.caseId,
           datasetVersion: manifest.datasetVersion,
-          failedAt: stamp,
+          failedAt: new Date(caseStartedAt).toISOString(),
           error: String(error && error.message ? error.message : error),
         });
+        account.recordCallOutcome(false);
         executionFailures.push(plan.caseId);
         continue;
       }
@@ -489,11 +716,20 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
       }
 
       const profiles = scoreCaseAllProfiles(caseRecord, perImageResults.consolidated || {});
+      const caseLatencyMs = Date.now() - caseStartedAt;
+      account.recordCallOutcome(true);
       const record = {
+        runId: identity.runId,
         caseId: plan.caseId,
+        split: args.split,
         datasetVersion: manifest.datasetVersion,
         scoringContractVersion: SCORING_CONTRACT_VERSION,
-        completedAt: stamp,
+        capturePreparationMode: identity.capturePreparationMode,
+        // Per-case wall clock, so a latency distribution can be reported instead
+        // of one run-level stamp copied onto every case.
+        startedAt: new Date(caseStartedAt).toISOString(),
+        completedAt: new Date(caseStartedAt + caseLatencyMs).toISOString(),
+        latencyMs: caseLatencyMs,
         callCount: plan.plannedCallCount,
         profiles,
         raw: perImageResults.raw || null,
@@ -506,23 +742,41 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   }
 
   const durable = runnerState.loadAllResults(outputDir, manifest.datasetVersion);
-  const neutral = durable.map((r) => r.profiles.neutral);
-  const trust = durable.map((r) => r.profiles.trust_weighted);
+  // Aggregates are scoped to THIS run's split. Mixing development and holdout
+  // results into one headline number would erase the only unbiased check there is.
+  const inSplit = durable.filter((r) => !args.split || !r.split || r.split === args.split);
+  const neutral = inSplit.map((r) => r.profiles.neutral);
+  const trust = inSplit.map((r) => r.profiles.trust_weighted);
 
-  const executionComplete = !ceilingHit && !cancelledAt && executionFailures.length === 0
-    && scored.length === plans.length;
+  const executionComplete = !ceilingHit && !costCeilingHit && !cancelledAt
+    && executionFailures.length === 0 && scored.length === plans.length;
   const report = {
     ok: executionComplete,
     mode: 'execute',
+    runId: identity.runId,
+    runIdentity: identity,
+    split: args.split,
     completionStatus: executionComplete ? 'complete' : 'incomplete',
     datasetVersion: manifest.datasetVersion,
-    completedCaseCount: durable.length,
+    datasetAggregateSha256: identity.datasetAggregateSha256,
+    completedCaseCount: inSplit.length,
+    caseDenominator: plans.length,
     executedCallCount: budget.executed,
     hardCallCeiling: planDocument.hardCallCeiling,
+    // Separate counts, as required: a logical call, a provider attempt, a
+    // fallback and a retry are four different things and were previously one.
+    providerAccounting: account.summary(),
+    cost: ledger ? ledger.summary() : null,
+    costProjection,
+    capturePreparation: planDocument.capturePreparation,
+    holdoutSeal: planDocument.holdoutSeal,
     measurementLimits: planDocument.measurementLimits,
     ceilingHit,
+    costCeilingHit,
     cancelledAt,
     failedCaseIds: executionFailures,
+    latency: account.latencyDistribution(),
+    caseLatencyMs: inSplit.map((r) => ({ caseId: r.caseId, latencyMs: r.latencyMs })),
     profiles: {
       neutral: fallbackTracking.buildDualPathReport(neutral, events, aggregateScores),
       trust_weighted: fallbackTracking.buildDualPathReport(trust, events, aggregateScores),
@@ -530,7 +784,15 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   };
   const reportPath = path.join(outputDir, 'baseline-report.json');
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  console.log(JSON.stringify({ ok: report.ok, reportPath, completedCaseCount: durable.length, executedCallCount: budget.executed }, null, 2));
+  console.log(JSON.stringify({
+    ok: report.ok,
+    runId: report.runId,
+    reportPath,
+    completedCaseCount: inSplit.length,
+    executedCallCount: budget.executed,
+    providerAttempts: account.counters.providerAttempts,
+    spentUsd: ledger ? ledger.summary().spentUsd : null,
+  }, null, 2));
   if (!report.ok) process.exitCode = 1;
   return report;
 }
@@ -544,4 +806,15 @@ if (require.main === module) {
   }
 }
 
-module.exports = { main, parseArgs, preflightCase, planCase, unauthorizedExecutor, validateExperimentRecord };
+module.exports = {
+  main,
+  parseArgs,
+  preflightCase,
+  planCase,
+  unauthorizedExecutor,
+  validateExperimentRecord,
+  capturePreparation,
+  costLedger,
+  runIdentity,
+  providerAccounting,
+};
