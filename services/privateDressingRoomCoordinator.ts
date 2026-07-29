@@ -25,6 +25,11 @@ import type {
   PrivateDressingRoomSession,
   PrivateDressingRoomSessionErrorCode,
 } from '../types/privateDressingRoomSession';
+import { PRIVATE_SLOT_DISPLAY_ORDER } from '../types/privateDressingRoomComposition';
+import type {
+  PrivateDressingRoomSlot,
+  PrivateLookCompleteness,
+} from '../types/privateDressingRoomComposition';
 import type { ClosetItemProjection } from './closetItemProjection';
 
 /**
@@ -227,6 +232,195 @@ export function resolveRouteAnchorIntent(view: PrivateWorkspaceView, routeValue:
   return routeId;
 }
 
+// ── Composition (Phase 2) ────────────────────────────────────────────────────
+
+/**
+ * Serializable coordinator error codes.
+ *
+ * A raw exception, a stack trace or a filesystem path must never reach the UI,
+ * so every failure the workspace can be in is one of these.
+ */
+export const PRIVATE_WORKSPACE_ERRORS = [
+  'FEATURE_DISABLED',
+  'ACTOR_UNAVAILABLE',
+  'ACTOR_CHANGED',
+  'CLOSET_LOAD_FAILED',
+  'CLOSET_EMPTY',
+  'SESSION_MISSING',
+  'SESSION_CONTEXT_REQUIRED',
+  'ANCHOR_MISSING',
+  'UNSUPPORTED_ANCHOR',
+  'INSUFFICIENT_ITEMS',
+  'COMPOSITION_STALE',
+  'COMPOSITION_CORRUPT',
+  'COMPOSITION_FAILED',
+  'PERSISTENCE_FAILED',
+] as const;
+
+export type PrivateWorkspaceErrorCode = (typeof PRIVATE_WORKSPACE_ERRORS)[number];
+
+export type PrivateCompositionStatus =
+  /** No anchor and no occasion yet: there is nothing to compose around. */
+  | 'idle'
+  | 'building'
+  | 'ready'
+  | 'partial'
+  | 'stale'
+  | 'corrupt'
+  | 'failed'
+  | 'insufficient';
+
+export type ResolvedLookItem = {
+  slot: PrivateDressingRoomSlot;
+  closetItemId: string;
+  /** null when the garment has been deleted from the Closet since composing. */
+  item: ClosetItemProjection | null;
+};
+
+export type ResolvedLook = {
+  lookId: string;
+  rank: number;
+  completeness: PrivateLookCompleteness;
+  missingSlots: PrivateDressingRoomSlot[];
+  labelCodes: readonly string[];
+  /** Slot order for display: anchor first, then outward-in layering order. */
+  items: ResolvedLookItem[];
+  itemCount: number;
+  missingCount: number;
+  isActive: boolean;
+  /** A referenced garment is gone, so this option can no longer be worn as-is. */
+  stale: boolean;
+};
+
+/**
+ * Turn a stored composition into display-ready looks.
+ *
+ * PURE, and the only place a stored `closetItemId` becomes a garment: every
+ * item is resolved against the CURRENT projections, so a deleted garment
+ * surfaces as `item: null` instead of stale metadata the composition never
+ * carried in the first place.
+ *
+ * The anchor is ordered FIRST because it is the thing the user chose; the
+ * remaining slots follow the layering order the contract declares.
+ */
+export function resolveCompositionLooks(input: {
+  looks: readonly {
+    lookId: string;
+    rank: number;
+    completeness: PrivateLookCompleteness;
+    missingSlots: readonly PrivateDressingRoomSlot[];
+    labelCodes: readonly string[];
+    items: readonly { slot: PrivateDressingRoomSlot; closetItemId: string }[];
+  }[];
+  closetItems: readonly ClosetItemProjection[];
+  activeLookId?: string | null;
+  anchorClosetItemId?: string | null;
+}): ResolvedLook[] {
+  const byId = new Map<string, ClosetItemProjection>();
+  for (const item of input.closetItems ?? []) {
+    if (item && typeof item.id === 'string') byId.set(item.id, item);
+  }
+  const anchorId = input.anchorClosetItemId ?? null;
+
+  const resolved: ResolvedLook[] = [];
+  for (const look of input.looks ?? []) {
+    const ordered = [...look.items].sort((a, b) => {
+      if (anchorId) {
+        if (a.closetItemId === anchorId && b.closetItemId !== anchorId) return -1;
+        if (b.closetItemId === anchorId && a.closetItemId !== anchorId) return 1;
+      }
+      return (
+        PRIVATE_SLOT_DISPLAY_ORDER.indexOf(a.slot) - PRIVATE_SLOT_DISPLAY_ORDER.indexOf(b.slot)
+      );
+    });
+    const items = ordered.map((entry) => ({
+      slot: entry.slot,
+      closetItemId: entry.closetItemId,
+      item: byId.get(entry.closetItemId) ?? null,
+    }));
+    resolved.push({
+      lookId: look.lookId,
+      rank: look.rank,
+      completeness: look.completeness,
+      missingSlots: [...look.missingSlots],
+      labelCodes: [...look.labelCodes],
+      items,
+      itemCount: items.length,
+      missingCount: look.missingSlots.length,
+      isActive: !!input.activeLookId && input.activeLookId === look.lookId,
+      stale: items.some((entry) => entry.item === null),
+    });
+  }
+  return resolved.sort((a, b) => a.rank - b.rank);
+}
+
+/**
+ * Is this session context enough to compose from?
+ *
+ * EITHER a resolvable anchor OR a non-empty occasion. Requiring both would
+ * refuse to help a user who has said "somewhere smart" but not yet picked a
+ * garment, and vice versa.
+ */
+export function isCompositionReady(input: {
+  session: PrivateDressingRoomSession | null | undefined;
+  anchorMissing: boolean;
+}): boolean {
+  const session = input.session;
+  if (!session || session.status !== 'active') return false;
+  const hasAnchor = !!session.anchorClosetItemId && !input.anchorMissing;
+  const hasOccasion = typeof session.occasion === 'string' && session.occasion.trim().length > 0;
+  return hasAnchor || hasOccasion;
+}
+
+/** Map a composer result code onto the workspace's own vocabulary. */
+export function compositionStatusForComposerCode(code: string): {
+  status: PrivateCompositionStatus;
+  errorCode: PrivateWorkspaceErrorCode | null;
+} {
+  switch (code) {
+    case 'SUCCESS':
+      return { status: 'ready', errorCode: null };
+    case 'SUCCESS_PARTIAL':
+      return { status: 'partial', errorCode: null };
+    case 'CLOSET_LOAD_FAILED':
+      return { status: 'failed', errorCode: 'CLOSET_LOAD_FAILED' };
+    case 'CLOSET_EMPTY':
+      return { status: 'insufficient', errorCode: 'CLOSET_EMPTY' };
+    case 'SESSION_CONTEXT_REQUIRED':
+      return { status: 'idle', errorCode: 'SESSION_CONTEXT_REQUIRED' };
+    case 'ANCHOR_MISSING':
+      return { status: 'failed', errorCode: 'ANCHOR_MISSING' };
+    case 'UNSUPPORTED_ANCHOR':
+      return { status: 'insufficient', errorCode: 'UNSUPPORTED_ANCHOR' };
+    case 'INSUFFICIENT_ITEMS':
+      return { status: 'insufficient', errorCode: 'INSUFFICIENT_ITEMS' };
+    case 'ACTOR_CHANGED':
+      return { status: 'failed', errorCode: 'ACTOR_CHANGED' };
+    default:
+      return { status: 'failed', errorCode: 'COMPOSITION_FAILED' };
+  }
+}
+
+/**
+ * Whether a user-initiated Rebuild should be offered.
+ *
+ * Deliberately NOT offered on a valid, unchanged composition: repeated rebuilds
+ * are deterministic and would return the same outfits, so a button promising
+ * new ones would be lying about what the composer does.
+ */
+export function canRebuildComposition(status: PrivateCompositionStatus): boolean {
+  return status === 'stale' || status === 'corrupt' || status === 'insufficient';
+}
+
+/** Whether a Retry should be offered — a failed operation, not a bad context. */
+export function canRetryComposition(errorCode: PrivateWorkspaceErrorCode | null): boolean {
+  return (
+    errorCode === 'CLOSET_LOAD_FAILED' ||
+    errorCode === 'PERSISTENCE_FAILED' ||
+    errorCode === 'COMPOSITION_FAILED'
+  );
+}
+
 /** Copy for each workspace state. Kept here so both platforms read identically. */
 export const PRIVATE_WORKSPACE_COPY = Object.freeze({
   actorLoading: 'Getting things ready…',
@@ -243,4 +437,48 @@ export const PRIVATE_WORKSPACE_COPY = Object.freeze({
   ready: 'Your Dressing Room is ready for outfit building.',
   reset: 'Reset session',
   discard: 'Discard session',
+  // Phase 2 composition copy. Specific about a missing garment, general about a
+  // system fault, and never blaming the user for their wardrobe.
+  building: 'Putting outfits together…',
+  compositionStale: 'Your Closet changed, so these outfits need to be rebuilt.',
+  compositionCorrupt:
+    "We couldn't restore your previous outfits. Reset and rebuild them from your current Closet.",
+  compositionFailed: "We couldn't build outfits just now. Try again.",
+  persistenceFailed: "We couldn't save that. Try again.",
+  insufficient:
+    'Your Closet does not have enough compatible pieces to complete an outfit around this yet.',
+  unsupportedAnchor: "We can't build an outfit around this kind of item yet.",
+  lookStale: 'One of these pieces is no longer in your Closet.',
+  rebuild: 'Rebuild outfits',
+  retry: 'Try again',
+  returnToCloset: 'Return to Closet',
+  noPurchaseNeeded: 'No purchase needed',
 });
+
+/** User-facing strings for the bounded look-label codes. */
+export const PRIVATE_LOOK_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  NO_PURCHASE_NEEDED: 'No purchase needed',
+  PARTIAL_LOOK: 'Missing a piece',
+  MORE_CASUAL: 'More casual',
+  MORE_POLISHED: 'More polished',
+  EVENING_OPTION: 'Evening option',
+  NEUTRAL_OPTION: 'Neutral palette',
+});
+
+/** "Missing shoes", "Missing a top" — specific, never a generic apology. */
+export function describeMissingSlots(slots: readonly PrivateDressingRoomSlot[]): string | null {
+  if (!slots || slots.length === 0) return null;
+  const names: Record<PrivateDressingRoomSlot, string> = {
+    top: 'a top',
+    bottom: 'a bottom',
+    dress: 'a dress',
+    outerwear: 'a layer',
+    footwear: 'shoes',
+    accessory: 'an accessory',
+  };
+  const listed = slots.map((slot) => names[slot]).filter(Boolean);
+  if (listed.length === 0) return null;
+  if (listed.length === 1) return `Missing ${listed[0]}`;
+  if (listed.length === 2) return `Missing ${listed[0]} and ${listed[1]}`;
+  return `Missing ${listed.slice(0, -1).join(', ')} and ${listed[listed.length - 1]}`;
+}
