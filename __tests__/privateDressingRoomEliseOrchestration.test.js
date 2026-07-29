@@ -654,3 +654,51 @@ test('the anchor success copy names the garment from its own taxonomy', async ()
   assert.equal(final.itemType, 'blazer');
   assert.equal(ux.eliseStatusCopy(final), 'Building around your blazer.');
 });
+
+test('a backend safe_failure is NOT reported as unsupported', async () => {
+  // Device QA found safe_failure published as `unsupported`, which for
+  // build_around_item told the user their garment was unusable when the truth
+  // was a transient backend failure. These are different facts.
+  const cases = [
+    ['safe_failure', 'failed'],
+    ['invalid_request', 'failed'],
+    ['unsupported', 'unsupported'],
+    ['clarification_required', 'clarification'],
+  ];
+  for (const [backendStatus, expectedKind] of cases) {
+    for (const intent of ['interpret_occasion', 'build_around_item']) {
+      const { deps, applied, statuses } = harness({
+        invoke: replyWith((body) => ({
+          schemaVersion: 'private-dressing-room-elise-v1',
+          requestId: body.requestId,
+          intent,
+          status: backendStatus,
+        })),
+      });
+      if (intent === 'interpret_occasion') {
+        await orchestration.interpretOccasion(deps, { instruction: 'x', currentOccasion: 'Work' });
+      } else {
+        await orchestration.buildAroundItem(deps, {
+          instruction: 'x',
+          anchorClosetItemId: 'anchor-1',
+          closetItems: CLOSET,
+          currentOccasion: 'Work',
+        });
+      }
+      const final = statuses[statuses.length - 1];
+      assert.equal(final.kind, expectedKind, `${intent}/${backendStatus} -> ${final.kind}`);
+      same(applied, [], `${intent}/${backendStatus} must not mutate`);
+    }
+  }
+});
+
+test('a backend failure renders retry copy, never the unsupported-anchor copy', () => {
+  assert.equal(
+    ux.eliseStatusCopy({ kind: 'failed', operation: 'build_around_item' }),
+    "I couldn't update this look. Try again.",
+  );
+  assert.notEqual(
+    ux.eliseStatusCopy({ kind: 'failed', operation: 'build_around_item' }),
+    ux.PRIVATE_ELISE_COPY.unsupportedAnchor,
+  );
+});
