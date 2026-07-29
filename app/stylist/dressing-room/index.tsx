@@ -16,8 +16,16 @@
 // services/privateDressingRoomSessionStore.ts. Nothing here calls persistence.
 
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
@@ -34,14 +42,62 @@ import { LUXURY, SPACING } from '../../../constants/theme';
 import { PRIVATE_DRESSING_ROOM_V1 } from '../../../constants/featureFlags';
 import { goBackOrHome } from '../../../services/navigationExit';
 import { usePrivateDressingRoom } from '../../../hooks/usePrivateDressingRoom';
-import { PRIVATE_WORKSPACE_COPY } from '../../../services/privateDressingRoomCoordinator';
+import {
+  PRIVATE_WORKSPACE_COPY,
+  PRIVATE_LOOK_LABELS,
+  describeMissingSlots,
+} from '../../../services/privateDressingRoomCoordinator';
+import type { ResolvedLookItem } from '../../../services/privateDressingRoomCoordinator';
+import { PRIVATE_SLOT_LABELS } from '../../../types/privateDressingRoomComposition';
 
 const OCCASIONS = ['Work', 'Dinner', 'Weekend', 'Event', 'Travel'];
+
+/**
+ * The governed tablet breakpoint for this screen.
+ *
+ * The repository declares no shared breakpoint constant, so the assignment's
+ * 768 logical pixels is used and documented here rather than scattered.
+ */
+const TABLET_MIN_WIDTH = 768;
+
+/**
+ * One garment thumbnail.
+ *
+ * NEVER BLANK SPACE: an item without an image falls back to its slot label on a
+ * placeholder tile. No fashion photography is invented, and a deleted garment
+ * shows that it is gone rather than a stale picture.
+ */
+function LookThumb({ entry, large = false }: { entry: ResolvedLookItem; large?: boolean }) {
+  const uri = entry.item?.thumbnailUri ?? entry.item?.imageUri ?? null;
+  const label = PRIVATE_SLOT_LABELS[entry.slot];
+  if (!uri) {
+    return (
+      <View
+        style={[styles.thumb, large ? styles.thumbLarge : null, styles.thumbPlaceholder]}
+        accessibilityLabel={`${label}: no image available`}
+      >
+        <Text style={styles.thumbPlaceholderText} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.thumb, large ? styles.thumbLarge : null]}
+      resizeMode="cover"
+      accessibilityLabel={`${label}: ${entry.item?.title ?? 'image'}`}
+    />
+  );
+}
 
 export default function PrivateDressingRoomScreen() {
   const params = useLocalSearchParams();
   const workspace = usePrivateDressingRoom(params?.closetItemId);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const { width } = useWindowDimensions();
+  const isWide = width >= TABLET_MIN_WIDTH;
 
   // Android hardware back and the header control resolve the same way: back
   // when the stack has history, Home otherwise, so a deep link into the
@@ -82,7 +138,241 @@ export default function PrivateDressingRoomScreen() {
     clearOccasion,
     discardSession,
     resetSession,
+    compositionStatus,
+    compositionError,
+    looks,
+    selectLook,
+    rebuildOutfits,
+    retry,
+    resetComposition,
   } = workspace;
+
+  /**
+   * The outfit section.
+   *
+   * PHASE 2 STILL OFFERS NO SWAP, COMPARE, SAVE, ELISE OR COMMERCE CONTROL, and
+   * no disabled teaser for any of them — a control that cannot do anything
+   * teaches the user the feature is broken. Phase 3 owns swaps and comparison.
+   */
+  const renderOutfits = () => {
+    if (compositionStatus === 'idle') {
+      return (
+        <InlineNotice
+          variant="info"
+          title="Pick a starting point"
+          body={PRIVATE_WORKSPACE_COPY.noSession}
+        />
+      );
+    }
+
+    if (compositionStatus === 'building') {
+      return (
+        <View style={styles.loadingWrap} accessibilityLiveRegion="polite" testID="composition-building">
+          <ActivityIndicator
+            size="large"
+            color={LUXURY.colors.plum}
+            accessibilityLabel={PRIVATE_WORKSPACE_COPY.building}
+          />
+          <Text style={styles.loadingText}>{PRIVATE_WORKSPACE_COPY.building}</Text>
+        </View>
+      );
+    }
+
+    if (compositionStatus === 'corrupt') {
+      return (
+        <View testID="composition-corrupt">
+          <InlineNotice
+            variant="error"
+            title="Outfits not restored"
+            body={PRIVATE_WORKSPACE_COPY.compositionCorrupt}
+          />
+          <PrimaryButton
+            title={PRIVATE_WORKSPACE_COPY.rebuild}
+            onPress={() => void resetComposition()}
+            disabled={busy}
+            accessibilityLabel="Reset and rebuild outfits from your current Closet"
+            testID="reset-composition-button"
+          />
+        </View>
+      );
+    }
+
+    if (compositionStatus === 'insufficient') {
+      return (
+        <View testID="composition-insufficient">
+          <InlineNotice
+            variant="info"
+            title="Not enough to work with yet"
+            body={
+              compositionError === 'UNSUPPORTED_ANCHOR'
+                ? PRIVATE_WORKSPACE_COPY.unsupportedAnchor
+                : PRIVATE_WORKSPACE_COPY.insufficient
+            }
+          />
+          <SecondaryButton
+            title={PRIVATE_WORKSPACE_COPY.returnToCloset}
+            onPress={() => router.push('/library')}
+            accessibilityLabel="Return to your Closet"
+            testID="return-to-closet-button"
+          />
+        </View>
+      );
+    }
+
+    if (compositionStatus === 'failed') {
+      return (
+        <View testID="composition-failed">
+          <InlineNotice
+            variant="error"
+            title="Couldn't build outfits"
+            body={
+              compositionError === 'PERSISTENCE_FAILED'
+                ? PRIVATE_WORKSPACE_COPY.persistenceFailed
+                : PRIVATE_WORKSPACE_COPY.compositionFailed
+            }
+          />
+          <PrimaryButton
+            title={PRIVATE_WORKSPACE_COPY.retry}
+            onPress={() => retry()}
+            disabled={busy}
+            accessibilityLabel="Try building outfits again"
+            testID="retry-composition-button"
+          />
+        </View>
+      );
+    }
+
+    const active = looks.find((look) => look.isActive) ?? looks[0] ?? null;
+
+    return (
+      <View testID="composition-ready">
+        <SectionHeader
+          title="Outfit options"
+          subtitle={`${looks.length} option${looks.length === 1 ? '' : 's'} from your Closet`}
+        />
+
+        {compositionStatus === 'stale' ? (
+          <InlineNotice
+            variant="info"
+            title="Closet changed"
+            body={PRIVATE_WORKSPACE_COPY.compositionStale}
+          />
+        ) : null}
+
+        {compositionStatus === 'stale' ? (
+          <PrimaryButton
+            title={PRIVATE_WORKSPACE_COPY.rebuild}
+            onPress={() => void rebuildOutfits()}
+            disabled={busy}
+            accessibilityLabel="Rebuild outfits from your current Closet"
+            testID="rebuild-outfits-button"
+          />
+        ) : null}
+
+        {/*
+          A horizontally scrollable selector on phones rather than three
+          compressed equal-width cards, and a wrapping grid at tablet width.
+        */}
+        <ScrollView
+          horizontal={!isWide}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={isWide ? styles.lookGrid : styles.lookRow}
+          testID="look-selector"
+        >
+          {looks.map((look) => {
+            const anchorEntry = look.items[0];
+            const supporting = look.items.slice(1, 4);
+            const overflow = look.itemCount - 1 - supporting.length;
+            const missingText = describeMissingSlots(look.missingSlots);
+            return (
+              <TouchableOpacity
+                key={look.lookId}
+                style={[
+                  styles.lookCard,
+                  isWide ? styles.lookCardWide : null,
+                  look.isActive ? styles.lookCardSelected : null,
+                ]}
+                onPress={() => void selectLook(look.lookId)}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityState={{ selected: look.isActive, disabled: busy }}
+                accessibilityLabel={[
+                  `Look ${look.rank + 1}`,
+                  look.completeness === 'complete' ? 'complete outfit' : 'partial outfit',
+                  `${look.itemCount} Closet item${look.itemCount === 1 ? '' : 's'}`,
+                  missingText ?? '',
+                  look.isActive ? 'selected' : '',
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                testID="look-card"
+              >
+                <View style={styles.lookImages}>
+                  {/* The anchor is first and largest: it is what the user chose. */}
+                  <LookThumb entry={anchorEntry} large />
+                  <View style={styles.lookSupporting}>
+                    {supporting.map((entry) => (
+                      <LookThumb key={entry.closetItemId} entry={entry} />
+                    ))}
+                    {overflow > 0 ? (
+                      <View style={styles.lookOverflow}>
+                        <Text style={styles.lookOverflowText}>{`+${overflow}`}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+                <Text style={styles.lookTitle}>{`Look ${look.rank + 1}`}</Text>
+                <Text style={styles.lookMeta}>
+                  {`${look.itemCount} item${look.itemCount === 1 ? '' : 's'}`}
+                </Text>
+                {missingText ? <Text style={styles.lookMissing}>{missingText}</Text> : null}
+                {look.labelCodes.map((code) => (
+                  <Text key={code} style={styles.lookLabel}>
+                    {PRIVATE_LOOK_LABELS[code] ?? code}
+                  </Text>
+                ))}
+                {look.stale ? (
+                  <Text style={styles.lookMissing}>{PRIVATE_WORKSPACE_COPY.lookStale}</Text>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {active ? (
+          <View testID="active-look-detail">
+            <SectionHeader title="Active look" />
+            {active.completeness === 'partial' ? (
+              <InlineNotice
+                variant="info"
+                title={describeMissingSlots(active.missingSlots) ?? 'Missing a piece'}
+                body="Built from the pieces already in your Closet."
+              />
+            ) : null}
+            {active.items.map((entry) => (
+              <View
+                key={entry.closetItemId}
+                style={styles.slotRow}
+                // Slot BEFORE garment, so a screen reader announces the role first.
+                accessibilityLabel={`${PRIVATE_SLOT_LABELS[entry.slot]}: ${
+                  entry.item?.title ?? 'no longer in your Closet'
+                }`}
+                testID="active-look-slot"
+              >
+                <Text style={styles.slotName}>{PRIVATE_SLOT_LABELS[entry.slot]}</Text>
+                <Text style={styles.slotItem}>
+                  {entry.item?.title ?? PRIVATE_WORKSPACE_COPY.lookStale}
+                </Text>
+              </View>
+            ))}
+            <Text style={styles.usesLine}>
+              {`Uses ${active.itemCount} Closet item${active.itemCount === 1 ? '' : 's'}`}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
   const renderBody = () => {
     switch (status) {
@@ -292,8 +582,7 @@ export default function PrivateDressingRoomScreen() {
               })}
             </View>
 
-            {/* Passive status only. Phase 1 has no generation to offer. */}
-            <InlineNotice variant="info" title="Ready" body={PRIVATE_WORKSPACE_COPY.ready} />
+            {renderOutfits()}
 
             {confirmingDiscard ? (
               <View testID="discard-confirm">
@@ -403,4 +692,60 @@ const styles = StyleSheet.create({
   },
   occasionChipSelected: { borderColor: LUXURY.colors.plum, borderWidth: 2 },
   occasionText: { color: LUXURY.colors.ink, fontSize: 14 },
+
+  // ── Outfit options ─────────────────────────────────────────────────────────
+  lookRow: { paddingVertical: SPACING.sm },
+  /** Tablet: a wrapping grid instead of stretched phone cards. */
+  lookGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: SPACING.sm },
+  lookCard: {
+    width: 220,
+    minHeight: 48,
+    marginRight: SPACING.md,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.champagne,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  lookCardWide: { width: 260 },
+  lookCardSelected: { borderColor: LUXURY.colors.plum, borderWidth: 2 },
+  lookImages: { flexDirection: 'row', marginBottom: SPACING.sm },
+  lookSupporting: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', marginLeft: SPACING.xs },
+  thumb: {
+    width: 44,
+    height: 58,
+    borderRadius: 6,
+    margin: 2,
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  thumbLarge: { width: 76, height: 100, borderRadius: 8, margin: 0 },
+  thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  thumbPlaceholderText: { fontSize: 9, color: LUXURY.colors.plum, paddingHorizontal: 2 },
+  lookOverflow: {
+    width: 44,
+    height: 58,
+    borderRadius: 6,
+    margin: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: LUXURY.colors.champagne,
+  },
+  lookOverflowText: { fontSize: 12, color: LUXURY.colors.ink },
+  lookTitle: { fontSize: 15, color: LUXURY.colors.ink, marginBottom: 2 },
+  lookMeta: { fontSize: 12, color: LUXURY.colors.plum },
+  lookMissing: { fontSize: 12, color: LUXURY.colors.ink, marginTop: 2 },
+  lookLabel: { fontSize: 11, color: LUXURY.colors.plum, marginTop: 2 },
+
+  // ── Active look detail ─────────────────────────────────────────────────────
+  slotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: LUXURY.colors.champagne,
+  },
+  slotName: { width: 96, fontSize: 12, color: LUXURY.colors.plum },
+  slotItem: { flex: 1, fontSize: 14, color: LUXURY.colors.ink },
+  usesLine: { marginTop: SPACING.md, fontSize: 13, color: LUXURY.colors.plum },
 });
