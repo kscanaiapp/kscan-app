@@ -429,6 +429,35 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     };
   }, [actorId, actorKey, actorLoading]);
 
+  /**
+   * An actor transition invalidates every snapshot and any pending work.
+   *
+   * DECLARED BEFORE `useFocusEffect(hydrate)`, AND THE ORDER IS LOAD-BEARING.
+   * React runs effects in declaration order, so on the single commit where auth
+   * resolves — `actorKey` changes from `device-local` to `user:<id>` and
+   * `hydrate` changes identity together — this must invalidate the OLD actor's
+   * work before the new hydrate claims a generation.
+   *
+   * With the opposite order the focus effect ran first, the new hydrate took
+   * generation N, and this effect immediately bumped past it. Its own read was
+   * then permanently stale, so the loaded Closet was discarded and nothing
+   * republished: a cold deep-link into this route hung on "Loading your
+   * Closet…" forever. Nothing re-triggered hydrate afterwards, because
+   * `actorKey`, `actorId` and `actorLoading` were all settled by then.
+   */
+  useEffect(() => {
+    generationRef.current += 1;
+    routeAppliedRef.current = null;
+    setCloset({ actorKey: null, status: 'loading', items: [] });
+    setSession({ actorKey: null, result: null });
+    setComposition(IDLE_COMPOSITION);
+    setInteraction(IDLE_INTERACTION);
+    setPreview(null);
+    setSlotEditor(CLOSED_EDITOR);
+    setComparing(false);
+    setPendingContextChange(null);
+  }, [actorKey]);
+
   // Route focus: the established route-scoped revalidation seam (useCloset.js).
   useFocusEffect(hydrate);
 
@@ -445,20 +474,6 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     });
     return () => subscription?.remove?.();
   }, [hydrate]);
-
-  /** An actor transition invalidates every snapshot and any pending work. */
-  useEffect(() => {
-    generationRef.current += 1;
-    routeAppliedRef.current = null;
-    setCloset({ actorKey: null, status: 'loading', items: [] });
-    setSession({ actorKey: null, result: null });
-    setComposition(IDLE_COMPOSITION);
-    setInteraction(IDLE_INTERACTION);
-    setPreview(null);
-    setSlotEditor(CLOSED_EDITOR);
-    setComparing(false);
-    setPendingContextChange(null);
-  }, [actorKey]);
 
   const view = useMemo(
     () =>
