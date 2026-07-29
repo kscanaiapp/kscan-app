@@ -457,6 +457,13 @@ test('all Phase 3 touch targets meet 48dp', () => {
 });
 
 test('every modal is dismissable', () => {
+  // Derived from the modals actually present rather than a fixed count, so a
+  // new modal cannot be waved through by editing a number — the requirement is
+  // that EVERY modal is dismissable. Phase 4 added a fourth (the bounded
+  // occasion entry) alongside the slot editor, comparison and context-change
+  // confirmation.
+  const modals = ROUTE.match(/<Modal\b/g) ?? [];
   const requests = ROUTE.match(/onRequestClose=/g) ?? [];
-  assert.equal(requests.length, 3, 'slot editor, comparison and confirmation');
+  assert.ok(modals.length >= 3, 'the Phase 3 modals must still exist');
+  assert.equal(requests.length, modals.length, 'every modal needs onRequestClose');
 });
