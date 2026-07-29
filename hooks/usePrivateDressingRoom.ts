@@ -225,10 +225,14 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   activeLookId: string | null;
   startSession: (input?: { anchorClosetItemId?: string | null; occasion?: string | null }) => Promise<void>;
   resumeSession: () => Promise<void>;
-  setAnchor: (closetItemId: string) => Promise<void>;
-  clearAnchor: () => Promise<void>;
-  setOccasion: (occasion: string) => Promise<void>;
-  clearOccasion: () => Promise<void>;
+  /**
+   * NOT EXPOSED: setAnchor, clearAnchor, setOccasion and clearOccasion.
+   *
+   * They change composition identity, so callers reach them only through
+   * `requestContextChange`, which decides whether persisted work would be
+   * discarded and asks first. Returning them here would make the confirmation
+   * gate optional, which is exactly the bypass Phase 3.5 closes.
+   */
   discardSession: () => Promise<void>;
   resetSession: () => Promise<void>;
   selectLook: (lookId: string) => Promise<void>;
@@ -290,6 +294,39 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   const [pendingContextChange, setPendingContextChange] =
     useState<ContextChangeConfirmation | null>(null);
   const previewGenerationRef = useRef(0);
+
+  /**
+   * THE COMPOSITION-CHANGE INVARIANT.
+   *
+   * Every path that changes or REPLACES composition identity funnels through
+   * here before the change lands, so old interaction memory can never survive
+   * onto a composition it was not written against. Bypass is prevented at the
+   * public API rather than by caller discipline: the raw session mutators are
+   * not returned by this hook, and the three internal paths that can replace a
+   * composition (`mutateContext`, `rebuildOutfits`, `resetComposition`) all call
+   * this first.
+   *
+   * The preview generation is bumped as well as cleared, so a preview object
+   * captured before the change fails `validatePreviewForApply` even if a
+   * concurrent apply is already in flight.
+   *
+   * `discardPersisted` is best-effort cleanup only: identity validation already
+   * makes the old record unusable, so a failed delete cannot resurrect it.
+   */
+  const invalidateInteractionForCompositionChange = useCallback(
+    async (actorRequest: unknown, options: { discardPersisted: boolean }) => {
+      previewGenerationRef.current += 1;
+      setPendingContextChange(null);
+      setSlotEditor(CLOSED_EDITOR);
+      setPreview(null);
+      setComparing(false);
+      setInteraction({ ...IDLE_INTERACTION, actorKey });
+      if (options.discardPersisted && PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE) {
+        await discardInteractionState(actorRequest);
+      }
+    },
+    [actorKey],
+  );
 
   /**
    * Compose from a known-good context and persist the result.
@@ -714,6 +751,12 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       const actorRequest = createActorRequest();
       const isCurrent = () => isActorRequestCurrent(actorRequest);
       try {
+        // GOVERNED: the session mutation below changes the fingerprint, so the
+        // old interaction identity is dropped before it can be published under
+        // a composition it was never written against.
+        await invalidateInteractionForCompositionChange(actorRequest, { discardPersisted: true });
+        if (!isCurrent()) return;
+
         const result = await operation(actorRequest);
         if (!isCurrent()) return;
         setSession({ actorKey, result });
@@ -766,7 +809,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
         setBusy(false);
       }
     },
-    [actorKey, busy, closet, composeAndPersist],
+    [actorKey, busy, closet, composeAndPersist, invalidateInteractionForCompositionChange],
   );
 
   const startSession = useCallback(
@@ -913,6 +956,14 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     const isCurrent = () => isActorRequestCurrent(actorRequest);
     const previous = current;
     try {
+      // AUTOMATIC RECOVERY, NOT A USER-REQUESTED CONTEXT CHANGE. A rebuild is
+      // only offered for a stale/corrupt/absent composition, so it must not show
+      // a destructive confirmation — but the replacement carries new lookIds, so
+      // the old interaction identity is invalidated exactly as a context change
+      // would invalidate it.
+      await invalidateInteractionForCompositionChange(actorRequest, { discardPersisted: true });
+      if (!isCurrent()) return;
+
       setComposition({ ...IDLE_COMPOSITION, actorKey, status: 'building' });
       await discardCompositionSet(actorRequest);
       if (!isCurrent()) return;
@@ -928,7 +979,15 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     } finally {
       setBusy(false);
     }
-  }, [actorKey, busy, closet, composeAndPersist, current, view.session]);
+  }, [
+    actorKey,
+    busy,
+    closet,
+    composeAndPersist,
+    current,
+    view.session,
+    invalidateInteractionForCompositionChange,
+  ]);
 
   /** Explicit reset of a corrupt composition. The SESSION is never touched. */
   const resetComposition = useCallback(async () => {
@@ -936,6 +995,10 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     setBusy(true);
     const actorRequest = createActorRequest();
     try {
+      // The rebuilt composition gets a new identity, so edits recorded against
+      // the corrupt one cannot follow it.
+      await invalidateInteractionForCompositionChange(actorRequest, { discardPersisted: true });
+      if (!isActorRequestCurrent(actorRequest)) return;
       await resetCorruptComposition(actorRequest);
       if (!isActorRequestCurrent(actorRequest)) return;
       setComposition({ ...IDLE_COMPOSITION, actorKey });
@@ -943,7 +1006,7 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       setBusy(false);
     }
     hydrate();
-  }, [actorKey, busy, hydrate]);
+  }, [actorKey, busy, hydrate, invalidateInteractionForCompositionChange]);
 
   /** Repeat the failed operation without altering session context. */
   const retry = useCallback(() => {
@@ -1346,13 +1409,10 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
       setComparing(false);
       setInteraction({ ...IDLE_INTERACTION, actorKey });
 
-      if (PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE) {
-        const cleanupRequest = createActorRequest();
-        // Best effort: identity validation already makes the old record
-        // unusable, so a cleanup failure cannot resurrect it.
-        await discardInteractionState(cleanupRequest);
-      }
-
+      // The PERSISTED record is discarded by the governed invalidation inside
+      // `mutateContext`, which every branch below reaches. Clearing memory here
+      // as well is what stops old effective looks from rendering for the frame
+      // between this call and the session write.
       if (change.kind === 'anchor') {
         if (change.anchorClosetItemId) await setAnchor(change.anchorClosetItemId);
         else await clearAnchor();
@@ -1449,10 +1509,6 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     activeLookId: current.composition?.activeLookId ?? null,
     startSession,
     resumeSession,
-    setAnchor,
-    clearAnchor,
-    setOccasion,
-    clearOccasion,
     discardSession,
     resetSession,
     selectLook,

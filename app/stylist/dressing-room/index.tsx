@@ -135,7 +135,6 @@ export default function PrivateDressingRoomScreen() {
     canReset,
     busy,
     startSession,
-    clearAnchor,
     requestContextChange,
     discardSession,
     resetSession,
@@ -619,7 +618,11 @@ export default function PrivateDressingRoomScreen() {
             {anchor || anchorMissing ? (
               <SecondaryButton
                 title="Clear item"
-                onPress={() => void clearAnchor()}
+                // Clearing the anchor replaces the composition exactly as
+                // choosing a different one does, so it uses the same gate.
+                onPress={() =>
+                  void requestContextChange({ kind: 'anchor', anchorClosetItemId: null })
+                }
                 disabled={busy}
                 accessibilityLabel="Clear the selected Closet item"
                 testID="clear-anchor-button"
