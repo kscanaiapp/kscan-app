@@ -1,0 +1,94 @@
+{
+  "calibrationBatchVersion": "1.0.0",
+  "status": "DEFINED — NOT RUN. No reviewer is staffed.",
+  "purpose": "Independent labeling exercise each reviewer completes before touching a governed case, so inter-reviewer agreement is measured on known material rather than discovered mid-dataset.",
+  "protocol": [
+    "Each reviewer labels every case below independently and blind to the other reviewer's answers.",
+    "Reviewers use only the vocabularies in tools/scanner-evaluation/ontology/.",
+    "Agreement is computed per field, not as a single aggregate score.",
+    "Disagreements are reviewed jointly; the labeling guide is amended where the cause was an ambiguous rule.",
+    "The owner approves the qualification threshold BEFORE governed labeling begins.",
+    "The threshold is never lowered to accommodate a staffing shortfall."
+  ],
+  "scoredFields": [
+    "category",
+    "clothingType",
+    "subtype",
+    "primaryColor",
+    "brand",
+    "exactProduct",
+    "expectedResultType"
+  ],
+  "designNotes": {
+    "sizeIsInadequate": "A calibration batch should exercise each difficulty stratum several times. Only 7 reviewable images exist in the entire accessible corpus, and they are the same images the governed dataset would use. That is a real methodological weakness: calibrating on the evaluation set itself gives reviewers prior exposure to the cases they will later label.",
+    "consequence": "This batch is a MINIMUM VIABLE calibration, not a sound one. It is sufficient to detect gross vocabulary misunderstanding and nothing more. A proper calibration batch requires imagery that is NOT in the governed dataset, which does not exist yet.",
+    "recommendation": "Source 15-20 calibration images separately from the 75 governed cases, so calibration and measurement do not share material.",
+    "ownerDecisionRequired": true
+  },
+  "cases": [
+    {
+      "calibrationCaseId": "cal-001",
+      "governedRef": "assets/qa_fixtures/footwear.jpg",
+      "sha256": "sha256:8c4f330f9a966ca41ee4b1558849528bf094acfc5bfb195723c8033b8c61b3b5",
+      "exercises": ["person_wearing_product", "brand_not_visible", "backlit", "partial_occlusion"],
+      "calibrationIntent": "Does the reviewer label subtype at the right level (low_top_sneaker, not 'shoe'), and does the reviewer resist inventing a brand on a plain red sneaker?"
+    },
+    {
+      "calibrationCaseId": "cal-002",
+      "governedRef": "assets/qa_fixtures/non_fashion.jpg",
+      "sha256": "sha256:5820e6a08b6c58e43f85072fb29d30e6489d4159cb52d4c9c50729a7475b4938",
+      "exercises": ["non_fashion", "not_applicable_token"],
+      "calibrationIntent": "Does the reviewer use not_applicable rather than unknown for every fashion field on a non-fashion image? This is the single most commonly confused token."
+    },
+    {
+      "calibrationCaseId": "cal-003",
+      "governedRef": "assets/qa_fixtures/outerwear.jpg",
+      "sha256": "sha256:0cf370dcccf7de4b9a0d41ed0a87ca6545e55ba99aaaab95d01cb2e4fe7b7ea0",
+      "exercises": ["greyscale", "not_visible_token", "material_from_texture"],
+      "calibrationIntent": "The image is monochrome. Does the reviewer label primaryColor not_visible rather than guessing black or brown? A reviewer who names a colour here will name colours they cannot see elsewhere."
+    },
+    {
+      "calibrationCaseId": "cal-004",
+      "governedRef": "assets/qa_fixtures/top.jpg",
+      "sha256": "sha256:592ede7f86ecdc99d93e6e7785123e61f4e385b79e19a727636986caf51d3677",
+      "exercises": ["misleading_brand_like_design", "brand_evidence_standard"],
+      "calibrationIntent": "A visible but unverifiable wordmark. Does the reviewer record brand as not_visible, or does a visible mark alone tempt them into a brand claim?",
+      "precondition": "Requires the approved masked derivative (face present)."
+    },
+    {
+      "calibrationCaseId": "cal-005",
+      "governedRef": "assets/qa_fixtures/accessory.jpg",
+      "sha256": "sha256:2ec5f6763298d21b070e195b52cd8ec2a6343389f2bdfa1a291df5738e736fce",
+      "exercises": ["multi_item_scene", "expected_result_state"],
+      "calibrationIntent": "Three objects, two of them fashion. Does the reviewer recognise this as a multi-item frame rather than forcing a single accessory label?"
+    },
+    {
+      "calibrationCaseId": "cal-006",
+      "governedRef": "assets/qa_fixtures/bottom_jeans.jpg",
+      "sha256": "sha256:04c0ca5bed1bee26e83be98b9a992619b0777811a7fb8a99fe955939334bbd8c",
+      "exercises": ["multi_garment_frame", "dominant_item_selection", "material_denim"],
+      "calibrationIntent": "Jeans, t-shirt and sneakers are all present. Does the reviewer label the dominant item consistently, and does denim stay denim rather than becoming cotton?",
+      "precondition": "Requires EXIF/XMP/Photoshop strip."
+    },
+    {
+      "calibrationCaseId": "cal-007",
+      "governedRef": "assets/qa_fixtures/dress.jpg",
+      "sha256": "sha256:d9e10c855e41543a906ad0c202a9403b9cea7d3d75a198ab11fecdf9710fdded",
+      "exercises": ["low_light", "colour_family_vs_shade", "subtype_granularity"],
+      "calibrationIntent": "A white/ivory gown in dim warm light. Does the reviewer commit to a shade they can defend, and do they leave subtype unknown rather than guessing a silhouette name?",
+      "precondition": "Requires the approved masked derivative (face present) and EXIF strip."
+    }
+  ],
+  "excludedFromCalibration": [
+    {
+      "governedRef": "assets/qa_fixtures/bottom_skirt.jpg",
+      "reason": "Rejected from the corpus entirely. See fixtures-inventory v0.2.0 finding INV-2. It is not shown to reviewers."
+    }
+  ],
+  "agreementReport": {
+    "status": "NOT PRODUCED",
+    "reason": "No reviewer has been assigned, so no labels exist to compare. An agreement figure reported here without two independent human passes would be fabricated.",
+    "byField": null,
+    "disagreements": null
+  }
+}
