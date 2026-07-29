@@ -458,7 +458,17 @@ export function applySlotChange(
  */
 export function undoLastOperation(
   state: PrivateDressingRoomInteractionState,
-  options: { availableClosetItemIds?: readonly string[]; now?: string } = {},
+  options: {
+    availableClosetItemIds?: readonly string[];
+    /**
+     * The GENERATED item for the slot being reverted, when known. Reverting
+     * onto it removes the override rather than storing one that overrides
+     * nothing — the same rule `applySlotChange` applies, so "is this edited?"
+     * cannot become permanently true after an undo.
+     */
+    baseClosetItemId?: string | null;
+    now?: string;
+  } = {},
 ): InteractionTransition {
   if (state.history.length === 0) {
     return { ok: false, state: null, operation: null, errorCode: 'NOTHING_TO_UNDO' };
@@ -477,8 +487,10 @@ export function undoLastOperation(
   const existing = overridesForLook(state, operation.lookId).filter(
     (override) => override.slot !== operation.slot,
   );
+  const base = cleanText(options.baseClosetItemId, PRIVATE_INTERACTION_BOUNDS.closetItemId);
+  const revertsToBase = base !== null && operation.beforeClosetItemId === base;
   const slots =
-    operation.beforeClosetItemId === null
+    operation.beforeClosetItemId === null || revertsToBase
       ? existing
       : [
           ...existing,
