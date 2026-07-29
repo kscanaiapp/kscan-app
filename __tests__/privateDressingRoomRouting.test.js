@@ -232,10 +232,13 @@ test('Phase 1 offers no generation, no Continue, and no placeholder Looks', () =
   }
 });
 
-test('the ready state is passive status only', () => {
+test('the ready state renders real outfit options', () => {
+  // Phase 1 showed a passive "ready for the next step" notice because there was
+  // no next step yet. Phase 2 replaced it with the composed outfits themselves.
   const source = read(ROUTE);
-  assert.match(source, /title="Ready"/);
-  assert.match(source, /PRIVATE_WORKSPACE_COPY\.ready/);
+  assert.match(source, /testID="composition-ready"/);
+  assert.match(source, /testID="look-card"/);
+  assert.match(source, /testID="active-look-detail"/);
 });
 
 // ── Accessibility and layout ─────────────────────────────────────────────────
@@ -251,12 +254,13 @@ test('every interactive control has an accessibility label', () => {
   );
 });
 
-test('selectable controls expose accessibility state', () => {
+test('every selectable control exposes accessibility state', () => {
   const source = read(ROUTE);
   const selectable = (source.match(/accessibilityRole="button"/g) ?? []).length;
   const states = (source.match(/accessibilityState=\{\{ selected/g) ?? []).length;
-  assert.equal(selectable, 2, 'the anchor and occasion options');
-  assert.equal(states, 2, 'both expose selected state');
+  // Anchor options, occasion options, and (Phase 2) look cards.
+  assert.equal(selectable, 3);
+  assert.equal(states, selectable, 'each one reports whether it is selected');
 });
 
 test('loading states are announced to a screen reader', () => {
