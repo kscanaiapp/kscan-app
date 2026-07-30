@@ -77,6 +77,15 @@ function canonicalSameItemGroups(reviewSubmission) {
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 }
 
+function canonicalSameItemIdentities(reviewSubmission) {
+  const identities = [];
+  for (const group of reviewSubmission.sameItemGroups || []) {
+    if (Array.isArray(group.blindIds)) identities.push(...group.blindIds);
+    else if (group.sameItemAcrossImages === true && group.blindId) identities.push(group.blindId);
+  }
+  return [...new Set(identities)].sort();
+}
+
 /**
  * Hash one reviewer's label set.
  *
@@ -164,8 +173,8 @@ function compareReviews(reviewA, reviewB) {
   }
 
   // Same-item identity is a set comparison, not a field comparison.
-  const groupsA = canonicalSameItemGroups(reviewA).map((group) => JSON.stringify(group));
-  const groupsB = canonicalSameItemGroups(reviewB).map((group) => JSON.stringify(group));
+  const groupsA = canonicalSameItemIdentities(reviewA);
+  const groupsB = canonicalSameItemIdentities(reviewB);
   const sameItemAgreed = JSON.stringify(groupsA) === JSON.stringify(groupsB);
   if (!sameItemAgreed) {
     disagreements.push({
@@ -253,6 +262,7 @@ module.exports = {
   NEAR_MECHANICAL_FIELDS,
   UNCERTAINTY_TOKENS,
   canonicalSameItemGroups,
+  canonicalSameItemIdentities,
   lockLabelSet,
   compareReviews,
   agreementInterpretation,

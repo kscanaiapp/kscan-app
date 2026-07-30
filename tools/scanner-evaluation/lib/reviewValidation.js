@@ -28,7 +28,76 @@ const EXPECTED_RESULTS = new Set([
 ]);
 const SAME_ITEM = new Set([true, false, 'unknown', 'not_applicable']);
 
+function normalizeReviewSubmission(submission) {
+  if (!submission || typeof submission !== 'object') return submission;
+  const nestedCases = Array.isArray(submission.cases) ? submission.cases : [];
+  const sourceLabels = Array.isArray(submission.labels)
+    ? submission.labels
+    : nestedCases.map((reviewCase) => ({
+      blindId: reviewCase.blindId,
+      ...(reviewCase.labels || {}),
+      fieldEvidence: Object.fromEntries(
+        Object.entries(reviewCase.fieldReviews || reviewCase.fieldEvidence || {})
+          .map(([field, review]) => [field, review && typeof review === 'object' ? review.evidence : review])
+      ),
+      evidenceBasis: { blindImageIds: reviewCase.blindImageIds || [], basis: 'direct visual inspection' },
+    }));
+  const labels = sourceLabels.map((label) => ({
+    ...label,
+    fieldEvidence: Object.fromEntries(
+      Object.entries(label.fieldEvidence || {}).map(([field, evidence]) => [
+        field,
+        evidence && typeof evidence === 'object' ? evidence.evidence : evidence,
+      ])
+    ),
+  }));
+  const memory = submission.memoryContextDeclaration || {};
+  const declaredIntegrity = submission.integrityDeclaration || {};
+  const integrityDeclaration = declaredIntegrity.labeledOnlyFromImages !== undefined
+    ? declaredIntegrity
+    : {
+      labeledOnlyFromImages:
+        (memory.usedOnlyReviewBriefNamedGuideOpaqueImagesAndGovernanceSummaries === true
+          || memory.reviewedOnlyBriefNamedGuideOpaqueImagesAndGovernanceSummaries === true
+          || (declaredIntegrity.noExternalResourcesUsed === true
+            && Array.isArray(memory.allowedContextUsed)))
+        && (declaredIntegrity.allOpaqueImagesInspected === true
+          || declaredIntegrity.allNineOpaqueImagesInspectedWithViewImage === true
+          || (declaredIntegrity.allSuppliedImagesInspectedWithViewImage === true
+            && declaredIntegrity.noExternalResourcesUsed === true)),
+      readAnyExistingLabels:
+        memory.usedCuratorDraft === true
+        || memory.curatorDraftUsed === true
+        || memory.usedSourceProvenanceTitleOrCuratorDraft === true
+        || memory.usedPriorOrInvalidatedReview === true
+        || memory.priorOrInvalidatedReviewUsed === true,
+      sawOtherReviewerWork:
+        memory.usedConversationHistoryOrOtherAgentWork === true
+        || memory.usedOtherAgentWork === true
+        || memory.otherAgentWorkUsed === true
+        || memory.usedPriorOrInvalidatedReview === true
+        || memory.priorOrInvalidatedReviewUsed === true,
+      sawAnyModelOutput:
+        memory.usedScannerOrModelOutput === true || memory.scannerOrModelOutputUsed === true,
+      attemptedProvenanceLookup:
+        memory.usedRepositoryManifest === true
+        || memory.repositoryManifestUsed === true
+        || memory.usedPrivateCaseMap === true
+        || memory.privateCaseMapUsed === true
+        || memory.usedSourceProvenanceOrTitles === true
+        || memory.sourceProvenanceOrTitleUsed === true,
+    };
+  return {
+    ...submission,
+    guideSha256:
+      submission.guideSha256 || submission.reviewedGuideSha256 || submission.reviewedGuideHash,
+    labels,
+    integrityDeclaration,
+  };
+}
+
 function validateReviewSubmission(submission, brief, { expectedRole } = {}) {
+  submission = normalizeReviewSubmission(submission);
   const errors = [];
   const push = (path, message) => errors.push({ path, message });
   if (!submission || typeof submission !== 'object') return { ok: false, errors: [{ path: '', message: 'submission must be an object' }] };
@@ -108,7 +177,7 @@ function validateReviewSubmission(submission, brief, { expectedRole } = {}) {
       }
     }
   }
-  return { ok: errors.length === 0, errors, labelCount: labels.length };
+  return { ok: errors.length === 0, errors, labelCount: labels.length, normalized: submission };
 }
 
-module.exports = { validateReviewSubmission };
+module.exports = { normalizeReviewSubmission, validateReviewSubmission };

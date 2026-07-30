@@ -117,6 +117,18 @@ test('case-level multi-view same-item groups are lockable and comparable', () =>
   assert.equal(holdoutReview.compareReviews(a, b).sameItem.agreed, true);
 });
 
+test('legacy and case-level same-item group shapes compare by physical case identity', () => {
+  const a = submission('A', { sameItemGroups: [{ blindIds: ['blind-case-1'] }] });
+  const b = submission('B', {
+    sameItemGroups: [{
+      blindId: 'blind-case-1',
+      blindImageIds: ['blind-image-1', 'blind-image-2'],
+      sameItemAcrossImages: true,
+    }],
+  });
+  assert.equal(holdoutReview.compareReviews(a, b).sameItem.agreed, true);
+});
+
 test('the two reviewer roles produce different locks for identical labels', () => {
   // The role is part of the locked identity, so one reviewer's set can never be
   // presented as the other's.

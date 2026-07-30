@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { buildAdjudicationPacket } = require('./lib/adjudicationPacket');
+const { validateReviewSubmission } = require('./lib/reviewValidation');
 
 function arg(name) {
   const index = process.argv.indexOf(name);
@@ -24,10 +25,16 @@ const lockB = readJson(arg('--lock-b')).value;
 const outputDir = arg('--output-dir');
 if (fs.existsSync(outputDir)) throw new Error(`Refusing to overwrite existing adjudication packet: ${outputDir}`);
 
+const validationA = validateReviewSubmission(a.value, brief, { expectedRole: 'A' });
+const validationB = validateReviewSubmission(b.value, brief, { expectedRole: 'B' });
+if (!validationA.ok || !validationB.ok) {
+  throw new Error(`Cannot adjudicate invalid reviews: ${JSON.stringify({ A: validationA.errors, B: validationB.errors })}`);
+}
+
 const packet = buildAdjudicationPacket({
   brief,
-  reviewA: a.value,
-  reviewB: b.value,
+  reviewA: validationA.normalized,
+  reviewB: validationB.normalized,
   lockA,
   lockB,
   rawA: a.raw,

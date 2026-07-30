@@ -55,3 +55,33 @@ test('non-fashion encoding and governance completeness are enforced', () => {
   assert.ok(result.errors.some((error) => error.path.endsWith('.privacyAndAuthorizationComplete')));
   assert.ok(result.errors.some((error) => error.message.includes('canonically unavailable')));
 });
+
+test('case-nested reviewer output is normalized without changing label values', () => {
+  const { brief, submission, label } = fixture();
+  const nested = {
+    ...submission,
+    reviewedGuideSha256: submission.guideSha256,
+    guideSha256: undefined,
+    labels: undefined,
+    cases: [{
+      blindId: label.blindId,
+      blindImageIds: ['img-001'],
+      labels: Object.fromEntries(Object.entries(label).filter(([key]) => !['blindId', 'fieldEvidence'].includes(key))),
+      fieldReviews: Object.fromEntries(Object.entries(label.fieldEvidence).map(([field, evidence]) => [field, { evidence }])),
+    }],
+    memoryContextDeclaration: {
+      usedOnlyReviewBriefNamedGuideOpaqueImagesAndGovernanceSummaries: true,
+      usedCuratorDraft: false,
+      usedPriorOrInvalidatedReview: false,
+      usedConversationHistoryOrOtherAgentWork: false,
+      usedScannerOrModelOutput: false,
+      usedRepositoryManifest: false,
+      usedPrivateCaseMap: false,
+      usedSourceProvenanceOrTitles: false,
+    },
+    integrityDeclaration: { allOpaqueImagesInspected: true },
+  };
+  const result = validateReviewSubmission(nested, brief, { expectedRole: 'A' });
+  assert.equal(result.ok, true);
+  assert.equal(result.normalized.labels[0].subtype, 'running_sneaker');
+});
