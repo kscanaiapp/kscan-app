@@ -1,0 +1,10 @@
+# ZAP Baseline rule configuration (TSV)
+# Format: ruleId<TAB>WARN|FAIL|IGNORE|INFO<TAB>comment
+# Phase 1 policy:
+# - Do not mark alerts IGNORE merely to make the workflow green.
+# - Keep ordinary alerts at WARN (report-only).
+# - Site findings must not fail the workflow during Phase 1 (workflow uses -I / fail_action=false).
+# - Do not invent rule IDs. Tune verified IDs after the first real staging report.
+#
+# This file intentionally contains no IGNORE overrides.
+# An empty rule body is valid: ZAP defaults unmatched rules to WARN.

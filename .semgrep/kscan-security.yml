@@ -1,0 +1,301 @@
+rules:
+  - id: kscan.client-visible-supabase-service-role
+    message: Possible client-visible reference to a Supabase service-role secret. Service-role keys must never ship in mobile or browser-reachable source.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [supabase, react-native]
+      kscan_boundary: client-secret-exposure
+      confidence: MEDIUM
+    paths:
+      include:
+        - app
+        - components
+        - hooks
+        - contexts
+        - services
+      exclude:
+        - '**/__tests__/**'
+        - '**/*.test.*'
+        - '**/*.spec.*'
+    pattern-either:
+      - pattern: SUPABASE_SERVICE_ROLE_KEY
+      - pattern: process.env.SUPABASE_SERVICE_ROLE_KEY
+      - pattern: process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
+      - pattern-regex: (?i)service[_-]?role[_-]?key
+
+  - id: kscan.token-in-url
+    message: Sensitive token-like values appear to be placed into a URL, query string, or navigation path. Prefer Authorization headers or secure storage over URL parameters.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [javascript, react-native]
+      kscan_boundary: token-transport
+      confidence: MEDIUM
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: new URL($X, ...)
+              - pattern: new URLSearchParams($X, ...)
+              - pattern: $R.push($X, ...)
+              - pattern: $R.replace($X, ...)
+              - pattern: $R.navigate($X, ...)
+              - pattern: Linking.openURL($X, ...)
+              - pattern: window.location = $X
+              - pattern: window.location.href = $X
+          - metavariable-regex:
+              metavariable: $X
+              regex: (?i).*(access_token|refresh_token|authorization|session_token|companion_token|pairing_secret).*
+      - pattern-regex: (?i)[?&](access_token|refresh_token|authorization|session_token|companion_token|pairing_secret)=
+
+  - id: kscan.logging-token-values
+    message: A sensitive token-like variable appears to be logged. Avoid logging credential or session values.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [javascript, logging]
+      kscan_boundary: credential-logging
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: console.log(..., $TOKEN, ...)
+          - pattern: console.info(..., $TOKEN, ...)
+          - pattern: console.debug(..., $TOKEN, ...)
+          - pattern: console.warn(..., $TOKEN, ...)
+          - pattern: console.error(..., $TOKEN, ...)
+          - pattern: logger.log(..., $TOKEN, ...)
+          - pattern: logger.info(..., $TOKEN, ...)
+          - pattern: logger.debug(..., $TOKEN, ...)
+          - pattern: logger.warn(..., $TOKEN, ...)
+          - pattern: logger.error(..., $TOKEN, ...)
+      - metavariable-regex:
+          metavariable: $TOKEN
+          regex: (?i).*(accessToken|refreshToken|authorization|authHeader|serviceRoleKey|pairingSecret).*
+
+  - id: kscan.logging-raw-image-data
+    message: Raw image payload data appears to be logged. Avoid logging base64 images or image payloads.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      category: privacy
+      technology: [javascript, logging]
+      kscan_boundary: image-privacy
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: console.log(..., $IMG, ...)
+          - pattern: console.info(..., $IMG, ...)
+          - pattern: console.debug(..., $IMG, ...)
+          - pattern: console.warn(..., $IMG, ...)
+          - pattern: console.error(..., $IMG, ...)
+          - pattern: logger.log(..., $IMG, ...)
+          - pattern: logger.info(..., $IMG, ...)
+          - pattern: logger.debug(..., $IMG, ...)
+      - metavariable-regex:
+          metavariable: $IMG
+          regex: (?i).*(base64|imageBase64|rawImage|imagePayload|dataUri).*
+
+  - id: kscan.wildcard-cors-javascript
+    message: Wildcard Access-Control-Allow-Origin detected. Treat as review-required; not automatically exploitable, but often overly permissive for credentialed APIs.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [http, cors, supabase, node]
+      kscan_boundary: cors
+      confidence: HIGH
+    paths:
+      include:
+        - server.js
+        - '**/*.js'
+        - '**/*.ts'
+        - '**/supabase/functions/**'
+      exclude:
+        - '**/__tests__/**'
+        - '**/docs/**'
+        - '**/node_modules/**'
+    pattern-either:
+      - pattern: '({..., "Access-Control-Allow-Origin": "*", ...})'
+      - pattern: $RES.header("Access-Control-Allow-Origin", "*")
+      - pattern: $RES.setHeader("Access-Control-Allow-Origin", "*")
+      - pattern: $RES.set("Access-Control-Allow-Origin", "*")
+
+  - id: kscan.wildcard-cors-config
+    message: Wildcard Access-Control-Allow-Origin detected in JSON, YAML, or configuration text. Treat as review-required; not automatically exploitable, but often overly permissive for credentialed APIs.
+    severity: WARNING
+    languages: [generic]
+    metadata:
+      category: security
+      technology: [http, cors, configuration]
+      kscan_boundary: cors
+      confidence: HIGH
+    paths:
+      include:
+        - '**/*.json'
+        - '**/*.yaml'
+        - '**/*.yml'
+        - '**/*.conf'
+        - '**/*.config'
+        - '**/*.cfg'
+        - '**/*.ini'
+      exclude:
+        - '**/__tests__/**'
+        - '**/docs/**'
+        - '**/node_modules/**'
+    pattern-regex: (?i)Access-Control-Allow-Origin\s*[:=]\s*['"]?\*['"]?
+
+  - id: kscan.client-supplied-owner-identity
+    message: Server or Edge Function code appears to trust a client-supplied user/owner identity field. Prefer deriving identity from a verified auth token.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [supabase, node, express]
+      kscan_boundary: authorization
+      confidence: LOW
+    paths:
+      include:
+        - server.js
+        - '**/supabase/functions/**'
+      exclude:
+        - '**/__tests__/**'
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: const { user_id } = $REQ.body
+              - pattern: const { userId } = $REQ.body
+              - pattern: const { owner_id } = $REQ.body
+              - pattern: const { ownerId } = $REQ.body
+              - pattern: $REQ.body.user_id
+              - pattern: $REQ.body.userId
+              - pattern: $REQ.body.owner_id
+              - pattern: $REQ.body.ownerId
+      - pattern-regex: (?i)body\.(user_id|userId|owner_id|ownerId)\s*
+
+  - id: kscan.production-mock-selection
+    message: Production-facing code appears to select a mock authentication, sanitizer, API, AI provider, or demo backend without an obvious development/test guard.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [javascript, react-native]
+      kscan_boundary: mock-in-production
+      confidence: LOW
+    paths:
+      exclude:
+        - '**/__tests__/**'
+        - '**/*.test.*'
+        - '**/*.spec.*'
+        - '**/docs/**'
+        - '**/maestro/**'
+        - '**/.maestro/**'
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $X = "mock"
+              - pattern: $X = 'mock'
+              - pattern: $X = "demo"
+              - pattern: $X = 'demo'
+          - metavariable-regex:
+              metavariable: $X
+              regex: (?i).*(auth|sanitizer|api|provider|backend|ai).*
+      - pattern-regex: (?i)(USE_|ENABLE_|SELECT_)?(MOCK_(AUTH|SANITIZER|API|AI|PROVIDER)|DEMO_BACKEND)\s*=\s*['"]?(true|1|yes)
+
+  - id: kscan.dangerous-dynamic-execution
+    message: Risky dynamic execution detected (eval, Function constructor, or shell execution). Review for injection risk.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [javascript, node]
+      kscan_boundary: dangerous-execution
+      confidence: HIGH
+    paths:
+      exclude:
+        - '**/__tests__/**'
+        - '**/*.test.*'
+        - '**/*.spec.*'
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: require('child_process').exec(...)
+      - pattern: require("child_process").exec(...)
+      - pattern: require('child_process').execSync(...)
+      - pattern: require("child_process").execSync(...)
+      - pattern: child_process.exec(...)
+      - pattern: child_process.execSync(...)
+      - pattern: "exec(..., { shell: true }, ...)"
+      - pattern: "spawn(..., { shell: true }, ...)"
+      - pattern: "execSync(..., { shell: true }, ...)"
+
+  - id: kscan.wearable-bridge-missing-validation
+    message: Wearable/bridge message handling may lack allowlisting or schema/protocol validation. Low-confidence static heuristic; confirm manually.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      category: security
+      technology: [wearable, bridge]
+      kscan_boundary: wearable-bridge
+      confidence: LOW
+    paths:
+      include:
+        - '**/glasses/**'
+        - '**/kscan-google-glasses/**'
+        - '**/bridge/**'
+        - '**/companion/**'
+    patterns:
+      - pattern-either:
+          - pattern: |
+              function $HANDLER($MSG, ...) {
+                ...
+              }
+          - pattern: |
+              ($MSG, ...) => {
+                ...
+              }
+      - pattern-not-regex: (?i)(protocolVersion|requestId|allowlist|schema|zod|ajv|validate)
+      - metavariable-regex:
+          metavariable: $HANDLER
+          regex: (?i).*(message|bridge|companion|hud|glass).*
+
+  - id: kscan.raw-image-cloud-fallback
+    message: Code appears to upload or send the original raw image when privacy sanitization fails. Confirm whether this fallback is intentional and gated.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      category: privacy
+      technology: [javascript, privacy]
+      kscan_boundary: image-privacy-fallback
+      confidence: LOW
+    patterns:
+      - pattern-either:
+          - pattern: |
+              if ($SANITIZE) {
+                ...
+              } else {
+                ...
+                $UPLOAD($RAW, ...)
+                ...
+              }
+          - pattern: |
+              try {
+                ...
+                $SANITIZE(...)
+                ...
+              } catch ($E) {
+                ...
+                $UPLOAD($RAW, ...)
+                ...
+              }
+      - metavariable-regex:
+          metavariable: $SANITIZE
+          regex: (?i).*(sanitiz|privacy).*
+      - metavariable-regex:
+          metavariable: $UPLOAD
+          regex: (?i).*(upload|put|post|send).*
+      - metavariable-regex:
+          metavariable: $RAW
+          regex: (?i).*(raw|original|unsanitized|imageUri|localUri|base64).*
