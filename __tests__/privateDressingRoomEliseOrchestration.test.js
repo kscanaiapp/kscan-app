@@ -286,6 +286,31 @@ test('an unrecognised backend version shows the updating copy, not a retry', asy
   );
 });
 
+test('Phase 5 transport failure preserves the active Look and validated overrides', async () => {
+  const currentLook = { lookId: 'look-1', items: [{ slot: 'top', closetItemId: 'top-override' }] };
+  const validatedOverrides = [{ slot: 'top', closetItemId: 'top-override' }];
+  let invocations = 0;
+  const { deps, applied, statuses } = harness({
+    invoke: async () => {
+      invocations += 1;
+      return { data: null, error: new Error('FunctionsHttpError: 503') };
+    },
+  });
+  const beforeLook = JSON.stringify(currentLook);
+  const beforeOverrides = JSON.stringify(validatedOverrides);
+  const outcome = await orchestration.interpretOccasion(deps, {
+    instruction: 'dinner',
+    currentOccasion: 'Work',
+  });
+  assert.equal(outcome.applied, false);
+  assert.equal(outcome.status.kind, 'failed');
+  assert.equal(statuses[statuses.length - 1].kind, 'failed', 'submitting state must leave loading');
+  same(applied, [], 'failure cannot request a context change');
+  assert.equal(JSON.stringify(currentLook), beforeLook);
+  assert.equal(JSON.stringify(validatedOverrides), beforeOverrides);
+  assert.equal(invocations, 1, 'failure must not automatically retry or fall through to legacy');
+});
+
 test('a stale response mutates nothing and shows nothing', async () => {
   let snapshotActor = 'actor-1';
   const { deps, applied, statuses } = harness({
