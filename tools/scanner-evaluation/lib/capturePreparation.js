@@ -110,8 +110,13 @@ function resolveMode(declared) {
 /**
  * Evaluate one image against the certified payload contract.
  *
- * @param {{ byteLength: number, refValue?: string }} image
- * @param {{ mode: string, maxImageBase64Bytes?: number }} options
+ * When a production-equivalent mode is declared, `preparation` must be the record
+ * for THIS image from the preparation manifest, and the ceiling is checked against
+ * the PREPARED derivative — the bytes that will actually be sent — not against the
+ * governed original, which production never uploads.
+ *
+ * @param {{ byteLength: number, refValue?: string, hash?: string }} image
+ * @param {{ mode: string, maxImageBase64Bytes?: number, preparation?: object }} options
  * @returns {{ ok: boolean, findings: Array<object>, base64Length: number }}
  */
 function evaluateImage(image, options = {}) {
@@ -123,8 +128,8 @@ function evaluateImage(image, options = {}) {
     throw new Error(`certified base64 ceiling must be a positive integer, received ${cap}`);
   }
 
-  const encoded = base64Length(image.byteLength);
   const findings = [];
+  const preparation = options.preparation || null;
 
   if (mode === MODE_ABSENT) {
     findings.push({
@@ -146,6 +151,51 @@ function evaluateImage(image, options = {}) {
     });
   }
 
+  // The payload that will be sent: the derivative when prepared, otherwise the
+  // original. Falling back to the original is only reachable in a non-prepared
+  // mode, which has already been blocked above.
+  let encoded;
+  if (isProductionEquivalent(mode)) {
+    if (!preparation) {
+      findings.push({
+        severity: 'blocking',
+        check: 'preparation_record_missing',
+        message:
+          `capture preparation mode "${mode}" is declared but no preparation record exists for `
+          + `${image.refValue || 'this image'}. Run prepare-derivatives.js and pass `
+          + '--preparation-manifest; a declared preparation stage is not allowed to be notional.',
+        imageRef: image.refValue || null,
+      });
+      encoded = base64Length(image.byteLength);
+    } else {
+      encoded = preparation.derivativeBase64Length;
+      // The derivative must descend from the frozen bytes this case names.
+      if (image.hash) {
+        const expected = String(image.hash).replace(/^sha256:/, '');
+        if (preparation.sourceSha256 !== expected) {
+          findings.push({
+            severity: 'blocking',
+            check: 'preparation_source_mismatch',
+            message:
+              `preparation record for ${image.refValue} was derived from source `
+              + `${preparation.sourceSha256}, but the frozen manifest names ${expected}.`,
+            imageRef: image.refValue || null,
+          });
+        }
+      }
+      if (!fs.existsSync(preparation.derivativePath)) {
+        findings.push({
+          severity: 'blocking',
+          check: 'derivative_missing',
+          message: `prepared derivative is recorded but absent on disk: ${preparation.derivativePath}`,
+          imageRef: image.refValue || null,
+        });
+      }
+    }
+  } else {
+    encoded = base64Length(image.byteLength);
+  }
+
   if (encoded > cap) {
     findings.push({
       severity: 'blocking',
@@ -161,7 +211,14 @@ function evaluateImage(image, options = {}) {
     });
   }
 
-  return { ok: findings.length === 0, findings, base64Length: encoded, mode, ceiling: cap };
+  return {
+    ok: findings.length === 0,
+    findings,
+    base64Length: encoded,
+    mode,
+    ceiling: cap,
+    preparedPayload: Boolean(preparation),
+  };
 }
 
 /**

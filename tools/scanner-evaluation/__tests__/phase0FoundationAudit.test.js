@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 
 const runBaseline = require('../run-baseline');
+const prepareDerivatives = require('../prepare-derivatives');
 const { verifyFrozenDataset } = require('../lib/frozenDataset');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -101,11 +102,21 @@ test('v0.3.0 dry run verifies the freeze then blocks all drafts with explicit ze
   });
 });
 
-test('execute mode refuses draft cases without writing a successful execution artifact', () => {
+test('execute mode refuses draft cases without writing a successful execution artifact', async () => {
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0-execute-refusal-'));
+  // Every OTHER gate is satisfied here — ceilings, verified pricing, split, and a
+  // real preparation manifest of real derivatives — so this proves that draft
+  // review alone still refuses all 33 development cases. Execution is split-scoped,
+  // so the denominator is 33 rather than all 41.
+  const derivativeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0-execute-refusal-deriv-'));
+  const prepared = await withStorageRoot(() => prepareDerivatives.main([
+    '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
+    '--derivative-root', derivativeRoot,
+    '--split', 'development',
+  ]));
+  assert.equal(prepared.ok, true);
+
   let adapterInvocations = 0;
-  // Execution is now split-scoped, so the denominator is the 33 development cases
-  // rather than all 41. A run that spanned both splits would break the holdout seal.
   const result = withStorageRoot(() => runBaseline.main([
     '--execute',
     '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
@@ -115,6 +126,7 @@ test('execute mode refuses draft cases without writing a successful execution ar
     '--pricing-record', 'evals/scanner-accuracy/pricing/gemini-pricing.2026-07-29.json',
     '--split', 'development',
     '--capture-preparation', 'certified_client_equivalent',
+    '--preparation-manifest', path.relative(ROOT, prepared.preparationManifest).replace(/\\/g, '/'),
   ], {
     executor: () => { adapterInvocations += 1; },
     now: '2026-07-29T00:00:00.000Z',
@@ -125,6 +137,13 @@ test('execute mode refuses draft cases without writing a successful execution ar
   assert.equal(result.blockedCaseCount, 33);
   assert.equal(result.executedCallCount, 0);
   assert.equal(adapterInvocations, 0);
+  // The refusal is the review gate specifically, not a payload or preparation gate.
+  assert.ok(result.blocked.every((b) => b.findings.some((f) => f.check === 'review_status')));
+  assert.equal(
+    result.blocked.some((b) => b.findings.some((f) => f.check === 'certified_payload_ceiling')),
+    false,
+    'preparation closed the payload-ceiling finding; only review remains'
+  );
   assert.equal(fs.existsSync(path.join(outputDir, 'run-manifest.json')), false);
   assert.equal(fs.existsSync(path.join(outputDir, 'baseline-report.json')), false);
 });

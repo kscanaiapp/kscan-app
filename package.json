@@ -72,6 +72,7 @@
   "devDependencies": {
     "@elevenlabs/elevenlabs-js": "^2.58.0",
     "@types/react": "~19.1.10",
+    "sharp": "^0.35.3",
     "typescript": "~5.9.2"
   }
 }

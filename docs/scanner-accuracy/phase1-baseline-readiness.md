@@ -1,13 +1,16 @@
 # Build 4 Phase 1 — Certified baseline readiness, blockers, and execution-path repairs
 
-**Verdict: BUILD 4 PHASE 1 BLOCKED — REVIEW, CREDENTIAL, COST, DATASET, OR EXECUTION GATE**
+**Verdict: BUILD 4 PHASE 1 BLOCKED — REVIEW AND CREDENTIAL GATES REMAIN**
+
+Updated 2026-07-29 after the owner's F-1 decision. The capture-preparation gate is
+now **CLOSED**; the review and credential gates remain open.
 
 No provider call was made. Actual spend: **$0.00**. No baseline accuracy figure is
 reported below, because none was measured and none may be inferred.
 
-Two independent owner gates are unmet, and a third defect would have invalidated
-the measurement even if they had been met. All three are documented here; the
-third has been repaired.
+Two independent owner gates are unmet. A third defect (F-1) would have invalidated
+the measurement even if they had been met; it has now been resolved under owner
+authorization and is closed.
 
 ---
 
@@ -191,28 +194,62 @@ Two distinct errors, neither visible in the result payload:
 Per Clarification 6 this is exactly the case to be distinguished before blocking on
 low accuracy: it is **infrastructure failure, not Scanner performance**.
 
-### What was repaired, and what was not
+### Resolution — owner-authorized route (a), implemented
 
-Repaired: the harness now fails closed. A capture-preparation mode must be
-declared; `absent` (the default) and `governed_original` both refuse, and any
-payload over the certified ceiling blocks its case with a finding naming the
-certified constant. A run can no longer silently produce an invalid baseline.
+The owner authorized a Node JPEG codec and a **governed runtime preparation
+stage**, with the ruling that *the dataset is the source corpus and preparation
+belongs to the execution pipeline*. No dataset patch version was created.
 
-**Not** repaired, and requiring an owner decision: actually producing
-production-equivalent derivatives. Two routes, neither self-authorizable:
+Implemented in `lib/imagePreparation.js` and `prepare-derivatives.js`:
 
-- **(a) Node image codec.** Add a JPEG encoder dependency (e.g. `sharp`) to
-  produce 896 px / q0.65 derivatives at request-construction time. The governed
-  bytes and hashes stay immutable. Adding a dependency to this repository is an
-  owner decision. Note that no Node JPEG encoder will be bit-identical to
-  `expo-image-manipulator`'s native encoder; the residual difference must be
-  stated as a limitation rather than claimed as parity.
-- **(b) Governed dataset patch 0.3.1.** Pre-generate prepared derivatives into
-  governed storage, re-freeze, and re-run every hash gate. This changes the frozen
-  inputs, which §15 forbids without authorization.
+| Requirement | Implementation |
+|---|---|
+| Codec | `sharp` 0.35.3 / libvips 8.18.3, **devDependency**, not imported by app code |
+| Resize | 896 px, policy `certified_client_width_896` (default) |
+| JPEG quality | 0.65 client scale → 65 encoder scale, 4:2:0, non-progressive |
+| Orientation | EXIF baked into pixels then stripped — no viewer-dependent rotation can change what the model sees |
+| Derivatives | exactly one per source image, content-addressed by source hash |
+| Storage | outside every Git worktree, enforced by walking up for `.git` |
+| Provenance | source hash, derivative hash, source and derivative dimensions, full transform parameters, codec versions — per image, in `preparation-manifest.json` |
+| Frozen originals | opened read-only; freeze re-verifies at 56/56 with the aggregate unchanged |
 
-Route (a) is recommended: it leaves v0.3.0 frozen and keeps preparation where
-production does it.
+**Result: 56/56 images now fit the certified ceiling. 0 over.**
+
+| Measure | Before | After |
+|---|---|---|
+| Images over the 2 MB ceiling | 25 of 56 | **0 of 56** |
+| Cases with ≥1 oversized image | 17 of 41 | **0 of 41** |
+| Largest payload (base64) | 13.56 MB | **299 KB** |
+| Mean payload (base64) | — | 94 KB |
+
+The prepared range (25 KB–299 KB, mean 94 KB) lands inside the certified client's
+own documented "typical output: 120-320 KB", which is the corroboration that this
+stage reproduces the client rather than merely fitting the ceiling. 5 sources are
+narrower than 896 px and are upscaled, because `resize: { width: 896 }` upscales
+and the point is to send what production sends.
+
+### Two divergences, stated rather than smoothed over
+
+1. **`maximum dimension: 896` vs what production does.** The certified client pins
+   **width** to 896 and lets height scale, so a 3:4 portrait is 896×1195 in
+   production — its long edge exceeds 896. A literal max-dimension cap would send
+   672×896, which is smaller than production. Both policies are implemented;
+   the default is `certified_client_width_896`, the exact production mirror.
+   `max_dimension_896` is available and recorded in the manifest when used. 16 of
+   56 images are portrait, so the distinction is not academic.
+2. **No byte-level parity.** libvips is not `expo-image-manipulator`. Pixel
+   dimensions, chroma subsampling and quality band match; entropy-coded bytes do
+   not, and no parity is asserted anywhere. Byte determinism holds for a fixed
+   codec version and is **not** guaranteed across libvips upgrades, so the codec
+   versions are recorded in every preparation record and in the run identity.
+
+The preparation manifest hash is part of the run identity, so a resume across a
+changed preparation is refused: different bytes reached the provider, and the two
+halves are not comparable.
+
+**F-1 gate status: CLOSED.** A dry run of the development split now reports
+`review_status` as the only blocking finding; the payload-ceiling findings are
+gone.
 
 ---
 
@@ -220,7 +257,7 @@ production does it.
 
 | ID | Severity | Surface | Evidence | Baseline impact | Action | Status |
 |---|---|---|---|---|---|---|
-| F-1 | P0 | `run-baseline.js` preflight; frozen corpus vs certified payload contract | 25/56 images over the 2 MB base64 ceiling; 17/41 cases affected; certified guard returns `failed` before any provider call | Would invalidate the baseline in both directions: 41% of cases scored as Scanner failures without reaching the model, and the rest measured on inputs production never sends | Added `lib/capturePreparation.js`; preflight now blocks unprepared and oversized payloads. Producing derivatives escalated to owner | FIXED (gate) / BLOCKED (derivatives) |
+| F-1 | P0 | `run-baseline.js` preflight; frozen corpus vs certified payload contract | 25/56 images over the 2 MB base64 ceiling; 17/41 cases affected; certified guard returns `failed` before any provider call | Would invalidate the baseline in both directions: 41% of cases scored as Scanner failures without reaching the model, and the rest measured on inputs production never sends | Owner-authorized governed runtime preparation stage: `sharp` devDependency, `lib/imagePreparation.js`, `prepare-derivatives.js`. 56/56 now fit; largest payload 299 KB. Frozen v0.3.0 unchanged, no patch version | FIXED |
 | F-2 | P0 | `run-baseline.js`, `lib/runnerState.js` | Runner enforced `--max-calls` only; no cost model, no dollar ceiling, no per-attempt projection. `costUsd: '0.00'` was a hardcoded literal | A call ceiling does not bound spend; the $10.00 authorization was unenforceable | Added `lib/costLedger.js` with verified-pricing validation, pre-attempt projection, cumulative tracking, and `--max-usd` | FIXED |
 | F-3 | P0 | `run-baseline.js` | Runner never imported `datasetSplit`; `selectCases` had no split awareness. A dry run selected all 41 cases including all 8 holdout | Would execute and score the holdout alongside development, destroying the only unbiased check | Added `--split` (required for `--execute`), split partitioning, and a holdout-seal gate in `lib/runIdentity.js` | FIXED |
 | F-4 | P1 | `run-baseline.js`, `lib/runnerState.js` | No run identifier existed. Resume compared `datasetVersion` only — the field least likely to differ | A resume could graft results from a different adapter, ceiling, split or preparation mode into one report that looked complete | Added `buildRunId` and 10-field resume identity matching | FIXED |
@@ -279,6 +316,11 @@ report:
 - Ground-truth confidence is currently **undetermined**: no reviewer is staffed,
   so neither inter-reviewer agreement nor intra-rater consistency exists.
 - Image token counts are **estimated**; a `countTokens` pre-flight is required.
+- Prepared payloads reproduce the certified client's pixel dimensions, chroma
+  subsampling and quality band, **not** its exact bytes. libvips is not
+  `expo-image-manipulator` and no byte-level parity is claimed.
+- Byte determinism of preparation holds for a fixed codec version only. The
+  recorded versions are `sharp` 0.35.3 / libvips 8.18.3.
 
 ---
 
@@ -290,19 +332,23 @@ report:
 | 2 | Assign **two independent** holdout reviewers plus an adjudicator; this agent is the curator and may not self-designate | holdout execution |
 | 3 | Provide a dedicated evaluation-only Gemini credential with expiry ≤ 30 days and a named revocation owner | all paid execution |
 | 4 | Confirm the 200-attempt and $10.00 ceilings | all paid execution |
-| 5 | Choose F-1 route (a) add a Node image codec, or (b) governed dataset patch 0.3.1 | any valid measurement |
+| ~~5~~ | ~~Choose the F-1 route~~ — **RESOLVED**: route (a), governed runtime preparation stage, implemented and verified | ~~any valid measurement~~ |
 
-Items 1–4 were already open at Phase 0 close. Item 5 is new in Phase 1.
+Items 1-4 were already open at Phase 0 close and remain the only blockers. Item 5
+was raised and resolved within Phase 1.
 
 ---
 
 ## 12. Boundary proof
 
-No dataset expansion. No image added or removed. No frozen label changed — and no
+No dataset expansion. No image added or removed — prepared derivatives are pipeline
+output stored outside every Git worktree, not corpus members, and the source corpus
+is opened read-only. No frozen label changed — and no
 model output was ever observed, so the "changed after seeing results" risk did not
 arise. The 33/8 split is unchanged. Dataset version `0.3.0` was not modified in
-place; the aggregate hash reproduces and all 56 image hashes verify after all
-repairs. Draft review was not bypassed. No holdout label was exposed. No certified
+place and **no patch version was created to resize images**; the aggregate hash
+reproduces and all 56 image hashes verify after all repairs and after preparing
+every derivative. Draft review was not bypassed. No holdout label was exposed. No certified
 adapter source change. No production Scanner, prompt, model, routing or threshold
 change. No deployment, no EAS build, no store submission. No production credential
 and no production endpoint contacted. No Build 3 change. No version or build-number

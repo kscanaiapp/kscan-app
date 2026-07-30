@@ -35,6 +35,8 @@ const capturePreparation = require('./lib/capturePreparation');
 const costLedger = require('./lib/costLedger');
 const runIdentity = require('./lib/runIdentity');
 const providerAccounting = require('./lib/providerAccounting');
+const imagePreparation = require('./lib/imagePreparation');
+const prepareDerivatives = require('./prepare-derivatives');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -57,6 +59,7 @@ function parseArgs(argv) {
     pricingRecord: null,
     holdoutSeal: null,
     capturePreparation: null,
+    preparationManifest: null,
     adapterId: null,
     certifiedBundleSha256: null,
   };
@@ -108,6 +111,7 @@ function parseArgs(argv) {
         args.capturePreparation = capturePreparation.resolveMode(next());
         break;
       }
+      case '--preparation-manifest': args.preparationManifest = next(); break;
       case '--adapter-id': args.adapterId = next(); break;
       case '--certified-bundle-sha256': args.certifiedBundleSha256 = next(); break;
       case '--help': args.help = true; break;
@@ -205,10 +209,13 @@ function preflightCase(caseRecord, options = {}) {
 
     // The certified path rejects an oversized base64 payload BEFORE calling the
     // provider, and the production client never posts an original. Both are
-    // checked here so neither can quietly become a "Scanner failure".
+    // checked here so neither can quietly become a "Scanner failure". When a
+    // preparation stage is declared, the ceiling is checked against the PREPARED
+    // derivative, because that is what will actually be sent.
+    const preparation = options.preparations ? options.preparations.get(ref.refValue) : null;
     const payload = capturePreparation.evaluateImage(
-      { byteLength, refValue: ref.refValue },
-      { mode: preparationMode }
+      { byteLength, refValue: ref.refValue, hash: actual },
+      { mode: preparationMode, preparation }
     );
     for (const finding of payload.findings) findings.push(finding);
 
@@ -218,6 +225,20 @@ function preflightCase(caseRecord, options = {}) {
       hash: actual,
       byteLength,
       base64Length: payload.base64Length,
+      preparation: preparation
+        ? {
+          derivativeSha256: preparation.derivativeSha256,
+          derivativePath: preparation.derivativePath,
+          derivativeWidth: preparation.derivativeWidth,
+          derivativeHeight: preparation.derivativeHeight,
+          derivativeByteLength: preparation.derivativeByteLength,
+          derivativeBase64Length: preparation.derivativeBase64Length,
+          policy: preparation.policy,
+          transform: preparation.transform,
+          codec: preparation.codec,
+          upscaled: preparation.upscaled,
+        }
+        : null,
     });
   });
 
@@ -271,6 +292,10 @@ function planCase(caseRecord, preflight) {
     imageRef: image.refValue,
     imageHash: image.hash,
     byteLength: image.byteLength,
+    // The prepared derivative is what the adapter must actually send. Carrying it
+    // on the call means the executor cannot accidentally read the original.
+    preparation: image.preparation || null,
+    payloadBase64Length: image.base64Length,
     contractVersion: 'fashion-identification-v2',
     // Only intents, modes and privacy fields verified present in the source
     // contract are used. Nothing is invented.
@@ -415,6 +440,67 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     holdoutSeal = { ...sealRecord, verifiedLockedLabelSha256: sealCheck.observedLockedLabelSha256 };
   }
 
+  // ── Capture preparation ────────────────────────────────────────────────────
+  // A declared preparation stage must be backed by a real manifest of real
+  // derivatives. Declaring the mode without the artifact is refused, so the gate
+  // cannot be satisfied by an assertion.
+  const preparationMode = capturePreparation.resolveMode(args.capturePreparation);
+  let preparationManifest = null;
+  const preparations = new Map();
+  if (args.preparationManifest) {
+    preparationManifest = JSON.parse(fs.readFileSync(path.resolve(ROOT, args.preparationManifest), 'utf8'));
+    const errors = [];
+    if (preparationManifest.datasetVersion !== manifest.datasetVersion) {
+      errors.push({
+        check: 'preparation_dataset_version',
+        message: `preparation manifest is for dataset ${preparationManifest.datasetVersion}, run is ${manifest.datasetVersion}`,
+      });
+    }
+    if (frozenDataset
+      && preparationManifest.datasetAggregateSha256
+      && preparationManifest.datasetAggregateSha256 !== frozenDataset.aggregateSha256) {
+      errors.push({
+        check: 'preparation_dataset_aggregate',
+        message:
+          `preparation manifest was produced against aggregate ${preparationManifest.datasetAggregateSha256}, `
+          + `current is ${frozenDataset.aggregateSha256}`,
+      });
+    }
+    // The recorded hash must still describe the manifest's contents, so an edited
+    // preparation record cannot pass itself off as the one that was produced.
+    const recomputed = prepareDerivatives.preparationManifestHash(preparationManifest);
+    if (recomputed !== preparationManifest.preparationManifestSha256) {
+      errors.push({
+        check: 'preparation_manifest_hash',
+        message:
+          `preparation manifest hash does not reproduce: recorded ${preparationManifest.preparationManifestSha256}, `
+          + `recomputed ${recomputed}`,
+      });
+    }
+    if (errors.length > 0) {
+      console.error(JSON.stringify({ ok: false, stage: 'capture_preparation', errors }, null, 2));
+      process.exitCode = 1;
+      return { ok: false, stage: 'capture_preparation', errors };
+    }
+    for (const image of preparationManifest.images || []) preparations.set(image.refValue, image);
+  }
+
+  if (args.execute) {
+    if (!capturePreparation.isProductionEquivalent(preparationMode)) {
+      throw new Error(
+        `--execute requires a production-equivalent --capture-preparation mode, received "${preparationMode}". `
+          + 'The certified client resizes and re-encodes before upload; measuring anything else does not '
+          + 'produce a production Scanner baseline.'
+      );
+    }
+    if (!preparationManifest) {
+      throw new Error(
+        '--execute with a production-equivalent capture preparation requires --preparation-manifest. '
+          + 'Run prepare-derivatives.js first; a declared preparation stage may not be notional.'
+      );
+    }
+  }
+
   // ── Verified pricing and the spend ledger ──────────────────────────────────
   let pricing = null;
   let ledger = null;
@@ -459,7 +545,9 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     certifiedBundleSha256: args.certifiedBundleSha256 || null,
     split: args.split || null,
     scoringContractVersion: SCORING_CONTRACT_VERSION,
-    capturePreparationMode: capturePreparation.resolveMode(args.capturePreparation),
+    capturePreparationMode: preparationMode,
+    preparationManifestSha256: preparationManifest ? preparationManifest.preparationManifestSha256 : null,
+    preparationPolicy: preparationManifest ? preparationManifest.policy : null,
     hardCallCeiling: args.maxCalls == null ? null : args.maxCalls,
     spendCeilingUsd: args.maxUsd == null ? null : args.maxUsd,
   };
@@ -494,7 +582,7 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   const blocked = [];
 
   for (const caseRecord of selection.toProcess) {
-    const preflight = preflightCase(caseRecord, { capturePreparation: args.capturePreparation });
+    const preflight = preflightCase(caseRecord, { capturePreparation: args.capturePreparation, preparations });
     preflights.push(preflight);
     if (!preflight.ok) {
       blocked.push({ caseId: caseRecord.caseId, findings: preflight.findings.filter((f) => f.severity === 'blocking') });
@@ -546,10 +634,27 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
       development: partition.development.length,
       holdout: partition.holdout.length,
     },
-    capturePreparation: capturePreparation.summarize(
-      plans.flatMap((p) => p.calls.map((c) => ({ byteLength: c.byteLength }))),
-      { mode: args.capturePreparation }
-    ),
+    capturePreparation: {
+      mode: preparationMode,
+      productionEquivalent: capturePreparation.isProductionEquivalent(preparationMode),
+      // Provenance for the bytes that will actually be sent: source hash,
+      // derivative hash, dimensions and transform parameters, per image.
+      manifestSha256: preparationManifest ? preparationManifest.preparationManifestSha256 : null,
+      policy: preparationManifest ? preparationManifest.policy : null,
+      codec: preparationManifest ? preparationManifest.codec : null,
+      derivativeRoot: preparationManifest ? preparationManifest.derivativeRoot : null,
+      derivativesInGit: preparationManifest ? preparationManifest.derivativesInGit : null,
+      fidelityLimitations: preparationManifest ? preparationManifest.fidelityLimitations : null,
+      preparedPayloads: preparationManifest
+        ? imagePreparation.summarizePreparations(
+          plans.flatMap((p) => p.calls.map((c) => c.preparation).filter(Boolean))
+        )
+        : null,
+      governedOriginals: capturePreparation.summarize(
+        plans.flatMap((p) => p.calls.map((c) => ({ byteLength: c.byteLength }))),
+        { mode: capturePreparation.MODE_CERTIFIED_CLIENT_EQUIVALENT }
+      ),
+    },
     certifiedPayloadContract: capturePreparation.CERTIFIED_CONTRACT,
     holdoutSeal: holdoutSeal
       ? { sealedAt: holdoutSeal.sealedAt, lockedLabelSha256: holdoutSeal.lockedLabelSha256 }

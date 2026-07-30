@@ -488,12 +488,16 @@ test('dry run validates hashes, authorization, privacy and expected result state
   const manifest = JSON.parse(
     fs.readFileSync(path.join(ROOT, 'evals/scanner-accuracy/manifests/seed-qa-fixtures.v0.1.0.json'), 'utf8')
   );
-  // The capture-preparation mode is declared explicitly so this test isolates the
-  // hash, authorization, privacy and result-state gates. The preparation gate
-  // itself is covered separately in phase1ExecutionGates.
+  // This test isolates the hash, authorization, privacy and result-state gates.
+  // Capture preparation is a separate concern with its own coverage in
+  // phase1CapturePreparation, so it is asserted per-check here rather than via
+  // overall `ok` — otherwise every preparation change would break this test.
   const prepared = { capturePreparation: 'certified_client_equivalent' };
+  const OWNED_CHECKS = ['hash_count', 'image_count', 'image_hash', 'authorization', 'privacy', 'review_status', 'exif', 'expected_result_state'];
+  const ownedFindings = (result) => result.findings.filter((f) => OWNED_CHECKS.includes(f.check));
+
   const good = runBaseline.preflightCase(manifest.cases[0], prepared);
-  assert.equal(good.ok, true, JSON.stringify(good.findings));
+  assert.deepEqual(ownedFindings(good), [], 'a well-formed seed case must clear every gate this test owns');
   assert.equal(good.resolvedImages.length, 1);
 
   const tampered = { ...manifest.cases[0], imageHashes: [`sha256:${'0'.repeat(64)}`] };
@@ -502,13 +506,16 @@ test('dry run validates hashes, authorization, privacy and expected result state
   assert.ok(bad.findings.some((f) => f.check === 'image_hash'));
 
   const unauthorized = { ...manifest.cases[0], authorizationStatus: 'pending_authorization' };
-  assert.equal(runBaseline.preflightCase(unauthorized, prepared).ok, false);
+  assert.ok(ownedFindings(runBaseline.preflightCase(unauthorized, prepared))
+    .some((f) => f.check === 'authorization'));
 
   const blockedPrivacy = { ...manifest.cases[0], privacyDisposition: 'blocked_private' };
-  assert.equal(runBaseline.preflightCase(blockedPrivacy, prepared).ok, false);
+  assert.ok(ownedFindings(runBaseline.preflightCase(blockedPrivacy, prepared))
+    .some((f) => f.check === 'privacy'));
 
   const badState = { ...manifest.cases[0], expectedResultType: 'made_up_state' };
-  assert.equal(runBaseline.preflightCase(badState, prepared).ok, false);
+  assert.ok(ownedFindings(runBaseline.preflightCase(badState, prepared))
+    .some((f) => f.check === 'expected_result_state'));
 });
 
 test('the runner ships no executor, so --execute cannot make a paid call by accident', () => {

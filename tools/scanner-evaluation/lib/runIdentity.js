@@ -76,6 +76,10 @@ const IDENTITY_FIELDS = Object.freeze([
   'split',
   'scoringContractVersion',
   'capturePreparationMode',
+  // A different preparation manifest means different bytes reached the provider,
+  // so results from before and after are not comparable and must not be merged.
+  'preparationManifestSha256',
+  'preparationPolicy',
   'hardCallCeiling',
   'spendCeilingUsd',
 ]);

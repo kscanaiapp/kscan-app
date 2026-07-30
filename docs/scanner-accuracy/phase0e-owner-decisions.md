@@ -121,6 +121,33 @@ Two things worth your awareness rather than your decision:
   runs as deterministic and unrelated to the containment change. They were not
   repaired — out of scope.
 
+## 5b. Capture preparation — CLOSED (Phase 1, F-1)
+
+Phase 1 found that the harness posted governed originals while the certified client
+uploads a 896 px / JPEG q0.65 derivative, and that the Edge Function rejects any
+base64 payload over 2 MB before calling the provider — so 25 of 56 images and 17 of
+41 cases would have returned `failed` without reaching the model.
+
+**Owner decision, taken 2026-07-29:** add a Node JPEG codec and implement a
+governed **runtime** preparation stage. *The dataset is the source corpus;
+preparation belongs to the execution pipeline.* A patch version is required only
+when labels, cases, splits or source images change — **not** to resize images.
+
+| | Status |
+|---|---|
+| Codec | `sharp` 0.35.3 / libvips 8.18.3, devDependency, not imported by app code |
+| Stage | `tools/scanner-evaluation/prepare-derivatives.js`, `lib/imagePreparation.js` |
+| Result | **56/56 images within the certified ceiling**, largest payload 299 KB |
+| Frozen v0.3.0 | unchanged; aggregate and all 56 hashes re-verify. No patch version |
+| Derivatives | outside every Git worktree, enforced |
+
+Two divergences are recorded rather than smoothed over: the default policy mirrors
+production's **width**-pinned resize (so portrait frames exceed 896 on the long
+edge) rather than a literal max-dimension cap, and **no byte-level parity** with
+`expo-image-manipulator` is asserted.
+
+Nothing remains open here.
+
 ## 6. Escalation still open
 
 | Item | Status |
