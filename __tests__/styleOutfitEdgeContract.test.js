@@ -364,9 +364,28 @@ test('duplicate suggestion item-sets are dropped instead of filling slots', () =
 
 test('edge function derives identity from JWT and never from the body', () => {
   assert.match(indexSource, /npm:@supabase\/supabase-js@2\.105\.4/);
-  assert.match(indexSource, /auth\.getUser\(\)/);
+  assert.match(indexSource, /auth\.getUser\(accessToken\)/);
   assert.match(indexSource, /const userId = user\.id/);
   assert.doesNotMatch(indexSource, /body\.(userId|user_id)/);
+  assert.match(indexSource, /Missing authorization/);
+  assert.match(indexSource, /Not authenticated/);
+});
+
+test('edge function auth gate rejects empty bearer tokens before getUser', () => {
+  assert.match(indexSource, /accessToken = authHeader\.replace/);
+  assert.match(indexSource, /if \(!accessToken\)/);
+  assert.ok(
+    indexSource.indexOf('Missing authorization') < indexSource.indexOf('auth.getUser(accessToken)'),
+    'missing-authorization paths must run before getUser',
+  );
+});
+
+test('config.toml locks style-outfit-generate verify_jwt to true', () => {
+  const configPath = path.join(ROOT, 'supabase', 'config.toml');
+  const config = fs.readFileSync(configPath, 'utf8');
+  assert.match(config, /\[functions\.style-outfit-generate\]/);
+  const block = config.split('[functions.style-outfit-generate]')[1]?.split('[functions.')[0] ?? '';
+  assert.match(block, /verify_jwt\s*=\s*true/);
 });
 
 test('edge function enforces burst then daily quota via SECURITY DEFINER RPCs', () => {

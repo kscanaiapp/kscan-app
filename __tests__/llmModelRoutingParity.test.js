@@ -326,7 +326,9 @@ test('config.toml pins JWT posture so a deploy cannot silently change it', () =>
   assert.match(configToml, /project_id = "wyyuqfdxucjksghsmhry"/);
   assert.match(configToml, /\[functions\.scan-identify\][\s\S]{0,80}verify_jwt = false/);
   assert.match(configToml, /\[functions\.stylechat-generate\][\s\S]{0,80}verify_jwt = true/);
-  assert.doesNotMatch(configToml, /style-outfit-generate/, 'never declared for deployment');
+  assert.match(configToml, /\[functions\.style-outfit-generate\]/, 'style-outfit-generate must be declared so verify_jwt cannot silently drift');
+  const outfitBlock = configToml.split('[functions.style-outfit-generate]')[1]?.split('[functions.')[0] ?? '';
+  assert.match(outfitBlock, /verify_jwt\s*=\s*true/);
 });
 
 // ---------------------------------------------------------------------------

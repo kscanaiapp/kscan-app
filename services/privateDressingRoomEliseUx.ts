@@ -34,6 +34,7 @@ export const PRIVATE_ELISE_COPY = Object.freeze({
   alreadyCasual: 'This look is already at its most casual. Try changing the occasion or anchor.',
   unsupportedAnchor: "This item can't be used as the anchor for a look yet.",
   capabilityUnavailable: 'Elise is being updated. Try again soon.',
+  sessionExpired: 'Your session expired. Sign in again to ask Elise.',
   safeFailure: "I couldn't update this look. Try again.",
 });
 
@@ -74,6 +75,8 @@ export function eliseStatusCopy(status: EliseStatus | null | undefined): string 
       return PRIVATE_ELISE_COPY.alreadyCasual;
     case 'capability_unavailable':
       return PRIVATE_ELISE_COPY.capabilityUnavailable;
+    case 'session_expired':
+      return PRIVATE_ELISE_COPY.sessionExpired;
     case 'failed':
       return PRIVATE_ELISE_COPY.safeFailure;
     default:
