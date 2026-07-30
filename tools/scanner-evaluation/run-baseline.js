@@ -35,6 +35,7 @@ const capturePreparation = require('./lib/capturePreparation');
 const costLedger = require('./lib/costLedger');
 const runIdentity = require('./lib/runIdentity');
 const providerAccounting = require('./lib/providerAccounting');
+const normalizedResultValidation = require('./lib/normalizedResultValidation');
 const imagePreparation = require('./lib/imagePreparation');
 const prepareDerivatives = require('./prepare-derivatives');
 
@@ -771,6 +772,7 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   const cancellation = runnerState.installCancellation();
   const events = [];
   const scored = [];
+  const providerOutputInvalid = [];
   const executionFailures = [];
   let cancelledAt = null;
   let ceilingHit = false;
@@ -834,7 +836,35 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
         events.push(fallbackTracking.recordFallbackEvent({ ...observation, caseId: plan.caseId }));
       }
 
-      const profiles = scoreCaseAllProfiles(caseRecord, perImageResults.consolidated || {});
+      const normalizedValidation = normalizedResultValidation.validateNormalizedResult(
+        perImageResults.consolidated
+      );
+      if (!normalizedValidation.ok) {
+        const caseLatencyMs = Date.now() - caseStartedAt;
+        account.recordCallOutcome(false);
+        const record = {
+          runId: identity.runId,
+          caseId: plan.caseId,
+          split: args.split,
+          datasetVersion: manifest.datasetVersion,
+          scoringContractVersion: SCORING_CONTRACT_VERSION,
+          capturePreparationMode: identity.capturePreparationMode,
+          startedAt: new Date(caseStartedAt).toISOString(),
+          completedAt: new Date(caseStartedAt + caseLatencyMs).toISOString(),
+          latencyMs: caseLatencyMs,
+          callCount: plan.plannedCallCount,
+          caseCompletionState: 'provider_output_invalid',
+          scoreability: 'not_scoreable',
+          validation: normalizedValidation,
+          profiles: null,
+          raw: perImageResults.raw || null,
+        };
+        runnerState.writeCaseResult(outputDir, plan.caseId, record);
+        providerOutputInvalid.push(plan.caseId);
+        continue;
+      }
+
+      const profiles = scoreCaseAllProfiles(caseRecord, normalizedValidation.value);
       const caseLatencyMs = Date.now() - caseStartedAt;
       account.recordCallOutcome(true);
       const record = {
@@ -850,6 +880,9 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
         completedAt: new Date(caseStartedAt + caseLatencyMs).toISOString(),
         latencyMs: caseLatencyMs,
         callCount: plan.plannedCallCount,
+        caseCompletionState: 'completed',
+        scoreability: 'scoreable',
+        validation: normalizedValidation,
         profiles,
         raw: perImageResults.raw || null,
       };
@@ -864,11 +897,13 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
   // Aggregates are scoped to THIS run's split. Mixing development and holdout
   // results into one headline number would erase the only unbiased check there is.
   const inSplit = durable.filter((r) => !args.split || !r.split || r.split === args.split);
-  const neutral = inSplit.map((r) => r.profiles.neutral);
-  const trust = inSplit.map((r) => r.profiles.trust_weighted);
+  const scoreableInSplit = inSplit.filter((r) => r.scoreability === 'scoreable' && r.profiles);
+  const invalidInSplit = inSplit.filter((r) => r.caseCompletionState === 'provider_output_invalid');
+  const neutral = scoreableInSplit.map((r) => r.profiles.neutral);
+  const trust = scoreableInSplit.map((r) => r.profiles.trust_weighted);
 
   const executionComplete = !ceilingHit && !costCeilingHit && !cancelledAt
-    && executionFailures.length === 0 && scored.length === plans.length;
+    && executionFailures.length === 0 && (scored.length + providerOutputInvalid.length) === plans.length;
   const report = {
     ok: executionComplete,
     mode: 'execute',
@@ -879,6 +914,7 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     datasetVersion: manifest.datasetVersion,
     datasetAggregateSha256: identity.datasetAggregateSha256,
     completedCaseCount: inSplit.length,
+    scoredCaseCount: scoreableInSplit.length,
     caseDenominator: plans.length,
     executedCallCount: budget.executed,
     hardCallCeiling: planDocument.hardCallCeiling,
@@ -894,6 +930,12 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     costCeilingHit,
     cancelledAt,
     failedCaseIds: executionFailures,
+    providerOutputInvalidCaseIds: invalidInSplit.map((record) => record.caseId),
+    providerOutputInvalidRate: plans.length === 0 ? null : invalidInSplit.length / plans.length,
+    schemaFailureRate: plans.length === 0 ? null : invalidInSplit.length / plans.length,
+    providerFailureRate: plans.length === 0
+      ? null
+      : (invalidInSplit.length + executionFailures.length) / plans.length,
     latency: account.latencyDistribution(),
     caseLatencyMs: inSplit.map((r) => ({ caseId: r.caseId, latencyMs: r.latencyMs })),
     profiles: {
@@ -936,4 +978,5 @@ module.exports = {
   costLedger,
   runIdentity,
   providerAccounting,
+  normalizedResultValidation,
 };
