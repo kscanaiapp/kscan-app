@@ -429,6 +429,16 @@ export default function PrivateDressingRoomScreen() {
         {active ? (
           <View testID="active-look-detail">
             <SectionHeader title="Active look" />
+            {/*
+              This count describes the slot list below it, so it sits with that
+              list. It previously trailed the whole card, directly above the
+              discard control, where it read as a label for DISCARD SESSION —
+              worst at large text scales, where the two were the only things on
+              screen together.
+            */}
+            <Text style={styles.usesLine}>
+              {`Uses ${active.itemCount} Closet item${active.itemCount === 1 ? '' : 's'}`}
+            </Text>
             {active.completeness === 'partial' ? (
               <InlineNotice
                 variant="info"
@@ -547,9 +557,6 @@ export default function PrivateDressingRoomScreen() {
                 testID="compare-entry-button"
               />
             ) : null}
-            <Text style={styles.usesLine}>
-              {`Uses ${active.itemCount} Closet item${active.itemCount === 1 ? '' : 's'}`}
-            </Text>
           </View>
         ) : null}
       </View>
@@ -841,12 +848,14 @@ export default function PrivateDressingRoomScreen() {
                     void discardSession();
                   }}
                   disabled={busy}
+                  style={styles.confirmAction}
                   accessibilityLabel="Confirm discarding the Dressing Room session"
                   testID="confirm-discard-button"
                 />
                 <SecondaryButton
                   title="Keep it"
                   onPress={() => setConfirmingDiscard(false)}
+                  style={styles.confirmAction}
                   accessibilityLabel="Keep the Dressing Room session"
                 />
               </View>
@@ -1228,12 +1237,14 @@ export default function PrivateDressingRoomScreen() {
               onPress={submitOccasionDescription}
               // Disabled while a request runs so a second cannot be queued.
               disabled={busy || eliseBusy || !occasionDraftValue}
+              style={styles.confirmAction}
               accessibilityLabel="Ask Elise to interpret this occasion"
               testID="elise-occasion-submit"
             />
             <SecondaryButton
               title={PRIVATE_ELISE_COPY.cancel}
               onPress={dismissOccasionSheet}
+              style={styles.confirmAction}
               accessibilityLabel="Cancel and keep the current occasion"
               testID="elise-occasion-cancel"
             />
@@ -1366,9 +1377,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: LUXURY.colors.champagne,
   },
-  slotName: { width: 96, fontSize: 12, color: LUXURY.colors.plum },
+  /*
+   * A FLOOR, not a fixed width. At 96px exactly, "Outerwear" broke mid-word
+   * ("Outerwe / ar") once the label scaled past the column. minWidth keeps the
+   * columns aligned at ordinary sizes while letting a long label take the room
+   * it needs at large ones; flexShrink 0 stops the item column squeezing it
+   * back. The alternative — a smaller font — would have overridden the user's
+   * text-size setting to protect the grid, which is the wrong trade.
+   */
+  slotName: {
+    minWidth: 96,
+    flexShrink: 0,
+    paddingRight: SPACING.sm,
+    fontSize: 12,
+    color: LUXURY.colors.plum,
+  },
   slotItem: { flex: 1, fontSize: 14, color: LUXURY.colors.ink },
-  usesLine: { marginTop: SPACING.md, fontSize: 13, color: LUXURY.colors.plum },
+  usesLine: { marginBottom: SPACING.xs, fontSize: 13, color: LUXURY.colors.plum },
   // Sits directly beneath the disabled Undo control it explains.
   undoBlockedText: { marginTop: SPACING.xs, fontSize: 13, color: LUXURY.colors.ink },
   /*
@@ -1383,6 +1408,14 @@ const styles = StyleSheet.create({
    */
   stackedAction: { marginTop: SPACING.sm, alignSelf: 'stretch' },
   uniformAction: { alignSelf: 'stretch' },
+  /*
+   * Measured at font_scale 2.0: DISCARD SESSION ended at y=2644 and KEEP IT
+   * began at y=2644 — zero pixels between a destructive target and the safe
+   * one directly beneath it. Neither button carries vertical margin of its
+   * own, so the gap at 1.0x came entirely from surrounding content that large
+   * text squeezed out.
+   */
+  confirmAction: { marginTop: SPACING.md },
 
   // ── Phase 3 slot editing ───────────────────────────────────────────────────
   slotAction: {
