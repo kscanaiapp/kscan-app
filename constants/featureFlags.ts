@@ -237,6 +237,77 @@ export const PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1 =
 export const PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE =
   PRIVATE_DRESSING_ROOM_ELISE_ACTIVE && PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1;
 
+// ── Build 5 — Today with Elise V1 (Elise V3 Proactive Intelligence) ──────────
+/**
+ * Master switch for the Home "Today with Elise" card. Default OFF.
+ * Only the exact string "true" opts in; absent / false-like / malformed → OFF.
+ * Production profiles must leave this unset until an authorized enablement phase.
+ */
+export function resolveTodayWithEliseV1Enabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const TODAY_WITH_ELISE_V1 = resolveTodayWithEliseV1Enabled();
+
+/**
+ * Derived Home surface capability. Callers MUST read this (not the leaf env
+ * alone) so child flags cannot activate without the parent.
+ */
+export const TODAY_WITH_ELISE_ACTIVE = TODAY_WITH_ELISE_V1;
+
+/** Generated greeting variation — deferred; fails closed without parent. */
+export function resolveTodayWithEliseGeneratedGreetingV1Enabled(
+  value: string | undefined = process.env
+    .EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const TODAY_WITH_ELISE_GENERATED_GREETING_V1 =
+  resolveTodayWithEliseGeneratedGreetingV1Enabled();
+
+export const TODAY_WITH_ELISE_GENERATED_GREETING_ACTIVE =
+  TODAY_WITH_ELISE_ACTIVE && TODAY_WITH_ELISE_GENERATED_GREETING_V1;
+
+/** Optional weather enrichment — fails closed without parent. */
+export function resolveTodayWithEliseWeatherV1Enabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const TODAY_WITH_ELISE_WEATHER_V1 =
+  resolveTodayWithEliseWeatherV1Enabled();
+
+export const TODAY_WITH_ELISE_WEATHER_ACTIVE =
+  TODAY_WITH_ELISE_ACTIVE && TODAY_WITH_ELISE_WEATHER_V1;
+
+/**
+ * Pure resolvers for tests. When Private Dressing Room is unavailable, the
+ * priority engine must not emit a dead Dressing Room primary action.
+ */
+export function resolveTodayWithEliseActive(
+  parent: boolean = TODAY_WITH_ELISE_V1,
+): boolean {
+  return parent === true;
+}
+
+export function resolveTodayWithEliseGeneratedGreetingActive(
+  parent: boolean = TODAY_WITH_ELISE_V1,
+  greeting: boolean = TODAY_WITH_ELISE_GENERATED_GREETING_V1,
+): boolean {
+  return parent === true && greeting === true;
+}
+
+export function resolveTodayWithEliseWeatherActive(
+  parent: boolean = TODAY_WITH_ELISE_V1,
+  weather: boolean = TODAY_WITH_ELISE_WEATHER_V1,
+): boolean {
+  return parent === true && weather === true;
+}
+
 /**
  * DR-2: client may send owned dressing_room_item stable-ID attachments.
  * Default OFF — next-build activation only.
