@@ -86,6 +86,34 @@ contract. This matters because the `production` EAS profile sets
 The backend must not be recorded as fully certified until an authorized QA
 session closes both.
 
+## Audit-environment integrity findings
+
+**Not application defects.** Both caused the audit to observe code other than the
+candidate, and evidence captured under them is invalid and excluded.
+
+**ENV-P6-A — a stale Metro served a foreign worktree.** The app fetches its bundle
+from `http://10.0.2.2:8081`, the host loopback alias, which bypasses `adb reverse`
+entirely (reverse only affects `localhost` ON the device). A Metro left running on
+host port 8081 from a previous session therefore kept serving its own worktree while
+appearing to work — plausible screenshots, wrong flags, wrong code. Three screenshots
+taken before this was found, including a Dressing Room that appeared to have a live
+session, came from that foreign bundle and are **excluded from the audit record**.
+Control: your Metro must own host 8081, and Metro must log `Android Bundled …
+(N modules)` before any runtime observation is trusted. No bundling line means the
+evidence is not yours.
+
+**ENV-P6-B — a junctioned `node_modules` broke Metro resolution.** The audit worktrees
+were given `node_modules` junctions (valid for the jest/`tsc` gates, which is how every
+suite was run). Metro cannot resolve through one: the junction target's absolute path
+leaks into resolution and the bundle 404s with `Unable to resolve module
+./Users/jsmit/<donor>/node_modules/expo-router/entry`. Fixed by removing the link
+(`cmd /c rmdir`, which removes the link and not the target) and running a real
+`npm ci` in the worktree. This extends the known export-time constraint to Metro.
+
+Consequence for the record: **no Phase 5 or Phase 6 runtime evidence existed before
+these were corrected.** Everything reported as Android runtime evidence was captured
+after Metro confirmed it bundled from `C:\src\PHASE6-ANDROID-20260730`.
+
 ## Deferred, not defects
 
 * `purgeSavedLooksForActor` has no production caller — expected in Phase 5, and
