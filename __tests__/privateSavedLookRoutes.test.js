@@ -117,7 +117,17 @@ test('same-route return context restores the same slot and refreshes ownership b
   const detail = read('app/stylist/saved-looks/[id].tsx');
   const handoff = read('app/stylist/saved-looks/handoff.tsx');
   assert.match(detail, /loadPrivateSavedLook[\s\S]*?loadClosetTyped[\s\S]*?loadSavedLookReturnContext/);
-  assert.match(detail, /returnContext\?\.savedLookId === saved\.look\.id[\s\S]*?returnContext\.slotKey/);
+  // DEFECT-P6-005: the highlight is derived through resolveReturnContextSlot,
+  // which binds it to THIS Look and to a slot that Look still has. The inline
+  // `savedLookId === saved.look.id` comparison this used to assert lived here
+  // and checked only the id; the helper enforces both and is unit-tested in
+  // __tests__/privateSavedLookReturnContext.test.js.
+  assert.match(detail, /resolveReturnContextSlot\(returnContext, saved\.look\)/);
+  assert.doesNotMatch(
+    detail,
+    /highlightedSlot\s*=\s*returnContext\?\.savedLookId/,
+    'the id-only highlight derivation must not come back',
+  );
   assert.match(detail, /resolvePrivateSavedLookOwnership/);
   assert.match(detail, /clearSavedLookReturnContext/);
   assert.match(handoff, /pathname: '\/stylist\/saved-looks\/\[id\]'[\s\S]*?context\.savedLookId/);

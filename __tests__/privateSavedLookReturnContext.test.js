@@ -37,9 +37,12 @@ function loadModule(relPath) {
 
 const actor = loadModule('services/actorContext.js');
 const contextStore = loadModule('services/privateSavedLookReturnContext.ts');
+// Relative to now: a return context is round-trip presentation state with a
+// finite TTL (see DEFECT-P6-005), so a hard-coded wall-clock date would start
+// failing the moment it aged past the window.
 const context = {
   savedLookId: 'saved-look-1', slotKey: 'footwear',
-  returnRoute: '/stylist/saved-looks/saved-look-1', createdAt: '2026-07-30T14:00:00.000Z',
+  returnRoute: '/stylist/saved-looks/saved-look-1', createdAt: new Date().toISOString(),
 };
 
 function request(actorId = 'actor-a') {
@@ -91,4 +94,122 @@ test('owner clear removes the restored context after same-route consumption', as
   await contextStore.persistSavedLookReturnContext(actorRequest, context);
   assert.equal(await contextStore.clearSavedLookReturnContext(actorRequest), true);
   assert.equal(await contextStore.loadSavedLookReturnContext(actorRequest), null);
+});
+
+// â”€â”€ DEFECT-P6-005: stale return context could highlight a later visit â”€â”€â”€â”€â”€â”€â”€â”€
+//
+// Severity: MEDIUM. The context already failed closed on every boundary that
+// matters â€” the actor must match, the Saved Look id must match the Look being
+// opened, it cannot expose another actor's Look, and it never redirects. What it
+// lacked was any expiry or slot-membership check, so a context written weeks
+// earlier still highlighted a slot on an unrelated later visit, and a Look edited
+// between handoff and return could be highlighted on a slot it no longer has.
+
+const TTL = contextStore.SAVED_LOOK_RETURN_CONTEXT_TTL_MS;
+
+function contextAged(ms, slotKey = 'footwear', savedLookId = 'saved-look-1') {
+  return {
+    savedLookId,
+    slotKey,
+    returnRoute: `/stylist/saved-looks/${savedLookId}`,
+    createdAt: new Date(Date.now() - ms).toISOString(),
+  };
+}
+
+function lookFor(id = 'saved-look-1', slotKeys = ['top', 'footwear']) {
+  return { id, slots: slotKeys.map((slotKey) => ({ slotKey })) };
+}
+
+test('DEFECT-P6-005: a context older than the TTL is refused and dropped', async () => {
+  values.clear();
+  const actorRequest = request();
+  await contextStore.persistSavedLookReturnContext(actorRequest, contextAged(TTL + 60_000));
+  assert.equal(await contextStore.loadSavedLookReturnContext(actorRequest), null, 'expired context returned');
+  // Dropped, not merely refused: it cannot resurface on a later read.
+  assert.equal(values.get(contextStore.SAVED_LOOK_RETURN_CONTEXT_KEY) ?? null, null, 'expired context retained');
+});
+
+test('DEFECT-P6-005: a context inside the TTL still works', async () => {
+  values.clear();
+  const actorRequest = request();
+  await contextStore.persistSavedLookReturnContext(actorRequest, contextAged(Math.floor(TTL / 2)));
+  const loaded = await contextStore.loadSavedLookReturnContext(actorRequest);
+  assert.ok(loaded, 'a fresh context must survive');
+  assert.equal(loaded.savedLookId, 'saved-look-1');
+  assert.equal(loaded.slotKey, 'footwear');
+});
+
+test('DEFECT-P6-005: a context timestamped in the future is refused', async () => {
+  // A clock that moved backwards must not extend the window indefinitely.
+  values.clear();
+  const actorRequest = request();
+  await contextStore.persistSavedLookReturnContext(actorRequest, contextAged(-10 * 60_000));
+  assert.equal(await contextStore.loadSavedLookReturnContext(actorRequest), null);
+});
+
+test('DEFECT-P6-005: expiry is evaluated at the boundary, not approximately', async () => {
+  values.clear();
+  const actorRequest = request();
+  const created = new Date(1_000_000).toISOString();
+  const fixed = {
+    savedLookId: 'saved-look-1', slotKey: 'footwear',
+    returnRoute: '/stylist/saved-looks/saved-look-1', createdAt: created,
+  };
+
+  await contextStore.persistSavedLookReturnContext(actorRequest, fixed);
+  assert.ok(
+    await contextStore.loadSavedLookReturnContext(actorRequest, { nowMs: 1_000_000 + TTL }),
+    'exactly at the TTL must still be usable',
+  );
+
+  await contextStore.persistSavedLookReturnContext(actorRequest, fixed);
+  assert.equal(
+    await contextStore.loadSavedLookReturnContext(actorRequest, { nowMs: 1_000_000 + TTL + 1 }),
+    null,
+    'one millisecond past the TTL must be refused',
+  );
+});
+
+test('DEFECT-P6-005: a slot the Saved Look no longer has is not highlighted', () => {
+  const stale = contextAged(0, 'outerwear');                 // outerwear removed since handoff
+  assert.equal(contextStore.resolveReturnContextSlot(stale, lookFor()), null);
+});
+
+test('DEFECT-P6-005: a slot the Saved Look still has is highlighted', () => {
+  assert.equal(contextStore.resolveReturnContextSlot(contextAged(0, 'footwear'), lookFor()), 'footwear');
+});
+
+test('DEFECT-P6-005: a context for a different Saved Look is never highlighted', () => {
+  const other = contextAged(0, 'footwear', 'saved-look-OTHER');
+  assert.equal(contextStore.resolveReturnContextSlot(other, lookFor()), null);
+});
+
+test('DEFECT-P6-005: missing or malformed inputs resolve to no highlight', () => {
+  const look = lookFor();
+  assert.equal(contextStore.resolveReturnContextSlot(null, look), null);
+  assert.equal(contextStore.resolveReturnContextSlot(contextAged(0), null), null);
+  assert.equal(contextStore.resolveReturnContextSlot({ savedLookId: '', slotKey: 'footwear' }, look), null);
+  assert.equal(contextStore.resolveReturnContextSlot(contextAged(0), { id: 'saved-look-1' }), null);
+  assert.equal(contextStore.resolveReturnContextSlot(contextAged(0), { id: 'saved-look-1', slots: 'nope' }), null);
+});
+
+test('DEFECT-P6-005: actor matching still governs, TTL or not', async () => {
+  values.clear();
+  const actorRequestA = request('actor-a');
+  await contextStore.persistSavedLookReturnContext(actorRequestA, contextAged(0));
+
+  actor.advanceActorEpoch('actor-b');
+  const actorRequestB = actor.createActorRequest();
+  assert.equal(
+    await contextStore.loadSavedLookReturnContext(actorRequestB),
+    null,
+    "actor B must not read actor A's context",
+  );
+
+  // Actor B's refused read must not have destroyed actor A's entry either.
+  actor.advanceActorEpoch('actor-a');
+  assert.ok(
+    await contextStore.loadSavedLookReturnContext(actor.createActorRequest()),
+    "actor A's context must survive actor B's read",
+  );
 });

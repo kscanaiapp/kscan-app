@@ -38,6 +38,7 @@ import {
   clearSavedLookReturnContext,
   loadSavedLookReturnContext,
   persistSavedLookReturnContext,
+  resolveReturnContextSlot,
 } from '../../../services/privateSavedLookReturnContext';
 import {
   deleteSavedLook,
@@ -110,6 +111,16 @@ export default function PrivateSavedLookDetailScreen() {
       .then(async ([saved, closet, returnContext]) => {
         if (!live || !isActorRequestCurrent(actorRequest)) return;
         if (!saved.ok || !saved.look) {
+          // The Look this context points at is gone: the context can never be
+          // consumed, so drop it rather than leaving it to highlight something
+          // else later.
+          if (
+            returnContext?.savedLookId === savedLookId &&
+            saved.errorCode === 'saved_look_not_found' &&
+            isActorRequestCurrent(actorRequest)
+          ) {
+            await clearSavedLookReturnContext(actorRequest).catch(() => false);
+          }
           setState({
             ...INITIAL,
             actorKey,
@@ -117,9 +128,7 @@ export default function PrivateSavedLookDetailScreen() {
           });
           return;
         }
-        const highlightedSlot = returnContext?.savedLookId === saved.look.id
-          ? returnContext.slotKey
-          : null;
+        const highlightedSlot = resolveReturnContextSlot(returnContext, saved.look);
         setRenameDraft(saved.look.name ?? '');
         setState({
           actorKey,
