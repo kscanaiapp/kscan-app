@@ -2,9 +2,33 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 
 const guide = require('../lib/labelingGuide');
 const { aggregateScores } = require('../lib/scoreFields');
+
+test('guide 1.1.0 carries every implemented taxonomy token and brand outcome', () => {
+  const markdown = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', '..', 'docs', 'scanner-accuracy', 'labeling-guide.md'),
+    'utf8',
+  );
+  const taxonomy = JSON.parse(fs.readFileSync(
+    path.resolve(__dirname, '..', 'ontology', 'fashion-taxonomy.v1.json'),
+    'utf8',
+  ));
+  assert.equal(guide.GUIDE_VERSION, '1.1.0');
+  for (const [category, node] of Object.entries(taxonomy.hierarchy)) {
+    if (category !== 'NON_FASHION') assert.match(markdown, new RegExp(`\\b${category}\\b`));
+    for (const [clothingType, subtypes] of Object.entries(node.clothingTypes || {})) {
+      assert.equal(markdown.includes(`\`${clothingType}\``), true, clothingType);
+      for (const subtype of subtypes) assert.equal(markdown.includes(`\`${subtype}\``), true, subtype);
+    }
+  }
+  for (const value of Object.values(guide.EXPECTED_BRAND_OUTCOMES)) {
+    assert.equal(markdown.includes(`\`${value}\``), true, value);
+  }
+});
 
 test('G-1 ambiguous multi-item cases abstain and use canonical unknown item fields', () => {
   assert.deepEqual(guide.designateSubject(), {

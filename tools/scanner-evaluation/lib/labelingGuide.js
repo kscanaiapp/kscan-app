@@ -8,7 +8,7 @@
  * deterministic so guide drift cannot silently alter frozen ground truth.
  */
 
-const GUIDE_VERSION = '1.0.0';
+const GUIDE_VERSION = '1.1.0';
 
 const UNAVAILABLE = Object.freeze({
   NOT_APPLICABLE: 'not_applicable',
@@ -26,6 +26,12 @@ const SUBJECT_DESIGNATIONS = Object.freeze({
   MANIFEST_SPECIFIED: 'manifest_specified',
   UNAMBIGUOUSLY_DOMINANT: 'unambiguously_dominant',
   AMBIGUOUS_NO_DOMINANT: 'ambiguous_no_dominant',
+});
+
+const EXPECTED_BRAND_OUTCOMES = Object.freeze({
+  PRODUCT_LEVEL: 'brand_may_be_named_and_is_scored_for_correctness',
+  CONTEXTUAL_ONLY: 'naming_the_in_frame_brand_as_the_product_brand_is_a_false_positive',
+  NONE: 'any_brand_claim_is_a_false_positive',
 });
 
 const SAME_ITEM_SIGNALS = Object.freeze([
@@ -153,6 +159,7 @@ module.exports = {
   UNAVAILABLE,
   BRAND_EVIDENCE_STATES,
   SUBJECT_DESIGNATIONS,
+  EXPECTED_BRAND_OUTCOMES,
   SAME_ITEM_SIGNALS,
   NON_FASHION_FIELDS,
   designateSubject,

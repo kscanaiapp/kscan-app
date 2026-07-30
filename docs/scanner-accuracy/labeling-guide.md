@@ -1,6 +1,6 @@
 # Labeling Guide - Scanner Accuracy V2
 
-**Guide version:** `1.0.0`
+**Guide version:** `1.1.0`
 
 **Phase 1 status:** locked for blinded review after G-1 through G-8 repair
 
@@ -36,6 +36,60 @@ label, not an unresolved guide gap.
 | `closest_matches` | Exact product unknown; visually nearest products are the honest outcome. |
 | `identified_style` | Category/style identity is supportable without exact product claim. |
 | `insufficient_evidence` | The Scanner should abstain from fashion identity or exact claims. |
+
+## Controlled labeling vocabulary
+
+The values below are the evaluation ontology implemented in
+`tools/scanner-evaluation/ontology/fashion-taxonomy.v1.json`. Reviewers must use
+the exact singular, lowercase, snake-case token shown. Do not pluralize a category
+or write a natural-language subtype. If the visible item cannot be mapped to one
+of these values, apply G-5 and use `unknown` or `not_visible`.
+
+- `outerwear` -> `jacket` (`chore_jacket`, `bomber_jacket`, `denim_jacket`, `moto_jacket`, `puffer_jacket`, `down_jacket`, `windbreaker`, `rain_jacket`, `anorak`); `coat` (`trench_coat`, `overcoat`, `peacoat`, `raincoat`, `wool_coat`, `parka`); `parka`; `puffer`
+- `blazer` -> `blazer` (`suit_jacket`, `tailored_jacket`, `sport_coat`)
+- `dress` -> `dress` (`sundress`, `shift_dress`, `wrap_dress`, `maxi_dress`, `midi_dress`, `mini_dress`); `gown` (`evening_gown`, `ball_gown`)
+- `pants` -> `jeans` (`straight_jeans`, `skinny_jeans`, `bootcut_jeans`, `wide_leg_jeans`, `boyfriend_jeans`); `trousers` (`chinos`, `slacks`, `dress_trousers`, `culottes`); `shorts` (`denim_shorts`, `tailored_shorts`); `leggings`; `joggers` (`sweatpants`)
+- `skirt` -> `skirt` (`mini_skirt`, `midi_skirt`, `maxi_skirt`, `pleated_skirt`, `a_line_skirt`, `pencil_skirt`)
+- `top` -> `shirt` (`button_down_shirt`, `oxford_shirt`, `flannel_shirt`); `blouse`; `t_shirt` (`graphic_tee`, `crew_neck_tee`, `v_neck_tee`); `tank_top` (`camisole`); `sweater` (`crew_neck_sweater`, `v_neck_sweater`, `turtleneck`, `cardigan`); `hoodie` (`pullover_hoodie`, `zip_hoodie`); `polo`; `sweatshirt` (`crewneck_sweatshirt`)
+- `vest` -> `vest` (`puffer_vest`, `sweater_vest`, `tailored_vest`)
+- `jumpsuit` -> `jumpsuit` (`utility_jumpsuit`, `wide_leg_jumpsuit`)
+- `romper` -> `romper`
+- `bodysuit` -> `bodysuit`
+- `footwear` -> `sneaker` (`low_top_sneaker`, `high_top_sneaker`, `running_sneaker`, `court_sneaker`, `slip_on_sneaker`); `boot` (`ankle_boot`, `chelsea_boot`, `combat_boot`, `knee_high_boot`, `hiking_boot`, `western_boot`); `loafer` (`penny_loafer`, `horsebit_loafer`, `tassel_loafer`); `sandal` (`slide_sandal`, `strappy_sandal`, `thong_sandal`); `heel` (`pump`, `stiletto`, `block_heel`, `kitten_heel`); `flat` (`ballet_flat`, `pointed_flat`); `oxford` (`derby`, `brogue`); `mule`
+- `bag` -> `handbag` (`shoulder_bag`, `top_handle_bag`, `hobo_bag`, `bucket_bag`, `satchel`); `tote` (`canvas_tote`, `leather_tote`); `crossbody` (`camera_bag`, `saddle_bag`); `backpack` (`mini_backpack`); `clutch` (`envelope_clutch`); `duffel`
+- `accessory` -> `eyewear` (`sunglasses`, `optical_glasses`, `aviator_sunglasses`, `wayfarer_sunglasses`, `round_sunglasses`); `jewelry` (`necklace`, `bracelet`, `ring`, `earrings`, `brooch`); `watch` (`analog_watch`, `digital_watch`, `smart_watch`); `belt` (`leather_belt`, `woven_belt`); `hat` (`cap`, `beanie`, `bucket_hat`, `fedora`, `wide_brim_hat`); `scarf` (`silk_scarf`, `wool_scarf`); `gloves`; `tie` (`necktie`, `bow_tie`); `wallet`
+
+Primary and secondary colors must use one exact implemented token: `black`,
+`white`, `gray`, `blue`, `red`, `green`, `brown`, `pink`, `purple`, `yellow`,
+`orange`, `gold`, `silver`, `multicolor`, `navy`, `dark blue`, `midnight`,
+`cobalt`, `burgundy`, `oxblood`, `wine`, `maroon`, `ivory`, `ecru`, `cream`,
+`bone`, `off-white`, `camel`, `taupe`, `tan`, `beige`, `khaki`, `charcoal`,
+`slate`, `graphite`, `blush`, `rose`, or `magenta`. `teal` and `olive` are
+implemented terminal colors with no broader-family credit. `gray` is canonical;
+do not emit `grey`.
+
+Material must use one exact supported token: `leather`, `faux leather`, `denim`,
+`wool`, `wool blend`, `cotton`, `satin`, `silk`, `linen`, `knit`, `suede`,
+`acetate`, `canvas`, `nylon`, `polyester`, `cashmere`, `tweed`, `corduroy`,
+`velvet`, `chiffon`, `jersey`, `ribbed`, `cotton canvas`, `metal`, `gold tone`,
+or `silver tone`. A visible surface whose composition cannot be established is
+`unknown`, not a guessed material.
+
+The review-only controlled values are:
+
+- `brandEvidenceState`: `product_level_evidence`, `contextual_cue_only`, or `no_reliable_evidence`.
+- `expectedBrandAssertionBehavior`: `brand_may_be_named_and_is_scored_for_correctness`, `naming_the_in_frame_brand_as_the_product_brand_is_a_false_positive`, or `any_brand_claim_is_a_false_positive`. These are the already-implemented coverage outcomes, not new production enums.
+- `subjectDesignation`: `manifest_specified`, `unambiguously_dominant`, or `ambiguous_no_dominant`.
+- `labelConfidence`: `high`, `medium`, `low`, or `unknown`.
+- `expectedAbstention`, `nonFashion`, `visiblePerson`, and `privacyAndAuthorizationComplete`: JSON booleans only.
+- `sameItemAcrossImages`: JSON `true` or `false` for multi-view cases; `not_applicable` for a single image; `unknown` only when the evidence is visible but legitimately inconclusive.
+
+`privacyAndAuthorizationComplete` is true only when the blinded packet's
+governance summary confirms approved authorization, an allowed privacy
+disposition, a privacy-review date, a retention-policy reference, EXIF removal,
+completed face and plate review, and an approved governed derivative. It is
+false if any required control is absent or failed. This governance decision does
+not change any visual label.
 
 ## G-1 - Multi-item subject designation
 
@@ -88,6 +142,13 @@ Review metadata classifies brand evidence into the measurement cohorts
 `product_level_evidence`, `contextual_cue_only`, and `no_reliable_evidence`.
 These are evaluation cohorts, not production enums. Contextual cues may be noted
 but never authorize a positive brand label.
+
+Map the evidence cohort to `expectedBrandAssertionBehavior` mechanically:
+`product_level_evidence` uses
+`brand_may_be_named_and_is_scored_for_correctness`;
+`contextual_cue_only` uses
+`naming_the_in_frame_brand_as_the_product_brand_is_a_false_positive`; and
+`no_reliable_evidence` uses `any_brand_claim_is_a_false_positive`.
 
 ## G-5 - `not_visible` versus `unknown`
 

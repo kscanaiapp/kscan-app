@@ -8,7 +8,7 @@ const os = require('os');
 const crypto = require('crypto');
 
 const patch = require('../lib/datasetPatchV031');
-const { buildPacket } = require('../build-blinded-review-packet');
+const { buildPacket, governanceSummary } = require('../build-blinded-review-packet');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const SOURCE = path.join(ROOT, 'evals', 'scanner-accuracy', 'tier-a-manifest.v0.3.0.json');
@@ -88,6 +88,14 @@ test('blinded packet creator creates a new output tree and refuses collisions', 
       caseId: 'opaque-source',
       imageReferences: [{ refValue: 'storage://eval/tier-a/opaque-source/primary' }],
       imageHashes: [hash],
+      authorizationStatus: 'approved_internal_eval',
+      privacyDisposition: 'hash_and_label_only',
+      privacyReviewDate: '2026-07-30',
+      retentionPolicyRef: 'retention-policy',
+      exifRemoved: true,
+      faceReviewState: 'no_face_present',
+      plateReviewState: 'no_plate_present',
+      derivativeStatus: 'masked_derivative',
     }],
   };
   const outputDir = path.join(tempRoot, 'packet');
@@ -96,5 +104,22 @@ test('blinded packet creator creates a new output tree and refuses collisions', 
   assert.equal(result.imageCount, 1);
   assert.equal(fs.existsSync(result.briefPath), true);
   assert.equal(fs.existsSync(result.mapPath), true);
+  const brief = JSON.parse(fs.readFileSync(result.briefPath, 'utf8'));
+  assert.equal(brief.cases[0].governance.complete, true);
+  assert.equal(new Set(brief.reviewedFields).size, brief.reviewedFields.length);
   assert.throws(() => buildPacket(manifest, { split: 'development', outputDir }), /output collision/);
+});
+
+test('governance summary fails closed when any required record is absent', () => {
+  const summary = governanceSummary({
+    authorizationStatus: 'approved_internal_eval',
+    privacyDisposition: 'hash_and_label_only',
+    privacyReviewDate: '2026-07-30',
+    retentionPolicyRef: 'retention-policy',
+    exifRemoved: true,
+    faceReviewState: 'no_face_present',
+    plateReviewState: 'no_plate_present',
+  });
+  assert.equal(summary.governedDerivativeApproved, false);
+  assert.equal(summary.complete, false);
 });

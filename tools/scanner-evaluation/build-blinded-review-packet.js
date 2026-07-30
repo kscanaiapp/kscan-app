@@ -34,6 +34,31 @@ function canonicalMapForHash(map) {
   };
 }
 
+function governanceSummary(record) {
+  const approvedAuthorization = new Set([
+    'approved_qa_fixture',
+    'approved_internal_eval',
+    'synthetic_no_image',
+  ]);
+  const allowedPrivacy = new Set([
+    'hash_and_label_only',
+    'governed_fixture_reference',
+    'synthetic_text_only',
+    'masked_derivative_approved',
+  ]);
+  const complete = {
+    authorizationApproved: approvedAuthorization.has(record.authorizationStatus),
+    privacyDispositionApproved: allowedPrivacy.has(record.privacyDisposition),
+    privacyReviewDatePresent: typeof record.privacyReviewDate === 'string' && record.privacyReviewDate.length > 0,
+    retentionPolicyPresent: typeof record.retentionPolicyRef === 'string' && record.retentionPolicyRef.length > 0,
+    exifRemoved: record.exifRemoved === true,
+    faceReviewComplete: typeof record.faceReviewState === 'string' && record.faceReviewState.length > 0,
+    plateReviewComplete: typeof record.plateReviewState === 'string' && record.plateReviewState.length > 0,
+    governedDerivativeApproved: record.derivativeStatus === 'masked_derivative',
+  };
+  return { ...complete, complete: Object.values(complete).every(Boolean) };
+}
+
 function buildPacket(manifest, { split, outputDir }) {
   if (!['development', 'holdout'].includes(split)) throw new Error(`invalid split: ${split}`);
   assertOutsideGit(outputDir);
@@ -80,25 +105,19 @@ function buildPacket(manifest, { split, outputDir }) {
     guideSha256: sha256(fs.readFileSync(guidePath)),
     sourceImageAggregateSha256: manifest.sourceAggregateSha256,
     opaqueCaseMapSha256: map.opaqueCaseMapSha256,
-    reviewedFields: [
-      ...REVIEWED_FIELDS,
-      'brandEvidenceState',
-      'expectedBrandAssertionBehavior',
-      'expectedAbstention',
-      'subjectDesignation',
-      'sameItemAcrossImages',
-      'labelConfidence',
-      'privacyAndAuthorizationComplete',
-    ],
+    reviewedFields: [...new Set([...REVIEWED_FIELDS, 'labelConfidence'])],
     instructions: [
       'Inspect only the supplied guide and opaque image paths.',
       'Do not inspect repository manifests, filenames, provenance, curator drafts, prior reviews, or Scanner output.',
       'Label each opaque case as one review unit. Multi-view units are grouped because the task explicitly asks for set-level labeling and same-item verification.',
+      'Use only the exact controlled vocabulary in guide 1.1.0; never write a natural-language replacement for an ontology token.',
+      'Set privacyAndAuthorizationComplete from the blinded governance summary and the guide rule, without using it to infer visual labels.',
       'Provide field-level evidence and uncertainty. Do not invent enum values.',
     ],
     cases: cases.map((record) => ({
       blindId: record.blindId,
       images: record.images.map((image) => ({ blindImageId: image.blindImageId, path: image.reviewPath })),
+      governance: governanceSummary(selected.find((candidate) => candidate.caseId === record.caseId)),
     })),
   };
   const mapPath = path.join(outputDir, 'private-case-map.json');
@@ -130,4 +149,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { buildPacket, canonicalMapForHash, main };
+module.exports = { buildPacket, canonicalMapForHash, governanceSummary, main };
