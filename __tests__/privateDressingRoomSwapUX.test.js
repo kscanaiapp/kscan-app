@@ -394,7 +394,7 @@ test('confirming clears editor, preview, comparison and interaction state first'
 
 // ── Excluded controls ────────────────────────────────────────────────────────
 
-test('no later-phase control appears', () => {
+test('later-phase controls remain nested under their own gates', () => {
   const titles = [...ROUTE.matchAll(/title=(?:"([^"]*)"|\{([^}]*)\})/g)].map((m) => m[1] ?? m[2]);
   for (const title of titles) {
     assert.equal(
@@ -403,9 +403,10 @@ test('no later-phase control appears', () => {
       `must not offer ${title}`,
     );
   }
-  for (const forbidden of ['saveLook', 'findMissingPiece', 'checkout', 'affiliate', 'styleChat', 'shareToken']) {
+  for (const forbidden of ['findMissingPiece', 'checkout', 'affiliate', 'styleChat', 'shareToken']) {
     assert.equal(ROUTE.includes(forbidden), false, `must not reference ${forbidden}`);
   }
+  assert.match(ROUTE, /savedLooksEnabled \? \([\s\S]*?Save Look/);
 });
 
 test('no bottom tab and no collaborative navigation is introduced', () => {
