@@ -121,6 +121,7 @@ test('same-route return context restores the same slot and refreshes ownership b
   assert.match(detail, /resolvePrivateSavedLookOwnership/);
   assert.match(detail, /clearSavedLookReturnContext/);
   assert.match(handoff, /pathname: '\/stylist\/saved-looks\/\[id\]'[\s\S]*?context\.savedLookId/);
+  assert.match(handoff, /if \(!context\) \{[\s\S]*?router\.replace\('\/stylist\/saved-looks'\)/);
 });
 
 test('existing cloud Saved Outfit route remains separate and unmodified by Phase 5 imports', () => {
