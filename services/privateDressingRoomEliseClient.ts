@@ -87,6 +87,30 @@ export function resolveEliseInvoke(): EliseInvoke {
   return controlled ?? defaultInvoke;
 }
 
+/** Resolves a usable user JWT before a transport that needs one. */
+export type EliseSessionPreflight = () => Promise<{ ok: boolean }>;
+
+/**
+ * The preflight is BOUND TO THE TRANSPORT IT GUARDS, not run unconditionally.
+ *
+ * It exists for exactly one reason: `supabase.functions.invoke` attaches
+ * `Authorization` only when a session is already in storage, so the real
+ * transport must not be called without one. A transport that never reaches
+ * Supabase — the `__DEV__` controlled QA provider, or an injected test double —
+ * has no such requirement, and gating it on a live session would make the
+ * seam untestable and couple QA runs to a real login.
+ *
+ * SAFE BY CONSTRUCTION IN RELEASE. `createControlledEliseInvoke()` can only
+ * return null outside `__DEV__`, so `resolveEliseInvoke()` in a release build
+ * yields `defaultInvoke` and this returns the real preflight. Identity is the
+ * test, so a caller passing `resolveEliseInvoke()` back in is still gated.
+ */
+export function resolveElisePreflight(invoke: EliseInvoke): EliseSessionPreflight {
+  return invoke === defaultInvoke
+    ? resolveAuthenticatedFunctionSession
+    : async () => ({ ok: true });
+}
+
 /**
  * Sends one planned request and validates the reply against that plan.
  *
@@ -99,9 +123,11 @@ export async function sendEliseRequest(input: {
   intent: PrivateEliseIntent;
   signal?: AbortSignal;
   invoke?: EliseInvoke;
+  resolveSession?: EliseSessionPreflight;
   timeoutMs?: number;
 }): Promise<EliseTransportOutcome> {
   const invoke = input.invoke ?? resolveEliseInvoke();
+  const preflight = input.resolveSession ?? resolveElisePreflight(invoke);
   const timeoutMs = input.timeoutMs ?? ELISE_INVOKE_TIMEOUT_MS;
 
   const controller = new AbortController();
@@ -118,7 +144,7 @@ export async function sendEliseRequest(input: {
   try {
     // Auth preflight: never hit style-outfit-generate without a usable user JWT.
     // supabase.functions.invoke only attaches Authorization when a session exists.
-    const auth = await resolveAuthenticatedFunctionSession();
+    const auth = await preflight();
     if (!auth.ok) {
       return { kind: 'session_expired' };
     }

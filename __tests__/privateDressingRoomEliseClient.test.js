@@ -579,3 +579,61 @@ test('the alias map is a plain in-memory Map and is never serialized', () => {
     assert.match(assigned.trim(), /^new Map/, `plans assigned a non-Map: ${assigned.trim()}`);
   }
 });
+
+// ── Phase 6 regression: the auth preflight is bound to its transport ─────────
+//
+// The Phase 5 auth hotfix added a session preflight to sendEliseRequest, but
+// called the real Supabase-backed resolver unconditionally — ahead of the
+// injectable `invoke` seam. That short-circuited every injected transport to
+// `session_expired` and broke 17 certified Phase 5 transport/orchestration
+// tests, and it coupled the __DEV__ controlled QA provider to a real login.
+//
+// The property: a transport that actually reaches Supabase is gated; one that
+// does not, is not. Release builds can only select `defaultInvoke`, so the
+// production path stays gated by construction.
+
+test('an injected transport is not gated on a real Supabase session', async () => {
+  const plan = planFor();
+  const outcome = await client.sendEliseRequest({
+    plan,
+    intent: 'build_around_item',
+    invoke: async () => ({ data: goodResponse(plan), error: null }),
+  });
+  assert.equal(outcome.kind, 'response', 'injected transport must not require a live session');
+  assert.equal(outcome.response.status, 'success');
+});
+
+test('the default Supabase transport IS gated on a usable session', async () => {
+  // resolveEliseInvoke() yields defaultInvoke here (__DEV__ is undefined, so the
+  // controlled QA provider factory returns null). The stubbed supabaseClient has
+  // no `auth`, so the real preflight cannot produce a token and must fail closed.
+  const outcome = await client.sendEliseRequest({
+    plan: planFor(),
+    intent: 'build_around_item',
+  });
+  assert.equal(outcome.kind, 'session_expired', 'the real transport must fail closed without a session');
+});
+
+test('an explicit preflight is honoured and never auto-retries', async () => {
+  const plan = planFor();
+  let invoked = 0;
+  const outcome = await client.sendEliseRequest({
+    plan,
+    intent: 'build_around_item',
+    resolveSession: async () => ({ ok: false }),
+    invoke: async () => {
+      invoked += 1;
+      return { data: goodResponse(plan), error: null };
+    },
+  });
+  assert.equal(outcome.kind, 'session_expired');
+  assert.equal(invoked, 0, 'a failed preflight must not reach the transport');
+});
+
+test('resolveElisePreflight gates the default transport and only that', async () => {
+  const real = client.resolveElisePreflight(client.resolveEliseInvoke());
+  const injected = client.resolveElisePreflight(async () => ({ data: null, error: null }));
+  assert.equal(await injected().then((r) => r.ok), true, 'an injected transport needs no session');
+  // The real one reaches the stubbed client and fails closed rather than throwing.
+  assert.equal(await real().then((r) => r.ok), false, 'the default transport resolves a real session');
+});
