@@ -227,6 +227,9 @@ test('complete user-visible route inventory has an explicit exit classification'
     // deep link into the workspace cannot trap the user with an empty stack,
     // which is also the Android hardware-back path.
     { file: 'app/stylist/dressing-room/index.tsx', kind: 'back-or-home' },
+    { file: 'app/stylist/saved-looks/index.tsx', kind: 'stylist-fallback' },
+    { file: 'app/stylist/saved-looks/[id].tsx', kind: 'stylist-fallback' },
+    { file: 'app/stylist/saved-looks/handoff.tsx', kind: 'stylist-fallback' },
     { file: 'app/text-scan/index.tsx', kind: 'back-or-home' },
     { file: 'app/(public)/rooms/[token].tsx', kind: 'back-or-home' },
     { file: 'app/style-chat/index.tsx', kind: 'home-dismiss' },
@@ -251,6 +254,9 @@ test('complete user-visible route inventory has an explicit exit classification'
     const source = read(entry.file);
     if (entry.kind === 'back-or-home') {
       assert.match(source, /goBackOrHome/);
+    } else if (entry.kind === 'stylist-fallback') {
+      assert.match(source, /router\.replace\('\/stylist(?:\/saved-looks)?'\)/);
+      assert.doesNotMatch(source, /router\.back\(\)/);
     } else if (entry.kind === 'auth-fallback') {
       assert.match(source, /goBackOrOnboarding|goBackOrAuth/);
     } else if (entry.kind === 'home-dismiss') {
