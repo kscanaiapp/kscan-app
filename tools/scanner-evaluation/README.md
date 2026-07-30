@@ -78,10 +78,15 @@ a changed preparation is refused.
 | `certified_client_width_896` (default) | width pinned to 896, height proportional — the exact production mirror, so a portrait frame exceeds 896 on its long edge |
 | `max_dimension_896` | longest edge capped at 896; **differs from production** for any non-landscape source |
 
-Requires the `sharp` devDependency. Fidelity limits are recorded in every
-preparation manifest: pixel dimensions, chroma subsampling and quality band match
-the certified client, but **entropy-coded bytes do not and no byte-level parity is
-asserted**. Byte determinism holds for a fixed codec version only.
+Requires the `sharp` devDependency. This is a **production-equivalent pilot stage,
+not byte-for-byte production parity**. Fidelity limits are recorded in every
+preparation manifest: pixel dimensions, chroma subsampling and the requested quality
+setting match the certified client, but **entropy-coded bytes do not and no
+byte-level parity is asserted**. All prepared payloads remain below the certified
+ceiling and **overlap** the documented production payload range (typical output
+120–320 KB) — overlap is not band parity, and complete band parity must not be
+claimed. Byte determinism holds for a fixed codec version only, which is why the
+codec version is part of the run identity.
 
 The runner writes its own machine-readable output: `dry-run-plan.json` for a dry
 run, and `run-manifest.json` + `cases/<caseId>.json` + `baseline-report.json` for

@@ -548,6 +548,20 @@ function main(argv = process.argv.slice(2), { executor = unauthorizedExecutor, n
     capturePreparationMode: preparationMode,
     preparationManifestSha256: preparationManifest ? preparationManifest.preparationManifestSha256 : null,
     preparationPolicy: preparationManifest ? preparationManifest.policy : null,
+    // Codec identity and the transform parameters are named in the identity, not
+    // just folded into the manifest hash: this stage is production-EQUIVALENT, so
+    // exactly which encoder and which parameters produced the payload is part of
+    // what makes two runs comparable.
+    preparationCodec: preparationManifest && preparationManifest.codec
+      ? `sharp@${preparationManifest.codec.sharp}+libvips@${preparationManifest.codec.libvips}`
+      : null,
+    preparationTransformSignature: preparationManifest
+      ? [
+        `w${preparationManifest.certifiedContract.scannerImageMaxWidth}`,
+        `q${preparationManifest.certifiedContract.jpegQuality}`,
+        `cap${preparationManifest.certifiedContract.maxImageBase64Bytes}`,
+      ].join('/')
+      : null,
     hardCallCeiling: args.maxCalls == null ? null : args.maxCalls,
     spendCeilingUsd: args.maxUsd == null ? null : args.maxUsd,
   };

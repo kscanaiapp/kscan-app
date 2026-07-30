@@ -239,12 +239,23 @@ test('all 56 governed images prepare to within the certified ceiling', async () 
   assert.equal(summary.imageCount, 56);
   assert.equal(summary.imagesOverCertifiedCeiling, 0, JSON.stringify(summary.oversizedViewIds));
   assert.equal(summary.allWithinCertifiedCeiling, true);
-  // Production documents a typical output of 120-320 KB. The largest prepared
-  // payload must land in that band, which is the corroboration that this stage
-  // reproduces the client rather than merely fitting the ceiling.
+  // Every prepared payload is below the certified ceiling, and the prepared range
+  // OVERLAPS production's documented 120-320 KB typical output. It is not the same
+  // band — a substantial share sit below 120 KB — so overlap is what is asserted
+  // here and complete band parity is deliberately NOT claimed.
+  const PRODUCTION_TYPICAL_MIN = 120 * 1024;
+  const PRODUCTION_TYPICAL_MAX = 320 * 1024;
   assert.ok(
-    summary.largestDerivativeBase64Length < 400 * 1024,
-    `largest prepared payload ${summary.largestDerivativeBase64Length} should be in production's band`
+    summary.largestDerivativeBase64Length <= PRODUCTION_TYPICAL_MAX,
+    `largest prepared payload ${summary.largestDerivativeBase64Length} exceeds production's documented typical maximum`
+  );
+  assert.ok(
+    summary.largestDerivativeBase64Length >= PRODUCTION_TYPICAL_MIN,
+    'the prepared range must overlap production\'s documented typical output'
+  );
+  assert.ok(
+    summary.smallestDerivativeBase64Length < PRODUCTION_TYPICAL_MIN,
+    'some prepared payloads fall below production\'s typical minimum; band parity must not be claimed'
   );
   // 5 sources are narrower than 896; production upscales them, so this does too.
   assert.equal(summary.upscaledCount, 5);
@@ -485,7 +496,21 @@ test('a tampered preparation manifest is refused by the runner', async () => {
   assert.ok(out.errors.some((e) => e.check === 'preparation_manifest_hash'));
 });
 
-test('a changed preparation manifest invalidates a resume', () => {
+test('codec, transform, policy and manifest hash are all part of the run identity', () => {
+  // Owner requirement: because this stage is production-EQUIVALENT rather than
+  // byte-for-byte identical to production, each of these must stay in the
+  // immutable run identity so a mismatch names the component that changed.
+  for (const field of [
+    'preparationManifestSha256',
+    'preparationPolicy',
+    'preparationCodec',
+    'preparationTransformSignature',
+  ]) {
+    assert.ok(runIdentity.IDENTITY_FIELDS.includes(field), `${field} must be an identity field`);
+  }
+});
+
+test('a changed preparation manifest, policy, codec or transform invalidates a resume', () => {
   const prior = {
     runId: 'baseline-v0.3.0-v140-20260729-1345-4c398e4-development-exec',
     datasetVersion: '0.3.0',
@@ -497,19 +522,75 @@ test('a changed preparation manifest invalidates a resume', () => {
     capturePreparationMode: 'certified_client_equivalent',
     preparationManifestSha256: 'prep-a',
     preparationPolicy: 'certified_client_width_896',
-    hardCallCeiling: 100,
+    preparationCodec: 'sharp@0.35.3+libvips@8.18.3',
+    preparationTransformSignature: 'w896/q65/cap2097152',
+    hardCallCeiling: 200,
     spendCeilingUsd: 10,
   };
   assert.equal(runIdentity.assertResumable(prior, { ...prior }).ok, true);
   // Different bytes reached the provider, so the two halves are not comparable.
-  assert.throws(
-    () => runIdentity.assertResumable(prior, { ...prior, preparationManifestSha256: 'prep-b' }),
-    /preparationManifestSha256/
-  );
-  assert.throws(
-    () => runIdentity.assertResumable(prior, { ...prior, preparationPolicy: 'max_dimension_896' }),
-    /preparationPolicy/
-  );
+  for (const [field, changed] of Object.entries({
+    preparationManifestSha256: 'prep-b',
+    preparationPolicy: 'max_dimension_896',
+    preparationCodec: 'sharp@0.36.0+libvips@8.19.0',
+    preparationTransformSignature: 'w896/q80/cap2097152',
+  })) {
+    assert.throws(
+      () => runIdentity.assertResumable(prior, { ...prior, [field]: changed }),
+      new RegExp(field),
+      `${field} must invalidate a resume`
+    );
+  }
+});
+
+test('the preparation manifest hash covers the codec, the policy and every derivative hash', async () => {
+  const root = derivativeRoot('identity-coverage');
+  const result = await prepareDerivatives.main([
+    '--manifest', MANIFEST_REL, '--derivative-root', root, '--split', 'holdout',
+  ]);
+  const record = JSON.parse(fs.readFileSync(result.preparationManifest, 'utf8'));
+  const baseline = prepareDerivatives.preparationManifestHash(record);
+
+  const withCodec = JSON.parse(JSON.stringify(record));
+  withCodec.codec.libvips = '9.9.9';
+  assert.notEqual(prepareDerivatives.preparationManifestHash(withCodec), baseline, 'codec must be covered');
+
+  const withPolicy = JSON.parse(JSON.stringify(record));
+  withPolicy.policy = 'max_dimension_896';
+  assert.notEqual(prepareDerivatives.preparationManifestHash(withPolicy), baseline, 'policy must be covered');
+
+  const withContract = JSON.parse(JSON.stringify(record));
+  withContract.certifiedContract.jpegQuality = 80;
+  assert.notEqual(prepareDerivatives.preparationManifestHash(withContract), baseline, 'transform must be covered');
+});
+
+test('the owner authorization record states the approved ceilings and open blockers', () => {
+  const auth = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'evals/scanner-accuracy/authorization/phase1-execution-authorization.json'), 'utf8'
+  ));
+  assert.equal(auth.ceilings.maximumProviderAttempts.value, 200);
+  assert.equal(auth.ceilings.maximumProviderAttempts.status, 'APPROVED');
+  assert.equal(auth.ceilings.maximumProviderSpendUsd.value, 10.0);
+  assert.equal(auth.ceilings.maximumProviderSpendUsd.status, 'APPROVED');
+
+  // Capture preparation is accepted as production-EQUIVALENT only.
+  assert.equal(auth.capturePreparation.acceptedAs, 'production-equivalent pilot preparation stage');
+  assert.equal(auth.capturePreparation.explicitlyNotAcceptedAs, 'byte-for-byte production parity');
+  assert.equal(auth.capturePreparation.defaultPolicy, imagePreparation.DEFAULT_POLICY);
+
+  // The three remaining blockers are open, and the ceilings are not one of them.
+  const open = auth.remainingBlockers.filter((b) => b.status === 'OPEN').map((b) => b.blocker);
+  assert.equal(open.length, 3);
+  assert.match(open.join(' | '), /Development reviewer/);
+  assert.match(open.join(' | '), /holdout reviewers/);
+  assert.match(open.join(' | '), /evaluation credential/);
+
+  // The curator exclusion is recorded as a constraint, not left to discipline.
+  const holdout = auth.remainingBlockers.find((b) => b.id === 'RB-2');
+  assert.match(holdout.constraints.join(' '), /curator must remain excluded/);
+  assert.match(holdout.constraints.join(' '), /No reviewer may see any Scanner output before labels are locked/);
+
+  assert.equal(auth.verdict, 'BUILD 4 PHASE 1 BLOCKED — REVIEW AND CREDENTIAL GATES REMAIN');
 });
 
 test('the run artifact records preparation provenance and the certified contract', () => {

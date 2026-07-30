@@ -178,7 +178,8 @@ async function main(argv = process.argv.slice(2)) {
     summary,
     images,
     fidelityLimitations: [
-      'libvips is not expo-image-manipulator. Pixel dimensions, chroma subsampling and quality band match the certified client; entropy-coded bytes do not. No byte-level parity is asserted.',
+      'This is a production-EQUIVALENT pilot preparation stage, not byte-for-byte production parity. libvips is not expo-image-manipulator: pixel dimensions, chroma subsampling and the requested quality setting match the certified client, but entropy-coded bytes do not. No byte-level parity is asserted.',
+      'All prepared payloads remain below the certified ceiling and OVERLAP the documented production payload range (typical output 120-320 KB). Overlap is not band parity: a substantial share of prepared payloads sit below 120 KB. Complete band parity must not be claimed.',
       'Byte determinism holds for a fixed codec version and is not guaranteed across libvips upgrades. The codec versions are recorded above.',
       'The certified client pins WIDTH to 896 and lets height scale, so a portrait frame exceeds 896 on its long edge in production. Policy certified_client_width_896 reproduces that; max_dimension_896 does not and is not the default.',
     ],

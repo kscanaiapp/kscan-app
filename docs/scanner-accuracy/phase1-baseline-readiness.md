@@ -222,11 +222,13 @@ Implemented in `lib/imagePreparation.js` and `prepare-derivatives.js`:
 | Largest payload (base64) | 13.56 MB | **299 KB** |
 | Mean payload (base64) | — | 94 KB |
 
-The prepared range (25 KB–299 KB, mean 94 KB) lands inside the certified client's
-own documented "typical output: 120-320 KB", which is the corroboration that this
-stage reproduces the client rather than merely fitting the ceiling. 5 sources are
-narrower than 896 px and are upscaled, because `resize: { width: 896 }` upscales
-and the point is to send what production sends.
+**All prepared payloads remain below the certified ceiling and overlap the
+documented production payload range.** The prepared range is 25 KB–299 KB with a
+94 KB mean; the certified client documents a typical output of 120–320 KB. These
+overlap, they are not the same band — a substantial share of prepared payloads sit
+below 120 KB. **No complete band parity is claimed.** 5 sources are narrower than
+896 px and are upscaled, because `resize: { width: 896 }` upscales and the point is
+to send what production sends.
 
 ### Two divergences, stated rather than smoothed over
 

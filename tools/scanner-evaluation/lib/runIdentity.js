@@ -78,8 +78,16 @@ const IDENTITY_FIELDS = Object.freeze([
   'capturePreparationMode',
   // A different preparation manifest means different bytes reached the provider,
   // so results from before and after are not comparable and must not be merged.
+  // The manifest hash already covers the policy, the codec and every derivative
+  // hash, but they are ALSO named here so a mismatch says which thing changed
+  // instead of only "the manifest differs". Owner-required: the codec version,
+  // preparation parameters, derivative hashes and manifest hash all stay part of
+  // the immutable run identity because this stage is production-equivalent rather
+  // than byte-for-byte identical to production.
   'preparationManifestSha256',
   'preparationPolicy',
+  'preparationCodec',
+  'preparationTransformSignature',
   'hardCallCeiling',
   'spendCeilingUsd',
 ]);

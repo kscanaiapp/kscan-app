@@ -852,6 +852,62 @@ test('every authorized Build 4 file on disk is tracked by git', () => {
   assert.equal(report.ok, true);
 });
 
+test('the path-boundary exception list is exactly the two owner-authorized files', () => {
+  // The boundary keeps its teeth only if the exception stays an exact-file
+  // allowlist. Adding a prefix or a third file here is a boundary change and must
+  // be a deliberate, reviewed act — not a side effect of some other work.
+  assert.deepEqual(
+    Object.keys(trackingGuard.AUTHORIZED_BOUNDARY_EXCEPTIONS).sort(),
+    ['package-lock.json', 'package.json']
+  );
+  for (const [file, exception] of Object.entries(trackingGuard.AUTHORIZED_BOUNDARY_EXCEPTIONS)) {
+    assert.ok(exception.reason, `${file} exception must state a reason`);
+    assert.ok(exception.authority, `${file} exception must name the authorizing decision`);
+    assert.ok(exception.record, `${file} exception must reference the authorization record`);
+    assert.ok(exception.constraint, `${file} exception must state its constraint`);
+    // No wildcard or directory prefix may masquerade as a file exception.
+    assert.equal(/[*?]/.test(file), false, 'exceptions are exact files, never patterns');
+    assert.equal(file.includes('/'), false, 'the authorized exceptions are repository-root manifests');
+  }
+});
+
+test('the authorized boundary exception is recorded and used, not silent', () => {
+  const report = trackingGuard.main(['--base', 'cf39d9ac']);
+  const used = report.boundary.authorizedExceptionsUsed.map((e) => e.file).sort();
+  assert.deepEqual(used, ['package-lock.json', 'package.json'],
+    'the sharp devDependency touches both manifests and both must be reported as exceptions');
+  for (const exception of report.boundary.authorizedExceptionsUsed) {
+    assert.match(exception.authority, /owner decision/);
+    assert.equal(exception.record, 'evals/scanner-accuracy/authorization/phase1-execution-authorization.json');
+  }
+});
+
+test('sharp is a devDependency only and is not reachable from application code', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.ok(pkg.devDependencies.sharp, 'sharp must be declared as a devDependency');
+  assert.equal(pkg.dependencies && pkg.dependencies.sharp, undefined,
+    'sharp must NOT be a runtime dependency of the application');
+
+  // Nothing shipped to a device or an Edge Function may import the codec.
+  const roots = ['app', 'components', 'services', 'hooks', 'contexts', 'constants', 'utils', 'supabase'];
+  const offenders = [];
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules') continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!/\.(js|jsx|ts|tsx)$/.test(entry.name)) continue;
+      const source = fs.readFileSync(full, 'utf8');
+      if (/require\(['"]sharp['"]\)|from ['"]sharp['"]/.test(source)) {
+        offenders.push(path.relative(ROOT, full).replace(/\\/g, '/'));
+      }
+    }
+  };
+  for (const root of roots) walk(path.join(ROOT, root));
+  assert.deepEqual(offenders, [], 'the image codec must stay confined to the evaluation harness');
+});
+
 // ── Commerce and boundary ────────────────────────────────────────────────────
 
 test('commerce metrics are marked not_measured', () => {

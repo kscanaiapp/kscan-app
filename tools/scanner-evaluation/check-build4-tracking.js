@@ -45,6 +45,32 @@ const AUTHORIZED_ROOTS = Object.freeze([
   'docs/scanner-accuracy',
 ]);
 
+/**
+ * Named, owner-authorized exceptions to the path boundary.
+ *
+ * This is an ALLOWLIST OF EXACT FILES, never a prefix or a pattern. The boundary
+ * exists so Build 4 cannot quietly reach into the application; the correct response
+ * to a legitimate exception is to name the file and the authority, not to widen the
+ * rule. Anything outside the authorized roots that is not listed here still fails.
+ */
+const AUTHORIZED_BOUNDARY_EXCEPTIONS = Object.freeze({
+  'package.json': {
+    reason:
+      'Phase 1 finding F-1: the owner authorized adding a Node JPEG codec (sharp) as a '
+      + 'devDependency so the evaluation pipeline can produce production-equivalent capture '
+      + 'derivatives. A dependency cannot be declared without touching the manifest.',
+    authority: 'owner decision 2026-07-29',
+    record: 'evals/scanner-accuracy/authorization/phase1-execution-authorization.json',
+    constraint: 'devDependencies only; not imported by any application or Edge Function code.',
+  },
+  'package-lock.json': {
+    reason: 'Lockfile entry for the same owner-authorized devDependency.',
+    authority: 'owner decision 2026-07-29',
+    record: 'evals/scanner-accuracy/authorization/phase1-execution-authorization.json',
+    constraint: 'Must contain no change other than the authorized devDependency and its transitive deps.',
+  },
+});
+
 function git(args) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 }
@@ -100,13 +126,19 @@ function main(argv = process.argv.slice(2)) {
   const onDisk = AUTHORIZED_ROOTS.flatMap((root) => walk(root));
   const untracked = onDisk.filter((file) => !tracked.has(file));
 
-  // Boundary in the other direction: nothing outside the authorized roots.
+  // Boundary in the other direction: nothing outside the authorized roots, except
+  // the exact files the owner has authorized by name.
   let outsideBoundary = [];
+  let authorizedExceptionsUsed = [];
   if (base) {
     const changed = git(['diff', '--name-only', `${base}..HEAD`]).split('\n').filter(Boolean);
-    outsideBoundary = changed.filter(
+    const outside = changed.filter(
       (file) => !AUTHORIZED_ROOTS.some((root) => file.startsWith(`${root}/`))
     );
+    outsideBoundary = outside.filter((file) => !AUTHORIZED_BOUNDARY_EXCEPTIONS[file]);
+    authorizedExceptionsUsed = outside
+      .filter((file) => AUTHORIZED_BOUNDARY_EXCEPTIONS[file])
+      .map((file) => ({ file, ...AUTHORIZED_BOUNDARY_EXCEPTIONS[file] }));
   }
 
   const ok = untracked.length === 0 && outsideBoundary.length === 0;
@@ -131,7 +163,12 @@ function main(argv = process.argv.slice(2)) {
       untracked,
     },
     boundary: base
-      ? { base, outsideAuthorizedRoots: outsideBoundary, ok: outsideBoundary.length === 0 }
+      ? {
+        base,
+        outsideAuthorizedRoots: outsideBoundary,
+        authorizedExceptionsUsed,
+        ok: outsideBoundary.length === 0,
+      }
       : { base: null, note: 'pass --base <sha> to also check the path boundary' },
   };
 
@@ -142,4 +179,10 @@ function main(argv = process.argv.slice(2)) {
 
 if (require.main === module) main();
 
-module.exports = { main, AUTHORIZED_ROOTS, readExcludeRules, shadowedRoots };
+module.exports = {
+  main,
+  AUTHORIZED_ROOTS,
+  AUTHORIZED_BOUNDARY_EXCEPTIONS,
+  readExcludeRules,
+  shadowedRoots,
+};

@@ -17,15 +17,21 @@
  *     provider.
  *
  * FIDELITY LIMITS, STATED RATHER THAN CLAIMED AWAY
+ *   - This is a production-EQUIVALENT pilot stage, not byte-for-byte production
+ *     parity, and it is owner-accepted on exactly those terms.
  *   - libvips is not expo-image-manipulator. Both produce a baseline JPEG at the
  *     requested quality, but the entropy-coded bytes will differ. This stage
  *     reproduces production's INPUT CHARACTERISTICS (pixel dimensions, chroma
- *     subsampling, quality band), not its exact bytes. No byte-level parity is
- *     asserted anywhere.
+ *     subsampling, requested quality setting), not its exact bytes. No byte-level
+ *     parity is asserted anywhere.
+ *   - Prepared payloads all sit below the certified ceiling and OVERLAP the
+ *     documented production payload range. Overlap is not band parity: some
+ *     prepared payloads fall below production's typical minimum. Do not describe
+ *     the result as matching production's payload band.
  *   - Byte determinism holds for a fixed codec version. It is NOT guaranteed
  *     across libvips upgrades, so the codec versions are recorded in every
- *     preparation record and a run is only self-consistent, never eternally
- *     reproducible, without them.
+ *     preparation record and in the run identity; a run is only self-consistent,
+ *     never eternally reproducible, without them.
  */
 
 const fs = require('fs');
