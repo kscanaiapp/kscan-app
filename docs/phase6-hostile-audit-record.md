@@ -1,5 +1,61 @@
 # Phase 6 hostile audit — defect record
 
+## VERDICT
+
+```text
+PHASE 6 PARTIALLY CERTIFIED — BUILD DECISION HELD
+```
+
+Every automated, backend, privacy, runtime, persistence, commerce, ownership and
+repository gate passes. **Cross-actor device isolation is the only open gate**, and
+it is blocked on a second authorized QA actor — not on a known defect.
+
+Certified code state (this verdict is a docs-only delta on top of it):
+
+| Lane    | Branch                                | Certified code SHA |
+|---------|---------------------------------------|--------------------|
+| Backend | `audit/phase6-elise-contract-v1`      | `3597855`          |
+| iOS     | `audit/phase6-ios-saved-looks-v1`     | `4bb498b`          |
+| Android | `audit/phase6-android-saved-looks-v1` | `355bad0`          |
+
+No EAS build, no branch integration, no polish, no application-code change is
+authorized by this verdict.
+
+### Gates passing
+
+| Area | Evidence |
+|---|---|
+| Automated | Android 3962/0, iOS 3833/0, backend Deno 31/0 |
+| Static | iOS TypeScript 0 errors; Android 82 diagnostics == frozen baseline, 0 new |
+| Parity | Edge parity + manifest PASS on all three branches |
+| Focused | Phase 5 + 6 gates 107/107 on both mobile branches |
+| Backend | Authenticated legacy 200, private 200, unknown-schema 400, controlled failure 400 |
+| Privacy | Live authenticated logs carry no identity, prompt, Closet, Saved Look, token or provider data |
+| Runtime (normal) | Save, repeat-save idempotency, list, detail, fresh Elise request, safe failure with the active Look preserved |
+| Persistence | Interrupted-persistence recovery, offline reopen, background/foreground, backup rotation, no temp residue |
+| Ownership | All six states confirmed on device: exact, probable, similar, not-owned, unknown, deleted-reference, incompatible-edit |
+| Commerce | Suppressed for exact and probable; Shop Anyway explicit; owned alternatives first for similar |
+| Handoff | Correct slot, external commerce deferred, same-Look/same-slot return, context cleared after consumption |
+| Accessibility | Large text usable at 1.5x; rename keyboard does not obscure the field or action |
+| Configuration | Saved Looks, Private Dressing Room, Elise QA provider and DEV_INITIAL_ROUTE absent from EVERY EAS profile including production |
+| Repository | All three audit branches clean, pushed, 0/0; frozen Phase 5 branches untouched |
+
+### The one open gate
+
+**Cross-actor device isolation.** Only one authorized QA actor exists, so the
+eight-step sequence (save as A, sign out, authenticate as B, confirm A's list,
+detail route, ownership data, media and handoff context are all inaccessible,
+attempt direct navigation to A's Saved Look id, confirm no existence signal leaks,
+save as B, return to A and confirm both partitions intact) has not been run.
+
+This matters more than a routine gap: **DEFECT-P6-003 was a cross-actor fail-open.**
+The repair is proven by unit tests and by a required-argument compile-time gate that
+rejects any silent call site, but not yet by two real accounts on hardware.
+
+When a second authorized QA actor is supplied: run ONLY that bounded sequence,
+rerun affected certification if anything changes, update this record, and issue the
+final verdict.
+
 Governing audit branches (all clean, pushed, 0/0 with upstream):
 
 | Lane    | Branch                               | HEAD      |
@@ -155,6 +211,22 @@ session, came from that foreign bundle and are **excluded from the audit record*
 Control: your Metro must own host 8081, and Metro must log `Android Bundled …
 (N modules)` before any runtime observation is trusted. No bundling line means the
 evidence is not yours.
+
+**ENV-P6-C — `git status` cannot see new files under `tools/`.**
+`.git/info/exclude` hides that directory, so an audit scratch file placed there is
+invisible to `git status`, `git status --untracked-files=all` and the porcelain
+cleanliness check this audit relies on. A fixture-design script sat in
+`tools/fixture-design.js` through several "CLEAN" reports.
+
+Cleanup was therefore performed by **explicit directory inspection**
+(`Get-ChildItem tools -Force`), not by trusting `git status`. The script was removed
+by name, and `git diff -- tools/bundletool.jar` was used to confirm the tracked
+32 MB artifact in that same directory remained byte-identical to HEAD.
+
+Two rules follow. Never clean that directory with a recursive delete — it holds a
+TRACKED `bundletool.jar`, and an earlier `Remove-Item -Recurse` in this audit
+destroyed it (restored from a sibling worktree, hash verified). And never treat a
+clean `git status` as proof that `tools/` is clean; inspect it directly.
 
 **ENV-P6-B — a junctioned `node_modules` broke Metro resolution.** The audit worktrees
 were given `node_modules` junctions (valid for the jest/`tsc` gates, which is how every
