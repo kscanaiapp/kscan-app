@@ -482,6 +482,17 @@ function DressingRoomsContent() {
         subtitle="PRIVATE STYLING BOARDS"
         onBack={() => goBackOrHome(router)}
         backLabel="Back"
+        rightAction={
+          <Pressable
+            onPress={() => router.replace('/')}
+            style={styles.homeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go Home"
+            accessibilityHint="Returns to the K Scan home screen"
+          >
+            <Text style={styles.homeButtonText}>HOME</Text>
+          </Pressable>
+        }
       />
 
       <ScrollView
@@ -601,6 +612,24 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '50%',
     padding: SPACING.sm,
+  },
+  homeButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    borderColor: COLORS.gold,
+    backgroundColor: COLORS.surfaceCard,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.editorialSmall,
+  },
+  homeButtonText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: LUXURY.colors.goldBrushed,
   },
   card: {
     borderRadius: RADIUS.lg,
