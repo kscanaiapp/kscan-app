@@ -1,6 +1,37 @@
 # Phase 6 hostile audit — defect record
 
-## VERDICT
+## FINAL VERDICT
+
+```text
+PHASE 6 HOSTILE AUDIT PASSED
+PRODUCTION SOURCE DEPLOYMENT AUTHORIZED
+```
+
+This supersedes the `PARTIALLY CERTIFIED — BUILD DECISION HELD` verdict recorded
+below. The single previously open gate — cross-actor device isolation — has now
+been closed using two distinct authenticated actors on device:
+
+- Actor A's data was invisible to Actor B across the Saved Looks and Closet surfaces.
+- Actor B's Closet and Saved Looks were isolated from Actor A's records.
+- Direct-ID navigation to another actor's Saved Look failed closed, leaking no
+  existence signal.
+- All five audit defects (DEFECT-P6-001 through DEFECT-P6-005) are repaired.
+- No additional code repair was required to close this final actor-isolation gate.
+
+Certified code state is unchanged by this docs-only verdict:
+
+| Lane    | Branch                                | Certified code SHA |
+|---------|---------------------------------------|--------------------|
+| Backend | `audit/phase6-elise-contract-v1`      | `9e563ce`          |
+| iOS     | `audit/phase6-ios-saved-looks-v1`     | `d63e4ea`          |
+| Android | `audit/phase6-android-saved-looks-v1` | `c73aca9`          |
+
+This verdict authorizes promotion of the certified Build 3 source into final
+release integration branches. It does not authorize any further application-code
+change, and does not authorize an EAS build, TestFlight/Play upload, or any
+binary artifact.
+
+## VERDICT (superseded — kept for audit trail)
 
 ```text
 PHASE 6 PARTIALLY CERTIFIED — BUILD DECISION HELD
