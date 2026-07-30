@@ -100,7 +100,7 @@ export type EliseSessionPreflight = () => Promise<{ ok: boolean }>;
  * has no such requirement, and gating it on a live session would make the
  * seam untestable and couple QA runs to a real login.
  *
- * SAFE BY CONSTRUCTION IN RELEASE. `createControlledEliseInvoke()` can only
+ * SAFE BY CONSTRUCTION IN RELEASE. The controlled QA provider factory can only
  * return null outside `__DEV__`, so `resolveEliseInvoke()` in a release build
  * yields `defaultInvoke` and this returns the real preflight. Identity is the
  * test, so a caller passing `resolveEliseInvoke()` back in is still gated.
