@@ -52,7 +52,10 @@ export default function PrivateSavedLookHandoffScreen() {
   useFocusEffect(load);
 
   const returnToLook = useCallback(() => {
-    if (!context) return;
+    if (!context) {
+      router.replace('/stylist/saved-looks');
+      return;
+    }
     router.replace({
       pathname: '/stylist/saved-looks/[id]',
       params: { id: context.savedLookId },
