@@ -63,7 +63,7 @@ function buildPacket(manifest, { split, outputDir }) {
   if (!['development', 'holdout'].includes(split)) throw new Error(`invalid split: ${split}`);
   assertOutsideGit(outputDir);
   if (fs.existsSync(outputDir)) throw new Error(`output collision: ${outputDir}`);
-  fs.mkdirSync(outputDir, { recursive: false });
+  fs.mkdirSync(outputDir, { recursive: true });
   fs.mkdirSync(path.join(outputDir, 'images'), { recursive: false });
 
   const ids = manifest.split[split];

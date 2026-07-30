@@ -98,7 +98,7 @@ test('blinded packet creator creates a new output tree and refuses collisions', 
       derivativeStatus: 'masked_derivative',
     }],
   };
-  const outputDir = path.join(tempRoot, 'packet');
+  const outputDir = path.join(tempRoot, 'new-version-parent', 'packet');
   const result = buildPacket(manifest, { split: 'development', outputDir });
   assert.equal(result.caseCount, 1);
   assert.equal(result.imageCount, 1);
