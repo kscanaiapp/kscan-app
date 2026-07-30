@@ -46,6 +46,12 @@ const REVIEWED_FIELDS = Object.freeze([
   'expectedResultType',
   'nonFashion',
   'visiblePerson',
+  'brandEvidenceState',
+  'expectedBrandAssertionBehavior',
+  'expectedAbstention',
+  'subjectDesignation',
+  'sameItemAcrossImages',
+  'privacyAndAuthorizationComplete',
 ]);
 
 /**
@@ -55,6 +61,21 @@ const REVIEWED_FIELDS = Object.freeze([
 const NEAR_MECHANICAL_FIELDS = Object.freeze(['brand', 'exactProduct']);
 
 const UNCERTAINTY_TOKENS = Object.freeze(['not_visible', 'unknown', 'not_applicable']);
+
+function canonicalSameItemGroups(reviewSubmission) {
+  return (reviewSubmission.sameItemGroups || [])
+    .map((group) => {
+      if (Array.isArray(group.blindIds)) {
+        return { blindIds: group.blindIds.slice().sort() };
+      }
+      return {
+        blindId: group.blindId || null,
+        blindImageIds: Array.isArray(group.blindImageIds) ? group.blindImageIds.slice().sort() : [],
+        sameItemAcrossImages: group.sameItemAcrossImages === true,
+      };
+    })
+    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+}
 
 /**
  * Hash one reviewer's label set.
@@ -76,9 +97,7 @@ function lockLabelSet(reviewSubmission) {
         }
         return picked;
       }),
-    sameItemGroups: (reviewSubmission.sameItemGroups || [])
-      .map((group) => group.blindIds.slice().sort())
-      .sort((a, b) => (a.join() < b.join() ? -1 : 1)),
+    sameItemGroups: canonicalSameItemGroups(reviewSubmission),
   };
   return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
@@ -145,8 +164,8 @@ function compareReviews(reviewA, reviewB) {
   }
 
   // Same-item identity is a set comparison, not a field comparison.
-  const groupsA = (reviewA.sameItemGroups || []).map((g) => g.blindIds.slice().sort().join('+')).sort();
-  const groupsB = (reviewB.sameItemGroups || []).map((g) => g.blindIds.slice().sort().join('+')).sort();
+  const groupsA = canonicalSameItemGroups(reviewA).map((group) => JSON.stringify(group));
+  const groupsB = canonicalSameItemGroups(reviewB).map((group) => JSON.stringify(group));
   const sameItemAgreed = JSON.stringify(groupsA) === JSON.stringify(groupsB);
   if (!sameItemAgreed) {
     disagreements.push({
@@ -233,6 +252,7 @@ module.exports = {
   REVIEWED_FIELDS,
   NEAR_MECHANICAL_FIELDS,
   UNCERTAINTY_TOKENS,
+  canonicalSameItemGroups,
   lockLabelSet,
   compareReviews,
   agreementInterpretation,

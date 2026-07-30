@@ -98,6 +98,25 @@ test('a changed same-item grouping invalidates the lock', () => {
   assert.notEqual(holdoutReview.lockLabelSet(grouped), baseline);
 });
 
+test('case-level multi-view same-item groups are lockable and comparable', () => {
+  const a = submission('A', {
+    sameItemGroups: [{
+      blindId: 'hv-01',
+      blindImageIds: ['img-02', 'img-01'],
+      sameItemAcrossImages: true,
+    }],
+  });
+  const b = submission('B', {
+    sameItemGroups: [{
+      blindId: 'hv-01',
+      blindImageIds: ['img-01', 'img-02'],
+      sameItemAcrossImages: true,
+    }],
+  });
+  assert.match(holdoutReview.lockLabelSet(a), /^[a-f0-9]{64}$/);
+  assert.equal(holdoutReview.compareReviews(a, b).sameItem.agreed, true);
+});
+
 test('the two reviewer roles produce different locks for identical labels', () => {
   // The role is part of the locked identity, so one reviewer's set can never be
   // presented as the other's.
