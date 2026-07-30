@@ -41,6 +41,7 @@ import { LUXURY, SPACING } from '../../constants/theme';
 import {
   AI_STYLIST_UI_ENABLED,
   PRIVATE_DRESSING_ROOM_V1,
+  PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE,
   STYLECHAT_ATTACHMENTS_ENABLED,
 } from '../../constants/featureFlags';
 import { usePrivateDressingRoomStatus } from '../../hooks/usePrivateDressingRoom';
@@ -564,6 +565,16 @@ function StylistContent() {
                 : 'Start a Dressing Room session'
             }
             testID="private-dressing-room-entry"
+          />
+        ) : null}
+
+        {PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE ? (
+          <SecondaryButton
+            title="Saved Looks"
+            onPress={() => router.push('/stylist/saved-looks')}
+            disabled={generating}
+            accessibilityLabel="Open your private Saved Looks"
+            testID="private-saved-looks-entry"
           />
         ) : null}
 
