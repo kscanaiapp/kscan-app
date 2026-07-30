@@ -271,8 +271,15 @@ Deno.serve(async (req) => {
   }
 
   // 1. Authenticate: identity comes ONLY from the verified JWT.
+  // Mirror handle-user-deletion: extract the bearer token and pass it to
+  // getUser(jwt). Relying solely on global Authorization headers has produced
+  // false "Not authenticated" results after Edge Runtime / supabase-js updates.
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (!authHeader || !/^Bearer\s+/i.test(authHeader)) {
+    return json({ error: 'Missing authorization' }, 401);
+  }
+  const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!accessToken) {
     return json({ error: 'Missing authorization' }, 401);
   }
 
@@ -284,11 +291,16 @@ Deno.serve(async (req) => {
   }
 
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
 
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
+  const { data: { user }, error: authError } = await userClient.auth.getUser(accessToken);
+  if (authError || !user?.id) {
     return json({ error: 'Not authenticated' }, 401);
   }
   const userId = user.id;

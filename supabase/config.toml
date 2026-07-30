@@ -25,6 +25,12 @@ verify_jwt = false
 [functions.stylechat-generate]
 verify_jwt = true
 
+# Outfit / private Dressing Room Elise. Always authenticated. Declared explicitly
+# so a deploy cannot silently inherit the CLI default and drift from the live
+# verify_jwt = true posture that production already enforces.
+[functions.style-outfit-generate]
+verify_jwt = true
+
 # ── Account lifecycle ────────────────────────────────────────────────────────
 
 [functions.handle-user-deletion]

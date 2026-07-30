@@ -14,6 +14,7 @@
 //   * Metadata-only logging: no notes, closet content, or images.
 
 import { supabase } from './supabaseClient';
+import { resolveAuthenticatedFunctionSession } from './authenticatedFunctionSession';
 import {
   AI_STYLIST_BACKEND_ENABLED,
   AI_STYLIST_UI_ENABLED,
@@ -44,6 +45,8 @@ export const AI_QUOTA_MESSAGE =
   "You've reached today's styling limit. Try again tomorrow or build a Look manually.";
 export const AI_BURST_MESSAGE = 'A moment between requests, please — try again shortly.';
 export const AI_NO_RESULT_MESSAGE = "Elise couldn't build a complete option from your closet yet.";
+export const AI_SESSION_EXPIRED_MESSAGE =
+  'Your session expired. Sign in again to ask Elise.';
 
 export type StyleOutfitEvent = {
   occasion?: OutfitOccasion | null;
@@ -82,6 +85,7 @@ export type StyleOutfitResult =
   | { status: 'unavailable'; message: string }
   | { status: 'quota_exceeded'; message: string }
   | { status: 'burst_limit'; message: string; retryAfterSeconds: number }
+  | { status: 'session_expired'; message: string }
   | { status: 'error'; message: string };
 
 // ── Module-level guards (in-memory, per JS runtime) ───────────────────────────
@@ -193,6 +197,11 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
 
   inFlight = true;
   try {
+    const auth = await resolveAuthenticatedFunctionSession();
+    if (!auth.ok) {
+      return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
+    }
+
     const body = {
       mode: request.mode,
       anchorItem: sanitizeRef(request.anchorItem),
