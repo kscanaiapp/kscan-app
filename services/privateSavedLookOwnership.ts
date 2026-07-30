@@ -23,6 +23,29 @@ export type PrivateOwnershipAction =
 
 export type OwnershipClosetProjection = ClosetItemProjection & { actorId?: string | null };
 
+/**
+ * The actor the supplied Closet was read for.
+ *
+ * REQUIRED, and deliberately not optional. `ClosetItemProjection` carries no
+ * `actorId`, so an item on its own cannot prove whose it is, and guessing is
+ * unsafe in BOTH directions:
+ *
+ *   - admit an unattributed item and another actor's garment can be reported as
+ *     owned, which is a cross-actor disclosure;
+ *   - exclude it and a genuinely owned piece resolves to `not_owned`, which
+ *     un-suppresses commerce and offers to sell the user something they own.
+ *
+ * Neither is an acceptable default, so this resolver does not choose one. The
+ * caller states the scope it can actually prove — the actor id its Closet read
+ * was made with — and TypeScript rejects any call site that stays silent.
+ *
+ * `loadedForActorId: null` means "cannot be proven" and fails closed: only
+ * items carrying an explicit matching `actorId` are considered.
+ */
+export type OwnershipClosetScope = {
+  loadedForActorId: string | null;
+};
+
 export type PrivateSlotOwnership = {
   slotKey: PrivateDressingRoomSlot;
   state: PrivateOwnershipState;
@@ -55,8 +78,22 @@ function sameSlot(item: ClosetItemProjection, slot: PrivateDressingRoomSlot): bo
   return classifyClosetItemSlot(item).primarySlot === slot;
 }
 
-function belongsToActor(item: OwnershipClosetProjection, actorId: string): boolean {
-  return item.actorId === undefined || item.actorId === null || item.actorId === actorId;
+/**
+ * Fails closed on absent evidence. An item that names an actor must name THIS
+ * one; an item that names none is admitted only under an explicit, matching
+ * scope attestation from the caller.
+ */
+function belongsToActor(
+  item: OwnershipClosetProjection,
+  actorId: string,
+  scope: OwnershipClosetScope,
+): boolean {
+  const declared = typeof item.actorId === 'string' ? item.actorId.trim() || null : null;
+  if (declared !== null) return declared === actorId;
+  const scoped = typeof scope?.loadedForActorId === 'string'
+    ? scope.loadedForActorId.trim() || null
+    : null;
+  return scoped !== null && scoped === actorId;
 }
 
 function typeMatches(saved: PrivateSavedLookSlotV1, item: ClosetItemProjection): boolean {
@@ -209,13 +246,19 @@ function resolveSlot(
   );
 }
 
-/** Pure: no auth, filesystem, Supabase, navigation, or mutation. */
+/**
+ * Pure: no auth, filesystem, Supabase, navigation, or mutation.
+ *
+ * `scope` is required — see OwnershipClosetScope for why absent actor evidence
+ * cannot be given a safe default here.
+ */
 export function resolvePrivateSavedLookOwnership(
   savedLook: PrivateSavedLookV1,
   closetItems: readonly OwnershipClosetProjection[],
+  scope: OwnershipClosetScope,
 ): PrivateSavedLookOwnershipResult {
   const actorCloset = closetItems
-    .filter((item) => belongsToActor(item, savedLook.actorId))
+    .filter((item) => belongsToActor(item, savedLook.actorId, scope))
     .map(({ actorId: _actorId, ...item }) => item as ClosetItemProjection);
   return {
     savedLookId: savedLook.id,
