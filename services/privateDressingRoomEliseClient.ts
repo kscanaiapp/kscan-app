@@ -25,6 +25,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { resolveAuthenticatedFunctionSession } from './authenticatedFunctionSession';
 import { createControlledEliseInvoke } from './privateDressingRoomEliseQaProvider';
 import {
   evaluateResponseCurrency,
@@ -61,6 +62,7 @@ export type EliseTransportOutcome =
    * reinterpreted.
    */
   | { kind: 'capability_unavailable' }
+  | { kind: 'session_expired' }
   | { kind: 'failed' };
 
 const defaultInvoke: EliseInvoke = (name, options) =>
@@ -114,6 +116,14 @@ export async function sendEliseRequest(input: {
 
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    // Auth preflight: never hit style-outfit-generate without a usable user JWT.
+    // supabase.functions.invoke only attaches Authorization when a session exists.
+    const auth = await resolveAuthenticatedFunctionSession();
+    if (!auth.ok) {
+      return { kind: 'session_expired' };
+    }
+    if (controller.signal.aborted) return { kind: 'cancelled' };
+
     const { data, error } = await invoke(ELISE_FUNCTION_NAME, {
       body: input.plan.body,
       signal: controller.signal,

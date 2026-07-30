@@ -63,6 +63,7 @@ export type EliseStatusKind =
   | 'unsupported'
   | 'already_casual'
   | 'capability_unavailable'
+  | 'session_expired'
   | 'failed';
 
 export type EliseOperation = 'interpret_occasion' | 'build_around_item' | 'make_more_casual';
@@ -189,6 +190,12 @@ export async function interpretOccasion(
       operation: 'interpret_occasion',
     });
   }
+  if (outcome.kind === 'session_expired') {
+    return published(deps.publish, {
+      kind: 'session_expired',
+      operation: 'interpret_occasion',
+    });
+  }
   if (outcome.kind === 'failed') {
     return published(deps.publish, { kind: 'failed', operation: 'interpret_occasion' });
   }
@@ -276,6 +283,12 @@ export async function buildAroundItem(
   if (outcome.kind === 'capability_unavailable') {
     return published(deps.publish, {
       kind: 'capability_unavailable',
+      operation: 'build_around_item',
+    });
+  }
+  if (outcome.kind === 'session_expired') {
+    return published(deps.publish, {
+      kind: 'session_expired',
       operation: 'build_around_item',
     });
   }
