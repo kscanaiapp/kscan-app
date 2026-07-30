@@ -314,12 +314,30 @@ export type PrivateEliseRequest = {
   lockedRefs?: string[];
 };
 
+export const PRIVATE_ELISE_REQUEST_FIELDS = Object.freeze([
+  'schemaVersion',
+  'requestId',
+  'intent',
+  'instruction',
+  'context',
+  'candidates',
+  'anchorRef',
+  'lockedRefs',
+]);
+
+export const PRIVATE_ELISE_CONTEXT_FIELDS = Object.freeze([
+  'occasion',
+  'occasionGroup',
+  'dressCode',
+]);
+
 export type PrivateEliseRequestParse =
   | { ok: true; request: PrivateEliseRequest }
   | { ok: false; error: PrivateEliseRequestError };
 
 export const PRIVATE_ELISE_REQUEST_ERRORS = [
   'not_an_object',
+  'invalid_request_fields',
   'unsupported_schema_version',
   'invalid_request_id',
   'unsupported_intent',
@@ -374,6 +392,12 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 export function parsePrivateEliseRequest(body: unknown): PrivateEliseRequestParse {
   if (!isPlainObject(body)) return { ok: false, error: 'not_an_object' };
 
+  for (const key of Object.keys(body)) {
+    if (!PRIVATE_ELISE_REQUEST_FIELDS.includes(key)) {
+      return { ok: false, error: 'invalid_request_fields' };
+    }
+  }
+
   if (!isPrivateEliseSchemaVersion(body.schemaVersion)) {
     return { ok: false, error: 'unsupported_schema_version' };
   }
@@ -391,6 +415,11 @@ export function parsePrivateEliseRequest(body: unknown): PrivateEliseRequestPars
   if (body.context !== undefined) {
     if (!isPlainObject(body.context)) return { ok: false, error: 'invalid_context' };
     const raw = body.context;
+    for (const key of Object.keys(raw)) {
+      if (!PRIVATE_ELISE_CONTEXT_FIELDS.includes(key)) {
+        return { ok: false, error: 'invalid_context' };
+      }
+    }
     const next: PrivateEliseRequestContext = {};
     if (raw.occasion !== undefined) {
       const occasion = textField(raw.occasion, PRIVATE_ELISE_BOUNDS.occasionText);

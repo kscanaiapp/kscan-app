@@ -31,7 +31,6 @@ import {
   parsePrivateEliseRequest,
   parsePrivateEliseResponse,
   type PrivateEliseCandidate,
-  type PrivateEliseIntent,
   type PrivateEliseRequest,
   type PrivateEliseResponse,
 } from './privateDressingRoomEliseContract.ts';
@@ -46,8 +45,7 @@ export type ElisePromptCall = (input: {
 /** The ONLY shape Phase 4 writes to the function log. */
 export type EliseLogEnvelope = {
   schemaVersion: string;
-  intent: PrivateEliseIntent | 'unknown';
-  requestFragment: string;
+  correlationId: string;
   candidateCount: number;
   durationMs: number;
   outcome: string;
@@ -62,18 +60,35 @@ export type EliseHandlerResult = {
 /**
  * Is this body addressed to the Phase 4 contract at all?
  *
- * Presence of `schemaVersion` — a key no existing caller sends — and nothing
- * else. Deliberately NOT "does it look Phase 4 shaped": inferring the branch
- * from arbitrary extra fields is how an existing request body gets silently
- * reinterpreted.
+ * Only the exact immutable `schemaVersion` selects this handler. Unknown
+ * top-level schema values are rejected by the dispatcher without entering
+ * either contract; missing schema continues through the legacy parser.
  */
 export function isVersionedEliseRequest(body: unknown): boolean {
   return (
     !!body &&
     typeof body === 'object' &&
     !Array.isArray(body) &&
-    (body as Record<string, unknown>).schemaVersion !== undefined
+    (body as Record<string, unknown>).schemaVersion ===
+      PRIVATE_DRESSING_ROOM_ELISE_SCHEMA_VERSION
   );
+}
+
+export function hasExplicitSchemaVersion(body: unknown): boolean {
+  return (
+    !!body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    Object.prototype.hasOwnProperty.call(body, 'schemaVersion')
+  );
+}
+
+export type StyleOutfitDispatch = 'private_elise' | 'unknown_schema' | 'legacy';
+
+export function classifyStyleOutfitRequest(body: unknown): StyleOutfitDispatch {
+  if (isVersionedEliseRequest(body)) return 'private_elise';
+  if (hasExplicitSchemaVersion(body)) return 'unknown_schema';
+  return 'legacy';
 }
 
 export function isSupportedEliseSchemaVersion(body: unknown): boolean {
@@ -84,9 +99,10 @@ export function isSupportedEliseSchemaVersion(body: unknown): boolean {
   );
 }
 
-/** First 8 characters of the request id. Enough to correlate, not to identify. */
-function redactRequestId(value: unknown): string {
-  return typeof value === 'string' ? value.slice(0, 8) : 'unknown';
+function safeCorrelationId(value: unknown): string {
+  return typeof value === 'string' && /^[a-f0-9]{18}$/.test(value)
+    ? value
+    : 'unavailable';
 }
 
 // ── Prompts ──────────────────────────────────────────────────────────────────
@@ -225,21 +241,20 @@ export async function handleVersionedEliseRequest(input: {
   body: unknown;
   callProvider: ElisePromptCall;
   aiDisabled?: boolean;
+  correlationId?: string;
   now?: () => number;
 }): Promise<EliseHandlerResult> {
   const now = input.now ?? (() => Date.now());
   const startedAt = now();
   const rawBody = (input.body ?? {}) as Record<string, unknown>;
-  const requestFragment = redactRequestId(rawBody.requestId);
+  const correlationId = safeCorrelationId(input.correlationId);
 
   const envelope = (
     outcome: string,
-    intent: PrivateEliseIntent | 'unknown',
     candidateCount: number,
   ): EliseLogEnvelope => ({
     schemaVersion: String(rawBody.schemaVersion ?? 'absent').slice(0, 48),
-    intent,
-    requestFragment,
+    correlationId,
     candidateCount,
     durationMs: now() - startedAt,
     outcome,
@@ -249,7 +264,7 @@ export async function handleVersionedEliseRequest(input: {
     return {
       httpStatus: 400,
       body: { error: 'Unsupported schema version', errorCode: 'UNSUPPORTED_SCHEMA_VERSION' },
-      log: envelope('unsupported_schema_version', 'unknown', 0),
+      log: envelope('unsupported_schema_version', 0),
     };
   }
 
@@ -259,7 +274,7 @@ export async function handleVersionedEliseRequest(input: {
     return {
       httpStatus: 400,
       body: { error: 'Invalid request', errorCode: 'INVALID_REQUEST' },
-      log: envelope(`invalid_request:${parsed.error}`, 'unknown', 0),
+      log: envelope(`invalid_request:${parsed.error}`, 0),
     };
   }
   const request = parsed.request;
@@ -269,7 +284,7 @@ export async function handleVersionedEliseRequest(input: {
     return {
       httpStatus: 200,
       body: safeResponse(request, 'safe_failure'),
-      log: envelope('kill_switch', request.intent, candidateCount),
+      log: envelope('kill_switch', candidateCount),
     };
   }
 
@@ -290,7 +305,7 @@ export async function handleVersionedEliseRequest(input: {
     return {
       httpStatus: 200,
       body: safeResponse(request, 'safe_failure'),
-      log: envelope('provider_unavailable', request.intent, candidateCount),
+      log: envelope('provider_unavailable', candidateCount),
     };
   }
 
@@ -301,14 +316,14 @@ export async function handleVersionedEliseRequest(input: {
     return {
       httpStatus: 200,
       body: safeResponse(request, 'safe_failure'),
-      log: envelope('provider_output_invalid', request.intent, candidateCount),
+      log: envelope('provider_output_invalid', candidateCount),
     };
   }
 
   return {
     httpStatus: 200,
     body: response,
-    log: envelope(`ok:${response.status}`, request.intent, candidateCount),
+    log: envelope(`ok:${response.status}`, candidateCount),
   };
 }
 
@@ -316,7 +331,7 @@ export async function handleVersionedEliseRequest(input: {
 export function formatEliseLog(envelope: EliseLogEnvelope): string {
   return (
     `[style-outfit-generate] private_elise version=${envelope.schemaVersion} ` +
-    `intent=${envelope.intent} req=${envelope.requestFragment} ` +
+    `correlation=${envelope.correlationId} ` +
     `candidates=${envelope.candidateCount} durationMs=${envelope.durationMs} ` +
     `outcome=${envelope.outcome}`
   );
