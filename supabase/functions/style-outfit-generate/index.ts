@@ -2,23 +2,11 @@
 //
 // DEPLOYMENT STATUS. This file previously said "SOURCE ONLY — NOT DEPLOYED in
 // this build". That is no longer true and was corrected in Build 3 Phase 4: the
-// function is ACTIVE in the approved project (wyyuqfdxucjksghsmhry).
-//
-// THE UNVERSIONED PATH CARRIES LIVE PRODUCTION TRAFFIC. An earlier revision of
-// this banner claimed it did not, on the basis that services/styleOutfits.ts is
-// gated by AI_STYLIST_BACKEND_ENABLED. That gate is OPEN in the shipping
-// profile: eas.json sets EXPO_PUBLIC_AI_STYLIST_BACKEND_ENABLED = "true" under
-// `production` (it is absent from `preview` and `development`, which is why the
-// claim looked true from a dev build). Production AI Stylist requests therefore
-// reach the unversioned branch below.
-//
-// Treat any change to the unversioned path as user-facing. The Phase 5 401
-// incident was exactly this: an auth regression here was reasoned about as
-// traffic-free and shipped, and it broke live AI Stylist requests.
-//
-// The versioned private Dressing Room path is separate and still dark: its
-// client gate (PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE and its parents) is
-// absent from every EAS profile.
+// function is ACTIVE in the approved project (wyyuqfdxucjksghsmhry). Its only
+// client caller, services/styleOutfits.ts, is still gated OFF by
+// AI_STYLIST_BACKEND_ENABLED, so the unversioned path carries no live traffic —
+// but the endpoint is reachable, and reasoning about it as unreachable source
+// would be wrong.
 //
 // TWO CONTRACTS LIVE HERE. The unversioned path below resolves its candidate
 // pool SERVER-side from the caller's saved_scans / inspiration_items. The
