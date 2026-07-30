@@ -1,0 +1,808 @@
+{
+  "reviewArtifactVersion": "1.0.0",
+  "artifactKind": "INDEPENDENT HOLDOUT REVIEW RECORD",
+  "immutable": true,
+  "createdAt": "2026-07-30T01:46:24.513Z",
+  "boundTo": {
+    "datasetVersion": "0.3.0",
+    "datasetAggregateSha256": "ddc939dca91d202c3d0ee306b9421e1d71f1348c1fb8f035097ae91d2972c3db",
+    "split": "holdout",
+    "holdoutCaseIds": [
+      "set-501xx-jeans",
+      "tiera-dress-d3a98e8fd9",
+      "tiera-footwear-537f81fab6",
+      "tiera-footwear-f249813dd0",
+      "tiera-non_fashion-323cd4e23c",
+      "tiera-non_fashion-635218364b",
+      "tiera-non_fashion-87857eed80",
+      "tiera-top-1144bf2cff"
+    ],
+    "holdoutCaseCount": 8,
+    "holdoutViewCount": 9
+  },
+  "whyThisIsNotADatasetChange": "Clarification 3: approvals, reviewer identities, timestamps, locks, disagreements and adjudication live in an immutable review artifact tied to v0.3.0. Frozen dataset v0.3.0 was NOT modified and no reviewStatus was rewritten in it.",
+  "reviewerSeats": {
+    "curatorExcluded": true,
+    "curatorExclusionBasis": "The Phase 0H curation records carry decidedBy \"build-lead visual review\". That agent authored the draft labels and therefore held NO review seat and NO adjudication seat.",
+    "seats": [
+      {
+        "role": "A",
+        "kind": "isolated agent session"
+      },
+      {
+        "role": "B",
+        "kind": "isolated agent session"
+      },
+      {
+        "role": "adjudicator",
+        "kind": "isolated agent session, separate from both reviewers"
+      }
+    ]
+  },
+  "blindingMethod": {
+    "why": "All 8 holdout case ids leak ground truth: 7 embed their level-1 category (tiera-footwear-*, tiera-non_fashion-*, tiera-dress-*, tiera-top-*) and set-501xx-jeans additionally leaks a clothing type and a brand model designation for a case whose brand ground truth is not_visible.",
+    "method": "Each holdout view was copied to an opaque id hv-01..hv-09 outside every Git worktree, ordered deterministically by sha256 of the governed ref so presentation order carries no information about manifest order or grouping.",
+    "multiImageGroupingHidden": true,
+    "multiImageGroupingNote": "The one manifest multi-image case landed at non-adjacent blind ids, so same-item identity had to be decided by the reviewers rather than inferred from adjacency.",
+    "reviewersReceived": [
+      "the 9 blinded images",
+      "one identical brief"
+    ],
+    "reviewersDidNotReceive": [
+      "case ids",
+      "the curator draft labels",
+      "the manifest",
+      "the other reviewer decisions",
+      "any model or Scanner output"
+    ]
+  },
+  "isolationOutcome": {
+    "integrityA": {
+      "ok": true,
+      "failures": []
+    },
+    "integrityB": {
+      "ok": true,
+      "failures": []
+    },
+    "allDeclarationsPass": true,
+    "knownImperfection": {
+      "finding": "All three sessions independently disclosed that this project persistent auto-memory index was present in their context, referencing Build 4 dataset design in general terms (41 cases / 56 images, three-tier brand evidence, exact product not_measured).",
+      "containedPerImageLabels": false,
+      "namedAnyReviewedImage": false,
+      "assessment": "Isolation was imperfect BY CONSTRUCTION, not by reviewer error. The exposure is dataset-wide policy rather than labels, and the brief itself already stated exact product would usually be unknown, so the marginal information is small. Recorded rather than dismissed; any future review must use memory-free sessions.",
+      "severity": "P2"
+    },
+    "adjudicatorProtocolDeviation": {
+      "disclosed": true,
+      "deviation": "Instructed to write no files; wrote three temporary magnified image crops to scratchpad to zoom pixels.",
+      "containedLabelsOrFindings": false,
+      "assessment": "Honestly disclosed, no label or finding written, no effect on independence. Recorded for completeness.",
+      "severity": "P3"
+    }
+  },
+  "locks": {
+    "reviewerALockSha256": "287642c5d3b7f6ebe432c1efeb96e76c4612404d1b85a477afe74b26755e6ee7",
+    "reviewerBLockSha256": "3de1c27c1431cf0d6d20390ff5b9b88433b6bd6d894922e2a405f492dc8e91d7",
+    "lockedBeforeComparison": true,
+    "lockCoverage": "the reviewed label fields and the same-item groupings; deliberately excludes free-text rationale and confidence so re-wording cannot invalidate a lock while any label change does",
+    "reviewedFields": [
+      "category",
+      "clothingType",
+      "subtype",
+      "primaryColor",
+      "secondaryColors",
+      "material",
+      "pattern",
+      "brand",
+      "exactProduct",
+      "expectedResultType",
+      "nonFashion",
+      "visiblePerson"
+    ],
+    "lockGenerations": {
+      "note": "TWO lock generations exist and both are recorded, because the lock DEFINITION changed after locking while the label sets did not. The submissions are byte-identical to what each reviewer returned; no label was edited.",
+      "generation1": {
+        "reviewedFieldCount": 11,
+        "reviewerALockSha256": "967a0b3fd192add6ca47c68b3638c0ca46e120a23e43c086de4720967cc1b9a3",
+        "reviewerBLockSha256": "3949952f3556c149d728d1e44c4f5c1d925bcf93a46dd4f9110d0e736feec153",
+        "takenAt": "immediately on receipt of each submission, before any comparison ran"
+      },
+      "generation2": {
+        "reviewedFieldCount": 12,
+        "reviewerALockSha256": "287642c5d3b7f6ebe432c1efeb96e76c4612404d1b85a477afe74b26755e6ee7",
+        "reviewerBLockSha256": "3de1c27c1431cf0d6d20390ff5b9b88433b6bd6d894922e2a405f492dc8e91d7",
+        "reason": "The adjudicator identified that visiblePerson was absent from the compared field set, so a genuine divergence (hv-01: A true, B false) appeared in neither the agreement table nor the disagreement list and would have entered the dataset with whichever value a merge happened to take. visiblePerson was added to the reviewed set and the locks recomputed over the SAME unmodified submissions.",
+        "consequence": "Agreement denominator moved from 99 to 108 field instances and one further divergence surfaced. That divergence is recorded as unresolved because it was never adjudicated."
+      }
+    }
+  },
+  "agreement": {
+    "overall": {
+      "comparedFieldInstances": 108,
+      "agreedFieldInstances": 77,
+      "rate": 0.7129629629629629
+    },
+    "byField": {
+      "category": {
+        "compared": 9,
+        "agreed": 9,
+        "rate": 1
+      },
+      "clothingType": {
+        "compared": 9,
+        "agreed": 6,
+        "rate": 0.6666666666666666
+      },
+      "subtype": {
+        "compared": 9,
+        "agreed": 3,
+        "rate": 0.3333333333333333
+      },
+      "primaryColor": {
+        "compared": 9,
+        "agreed": 4,
+        "rate": 0.4444444444444444
+      },
+      "secondaryColors": {
+        "compared": 9,
+        "agreed": 4,
+        "rate": 0.4444444444444444
+      },
+      "material": {
+        "compared": 9,
+        "agreed": 8,
+        "rate": 0.8888888888888888
+      },
+      "pattern": {
+        "compared": 9,
+        "agreed": 7,
+        "rate": 0.7777777777777778
+      },
+      "brand": {
+        "compared": 9,
+        "agreed": 5,
+        "rate": 0.5555555555555556
+      },
+      "exactProduct": {
+        "compared": 9,
+        "agreed": 6,
+        "rate": 0.6666666666666666
+      },
+      "expectedResultType": {
+        "compared": 9,
+        "agreed": 8,
+        "rate": 0.8888888888888888
+      },
+      "nonFashion": {
+        "compared": 9,
+        "agreed": 9,
+        "rate": 1
+      },
+      "visiblePerson": {
+        "compared": 9,
+        "agreed": 8,
+        "rate": 0.8888888888888888
+      }
+    },
+    "sameItem": {
+      "agreed": true,
+      "reviewerA": [
+        "hv-02+hv-08",
+        "hv-03+hv-09"
+      ],
+      "reviewerB": [
+        "hv-02+hv-08",
+        "hv-03+hv-09"
+      ]
+    },
+    "interpretation": {
+      "measures": "agreement between two isolated same-model labeling sessions",
+      "doesNotMeasure": "human inter-reviewer agreement",
+      "whyOptimistic": "Both reviewers share a model, so their errors are correlated. Agreement is an OPTIMISTIC bound on how unambiguous the labeling rules are, not an estimate of what two independent humans would produce.",
+      "comparabilityRule": "This figure must never be compared against, or presented as, a human inter-reviewer agreement rate.",
+      "isolationBasis": "Separate agent sessions with no shared context, blinded image ids decorrelated from case ids, identical briefs, no access to the curator draft, no access to each other, and no model or Scanner output in existence at review time."
+    },
+    "headlineCaveat": "The raw rate is exact-string agreement and materially UNDERSTATES substantive agreement. The adjudicator classified the disagreements as 9 phrasing, 6 granularity, 14 traceable to missing or self-contradictory rules, and exactly 1 genuine perception difference. No adjusted percentage is published, because inventing one after seeing the results would be tuning the metric."
+  },
+  "adjudication": {
+    "summary": {
+      "totalDisagreements": 30,
+      "resolved": 18,
+      "unresolvableGuideGaps": 12,
+      "phrasingOnly": 9,
+      "granularityOnly": 6,
+      "substantive": 1
+    },
+    "standardApplied": "Ruled on evidence, never by vote. unresolvable_guide_gap is a first-class verdict where a disagreement traces to a missing or contradictory rule; forcing a resolution would convert a rule problem into a silently unreliable label.",
+    "rulings": [
+      {
+        "blindId": "hv-01",
+        "field": "clothingType",
+        "disagreementType": "guide_gap",
+        "verdict": "mini dress",
+        "favoured": "A",
+        "reasoning": "Both saw the same garment. 'mini dress' names the length axis, 'shift dress' the silhouette axis; both true. Guide never says which axis clothingType uses for dresses. Resolved to length because it is measurable against the mannequin leg and because B's clothingType duplicates B's own subtype. Axis rule still needs fixing (G-6)."
+      },
+      {
+        "blindId": "hv-01",
+        "field": "subtype",
+        "disagreementType": "phrasing",
+        "verdict": "sleeveless origami-pleated shift",
+        "favoured": "A",
+        "reasoning": "Same description at different verbosity; B's 'above-knee' is redundant once clothingType is 'mini dress'."
+      },
+      {
+        "blindId": "hv-01",
+        "field": "primaryColor",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Both perceived the same thing (copper/amber under a saturated warm spot) and differed only on encoding. Brightest facets blow to white-cream, mid-lit read saturated orange, shadowed read warm brown, and the only reference surface (mannequin arms/face, nominally pale) also reads warm cream. Equally consistent with a copper substrate and a pale substrate under an amber spot. Forcing 'copper' risks a wrong ground truth; forcing 'unknown' penalises a scanner reporting the visible hue. Rule G-3 must come first."
+      },
+      {
+        "blindId": "hv-01",
+        "field": "secondaryColors",
+        "disagreementType": "guide_gap",
+        "verdict": "not_applicable",
+        "favoured": "B",
+        "reasoning": "Decidable even though primaryColor is not: one material, one hue; whites are specular blowout and browns are shade, not second colours. Nothing hidden (not not_visible), existence of a second colour not undeterminable (not unknown) — the attribute does not exist. Encoding rule needs writing down (G-4)."
+      },
+      {
+        "blindId": "hv-01",
+        "field": "pattern",
+        "disagreementType": "substantive",
+        "verdict": "solid",
+        "favoured": "B",
+        "reasoning": "The one genuine perception-into-schema difference. No printed, woven or dyed motif exists; every geometric element is three-dimensional relief casting real shadows. pattern='geometric' would make this indistinguishable from a flat printed geometric fabric and would mark a scanner correct for the wrong reason."
+      },
+      {
+        "blindId": "hv-02",
+        "field": "subtype",
+        "disagreementType": "granularity",
+        "verdict": "straight-leg jeans, exposed button fly",
+        "favoured": "B",
+        "reasoning": "Magnified fly shows shank buttons on an exposed placket, not a zip; leg falls straight with no taper. Real visible discriminator. Trimmed 'five-pocket': coin pocket not legible at this angle and rear pockets are on the hidden face, so pocket count is inference in this frame."
+      },
+      {
+        "blindId": "hv-02",
+        "field": "primaryColor",
+        "disagreementType": "granularity",
+        "verdict": "dark indigo",
+        "favoured": "B",
+        "reasoning": "Standard is the shade you can see, not the family. A's own evidenceBasis says 'dark indigo denim' while A's field says only 'indigo' — A's field is less specific than A's observation."
+      },
+      {
+        "blindId": "hv-02",
+        "field": "secondaryColors",
+        "disagreementType": "phrasing",
+        "verdict": "gold (topstitching)",
+        "favoured": "A",
+        "reasoning": "'gold' and 'goldenrod' name the same yellow-tan contrast thread. A's form is better-formed and consistent with hv-08."
+      },
+      {
+        "blindId": "hv-03",
+        "field": "brand",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "The guide contradicts itself and each reviewer followed one horn: NON_FASHION says every fashion field becomes not_applicable, the brand enum admits only a brand or not_visible. Observation is identical and confirmed — no maker's mark anywhere in frame; 'PRESTON GUILD 1842' is hand-painted commemorative display text. Only an owner decision on the enum resolves it (G-2)."
+      },
+      {
+        "blindId": "hv-03",
+        "field": "exactProduct",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Identical mechanism. Both agree no SKU, model code or catalogue reference exists; the split is purely which sentinel a contradictory schema permits (G-2)."
+      },
+      {
+        "blindId": "hv-04",
+        "field": "subtype",
+        "disagreementType": "phrasing",
+        "verdict": "short-sleeve crew-neck graphic tee",
+        "favoured": "A",
+        "reasoning": "Same garment class, different word order. Crew neckline plainly visible on the cream portrait tee and the navy tee, so A's extra detail is supported. Both reviewers correctly kept printed slogans out of brand."
+      },
+      {
+        "blindId": "hv-05",
+        "field": "brand",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Same NON_FASHION-override versus enum contradiction. Substantively agreed and confirmed: the 1862 inscription inside a laurel wreath is commemorative transfer print and the crest above it is civic heraldry, not a pottery maker's mark (G-2)."
+      },
+      {
+        "blindId": "hv-05",
+        "field": "exactProduct",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Same schema contradiction; no code present. not_applicable and unknown are each mandated by a different clause of the same guide (G-2)."
+      },
+      {
+        "blindId": "hv-06",
+        "field": "clothingType",
+        "disagreementType": "phrasing",
+        "verdict": "sneaker",
+        "favoured": "B",
+        "reasoning": "Singular vs plural, no substantive content. Type fields name the item class, not the number of objects photographed. Same choice applied to hv-07 for consistency (G-6)."
+      },
+      {
+        "blindId": "hv-06",
+        "field": "subtype",
+        "disagreementType": "granularity",
+        "verdict": "road running shoe (lace-up, cushioned midsole)",
+        "favoured": "B",
+        "reasoning": "Added specificity is supported: engineered mesh upper, thick white EVA midsole with a moulded adiPRENE zone, smooth low-profile outsole with no trail lugs, plus a race timing-chip tab in the laces. Those positively exclude trail/cross-training, so 'road' is observed."
+      },
+      {
+        "blindId": "hv-06",
+        "field": "primaryColor",
+        "disagreementType": "phrasing",
+        "verdict": "red",
+        "favoured": "A",
+        "reasoning": "'scarlet red' and 'red' name the same hue; scarlet is a red, not a distinct family that changes meaning. Studio lighting is neutral, so unlike hv-01 there is no illuminant question. A scorer should treat scarlet as a synonym, not a different answer (G-6)."
+      },
+      {
+        "blindId": "hv-06",
+        "field": "secondaryColors",
+        "disagreementType": "phrasing",
+        "verdict": "white, black, silver",
+        "favoured": "B",
+        "reasoning": "Identical set, different ordering. A's 'dark grey/silver' and B's 'silver' describe the same chrome-look three-stripe overlays."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "clothingType",
+        "disagreementType": "phrasing",
+        "verdict": "ski boot",
+        "favoured": "B",
+        "reasoning": "Plurality only; resolved singular consistently with hv-06."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "subtype",
+        "disagreementType": "granularity",
+        "verdict": "alpine ski boot",
+        "favoured": "A",
+        "reasoning": "Class-level value is safe: every boot on the wall is a buckled alpine overlap boot with a power strap. Declined B's 'four-buckle overlap shell' not because it is wrong about B's chosen boot but because in a frame with no designated subject an item-specific count is unverifiable for whichever boot the case is actually about (G-1)."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "primaryColor",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Roughly nine fully visible boots in at least six colourways. B's 'red' correctly reads the centre boot B disclosed choosing; A's 'unknown' correctly refuses to choose. Nothing designates a subject — no crop, highlight or annotation — so the field has no determinate referent (G-1)."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "secondaryColors",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Downstream of the same missing subject rule. B's list is accurate for the centre boot and meaningless for the shelf; A's 'unknown' is accurate for the shelf and discards real information about the centre boot (G-1)."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "material",
+        "disagreementType": "phrasing",
+        "verdict": "moulded plastic shell",
+        "favoured": "A",
+        "reasoning": "Rigidity is entailed by an alpine boot shell and is true of every boot on the wall, so unlike colour this field is class-level and survives the subject gap."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "pattern",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "'colorblock' correctly describes the two-tone shell B selected; 'unknown' correctly refuses for an undesignated shelf where boots are variously two-tone, tri-tone and monochrome matte black. Also inherits the unresolved question of whether moulded two-tone construction is a pattern at all (G-1, G-7)."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "brand",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Highest-stakes field in the packet and deliberately NOT resolved. B's observation is factually correct: a large moulded LANGE on the lower shell of the centre boot and again on its cuff strap, on the item, not signage, and B correctly refused the shelf plaques. A's observation is equally correct: those legible on-item wordmarks belong to several different boots (ROSSIGNOL left, Salomon right, LANGE centre) and no boot is designated. Admissibility itself is undecidable. Recording 'Lange' would put one maker's name on an image containing three makers' boots and three makers' plaques — the most damaging error available; recording not_visible would falsely assert no legible on-item mark exists. Both wrong for opposite reasons (G-1)."
+      },
+      {
+        "blindId": "hv-07",
+        "field": "expectedResultType",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Each value follows correctly from that reviewer's subject decision: A, having no brand, expects identified_style; B, having a brand but no SKU, expects closest_matches. The enum has no state for 'many items of one clear class, none designated' (G-1)."
+      },
+      {
+        "blindId": "hv-08",
+        "field": "subtype",
+        "disagreementType": "granularity",
+        "verdict": "straight-leg jeans",
+        "favoured": "A",
+        "reasoning": "Both agree on straight leg, confirmed by hem-to-knee width. Declined B's 'five-pocket': this frame shows two rear patch pockets and nothing of the front, so pocket count is a class inference carried from the other view. Because hv-02 and hv-08 are the same garment, the temptation to carry detail across rows is real and must be resisted — each row must stand on its own frame."
+      },
+      {
+        "blindId": "hv-08",
+        "field": "primaryColor",
+        "disagreementType": "granularity",
+        "verdict": "dark indigo",
+        "favoured": "B",
+        "reasoning": "Same denim and reasoning as hv-02; A's own evidence text again says 'dark indigo'."
+      },
+      {
+        "blindId": "hv-08",
+        "field": "secondaryColors",
+        "disagreementType": "phrasing",
+        "verdict": "gold (topstitching), red (small pocket tab)",
+        "favoured": "A",
+        "reasoning": "Same two trim colours, different colour word and punctuation. Magnified the tab: small plain red fabric with no legible lettering at any available resolution, corroborating both reviewers' agreed decision to keep brand at not_visible."
+      },
+      {
+        "blindId": "hv-09",
+        "field": "brand",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Same contradiction as hv-03, on what is in fact the same physical mug. Observation agreed and confirmed: hand-painted commemorative lettering, no maker's mark (G-2)."
+      },
+      {
+        "blindId": "hv-09",
+        "field": "exactProduct",
+        "disagreementType": "guide_gap",
+        "verdict": "unresolvable_guide_gap",
+        "favoured": "both_partially",
+        "reasoning": "Same schema contradiction; no code of any kind on the object (G-2)."
+      }
+    ],
+    "sameItemAssessment": [
+      {
+        "blindIds": [
+          "hv-02",
+          "hv-08"
+        ],
+        "isOnePhysicalItem": true,
+        "confidence": "high",
+        "reasoning": "Same light-oak plank floor at the same diagonal with the same directional highlight; same deep indigo with the same low-contrast fade character; same yellow-tan thread; same puckered chain-stitched hem; same leg width, rise proportion and apparent size. The views are complementary rather than overlapping — hv-02 shows the exposed button fly and front scoop pockets, hv-08 the two arcuate patch pockets and red tab, exactly what one garment flipped over looks like. Cannot exclude two identical pairs in one session, which is why this is high and not certain.",
+        "implication": "Two views of one object, not two cases. Treated as independent rows they double-count every attribute and their errors are perfectly correlated — the reviewers' hv-02 and hv-08 disagreements are the same three disagreements twice, which is itself evidence of the coupling. Any per-image figure over nine rows overweights this garment 2:1. They must never be split across evaluation sets, should be linked by an itemId and scored once at object level or explicitly down-weighted, and their labels must be allowed to differ where the views differ (the red tab is legitimately a secondary colour in hv-08 and absent in hv-02) rather than harmonised."
+      },
+      {
+        "blindIds": [
+          "hv-03",
+          "hv-09"
+        ],
+        "isOnePhysicalItem": true,
+        "confidence": "high",
+        "reasoning": "One physical 1842 mug in two separate exposures. Hand-painted letterforms identical stroke for stroke including the looped descending tail on the G of GUILD and the open-topped 4 and closed-loop 8 of 1842; inscription breaks at the same point with the D running off the right curve; two lilac lustre bands at the same heights and widths relative to the text; handle stub interrupts the rim silhouette at the same point; same notch in the foot ring. Not a crop of one file: the camera is higher in hv-03 (deeper rim ellipse) and white balance differs slightly, so they are two shots of one object.",
+        "implication": "Same consequence as the jeans, made worse because both rows are NON_FASHION rejections: the set appears to test non-fashion handling three times but really tests two distinct objects, one of them twice. Link by itemId and score the object once, or the non-fashion rejection rate is inflated by a duplicate. They must also stay in the same split."
+      },
+      {
+        "blindIds": [
+          "hv-03",
+          "hv-05"
+        ],
+        "isOnePhysicalItem": false,
+        "confidence": "high",
+        "reasoning": "Included because Reviewer B recorded, in hv-05's evidence, that the mug partly visible at hv-05's top left is the hv-03/hv-09 mug. Magnified, B is mistaken. The background vessel shares the painter's hand — same looped G in GUIL, same brown pigment — but is decorated with pink petal dots and a brown leafy sprig branch below the text, decoration the hv-03/hv-09 mug does not carry anywhere on its body; that mug has plain lilac lustre bands only. A sibling piece from the same commemorative series in the same case, not the same vessel. Reviewer A drew exactly this distinction unprompted and was right.",
+        "implication": "hv-05 is a same-scene, not a same-item, relationship, so it must not be merged with hv-03/hv-09. But three of nine images come from one museum case, which is a content-correlation problem in its own right, and sameItemGroups has no way to record 'same scene, different object' — B had to bury it in free text, where it went unchecked and was wrong. The schema needs a sameSceneGroups field so such claims are reviewable."
+      }
+    ]
+  },
+  "unresolved": {
+    "caseCount": 5,
+    "requirementForPaidExecution": 0,
+    "cases": {
+      "tiera-dress-d3a98e8fd9": [
+        {
+          "blindId": "hv-01",
+          "field": "primaryColor",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-01",
+          "field": "visiblePerson",
+          "note": "divergent and NEVER ADJUDICATED - the field was missing from the compared set at adjudication time"
+        }
+      ],
+      "tiera-non_fashion-635218364b": [
+        {
+          "blindId": "hv-03",
+          "field": "brand",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-03",
+          "field": "exactProduct",
+          "note": "adjudicated unresolvable_guide_gap"
+        }
+      ],
+      "tiera-non_fashion-87857eed80": [
+        {
+          "blindId": "hv-05",
+          "field": "brand",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-05",
+          "field": "exactProduct",
+          "note": "adjudicated unresolvable_guide_gap"
+        }
+      ],
+      "tiera-footwear-f249813dd0": [
+        {
+          "blindId": "hv-07",
+          "field": "primaryColor",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-07",
+          "field": "secondaryColors",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-07",
+          "field": "pattern",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-07",
+          "field": "brand",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-07",
+          "field": "expectedResultType",
+          "note": "adjudicated unresolvable_guide_gap"
+        }
+      ],
+      "tiera-non_fashion-323cd4e23c": [
+        {
+          "blindId": "hv-09",
+          "field": "brand",
+          "note": "adjudicated unresolvable_guide_gap"
+        },
+        {
+          "blindId": "hv-09",
+          "field": "exactProduct",
+          "note": "adjudicated unresolvable_guide_gap"
+        }
+      ]
+    },
+    "fullyResolvedCaseIds": [
+      "set-501xx-jeans",
+      "tiera-footwear-537f81fab6",
+      "tiera-top-1144bf2cff"
+    ]
+  },
+  "guideGapsRequiringOwnerDecision": [
+    {
+      "id": "G-1",
+      "severity": "P0",
+      "gap": "No subject-designation rule for frames containing many items of the same class, and no vocabulary state for 'several items, none is the subject'. Every item-level field (brand above all) then has no determinate referent, and expectedResultType has no value that fits. Both reviewers independently identified this as their largest divergence, and Reviewer B disclosed resolving hv-04 and hv-07 inconsistently because of it.",
+      "fieldsAffected": [
+        "brand",
+        "primaryColor",
+        "secondaryColors",
+        "pattern",
+        "subtype",
+        "expectedResultType"
+      ],
+      "blindIdsAffected": [
+        "hv-04",
+        "hv-07"
+      ],
+      "recommendedRule": "Ground truth for a multi-item frame requires an explicit subject: either the dataset stores a subject bounding box / crop per case, or the case is labelled at class level only. Absent a stored subject: category, clothingType, subtype and material may be labelled where true of every candidate item in frame; primaryColor, secondaryColors, pattern, brand and exactProduct MUST be not_applicable; and expectedResultType takes a new enum value multi_item_no_subject. Brand may never be labelled from a multi-item frame even when an on-item wordmark is legible, because attribution to the intended item cannot be established. Reviewers must not silently pick a subject by size or centring."
+    },
+    {
+      "id": "G-2",
+      "severity": "P1",
+      "gap": "The NON_FASHION instruction ('every fashion field becomes not_applicable') directly contradicts the brand field enum ('brand or not_visible') and the exactProduct enum ('code or unknown'). Neither admits not_applicable, so a reviewer must violate one clause or the other. A followed the override, B followed the enums — producing six of the thirty disagreements with zero underlying perceptual difference.",
+      "fieldsAffected": [
+        "brand",
+        "exactProduct"
+      ],
+      "blindIdsAffected": [
+        "hv-03",
+        "hv-05",
+        "hv-09"
+      ],
+      "recommendedRule": "Amend both enums to admit not_applicable explicitly, and state that when nonFashion=true every attribute field including brand and exactProduct is not_applicable without exception. Scoring must treat a NON_FASHION row as a single rejection decision and must not score attribute fields at all. Also state that a commemorative, civic, heraldic or decorative inscription on a non-fashion object is never brand evidence — both reviewers reached that independently, so write it down rather than have it rediscovered."
+    },
+    {
+      "id": "G-3",
+      "severity": "P1",
+      "gap": "The guide gives a rule for monochrome images (not_visible) but none for images lit by a strongly colour-cast illuminant, where the apparent hue may be the light rather than the substrate. Both reviewers flagged this on hv-01 and it is the sole reason their primaryColor answers differ.",
+      "fieldsAffected": [
+        "primaryColor",
+        "secondaryColors"
+      ],
+      "blindIdsAffected": [
+        "hv-01"
+      ],
+      "recommendedRule": "If the subject's illumination is visibly colour-cast and the frame contains no trustworthy neutral reference surface, primaryColor = unknown, and the reviewer records the apparent hue in a separate non-scored apparentColor field with the cast noted. If a trustworthy neutral reference is in frame, the substrate colour may be labelled and the reference must be cited in evidence. A scanner answering either the apparent hue or unknown must be scored correct on such a case, not penalised."
+    },
+    {
+      "id": "G-4",
+      "severity": "P2",
+      "gap": "For a genuinely single-colour item the guide does not say which token encodes 'there are no secondary colours'. B argued not_visible is false (nothing hidden) and unknown is false (you can see there are none) and chose not_applicable; A chose unknown. B asked for this to be confirmed rather than guessed.",
+      "fieldsAffected": [
+        "secondaryColors"
+      ],
+      "blindIdsAffected": [
+        "hv-01"
+      ],
+      "recommendedRule": "State the three tokens as mutually exclusive tests and give secondaryColors an explicit case: a single-colour item takes not_applicable; not_visible is reserved for an item whose other panels are hidden by pose, crop or occlusion; unknown is reserved for secondary colours in frame but undeterminable. Add a worked example of each."
+    },
+    {
+      "id": "G-5",
+      "severity": "P2",
+      "gap": "secondaryColors scope for functional trim is undefined — contrast topstitching thread, small fabric tabs, and metal hardware. Reviewer A flagged that a reviewer reading the field as fabric-panel colours only would have answered not_visible on the same jeans.",
+      "fieldsAffected": [
+        "secondaryColors"
+      ],
+      "blindIdsAffected": [
+        "hv-02",
+        "hv-08",
+        "hv-06"
+      ],
+      "recommendedRule": "secondaryColors includes contrast stitching thread and any fabric trim large enough to read as a colour, each annotated with its element in parentheses, e.g. 'gold (topstitching)'. It excludes metal hardware finish (buttons, rivets, buckles, eyelets), which goes in material or is omitted. Order the list by visual prominence."
+    },
+    {
+      "id": "G-6",
+      "severity": "P1",
+      "gap": "clothingType and subtype are effectively free text, with no rule on grammatical number (sneaker/sneakers), no rule on which descriptive axis clothingType uses for dresses (length vs silhouette), and no cap on subtype verbosity. Fifteen of the thirty disagreements are pure vocabulary artefacts of this, which means the reported agreement rate is measuring string equality rather than reviewer agreement. Reviewer A separately warns that free-text subtype lets a brand's model name be smuggled in after the brand rule has been obeyed.",
+      "fieldsAffected": [
+        "clothingType",
+        "subtype",
+        "primaryColor",
+        "secondaryColors",
+        "material"
+      ],
+      "blindIdsAffected": [
+        "hv-01",
+        "hv-02",
+        "hv-04",
+        "hv-06",
+        "hv-07",
+        "hv-08"
+      ],
+      "recommendedRule": "Make category and clothingType closed enums of singular nouns. For dresses, clothingType carries length ('mini dress', 'midi dress', 'maxi dress') and silhouette goes in subtype, never both in clothingType. Constrain subtype to a short phrase of observed features and prohibit any brand model name or brand-specific nomenclature in it, mirroring the brand rule. Publish a synonym map for colours and materials (red is scarlet, gold is goldenrod, moulded plastic shell is rigid moulded plastic shell) and score against normalised values, never raw strings."
+    },
+    {
+      "id": "G-7",
+      "severity": "P2",
+      "gap": "The pattern field does not say whether three-dimensional structural relief (pleats, folded panels, moulded two-tone shells, quilting) counts as a pattern or whether pattern means applied print/weave/dye only.",
+      "fieldsAffected": [
+        "pattern"
+      ],
+      "blindIdsAffected": [
+        "hv-01",
+        "hv-07"
+      ],
+      "recommendedRule": "pattern describes applied surface decoration only — print, woven or knitted motif, dye effect. Three-dimensional construction and moulded colourway divisions are not patterns; an item with no applied decoration is 'solid' regardless of relief, and the relief is described in subtype or material. Add hv-01 as the worked example."
+    },
+    {
+      "id": "G-8",
+      "severity": "P1",
+      "gap": "visiblePerson is undefined at three edges that all occur in one image: a mannequin wearing the item, indistinct bystanders reflected in or seen through display glass, and a photograph of a person on a poster or garment print. Both reviewers flagged it and they answered hv-01 OPPOSITELY (A true, B false) — yet visiblePerson was not among the eleven compared fields, so this divergence is absent from the agreement table and the disagreement list, and the adjudicator was not asked to rule on it.",
+      "fieldsAffected": [
+        "visiblePerson",
+        "confidence"
+      ],
+      "blindIdsAffected": [
+        "hv-01",
+        "hv-04",
+        "hv-06"
+      ],
+      "recommendedRule": "State the flag's purpose first, because the right answer depends on it. If visiblePerson exists for privacy masking, define it as 'any recognisable human likeness anywhere in frame, including reflections, background bystanders, posters and printed portraits, excluding mannequins' — hv-01 is then true. If it exists to record whether the item is worn, rename it itemWornByPerson and define it as 'a live human wearing or holding the subject item' — hv-01 is then false. Either way add visiblePerson and confidence to the compared-field set so reviewer divergence on them is measured."
+    }
+  ],
+  "datasetConcerns": [
+    {
+      "severity": "P1",
+      "concern": "The reported 69.7% overall agreement is an artefact of string comparison, not a measure of reviewer disagreement. On the adjudicator's reading essentially none of the thirty disagreements is a perception dispute: nine are pure phrasing, six are granularity of the same correct observation, fourteen trace to missing or self-contradictory rules, and exactly one (hv-01 pattern) is a genuine difference in how the image was read into the schema.",
+      "evidence": "Reviewer A's evidenceBasis says 'dark indigo denim' while A's primaryColor field says 'indigo' — the field disagreed with B, the observation did not. Both reviewers independently wrote near-identical prose about hv-01's warm spotlight, hv-01's mirrored store signage, hv-07's inadmissible shelf plaques, hv-08's blank red tab, and hv-04's slogan-not-brand prints. Their two same-item groupings are identical and, on independent inspection, correct."
+    },
+    {
+      "severity": "P1",
+      "concern": "The holdout is far smaller than its case count. Nine images contain SEVEN distinct physical objects (hv-02/hv-08 one garment, hv-03/hv-09 one mug), of which three are non-fashion ceramics from a single museum case and two are multi-item retail scenes that cannot yield per-item ground truth at all. That leaves THREE distinct single-subject fashion objects — the jeans, the adidas running shoes, and the window-display dress whose colour could not be certified. No per-field accuracy figure computed over this set can support a release claim.",
+      "evidence": "Forensic comparison confirms both same-item pairs at high confidence, and magnification of hv-05's background shows a third sibling mug from the same case, i.e. three of nine frames come from one display cabinet. hv-04 and hv-07 both fail the subject-designation test (G-1), which removes their item-level colour, pattern and brand fields from scoring entirely."
+    },
+    {
+      "severity": "P2",
+      "concern": "Brand coverage is almost entirely negative. Four of nine images are brand traps (hv-01 mirrored store signage, hv-07 shelf plaques plus three makers' boots, hv-08 red tab and arcuate stitching as trade dress, hv-04 slogan prints mistakable for wordmarks) and only one image, hv-06, offers an admissible positive brand case. The set can demonstrate that a scanner declines to over-claim, but can barely demonstrate that it recognises a brand when one is legitimately present.",
+      "evidence": "Both reviewers recorded brand not_visible or not_applicable on eight of nine images, and both cited an on-item wordmark only on hv-06 (adidas at the collar plus adiPRENE on the midsole, independently confirmed). Trap density is by design; the imbalance is the issue, not the reviewers' handling of it."
+    },
+    {
+      "severity": "P1",
+      "concern": "The agreement computation and the disagreement packet under-report divergence, because they compare only eleven fields. visiblePerson and confidence were excluded, and the reviewers actually differ on both: visiblePerson on hv-01 (A true, B false) and confidence on hv-04 (A medium, B low). A divergent field that no one adjudicates will silently enter the dataset with whichever reviewer's value the merge happens to take.",
+      "evidence": "The agreement table lists exactly eleven fields at 9 comparisons each (99 instances). Reviewer A's hv-01 record has visiblePerson=true, Reviewer B's has visiblePerson=false, and neither appears anywhere in the disagreements array. Both reviewers nevertheless flagged visiblePerson as underspecified."
+    },
+    {
+      "severity": "P3",
+      "concern": "One cross-image forensic claim in the locked labels is wrong and would have entered the dataset unchecked, because it lives in free-text evidence rather than a reviewable structured field. Reviewer B recorded that the mug partly visible at hv-05's top left is the hv-03/hv-09 mug; magnified, it is a different vessel of the same series. Reviewer A got this right.",
+      "evidence": "Magnified crop of hv-05's upper-left quadrant shows GUIL in the same painter's hand, a 2, pink petal dots and a brown sprig on the body; hv-03 and hv-09 both show plain lilac lustre bands with no sprig or dot decoration anywhere. sameItemGroups has no slot for a same-scene relationship, which is precisely why the claim ended up in prose where it escaped comparison."
+    }
+  ],
+  "holdoutSeal": {
+    "issued": false,
+    "refusalReason": "A holdout seal asserts that frozen, adjudicated ground truth exists for every holdout case. It does not: 5 of 8 cases carry at least one field the adjudicator ruled unresolvable pending an owner decision, plus one divergent field that was never adjudicated. Sealing now would freeze incomplete ground truth and present unresolved fields as settled.",
+    "requirementsMet": [
+      "reviewer A completion",
+      "reviewer B completion",
+      "adjudication completion",
+      "locked-label hashes",
+      "dataset aggregate binding"
+    ],
+    "requirementsNotMet": [
+      "unresolved cases = 0"
+    ],
+    "canBeIssuedWhen": "the owner rules on G-1 through G-8 and the affected fields are re-adjudicated under the new rules"
+  },
+  "datasetPatchAssessment": {
+    "v031Created": false,
+    "whyNot": "Adjudicated labels differ from the v0.3.0 draft in several places AND 13 fields remain unresolved. Freezing a patch now would bake in incomplete ground truth. Clarification 3 requires a patch once review has SETTLED a label; it has not.",
+    "confirmedDraftDefects": [
+      {
+        "caseId": "tiera-footwear-537f81fab6",
+        "field": "expectedResultType",
+        "draft": "identified_style",
+        "bothReviewersIndependently": "closest_matches",
+        "basis": "brand is established from an on-item wordmark and no SKU is determinable, which is the guide table definition of closest_matches",
+        "severity": "P1"
+      },
+      {
+        "caseId": "set-501xx-jeans",
+        "field": "primaryColor",
+        "draft": "blue",
+        "adjudicated": "dark indigo",
+        "basis": "the guide requires the shade you can see, not the family; the draft used the family",
+        "severity": "P2"
+      },
+      {
+        "caseId": "tiera-top-1144bf2cff",
+        "field": "primaryColor",
+        "draft": "white",
+        "bothReviewersIndependently": "unknown",
+        "basis": "multi-item stall with no designated subject; the draft picked one shirt arbitrarily",
+        "severity": "P2"
+      },
+      {
+        "caseId": "the three NON_FASHION cases",
+        "field": "brand / primaryColor",
+        "draft": "inconsistent: one has brand not_applicable, two have brand not_visible; two carry primaryColor white on a non-fashion item",
+        "basis": "internal inconsistency in the draft, caught by the review",
+        "severity": "P2"
+      }
+    ],
+    "sameItemDuplication": {
+      "finding": "tiera-non_fashion-635218364b and tiera-non_fashion-323cd4e23c are TWO VIEWS OF ONE PHYSICAL MUG, confirmed independently by reviewer A, reviewer B and the adjudicator at high confidence on forensic detail (letterform strokes, lustre band positions, inscription break point, foot-ring notch, and differing camera height and white balance proving two exposures rather than one crop).",
+      "manifestTreatment": "two independent single-image holdout cases",
+      "violates": "the project rule that a same-item set is ONE case with N images",
+      "consequence": "the holdout is 7 distinct physical objects across 8 declared cases; the non-fashion stratum tests 2 distinct objects, one of them twice; that object is double-weighted in every holdout aggregate",
+      "severity": "P0",
+      "requiresOwnerDecision": true
+    },
+    "measurementCapacityFinding": {
+      "declaredHoldout": "8 cases / 9 images",
+      "actualDistinctObjects": 7,
+      "nonFashionCeramicsFromOneMuseumCase": 3,
+      "multiItemFramesYieldingNoItemLevelTruth": 2,
+      "distinctSingleSubjectFashionObjects": 3,
+      "admissiblePositiveBrandCases": 1,
+      "conclusion": "No per-field accuracy figure computed over this holdout can support a release claim. This is a capacity finding about the corpus, not a Scanner result.",
+      "severity": "P1"
+    }
+  },
+  "reviewerRaisedGuideFeedback": {
+    "reviewerA": "Guide gaps that actually changed my answers, in priority order. (1) MULTI-ITEM SCENES have no rule. hv-04 (t-shirt stall) and hv-07 (ski-boot wall) each show many garments of one clear type with no designated subject. The guide's four expectedResultType states all presuppose one item. I resolved both as identified_style (type/style clear, per-item brand and colour not assignable) and set primaryColor/secondaryColors to unknown, but 'insufficient_evidence' is equally arguable and this will likely be my largest divergence from Reviewer B. The dataset needs either an explicit multi-item rule or a designated-subject annotation. (2) COLOUR UNDER SATURATED COLOURED LIGHT is undefined. The guide covers only monochrome (not_visible). hv-01 is lit by a warm spot plus internal backlight with blown white highlights, so the garment reads copper/amber but may be a pale substrate under tungsten. I answered unknown, reading 'visible but undeterminable' as the closer fit; a rule for illuminant contamination would remove the coin-flip. (3) NON_FASHION vs. FIELD ENUMS conflict. The instruction says every fashion field becomes not_applicable, but the brand field is specified as '<brand or not_visible>' and exactProduct as '<code or unknown>', neither of which admits not_applicable. I followed the NON_FASHION override and wrote not_applicable for brand and exactProduct on hv-03/05/09; the schema should be amended to admit it explicitly. (4) TRADE-DRESS SUBTYPE LEAKAGE. On hv-02/hv-08 the button fly, arcuate stitching, and red tab strongly suggest a specific maker and even a specific model family. The brand rule is clear that I must not use it, but subtype ('straight leg') is free text, and a reviewer could smuggle the inference in as a model-name subtype. Worth an explicit prohibition: subtype must not encode a brand's model name. (5) VISIBLEPERSON is undefined at the edges. I set it true for hv-01 because bystander silhouettes appear through the display glass and an advertising poster of a person is behind the item, even though the garment is on a mannequin. If the field is meant to capture only 'a live person wearing or holding the item', hv-01 should be false — the definition should say which. (6) SECONDARYCOLORS scope is undefined for functional trim. I counted topstitching thread and the small red tab on hv-08 as secondary colours; a reviewer who reads the field as fabric-panel colours only would answer not_visible.",
+    "reviewerB": "Points where the guide left me without a defensible token. (1) Multi-item frames: hv-04 and hv-07 both show many garments with no designated subject, and the vocabulary has no way to say 'several items, none is the subject'. expectedResultType offers no such state either — insufficient_evidence reads wrong (there is plenty of information) so I used identified_style/closest_matches, and I handled the two inconsistently on purpose: hv-07 has one clearly dominant central boot I could name, hv-04 has two roughly co-equal shirts so I withheld colour. The guide should either state a subject-selection rule (largest / most centred / fully visible) or add a multi_item token. (2) secondaryColors on a genuinely single-colour item: 'not_visible' is false (nothing is hidden), 'unknown' is false (I can see there are none), so I used not_applicable — the attribute does not exist for that item. Please confirm that is the intended encoding, since a reviewer could equally justify not_visible and the disagreement would be an artefact of the guide. (3) visiblePerson is undefined for mannequins, for indistinct people reflected in window glass, and for photographs of people appearing on posters or garment prints. hv-01 has all three (mannequin wearing the item, blurred figures in the reflection, a model on a poster) and I returned false on the reading that the flag concerns a real person in the scene wearing/holding the item; if the flag exists for privacy masking, hv-01 should probably be true. hv-04 (two faces) and hv-06 (legs, no face) are both true under either reading. (4) Brand evidence and proprietary technology wordmarks: I counted 'adiPRENE' on the hv-06 midsole as admissible because it is a brand-owned wordmark printed on the item itself, not trade dress. If the guide means to admit only the house name or logo, say so — although hv-06 also carries 'adidas' lettering, so the outcome there is unchanged. (5) The guide says a brand mark on signage behind the item is inadmissible but does not address a brand plaque directly under the item on its own shelf, which is what hv-07 has; I treated the plaques as signage and relied only on the wordmark moulded into the boot. (6) Colour under heavy coloured lighting: hv-01 is lit by an intense warm spotlight. Monochrome images get an explicit rule (not_visible) but strongly cast colour images do not. The hue is unambiguously orange/copper so I labelled it, at medium confidence; a rule for coloured-cast images would make this reproducible. (7) Same-item versus same-scene: hv-03's mug appears to be partly visible in the background of hv-05, whose subject is a different 1862 mug. That is a same-scene relationship, and sameItemGroups has no way to record it, so I noted it in hv-05's evidenceBasis instead."
+  },
+  "privacyCompliance": {
+    "reviewerIdentitiesStoredInCaseRecords": false,
+    "note": "Roles only, per the identity policy. No reviewer name, email or id appears anywhere in this artifact."
+  },
+  "artifactSha256": "d615443a70a6aa24302b6c24cd4f7d1034edd5f8f1b8413fff943f29a425d758"
+}
