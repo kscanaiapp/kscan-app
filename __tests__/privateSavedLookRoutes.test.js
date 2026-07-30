@@ -1,0 +1,155 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const ts = require('typescript');
+const vm = require('node:vm');
+
+const ROOT = path.resolve(__dirname, '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+
+function flags(env) {
+  const source = read('constants/featureFlags.ts');
+  const output = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const mod = { exports: {} };
+  const sandbox = { exports: mod.exports, module: mod, process: { env }, __DEV__: false };
+  vm.createContext(sandbox);
+  new vm.Script(output).runInContext(sandbox);
+  return mod.exports;
+}
+
+const ALL_ON = {
+  EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1: 'true',
+  EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_INTERACTIONS_V1: 'true',
+  EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_ELISE_V1: 'true',
+  EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1: 'true',
+};
+
+test('Saved Looks leaf defaults OFF and activates only beneath every parent gate', () => {
+  assert.equal(flags({}).PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE, false);
+  assert.equal(flags(ALL_ON).PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE, true);
+  for (const key of Object.keys(ALL_ON)) {
+    assert.equal(
+      flags({ ...ALL_ON, [key]: 'false' }).PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE,
+      false,
+      `${key} did not gate Saved Looks`,
+    );
+  }
+});
+
+test('production and internal EAS profiles leave the Saved Looks leaf absent', () => {
+  const eas = JSON.parse(read('eas.json'));
+  for (const [profile, config] of Object.entries(eas.build)) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(config.env ?? {}, 'EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1'),
+      false,
+      `${profile} enabled the Phase 5 leaf`,
+    );
+  }
+});
+
+test('ON entry points save the effective Look, open detail, and expose the distinct list route', () => {
+  const room = read('app/stylist/dressing-room/index.tsx');
+  const hook = read('hooks/usePrivateDressingRoom.ts');
+  const stylist = read('app/stylist/index.tsx');
+  assert.match(room, /savedLooksEnabled[\s\S]*?title=\{saveLookBusy \? 'Saving Look'/);
+  assert.match(room, /await saveActiveLook\(\)[\s\S]*?\/stylist\/saved-looks\/\[id\]/);
+  assert.match(hook, /saveLookBusyRef\.current[\s\S]*?savePrivateSavedLook/);
+  assert.match(hook, /look,\s*closetItems: view\.closetItems/);
+  assert.match(stylist, /PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE[\s\S]*?title="Saved Looks"[\s\S]*?\/stylist\/saved-looks/);
+});
+
+test('OFF routes render a bounded disabled state before starting local reads', () => {
+  for (const rel of [
+    'app/stylist/saved-looks/index.tsx',
+    'app/stylist/saved-looks/[id].tsx',
+    'app/stylist/saved-looks/handoff.tsx',
+  ]) {
+    const source = read(rel);
+    assert.match(source, /if \(!PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE/);
+    const loader = source.indexOf('const load = useCallback');
+    const firstRead = Math.min(...[
+      source.indexOf('loadPrivateSavedLook', loader),
+      source.indexOf('loadSavedLookReturnContext', loader),
+    ].filter((value) => value >= 0));
+    const guard = source.indexOf('!PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE', loader);
+    assert.ok(loader >= 0 && guard > loader && (firstRead < 0 || guard < firstRead), `${rel} reads before its OFF guard`);
+  }
+});
+
+test('list and detail expose required loading, empty, recovery, missing and signed-out states', () => {
+  const list = read('app/stylist/saved-looks/index.tsx');
+  const detail = read('app/stylist/saved-looks/[id].tsx');
+  for (const text of ['Loading Saved Looks', 'No Saved Looks yet', 'Saved Looks recovered', 'Sign in to continue']) {
+    assert.ok(list.includes(text), `list missing ${text}`);
+  }
+  for (const text of ['Loading Saved Look', 'Saved Look not found', 'Sign in to continue', 'Closet unavailable']) {
+    assert.ok(detail.includes(text), `detail missing ${text}`);
+  }
+  assert.match(list, /Alert\.alert\('Delete Saved Look\?'/);
+  assert.match(detail, /Alert\.alert\('Delete Saved Look\?'/);
+});
+
+test('typed Closet failures remain distinct from an empty Closet', () => {
+  for (const rel of ['app/stylist/saved-looks/index.tsx', 'app/stylist/saved-looks/[id].tsx']) {
+    const source = read(rel);
+    assert.match(source, /loadClosetTyped/);
+    assert.doesNotMatch(source, /loadCloset\(/);
+    assert.match(source, /closetUnavailable: !closet\.ok/);
+  }
+  const detail = read('app/stylist/saved-looks/[id].tsx');
+  assert.match(detail, /current\.look && !current\.closetUnavailable[\s\S]*?resolvePrivateSavedLookOwnership/);
+});
+
+test('detail supports deleted references, incompatible edits, placeholders and explicit commerce choices', () => {
+  const detail = read('app/stylist/saved-looks/[id].tsx');
+  assert.ok(detail.includes('Original Closet item deleted'));
+  assert.ok(detail.includes('Original item changed category'));
+  assert.ok(detail.includes('No current image'));
+  assert.ok(detail.includes('Owned alternative first'));
+  assert.ok(detail.includes("'Shop anyway'"));
+  assert.ok(detail.includes("'Find an alternative'"));
+});
+
+test('same-route return context restores the same slot and refreshes ownership before clearing', () => {
+  const detail = read('app/stylist/saved-looks/[id].tsx');
+  const handoff = read('app/stylist/saved-looks/handoff.tsx');
+  assert.match(detail, /loadPrivateSavedLook[\s\S]*?loadClosetTyped[\s\S]*?loadSavedLookReturnContext/);
+  assert.match(detail, /returnContext\?\.savedLookId === saved\.look\.id[\s\S]*?returnContext\.slotKey/);
+  assert.match(detail, /resolvePrivateSavedLookOwnership/);
+  assert.match(detail, /clearSavedLookReturnContext/);
+  assert.match(handoff, /pathname: '\/stylist\/saved-looks\/\[id\]'[\s\S]*?context\.savedLookId/);
+});
+
+test('existing cloud Saved Outfit route remains separate and unmodified by Phase 5 imports', () => {
+  const legacy = read('app/looks/[id].tsx');
+  assert.doesNotMatch(legacy, /privateSavedLook|saved-looks/);
+  assert.ok(fs.existsSync(path.join(ROOT, 'app/stylist/saved-looks/[id].tsx')));
+});
+
+test('busy guard rejects concurrent save submission and always clears after failure', () => {
+  const hook = read('hooks/usePrivateDressingRoom.ts');
+  const start = hook.indexOf('const saveActiveLook');
+  const end = hook.indexOf('/** Route unmount', start);
+  const block = hook.slice(start, end);
+  assert.match(block, /saveLookBusyRef\.current\) return null/);
+  assert.match(block, /saveLookBusyRef\.current = true/);
+  assert.match(block, /catch \{\s*return null/);
+  assert.match(block, /finally[\s\S]*?saveLookBusyRef\.current = false[\s\S]*?setSaveLookBusy\(false\)/);
+});
+
+test('Saved Looks remains local-only with no Supabase schema or cloud Look persistence', () => {
+  const phase5Files = [
+    'services/privateSavedLookStore.ts', 'services/privateSavedLookSchema.ts',
+    'services/privateSavedLookOwnership.ts', 'services/privateSavedLookHandoff.ts',
+    'services/privateSavedLookReturnContext.ts',
+  ].map(read).join('\n');
+  assert.doesNotMatch(
+    phase5Files,
+    /from ['"].*supabaseClient['"]|supabase\.|\.from\(['"]looks['"]\)|look_items|kscan\.freeTier\.styleBoards\.v1/i,
+  );
+  const migrations = fs.readdirSync(path.join(ROOT, 'supabase/migrations'));
+  assert.equal(migrations.some((name) => /saved.?look/i.test(name)), false);
+});

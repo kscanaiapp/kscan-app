@@ -189,6 +189,11 @@ export default function PrivateDressingRoomScreen() {
     askElise,
     makeMoreCasual,
     cancelElise,
+    // Phase 5 Saved Looks. Absent when the nested leaf flag is off.
+    savedLooksEnabled,
+    saveLookBusy,
+    lastSavedLookId,
+    saveActiveLook,
   } = workspace;
 
   // ── Phase 4 derived presentation ──────────────────────────────────────────
@@ -222,6 +227,12 @@ export default function PrivateDressingRoomScreen() {
     // surface, so it cancels the request rather than leaving it running.
     cancelElise();
   }, [cancelElise]);
+
+  const saveAndOpenActiveLook = useCallback(async () => {
+    const savedLookId = await saveActiveLook();
+    if (!savedLookId) return;
+    router.push({ pathname: '/stylist/saved-looks/[id]', params: { id: savedLookId } });
+  }, [saveActiveLook]);
 
   const editorLook = effectiveLooks.find((look) => look.lookId === slotEditor.lookId) ?? null;
   const anchorId = session?.anchorClosetItemId ?? null;
@@ -555,6 +566,17 @@ export default function PrivateDressingRoomScreen() {
                 style={styles.stackedAction}
                 accessibilityLabel="Compare two outfits"
                 testID="compare-entry-button"
+              />
+            ) : null}
+
+            {savedLooksEnabled ? (
+              <PrimaryButton
+                title={saveLookBusy ? 'Saving Look' : lastSavedLookId ? 'Open Saved Look' : 'Save Look'}
+                onPress={() => void saveAndOpenActiveLook()}
+                disabled={busy || saveLookBusy}
+                style={styles.stackedAction}
+                accessibilityLabel={lastSavedLookId ? 'Open this Saved Look' : 'Save this effective Look'}
+                testID="save-private-look-button"
               />
             ) : null}
           </View>

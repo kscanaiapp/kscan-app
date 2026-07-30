@@ -34,7 +34,9 @@ import {
   PRIVATE_DRESSING_ROOM_V1,
   PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE,
   PRIVATE_DRESSING_ROOM_ELISE_ACTIVE,
+  PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE,
 } from '../constants/featureFlags';
+import { savePrivateSavedLook } from '../services/privateSavedLookStore';
 import {
   IDLE_ELISE_STATUS,
   cancelActiveEliseRequest,
@@ -286,6 +288,12 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   askElise: (instruction: string) => Promise<void>;
   makeMoreCasual: () => Promise<void>;
   cancelElise: () => void;
+
+  // Phase 5 Saved Looks. Inert unless the nested leaf flag is active.
+  savedLooksEnabled: boolean;
+  saveLookBusy: boolean;
+  lastSavedLookId: string | null;
+  saveActiveLook: () => Promise<string | null>;
 } {
   const { isAuthenticated, user, loading: actorLoading } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;
@@ -299,6 +307,9 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
   const [session, setSession] = useState<SessionSnapshot>({ actorKey: null, result: null });
   const [composition, setComposition] = useState<CompositionSnapshot>(IDLE_COMPOSITION);
   const [busy, setBusy] = useState(false);
+  const [saveLookBusy, setSaveLookBusy] = useState(false);
+  const [lastSavedLookId, setLastSavedLookId] = useState<string | null>(null);
+  const saveLookBusyRef = useRef(false);
   const generationRef = useRef(0);
   const routeAppliedRef = useRef<string | null>(null);
 
@@ -473,6 +484,9 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     setSlotEditor(CLOSED_EDITOR);
     setComparing(false);
     setPendingContextChange(null);
+    saveLookBusyRef.current = false;
+    setSaveLookBusy(false);
+    setLastSavedLookId(null);
   }, [actorKey]);
 
   // Route focus: the established route-scoped revalidation seam (useCloset.js).
@@ -1445,6 +1459,40 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     [cancelElise, requestContextChange],
   );
 
+  const saveActiveLook = useCallback(async (): Promise<string | null> => {
+    if (!PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE || saveLookBusyRef.current) return null;
+    const sessionRecord = view.session;
+    const compositionRecord = current.composition;
+    const lookId = compositionRecord?.activeLookId ?? effectiveLooks[0]?.lookId ?? null;
+    const look = effectiveLooks.find((entry) => entry.lookId === lookId) ?? null;
+    if (!sessionRecord || !compositionRecord || !look || actorLoading || !actorId) return null;
+
+    saveLookBusyRef.current = true;
+    setSaveLookBusy(true);
+    const actorRequest = createActorRequest();
+    try {
+      const saved = await savePrivateSavedLook(actorRequest, {
+        sourceSessionId: sessionRecord.sessionId,
+        sourceCompositionId: compositionRecord.compositionId,
+        sourceInputFingerprint: compositionRecord.inputFingerprint,
+        look,
+        closetItems: view.closetItems,
+        occasion: sessionRecord.occasion,
+        anchorClosetItemId: sessionRecord.anchorClosetItemId,
+      });
+      if (!isActorRequestCurrent(actorRequest) || !saved.ok || !saved.look) return null;
+      setLastSavedLookId(saved.look.id);
+      return saved.look.id;
+    } catch {
+      return null;
+    } finally {
+      if (isActorRequestCurrent(actorRequest)) {
+        saveLookBusyRef.current = false;
+        setSaveLookBusy(false);
+      }
+    }
+  }, [actorId, actorLoading, current.composition, effectiveLooks, view.closetItems, view.session]);
+
   /** Route unmount is terminal: abort, invalidate, and drop every alias map. */
   useEffect(() => {
     const coordinator = eliseCoordinatorRef.current;
@@ -1556,5 +1604,11 @@ export function usePrivateDressingRoom(routeClosetItemId?: unknown): PrivateWork
     askElise,
     makeMoreCasual,
     cancelElise,
+
+    // Phase 5 Saved Looks.
+    savedLooksEnabled: PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE,
+    saveLookBusy,
+    lastSavedLookId,
+    saveActiveLook,
   };
 }

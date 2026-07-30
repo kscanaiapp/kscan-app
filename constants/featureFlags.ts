@@ -225,6 +225,18 @@ export const PRIVATE_DRESSING_ROOM_ELISE_V1 =
 export const PRIVATE_DRESSING_ROOM_ELISE_ACTIVE =
   PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE && PRIVATE_DRESSING_ROOM_ELISE_V1;
 
+/** Phase 5 actor-scoped, device-local Saved Looks. Default OFF. */
+export const PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1 =
+  process.env.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1 === 'true';
+
+/**
+ * Saved Looks is a leaf capability under the existing private workspace and
+ * Elise gates. Callers use only this derived value, so no route, provider, read,
+ * write, or missing-piece action can start when any parent is disabled.
+ */
+export const PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE =
+  PRIVATE_DRESSING_ROOM_ELISE_ACTIVE && PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1;
+
 /**
  * DR-2: client may send owned dressing_room_item stable-ID attachments.
  * Default OFF — next-build activation only.
