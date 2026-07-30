@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-29T17:52:33.302Z",
-    "generatedFromGitSha": "4471004410fb7e6ee279a70789e99fdfeaa53aff"
+    "generatedAtUtc": "2026-07-30T14:42:20.692Z",
+    "generatedFromGitSha": "687e9908f8e0d11f36ba10ef3a361d998c490874"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -488,12 +488,12 @@
         ],
         "bundleFileCount": 6,
         "treeFileCount": 8,
-        "bundleHash": "5769a0020d3963201c5125de1364cac38335926378587f7b620a016dadd83c4a",
-        "treeHash": "c7a9c0505dc2f4ac5f168a9d0874a32706d9367a7353b5f5afd7aef170d8e6c1",
+        "bundleHash": "f984daa800d8d15300b4a6a18d834b388cd74ac9c141e40c43d07393bf0a1834",
+        "treeHash": "a041379b11c3dbd34b73c127931a37c781d633678beb96db4bc9960d7fe47b8f",
         "files": [
           {
             "path": "supabase/functions/style-outfit-generate/index.ts",
-            "sha256": "e33050039e9c078c4df3fa205638de5e1ccee6ededeb1ebf0722a64b08e2a1a9",
+            "sha256": "3ff6689e5fe88843c7aac240e8cf7e14c3d43fa2ccdecc4899d22245c7bbcbe9",
             "bundle": true
           },
           {
@@ -503,22 +503,22 @@
           },
           {
             "path": "supabase/functions/style-outfit-generate/privateDressingRoomElise.test.ts",
-            "sha256": "c963a89c261828f39e3c2200c0d7bf07d77191863b2e9a1036d5c8c7b66e994b",
+            "sha256": "b44b7c024eb832031657c008af755f10f10b900a6c4c1b244bb6c6b8c9b03a8f",
             "bundle": false
           },
           {
             "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.test.ts",
-            "sha256": "059181a521ea86fe5d6d99c516b7198e265ed8451639831603c0b73846468b81",
+            "sha256": "0322e5053bcba6711f1e5c10a61303633cdecb0691d521917095125351e719cf",
             "bundle": false
           },
           {
             "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.ts",
-            "sha256": "9f92ff578191709219427f4a93e8225f8a55ffa23f8ca23907610d2b997efa42",
+            "sha256": "412cf1f7a2a198aca3c9331909cc667c6912bb86602205d443a7510c091b763a",
             "bundle": true
           },
           {
             "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseHandler.ts",
-            "sha256": "f46d48ce79b56ec39f4c0b648155372ef0f7741de7fd2ff7b96ab718deb2e55c",
+            "sha256": "00ae9bd5540793abe8361da0fc58b1c4c2421b4ac6e9a1a50885ebba0a51ea29",
             "bundle": true
           },
           {
