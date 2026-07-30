@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-30T16:01:11.410Z",
-    "generatedFromGitSha": "148746163fd431b9f2bf91a66a3391691ed594d4"
+    "generatedAtUtc": "2026-07-30T16:21:09.184Z",
+    "generatedFromGitSha": "2f31a7e70c42cb229624834a38149f5351147907"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -488,12 +488,12 @@
         ],
         "bundleFileCount": 6,
         "treeFileCount": 8,
-        "bundleHash": "8268a022646876fff5f32900515633faeafc952b674f6092f8ed2493ca78917e",
-        "treeHash": "f3ed7fbaee76fd887ea6cfc6e9fa56fe2156199f7e282cf3201f64a0845c16c2",
+        "bundleHash": "b7339f46b44940f23f606ebca7bff9110818b5f166ad2c9bb7aea687df44ea72",
+        "treeHash": "f6b262bf873cc548cef6385ecfa389630042f598ad64d68e889ef54c32a15362",
         "files": [
           {
             "path": "supabase/functions/style-outfit-generate/index.ts",
-            "sha256": "8979549c3e8c10b8f5229c3b9b7f73d042670d07787bf93acd2d68514c4cdedf",
+            "sha256": "1baa0ac9c439c023d53fcf2aa8d7216aed6beeec833967ffdb8e629f70500d75",
             "bundle": true
           },
           {
