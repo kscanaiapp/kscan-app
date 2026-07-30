@@ -147,10 +147,15 @@ export default function PrivateSavedLookDetailScreen() {
 
   const current = state.actorKey === actorKey ? state : INITIAL;
   const ownership = useMemo(
+    // The scope is provable here and nowhere else: `current` is only the live
+    // state when state.actorKey === actorKey, and that state's closet came from
+    // loadClosetTyped(actorId) under the same actor request that loaded the Look.
     () => current.look && !current.closetUnavailable
-      ? resolvePrivateSavedLookOwnership(current.look, current.closet)
+      ? resolvePrivateSavedLookOwnership(current.look, current.closet, {
+          loadedForActorId: current.actorKey === actorKey ? actorId : null,
+        })
       : null,
-    [current.look, current.closet, current.closetUnavailable],
+    [current.look, current.closet, current.closetUnavailable, current.actorKey, actorKey, actorId],
   );
   const closetById = useMemo(
     () => new Map(current.closet.map((item) => [item.id, item])),
