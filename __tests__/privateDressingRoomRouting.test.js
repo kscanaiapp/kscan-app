@@ -227,9 +227,10 @@ test('Phase 1 offers no generation, no Continue, and no placeholder Looks', () =
       `Phase 1 must not offer an action titled ${title}`,
     );
   }
-  for (const forbidden of ['generateOutfits', 'saveLook', 'createLookFrom', 'OutfitSuggestion']) {
+  for (const forbidden of ['generateOutfits', 'createLookFrom', 'OutfitSuggestion']) {
     assert.equal(source.includes(forbidden), false, `Phase 1 must not offer ${forbidden}`);
   }
+  assert.match(source, /savedLooksEnabled \? \([\s\S]*?Save Look/);
 });
 
 test('the ready state renders real outfit options', () => {

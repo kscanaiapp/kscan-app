@@ -437,7 +437,6 @@ test('the hook never calls Closet or collaborative mutations', () => {
     'deleteClosetItem',
     'promoteScanToCloset',
     'addItemToDressingRoom',
-    'saveLook',
     'generateOutfit',
   ]) {
     assert.equal(source.includes(forbidden), false, `hook must not call ${forbidden}`);
@@ -445,6 +444,8 @@ test('the hook never calls Closet or collaborative mutations', () => {
   // It reads the Closet through the projection boundary only.
   assert.ok(source.includes('loadCloset'));
   assert.ok(source.includes('getClosetItemProjections'));
+  assert.match(source, /savePrivateSavedLook/, 'Phase 5 uses its dedicated local store');
+  assert.match(source, /PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE/);
 });
 
 test('the workspace exposes copy for every user-facing state', () => {

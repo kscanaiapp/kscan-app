@@ -487,10 +487,11 @@ test('the hook never mutates the Closet or a collaborative room', () => {
     'promoteScanToCloset',
     'addItemToDressingRoom',
     'shareLooksToRoom',
-    'saveLook',
   ]) {
     assert.equal(WORKSPACE.includes(forbidden), false, `workspace must not call ${forbidden}`);
   }
+  assert.match(WORKSPACE, /savePrivateSavedLook/, 'Phase 5 may write only its private local domain');
+  assert.match(WORKSPACE, /PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE/);
 });
 
 test('the hook makes no remote call', () => {

@@ -209,7 +209,7 @@ test('touch targets stay at or above 48dp', () => {
 
 // ── Excluded functionality ───────────────────────────────────────────────────
 
-test('no Phase 3 or later control appears, not even disabled', () => {
+test('later-phase controls are absent unless their own nested gates render them', () => {
   const titles = [...SOURCE.matchAll(/title=(?:"([^"]*)"|\{([^}]*)\})/g)].map((m) => m[1] ?? m[2]);
   for (const title of titles) {
     assert.equal(
@@ -220,8 +220,6 @@ test('no Phase 3 or later control appears, not even disabled', () => {
   }
   for (const forbidden of [
     'swapHistory',
-    'savedLook',
-    'saveLook',
     'findMissingPiece',
     'checkout',
     'affiliate',
@@ -230,6 +228,7 @@ test('no Phase 3 or later control appears, not even disabled', () => {
   ]) {
     assert.equal(SOURCE.includes(forbidden), false, `must not reference ${forbidden}`);
   }
+  assert.match(SOURCE, /savedLooksEnabled \? \([\s\S]*?Save Look/);
 });
 
 test('no disabled teaser control is rendered', () => {
