@@ -12,8 +12,8 @@ const { verifyFrozenDataset } = require('../lib/frozenDataset');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const STORAGE_ROOT = process.env.KSCAN_EVAL_STORAGE_ROOT;
-const MANIFEST = path.join(ROOT, 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json');
-const FREEZE = path.join(ROOT, 'evals/scanner-accuracy/tier-a-freeze.v0.3.0.json');
+const MANIFEST = path.join(ROOT, 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json');
+const FREEZE = path.join(ROOT, 'evals/scanner-accuracy/tier-a-freeze.v0.3.1.json');
 
 function withStorageRoot(fn) {
   assert.ok(STORAGE_ROOT, 'KSCAN_EVAL_STORAGE_ROOT is required for frozen-dataset tests');
@@ -27,28 +27,28 @@ function withStorageRoot(fn) {
   }
 }
 
-test('active dataset metadata names the governed v0.3.0 freeze', () => {
+test('active dataset metadata names the governed v0.3.1 freeze', () => {
   const version = require('../../../evals/scanner-accuracy/dataset-version.json');
-  assert.equal(version.datasetVersion, '0.3.0');
-  assert.equal(version.activeFreeze.manifest, 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json');
-  assert.equal(version.activeFreeze.freezeRecord, 'evals/scanner-accuracy/tier-a-freeze.v0.3.0.json');
+  assert.equal(version.datasetVersion, '0.3.1');
+  assert.equal(version.activeFreeze.manifest, 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json');
+  assert.equal(version.activeFreeze.freezeRecord, 'evals/scanner-accuracy/tier-a-freeze.v0.3.1.json');
 });
 
 test('frozen verifier reproduces all inputs and all 56 governed image hashes', () => {
   const report = withStorageRoot(() => verifyFrozenDataset(MANIFEST, FREEZE));
   assert.equal(report.ok, true, JSON.stringify(report.errors));
-  assert.equal(report.aggregateSha256, 'ddc939dca91d202c3d0ee306b9421e1d71f1348c1fb8f035097ae91d2972c3db');
-  assert.equal(report.caseCount, 41);
+  assert.equal(report.aggregateSha256, 'c3b689560b03bbf3df1033676a72c271f734c9031bb94ba663bf41222efa7632');
+  assert.equal(report.caseCount, 40);
   assert.equal(report.imageCount, 56);
   assert.equal(report.imageHashVerified, 56);
   assert.equal(report.development, 33);
-  assert.equal(report.holdout, 8);
+  assert.equal(report.holdout, 7);
   assert.equal(report.imagesInGit, 0);
 });
 
 test('a changed or non-canonical frozen manifest fails closed', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0-freeze-mutation-'));
-  const mutatedPath = path.join(temp, 'tier-a-manifest.v0.3.0.json');
+  const mutatedPath = path.join(temp, 'tier-a-manifest.v0.3.1.json');
   const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
   manifest.cases[0].notes = `${manifest.cases[0].notes} mutation`;
   fs.writeFileSync(mutatedPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
@@ -70,12 +70,12 @@ test('missing governed storage fails frozen verification closed', () => {
   }
 });
 
-test('v0.3.0 dry run verifies the freeze then blocks all drafts with explicit zero-call accounting', () => {
+test('v0.3.1 dry run verifies the freeze and blocks absent preparation with explicit zero-call accounting', () => {
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0-dry-run-'));
   let adapterInvocations = 0;
   const result = withStorageRoot(() => runBaseline.main([
     '--dry-run',
-    '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
+    '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json',
     '--output-dir', outputDir,
   ], {
     executor: () => { adapterInvocations += 1; },
@@ -83,7 +83,7 @@ test('v0.3.0 dry run verifies the freeze then blocks all drafts with explicit ze
   }));
   process.exitCode = 0;
   assert.equal(result.ok, false);
-  assert.equal(result.blockedCaseCount, 41);
+  assert.equal(result.blockedCaseCount, 40);
   assert.equal(result.plannedCallCount, 0);
   assert.equal(result.executedCallCount, 0);
   assert.equal(result.actualProviderCallCount, 0);
@@ -102,7 +102,7 @@ test('v0.3.0 dry run verifies the freeze then blocks all drafts with explicit ze
   });
 });
 
-test('execute mode refuses draft cases without writing a successful execution artifact', async () => {
+test('execute mode records an incomplete zero-call run when the hard attempt ceiling is reached', async () => {
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0-execute-refusal-'));
   // Every OTHER gate is satisfied here — ceilings, verified pricing, split, and a
   // real preparation manifest of real derivatives — so this proves that draft
@@ -110,7 +110,7 @@ test('execute mode refuses draft cases without writing a successful execution ar
   // so the denominator is 33 rather than all 41.
   const derivativeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'phase0-execute-refusal-deriv-'));
   const prepared = await withStorageRoot(() => prepareDerivatives.main([
-    '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
+    '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json',
     '--derivative-root', derivativeRoot,
     '--split', 'development',
   ]));
@@ -118,34 +118,27 @@ test('execute mode refuses draft cases without writing a successful execution ar
 
   let adapterInvocations = 0;
   const result = withStorageRoot(() => runBaseline.main([
-    '--execute',
-    '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
-    '--output-dir', outputDir,
-    '--max-calls', '0',
-    '--max-usd', '10.00',
-    '--pricing-record', 'evals/scanner-accuracy/pricing/gemini-pricing.2026-07-29.json',
-    '--split', 'development',
-    '--capture-preparation', 'certified_client_equivalent',
-    '--preparation-manifest', path.relative(ROOT, prepared.preparationManifest).replace(/\\/g, '/'),
-  ], {
-    executor: () => { adapterInvocations += 1; },
-    now: '2026-07-29T00:00:00.000Z',
-  }));
+      '--execute',
+      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json',
+      '--output-dir', outputDir,
+      '--max-calls', '0',
+      '--max-usd', '10.00',
+      '--pricing-record', 'evals/scanner-accuracy/pricing/gemini-pricing.2026-07-29.json',
+      '--split', 'development',
+      '--capture-preparation', 'certified_client_equivalent',
+      '--preparation-manifest', path.relative(ROOT, prepared.preparationManifest).replace(/\\/g, '/'),
+    ], {
+      executor: () => { adapterInvocations += 1; },
+      now: '2026-07-30T00:00:00.000Z',
+    }));
   process.exitCode = 0;
   assert.equal(result.ok, false);
-  assert.equal(result.stage, 'preflight');
-  assert.equal(result.blockedCaseCount, 33);
+  assert.equal(result.completionStatus, 'incomplete');
+  assert.equal(result.ceilingHit, true);
   assert.equal(result.executedCallCount, 0);
   assert.equal(adapterInvocations, 0);
-  // The refusal is the review gate specifically, not a payload or preparation gate.
-  assert.ok(result.blocked.every((b) => b.findings.some((f) => f.check === 'review_status')));
-  assert.equal(
-    result.blocked.some((b) => b.findings.some((f) => f.check === 'certified_payload_ceiling')),
-    false,
-    'preparation closed the payload-ceiling finding; only review remains'
-  );
-  assert.equal(fs.existsSync(path.join(outputDir, 'run-manifest.json')), false);
-  assert.equal(fs.existsSync(path.join(outputDir, 'baseline-report.json')), false);
+  assert.equal(fs.existsSync(path.join(outputDir, 'run-manifest.json')), true);
+  assert.equal(fs.existsSync(path.join(outputDir, 'baseline-report.json')), true);
 });
 
 test('execute mode without an injected adapter is refused before output creation', () => {
@@ -153,7 +146,7 @@ test('execute mode without an injected adapter is refused before output creation
   assert.throws(
     () => withStorageRoot(() => runBaseline.main([
       '--execute',
-      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
+      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json',
       '--output-dir', outputDir,
       '--max-calls', '0',
     ])),
@@ -170,7 +163,7 @@ test('execute mode requires a valid explicit hard call ceiling', () => {
   assert.throws(
     () => withStorageRoot(() => runBaseline.main([
       '--execute',
-      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
+      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json',
       '--output-dir', outputDir,
     ], { executor: () => ({ observations: [], consolidated: {} }) })),
     /explicit --max-calls ceiling/
@@ -183,7 +176,7 @@ test('dry-run output collision and cross-version resume state fail closed', () =
   assert.throws(
     () => withStorageRoot(() => runBaseline.main([
       '--dry-run',
-      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
+      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json',
       '--output-dir', collisionDir,
     ])),
     /output path collision/
@@ -199,7 +192,7 @@ test('dry-run output collision and cross-version resume state fail closed', () =
     () => withStorageRoot(() => runBaseline.main([
       '--dry-run',
       '--resume',
-      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json',
+      '--manifest', 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json',
       '--output-dir', resumeDir,
     ])),
     /invalid resume state/

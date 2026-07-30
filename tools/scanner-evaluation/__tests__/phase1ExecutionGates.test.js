@@ -22,7 +22,7 @@ const providerAccounting = require('../lib/providerAccounting');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const STORAGE_ROOT = process.env.KSCAN_EVAL_STORAGE_ROOT;
-const MANIFEST_REL = 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json';
+const MANIFEST_REL = 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json';
 const PRICING_REL = 'evals/scanner-accuracy/pricing/gemini-pricing.2026-07-29.json';
 const MANIFEST = JSON.parse(fs.readFileSync(path.join(ROOT, MANIFEST_REL), 'utf8'));
 const PRICING = JSON.parse(fs.readFileSync(path.join(ROOT, PRICING_REL), 'utf8'));
@@ -279,10 +279,10 @@ test('an unknown split is refused at parse time', () => {
   assert.throws(() => runBaseline.parseArgs(['--split', 'test']), /--split must be one of/);
 });
 
-test('the frozen split partitions all 41 cases with none unassigned', () => {
+test('the frozen split partitions all 40 cases with none unassigned', () => {
   const partition = runIdentity.partitionBySplit(MANIFEST.cases, MANIFEST.split);
   assert.equal(partition.development.length, 33);
-  assert.equal(partition.holdout.length, 8);
+  assert.equal(partition.holdout.length, 7);
   assert.deepEqual(partition.unassigned, []);
   const overlap = partition.development.filter((c) => partition.holdout.includes(c));
   assert.deepEqual(overlap, [], 'development and holdout must be disjoint');
@@ -624,10 +624,9 @@ test('a dry run against the frozen corpus makes zero provider calls and costs no
   assert.equal(fs.existsSync(path.join(outputDir, 'cases')), false, 'a dry run writes no case results');
 });
 
-test('the review gate blocks every frozen case while reviewStatus is draft', () => {
-  // The Phase 1 blocker, pinned so a future change cannot silently open it.
+test('the review gate is open only for the locked reviewed v0.3.1 cases', () => {
   const drafts = MANIFEST.cases.filter((c) => c.reviewStatus !== 'approved');
-  assert.equal(drafts.length, 41, 'all 41 cases are still draft; paid execution stays blocked');
+  assert.equal(drafts.length, 0, 'all 40 cases must be approved before the credential gate can open');
 
   const outputDir = tempDir('review-gate');
   const result = withStorageRoot(() => runBaseline.main([
@@ -640,7 +639,8 @@ test('the review gate blocks every frozen case while reviewStatus is draft', () 
   process.exitCode = 0;
   assert.equal(result.ok, false);
   assert.equal(result.blockedCaseCount, 33);
-  assert.ok(result.blocked.every((b) => b.findings.some((f) => f.check === 'review_status')));
+  assert.ok(result.blocked.every((b) => b.findings.some((f) => f.check === 'preparation_record_missing')));
+  assert.ok(result.blocked.every((b) => !b.findings.some((f) => f.check === 'review_status')));
 });
 
 test('exact-product suppression and pilot limitations propagate into the plan', () => {

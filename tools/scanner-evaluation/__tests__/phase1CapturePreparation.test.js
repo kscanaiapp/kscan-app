@@ -25,9 +25,9 @@ const { verifyFrozenDataset } = require('../lib/frozenDataset');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const STORAGE_ROOT = process.env.KSCAN_EVAL_STORAGE_ROOT;
-const MANIFEST_REL = 'evals/scanner-accuracy/tier-a-manifest.v0.3.0.json';
+const MANIFEST_REL = 'evals/scanner-accuracy/tier-a-manifest.v0.3.1.json';
 const PRICING_REL = 'evals/scanner-accuracy/pricing/gemini-pricing.2026-07-29.json';
-const FREEZE = path.join(ROOT, 'evals/scanner-accuracy/tier-a-freeze.v0.3.0.json');
+const FREEZE = path.join(ROOT, 'evals/scanner-accuracy/tier-a-freeze.v0.3.1.json');
 const MANIFEST = JSON.parse(fs.readFileSync(path.join(ROOT, MANIFEST_REL), 'utf8'));
 
 /** Derivative roots must live outside every Git worktree; os.tmpdir() does. */
@@ -278,13 +278,13 @@ test('the frozen dataset is unchanged after preparing every derivative', () => {
   // must not require a dataset patch version.
   const report = verifyFrozenDataset(path.join(ROOT, MANIFEST_REL), FREEZE);
   assert.equal(report.ok, true, JSON.stringify(report.errors));
-  assert.equal(report.aggregateSha256, 'ddc939dca91d202c3d0ee306b9421e1d71f1348c1fb8f035097ae91d2972c3db');
+  assert.equal(report.aggregateSha256, 'c3b689560b03bbf3df1033676a72c271f734c9031bb94ba663bf41222efa7632');
   assert.equal(report.imageHashVerified, 56);
   assert.equal(report.imagesInGit, 0);
   const versionFile = JSON.parse(
     fs.readFileSync(path.join(ROOT, 'evals/scanner-accuracy/dataset-version.json'), 'utf8')
   );
-  assert.equal(versionFile.datasetVersion, '0.3.0', 'no patch version may be created to resize images');
+  assert.equal(versionFile.datasetVersion, '0.3.1', 'preparation must not create a new dataset version');
 });
 
 // ── Preparation manifest integrity ──────────────────────────────────────────
@@ -297,7 +297,7 @@ test('the preparation manifest hash reproduces and detects tampering', async () 
     '--split', 'holdout',
   ]);
   assert.equal(result.ok, true);
-  assert.equal(result.imageCount, 9, 'the holdout has 8 cases and 9 images');
+  assert.equal(result.imageCount, 9, 'the holdout has 7 cases and 9 images');
   assert.equal(result.imagesOverCertifiedCeiling, 0);
 
   const record = JSON.parse(fs.readFileSync(result.preparationManifest, 'utf8'));
@@ -329,7 +329,7 @@ test('the preparation manifest records fidelity limits rather than claiming pari
   assert.match(joined, /No byte-level parity is asserted/);
   assert.match(joined, /not guaranteed across libvips upgrades/);
   assert.equal(record.derivativesInGit, 0);
-  assert.equal(record.datasetVersion, '0.3.0');
+  assert.equal(record.datasetVersion, '0.3.1');
 });
 
 test('a derivative root inside the repository is refused by the preparation command', async () => {
@@ -564,7 +564,7 @@ test('the preparation manifest hash covers the codec, the policy and every deriv
   assert.notEqual(prepareDerivatives.preparationManifestHash(withContract), baseline, 'transform must be covered');
 });
 
-test('the owner authorization record states the approved ceilings and open blockers', () => {
+test('the owner authorization record states the approved ceilings and remaining credential blocker', () => {
   const auth = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'evals/scanner-accuracy/authorization/phase1-execution-authorization.json'), 'utf8'
   ));
@@ -578,19 +578,17 @@ test('the owner authorization record states the approved ceilings and open block
   assert.equal(auth.capturePreparation.explicitlyNotAcceptedAs, 'byte-for-byte production parity');
   assert.equal(auth.capturePreparation.defaultPolicy, imagePreparation.DEFAULT_POLICY);
 
-  // The three remaining blockers are open, and the ceilings are not one of them.
+  // Review blockers are closed; the dedicated credential remains open.
   const open = auth.remainingBlockers.filter((b) => b.status === 'OPEN').map((b) => b.blocker);
-  assert.equal(open.length, 3);
-  assert.match(open.join(' | '), /Development reviewer/);
-  assert.match(open.join(' | '), /holdout reviewers/);
+  assert.equal(open.length, 1);
   assert.match(open.join(' | '), /evaluation credential/);
 
-  // The curator exclusion is recorded as a constraint, not left to discipline.
-  const holdout = auth.remainingBlockers.find((b) => b.id === 'RB-2');
-  assert.match(holdout.constraints.join(' '), /curator must remain excluded/);
-  assert.match(holdout.constraints.join(' '), /No reviewer may see any Scanner output before labels are locked/);
+  assert.deepEqual(
+    auth.closedBlockers.filter((b) => ['RB-1', 'RB-2'].includes(b.id)).map((b) => b.id).sort(),
+    ['RB-1', 'RB-2']
+  );
 
-  assert.equal(auth.verdict, 'BUILD 4 PHASE 1 BLOCKED — REVIEW AND CREDENTIAL GATES REMAIN');
+  assert.equal(auth.verdict, 'BUILD 4 PHASE 1 BLOCKED — DEDICATED EVALUATION CREDENTIAL GATE REMAINS');
 });
 
 test('the run artifact records preparation provenance and the certified contract', () => {
@@ -610,4 +608,26 @@ test('the run artifact records preparation provenance and the certified contract
   assert.equal(plan.certifiedPayloadContract.scannerImageMaxWidth, 896);
   assert.equal(plan.certifiedPayloadContract.scannerImageJpegQuality, 0.65);
   assert.equal(plan.runIdentity.capturePreparationMode, 'certified_client_equivalent');
+});
+
+test('the run artifact preserves derivative ceiling status when summarizing prepared payloads', async () => {
+  const root = derivativeRoot('summary-status');
+  const prepared = await prepareDerivatives.main([
+    '--manifest', MANIFEST_REL, '--derivative-root', root, '--split', 'development',
+  ]);
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase1-prep-summary-'));
+  const result = runBaseline.main([
+    '--dry-run',
+    '--manifest', MANIFEST_REL,
+    '--output-dir', outputDir,
+    '--split', 'development',
+    '--capture-preparation', 'certified_client_equivalent',
+    '--preparation-manifest', prepared.preparationManifest,
+  ], { now: '2026-07-30T00:00:00.000Z' });
+  process.exitCode = 0;
+  assert.equal(result.ok, true);
+  assert.equal(result.blockedCaseCount, 0);
+  assert.equal(result.capturePreparation.preparedPayloads.allWithinCertifiedCeiling, true);
+  assert.equal(result.capturePreparation.preparedPayloads.imagesOverCertifiedCeiling, 0);
+  assert.deepEqual(result.capturePreparation.preparedPayloads.oversizedViewIds, []);
 });

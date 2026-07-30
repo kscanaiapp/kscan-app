@@ -37,26 +37,6 @@
 
   "remainingBlockers": [
     {
-      "id": "RB-1",
-      "blocker": "Development reviewer assignment",
-      "scope": "33 development cases",
-      "status": "OPEN"
-    },
-    {
-      "id": "RB-2",
-      "blocker": "Two blind holdout reviewers and an adjudicator",
-      "scope": "8 holdout cases",
-      "status": "OPEN",
-      "constraints": [
-        "The curator must remain excluded from both holdout-review seats.",
-        "Separate isolated agent sessions may perform the reviews.",
-        "No reviewer may see another reviewer's decisions before labels are locked.",
-        "No reviewer may see any Scanner output before labels are locked.",
-        "Adjudication occurs only after both reviews are locked."
-      ],
-      "curatorIdentity": "The Phase 0H curation records carry decidedBy 'build-lead visual review'. That agent is the curator and is excluded."
-    },
-    {
       "id": "RB-3",
       "blocker": "Dedicated evaluation credential",
       "status": "OPEN",
@@ -73,6 +53,20 @@
 
   "closedBlockers": [
     {
+      "id": "RB-1",
+      "blocker": "Development reviewer assignment",
+      "status": "CLOSED",
+      "closedAt": "2026-07-30",
+      "evidence": "33/33 development cases received a locked isolated AI review pass under labeling guide 1.1.0; see review/phase1-review.v0.3.1.json."
+    },
+    {
+      "id": "RB-2",
+      "blocker": "Two blind holdout reviewers and an adjudicator",
+      "status": "CLOSED",
+      "closedAt": "2026-07-30",
+      "evidence": "Two isolated AI review passes covered 7/7 holdout cases; 3/126 field instances were adjudicated with zero unresolved contradictions; see review/holdout-seal.v0.3.1.json."
+    },
+    {
       "id": "F-1",
       "blocker": "Missing capture-preparation stage",
       "status": "CLOSED",
@@ -88,9 +82,9 @@
     }
   ],
 
-  "verdict": "BUILD 4 PHASE 1 BLOCKED — REVIEW AND CREDENTIAL GATES REMAIN",
+  "verdict": "BUILD 4 PHASE 1 BLOCKED — DEDICATED EVALUATION CREDENTIAL GATE REMAINS",
   "notAnAuthorizationTo": [
-    "execute any paid provider call while RB-1, RB-2 or RB-3 remain open",
+    "execute any paid provider call while RB-3 remains open",
     "bypass the draft review gate",
     "expose holdout labels or Scanner output to a reviewer before labels are locked",
     "use a production credential or contact a production endpoint",

@@ -1,0 +1,74 @@
+{
+  "sealVersion": "1.0.0",
+  "sealedAt": "2026-07-30T13:22:56.500Z",
+  "datasetVersion": "0.3.1",
+  "datasetAggregateSha256": "c3b689560b03bbf3df1033676a72c271f734c9031bb94ba663bf41222efa7632",
+  "datasetManifestSha256": "5b2db5b9c0edf6093dbd982c64297e61b3677b0bb54b0cdcf3e70be2eb7b13af",
+  "reviewArtifactSha256": "6cd672dc61aa4d7f9b40d45e06278738febaed95e13ec383611065aa1049879b",
+  "finalGroundTruthSha256": "3c177f06440d10551e8e9db3058216c90d16d81b3f6dada2ac5e6b0f696aead9",
+  "holdoutGroundTruthSha256": "7e67da47aba624dba0de64681bf381698c9abc9d7ab781879a66da31c34eba64",
+  "lockedLabelSha256": "39f6ed8cc1aee4e10cbee97431a3e9bf9fe3f449260fec13e2f75b720c328479",
+  "holdoutCaseIds": [
+    "tiera-non_fashion-87857eed80",
+    "tiera-footwear-537f81fab6",
+    "tiera-footwear-f249813dd0",
+    "tiera-top-1144bf2cff",
+    "case-157b102959993060",
+    "set-501xx-jeans",
+    "tiera-dress-d3a98e8fd9"
+  ],
+  "holdoutCaseCount": 7,
+  "holdoutImageCount": 9,
+  "labelingGuideVersion": "1.1.0",
+  "labelingGuideSha256": "89963c451295696205e708a27a69912a6c52983f286bb178a75b168fadebbde7",
+  "sourceImageAggregateSha256": "887c306340e55e9c7e5accc27320aaa21c18f64e5be4bb13a38ae08b530ce683",
+  "opaqueCaseMapSha256": "dd581dbf9ac432a997027170cffc64c8e7477fa159b11210fca705b396d6abb7",
+  "reviewedFields": [
+    "category",
+    "clothingType",
+    "subtype",
+    "primaryColor",
+    "secondaryColors",
+    "material",
+    "pattern",
+    "brand",
+    "exactProduct",
+    "expectedResultType",
+    "nonFashion",
+    "visiblePerson",
+    "brandEvidenceState",
+    "expectedBrandAssertionBehavior",
+    "expectedAbstention",
+    "subjectDesignation",
+    "sameItemAcrossImages",
+    "privacyAndAuthorizationComplete",
+    "labelConfidence"
+  ],
+  "reviewerA": {
+    "artifactSha256": "505900548b421cd8cc91526ef712edc1b00ab41a9b1a7ffb78b8dc01e31334e4",
+    "labelSetSha256": "7ea2afadfa32231f9ba8281a31b494135bb0fabe77d5339e0b25f7a693664d81",
+    "lockedAt": "2026-07-30T13:08:16.6601641Z"
+  },
+  "reviewerB": {
+    "artifactSha256": "a047fe56bb7f40e1dfffbc5688726f0167db0a5ffab97818c6d226f8110ece77",
+    "labelSetSha256": "4dba239447baf692640678d7e8affbdc2e9ad4151301340648b4d9e4ea859d42",
+    "lockedAt": "2026-07-30T13:09:23.0842138Z"
+  },
+  "agreement": {
+    "numerator": 123,
+    "denominator": 126,
+    "rate": 0.9761904761904762
+  },
+  "reviewerACompletedAt": "2026-07-30T13:08:16.6601641Z",
+  "reviewerBCompletedAt": "2026-07-30T13:09:23.0842138Z",
+  "adjudicationCompletedAt": "2026-07-30T13:14:57.8178948Z",
+  "adjudication": {
+    "artifactSha256": "ab25332075b76b298e89029a134ba08e7e65d585765cd9e52534dbeae5c091e1",
+    "decisionSetSha256": "15cd641c9bf649e40e7f4383167eabbf49c4d3c412f966c726eb2ee404171174",
+    "decisionCount": 3,
+    "unresolvedCount": 0,
+    "lockedAt": "2026-07-30T13:14:57.8178948Z"
+  },
+  "scannerOutputSeenBeforeLock": false,
+  "limitation": "Agreement is between two isolated same-model AI review passes, not human inter-reviewer agreement, and is an optimistic bound because errors may be correlated."
+}

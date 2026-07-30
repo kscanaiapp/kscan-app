@@ -1,16 +1,16 @@
 {
-  "datasetVersion": "0.3.0",
-  "status": "frozen_pilot",
-  "createdAt": "2026-07-29T00:00:00.000Z",
-  "description": "Active LICENSED-WEB-IMAGE PILOT BENCHMARK frozen for Phase 1 readiness measurement.",
+  "datasetVersion": "0.3.1",
+  "status": "frozen_reviewed_pilot",
+  "createdAt": "2026-07-30T00:00:00.000Z",
+  "description": "Active reviewed LICENSED-WEB-IMAGE PILOT BENCHMARK frozen for Phase 1 readiness measurement.",
   "activeFreeze": {
-    "manifest": "evals/scanner-accuracy/tier-a-manifest.v0.3.0.json",
-    "freezeRecord": "evals/scanner-accuracy/tier-a-freeze.v0.3.0.json",
+    "manifest": "evals/scanner-accuracy/tier-a-manifest.v0.3.1.json",
+    "freezeRecord": "evals/scanner-accuracy/tier-a-freeze.v0.3.1.json",
     "classification": "LICENSED-WEB-IMAGE PILOT BENCHMARK",
-    "caseCount": 41,
+    "caseCount": 40,
     "imageCount": 56,
     "development": 33,
-    "holdout": 8
+    "holdout": 7
   },
   "originalFoundationTargetCaseRange": {
     "min": 150,
@@ -22,6 +22,7 @@
   "experimentRecordVersion": "0.1.0",
   "regressionGateVersion": "0.1.0",
   "notes": [
+    "v0.3.0 remains immutable; v0.3.1 merges two owner-designated views of one mug into one weighted holdout case and applies locked reviews.",
     "Do not invent ground truth to inflate case count.",
     "Paid model baseline is not authorized.",
     "Image bytes are not duplicated into evals/; only hashes and governed refs.",

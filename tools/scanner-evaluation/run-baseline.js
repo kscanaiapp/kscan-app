@@ -228,12 +228,14 @@ function preflightCase(caseRecord, options = {}) {
       base64Length: payload.base64Length,
       preparation: preparation
         ? {
+          viewId: preparation.viewId,
           derivativeSha256: preparation.derivativeSha256,
           derivativePath: preparation.derivativePath,
           derivativeWidth: preparation.derivativeWidth,
           derivativeHeight: preparation.derivativeHeight,
           derivativeByteLength: preparation.derivativeByteLength,
           derivativeBase64Length: preparation.derivativeBase64Length,
+          withinCertifiedCeiling: preparation.withinCertifiedCeiling,
           policy: preparation.policy,
           transform: preparation.transform,
           codec: preparation.codec,

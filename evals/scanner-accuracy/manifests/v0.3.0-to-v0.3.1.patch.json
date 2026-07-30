@@ -1,0 +1,21 @@
+{
+  "patchVersion": "0.3.1",
+  "sourceVersion": "0.3.0",
+  "sourceManifestSha256": "093d0e2257f4518b60a7e63b894327adef9a422fbd95b1f1ae9e93b08cc79749",
+  "changes": [
+    "merged the two owner-designated mug views into one holdout case with one weight",
+    "applied locked development review labels",
+    "applied locked and adjudicated holdout labels",
+    "added required review-linked metadata"
+  ],
+  "originalDuplicateCaseIds": [
+    "tiera-non_fashion-635218364b",
+    "tiera-non_fashion-323cd4e23c"
+  ],
+  "mergedCaseId": "case-157b102959993060",
+  "caseCount": 40,
+  "imageCount": 56,
+  "development": 33,
+  "holdout": 7,
+  "finalGroundTruthSha256": "3c177f06440d10551e8e9db3058216c90d16d81b3f6dada2ac5e6b0f696aead9"
+}
