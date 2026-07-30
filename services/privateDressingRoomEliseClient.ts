@@ -112,7 +112,11 @@ export async function sendEliseRequest(input: {
   // Already cancelled before we started: spend nothing.
   if (controller.signal.aborted) return { kind: 'cancelled' };
 
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     const { data, error } = await invoke(ELISE_FUNCTION_NAME, {
       body: input.plan.body,
@@ -120,6 +124,7 @@ export async function sendEliseRequest(input: {
     });
 
     if (external?.aborted) return { kind: 'cancelled' };
+    if (timedOut) return { kind: 'failed' };
     if (error) {
       // A backend that predates this schema version rejects the body outright.
       // We cannot tell that apart from a transport failure by the error alone,
@@ -140,7 +145,9 @@ export async function sendEliseRequest(input: {
     }
     return { kind: 'response', response: parsed.response };
   } catch {
-    return external?.aborted || controller.signal.aborted ? { kind: 'cancelled' } : { kind: 'failed' };
+    // Only caller-driven cancellation is silent. The internal timeout abort is
+    // a retryable transport failure and must clear loading with bounded copy.
+    return external?.aborted ? { kind: 'cancelled' } : { kind: 'failed' };
   } finally {
     clearTimeout(timeoutId);
     if (external) external.removeEventListener('abort', forwardAbort);

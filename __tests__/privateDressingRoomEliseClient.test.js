@@ -363,6 +363,46 @@ test('cancellation mid-flight reports cancelled, never an error', async () => {
   assert.equal(outcome.kind, 'cancelled');
 });
 
+test('Phase 5 backend mismatch and provider failures are bounded with no automatic retry', async () => {
+  const plan = planFor();
+  const cases = [
+    ['missing function 404', async () => ({ data: null, error: new Error('FunctionsHttpError: 404') }), 'failed'],
+    ['non-200 response', async () => ({ data: { message: 'unavailable' }, error: new Error('503') }), 'failed'],
+    ['malformed private response', async () => ({ data: { schemaVersion: 'private-dressing-room-elise-v1', status: 'success' }, error: null }), 'failed'],
+    ['unsupported contract', async () => ({ data: { schemaVersion: 'private-dressing-room-elise-v2' }, error: null }), 'capability_unavailable'],
+    ['capability unavailable', async () => ({ data: { error: 'Unsupported mode' }, error: null }), 'capability_unavailable'],
+    ['provider failure', async () => ({ data: { ...goodResponse(plan), status: 'safe_failure' }, error: null }), 'response'],
+  ];
+  for (const [label, response, kind] of cases) {
+    let calls = 0;
+    const outcome = await client.sendEliseRequest({
+      plan,
+      intent: 'build_around_item',
+      invoke: async (...args) => { calls += 1; return response(...args); },
+    });
+    assert.equal(outcome.kind, kind, label);
+    assert.equal(calls, 1, `${label} retried automatically`);
+  }
+});
+
+test('internal timeout is a retryable failure, not silent user cancellation', async () => {
+  const plan = planFor();
+  let calls = 0;
+  const outcome = await client.sendEliseRequest({
+    plan,
+    intent: 'build_around_item',
+    timeoutMs: 5,
+    invoke: async (_name, options) => {
+      calls += 1;
+      return new Promise((_resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(new Error('AbortError')), { once: true });
+      });
+    },
+  });
+  assert.equal(outcome.kind, 'failed');
+  assert.equal(calls, 1);
+});
+
 // ── Coordinator and races ─────────────────────────────────────────────────────
 
 test('a new request cancels and invalidates the previous one', () => {
