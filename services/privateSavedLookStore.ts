@@ -249,8 +249,15 @@ export async function loadPrivateSavedLooks(actorRequest: unknown): Promise<Save
   const before = authorityFor(actorRequest);
   if (!before.ok || !before.actorId) return failure(before.errorCode!, false);
   try {
-    await mutationQueue;
-    const { result, recovered } = await readManifest();
+    // ENQUEUED, not merely awaited. `await mutationQueue` only waits for the
+    // tail that existed at that instant; a mutation enqueued immediately after
+    // runs CONCURRENTLY with the read below. That matters because persist()
+    // deliberately leaves the primary absent between its two moves, and
+    // recoverMissingPrimary() treats an absent primary as a crash to recover
+    // from — so an overlapping read would promote the in-flight temp file out
+    // from under the write, making the write fail on a file the reader took.
+    // Sharing the queue makes a read never observe a half-completed swap.
+    const { result, recovered } = await enqueue(() => readManifest());
     if (!result.ok) return failure(result.errorCode!, true);
     const after = authorityFor(actorRequest);
     if (!after.ok || after.actorId !== before.actorId) return failure('stale_actor_context', false);
