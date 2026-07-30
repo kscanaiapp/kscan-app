@@ -64,9 +64,8 @@ function buildMergedMugCase(left, right) {
       originalCaseIds: DUPLICATE_CASE_IDS.slice(),
       originalSourceHashes: [...left.imageHashes, ...right.imageHashes],
       mergeEvidence:
-        'Owner-confirmed same physical object. Independent isolated AI review passes and adjudication '
-        + 'identified matching inscription strokes, lustre-band placement, inscription break point, '
-        + 'foot-ring notch, and distinct camera height/white balance across the two views.',
+        'Project owner designated the two source cases as views of the same physical object. '
+        + 'Both source images are retained and the merged case carries one case weight.',
       caseWeight: 1,
     },
     notes: 'Owner-confirmed two-view non-fashion control. One physical object and one case weight.',

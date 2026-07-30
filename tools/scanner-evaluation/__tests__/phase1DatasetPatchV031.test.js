@@ -36,6 +36,8 @@ test('duplicate mug cases become one opaque two-view holdout case with one weigh
   assert.equal(merged.patchMetadata.caseWeight, 1);
   assert.deepEqual(merged.patchMetadata.originalCaseIds, patch.DUPLICATE_CASE_IDS);
   assert.equal(merged.patchMetadata.originalSourceHashes.length, 2);
+  assert.match(merged.patchMetadata.mergeEvidence, /Project owner designated/);
+  assert.doesNotMatch(merged.patchMetadata.mergeEvidence, /review|adjudicat/i);
   assert.equal(candidate.split.holdout.includes(merged.caseId), true);
   for (const id of patch.DUPLICATE_CASE_IDS) assert.equal(candidate.cases.some((record) => record.caseId === id), false);
 });
