@@ -81,6 +81,18 @@ Deno.test('unknown schema versions and intents are rejected server-side', () => 
   if (!wrongIntent.ok) assert.equal(wrongIntent.error, 'unsupported_intent');
 });
 
+Deno.test('top-level and context actor overrides are rejected server-side', () => {
+  const topLevel = parsePrivateEliseRequest(anchorRequest({ actorId: 'actor-b' }));
+  assert.equal(topLevel.ok, false);
+  if (!topLevel.ok) assert.equal(topLevel.error, 'invalid_request_fields');
+
+  const nested = parsePrivateEliseRequest(
+    anchorRequest({ context: { occasion: 'Work', userId: 'actor-b' } }),
+  );
+  assert.equal(nested.ok, false);
+  if (!nested.ok) assert.equal(nested.error, 'invalid_context');
+});
+
 Deno.test('candidates carrying unlisted fields are rejected server-side', () => {
   for (const leak of [
     { closetItemId: 'closet-1' },

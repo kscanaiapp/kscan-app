@@ -439,7 +439,7 @@ test('instruction and context are bounded and enum-checked', () => {
   );
 });
 
-test('a parsed request never carries a forbidden field, whatever was supplied', () => {
+test('a request carrying a forbidden identity field is rejected', () => {
   const hostile = occasionRequest({
     actorId: 'actor-1',
     userId: 'user-1',
@@ -449,17 +449,7 @@ test('a parsed request never carries a forbidden field, whatever was supplied', 
     closetItemId: 'closet-1',
   });
   const parsed = contract.parsePrivateEliseRequest(hostile);
-  assert.equal(parsed.ok, true);
-  const serialized = JSON.stringify(parsed.request);
-  for (const field of contract.PRIVATE_ELISE_FORBIDDEN_REQUEST_FIELDS) {
-    assert.doesNotMatch(serialized, new RegExp(`"${field}"`), `${field} survived parsing`);
-  }
-  same(Object.keys(parsed.request).sort(), [
-    'instruction',
-    'intent',
-    'requestId',
-    'schemaVersion',
-  ]);
+  same(parsed, { ok: false, error: 'invalid_request_fields' });
 });
 
 // ── 6. Response validation ────────────────────────────────────────────────────

@@ -47,10 +47,9 @@ import {
 import { ELISE_PRIMARY_MODEL, getConfiguredModel } from './modelRouting.ts';
 import { parsePrivateEliseRequest } from './privateDressingRoomEliseContract.ts';
 import {
+  classifyStyleOutfitRequest,
   formatEliseLog,
   handleVersionedEliseRequest,
-  isSupportedEliseSchemaVersion,
-  isVersionedEliseRequest,
 } from './privateDressingRoomEliseHandler.ts';
 
 const CORS_HEADERS = {
@@ -79,6 +78,11 @@ function readIntEnv(name: string, fallback: number): number {
   const raw = readTrimmedEnv(name);
   const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function createLogCorrelationId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(9));
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
 }
 
 function json(body: unknown, status = 200): Response {
@@ -289,6 +293,7 @@ Deno.serve(async (req) => {
   }
   const userId = user.id;
   const requestId = crypto.randomUUID();
+  const logCorrelationId = createLogCorrelationId();
 
   // 2. Lifecycle gate (before parsing, ownership, quota, or provider).
   // A valid JWT can outlive the client routing that blocks locked / pending-
@@ -320,18 +325,35 @@ Deno.serve(async (req) => {
 
   // 3a. VERSIONED BRANCH — private Dressing Room (Build 3, Phase 4).
   //
-  // Dispatch is on `schemaVersion`, a key no existing caller sends, and it is
-  // checked BEFORE parseStyleOutfitRequest so the two contracts can never be
-  // confused: an unversioned body has no schemaVersion and falls straight
-  // through untouched, and a Phase 4 body carries no `mode` for the unversioned
-  // parser to accept. Presence alone routes here — Phase 4 behaviour is never
-  // inferred from arbitrary extra fields.
+  // Only the exact immutable `schemaVersion` selects the private contract.
+  // Unknown top-level schema values are rejected, and a missing schema falls
+  // through unchanged to the legacy parser. Nested lookalike fields do not
+  // affect dispatch.
   //
   // THE SERVER WARDROBE QUERY BELOW IS NOT REACHED ON THIS PATH. The private
   // Dressing Room's Closet is device-local; saved_scans and inspiration_items
   // hold nothing about it, so this branch returns before they are queried and
   // hands the handler no client to query them with.
-  if (isVersionedEliseRequest(body)) {
+  const dispatch = classifyStyleOutfitRequest(body);
+  if (dispatch === 'unknown_schema') {
+    return json({ error: 'Unsupported schema version', errorCode: 'UNSUPPORTED_SCHEMA_VERSION' }, 400);
+  }
+
+  if (dispatch === 'private_elise') {
+    const eliseAiDisabled =
+      readTrimmedEnv('STYLE_OUTFIT_AI_ENABLED')?.toLowerCase() === 'false';
+    const parsedElise = parsePrivateEliseRequest(body);
+    if (!parsedElise.ok || eliseAiDisabled) {
+      const earlyResult = await handleVersionedEliseRequest({
+        body,
+        aiDisabled: eliseAiDisabled,
+        correlationId: logCorrelationId,
+        callProvider: () => Promise.reject(new Error('provider_not_reachable')),
+      });
+      console.log(formatEliseLog(earlyResult.log));
+      return json(earlyResult.body, earlyResult.httpStatus);
+    }
+
     const eliseKey = Deno.env.get('GEMINI_API_KEY');
     if (!eliseKey) {
       console.error('[style-outfit-generate] GEMINI_API_KEY not configured');
@@ -344,7 +366,7 @@ Deno.serve(async (req) => {
     // a malformed Phase 4 body cannot burn a user's generation. Deliberately
     // the SAME counters as the unversioned path: one Elise budget per user, and
     // no new RPC, table or migration.
-    if (isSupportedEliseSchemaVersion(body) && parsePrivateEliseRequest(body).ok) {
+    if (parsedElise.ok) {
       const eliseBurstLimit = readIntEnv('STYLE_OUTFIT_BURST_LIMIT_PER_MINUTE', DEFAULT_BURST_LIMIT);
       const { data: eliseBurst, error: eliseBurstError } = await userClient.rpc(
         'check_and_increment_style_outfit_burst',
@@ -393,7 +415,7 @@ Deno.serve(async (req) => {
 
     const eliseResult = await handleVersionedEliseRequest({
       body,
-      aiDisabled: readTrimmedEnv('STYLE_OUTFIT_AI_ENABLED')?.toLowerCase() === 'false',
+      correlationId: logCorrelationId,
       callProvider: ({ systemText, userText, attempt }) =>
         callGeminiJson(eliseModel, eliseKey, systemText, userText, attempt),
     });
@@ -412,7 +434,10 @@ Deno.serve(async (req) => {
   // 3. Kill switch (explicit "false" disables generation).
   const isAiDisabled = readTrimmedEnv('STYLE_OUTFIT_AI_ENABLED')?.toLowerCase() === 'false';
   if (isAiDisabled) {
-    console.log('[style-outfit-generate] kill switch active uid=%s', userId.slice(0, 8));
+    console.log(
+      '[style-outfit-generate] kill_switch correlation=%s',
+      logCorrelationId,
+    );
     return json({
       requestId,
       contractVersion: FASHION_REASONING_CONTRACT_VERSION,
@@ -473,8 +498,8 @@ Deno.serve(async (req) => {
       return json({ error: 'Anchor item is not available for styling' }, 403);
     }
     console.log(
-      '[style-outfit-generate] insufficient_closet uid=%s candidateCount=%d',
-      userId.slice(0, 8),
+      '[style-outfit-generate] insufficient_closet correlation=%s candidateCount=%d',
+      logCorrelationId,
       candidates.length,
     );
     return noResultResponse(requestId, 'insufficient_closet');
@@ -592,12 +617,10 @@ Deno.serve(async (req) => {
   const outfits = validateProviderOutfits(providerOutput, pool, anchor, request.maximumOutfits);
 
   console.log(
-    '[style-outfit-generate] result uid=%s mode=%s poolSize=%d outfits=%d variations=%s',
-    userId.slice(0, 8),
-    request.mode,
+    '[style-outfit-generate] result correlation=%s poolSize=%d outfits=%d',
+    logCorrelationId,
     pool.size,
     outfits.length,
-    outfits.map((outfit) => outfit.variation).join(',') || 'none',
   );
 
   if (outfits.length === 0) {

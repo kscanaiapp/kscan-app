@@ -12,7 +12,9 @@ import assert from 'node:assert/strict';
 
 import {
   buildElisePrompt,
+  classifyStyleOutfitRequest,
   formatEliseLog,
+  hasExplicitSchemaVersion,
   handleVersionedEliseRequest,
   interpretProviderOutput,
   isSupportedEliseSchemaVersion,
@@ -69,9 +71,9 @@ const failingProvider = () => Promise.reject(new Error('provider_http_500'));
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 
-Deno.test('dispatch keys on schemaVersion presence, never on request shape', () => {
+Deno.test('dispatch selects private only for the exact schema discriminator', () => {
   assert.equal(isVersionedEliseRequest(occasionBody()), true);
-  assert.equal(isVersionedEliseRequest({ schemaVersion: 'anything' }), true);
+  assert.equal(isVersionedEliseRequest({ schemaVersion: 'anything' }), false);
   // Existing unversioned bodies are not versioned requests, however Phase-4-ish
   // any extra fields might look.
   assert.equal(isVersionedEliseRequest({ mode: 'style_event', contractVersion: '1' }), false);
@@ -85,6 +87,25 @@ Deno.test('dispatch keys on schemaVersion presence, never on request shape', () 
 
   assert.equal(isSupportedEliseSchemaVersion(occasionBody()), true);
   assert.equal(isSupportedEliseSchemaVersion({ schemaVersion: 'private-dressing-room-elise-v2' }), false);
+  assert.equal(hasExplicitSchemaVersion({ schemaVersion: 'anything' }), true);
+  assert.equal(classifyStyleOutfitRequest(occasionBody()), 'private_elise');
+  assert.equal(
+    classifyStyleOutfitRequest({ schemaVersion: 'private-dressing-room-elise-v2' }),
+    'unknown_schema',
+  );
+  assert.equal(
+    classifyStyleOutfitRequest({ mode: 'style_event', contractVersion: '1' }),
+    'legacy',
+  );
+  assert.equal(
+    classifyStyleOutfitRequest({
+      mode: 'style_event',
+      contractVersion: '1',
+      metadata: { schemaVersion: 'private-dressing-room-elise-v1' },
+    }),
+    'legacy',
+    'an unrelated nested field cannot select the private handler',
+  );
 });
 
 Deno.test('an unknown schema version is rejected without reaching the provider', async () => {
@@ -115,6 +136,21 @@ Deno.test('a malformed versioned request is rejected without reaching the provid
   assert.equal(result.httpStatus, 400);
   assert.equal((result.body as { errorCode: string }).errorCode, 'INVALID_REQUEST');
   assert.match(result.log.outcome, /^invalid_request:unsupported_intent$/);
+});
+
+Deno.test('body-supplied actor identity is rejected without reaching the provider', async () => {
+  let called = false;
+  const result = await handleVersionedEliseRequest({
+    body: occasionBody({ actorId: '00000000-0000-4000-8000-000000000123' }),
+    callProvider: () => {
+      called = true;
+      return Promise.resolve({});
+    },
+  });
+  assert.equal(called, false);
+  assert.equal(result.httpStatus, 400);
+  assert.equal((result.body as { errorCode: string }).errorCode, 'INVALID_REQUEST');
+  assert.equal(result.log.outcome, 'invalid_request:invalid_request_fields');
 });
 
 // ── Success paths ─────────────────────────────────────────────────────────────
@@ -271,24 +307,23 @@ Deno.test('the prompt carries aliases and metadata, never identity or media', ()
 Deno.test('the log envelope is counts and classifications only', async () => {
   const result = await handleVersionedEliseRequest({
     body: anchorBody({ instruction: 'wedding at the Grand Hotel with Sarah' }),
+    correlationId: 'a1b2c3d4e5f6071829',
     callProvider: provider({ status: 'success', normalizedOccasion: 'Event' }),
   });
   const line = formatEliseLog(result.log);
 
   assert.match(line, /candidates=2/);
-  assert.match(line, /intent=build_around_item/);
-  assert.match(line, /req=3f9a2b1c/);
-  assert.equal(result.log.requestFragment.length, 8, 'only a request fragment is logged');
+  assert.match(line, /correlation=a1b2c3d4e5f6071829/);
+  assert.equal(line.includes('3f9a2b1c'), false, 'no full or partial request UUID is logged');
 
   for (const forbidden of ['Grand Hotel', 'Sarah', 'wedding', 'navy', 'item_3f9a2b1c_1', 'Outerwear']) {
     assert.equal(line.includes(forbidden), false, `log leaked ${forbidden}`);
   }
   assert.deepEqual(Object.keys(result.log).sort(), [
     'candidateCount',
+    'correlationId',
     'durationMs',
-    'intent',
     'outcome',
-    'requestFragment',
     'schemaVersion',
   ]);
 });
@@ -303,10 +338,20 @@ Deno.test('a rejected request logs its classification, never the offending value
   assert.equal(line.includes('Rome'), false);
 });
 
+Deno.test('function logging contains no full or partial UUID identifiers', () => {
+  const indexCode = codeOnly(INDEX_SOURCE);
+  assert.doesNotMatch(indexCode, /userId\.slice\s*\(/);
+  assert.doesNotMatch(indexCode, /uid=%/);
+  assert.doesNotMatch(HANDLER_CODE, /requestFragment/);
+  assert.doesNotMatch(HANDLER_CODE, /requestId\.slice\s*\(/);
+  assert.match(indexCode, /createLogCorrelationId\(\)/);
+  assert.match(indexCode, /correlation=%s/);
+});
+
 // ── Server wardrobe bypass, proven from source ────────────────────────────────
 
 Deno.test('the versioned branch returns before any server wardrobe query', () => {
-  const branch = INDEX_SOURCE.indexOf('if (isVersionedEliseRequest(body)) {');
+  const branch = INDEX_SOURCE.indexOf("if (dispatch === 'private_elise') {");
   const savedScans = INDEX_SOURCE.indexOf("from('saved_scans')");
   const inspiration = INDEX_SOURCE.indexOf("from('inspiration_items')");
   assert.ok(branch > 0, 'versioned branch not found in index.ts');
@@ -338,7 +383,7 @@ Deno.test('the handler is structurally incapable of querying a wardrobe', () => 
 });
 
 Deno.test('the versioned branch reserves quota through the existing RPCs only', () => {
-  const branch = INDEX_SOURCE.indexOf('if (isVersionedEliseRequest(body)) {');
+  const branch = INDEX_SOURCE.indexOf("if (dispatch === 'private_elise') {");
   const branchBody = INDEX_SOURCE.slice(branch, INDEX_SOURCE.indexOf('const parseResult = parseStyleOutfitRequest(body);'));
   assert.match(branchBody, /check_and_increment_style_outfit_burst/);
   assert.match(branchBody, /increment_style_outfit_daily_usage/);
