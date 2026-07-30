@@ -51,9 +51,16 @@ function loadTsModule(relativePath, requireMap = {}) {
 
 const reasoning = loadTsModule('types/fashionReasoning.ts');
 
-function loadStyleOutfits({ uiEnabled, backendEnabled, invoke }) {
+function loadStyleOutfits({ uiEnabled, backendEnabled, invoke, session }) {
   return loadTsModule('services/styleOutfits.ts', {
     './supabaseClient': { supabase: { functions: { invoke } } },
+    // The Phase 5 auth hotfix made generateOutfits preflight for a usable user
+    // JWT before invoking. The real resolver reaches the app runtime, so it is
+    // stubbed here exactly like supabaseClient. Defaults to a usable session so
+    // the existing contract cases still exercise the transport.
+    './authenticatedFunctionSession': {
+      resolveAuthenticatedFunctionSession: async () => session ?? { ok: true, accessToken: 'qa-token' },
+    },
     '../constants/featureFlags': {
       AI_STYLIST_UI_ENABLED: uiEnabled,
       AI_STYLIST_BACKEND_ENABLED: backendEnabled,
@@ -314,6 +321,26 @@ test('kill-switch (disabled) response is safe and enters cooldown', async () => 
   const result = await service.generateOutfits({ mode: 'style_event' });
   assert.equal(result.status, 'unavailable');
   assert.equal(service.isInUnavailableCooldown(), true);
+});
+
+// Phase 6 regression. This is the PRODUCTION-ENABLED path: eas.json sets
+// EXPO_PUBLIC_AI_STYLIST_BACKEND_ENABLED = "true" under `production`, so a
+// stale session here is what users actually hit as HTTP 401.
+test('an unusable session fails closed before the transport and never retries', async () => {
+  let invoked = 0;
+  const service = loadStyleOutfits({
+    uiEnabled: true,
+    backendEnabled: true,
+    session: { ok: false, reason: 'session_expired' },
+    invoke: async () => {
+      invoked += 1;
+      return { data: { status: 'success', outfits: [] }, error: null };
+    },
+  });
+  const result = await service.generateOutfits({ mode: 'style_event' });
+  assert.equal(result.status, 'session_expired');
+  assert.equal(invoked, 0, 'a failed preflight must not reach style-outfit-generate');
+  assert.match(result.message, /[Ss]ign in/);
 });
 
 test('StyleChat bridge: occasion matcher is conservative', () => {
