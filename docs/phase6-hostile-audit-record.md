@@ -86,6 +86,60 @@ contract. This matters because the `production` EAS profile sets
 The backend must not be recorded as fully certified until an authorized QA
 session closes both.
 
+## Authenticated backend matrix (live v3, QA session)
+
+Token read from the device into one process; never printed, written, or committed.
+
+| Check | HTTP | Result |
+|---|---|---|
+| Legacy authenticated | **200** | legacy handler; `contractVersion: 1`, `status: no_result`; legacy-only fields; **zero** private-only fields |
+| Private Dressing Room | **200** | private handler; `schemaVersion: private-dressing-room-elise-v1`, `status: success`, `normalizedOccasion` + `dressCode`; **zero** legacy-only fields |
+| Unknown schema | **400** | `UNSUPPORTED_SCHEMA_VERSION`; no legacy fallback, no private execution |
+| Controlled failure | **400** | `INVALID_REQUEST`; unlisted candidate field rejected, no provider reached, no quota burned |
+
+`no_result` on the legacy check is a correct 200: the server pool is built from
+`saved_scans`, and the private Closet is device-local and deliberately invisible there.
+
+**Live log privacy: PASS.** The four calls produced exactly four entries carrying only
+method, status, path, duration, version and function id — no user UUID, email, prompt
+text, Closet or Saved Look ids, image data, tokens, auth headers, or provider payloads.
+
+## Android runtime evidence
+
+All captured after Metro confirmed `Android Bundled … (1731 modules)` from the audit
+worktree, with a live session (`sessionPresent: true`, `guardAction: allow`).
+
+| Case | Result |
+|---|---|
+| Save Look | PASS — manifest written, no `.tmp`/`.bak` on first write |
+| Persisted record privacy | PASS — no `file://`, `imageUri`, `thumbnailUri`, notes, title, tokens, or transient orchestration state |
+| Repeat save + rapid double tap | PASS — 1 record, 1 id, byte size and mtime unchanged (`wrote: false`) |
+| Saved Looks list / detail | PASS — live Closet media resolves |
+| Exact ownership | PASS — `Owned - exact` on all slots with the exact-match explanation |
+| Commerce suppression | PASS — suppressed slots offer only explicit **SHOP ANYWAY** |
+| Interrupted persistence | PASS — staged temp promoted after a crash-mid-swap state; bounded "Saved Looks recovered" notice; no residue |
+| Offline reopen | PASS — local records load with DNS down; nothing cleared; no crash |
+| Background / foreground | PASS — store byte-identical, no stale write |
+| Large text (font_scale 1.5) | PASS — every essential action reachable; clipping logged as polish |
+| Rename keyboard | PASS — field and RENAME both unobscured with the keyboard open, even at 1.5x |
+| Rename persistence | PASS — name stored, `updatedAt` advanced, `.bak` correctly rotated to the previous primary |
+
+### Not yet exercised on device
+
+* ownership states other than exact: probable, similar, unknown, not-owned,
+  deleted-reference, incompatible-edit (controlled Closet fixtures required);
+* missing-piece handoff and same-slot return;
+* sign-out and second-actor isolation — **blocked: only one authorized QA actor exists**;
+* a fresh Elise request and the safe session-expired path, on device.
+
+### Polish, non-blocking (for the separate app-wide polish workstream)
+
+At `font_scale 1.5` the detail header truncates ("Saved L…", "Ba"), the eyebrow and
+saved-date overlap, slot titles clip descenders, and the confidence explanation is cut
+mid-sentence. No control is obscured and the ownership state stays legible. Separately,
+the recovery notice reads "The backup copy was restored safely" when the recovery source
+was the staged temp — accurate in meaning, imprecise in wording.
+
 ## Audit-environment integrity findings
 
 **Not application defects.** Both caused the audit to observe code other than the
