@@ -105,18 +105,50 @@ test('the flag gate returns before any child is constructed', () => {
   const gateIndex = section.indexOf('if (!enabled) return null;');
   const boundaryIndex = section.indexOf('<TodayWithEliseBoundary>');
   assert.ok(gateIndex > 0, 'expected an early return for the disabled path');
-  assert.ok(boundaryIndex > gateIndex, 'the card must be constructed only after the gate');
+  assert.ok(boundaryIndex > gateIndex, 'the surface must be constructed only after the gate');
 });
 
-test('flag OFF performs no orchestration: the gate calls no Today hook', () => {
-  // Anything that could read Closet / Saved Look / session state or emit an
-  // event would have to appear in this file to run before the gate.
-  assert.doesNotMatch(section, /useTodayWithElise|loadCloset|loadActiveSession|emitTodayWithElise/);
+test('flag OFF performs no orchestration: the gate body calls no Today hook', () => {
+  // React runs a component's hooks unconditionally, so the ONLY structural way
+  // to guarantee "flag OFF does nothing" is for the orchestrating hook to live
+  // in a component the gate never constructs. Prove exactly that: the gate
+  // function's own body contains no hook call, and the hook appears only inside
+  // the surface component below it.
+  const gateBody = section.slice(section.indexOf('export function TodayWithEliseSection'));
+  assert.doesNotMatch(
+    gateBody,
+    /useTodayWithElise\(|loadCloset|loadActiveSession|emitTodayWithElise|reportTodayCardCommitted\(/,
+  );
+
+  const surfaceStart = section.indexOf('function TodayWithEliseSurface()');
+  const hookCall = section.indexOf('useTodayWithElise()');
+  assert.ok(surfaceStart > 0 && hookCall > surfaceStart);
+  assert.ok(
+    hookCall < section.indexOf('export function TodayWithEliseSection'),
+    'the hook must be confined to the surface component',
+  );
 });
 
 test('the section is a component, so Home never evaluates Today hooks inline', () => {
   assert.match(section, /export function TodayWithEliseSection/);
   assert.doesNotMatch(home, /useTodayWithElise/);
+});
+
+test('orchestration is read-only: the hook performs no store write', () => {
+  const hook = read('hooks', 'useTodayWithElise.ts');
+  assert.doesNotMatch(
+    hook,
+    /startActiveSession|updateActiveSession|discardActiveSession|replaceCompositionSet|setActiveLook|savePrivateSavedLook|createClosetItem|applySlotOverride/,
+  );
+});
+
+test('each Today source is read exactly once per generation', () => {
+  const hook = read('hooks', 'useTodayWithElise.ts');
+  const body = hook.slice(hook.indexOf('export async function readTodaySources'));
+  for (const call of ['loadClosetTyped(', 'loadActiveSession(', 'loadCompositionSet(', 'loadPrivateSavedLooks(', 'listClosetCandidates(']) {
+    const occurrences = body.split(call).length - 1;
+    assert.equal(occurrences, 1, `${call} is invoked ${occurrences} times per generation`);
+  }
 });
 
 // ── Home is additive ─────────────────────────────────────────────────────────
