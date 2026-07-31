@@ -1,0 +1,614 @@
+{
+  "inventoryVersion": "0.2.0",
+  "supersedes": "0.1.0",
+  "generatedAt": "2026-07-29T00:00:00.000Z",
+  "sourceSha": "cf39d9aceada70244635548dd7a0a2fbfb6efe96",
+  "method": "Exhaustive filesystem sweep of the research worktree for jpg/jpeg/png/heic/webp, excluding node_modules, .git, android/ and ios/ build trees. Every candidate was opened and visually reviewed. No image was admitted on the basis of its filename or its registration as a fixture.",
+  "headline": {
+    "phase0bTargetCases": 75,
+    "accessibleRealApparelImages": 8,
+    "admissibleWithoutNewWork": 4,
+    "admissibleAfterMaskedDerivative": 7,
+    "shortfallAgainstTarget": 67,
+    "verdict": "BLOCKED — the 75-case first-baseline dataset cannot be assembled from accessible approved imagery. No case was fabricated to close the gap.",
+    "excludedPendingProvenance": 1
+  },
+  "criticalFindings": [
+    {
+      "id": "INV-1",
+      "severity": "P1",
+      "title": "Phase 0A classed all 8 fixtures 'approved' from their existence as QA fixtures, not from an authorization record.",
+      "detail": "fixtures-inventory v0.1.0 recorded authorizationStatus 'approved_qa_fixture' for all 8 with the justification 'DEV-only QA fixture registered in constants/qaFixtures.js'. Registration as a QA fixture is not a license, a model release, or a use authorization. No licence file, provenance record, purchase record or model release exists in the repository for any of the 8 images.",
+      "consequence": "Every one of the 8 currently carries an unverified authorization claim. Section 5 explicitly warns against assuming a file is approved merely because it exists.",
+      "ownerDecisionRequired": true
+    },
+    {
+      "id": "INV-2",
+      "severity": "P1",
+      "title": "assets/qa_fixtures/bottom_skirt.jpg is excluded from the evaluation dataset pending provenance.",
+      "observableFacts": [
+        "One identifiable person is the subject, face unobscured and in focus.",
+        "The setting is an interior residential stairwell with identifying detail, including a wall marking that reads as a unit number.",
+        "Framing, lighting and composition are those of a casual personal photograph rather than a studio or catalogue shoot; the other apparel fixtures in the directory are visibly commercial imagery.",
+        "The file carries a Photoshop APP13 metadata block, no EXIF GPS, and no camera Make/Model."
+      ],
+      "unknowns": [
+        "source or copyright holder",
+        "licence or terms of use",
+        "model release or any record of the subject's permission",
+        "capture date, photographer, or how the file was obtained",
+        "the subject's age, and any basis on which to estimate it"
+      ],
+      "evidentiaryNote": "Age, legal status and absence of permission are NOT asserted. None has been independently verified. The basis for exclusion is undocumented provenance combined with an identifiable person in a private setting — not a conclusion about the subject.",
+      "consequence": "Excluded from the governed dataset (privacyDisposition blocked_private) pending provenance. Masking would address identifiability but not the provenance gap, which is why it is excluded rather than remediated.",
+      "escalation": "Full report at docs/scanner-accuracy/phase0c-fixture-escalation.md. Empirically confirmed to have shipped in a production Expo export dated 2026-07-13 (all 8 fixture md5s present). The __DEV__ gate was added 2026-07-28 and has NOT reached origin/master or release/ios-v18-build-prep.",
+      "ownerDecisionRequired": true
+    },
+    {
+      "id": "INV-3",
+      "severity": "P2",
+      "title": "3 of 8 fixtures contain human faces and had no face review before Phase 0B.",
+      "detail": "top.jpg (fully identifiable frontal face), dress.jpg (identifiable model face), outerwear.jpg (partial face: jaw, mouth, chin). All three were recorded in v0.1.0 as privacyDisposition 'governed_fixture_reference' with no faceReviewState field at all.",
+      "consequence": "Each requires an approved masked derivative before admission. They are not admissible as-is.",
+      "ownerDecisionRequired": false
+    },
+    {
+      "id": "INV-4",
+      "severity": "P2",
+      "title": "2 of 8 fixtures retain EXIF, XMP and Photoshop metadata.",
+      "detail": "bottom_jeans.jpg carries an EXIF APP1 (IFD0 tags 0x112 orientation, 0x11a/0x11b/0x128 resolution, 0x131 Software, 0x132 DateTime, 0x8769 ExifIFD pointer), an XMP APP1, and a 5632-byte Photoshop APP13 block. dress.jpg carries EXIF (0x131 Software, 0x8769 ExifIFD) and a Photoshop APP13 block. Verified by direct JPEG segment parsing.",
+      "gpsFinding": "NO GPS IFD is present in either file. An initial byte-pattern scan appeared to show a GPS tag in dress.jpg; parsing the actual IFD structure disproved it. No camera Make/Model tag (0x010F/0x0110) is present in either IFD0.",
+      "consequence": "EXIF stripping is required before admission but the privacy exposure is low: no location and no camera identity.",
+      "ownerDecisionRequired": false
+    },
+    {
+      "id": "INV-5",
+      "severity": "P2",
+      "title": "accessory.jpg is a multi-item scene mislabelled as a single accessory case.",
+      "detail": "The image contains a striped shoulder bag, a pair of aviator sunglasses, and a hardcover book, on a dock. v0.1.0 labels it category 'accessories', clothingType 'unknown'. Production would be expected to return status multiple_items_need_selection for this frame.",
+      "consequence": "It is a legitimate multi-item DETECTION case and a poor single-item identification case. Scoring it as a single accessory would penalise correct behaviour.",
+      "ownerDecisionRequired": false
+    },
+    {
+      "id": "INV-6",
+      "severity": "P3",
+      "title": "top.jpg carries a non-verifiable brand-like mark.",
+      "detail": "The hoodie bears a printed 'COQ' wordmark with a device above it. This is characteristic of a commercial garment mock-up template rather than a real retail brand. It cannot be verified against any product record.",
+      "consequence": "Brand ground truth must remain not_visible/unknown. The image is however a genuine candidate for the 'misleading brand-like design' stratum, where the correct model behaviour is to decline rather than name a brand.",
+      "ownerDecisionRequired": false
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": "kscan_qa_fixtures",
+      "storageLocationClass": "repository_committed_asset",
+      "governedRef": "assets/qa_fixtures/",
+      "accessible": true,
+      "imageCount": 8,
+      "categoryCounts": {
+        "footwear": 1,
+        "outerwear": 1,
+        "top": 1,
+        "pants": 1,
+        "skirt": 1,
+        "dress": 1,
+        "accessory_multi_item": 1,
+        "non_fashion": 1
+      },
+      "authorizationStatus": "unverified_claim",
+      "authorizationReference": "constants/qaFixtures.js registration only — NOT a licence or model release. See INV-1.",
+      "existingLabels": "category only, from fixture id intent. All finer fields recorded as 'unknown' in dataset v0.1.0.",
+      "labelingRequired": true,
+      "facePresence": "3 of 8 (top, dress, outerwear); 1 further case (bottom_skirt) excluded pending provenance, see INV-2",
+      "platePresence": "0 of 8",
+      "privateBackgroundRisk": "1 of 8 (bottom_skirt: identifiable private residential interior)",
+      "exifStatus": "2 of 8 retain EXIF/XMP/Photoshop metadata; 0 of 8 carry GPS; 0 of 8 carry camera Make/Model",
+      "retentionPolicy": "docs/scanner-accuracy/phase0b-privacy-retention.md",
+      "permittedUse": "PENDING — internal evaluation by governed reference and hash only, contingent on the owner resolving INV-1."
+    },
+    {
+      "sourceId": "image_upload_regression_fixtures",
+      "storageLocationClass": "repository_committed_test_fixture",
+      "governedRef": "__tests__/fixtures/image-upload/",
+      "accessible": true,
+      "imageCount": 9,
+      "categoryCounts": {},
+      "authorizationStatus": "not_applicable",
+      "authorizationReference": "__tests__/fixtures/image-upload/README.md",
+      "existingLabels": "none",
+      "labelingRequired": false,
+      "facePresence": "none",
+      "platePresence": "none",
+      "privateBackgroundRisk": "none",
+      "exifStatus": "not_applicable",
+      "retentionPolicy": "not_applicable",
+      "permittedUse": "UNUSABLE for accuracy evaluation.",
+      "exclusionReason": "These are synthetic placeholder blobs, not photographs. Six are byte-identical 450-byte JPEG stubs; screenshot.png is 70 bytes; both .heic files are ASCII text beginning 'heic-fixture-pla'. The README states they are 'Synthetic non-personal fixtures for deterministic unit/integration harnesses'. multi-item-outfit.jpg contains no outfit. They carry zero visual ground truth."
+    },
+    {
+      "sourceId": "catalog_category_tiles",
+      "storageLocationClass": "repository_committed_asset",
+      "governedRef": "assets/catalog-images/",
+      "accessible": true,
+      "imageCount": 6,
+      "categoryCounts": {
+        "tops": 1,
+        "bottoms": 1,
+        "dresses": 1,
+        "footwear": 1,
+        "outerwear": 1,
+        "accessories": 1
+      },
+      "authorizationStatus": "internally_generated",
+      "authorizationReference": "internal UI asset",
+      "existingLabels": "category by filename",
+      "labelingRequired": false,
+      "facePresence": "none",
+      "platePresence": "none",
+      "privateBackgroundRisk": "none",
+      "exifStatus": "none",
+      "retentionPolicy": "not_applicable",
+      "permittedUse": "UNUSABLE for accuracy evaluation.",
+      "exclusionReason": "Line-art UI tiles on a dark background, each captioned 'K-SCAN DEMO CATALOG'. They are schematic garment outlines, not photographs. They carry no material, no brand, no exact product and no real-world colour. Scoring against them would measure the model's response to an icon, not to a garment."
+    },
+    {
+      "sourceId": "stylist_avatar_portraits",
+      "storageLocationClass": "repository_committed_asset",
+      "governedRef": "assets/stylist-avatars/portraits/",
+      "accessible": true,
+      "imageCount": 19,
+      "categoryCounts": {},
+      "authorizationStatus": "internally_generated",
+      "authorizationReference": "avatar art programme",
+      "existingLabels": "none",
+      "labelingRequired": false,
+      "facePresence": "all 19 — face-dominant by design",
+      "platePresence": "none",
+      "privateBackgroundRisk": "none",
+      "exifStatus": "not_reviewed",
+      "retentionPolicy": "not_applicable",
+      "permittedUse": "UNUSABLE for accuracy evaluation.",
+      "exclusionReason": "Tight head-and-shoulders avatar portraits. No scannable garment is present — at most a sliver of collar. Excluded on relevance (no garment subject) and on privacy posture (face-dominant imagery has no place in an evaluation corpus transmitted to a model provider)."
+    },
+    {
+      "sourceId": "app_chrome_assets",
+      "storageLocationClass": "repository_committed_asset",
+      "governedRef": "assets/*.png, assets/images/",
+      "accessible": true,
+      "imageCount": 6,
+      "categoryCounts": {},
+      "authorizationStatus": "internally_generated",
+      "authorizationReference": "app icon and hero art",
+      "existingLabels": "none",
+      "labelingRequired": false,
+      "facePresence": "not_reviewed",
+      "platePresence": "none",
+      "privateBackgroundRisk": "none",
+      "exifStatus": "not_reviewed",
+      "retentionPolicy": "not_applicable",
+      "permittedUse": "UNUSABLE for accuracy evaluation.",
+      "exclusionReason": "App icons, splash art and marketing hero images. Not garment photographs."
+    },
+    {
+      "sourceId": "scan_accuracy_cases_text_proxies",
+      "storageLocationClass": "repository_committed_test_fixture",
+      "governedRef": "__tests__/fixtures/scanAccuracyCases.js",
+      "accessible": true,
+      "imageCount": 0,
+      "categoryCounts": {},
+      "authorizationStatus": "synthetic_no_image",
+      "authorizationReference": "internal",
+      "existingLabels": "text descriptors",
+      "labelingRequired": false,
+      "facePresence": "not_applicable",
+      "platePresence": "not_applicable",
+      "privateBackgroundRisk": "none",
+      "exifStatus": "not_applicable",
+      "retentionPolicy": "not_applicable",
+      "permittedUse": "Text-proxy regression only. NOT visual ground truth and never admissible to a visual accuracy baseline."
+    },
+    {
+      "sourceId": "backend_quality_tune_fixtures",
+      "storageLocationClass": "repository_committed_test_fixture",
+      "governedRef": "qa/backend-quality-tune-fixtures/",
+      "accessible": true,
+      "imageCount": 0,
+      "categoryCounts": {},
+      "authorizationStatus": "synthetic_no_image",
+      "authorizationReference": "internal",
+      "existingLabels": "synthetic fashion text",
+      "labelingRequired": false,
+      "facePresence": "not_applicable",
+      "platePresence": "not_applicable",
+      "privateBackgroundRisk": "none",
+      "exifStatus": "not_applicable",
+      "retentionPolicy": "not_applicable",
+      "permittedUse": "Deterministic quality-tune regression only. Not a statistical accuracy study."
+    },
+    {
+      "sourceId": "production_user_scan_images",
+      "storageLocationClass": "production_supabase_storage",
+      "governedRef": "NOT ACCESSED",
+      "accessible": false,
+      "imageCount": null,
+      "categoryCounts": {},
+      "authorizationStatus": "blocked",
+      "authorizationReference": "fixtures-inventory v0.1.0 blockedPendingAuthorization: 'Not approved for Build 4 evaluation export or commit.'",
+      "existingLabels": "unknown",
+      "labelingRequired": true,
+      "facePresence": "unknown — assume present",
+      "platePresence": "unknown — assume possible",
+      "privateBackgroundRisk": "high",
+      "exifStatus": "unknown",
+      "retentionPolicy": "production retention, not evaluation retention",
+      "permittedUse": "NONE. Not accessed during Phase 0B. Exporting real user scan imagery into an evaluation corpus requires an explicit owner authorization and a lawful basis that does not exist today.",
+      "note": "Deliberately not queried. This phase is offline and non-production; enumerating user imagery would itself be a production data access."
+    },
+    {
+      "sourceId": "closet_correction_events",
+      "storageLocationClass": "production_database",
+      "governedRef": "NOT ACCESSED",
+      "accessible": false,
+      "imageCount": null,
+      "categoryCounts": {},
+      "authorizationStatus": "schema_only",
+      "authorizationReference": "fixtures-inventory v0.1.0: 'Correction-event schema may be designed; live import not authorized.'",
+      "existingLabels": "user corrections",
+      "labelingRequired": true,
+      "facePresence": "unknown",
+      "platePresence": "unknown",
+      "privateBackgroundRisk": "high",
+      "exifStatus": "unknown",
+      "retentionPolicy": "production retention",
+      "permittedUse": "NONE this phase."
+    }
+  ],
+  "perFixtureDisposition": [
+    {
+      "fixtureId": "qa_footwear",
+      "governedRef": "assets/qa_fixtures/footwear.jpg",
+      "sha256": "sha256:8c4f330f9a966ca41ee4b1558849528bf094acfc5bfb195723c8033b8c61b3b5",
+      "dimensions": "960x641",
+      "imageTokens": 516,
+      "visualContent": "A person's lower legs walking on wet sand at sunset, wearing one visible red low-top lace-up sneaker; the other foot is bare.",
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "none — open beach",
+      "exifPresent": false,
+      "admissible": true,
+      "derivativeRequired": false,
+      "strata": [
+        "person_wearing_product",
+        "footwear",
+        "brand_not_visible",
+        "exact_product_not_knowable",
+        "difficult_lighting_backlit",
+        "partial_occlusion_water"
+      ],
+      "labelableFields": "category=footwear, clothingType=sneaker, subtype=low_top_sneaker, primaryColor=red, brand=not_visible, exactProduct=unknown",
+      "blockedBy": [
+        "INV-1 authorization"
+      ]
+    },
+    {
+      "fixtureId": "qa_non_fashion",
+      "governedRef": "assets/qa_fixtures/non_fashion.jpg",
+      "sha256": "sha256:5820e6a08b6c58e43f85072fb29d30e6489d4159cb52d4c9c50729a7475b4938",
+      "dimensions": "525x394",
+      "imageTokens": 258,
+      "visualContent": "A white ceramic mug bearing a printed 'White Sands Missile Range' emblem, on a wooden table.",
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "low — indoor table surface, no identifying detail",
+      "exifPresent": false,
+      "admissible": true,
+      "derivativeRequired": false,
+      "strata": [
+        "non_fashion",
+        "expected_abstention"
+      ],
+      "labelableFields": "all fashion fields = not_applicable; expectedResultType=insufficient_evidence; expectedAbstention=true",
+      "blockedBy": [
+        "INV-1 authorization"
+      ]
+    },
+    {
+      "fixtureId": "qa_bottom_jeans",
+      "governedRef": "assets/qa_fixtures/bottom_jeans.jpg",
+      "sha256": "sha256:04c0ca5bed1bee26e83be98b9a992619b0777811a7fb8a99fe955939334bbd8c",
+      "dimensions": "564x628",
+      "imageTokens": 258,
+      "visualContent": "A commercial product photo of a model from the neck down, wearing mid-blue straight-leg faded denim jeans, a white t-shirt, and white low-top canvas sneakers, on a grey studio backdrop.",
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "none — studio backdrop",
+      "exifPresent": true,
+      "exifDetail": "EXIF IFD0 (Software, DateTime), XMP, 5632-byte Photoshop APP13. No GPS. No camera Make/Model.",
+      "admissible": true,
+      "derivativeRequired": true,
+      "derivativeReason": "EXIF/XMP/Photoshop strip required before admission",
+      "strata": [
+        "person_wearing_product",
+        "bottoms",
+        "brand_not_visible",
+        "exact_product_not_knowable",
+        "multi_garment_frame"
+      ],
+      "labelableFields": "category=pants, clothingType=jeans, subtype=straight_jeans, primaryColor=blue, material=denim, brand=not_visible",
+      "blockedBy": [
+        "INV-1 authorization"
+      ]
+    },
+    {
+      "fixtureId": "qa_accessory",
+      "governedRef": "assets/qa_fixtures/accessory.jpg",
+      "sha256": "sha256:2ec5f6763298d21b070e195b52cd8ec2a6343389f2bdfa1a291df5738e736fce",
+      "dimensions": "960x640",
+      "imageTokens": 516,
+      "visualContent": "A blue-and-white striped canvas shoulder bag with black leather straps, a pair of gold-framed brown-lens aviator sunglasses, and a hardcover book, arranged on a wooden dock beside water.",
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "none",
+      "exifPresent": false,
+      "admissible": true,
+      "derivativeRequired": false,
+      "strata": [
+        "multi_item_detection",
+        "bags",
+        "eyewear",
+        "brand_not_visible",
+        "exact_product_not_knowable"
+      ],
+      "labelableFields": "MULTI-ITEM. Correct expected behaviour is multiple_items_need_selection, not a single accessory identification. Requires selected-item labels per candidate.",
+      "relabelRequired": true,
+      "blockedBy": [
+        "INV-1 authorization",
+        "INV-5 relabel as multi-item"
+      ]
+    },
+    {
+      "fixtureId": "qa_top",
+      "governedRef": "assets/qa_fixtures/top.jpg",
+      "sha256": "sha256:592ede7f86ecdc99d93e6e7785123e61f4e385b79e19a727636986caf51d3677",
+      "dimensions": "960x960",
+      "imageTokens": 1032,
+      "visualContent": "A commercial garment mock-up: a man facing the camera wearing a plain white pullover hoodie with a printed 'COQ' wordmark, over dark jeans, on a white background.",
+      "faceReviewState": "face_present_masked_required",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "none — studio white",
+      "exifPresent": false,
+      "admissible": false,
+      "derivativeRequired": true,
+      "derivativeReason": "Fully identifiable frontal face. A masked or cropped derivative must be produced and approved before admission.",
+      "strata": [
+        "person_wearing_product",
+        "tops",
+        "misleading_brand_like_design",
+        "exact_product_not_knowable"
+      ],
+      "labelableFields": "category=top, clothingType=hoodie, subtype=pullover_hoodie, primaryColor=white, brand=not_visible (see INV-6)",
+      "blockedBy": [
+        "INV-1 authorization",
+        "INV-3 face masking"
+      ]
+    },
+    {
+      "fixtureId": "qa_dress",
+      "governedRef": "assets/qa_fixtures/dress.jpg",
+      "sha256": "sha256:d9e10c855e41543a906ad0c202a9403b9cea7d3d75a198ab11fecdf9710fdded",
+      "dimensions": "423x503",
+      "imageTokens": 258,
+      "visualContent": "A bridal catalogue photo: a model in a white strapless A-line floor-length gown with a champagne sash, against dark wood panelling.",
+      "faceReviewState": "face_present_masked_required",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "none — interior set",
+      "exifPresent": true,
+      "exifDetail": "EXIF IFD0 (Software), Photoshop APP13. No GPS. No camera Make/Model.",
+      "admissible": false,
+      "derivativeRequired": true,
+      "derivativeReason": "Identifiable model face; EXIF strip also required.",
+      "strata": [
+        "person_wearing_product",
+        "dresses",
+        "brand_not_visible",
+        "exact_product_not_knowable",
+        "low_light"
+      ],
+      "labelableFields": "category=dress, clothingType=dress, subtype=unknown, primaryColor=white, brand=not_visible",
+      "blockedBy": [
+        "INV-1 authorization",
+        "INV-3 face masking",
+        "INV-4 EXIF"
+      ]
+    },
+    {
+      "fixtureId": "qa_outerwear",
+      "governedRef": "assets/qa_fixtures/outerwear.jpg",
+      "sha256": "sha256:0cf370dcccf7de4b9a0d41ed0a87ca6545e55ba99aaaab95d01cb2e4fe7b7ea0",
+      "dimensions": "836x1012",
+      "imageTokens": 1032,
+      "visualContent": "A black-and-white fashion photo, cropped close: a distressed leather biker-style jacket with a ribbed knit inner collar and zip detail, worn by a person whose jaw, mouth and chin are visible but whose eyes are cropped out.",
+      "faceReviewState": "face_present_partial_masked_required",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "none — studio",
+      "exifPresent": false,
+      "admissible": false,
+      "derivativeRequired": true,
+      "derivativeReason": "Partial but recognisable facial features. Owner review required to decide mask vs admit.",
+      "strata": [
+        "person_wearing_product",
+        "outerwear",
+        "brand_not_visible",
+        "exact_product_not_knowable",
+        "greyscale_no_colour_truth"
+      ],
+      "labelableFields": "category=outerwear, clothingType=jacket, subtype=moto_jacket, primaryColor=NOT LABELABLE (greyscale image — colour ground truth is unrecoverable), material=leather",
+      "colourCaveat": "This image is monochrome. primaryColor must be labelled not_visible. Scoring the model's colour output against any concrete colour would be measuring a fabrication on our side, not theirs.",
+      "blockedBy": [
+        "INV-1 authorization",
+        "INV-3 face masking"
+      ]
+    },
+    {
+      "fixtureId": "qa_bottom_skirt",
+      "governedRef": "assets/qa_fixtures/bottom_skirt.jpg",
+      "sha256": "sha256:3488934132872918e05c6663c87322c994b84ecf989dbad865d32501b2d58ae7",
+      "dimensions": "960x1280",
+      "imageTokens": 1032,
+      "visualContent": "An identifiable person photographed in an interior residential stairwell. Composition is that of a casual personal photograph rather than commercial product imagery.",
+      "faceReviewState": "face_present_blocked",
+      "plateReviewState": "no_plate_present",
+      "privateBackgroundRisk": "high — identifiable private residential interior",
+      "exifPresent": false,
+      "admissible": false,
+      "derivativeRequired": false,
+      "excluded": true,
+      "exclusionReason": "Undocumented provenance combined with an identifiable person in a private setting. No source, licence, model release or capture record exists. Masking would address identifiability but not the provenance gap, so a derivative does not resolve it. Age and absence of permission are NOT asserted — neither has been verified. See INV-2.",
+      "strata": [],
+      "blockedBy": [
+        "INV-2 EXCLUDED pending provenance — owner escalation required"
+      ]
+    }
+  ],
+  "coverageGapAgainstTarget": {
+    "note": "Measured against the section 6 first-baseline targets. 'Have' counts only images that are admissible or admissible-after-masking, and excludes the rejected fixture. It does NOT assume INV-1 is resolved.",
+    "primaryCategories": {
+      "tops": {
+        "target": 10,
+        "have": 1,
+        "gap": 9
+      },
+      "bottoms": {
+        "target": 9,
+        "have": 1,
+        "gap": 8
+      },
+      "dresses": {
+        "target": 7,
+        "have": 1,
+        "gap": 6
+      },
+      "outerwear": {
+        "target": 10,
+        "have": 1,
+        "gap": 9
+      },
+      "footwear": {
+        "target": 10,
+        "have": 1,
+        "gap": 9
+      },
+      "bags": {
+        "target": 8,
+        "have": 1,
+        "gap": 7,
+        "caveat": "the one bag is inside a multi-item frame"
+      },
+      "eyewear": {
+        "target": 5,
+        "have": 1,
+        "gap": 4,
+        "caveat": "same multi-item frame as the bag"
+      },
+      "jewelry": {
+        "target": 4,
+        "have": 0,
+        "gap": 4
+      },
+      "accessories": {
+        "target": 6,
+        "have": 0,
+        "gap": 6
+      },
+      "nonFashion": {
+        "target": 6,
+        "have": 1,
+        "gap": 5
+      }
+    },
+    "crossCuttingMinimums": {
+      "insufficientEvidence": {
+        "target": 8,
+        "have": 1,
+        "gap": 7
+      },
+      "multiImageSameItemSets": {
+        "target": 10,
+        "have": 0,
+        "gap": 10,
+        "caveat": "NO same-item multi-angle set exists in any accessible source"
+      },
+      "personWearingProduct": {
+        "target": 10,
+        "have": 5,
+        "gap": 5
+      },
+      "mirrorPhotographs": {
+        "target": 5,
+        "have": 0,
+        "gap": 5
+      },
+      "lowLightBlurOcclusion": {
+        "target": 8,
+        "have": 3,
+        "gap": 5
+      },
+      "screenshotsOrProductPages": {
+        "target": 5,
+        "have": 0,
+        "gap": 5
+      },
+      "storeDisplay": {
+        "target": 3,
+        "have": 0,
+        "gap": 3
+      },
+      "exactProductKnowable": {
+        "target": 10,
+        "have": 0,
+        "gap": 10,
+        "caveat": "NO accessible image has a verifiable SKU, product page or purchase record. Exact-product ground truth cannot be established for any of them."
+      },
+      "exactProductNotKnowable": {
+        "target": 20,
+        "have": 7,
+        "gap": 13
+      },
+      "genericOrUnbranded": {
+        "target": 20,
+        "have": 7,
+        "gap": 13
+      },
+      "brandNotVisible": {
+        "target": 20,
+        "have": 7,
+        "gap": 13
+      },
+      "misleadingBrandLikeDesign": {
+        "target": 5,
+        "have": 1,
+        "gap": 4
+      },
+      "adversarialOrAmbiguous": {
+        "target": 5,
+        "have": 1,
+        "gap": 4
+      }
+    },
+    "hardestGaps": [
+      "multi-image same-item sets: 0 of 10. Section 4.10 scoring is implemented and tested, but there is nothing to run it on.",
+      "exact-product-knowable: 0 of 10. Compounded by measurement ceiling MC-1, which makes the stratum unmeasurable on the deployed path even if the imagery existed.",
+      "mirror photographs, screenshots, store displays: 0 of 13 combined. No accessible source contains any."
+    ]
+  },
+  "unauthorized": [],
+  "rejected": [
+    {
+      "fixtureId": "qa_bottom_skirt",
+      "disposition": "blocked_private",
+      "status": "excluded_pending_provenance",
+      "reason": "INV-2 — undocumented provenance with an identifiable person in a private setting. Age and permission are not asserted.",
+      "escalation": "docs/scanner-accuracy/phase0c-fixture-escalation.md"
+    }
+  ]
+}

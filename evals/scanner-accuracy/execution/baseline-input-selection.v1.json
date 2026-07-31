@@ -1,0 +1,430 @@
+{
+  "selectionContractVersion": "1.0.0",
+  "datasetVersion": "0.3.1",
+  "manifestSha256": "5b2db5b9c0edf6093dbd982c64297e61b3677b0bb54b0cdcf3e70be2eb7b13af",
+  "rule": "first_image_reference_in_frozen_manifest_order",
+  "ruleDescription": "Take the first image reference in the already-frozen manifest order. Position only; no label, output, filename, provenance or holdout answer is consulted.",
+  "outputIndependent": true,
+  "frozenBeforeSmoke": true,
+  "multiImagePath": "B",
+  "selectedInputCount": 40,
+  "multiImageCaseCount": 10,
+  "nonExecutedProvenanceImageCount": 16,
+  "certifiedConstraint": "Certified v140 accepts exactly one evidence entry per request and performs no case-level multi-image reconciliation.",
+  "limitation": "No governed primary-image designation exists in the dataset, so position 0 is deterministic but ARBITRARY. It is not a semantic judgment that this view best represents the item.",
+  "evaluationOnlyReconciliation": false,
+  "selectionSetSha256": "d35d8ec2bde42d1458b05645aea429091a95db828e9bffc003da6b804842c3a8",
+  "selections": [
+    {
+      "caseId": "case-157b102959993060",
+      "imageCount": 2,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-635218364b/primary",
+      "selectedHash": "sha256:635218364b459f208019112401d729b606520313d15889d9cb8fbdef50559095",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-323cd4e23c/primary",
+          "sha256": "sha256:323cd4e23c75e21d0844e7b0641e2eb167a628d3de55050a845a65e536162a01"
+        }
+      ]
+    },
+    {
+      "caseId": "set-501xx-jeans",
+      "imageCount": 2,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-pants-b0514ee815/primary",
+      "selectedHash": "sha256:b0514ee815012efbdea6d1bf47016d178b71b1b7669a7eeca4a82ae971f4ae82",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-pants-97037f4477/primary",
+          "sha256": "sha256:97037f4477601556bfac0a75ced4b806d1d9d52abbdb7aa987bcc93bdf09b6b6"
+        }
+      ]
+    },
+    {
+      "caseId": "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "imageCount": 3,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-c4756278a3/primary",
+      "selectedHash": "sha256:c4756278a32e2f8e81e79d70ba8f5fddf5ab776dd790aa07ffc48203bd219209",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-69ab63f298/primary",
+          "sha256": "sha256:69ab63f29819874a166f28326ba974dc89394bf9b0fd6cb21dfc16cbef943a9e"
+        },
+        {
+          "index": 2,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-cec6580f66/primary",
+          "sha256": "sha256:cec6580f664380802742fb183d2c065d824fe453b02b4a2f265dc7428ffd626a"
+        }
+      ]
+    },
+    {
+      "caseId": "set-balschoen-van-wit-satijn-met-strikken-op",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-88eb9844ef/primary",
+      "selectedHash": "sha256:88eb9844ef3c0308a032c4c774ac8ff8e1c99ad21048bce8c63598e0e104defd",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "set-bottine-van-ambassadeur-allard-merens-ng",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-e4f0ab91f2/primary",
+      "selectedHash": "sha256:e4f0ab91f216864b2df5c91edf919b2d2cb75aac5bdb611467e5870fe8f78251",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "set-damesschoen-van-ivoorwit-satijn-met-roze",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-6da54cc7bb/primary",
+      "selectedHash": "sha256:6da54cc7bbc4ed860b0c93a39954cf2d41876ce1c5d150391fb1250bebfa9739",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "set-dr-kt-nordiska-museet-nm-0021070e",
+      "imageCount": 2,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-b95206ccaa/primary",
+      "selectedHash": "sha256:b95206ccaa2b5409afe795e7f24061d52650e81b7c494de1508dca053c3aaa7d",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-69e798d3fd/primary",
+          "sha256": "sha256:69e798d3fd759bf8f5f8a60a6899b0d2327ed2e75acdbcdb5f2c6d9594036b28"
+        }
+      ]
+    },
+    {
+      "caseId": "set-dr-kt-nordiska-museet-nm-0053061d",
+      "imageCount": 2,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-b617b165f6/primary",
+      "selectedHash": "sha256:b617b165f60659ea3c18187f3dc85bd0231cb9d9f0b25a526473a72d02594a5a",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-19b59a2169/primary",
+          "sha256": "sha256:19b59a21690f5f74916c31207eb96052d1d82e25ce3abde24b12626c126518b9"
+        }
+      ]
+    },
+    {
+      "caseId": "set-dr-kt-nordiska-museet-nm-0057203c",
+      "imageCount": 3,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-642edd36d5/primary",
+      "selectedHash": "sha256:642edd36d5ff2973f058f9acd5c9b54686249f940747a63e0e898b8d27754071",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-84a6e8da8d/primary",
+          "sha256": "sha256:84a6e8da8da9a3c44a050f0bf66ff1fcd2f9320b8b898e588233c658dc2152a8"
+        },
+        {
+          "index": 2,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-131cb86388/primary",
+          "sha256": "sha256:131cb863885bf14a6eb80534888c0e2d0bb451229979741cfd3fd3fafc6ce1a1"
+        }
+      ]
+    },
+    {
+      "caseId": "set-fishskin-jacket",
+      "imageCount": 3,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-outerwear-eb7918784a/primary",
+      "selectedHash": "sha256:eb7918784a255b8053e5d3681490c275e7afe00fb8ceff276613f8851a6d0232",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-outerwear-0b5fd2b653/primary",
+          "sha256": "sha256:0b5fd2b653b46b6ff2a3845316a9a49123d4d3f47e36bba593f971975fb39900"
+        },
+        {
+          "index": 2,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-outerwear-635315c42c/primary",
+          "sha256": "sha256:635315c42c28d433fbaffab602443bc6c2626a422e020d2642e664ced316bc0b"
+        }
+      ]
+    },
+    {
+      "caseId": "set-nike-sb-dunk-low-pro",
+      "imageCount": 3,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-393f9de296/primary",
+      "selectedHash": "sha256:393f9de2968551d10aee08c0181bab34f0a9ebe1b6a9fe50bc37321720e85cd7",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-7a9de3b7c7/primary",
+          "sha256": "sha256:7a9de3b7c79f9a1a225f4a124e921e96dd485aba635a612182a916b89dba42f9"
+        },
+        {
+          "index": 2,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-dffdbb9aa5/primary",
+          "sha256": "sha256:dffdbb9aa554ddbab0c3f72d97fa57c3fe448ece5fe831a73fa63c44f690757a"
+        }
+      ]
+    },
+    {
+      "caseId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "imageCount": 3,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-dress-a2d7e27d23/primary",
+      "selectedHash": "sha256:a2d7e27d23fe3fe8083f9dfa3303a41bafc1d81e2d3673638ad8f761aa42bafa",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-94142ee9b3/primary",
+          "sha256": "sha256:94142ee9b330c8734ea07e3a5872641da0327ec00e9a97ac1de87955a3abc02d"
+        },
+        {
+          "index": 2,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-13d239c14e/primary",
+          "sha256": "sha256:13d239c14e9a51ded3636a35a5daee4619bf1a447f7c4082e7090128008e71b5"
+        }
+      ]
+    },
+    {
+      "caseId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "imageCount": 3,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-dress-ae74cca75e/primary",
+      "selectedHash": "sha256:ae74cca75e8c79aaeae334ca1e526cd5238ce8c792b4a84813129b13745b8a6f",
+      "nonExecutedRefs": [
+        {
+          "index": 1,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-48dcec9f2c/primary",
+          "sha256": "sha256:48dcec9f2c6686518ec8bfb49a8a4fc43215908c07a97a91c56f7b08308e4ea4"
+        },
+        {
+          "index": 2,
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-17d993ebdb/primary",
+          "sha256": "sha256:17d993ebdbe6b19e6f7a3839e5dfa1f5270c48e3c522144eadf3a238256723ec"
+        }
+      ]
+    },
+    {
+      "caseId": "tiera-accessory-396b72f77b",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-396b72f77b/primary",
+      "selectedHash": "sha256:396b72f77bd22c75aa6ac12cb6fa1ec631d7f5b1beb1a3527f8096af1b9cf9c1",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-accessory-521e3b1022",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-521e3b1022/primary",
+      "selectedHash": "sha256:521e3b102235d78ea66b16a7926c0f9fbf15934306e88e44668c46bf0d31ceb5",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-accessory-7a2df42046",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-7a2df42046/primary",
+      "selectedHash": "sha256:7a2df42046f49c57086fb5b3f2f6c76898a6dea0ddf0874b2ef9124687b54302",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-accessory-a53e61e148",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-a53e61e148/primary",
+      "selectedHash": "sha256:a53e61e148f6e8d7ee313466ae7c49a70de791ea1e784f387407ab7fa34ef8d3",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-accessory-e2f0db2378",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-e2f0db2378/primary",
+      "selectedHash": "sha256:e2f0db2378a3f11db5bbc9c247ff2edf2f7c2d01cd831314ebe44ebf8fa08b44",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-bag-1610b00ea6",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-bag-1610b00ea6/primary",
+      "selectedHash": "sha256:1610b00ea6cfc4e6560a3984f8c69557a30ba23caf3f94d120f180d80d399dd7",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-bag-1d00530785",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-bag-1d00530785/primary",
+      "selectedHash": "sha256:1d00530785fbb2b3c90c4558f1b016df2ae835b76870fe188e3e4ae56bed1049",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-bag-cdf287c82d",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-bag-cdf287c82d/primary",
+      "selectedHash": "sha256:cdf287c82d57caa4fc904051af1cb50dfc64dc3c88d01d2d2df5b5636465132c",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-dress-d3a98e8fd9",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-dress-d3a98e8fd9/primary",
+      "selectedHash": "sha256:d3a98e8fd95692af4aa62aa07f7f5d200215b3f3fb56f562b47b69725ca148f8",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-181bcf34e6",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-181bcf34e6/primary",
+      "selectedHash": "sha256:181bcf34e610a379273aaf35b6357600c182b25934c1ad78afd98e230888bee7",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-3a7c0a4f46",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-3a7c0a4f46/primary",
+      "selectedHash": "sha256:3a7c0a4f46dedb5d365a07a002ca672ad6d0e194a42a43539d5145f90b1d34fe",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-490ae0ba2a",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-490ae0ba2a/primary",
+      "selectedHash": "sha256:490ae0ba2adeadd38953a8df59ee656038212f97d1b9875d08de1baf72e6f24e",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-537f81fab6",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-537f81fab6/primary",
+      "selectedHash": "sha256:537f81fab6b17c1c0ec6eed3d631542cddd6672143453c59cf6cd39471484b61",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-6584e83686",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-6584e83686/primary",
+      "selectedHash": "sha256:6584e836867071f8cac8c730487250926665a3349e42ba731eec5f155b36e3a1",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-f0ba5ffd53",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-f0ba5ffd53/primary",
+      "selectedHash": "sha256:f0ba5ffd530e2a1767257b4e07cff146df4c6a2a8d8d99be7f1a16d444c95d44",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-f1c90b7808",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-f1c90b7808/primary",
+      "selectedHash": "sha256:f1c90b78084c6bacedba04cd996bfe1387846f45146705c00274616708049b5f",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-footwear-f249813dd0",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-f249813dd0/primary",
+      "selectedHash": "sha256:f249813dd0feb64a16350ccdecec0df027ff183b34ebd0eb9e479a5a4b5a9b59",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-non_fashion-87857eed80",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-87857eed80/primary",
+      "selectedHash": "sha256:87857eed80c4c73de46d8bf73d72069663cf83a4bfa450c53ae8df0a658ce65a",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-pants-24e666e3bd",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-pants-24e666e3bd/primary",
+      "selectedHash": "sha256:24e666e3bdb17f04c926e292370cae7a92db38d180b48ddbd35bc2c0c5f90ae1",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-skirt-8f16ef5c8e",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-skirt-8f16ef5c8e/primary",
+      "selectedHash": "sha256:8f16ef5c8e24ea1230c8bb6781670e499b0aa7fac8d8f4661c7e9068a8b3198f",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-top-0b40a58dff",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-0b40a58dff/primary",
+      "selectedHash": "sha256:0b40a58dff24c0daff3b205a7d24c6719e8220225687dd2d093a37437aca1e10",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-top-1144bf2cff",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-1144bf2cff/primary",
+      "selectedHash": "sha256:1144bf2cff40031a36e44b781efa322325ae8757facb7f0c07c879c57bb62156",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-top-485911abee",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-485911abee/primary",
+      "selectedHash": "sha256:485911abee7efa1fa1a2ed7c73d2decf1ca919abd715517ac79c20270f5976bf",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-top-4dbef79f7b",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-4dbef79f7b/primary",
+      "selectedHash": "sha256:4dbef79f7bea8949ebe7f691647d29544d08f1e8831d5c570815a05f13fbb4a1",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-top-6c62615187",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-6c62615187/primary",
+      "selectedHash": "sha256:6c6261518744c86db44a7b4596b1ba6d1cc41aa42a1fb3076ecbd3490123abf8",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-top-97c77cbd99",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-97c77cbd99/primary",
+      "selectedHash": "sha256:97c77cbd995476fea0463a214f6e309230aa407390551bcbb329aaf0eb4447bc",
+      "nonExecutedRefs": []
+    },
+    {
+      "caseId": "tiera-top-c9ade2205d",
+      "imageCount": 1,
+      "selectedIndex": 0,
+      "selectedRef": "storage://build4-scanner-evals/tier-a/tiera-top-c9ade2205d/primary",
+      "selectedHash": "sha256:c9ade2205d3039bb0384fba47ddccee6178d966fc43ef2fb0d4b3bd84073943e",
+      "nonExecutedRefs": []
+    }
+  ],
+  "selectionContractSha256": "2a3b84e8af60dc2b43bcfb94b630ea2629e11933bbde69437ec0698f92d3a159"
+}

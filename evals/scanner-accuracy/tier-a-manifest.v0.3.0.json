@@ -1,0 +1,3428 @@
+{
+  "datasetVersion": "0.3.0",
+  "tier": "A",
+  "benchmarkKind": "licensed_web_image_benchmark",
+  "notARealWorldSmartGlassesBenchmark": true,
+  "benchmarkLimitations": [
+    "no smart-glasses point of view",
+    "no wearer motion blur",
+    "no partial framing inside the five-second curiosity window",
+    "no repeated views of the same physical garment",
+    "no authentic retail-floor lighting or distance"
+  ],
+  "generatedAt": "2026-07-29",
+  "caseCount": 41,
+  "split": {
+    "holdout": [
+      "tiera-non_fashion-87857eed80",
+      "tiera-footwear-537f81fab6",
+      "tiera-footwear-f249813dd0",
+      "tiera-top-1144bf2cff",
+      "tiera-non_fashion-635218364b",
+      "tiera-non_fashion-323cd4e23c",
+      "set-501xx-jeans",
+      "tiera-dress-d3a98e8fd9"
+    ],
+    "development": [
+      "set-fishskin-jacket",
+      "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "set-dr-kt-nordiska-museet-nm-0021070e",
+      "set-dr-kt-nordiska-museet-nm-0053061d",
+      "set-dr-kt-nordiska-museet-nm-0057203c",
+      "set-balschoen-van-wit-satijn-met-strikken-op",
+      "set-bottine-van-ambassadeur-allard-merens-ng",
+      "set-damesschoen-van-ivoorwit-satijn-met-roze",
+      "set-nike-sb-dunk-low-pro",
+      "tiera-accessory-396b72f77b",
+      "tiera-footwear-490ae0ba2a",
+      "tiera-footwear-f0ba5ffd53",
+      "tiera-top-0b40a58dff",
+      "tiera-top-485911abee",
+      "tiera-top-4dbef79f7b",
+      "tiera-pants-24e666e3bd",
+      "tiera-skirt-8f16ef5c8e",
+      "tiera-bag-1610b00ea6",
+      "tiera-bag-1d00530785",
+      "tiera-bag-cdf287c82d",
+      "tiera-accessory-e2f0db2378",
+      "tiera-accessory-7a2df42046",
+      "tiera-accessory-a53e61e148",
+      "tiera-accessory-521e3b1022",
+      "tiera-top-c9ade2205d",
+      "tiera-top-97c77cbd99",
+      "tiera-footwear-f1c90b7808",
+      "tiera-footwear-3a7c0a4f46",
+      "tiera-footwear-181bcf34e6",
+      "tiera-footwear-6584e83686",
+      "tiera-top-6c62615187"
+    ],
+    "syntheticExcludedFromHoldout": [],
+    "coveredStrata": [
+      "brandNotVisible",
+      "brandVisible",
+      "difficultLightingOrOcclusion",
+      "exactProductNotKnowable",
+      "insufficientEvidence",
+      "majorCategory",
+      "multiImage",
+      "nonFashion"
+    ],
+    "missingStrata": [
+      "exactProductKnowable"
+    ],
+    "deterministic": true
+  },
+  "cases": [
+    {
+      "caseId": "set-501xx-jeans",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-pants-b0514ee815/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-pants-97037f4477/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:b0514ee815012efbdea6d1bf47016d178b71b1b7669a7eeca4a82ae971f4ae82",
+        "sha256:97037f4477601556bfac0a75ced4b806d1d9d52abbdb7aa987bcc93bdf09b6b6"
+      ],
+      "imageCount": 2,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-501xx-jeans",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Jeans",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:501xx-back.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2e/501xx-back.jpg",
+        "author": "Tokunori",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Tokunori — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "26c3d14733a3dfa25df5d40be63976b79a2aee4ff6c6cfd257f77a62e05a6939",
+        "sanitizedSha256": "b0514ee815012efbdea6d1bf47016d178b71b1b7669a7eeca4a82ae971f4ae82"
+      },
+      "category": "pants",
+      "clothingType": "jeans",
+      "subtype": "unknown",
+      "primaryColor": "blue",
+      "secondaryColors": "unknown",
+      "material": "denim",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "flat_lay",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "angled_view",
+        "partial_brand_indicator"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Same jeans, back. Arcuate pocket stitching and a small red tab are visible. Trade-dress indicators are NOT legible brand text, so brand stays not_visible — this is a good test of whether the model over-claims a brand from trade dress alone."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:501xx-back.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-pants-b0514ee815/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Same jeans, back. Arcuate pocket stitching and a small red tab are visible. Trade-dress indicators are NOT legible brand text, so brand stays not_visible — this is a good test of whether the model over-claims a brand from trade dress alone."
+    },
+    {
+      "caseId": "set-fishskin-jacket",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-outerwear-eb7918784a/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-outerwear-0b5fd2b653/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-outerwear-635315c42c/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:eb7918784a255b8053e5d3681490c275e7afe00fb8ceff276613f8851a6d0232",
+        "sha256:0b5fd2b653b46b6ff2a3845316a9a49123d4d3f47e36bba593f971975fb39900",
+        "sha256:635315c42c28d433fbaffab602443bc6c2626a422e020d2642e664ced316bc0b"
+      ],
+      "imageCount": 3,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-fishskin-jacket",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Leather jackets",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:1875-1900_Hezhe_(Nanai)_fishskin_jacket_01.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/70/1875-1900_Hezhe_%28Nanai%29_fishskin_jacket_01.jpg",
+        "author": "Staff photographer, Rhode Island School of Design Museum of Art",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "27746ed5613ce4bbd7c5d699ec5a0d42978a754265146c9250f6e14057a3a38c",
+        "sanitizedSha256": "eb7918784a255b8053e5d3681490c275e7afe00fb8ceff276613f8851a6d0232"
+      },
+      "category": "outerwear",
+      "clothingType": "jacket",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "flat_lay",
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact",
+        "unusual_material"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Fishskin jacket, front, with closures and decorative motifs visible. Material deliberately left unknown rather than guessed."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:1875-1900_Hezhe_(Nanai)_fishskin_jacket_01.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-outerwear-eb7918784a/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Fishskin jacket, front, with closures and decorative motifs visible. Material deliberately left unknown rather than guessed."
+    },
+    {
+      "caseId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-a2d7e27d23/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-94142ee9b3/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-13d239c14e/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:a2d7e27d23fe3fe8083f9dfa3303a41bafc1d81e2d3673638ad8f761aa42bafa",
+        "sha256:94142ee9b330c8734ea07e3a5872641da0327ec00e9a97ac1de87955a3abc02d",
+        "sha256:13d239c14e9a51ded3636a35a5daee4619bf1a447f7c4082e7090128008e71b5"
+      ],
+      "imageCount": 3,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "object-category:Vignon dinner dress (MET C.I.69.14.12)",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Dinner_dress_MET_C.I.69.14.12ab_B.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Dinner_dress_MET_C.I.69.14.12ab_B.jpg",
+        "author": "Creator:Mon. Vignon",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "ed61113bad7ac6b962445ff51247566bfe6cfd76c9646c2f25ac9bf96f938580",
+        "sanitizedSha256": "a2d7e27d23fe3fe8083f9dfa3303a41bafc1d81e2d3673638ad8f761aa42bafa"
+      },
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "vignon",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-12. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Dinner_dress_MET_C.I.69.14.12ab_B.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-dress-a2d7e27d23/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-vignon-dinner-dress-met-c-i-69-14-12. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-ae74cca75e/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-48dcec9f2c/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-17d993ebdb/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:ae74cca75e8c79aaeae334ca1e526cd5238ce8c792b4a84813129b13745b8a6f",
+        "sha256:48dcec9f2c6686518ec8bfb49a8a4fc43215908c07a97a91c56f7b08308e4ea4",
+        "sha256:17d993ebdbe6b19e6f7a3839e5dfa1f5270c48e3c522144eadf3a238256723ec"
+      ],
+      "imageCount": 3,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "object-category:Vignon dinner dress (MET C.I.69.14.3)",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Dinner_dress_MET_C.I.69.14.3a_d.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Dinner_dress_MET_C.I.69.14.3a_d.jpg",
+        "author": "Creator:Mon. Vignon",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "59750e94eafb63fc0d552b63a272392895b786baa5de182d2ebca730f9e21ecb",
+        "sanitizedSha256": "ae74cca75e8c79aaeae334ca1e526cd5238ce8c792b4a84813129b13745b8a6f"
+      },
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "vignon",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-vignon-dinner-dress-met-c-i-69-14-3. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Dinner_dress_MET_C.I.69.14.3a_d.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-dress-ae74cca75e/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-vignon-dinner-dress-met-c-i-69-14-3. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-c4756278a3/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-69ab63f298/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-cec6580f66/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:c4756278a32e2f8e81e79d70ba8f5fddf5ab776dd790aa07ffc48203bd219209",
+        "sha256:69ab63f29819874a166f28326ba974dc89394bf9b0fd6cb21dfc16cbef943a9e",
+        "sha256:cec6580f664380802742fb183d2c065d824fe453b02b4a2f265dc7428ffd626a"
+      ],
+      "imageCount": 3,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category-set:Clothing in Nordiska museet",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:A.Livkjol_med_kjol_av_r%C3%B6tt_kl%C3%A4de_i_2_v%C3%A5der_med_sid%C3%B6mmar_-_Nordiska_museet_-_NM.0057203C-12.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7a/A.Livkjol_med_kjol_av_r%C3%B6tt_kl%C3%A4de_i_2_v%C3%A5der_med_sid%C3%B6mmar_-_Nordiska_museet_-_NM.0057203C-12.jpg",
+        "author": "Elisabeth Eriksson",
+        "licenceId": "CC BY",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/4.0",
+        "licenceObservedString": "CC BY 4.0",
+        "attributionRequired": true,
+        "attributionText": "Elisabeth Eriksson — CC BY 4.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "4790edee98bfac48a832424f61c39facb4bb53897d0e94f3b83ffccbb4f6e7a7",
+        "sanitizedSha256": "c4756278a32e2f8e81e79d70ba8f5fddf5ab776dd790aa07ffc48203bd219209"
+      },
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:A.Livkjol_med_kjol_av_r%C3%B6tt_kl%C3%A4de_i_2_v%C3%A5der_med_sid%C3%B6mmar_-_Nordiska_museet_-_NM.0057203C-12.jpg (CC BY 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-c4756278a3/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-a-livkjol-med-kjol-av-r-tt-kl-de-i-2-v-d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-dr-kt-nordiska-museet-nm-0021070e",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-b95206ccaa/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-69e798d3fd/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:b95206ccaa2b5409afe795e7f24061d52650e81b7c494de1508dca053c3aaa7d",
+        "sha256:69e798d3fd759bf8f5f8a60a6899b0d2327ed2e75acdbcdb5f2c6d9594036b28"
+      ],
+      "imageCount": 2,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0021070e",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category-set:Clothing in Nordiska museet",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Dr%C3%A4kt_-_Nordiska_museet_-_NM.0021070E-1.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/71/Dr%C3%A4kt_-_Nordiska_museet_-_NM.0021070E-1.jpg",
+        "author": "Elisabeth Eriksson",
+        "licenceId": "CC BY",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/4.0",
+        "licenceObservedString": "CC BY 4.0",
+        "attributionRequired": true,
+        "attributionText": "Elisabeth Eriksson — CC BY 4.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "3b368bc7e3130ad5c4e1579ed526e36870a5116a578515d2419efa942d40787f",
+        "sanitizedSha256": "b95206ccaa2b5409afe795e7f24061d52650e81b7c494de1508dca053c3aaa7d"
+      },
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-dr-kt-nordiska-museet-nm-0021070e. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Dr%C3%A4kt_-_Nordiska_museet_-_NM.0021070E-1.jpg (CC BY 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-b95206ccaa/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-dr-kt-nordiska-museet-nm-0021070e. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-dr-kt-nordiska-museet-nm-0053061d",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-b617b165f6/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-19b59a2169/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:b617b165f60659ea3c18187f3dc85bd0231cb9d9f0b25a526473a72d02594a5a",
+        "sha256:19b59a21690f5f74916c31207eb96052d1d82e25ce3abde24b12626c126518b9"
+      ],
+      "imageCount": 2,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0053061d",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category-set:Clothing in Nordiska museet",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Dr%C3%A4kt_-_Nordiska_museet_-_NM.0053061D-1.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/54/Dr%C3%A4kt_-_Nordiska_museet_-_NM.0053061D-1.jpg",
+        "author": "Elisabeth Eriksson",
+        "licenceId": "CC BY",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/4.0",
+        "licenceObservedString": "CC BY 4.0",
+        "attributionRequired": true,
+        "attributionText": "Elisabeth Eriksson — CC BY 4.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "821515b77943658c10cfc42541d34654b4e51ac09c1f0dcbd51d07fe90a9dbc0",
+        "sanitizedSha256": "b617b165f60659ea3c18187f3dc85bd0231cb9d9f0b25a526473a72d02594a5a"
+      },
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-dr-kt-nordiska-museet-nm-0053061d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Dr%C3%A4kt_-_Nordiska_museet_-_NM.0053061D-1.jpg (CC BY 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-b617b165f6/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-dr-kt-nordiska-museet-nm-0053061d. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-dr-kt-nordiska-museet-nm-0057203c",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-642edd36d5/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-84a6e8da8d/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-131cb86388/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:642edd36d5ff2973f058f9acd5c9b54686249f940747a63e0e898b8d27754071",
+        "sha256:84a6e8da8da9a3c44a050f0bf66ff1fcd2f9320b8b898e588233c658dc2152a8",
+        "sha256:131cb863885bf14a6eb80534888c0e2d0bb451229979741cfd3fd3fafc6ce1a1"
+      ],
+      "imageCount": 3,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-dr-kt-nordiska-museet-nm-0057203c",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category-set:Clothing in Nordiska museet",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Dr%C3%A4kt_-_Nordiska_museet_-_NM.0057203C-4.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/16/Dr%C3%A4kt_-_Nordiska_museet_-_NM.0057203C-4.jpg",
+        "author": "Elisabeth Eriksson",
+        "licenceId": "CC BY",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/4.0",
+        "licenceObservedString": "CC BY 4.0",
+        "attributionRequired": true,
+        "attributionText": "Elisabeth Eriksson — CC BY 4.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "8177f4d11b03581202131c3340de4761828cc73b3b68efe615f464b94e2a2bae",
+        "sanitizedSha256": "642edd36d5ff2973f058f9acd5c9b54686249f940747a63e0e898b8d27754071"
+      },
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-dr-kt-nordiska-museet-nm-0057203c. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Dr%C3%A4kt_-_Nordiska_museet_-_NM.0057203C-4.jpg (CC BY 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-642edd36d5/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-dr-kt-nordiska-museet-nm-0057203c. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-balschoen-van-wit-satijn-met-strikken-op",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-88eb9844ef/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:88eb9844ef3c0308a032c4c774ac8ff8e1c99ad21048bce8c63598e0e104defd"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": "set-balschoen-van-wit-satijn-met-strikken-op",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category-set:Shoes in the Rijksmuseum Amsterdam",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Balschoen_van_wit_satijn_met_strikken_op_de_voorschoen,_vierkante_neus_en_driekwart_hak,_BK-NM-13083-B-1.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a9/Balschoen_van_wit_satijn_met_strikken_op_de_voorschoen%2C_vierkante_neus_en_driekwart_hak%2C_BK-NM-13083-B-1.jpg",
+        "author": "Rijksmuseum",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "681dbbaf206a0e54036236c15e9c9a7f6be961fa10b3dae15dd4b97150aac38f",
+        "sanitizedSha256": "88eb9844ef3c0308a032c4c774ac8ff8e1c99ad21048bce8c63598e0e104defd"
+      },
+      "category": "footwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-balschoen-van-wit-satijn-met-strikken-op. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Balschoen_van_wit_satijn_met_strikken_op_de_voorschoen,_vierkante_neus_en_driekwart_hak,_BK-NM-13083-B-1.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-88eb9844ef/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-balschoen-van-wit-satijn-met-strikken-op. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-bottine-van-ambassadeur-allard-merens-ng",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-e4f0ab91f2/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:e4f0ab91f216864b2df5c91edf919b2d2cb75aac5bdb611467e5870fe8f78251"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": "set-bottine-van-ambassadeur-allard-merens-ng",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category-set:Shoes in the Rijksmuseum Amsterdam",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Bottine_van_ambassadeur_Allard_Merens,_NG-1976-13-C-1.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/59/Bottine_van_ambassadeur_Allard_Merens%2C_NG-1976-13-C-1.jpg",
+        "author": "Rijksmuseum",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "db6e1f9339f6ceded15f75e503953d9db8ddc1c69952c44ee7ebe1408e15f8c6",
+        "sanitizedSha256": "e4f0ab91f216864b2df5c91edf919b2d2cb75aac5bdb611467e5870fe8f78251"
+      },
+      "category": "footwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-bottine-van-ambassadeur-allard-merens-ng. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Bottine_van_ambassadeur_Allard_Merens,_NG-1976-13-C-1.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-e4f0ab91f2/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-bottine-van-ambassadeur-allard-merens-ng. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-damesschoen-van-ivoorwit-satijn-met-roze",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-6da54cc7bb/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:6da54cc7bbc4ed860b0c93a39954cf2d41876ce1c5d150391fb1250bebfa9739"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": "set-damesschoen-van-ivoorwit-satijn-met-roze",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category-set:Shoes in the Rijksmuseum Amsterdam",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Damesschoen_van_ivoorwit_satijn_met_rozet_op_de_voorschoen_en_vierkante_neus,_BK-NM-13083-A-1.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/26/Damesschoen_van_ivoorwit_satijn_met_rozet_op_de_voorschoen_en_vierkante_neus%2C_BK-NM-13083-A-1.jpg",
+        "author": "Rijksmuseum",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "2043c17c0af787806e6e84c01e7ff2b0260c3f82c9be5285d86ebacdaff33a22",
+        "sanitizedSha256": "6da54cc7bbc4ed860b0c93a39954cf2d41876ce1c5d150391fb1250bebfa9739"
+      },
+      "category": "footwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "museum_documentation",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "historic_artifact"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Member of set-damesschoen-van-ivoorwit-satijn-met-roze. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Damesschoen_van_ivoorwit_satijn_met_rozet_op_de_voorschoen_en_vierkante_neus,_BK-NM-13083-A-1.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-6da54cc7bb/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Member of set-damesschoen-van-ivoorwit-satijn-met-roze. Fine labels left unknown on purpose: institutional documentation establishes the OBJECT and its maker, not colour or material, and guessing those would be fabrication."
+    },
+    {
+      "caseId": "set-nike-sb-dunk-low-pro",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-393f9de296/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-7a9de3b7c7/primary"
+        },
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-dffdbb9aa5/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:393f9de2968551d10aee08c0181bab34f0a9ebe1b6a9fe50bc37321720e85cd7",
+        "sha256:7a9de3b7c79f9a1a225f4a124e921e96dd485aba635a612182a916b89dba42f9",
+        "sha256:dffdbb9aa554ddbab0c3f72d97fa57c3fe448ece5fe831a73fa63c44f690757a"
+      ],
+      "imageCount": 3,
+      "sameItemAcrossImages": true,
+      "sameItemSetId": "set-nike-sb-dunk-low-pro",
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Nike shoes",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:2023_Nike_SB_Dunk_Low_Pro_(1).jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/0f/2023_Nike_SB_Dunk_Low_Pro_%281%29.jpg",
+        "author": "Jacek Halicki",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Jacek Halicki — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "09a2ec891aabf19e0442c672888856063a777a2645534c72444000ffbdaddf5b",
+        "sanitizedSha256": "393f9de2968551d10aee08c0181bab34f0a9ebe1b6a9fe50bc37321720e85cd7"
+      },
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "low_top_sneaker",
+      "primaryColor": "black",
+      "secondaryColors": "unknown",
+      "material": "suede",
+      "pattern": "unknown",
+      "brand": "nike",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "white_background",
+        "same_item_set"
+      ],
+      "difficultyTags": [
+        "black_on_white"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Nike SB Dunk Low Pro, studio product shot. Swoosh and wordmark are on the shoe itself."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:2023_Nike_SB_Dunk_Low_Pro_(1).jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-393f9de296/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Nike SB Dunk Low Pro, studio product shot. Swoosh and wordmark are on the shoe itself."
+    },
+    {
+      "caseId": "tiera-accessory-396b72f77b",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-accessory-396b72f77b/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:396b72f77bd22c75aa6ac12cb6fa1ec631d7f5b1beb1a3527f8096af1b9cf9c1"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:2008-07-27_Sunglasses.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9d/2008-07-27_Sunglasses.jpg",
+        "author": "Ildar Sagdejev (Specious)",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Ildar Sagdejev (Specious) — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "a01a061ca197d78af906f853b37e1ddae9aaea1bf48f6dad423fa76e4108d055",
+        "sanitizedSha256": "396b72f77bd22c75aa6ac12cb6fa1ec631d7f5b1beb1a3527f8096af1b9cf9c1"
+      },
+      "category": "accessory",
+      "clothingType": "eyewear",
+      "subtype": "oversized_sunglasses",
+      "primaryColor": "black",
+      "secondaryColors": "unknown",
+      "material": "acetate",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "outdoor"
+      ],
+      "difficultyTags": [
+        "shallow_depth_of_field",
+        "busy_bokeh_background"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Oversized black sunglasses resting on a concrete ledge outdoors. Clean eyewear case."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:2008-07-27_Sunglasses.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-396b72f77b/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Oversized black sunglasses resting on a concrete ledge outdoors. Clean eyewear case."
+    },
+    {
+      "caseId": "tiera-footwear-490ae0ba2a",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-490ae0ba2a/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:490ae0ba2adeadd38953a8df59ee656038212f97d1b9875d08de1baf72e6f24e"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Boots",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:500px_photo_(22803961).jpeg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d6/500px_photo_%2822803961%29.jpeg",
+        "author": "Jim Hawkins",
+        "licenceId": "CC BY",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/3.0",
+        "licenceObservedString": "CC BY 3.0",
+        "attributionRequired": true,
+        "attributionText": "Jim Hawkins — CC BY 3.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "82138b8df505a16246c79c6f9b213c650b90740078ff7ed20e7275aeb6386d3f",
+        "sanitizedSha256": "490ae0ba2adeadd38953a8df59ee656038212f97d1b9875d08de1baf72e6f24e"
+      },
+      "category": "footwear",
+      "clothingType": "boot",
+      "subtype": "knee_high_boot",
+      "primaryColor": "black",
+      "secondaryColors": "unknown",
+      "material": "leather",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "person_wearing_product",
+        "studio"
+      ],
+      "difficultyTags": [
+        "strong_colour_cast"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Black patent lace-up knee/thigh-high boots on legs, red backdrop. Clear footwear subject, no face."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:500px_photo_(22803961).jpeg (CC BY 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-490ae0ba2a/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": true,
+      "notes": "Black patent lace-up knee/thigh-high boots on legs, red backdrop. Clear footwear subject, no face."
+    },
+    {
+      "caseId": "tiera-footwear-f249813dd0",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-f249813dd0/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:f249813dd0feb64a16350ccdecec0df027ff183b34ebd0eb9e479a5a4b5a9b59"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Boots",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:500px_photo_(57801538).jpeg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/bd/500px_photo_%2857801538%29.jpeg",
+        "author": "Daniel J",
+        "licenceId": "CC BY",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/3.0",
+        "licenceObservedString": "CC BY 3.0",
+        "attributionRequired": true,
+        "attributionText": "Daniel J — CC BY 3.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "8ffa54463048b9368a3af531933579f00c8890576dfe41141db5075cd7ac14fb",
+        "sanitizedSha256": "f249813dd0feb64a16350ccdecec0df027ff183b34ebd0eb9e479a5a4b5a9b59"
+      },
+      "category": "footwear",
+      "clothingType": "boot",
+      "subtype": "ski_boot",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "retail_shelf",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Retail ski-boot display wall. Doubles as the store_display stratum and carries visible brand SIGNAGE (Salomon, Rossignol, Lange) — brand text is on the shelf label, not the garment, so brand ground truth stays not_visible. Third-party trademarks visible incidentally."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:500px_photo_(57801538).jpeg (CC BY 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-f249813dd0/primary",
+      "trademarkReviewState": "trademark_visible_incidental",
+      "visiblePerson": false,
+      "notes": "Retail ski-boot display wall. Doubles as the store_display stratum and carries visible brand SIGNAGE (Salomon, Rossignol, Lange) — brand text is on the shelf label, not the garment, so brand ground truth stays not_visible. Third-party trademarks visible incidentally."
+    },
+    {
+      "caseId": "tiera-footwear-f0ba5ffd53",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-f0ba5ffd53/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:f0ba5ffd530e2a1767257b4e07cff146df4c6a2a8d8d99be7f1a16d444c95d44"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Boots",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:773rd_CST_suits_up_to_support_U_S_Navy_(6389200).jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e7/773rd_CST_suits_up_to_support_U_S_Navy_%286389200%29.jpg",
+        "author": "U.S. Army 7MSC by Master Sgt. Joy Dulen",
+        "licenceId": "Public domain",
+        "licenceVersion": null,
+        "licenceUrl": null,
+        "licenceObservedString": "Public domain",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "3c2e119af13972b9c471338524e00d77602e2fbaac4ac5b3f95c8e83da28b6d3",
+        "sanitizedSha256": "f0ba5ffd530e2a1767257b4e07cff146df4c6a2a8d8d99be7f1a16d444c95d44"
+      },
+      "category": "footwear",
+      "clothingType": "boot",
+      "subtype": "rubber_boot",
+      "primaryColor": "orange",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "person_wearing_product",
+        "in_use",
+        "outdoor",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_people",
+        "cluttered_scene",
+        "activity_in_progress",
+        "product_partly_handled"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Orange protective boots being pulled on over hazmat suits. Genuinely cluttered and mid-activity, so labelConfidence is low — kept because in-use, partly-handled footwear is a scene type nothing else in the corpus covers."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:773rd_CST_suits_up_to_support_U_S_Navy_(6389200).jpg (Public domain)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-f0ba5ffd53/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": true,
+      "notes": "Orange protective boots being pulled on over hazmat suits. Genuinely cluttered and mid-activity, so labelConfidence is low — kept because in-use, partly-handled footwear is a scene type nothing else in the corpus covers."
+    },
+    {
+      "caseId": "tiera-top-0b40a58dff",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-0b40a58dff/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:0b40a58dff24c0daff3b205a7d24c6719e8220225687dd2d093a37437aca1e10"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:T-shirts",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:12a.DCCenter.WDC.26June2015_(19187985982).jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/dc/12a.DCCenter.WDC.26June2015_%2819187985982%29.jpg",
+        "author": "Elvert Barnes",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "2.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "licenceObservedString": "CC BY-SA 2.0",
+        "attributionRequired": true,
+        "attributionText": "Elvert Barnes — CC BY-SA 2.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "a8dac892ce4a89f83695931996cd657762e357ea1b5d3da2d7c93e12b8b63a0c",
+        "sanitizedSha256": "0b40a58dff24c0daff3b205a7d24c6719e8220225687dd2d093a37437aca1e10"
+      },
+      "category": "top",
+      "clothingType": "t_shirt",
+      "subtype": "graphic_tee",
+      "primaryColor": "black",
+      "secondaryColors": "unknown",
+      "material": "cotton",
+      "pattern": "graphic_print",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "person_wearing_product",
+        "event",
+        "indoor",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_people",
+        "multiple_garments_in_frame",
+        "printed_faces_on_garment",
+        "busy_background"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Three people wearing graphic tees at an event. Now admissible: the tees are clearly the visible garments. One tee carries a printed face, which the owner confirmed is not a concern."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:12a.DCCenter.WDC.26June2015_(19187985982).jpg (CC BY-SA 2.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-0b40a58dff/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": true,
+      "notes": "Three people wearing graphic tees at an event. Now admissible: the tees are clearly the visible garments. One tee carries a printed face, which the owner confirmed is not a concern."
+    },
+    {
+      "caseId": "tiera-top-1144bf2cff",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-1144bf2cff/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:1144bf2cff40031a36e44b781efa322325ae8757facb7f0c07c879c57bb62156"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:T-shirts",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:2008_DNC_(2806861692).jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d5/2008_DNC_%282806861692%29.jpg",
+        "author": "Trevor Stone from Lakewood, CO, USA",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "2.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "licenceObservedString": "CC BY-SA 2.0",
+        "attributionRequired": true,
+        "attributionText": "Trevor Stone from Lakewood, CO, USA — CC BY-SA 2.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "bb414ece2bd788af2f06ce03d8b7be60203e751b71d2fbc8590c032ad080bf87",
+        "sanitizedSha256": "1144bf2cff40031a36e44b781efa322325ae8757facb7f0c07c879c57bb62156"
+      },
+      "category": "top",
+      "clothingType": "t_shirt",
+      "subtype": "graphic_tee",
+      "primaryColor": "white",
+      "secondaryColors": [
+        "blue"
+      ],
+      "material": "cotton",
+      "pattern": "graphic_print",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "market_stall",
+        "outdoor",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "printed_faces_on_garment",
+        "third_party_political_imagery"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Market-stall t-shirt display. Shirts are unambiguously the subject. A masked crop exists but the original is now usable."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:2008_DNC_(2806861692).jpg (CC BY-SA 2.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-1144bf2cff/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": true,
+      "notes": "Market-stall t-shirt display. Shirts are unambiguously the subject. A masked crop exists but the original is now usable."
+    },
+    {
+      "caseId": "tiera-top-485911abee",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-485911abee/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:485911abee7efa1fa1a2ed7c73d2decf1ca919abd715517ac79c20270f5976bf"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:T-shirts",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:2011_Wytheville_Vendor_Show_(5518023741).jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/53/2011_Wytheville_Vendor_Show_%285518023741%29.jpg",
+        "author": "vastateparksstaff",
+        "licenceId": "CC BY",
+        "licenceVersion": "2.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/2.0",
+        "licenceObservedString": "CC BY 2.0",
+        "attributionRequired": true,
+        "attributionText": "vastateparksstaff — CC BY 2.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "a283100173a74a36dfe014ad49044603e2b9c2a49061fbd575b07b7d95be5fc6",
+        "sanitizedSha256": "485911abee7efa1fa1a2ed7c73d2decf1ca919abd715517ac79c20270f5976bf"
+      },
+      "category": "top",
+      "clothingType": "t_shirt",
+      "subtype": "graphic_tee",
+      "primaryColor": "multicolor",
+      "secondaryColors": "unknown",
+      "material": "cotton",
+      "pattern": "graphic_print",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item",
+        "trade_show"
+      ],
+      "difficultyTags": [
+        "many_items_in_frame",
+        "hangers_and_price_tags",
+        "overhead_lighting"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Trade-show booth with a dense wall of hanging printed tees and hoodies. One of the strongest store_display cases in the corpus."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:2011_Wytheville_Vendor_Show_(5518023741).jpg (CC BY 2.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-485911abee/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": true,
+      "notes": "Trade-show booth with a dense wall of hanging printed tees and hoodies. One of the strongest store_display cases in the corpus."
+    },
+    {
+      "caseId": "tiera-top-4dbef79f7b",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-4dbef79f7b/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:4dbef79f7bea8949ebe7f691647d29544d08f1e8831d5c570815a05f13fbb4a1"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Sweaters",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:020251122_174350_Knitwear.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3b/020251122_174350_Knitwear.jpg",
+        "author": "Marsilar",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Marsilar — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "ba5a70de756d614f939b0f38a117f16c4575671a5720fd247861c33379a06363",
+        "sanitizedSha256": "4dbef79f7bea8949ebe7f691647d29544d08f1e8831d5c570815a05f13fbb4a1"
+      },
+      "category": "top",
+      "clothingType": "sweater",
+      "subtype": "turtleneck",
+      "primaryColor": "multicolor",
+      "secondaryColors": "unknown",
+      "material": "knit",
+      "pattern": "marled",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "on_mannequin"
+      ],
+      "difficultyTags": [
+        "extra_object_in_frame_teddy_bear",
+        "cropped"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Multicoloured marled knit turtleneck on a wooden artist's mannequin, with a toy bear in frame. Strong knit-material case; the extra object is tagged rather than ignored."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:020251122_174350_Knitwear.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-4dbef79f7b/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Multicoloured marled knit turtleneck on a wooden artist's mannequin, with a toy bear in frame. Strong knit-material case; the extra object is tagged rather than ignored."
+    },
+    {
+      "caseId": "tiera-pants-24e666e3bd",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-pants-24e666e3bd/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:24e666e3bdb17f04c926e292370cae7a92db38d180b48ddbd35bc2c0c5f90ae1"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Jeans",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:2023-06-07_BUGA_Mannheim_107.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d0/2023-06-07_BUGA_Mannheim_107.jpg",
+        "author": "Ahmet Düz, Dreiländer- &amp; Oberrheinfotograf",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Ahmet Düz, Dreiländer- &amp; Oberrheinfotograf — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "7e9ccd1c8ea5b4ab5f9a0eecfc5b16fcf0941e917e1061beffb5dc5cfa851c75",
+        "sanitizedSha256": "24e666e3bdb17f04c926e292370cae7a92db38d180b48ddbd35bc2c0c5f90ae1"
+      },
+      "category": "pants",
+      "clothingType": "jeans",
+      "subtype": "unknown",
+      "primaryColor": "blue",
+      "secondaryColors": [
+        "beige"
+      ],
+      "material": "denim",
+      "pattern": "solid",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "flat_lay",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "partial_framing"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Close-packed denim jeans/shorts, cropped. Strong denim material case and a genuine partial-framing case."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:2023-06-07_BUGA_Mannheim_107.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-pants-24e666e3bd/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Close-packed denim jeans/shorts, cropped. Strong denim material case and a genuine partial-framing case."
+    },
+    {
+      "caseId": "tiera-skirt-8f16ef5c8e",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-skirt-8f16ef5c8e/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:8f16ef5c8e24ea1230c8bb6781670e499b0aa7fac8d8f4661c7e9068a8b3198f"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Skirts",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:056620_ERM_3980_056620.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/89/056620_ERM_3980_056620.jpg",
+        "author": "Eesti Rahva Muuseum",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "5243051cc35ddc6aec0db7a7360b3ec3ba8b2b01249c2d70f9e8336fdcc89598",
+        "sanitizedSha256": "8f16ef5c8e24ea1230c8bb6781670e499b0aa7fac8d8f4661c7e9068a8b3198f"
+      },
+      "category": "skirt",
+      "clothingType": "skirt",
+      "subtype": "unknown",
+      "primaryColor": "blue",
+      "secondaryColors": [
+        "red",
+        "white"
+      ],
+      "material": "unknown",
+      "pattern": "striped",
+      "brand": "not_applicable",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "flat_lay",
+        "museum_documentation"
+      ],
+      "difficultyTags": [
+        "colour_calibration_chart_in_frame"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Museum flat-lay of a striped woven skirt. Genuine garment subject. A colour calibration chart is in frame and is tagged as a difficulty, not hidden."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:056620_ERM_3980_056620.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-skirt-8f16ef5c8e/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Museum flat-lay of a striped woven skirt. Genuine garment subject. A colour calibration chart is in frame and is tagged as a difficulty, not hidden."
+    },
+    {
+      "caseId": "tiera-dress-d3a98e8fd9",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-dress-d3a98e8fd9/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:d3a98e8fd95692af4aa62aa07f7f5d200215b3f3fb56f562b47b69725ca148f8"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Dresses",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:2014-02-02_Jule_Waibel_Origami.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b9/2014-02-02_Jule_Waibel_Origami.jpg",
+        "author": "Gareth Wyn Jones",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Gareth Wyn Jones — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "a06274721cd0a46005fa6ab3dbf6a7ff3137806017591f9c67b3c702c28bc133",
+        "sanitizedSha256": "d3a98e8fd95692af4aa62aa07f7f5d200215b3f3fb56f562b47b69725ca148f8"
+      },
+      "category": "dress",
+      "clothingType": "dress",
+      "subtype": "shift_dress",
+      "primaryColor": "orange",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "geometric_folded",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "shop_window",
+        "through_glass",
+        "reflection",
+        "low_light",
+        "on_mannequin"
+      ],
+      "difficultyTags": [
+        "low_light",
+        "specular_reflection",
+        "shot_through_glass",
+        "mirrored_text_in_reflection",
+        "reflected_figures_in_background"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Origami/pleated dress on a mannequin in a lit shop window at night, photographed through glass. Unusually valuable: it satisfies store_display, low_light AND the reflection/mirror stratum at once — the mirror-reversed VICTORIA'S SECRET signage is proof it is a reflection. That third-party mark is incidental, and the reflected background figures are indistinct silhouettes with no identifiable faces. Material left unknown: it reads as folded paper or coated fabric and guessing would be fabrication."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:2014-02-02_Jule_Waibel_Origami.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-dress-d3a98e8fd9/primary",
+      "trademarkReviewState": "trademark_visible_in_reflection",
+      "visiblePerson": false,
+      "notes": "Origami/pleated dress on a mannequin in a lit shop window at night, photographed through glass. Unusually valuable: it satisfies store_display, low_light AND the reflection/mirror stratum at once — the mirror-reversed VICTORIA'S SECRET signage is proof it is a reflection. That third-party mark is incidental, and the reflected background figures are indistinct silhouettes with no identifiable faces. Material left unknown: it reads as folded paper or coated fabric and guessing would be fabrication."
+    },
+    {
+      "caseId": "tiera-bag-1610b00ea6",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-bag-1610b00ea6/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:1610b00ea6cfc4e6560a3984f8c69557a30ba23caf3f94d120f180d80d399dd7"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Handbags",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:017Aa._Cosmetic_bag.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/17/017Aa._Cosmetic_bag.jpg",
+        "author": "GAlexandrova",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "GAlexandrova — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "7d68e19c46930e9b9a1521d4d22ea0f63e947e8ff6fd6f88d21a9da4b8c26c40",
+        "sanitizedSha256": "1610b00ea6cfc4e6560a3984f8c69557a30ba23caf3f94d120f180d80d399dd7"
+      },
+      "category": "bag",
+      "clothingType": "clutch",
+      "subtype": "unknown",
+      "primaryColor": "multicolor",
+      "secondaryColors": "unknown",
+      "material": "cotton",
+      "pattern": "printed_photographic",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot"
+      ],
+      "difficultyTags": [
+        "photographic_print_depicting_objects"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Zippered cosmetic pouch with lace trim, printed with a photographic gourd/pumpkin pattern. Adversarial in a useful way: the print depicts real objects, which could pull an identifier toward the printed content instead of the bag."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:017Aa._Cosmetic_bag.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-bag-1610b00ea6/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Zippered cosmetic pouch with lace trim, printed with a photographic gourd/pumpkin pattern. Adversarial in a useful way: the print depicts real objects, which could pull an identifier toward the printed content instead of the bag."
+    },
+    {
+      "caseId": "tiera-bag-1d00530785",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-bag-1d00530785/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:1d00530785fbb2b3c90c4558f1b016df2ae835b76870fe188e3e4ae56bed1049"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Backpacks",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Backpack_Klein_Tools.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/80/Backpack_Klein_Tools.jpg",
+        "author": "Klein Tools",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Klein Tools — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "5d4fd8c998d46513c6b6ba5e4b28e1bda88bbf7993d82e3b5f78f6c59ae839f7",
+        "sanitizedSha256": "1d00530785fbb2b3c90c4558f1b016df2ae835b76870fe188e3e4ae56bed1049"
+      },
+      "category": "bag",
+      "clothingType": "tote",
+      "subtype": "unknown",
+      "primaryColor": "black",
+      "secondaryColors": [
+        "orange"
+      ],
+      "material": "nylon",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "white_background"
+      ],
+      "difficultyTags": [
+        "utility_not_fashion_bag"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Open tool bag on white. A genuine bag, but a utility tool bag rather than a fashion bag — a legitimate category edge case. A small maker logo is on the product."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Backpack_Klein_Tools.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-bag-1d00530785/primary",
+      "trademarkReviewState": "trademark_visible_on_product",
+      "visiblePerson": false,
+      "notes": "Open tool bag on white. A genuine bag, but a utility tool bag rather than a fashion bag — a legitimate category edge case. A small maker logo is on the product."
+    },
+    {
+      "caseId": "tiera-bag-cdf287c82d",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-bag-cdf287c82d/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:cdf287c82d57caa4fc904051af1cb50dfc64dc3c88d01d2d2df5b5636465132c"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Backpacks",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Backpack-1.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/73/Backpack-1.jpg",
+        "author": "Wikisafar",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Wikisafar — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "f17cca4e6252426850bc087369d9132cd9a1082a0db74a0d2846230755b7e37a",
+        "sanitizedSha256": "cdf287c82d57caa4fc904051af1cb50dfc64dc3c88d01d2d2df5b5636465132c"
+      },
+      "category": "bag",
+      "clothingType": "clutch",
+      "subtype": "unknown",
+      "primaryColor": "brown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "handmade"
+      ],
+      "difficultyTags": [
+        "out_of_focus",
+        "soft_focus_blur",
+        "small_object"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "low",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Small handmade button-flap pouch on a wooden surface. Genuinely soft-focus — kept deliberately as a BLUR case, with labelConfidence low to match. Material left unknown rather than guessed from a blurred image."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Backpack-1.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-bag-cdf287c82d/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Small handmade button-flap pouch on a wooden surface. Genuinely soft-focus — kept deliberately as a BLUR case, with labelConfidence low to match. Material left unknown rather than guessed from a blurred image."
+    },
+    {
+      "caseId": "tiera-accessory-e2f0db2378",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-accessory-e2f0db2378/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:e2f0db2378a3f11db5bbc9c247ff2edf2f7c2d01cd831314ebe44ebf8fa08b44"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Sunglasses",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:1976_campaign_sunglasses.JPG",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/22/1976_campaign_sunglasses.JPG",
+        "author": "Unknown authorUnknown author",
+        "licenceId": "Public domain",
+        "licenceVersion": null,
+        "licenceUrl": null,
+        "licenceObservedString": "Public domain",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "b23dd7f320ac30408150027497d5612b86ae6046e6430a31c54794552941ccf6",
+        "sanitizedSha256": "e2f0db2378a3f11db5bbc9c247ff2edf2f7c2d01cd831314ebe44ebf8fa08b44"
+      },
+      "category": "accessory",
+      "clothingType": "eyewear",
+      "subtype": "round_sunglasses",
+      "primaryColor": "multicolor",
+      "secondaryColors": "unknown",
+      "material": "acetate",
+      "pattern": "flag_print",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "museum_documentation"
+      ],
+      "difficultyTags": [
+        "novelty_item",
+        "printed_faces_on_object"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "1976 novelty campaign sunglasses with a chain and portrait medallions. Adversarial in a useful way: printed human faces appear ON the accessory, which should not trigger person handling."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:1976_campaign_sunglasses.JPG (Public domain)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-e2f0db2378/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "1976 novelty campaign sunglasses with a chain and portrait medallions. Adversarial in a useful way: printed human faces appear ON the accessory, which should not trigger person handling."
+    },
+    {
+      "caseId": "tiera-accessory-7a2df42046",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-accessory-7a2df42046/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:7a2df42046f49c57086fb5b3f2f6c76898a6dea0ddf0874b2ef9124687b54302"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Sunglasses",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:2013-0314-ThomBrowne-Sunglasses.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/6/64/2013-0314-ThomBrowne-Sunglasses.jpg",
+        "author": "Bobak Ha'Eri",
+        "licenceId": "CC BY",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/3.0",
+        "licenceObservedString": "CC BY 3.0",
+        "attributionRequired": true,
+        "attributionText": "Bobak Ha'Eri — CC BY 3.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "1fc85796d6db5600d5a2ba2cc85307d07f8486a666abaf952c22cded1e506e2f",
+        "sanitizedSha256": "7a2df42046f49c57086fb5b3f2f6c76898a6dea0ddf0874b2ef9124687b54302"
+      },
+      "category": "accessory",
+      "clothingType": "eyewear",
+      "subtype": "round_sunglasses",
+      "primaryColor": "black",
+      "secondaryColors": "unknown",
+      "material": "metal",
+      "pattern": "unknown",
+      "brand": "thom browne",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "with_packaging",
+        "low_light"
+      ],
+      "difficultyTags": [
+        "low_light",
+        "flash_lit",
+        "dark_background"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Round sunglasses with THOM BROWNE NEW YORK legible on the cleaning cloth, box and case. FIRST directly brand-evidenced case in the corpus. The evidence is the product's own packaging text, not a frame stamp — recorded explicitly so the evidence basis is auditable. Also a genuine low-light case."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:2013-0314-ThomBrowne-Sunglasses.jpg (CC BY 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-7a2df42046/primary",
+      "trademarkReviewState": "trademark_visible_on_packaging",
+      "visiblePerson": false,
+      "notes": "Round sunglasses with THOM BROWNE NEW YORK legible on the cleaning cloth, box and case. FIRST directly brand-evidenced case in the corpus. The evidence is the product's own packaging text, not a frame stamp — recorded explicitly so the evidence basis is auditable. Also a genuine low-light case."
+    },
+    {
+      "caseId": "tiera-accessory-a53e61e148",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-accessory-a53e61e148/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:a53e61e148f6e8d7ee313466ae7c49a70de791ea1e784f387407ab7fa34ef8d3"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Necklaces",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:%22he_loves_me_-_he_loves_me_not%22_necklace_-_Flickr_-_Fordos.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/6/6c/%22he_loves_me_-_he_loves_me_not%22_necklace_-_Flickr_-_Fordos.jpg",
+        "author": "Bence Fördős from Piliscsaba, Hungary",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "2.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "licenceObservedString": "CC BY-SA 2.0",
+        "attributionRequired": true,
+        "attributionText": "Bence Fördős from Piliscsaba, Hungary — CC BY-SA 2.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "febc3945cc52b3bd62df801f720ed120c963d3dfba944614a4b3da33ff2cd0d3",
+        "sanitizedSha256": "a53e61e148f6e8d7ee313466ae7c49a70de791ea1e784f387407ab7fa34ef8d3"
+      },
+      "category": "accessory",
+      "clothingType": "jewelry",
+      "subtype": "necklace",
+      "primaryColor": "blue",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "macro"
+      ],
+      "difficultyTags": [
+        "partial_framing",
+        "extreme_close_up"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Flower-petal pendant on a cord, close-up. Genuine jewellery subject; petals are cropped, so it doubles as a partial-framing case."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:%22he_loves_me_-_he_loves_me_not%22_necklace_-_Flickr_-_Fordos.jpg (CC BY-SA 2.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-a53e61e148/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Flower-petal pendant on a cord, close-up. Genuine jewellery subject; petals are cropped, so it doubles as a partial-framing case."
+    },
+    {
+      "caseId": "tiera-accessory-521e3b1022",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-accessory-521e3b1022/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:521e3b102235d78ea66b16a7926c0f9fbf15934306e88e44668c46bf0d31ceb5"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Hats",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:1930%E5%B9%B4%E4%BB%A3%E3%81%AE%E3%82%BD%E3%83%95%E3%83%88%E5%B8%BD.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/be/1930%E5%B9%B4%E4%BB%A3%E3%81%AE%E3%82%BD%E3%83%95%E3%83%88%E5%B8%BD.jpg",
+        "author": "Haidacutlet",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Haidacutlet — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "67948de4ad9045719b6e1424e39adf911ef179328db890e780fa438a1e1324dc",
+        "sanitizedSha256": "521e3b102235d78ea66b16a7926c0f9fbf15934306e88e44668c46bf0d31ceb5"
+      },
+      "category": "accessory",
+      "clothingType": "hat",
+      "subtype": "fedora",
+      "primaryColor": "brown",
+      "secondaryColors": [
+        "black",
+        "green"
+      ],
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "flat_lay",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "three_similar_items"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Three felt fedoras on purple cloth. Clean hat case, and a useful multiple-similar-items test."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:1930%E5%B9%B4%E4%BB%A3%E3%81%AE%E3%82%BD%E3%83%95%E3%83%88%E5%B8%BD.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-accessory-521e3b1022/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Three felt fedoras on purple cloth. Clean hat case, and a useful multiple-similar-items test."
+    },
+    {
+      "caseId": "tiera-top-c9ade2205d",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-c9ade2205d/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:c9ade2205d3039bb0384fba47ddccee6178d966fc43ef2fb0d4b3bd84073943e"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Clothing shops",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:7.9_Boutique._Poliert.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/32/7.9_Boutique._Poliert.jpg",
+        "author": "J.Stiegler",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "licenceObservedString": "CC BY-SA 3.0",
+        "attributionRequired": true,
+        "attributionText": "J.Stiegler — CC BY-SA 3.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "24e777eaa705bc5224a618b370f36629dc76507aa59503b38f55123d630b090f",
+        "sanitizedSha256": "c9ade2205d3039bb0384fba47ddccee6178d966fc43ef2fb0d4b3bd84073943e"
+      },
+      "category": "top",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item",
+        "overhead_view"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "distant_view",
+        "posters_of_people_on_wall"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Boutique interior from above, garments on racks and hangers. Genuine store_display. Wall posters depict people, but those are photographs-of-photographs rather than identifiable people present in the scene."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:7.9_Boutique._Poliert.jpg (CC BY-SA 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-c9ade2205d/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Boutique interior from above, garments on racks and hangers. Genuine store_display. Wall posters depict people, but those are photographs-of-photographs rather than identifiable people present in the scene."
+    },
+    {
+      "caseId": "tiera-top-97c77cbd99",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-97c77cbd99/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:97c77cbd995476fea0463a214f6e309230aa407390551bcbb329aaf0eb4447bc"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Clothing shops",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:A_garment_shop_at_Ratan_Pole.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/57/A_garment_shop_at_Ratan_Pole.jpg",
+        "author": "Uwais",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "licenceObservedString": "CC BY-SA 3.0",
+        "attributionRequired": true,
+        "attributionText": "Uwais — CC BY-SA 3.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "3e09f15b259ba7eaf25ead3006247d2d0fec608903a40dbfb6739e24bc7f8768",
+        "sanitizedSha256": "97c77cbd995476fea0463a214f6e309230aa407390551bcbb329aaf0eb4447bc"
+      },
+      "category": "dress",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "red",
+      "secondaryColors": [
+        "gold"
+      ],
+      "material": "unknown",
+      "pattern": "embroidered",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item",
+        "non_western_garment"
+      ],
+      "difficultyTags": [
+        "multiple_items_in_frame",
+        "mannequins",
+        "distant_indistinct_figure_at_frame_edge"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Sari/lehenga shop with mannequins and hanging garments. Valuable non-Western garment coverage the rest of the corpus lacks. Mannequins are not people; one distant indistinct figure sits at the left frame edge with no identifiable face."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:A_garment_shop_at_Ratan_Pole.jpg (CC BY-SA 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-97c77cbd99/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Sari/lehenga shop with mannequins and hanging garments. Valuable non-Western garment coverage the rest of the corpus lacks. Mannequins are not people; one distant indistinct figure sits at the left frame edge with no identifiable face."
+    },
+    {
+      "caseId": "tiera-non_fashion-635218364b",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-635218364b/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:635218364b459f208019112401d729b606520313d15889d9cb8fbdef50559095"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Mugs",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:1842_Preston_Guild_mug,_Harris_Museum_(1).JPG",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1a/1842_Preston_Guild_mug%2C_Harris_Museum_%281%29.JPG",
+        "author": "Rept0n1x",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "licenceObservedString": "CC BY-SA 3.0",
+        "attributionRequired": true,
+        "attributionText": "Rept0n1x — CC BY-SA 3.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "4e07a01b498bddd995666095ddf2b614f434c07e55d5dd14dbc9eb0eb0bb03ee",
+        "sanitizedSha256": "635218364b459f208019112401d729b606520313d15889d9cb8fbdef50559095"
+      },
+      "category": "non_fashion",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "primaryColor": "not_applicable",
+      "secondaryColors": "unknown",
+      "material": "not_applicable",
+      "pattern": "not_applicable",
+      "brand": "not_applicable",
+      "exactProduct": "unknown",
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "nonFashion": true,
+      "sceneTags": [
+        "non_fashion_negative",
+        "museum_case"
+      ],
+      "difficultyTags": [
+        "text_on_non_fashion_object",
+        "behind_glass"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Ceramic commemorative mug in a museum case, reading PRESTON GUILD 1842. A strong negative: legible text on a non-fashion object is exactly what could bait a spurious brand claim."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:1842_Preston_Guild_mug,_Harris_Museum_(1).JPG (CC BY-SA 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-635218364b/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Ceramic commemorative mug in a museum case, reading PRESTON GUILD 1842. A strong negative: legible text on a non-fashion object is exactly what could bait a spurious brand claim."
+    },
+    {
+      "caseId": "tiera-non_fashion-323cd4e23c",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-323cd4e23c/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:323cd4e23c75e21d0844e7b0641e2eb167a628d3de55050a845a65e536162a01"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Mugs",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:1842_Preston_Guild_mug,_Harris_Museum_(2).JPG",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7e/1842_Preston_Guild_mug%2C_Harris_Museum_%282%29.JPG",
+        "author": "Rept0n1x",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "licenceObservedString": "CC BY-SA 3.0",
+        "attributionRequired": true,
+        "attributionText": "Rept0n1x — CC BY-SA 3.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "e62a73c8c7b88e556467baa5916574a258cb37f015e36d6635fe6bc79f857f44",
+        "sanitizedSha256": "323cd4e23c75e21d0844e7b0641e2eb167a628d3de55050a845a65e536162a01"
+      },
+      "category": "non_fashion",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "primaryColor": "white",
+      "secondaryColors": "unknown",
+      "material": "ceramic",
+      "pattern": "floral_transfer_print",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "nonFashion": true,
+      "sceneTags": [
+        "museum_vitrine",
+        "non_fashion_negative"
+      ],
+      "difficultyTags": [
+        "prominent_legible_text_on_non_apparel_object",
+        "glass_case_reflections"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Second 1842 Preston Guild mug. Non-fashion negative; same false-positive probe rationale."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:1842_Preston_Guild_mug,_Harris_Museum_(2).JPG (CC BY-SA 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-323cd4e23c/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Second 1842 Preston Guild mug. Non-fashion negative; same false-positive probe rationale."
+    },
+    {
+      "caseId": "tiera-non_fashion-87857eed80",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-87857eed80/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:87857eed80c4c73de46d8bf73d72069663cf83a4bfa450c53ae8df0a658ce65a"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Mugs",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:1862_Preston_Guild_mug,_Harris_Museum.JPG",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/03/1862_Preston_Guild_mug%2C_Harris_Museum.JPG",
+        "author": "Rept0n1x",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "licenceObservedString": "CC BY-SA 3.0",
+        "attributionRequired": true,
+        "attributionText": "Rept0n1x — CC BY-SA 3.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "d72459699e11669d6c63eb68bac9a1fc7fa31cba94a16f26f83a37e868bb9f9b",
+        "sanitizedSha256": "87857eed80c4c73de46d8bf73d72069663cf83a4bfa450c53ae8df0a658ce65a"
+      },
+      "category": "non_fashion",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "primaryColor": "white",
+      "secondaryColors": "unknown",
+      "material": "ceramic",
+      "pattern": "floral_transfer_print",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "nonFashion": true,
+      "sceneTags": [
+        "museum_vitrine",
+        "non_fashion_negative"
+      ],
+      "difficultyTags": [
+        "prominent_legible_text_on_non_apparel_object",
+        "glass_case_reflections"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Ceramic commemorative mug in a museum vitrine, 1862 Preston Guild Festival. Admitted as a non-fashion negative. Doubles as a false-positive probe: the object carries large legible text and a floral print, which is exactly the cue set that can push a fashion model into inventing a garment or a brand."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:1862_Preston_Guild_mug,_Harris_Museum.JPG (CC BY-SA 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-non_fashion-87857eed80/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Ceramic commemorative mug in a museum vitrine, 1862 Preston Guild Festival. Admitted as a non-fashion negative. Doubles as a false-positive probe: the object carries large legible text and a floral print, which is exactly the cue set that can push a fashion model into inventing a garment or a brand."
+    },
+    {
+      "caseId": "tiera-footwear-537f81fab6",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-537f81fab6/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:537f81fab6b17c1c0ec6eed3d631542cddd6672143453c59cf6cd39471484b61"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Adidas shoes",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:12-05-28-olympia-einkleidung-allgemein-02.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/6/61/12-05-28-olympia-einkleidung-allgemein-02.jpg",
+        "author": "Ralf Roletschek (talk) - Infos über Fahrräder auf fahrradmonteur.de",
+        "licenceId": "CC BY",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/3.0",
+        "licenceObservedString": "CC BY 3.0",
+        "attributionRequired": true,
+        "attributionText": "Ralf Roletschek (talk) - Infos über Fahrräder auf fahrradmonteur.de — CC BY 3.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "51defc713e34d668599670a3d841b5f4bd2e836dd5b6399337f81a425deb837a",
+        "sanitizedSha256": "537f81fab6b17c1c0ec6eed3d631542cddd6672143453c59cf6cd39471484b61"
+      },
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "running_sneaker",
+      "primaryColor": "red",
+      "secondaryColors": "unknown",
+      "material": "mesh",
+      "pattern": "unknown",
+      "brand": "adidas",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "person_wearing_product",
+        "studio"
+      ],
+      "difficultyTags": [
+        "cropped_at_ankle"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Red running shoes being worn, framed below the knee. No face in frame."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:12-05-28-olympia-einkleidung-allgemein-02.jpg (CC BY 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-537f81fab6/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": true,
+      "notes": "Red running shoes being worn, framed below the knee. No face in frame."
+    },
+    {
+      "caseId": "tiera-footwear-f1c90b7808",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-f1c90b7808/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:f1c90b78084c6bacedba04cd996bfe1387846f45146705c00274616708049b5f"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Adidas shoes",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:20210206_171823_(2)_Fashion_in_2021.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c2/20210206_171823_%282%29_Fashion_in_2021.jpg",
+        "author": "Silar",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Silar — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "adcc0ea57cb879b6dd9561a5f802d2ace9812aa3fe8897faed6eb18486e26e71",
+        "sanitizedSha256": "f1c90b78084c6bacedba04cd996bfe1387846f45146705c00274616708049b5f"
+      },
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "court_sneaker",
+      "primaryColor": "black",
+      "secondaryColors": "unknown",
+      "material": "leather",
+      "pattern": "unknown",
+      "brand": "adidas",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "many_items_in_frame",
+        "people_in_background",
+        "third_party_signage"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Shoe-store display. Counted brand-evidenced on the foreground product wordmark only."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:20210206_171823_(2)_Fashion_in_2021.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "face_present_unmasked_permitted_by_policy",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-f1c90b7808/primary",
+      "trademarkReviewState": "trademark_visible_on_product_and_signage",
+      "visiblePerson": true,
+      "notes": "Shoe-store display. Counted brand-evidenced on the foreground product wordmark only."
+    },
+    {
+      "caseId": "tiera-footwear-3a7c0a4f46",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-3a7c0a4f46/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:3a7c0a4f46dedb5d365a07a002ca672ad6d0e194a42a43539d5145f90b1d34fe"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Adidas shoes",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:6012556dsfs186.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9a/6012556dsfs186.jpg",
+        "author": "Adidas",
+        "licenceId": "CC BY-SA",
+        "licenceVersion": "4.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "licenceObservedString": "CC BY-SA 4.0",
+        "attributionRequired": true,
+        "attributionText": "Adidas — CC BY-SA 4.0",
+        "shareAlikeRequired": true,
+        "originalSha256": "4ccd467af2204c82c72e2fad5f8d3d4f0855baf6157e7a3b8759393871254e44",
+        "sanitizedSha256": "3a7c0a4f46dedb5d365a07a002ca672ad6d0e194a42a43539d5145f90b1d34fe"
+      },
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "running_sneaker",
+      "primaryColor": "white",
+      "secondaryColors": "unknown",
+      "material": "suede",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "white_background"
+      ],
+      "difficultyTags": [
+        "white_on_white",
+        "brand_like_motif_without_legible_mark"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "All-white sneaker on a near-white ground. Useful twice over: a white-on-white difficulty case, and an over-claiming test, since the model should NOT name adidas from the stripe motif alone."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:6012556dsfs186.jpg (CC BY-SA 4.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-3a7c0a4f46/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "All-white sneaker on a near-white ground. Useful twice over: a white-on-white difficulty case, and an over-claiming test, since the model should NOT name adidas from the stripe motif alone."
+    },
+    {
+      "caseId": "tiera-footwear-181bcf34e6",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-181bcf34e6/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:181bcf34e610a379273aaf35b6357600c182b25934c1ad78afd98e230888bee7"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Adidas shoes",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:72571483_dd24f0e5f6.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5a/72571483_dd24f0e5f6.jpg",
+        "author": "Everjean from Antwerp, Belgium",
+        "licenceId": "CC BY",
+        "licenceVersion": "2.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/2.0",
+        "licenceObservedString": "CC BY 2.0",
+        "attributionRequired": true,
+        "attributionText": "Everjean from Antwerp, Belgium — CC BY 2.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "97ba450db0fd5366b3d76aff5591f4c78550ced0e23eb6b0f7e8c5e13d0053d2",
+        "sanitizedSha256": "181bcf34e610a379273aaf35b6357600c182b25934c1ad78afd98e230888bee7"
+      },
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "unknown",
+      "primaryColor": "multicolor",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "not_visible",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "store_display",
+        "retail_interior",
+        "multi_item"
+      ],
+      "difficultyTags": [
+        "many_items_in_frame",
+        "distant_view",
+        "brand_signage_not_product_mark"
+      ],
+      "brandVisible": false,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Curved retail wall of roughly forty sneakers. Strong store_display and many-items-in-frame case."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:72571483_dd24f0e5f6.jpg (CC BY 2.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-181bcf34e6/primary",
+      "trademarkReviewState": "trademark_visible_on_signage",
+      "visiblePerson": false,
+      "notes": "Curved retail wall of roughly forty sneakers. Strong store_display and many-items-in-frame case."
+    },
+    {
+      "caseId": "tiera-footwear-6584e83686",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-footwear-6584e83686/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:6584e836867071f8cac8c730487250926665a3349e42ba731eec5f155b36e3a1"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Adidas shoes",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:A_di_da_s_-_panoramio.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/4a/A_di_da_s_-_panoramio.jpg",
+        "author": "Baden de",
+        "licenceId": "CC BY",
+        "licenceVersion": "3.0",
+        "licenceUrl": "https://creativecommons.org/licenses/by/3.0",
+        "licenceObservedString": "CC BY 3.0",
+        "attributionRequired": true,
+        "attributionText": "Baden de — CC BY 3.0",
+        "shareAlikeRequired": false,
+        "originalSha256": "bc5b2856caabd0f9f3e30e48cf08e832e450b20cdbed7b4e1bd08a8483dbad37",
+        "sanitizedSha256": "6584e836867071f8cac8c730487250926665a3349e42ba731eec5f155b36e3a1"
+      },
+      "category": "footwear",
+      "clothingType": "sneaker",
+      "subtype": "football_boot",
+      "primaryColor": "blue",
+      "secondaryColors": [
+        "orange"
+      ],
+      "material": "synthetic",
+      "pattern": "unknown",
+      "brand": "adidas",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "product_shot",
+        "retail"
+      ],
+      "difficultyTags": [
+        "very_busy_patterned_background"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Blue/orange football boots. Wordmark appears several times on the product."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:A_di_da_s_-_panoramio.jpg (CC BY 3.0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-footwear-6584e83686/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Blue/orange football boots. Wordmark appears several times on the product."
+    },
+    {
+      "caseId": "tiera-top-6c62615187",
+      "datasetVersion": "0.3.0",
+      "imageReferences": [
+        {
+          "refType": "governed_object_storage",
+          "refValue": "storage://build4-scanner-evals/tier-a/tiera-top-6c62615187/primary"
+        }
+      ],
+      "imageHashes": [
+        "sha256:6c6261518744c86db44a7b4596b1ba6d1cc41aa42a1fb3076ecbd3490123abf8"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "sameItemSetId": null,
+      "provenance": {
+        "repository": "Wikimedia Commons",
+        "retrievalMethod": "category:Clothing labels",
+        "retrievalDate": "2026-07-29",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File:Flonflon_MET_2005.191_label1.jpg",
+        "directImageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/da/Flonflon_MET_2005.191_label1.jpg",
+        "author": "Paul Poiret",
+        "licenceId": "CC0",
+        "licenceVersion": null,
+        "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "licenceObservedString": "CC0",
+        "attributionRequired": false,
+        "attributionText": null,
+        "shareAlikeRequired": false,
+        "originalSha256": "c8b2ad62e2b849a5660e93914c65116d81d45acb92e99b4d98f851b68f2fc971",
+        "sanitizedSha256": "6c6261518744c86db44a7b4596b1ba6d1cc41aa42a1fb3076ecbd3490123abf8"
+      },
+      "category": "accessory",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "white",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "flonflon",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "nonFashion": false,
+      "sceneTags": [
+        "label_view",
+        "museum_documentation",
+        "macro"
+      ],
+      "difficultyTags": [
+        "label_only_no_garment_silhouette",
+        "handwritten_script"
+      ],
+      "brandVisible": true,
+      "exactProductKnowable": false,
+      "futureExactProductEvaluation": false,
+      "reviewStatus": "draft",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "curation": {
+        "status": "curated_visually",
+        "decidedBy": "build-lead visual review",
+        "subjectConfirmed": true,
+        "note": "Close-up of a sewn-in maker label. A label view is a real scanner use case so it is kept, but it carries no garment silhouette and must not be scored as identification of a whole garment."
+      },
+      "sourceClass": "licensed_apparel",
+      "authorizationStatus": "approved_internal_eval",
+      "authorizationReference": "https://commons.wikimedia.org/wiki/File:Flonflon_MET_2005.191_label1.jpg (CC0)",
+      "privacyDisposition": "hash_and_label_only",
+      "privacyReviewDate": "2026-07-29",
+      "retentionPolicyRef": "docs/scanner-accuracy/phase0b-privacy-retention.md#retention",
+      "exifRemoved": true,
+      "faceReviewState": "no_face_present",
+      "plateReviewState": "no_plate_present",
+      "derivativeStatus": "masked_derivative",
+      "governedStorageRef": "storage://build4-scanner-evals/tier-a/tiera-top-6c62615187/primary",
+      "trademarkReviewState": "no_trademark_visible",
+      "visiblePerson": false,
+      "notes": "Close-up of a sewn-in maker label. A label view is a real scanner use case so it is kept, but it carries no garment silhouette and must not be scored as identification of a whole garment."
+    }
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "artifact": "phase2b-production-integration-manifest",
+  "artifactVersion": "1.0.0",
+  "generatedForPhase": "build-4-phase-2b-preintegration",
+  "candidateVersion": "phase2a-v1.0.0",
+  "controlVersion": "certified-v140",
+
+  "status": "INTEGRATION MAP ONLY — NOT PATCH AUTHORITY",
+  "authorization": {
+    "productionSourceModified": false,
+    "productionModificationAuthorized": false,
+    "note": "This manifest records WHERE a future integration would attach and WHAT it must preserve. It is not a patch, and it must not be applied automatically against any SHA. Every observed hash below is a RECONCILIATION INPUT: if it does not match the governing release baseline, the integration must be re-mapped by hand, not forced."
+  },
+
+  "observedSource": {
+    "observedIn": "research/scanner-accuracy-v2-phase2b-preintegration worktree",
+    "observedAtCommit": "f83948d",
+    "hashBasis": "sha256 over LF-normalised bytes",
+    "warning": "This worktree is NOT the governing production baseline. It descends from the certification commit and has drifted forward. `_shared/fashionIdentificationV2.ts` is already known to differ from certified v140 because `identify_for_closet` was added after certification. Line numbers below are anchors for locating symbols, not stable coordinates.",
+    "files": {
+      "supabase/functions/scan-identify/index.ts": {
+        "sha256Lf": "dcc7732abce278e7b90e000e388932b3041a32bb608d5b2cabeeddfc4808efc6",
+        "bytes": 137335,
+        "lines": 3606,
+        "matchesCertifiedV140": true
+      },
+      "supabase/functions/scan-identify/v2Activation.ts": {
+        "sha256Lf": "ac11ec3af8d726b09ccb41338a906c208e85923d481497bd3199bf6f35aa9062",
+        "bytes": 23302,
+        "matchesCertifiedV140": true
+      },
+      "supabase/functions/scan-identify/scannerCategoryRoute.ts": {
+        "sha256Lf": "27fa543783719298c1bb10c799098ed349b131c8646814a30ba6a07e515eb7a0",
+        "bytes": 12411,
+        "matchesCertifiedV140": true
+      },
+      "supabase/functions/_shared/fashionIdentificationV2.ts": {
+        "sha256Lf": "b041a899aea90bf091b337a486087fe58670fd27058d51b8a6a4b5f86b1d6699",
+        "bytes": 34936,
+        "matchesCertifiedV140": false,
+        "driftNote": "Differs from the certified v140 blob (987bb1b8e4909eb8cadb317849ba70645543361a3b682afd4962bce45c060a5b). The post-certification `identify_for_closet` intent lives here. Proof that this worktree is not the production baseline."
+      },
+      "supabase/functions/_shared/llmModelRouting.ts": {
+        "sha256Lf": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+        "bytes": 8641,
+        "matchesCertifiedV140": true
+      }
+    }
+  },
+
+  "entryPoint": {
+    "file": "supabase/functions/scan-identify/index.ts",
+    "symbol": "Deno.serve(handler)",
+    "observedLine": 1556,
+    "note": "The single HTTP entry. One request in, one response out."
+  },
+
+  "integrationPoints": [
+    {
+      "id": "IP-1",
+      "purpose": "read trusted server configuration",
+      "file": "supabase/functions/scan-identify/index.ts",
+      "anchorSymbol": "Deno.serve(handler)",
+      "observedLine": 1556,
+      "placement": "Inside the handler, before any prompt is assembled. Reads server-side configuration only — an environment variable or a server-held config value. NEVER the request body, headers, query, user metadata, mobile flags, deep-link parameters, image metadata or retailer metadata.",
+      "referenceImplementation": "tools/scanner-evaluation/lib/trustedVersionResolver.js is a PURE contract and reads no environment by design. The production adapter is the thin piece that reads the environment and builds the configuration object it consumes.",
+      "mustPreserve": "Absent or unreadable configuration resolves certified-v140. Configuration reading must never throw out of the handler."
+    },
+    {
+      "id": "IP-2",
+      "purpose": "resolve the runtime scanner version, once per execution",
+      "file": "supabase/functions/scan-identify/index.ts",
+      "anchorSymbol": "Deno.serve(handler)",
+      "observedLine": 1556,
+      "placement": "Immediately after IP-1, sealed for the execution.",
+      "referenceImplementation": "trustedVersionResolver.createExecutionResolution(trustedConfig)",
+      "mustPreserve": "Exactly one resolved identity per request; immutable thereafter; fails closed to certified-v140 on unknown, malformed, or request-shaped input; never throws."
+    },
+    {
+      "id": "IP-3",
+      "purpose": "apply the candidate instruction artifact",
+      "file": "supabase/functions/scan-identify/index.ts",
+      "anchorSymbol": "withQualityAndRoute",
+      "observedLine": 2069,
+      "observedRegion": "2069-2081",
+      "placement": "The narrowest correct seam. `withQualityAndRoute` is ALREADY the single prompt-composition point: it layers QUALITY_TUNE_PROMPT_ADDENDUM and buildRoutedIdentifyPrompt onto a base prompt, and every prompt binding (identifyPrompt, multiItemPrompt, textIdentifyPrompt, selectedItemPrompt) flows through it. A candidate overlay appended as the LAST layer inside this function reaches every prompt path with one change, and the certified text remains first and verbatim.",
+      "referenceImplementation": "candidateRequest.applyCandidateRequest / candidateArtifact.describe(version).instructionText",
+      "mustPreserve": "Append only — the certified prompt is never rewritten or reordered. Applied at most ONCE per request. When the resolved version is certified-v140, this layer is a strict no-op and the composed prompt must be byte-identical to today's.",
+      "conflictSensitive": true
+    },
+    {
+      "id": "IP-4",
+      "purpose": "attach sanitized scanner-version metadata",
+      "file": "supabase/functions/scan-identify/index.ts",
+      "anchorSymbol": "response assembly carrying identificationV2",
+      "observedLine": 3203,
+      "placement": "Where the response object is assembled, and wherever scan telemetry is emitted.",
+      "referenceImplementation": "trustedVersionResolver.selectionTelemetry(resolution) plus candidateArtifact.describe(version).artifactSha256",
+      "mustEmit": [
+        "scannerVersion",
+        "scannerVersionReason",
+        "scannerVersionIsControl",
+        "scannerVersionFellBack",
+        "trustedResolverVersion",
+        "scannerArtifactSha256"
+      ],
+      "mustNeverEmit": [
+        "the certified prompt",
+        "the candidate instruction text",
+        "image bytes or base64",
+        "the raw provider response",
+        "credentials or API keys",
+        "account PII",
+        "absolute filesystem paths"
+      ],
+      "mustPreserve": "Ids, hashes, enums, counts and booleans only. The instruction DIGEST may be emitted; the instruction TEXT may not."
+    }
+  ],
+
+  "certifiedFallbackPathUnchanged": {
+    "file": "supabase/functions/scan-identify/index.ts",
+    "symbols": [
+      { "symbol": "routePlan construction", "observedLine": 2021 },
+      { "symbol": "bounded attempt loop `while (attempt < routePlan.maxAttempts)`", "observedLine": 2153 },
+      { "symbol": "nextAttemptModel(routePlan, attempt)", "observedLine": 2155 },
+      { "symbol": "provider fetch dispatch", "observedLine": 2159 }
+    ],
+    "requirement": "MUST REMAIN UNCHANGED. The certified route owns the only fallback: one primary attempt, then one approved fallback model, with permanent failures stopping immediately. Reaching the fallback model is a transport event WITHIN one logical request — it is not a second selected version and must not be recorded as one. The candidate must not add an attempt, a retry, a second dispatch, or a repair pass.",
+    "forbidden": [
+      "control-plus-candidate dual dispatch",
+      "shadow provider calls",
+      "a candidate-to-certified retry on candidate failure",
+      "any second classification or repair pass"
+    ]
+  },
+
+  "protectedFiles": {
+    "requirement": "MUST NOT be modified without explicit owner authorization for production scanner modification.",
+    "paths": [
+      "supabase/functions/scan-identify/**",
+      "supabase/functions/_shared/**",
+      "supabase/migrations/**",
+      "scripts/deploy-edge-functions.js",
+      "scripts/generate-edge-function-manifest.js",
+      "scripts/check-edge-function-parity.js",
+      "app/**",
+      "components/**",
+      "android/**",
+      "ios/**",
+      "eas.json",
+      "app.json"
+    ]
+  },
+
+  "expectedMinimalProductionChange": {
+    "note": "The smallest change that could deliver the candidate. Every file here is PROTECTED and none may be touched in this phase.",
+    "files": [
+      {
+        "path": "supabase/functions/scan-identify/index.ts",
+        "changes": [
+          "IP-1 read trusted configuration",
+          "IP-2 resolve version once, sealed",
+          "IP-3 append candidate overlay inside withQualityAndRoute",
+          "IP-4 attach sanitized version metadata"
+        ]
+      },
+      {
+        "path": "supabase/functions/_shared/ (new file)",
+        "changes": [
+          "port of the trusted resolver + candidate artifact as a Deno module",
+          "the instruction artifact as data, hash-verified at load"
+        ]
+      }
+    ],
+    "filesExpectedUnchanged": [
+      "supabase/functions/_shared/llmModelRouting.ts",
+      "supabase/functions/_shared/fashionIdentificationV2.ts",
+      "supabase/functions/scan-identify/v2Activation.ts"
+    ]
+  },
+
+  "conflictSensitiveRegions": [
+    {
+      "file": "supabase/functions/scan-identify/index.ts",
+      "region": "prompt assembly (observed 2069-2126)",
+      "why": "withQualityAndRoute, the four prompt bindings and geminiBody sit in one contiguous block. Any concurrent workstream touching quality-tune, scanner-intelligence routing or prompt text will conflict here."
+    },
+    {
+      "file": "supabase/functions/scan-identify/index.ts",
+      "region": "response assembly (observed ~3203)",
+      "why": "Adding response fields conflicts with any concurrent change to the response contract."
+    },
+    {
+      "file": "supabase/functions/_shared/fashionIdentificationV2.ts",
+      "region": "whole file",
+      "why": "ALREADY DRIFTED from certified v140 in this worktree. A future integration must reconcile against the governing release branch, not against this observation."
+    }
+  ],
+
+  "postIntegrationChecks": {
+    "dependencyClosure": [
+      "regenerate the Edge Function manifest and confirm the new shared module is included",
+      "run the Edge Function source parity gate",
+      "confirm the deployed bundle hash changes deliberately, and record the new value",
+      "re-verify the certified v140 snapshot still resolves 39/39 as the CONTROL reference"
+    ],
+    "testsToRerun": [
+      "node scripts/run-all-tests.js",
+      "node --test tools/scanner-evaluation/__tests__/*.test.js",
+      "npx tsc --noEmit",
+      "deno check --no-lock on every modified Edge Function file",
+      "node tools/scanner-evaluation/verify-certified-v140.js",
+      "node tools/scanner-evaluation/verify-frozen-dataset.js",
+      "node tools/scanner-evaluation/check-build4-tracking.js --base <integration base sha>",
+      "npm run test:edge-parity",
+      "npm run verify:edge-parity"
+    ],
+    "behaviouralGates": [
+      "with no trusted configuration, the composed prompt is byte-identical to pre-integration",
+      "the candidate requires explicit trusted selection",
+      "no client-controlled channel can activate the candidate",
+      "exactly one provider dispatch per request",
+      "the certified fallback path is unchanged",
+      "no prompt, instruction, image, response, credential or PII appears in logs or telemetry"
+    ]
+  },
+
+  "referenceImplementations": {
+    "trustedResolver": "tools/scanner-evaluation/lib/trustedVersionResolver.js",
+    "candidateArtifactApi": "tools/scanner-evaluation/lib/candidateArtifact.js",
+    "candidateRequestTransform": "tools/scanner-evaluation/lib/candidateRequest.js",
+    "instructionArtifact": "tools/scanner-evaluation/adapter/phase2a-instruction-overlay.v1.json",
+    "integrationSimulation": "tools/scanner-evaluation/lib/integrationSimulation.js"
+  }
+}

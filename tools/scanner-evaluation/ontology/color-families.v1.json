@@ -1,0 +1,106 @@
+{
+  "ontologyId": "color-families",
+  "ontologyVersion": "1.0.0",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "purpose": "Evaluation-only color comparison. Decides exact / broader-family / unrelated / uncertainty for the primaryColor and secondaryColors fields.",
+  "provenance": {
+    "sourceCommit": "cf39d9aceada70244635548dd7a0a2fbfb6efe96",
+    "sources": [
+      {
+        "path": "supabase/functions/scan-identify/commerceRelevanceColorMaterial.ts",
+        "blobSha": "d883efa0c5e3a1884b126f6e23901e776626e59b",
+        "symbol": "COLOR_FAMILY_MAP / CANONICAL_SEARCH_COLOR / HIGH_CERTAINTY_COLORS",
+        "role": "authoritative production shade -> family map. Imported verbatim; no entry added or removed."
+      },
+      {
+        "path": "supabase/functions/_shared/scanHelpers.ts",
+        "blobSha": "846a7df90c71bf9a794421942d6857a189505cc7",
+        "symbol": "normalizeColor",
+        "role": "second production color normalizer. Documented divergences below."
+      }
+    ],
+    "readOnly": true
+  },
+  "importedFamilyMap": {
+    "_comment": "Imported verbatim from COLOR_FAMILY_MAP. shade -> broader family.",
+    "navy": "blue",
+    "dark blue": "blue",
+    "midnight": "blue",
+    "cobalt": "blue",
+    "burgundy": "red",
+    "oxblood": "red",
+    "wine": "red",
+    "maroon": "red",
+    "ivory": "white",
+    "ecru": "white",
+    "cream": "white",
+    "bone": "white",
+    "off-white": "white",
+    "off white": "white",
+    "camel": "brown",
+    "taupe": "brown",
+    "tan": "brown",
+    "beige": "brown",
+    "khaki": "brown",
+    "charcoal": "gray",
+    "slate": "gray",
+    "graphite": "gray",
+    "blush": "pink",
+    "rose": "pink",
+    "magenta": "pink"
+  },
+  "baseFamilies": [
+    "black", "white", "gray", "blue", "red", "green", "brown", "pink",
+    "purple", "yellow", "orange", "gold", "silver", "multicolor"
+  ],
+  "spellingVariants": {
+    "grey": "gray",
+    "gray": "gray"
+  },
+  "uncertaintyTokens": ["unknown", "not_visible", "not_applicable"],
+  "comparisonRules": {
+    "exact": "Normalized prediction equals normalized ground truth (after spelling-variant folding only).",
+    "broader_family": "Prediction is the FAMILY of the ground-truth shade. navy(GT) vs blue(pred) = one level broader = acceptably_broad.",
+    "narrower": "Prediction is a specific shade where ground truth is only the family. blue(GT) vs navy(pred) = NOT acceptably broad; scored unsupported_certainty because the model asserted a shade the label does not support.",
+    "unrelated": "Different families, or same-family peers that production keeps distinct.",
+    "same_family_peers": "navy vs cobalt share family 'blue' but are distinct shades. Scored unrelated, NOT acceptably_broad — one-level-broader means moving UP the hierarchy, never sideways.",
+    "unknown": "Uncertainty token on either side routes to the uncertainty rules in scoreFields, not to color comparison.",
+    "multicolor": "Treated as a terminal family with no children. multicolor vs any specific color is unrelated."
+  },
+  "disputedMappings": [
+    {
+      "value": "teal",
+      "status": "UNRESOLVED — owner decision required",
+      "problem": "teal sits between blue and green. Neither production map assigns it a family: it is absent from COLOR_FAMILY_MAP and falls through normalizeColor unchanged.",
+      "chosenRule": "teal is treated as its OWN terminal family. It is never folded into blue or green. teal(GT) vs blue(pred) scores unrelated.",
+      "rationale": "Choosing blue or green would be an invented mapping. Treating it as terminal is the only option that does not fabricate a production relationship. Recorded explicitly rather than assumed, per the Phase 0B rule against undocumented ambiguous mappings.",
+      "affectsBaseline": "Only if a labeled case uses teal. No current case does."
+    },
+    {
+      "value": "olive",
+      "status": "UNRESOLVED — owner decision required",
+      "problem": "Absent from COLOR_FAMILY_MAP. Commonly read as a green, but production also groups khaki -> brown, and olive/khaki are frequently conflated in apparel copy.",
+      "chosenRule": "olive is its own terminal family. Not folded into green or brown.",
+      "rationale": "Same as teal: no production evidence for either parent."
+    },
+    {
+      "value": "off-white",
+      "status": "RESOLVED but internally divergent in production",
+      "problem": "COLOR_FAMILY_MAP maps off-white -> white (family). CANONICAL_SEARCH_COLOR maps off-white -> ivory (canonical search form). normalizeColor in scanHelpers maps off-white -> 'white/cream' (a THIRD, slash-joined form).",
+      "chosenRule": "Evaluation uses the COLOR_FAMILY_MAP family relation off-white -> white. The slash-joined 'white/cream' form from normalizeColor is registered as a compound token that resolves to family white.",
+      "rationale": "COLOR_FAMILY_MAP is the map whose stated purpose is family membership. The other two serve search-query construction and display."
+    }
+  ],
+  "compoundProductionTokens": {
+    "_comment": "normalizeColor emits slash-joined compound labels that are not single colors. Registered so they are not scored as unrelated strings.",
+    "white/cream": "white",
+    "gray/charcoal": "gray",
+    "brown/tan": "brown"
+  },
+  "unsupportedComparisons": [
+    {
+      "case": "colorPalette ordering",
+      "reason": "The V2 result exposes colors.primary and colors.secondary[]; the ordering of secondary colors is provider-dependent and not stable. Secondary color scoring is set-based, never order-based."
+    }
+  ]
+}

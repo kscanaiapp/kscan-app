@@ -1,0 +1,269 @@
+{
+  "datasetVersion": "0.1.0",
+  "cases": [
+    {
+      "caseId": "qa-footwear-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/footwear.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:8c4f330f9a966ca41ee4b1558849528bf094acfc5bfb195723c8033b8c61b3b5"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "footwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "unknown",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Category labeled from approved QA fixture intent. Subtype/brand/product left unknown — do not invent."
+    },
+    {
+      "caseId": "qa-outerwear-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/outerwear.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:0cf370dcccf7de4b9a0d41ed0a87ca6545e55ba99aaaab95d01cb2e4fe7b7ea0"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "outerwear",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "unknown",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Category labeled from approved QA fixture intent. Fine fields unknown."
+    },
+    {
+      "caseId": "qa-top-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/top.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:592ede7f86ecdc99d93e6e7785123e61f4e385b79e19a727636986caf51d3677"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "tops",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "unknown",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Category labeled from approved QA fixture intent."
+    },
+    {
+      "caseId": "qa-bottom-jeans-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/bottom_jeans.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:04c0ca5bed1bee26e83be98b9a992619b0777811a7fb8a99fe955939334bbd8c"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "bottoms",
+      "clothingType": "jeans",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "unknown",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Bottoms/jeans from QA fixture id. Subtype/brand unknown."
+    },
+    {
+      "caseId": "qa-bottom-skirt-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/bottom_skirt.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:3488934132872918e05c6663c87322c994b84ecf989dbad865d32501b2d58ae7"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "bottoms",
+      "clothingType": "skirt",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "unknown",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Bottoms/skirt from QA fixture id."
+    },
+    {
+      "caseId": "qa-dress-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/dress.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:d9e10c855e41543a906ad0c202a9403b9cea7d3d75a198ab11fecdf9710fdded"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "dresses",
+      "clothingType": "dress",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "unknown",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Dress category from QA fixture intent."
+    },
+    {
+      "caseId": "qa-accessory-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/accessory.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:2ec5f6763298d21b070e195b52cd8ec2a6343389f2bdfa1a291df5738e736fce"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "accessories",
+      "clothingType": "unknown",
+      "subtype": "unknown",
+      "primaryColor": "unknown",
+      "secondaryColors": "unknown",
+      "material": "unknown",
+      "pattern": "unknown",
+      "brand": "unknown",
+      "exactProduct": "unknown",
+      "expectedResultType": "identified_style",
+      "expectedAbstention": false,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "medium",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Accessory category from QA fixture intent. Exact accessory subtype unknown."
+    },
+    {
+      "caseId": "qa-non-fashion-001",
+      "datasetVersion": "0.1.0",
+      "imageReferences": [
+        {
+          "refType": "governed_qa_fixture",
+          "refValue": "assets/qa_fixtures/non_fashion.jpg"
+        }
+      ],
+      "imageHashes": [
+        "sha256:5820e6a08b6c58e43f85072fb29d30e6489d4159cb52d4c9c50729a7475b4938"
+      ],
+      "imageCount": 1,
+      "sameItemAcrossImages": "not_applicable",
+      "category": "not_applicable",
+      "clothingType": "not_applicable",
+      "subtype": "not_applicable",
+      "primaryColor": "not_applicable",
+      "secondaryColors": "not_applicable",
+      "material": "not_applicable",
+      "pattern": "not_applicable",
+      "brand": "not_applicable",
+      "exactProduct": "not_applicable",
+      "expectedResultType": "insufficient_evidence",
+      "expectedAbstention": true,
+      "reviewStatus": "approved",
+      "reviewerCount": 1,
+      "labelConfidence": "high",
+      "sourceClass": "kscan_qa_fixture",
+      "authorizationStatus": "approved_qa_fixture",
+      "privacyDisposition": "governed_fixture_reference",
+      "notes": "Non-fashion control. Fashion identity claims and exact-product claims should abstain."
+    }
+  ]
+}

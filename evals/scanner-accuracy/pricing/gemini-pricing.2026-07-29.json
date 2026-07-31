@@ -1,0 +1,49 @@
+{
+  "pricingRecordVersion": "1.0.0",
+  "source": "https://ai.google.dev/gemini-api/docs/pricing (official Google Gemini API pricing, paid tier)",
+  "retrievedAt": "2026-07-29T00:00:00.000Z",
+  "retrievalNote": "Retrieved immediately before the Phase 1 readiness gate. Phase 0 recorded the same figures on the same date; this record was re-retrieved rather than carried forward, because stale pricing is how a spend ceiling gets silently exceeded.",
+  "currency": "USD",
+  "unit": "per 1,000,000 tokens",
+  "models": {
+    "gemini-3.6-flash": {
+      "inputPerMillionUsd": 1.5,
+      "outputPerMillionUsd": 7.5,
+      "role": "certified Scanner primary",
+      "outputNote": "output price includes thinking tokens"
+    },
+    "gemini-3.5-flash-lite": {
+      "inputPerMillionUsd": 0.3,
+      "outputPerMillionUsd": 2.5,
+      "role": "certified Scanner fallback",
+      "inputNote": "published as $0.30 for text / image / video / audio uniformly",
+      "outputNote": "output price includes thinking tokens"
+    }
+  },
+  "imageTokenModel": {
+    "source": "https://ai.google.dev/gemini-api/docs/image-understanding",
+    "smallImageRule": "258 tokens when both dimensions <= 384 px",
+    "tilingRule": "larger images are tiled into 768x768 tiles at 258 tokens each; crop unit is approximately floor(min(width,height) / 1.5) and the tile count is the product of each dimension divided by the crop unit",
+    "appliedToCertifiedClientPayload": {
+      "payloadWidthPx": 896,
+      "payloadWidthProvenance": "services/imageUtils.js::SCANNER_IMAGE_MAX_WIDTH in the certified v140 source",
+      "assumedTileCount": 4,
+      "imageTokensPerAttempt": 1032,
+      "derivation": "a 896 px wide frame at either 4:3 or 3:4 yields a crop unit of ~448-597 px and 2x2 = 4 tiles; 4 x 258 = 1032 tokens",
+      "confidence": "estimate. The tile count depends on the exact aspect ratio of each prepared derivative, and no prepared derivatives exist yet (finding F-1). A free countTokens pre-flight must replace this estimate before any paid run."
+    }
+  },
+  "certifiedRouteParameters": {
+    "maxOutputTokens": 2048,
+    "maxOutputTokensProvenance": "supabase/functions/scan-identify/index.ts::MAX_OUTPUT_TOKENS",
+    "maxAttemptsPerCall": 2,
+    "maxAttemptsProvenance": "supabase/functions/_shared/llmModelRouting.ts::SCANNER_MAX_ATTEMPTS",
+    "assumedTextInputTokensPerAttempt": 1500,
+    "assumedTextInputNote": "conservative upper bound covering the certified identify prompt plus the quality-and-route suffix. Measured IDENTIFY_PROMPT is ~1589 characters; the bound is deliberately generous so the projection cannot under-state cost."
+  },
+  "limitations": [
+    "Token counts for image input are ESTIMATED, not measured. A free countTokens pre-flight is required before paid execution.",
+    "Output tokens are projected at the certified hard cap of 2048 for worst-case bounding; observed output will typically be far lower.",
+    "These figures authorize nothing. Cost projection is one of several independent Phase 1 gates and does not substitute for the review gate or the credential gate."
+  ]
+}

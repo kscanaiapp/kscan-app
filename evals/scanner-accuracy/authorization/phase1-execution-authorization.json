@@ -1,0 +1,93 @@
+{
+  "authorizationRecordVersion": "1.0.0",
+  "phase": "Build 4 Phase 1",
+  "recordedAt": "2026-07-29T00:00:00.000Z",
+  "recordedFrom": "owner decision message, 2026-07-29",
+
+  "ceilings": {
+    "maximumProviderAttempts": {
+      "value": 200,
+      "status": "APPROVED",
+      "authority": "owner",
+      "note": "Bounds PROVIDER ATTEMPTS, not planned calls. The original Phase 1 plan contained 56 calls and could reach 112 attempts; that plan is historical and was superseded by frozen Path B selection contract 1.0.0, which permits 40 logical calls and at most 80 generation attempts."
+    },
+    "maximumProviderSpendUsd": {
+      "value": 10.0,
+      "status": "APPROVED",
+      "authority": "owner",
+      "note": "Hard ceiling, not a target. The runner refuses any attempt whose worst-case projected cumulative cost would exceed it."
+    }
+  },
+
+  "capturePreparation": {
+    "status": "APPROVED",
+    "acceptedAs": "production-equivalent pilot preparation stage",
+    "explicitlyNotAcceptedAs": "byte-for-byte production parity",
+    "defaultPolicy": "certified_client_width_896",
+    "defaultPolicyRationale": "Production parity outweighs the earlier 'maximum dimension' wording. Portrait images preserve the same width-based behaviour as the production client, so their long edge exceeds 896 exactly as in production.",
+    "immutableRunIdentityRequirement": [
+      "preparationCodec",
+      "preparationTransformSignature",
+      "preparationPolicy",
+      "preparationManifestSha256"
+    ],
+    "immutableRunIdentityNote": "Derivative hashes are covered transitively: the preparation-manifest hash is computed over every per-image derivative hash, the policy, the codec and the certified contract. All four fields above are additionally named in IDENTITY_FIELDS so a mismatch identifies which component changed.",
+    "payloadRangeStatement": "All prepared payloads remain below the certified ceiling and overlap the documented production payload range. Complete band parity is NOT claimed: the prepared range is 25-299 KB with a 94 KB mean against a documented production typical of 120-320 KB."
+  },
+
+  "remainingBlockers": [
+    {
+      "id": "RB-3",
+      "blocker": "Dedicated evaluation credential",
+      "status": "OPEN",
+      "requirements": [
+        "evaluation-only scope where supported",
+        "maximum lifetime of 30 days",
+        "named revocation owner",
+        "documented revocation procedure",
+        "never written to logs, reports or Git"
+      ],
+      "note": "Production application credentials are forbidden and were not used, read or copied."
+    }
+  ],
+
+  "closedBlockers": [
+    {
+      "id": "RB-1",
+      "blocker": "Development reviewer assignment",
+      "status": "CLOSED",
+      "closedAt": "2026-07-30",
+      "evidence": "33/33 development cases received a locked isolated AI review pass under labeling guide 1.1.0; see review/phase1-review.v0.3.1.json."
+    },
+    {
+      "id": "RB-2",
+      "blocker": "Two blind holdout reviewers and an adjudicator",
+      "status": "CLOSED",
+      "closedAt": "2026-07-30",
+      "evidence": "Two isolated AI review passes covered 7/7 holdout cases; 3/126 field instances were adjudicated with zero unresolved contradictions; see review/holdout-seal.v0.3.1.json."
+    },
+    {
+      "id": "F-1",
+      "blocker": "Missing capture-preparation stage",
+      "status": "CLOSED",
+      "closedAt": "commit 73cb870",
+      "evidence": "56/56 governed images prepare to within the certified 2 MB base64 ceiling; 0 over. Frozen v0.3.0 unchanged and re-verified after preparation."
+    },
+    {
+      "id": "CEILINGS",
+      "blocker": "Explicit confirmation of the 200-attempt and $10.00 ceilings",
+      "status": "CLOSED",
+      "closedAt": "owner decision 2026-07-29",
+      "evidence": "Recorded in this file."
+    }
+  ],
+
+  "verdict": "BUILD 4 PHASE 1 BLOCKED — DEDICATED EVALUATION CREDENTIAL GATE REMAINS",
+  "notAnAuthorizationTo": [
+    "execute any paid provider call while RB-3 remains open",
+    "bypass the draft review gate",
+    "expose holdout labels or Scanner output to a reviewer before labels are locked",
+    "use a production credential or contact a production endpoint",
+    "begin Phase 2 implementation"
+  ]
+}

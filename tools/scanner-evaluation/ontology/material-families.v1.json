@@ -1,0 +1,122 @@
+{
+  "ontologyId": "material-families",
+  "ontologyVersion": "1.0.0",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "purpose": "Evaluation-only material comparison. Materially different substances are never equated.",
+  "provenance": {
+    "sourceCommit": "cf39d9aceada70244635548dd7a0a2fbfb6efe96",
+    "sources": [
+      {
+        "path": "supabase/functions/scan-identify/commerceRelevanceColorMaterial.ts",
+        "blobSha": "d883efa0c5e3a1884b126f6e23901e776626e59b",
+        "symbol": "SUPPORTED_MATERIALS / APPEARANCE_SYNONYMS / APPEARANCE_MATERIAL_RE / UNSUPPORTED_MATERIAL_RE",
+        "role": "authoritative supported-material vocabulary and appearance-vs-fact certainty rules"
+      },
+      {
+        "path": "supabase/functions/_shared/scanHelpers.ts",
+        "blobSha": "846a7df90c71bf9a794421942d6857a189505cc7",
+        "symbol": "normalizeMaterial",
+        "role": "production material canonicalization"
+      },
+      {
+        "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
+        "blobSha": "529cf02688ca4a8c043231d7589b54da3ebf91ef",
+        "role": "second supported-material list; divergence documented below"
+      }
+    ],
+    "readOnly": true
+  },
+  "importedSupportedMaterials": [
+    "leather", "faux leather", "denim", "wool", "wool blend", "cotton", "satin",
+    "silk", "linen", "knit", "suede", "acetate", "canvas", "nylon", "polyester",
+    "cashmere", "tweed", "corduroy", "velvet", "chiffon", "jersey", "ribbed",
+    "cotton canvas", "metal", "gold tone", "silver tone"
+  ],
+  "families": {
+    "_comment": "Parent families are EVALUATION-ONLY groupings. Production has no material family map — only the flat SUPPORTED_MATERIALS set and the normalizeMaterial collapses below. Every parent here is marked with its justification.",
+    "cotton_family": {
+      "members": ["cotton", "cotton canvas", "cotton twill", "cotton blend", "jersey", "canvas"],
+      "justification": "normalizeMaterial collapses knit/ribbed/jersey -> 'knit' but leaves cotton variants distinct. Grouping is evaluation-only.",
+      "evaluationOnly": true
+    },
+    "wool_family": {
+      "members": ["wool", "wool blend", "cashmere", "tweed"],
+      "justification": "IMPORTED, NOT INVENTED: normalizeMaterial explicitly collapses /(wool|cashmere|tweed)/ -> 'wool/wool blend'. This family reproduces a real production relation.",
+      "evaluationOnly": false
+    },
+    "knit_family": {
+      "members": ["knit", "ribbed", "jersey"],
+      "justification": "IMPORTED: normalizeMaterial collapses /(knit|ribbed|jersey)/ -> 'knit'.",
+      "evaluationOnly": false
+    },
+    "synthetic": {
+      "members": ["faux leather", "polyester", "nylon", "acetate"],
+      "justification": "Evaluation-only grouping of man-made materials.",
+      "evaluationOnly": true
+    },
+    "animal_hide": {
+      "members": ["leather", "suede"],
+      "justification": "Evaluation-only. Production keeps leather and suede distinct and normalizeMaterial has separate branches for each.",
+      "evaluationOnly": true
+    },
+    "metal_family": {
+      "members": ["metal", "gold tone", "silver tone"],
+      "justification": "Evaluation-only grouping for jewelry/hardware.",
+      "evaluationOnly": true
+    }
+  },
+  "compoundProductionTokens": {
+    "wool/wool blend": "wool"
+  },
+  "explicitNonEquivalences": [
+    {
+      "pair": ["faux leather", "leather"],
+      "rule": "NEVER equivalent. faux leather belongs to 'synthetic'; leather belongs to 'animal_hide'.",
+      "productionBasis": "normalizeMaterial matches faux/vegan/pu/synthetic leather FIRST and explicitly excludes them from the 'leather' branch. commerceRelevanceColorMaterial comments: 'never invent faux from uncertain leather'.",
+      "scoring": "Predicting 'leather' where ground truth is 'faux leather' is INCORRECT, not acceptably_broad. The reverse is also INCORRECT.",
+      "severity": "This is a material misrepresentation with commercial consequence, not a vocabulary nicety."
+    },
+    {
+      "pair": ["suede", "faux suede"],
+      "rule": "NEVER equivalent.",
+      "productionBasis": "APPEARANCE_SYNONYMS maps suede-like/suede-look -> 'suede' for FALLBACK QUERIES ONLY, with certainty 'appearance_only'. That is a search-expansion allowance, not a factual equivalence.",
+      "scoring": "Scored incorrect. The appearance synonym is NOT imported as a truth relation."
+    },
+    {
+      "pair": ["denim", "cotton"],
+      "rule": "Not equivalent, and denim is NOT given a parent.",
+      "productionBasis": "normalizeMaterial has a dedicated exact branch: lower === 'denim' -> 'denim'. Denim is never folded into cotton anywhere in production, despite being a cotton twill in fact.",
+      "governedParentDecision": "denim is a TERMINAL family with no parent, determined from the existing taxonomy as required. Assigning it cotton_family would create a broader-credit path production does not recognize.",
+      "ownerDecisionRequired": true
+    },
+    {
+      "pair": ["wool", "cashmere"],
+      "rule": "Same family (wool_family) by production's own collapse, so cashmere(GT) vs wool(pred) is acceptably_broad.",
+      "productionBasis": "normalizeMaterial: /(wool|cashmere|tweed)/ -> 'wool/wool blend'."
+    }
+  ],
+  "certaintyClasses": {
+    "_comment": "Imported from production MaterialCertainty. Governs whether a material claim is factual or appearance-only.",
+    "supported": "Value is in SUPPORTED_MATERIALS. Scored normally.",
+    "likely": "Provider hedged (likely|probably|possibly|appears|seems|maybe). Scored as a hedged claim: correct value -> correct; wrong value -> incorrect but NOT unsupported_certainty, because the model signalled doubt.",
+    "appearance_only": "Matched APPEARANCE_MATERIAL_RE (leather-look, suede-like, ...). Never scored as a factual material claim.",
+    "unsupported": "Matched UNSUPPORTED_MATERIAL_RE (lambskin, calfskin, exotic, python, ostrich, designer, luxury). A specific claim here against an unknown label is unsupported_certainty."
+  },
+  "productionDivergence": [
+    {
+      "issue": "Two supported-material lists exist.",
+      "detail": "commerceRelevanceColorMaterial SUPPORTED_MATERIALS contains 'wool' and 'wool blend' as separate entries; scannerQualityGate contains both 'wool/wool blend' (the compound normalizeMaterial output) and 'wool'.",
+      "resolution": "Evaluation accepts all three surface forms and resolves them to wool_family. Neither production list is modified."
+    }
+  ],
+  "unsupportedComparisons": [
+    {
+      "case": "material composition percentages",
+      "reason": "No production field carries composition ratios. Not labeled, not scored."
+    },
+    {
+      "case": "material[] array semantics",
+      "reason": "The V2 result exposes item.material as a string ARRAY, not a scalar. Evaluation scores it as a set with the primary (first) element compared for the scalar material label; the full set is retained for reporting. Order is provider-dependent and never scored."
+    }
+  ]
+}

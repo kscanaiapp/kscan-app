@@ -1,0 +1,86 @@
+{
+  "registryId": "evaluation-exclusion-registry",
+  "registryVersion": "1.0.0",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "purpose": "Machine-enforced rejection of imagery that may not enter a Build 4 evaluation manifest. Prose in an inventory does not stop a file being added; this does.",
+  "enforcement": [
+    "normalized_repository_path",
+    "sha256_content_hash",
+    "derivative_source_relationship"
+  ],
+  "reasonCodes": {
+    "excluded_pending_provenance": "No source owner, licence, use record or capture provenance exists. Admissible only after an affirmative owner provenance decision and a versioned policy change. NOT permanent, and asserting nothing about age, ownership, consent or legality."
+  },
+  "notPermanent": true,
+  "reintroductionRequires": [
+    "documented provenance and permitted use",
+    "explicit owner decision",
+    "a new registry version"
+  ],
+  "entries": [
+    {
+      "excludedPath": "assets/qa_fixtures/accessory.jpg",
+      "sha256": "2ec5f6763298d21b070e195b52cd8ec2a6343389f2bdfa1a291df5738e736fce",
+      "md5": "a2ad19d9aaf96876df27591fe6b60b9b",
+      "byteLength": 146638,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    },
+    {
+      "excludedPath": "assets/qa_fixtures/bottom_jeans.jpg",
+      "sha256": "04c0ca5bed1bee26e83be98b9a992619b0777811a7fb8a99fe955939334bbd8c",
+      "md5": "2a0fbc26f86c43857dc74cfd14dd9dd7",
+      "byteLength": 95686,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    },
+    {
+      "excludedPath": "assets/qa_fixtures/bottom_skirt.jpg",
+      "sha256": "3488934132872918e05c6663c87322c994b84ecf989dbad865d32501b2d58ae7",
+      "md5": "012ccca938317e66982d0065eaea86c3",
+      "byteLength": 206614,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    },
+    {
+      "excludedPath": "assets/qa_fixtures/dress.jpg",
+      "sha256": "d9e10c855e41543a906ad0c202a9403b9cea7d3d75a198ab11fecdf9710fdded",
+      "md5": "2e1f1fdc0c74170fb4d6ea4ee2fc448c",
+      "byteLength": 40008,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    },
+    {
+      "excludedPath": "assets/qa_fixtures/footwear.jpg",
+      "sha256": "8c4f330f9a966ca41ee4b1558849528bf094acfc5bfb195723c8033b8c61b3b5",
+      "md5": "92cf722c8ef9be4b4a7f83c2aa0ab1aa",
+      "byteLength": 180294,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    },
+    {
+      "excludedPath": "assets/qa_fixtures/non_fashion.jpg",
+      "sha256": "5820e6a08b6c58e43f85072fb29d30e6489d4159cb52d4c9c50729a7475b4938",
+      "md5": "7d7f33a3f277510d4a1c0a1e2bb631f6",
+      "byteLength": 24483,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    },
+    {
+      "excludedPath": "assets/qa_fixtures/outerwear.jpg",
+      "sha256": "0cf370dcccf7de4b9a0d41ed0a87ca6545e55ba99aaaab95d01cb2e4fe7b7ea0",
+      "md5": "0cd26c64a510dc061fd8530a19e67a0f",
+      "byteLength": 318631,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    },
+    {
+      "excludedPath": "assets/qa_fixtures/top.jpg",
+      "sha256": "592ede7f86ecdc99d93e6e7785123e61f4e385b79e19a727636986caf51d3677",
+      "md5": "37db9d20f4d6c29338f59559784b3ad9",
+      "byteLength": 51879,
+      "reasonCode": "excluded_pending_provenance",
+      "reviewStatus": "open"
+    }
+  ]
+}

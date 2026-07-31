@@ -1,0 +1,45 @@
+{
+  "assignmentVersion": "1.0.0",
+  "status": "UNSTAFFED",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "summary": "Phase 0B section 9 forbids beginning formal labeling until reviewer availability is identified. No reviewer is identified. Labeling has therefore not begun.",
+  "roles": [
+    {
+      "role": "primary",
+      "assigned": false,
+      "assignedReference": null,
+      "responsibility": "Independent first label of every governed case across the seven dual-review fields.",
+      "independenceRequirement": "Must not see the secondary reviewer's labels before submitting."
+    },
+    {
+      "role": "secondary",
+      "assigned": false,
+      "assignedReference": null,
+      "responsibility": "Independent second label, blind to the primary.",
+      "independenceRequirement": "Must not see the primary reviewer's labels before submitting. May not be the same person as the primary."
+    },
+    {
+      "role": "adjudicator",
+      "assigned": false,
+      "assignedReference": null,
+      "responsibility": "Resolves every field where the two reviewers disagree, and records the reason.",
+      "independenceRequirement": "May also hold ONE reviewer role, provided both initial labels were produced independently and blind."
+    }
+  ],
+  "identityPolicy": {
+    "rule": "Reviewer identities are referenced here by role and by an authorization reference, and are NEVER written into individual case records.",
+    "enforcement": "tools/scanner-evaluation/lib/datasetValidate.js rejects a case record containing a reviewer name, email or id, and the existing privacy-surface check rejects any email-shaped string anywhere in a manifest."
+  },
+  "whyAiLabelingIsNotASubstitute": {
+    "position": "An AI agent labeling the same image twice produces one labeler run twice. It is not two independent reviews, and an inter-reviewer agreement statistic computed from it would be fabricated.",
+    "whatWasProducedInstead": "Per-fixture visual observations were recorded in fixtures-inventory v0.2.0 as machine-assisted DRAFT primary observations, explicitly attributed as such. They are not reviewer labels, they carry reviewStatus draft, and they are not admissible to a frozen dataset.",
+    "whatUnblocksThis": "The owner assigning a primary reviewer, an independent secondary reviewer, and an adjudicator."
+  },
+  "blockedDeliverables": [
+    "two independent reviews of all 75 cases",
+    "inter-reviewer agreement by field",
+    "adjudication of disagreements",
+    "calibration batch execution and qualification threshold sign-off",
+    "dataset freeze at version 0.2.0"
+  ]
+}

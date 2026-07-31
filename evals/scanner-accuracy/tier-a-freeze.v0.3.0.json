@@ -1,0 +1,22 @@
+{
+  "frozenAs": "LICENSED-WEB-IMAGE PILOT BENCHMARK",
+  "datasetVersion": "0.3.0",
+  "freezeDate": "2026-07-29",
+  "caseCount": 41,
+  "imageCount": 56,
+  "development": 33,
+  "holdout": 8,
+  "notARealWorldSmartGlassesBenchmark": true,
+  "notAComprehensiveBrandAccuracyCorpus": true,
+  "positiveBrandSupport": "EXPLORATORY",
+  "lineEndings": "LF, normalised so the hash reproduces from a fresh clone",
+  "files": {
+    "evals/scanner-accuracy/tier-a-manifest.v0.3.0.json": "093d0e2257f4518b60a7e63b894327adef9a422fbd95b1f1ae9e93b08cc79749",
+    "evals/scanner-accuracy/tier-a-acquisition-report.v0.3.0.json": "1b0c6de2bc9a35284521f3cf035833b0551729a4e0f0f4a22f8b262424f92a2c",
+    "evals/scanner-accuracy/curation/tier-a-curation.v0.1.0.json": "43d5b48badbd2b94df63179526810bf83066b82db5a1bf2257356dd550f874e8",
+    "evals/scanner-accuracy/tier-a-coverage.v0.3.0.json": "2f3551e7eadf11bf896c426e469f0967ac4ca655cb0f1c5e331535b6f3a67488"
+  },
+  "aggregateSha256": "ddc939dca91d202c3d0ee306b9421e1d71f1348c1fb8f035097ae91d2972c3db",
+  "imagesInGit": 0,
+  "governedStorage": "KScan-eval-storage-private/tier-a (outside every Git worktree); resolve with KSCAN_EVAL_STORAGE_ROOT"
+}

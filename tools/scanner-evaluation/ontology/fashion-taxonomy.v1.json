@@ -1,0 +1,234 @@
+{
+  "ontologyId": "fashion-taxonomy",
+  "ontologyVersion": "1.0.0",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "purpose": "Evaluation-only hierarchical taxonomy used to decide exact / one-level-broader / unrelated / invalid comparisons. Never used by production.",
+  "provenance": {
+    "sourceCommit": "cf39d9aceada70244635548dd7a0a2fbfb6efe96",
+    "sources": [
+      {
+        "path": "supabase/functions/_shared/scanHelpers.ts",
+        "blobSha": "846a7df90c71bf9a794421942d6857a189505cc7",
+        "symbol": "normalizeCategory",
+        "role": "authoritative production category canonicalization; supplies level-1 values and the level-2 synonym sets"
+      },
+      {
+        "path": "supabase/functions/scan-identify/scannerCategoryRoute.ts",
+        "blobSha": "757d5f945e22a8673008167d0438f93205269e3c",
+        "symbol": "VALID_TAXONOMY_CATEGORIES / TEXT_KEYWORDS",
+        "role": "prompt-routing category set and keyword groups"
+      },
+      {
+        "path": "services/closetLibrary.js",
+        "blobSha": "54019e2e236c8307dedaae24b1e19fab22d6ee7d",
+        "symbol": "CLOSET_ITEM_TAXONOMY_FIELDS",
+        "role": "Build 2 Closet taxonomy FIELD list (category, clothingType, subtype, brand, primaryColor, secondaryColors, material, size). Supplies field names only — it defines no value vocabulary."
+      }
+    ],
+    "readOnly": true,
+    "productionUnmodified": true
+  },
+  "levels": ["category", "clothingType", "subtype"],
+  "comparisonOutcomes": [
+    "exact_match",
+    "one_level_broader",
+    "unrelated",
+    "invalid_comparison"
+  ],
+  "importedCategories": {
+    "_comment": "Level-1 values that normalizeCategory can actually RETURN. A prediction is scored against these.",
+    "values": [
+      "blazer",
+      "outerwear",
+      "dress",
+      "pants",
+      "top",
+      "footwear",
+      "bag",
+      "accessory",
+      "NON_FASHION"
+    ],
+    "source": "scanHelpers.ts::normalizeCategory return values"
+  },
+  "routeOnlyCategories": {
+    "_comment": "Present in scannerCategoryRoute VALID_TAXONOMY_CATEGORIES but NOT canonicalized by normalizeCategory — normalizeCategory falls through and returns the lowercased input verbatim. Recorded as a real divergence between two production sources, not silently merged.",
+    "values": ["skirt", "vest", "jumpsuit", "romper", "bodysuit"],
+    "disposition": "accepted_as_level1_for_evaluation",
+    "rationale": "The routing layer treats these as first-class apparel categories and normalizeCategory passes them through unchanged, so a prediction of 'skirt' is a stable level-1 value in practice. Scoring them as invalid would penalize the model for a divergence between two production modules."
+  },
+  "hierarchy": {
+    "outerwear": {
+      "clothingTypes": {
+        "jacket": ["chore_jacket", "bomber_jacket", "denim_jacket", "moto_jacket", "puffer_jacket", "down_jacket", "windbreaker", "rain_jacket", "anorak"],
+        "coat": ["trench_coat", "overcoat", "peacoat", "raincoat", "wool_coat", "parka"],
+        "parka": [],
+        "puffer": []
+      }
+    },
+    "blazer": {
+      "clothingTypes": {
+        "blazer": ["suit_jacket", "tailored_jacket", "sport_coat"]
+      }
+    },
+    "dress": {
+      "clothingTypes": {
+        "dress": ["sundress", "shift_dress", "wrap_dress", "maxi_dress", "midi_dress", "mini_dress"],
+        "gown": ["evening_gown", "ball_gown"]
+      }
+    },
+    "pants": {
+      "clothingTypes": {
+        "jeans": ["straight_jeans", "skinny_jeans", "bootcut_jeans", "wide_leg_jeans", "boyfriend_jeans"],
+        "trousers": ["chinos", "slacks", "dress_trousers", "culottes"],
+        "shorts": ["denim_shorts", "tailored_shorts"],
+        "leggings": [],
+        "joggers": ["sweatpants"]
+      }
+    },
+    "skirt": {
+      "clothingTypes": {
+        "skirt": ["mini_skirt", "midi_skirt", "maxi_skirt", "pleated_skirt", "a_line_skirt", "pencil_skirt"]
+      }
+    },
+    "top": {
+      "clothingTypes": {
+        "shirt": ["button_down_shirt", "oxford_shirt", "flannel_shirt"],
+        "blouse": [],
+        "t_shirt": ["graphic_tee", "crew_neck_tee", "v_neck_tee"],
+        "tank_top": ["camisole"],
+        "sweater": ["crew_neck_sweater", "v_neck_sweater", "turtleneck", "cardigan"],
+        "hoodie": ["pullover_hoodie", "zip_hoodie"],
+        "polo": [],
+        "sweatshirt": ["crewneck_sweatshirt"]
+      }
+    },
+    "vest": {
+      "clothingTypes": { "vest": ["puffer_vest", "sweater_vest", "tailored_vest"] }
+    },
+    "jumpsuit": {
+      "clothingTypes": { "jumpsuit": ["utility_jumpsuit", "wide_leg_jumpsuit"] }
+    },
+    "romper": {
+      "clothingTypes": { "romper": [] }
+    },
+    "bodysuit": {
+      "clothingTypes": { "bodysuit": [] }
+    },
+    "footwear": {
+      "clothingTypes": {
+        "sneaker": ["low_top_sneaker", "high_top_sneaker", "running_sneaker", "court_sneaker", "slip_on_sneaker"],
+        "boot": ["ankle_boot", "chelsea_boot", "combat_boot", "knee_high_boot", "hiking_boot", "western_boot"],
+        "loafer": ["penny_loafer", "horsebit_loafer", "tassel_loafer"],
+        "sandal": ["slide_sandal", "strappy_sandal", "thong_sandal"],
+        "heel": ["pump", "stiletto", "block_heel", "kitten_heel"],
+        "flat": ["ballet_flat", "pointed_flat"],
+        "oxford": ["derby", "brogue"],
+        "mule": []
+      }
+    },
+    "bag": {
+      "clothingTypes": {
+        "handbag": ["shoulder_bag", "top_handle_bag", "hobo_bag", "bucket_bag", "satchel"],
+        "tote": ["canvas_tote", "leather_tote"],
+        "crossbody": ["camera_bag", "saddle_bag"],
+        "backpack": ["mini_backpack"],
+        "clutch": ["envelope_clutch"],
+        "duffel": []
+      }
+    },
+    "accessory": {
+      "clothingTypes": {
+        "eyewear": ["sunglasses", "optical_glasses", "aviator_sunglasses", "wayfarer_sunglasses", "round_sunglasses"],
+        "jewelry": ["necklace", "bracelet", "ring", "earrings", "brooch"],
+        "watch": ["analog_watch", "digital_watch", "smart_watch"],
+        "belt": ["leather_belt", "woven_belt"],
+        "hat": ["cap", "beanie", "bucket_hat", "fedora", "wide_brim_hat"],
+        "scarf": ["silk_scarf", "wool_scarf"],
+        "gloves": [],
+        "tie": ["necktie", "bow_tie"],
+        "wallet": []
+      }
+    },
+    "NON_FASHION": {
+      "clothingTypes": {}
+    }
+  },
+  "evaluationOnlyAliases": {
+    "_comment": "The Phase 0A seed manifest labels categories in a PLURAL vocabulary that production never emits. Scoring those labels directly against production output would mark every category wrong and report a false 0% category accuracy. These aliases are evaluation-only and resolve label vocabulary to production canonical form. They are NOT production behavior and are NOT written back to any production module.",
+    "categoryAliases": {
+      "tops": "top",
+      "bottoms": "pants",
+      "dresses": "dress",
+      "accessories": "accessory",
+      "bags": "bag",
+      "shoes": "footwear",
+      "eyewear": "accessory",
+      "jewelry": "accessory",
+      "non_fashion": "NON_FASHION",
+      "non-fashion": "NON_FASHION"
+    },
+    "clothingTypeAliases": {
+      "sneakers": "sneaker",
+      "boots": "boot",
+      "loafers": "loafer",
+      "sandals": "sandal",
+      "heels": "heel",
+      "flats": "flat",
+      "tee": "t_shirt",
+      "t-shirt": "t_shirt",
+      "tshirt": "t_shirt",
+      "tank": "tank_top",
+      "cardigan": "sweater",
+      "handbags": "handbag",
+      "glasses": "eyewear",
+      "sunglasses": "eyewear"
+    },
+    "aliasDirection": "label_or_prediction_to_production_canonical",
+    "aliasIsNotAMatch": "Applying an alias yields exact_match only when the resolved values are equal. An alias never upgrades an unrelated value into a match."
+  },
+  "disputedRelationships": [
+    {
+      "relationship": "blazer -> outerwear",
+      "status": "disputed",
+      "productionBehavior": "normalizeCategory tests blazer BEFORE outerwear and returns 'blazer', making them SIBLING level-1 categories, not parent/child.",
+      "evaluationRule": "Scored as unrelated, NOT one_level_broader. Predicting 'outerwear' for a labeled 'blazer' is a category miss under production's own vocabulary.",
+      "ownerDecisionRequired": true,
+      "rationale": "Common fashion usage treats a blazer as outerwear. Production does not. Silently allowing the broader credit would inflate category accuracy against production's actual contract."
+    },
+    {
+      "relationship": "skirt -> pants (as 'bottoms')",
+      "status": "disputed",
+      "productionBehavior": "normalizeCategory does NOT include skirt in the pants regex; 'skirt' falls through and is returned verbatim. The Phase 0A seed manifest nevertheless labels skirt cases as category 'bottoms'.",
+      "evaluationRule": "skirt is treated as its own level-1 category. The eval alias bottoms->pants does NOT capture skirt. A skirt case labeled 'bottoms' is flagged invalid_comparison rather than scored.",
+      "ownerDecisionRequired": true
+    },
+    {
+      "relationship": "cardigan -> sweater vs cardigan -> outerwear",
+      "status": "disputed",
+      "productionBehavior": "normalizeCategory places 'cardigans?' in the TOP regex, so production canonicalizes a cardigan to 'top'.",
+      "evaluationRule": "cardigan is a subtype of sweater under top. Predicting 'outerwear' is unrelated.",
+      "ownerDecisionRequired": false
+    },
+    {
+      "relationship": "eyewear / jewelry as level-1 categories",
+      "status": "disputed",
+      "productionBehavior": "Production has no eyewear or jewelry level-1 category; both canonicalize to 'accessory'.",
+      "evaluationRule": "The Phase 0B dataset plan names eyewear and jewelry as primary content targets. They are scored as clothingTypes under accessory. Reporting them as level-1 categories would imply a production capability that does not exist.",
+      "ownerDecisionRequired": true
+    }
+  ],
+  "unsupportedRelationships": [
+    {
+      "relationship": "size",
+      "reason": "CLOSET_ITEM_TAXONOMY_FIELDS includes 'size', but the V2 scanner result contract has no size field. Not evaluable."
+    },
+    {
+      "relationship": "exact_product -> model_family -> brand_and_subtype",
+      "reason": "resolutionLevel hierarchy exists in the contract vocabulary but normalizeToV2 passes exactProduct: null into deriveResolutionLevel, so exact_product and model_family are unreachable on the deployed scanner path. Recorded as measurement ceiling MC-1; not scored as a taxonomy relationship."
+    },
+    {
+      "relationship": "gender / age segmentation",
+      "reason": "No production field. Not labeled, not scored."
+    }
+  ]
+}

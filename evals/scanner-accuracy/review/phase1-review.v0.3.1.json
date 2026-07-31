@@ -1,0 +1,40 @@
+{
+  "reviewArtifactVersion": "1.0.0",
+  "datasetVersion": "0.3.1",
+  "reviewType": "independent isolated AI review passes",
+  "guideVersion": "1.1.0",
+  "guideSha256": "89963c451295696205e708a27a69912a6c52983f286bb178a75b168fadebbde7",
+  "development": {
+    "caseCount": 33,
+    "artifactSha256": "ce93dae501432b3e4f87e4649ffe65cf6bd7a413a8493a7a96e8d9b04e8dc343",
+    "labelSetSha256": "611f4297902d5c000a8e0a557b9e46de0dd46c422b05d95d092486e14d5419a3"
+  },
+  "holdout": {
+    "caseCount": 7,
+    "imageCount": 9,
+    "reviewerA": {
+      "artifactSha256": "505900548b421cd8cc91526ef712edc1b00ab41a9b1a7ffb78b8dc01e31334e4",
+      "labelSetSha256": "7ea2afadfa32231f9ba8281a31b494135bb0fabe77d5339e0b25f7a693664d81"
+    },
+    "reviewerB": {
+      "artifactSha256": "a047fe56bb7f40e1dfffbc5688726f0167db0a5ffab97818c6d226f8110ece77",
+      "labelSetSha256": "4dba239447baf692640678d7e8affbdc2e9ad4151301340648b4d9e4ea859d42"
+    },
+    "exactStringAgreement": {
+      "numerator": 123,
+      "denominator": 126,
+      "rate": 0.9761904761904762
+    },
+    "disagreementCount": 3,
+    "disagreementClasses": {
+      "phrasing": 2,
+      "genuine_perceptual": 1
+    },
+    "adjudicationArtifactSha256": "ab25332075b76b298e89029a134ba08e7e65d585765cd9e52534dbeae5c091e1",
+    "adjudicationDecisionSetSha256": "15cd641c9bf649e40e7f4383167eabbf49c4d3c412f966c726eb2ee404171174",
+    "unresolvedCount": 0,
+    "sameItemIdentityAgreed": true
+  },
+  "finalGroundTruthSha256": "3c177f06440d10551e8e9db3058216c90d16d81b3f6dada2ac5e6b0f696aead9",
+  "limitation": "Agreement is between two isolated same-model AI review passes, not human inter-reviewer agreement, and is an optimistic bound because errors may be correlated."
+}

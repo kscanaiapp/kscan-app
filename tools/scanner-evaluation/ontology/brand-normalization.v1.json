@@ -1,0 +1,87 @@
+{
+  "ontologyId": "brand-normalization",
+  "ontologyVersion": "1.0.0",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "purpose": "Formatting-only normalization of brand strings before comparison. This ontology deliberately contains NO brand alias table.",
+  "provenance": {
+    "sourceCommit": "cf39d9aceada70244635548dd7a0a2fbfb6efe96",
+    "sources": [
+      {
+        "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
+        "blobSha": "1e8acdd4ebf3b6de480352c23d06597ded6ee44d",
+        "symbol": "FASHION_IDENTIFICATION_BRAND_PROVENANCES / deriveBrandProvenance",
+        "role": "production brand provenance vocabulary: visual | visible_text | logo_shape | catalog_corroboration | commerce_corroboration | unknown"
+      }
+    ],
+    "readOnly": true
+  },
+  "normalizationSteps": [
+    { "step": 1, "name": "trim", "rule": "Strip leading and trailing whitespace." },
+    { "step": 2, "name": "collapse_whitespace", "rule": "Collapse internal whitespace runs to a single space." },
+    { "step": 3, "name": "case_fold", "rule": "Lowercase for comparison. The original casing is preserved for reporting." },
+    { "step": 4, "name": "strip_trademark_symbols", "rule": "Remove ® ™ © ℗ and the ASCII sequences (r) (tm) (c) when they appear as trailing or standalone marks." },
+    { "step": 5, "name": "strip_punctuation", "rule": "Remove . , ' ’ ´ ` and collapse - and & to a single space. Applied to BOTH sides symmetrically." },
+    { "step": 6, "name": "strip_legal_suffix", "rule": "Remove a TRAILING legal-entity suffix from the verified list below, and only when it is the final token." }
+  ],
+  "verifiedLegalSuffixes": {
+    "_comment": "Generic corporate-form suffixes only. Each is a legal entity marker, never a distinguishing part of a fashion brand name.",
+    "values": ["inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation", "gmbh", "s.p.a", "spa", "sa", "sas", "srl", "bv", "nv", "plc", "co", "company", "ag", "ab", "oy", "as"],
+    "appliedOnlyWhen": "the suffix is the LAST token AND at least one token remains after removal",
+    "rationale": "'Gucci' and 'Guccio Gucci S.p.A.' are the same legal brand. Stripping a trailing S.p.A. is a formatting normalization, not a merge of two brands."
+  },
+  "prohibitedOperations": [
+    {
+      "operation": "similarity_merge",
+      "rule": "FORBIDDEN. Two brands are never merged because their names look similar, share a prefix, or have a small edit distance.",
+      "examples_that_must_stay_distinct": [
+        ["hermes", "hermes paris"],
+        ["polo ralph lauren", "ralph lauren"],
+        ["armani", "emporio armani"],
+        ["armani", "giorgio armani"],
+        ["mcqueen", "alexander mcqueen"],
+        ["north face", "the north face"],
+        ["balenciaga", "balmain"],
+        ["new balance", "balance"]
+      ],
+      "note": "Several of these pairs ARE related in the real world as parent brand and diffusion line. That relationship is a business fact, not a formatting difference, and asserting it requires evidence this ontology does not have. They are scored as distinct until an owner-approved alias table exists."
+    },
+    {
+      "operation": "alias_inference",
+      "rule": "FORBIDDEN. No brand alias may be added without documented evidence. This file intentionally ships an EMPTY alias table."
+    },
+    {
+      "operation": "article_stripping",
+      "rule": "FORBIDDEN. A leading 'the' is NOT stripped. 'The North Face' and 'North Face' remain distinct strings, because stripping the article is a name change, not punctuation."
+    },
+    {
+      "operation": "diacritic_folding",
+      "rule": "NOT APPLIED in v1. Folding é -> e would silently merge names that differ meaningfully in some scripts. Recorded as an open question rather than applied.",
+      "ownerDecisionRequired": true
+    }
+  ],
+  "aliasTable": {
+    "_comment": "INTENTIONALLY EMPTY. Populating this requires per-entry documented evidence (official corporate disclosure or verified product record) and owner approval. An empty table is the correct fail-safe: it can only cause a true match to be scored as a miss, never a false brand match to be scored as correct.",
+    "entries": []
+  },
+  "evidenceRequirement": {
+    "_comment": "Brand GROUND TRUTH admissibility. Mirrors the Phase 0B labeling standard.",
+    "acceptable": [
+      "visible logo in the image",
+      "visible brand label or care tag in the image",
+      "verified purchase record",
+      "verified fixture metadata",
+      "verified product record"
+    ],
+    "neverAcceptable": [
+      "style resemblance",
+      "silhouette resemblance",
+      "the model's own brand_guess",
+      "commerce search results"
+    ],
+    "productionAlignment": "The production brand provenance vocabulary distinguishes visible_text and logo_shape (direct evidence) from visual (inference). Only direct-evidence provenances correspond to admissible ground truth. Note that production DOES emit provenance 'visual' for a pure brand_guess, so a prediction carrying provenance 'visual' is an inference the evaluation treats as an unsupported claim when ground truth is not_visible or unknown."
+  },
+  "scoringNotes": {
+    "nullPreference": "Brand strongly prefers null/unknown over a guess. A null brand prediction against a known brand label is unknown_when_evidence_exists (moderate penalty). A wrong or invented brand against a not_visible/unknown label is unsupported_certainty (highest penalty).",
+    "caseInsensitive": "Comparison is case-insensitive after normalization. 'GUCCI', 'Gucci', and 'gucci' are one brand."
+  }
+}

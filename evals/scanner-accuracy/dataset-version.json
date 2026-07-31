@@ -1,0 +1,85 @@
+{
+  "datasetVersion": "0.3.1",
+  "status": "frozen_reviewed_pilot",
+  "createdAt": "2026-07-30T00:00:00.000Z",
+  "description": "Active reviewed LICENSED-WEB-IMAGE PILOT BENCHMARK frozen for Phase 1 readiness measurement.",
+  "activeFreeze": {
+    "manifest": "evals/scanner-accuracy/tier-a-manifest.v0.3.1.json",
+    "freezeRecord": "evals/scanner-accuracy/tier-a-freeze.v0.3.1.json",
+    "classification": "LICENSED-WEB-IMAGE PILOT BENCHMARK",
+    "caseCount": 40,
+    "imageCount": 56,
+    "development": 33,
+    "holdout": 7
+  },
+  "originalFoundationTargetCaseRange": {
+    "min": 150,
+    "max": 300
+  },
+  "originalFoundationSeedCaseCount": 8,
+  "schemaId": "dataset-manifest.schema.json",
+  "scoringContractVersion": "0.3.0",
+  "experimentRecordVersion": "0.1.0",
+  "regressionGateVersion": "0.1.0",
+  "notes": [
+    "v0.3.0 remains immutable; v0.3.1 merges two owner-designated views of one mug into one weighted holdout case and applies locked reviews.",
+    "Do not invent ground truth to inflate case count.",
+    "Paid model baseline is not authorized.",
+    "Image bytes are not duplicated into evals/; only hashes and governed refs.",
+    "scoringContractVersion advanced to 0.2.0 in Phase 0B. The scorer changed behaviour deliberately: ontology-driven comparison replaces substring matching, and an abstention against a not_visible label now scores correct instead of being dropped from the denominator. Results produced under 0.1.0 and 0.2.0 are not comparable.",
+    "scoringContractVersion advanced to 0.3.0 in Phase 4B, before any baseline existed, so no published result is invalidated. Two contract defects were repaired. (1) MC-2: five cases combine brandVisible true and product_level_evidence with an unnamed brand label, which made a CORRECT brand reading score as unsupported_certainty at the heaviest penalty while positive brand correctness could never increment. Those cases are now not_measured and are excluded from BOTH the positive and the false-positive brand cohorts; no brand was inferred from filenames or provenance. (2) Identification accuracy is now reported over the GRADEABLE cohort only, in the new identification block. The legacy blended *CorrectRate metrics counted a correct abstention on an ungradeable case as an identification hit, so with 17 of 40 cases ungradeable they overstated identification. Fields with zero gradeable samples report the string not_measured, never 0. Results produced under 0.2.0 and 0.3.0 are not comparable.",
+    "The dataset itself is UNCHANGED at v0.3.1. Only scoring meaning changed, so the governed ground truth, the freeze record and the holdout seal are untouched and remain valid."
+  ],
+  "supersededBlockedVersionProposal": {
+    "datasetVersion": "0.2.0",
+    "status": "BLOCKED — NOT FROZEN",
+    "intendedCaseCount": 75,
+    "intendedDevelopmentCount": 60,
+    "intendedHoldoutCount": 15,
+    "actualAdmissibleCaseCount": 4,
+    "actualAdmissibleAfterMaskingCount": 7,
+    "shortfall": 67,
+    "freezeGate": "tools/scanner-evaluation/freeze-dataset.js",
+    "freezeGateResult": "FREEZE REFUSED",
+    "failedFreezeGates": [
+      "phase0b_case_validation",
+      "case_count",
+      "authorization_verified",
+      "two_reviewer_labeling",
+      "split_present"
+    ],
+    "blockers": [
+      {
+        "id": "DS-1",
+        "blocker": "Only 8 real apparel photographs are accessible; the target is 75.",
+        "evidence": "evals/scanner-accuracy/fixtures-inventory.v0.2.0.json",
+        "resolvedBy": "owner-approved image sourcing — see docs/scanner-accuracy/phase0b-dataset-sourcing-plan.md"
+      },
+      {
+        "id": "DS-2",
+        "blocker": "Authorization is unverified for all 8. Registration in constants/qaFixtures.js is not a licence or a use record.",
+        "evidence": "fixtures-inventory finding INV-1",
+        "resolvedBy": "owner produces a licence / provenance record per image, or replaces them"
+      },
+      {
+        "id": "DS-3",
+        "blocker": "1 of 8 is excluded pending provenance (INV-2) and 3 of 8 need approved masked derivatives (INV-3).",
+        "evidence": "fixtures-inventory findings INV-2 and INV-3; docs/scanner-accuracy/phase0b-privacy-retention.md; docs/scanner-accuracy/phase0c-fixture-escalation.md",
+        "resolvedBy": "owner establishes provenance for the excluded fixture or replaces it; masked derivatives produced and approved. Age and permission are not asserted — see the escalation report."
+      },
+      {
+        "id": "DS-4",
+        "blocker": "No reviewer is staffed, so two independent reviews, agreement measurement and adjudication cannot happen.",
+        "evidence": "evals/scanner-accuracy/labels/reviewer-assignment.json",
+        "resolvedBy": "owner assigns primary, secondary and adjudicator"
+      },
+      {
+        "id": "DS-5",
+        "blocker": "Zero multi-image same-item sets and zero exact-product-knowable cases exist in any accessible source.",
+        "evidence": "fixtures-inventory coverageGapAgainstTarget.hardestGaps",
+        "resolvedBy": "sourcing; note that exact-product measurement is additionally capped by MC-1"
+      }
+    ],
+    "whyNotFrozenAnyway": "Freezing a 4-case or 8-case manifest and calling it the first baseline would misrepresent an 8-image smoke test as a measurement dataset. The gate refuses, and no partial freeze was written."
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "recordVersion": "1.0.0",
+  "recordedAt": "2026-07-30",
+  "subject": "countTokens billing treatment for the Gemini API surface used by certified scan-identify v140",
+  "countTokensBillingMode": "NOT_EXPLICITLY_DOCUMENTED",
+  "conservativeHandling": "billable_unless_verified",
+  "findings": [
+    "The Gemini API reference confirms countTokens accepts a complete GenerateContentRequest, including system instructions and function declarations, so the exact paid-request shape can be counted.",
+    "The token guide states that a text-and-image request returns the combined input count, and that actual post-generation usage is reported through usageMetadata.",
+    "The Gemini API documentation reviewed does NOT explicitly state that countTokens is non-billable."
+  ],
+  "surfaceConfusionToAvoid": {
+    "claim": "A Google Cloud Gemini Enterprise Agent Platform page states its Count Tokens API has no charge and no quota restriction.",
+    "why_it_does_not_apply": "That is a different service surface from the Gemini API key used by certified v140. A no-charge statement for one surface must not be transferred to another; doing so would understate the ceiling on the surface actually being billed.",
+    "ruling": "Do not treat countTokens as confirmed free on the basis of the Enterprise Agent Platform page."
+  },
+  "verification": {
+    "verifiedBy": "project owner review, relayed to the agent 2026-07-30",
+    "agentHadWebAccess": false,
+    "agentIndependentlyRetrieved": false,
+    "note": "The evaluation agent has no web access in this session and did not independently retrieve the official documentation. This record reflects the owner's review and must be re-verified against the live source immediately before the first countTokens request."
+  },
+  "consequences": [
+    "COUNTTOKENS BILLING MODE is reported as NOT EXPLICITLY DOCUMENTED, never as confirmed free.",
+    "countTokens request counts are recorded separately from generation attempts.",
+    "Any verified countTokens charge enters cumulative spend rather than being assumed zero. ReservationLedger takes countTokensBillable as an explicit parameter for exactly this reason.",
+    "After the smoke, actual project billing or usage evidence must be checked; if unexpected preflight charges appear, stop before the development baseline."
+  ],
+  "reverificationRequired": "immediately before the first countTokens request of any paid run"
+}
