@@ -72,7 +72,15 @@ test('Recent Scans tile routes to library without a Home-only library query', ()
   assert.doesNotMatch(homeV1, /const latestScan = scans\[0\] \?\? null/);
   assert.doesNotMatch(homeV1, /recentScansTileImage/);
   assert.match(homeV1, /body="Open your scan history\."/);
-  assert.match(homeV1, /onPress=\{\(\) => router\.push\('\/library'\)\}/);
+  // The destination is the explicit Recent Scan section. Bare '/library'
+  // resolves to whatever the route defaults to, which is how the Closet chip
+  // used to open scan history. The behavioural proof of the emitted payload
+  // lives in closetRecentScanNavigationSeparation.test.js.
+  assert.match(
+    homeV1,
+    /router\.push\(\{ pathname: '\/library', params: \{ section: 'recent' \} \}\)/,
+  );
+  assert.doesNotMatch(homeV1, /router\.push\('\/library'\)/);
 });
 
 // ── Four-box feature grid ────────────────────────────────────────────────────
@@ -84,11 +92,20 @@ test('four-box feature grid remains with the required boxes', () => {
   assert.match(homeV1, /title="DRESSING ROOMS"/);
 });
 
-test('Recent Scans box routes to the existing library/history experience', () => {
-  const recentScansBox = homeV1.indexOf('testID="home-luxury-feature-recent-scans"');
-  const libraryRoute = homeV1.indexOf("router.push('/library')", recentScansBox);
-  assert.ok(recentScansBox > 0);
-  assert.ok(libraryRoute > recentScansBox);
+test('Recent Scans and Closet boxes route to distinct library sections', () => {
+  const recentBox = homeV1.indexOf('testID="home-luxury-feature-recent-scans"');
+  const closetBox = homeV1.indexOf('testID="home-luxury-feature-library"');
+  assert.ok(recentBox > 0, 'Recent Scans chip must exist');
+  assert.ok(closetBox > 0, 'Closet chip must exist');
+
+  const recentRoute = "router.push({ pathname: '/library', params: { section: 'recent' } })";
+  const closetRoute = "router.push({ pathname: '/library', params: { section: 'closet' } })";
+
+  // Each chip's own handler carries its own section — neither inherits the
+  // other's destination and neither falls back to the route default.
+  assert.ok(homeV1.includes(recentRoute), 'Recent Scans must open section=recent');
+  assert.ok(homeV1.includes(closetRoute), 'Closet must open section=closet');
+  assert.notEqual(recentRoute, closetRoute);
 });
 
 test('no saved-scan card list renders on Home', () => {
@@ -154,7 +171,19 @@ test('Ask Elise CTA routes to existing StyleChat session list', () => {
 });
 
 test('Home route parameters are stable primitives', () => {
-  assert.doesNotMatch(homeV1, /router\.push\(\{\s*pathname:.*?params:\s*\{/s);
+  // Object-form push is REQUIRED for the library sections, but every param it
+  // carries must still be a static string literal. Nothing on Home may build a
+  // destination out of interpolated or runtime-derived state.
+  const objectPushes = homeV1.match(/router\.push\(\{[^}]*params:\s*\{[^}]*\}\s*\}\)/g) || [];
+  assert.ok(objectPushes.length > 0, 'Home uses object-form push for library sections');
+  for (const push of objectPushes) {
+    assert.match(
+      push,
+      /^router\.push\(\{ pathname: '\/library', params: \{ section: '(recent|closet)' \} \}\)$/,
+      `unexpected object-form route on Home: ${push}`,
+    );
+    assert.doesNotMatch(push, /\$\{/, 'route params must not be interpolated');
+  }
   assert.doesNotMatch(homeV1, /router\.push\('\/style-chat\/\$\{identity/);
   assert.doesNotMatch(homeV1, /router\.push\('\/style-chat',\s*\{/);
 });

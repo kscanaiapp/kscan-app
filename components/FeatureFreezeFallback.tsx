@@ -12,7 +12,13 @@ type FeatureFreezeFallbackProps = {
 export function FeatureFreezeFallback({ cta = 'closet', loading = false }: FeatureFreezeFallbackProps) {
   const { message } = useFeatureFreeze();
   const label = cta === 'scan' ? 'START SCAN' : 'BACK TO CLOSET';
-  const target = cta === 'scan' ? '/scan' : '/library';
+  // A Closet-labelled action must land on the committed Closet. Replacing with
+  // the bare '/library' route would resolve to the Recent Scan section, so the
+  // button would open scan history while promising the Closet.
+  const goToTarget = () =>
+    cta === 'scan'
+      ? router.replace('/scan')
+      : router.replace({ pathname: '/library', params: { section: 'closet' } });
 
   return (
     <View style={styles.root}>
@@ -26,7 +32,7 @@ export function FeatureFreezeFallback({ cta = 'closet', loading = false }: Featu
             <Pressable
               accessibilityRole="button"
               style={({ pressed }) => [styles.button, pressed ? styles.buttonPressed : null]}
-              onPress={() => router.replace(target)}
+              onPress={goToTarget}
             >
               <Text style={styles.buttonText}>{label}</Text>
             </Pressable>
