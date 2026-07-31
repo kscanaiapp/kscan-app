@@ -81,6 +81,8 @@ import {
 } from './similarityMatcher.ts';
 import { captureScanIntelligence } from './scanIntelligenceCapture.ts';
 import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAccountActiveIfAuthenticated.ts';
+import { applyScannerCandidateInstructions } from '../_shared/scannerCandidateArtifact.ts';
+import { createScannerVersionResolution } from '../_shared/scannerVersionResolver.ts';
 import {
   classifyProviderHttpFailure,
   isRetryableProviderFailure,
@@ -2066,6 +2068,18 @@ Deno.serve(async (req) => {
     })
     : 'general';
 
+  // ── Build 4 scanner version (dormant by default) ───────────────────────────
+  //
+  // Resolved ONCE per request, from server-owned configuration only, and frozen
+  // for the rest of this request. With no configuration this is certified-v140
+  // and every prompt below is byte-identical to the certified build.
+  //
+  // Resolution happens BEFORE any prompt is composed and before any provider
+  // dispatch, so a request can never begin against one version and finish
+  // against another.
+  const scannerVersionSeal = createScannerVersionResolution();
+  const scannerVersion = scannerVersionSeal.version;
+
   const withQualityAndRoute = (base: string): string => {
     let prompt = base;
     if (qualityTuneEnabled) prompt = `${prompt}${QUALITY_TUNE_PROMPT_ADDENDUM}`;
@@ -2073,11 +2087,36 @@ Deno.serve(async (req) => {
     return prompt;
   };
 
-  const identifyPrompt = withQualityAndRoute(IDENTIFY_PROMPT);
+  /**
+   * The Build 4 candidate layer, applied LAST so the certified instructions —
+   * including the quality-tune addendum and the category route — all remain
+   * first and verbatim.
+   *
+   * SCOPED TO SINGLE-ITEM IMAGE IDENTIFICATION ONLY.
+   *
+   * The candidate was evaluated against single-item image identification, and
+   * its instructions are written for exactly that question: they talk about
+   * naming one garment, keeping item_type and subtype in one family, and
+   * claiming a material only from texture that is visible "in this image".
+   *
+   * Applying it to the other two prompts would be shipping unevaluated
+   * behaviour:
+   *   - MULTI_ITEM_IDENTIFY_PROMPT asks a DETECTION question (which garments
+   *     are present), and returns a candidate list rather than the item fields
+   *     the overlay governs;
+   *   - TEXT_IDENTIFY_PROMPT has no image at all, so the overlay's evidence
+   *     rules are meaningless and its "in this image" phrasing is false.
+   *
+   * Those two paths therefore stay on certified behaviour under BOTH versions.
+   */
+  const withCandidate = (prompt: string): string =>
+    applyScannerCandidateInstructions(prompt, scannerVersion);
+
+  const identifyPrompt = withCandidate(withQualityAndRoute(IDENTIFY_PROMPT));
   const multiItemPrompt = withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT);
   const textIdentifyPrompt = withQualityAndRoute(TEXT_IDENTIFY_PROMPT);
   const selectedItemPrompt = selectedCandidate
-    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate))
+    ? withCandidate(withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate)))
     : '';
 
   const geminiBody = mode === 'text'
@@ -2125,12 +2164,18 @@ Deno.serve(async (req) => {
         },
       };
 
+  // Scalar pick-list only: timeout, model, mode, source and the resolved scanner
+  // version. `scannerVersion` is an id from a closed set, and the fallback flag
+  // is a boolean, so a misconfiguration is visible without any operator-supplied
+  // value, prompt, instruction, image or response body reaching the log.
   console.log(
-    '[scan-identify] gemini_start timeoutMs=%d model=%s mode=%s source=%s',
+    '[scan-identify] gemini_start timeoutMs=%d model=%s mode=%s source=%s scannerVersion=%s scannerVersionFellBack=%s',
     timeoutMs,
     modelName,
     mode,
     source,
+    scannerVersion,
+    String(scannerVersionSeal.resolution.fellBackToControl),
   );
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
