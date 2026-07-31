@@ -109,7 +109,11 @@ export type TodayCompositionRead = {
 
 export type TodaySavedLooksRead = {
   ok: boolean;
-  looks: ReadonlyArray<{ id: string; sourceCompositionId: string }>;
+  looks: ReadonlyArray<{
+    id: string;
+    sourceCompositionId: string;
+    sourceSessionId: string;
+  }>;
 } | null;
 
 export type TodayCandidatesRead = {
@@ -557,6 +561,8 @@ export type TodayOrchestrationResult = {
   ownedLook: TodayOwnedLookPreview | null;
   projections: readonly TodayClosetProjection[];
   snapshot: TodayWithEliseSnapshot;
+  /** Saved Look session ids observed in this generation. Ids never leave here. */
+  savedLookSessionIds: readonly string[];
 };
 
 /**
@@ -566,13 +572,40 @@ export type TodayOrchestrationResult = {
  * exactly the snapshot this file constructed, with no post-processing in
  * between.
  */
-export function evaluateTodaySnapshot(built: TodaySnapshotBuild): TodayOrchestrationResult {
+export function evaluateTodaySnapshot(
+  built: TodaySnapshotBuild,
+  savedLookSessionIds: readonly string[] = [],
+): TodayOrchestrationResult {
   return {
     card: evaluateTodayWithEliseCard(built.snapshot),
     ownedLook: built.ownedLook,
     projections: built.projections,
     snapshot: built.snapshot,
+    savedLookSessionIds,
   };
+}
+
+/**
+ * The sessions this actor has a Saved Look for.
+ *
+ * Used ONLY to observe, on a later generation, that a Look handed off from
+ * Today was subsequently saved in the Dressing Room. Reporting that is a Today
+ * observation about a Today-originated handoff, which is why it does not
+ * require instrumenting the Build 3 save path — and must not, since Build 3 is
+ * certified and out of scope.
+ *
+ * The ids stay inside the process. What reaches analytics is the fact that a
+ * save occurred, never which session or which Look.
+ */
+export function savedLookSessionIdsFrom(read: TodaySavedLooksRead): string[] {
+  if (!read?.ok || !Array.isArray(read.looks)) return [];
+  const ids: string[] = [];
+  for (const look of read.looks) {
+    if (look && typeof look.sourceSessionId === 'string' && look.sourceSessionId) {
+      ids.push(look.sourceSessionId);
+    }
+  }
+  return ids;
 }
 
 /**

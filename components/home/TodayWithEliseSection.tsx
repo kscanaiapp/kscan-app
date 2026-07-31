@@ -19,7 +19,7 @@
  * nothing there to fail.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Platform, Text } from 'react-native';
 import { TODAY_WITH_ELISE_ACTIVE } from '../../constants/featureFlags';
 import { useTodayWithElise } from '../../hooks/useTodayWithElise';
@@ -54,6 +54,15 @@ function TodayWithEliseSurface() {
    */
   const headingRef = useRef<Text | null>(null);
   const token = view.card?.generationToken ?? null;
+  const registerHeading = view.registerHeading;
+
+  const attachHeading = useCallback(
+    (node: Text | null) => {
+      headingRef.current = node;
+      registerHeading(node);
+    },
+    [registerHeading],
+  );
 
   useEffect(() => {
     const card = view.card;
@@ -75,7 +84,7 @@ function TodayWithEliseSurface() {
       onSecondaryPress={view.onSecondaryPress}
       busy={view.busy}
       actionError={view.actionError}
-      headingRef={headingRef}
+      headingRef={attachHeading}
     />
   );
 }

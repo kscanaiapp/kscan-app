@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { AccessibilityInfo, findNodeHandle, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
@@ -58,6 +58,7 @@ import {
   buildTodaySnapshot,
   commitTodayCardResult,
   evaluateTodaySnapshot,
+  savedLookSessionIdsFrom,
   type TodayCapabilities,
   type TodayClosetProjection,
   type TodayOrchestrationResult,
@@ -103,6 +104,11 @@ export type TodayWithEliseView = {
   /** Undefined when the card offers no runnable action — never a dead control. */
   onPrimaryPress?: () => void;
   onSecondaryPress?: () => void;
+  /**
+   * Attach the card heading so a return from a Today-originated destination can
+   * restore accessibility focus to a stable entry point.
+   */
+  registerHeading: (node: unknown) => void;
 };
 
 const IDLE: {
@@ -313,7 +319,7 @@ export function useTodayWithElise(): TodayWithEliseView {
         collaborators: TODAY_COLLABORATORS,
         nowMs: Date.now(),
       });
-      setState({ actorKey, result: evaluateTodaySnapshot(built), loading: false });
+      setState({ actorKey, result: evaluateTodaySnapshot(built, []), loading: false });
       return () => {
         live = false;
       };
@@ -359,7 +365,7 @@ export function useTodayWithElise(): TodayWithEliseView {
         collaborators: TODAY_COLLABORATORS,
         nowMs: Date.now(),
       });
-      const evaluated = evaluateTodaySnapshot(built);
+      const evaluated = evaluateTodaySnapshot(built, savedLookSessionIdsFrom(reads.savedLooks));
 
       const liveContext = getActorContext();
       const committed = commitTodayCardResult({
@@ -452,6 +458,73 @@ export function useTodayWithElise(): TodayWithEliseView {
   const liveTokenRef = useRef<string | null>(null);
   liveTokenRef.current = card?.generationToken ?? null;
 
+  /**
+   * What a departure to a Today-originated destination left behind.
+   *
+   * `sessionId` is what lets a LATER generation observe that the Look was
+   * saved; `awaitingReturn` is what lets the return restore accessibility focus
+   * without hijacking it on an ordinary Home visit. Both are process-local and
+   * neither is persisted.
+   */
+  const departureRef = useRef<{
+    sessionId: string | null;
+    knownSavedSessionIds: readonly string[];
+    awaitingReturn: boolean;
+  }>({ sessionId: null, knownSavedSessionIds: [], awaitingReturn: false });
+  const headingNodeRef = useRef<unknown>(null);
+  const savedReportedRef = useRef<string | null>(null);
+
+  const registerHeading = useCallback((node: unknown) => {
+    headingNodeRef.current = node;
+  }, []);
+
+  /**
+   * Observe, on a later generation, that a handed-off Look was saved.
+   *
+   * WHY IT IS OBSERVED RATHER THAN REPORTED BY THE SAVE ITSELF: the save lives
+   * in the certified Build 3 Dressing Room, and Build 5 must not instrument it.
+   * A Saved Look that did not exist when we handed off and does exist now, for
+   * the session we handed off, is the same fact — established without touching
+   * Build 3, and emitted exactly once per session.
+   */
+  useEffect(() => {
+    const departure = departureRef.current;
+    const result = current.result;
+    if (!result || !departure.sessionId) return;
+    if (savedReportedRef.current === departure.sessionId) return;
+    const wasSaved = departure.knownSavedSessionIds.includes(departure.sessionId);
+    const isSaved = result.savedLookSessionIds.includes(departure.sessionId);
+    if (wasSaved || !isSaved) return;
+    savedReportedRef.current = departure.sessionId;
+    emitTodayWithEliseEvent('today_with_elise_look_saved', {
+      ...(result.card ? todayEventPayload(result.card, Platform.OS) : {}),
+    });
+  }, [current.result]);
+
+  /**
+   * Restore accessibility focus to the card heading on RETURN, and only then.
+   *
+   * The heading rather than a button, because the state the user returns to may
+   * legitimately offer no button. Gated on `awaitingReturn` so an ordinary Home
+   * visit — or a return from anywhere else — never has its focus stolen.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      const departure = departureRef.current;
+      if (!departure.awaitingReturn) return undefined;
+      departure.awaitingReturn = false;
+      const node = headingNodeRef.current;
+      if (!node) return undefined;
+      try {
+        const handle = findNodeHandle(node as never);
+        if (handle != null) AccessibilityInfo.setAccessibilityFocus(handle);
+      } catch {
+        /* focus restoration is best effort and never blocks the return */
+      }
+      return undefined;
+    }, []),
+  );
+
   const routeFor = useCallback(
     (target: string) =>
       resolveTodayRoute(target as never, { closetSeparationActive: CLOSET_SEPARATION_V1 }),
@@ -494,10 +567,19 @@ export function useTodayWithElise(): TodayWithEliseView {
         isCardCurrent: () => liveTokenRef.current === handle.generationToken,
       });
       if (result.message) setActionError(result.message);
+      if (result.outcome === 'opened') {
+        // Recorded ONLY on a successful departure, so a refusal cannot arm the
+        // save observation or the focus restoration.
+        departureRef.current = {
+          sessionId: handoffContext.sessionId,
+          knownSavedSessionIds: current.result?.savedLookSessionIds ?? [],
+          awaitingReturn: true,
+        };
+      }
     } finally {
       setBusy(false);
     }
-  }, [actorId, card, handoffContext, routeFor]);
+  }, [actorId, card, current.result, handoffContext, routeFor]);
 
   const onSecondaryPress = useCallback(() => {
     const active = card;
@@ -506,7 +588,7 @@ export function useTodayWithElise(): TodayWithEliseView {
     const route = routeFor(active.secondaryAction?.target ?? 'none');
     if (!route || !active.secondaryAction?.runnable) return;
     setActionError(null);
-    openTodayEliseModification(TODAY_HANDOFF_DEPS, {
+    const modification = openTodayEliseModification(TODAY_HANDOFF_DEPS, {
       card: active,
       generationToken: handle.generationToken,
       actorId,
@@ -517,7 +599,14 @@ export function useTodayWithElise(): TodayWithEliseView {
       analyticsPayload: todayEventPayload(active, Platform.OS),
       isCardCurrent: () => liveTokenRef.current === handle.generationToken,
     });
-  }, [actorId, card, routeFor]);
+    if (modification.outcome === 'opened') {
+      departureRef.current = {
+        sessionId: handoffContext.sessionId,
+        knownSavedSessionIds: current.result?.savedLookSessionIds ?? [],
+        awaitingReturn: true,
+      };
+    }
+  }, [actorId, card, current.result, handoffContext, routeFor]);
 
   return {
     loading: current.loading,
@@ -530,5 +619,6 @@ export function useTodayWithElise(): TodayWithEliseView {
     actionError,
     onPrimaryPress: card?.primaryAction?.runnable ? onPrimaryPress : undefined,
     onSecondaryPress: card?.secondaryAction?.runnable ? onSecondaryPress : undefined,
+    registerHeading,
   };
 }
