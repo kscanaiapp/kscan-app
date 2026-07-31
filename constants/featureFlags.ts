@@ -577,20 +577,24 @@ export function resolveClosetBatchReviewV2Active(
   );
 }
 
-// ── Mirror Selfie dormant staging contract (Build 2.5 Phase 0B) ─────────────
+// ── Mirror Selfie staging contract (Build 2.5 Step 1 + Step 2) ──────────────
 /**
  * Dedicated Mirror Selfie flag. Gates ONLY the reachability of the crop-staging
  * adapter and hook API (services/closetMirrorStaging.ts,
  * useClosetCandidates().addMirrorGarmentCrops) — no capture UI, camera intake,
- * gallery intake, or backend behavior exists behind it in this phase.
+ * gallery intake, person detection, or garment segmentation exists behind it.
  *
  * Default OFF, and only the exact string "true" opts in, matching every other
- * rollout flag in this file. This phase's backend-compatibility gate found the
- * governing `scan-identify` contract does not yet accept `closet_mirror` as an
- * entry path (see services/closetIdentificationV2.ts#MIRROR_INTENDED_ENTRY_PATH),
- * so enabling this flag activates a client-side contract that cannot yet
- * complete a live classification — exactly like `CLOSET_CANDIDATE_STAGING_V1`
- * before its backend was deployed.
+ * rollout flag in this file.
+ *
+ * Build 2.5 Step 2 made `closet_mirror` a real entry path in the three-way
+ * `scan-identify` contract, so a Mirror request is now well-formed IN SOURCE.
+ * It is still not completable AT RUNTIME: the deployed `scan-identify` function
+ * predates that vocabulary and rejects `closet_mirror` as INVALID_SOURCE. This
+ * flag must therefore stay off until the backend contract is deployed and
+ * verified — exactly like `CLOSET_CANDIDATE_STAGING_V1` before its backend
+ * shipped. Deployment is a necessary condition, not a sufficient one: Steps 3-5
+ * (capture, extraction, end-to-end certification) all gate enablement too.
  */
 export function resolveMirrorSelfieV1Enabled(
   value: string | undefined = process.env.EXPO_PUBLIC_MIRROR_SELFIE_V1,

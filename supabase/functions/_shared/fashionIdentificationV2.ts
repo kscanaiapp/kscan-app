@@ -51,6 +51,7 @@ export const FASHION_IDENTIFICATION_ENTRY_PATHS = [
   'scanner_handoff',
   'closet_camera',
   'closet_gallery',
+  'closet_mirror',
 ] as const;
 
 export const FASHION_IDENTIFICATION_PLATFORMS = [

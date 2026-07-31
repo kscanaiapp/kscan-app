@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-30T16:20:33.132Z",
-    "generatedFromGitSha": "82170f831a3502b6f544150f62fb7de242ef1f48"
+    "generatedAtUtc": "2026-07-31T15:54:49.154Z",
+    "generatedFromGitSha": "969afbc8b9ad9cb194c3c05fc2f41db87c9a44cd"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -20,9 +20,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 31,
-        "treeFileCount": 39,
-        "bundleHash": "9d645f5eb5bb04f22e57f7e517edf6917e0e45437dec6c1e7231a14afcd39632",
-        "treeHash": "e6921e1d8a64253a1aadff93c252bce2b901a74e7d74797081baaeb68b8d6724",
+        "treeFileCount": 40,
+        "bundleHash": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
+        "treeHash": "84fc9c265fd704fee456b6a44b2875d5b9bfed78aa5f9b1226a65fe6044bd2b4",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -41,7 +41,7 @@
           },
           {
             "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-            "sha256": "b041a899aea90bf091b337a486087fe58670fd27058d51b8a6a4b5f86b1d6699",
+            "sha256": "da4aa4210ae3bbf4ff878e5ca34165e95b45c1584a7b4217b6baed59d13a99fe",
             "bundle": true
           },
           {
@@ -53,6 +53,11 @@
             "path": "supabase/functions/_shared/scanHelpers.ts",
             "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/closetMirrorEntryPath.test.ts",
+            "sha256": "259150447035d0811115c0cd3247ec3f78b4658da7f82cdf71006f37be861484",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/commerceOutcomeCapture.ts",

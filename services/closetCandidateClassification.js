@@ -230,12 +230,13 @@ export async function classifyClosetCandidate(actorRequest, candidateId, options
   let validated = null;
 
   try {
-    // Resolve the entry path BEFORE spending any media work. `camera` and
-    // `gallery` always resolve; anything else (e.g. a `mirror_extract`
-    // candidate reaching this queue while Mirror staging's own flag is off,
-    // which should never happen but is not this orchestrator's gate to trust)
-    // has no backend-accepted entry path yet, and must fail closed rather than
-    // silently classify itself as a `closet_gallery` request.
+    // Resolve the entry path BEFORE spending any media work. `camera`,
+    // `gallery` and (since Build 2.5 Step 2) `mirror_extract` each resolve to
+    // their OWN entry path; anything else has no backend-accepted entry path
+    // and must fail closed rather than silently classify itself as a
+    // `closet_gallery` request. The fail-closed branch is the load-bearing
+    // part: activating Mirror widened the closed set by exactly one member and
+    // must never have turned it into a default.
     const entryPathKey = closetEntryPathKeyForSource(candidate.sourceType);
     if (!entryPathKey) {
       return await settle(actorRequest, candidateId, nowMs, candidate, {
