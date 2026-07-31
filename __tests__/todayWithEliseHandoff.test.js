@@ -625,3 +625,47 @@ test('no runnable-less action is ever given a handler', () => {
     /onSecondaryPress: card\?\.secondaryAction\?\.runnable \? onSecondaryPress : undefined/,
   );
 });
+
+// ── Navigation latch (defect D-2 repair) ─────────────────────────────────────
+//
+// Emulator QA found three rapid taps on "Change Something" emitting TWO
+// secondary-action events. The per-action dedupe window is keyed on the card's
+// generation token, and a navigation can change focus and mint a new one, so a
+// tap landing during the transition carries a key the window has never seen.
+// The primary action was immune only because its in-flight lock spans a real
+// async operation. These lock the repair in.
+
+test('a successful navigation latches until the next orchestration', () => {
+  const hook = hookSource;
+  assert.match(hook, /const navigationLatchRef = useRef\(false\);/);
+  // Cleared where focus re-enters, not on a timer.
+  const orchestration = hook.slice(
+    hook.indexOf('const orchestrate = useCallback'),
+    hook.indexOf('// ── Actions ─'),
+  );
+  assert.match(orchestration, /navigationLatchRef\.current = false;/);
+});
+
+test('every action path checks the latch before acting', () => {
+  const primary = hookSource.slice(
+    hookSource.indexOf('const onPrimaryPress = useCallback'),
+    hookSource.indexOf('const onSecondaryPress = useCallback'),
+  );
+  const secondary = hookSource.slice(hookSource.indexOf('const onSecondaryPress = useCallback'));
+  assert.match(primary, /if \(navigationLatchRef\.current\) return;/);
+  assert.match(secondary, /if \(navigationLatchRef\.current\) return;/);
+});
+
+test('every navigating outcome sets the latch, and refusals do not', () => {
+  const actions = hookSource.slice(hookSource.indexOf('// ── Actions ─'));
+  // Three navigating paths: Closet, Dressing Room, Elise modification.
+  assert.equal(actions.split('navigationLatchRef.current = true;').length - 1, 3);
+  // Each set is guarded by an `opened` outcome check.
+  for (const guard of [
+    /if \(closet\.outcome === 'opened'\) navigationLatchRef\.current = true;/,
+    /if \(result\.outcome === 'opened'\) \{\s*navigationLatchRef\.current = true;/,
+    /if \(modification\.outcome === 'opened'\) \{\s*navigationLatchRef\.current = true;/,
+  ]) {
+    assert.match(actions, guard);
+  }
+});

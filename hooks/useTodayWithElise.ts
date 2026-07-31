@@ -299,6 +299,9 @@ export function useTodayWithElise(): TodayWithEliseView {
 
     const generation = ++generationRef.current;
     let live = true;
+    // Focus reached us, so any navigation we started has completed and the user
+    // is back. Mirrors `sessionLaunchGuardRef.current?.resetOnFocus()` on Home.
+    navigationLatchRef.current = false;
 
     // Signed out is a terminal, correct answer, not a pending one: the engine
     // fails closed to `unauthorized` and no store is read for an actor that
@@ -488,6 +491,28 @@ export function useTodayWithElise(): TodayWithEliseView {
   });
   const headingNodeRef = useRef<unknown>(null);
   const savedReportedRef = useRef<string | null>(null);
+
+  /**
+   * ONE NAVIGATION PER VISIT TO HOME.
+   *
+   * WHY THE PER-ACTION GUARDS ARE NOT ENOUGH, found by emulator QA rather than
+   * by reasoning: the 1500 ms dedupe window is keyed on the card's generation
+   * token, and a navigation itself can change focus and therefore mint a NEW
+   * generation. A second tap that lands during that transition carries a
+   * different key, so the window does not recognise it as a duplicate. Three
+   * rapid taps on "Change Something" emitted two secondary-action events.
+   *
+   * The primary action never showed this, and the asymmetry is the tell: its
+   * in-flight lock spans a real asynchronous operation, so it is still held
+   * when the second tap arrives. A synchronous navigation has no such span.
+   *
+   * This latch closes that gap the way this Home screen already closes it for
+   * TextScan and for Start Chat (`createStyleChatSessionLaunchGuard`): block
+   * further navigation until the screen is focused again. It is set only after
+   * a navigation actually happened, and cleared on the next orchestration —
+   * which focus drives — so a refused action never latches.
+   */
+  const navigationLatchRef = useRef(false);
   const modifiedReportedRef = useRef<string | null>(null);
 
   const registerHeading = useCallback((node: unknown) => {
@@ -573,6 +598,7 @@ export function useTodayWithElise(): TodayWithEliseView {
     const active = card;
     const handle = handleRef.current;
     if (!active || !handle || !actorId) return;
+    if (navigationLatchRef.current) return;
     const target = active.primaryAction?.target;
     const route = routeFor(target);
     if (!route || !active.primaryAction?.runnable) return;
@@ -585,7 +611,7 @@ export function useTodayWithElise(): TodayWithEliseView {
     // three taps on "Add More Items" have to behave like three taps on "Tap to
     // Get Ready".
     if (target === 'closet_intake' || target === 'closet_review') {
-      openTodayClosetDestination(TODAY_HANDOFF_DEPS, {
+      const closet = openTodayClosetDestination(TODAY_HANDOFF_DEPS, {
         card: active,
         generationToken: handle.generationToken,
         actorId,
@@ -594,6 +620,7 @@ export function useTodayWithElise(): TodayWithEliseView {
         analyticsPayload: todayEventPayload(active, Platform.OS),
         isCardCurrent: () => liveTokenRef.current === handle.generationToken,
       });
+      if (closet.outcome === 'opened') navigationLatchRef.current = true;
       return;
     }
 
@@ -613,6 +640,7 @@ export function useTodayWithElise(): TodayWithEliseView {
       });
       if (result.message) setActionError(result.message);
       if (result.outcome === 'opened') {
+        navigationLatchRef.current = true;
         // Recorded ONLY on a successful departure, so a refusal cannot arm the
         // save observation or the focus restoration.
         departureRef.current = {
@@ -632,6 +660,7 @@ export function useTodayWithElise(): TodayWithEliseView {
     const active = card;
     const handle = handleRef.current;
     if (!active || !handle || !actorId) return;
+    if (navigationLatchRef.current) return;
     const route = routeFor(active.secondaryAction?.target ?? 'none');
     if (!route || !active.secondaryAction?.runnable) return;
     setActionError(null);
@@ -647,6 +676,7 @@ export function useTodayWithElise(): TodayWithEliseView {
       isCardCurrent: () => liveTokenRef.current === handle.generationToken,
     });
     if (modification.outcome === 'opened') {
+      navigationLatchRef.current = true;
       departureRef.current = {
         sessionId: handoffContext.sessionId,
         knownSavedSessionIds: current.result?.savedLookSessionIds ?? [],
