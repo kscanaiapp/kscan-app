@@ -120,8 +120,58 @@ export function closetEntryPathFor(key: ClosetEntryPathKey): FashionIdentificati
   return CLOSET_ENTRY_PATHS[key];
 }
 
-export function closetEntryPathKeyForSource(source: unknown): ClosetEntryPathKey {
-  return source === 'camera' ? 'camera' : 'gallery';
+/**
+ * Resolve a candidate source to its backend-accepted entry-path key, or `null`
+ * when the source has none yet.
+ *
+ * CLOSED MAPPING, NOT A DEFAULT. Before Build 2.5 this fell through to
+ * `gallery` for anything that was not `camera`, which was safe only because
+ * `camera` and `gallery` were the sole candidate sources that could ever
+ * exist. `mirror_extract` (and any future reserved source) breaks that
+ * assumption: mislabeling a Mirror crop as `closet_gallery` would misrepresent
+ * its provenance to the backend and is exactly the failure Build 2.5's
+ * domain-separation requirement forbids. `null` here is a caller signal to
+ * fail the candidate closed rather than guess.
+ */
+export function closetEntryPathKeyForSource(source: unknown): ClosetEntryPathKey | null {
+  if (source === 'camera') return 'camera';
+  if (source === 'gallery') return 'gallery';
+  return null;
+}
+
+// ── Mirror Selfie dormant entry path (Build 2.5 Phase 0B addendum, Section F) ─
+
+/**
+ * `mirror_extract`'s INTENDED backend entry path, once the backend accepts it.
+ *
+ * NOT a member of `CLOSET_ENTRY_PATHS` and NOT a `FashionIdentificationEntryPath`.
+ * The Phase 0B backend-compatibility gate found `closet_mirror` absent from the
+ * parity-gated `FASHION_IDENTIFICATION_ENTRY_PATHS` vocabulary shared by
+ * contracts/fashion-identification-v2.schema.json,
+ * supabase/functions/_shared/fashionIdentificationV2.ts, and this module's own
+ * client mirror import — all three held identical by
+ * __tests__/fashionIdentificationContractParity.test.js. Adding `closet_mirror`
+ * there requires a coordinated schema/backend/client change outside this
+ * phase's scope and outside this phase's authorization to edit backend files.
+ *
+ * This constant is a plain string: it records the intended mapping so it is
+ * directly testable, and because it is NOT typed as a
+ * `FashionIdentificationEntryPath`, nothing can accidentally spend it inside
+ * `buildClosetV2Request` — that would be a compile error — until the
+ * three-way vocabulary is extended together and this dormancy is retired.
+ */
+export const MIRROR_INTENDED_ENTRY_PATH = 'closet_mirror';
+
+/**
+ * `mirror_extract`'s intended entry path, for exactly that source and nothing
+ * else. Returns `null` for every other value, including `camera` and
+ * `gallery` — those already have real, active entry paths via
+ * `closetEntryPathKeyForSource` and must never be answered from here.
+ */
+export function mirrorIntendedEntryPathFor(
+  source: unknown,
+): typeof MIRROR_INTENDED_ENTRY_PATH | null {
+  return source === 'mirror_extract' ? MIRROR_INTENDED_ENTRY_PATH : null;
 }
 
 // ── Request building ─────────────────────────────────────────────────────────

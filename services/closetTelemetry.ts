@@ -33,6 +33,11 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'closet_candidate_expired',
   'closet_candidate_cleanup_completed',
   'closet_candidate_cleanup_failed',
+  // Build 2.5 Phase 0B. Emitted once per stageMirrorSelfieGarmentCrops call —
+  // see services/closetMirrorStaging.ts. Deliberately the only Mirror event
+  // this phase adds: capture, validation, person-detection and segmentation
+  // stages do not exist yet and must not acquire telemetry ahead of themselves.
+  'mirror_selfie_crops_staged',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
@@ -67,6 +72,14 @@ export const CLOSET_CANDIDATE_EVENT_PROPERTIES = [
   'automatic',
   'mediaFailed',
   'aborted',
+  // Build 2.5 Phase 0B — mirror_selfie_crops_staged only. Bounded counts, never
+  // a raw crop count above the 8-item batch cap and never the extraction
+  // session id, a crop key, a candidate id or a batch id.
+  'cropCountBucket',
+  'createdCount',
+  'duplicateCount',
+  'rejectedCount',
+  'batchLimitReached',
 ] as const;
 
 export type ClosetCandidateEventProperty =
