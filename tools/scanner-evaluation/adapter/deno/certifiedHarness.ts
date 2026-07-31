@@ -169,7 +169,7 @@ function parseArgs(argv: string[]): HarnessArgs {
   }
 
   const provider = get('--provider') ?? 'mock';
-  if (!['mock', 'live'].includes(provider)) throw new Error(`unknown --provider: ${provider}`);
+  if (!['mock', 'live', 'count-tokens'].includes(provider)) throw new Error(`unknown --provider: ${provider}`);
 
   const imageFile = get('--image-file');
   const imageWidth = Number(get('--image-width') ?? '0');
@@ -189,17 +189,17 @@ function parseArgs(argv: string[]): HarnessArgs {
     throw new Error('the certified control may not be given an instruction overlay');
   }
 
-  if (provider === 'live' && !imageFile) {
+  if ((provider === 'live' || provider === 'count-tokens') && !imageFile) {
     // Fail closed rather than silently evaluating a synthetic 1x1 pixel.
-    throw new Error('live mode requires --image-file');
+    throw new Error(`${provider} mode requires --image-file`);
   }
   if (imageFile) {
     if (!Number.isFinite(imageWidth) || imageWidth <= 0 || !Number.isFinite(imageHeight) || imageHeight <= 0) {
       throw new Error('--image-file requires positive --image-width and --image-height');
     }
   }
-  if (provider === 'live' && !denoRuntime.env.get('GEMINI_API_KEY')) {
-    throw new Error('live mode requires GEMINI_API_KEY in the process environment');
+  if ((provider === 'live' || provider === 'count-tokens') && !denoRuntime.env.get('GEMINI_API_KEY')) {
+    throw new Error(`${provider} mode requires GEMINI_API_KEY in the process environment`);
   }
 
   return {
@@ -516,6 +516,84 @@ function installLiveFetchInterceptor(
   }) as typeof fetch;
 }
 
+// PHASE 3 LIVE-EVALUATION ADDITION. Reuses the certified request-builder to get
+// a byte-perfect prompt/image body for the cost-reservation preflight, without
+// ever persisting that body: it is captured in memory, used for two REAL
+// `:countTokens` calls (primary and fallback model — token count does not
+// depend on which model receives the request, only the URL path does), and
+// discarded. `:countTokens` is never `:generateContent` — no generation and no
+// billed output happens here, only an input-token count.
+class CountTokensCaptured extends Error {
+  constructor() {
+    super('count-tokens: captured and dispatched, aborting the certified handler');
+    this.name = 'CountTokensCaptured';
+  }
+}
+
+const tokenCounts: { primary: number | null; fallback: number | null } = { primary: null, fallback: null };
+
+function installCountTokensInterceptor(primaryModel: string, fallbackModel: string) {
+  const realFetch = globalThis.fetch.bind(globalThis);
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const host = (() => {
+      try {
+        return new URL(url).host;
+      } catch {
+        return 'unparseable';
+      }
+    })();
+    if (host !== GEMINI_HOST) {
+      counters.unexpectedNetworkAttempts += 1;
+      throw new Error(`network denied by harness: host=${host}`);
+    }
+
+    const overlaid = applyOverlayToRequestInit(init);
+    if (!overlaid || typeof overlaid.body !== 'string') {
+      throw new Error('count-tokens: certified request carried no JSON body to count');
+    }
+    let contents: unknown;
+    try {
+      contents = (JSON.parse(overlaid.body) as { contents?: unknown }).contents;
+    } catch {
+      throw new Error('count-tokens: certified request body did not parse as JSON');
+    }
+    if (!contents) throw new Error('count-tokens: certified request body carried no contents');
+
+    // Only `contents` crosses to the countTokens call — generationConfig, tools
+    // and safety settings are irrelevant to an input token count and dropped
+    // rather than risk a strict-schema 400 on a field this endpoint does not
+    // expect.
+    const countBody = JSON.stringify({ contents });
+    const apiKey = denoRuntime.env.get('GEMINI_API_KEY');
+
+    for (const model of [primaryModel, fallbackModel]) {
+      const countUrl = `https://${GEMINI_HOST}/v1beta/models/${model}:countTokens?key=${apiKey}`;
+      const response = await realFetch(countUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: countBody,
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`count-tokens: ${model} responded ${response.status}: ${text.slice(0, 200)}`);
+      }
+      const parsed = (await response.json()) as { totalTokens?: number };
+      if (!Number.isInteger(parsed.totalTokens)) {
+        throw new Error(`count-tokens: ${model} response carried no integer totalTokens`);
+      }
+      if (model === primaryModel) tokenCounts.primary = parsed.totalTokens as number;
+      else tokenCounts.fallback = parsed.totalTokens as number;
+    }
+
+    // The captured body (contents, i.e. prompt text + image bytes) goes out of
+    // scope here and is never written anywhere. Abort the certified handler now
+    // that both real counts are in hand — no generateContent call is needed.
+    throw new CountTokensCaptured();
+  }) as typeof fetch;
+}
+
 function installFetchInterceptor(scenario: string) {
   const body = scenarioBody(scenario);
 
@@ -632,11 +710,11 @@ function installEnv(provider: string) {
     SUPABASE_SERVICE_ROLE_KEY: 'harness-synthetic-service',
     SCAN_MULTI_ITEM_ENABLED: 'true',
   };
-  if (provider !== 'live') {
+  if (provider !== 'live' && provider !== 'count-tokens') {
     env.GEMINI_API_KEY = 'harness-synthetic-key-not-a-credential';
   }
-  // In live mode the owner-approved key is inherited from the process
-  // environment and is never written, echoed or defaulted here.
+  // In live and count-tokens mode the owner-approved key is inherited from the
+  // process environment and is never written, echoed or defaulted here.
   for (const [key, value] of Object.entries(env)) {
     if (!denoRuntime.env.get(key)) denoRuntime.env.set(key, value);
   }
@@ -740,12 +818,16 @@ async function main() {
   // Loaded and hash-verified BEFORE the certified entry is imported, so a bad
   // overlay stops the run before anything is dispatched.
   if (overlayFile) candidateOverlay = await loadOverlay(overlayFile, candidateVersion);
-  if (provider === 'live') {
+  if (provider === 'live' || provider === 'count-tokens') {
     const routingUrl = new URL(
       `file:///${certRoot.replace(/\\/g, '/').replace(/^\/+/, '')}/supabase/functions/_shared/llmModelRouting.ts`
     ).href;
     const routing = await import(routingUrl);
-    installLiveFetchInterceptor(timeoutMs, routing.classifyProviderHttpFailure);
+    if (provider === 'live') {
+      installLiveFetchInterceptor(timeoutMs, routing.classifyProviderHttpFailure);
+    } else {
+      installCountTokensInterceptor(routing.SCANNER_PRIMARY_MODEL, routing.SCANNER_FALLBACK_MODEL);
+    }
   }
   else installFetchInterceptor(scenario);
 
@@ -770,6 +852,7 @@ async function main() {
   let handlerError: string | null = null;
   const handlerStarted = performance.now();
 
+  let countTokensError: string | null = null;
   try {
     const response = await capturedHandler(request);
     status = response.status;
@@ -780,11 +863,44 @@ async function main() {
       payload = { unparseable: true, length: text.length };
     }
   } catch (error) {
-    // Arbitrary exception text may include a request URL. The Gemini URL carries
-    // its credential in the query string, so only a fixed sentinel may cross the
-    // harness boundary.
-    void error;
-    handlerError = 'certified_handler_failed';
+    if (provider === 'count-tokens' && error instanceof CountTokensCaptured) {
+      // Expected control flow: both real countTokens calls already completed
+      // inside the interceptor before it aborted the certified handler. Nothing
+      // failed.
+    } else if (provider === 'count-tokens') {
+      // Arbitrary exception text may include a request URL or a status body.
+      // Only a fixed sentinel may cross the harness boundary.
+      void error;
+      countTokensError = 'count_tokens_failed';
+    } else {
+      // Arbitrary exception text may include a request URL. The Gemini URL carries
+      // its credential in the query string, so only a fixed sentinel may cross the
+      // harness boundary.
+      void error;
+      handlerError = 'certified_handler_failed';
+    }
+  }
+
+  if (provider === 'count-tokens') {
+    // Dedicated, minimal report. No V2 result exists for this mode, and the
+    // captured request body (prompt text, image bytes) was already discarded
+    // inside the interceptor — only the two integer counts survive.
+    const countReport = JSON.stringify(
+      {
+        provider,
+        caseId,
+        candidateVersion,
+        ok: countTokensError === null && tokenCounts.primary !== null && tokenCounts.fallback !== null,
+        error: countTokensError,
+        primaryInputTokens: tokenCounts.primary,
+        fallbackInputTokens: tokenCounts.fallback,
+      },
+      null,
+      2
+    );
+    if (out) await denoRuntime.writeTextFile(out, `${countReport}\n`);
+    else console.log(countReport);
+    return;
   }
 
   // The certified response carries the V2 result nested under
