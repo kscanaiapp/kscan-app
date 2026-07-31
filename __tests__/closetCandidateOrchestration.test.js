@@ -746,6 +746,33 @@ test('a non-retryable failure is never automatically retried', async () => {
   assert.equal(settled.errorCode, 'classification_contract_rejected');
 });
 
+// Build 2.5 Phase 0B. Simulates a mirror_extract candidate reaching the
+// classification queue despite the Mirror flag being off elsewhere — the
+// defense-in-depth case, since this orchestrator must not trust that gate.
+test('a mirror_extract candidate fails closed before any network call, never as closet_gallery', async () => {
+  const env = load();
+  env.connectivity.resetClosetConnectivityProvider();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/mirror/a.jpg');
+  const created = await env.store.createClosetCandidate(req, {
+    sourceUri: '/mirror/a.jpg',
+    sourceType: 'mirror_extract',
+    ownerId: req.actorId,
+  });
+  assert.equal(created.kind, 'created');
+
+  const outcome = await env.classification.classifyClosetCandidate(req, created.candidate.candidateId);
+  assert.equal(outcome.status, 'failed');
+  assert.equal(outcome.errorCode, 'classification_contract_rejected');
+  // The defining property: no request was ever built or sent for it. A silent
+  // `closet_gallery` mislabel would still show up as a transport call here.
+  assert.equal(env.transport.calls.length, 0, 'a mirror_extract candidate must never reach the network');
+
+  const settled = await reload(env, req, created.candidate.candidateId);
+  assert.equal(settled.status, 'failed');
+  assert.equal(settled.errorCode, 'classification_contract_rejected');
+});
+
 test('the UI does not offer retry for a failure retrying cannot fix', () => {
   const env = load();
   const errorsModule = runModule('services/closetCandidateErrors.ts', (s) =>

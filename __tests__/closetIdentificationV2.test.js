@@ -194,8 +194,37 @@ test('camera and gallery map to their own distinct entry paths', () => {
   assert.equal(request({ entryPath: 'gallery' }).source.entryPath, 'closet_gallery');
   assert.equal(adapter.closetEntryPathKeyForSource('camera'), 'camera');
   assert.equal(adapter.closetEntryPathKeyForSource('gallery'), 'gallery');
-  // Anything unrecognised must not become `camera` by accident.
-  assert.equal(adapter.closetEntryPathKeyForSource('mystery'), 'gallery');
+});
+
+// MIRROR-RUNTIME-SOURCE-ALLOWLIST-ACCEPTS-MIRROR-EXTRACT (negative half) /
+// MIRROR-UNKNOWN-SOURCE-FAILS-CLOSED (Build 2.5 Phase 0B).
+//
+// Before Phase 0B, anything that was not `camera` silently became `gallery`,
+// which was safe only while `camera` and `gallery` were the sole reachable
+// candidate sources. `mirror_extract` breaks that assumption, so the mapping
+// is now a CLOSED set: `camera`/`gallery` resolve exactly as before, and
+// everything else — `mirror_extract` included — returns `null` rather than a
+// guessed entry path.
+test('unrecognised and mirror_extract sources resolve to no entry path, never gallery', () => {
+  assert.equal(adapter.closetEntryPathKeyForSource('mystery'), null);
+  assert.equal(adapter.closetEntryPathKeyForSource('mirror_extract'), null);
+  assert.equal(adapter.closetEntryPathKeyForSource(undefined), null);
+  assert.equal(adapter.closetEntryPathKeyForSource(null), null);
+});
+
+// MIRROR-BUILD-CLOSET-V2-REQUEST-MAPS-TO-CLOSET-MIRROR / domain-separation
+// negative proof (addendum Section F).
+test('mirror_extract has a dormant intended entry path, distinct from every active one', () => {
+  assert.equal(adapter.MIRROR_INTENDED_ENTRY_PATH, 'closet_mirror');
+  assert.equal(adapter.mirrorIntendedEntryPathFor('mirror_extract'), 'closet_mirror');
+  // The dormant mapping answers ONLY for mirror_extract. camera/gallery keep
+  // using their own real, active mapping and must never be answered from here.
+  assert.equal(adapter.mirrorIntendedEntryPathFor('camera'), null);
+  assert.equal(adapter.mirrorIntendedEntryPathFor('gallery'), null);
+  assert.equal(adapter.mirrorIntendedEntryPathFor('mystery'), null);
+  // Negative proof: closet_mirror is not a value CLOSET_ENTRY_PATHS/
+  // buildClosetV2Request can produce — it is not one of the two active keys.
+  assert.ok(!Object.values(adapter.CLOSET_ENTRY_PATHS).includes('closet_mirror'));
 });
 
 test('the request carries exactly one evidence object and a truthful privacy attestation', () => {
@@ -530,6 +559,9 @@ const CLOSET_CANDIDATE_SOURCES = [
   'services/closetCandidateReviewEligibility.ts',
   'hooks/useClosetBatchSelection.ts',
   'components/closet/ClosetBatchReviewPanel.tsx',
+  // Build 2.5 Phase 0B: the Mirror Selfie crop-staging adapter joins the same
+  // side-effect governance as every other module on the candidate path.
+  'services/closetMirrorStaging.ts',
 ];
 
 function readCandidateSources() {
