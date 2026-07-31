@@ -34,9 +34,10 @@
         "elise_header_gallery",
         "scanner_handoff",
         "closet_camera",
-        "closet_gallery"
+        "closet_gallery",
+        "closet_mirror"
       ],
-      "description": "Never reduced to a generic camera/upload. elise_header_gallery is distinct from elise_gallery because its evidence has a transient lifecycle (see Phase 2B addendum 15). closet_camera and closet_gallery are distinct from every scanner_* and elise_* path because Closet intake stages a durable candidate rather than producing a Recent Scan or a styling context."
+      "description": "Never reduced to a generic camera/upload. elise_header_gallery is distinct from elise_gallery because its evidence has a transient lifecycle (see Phase 2B addendum 15). closet_camera, closet_gallery and closet_mirror are distinct from every scanner_* and elise_* path because Closet intake stages a durable candidate rather than producing a Recent Scan or a styling context. closet_mirror (Build 2.5) is distinct from closet_gallery because its evidence is a garment crop extracted from a mirror selfie rather than an image the user framed as one garment; it changes provenance only, and carries the identical identify_for_closet semantics as the other two Closet paths."
     },
 
     "platform": {
