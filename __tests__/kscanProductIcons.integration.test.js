@@ -36,12 +36,15 @@ test('integration: YOUR STYLIST header keeps the decorative sparkle (cross-platf
   assert.doesNotMatch(STYLIST_CARD, /KScanIcon/);
 });
 
-test('integration: Recent Scans chip uses recent-scans icon and keeps /library', () => {
+test('integration: Recent Scans chip uses recent-scans icon and opens the recent section', () => {
   assert.match(HOME, /name="recent-scans"/);
   assert.match(HOME, /title="RECENT SCANS"/);
   assert.match(HOME, /testID="home-luxury-feature-recent-scans"/);
   assert.match(HOME, /accessibilityLabel="Recent Scans"/);
-  assert.match(HOME, /onPress=\{\(\) => router\.push\('\/library'\)\}/);
+  assert.match(
+    HOME,
+    /router\.push\(\{ pathname: '\/library', params: \{ section: 'recent' \} \}\)/,
+  );
 });
 
 test('integration: Visual Search uses visual-search icon and keeps /scan', () => {
@@ -52,11 +55,14 @@ test('integration: Visual Search uses visual-search icon and keeps /scan', () =>
   assert.match(HOME, /accessibilityLabel="Open Visual Search"/);
 });
 
-test('integration: Closet uses save-organize icon and keeps /library', () => {
+test('integration: Closet uses save-organize icon and opens the closet section', () => {
   assert.match(HOME, /name="save-organize"/);
   assert.match(HOME, /title="CLOSET"/);
   assert.match(HOME, /testID="home-luxury-feature-library"/);
-  assert.match(HOME, /router\.push\('\/library'\)/);
+  assert.match(
+    HOME,
+    /router\.push\(\{ pathname: '\/library', params: \{ section: 'closet' \} \}\)/,
+  );
   assert.match(HOME, /accessibilityLabel="Open Closet"/);
 });
 
