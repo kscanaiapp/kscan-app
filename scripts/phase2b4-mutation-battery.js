@@ -215,7 +215,7 @@ const MUTATIONS = [
     // Deleted rather than misspelled: an invalid intent literal would fail
     // deno's type check, and a mutation caught by the type checker proves
     // nothing about the gate.
-    find: "  if (input.intent === 'identify_for_style') {\n    return { run: false, skippedReason: COMMERCE_SKIPPED_STYLE_INTENT };\n  }\n",
+    find: '  identify_for_style: COMMERCE_SKIPPED_STYLE_INTENT,\n',
     replace: '',
     test: BACKEND_TEST,
     runner: 'deno',
@@ -226,7 +226,7 @@ const MUTATIONS = [
     id: 16,
     title: 'Scanner artifact gate',
     file: BACKEND_SHARED,
-    find: "  return intent !== 'identify_for_style';\n}",
+    find: '  return !NON_COMMERCE_INTENTS[intent as string];\n}',
     replace: '  return false;\n}',
     test: BACKEND_TEST,
     runner: 'deno',
@@ -442,7 +442,7 @@ function runNamedTest(mutation) {
   if (runner === 'deno') {
     return spawnSync(
       'deno',
-      ['test', '--allow-read', '--filter', shellArg(mutation.name.replace(/\\/g, '')), mutation.test],
+      ['test', '--no-lock', '--allow-read', '--filter', shellArg(mutation.name.replace(/\\/g, '')), mutation.test],
       { cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32' },
     );
   }
