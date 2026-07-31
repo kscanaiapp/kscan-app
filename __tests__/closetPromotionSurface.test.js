@@ -953,8 +953,15 @@ test('the selection hook still owns nothing but selection', () => {
 test('the candidate hook cancels the queue on background and on actor change', () => {
   const hook = stripComments(readSource('hooks/useClosetCandidates.js'));
   assert.ok(hook.includes("AppState.addEventListener('change'"), 'no lifecycle listener');
+  // NARROWED BY BUILD 2.5 STEP 4: the single-line form
+  // `if (nextState !== 'active') promotionLiveRef.current = false;` became a
+  // block once backgrounding also had to clear
+  // mirrorIntegrationLiveRef.current — same invariant (backgrounding still
+  // clears promotion's continue flag), different source shape. The regex
+  // tolerates whatever comes between the condition and the assignment rather
+  // than requiring them on one line.
   assert.ok(
-    /nextState !== 'active'\) promotionLiveRef\.current = false/.test(hook),
+    /nextState !== 'active'\)\s*\{[\s\S]{0,80}promotionLiveRef\.current = false/.test(hook),
     'backgrounding must clear the continue flag',
   );
   assert.ok(
