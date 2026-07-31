@@ -349,6 +349,18 @@ test('record actions belong to their own domain', () => {
   assert.notEqual(closetCard.props.status, 'Scan');
 });
 
+test('record accessibility labels use the active domain instead of saved-look language', () => {
+  const recent = renderLibrary({ section: 'recent', scans: [RECENT_FIXTURE] });
+  const scanCard = byTestID(recent.tree, 'scan-card')[0];
+  assert.equal(scanCard.props.accessibilityLabel, 'RECENT_SCAN_CATEGORY Recent Scan');
+  assert.doesNotMatch(scanCard.props.accessibilityLabel, /closet|saved look/i);
+
+  const closet = renderLibrary({ section: 'closet', closetItems: [CLOSET_FIXTURE] });
+  const closetCard = byTestID(closet.tree, 'closet-card')[0];
+  assert.equal(closetCard.props.accessibilityLabel, 'CLOSET_OWNED_TITLE Closet item');
+  assert.doesNotMatch(closetCard.props.accessibilityLabel, /recent scan|saved look/i);
+});
+
 // ── Empty states ─────────────────────────────────────────────────────────────
 
 test('recent empty state uses scan language and offers scanning, not Closet intake', () => {
