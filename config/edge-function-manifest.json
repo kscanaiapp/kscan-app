@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-31T15:51:53.120Z",
-    "generatedFromGitSha": "bb616928cc1feba6404d16582f9cdb87c2c81d35"
+    "generatedAtUtc": "2026-07-31T16:07:53.945Z",
+    "generatedFromGitSha": "1d9e4bc47784a1725d36034dfdd4d1a2b55e6e4d"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -22,7 +22,7 @@
         "bundleFileCount": 31,
         "treeFileCount": 40,
         "bundleHash": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
-        "treeHash": "84fc9c265fd704fee456b6a44b2875d5b9bfed78aa5f9b1226a65fe6044bd2b4",
+        "treeHash": "58ed02754b905522dbb31644845fb93b8e60fa1990a5c507455e4db33620c4a5",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -56,7 +56,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/closetMirrorEntryPath.test.ts",
-            "sha256": "259150447035d0811115c0cd3247ec3f78b4658da7f82cdf71006f37be861484",
+            "sha256": "73277ee7d1d0fd7fd494851febe34b75458f3efb572335dd9be40d7d030bf6f8",
             "bundle": false
           },
           {
