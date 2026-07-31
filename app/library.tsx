@@ -56,6 +56,7 @@ import {
   CLOSET_DIRECT_INTAKE_ACTIVE,
   CLOSET_CANDIDATE_STAGING_ACTIVE,
   CLOSET_BATCH_REVIEW_V2_ACTIVE,
+  MIRROR_SELFIE_V1_ACTIVE,
   PRIVATE_DRESSING_ROOM_V1,
 } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
@@ -66,6 +67,7 @@ import { useClosetCandidates } from '../hooks/useClosetCandidates';
 import { routeClosetIntake } from '../services/closetIntakeRouting';
 import { createClosetBatchId } from '../services/closetCandidateSchema';
 import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
+import { MirrorSelfieExtractionModal } from '../components/closet/MirrorSelfieExtractionModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
 import { isScanPromoted } from '../services/closetPromotion';
 
@@ -211,6 +213,7 @@ export default function LibraryScreen() {
   // rather than on the next focus.
   const closetCandidates = useClosetCandidates();
   const [closetIntakeVisible, setClosetIntakeVisible] = useState(false);
+  const [mirrorSelfieVisible, setMirrorSelfieVisible] = useState(false);
   const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const [inspirations, setInspirations] = useState<InspirationItem[]>([]);
@@ -599,6 +602,28 @@ export default function LibraryScreen() {
               actionAccessibilityLabel="Add an item to your Closet"
             />
             {/*
+              Mirror Selfie intake (Build 2.5 Step 3).
+
+              A DISTINCT ACTION ON THE EXISTING CLOSET INTAKE SURFACE — not a new
+              tab, not a Scanner entry point, not an Elise or commerce entry
+              point, and not a second Closet. It sits beside Add Item because it
+              fills the same Closet by a different route: one photo of an outfit
+              instead of one photo per garment.
+
+              Renders NOTHING while MIRROR_SELFIE_V1_ACTIVE is false, which is
+              its state in every profile in this build.
+            */}
+            {MIRROR_SELFIE_V1_ACTIVE ? (
+              <View style={styles.mirrorAction}>
+                <SecondaryButton
+                  title="Mirror Selfie"
+                  onPress={() => setMirrorSelfieVisible(true)}
+                  accessibilityLabel="Add several items from one mirror selfie"
+                  testID="closet-mirror-selfie-button"
+                />
+              </View>
+            ) : null}
+            {/*
               Candidate staging surface (Closet Upgrade Build 1).
 
               Mounted ONLY when the derived capability is active, so a build with
@@ -863,6 +888,23 @@ export default function LibraryScreen() {
         />
       ) : null}
 
+      {/*
+        Mirror Selfie extraction (Build 2.5 Step 3).
+
+        Step 3 ends at local review: the sheet returns a typed selection of
+        crop URIs and this host simply closes. It does NOT call
+        stageMirrorSelfieGarmentCrops, createClosetCandidateBatch, or anything
+        else in the candidate pipeline — that wiring is Step 4's, and doing it
+        here would stage candidates from an extractor that has never run on a
+        physical device.
+      */}
+      {MIRROR_SELFIE_V1_ACTIVE ? (
+        <MirrorSelfieExtractionModal
+          visible={mirrorSelfieVisible}
+          onClose={() => setMirrorSelfieVisible(false)}
+        />
+      ) : null}
+
       {/* Reopen saved scan — no backend call, no useKScan involvement */}
       {selectedScan && (
         <AnalysisCard
@@ -1026,6 +1068,12 @@ const styles = StyleSheet.create({
   },
   singleCardRow: {
     alignItems: 'center',
+  },
+  // Mirror Selfie action, sitting under the Closet section header beside the
+  // existing Add Item affordance.
+  mirrorAction: {
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.md,
   },
   loadingWrap: {
     alignItems: 'center',

@@ -38,6 +38,17 @@ export const CLOSET_CANDIDATE_EVENTS = [
   // this phase adds: capture, validation, person-detection and segmentation
   // stages do not exist yet and must not acquire telemetry ahead of themselves.
   'mirror_selfie_crops_staged',
+  // Build 2.5 Step 3. The local extraction pipeline, which runs entirely on
+  // device and never uploads a pixel. These events describe SHAPE and OUTCOME
+  // only: how many people were found, how many crops came out, roughly how long
+  // it took, and what the user did next. No coordinate, no dimension, no URI,
+  // no session id and no crop key is emissible — see the property allowlist and
+  // the SAFE_STRING scrub below, which reject all of them by shape.
+  'mirror_selfie_source_selected',
+  'mirror_selfie_validation_completed',
+  'mirror_selfie_extraction_completed',
+  'mirror_selfie_extraction_cancelled',
+  'mirror_selfie_crop_review_completed',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
@@ -80,6 +91,20 @@ export const CLOSET_CANDIDATE_EVENT_PROPERTIES = [
   'duplicateCount',
   'rejectedCount',
   'batchLimitReached',
+  // Build 2.5 Step 3 — local extraction only. Every one is a coarse bucket or a
+  // boolean.
+  //
+  // NOTE ON BUCKET SPELLING: the scrub below rejects `+`, so the open-ended
+  // buckets are written `2_plus` / `9_plus`, never `2+` / `9+`. A `+` here would
+  // not fail loudly — it would be silently dropped, and the bucket would vanish
+  // at exactly the interesting end of the distribution.
+  'personCountBucket',
+  'sourceCountBucket',
+  'selectedCountBucket',
+  'reviewCountBucket',
+  'durationBucket',
+  'extractionSupported',
+  'personSelectionRequired',
 ] as const;
 
 export type ClosetCandidateEventProperty =
