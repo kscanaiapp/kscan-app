@@ -8,19 +8,21 @@
  * Home hook that drives it. Keeping the split absolute is what lets the state
  * machine be tested without a renderer.
  *
- * Commit 1 renders the bounded loading treatment only, so Home can mount the
- * surface behind the kill switch before any orchestration exists. The remaining
- * approved states arrive in the card-UI slice.
+ * The bounded loading treatment replaces only this card's body — never Home,
+ * and never as a full-screen spinner.
  */
 
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import type { TodayCardPresentation } from '../../services/todayWithElise/presentation';
+import type { TodayWithEliseCardState } from '../../types/todayWithElise';
 
 export const TODAY_CARD_TEST_IDS = Object.freeze({
   section: 'home-today-with-elise',
   heading: 'home-today-with-elise-heading',
   loading: 'home-today-with-elise-loading',
+  body: 'home-today-with-elise-body',
 });
 
 /** Section label. Stable across every state so the surface never renames itself. */
@@ -29,9 +31,11 @@ export const TODAY_CARD_HEADING = 'TODAY WITH ELISE';
 export type TodayWithEliseCardProps = {
   /** Bounded loading treatment while the first generation resolves. */
   loading: boolean;
+  card: TodayWithEliseCardState | null;
+  presentation: TodayCardPresentation | null;
 };
 
-export function TodayWithEliseCard({ loading }: TodayWithEliseCardProps) {
+export function TodayWithEliseCard({ loading, card, presentation }: TodayWithEliseCardProps) {
   return (
     <View testID={TODAY_CARD_TEST_IDS.section} style={styles.section}>
       <View style={styles.headerRow}>
@@ -47,7 +51,7 @@ export function TodayWithEliseCard({ loading }: TodayWithEliseCardProps) {
         </Text>
       </View>
 
-      {loading ? (
+      {loading || !card || !presentation ? (
         <View
           testID={TODAY_CARD_TEST_IDS.loading}
           style={styles.card}
@@ -57,7 +61,17 @@ export function TodayWithEliseCard({ loading }: TodayWithEliseCardProps) {
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />
           <Text style={styles.loadingText}>Elise is looking at your Closet…</Text>
         </View>
-      ) : null}
+      ) : (
+        <View
+          testID={TODAY_CARD_TEST_IDS.body}
+          style={styles.cardColumn}
+          accessible
+          accessibilityLabel={presentation.accessibilityLabel}
+        >
+          <Text style={styles.headline}>{presentation.headline}</Text>
+          <Text style={styles.explanation}>{presentation.explanation}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -89,6 +103,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: LUXURY.colors.border,
     padding: SPACING.lg,
+  },
+  cardColumn: {
+    backgroundColor: LUXURY.colors.pearl,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  headline: {
+    ...LUXURY.typography.displayTitle,
+    fontSize: 18,
+    color: LUXURY.colors.ink,
+  },
+  explanation: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: LUXURY.colors.graphite,
   },
   loadingText: {
     ...LUXURY.typography.body,
