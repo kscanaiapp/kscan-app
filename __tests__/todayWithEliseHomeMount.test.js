@@ -134,7 +134,18 @@ test('the section is a component, so Home never evaluates Today hooks inline', (
   assert.doesNotMatch(home, /useTodayWithElise/);
 });
 
-const HOOK = read('hooks', 'useTodayWithElise.ts');
+/** Normalized: line endings are a checkout artifact, not a source fact. */
+const HOOK = read('hooks', 'useTodayWithElise.ts').replace(/\r\n/g, '\n');
+
+/**
+ * The hook with comments removed.
+ *
+ * Ordering assertions MUST run against code. The hook's own comment states that
+ * the actor-transition effect is "DECLARED BEFORE `useFocusEffect(orchestrate)`",
+ * so a raw search finds that sentence hundreds of lines before the call it
+ * describes — and would report the correct order as broken.
+ */
+const HOOK_CODE = HOOK.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 /** The body of `readTodaySources`, and nothing else. */
 function readSourcesBody() {
@@ -181,6 +192,33 @@ test('each Today source is read exactly once per generation', () => {
 test('the generation runner calls the source reader exactly once', () => {
   const body = orchestrationBody();
   assert.equal(body.split('readTodaySources(').length - 1, 1);
+});
+
+test('the actor-transition effect is declared BEFORE the focus effect', () => {
+  // This ordering is load-bearing and has failed before in this repository:
+  // React runs effects in declaration order, so on the single commit where auth
+  // resolves, the actor-transition effect must invalidate the OLD actor's work
+  // before the new generation claims its token. With the opposite order the new
+  // generation is claimed first and immediately bumped past, its commit is
+  // permanently refused, and the surface hangs in its loading state forever —
+  // exactly the failure the private Dressing Room hook documents.
+  const invalidation = HOOK_CODE.indexOf(
+    'generationRef.current += 1;\n    handleRef.current = null;',
+  );
+  const focus = HOOK_CODE.indexOf('useFocusEffect(orchestrate);');
+  assert.ok(invalidation > 0, 'could not find the actor-transition effect');
+  assert.ok(focus > 0, 'could not find the focus effect');
+  assert.ok(
+    invalidation < focus,
+    'the actor-transition effect must be declared before useFocusEffect(orchestrate)',
+  );
+});
+
+test('the actor-transition effect is keyed on the actor, not on every render', () => {
+  const effect = HOOK_CODE.slice(
+    HOOK_CODE.indexOf('generationRef.current += 1;\n    handleRef.current = null;'),
+  );
+  assert.match(effect.slice(0, 200), /\}, \[actorKey\]\);/);
 });
 
 // ── Home is additive ─────────────────────────────────────────────────────────

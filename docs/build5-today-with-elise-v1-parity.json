@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "files": {
+    "types/todayWithElise.ts": "553ae08753519d4a54b6080a493bebe7a4cfe51d5320f2c9e2c2fb9bdbc5ec2a",
+    "services/todayWithElise/actionRouting.ts": "ba142cfbae7f3eb8e7f43330bdcccb56bc5623f42f0ea72cb55ea05dd46a8337",
+    "services/todayWithElise/actorInvalidation.ts": "868e71622dfbab3599ec4841b850add0ecb3621b9b66d618169d74d47992ff12",
+    "services/todayWithElise/analytics.ts": "44a3f2bab0885f5b5db2c77e38454372f213f93def631bb90557bb91a70f7efb",
+    "services/todayWithElise/build4ConfidenceAdapter.ts": "c418659c626d5ad612bdfde3f1f609159c24a3ddfee86ac5ac52a037973796bd",
+    "services/todayWithElise/copyTemplates.ts": "442b239e87aa7e4a6eb1e11371f313a3202756e363c56bbc3d1d4908693d4e86",
+    "services/todayWithElise/eligibility.ts": "10a7e3f3847af57250a6dcb56507dc55fc0a0409c7ea1759fd903cc6bd76369e",
+    "services/todayWithElise/handoff.ts": "49ba3741ba467278a464775a714c9243e66227f5e5f96e0b5266b57ec1fbc5e9",
+    "services/todayWithElise/orchestrator.ts": "85db17643bd562591c244b6dc18127b8965ca1563e84af3c9d85b9c69ce493bf",
+    "services/todayWithElise/presentation.ts": "2ec92c99bfe058f54017e731c461d722806bbf83887a23652931faadec7db59b",
+    "services/todayWithElise/priorityEngine.ts": "84ffbd532b91080a05d91a8e8001cac71838f8202fb63d4ce2c6bcab0cfaa8a2",
+    "services/todayWithElise/reporting.ts": "b30120fe759ec212630ffea5bf2165b0f3d2e80b8cc4bc227ba7708b2c5ebd52",
+    "services/todayWithElise/weatherPolicy.ts": "ae5dba7af793e0fd36da2f6088a7c73c789e4d703fee723e4c59839400dbfffb",
+    "hooks/useTodayWithElise.ts": "0f0886095db1bdd26afdf9f845084c7b734ad96b6fcf1366f82601b2446727bc",
+    "components/home/TodayWithEliseBoundary.tsx": "c0ab0317fc55c305f6b03ef47cad64769c708b83da2147a3c71f2854f9d54422",
+    "components/home/TodayWithEliseCard.tsx": "1905864892d98789771ca8221f27e80ff08458d8c59352babf0e716ff53ac6fd",
+    "components/home/TodayWithEliseSection.tsx": "432766629e6e0df7512419aa7a6723221d501db73f7ccd03a64f76dee3366aad"
+  }
+}

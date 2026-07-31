@@ -297,6 +297,58 @@ export async function openTodayDressingRoom(
   }
 }
 
+// ── Closet destinations ──────────────────────────────────────────────────────
+
+export type TodayClosetActionInput = {
+  card: TodayWithEliseCardState;
+  generationToken: string;
+  actorId: string;
+  actorEpoch: number;
+  route: string;
+  analyticsPayload: Record<string, unknown>;
+  isCardCurrent: () => boolean;
+};
+
+/**
+ * Navigate to a Closet destination.
+ *
+ * SEPARATE FROM THE DRESSING ROOM PATH because there is genuinely nothing to
+ * create, hydrate or prove readable — the Closet route reads its own state on
+ * mount. What it shares, and MUST share, is the tap guard: three taps on
+ * "Add More Items" have to produce one navigation and one event exactly as
+ * three taps on "Tap to Get Ready" do. Routing this through the same dedupe
+ * key is why that holds without a second implementation of it.
+ *
+ * No lock: with no asynchronous operation there is no window for a second tap
+ * to interleave with, and claiming otherwise would be theatre.
+ */
+export function openTodayClosetDestination(
+  deps: Pick<TodayHandoffDeps, 'navigate' | 'emit' | 'now' | 'liveActor'>,
+  input: TodayClosetActionInput,
+): TodayHandoffResult {
+  if (!input.isCardCurrent()) return refuse('refused_stale_card');
+  if (input.card?.generationToken !== input.generationToken) {
+    return refuse('refused_stale_card');
+  }
+
+  const live = deps.liveActor();
+  if (live.actorId !== input.actorId || live.epoch !== input.actorEpoch) {
+    return refuse('refused_actor_changed');
+  }
+
+  const dedupeKey = `closet:${input.actorId}:${input.generationToken}`;
+  if (!shouldAcceptPrimaryActionTap(dedupeKey, deps.now())) {
+    return refuse('ignored_duplicate_tap');
+  }
+
+  deps.navigate(input.route);
+  deps.emit('today_with_elise_primary_action', {
+    ...input.analyticsPayload,
+    action: input.card.primaryAction?.action,
+  });
+  return { outcome: 'opened', message: null, emitted: ['today_with_elise_primary_action'] };
+}
+
 // ── Change Something ─────────────────────────────────────────────────────────
 
 export type TodayModifyInput = {
@@ -372,11 +424,14 @@ export function openTodayEliseModification(
     // originates from Today by definition.
     const payload = { ...input.analyticsPayload, action: intent.kind };
     deps.emit('today_with_elise_secondary_action', payload);
-    deps.emit('today_with_elise_look_modified', payload);
+    // DELIBERATELY NOT `today_with_elise_look_modified` HERE. Opening the
+    // modification flow is not a modification, and reporting it as one would
+    // put a click in the funnel where an outcome belongs. That event is emitted
+    // only when a later generation observes that the Look actually changed.
     return {
       outcome: 'opened',
       message: null,
-      emitted: ['today_with_elise_secondary_action', 'today_with_elise_look_modified'],
+      emitted: ['today_with_elise_secondary_action'],
     };
   } finally {
     inFlight.delete(lockKey);
