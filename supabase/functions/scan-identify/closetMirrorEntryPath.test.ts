@@ -226,18 +226,36 @@ Deno.test('commerce is skipped for a Mirror request under every reachable status
 
 Deno.test('no backend module branches on entryPath, so Mirror inherits no Scanner behaviour', async () => {
   const dir = new URL('.', import.meta.url);
+
+  // Two independent detectors, because either one alone has a blind spot.
+  //
+  //   BY NAME  — catches a branch written against the field itself, however
+  //              the value is spelled.
+  //   BY VALUE — catches a branch written against an entry-path LITERAL after
+  //              the value has been copied into a differently named local,
+  //              which is exactly how `switch (entryPath)` gets refactored
+  //              into something the name detector no longer sees.
+  //
+  // The value detector is generated from the real vocabulary, so a path added
+  // later is covered without anyone remembering to extend this list.
+  const byName = [
+    /switch\s*\(\s*[A-Za-z0-9_.?]*entryPath/,
+    /entryPath\s*===\s*['"]/,
+    /entryPath\s*!==\s*['"]/,
+  ];
+  const byValue = FASHION_IDENTIFICATION_ENTRY_PATHS.flatMap((value) => [
+    new RegExp(`[=!]==\\s*['"]${value}['"]`),
+    new RegExp(`['"]${value}['"]\\s*[=!]==`),
+    new RegExp(`case\\s+['"]${value}['"]`),
+  ]);
+
   const offenders: string[] = [];
   for await (const entry of Deno.readDir(dir)) {
     if (!entry.isFile || !entry.name.endsWith('.ts') || entry.name.endsWith('.test.ts')) continue;
     const source = await Deno.readTextFile(new URL(entry.name, dir));
     // Reading and forwarding the value is fine. Comparing it is not: that is
     // how a path acquires behaviour rather than provenance.
-    for (const pattern of [
-      /switch\s*\(\s*[A-Za-z0-9_.?]*entryPath/,
-      /entryPath\s*===\s*['"]/,
-      /entryPath\s*!==\s*['"]/,
-      /['"]scanner_camera['"]\s*[,:]/,
-    ]) {
+    for (const pattern of [...byName, ...byValue]) {
       if (pattern.test(source)) offenders.push(`${entry.name}: ${pattern}`);
     }
   }
