@@ -746,10 +746,22 @@ test('a non-retryable failure is never automatically retried', async () => {
   assert.equal(settled.errorCode, 'classification_contract_rejected');
 });
 
-// Build 2.5 Phase 0B. Simulates a mirror_extract candidate reaching the
-// classification queue despite the Mirror flag being off elsewhere — the
-// defense-in-depth case, since this orchestrator must not trust that gate.
-test('a mirror_extract candidate fails closed before any network call, never as closet_gallery', async () => {
+// MIRROR-EXTRACT-BUILDS-CLOSET-MIRROR-ENTRY-PATH (end-to-end) —
+// Build 2.5 Step 2, replacing Step 1's dormancy assertion.
+//
+// Step 1 asserted the opposite of this test: that a `mirror_extract` candidate
+// reaching this queue failed closed with `classification_contract_rejected`,
+// because `closet_mirror` was absent from the shared vocabulary and the only
+// alternative was mislabelling it `closet_gallery`. Step 2 added the vocabulary
+// value, so failing closed is no longer the correct behaviour and asserting it
+// would now pin a bug.
+//
+// The protected property is unchanged and is what this test still proves: a
+// Mirror crop's provenance is never laundered. Step 1 proved that by showing
+// NO request went out; Step 2 proves it by showing the request that DOES go out
+// carries `closet_mirror` — and specifically not `closet_gallery`, and not a
+// Scanner path or a shopping intent.
+test('a mirror_extract candidate classifies as closet_mirror, never as closet_gallery', async () => {
   const env = load();
   env.connectivity.resetClosetConnectivityProvider();
   const req = asActor(env.actorContext, 'user-a');
@@ -762,16 +774,72 @@ test('a mirror_extract candidate fails closed before any network call, never as 
   assert.equal(created.kind, 'created');
 
   const outcome = await env.classification.classifyClosetCandidate(req, created.candidate.candidateId);
-  assert.equal(outcome.status, 'failed');
-  assert.equal(outcome.errorCode, 'classification_contract_rejected');
-  // The defining property: no request was ever built or sent for it. A silent
-  // `closet_gallery` mislabel would still show up as a transport call here.
-  assert.equal(env.transport.calls.length, 0, 'a mirror_extract candidate must never reach the network');
+  assert.equal(outcome.status, 'ready_for_review');
 
+  assert.equal(env.transport.calls.length, 1, 'the mirror candidate did not reach the backend');
+  const { options } = env.transport.calls[0];
+  assert.ok(options.contractRequestV2, 'no V2 envelope was sent');
+  assert.equal(options.contractRequestV2.contractVersion, 'fashion-identification-v2');
+  assert.equal(options.contractRequestV2.source.entryPath, 'closet_mirror');
+  assert.notEqual(options.contractRequestV2.source.entryPath, 'closet_gallery');
+  assert.equal(options.contractRequestV2.intent, 'identify_for_closet');
+  assert.equal(options.contractRequestV2.mode, 'detect_items');
+  // Scanner-only correlation fields stay absent on a Mirror request exactly as
+  // they do on camera and gallery ones.
+  assert.equal(options.scanSessionId, undefined);
+  assert.equal(options.imageDigestPrefix, undefined);
+  assert.equal(options.multiItemDetection, undefined);
+  assert.equal(options.selectedCandidate, undefined);
+
+  // The candidate lands in review. It is NOT promoted into the Closet here.
   const settled = await reload(env, req, created.candidate.candidateId);
-  assert.equal(settled.status, 'failed');
-  assert.equal(settled.errorCode, 'classification_contract_rejected');
+  assert.equal(settled.status, 'ready_for_review');
 });
+
+// UNKNOWN-CANDIDATE-SOURCE-STILL-FAILS-CLOSED (Build 2.5 Step 2).
+//
+// Activating `mirror_extract` widened the closed entry-path mapping by exactly
+// one member. It must not have reintroduced the pre-Step-1 behaviour where any
+// non-camera source silently became `closet_gallery`.
+//
+// The probes are the still-RESERVED members of `CLOSET_CANDIDATE_SOURCES`.
+// They are the only usable ones: `buildClosetCandidateRecord` coerces a source
+// outside that vocabulary to `gallery` on write (Build 1 behaviour, unchanged
+// here), so a wholly invented string never reaches this orchestrator as itself.
+// These four do reach it verbatim, have no backend entry path, and must
+// therefore spend no network call at all.
+for (const reservedSource of [
+  'recent_scan',
+  'receipt_screenshot',
+  'retailer_url',
+  'share_sheet',
+]) {
+  test(`a ${reservedSource} candidate still fails closed before any network call`, async () => {
+    const env = load();
+    env.connectivity.resetClosetConnectivityProvider();
+    const req = asActor(env.actorContext, 'user-a');
+    seedSource(env.m, `/reserved/${reservedSource}.jpg`);
+    const created = await env.store.createClosetCandidate(req, {
+      sourceUri: `/reserved/${reservedSource}.jpg`,
+      sourceType: reservedSource,
+      ownerId: req.actorId,
+    });
+    assert.equal(created.kind, 'created');
+    assert.equal(created.candidate.sourceType, reservedSource, 'the store rewrote the source');
+
+    const outcome = await env.classification.classifyClosetCandidate(
+      req,
+      created.candidate.candidateId,
+    );
+    assert.equal(outcome.status, 'failed');
+    assert.equal(outcome.errorCode, 'classification_contract_rejected');
+    assert.equal(env.transport.calls.length, 0, `${reservedSource} must never reach the network`);
+
+    const settled = await reload(env, req, created.candidate.candidateId);
+    assert.equal(settled.status, 'failed');
+    assert.equal(settled.errorCode, 'classification_contract_rejected');
+  });
+}
 
 test('the UI does not offer retry for a failure retrying cannot fix', () => {
   const env = load();
