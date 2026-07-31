@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-07-30T16:20:33.132Z",
-    "generatedFromGitSha": "82170f831a3502b6f544150f62fb7de242ef1f48"
+    "generatedAtUtc": "2026-07-31T05:19:13.412Z",
+    "generatedFromGitSha": "9f55e7023066bc6726d19af36327244936e6f10b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -19,10 +19,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 31,
-        "treeFileCount": 39,
-        "bundleHash": "9d645f5eb5bb04f22e57f7e517edf6917e0e45437dec6c1e7231a14afcd39632",
-        "treeHash": "e6921e1d8a64253a1aadff93c252bce2b901a74e7d74797081baaeb68b8d6724",
+        "bundleFileCount": 34,
+        "treeFileCount": 43,
+        "bundleHash": "5da156af79d88e513c0e023f3a5addf785f9055836fc7a2aaf896a47484efb11",
+        "treeHash": "14e7be0980e38a762fd930a7b173a217d2be439f1bca62f4071939019e6efef5",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -52,6 +52,21 @@
           {
             "path": "supabase/functions/_shared/scanHelpers.ts",
             "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/scannerCandidateArtifact.ts",
+            "sha256": "3a9b51587c378267bf39b1ddbc56e95b7b94454533964b10d60040b724c335c3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/scannerVersionObservability.ts",
+            "sha256": "b152c5c9a6670ed7b5051d2d34a929210fa0a20db688892b608cc0c2876b4246",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/scannerVersionResolver.ts",
+            "sha256": "1fc6126be865ddfcdb363ffbb1c341b83c31cd58f923fc320df6ff4beee63435",
             "bundle": true
           },
           {
@@ -106,7 +121,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "dcc7732abce278e7b90e000e388932b3041a32bb608d5b2cabeeddfc4808efc6",
+            "sha256": "8b80965d08c1b785a62c83ae96bf62d42c33db08cd8af9adfaae98d77c260a37",
             "bundle": true
           },
           {
@@ -127,6 +142,11 @@
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
             "sha256": "076a74ea2c1ad4199e4ddb78c01f5cfdee130517ab23fb2183bda9095076a6bf",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/phase2cDormantIntegration.test.ts",
+            "sha256": "d46ced929f040191cac7f7b267b8527a26c777b92f8369e71aeafb394be10583",
             "bundle": false
           },
           {
