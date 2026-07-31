@@ -71,6 +71,10 @@ function TodayWithEliseSurface() {
       loading={view.loading}
       card={view.card}
       presentation={view.presentation}
+      onPrimaryPress={view.onPrimaryPress}
+      onSecondaryPress={view.onSecondaryPress}
+      busy={view.busy}
+      actionError={view.actionError}
       headingRef={headingRef}
     />
   );

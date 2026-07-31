@@ -134,21 +134,53 @@ test('the section is a component, so Home never evaluates Today hooks inline', (
   assert.doesNotMatch(home, /useTodayWithElise/);
 });
 
-test('orchestration is read-only: the hook performs no store write', () => {
-  const hook = read('hooks', 'useTodayWithElise.ts');
+const HOOK = read('hooks', 'useTodayWithElise.ts');
+
+/** The body of `readTodaySources`, and nothing else. */
+function readSourcesBody() {
+  const start = HOOK.indexOf('export async function readTodaySources');
+  const endMarker = 'return { closet, session, composition, savedLooks, candidates };';
+  const end = HOOK.indexOf(endMarker, start);
+  assert.ok(start > 0 && end > start, 'could not isolate readTodaySources');
+  return HOOK.slice(start, end + endMarker.length);
+}
+
+/** The generation runner inside the hook, up to where user actions begin. */
+function orchestrationBody() {
+  const start = HOOK.indexOf('const orchestrate = useCallback');
+  const end = HOOK.indexOf('// ── Actions ─');
+  assert.ok(start > 0 && end > start, 'could not isolate the orchestration path');
+  return HOOK.slice(start, end);
+}
+
+test('orchestration is read-only: mounting Home writes to no store', () => {
+  // Scoped to the ORCHESTRATION path. The user-initiated handoff below it does
+  // write — that is its job — so the guarantee that matters is that merely
+  // rendering Home cannot.
+  const path = `${readSourcesBody()}\n${orchestrationBody()}`;
   assert.doesNotMatch(
-    hook,
-    /startActiveSession|updateActiveSession|discardActiveSession|replaceCompositionSet|setActiveLook|savePrivateSavedLook|createClosetItem|applySlotOverride/,
+    path,
+    /startActiveSession\(|updateActiveSession\(|discardActiveSession\(|replaceCompositionSet\(|setActiveLook\(|savePrivateSavedLook\(|createClosetItem\(|applySlotOverride\(|composeAndPersistComposition\(/,
   );
 });
 
 test('each Today source is read exactly once per generation', () => {
-  const hook = read('hooks', 'useTodayWithElise.ts');
-  const body = hook.slice(hook.indexOf('export async function readTodaySources'));
-  for (const call of ['loadClosetTyped(', 'loadActiveSession(', 'loadCompositionSet(', 'loadPrivateSavedLooks(', 'listClosetCandidates(']) {
+  const body = readSourcesBody();
+  for (const call of [
+    'loadClosetTyped(',
+    'loadActiveSession(',
+    'loadCompositionSet(',
+    'loadPrivateSavedLooks(',
+    'listClosetCandidates(',
+  ]) {
     const occurrences = body.split(call).length - 1;
     assert.equal(occurrences, 1, `${call} is invoked ${occurrences} times per generation`);
   }
+});
+
+test('the generation runner calls the source reader exactly once', () => {
+  const body = orchestrationBody();
+  assert.equal(body.split('readTodaySources(').length - 1, 1);
 });
 
 // ── Home is additive ─────────────────────────────────────────────────────────

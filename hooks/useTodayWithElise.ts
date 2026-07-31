@@ -19,7 +19,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { Platform } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
@@ -39,8 +40,15 @@ import { loadClosetTyped } from '../services/closetLibrary';
 import { getClosetItemProjections } from '../services/closetItemProjection';
 import { classifyClosetItemSlot } from '../services/privateDressingRoomSlots';
 import { composePrivateOutfits } from '../services/privateDressingRoomComposer';
-import { loadActiveSession } from '../services/privateDressingRoomSessionStore';
-import { loadCompositionSet } from '../services/privateDressingRoomCompositionStore';
+import {
+  loadActiveSession,
+  startActiveSession,
+} from '../services/privateDressingRoomSessionStore';
+import {
+  loadCompositionSet,
+  setActiveLook,
+} from '../services/privateDressingRoomCompositionStore';
+import { composeAndPersistComposition } from '../services/privateDressingRoomLifecycle';
 import { buildCompositionFingerprint } from '../services/privateDressingRoomCompositionSchema';
 import { loadPrivateSavedLooks } from '../services/privateSavedLookStore';
 import { listClosetCandidates } from '../services/closetCandidateLibrary';
@@ -60,8 +68,16 @@ import {
   projectCapabilityGatedActions,
   projectPartialLookActions,
   projectTodayCard,
+  resolveTodayRoute,
   type TodayCardPresentation,
 } from '../services/todayWithElise/presentation';
+import {
+  openTodayDressingRoom,
+  openTodayEliseModification,
+  type TodayHandoffDeps,
+} from '../services/todayWithElise/handoff';
+import { emitTodayWithEliseEvent } from '../services/todayWithElise/analytics';
+import { todayEventPayload } from '../services/todayWithElise/reporting';
 import type { TodayWithEliseCardState } from '../types/todayWithElise';
 
 export type TodayWithEliseView = {
@@ -80,6 +96,13 @@ export type TodayWithEliseView = {
     occasion: string | null;
     sessionId: string | null;
   };
+  /** True while a handoff is in flight. Disables both controls. */
+  busy: boolean;
+  /** Bounded deterministic failure copy, or null. Never an exception message. */
+  actionError: string | null;
+  /** Undefined when the card offers no runnable action — never a dead control. */
+  onPrimaryPress?: () => void;
+  onSecondaryPress?: () => void;
 };
 
 const IDLE: {
@@ -187,6 +210,51 @@ const TODAY_COLLABORATORS = {
   classifySlot: (item: TodayClosetProjection) =>
     classifyClosetItemSlot(item as never) as { primarySlot: string | null },
   compose: composePrivateOutfits as never,
+};
+
+/**
+ * The handoff's Build 3 bindings, resolved once.
+ *
+ * Every entry is an existing certified module. Build 5 supplies no alternative
+ * session creator, composer, persister or reader — it only sequences them.
+ */
+const TODAY_HANDOFF_DEPS: TodayHandoffDeps = {
+  startSession: (actorRequest, input) =>
+    startActiveSession(actorRequest, input) as never,
+  loadCloset: (actorId, options) => loadClosetTyped(actorId, options) as never,
+  project: (items) =>
+    getClosetItemProjections(
+      items as Array<Record<string, unknown> | null | undefined>,
+    ) as never,
+  composeAndPersist: (input) => composeAndPersistComposition(input as never) as never,
+  setActiveLook: (actorRequest, input) => setActiveLook(actorRequest, input) as never,
+  loadComposition: (actorRequest, fingerprint) =>
+    loadCompositionSet(actorRequest, fingerprint) as never,
+  fingerprintFor: (session) => {
+    const record = session as {
+      actorId: string;
+      sessionId: string;
+      status: string;
+      anchorClosetItemId: string | null;
+      occasion: string | null;
+    };
+    return buildCompositionFingerprint({
+      actorId: record.actorId,
+      sessionId: record.sessionId,
+      status: record.status,
+      anchorClosetItemId: record.anchorClosetItemId,
+      occasion: record.occasion,
+    });
+  },
+  createActorRequest,
+  isActorRequestCurrent,
+  liveActor: () => {
+    const context = getActorContext();
+    return { actorId: context.actorId, epoch: context.epoch };
+  },
+  navigate: (route) => router.push(route as never),
+  emit: (event, payload) => emitTodayWithEliseEvent(event, payload),
+  now: () => Date.now(),
 };
 
 export function useTodayWithElise(): TodayWithEliseView {
@@ -372,6 +440,85 @@ export function useTodayWithElise(): TodayWithEliseView {
     orchestrate();
   }, [orchestrate]);
 
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  /**
+   * Read through a ref inside the handoff, never captured in a closure: the
+   * point of "is the card still current" is to compare against the card as it
+   * is at the moment the async step resolves.
+   */
+  const liveTokenRef = useRef<string | null>(null);
+  liveTokenRef.current = card?.generationToken ?? null;
+
+  const routeFor = useCallback(
+    (target: string) =>
+      resolveTodayRoute(target as never, { closetSeparationActive: CLOSET_SEPARATION_V1 }),
+    [],
+  );
+
+  const onPrimaryPress = useCallback(async () => {
+    const active = card;
+    const handle = handleRef.current;
+    if (!active || !handle || !actorId) return;
+    const target = active.primaryAction?.target;
+    const route = routeFor(target);
+    if (!route || !active.primaryAction?.runnable) return;
+
+    setActionError(null);
+
+    // A Closet destination is a plain navigation: there is no session to create,
+    // nothing to hydrate and nothing that could open blank.
+    if (target === 'closet_intake' || target === 'closet_review') {
+      emitTodayWithEliseEvent('today_with_elise_primary_action', {
+        ...todayEventPayload(active, Platform.OS),
+        action: active.primaryAction.action,
+      });
+      router.push(route as never);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await openTodayDressingRoom(TODAY_HANDOFF_DEPS, {
+        card: active,
+        generationToken: handle.generationToken,
+        actorId,
+        actorEpoch: handle.actorEpoch,
+        anchorClosetItemId: handoffContext.anchorClosetItemId,
+        occasion: handoffContext.occasion,
+        route,
+        dressingRoomActive: PRIVATE_DRESSING_ROOM_V1,
+        analyticsPayload: todayEventPayload(active, Platform.OS),
+        isCardCurrent: () => liveTokenRef.current === handle.generationToken,
+      });
+      if (result.message) setActionError(result.message);
+    } finally {
+      setBusy(false);
+    }
+  }, [actorId, card, handoffContext, routeFor]);
+
+  const onSecondaryPress = useCallback(() => {
+    const active = card;
+    const handle = handleRef.current;
+    if (!active || !handle || !actorId) return;
+    const route = routeFor(active.secondaryAction?.target ?? 'none');
+    if (!route || !active.secondaryAction?.runnable) return;
+    setActionError(null);
+    openTodayEliseModification(TODAY_HANDOFF_DEPS, {
+      card: active,
+      generationToken: handle.generationToken,
+      actorId,
+      actorEpoch: handle.actorEpoch,
+      route,
+      dressingRoomActive: PRIVATE_DRESSING_ROOM_V1,
+      eliseModificationActive: PRIVATE_DRESSING_ROOM_ELISE_ACTIVE,
+      analyticsPayload: todayEventPayload(active, Platform.OS),
+      isCardCurrent: () => liveTokenRef.current === handle.generationToken,
+    });
+  }, [actorId, card, routeFor]);
+
   return {
     loading: current.loading,
     card,
@@ -379,5 +526,9 @@ export function useTodayWithElise(): TodayWithEliseView {
     missingSlots,
     revalidate,
     handoffContext,
+    busy,
+    actionError,
+    onPrimaryPress: card?.primaryAction?.runnable ? onPrimaryPress : undefined,
+    onSecondaryPress: card?.secondaryAction?.runnable ? onSecondaryPress : undefined,
   };
 }
