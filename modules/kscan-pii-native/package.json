@@ -1,0 +1,15 @@
+{
+  "name": "kscan-pii-native",
+  "version": "1.0.0",
+  "description": "Inactive cross-platform native face-masking privacy engine for K Scan AI.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": false,
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

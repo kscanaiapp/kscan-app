@@ -1,0 +1,150 @@
+{
+  "$comment": [
+    "SHARED coordinate-conversion vectors for Apple Vision output (Build 2.5 Step 3B).",
+    "",
+    "Apple Vision reports normalized coordinates with the origin at the BOTTOM-LEFT and y",
+    "increasing upward. Every consumer in K Scan — the extraction pipeline, the crop",
+    "generator, expo-image-manipulator, and the Android half of this module — uses a",
+    "TOP-LEFT origin with y increasing downward.",
+    "",
+    "The conversion must happen EXACTLY ONCE, in IOSPersonDetector. Doing it twice, or",
+    "doing it again in JavaScript, places every garment region upside down on the body —",
+    "and the failure looks like a detector problem rather than an axis problem, which is",
+    "why it gets its own vector file rather than an inline assertion.",
+    "",
+    "Both implementations are checked against THIS file:",
+    "  - Node:  __tests__/mirrorIosVisionParity.test.js",
+    "  - Swift: modules/kscan-pii-native/ios/Tests/VisionCoordinateParityTests.swift",
+    "",
+    "Coordinates are normalized, so imageWidth/imageHeight never enter the arithmetic.",
+    "They are recorded because the cases exist to prove exactly that: a portrait and a",
+    "landscape frame convert identically."
+  ],
+  "version": "1.0.0",
+  "rects": [
+    {
+      "id": "full_frame",
+      "note": "The whole image. Must survive the flip unchanged.",
+      "imageWidth": 1080,
+      "imageHeight": 1080,
+      "vision": { "x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0 },
+      "expectedTopLeft": { "x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0 }
+    },
+    {
+      "id": "top_left",
+      "note": "High in the frame. In Vision that is a HIGH y; in top-left space it is y=0.",
+      "imageWidth": 1080,
+      "imageHeight": 1080,
+      "vision": { "x": 0.0, "y": 0.7, "width": 0.3, "height": 0.3 },
+      "expectedTopLeft": { "x": 0.0, "y": 0.0, "width": 0.3, "height": 0.3 }
+    },
+    {
+      "id": "top_right",
+      "imageWidth": 1080,
+      "imageHeight": 1080,
+      "vision": { "x": 0.7, "y": 0.7, "width": 0.3, "height": 0.3 },
+      "expectedTopLeft": { "x": 0.7, "y": 0.0, "width": 0.3, "height": 0.3 }
+    },
+    {
+      "id": "bottom_left",
+      "note": "Low in the frame — feet. In Vision that is y=0; in top-left space it is y=0.7.",
+      "imageWidth": 1080,
+      "imageHeight": 1080,
+      "vision": { "x": 0.0, "y": 0.0, "width": 0.3, "height": 0.3 },
+      "expectedTopLeft": { "x": 0.0, "y": 0.7, "width": 0.3, "height": 0.3 }
+    },
+    {
+      "id": "bottom_right",
+      "imageWidth": 1080,
+      "imageHeight": 1080,
+      "vision": { "x": 0.7, "y": 0.0, "width": 0.3, "height": 0.3 },
+      "expectedTopLeft": { "x": 0.7, "y": 0.7, "width": 0.3, "height": 0.3 }
+    },
+    {
+      "id": "centered",
+      "note": "Symmetric about the middle, so it is the one case a MISSING flip still passes. It is here to be paired with the others, never relied on alone.",
+      "imageWidth": 1080,
+      "imageHeight": 1080,
+      "vision": { "x": 0.35, "y": 0.35, "width": 0.3, "height": 0.3 },
+      "expectedTopLeft": { "x": 0.35, "y": 0.35, "width": 0.3, "height": 0.3 }
+    },
+    {
+      "id": "portrait_non_square",
+      "note": "Normalized coordinates carry no aspect. A portrait frame converts identically to a square one.",
+      "imageWidth": 1080,
+      "imageHeight": 1920,
+      "vision": { "x": 0.25, "y": 0.6, "width": 0.5, "height": 0.35 },
+      "expectedTopLeft": { "x": 0.25, "y": 0.05, "width": 0.5, "height": 0.35 }
+    },
+    {
+      "id": "landscape_non_square",
+      "note": "Same arithmetic as the portrait case. If these two ever diverge, an aspect ratio has leaked into the conversion.",
+      "imageWidth": 1920,
+      "imageHeight": 1080,
+      "vision": { "x": 0.1, "y": 0.2, "width": 0.4, "height": 0.5 },
+      "expectedTopLeft": { "x": 0.1, "y": 0.3, "width": 0.4, "height": 0.5 }
+    },
+    {
+      "id": "mirrored_front_camera",
+      "note": "A front-camera capture is already mirrored in PIXELS by the time it reaches this module — mirrorSourcePreparation re-encodes the picker's asset. The conversion must therefore NOT touch x. A subject on the left stays on the left.",
+      "imageWidth": 1080,
+      "imageHeight": 1920,
+      "vision": { "x": 0.05, "y": 0.1, "width": 0.4, "height": 0.8 },
+      "expectedTopLeft": { "x": 0.05, "y": 0.1, "width": 0.4, "height": 0.8 }
+    },
+    {
+      "id": "person_cropped_by_bottom_edge",
+      "note": "A mirror selfie routinely cuts off at the thigh, so Vision returns a box running past the frame. The EDGES are clamped and the person is kept — rejecting the box would reject the most common real input.",
+      "imageWidth": 1080,
+      "imageHeight": 1920,
+      "vision": { "x": -0.1, "y": -0.1, "width": 0.5, "height": 0.5 },
+      "expectedTopLeft": { "x": 0.0, "y": 0.6, "width": 0.4, "height": 0.4 }
+    },
+    {
+      "id": "person_cropped_by_top_edge",
+      "note": "Head above the frame.",
+      "imageWidth": 1080,
+      "imageHeight": 1920,
+      "vision": { "x": 0.2, "y": 0.8, "width": 0.4, "height": 0.4 },
+      "expectedTopLeft": { "x": 0.2, "y": 0.0, "width": 0.4, "height": 0.2 }
+    },
+    {
+      "id": "degenerate_zero_area",
+      "note": "A zero-area rect is not a person. Both implementations reject it rather than emitting a sliver.",
+      "imageWidth": 1080,
+      "imageHeight": 1920,
+      "vision": { "x": 0.5, "y": 0.5, "width": 0.0, "height": 0.0 },
+      "expectedTopLeft": null
+    }
+  ],
+  "points": [
+    {
+      "id": "nose_high_in_frame",
+      "note": "A nose sits near the TOP of a standing figure: high Vision y, low top-left y.",
+      "vision": { "x": 0.5, "y": 0.9 },
+      "expectedTopLeft": { "x": 0.5, "y": 0.1 }
+    },
+    {
+      "id": "ankle_low_in_frame",
+      "vision": { "x": 0.45, "y": 0.08 },
+      "expectedTopLeft": { "x": 0.45, "y": 0.92 }
+    },
+    {
+      "id": "shoulder_left_of_centre",
+      "note": "x is never touched by the conversion.",
+      "vision": { "x": 0.38, "y": 0.74 },
+      "expectedTopLeft": { "x": 0.38, "y": 0.26 }
+    },
+    {
+      "id": "exact_middle",
+      "vision": { "x": 0.5, "y": 0.5 },
+      "expectedTopLeft": { "x": 0.5, "y": 0.5 }
+    },
+    {
+      "id": "out_of_frame_clamped",
+      "note": "Vision occasionally reports a joint just outside the frame for an occluded limb.",
+      "vision": { "x": 1.4, "y": -0.3 },
+      "expectedTopLeft": { "x": 1.0, "y": 1.0 }
+    }
+  ]
+}
