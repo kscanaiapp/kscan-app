@@ -131,6 +131,94 @@ test('the parent Closet capability is unaffected by the new flag', () => {
   assert.equal(withStaging.CLOSET_SEPARATION_V1, withoutStaging.CLOSET_SEPARATION_V1);
 });
 
+// ── Mirror Selfie dormant staging (Build 2.5 Phase 0B) ──────────────────────
+
+test('MIRROR-FLAG-DEFAULTS-FALSE: mirror staging is off when the environment says nothing', () => {
+  const flags = loadFlags({});
+  assert.equal(flags.MIRROR_SELFIE_V1, false);
+  assert.equal(flags.MIRROR_SELFIE_V1_ACTIVE, false);
+});
+
+test('only the exact string "true" opts the Mirror flag in', () => {
+  for (const value of ['TRUE', 'True', '1', 'yes', 'on', '', ' true', 'true ', undefined, null]) {
+    assert.equal(
+      loadFlags({ EXPO_PUBLIC_MIRROR_SELFIE_V1: value }).MIRROR_SELFIE_V1,
+      false,
+      String(value),
+    );
+  }
+  assert.equal(loadFlags({ EXPO_PUBLIC_MIRROR_SELFIE_V1: ON }).MIRROR_SELFIE_V1, true);
+});
+
+test('the Mirror derived capability requires the dedicated flag AND both parent Closet capabilities', () => {
+  const allParents = {
+    EXPO_PUBLIC_CLOSET_SEPARATION_V1: ON,
+    EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1: ON,
+    EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1: ON,
+    EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2: ON,
+  };
+  assert.equal(
+    loadFlags({ ...allParents, EXPO_PUBLIC_MIRROR_SELFIE_V1: ON }).MIRROR_SELFIE_V1_ACTIVE,
+    true,
+  );
+  // Missing the Mirror flag itself.
+  assert.equal(loadFlags(allParents).MIRROR_SELFIE_V1_ACTIVE, false);
+  // Missing candidate staging.
+  assert.equal(
+    loadFlags({
+      EXPO_PUBLIC_CLOSET_SEPARATION_V1: ON,
+      EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1: ON,
+      EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2: ON,
+      EXPO_PUBLIC_MIRROR_SELFIE_V1: ON,
+    }).MIRROR_SELFIE_V1_ACTIVE,
+    false,
+  );
+  // Missing batch review V2.
+  assert.equal(
+    loadFlags({
+      EXPO_PUBLIC_CLOSET_SEPARATION_V1: ON,
+      EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1: ON,
+      EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1: ON,
+      EXPO_PUBLIC_MIRROR_SELFIE_V1: ON,
+    }).MIRROR_SELFIE_V1_ACTIVE,
+    false,
+  );
+  const flags = loadFlags({ ...allParents, EXPO_PUBLIC_MIRROR_SELFIE_V1: ON });
+  assert.equal(flags.resolveMirrorSelfieV1Active(true, true, true, true, true), true);
+  assert.equal(flags.resolveMirrorSelfieV1Active(true, true, true, true, false), false);
+  assert.equal(flags.resolveMirrorSelfieV1Active(false, true, true, true, true), false);
+});
+
+test('the Mirror flag does not affect the existing Closet capabilities', () => {
+  const withMirror = loadFlags({
+    EXPO_PUBLIC_CLOSET_SEPARATION_V1: ON,
+    EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1: ON,
+    EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1: ON,
+    EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2: ON,
+    EXPO_PUBLIC_MIRROR_SELFIE_V1: ON,
+  });
+  const withoutMirror = loadFlags({
+    EXPO_PUBLIC_CLOSET_SEPARATION_V1: ON,
+    EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1: ON,
+    EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1: ON,
+    EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2: ON,
+  });
+  assert.equal(withMirror.CLOSET_CANDIDATE_STAGING_ACTIVE, true);
+  assert.equal(withoutMirror.CLOSET_CANDIDATE_STAGING_ACTIVE, true);
+  assert.equal(withMirror.CLOSET_BATCH_REVIEW_V2_ACTIVE, true);
+  assert.equal(withoutMirror.CLOSET_BATCH_REVIEW_V2_ACTIVE, true);
+});
+
+test('no shipping profile enables Mirror Selfie staging', () => {
+  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
+    assert.notEqual(
+      profile?.env?.EXPO_PUBLIC_MIRROR_SELFIE_V1,
+      'true',
+      `profile ${profileName} enables Mirror Selfie staging`,
+    );
+  }
+});
+
 // ── Shipping configuration ───────────────────────────────────────────────────
 
 test('no shipping profile enables candidate staging', () => {
