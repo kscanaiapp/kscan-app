@@ -128,6 +128,37 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
   return false;
 }
 
+// ── Section identity ──────────────────────────────────────────────────────────
+// Recent Scans is scan history and discovery; the Closet is owned inventory.
+// Neither surface may borrow the other's language: a scanned item is not owned,
+// and an owned garment is not a piece of scan history. The screen is shared, so
+// this table is the single place the two product identities are declared.
+const SECTION_CHROME = {
+  recent: {
+    title: 'Recent Scans',
+    subtitle: 'SCAN HISTORY & DISCOVERY',
+    emptyTitle: 'No Recent Scans Yet',
+    emptyBody: 'Items you scan will appear here.',
+  },
+  closet: {
+    title: 'Your Closet',
+    subtitle: 'YOUR OWNED WARDROBE',
+    emptyTitle: 'Your Closet is empty',
+    emptyBody: 'Add items you own to build your Closet.',
+  },
+} as const;
+
+// Pre-separation chrome. With CLOSET_SEPARATION_V1 off there is no section
+// concept at all — no tabs and no Closet surface — so the screen keeps exactly
+// the identity it shipped with rather than adopting section language it has no
+// way to switch between.
+const LEGACY_CHROME = {
+  title: 'Your Closet',
+  subtitle: 'SAVED LOOKS & INSPIRATION',
+  emptyTitle: 'Start Your Closet',
+  emptyBody: 'Save a scan and your looks will live here.',
+} as const;
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function LibraryScreen() {
   const router = useRouter();
@@ -442,6 +473,11 @@ export default function LibraryScreen() {
   const showRecentSection = !CLOSET_SEPARATION_V1 || section === 'recent';
   const showClosetSection = CLOSET_SEPARATION_V1 && section === 'closet';
 
+  // Chrome follows the ACTIVE SECTION, never the screen's file name. Without
+  // this the route could resolve to Recent Scans while the header still claimed
+  // "Your Closet" — the alias that made scan history look like owned inventory.
+  const chrome = CLOSET_SEPARATION_V1 ? SECTION_CHROME[section] : LEGACY_CHROME;
+
   const scanPairs = scans.reduce<[SavedScan, SavedScan | null][]>((pairs, scan, i) => {
     if (i % 2 === 0) pairs.push([scan, scans[i + 1] ?? null]);
     return pairs;
@@ -461,17 +497,29 @@ export default function LibraryScreen() {
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
       <StatusBar style="dark" />
       <KScanHeader
-        title="Your Closet"
-        subtitle="SAVED LOOKS & INSPIRATION"
+        title={chrome.title}
+        subtitle={chrome.subtitle}
         onBack={() => goBackOrHome(router)}
         backLabel="Back"
       />
 
       {aiStylistEnabled ? (
         <View style={styles.subNav} accessibilityRole="tablist">
-          <View style={[styles.subNavTab, styles.subNavTabActive]} accessibilityRole="tab" accessibilityState={{ selected: true }}>
-            <Text style={[styles.subNavText, styles.subNavTextActive]}>MY CLOSET</Text>
-          </View>
+          {/*
+            The legacy AI Stylist "MY CLOSET" entry was a non-interactive View
+            hardcoded to selected. It stayed lit while Recent Scan records were
+            on screen, and it never opened the committed Closet grid — it was
+            decorative chrome that asserted a domain the screen was not showing.
+            With separation active the section tablist below is the authoritative
+            Closet/Recent control, so this redundant label is not rendered.
+            My Looks stays: Saved Looks is its own concept, neither Recent Scan
+            history nor owned inventory.
+          */}
+          {CLOSET_SEPARATION_V1 ? null : (
+            <View style={[styles.subNavTab, styles.subNavTabActive]} accessibilityRole="tab" accessibilityState={{ selected: true }}>
+              <Text style={[styles.subNavText, styles.subNavTextActive]}>MY CLOSET</Text>
+            </View>
+          )}
           <TouchableOpacity
             style={styles.subNavTab}
             onPress={() => router.push('/looks')}
@@ -493,6 +541,7 @@ export default function LibraryScreen() {
             accessibilityRole="tab"
             accessibilityState={{ selected: section === 'recent' }}
             accessibilityLabel="Recent Scans"
+            accessibilityHint="Show your scan history"
             testID="library-section-recent"
           >
             <Text style={[styles.subNavText, section === 'recent' && styles.subNavTextActive]}>
@@ -505,6 +554,7 @@ export default function LibraryScreen() {
             accessibilityRole="tab"
             accessibilityState={{ selected: section === 'closet' }}
             accessibilityLabel="My Closet"
+            accessibilityHint="Show the items you own"
             testID="library-section-closet"
           >
             <Text style={[styles.subNavText, section === 'closet' && styles.subNavTextActive]}>
@@ -547,11 +597,23 @@ export default function LibraryScreen() {
               </View>
             ) : closet.items.length === 0 ? (
               <EmptyStateCard
-                title="Your Closet is empty"
+                title={chrome.emptyTitle}
                 subtitle={
                   CLOSET_DIRECT_INTAKE_ACTIVE
                     ? 'Add items you own with Add Item, or add one from a recent scan.'
                     : 'Open a recent scan and choose Add to Closet.'
+                }
+                action={
+                  CLOSET_DIRECT_INTAKE_ACTIVE
+                    ? {
+                        // The Closet is filled by intake or promotion, never by
+                        // opening the Scanner — that would create a Recent Scan.
+                        label: 'Add Item',
+                        onPress: () => setClosetIntakeVisible(true),
+                        accessibilityLabel: 'Add an item to your Closet',
+                        testID: 'closet-empty-add-item-button',
+                      }
+                    : undefined
                 }
               />
             ) : (
@@ -594,7 +656,7 @@ export default function LibraryScreen() {
         {showRecentSection ? (
           <>
         <SectionHeader
-          title="Saved Looks"
+          title={CLOSET_SEPARATION_V1 ? 'Recent Scans' : 'Saved Looks'}
           actionLabel={aiStylistEnabled ? ELISE_IDENTITY.styleWithEliseLabel : undefined}
           onAction={aiStylistEnabled ? () => router.push('/stylist') : undefined}
           actionAccessibilityLabel="Style with Elise from my closet"
@@ -606,8 +668,20 @@ export default function LibraryScreen() {
           </View>
         ) : scans.length === 0 ? (
           <EmptyStateCard
-            title="Start Your Closet"
-            subtitle="Save a scan and your looks will live here."
+            title={chrome.emptyTitle}
+            subtitle={chrome.emptyBody}
+            action={
+              CLOSET_SEPARATION_V1
+                ? {
+                    // Recent Scans is filled by scanning, never by Closet
+                    // intake — this CTA must not create an owned item.
+                    label: 'Start Scanning',
+                    onPress: () => router.push('/scan'),
+                    accessibilityLabel: 'Start scanning',
+                    testID: 'recent-empty-scan-button',
+                  }
+                : undefined
+            }
           />
         ) : scans.length === 1 ? (
           <View style={styles.singleCardRow}>
