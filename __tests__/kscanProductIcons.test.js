@@ -152,7 +152,10 @@ test('home: Recent Scans button uses recent-scans icon, keeps handler + label', 
   assert.match(HOME, /title="RECENT SCANS"/);
   assert.match(HOME, /testID="home-luxury-feature-recent-scans"/);
   assert.match(HOME, /accessibilityLabel="Recent Scans"/);
-  assert.match(HOME, /onPress=\{\(\) => router\.push\('\/library'\)\}/);
+  assert.match(
+    HOME,
+    /router\.push\(\{ pathname: '\/library', params: \{ section: 'recent' \} \}\)/,
+  );
 });
 
 test('home: Visual Search button uses visual-search icon, keeps /scan', () => {

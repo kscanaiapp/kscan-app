@@ -394,7 +394,7 @@ export default function HomeLuxuryTechV1() {
           icon={<KScanIcon name="recent-scans" size={28} variant="standard" />}
           title="RECENT SCANS"
           body="Open your scan history."
-          onPress={() => router.push('/library')}
+          onPress={() => router.push({ pathname: '/library', params: { section: 'recent' } })}
           testID="home-luxury-feature-recent-scans"
           accessibilityLabel="Recent Scans"
           accessibilityHint="Navigate to your scan history"
@@ -412,7 +412,7 @@ export default function HomeLuxuryTechV1() {
           icon={<KScanIcon name="save-organize" size={28} variant="standard" />}
           title="CLOSET"
           body="Save your favorites to your closet."
-          onPress={() => router.push('/library')}
+          onPress={() => router.push({ pathname: '/library', params: { section: 'closet' } })}
           testID="home-luxury-feature-library"
           accessibilityLabel="Open Closet"
           accessibilityHint="Navigate to your saved looks and closet"
