@@ -7,6 +7,14 @@ import type {
   NativePrivacyStatus,
   NativePrivacyErrorCode,
   NativeFaceRegion,
+  NativeExtractionCapabilities,
+  NativePersonDetectionInput,
+  NativePersonDetectionResult,
+  NativeDetectedPerson,
+  NativeBodyLandmark,
+  NativeBodyLandmarkType,
+  NativeNormalizedRect,
+  NativeExtractionStatus,
 } from './KScanPiiNative.types';
 
 export type {
@@ -17,6 +25,14 @@ export type {
   NativePrivacyStatus,
   NativePrivacyErrorCode,
   NativeFaceRegion,
+  NativeExtractionCapabilities,
+  NativePersonDetectionInput,
+  NativePersonDetectionResult,
+  NativeDetectedPerson,
+  NativeBodyLandmark,
+  NativeBodyLandmarkType,
+  NativeNormalizedRect,
+  NativeExtractionStatus,
 };
 
 export { KScanPiiNativeModule };
@@ -46,4 +62,41 @@ export function detectAndMaskFaces(
 
 export function cleanupSanitizedImage(uri: string): Promise<NativeCleanupResult> {
   return KScanPiiNativeModule.cleanupSanitizedImage(uri);
+}
+
+// ── Person / body-region detection (Build 2.5 Step 3) ────────────────────────
+
+export const EXTRACTOR_VERSION = 'native-person-regions-1.0.0';
+
+/**
+ * The joint subset both platforms report. Exported so the extraction adapter
+ * and the parity test can assert against ONE list rather than two copies that
+ * can drift apart.
+ */
+export const SUPPORTED_BODY_LANDMARKS = [
+  'nose',
+  'left_shoulder',
+  'right_shoulder',
+  'left_hip',
+  'right_hip',
+  'left_knee',
+  'right_knee',
+  'left_ankle',
+  'right_ankle',
+] as const;
+
+export function getExtractionCapabilities(): Promise<NativeExtractionCapabilities> {
+  return KScanPiiNativeModule.getExtractionCapabilities();
+}
+
+/**
+ * Detect people and their body landmarks in an app-owned image.
+ *
+ * READ ONLY. Unlike detectAndMaskFaces this produces no derivative file, so
+ * there is nothing to clean up afterwards and no sanitized URI to track.
+ */
+export function detectPersonRegions(
+  input: NativePersonDetectionInput,
+): Promise<NativePersonDetectionResult> {
+  return KScanPiiNativeModule.detectPersonRegions(input);
 }

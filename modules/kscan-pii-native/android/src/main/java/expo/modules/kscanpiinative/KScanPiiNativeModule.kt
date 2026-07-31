@@ -42,6 +42,41 @@ class KScanPiiNativeModule : Module() {
             }
         }
 
+        // ── Person / body-region detection (Build 2.5 Step 3) ───────────────
+        //
+        // Read-only: decodes, measures, and returns geometry. Writes no file
+        // and modifies no input, so there is no cleanup counterpart.
+        //
+        // Runs on Dispatchers.Default rather than Dispatchers.IO — pose
+        // inference is CPU work, not blocking I/O, and it must not occupy an
+        // IO thread that the rest of the app needs. Either way it is off the
+        // JavaScript thread.
+        AsyncFunction("getExtractionCapabilities") { promise: Promise ->
+            promise.resolve(NativeExtractionCapabilities(personDetectionSupported = true).toBundle())
+        }
+
+        AsyncFunction("detectPersonRegions") { input: NativePersonDetectionInputRecord, promise: Promise ->
+            val startedAt = System.currentTimeMillis()
+            moduleScope.launch {
+                try {
+                    val result = withContext(Dispatchers.Default) {
+                        detectPersonRegionsInternal(input, startedAt)
+                    }
+                    promise.resolve(result.toBundle())
+                } catch (e: Exception) {
+                    promise.resolve(
+                        NativePersonDetectionResult(
+                            status = NativeExtractionStatus.FAILED,
+                            errorCode = NativePrivacyErrorCode.INTERNAL_ERROR,
+                            failureReason = "Unexpected internal error: ${e.message}",
+                            totalDurationMs = System.currentTimeMillis() - startedAt,
+                            warnings = listOf("Person detection failed."),
+                        ).toBundle(),
+                    )
+                }
+            }
+        }
+
         AsyncFunction("cleanupSanitizedImage") { uri: String, promise: Promise ->
             val context = appContext.reactContext ?: run {
                 promise.resolve(
@@ -309,6 +344,71 @@ class KScanPiiNativeModule : Module() {
             verificationDurationMs = verified.durationMs,
             totalDurationMs = System.currentTimeMillis() - startedAt,
             warnings = emptyList(),
+        )
+    }
+
+    private suspend fun detectPersonRegionsInternal(
+        input: NativePersonDetectionInputRecord,
+        startedAt: Long,
+    ): NativePersonDetectionResult {
+        val imageUri = input.imageUri
+        if (imageUri.isBlank()) {
+            return NativePersonDetectionResult(
+                status = NativeExtractionStatus.FAILED,
+                errorCode = NativePrivacyErrorCode.INVALID_INPUT,
+                failureReason = "Missing or empty imageUri.",
+                totalDurationMs = System.currentTimeMillis() - startedAt,
+                warnings = listOf("Missing image."),
+            )
+        }
+
+        val decodeResult = AndroidImageDecoder.decodeFileUri(imageUri)
+        if (decodeResult is DecodeResult.Failure) {
+            return NativePersonDetectionResult(
+                status = NativeExtractionStatus.FAILED,
+                errorCode = decodeResult.errorCode,
+                failureReason = decodeResult.reason,
+                totalDurationMs = System.currentTimeMillis() - startedAt,
+                warnings = listOf("Could not decode the source image."),
+            )
+        }
+
+        val source = (decodeResult as DecodeResult.Success).bitmap
+        val inputWidth = source.width
+        val inputHeight = source.height
+
+        val detection = try {
+            AndroidPersonDetector.detect(source)
+        } finally {
+            // The bitmap is ours; nothing downstream holds a reference to it.
+            source.recycle()
+        }
+
+        if (detection is AndroidPersonDetector.Result.Failure) {
+            return NativePersonDetectionResult(
+                status = NativeExtractionStatus.FAILED,
+                inputWidth = inputWidth,
+                inputHeight = inputHeight,
+                errorCode = detection.errorCode,
+                failureReason = detection.reason,
+                totalDurationMs = System.currentTimeMillis() - startedAt,
+                warnings = listOf("Person detection failed."),
+            )
+        }
+
+        val success = detection as AndroidPersonDetector.Result.Success
+        return NativePersonDetectionResult(
+            // `no_person` is a distinct status from `failed` on purpose: one is
+            // a fact about the photograph the user can act on, the other is a
+            // fault they cannot.
+            status = if (success.persons.isEmpty()) NativeExtractionStatus.NO_PERSON
+            else NativeExtractionStatus.SUCCESS,
+            persons = success.persons,
+            inputWidth = inputWidth,
+            inputHeight = inputHeight,
+            detectionDurationMs = success.durationMs,
+            totalDurationMs = System.currentTimeMillis() - startedAt,
+            warnings = if (success.persons.isEmpty()) listOf("No person detected.") else emptyList(),
         )
     }
 

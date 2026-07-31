@@ -27,6 +27,78 @@ public class KScanPiiNativeModule: Module {
         AsyncFunction("cleanupSanitizedImage") { (uri: String) -> [String: Any] in
             return IOSCacheManager.cleanupUri(uri).toDictionary()
         }
+
+        // ── Person / body-region detection (Build 2.5 Step 3) ───────────────
+        //
+        // Read-only: decodes, measures, returns geometry. Writes no derivative
+        // file and modifies no input, so unlike face masking there is no
+        // cleanup counterpart and no sanitized URI to track.
+        //
+        // `AsyncFunction` already dispatches off the JavaScript thread, and
+        // Vision performs its own work on a background queue, so no additional
+        // dispatch is introduced here.
+        AsyncFunction("getExtractionCapabilities") { () -> [String: Any] in
+            return NativeExtractionCapabilities(personDetectionSupported: true).toDictionary()
+        }
+
+        AsyncFunction("detectPersonRegions") { (input: [String: Any]) -> [String: Any] in
+            let startedAt = Date()
+            return self.detectPersonRegionsInternal(input, startedAt: startedAt).toDictionary()
+        }
+    }
+
+    private func detectPersonRegionsInternal(
+        _ input: [String: Any],
+        startedAt: Date
+    ) -> NativePersonDetectionResult {
+        guard let imageUri = input["imageUri"] as? String, !imageUri.isEmpty else {
+            return NativePersonDetectionResult(
+                status: .failed,
+                totalDurationMs: durationSince(startedAt),
+                warnings: ["Missing image."],
+                errorCode: .invalidInput,
+                failureReason: "Missing or empty imageUri."
+            )
+        }
+
+        switch IOSImageDecoder.decodeFileUri(imageUri) {
+        case .failure(let errorCode, let reason):
+            return NativePersonDetectionResult(
+                status: .failed,
+                totalDurationMs: durationSince(startedAt),
+                warnings: ["Could not decode the source image."],
+                errorCode: errorCode,
+                failureReason: reason
+            )
+
+        case .success(let image, _, let width, let height):
+            switch IOSPersonDetector.detect(cgImage: image) {
+            case .failure(let errorCode, let reason):
+                return NativePersonDetectionResult(
+                    status: .failed,
+                    inputWidth: width,
+                    inputHeight: height,
+                    totalDurationMs: durationSince(startedAt),
+                    warnings: ["Person detection failed."],
+                    errorCode: errorCode,
+                    failureReason: reason
+                )
+
+            case .success(let persons, let detectionDurationMs):
+                // `noPerson` is a distinct status from `failed` on purpose: one
+                // is a fact about the photograph the user can act on, the other
+                // is a fault they cannot.
+                return NativePersonDetectionResult(
+                    status: persons.isEmpty ? .noPerson : .success,
+                    persons: persons,
+                    inputWidth: width,
+                    inputHeight: height,
+                    detectionDurationMs: detectionDurationMs,
+                    totalDurationMs: durationSince(startedAt),
+                    warnings: persons.isEmpty ? ["No person detected."] : []
+                )
+            }
+        }
     }
 
     private func buildCapabilities() -> NativePrivacyCapabilities {
