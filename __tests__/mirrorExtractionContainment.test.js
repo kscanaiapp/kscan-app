@@ -230,15 +230,39 @@ test('MIRROR-STEP3-CREATES-NO-RECENT-SCAN and MIRROR-STEP3-CREATES-NO-COMMERCE',
   }
 });
 
-test('the Step 3 host does not call the candidate pipeline either', () => {
+test('the host wires onExtracted to the Step 4 coordinator, and to nothing else', () => {
+  // NARROWED BY BUILD 2.5 STEP 4, deliberately.
+  //
+  // This test used to assert that `onExtracted` was UNWIRED — a proxy for "no
+  // candidate is created from Step 3 alone", written when Step 4 did not exist
+  // yet. Step 4 wires it, on purpose, through exactly the boundary Step 3
+  // declared for this: `onExtracted?: (selection: MirrorExtractionSelection)
+  // => void`.
+  //
+  // What still matters, and is what this now checks, is WHERE it routes: only
+  // to the existing useClosetCandidates() instance's own
+  // stageMirrorSelection — never directly to stageMirrorSelfieGarmentCrops,
+  // createClosetCandidateBatch, a Recent Scan write, or commerce. Domain
+  // separation for the coordinator ITSELF is certified in
+  // __tests__/mirrorCandidateIntegration.test.js; this test is only about the
+  // one call site that hands it a selection.
   const library = stripComments(read('app/library.tsx'));
-  // The sheet is mounted without an onExtracted handler in Step 3.
   const mount = library.match(/<MirrorSelfieExtractionModal[\s\S]*?\/>/);
   assert.ok(mount, 'the Mirror sheet is no longer mounted in the Closet screen');
+  assert.ok(mount[0].includes('onExtracted'), 'the Step 4 handoff is no longer wired');
   assert.ok(
-    !mount[0].includes('onExtracted'),
-    'the host wired a Step 4 handoff handler — that is Step 4 work',
+    mount[0].includes('closetCandidates.stageMirrorSelection(selection)'),
+    'onExtracted no longer routes through the coordinator via the shared hook instance',
   );
+  for (const forbidden of [
+    'stageMirrorSelfieGarmentCrops',
+    'createClosetCandidateBatch',
+    'createClosetCandidate(',
+    'saveScan',
+    'ProductShelf',
+  ]) {
+    assert.ok(!mount[0].includes(forbidden), `the mount site reaches ${forbidden} directly`);
+  }
 });
 
 // ── media ownership ─────────────────────────────────────────────────────────
