@@ -624,6 +624,7 @@ export default function LibraryScreen() {
                       testID="closet-card"
                       imageUrl={a.thumbnailUri ?? a.imageUri}
                       title={a.title}
+                      accessibilityLabel={`${a.title} Closet item`}
                       subtitle={a.category ?? 'Owned item'}
                       date={formatDate(a.createdAt)}
                       status="Closet"
@@ -636,6 +637,7 @@ export default function LibraryScreen() {
                         testID="closet-card"
                         imageUrl={b.thumbnailUri ?? b.imageUri}
                         title={b.title}
+                        accessibilityLabel={`${b.title} Closet item`}
                         subtitle={b.category ?? 'Owned item'}
                         date={formatDate(b.createdAt)}
                         status="Closet"
@@ -689,6 +691,7 @@ export default function LibraryScreen() {
               testID="scan-card"
               imageUrl={scans[0].thumbnailUri}
               title={scans[0].attributes.category || 'Scan'}
+              accessibilityLabel={`${scans[0].attributes.category || 'Scan'} Recent Scan`}
               subtitle={scans[0].result}
               tags={[scans[0].attributes.color_palette, scans[0].attributes.silhouette].filter(Boolean) as string[]}
               date={formatDate(scans[0].createdAt)}
@@ -706,6 +709,7 @@ export default function LibraryScreen() {
                   testID="scan-card"
                   imageUrl={a.thumbnailUri}
                   title={a.attributes.category || 'Scan'}
+                  accessibilityLabel={`${a.attributes.category || 'Scan'} Recent Scan`}
                   subtitle={a.result}
                   tags={[a.attributes.color_palette, a.attributes.silhouette].filter(Boolean) as string[]}
                   date={formatDate(a.createdAt)}
@@ -718,6 +722,7 @@ export default function LibraryScreen() {
                   <SavedLookCard
                     imageUrl={b.thumbnailUri}
                     title={b.attributes.category || 'Scan'}
+                    accessibilityLabel={`${b.attributes.category || 'Scan'} Recent Scan`}
                     subtitle={b.result}
                     tags={[b.attributes.color_palette, b.attributes.silhouette].filter(Boolean) as string[]}
                     date={formatDate(b.createdAt)}
