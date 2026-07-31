@@ -24,6 +24,7 @@ import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
   CLOSET_SEPARATION_V1,
+  PRIVATE_DRESSING_ROOM_ELISE_ACTIVE,
   PRIVATE_DRESSING_ROOM_V1,
   TODAY_WITH_ELISE_ACTIVE,
   TODAY_WITH_ELISE_GENERATED_GREETING_ACTIVE,
@@ -56,6 +57,7 @@ import {
 } from '../services/todayWithElise/orchestrator';
 import {
   missingSlotsFor,
+  projectCapabilityGatedActions,
   projectPartialLookActions,
   projectTodayCard,
   type TodayCardPresentation,
@@ -318,11 +320,22 @@ export function useTodayWithElise(): TodayWithEliseView {
   const rawCard = current.result?.card ?? null;
 
   /**
-   * The partial-Look action projection is applied HERE, once, between the
-   * engine and everything downstream — so analytics, accessibility and the
+   * The two action projections are applied HERE, once, in this order, between
+   * the engine and everything downstream — so analytics, accessibility and the
    * rendered buttons all describe the same actions.
+   *
+   * CAPABILITY GATING RUNS FIRST. A partial Look's Closet action is always
+   * runnable, so gating it afterwards could only ever remove an action that had
+   * just been established as safe.
    */
-  const card = useMemo(() => (rawCard ? projectPartialLookActions(rawCard) : null), [rawCard]);
+  const card = useMemo(() => {
+    if (!rawCard) return null;
+    const gated = projectCapabilityGatedActions(rawCard, {
+      dressingRoomActive: PRIVATE_DRESSING_ROOM_V1,
+      eliseModificationActive: PRIVATE_DRESSING_ROOM_ELISE_ACTIVE,
+    });
+    return projectPartialLookActions(gated);
+  }, [rawCard]);
 
   const missingSlots = useMemo(
     () => missingSlotsFor(current.result?.ownedLook?.outcome ?? null),
