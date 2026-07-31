@@ -20,7 +20,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Text } from 'react-native';
 import { TODAY_WITH_ELISE_ACTIVE } from '../../constants/featureFlags';
 import { useTodayWithElise } from '../../hooks/useTodayWithElise';
 import { reportTodayCardCommitted } from '../../services/todayWithElise/reporting';
@@ -47,6 +47,12 @@ export type TodayWithEliseSectionProps = {
 function TodayWithEliseSurface() {
   const view = useTodayWithElise();
   const reportedRef = useRef<string | null>(null);
+  /**
+   * The stable focus target for a return from a Today-originated destination.
+   * The heading is used rather than a button because a button may not exist in
+   * the state the user comes back to.
+   */
+  const headingRef = useRef<Text | null>(null);
   const token = view.card?.generationToken ?? null;
 
   useEffect(() => {
@@ -65,6 +71,7 @@ function TodayWithEliseSurface() {
       loading={view.loading}
       card={view.card}
       presentation={view.presentation}
+      headingRef={headingRef}
     />
   );
 }
