@@ -27,6 +27,7 @@ import { resolveClosetBatchFocus } from '../services/closetBatchReview';
 import { promoteSelectedClosetCandidates } from '../services/closetCandidatePromotion';
 import { runClosetStartupRecovery } from '../services/closetRecovery';
 import { stageMirrorSelfieGarmentCrops } from '../services/closetMirrorStaging';
+import { integrateMirrorExtractionSelection } from '../services/mirror/mirrorCandidateIntegration';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
@@ -87,6 +88,18 @@ export function useClosetCandidates() {
    * than rendered under whoever is signed in when it lands.
    */
   const [promotion, setPromotion] = useState(null);
+  /**
+   * The RUNNING Mirror extraction-selection -> candidate-staging operation
+   * (Build 2.5 Step 4), or null.
+   *
+   * Mirrors `promotion` deliberately: same actor-key/epoch stamping, same
+   * stale-settle rejection, same reason no result is ever persisted — the
+   * durable answer is the candidate records this operation created, which the
+   * snapshot already reads. This is progress and outcome ONLY.
+   */
+  const [mirrorIntegration, setMirrorIntegration] = useState(null);
+  const mirrorIntegrationLiveRef = useRef(false);
+  const mirrorIntegrationGenerationRef = useRef(0);
   /**
    * Cooperative cancellation for the running operation.
    *
@@ -230,13 +243,21 @@ export function useClosetCandidates() {
    */
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'active') promotionLiveRef.current = false;
+      if (nextState !== 'active') {
+        promotionLiveRef.current = false;
+        // Backgrounding stops future GROUPS from starting (checked at the
+        // coordinator's own between-group checkpoint), exactly like promotion.
+        // A group already in flight still settles: the same in-flight
+        // candidate write is not something backgrounding may interrupt.
+        mirrorIntegrationLiveRef.current = false;
+      }
     });
     return () => {
       // An unmount stops the dequeue for the same reason a background does. Work
       // already inside a critical section still finishes: the service layer owns
       // it, and it revalidates the actor before every write regardless.
       promotionLiveRef.current = false;
+      mirrorIntegrationLiveRef.current = false;
       subscription?.remove?.();
     };
   }, []);
@@ -246,6 +267,9 @@ export function useClosetCandidates() {
     promotionLiveRef.current = false;
     promotionGenerationRef.current += 1;
     setPromotion(null);
+    mirrorIntegrationLiveRef.current = false;
+    mirrorIntegrationGenerationRef.current += 1;
+    setMirrorIntegration(null);
   }, [actorKey, actorEpoch]);
 
   /**
@@ -405,6 +429,97 @@ export function useClosetCandidates() {
       }
     },
     [busy, refresh],
+  );
+
+  /**
+   * Stage a COMPLETE Mirror extraction selection (Build 2.5 Step 4).
+   *
+   * DELIBERATELY A DIFFERENT METHOD FROM `addMirrorGarmentCrops`, not a loop
+   * calling it. `addMirrorGarmentCrops` stages exactly one 1-8 crop group and
+   * has no notion of "more groups still to come" — reusing it in a loop would
+   * mean re-deriving partitioning, actor re-checks and progress reporting here,
+   * duplicating what services/mirror/mirrorCandidateIntegration.ts already
+   * owns. This method contributes exactly what every operation in this hook
+   * contributes: actor-generation-guarded progress state, stale-settle
+   * rejection, and a snapshot refresh — no partitioning, no staging call, no
+   * crop-cleanup decision. Those all live in the coordinator.
+   *
+   * The coordinator is SERIAL internally, but this wrapper still refreshes
+   * after every group settles (`onProgress`) so a candidate appears in review
+   * the moment its own group durably exists, rather than after the whole
+   * multi-group operation finishes.
+   */
+  const stageMirrorSelection = useCallback(
+    async (selection) => {
+      if (mirrorIntegrationLiveRef.current) {
+        return { outcome: 'rejected', rejectReason: 'mirror_integration_already_running' };
+      }
+
+      // Captured FIRST, before anything else — exactly like every sibling
+      // intake method in this hook. This is what makes "the actor changed
+      // before staging began" a real, checkable condition for the coordinator:
+      // it validates THIS snapshot against whatever the live actor context is
+      // by the time it actually runs, rather than comparing a freshly minted
+      // request against itself.
+      const actorRequest = createActorRequest();
+      const generation = ++mirrorIntegrationGenerationRef.current;
+      const startedUnder = { actorKey, actorEpoch };
+      const isCurrent = () =>
+        mirrorIntegrationGenerationRef.current === generation &&
+        startedUnder.actorKey === actorKey &&
+        startedUnder.actorEpoch === actorEpoch;
+
+      mirrorIntegrationLiveRef.current = true;
+      const totalCropCount = Array.isArray(selection?.crops) ? selection.crops.length : 0;
+      setMirrorIntegration({
+        ...startedUnder,
+        totalCropCount,
+        successCount: 0,
+        retryableCount: 0,
+        nonRetryableCount: 0,
+        done: false,
+        result: null,
+      });
+
+      try {
+        const result = await integrateMirrorExtractionSelection(selection, {
+          actorRequest,
+          shouldContinue: () => mirrorIntegrationLiveRef.current === true,
+          onProgress: (partial) => {
+            if (!isCurrent()) return;
+            setMirrorIntegration({
+              ...startedUnder,
+              totalCropCount: partial.totalCropCount,
+              successCount: partial.successfulCropKeys.length,
+              retryableCount: partial.retryableCropKeys.length,
+              nonRetryableCount: partial.nonRetryableCropKeys.length,
+              done: false,
+              result: null,
+            });
+            // Re-read after every group so a candidate appears in review as
+            // soon as ITS group is durable, not eight-plus items later.
+            void refresh();
+          },
+        });
+
+        if (!isCurrent()) return result;
+        await refresh();
+        if (result.focusBatchId) setActiveBatchId(result.focusBatchId);
+        setMirrorIntegration({
+          ...startedUnder,
+          totalCropCount: result.totalCropCount,
+          successCount: result.successfulCropKeys.length,
+          retryableCount: result.retryableCropKeys.length,
+          nonRetryableCount: result.nonRetryableCropKeys.length,
+          done: true,
+          result,
+        });
+        return result;
+      } finally {
+        mirrorIntegrationLiveRef.current = false;
+      }
+    },
+    [actorEpoch, actorKey, refresh],
   );
 
   const retry = useCallback(
@@ -575,6 +690,12 @@ export function useClosetCandidates() {
     promotion && promotion.actorKey === actorKey && promotion.actorEpoch === actorEpoch
       ? promotion
       : null;
+  const activeMirrorIntegration =
+    mirrorIntegration &&
+    mirrorIntegration.actorKey === actorKey &&
+    mirrorIntegration.actorEpoch === actorEpoch
+      ? mirrorIntegration
+      : null;
   return {
     candidates,
     loading,
@@ -588,9 +709,15 @@ export function useClosetCandidates() {
     mirrorStagingActive: MIRROR_SELFIE_V1_ACTIVE,
     promotion: activePromotion,
     promoting: activePromotion ? activePromotion.done !== true : false,
+    mirrorIntegration: activeMirrorIntegration,
+    mirrorIntegrating: activeMirrorIntegration ? activeMirrorIntegration.done !== true : false,
     addFromUri,
     addFromAssets,
     addMirrorGarmentCrops,
+    stageMirrorSelection,
+    cancelMirrorIntegration: () => {
+      mirrorIntegrationLiveRef.current = false;
+    },
     retry,
     reject,
     remove,

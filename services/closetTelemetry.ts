@@ -49,6 +49,16 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'mirror_selfie_extraction_completed',
   'mirror_selfie_extraction_cancelled',
   'mirror_selfie_crop_review_completed',
+  // Build 2.5 Step 4. The extraction-selection -> candidate-staging coordinator
+  // (services/mirror/mirrorCandidateIntegration.ts). Describes SHAPE and
+  // OUTCOME only — how many crops, how many groups, how many settled which way,
+  // roughly how long it took. No session id, no crop key, no candidate id, no
+  // batch id: the property allowlist and the SAFE_STRING scrub below reject all
+  // of them by shape, same as every other Mirror event.
+  'mirror_candidate_staging_started',
+  'mirror_candidate_staging_completed',
+  'mirror_candidate_staging_partial',
+  'mirror_candidate_staging_cancelled',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
@@ -105,6 +115,11 @@ export const CLOSET_CANDIDATE_EVENT_PROPERTIES = [
   'durationBucket',
   'extractionSupported',
   'personSelectionRequired',
+  // Build 2.5 Step 4 — mirror_candidate_staging_* only. Every value below is a
+  // coarse bucket or an enum, never a raw count above the partition size.
+  'groupCountBucket',
+  'successCountBucket',
+  'failureCountBucket',
 ] as const;
 
 export type ClosetCandidateEventProperty =
