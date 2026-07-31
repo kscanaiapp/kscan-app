@@ -104,6 +104,40 @@ interface SavedScan {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Bounded, user-facing copy for a running or just-finished Mirror staging
+ * operation (Build 2.5 Step 4).
+ *
+ * Deliberately ignorant of groups, batch IDs, error codes and provider names —
+ * the user asked to add some garments, and this says how that is going in
+ * exactly those terms. "Adding 9 garments" rather than "staging group 2 of 2":
+ * the internal 8-item partition is Step 4's concern, not the user's.
+ */
+function mirrorStagingProgressLabel(integration: {
+  totalCropCount: number;
+  successCount: number;
+  retryableCount: number;
+  nonRetryableCount: number;
+  done: boolean;
+}): string {
+  const { totalCropCount, successCount, retryableCount, nonRetryableCount, done } = integration;
+  const noun = totalCropCount === 1 ? 'garment' : 'garments';
+  if (!done) {
+    return `Adding ${totalCropCount} ${noun} to your Closet review…`;
+  }
+  const unresolved = retryableCount + nonRetryableCount;
+  if (unresolved === 0) {
+    return successCount === 1
+      ? '1 garment was added to your Closet review.'
+      : `${successCount} garments were added to your Closet review.`;
+  }
+  if (successCount === 0) {
+    return "We couldn't add those garments. Please try again.";
+  }
+  return `${successCount} of ${totalCropCount} garments were added to your review.`;
+}
+
 function formatDate(iso: string): string {
   try {
     const date = new Date(iso);
@@ -870,20 +904,42 @@ export default function LibraryScreen() {
       ) : null}
 
       {/*
-        Mirror Selfie extraction (Build 2.5 Step 3).
+        Mirror Selfie extraction (Build 2.5 Step 3) and candidate staging
+        (Build 2.5 Step 4).
 
-        Step 3 ends at local review: the sheet returns a typed selection of
-        crop URIs and this host simply closes. It does NOT call
-        stageMirrorSelfieGarmentCrops, createClosetCandidateBatch, or anything
-        else in the candidate pipeline — that wiring is Step 4's, and doing it
-        here would stage candidates from an extractor that has never run on a
-        physical device.
+        The sheet returns a typed MirrorExtractionSelection through the
+        existing `onExtracted` callback boundary — no global state, no
+        filesystem discovery, no navigation payload. The selection is handed
+        directly to the SAME useClosetCandidates() instance every other Closet
+        intake on this screen already uses, so Mirror-created candidates
+        appear in the existing review surface below through the existing
+        snapshot, with no second review UI.
       */}
       {MIRROR_SELFIE_V1_ACTIVE ? (
         <MirrorSelfieExtractionModal
           visible={mirrorSelfieVisible}
           onClose={() => setMirrorSelfieVisible(false)}
+          onExtracted={(selection) => {
+            void closetCandidates.stageMirrorSelection(selection);
+          }}
         />
+      ) : null}
+
+      {/*
+        Bounded Mirror staging progress (Build 2.5 Step 4).
+
+        Rendered only while MIRROR_SELFIE_V1_ACTIVE and only while an
+        operation is actually running or has just finished with something
+        worth telling the user about a partial result. No internal group
+        numbers, candidate IDs, or backend terms — see
+        mirrorStagingProgressLabel below.
+      */}
+      {MIRROR_SELFIE_V1_ACTIVE && closetCandidates.mirrorIntegration ? (
+        <View style={styles.mirrorStagingBanner} accessibilityLiveRegion="polite">
+          <Text style={styles.mirrorStagingBannerText}>
+            {mirrorStagingProgressLabel(closetCandidates.mirrorIntegration)}
+          </Text>
+        </View>
       ) : null}
 
       {/* Reopen saved scan — no backend call, no useKScan involvement */}
@@ -1055,6 +1111,19 @@ const styles = StyleSheet.create({
   mirrorAction: {
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.md,
+  },
+  // Bounded Mirror candidate-staging progress banner (Build 2.5 Step 4).
+  mirrorStagingBanner: {
+    marginHorizontal: SPACING.xl,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  mirrorStagingBannerText: {
+    fontSize: 13,
+    color: LUXURY.colors.ink,
   },
   loadingWrap: {
     alignItems: 'center',
