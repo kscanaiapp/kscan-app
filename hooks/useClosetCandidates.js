@@ -26,10 +26,12 @@ import {
 import { resolveClosetBatchFocus } from '../services/closetBatchReview';
 import { promoteSelectedClosetCandidates } from '../services/closetCandidatePromotion';
 import { runClosetStartupRecovery } from '../services/closetRecovery';
+import { stageMirrorSelfieGarmentCrops } from '../services/closetMirrorStaging';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
   CLOSET_BATCH_REVIEW_V2_ACTIVE,
+  MIRROR_SELFIE_V1_ACTIVE,
 } from '../constants/featureFlags';
 
 /**
@@ -342,6 +344,69 @@ export function useClosetCandidates() {
     [actorId, busy, refresh],
   );
 
+  /**
+   * Stage one Mirror Selfie extraction batch (Build 2.5 Phase 0B).
+   *
+   * DELIBERATELY A SEPARATE METHOD, not a source-aware variant of
+   * `addFromAssets`. `addFromAssets` coerces its `intake.sourceType` to
+   * `camera`/`gallery` unconditionally — the correct behavior for that entry
+   * point, and one this method must not disturb. Mirror crops delegate
+   * entirely to services/closetMirrorStaging.ts, which is the only place that
+   * sets sourceType: 'mirror_extract', enforces the dedicated Mirror flag,
+   * validates the extraction session and crop identities, and derives
+   * deterministic lineage. This method contributes exactly what every other
+   * intake method here contributes: the captured actor request, the busy
+   * guard, the snapshot refresh, and stale-completion rejection — no
+   * Mirror-specific review state.
+   */
+  const addMirrorGarmentCrops = useCallback(
+    async (extractionSessionId, crops) => {
+      if (busy) return { kind: 'rejected', reason: 'mirror_staging_disabled' };
+      setBusy(true);
+      const actorRequest = createActorRequest();
+      try {
+        const result = await stageMirrorSelfieGarmentCrops({
+          actorRequest,
+          extractionSessionId,
+          crops,
+        });
+        if (!isActorRequestCurrent(actorRequest)) return result;
+        await refresh();
+        if (result.kind === 'ok') {
+          const createdAny = result.outcomes.some(
+            (outcome) => outcome.outcome === 'created' && outcome.candidateId,
+          );
+          if (createdAny) {
+            // Mirrors addFromAssets: durable acknowledgement and modal closure
+            // must not wait on classification. One bounded pass covers the
+            // whole batch — the queue runner's own concurrency cap and
+            // in-flight tracking make a second call here redundant, not unsafe.
+            void requeueClosetCandidatesOnReconnect(actorRequest)
+              .then(() => {
+                if (isActorRequestCurrent(actorRequest)) void refresh();
+              })
+              .catch(() => null);
+          }
+          const focusBatchId = resolveClosetBatchFocus({
+            batchId: result.batchId,
+            createdCandidateIds: result.outcomes
+              .filter((outcome) => outcome.outcome === 'created' && outcome.candidateId)
+              .map((outcome) => outcome.candidateId),
+            sourceOutcomes: result.outcomes.map((outcome) => ({
+              kind: outcome.outcome,
+              candidateId: outcome.candidateId ?? null,
+            })),
+          });
+          if (focusBatchId) setActiveBatchId(focusBatchId);
+        }
+        return result;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, refresh],
+  );
+
   const retry = useCallback(
     async (candidateId) => {
       const actorRequest = createActorRequest();
@@ -520,10 +585,12 @@ export function useClosetCandidates() {
     setActiveBatchId,
     stagingActive: CLOSET_CANDIDATE_STAGING_ACTIVE,
     batchIntakeActive: CLOSET_BATCH_REVIEW_V2_ACTIVE,
+    mirrorStagingActive: MIRROR_SELFIE_V1_ACTIVE,
     promotion: activePromotion,
     promoting: activePromotion ? activePromotion.done !== true : false,
     addFromUri,
     addFromAssets,
+    addMirrorGarmentCrops,
     retry,
     reject,
     remove,

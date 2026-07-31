@@ -230,6 +230,19 @@ export async function classifyClosetCandidate(actorRequest, candidateId, options
   let validated = null;
 
   try {
+    // Resolve the entry path BEFORE spending any media work. `camera` and
+    // `gallery` always resolve; anything else (e.g. a `mirror_extract`
+    // candidate reaching this queue while Mirror staging's own flag is off,
+    // which should never happen but is not this orchestrator's gate to trust)
+    // has no backend-accepted entry path yet, and must fail closed rather than
+    // silently classify itself as a `closet_gallery` request.
+    const entryPathKey = closetEntryPathKeyForSource(candidate.sourceType);
+    if (!entryPathKey) {
+      return await settle(actorRequest, candidateId, nowMs, candidate, {
+        errorCode: 'classification_contract_rejected',
+      });
+    }
+
     // Analysis derivative. Reuses the SAME preprocessing and payload bounds the
     // Scanner V2 path uses (services/scannerEvidenceGateway.ts -> compressForUpload,
     // 896px / q0.65 / base64). No new normalization constants are introduced, and
@@ -257,7 +270,7 @@ export async function classifyClosetCandidate(actorRequest, candidateId, options
 
     const built = buildClosetV2Request({
       evidence,
-      entryPath: closetEntryPathKeyForSource(candidate.sourceType),
+      entryPath: entryPathKey,
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
       requestId: evidence.evidenceId,
       appVersion: options.appVersion,

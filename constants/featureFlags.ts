@@ -576,3 +576,56 @@ export function resolveClosetBatchReviewV2Active(
     batchReview === true
   );
 }
+
+// ── Mirror Selfie dormant staging contract (Build 2.5 Phase 0B) ─────────────
+/**
+ * Dedicated Mirror Selfie flag. Gates ONLY the reachability of the crop-staging
+ * adapter and hook API (services/closetMirrorStaging.ts,
+ * useClosetCandidates().addMirrorGarmentCrops) — no capture UI, camera intake,
+ * gallery intake, or backend behavior exists behind it in this phase.
+ *
+ * Default OFF, and only the exact string "true" opts in, matching every other
+ * rollout flag in this file. This phase's backend-compatibility gate found the
+ * governing `scan-identify` contract does not yet accept `closet_mirror` as an
+ * entry path (see services/closetIdentificationV2.ts#MIRROR_INTENDED_ENTRY_PATH),
+ * so enabling this flag activates a client-side contract that cannot yet
+ * complete a live classification — exactly like `CLOSET_CANDIDATE_STAGING_V1`
+ * before its backend was deployed.
+ */
+export function resolveMirrorSelfieV1Enabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_MIRROR_SELFIE_V1,
+): boolean {
+  return value === 'true';
+}
+
+/** Mirror Selfie staging rollout. Disabled by default. */
+export const MIRROR_SELFIE_V1 = resolveMirrorSelfieV1Enabled();
+
+/**
+ * Resolved capability. ALL THREE parents must be on: the dedicated Mirror
+ * flag, candidate staging, and Build 2 batch review — Mirror crops are always
+ * a batch of one to eight, staged and reviewed through the same batch-review
+ * surface every other Closet intake uses. Mirrors the nesting pattern of
+ * `CLOSET_BATCH_REVIEW_V2_ACTIVE` above rather than introducing a second
+ * flag-composition style.
+ */
+export const MIRROR_SELFIE_V1_ACTIVE =
+  MIRROR_SELFIE_V1 && CLOSET_CANDIDATE_STAGING_ACTIVE && CLOSET_BATCH_REVIEW_V2_ACTIVE;
+
+/**
+ * Pure resolver for the derived capability, for tests and for any caller that
+ * needs to evaluate the composition against explicit inputs rather than
+ * against the build-time constants.
+ */
+export function resolveMirrorSelfieV1Active(
+  separation: boolean = CLOSET_SEPARATION_V1,
+  directIntake: boolean = CLOSET_DIRECT_INTAKE_V1,
+  staging: boolean = CLOSET_CANDIDATE_STAGING_V1,
+  batchReview: boolean = CLOSET_BATCH_REVIEW_V2,
+  mirrorSelfie: boolean = MIRROR_SELFIE_V1,
+): boolean {
+  return (
+    resolveClosetBatchReviewV2Active(separation, directIntake, staging, batchReview) &&
+    mirrorSelfie === true
+  );
+}
