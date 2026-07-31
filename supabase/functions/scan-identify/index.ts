@@ -84,6 +84,10 @@ import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAc
 import { applyScannerCandidateInstructions } from '../_shared/scannerCandidateArtifact.ts';
 import { createScannerVersionResolution } from '../_shared/scannerVersionResolver.ts';
 import {
+  formatScannerOperationalMetadata,
+  scannerOperationalMetadata,
+} from '../_shared/scannerVersionObservability.ts';
+import {
   classifyProviderHttpFailure,
   isRetryableProviderFailure,
   nextAttemptModel,
@@ -2267,6 +2271,19 @@ Deno.serve(async (req) => {
         mode,
         source,
       );
+      console.log(
+        '[scan-identify] scanner_version_outcome %s',
+        formatScannerOperationalMetadata(scannerOperationalMetadata({
+          version: scannerVersion,
+          versionReason: scannerVersionSeal.resolution.reason,
+          versionFellBack: scannerVersionSeal.resolution.fellBackToControl,
+          outcome: 'provider_http_error',
+          providerFailureKind: lastFailureKind,
+          attemptCount: attempt,
+          fallbackUsed: servedModel !== routePlan.primaryModel,
+          latencyMs: elapsedMs,
+        })),
+      );
       return json(normalized('failed', safeFailed), 200);
     }
 
@@ -2278,6 +2295,23 @@ Deno.serve(async (req) => {
       routePlan.surface,
       servedModel,
       attempt,
+    );
+    // Version attribution for the terminal outcome. Control and candidate share
+    // the provider, models, routing and timeouts by design, so without this line
+    // a completed scan cannot be attributed to the version that produced it —
+    // which is what a rollout read, a regression trace and a kill-switch
+    // confirmation all depend on.
+    console.log(
+      '[scan-identify] scanner_version_outcome %s',
+      formatScannerOperationalMetadata(scannerOperationalMetadata({
+        version: scannerVersion,
+        versionReason: scannerVersionSeal.resolution.reason,
+        versionFellBack: scannerVersionSeal.resolution.fellBackToControl,
+        outcome: 'success',
+        attemptCount: attempt,
+        fallbackUsed: servedModel !== routePlan.primaryModel,
+        latencyMs: elapsedMs,
+      })),
     );
 
     let data: GeminiResponse;
