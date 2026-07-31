@@ -387,7 +387,32 @@ test('MIRROR PRODUCTION PROFILE ENABLEMENT: none — no build profile sets the f
   );
 });
 
-test('MIRROR UI REACHABILITY: none — no screen or component imports the Mirror staging API', () => {
+/**
+ * Strip comments before matching a forbidden symbol.
+ *
+ * The Mirror sources NAME the symbols they must never call, in prose, so that
+ * the boundary is legible where the code is. A naive substring match over the
+ * whole file therefore fails on the very documentation that records the rule.
+ * Reachability is a property of code, so only code is searched.
+ */
+function codeOnly(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+test('MIRROR UI REACHABILITY: no screen or component reaches the Mirror STAGING API', () => {
+  // NARROWED BY BUILD 2.5 STEP 3, deliberately.
+  //
+  // This test was written when no Mirror UI existed at all, so it asserted that
+  // nothing under app/ or components/ mentioned Mirror in any form. Step 3 adds
+  // the extraction sheet and its Closet entry point, both gated on
+  // MIRROR_SELFIE_V1_ACTIVE, so a blanket ban is no longer the property worth
+  // holding.
+  //
+  // What still matters — and is what this now checks — is that NO UI reaches
+  // the STAGING adapter. Staging creates Closet candidates, and wiring a screen
+  // to it would jump Step 3 straight past Step 4's review into the candidate
+  // pipeline. Flag containment itself is proved separately, by
+  // __tests__/mirrorExtractionContainment.test.js.
   const roots = ['app', 'components'];
   const offenders = [];
   const walk = (dir) => {
@@ -399,16 +424,16 @@ test('MIRROR UI REACHABILITY: none — no screen or component imports the Mirror
         continue;
       }
       if (!/\.(ts|tsx|js|jsx)$/.test(entry.name)) continue;
-      const source = fs.readFileSync(full, 'utf8');
+      const source = codeOnly(fs.readFileSync(full, 'utf8'));
       if (
         source.includes('closetMirrorStaging') ||
-        source.includes('addMirrorGarmentCrops') ||
-        source.includes('MIRROR_SELFIE_V1')
+        source.includes('stageMirrorSelfieGarmentCrops') ||
+        source.includes('addMirrorGarmentCrops')
       ) {
         offenders.push(path.relative(ROOT, full));
       }
     }
   };
   for (const root of roots) walk(path.join(ROOT, root));
-  assert.deepEqual(offenders, [], 'a UI surface reached the Mirror API');
+  assert.deepEqual(offenders, [], 'a UI surface reached the Mirror STAGING API');
 });

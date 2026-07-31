@@ -883,11 +883,47 @@ test('mirror_selfie_crops_staged is emitted even when staging is rejected outrig
   assert.equal(staged[0].payload.outcome, 'rejected');
 });
 
-test('MIRROR-MANUAL-CLASSIFICATION-USES-EXISTING-MODAL: no Mirror-specific manual-classification UI exists in this phase', () => {
+/**
+ * Strip comments before matching a forbidden symbol.
+ *
+ * The Mirror sources NAME the symbols they must never call, in prose, so that
+ * the boundary is legible where the code is. A naive substring match over the
+ * whole file therefore fails on the very documentation that records the rule.
+ * Reachability is a property of code, so only code is searched.
+ */
+function codeOnly(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+test('MIRROR-MANUAL-CLASSIFICATION-USES-EXISTING-MODAL: no Mirror component classifies or reviews candidates', () => {
+  // NARROWED BY BUILD 2.5 STEP 3, deliberately.
+  //
+  // The original assertion was "no file under components/closet has 'mirror' in
+  // its name", which was a proxy for "Phase 0B added no Mirror UI". Step 3 adds
+  // MirrorSelfieExtractionModal — a PRE-STAGING extraction review, which shows
+  // crops and asks whether to keep them.
+  //
+  // The property that still has to hold is the one the proxy was standing in
+  // for: no Mirror component may classify a garment, mount the candidate review,
+  // or reach the taxonomy. Identification belongs to identify_for_closet, and
+  // candidate review belongs to the existing ClosetBatchReviewPanel.
   const componentsDir = path.join(ROOT, 'components', 'closet');
   const entries = fs.existsSync(componentsDir) ? fs.readdirSync(componentsDir) : [];
-  assert.ok(
-    !entries.some((name) => /mirror/i.test(name)),
-    'Phase 0B must not add a Mirror-specific review or classification component',
-  );
+  const mirrorComponents = entries.filter((name) => /mirror/i.test(name));
+
+  for (const name of mirrorComponents) {
+    const source = codeOnly(fs.readFileSync(path.join(componentsDir, name), 'utf8'));
+    for (const forbidden of [
+      'ClosetBatchReviewPanel',
+      'ClosetCandidateManualClassifyModal',
+      'classifyClosetCandidate',
+      'closetTaxonomy',
+      'stageMirrorSelfieGarmentCrops',
+    ]) {
+      assert.ok(
+        !source.includes(forbidden),
+        `${name} reached ${forbidden}; extraction review must not become candidate review`,
+      );
+    }
+  }
 });
