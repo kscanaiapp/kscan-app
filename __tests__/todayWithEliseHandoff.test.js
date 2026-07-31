@@ -432,6 +432,92 @@ test('a Closet that will not load is a failure, not an empty Look', async () => 
   assert.equal(h.calls.startSession, 0);
 });
 
+// ── Closet destinations ──────────────────────────────────────────────────────
+
+function closetInput(overrides = {}) {
+  return {
+    card: card({
+      stateId: 'closet_action',
+      primaryAction: {
+        action: 'add_your_first_item',
+        labelKey: 'action.add_more_items',
+        target: 'closet_intake',
+        runnable: true,
+      },
+      secondaryAction: null,
+      itemRefs: [],
+    }),
+    generationToken: TOKEN,
+    actorId: ACTOR,
+    actorEpoch: 1,
+    route: '/library?section=closet',
+    analyticsPayload: { stateId: 'closet_action' },
+    isCardCurrent: () => true,
+    ...overrides,
+  };
+}
+
+test('a Closet destination navigates and reports one action', () => {
+  const h = harness();
+  const result = handoff.openTodayClosetDestination(h.deps, closetInput());
+  assert.equal(result.outcome, 'opened');
+  assert.deepEqual(h.calls.navigate, ['/library?section=closet']);
+  assert.deepEqual(
+    h.calls.events.map((e) => e.event),
+    ['today_with_elise_primary_action'],
+  );
+});
+
+test('a Closet destination creates no session and hydrates nothing', () => {
+  const h = harness();
+  handoff.openTodayClosetDestination(h.deps, closetInput());
+  assert.equal(h.calls.startSession, 0);
+  assert.equal(h.calls.composeAndPersist, 0);
+  assert.equal(h.calls.setActiveLook, 0);
+});
+
+test('rapid Closet taps navigate once and report once', () => {
+  const h = harness();
+  handoff.openTodayClosetDestination(h.deps, closetInput());
+  h.advance(150);
+  handoff.openTodayClosetDestination(h.deps, closetInput());
+  h.advance(150);
+  const third = handoff.openTodayClosetDestination(h.deps, closetInput());
+  assert.equal(third.outcome, 'ignored_duplicate_tap');
+  assert.equal(h.calls.navigate.length, 1);
+  assert.equal(h.calls.events.length, 1);
+});
+
+test('a Closet destination refuses a stale card and an actor switch', () => {
+  const stale = harness();
+  assert.equal(
+    handoff.openTodayClosetDestination(stale.deps, closetInput({ isCardCurrent: () => false }))
+      .outcome,
+    'refused_stale_card',
+  );
+  assert.equal(stale.calls.navigate.length, 0);
+
+  const switched = harness();
+  switched.switchActor('actor-b');
+  assert.equal(
+    handoff.openTodayClosetDestination(switched.deps, closetInput()).outcome,
+    'refused_actor_changed',
+  );
+  assert.equal(switched.calls.navigate.length, 0);
+  assert.equal(switched.calls.events.length, 0);
+});
+
+test('the hook routes Closet destinations through the shared guard', () => {
+  assert.match(hookSource, /openTodayClosetDestination\(TODAY_HANDOFF_DEPS/);
+  // No hand-rolled emit-then-push bypassing the dedupe.
+  const primary = hookSource.slice(
+    hookSource.indexOf('const onPrimaryPress = useCallback'),
+    hookSource.indexOf('const onSecondaryPress = useCallback'),
+  );
+  assert.doesNotMatch(primary, /emitTodayWithEliseEvent\(/);
+  assert.doesNotMatch(primary, /router\.push\(/);
+});
+
 // ── Change Something ─────────────────────────────────────────────────────────
 
 test('Change Something reuses the active Look and creates no session', () => {

@@ -563,6 +563,12 @@ export type TodayOrchestrationResult = {
   snapshot: TodayWithEliseSnapshot;
   /** Saved Look session ids observed in this generation. Ids never leave here. */
   savedLookSessionIds: readonly string[];
+  /**
+   * The composition identity observed in this generation, or null when there is
+   * none. Compared across generations to observe that a handed-off Look
+   * actually changed. Never rendered and never sent anywhere.
+   */
+  compositionIdentity: { compositionId: string; activeLookId: string | null } | null;
 };
 
 /**
@@ -575,6 +581,7 @@ export type TodayOrchestrationResult = {
 export function evaluateTodaySnapshot(
   built: TodaySnapshotBuild,
   savedLookSessionIds: readonly string[] = [],
+  compositionIdentity: TodayOrchestrationResult['compositionIdentity'] = null,
 ): TodayOrchestrationResult {
   return {
     card: evaluateTodayWithEliseCard(built.snapshot),
@@ -582,7 +589,38 @@ export function evaluateTodaySnapshot(
     projections: built.projections,
     snapshot: built.snapshot,
     savedLookSessionIds,
+    compositionIdentity,
   };
+}
+
+/**
+ * The composition identity for this generation.
+ *
+ * A composition changes identity whenever its context changes — which is what
+ * the Build 3 Elise modification flow does — so comparing this across a
+ * departure and a return is how Today observes that a Look was genuinely
+ * modified, without instrumenting the certified flow that modified it.
+ */
+export function compositionIdentityFrom(
+  read: TodayCompositionRead,
+): TodayOrchestrationResult['compositionIdentity'] {
+  if (!read?.ok || !read.composition) return null;
+  const record = read.composition;
+  if (typeof record.compositionId !== 'string' || !record.compositionId) return null;
+  return { compositionId: record.compositionId, activeLookId: record.activeLookId ?? null };
+}
+
+/** True when a Look observed after a return differs from the one handed off. */
+export function compositionIdentityChanged(
+  before: TodayOrchestrationResult['compositionIdentity'],
+  after: TodayOrchestrationResult['compositionIdentity'],
+): boolean {
+  // Absent on either side is not evidence of a change: an unread composition
+  // and a discarded one look identical from here, and neither proves the user
+  // modified anything.
+  if (!before || !after) return false;
+  if (before.compositionId !== after.compositionId) return true;
+  return before.activeLookId !== after.activeLookId;
 }
 
 /**

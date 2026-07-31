@@ -57,6 +57,8 @@ import type { TodayCardOrchestrationHandle } from '../services/todayWithElise/ac
 import {
   buildTodaySnapshot,
   commitTodayCardResult,
+  compositionIdentityChanged,
+  compositionIdentityFrom,
   evaluateTodaySnapshot,
   savedLookSessionIdsFrom,
   type TodayCapabilities,
@@ -73,6 +75,7 @@ import {
   type TodayCardPresentation,
 } from '../services/todayWithElise/presentation';
 import {
+  openTodayClosetDestination,
   openTodayDressingRoom,
   openTodayEliseModification,
   type TodayHandoffDeps,
@@ -365,7 +368,11 @@ export function useTodayWithElise(): TodayWithEliseView {
         collaborators: TODAY_COLLABORATORS,
         nowMs: Date.now(),
       });
-      const evaluated = evaluateTodaySnapshot(built, savedLookSessionIdsFrom(reads.savedLooks));
+      const evaluated = evaluateTodaySnapshot(
+        built,
+        savedLookSessionIdsFrom(reads.savedLooks),
+        compositionIdentityFrom(reads.composition),
+      );
 
       const liveContext = getActorContext();
       const committed = commitTodayCardResult({
@@ -469,10 +476,19 @@ export function useTodayWithElise(): TodayWithEliseView {
   const departureRef = useRef<{
     sessionId: string | null;
     knownSavedSessionIds: readonly string[];
+    compositionIdentity: TodayOrchestrationResult['compositionIdentity'];
+    modification: boolean;
     awaitingReturn: boolean;
-  }>({ sessionId: null, knownSavedSessionIds: [], awaitingReturn: false });
+  }>({
+    sessionId: null,
+    knownSavedSessionIds: [],
+    compositionIdentity: null,
+    modification: false,
+    awaitingReturn: false,
+  });
   const headingNodeRef = useRef<unknown>(null);
   const savedReportedRef = useRef<string | null>(null);
+  const modifiedReportedRef = useRef<string | null>(null);
 
   const registerHeading = useCallback((node: unknown) => {
     headingNodeRef.current = node;
@@ -497,6 +513,28 @@ export function useTodayWithElise(): TodayWithEliseView {
     if (wasSaved || !isSaved) return;
     savedReportedRef.current = departure.sessionId;
     emitTodayWithEliseEvent('today_with_elise_look_saved', {
+      ...(result.card ? todayEventPayload(result.card, Platform.OS) : {}),
+    });
+  }, [current.result]);
+
+  /**
+   * Observe, on a later generation, that a Look handed off to the modification
+   * flow actually changed.
+   *
+   * Opening the flow was already reported as a secondary action. This is the
+   * OUTCOME, and reporting it at tap time instead would have put a click in the
+   * funnel where a result belongs.
+   */
+  useEffect(() => {
+    const departure = departureRef.current;
+    const result = current.result;
+    if (!result || !departure.modification || !departure.sessionId) return;
+    if (modifiedReportedRef.current === departure.sessionId) return;
+    if (!compositionIdentityChanged(departure.compositionIdentity, result.compositionIdentity)) {
+      return;
+    }
+    modifiedReportedRef.current = departure.sessionId;
+    emitTodayWithEliseEvent('today_with_elise_look_modified', {
       ...(result.card ? todayEventPayload(result.card, Platform.OS) : {}),
     });
   }, [current.result]);
@@ -542,13 +580,20 @@ export function useTodayWithElise(): TodayWithEliseView {
     setActionError(null);
 
     // A Closet destination is a plain navigation: there is no session to create,
-    // nothing to hydrate and nothing that could open blank.
+    // nothing to hydrate and nothing that could open blank. It goes through the
+    // handoff module anyway, because the rapid-tap guard must be the SAME one —
+    // three taps on "Add More Items" have to behave like three taps on "Tap to
+    // Get Ready".
     if (target === 'closet_intake' || target === 'closet_review') {
-      emitTodayWithEliseEvent('today_with_elise_primary_action', {
-        ...todayEventPayload(active, Platform.OS),
-        action: active.primaryAction.action,
+      openTodayClosetDestination(TODAY_HANDOFF_DEPS, {
+        card: active,
+        generationToken: handle.generationToken,
+        actorId,
+        actorEpoch: handle.actorEpoch,
+        route,
+        analyticsPayload: todayEventPayload(active, Platform.OS),
+        isCardCurrent: () => liveTokenRef.current === handle.generationToken,
       });
-      router.push(route as never);
       return;
     }
 
@@ -573,6 +618,8 @@ export function useTodayWithElise(): TodayWithEliseView {
         departureRef.current = {
           sessionId: handoffContext.sessionId,
           knownSavedSessionIds: current.result?.savedLookSessionIds ?? [],
+          compositionIdentity: current.result?.compositionIdentity ?? null,
+          modification: false,
           awaitingReturn: true,
         };
       }
@@ -603,6 +650,8 @@ export function useTodayWithElise(): TodayWithEliseView {
       departureRef.current = {
         sessionId: handoffContext.sessionId,
         knownSavedSessionIds: current.result?.savedLookSessionIds ?? [],
+        compositionIdentity: current.result?.compositionIdentity ?? null,
+        modification: true,
         awaitingReturn: true,
       };
     }
