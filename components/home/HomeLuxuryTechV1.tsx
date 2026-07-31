@@ -33,6 +33,7 @@ import {
 } from '../../components/luxury';
 import { KScanIcon } from '../icons/kscan';
 import { HomeStylistCard } from './HomeStylistCard';
+import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
@@ -323,6 +324,15 @@ export default function HomeLuxuryTechV1() {
           startError={sessionLaunchError}
         />
       )}
+
+      {/*
+        Today with Elise (Build 5). ADDITIVE: it sits below the existing Elise
+        introduction and above the first existing recommendation section, so it
+        is the first actionable recommendation on Home without displacing the
+        Scan hero, the stylist card, or anything below it. Renders nothing at
+        all while EXPO_PUBLIC_TODAY_WITH_ELISE_V1 is off.
+      */}
+      <TodayWithEliseSection />
 
       {/* Style Picks — hook-driven with backend-safe placeholder states */}
       <View style={styles.section} testID="home-luxury-style-picks-section">
