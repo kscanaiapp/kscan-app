@@ -508,6 +508,11 @@ function mountLibrary(options = {}) {
     },
     '../services/closetCandidateSchema': { createClosetBatchId: () => 'batch_test' },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
+    // Closet screen, and the Mirror sheet is gated off in every profile here.
+    '../components/closet/MirrorSelfieExtractionModal': {
+      MirrorSelfieExtractionModal: 'MirrorSelfieExtractionModal',
+    },
     '../components/closet/ClosetCandidateStatusPanel': statusPanel,
     '../services/closetPromotion': { isScanPromoted: async () => false },
   };
