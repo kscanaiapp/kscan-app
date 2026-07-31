@@ -107,6 +107,63 @@ export function projectPartialLookActions(
   };
 }
 
+const NO_ACTION: TodayWithEliseActionSpec = Object.freeze({
+  action: 'none',
+  labelKey: 'action.none',
+  target: 'none',
+  runnable: false,
+});
+
+/**
+ * Drop any action whose Build 3 dependency cannot complete.
+ *
+ * A DEAD CONTROL IS THE WORST OUTCOME AVAILABLE HERE. It teaches the user the
+ * feature is broken, and unlike a missing control it cannot be explained. So an
+ * action survives only when the gates that own its destination are ALL on.
+ *
+ * THE TWO GATES ARE GENUINELY DIFFERENT, AND THIS IS WHY THIS FUNCTION EXISTS
+ * SEPARATELY FROM THE PRIORITY ENGINE:
+ *
+ *   - Opening the workspace needs `PRIVATE_DRESSING_ROOM_V1`. The priority
+ *     engine already refuses to select a Dressing Room state without it, so the
+ *     primary downgrade below is defence in depth rather than the live path —
+ *     and a test asserts the engine never reaches it.
+ *
+ *   - MODIFYING a Look needs `PRIVATE_DRESSING_ROOM_ELISE_ACTIVE`, which is
+ *     nested two levels deeper (workspace → interactions → Elise). The engine
+ *     has no knowledge of that gate: the Phase 1 snapshot contract carries one
+ *     Dressing Room capability, not three. "Change Something" with the
+ *     workspace on and Elise off is therefore a REAL reachable configuration in
+ *     which the engine emits a secondary action whose destination cannot act,
+ *     and this is the only place that can refuse it.
+ *
+ * Both gates are read from the existing Build 3 constants by the caller. Build 5
+ * defines no availability flag, no route-existence probe and no Home-specific
+ * capability test of its own.
+ */
+export function projectCapabilityGatedActions(
+  card: TodayWithEliseCardState,
+  capabilities: { dressingRoomActive: boolean; eliseModificationActive: boolean },
+): TodayWithEliseCardState {
+  if (!card) return card;
+
+  const primaryNeedsRoom =
+    card.primaryAction?.target === 'private_dressing_room' ||
+    card.primaryAction?.target === 'elise_modification';
+  const primary =
+    primaryNeedsRoom && !capabilities.dressingRoomActive ? NO_ACTION : card.primaryAction;
+
+  const secondaryTarget = card.secondaryAction?.target ?? null;
+  const secondaryBlocked =
+    (secondaryTarget === 'private_dressing_room' && !capabilities.dressingRoomActive) ||
+    (secondaryTarget === 'elise_modification' &&
+      !(capabilities.dressingRoomActive && capabilities.eliseModificationActive));
+  const secondary = secondaryBlocked ? null : card.secondaryAction;
+
+  if (primary === card.primaryAction && secondary === card.secondaryAction) return card;
+  return { ...card, primaryAction: primary, secondaryAction: secondary };
+}
+
 // ── Route resolution ─────────────────────────────────────────────────────────
 
 export type TodayRouteTarget = TodayWithEliseActionSpec['target'];
