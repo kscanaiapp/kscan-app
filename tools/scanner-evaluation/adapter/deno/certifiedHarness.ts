@@ -530,7 +530,16 @@ class CountTokensCaptured extends Error {
   }
 }
 
-const tokenCounts: { primary: number | null; fallback: number | null } = { primary: null, fallback: null };
+const tokenCounts: {
+  primary: number | null;
+  fallback: number | null;
+  serializedRequestPayloadSha256: string | null;
+  promptSha256: string | null;
+  generationConfigSha256: string | null;
+} = { primary: null, fallback: null, serializedRequestPayloadSha256: null, promptSha256: null, generationConfigSha256: null };
+
+/** No-value sentinel, distinct from any real hash, for a field the certified request never carries. */
+const ABSENT_FIELD_SHA256 = 'absent-field-sha256-placeholder-not-a-real-digest';
 
 function installCountTokensInterceptor(primaryModel: string, fallbackModel: string) {
   const realFetch = globalThis.fetch.bind(globalThis);
@@ -553,13 +562,23 @@ function installCountTokensInterceptor(primaryModel: string, fallbackModel: stri
     if (!overlaid || typeof overlaid.body !== 'string') {
       throw new Error('count-tokens: certified request carried no JSON body to count');
     }
-    let contents: unknown;
+    let parsedBody: { contents?: unknown; generationConfig?: unknown };
     try {
-      contents = (JSON.parse(overlaid.body) as { contents?: unknown }).contents;
+      parsedBody = JSON.parse(overlaid.body) as { contents?: unknown; generationConfig?: unknown };
     } catch {
       throw new Error('count-tokens: certified request body did not parse as JSON');
     }
+    const { contents, generationConfig } = parsedBody;
     if (!contents) throw new Error('count-tokens: certified request body carried no contents');
+
+    // Cache-identity hashes only -- reservation bookkeeping needs to prove two
+    // requests are identical, not what they contain. Computed from the exact
+    // certified bytes, in-process, and never carries the text/image forward:
+    // the certified request never has a systemInstruction or tools field, so
+    // those two use a fixed non-empty sentinel rather than fabricating content.
+    tokenCounts.serializedRequestPayloadSha256 = await sha256Hex(overlaid.body);
+    tokenCounts.promptSha256 = await sha256Hex(promptTextOf(overlaid));
+    tokenCounts.generationConfigSha256 = await sha256Hex(JSON.stringify(generationConfig ?? null));
 
     // Only `contents` crosses to the countTokens call — generationConfig, tools
     // and safety settings are irrelevant to an input token count and dropped
@@ -894,6 +913,13 @@ async function main() {
         error: countTokensError,
         primaryInputTokens: tokenCounts.primary,
         fallbackInputTokens: tokenCounts.fallback,
+        // Cache-identity hashes only (see installCountTokensInterceptor). Never
+        // the prompt or image bytes themselves.
+        serializedRequestPayloadSha256: tokenCounts.serializedRequestPayloadSha256,
+        promptSha256: tokenCounts.promptSha256,
+        generationConfigSha256: tokenCounts.generationConfigSha256,
+        systemInstructionSha256: ABSENT_FIELD_SHA256,
+        toolDeclarationsSha256: ABSENT_FIELD_SHA256,
       },
       null,
       2
