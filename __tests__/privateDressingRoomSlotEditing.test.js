@@ -222,10 +222,25 @@ test('no second flag evaluator is introduced', () => {
   assert.equal(/resolve|function|=>/.test(line), false, 'no bespoke evaluator');
 });
 
-test('neither private flag is enabled in any EAS profile', () => {
-  const eas = fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8');
-  assert.equal(eas.includes('PRIVATE_DRESSING_ROOM_V1'), false);
-  assert.equal(eas.includes('PRIVATE_DRESSING_ROOM_INTERACTIONS_V1'), false);
+// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 3 ACTIVATION, deliberately.
+// Both flags are now set in every profile; the invariant that survives is that
+// interactions remain NESTED under the workspace, so Phase 3 can never activate
+// on its own.
+test('both private flags are enabled, and interactions stay nested under the workspace', () => {
+  const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+  for (const [profile, config] of Object.entries(eas.build ?? {})) {
+    assert.equal(config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1, 'true', `${profile}: workspace flag`);
+    assert.equal(
+      config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_INTERACTIONS_V1,
+      'true',
+      `${profile}: interactions flag`,
+    );
+  }
+  const flags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
+  assert.ok(
+    flags.includes('PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE =\n  PRIVATE_DRESSING_ROOM_V1 && PRIVATE_DRESSING_ROOM_INTERACTIONS_V1'),
+    'interactions are no longer nested under the workspace flag',
+  );
 });
 
 // ── Slot editor states ───────────────────────────────────────────────────────

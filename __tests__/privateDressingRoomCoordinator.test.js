@@ -134,12 +134,28 @@ test('the private flag is independent of the collaborative dressingRooms freeze'
   assert.equal(flagLine.includes('FREEZE'), false);
 });
 
-test('production EAS profiles do not enable the private flag', () => {
-  const eas = fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8');
-  assert.equal(
-    eas.includes('EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1'),
-    false,
-    'no EAS profile may enable the private workspace',
+// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 3 ACTIVATION, deliberately.
+//
+// This asserted that no profile enabled the private workspace — correct while
+// Build 3 shipped dormant. The owner has since authorized activation, so the
+// frozen "absent everywhere" snapshot is no longer the invariant. What still
+// matters, and is what this now checks, is that every profile opts in through
+// the same exact-string "true" gate every other rollout flag uses, and that
+// the flag stays env-driven rather than hardcoded — so a rollback is a
+// configuration change, not a code change.
+test('production EAS profiles enable the private flag via the exact-string gate', () => {
+  const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+  for (const [profile, config] of Object.entries(eas.build ?? {})) {
+    assert.equal(
+      config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1,
+      'true',
+      `${profile} does not activate the private workspace via the exact-string flag`,
+    );
+  }
+  const flags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
+  assert.ok(
+    !/PRIVATE_DRESSING_ROOM_V1\s*=\s*true\s*;/.test(flags),
+    'the flag was hardcoded rather than left env-driven',
   );
 });
 
