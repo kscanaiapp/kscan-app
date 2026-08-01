@@ -279,6 +279,33 @@ function isDurableOutcome(outcome: MirrorCropStageOutcome['outcome']): boolean {
 }
 
 /**
+ * Settled with nothing left to do, though no candidate media was written.
+ *
+ * `already_in_closet` is the candidate pipeline's own documented idempotent
+ * answer, not a failure — services/closetCandidateLibrary.js#createClosetCandidate
+ * says so outright: "`duplicate_active_candidate` and `already_in_closet` are
+ * not failures — they are correct, idempotent answers." It means THIS EXACT
+ * SOURCE is already a committed Closet item, so there is no candidate to
+ * create, nothing to put in review, and nothing a retry could ever change.
+ *
+ * It is classified here beside the two durable duplicate outcomes rather than
+ * with the failures. Bucketing it as a non-retryable failure made a wholly
+ * successful, correctly idempotent operation report `partial`, and made the
+ * Closet screen tell the user "We couldn't add those garments. Please try
+ * again." about garments that were already in their Closet — advice that can
+ * never come true. Crop cleanup is unchanged either way: the crop is redundant
+ * once its committed twin exists, and was already being deleted.
+ */
+function isResolvedWithoutCandidate(outcome: MirrorCropStageOutcome['outcome']): boolean {
+  return outcome === 'already_in_closet';
+}
+
+/** Settled successfully, by either route. */
+function isResolvedOutcome(outcome: MirrorCropStageOutcome['outcome']): boolean {
+  return isDurableOutcome(outcome) || isResolvedWithoutCandidate(outcome);
+}
+
+/**
  * Retryable in the sense a later attempt at THIS SAME crop could succeed.
  *
  * `candidate_actor_stale` is deliberately excluded: it is not that this crop
@@ -504,8 +531,10 @@ export async function integrateMirrorExtractionSelection(
 
     let groupHitCapacity = false;
     for (const outcome of result.outcomes) {
-      if (isDurableOutcome(outcome.outcome)) {
+      if (isResolvedOutcome(outcome.outcome)) {
         successfulCropKeys.push(outcome.cropKey);
+        // `already_in_closet` deliberately does NOT set this: no new candidate
+        // record exists, so there is nothing for classification to pick up.
         anyCreated = anyCreated || outcome.outcome === 'created' || outcome.outcome === 'duplicate_of_closet';
         await cleanupCrop(outcome.cropKey);
       } else if (isCropRetryable(outcome.errorCode)) {
@@ -518,11 +547,16 @@ export async function integrateMirrorExtractionSelection(
       if (outcome.errorCode === 'candidate_limit_reached') groupHitCapacity = true;
     }
 
-    group.status = result.outcomes.every((o) => isDurableOutcome(o.outcome))
+    // ANY settled outcome makes the group a success: partial success is never
+    // reduced to a failure. When nothing settled, the group is reported by the
+    // retryability of what actually went wrong. `failed_non_retryable` was
+    // declared in MirrorStagingGroupStatus but never assigned, so a group whose
+    // every crop failed permanently was reported to callers as retryable.
+    group.status = result.outcomes.some((o) => isResolvedOutcome(o.outcome))
       ? 'succeeded'
-      : result.outcomes.some((o) => isDurableOutcome(o.outcome))
-        ? 'succeeded'
-        : 'failed_retryable';
+      : result.outcomes.some((o) => isCropRetryable(o.errorCode))
+        ? 'failed_retryable'
+        : 'failed_non_retryable';
 
     deps.onProgress?.(partial());
 

@@ -1130,3 +1130,162 @@ test('no EAS profile or app.json key was introduced by Step 4', () => {
     assert.ok(!app.includes(forbidden), `app.json references ${forbidden}`);
   }
 });
+
+// ── Build 2.5 Step 5 hostile-audit regressions ───────────────────────────────
+//
+// Each test below was written because a specific hostile mutation SURVIVED the
+// Step 4 suite (scripts/mirror-step5-audit-mutation-check.js). They are not
+// extra coverage for its own sake: every one of them fails when its invariant
+// is inverted, and the surviving mutation is named in the comment above it.
+
+/**
+ * F-1. `already_in_closet` is the candidate pipeline's documented idempotent
+ * SUCCESS, not a failure. The Step 4 coordinator classified it as a
+ * non-retryable failure, which made a fully correct operation report `partial`
+ * and made the Closet screen say "We couldn't add those garments. Please try
+ * again." for garments that were already in the user's Closet.
+ */
+test('MIRROR-ALREADY-IN-CLOSET-IS-NOT-A-STAGING-FAILURE', async () => {
+  const { m, actorContext, coordinator } = load();
+  asActor(actorContext, 'user-1');
+  const selection = seedSelection(m, 'sess_aic', keysOf(2));
+
+  const result = await coordinator.integrateMirrorExtractionSelection(selection, {
+    stageGroup: async ({ crops }) => ({
+      kind: 'ok',
+      batchId: 'batch_aic',
+      outcomes: crops.map((crop, index) => ({
+        cropKey: crop.cropKey,
+        batchPosition: index,
+        outcome: 'already_in_closet',
+        errorCode: 'already_in_closet',
+      })),
+    }),
+  });
+
+  assert.deepEqual(result.nonRetryableCropKeys, [], 'already_in_closet was counted as a failure');
+  assert.deepEqual(result.retryableCropKeys, [], 'already_in_closet was offered for retry');
+  assert.deepEqual(result.successfulCropKeys.sort(), ['k0', 'k1']);
+  assert.equal(result.outcome, 'created', 'a fully idempotent operation reported as partial');
+  assert.equal(result.groups[0].status, 'succeeded');
+  // Cleanup behaviour is deliberately UNCHANGED: the crop is redundant once its
+  // committed Closet twin exists, so it is still deleted, never retained.
+  assert.deepEqual(result.cleanedCropKeys.sort(), ['k0', 'k1']);
+  assert.deepEqual(result.retainedCropKeys, []);
+});
+
+/**
+ * F-1b. `failed_non_retryable` was declared in MirrorStagingGroupStatus and
+ * never assigned: a group whose every crop failed permanently was reported to
+ * callers as `failed_retryable`, inviting a retry that can never succeed.
+ */
+test('MIRROR-GROUP-OF-ONLY-PERMANENT-FAILURES-IS-NOT-REPORTED-RETRYABLE', async () => {
+  const { m, actorContext, coordinator } = load({
+    manipulatorFailsFor: () => true,
+  });
+  asActor(actorContext, 'user-1');
+  const selection = seedSelection(m, 'sess_perm', keysOf(2));
+
+  const result = await coordinator.integrateMirrorExtractionSelection(selection);
+
+  assert.deepEqual(result.successfulCropKeys, []);
+  assert.deepEqual(result.nonRetryableCropKeys.sort(), ['k0', 'k1']);
+  assert.equal(result.groups[0].status, 'failed_non_retryable');
+});
+
+/**
+ * SURVIVING MUTATION MH (§29.28). Inverting `reconcileDurableMirrorCrops`'s
+ * central predicate — so it deletes the crops that have NO durable twin and
+ * keeps the ones that do — left the whole Step 4 suite green. That inversion is
+ * unrecoverable local data loss, and nothing tested it.
+ */
+test('MIRROR-RECONCILE-DELETES-ONLY-THE-CROP-WHOSE-DURABLE-TWIN-EXISTS', async () => {
+  const { m, actorContext, coordinator } = load();
+  asActor(actorContext, 'user-1');
+  const selection = seedSelection(m, 'sess_rec', ['durable', 'orphan']);
+
+  const deleted = [];
+  const outcome = await coordinator.reconcileDurableMirrorCrops(selection, {
+    listDurableLineageIds: async () => new Set(['lineage:durable']),
+    deriveLineageId: async (_sessionId, cropKey) => `lineage:${cropKey}`,
+    deleteCropFile: async (uri) => {
+      deleted.push(uri);
+      m.files.delete(uri);
+      return true;
+    },
+  });
+
+  assert.deepEqual(outcome.reconciledCropKeys, ['durable']);
+  assert.deepEqual(deleted, [cropPath('sess_rec', 'durable')]);
+  // The crop with no durable twin is the ONLY copy of that garment. Deleting it
+  // would destroy work the user can never get back without re-photographing.
+  const orphan = await m.api.getInfoAsync(cropPath('sess_rec', 'orphan'));
+  assert.equal(orphan.exists, true, 'a crop with no durable candidate was destroyed');
+});
+
+/**
+ * SURVIVING MUTATION ME (§29.13). Removing the hook's re-entrancy guard — so a
+ * duplicate `onExtracted` starts a SECOND coordinator over the same crop list —
+ * left the suite green.
+ */
+test('MIRROR-DUPLICATE-HANDOFF-CANNOT-START-A-SECOND-COORDINATOR', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'hooks/useClosetCandidates.js'), 'utf8');
+  assert.match(
+    source,
+    /if \(mirrorIntegrationLiveRef\.current\) \{[\s\S]{0,200}?mirror_integration_already_running/,
+    'stageMirrorSelection no longer refuses a second concurrent handoff',
+  );
+  // The guard has to be armed for the whole operation, not just its start.
+  assert.match(
+    source,
+    /mirrorIntegrationLiveRef\.current = true;/,
+    'the running flag is never set, so the guard can never fire',
+  );
+  assert.match(
+    source,
+    /finally \{\s*\n\s*mirrorIntegrationLiveRef\.current = false;/,
+    'the running flag is not cleared in a finally, so one failure wedges the feature shut',
+  );
+});
+
+/**
+ * SURVIVING MUTATION MF (§29.26). Making the successful handoff ALSO cancel the
+ * operation it just started — the classic "unmount looks like cancellation"
+ * defect — left the suite green.
+ */
+test('MIRROR-SUCCESSFUL-HANDOFF-DOES-NOT-CANCEL-THE-COORDINATOR', () => {
+  const library = fs.readFileSync(path.join(ROOT, 'app/library.tsx'), 'utf8');
+  const mount = library.match(/<MirrorSelfieExtractionModal[\s\S]*?\/>/);
+  assert.ok(mount, 'the Mirror sheet is no longer mounted in the Closet screen');
+  assert.ok(
+    mount[0].includes('stageMirrorSelection(selection)'),
+    'the handoff no longer routes through the coordinator',
+  );
+  assert.ok(
+    !mount[0].includes('cancelMirrorIntegration'),
+    'closing the extraction sheet cancels the staging operation it just started',
+  );
+});
+
+/**
+ * SURVIVING MUTATION MG (§29.27). Removing the unmount cleanup — so abandoning
+ * the Closet screen leaves the coordinator dispatching further groups — left the
+ * suite green.
+ */
+test('MIRROR-OWNER-ABANDONMENT-CANCELS-FUTURE-GROUPS', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'hooks/useClosetCandidates.js'), 'utf8');
+  const effect = source.match(/AppState\.addEventListener\('change'[\s\S]*?\n  \}, \[\]\);/);
+  assert.ok(effect, 'the lifecycle effect is gone');
+  const cleanup = effect[0].match(/return \(\) => \{[\s\S]*?\};/);
+  assert.ok(cleanup, 'the lifecycle effect no longer returns a cleanup');
+  assert.ok(
+    cleanup[0].includes('mirrorIntegrationLiveRef.current = false'),
+    'unmounting the owner no longer stops further Mirror groups',
+  );
+  // Backgrounding must stop future groups for the same reason.
+  assert.match(
+    effect[0],
+    /nextState !== 'active'\) \{[\s\S]{0,400}?mirrorIntegrationLiveRef\.current = false/,
+    'backgrounding no longer stops further Mirror groups',
+  );
+});
