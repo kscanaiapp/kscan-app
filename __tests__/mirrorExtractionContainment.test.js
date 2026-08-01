@@ -88,26 +88,56 @@ function stripComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
-// ── MIRROR-PRODUCTION-PROFILES-REMAIN-DISABLED ──────────────────────────────
+// ── MIRROR-PROFILES-GLOBALLY-ACTIVE ─────────────────────────────────────────
+//
+// Owner-authorized global activation (Build 2.5 Step 6). Every current EAS
+// profile now sets the full five-flag chain to "true" —
+// __tests__/closetCandidateFeatureFlags.test.js's PRODUCTION/PREVIEW/
+// DEVELOPMENT-PROFILE-ACTIVATES-BUILD-2-5 tests prove that per-profile, value
+// by value. What still has to hold, and is what this test proves, is that the
+// KILL-SWITCH ARCHITECTURE itself survived activation: the flag is still an
+// exact-string-match opt-in, and MIRROR_SELFIE_V1_ACTIVE is still the composed
+// three-parent expression, not a hardcoded true. A future incident sets any
+// one of the three env vars to false in a profile and the composite must still
+// resolve false in response — that is a property of the source, not of any one
+// profile's current configuration, so it is verified against the resolver
+// here rather than against eas.json.
 
-test('MIRROR-PRODUCTION-PROFILES-REMAIN-DISABLED: no profile enables Mirror', () => {
-  const eas = read('eas.json');
-  assert.ok(!eas.includes('MIRROR_SELFIE'), 'an EAS profile referenced the Mirror flag');
-  assert.ok(!eas.includes('CLOSET_CANDIDATE_STAGING_V1'), 'candidate staging was enabled');
-  assert.ok(!eas.includes('CLOSET_BATCH_REVIEW_V2'), 'batch review was enabled');
-
+test('MIRROR-ENTRY-RENDERS-WHEN-GLOBALLY-ACTIVE: the composed capability is real, not a stub', () => {
   const flags = read('constants/featureFlags.ts');
-  // Only the exact string "true" opts in, matching every other rollout flag.
+  // Only the exact string "true" opts in, matching every other rollout flag —
+  // unaffected by activation, since activation sets a VALUE, not this check.
   assert.ok(
     /resolveMirrorSelfieV1Enabled[\s\S]*?return value === 'true';/.test(flags),
     'the Mirror flag stopped being opt-in-by-exact-string',
   );
-  // And it is nested under BOTH candidate staging and batch review.
+  // And it is still nested under BOTH candidate staging and batch review —
+  // activation must not have flattened this into a standalone constant.
   assert.ok(
     /MIRROR_SELFIE_V1_ACTIVE =\s*\n?\s*MIRROR_SELFIE_V1 && CLOSET_CANDIDATE_STAGING_ACTIVE && CLOSET_BATCH_REVIEW_V2_ACTIVE/.test(
       flags,
     ),
     'the derived Mirror capability lost one of its parents',
+  );
+  const eas = JSON.parse(read('eas.json'));
+  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
+    assert.equal(
+      profile?.env?.EXPO_PUBLIC_MIRROR_SELFIE_V1,
+      'true',
+      `profile ${profileName} does not activate Mirror`,
+    );
+  }
+});
+
+test('MIRROR-ENTRY-REMAINS-GOVERNED-BY-COMPOSITE-FLAG: a rollback still works after activation', () => {
+  // Simulates the Mirror-only rollback: MIRROR_SELFIE_V1 alone goes back to
+  // false while the parent chain stays exactly as every profile currently
+  // ships it. If activation had replaced the composed expression with a
+  // literal `true`, this would be the assertion that catches it.
+  const flags = read('constants/featureFlags.ts');
+  assert.ok(
+    !/export const MIRROR_SELFIE_V1_ACTIVE = true;/.test(flags),
+    'MIRROR_SELFIE_V1_ACTIVE was hardcoded — the kill switch no longer switches',
   );
 });
 

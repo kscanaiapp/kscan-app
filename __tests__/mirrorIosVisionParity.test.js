@@ -406,13 +406,19 @@ test('iOS no longer returns mirror_extraction_unsupported merely because the mod
   assert.ok(adapter.includes("return { kind: 'unsupported', reason: 'native_module_absent' }"));
 });
 
-// ── the module is present but unreachable while the flag is false ───────────
+// ── the module is present but unreachable whenever the flag resolves false ──
+//
+// SUPERSEDED BY BUILD 2.5 GLOBAL ACTIVATION (owner-authorized), deliberately.
+// The eas.json absence check this test used to make is no longer true by
+// design — every current profile activates Mirror. What still has to hold,
+// and is what this now checks, is that the underlying MECHANISM a rollback
+// depends on is intact: the flag is still an exact-string opt-in, and the
+// session still refuses to construct a native adapter whenever that flag
+// resolves false, regardless of what any profile currently ships.
 
-test('the native module may exist in source while the feature stays off', () => {
+test('the native module stays unreachable whenever the Mirror flag resolves false', () => {
   const flags = read('constants/featureFlags.ts');
   assert.ok(/resolveMirrorSelfieV1Enabled[\s\S]*?return value === 'true';/.test(flags));
-  const eas = read('eas.json');
-  assert.ok(!eas.includes('MIRROR_SELFIE'), 'an EAS profile enabled Mirror');
 
   // The session refuses to construct a native adapter at all while off — see
   // createMirrorExtractionSession, which selects the unsupported adapter.

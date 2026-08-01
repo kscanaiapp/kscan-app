@@ -209,43 +209,60 @@ test('the Mirror flag does not affect the existing Closet capabilities', () => {
   assert.equal(withoutMirror.CLOSET_BATCH_REVIEW_V2_ACTIVE, true);
 });
 
-test('no shipping profile enables Mirror Selfie staging', () => {
-  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
-    assert.notEqual(
-      profile?.env?.EXPO_PUBLIC_MIRROR_SELFIE_V1,
-      'true',
-      `profile ${profileName} enables Mirror Selfie staging`,
-    );
-  }
+// ── Global activation (Build 2.5 owner authorization) ───────────────────────
+//
+// Every current EAS profile (preview, development, production) sets the
+// complete five-flag chain to the literal string "true" — no profile is left
+// more gated than another, and the resolver's exact-string-match semantics
+// (see "only the exact string \"true\" opts in" above) are what makes "true"
+// the only value that actually activates anything.
+const BUILD_25_KEYS = [
+  'EXPO_PUBLIC_CLOSET_SEPARATION_V1',
+  'EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1',
+  'EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1',
+  'EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2',
+  'EXPO_PUBLIC_MIRROR_SELFIE_V1',
+];
+
+for (const profileName of ['production', 'preview', 'development']) {
+  test(`${profileName.toUpperCase()}-PROFILE-ACTIVATES-BUILD-2-5`, () => {
+    const env = eas.build?.[profileName]?.env ?? {};
+    for (const key of BUILD_25_KEYS) {
+      assert.equal(env[key], 'true', `${profileName} does not set ${key} to "true"`);
+    }
+    const flags = loadFlags(env);
+    assert.equal(flags.CLOSET_CANDIDATE_STAGING_ACTIVE, true, `${profileName}: staging not active`);
+    assert.equal(flags.CLOSET_BATCH_REVIEW_V2_ACTIVE, true, `${profileName}: batch review not active`);
+    assert.equal(flags.MIRROR_SELFIE_V1_ACTIVE, true, `${profileName}: Mirror not active`);
+  });
+}
+
+test('ALL-FIVE-FLAGS-TRUE resolves every derived Build 2.5 capability true', () => {
+  const flags = loadFlags(Object.fromEntries(BUILD_25_KEYS.map((k) => [k, ON])));
+  assert.equal(flags.CLOSET_CANDIDATE_STAGING_ACTIVE, true);
+  assert.equal(flags.CLOSET_BATCH_REVIEW_V2_ACTIVE, true);
+  assert.equal(flags.MIRROR_SELFIE_V1_ACTIVE, true);
 });
 
-// ── Shipping configuration ───────────────────────────────────────────────────
-
-test('no shipping profile enables candidate staging', () => {
-  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
-    const env = profile?.env ?? {};
-    assert.notEqual(
-      env.EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1,
-      'true',
-      `profile ${profileName} enables candidate staging`,
-    );
-  }
-});
-
-test('no shipping profile enables Build 2 batch review', () => {
-  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
-    assert.notEqual(
-      profile?.env?.EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2,
-      'true',
-      `profile ${profileName} enables batch review`,
-    );
-  }
-});
-
-test('the two existing Closet flags keep their production values', () => {
-  const production = eas.build?.production?.env ?? {};
-  assert.equal(production.EXPO_PUBLIC_CLOSET_SEPARATION_V1, 'true');
-  assert.equal(production.EXPO_PUBLIC_CLOSET_DIRECT_INTAKE_V1, 'true');
+test('MIRROR-ENTRY-REMAINS-GOVERNED-BY-COMPOSITE-FLAG: activation did not replace the flag with a constant', () => {
+  // The kill-switch is the composed expression itself, not any one profile's
+  // configuration. A future incident sets EXPO_PUBLIC_MIRROR_SELFIE_V1=false
+  // (or any parent false) in a profile and the composite must still resolve
+  // false — proven directly against the resolver, independent of what any
+  // profile currently ships.
+  assert.equal(
+    loadFlags({ ...Object.fromEntries(BUILD_25_KEYS.map((k) => [k, ON])), EXPO_PUBLIC_MIRROR_SELFIE_V1: undefined })
+      .MIRROR_SELFIE_V1_ACTIVE,
+    false,
+  );
+  assert.ok(
+    !/MIRROR_SELFIE_V1_ACTIVE\s*=\s*(true|false)\s*;/.test(flagsSource.replace(/\s+/g, ' ')),
+    'MIRROR_SELFIE_V1_ACTIVE was hardcoded to a boolean literal instead of the composed expression',
+  );
+  assert.ok(
+    flagsSource.includes('MIRROR_SELFIE_V1_ACTIVE =\n  MIRROR_SELFIE_V1 && CLOSET_CANDIDATE_STAGING_ACTIVE && CLOSET_BATCH_REVIEW_V2_ACTIVE'),
+    'the three-parent composition was altered',
+  );
 });
 
 test('app version, iOS build number and Android versionCode are untouched by this build', () => {

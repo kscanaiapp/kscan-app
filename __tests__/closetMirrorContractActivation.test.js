@@ -379,12 +379,27 @@ test('MIRROR FEATURE FLAG DEFAULT: false, and only the exact string "true" opts 
   assert.ok(!/MIRROR_SELFIE_V1\s*=\s*true/.test(flags));
 });
 
-test('MIRROR PRODUCTION PROFILE ENABLEMENT: none — no build profile sets the flag', () => {
-  const eas = fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8');
-  assert.ok(
-    !eas.includes('MIRROR_SELFIE'),
-    'eas.json now sets a Mirror flag; Step 2 must not enable the feature',
-  );
+// SUPERSEDED BY BUILD 2.5 GLOBAL ACTIVATION (owner-authorized), deliberately.
+//
+// This test used to assert that no EAS profile set the Mirror flag — correct
+// while Step 2 activated only the CONTRACT and Steps 3-5 (capture, extraction,
+// end-to-end certification) had not yet run. All of that is now certified
+// (see __tests__/mirrorCandidateIntegration.test.js and the hostile-audit
+// mutation suites), and the owner authorized global activation. What still
+// matters, and is what this now checks, is that every profile sets the flag
+// through the same exact-string "true" opt-in every other rollout flag uses —
+// never a hardcoded literal that would defeat the kill switch.
+test('MIRROR PRODUCTION PROFILE ENABLEMENT: every profile opts in via the exact-string flag', () => {
+  const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
+    assert.equal(
+      profile?.env?.EXPO_PUBLIC_MIRROR_SELFIE_V1,
+      'true',
+      `profile ${profileName} does not activate Mirror via the exact-string flag`,
+    );
+  }
+  const flags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
+  assert.ok(!/MIRROR_SELFIE_V1\s*=\s*true;/.test(flags), 'the flag was hardcoded rather than left env-driven');
 });
 
 /**
