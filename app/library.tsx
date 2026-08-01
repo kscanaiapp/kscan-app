@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
-  Dimensions,
   ScrollView,
   StyleSheet,
   Alert,
@@ -63,6 +62,7 @@ import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilityS
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
 import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
 import { useCloset } from '../hooks/useCloset';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useClosetCandidates } from '../hooks/useClosetCandidates';
 import { routeClosetIntake } from '../services/closetIntakeRouting';
 import { createClosetBatchId } from '../services/closetCandidateSchema';
@@ -72,12 +72,11 @@ import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidate
 import { isScanPromoted } from '../services/closetPromotion';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const { width: SCREEN_W } = Dimensions.get('window');
+// Card widths are derived per-render from the live window width (see
+// useResponsiveLayout inside LibraryScreen) so rotation and split-view
+// resizes reflow the grids without any domain state changing.
 const CARD_GAP = SPACING.md;
 const H_PAD = SPACING.xl;
-const CARD_W = Math.floor((SCREEN_W - H_PAD * 2 - CARD_GAP) / 2);
-const CARD_MIN_H = CARD_W + 80;
-const SINGLE_CARD_W = CARD_W * 2 + CARD_GAP;
 
 // ── SavedScan interface ───────────────────────────────────────────────────────
 interface ScanAttributes {
@@ -216,6 +215,16 @@ const LEGACY_CHROME = {
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function LibraryScreen() {
   const router = useRouter();
+  // Compact widths reproduce the certified two-column phone grid bit-for-bit;
+  // regular (iPad) widths gain columns inside the centered content column.
+  const { gridColumns, gridCellWidth } = useResponsiveLayout();
+  const CARD_W = gridCellWidth({
+    horizontalPadding: H_PAD,
+    gap: CARD_GAP,
+    chromePadding: SPACING.lg,
+  });
+  const CARD_MIN_H = CARD_W + 80;
+  const SINGLE_CARD_W = CARD_W * gridColumns + CARD_GAP * (gridColumns - 1);
   const { scans, loading, remove, actorKey } = useLibrary();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { isAuthenticated, user } = useAuthSession();

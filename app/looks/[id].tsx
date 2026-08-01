@@ -30,6 +30,7 @@ import {
   PrivacyFooter,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
 import { ELISE_IDENTITY } from '../../constants/elise';
 import { setAttachmentHandoff } from '../../services/style-chat/styleChatAttachmentStore';
@@ -414,6 +415,10 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     gap: SPACING.md,
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...LUXURY.cards.screen.shadow,
   },
   modalTitle: {

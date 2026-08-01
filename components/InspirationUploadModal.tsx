@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
+import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   INSPIRATION_NOTE_MAX_LENGTH,
@@ -197,6 +198,10 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
     maxHeight: '90%',
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...SHADOWS.editorialRaised,
   },
   title: {

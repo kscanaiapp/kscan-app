@@ -502,6 +502,25 @@ function mountLibrary(options = {}) {
         remove: async () => true,
       }),
     },
+    // iPad forward-port (certified b14566c): card geometry is derived
+    // per-render from the live window. A fixed compact-width stand-in keeps
+    // this harness rendering the certified two-column phone layout.
+    '../hooks/useResponsiveLayout': {
+      useResponsiveLayout: () => ({
+        width: 390,
+        height: 844,
+        widthClass: 'compact',
+        isRegular: false,
+        isLandscape: false,
+        contentWidth: 390,
+        contentMaxWidth: 840,
+        formMaxWidth: 560,
+        conversationMaxWidth: 640,
+        modalMaxWidth: 560,
+        gridColumns: 2,
+        gridCellWidth: () => 165,
+      }),
+    },
     '../hooks/useClosetCandidates': candidateHook,
     '../services/closetIntakeRouting': {
       routeClosetIntake: async () => ({ ok: false, reason: 'closet_intake_unavailable' }),

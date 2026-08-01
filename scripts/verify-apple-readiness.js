@@ -77,7 +77,26 @@ function verify() {
   check(result, appJson.version === '1.0.1', 'Expo marketing version is 1.0.1');
   check(result, ios.bundleIdentifier === 'com.kscanai.app', 'iOS bundle ID is com.kscanai.app');
   check(result, /^\d+$/.test(ios.buildNumber ?? ''), 'iOS build number is a valid incrementing integer string');
-  check(result, ios.supportsTablet === false, 'iPad support is disabled for this iPhone-only submission');
+  check(result, ios.supportsTablet === true, 'iPad support is enabled for the universal (iPhone + iPad) submission');
+  check(
+    result,
+    JSON.stringify(infoPlist.UISupportedInterfaceOrientations) ===
+      JSON.stringify(['UIInterfaceOrientationPortrait']),
+    'iPhone remains portrait-only (certified baseline orientation preserved)',
+  );
+  check(
+    result,
+    Array.isArray(infoPlist['UISupportedInterfaceOrientations~ipad']) &&
+      ['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown', 'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'].every(
+        (orientation) => infoPlist['UISupportedInterfaceOrientations~ipad'].includes(orientation),
+      ),
+    'iPad supports all four orientations (required for Split View multitasking)',
+  );
+  check(
+    result,
+    infoPlist.UIRequiresFullScreen !== true,
+    'UIRequiresFullScreen is not set, so iPad multitasking stays available',
+  );
   check(
     result,
     infoPlist.ITSAppUsesNonExemptEncryption === false,

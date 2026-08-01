@@ -38,6 +38,7 @@ import {
   SecondaryButton,
 } from '../../components/luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import {
   AI_STYLIST_UI_ENABLED,
   PRIVATE_DRESSING_ROOM_V1,
@@ -985,6 +986,10 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.sm,
     maxHeight: '80%',
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...LUXURY.cards.screen.shadow,
   },
   modalTitle: {

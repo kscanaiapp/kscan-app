@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { CONVERSATION_MAX_WIDTH } from '../../services/responsiveLayout';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import { ELISE_IDENTITY, ELISE_LOADING_COPY, STYLE_MEMORY_COPY } from '../../constants/elise';
 import {
@@ -517,6 +518,7 @@ export default function StyleChatSessionScreen() {
         contentContainerStyle={[
           messages.length === 0 ? styles.listContentEmpty : styles.listContent,
           isLandscape ? styles.listContentLandscape : null,
+          styles.conversationColumn,
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -575,7 +577,7 @@ export default function StyleChatSessionScreen() {
           disabled={isSending}
         />
       ) : null}
-      <View style={styles.composerWrap}>
+      <View style={[styles.composerWrap, styles.conversationColumn]}>
         <StyleChatInput
           stylistDisplayName={stylistDisplayName}
           value={composerText}
@@ -806,6 +808,13 @@ const styles = StyleSheet.create({
   },
   composerWrap: {
     flexShrink: 0,
+  },
+  // Readable conversation column: inert on phones, caps and centers messages
+  // and composer on regular-width iPad windows.
+  conversationColumn: {
+    width: '100%',
+    maxWidth: CONVERSATION_MAX_WIDTH,
+    alignSelf: 'center',
   },
   styleMeWrap: {
     alignItems: 'center',

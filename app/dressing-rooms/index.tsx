@@ -34,6 +34,7 @@ import {
   TertiaryButton,
 } from '../../components/luxury';
 import { COLORS, LUXURY, MOTION, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -758,6 +759,10 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.border,
     backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...SHADOWS.editorialRaised,
   },
   modalTitle: {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { STYLE_MEMORY_COPY } from '../../constants/elise';
 import type { LocalStyleDnaProfileSummary } from '../../services/style-dna/localStyleDnaProfile';
 
@@ -239,6 +240,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     backgroundColor: LUXURY.colors.warmWhite,
+    // Inert on phones; caps the sheet on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     ...SHADOWS.editorialSmall,
   },
   sheetHandle: {

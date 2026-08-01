@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -60,7 +59,7 @@ import {
   logRoomLinkEvent,
   normalizeRoomShareToken,
 } from '../../../services/roomDeepLinks';
-import { computeItemGridCellWidth } from '../../../services/sharedRoomLayout';
+import { useResponsiveLayout } from '../../../hooks/useResponsiveLayout';
 import { normalizeSharedRoomPreview } from '../../../services/sharedRoomPreview';
 import {
   getSharedRoomImageKey,
@@ -73,13 +72,11 @@ import {
 } from '../../../services/captureSharedRoomMembership';
 import { resolveSharedRoomCapabilities } from '../../../services/sharedRoomCapabilities';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+// Cell width is derived per-render from the live window width (see
+// useResponsiveLayout inside SharedRoomScreen) so rotation and split-view
+// resizes reflow the grid without re-fetching room data.
 const ITEM_GRID_GAP = SPACING.md;
 const ITEM_GRID_H_PAD = SPACING.xl;
-const ITEM_GRID_CELL_W = computeItemGridCellWidth(SCREEN_W, {
-  horizontalPadding: ITEM_GRID_H_PAD,
-  gap: ITEM_GRID_GAP,
-});
 
 // ─── Feature flag ────────────────────────────────────────────────────────────
 // Set to false to disable without removing the route. Shows a browser fallback.
@@ -526,6 +523,14 @@ function SharedRoomChatSection({
 }
 
 export default function SharedRoomScreen() {
+  // Compact widths keep the certified two-column cell math; regular (iPad)
+  // widths gain columns inside the centered content column.
+  const { gridCellWidth } = useResponsiveLayout();
+  const itemGridCellWidth = gridCellWidth({
+    horizontalPadding: ITEM_GRID_H_PAD,
+    gap: ITEM_GRID_GAP,
+    chromePadding: SPACING.lg,
+  });
   const { token, mode } = useLocalSearchParams<{ token: string; mode?: string }>();
   const { isAuthenticated, loading: authLoading, user } = useAuthSession();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
@@ -1162,7 +1167,7 @@ export default function SharedRoomScreen() {
                         chips={chips}
                         status="Shared"
                         accessibilityLabel={`${label} shared item`}
-                        style={{ width: ITEM_GRID_CELL_W }}
+                        style={{ width: itemGridCellWidth }}
                         footer={
                           reactionItemId ? (
                             <ItemReactions

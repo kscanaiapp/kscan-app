@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 
 interface EliseVisualSourceMenuProps {
   visible: boolean;
@@ -136,7 +137,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(9, 7, 13, 0.46)',
   },
   sheet: {
+    // Inert on phones; caps the sheet on regular-width iPad windows.
     width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     paddingTop: SPACING.md,
     paddingHorizontal: SPACING.xl,
     borderTopLeftRadius: RADIUS.xl,

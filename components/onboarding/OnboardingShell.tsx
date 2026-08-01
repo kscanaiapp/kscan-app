@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { FORM_MAX_WIDTH } from '../../services/responsiveLayout';
 import { OnboardingStepIndicator } from './OnboardingStepIndicator';
 
 interface OnboardingShellProps {
@@ -80,5 +81,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
+    // Readable form column: inert on phones, caps and centers onboarding
+    // steps on regular-width iPad windows.
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
   },
 });

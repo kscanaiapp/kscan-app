@@ -25,6 +25,7 @@ import {
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
+import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import {
   LuxuryScreen,
   KScanHeader,
@@ -768,7 +769,10 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.plumDeep + 'C2',
   },
   modalCard: {
+    // Inert on phones; caps the sheet on regular-width iPad windows.
     width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     borderWidth: 1,
     borderColor: LUXURY.colors.border,
     borderRadius: RADIUS.xl,

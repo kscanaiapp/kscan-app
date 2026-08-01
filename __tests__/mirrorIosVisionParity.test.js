@@ -257,11 +257,33 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
   );
   const before = JSON.parse(baseline).expo.ios;
   const after = JSON.parse(read('app.json')).expo.ios;
+  // The iPad forward-port (certified b14566c) added the two interface-
+  // orientation keys. Orientation is presentation configuration, not a
+  // permission: no usage-description string, no privacy surface, no consent
+  // prompt. They are excluded from the comparison BY NAME so any OTHER
+  // Info.plist change — above all a new NS*UsageDescription — still fails
+  // exactly as before.
+  const ORIENTATION_KEYS = [
+    'UISupportedInterfaceOrientations',
+    'UISupportedInterfaceOrientations~ipad',
+  ];
+  const stripOrientation = (plist) => {
+    const rest = { ...(plist ?? {}) };
+    for (const key of ORIENTATION_KEYS) delete rest[key];
+    return rest;
+  };
   assert.deepEqual(
-    after.infoPlist ?? {},
-    before.infoPlist ?? {},
+    stripOrientation(after.infoPlist),
+    stripOrientation(before.infoPlist),
     'the iOS Info.plist changed; the extraction module must add no permission',
   );
+  for (const key of Object.keys(after.infoPlist ?? {})) {
+    assert.equal(
+      /UsageDescription$/.test(key) && !(key in (before.infoPlist ?? {})),
+      false,
+      `a new usage-description permission appeared: ${key}`,
+    );
+  }
   assert.deepEqual(
     after.privacyManifests ?? {},
     before.privacyManifests ?? {},
