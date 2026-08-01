@@ -44,6 +44,7 @@ export const TODAY_CARD_TEST_IDS = Object.freeze({
   body: 'home-today-with-elise-body',
   items: 'home-today-with-elise-items',
   missing: 'home-today-with-elise-missing',
+  weather: 'home-today-with-elise-weather',
   primary: 'home-today-with-elise-primary',
   secondary: 'home-today-with-elise-secondary',
 });
@@ -174,6 +175,26 @@ export function TodayWithEliseCard({
           <Text style={styles.headline}>{presentation.headline}</Text>
           <Text style={styles.explanation}>{presentation.explanation}</Text>
 
+          {/*
+            Weather. Absent entirely when there is no usable reading — the far
+            more common case — so the card keeps its exact prior layout rather
+            than reserving space or explaining an absence. Marked
+            accessibilityElementsHidden because the same text is already spoken
+            as part of the card's own accessibilityLabel.
+          */}
+          {presentation.weatherSummary ? (
+            <Text
+              testID={TODAY_CARD_TEST_IDS.weather}
+              style={styles.weatherLine}
+              accessible={false}
+              importantForAccessibility="no"
+              accessibilityElementsHidden
+            >
+              {presentation.weatherSummary}
+              {presentation.weatherCue ? ` · ${presentation.weatherCue}` : ''}
+            </Text>
+          ) : null}
+
           {hasItems || hasMissing ? (
             <View
               testID={TODAY_CARD_TEST_IDS.items}
@@ -283,6 +304,14 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.body,
     fontSize: 13,
     lineHeight: 20,
+    color: LUXURY.colors.graphite,
+  },
+  // Secondary to the explanation: weather refines the recommendation, it is not
+  // the recommendation.
+  weatherLine: {
+    ...LUXURY.typography.caption,
+    fontSize: 12,
+    lineHeight: 18,
     color: LUXURY.colors.graphite,
   },
   tileRow: {

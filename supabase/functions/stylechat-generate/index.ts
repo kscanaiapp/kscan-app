@@ -789,6 +789,83 @@ async function fetchWeatherStylingContext(
   }
 }
 
+/**
+ * Compact Today-with-Elise weather contract.
+ *
+ * This is a PROJECTION of the already-classified `WeatherStylingContext`, not a
+ * second classifier: it never sees a WMO code, a wind speed, or any raw provider
+ * field. `resolveCondition` above remains the only thing in the system that
+ * interprets provider data. This only remaps that single verdict onto the
+ * vocabulary `services/todayWithElise/weatherPolicy.ts` already expects, so the
+ * client needs no weather logic of its own.
+ *
+ * Deliberately omitted: rounded coordinates, the raw Open-Meteo payload, the
+ * cache key, and `expiresAt` (freshness is re-derived client-side from
+ * `observedAt` against the Today policy's own window).
+ */
+const TODAY_WEATHER_CONTEXT_VERSION = 1;
+
+type TodayWeatherCondition = 'clear' | 'clouds' | 'rain' | 'snow' | 'wind' | 'unknown';
+type TodayWeatherPrecipitation = 'none' | 'light' | 'heavy' | 'unknown';
+
+interface TodayWeatherContextPayload {
+  /** Drives the Today policy's cold/outerwear thresholds, which are Celsius. */
+  temperatureC: number | null;
+  /**
+   * Display only. Carried alongside rather than derived client-side from
+   * `temperatureC`, because both were computed here from the same original
+   * reading — re-deriving one from the other would double-round (58°F → 14°C →
+   * 57°F) and show the user a temperature the provider never reported.
+   */
+  temperatureF: number | null;
+  precipitation: TodayWeatherPrecipitation;
+  condition: TodayWeatherCondition;
+  observedAt: string;
+}
+
+function projectTodayWeatherContext(ctx: WeatherStylingContext): TodayWeatherContextPayload {
+  let condition: TodayWeatherCondition;
+  let precipitation: TodayWeatherPrecipitation;
+
+  switch (ctx.condition) {
+    case 'rain':
+      // The classifier collapses drizzle through thunderstorm into one verdict,
+      // so intensity is genuinely unknown — reporting it as light/heavy would be
+      // fabrication. The Today policy already treats condition 'rain' as wet.
+      condition = 'rain';
+      precipitation = 'unknown';
+      break;
+    case 'snow':
+      condition = 'snow';
+      precipitation = 'unknown';
+      break;
+    case 'windy':
+      condition = 'wind';
+      precipitation = 'none';
+      break;
+    case 'clear':
+      condition = 'clear';
+      precipitation = 'none';
+      break;
+    default:
+      // 'hot' and 'cold' are TEMPERATURE verdicts, not sky states. Mapping them
+      // to a sky condition would invent weather the provider never reported, so
+      // the sky stays unknown and temperatureC carries the signal instead — which
+      // is exactly what the Today policy reads for its cold/outerwear decision.
+      condition = 'unknown';
+      precipitation = 'unknown';
+      break;
+  }
+
+  return {
+    temperatureC: typeof ctx.temperatureC === 'number' ? ctx.temperatureC : null,
+    temperatureF: typeof ctx.temperatureF === 'number' ? ctx.temperatureF : null,
+    precipitation,
+    condition,
+    observedAt: ctx.observedAt,
+  };
+}
+
 const WEATHER_STYLING_INSTRUCTION =
   'Consider local weather context if provided, but only when it materially affects outfit comfort, footwear, layers, outerwear, or practicality. Do not fabricate weather. Do not mention the user\'s location. Do not state the exact temperature unless the user asks or it materially improves the answer; prefer general wording like "It\'s warm today." If no weather context is provided, do not mention weather.';
 
@@ -2516,6 +2593,25 @@ Deno.serve(async (req) => {
     };
   }
 
+  /**
+   * Optional, additively-versioned weather context for the client.
+   *
+   * ABSENT unless this request actually resolved live weather — a client that
+   * sent no location, was denied, timed out, or hit a provider failure sees no
+   * field at all, exactly as before. Every existing client ignores unknown
+   * response keys, so this is backward compatible by construction.
+   *
+   * The value is the compact Today projection, never `WeatherStylingContext`
+   * itself: no coordinates, no cache key, no raw provider payload.
+   */
+  function weatherContextResponseFields(): Record<string, unknown> {
+    if (!weatherContext) return {};
+    return {
+      weatherContextVersion: TODAY_WEATHER_CONTEXT_VERSION,
+      weatherContext: projectTodayWeatherContext(weatherContext),
+    };
+  }
+
   // V1 responses keep the exact existing shape. V2 responses additively carry
   // the contract version, a capability signal (so clients can detect that a
   // deployed function does NOT support attachments and avoid attachment-blind
@@ -2530,6 +2626,7 @@ Deno.serve(async (req) => {
         ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
         : {}),
       ...fashionContextResponseFields(),
+      ...weatherContextResponseFields(),
       ...(adviceMetadata && config.flags.adviceMetadataClientV1
         ? {
             adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
@@ -2553,6 +2650,7 @@ Deno.serve(async (req) => {
       ? { visualCollectionContractVersion: VISUAL_COLLECTION_CONTRACT_VERSION }
       : {}),
     ...fashionContextResponseFields(),
+    ...weatherContextResponseFields(),
     ...(adviceMetadata && config.flags.adviceMetadataClientV1
       ? {
           adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,

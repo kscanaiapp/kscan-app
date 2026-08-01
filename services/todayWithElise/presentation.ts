@@ -219,6 +219,14 @@ export type TodayCardPresentation = {
   actionless: boolean;
   /** Screen-reader summary for the whole card. */
   accessibilityLabel: string;
+  /**
+   * Compact weather line, or null when there is no usable reading. Null is the
+   * normal case (weather off, not yet resolved, denied, stale) and renders
+   * nothing — never a placeholder or an apology.
+   */
+  weatherSummary: string | null;
+  /** Short styling cue derived from the weather policy, or null. */
+  weatherCue: string | null;
 };
 
 function labelFor(spec: TodayWithEliseActionSpec | null, card: TodayWithEliseCardState): string | null {
@@ -268,6 +276,12 @@ export function projectTodayCard(input: {
   generatedGreetingActive?: boolean;
   /** Build 5.1. Ignored unless generatedGreetingActive is true. */
   firstName?: string | null;
+  /**
+   * Build 5.1 weather. Already-resolved compact line, or null when weather is
+   * off, denied, unavailable, stale, offline, or malformed — every one of which
+   * renders no weather line rather than an explanation.
+   */
+  weather?: { summary: string; cue: string | null } | null;
 }): TodayCardPresentation {
   const card = input.card;
   const byId = new Map<string, TodayClosetProjection>();
@@ -308,9 +322,17 @@ export function projectTodayCard(input: {
   const spokenMissing = missingSlotLabels.length
     ? ` Missing ${missingSlotLabels.join(', ')}.`
     : '';
+  const weather = input.weather ?? null;
+  // Spoken before the item list: weather changes what the recommendation means,
+  // so a screen-reader user should hear it with the explanation rather than
+  // after the garment names.
+  const spokenWeather = weather
+    ? ` ${weather.summary}.${weather.cue ? ` ${weather.cue}` : ''}`
+    : '';
   const accessibilityLabel = [
     'Today with Elise.',
     copy.explanation,
+    spokenWeather,
     spokenItems ? ` ${spokenItems}.` : '',
     spokenMissing,
   ]
@@ -327,6 +349,8 @@ export function projectTodayCard(input: {
     secondaryLabel,
     actionless: primaryLabel === null && secondaryLabel === null,
     accessibilityLabel,
+    weatherSummary: weather?.summary ?? null,
+    weatherCue: weather?.cue ?? null,
   };
 }
 
