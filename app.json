@@ -101,7 +101,7 @@
                  "ios":  {
                              "bundleIdentifier":  "com.kscanai.app",
                              "icon": "./assets/images/kscan-ios-icon.png",
-                             "buildNumber": "17",
+                             "buildNumber": "18",
                              "associatedDomains":  [
                                                        "applinks:kscan.app"
                                                    ],
