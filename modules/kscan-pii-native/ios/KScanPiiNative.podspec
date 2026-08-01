@@ -24,5 +24,18 @@ Pod::Spec.new do |s|
     'SWIFT_COMPILATION_MODE' => 'wholemodule'
   }
 
+  # Excludes Tests/ from the production glob: this pod builds into the app's
+  # own release/archive target, which never links XCTest.framework, so an
+  # unscoped "**/*.swift" here silently pulled `import XCTest` files into a
+  # store archive and failed with "no such module 'XCTest'". The test files
+  # are not deleted — they move into their own test_spec below, which
+  # CocoaPods only ever builds for a dedicated test target/scheme, never for
+  # `pod install`'s default target or an app archive.
   s.source_files = "**/*.{h,m,swift}"
+  s.exclude_files = "Tests/**/*"
+
+  s.test_spec 'Tests' do |test_spec|
+    test_spec.source_files = "Tests/**/*.swift"
+    test_spec.frameworks = 'XCTest'
+  end
 end
