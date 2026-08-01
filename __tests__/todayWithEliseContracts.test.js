@@ -9,9 +9,17 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
+const tsModuleCache = new Map();
+
 function loadTsModule(relPath) {
   const full = path.join(ROOT, relPath);
+  if (tsModuleCache.has(full)) return tsModuleCache.get(full);
+
   const mod = { exports: {} };
+  // Cache the (empty) exports object before evaluating, so a circular
+  // require sees the in-progress module rather than recursing forever.
+  tsModuleCache.set(full, mod.exports);
+
   const source = ts.transpileModule(fs.readFileSync(full, 'utf8'), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -24,7 +32,18 @@ function loadTsModule(relPath) {
     {
       module: mod,
       exports: mod.exports,
-      require: (r) => require(r),
+      // A bare './x' or '../x' specifier is a sibling TS module under
+      // services/todayWithElise/ — resolve and transpile it the same way,
+      // relative to THIS file, not to the test file that started the chain.
+      // Anything else (node:*, npm packages) goes through plain require.
+      require: (r) => {
+        if (r.startsWith('./') || r.startsWith('../')) {
+          const resolved = path.resolve(path.dirname(full), r);
+          const candidate = fs.existsSync(`${resolved}.ts`) ? `${resolved}.ts` : resolved;
+          return loadTsModule(path.relative(ROOT, candidate));
+        }
+        return require(r);
+      },
       console,
       Object,
       Array,
@@ -37,6 +56,7 @@ function loadTsModule(relPath) {
     },
     { filename: full },
   );
+  tsModuleCache.set(full, mod.exports);
   return mod.exports;
 }
 

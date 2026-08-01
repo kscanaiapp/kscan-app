@@ -30,6 +30,7 @@ const FILES = [
   'services/todayWithElise/build4ConfidenceAdapter.ts',
   'services/todayWithElise/copyTemplates.ts',
   'services/todayWithElise/eligibility.ts',
+  'services/todayWithElise/generatedGreeting.ts',
   'services/todayWithElise/handoff.ts',
   'services/todayWithElise/orchestrator.ts',
   'services/todayWithElise/presentation.ts',

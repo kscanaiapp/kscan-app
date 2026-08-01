@@ -3,14 +3,24 @@
  *
  * One or two short sentences. Truthful. No unsupported personal claims,
  * pressure commerce, retailer favoritism, fabricated weather, or raw model
- * dependency. Generated greeting variation is deferred.
+ * dependency.
+ *
+ * Build 5.1 adds optional personalization to the daypart opener via
+ * generatedGreeting.ts — `generatedGreetingActive` and `firstName` default to
+ * off/null, so every existing call site is byte-identical unless it opts in.
  */
+
+import { resolveGeneratedGreetingOpener } from './generatedGreeting';
 
 export type TodayDaypart = 'morning' | 'afternoon' | 'evening';
 
 export type TodayCopyContext = {
   daypart: TodayDaypart;
   weatherAvailable: boolean;
+  /** Build 5.1. Defaults to false — the opener stays the plain daypart greeting. */
+  generatedGreetingActive?: boolean;
+  /** Build 5.1. Ignored unless generatedGreetingActive is true. */
+  firstName?: string | null;
   stateId:
     | 'unfinished_look'
     | 'today_owned_look'
@@ -25,12 +35,6 @@ export type TodayCopyContext = {
     | 'unavailable'
     | 'incompatible';
 };
-
-const DAYPART_OPENERS: Readonly<Record<TodayDaypart, string>> = Object.freeze({
-  morning: 'Good morning.',
-  afternoon: 'Good afternoon.',
-  evening: 'Good evening.',
-});
 
 const STATE_LINES: Readonly<Record<TodayCopyContext['stateId'], string>> =
   Object.freeze({
@@ -55,7 +59,11 @@ const STATE_LINES: Readonly<Record<TodayCopyContext['stateId'], string>> =
 export function resolveTodayDeterministicCopy(
   context: TodayCopyContext,
 ): { headline: string; explanation: string } {
-  const opener = DAYPART_OPENERS[context.daypart] ?? DAYPART_OPENERS.afternoon;
+  const opener = resolveGeneratedGreetingOpener({
+    daypart: context.daypart,
+    firstName: context.firstName,
+    active: context.generatedGreetingActive === true,
+  }).text;
   const stateLine = STATE_LINES[context.stateId] ?? STATE_LINES.fallback;
 
   let weatherLine = '';
