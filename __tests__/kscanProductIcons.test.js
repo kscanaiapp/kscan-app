@@ -159,7 +159,10 @@ test('home: Recent Scans button uses recent-scans icon, keeps handler + label', 
 });
 
 test('home: Visual Search button uses visual-search icon, keeps /scan', () => {
-  assert.match(HOME, /icon=\{<KScanIcon name="visual-search" size=\{28\}/);
+  // 24, not 28: a 24-unit viewBox drawn at 24pt maps one user unit to a whole
+  // number of device pixels, so stroke edges land on pixel boundaries. 28
+  // scaled by 7/6 and softened every edge in the set.
+  assert.match(HOME, /icon=\{<KScanIcon name="visual-search" size=\{24\}/);
   assert.match(HOME, /title="VISUAL SEARCH"/);
   assert.match(HOME, /testID="home-luxury-feature-scan"/);
   assert.match(HOME, /accessibilityLabel="Open Visual Search"/);
@@ -179,7 +182,9 @@ test('home: Dressing Rooms button uses dressing-rooms icon, keeps route', () => 
 });
 
 test('home: TextScan button uses textscan icon and keeps flag-gated navigation', () => {
-  assert.match(HOME, /icon=\{<KScanIcon name="textscan" size=\{20\} variant="compact"/);
+  // Previously 20pt/compact, which rendered TextScan's stroke ~30% lighter
+  // than its siblings. It now shares the one Home icon size.
+  assert.match(HOME, /icon=\{<KScanIcon name="textscan" size=\{24\} variant="standard"/);
   assert.match(HOME, /title="TEXTSCAN"/);
   assert.match(HOME, /testID="home-luxury-textscan"/);
   assert.match(HOME, /onPress=\{handleOpenTextScan\}/);

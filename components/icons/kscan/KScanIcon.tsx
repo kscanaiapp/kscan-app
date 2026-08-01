@@ -5,6 +5,7 @@ import { SaveOrganizeIcon } from './SaveOrganizeIcon';
 import { StyleIcon } from './StyleIcon';
 import { TextScanIcon } from './TextScanIcon';
 import { VisualSearchIcon } from './VisualSearchIcon';
+import { VoiceScanIcon } from './VoiceScanIcon';
 import type {
   KScanIconComponent,
   KScanIconName,
@@ -20,6 +21,7 @@ export const KSCAN_ICON_REGISTRY = {
   'recent-scans': RecentScansIcon,
   'visual-search': VisualSearchIcon,
   'save-organize': SaveOrganizeIcon,
+  'voice-scan': VoiceScanIcon,
   style: StyleIcon,
 } as const satisfies Record<KScanIconName, KScanIconComponent>;
 

@@ -6,6 +6,7 @@ export type KScanIconName =
   | 'recent-scans'
   | 'visual-search'
   | 'save-organize'
+  | 'voice-scan'
   | 'style';
 
 export type KScanIconVariant = 'compact' | 'standard';
@@ -32,4 +33,12 @@ export type KScanIconProps = KScanIconGlyphProps & {
 export type KScanIconComponent = (props: KScanIconGlyphProps) => ReactElement;
 
 export const KSCAN_ICON_VIEWBOX = '0 0 24 24';
-export const KSCAN_ICON_STROKE = 2;
+/**
+ * Stroke weight for every product glyph.
+ *
+ * 1.5 rather than 2: at the size Home renders, a 2-unit stroke on a 24-unit
+ * grid left too little negative space inside small forms — hanger shoulders and
+ * garment bodies closed up into solid wedges. The lighter weight is also what
+ * makes the set read as fashion rather than as a utility toolbar.
+ */
+export const KSCAN_ICON_STROKE = 1.5;

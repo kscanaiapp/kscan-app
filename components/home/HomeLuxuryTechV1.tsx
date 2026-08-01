@@ -96,6 +96,20 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
       accessibilityRole="text"
       accessibilityLabel="Voice Scan. Coming Soon."
     >
+      {/*
+        Decorative: the pill above already announces "Voice Scan. Coming Soon."
+        as one label, so the glyph must not add a second announcement. It is
+        tinted by the pill's own muted colour rather than encoding the disabled
+        state itself.
+      */}
+      <View accessible={false} importantForAccessibility="no" accessibilityElementsHidden>
+        <KScanIcon
+          name="voice-scan"
+          size={24}
+          variant="standard"
+          color={inactive ? LUXURY.colors.graphite : LUXURY.colors.plum}
+        />
+      </View>
       <Text style={[styles.voiceScanPillTitle, inactive && styles.voiceScanPillTextMuted]}>
         VOICE SCAN
       </Text>
@@ -389,7 +403,7 @@ export default function HomeLuxuryTechV1() {
       {/* Static product education content — no backend integration required. */}
       <View style={styles.featuresRow}>
         <FeatureChip
-          icon={<KScanIcon name="recent-scans" size={28} variant="standard" />}
+          icon={<KScanIcon name="recent-scans" size={24} variant="standard" />}
           title="RECENT SCANS"
           body="Open your scan history."
           onPress={() => router.push({ pathname: '/library', params: { section: 'recent' } })}
@@ -398,7 +412,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to your scan history"
         />
         <FeatureChip
-          icon={<KScanIcon name="visual-search" size={28} variant="standard" />}
+          icon={<KScanIcon name="visual-search" size={24} variant="standard" />}
           title="VISUAL SEARCH"
           body="Scan anything. Find it instantly."
           onPress={() => router.push('/scan')}
@@ -407,7 +421,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to the scan camera"
         />
         <FeatureChip
-          icon={<KScanIcon name="save-organize" size={28} variant="standard" />}
+          icon={<KScanIcon name="save-organize" size={24} variant="standard" />}
           title="CLOSET"
           body="Save your favorites to your closet."
           onPress={() => router.push({ pathname: '/library', params: { section: 'closet' } })}
@@ -416,7 +430,7 @@ export default function HomeLuxuryTechV1() {
           accessibilityHint="Navigate to your saved looks and closet"
         />
         <FeatureChip
-          icon={<KScanIcon name="dressing-rooms" size={28} variant="standard" />}
+          icon={<KScanIcon name="dressing-rooms" size={24} variant="standard" />}
           title="DRESSING ROOMS"
           body="Compare, save, and decide."
           onPress={() => router.push('/dressing-rooms')}
@@ -432,7 +446,7 @@ export default function HomeLuxuryTechV1() {
           <SecondaryButton
             testID="home-luxury-textscan"
             title="TEXTSCAN"
-            icon={<KScanIcon name="textscan" size={20} variant="compact" />}
+            icon={<KScanIcon name="textscan" size={24} variant="standard" />}
             onPress={handleOpenTextScan}
             loading={textScanNavigating}
             disabled={textScanNavigating}

@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, G } from 'react-native-svg';
 import { LUXURY } from '../../../constants/theme';
 import {
   KSCAN_ICON_STROKE,
@@ -68,6 +68,31 @@ export function Sparkle({
       {...strokeProps}
       strokeWidth={filled ? 1.5 : KSCAN_ICON_STROKE}
     />
+  );
+}
+
+/**
+ * The four scan-corner brackets shared by Visual Search and TextScan.
+ *
+ * WHY THIS IS SHARED: both icons frame their subject with the same scan
+ * language, and drawing them twice is how the two drifted apart — TextScan's
+ * top-right bracket had been broken into two segments to make room for a
+ * sparkle, so the two icons no longer read as the same system. One primitive
+ * makes that class of drift impossible.
+ *
+ * GEOMETRY: corners sit on integer coordinates (3 / 21) with integer arms and a
+ * radius-2 round. Every coordinate is a whole unit so that at a 1:1 render the
+ * stroke edges land on whole device pixels instead of being antialiased across
+ * two rows — which is what made the previous brackets look soft.
+ */
+export function ScanBrackets({ color }: { color: string }) {
+  return (
+    <G stroke={color} {...strokeProps}>
+      <Path d="M3 7 V5 A2 2 0 0 1 5 3 H7" />
+      <Path d="M17 3 H19 A2 2 0 0 1 21 5 V7" />
+      <Path d="M3 17 V19 A2 2 0 0 0 5 21 H7" />
+      <Path d="M17 21 H19 A2 2 0 0 0 21 19 V17" />
+    </G>
   );
 }
 
