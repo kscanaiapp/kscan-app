@@ -180,8 +180,14 @@ const MUTATIONS = [
     id: 21,
     invariant: 'a Mirror crop is cleaned only AFTER its outcome is known, never before',
     file: 'services/mirror/mirrorCandidateIntegration.ts',
-    find: "    let groupHitCapacity = false;\n    for (const outcome of result.outcomes) {\n      if (isDurableOutcome(outcome.outcome)) {\n        successfulCropKeys.push(outcome.cropKey);\n        anyCreated = anyCreated || outcome.outcome === 'created' || outcome.outcome === 'duplicate_of_closet';\n        await cleanupCrop(outcome.cropKey);",
-    replace: "    let groupHitCapacity = false;\n    for (const outcome of result.outcomes) {\n      await cleanupCrop(outcome.cropKey);\n      if (isDurableOutcome(outcome.outcome)) {\n        successfulCropKeys.push(outcome.cropKey);\n        anyCreated = anyCreated || outcome.outcome === 'created' || outcome.outcome === 'duplicate_of_closet';",
+    // RE-ANCHORED by the Build 2.5 Step 5 hostile audit. The branch predicate
+    // was renamed isDurableOutcome -> isResolvedOutcome when `already_in_closet`
+    // stopped being classified as a failure, which silently stopped this anchor
+    // from matching — the mutation reported "not applied" instead of CAUGHT.
+    // Same mutation, same invariant: cleanup is hoisted ABOVE the outcome check
+    // so it runs before the crop's outcome is known.
+    find: "    let groupHitCapacity = false;\n    for (const outcome of result.outcomes) {\n      if (isResolvedOutcome(outcome.outcome)) {",
+    replace: "    let groupHitCapacity = false;\n    for (const outcome of result.outcomes) {\n      await cleanupCrop(outcome.cropKey);\n      if (isResolvedOutcome(outcome.outcome)) {",
   },
   {
     id: 22,
