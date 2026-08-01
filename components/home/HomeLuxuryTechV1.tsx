@@ -120,7 +120,7 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
 export default function HomeLuxuryTechV1() {
   const { isAuthenticated, user, loading: authLoading } = useAuthSession();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
-  const { picks, status: stylePicksStatus, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
+  const { picks, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
   const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
   const { createSession } = useStyleChatSessions();
 
@@ -149,8 +149,11 @@ export default function HomeLuxuryTechV1() {
     (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
   const firstName = profileName?.split(' ')[0] ?? null;
 
-  const showStylePicks = stylePicksStatus !== 'backend_not_connected' || picks.length > 0;
   const hasStylePicks = picks.length > 0;
+  // Nothing to show: not loading, no error, and no real picks. Render the
+  // section only when there is genuinely something to render — a spinner, an
+  // error, or real data — never an empty placeholder card.
+  const showStylePicks = stylePicksLoading || Boolean(stylePicksError) || hasStylePicks;
 
   const handleOpenStyleChat = useCallback(() => {
     router.push('/style-chat');
@@ -334,58 +337,53 @@ export default function HomeLuxuryTechV1() {
       */}
       <TodayWithEliseSection />
 
-      {/* Style Picks — hook-driven with backend-safe placeholder states */}
-      <View style={styles.section} testID="home-luxury-style-picks-section">
-        <SectionHeader title="STYLE PICKS FOR YOU" />
+      {/*
+        Style Picks — hook-driven with real loading/error/data states. Renders
+        nothing at all when there are no real picks and nothing is loading or
+        erroring, rather than an empty placeholder card.
+      */}
+      {showStylePicks && (
+        <View style={styles.section} testID="home-luxury-style-picks-section">
+          <SectionHeader title="STYLE PICKS FOR YOU" />
 
-        {stylePicksLoading ? (
-          <View style={styles.stylePicksPlaceholder}>
-            <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-            <Text style={styles.stylePicksPlaceholderBody}>
-              Loading your style picks…
-            </Text>
-          </View>
-        ) : stylePicksError ? (
-          <View style={styles.stylePicksPlaceholder}>
-            <Text style={styles.stylePicksPlaceholderTitle}>
-              We couldn't load your style picks.
-            </Text>
-            <Text style={styles.stylePicksPlaceholderBody}>
-              Please try again.
-            </Text>
-          </View>
-        ) : hasStylePicks ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recentScrollContent}
-          >
-            {picks.map((pick: StylePick) => (
-              <View
-                key={pick.id}
-                style={styles.stylePickCard}
-                testID={`home-luxury-style-pick-${pick.id}`}
-              >
-                <Text style={styles.stylePickTitle}>{pick.title}</Text>
-                {pick.subtitle ? (
-                  <Text style={styles.stylePickSubtitle}>{pick.subtitle}</Text>
-                ) : null}
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.stylePicksPlaceholder}>
-            <Text style={styles.stylePicksPlaceholderTitle}>
-              Style inspiration coming soon
-            </Text>
-            <Text style={styles.stylePicksPlaceholderBody}>
-              {stylePicksStatus === 'backend_not_connected'
-                ? 'Scan fashion inspiration to begin. Your personalized picks will appear here after recommendations are connected.'
-                : 'Your saved ideas and AI-curated picks will appear here.'}
-            </Text>
-          </View>
-        )}
-      </View>
+          {stylePicksLoading ? (
+            <View style={styles.stylePicksPlaceholder}>
+              <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+              <Text style={styles.stylePicksPlaceholderBody}>
+                Loading your style picks…
+              </Text>
+            </View>
+          ) : stylePicksError ? (
+            <View style={styles.stylePicksPlaceholder}>
+              <Text style={styles.stylePicksPlaceholderTitle}>
+                We couldn't load your style picks.
+              </Text>
+              <Text style={styles.stylePicksPlaceholderBody}>
+                Please try again.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recentScrollContent}
+            >
+              {picks.map((pick: StylePick) => (
+                <View
+                  key={pick.id}
+                  style={styles.stylePickCard}
+                  testID={`home-luxury-style-pick-${pick.id}`}
+                >
+                  <Text style={styles.stylePickTitle}>{pick.title}</Text>
+                  {pick.subtitle ? (
+                    <Text style={styles.stylePickSubtitle}>{pick.subtitle}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
 
       {/* Feature explanation row */}
       {/* Static product education content — no backend integration required. */}

@@ -59,10 +59,11 @@ test('full Recent Scans carousel is absent from Home', () => {
   assert.doesNotMatch(homeV1, /home-luxury-view-all-scans/);
 });
 
-test('Style Picks is not fabricated when absent', () => {
+test('Style Picks is not fabricated when absent, and renders nothing rather than an empty placeholder', () => {
   assert.match(homeV1, /STYLE PICKS FOR YOU/);
-  assert.match(homeV1, /stylePicksStatus/);
-  assert.match(homeV1, /backend_not_connected/);
+  assert.match(homeV1, /showStylePicks && \(/);
+  assert.match(homeV1, /stylePicksLoading \|\| Boolean\(stylePicksError\) \|\| hasStylePicks/);
+  assert.doesNotMatch(homeV1, /Style inspiration coming soon/);
 });
 
 // ── Latest Scan / Recent Scans tile wiring ───────────────────────────────────

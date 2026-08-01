@@ -84,14 +84,15 @@ test('children activate only with parent', () => {
   assert.equal(flags.TODAY_WITH_ELISE_WEATHER_ACTIVE, true);
 });
 
-// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 5 ACTIVATION, deliberately.
+// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 5.1 GENERATED-GREETING ACTIVATION,
+// deliberately.
 //
-// This asserted every Today flag was unset — correct while Build 5 shipped
-// dormant. The owner has since authorized the parent flag. The two optional
-// children stay OFF for this release, and they are asserted as an EXPLICIT
-// "false" rather than as absent, so the deferral is documented configuration,
-// not an accident of omission.
-test('every profile enables the Today parent and explicitly defers the optional children', () => {
+// This previously asserted GENERATED_GREETING was explicitly deferred
+// alongside WEATHER — correct while Build 5.1 shipped the capability dormant.
+// The owner has since authorized the generated greeting for this release, now
+// that Build 5.1 implements it as a real capability rather than an inert
+// flag. WEATHER remains explicitly deferred pending its own owner decision.
+test('every profile enables the Today parent and generated greeting, and explicitly defers weather', () => {
   for (const profileName of ['production', 'preview', 'development']) {
     const profile = eas.build?.[profileName];
     if (!profile) continue;
@@ -103,8 +104,8 @@ test('every profile enables the Today parent and explicitly defers the optional 
     );
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1,
-      'false',
-      `${profileName} must explicitly defer GENERATED_GREETING`,
+      'true',
+      `${profileName} must enable the owner-authorized GENERATED_GREETING`,
     );
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1,
