@@ -3,9 +3,12 @@ import type {
   NativeFaceMaskResult,
   NativePrivacyCapabilities,
   NativeCleanupResult,
+  NativeExtractionCapabilities,
+  NativePersonDetectionResult,
 } from './KScanPiiNative.types';
 
 const SANITIZER_VERSION = 'native-face-mask-poc-1.0.0';
+const EXTRACTOR_VERSION = 'native-person-regions-1.0.0';
 
 function unsupportedCapabilities(): NativePrivacyCapabilities {
   return {
@@ -52,6 +55,36 @@ export default {
       deleted: false,
       rejected: true,
       warnings: [`Native cleanup is unavailable on web: ${uri}`],
+    });
+  },
+
+  // Build 2.5 Step 3. Web has no on-device pose runtime, and reporting
+  // `unsupported` rather than an empty success is load-bearing: an empty
+  // success would be shown to the user as "no person in this photo", blaming
+  // their photograph for a missing capability.
+  getExtractionCapabilities(): Promise<NativeExtractionCapabilities> {
+    return Promise.resolve({
+      personDetectionSupported: false,
+      platform: 'ios',
+      detectorImplementation: 'unavailable',
+      segmentationMaskSupported: false,
+      supportedLandmarks: [],
+      maxWidth: 4096,
+      maxHeight: 4096,
+      maxPixels: 16777216,
+      extractorVersion: EXTRACTOR_VERSION,
+    });
+  },
+
+  detectPersonRegions(): Promise<NativePersonDetectionResult> {
+    return Promise.resolve({
+      status: 'unsupported',
+      platform: 'ios',
+      detectorImplementation: 'unavailable',
+      detectorVersion: '',
+      extractorVersion: EXTRACTOR_VERSION,
+      persons: [],
+      warnings: ['On-device person detection is unavailable on web.'],
     });
   },
 };

@@ -107,3 +107,128 @@ export interface NativeCleanupResult {
   rejected: boolean;
   warnings: string[];
 }
+
+// ── Person / body-region detection (Build 2.5 Step 3) ────────────────────────
+//
+// A SECOND, SEPARATE CAPABILITY on the same module. It shares the module's
+// decoder, cache manager and orientation handling; it shares nothing else with
+// face masking. In particular it is NON-DESTRUCTIVE: it reads an image and
+// returns geometry. It never writes a redacted derivative and never modifies
+// the input.
+//
+// WHAT IT IS NOT: a garment segmenter. Neither ML Kit nor Apple Vision knows
+// what a jacket is. This returns a person box and body joints; the caller
+// derives anatomical bands from them. See services/mirror/mirrorGarmentRegions.ts
+// for the honesty contract that governs how far those bands may be trusted.
+
+/** Normalized to the input image, 0..1. Never pixels — the caller's crop source
+ *  is a different, larger image than the one detection ran on. */
+export interface NativeNormalizedRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The joint subset BOTH runtimes report reliably.
+ *
+ * ML Kit Pose Detection produces 33 landmarks; Apple Vision's body-pose request
+ * produces 19. This is the intersection, deliberately — a joint only one
+ * platform has would place a region edge differently on each, and the two
+ * platforms' crops would silently diverge.
+ */
+export type NativeBodyLandmarkType =
+  | 'nose'
+  | 'left_shoulder'
+  | 'right_shoulder'
+  | 'left_hip'
+  | 'right_hip'
+  | 'left_knee'
+  | 'right_knee'
+  | 'left_ankle'
+  | 'right_ankle';
+
+export interface NativeBodyLandmark {
+  type: NativeBodyLandmarkType;
+  x: number;
+  y: number;
+  /** 0..1. Both platforms' native scales are clamped into this range. */
+  confidence: number;
+}
+
+export interface NativeDetectedPerson {
+  /**
+   * Best available BODY extent for this person. Used to clamp derived regions.
+   *
+   * iOS: the Vision human rectangle. Android: a box computed from the pose
+   * landmarks when this is the posed subject, and the face box grown by a
+   * conventional head-to-height ratio otherwise.
+   */
+  bounds: NativeNormalizedRect;
+  /**
+   * LIKE-FOR-LIKE extent used only to rank candidates against each other.
+   *
+   * WHY THIS FIELD EXISTS, and why `bounds` cannot do its job: ML Kit pose
+   * detection returns exactly ONE subject per image, so Android's multi-person
+   * signal has to come from the face detector the module already bundles.
+   * Ranking a pose-derived full-body box against other people's face boxes
+   * would make the posed subject win every time — including when a second
+   * person is standing right beside them, which is precisely the case that must
+   * ask the user. So ranking uses one consistent kind of region per platform:
+   * face boxes on Android, human rectangles on iOS.
+   */
+  rankingExtent: NativeNormalizedRect;
+  confidence: number;
+  landmarks: NativeBodyLandmark[];
+  /**
+   * Fraction of `bounds` filled by the person segmentation mask, 0..1.
+   *
+   * `null` on Android: ML Kit pose detection produces no mask, and no
+   * Play-Services-delivered segmenter is authorized because it would require a
+   * first-run model download that breaks the offline requirement. The caller
+   * treats absence as neutral — the value may only ever demote a region's
+   * confidence, never promote one — so the platforms stay in parity.
+   */
+  maskCoverage: number | null;
+}
+
+export type NativeExtractionStatus = 'success' | 'no_person' | 'unsupported' | 'failed';
+
+export interface NativePersonDetectionInput {
+  imageUri: string;
+}
+
+export interface NativePersonDetectionResult {
+  status: NativeExtractionStatus;
+  platform: 'android' | 'ios';
+  detectorImplementation: 'mlkit_pose' | 'apple_vision' | 'unavailable';
+  detectorVersion: string;
+  extractorVersion: string;
+
+  inputWidth?: number;
+  inputHeight?: number;
+
+  persons: NativeDetectedPerson[];
+
+  detectionDurationMs?: number;
+  totalDurationMs?: number;
+
+  warnings: string[];
+  /** Reuses the module's existing bounded code vocabulary — no second one. */
+  errorCode?: NativePrivacyErrorCode;
+  failureReason?: string;
+}
+
+export interface NativeExtractionCapabilities {
+  personDetectionSupported: boolean;
+  platform: 'android' | 'ios';
+  detectorImplementation: 'mlkit_pose' | 'apple_vision' | 'unavailable';
+  /** True only where the platform supplies a person mask. Android: false. */
+  segmentationMaskSupported: boolean;
+  supportedLandmarks: NativeBodyLandmarkType[];
+  maxWidth: number;
+  maxHeight: number;
+  maxPixels: number;
+  extractorVersion: string;
+}

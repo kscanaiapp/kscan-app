@@ -189,13 +189,87 @@ test('validation rejects a Scanner or Elise entry path on a Closet request', () 
   }
 });
 
-test('camera and gallery map to their own distinct entry paths', () => {
+test('camera, gallery and mirror map to their own distinct entry paths', () => {
   assert.equal(request({ entryPath: 'camera' }).source.entryPath, 'closet_camera');
   assert.equal(request({ entryPath: 'gallery' }).source.entryPath, 'closet_gallery');
+  assert.equal(request({ entryPath: 'mirror' }).source.entryPath, 'closet_mirror');
   assert.equal(adapter.closetEntryPathKeyForSource('camera'), 'camera');
   assert.equal(adapter.closetEntryPathKeyForSource('gallery'), 'gallery');
-  // Anything unrecognised must not become `camera` by accident.
-  assert.equal(adapter.closetEntryPathKeyForSource('mystery'), 'gallery');
+  assert.equal(adapter.closetEntryPathKeyForSource('mirror_extract'), 'mirror');
+  // Three keys, three distinct wire values, no aliasing.
+  const wire = Object.values(adapter.CLOSET_ENTRY_PATHS);
+  assert.deepEqual(wire, ['closet_camera', 'closet_gallery', 'closet_mirror']);
+  assert.equal(new Set(wire).size, wire.length);
+});
+
+// MIRROR-UNKNOWN-SOURCE-FAILS-CLOSED (Build 2.5 Step 1, preserved through Step 2).
+//
+// Before Step 1, anything that was not `camera` silently became `gallery`,
+// which was safe only while `camera` and `gallery` were the sole reachable
+// candidate sources. Step 2 activated `mirror_extract` by giving it its OWN
+// key — it did NOT restore the fallback. The mapping is still a CLOSED set:
+// every value outside the three known sources returns `null` rather than a
+// guessed entry path.
+test('unrecognised sources resolve to no entry path, never gallery', () => {
+  assert.equal(adapter.closetEntryPathKeyForSource('mystery'), null);
+  assert.equal(adapter.closetEntryPathKeyForSource('mirror'), null);
+  assert.equal(adapter.closetEntryPathKeyForSource('mirror_selfie'), null);
+  assert.equal(adapter.closetEntryPathKeyForSource('closet_mirror'), null);
+  assert.equal(adapter.closetEntryPathKeyForSource(undefined), null);
+  assert.equal(adapter.closetEntryPathKeyForSource(null), null);
+  assert.equal(adapter.closetEntryPathKeyForSource(''), null);
+  assert.equal(adapter.closetEntryPathKeyForSource({}), null);
+});
+
+// MIRROR-EXTRACT-BUILDS-CLOSET-MIRROR-ENTRY-PATH /
+// MIRROR-EXTRACT-RETAINS-IDENTIFY-FOR-CLOSET /
+// MIRROR-EXTRACT-RETAINS-DETECT-ITEMS-MODE (Build 2.5 Step 2).
+//
+// Replaces Step 1's dormancy assertion. That test proved `closet_mirror` could
+// NOT be produced by `buildClosetV2Request`; the contract is now active, so the
+// equivalent protection is the positive form — the value is produced, from the
+// mirror source alone, and carries the Closet intent and detection mode
+// unchanged. `MIRROR_INTENDED_ENTRY_PATH`/`mirrorIntendedEntryPathFor` were the
+// dormancy mechanism itself and are gone; nothing may reintroduce a second
+// answer for the same question.
+test('mirror_extract builds a real closet_mirror request on the Closet intent', () => {
+  const built = adapter.buildClosetV2Request({
+    evidence: evidence(),
+    entryPath: adapter.closetEntryPathKeyForSource('mirror_extract'),
+    platform: 'android',
+    requestId: 'req_closet_mirror_1',
+  });
+  assert.equal(built.kind, 'ok', JSON.stringify(built));
+  assert.equal(built.request.contractVersion, 'fashion-identification-v2');
+  assert.equal(built.request.source.entryPath, 'closet_mirror');
+  assert.equal(built.request.intent, 'identify_for_closet');
+  assert.equal(built.request.mode, 'detect_items');
+  assert.equal(adapter.validateClosetV2Request(built.request), true);
+  // The dormancy mechanism is retired, not merely bypassed.
+  assert.equal(adapter.MIRROR_INTENDED_ENTRY_PATH, undefined);
+  assert.equal(adapter.mirrorIntendedEntryPathFor, undefined);
+});
+
+// CLOSET-MIRROR-DOES-NOT-PERSIST-ORIGINAL-SELFIE (transport half).
+//
+// The prepared-evidence object carries a local `source` bookkeeping field.
+// `buildClosetV2Request` must never forward it: it is a second, unpoliced
+// provenance channel whose vocabulary ('camera'/'gallery'/'header_gallery')
+// cannot express `mirror` and would therefore transmit a false one.
+test('no evidence-level source field reaches the wire on any Closet path', () => {
+  for (const entryPath of ['camera', 'gallery', 'mirror']) {
+    const built = request({ entryPath });
+    assert.equal(built.evidence.length, 1);
+    assert.ok(
+      !Object.prototype.hasOwnProperty.call(built.evidence[0], 'source'),
+      `${entryPath} leaked an evidence-level source`,
+    );
+    assert.deepEqual(
+      Object.keys(built.source).sort(),
+      ['entryPath', 'platform'],
+      `${entryPath} source carries an unexpected key`,
+    );
+  }
 });
 
 test('the request carries exactly one evidence object and a truthful privacy attestation', () => {
@@ -530,6 +604,9 @@ const CLOSET_CANDIDATE_SOURCES = [
   'services/closetCandidateReviewEligibility.ts',
   'hooks/useClosetBatchSelection.ts',
   'components/closet/ClosetBatchReviewPanel.tsx',
+  // Build 2.5 Phase 0B: the Mirror Selfie crop-staging adapter joins the same
+  // side-effect governance as every other module on the candidate path.
+  'services/closetMirrorStaging.ts',
 ];
 
 function readCandidateSources() {

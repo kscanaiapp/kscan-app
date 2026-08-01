@@ -112,6 +112,7 @@ export function beginClosetV2Session(
 export const CLOSET_ENTRY_PATHS = {
   camera: 'closet_camera',
   gallery: 'closet_gallery',
+  mirror: 'closet_mirror',
 } as const;
 
 export type ClosetEntryPathKey = keyof typeof CLOSET_ENTRY_PATHS;
@@ -120,8 +121,30 @@ export function closetEntryPathFor(key: ClosetEntryPathKey): FashionIdentificati
   return CLOSET_ENTRY_PATHS[key];
 }
 
-export function closetEntryPathKeyForSource(source: unknown): ClosetEntryPathKey {
-  return source === 'camera' ? 'camera' : 'gallery';
+/**
+ * Resolve a candidate source to its backend-accepted entry-path key, or `null`
+ * when the source has none yet.
+ *
+ * CLOSED MAPPING, NOT A DEFAULT. Before Build 2.5 this fell through to
+ * `gallery` for anything that was not `camera`, which was safe only because
+ * `camera` and `gallery` were the sole candidate sources that could ever
+ * exist. `mirror_extract` (and any future reserved source) breaks that
+ * assumption: mislabeling a Mirror crop as `closet_gallery` would misrepresent
+ * its provenance to the backend and is exactly the failure Build 2.5's
+ * domain-separation requirement forbids. `null` here is a caller signal to
+ * fail the candidate closed rather than guess.
+ *
+ * Build 2.5 Step 2 activated `mirror_extract`. It resolves to its OWN key, not
+ * to `gallery`: the three-way vocabulary now carries `closet_mirror`, so the
+ * truthful provenance is transportable and there is no longer any reason — and
+ * never was any licence — to launder a Mirror crop as a gallery pick. Every
+ * other value, including future reserved sources, still returns `null`.
+ */
+export function closetEntryPathKeyForSource(source: unknown): ClosetEntryPathKey | null {
+  if (source === 'camera') return 'camera';
+  if (source === 'gallery') return 'gallery';
+  if (source === 'mirror_extract') return 'mirror';
+  return null;
 }
 
 // ── Request building ─────────────────────────────────────────────────────────

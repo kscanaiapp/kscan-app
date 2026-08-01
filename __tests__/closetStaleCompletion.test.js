@@ -252,6 +252,11 @@ function createLibraryHarness() {
       }),
     },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
+    // Closet screen, and the Mirror sheet is gated off in every profile here.
+    '../components/closet/MirrorSelfieExtractionModal': {
+      MirrorSelfieExtractionModal: 'MirrorSelfieExtractionModal',
+    },
     '../components/closet/ClosetCandidateStatusPanel': {
       ClosetCandidateStatusPanel: 'ClosetCandidateStatusPanel',
     },
