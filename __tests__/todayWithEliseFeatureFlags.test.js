@@ -84,15 +84,16 @@ test('children activate only with parent', () => {
   assert.equal(flags.TODAY_WITH_ELISE_WEATHER_ACTIVE, true);
 });
 
-// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 5.1 GENERATED-GREETING ACTIVATION,
+// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 5.1 WEATHER ACTIVATION,
 // deliberately.
 //
-// This previously asserted GENERATED_GREETING was explicitly deferred
-// alongside WEATHER — correct while Build 5.1 shipped the capability dormant.
-// The owner has since authorized the generated greeting for this release, now
-// that Build 5.1 implements it as a real capability rather than an inert
-// flag. WEATHER remains explicitly deferred pending its own owner decision.
-test('every profile enables the Today parent and generated greeting, and explicitly defers weather', () => {
+// This previously asserted WEATHER was explicitly deferred alongside
+// GENERATED_GREETING — correct while weather shipped without a live backend
+// source. The owner has since authorized weather for this release, after
+// verifying the deployed stylechat-generate v84 response contract live
+// (granted, absent, and malformed location all proven end to end) and after
+// generated greeting's own activation.
+test('every profile enables the Today parent, generated greeting, and weather', () => {
   for (const profileName of ['production', 'preview', 'development']) {
     const profile = eas.build?.[profileName];
     if (!profile) continue;
@@ -109,8 +110,8 @@ test('every profile enables the Today parent and generated greeting, and explici
     );
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1,
-      'false',
-      `${profileName} must explicitly defer WEATHER`,
+      'true',
+      `${profileName} must enable the owner-authorized WEATHER`,
     );
   }
 });
