@@ -28,9 +28,18 @@ const REASONS = resolver.RESOLUTION_REASONS;
 
 // ── Supported identities and the default ────────────────────────────────────
 
-test('the supported identities are exactly the certified control and the Phase 2A candidate', () => {
+test('the supported identities are exactly the registry membership', () => {
+  // Three now: the control, the rejected v1.0.0 (preserved as evidence), and
+  // its correction v1.1.0. This resolver's default tracks whatever the
+  // registry declares — it is a pattern prototype, not the production trust
+  // boundary (that is supabase/functions/_shared/scannerVersionResolver.ts,
+  // whose SUPPORTED_SCANNER_VERSIONS stays frozen to the certified generated
+  // artifact until an explicit, separate deployment decision).
   const resolution = resolver.resolveTrustedVersion(null);
-  assert.deepEqual([...resolution.supportedVersions].sort(), ['certified-v140', 'phase2a-v1.0.0']);
+  assert.deepEqual(
+    [...resolution.supportedVersions].sort(),
+    ['certified-v140', 'phase2a-v1.0.0', 'phase2a-v1.1.0']
+  );
   assert.equal(resolution.controlVersion, 'certified-v140');
 });
 

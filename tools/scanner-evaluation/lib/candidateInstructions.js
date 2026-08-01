@@ -41,6 +41,13 @@ const ARTIFACT_DIR = path.join(__dirname, '..', 'adapter');
 /** Overlay id -> artifact filename. The registry names the id; this maps it to bytes. */
 const OVERLAY_ARTIFACTS = Object.freeze({
   'phase2a-fashion-specificity-v1': 'phase2a-instruction-overlay.v1.json',
+  // Phase 3 REVISE_CANDIDATE remediation. v1 is retained, unmodified: the
+  // recorded live results (42.4% unparseable) are attributed to its exact
+  // text and hash, and must stay attributable to it forever. v1_1 is a
+  // distinct artifact, not an edit — see candidateRegistry.js for why
+  // phase2a-v1.0.0 stays a registered, non-selectable identity rather than
+  // being replaced.
+  'phase2a-fashion-specificity-v1_1': 'phase2a-instruction-overlay.v1_1.json',
 });
 
 class UnknownInstructionOverlay extends Error {

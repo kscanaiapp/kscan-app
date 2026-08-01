@@ -44,7 +44,18 @@ test('the API returns every field an integration point needs', () => {
   assert.ok(descriptor.instructionLineCount > 0);
 
   assert.equal(candidateArtifact.controlVersion(), 'certified-v140');
-  assert.deepEqual(candidateArtifact.describeAll().map((d) => d.candidateVersion), [CONTROL, CANDIDATE]);
+  // Three identities now: the control, the rejected v1.0.0 (preserved as
+  // evidence), and its correction v1.1.0 (eligible for evaluation). The API
+  // and the registry must agree on membership regardless of how many
+  // candidates are registered.
+  assert.deepEqual(
+    candidateArtifact.describeAll().map((d) => d.candidateVersion),
+    candidateRegistry.versions()
+  );
+  assert.deepEqual(
+    candidateArtifact.describeAll().map((d) => d.candidateVersion).sort(),
+    [CONTROL, CANDIDATE, candidateRegistry.PHASE2A_V11_VERSION].sort()
+  );
 });
 
 test('the control is described as a real version with no instruction artifact', () => {
@@ -254,13 +265,24 @@ test('no second copy of the candidate instruction text exists in executable sour
   };
   walk(path.join(ROOT, 'tools', 'scanner-evaluation'));
 
-  // Exactly one source of truth: the artifact. Test files may ASSERT on it,
-  // which is why the test tree is allowed to reference the sentence.
-  const nonTest = hits.filter((f) => !f.includes('__tests__'));
+  // Every source of truth must be a REGISTERED overlay artifact — never an
+  // accidental copy pasted into a .ts/.js/.md file. Two governed artifacts
+  // legitimately share this sentence when one is an authorized, tracked
+  // derivation of the other (phase2a-instruction-overlay.v1_1.json declares
+  // `derivedFrom` pointing at v1.0.0's exact textSha256, and the six
+  // specificity sections are required to stay byte-identical — see
+  // phase2aV11InstructionOrdering.test.js's MINIMALITY check). What this test
+  // must still catch is a copy that ISN'T one of those registered artifacts:
+  // that would mean the text drifted into executable source outside the
+  // adapter/ directory the loader actually reads from.
+  const registeredArtifacts = Object.values(candidateInstructions.OVERLAY_ARTIFACTS)
+    .map((filename) => path.relative(ROOT, path.join(__dirname, '..', 'adapter', filename)).replace(/\\/g, '/'))
+    .sort();
+  const nonTest = hits.filter((f) => !f.includes('__tests__')).sort();
   assert.deepEqual(
     nonTest,
-    ['tools/scanner-evaluation/adapter/phase2a-instruction-overlay.v1.json'],
-    `the instruction text must live in exactly one non-test file, found: ${nonTest.join(', ')}`
+    registeredArtifacts,
+    `the instruction text must live only in registered overlay artifacts, found: ${nonTest.join(', ')}`
   );
 });
 

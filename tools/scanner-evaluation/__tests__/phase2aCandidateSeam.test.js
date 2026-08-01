@@ -40,31 +40,82 @@ const RUN_ID_PARTS = Object.freeze({
 
 // ── Registry shape ──────────────────────────────────────────────────────────
 
-test('the registry exposes exactly one control and the single Phase 2A candidate', () => {
+test('the registry exposes exactly one control, one rejected candidate, and one evaluation-eligible candidate', () => {
   const all = candidateRegistry.versions();
-  assert.deepEqual(all.slice().sort(), ['certified-v140', 'phase2a-v1.0.0']);
+  assert.deepEqual(
+    all.slice().sort(),
+    ['certified-v140', 'phase2a-v1.0.0', 'phase2a-v1.1.0']
+  );
 
   const controls = all.filter((version) => candidateRegistry.resolveCandidate(version).role === 'control');
   assert.deepEqual(controls, [candidateRegistry.CONTROL_VERSION]);
 
-  // One identifier, no aliases: nothing else in the registry may point at the
-  // same overlay or the same run-id segment.
+  const rejected = all.filter((version) => candidateRegistry.isRejected(version));
+  assert.deepEqual(rejected, [candidateRegistry.PHASE2A_VERSION]);
+
+  const evaluable = all.filter((version) => candidateRegistry.isEligibleForEvaluation(version)).sort();
+  assert.deepEqual(
+    evaluable,
+    [candidateRegistry.CONTROL_VERSION, candidateRegistry.PHASE2A_V11_VERSION].sort()
+  );
+
+  // One identifier per artifact, no aliases: nothing else in the registry may
+  // point at the same overlay or the same run-id segment.
   const segments = all
     .map((version) => candidateRegistry.resolveCandidate(version).runIdSegment)
     .filter((segment) => segment !== null);
-  assert.deepEqual(segments, [candidateRegistry.PHASE2A_VERSION]);
+  assert.deepEqual(
+    segments.slice().sort(),
+    [candidateRegistry.PHASE2A_VERSION, candidateRegistry.PHASE2A_V11_VERSION].sort()
+  );
   assert.equal(new Set(segments).size, segments.length);
+
+  const overlays = all
+    .map((version) => candidateRegistry.resolveCandidate(version).instructionOverlayId)
+    .filter((id) => id !== null);
+  assert.equal(new Set(overlays).size, overlays.length, 'no two candidates may share one overlay id');
 });
 
-test('control and candidate share the certified model topology', () => {
+test('a rejected candidate stays resolvable as evidence but is refused a second evaluation launch', () => {
+  assert.equal(candidateRegistry.isKnown(candidateRegistry.PHASE2A_VERSION), true);
+  assert.equal(candidateRegistry.isRejected(candidateRegistry.PHASE2A_VERSION), true);
+  assert.equal(candidateRegistry.isEligibleForEvaluation(candidateRegistry.PHASE2A_VERSION), false);
+
+  // Its recorded evidence — the exact overlay and hash the rejected result is
+  // attributed to — is unchanged by the correction existing alongside it.
+  const rejected = candidateRegistry.resolveCandidate(candidateRegistry.PHASE2A_VERSION);
+  assert.equal(rejected.instructionOverlayId, 'phase2a-fashion-specificity-v1');
+});
+
+test('the remediation candidate is eligible for evaluation and distinct from the rejected one', () => {
+  assert.equal(candidateRegistry.isKnown(candidateRegistry.PHASE2A_V11_VERSION), true);
+  assert.equal(candidateRegistry.isRejected(candidateRegistry.PHASE2A_V11_VERSION), false);
+  assert.equal(candidateRegistry.isEligibleForEvaluation(candidateRegistry.PHASE2A_V11_VERSION), true);
+
+  const v10 = candidateRegistry.resolveCandidate(candidateRegistry.PHASE2A_VERSION);
+  const v11 = candidateRegistry.resolveCandidate(candidateRegistry.PHASE2A_V11_VERSION);
+  assert.notEqual(v11.instructionOverlayId, v10.instructionOverlayId);
+  assert.notEqual(v11.runIdSegment, v10.runIdSegment);
+});
+
+test('no candidate may declare production status', () => {
+  for (const version of [candidateRegistry.PHASE2A_VERSION, candidateRegistry.PHASE2A_V11_VERSION]) {
+    assert.notEqual(candidateRegistry.resolveCandidate(version).status, 'production');
+  }
+});
+
+test('control and every candidate share the certified model topology', () => {
   const control = candidateRegistry.resolveCandidate(candidateRegistry.CONTROL_VERSION);
-  const candidate = candidateRegistry.resolveCandidate(candidateRegistry.PHASE2A_VERSION);
 
   // Phase 2A is prompt engineering plus post-validation. A candidate that
   // changed models would be a different phase, and this assertion is what would
-  // catch that being slipped in as a registry edit.
-  assert.equal(candidate.modelConfigurationId, control.modelConfigurationId);
-  assert.equal(candidate.modelConfigurationId, candidateRegistry.CERTIFIED_MODEL_CONFIGURATION_ID);
+  // catch that being slipped in as a registry edit — checked for both the
+  // rejected candidate and its correction, not just one.
+  for (const version of [candidateRegistry.PHASE2A_VERSION, candidateRegistry.PHASE2A_V11_VERSION]) {
+    const candidate = candidateRegistry.resolveCandidate(version);
+    assert.equal(candidate.modelConfigurationId, control.modelConfigurationId);
+    assert.equal(candidate.modelConfigurationId, candidateRegistry.CERTIFIED_MODEL_CONFIGURATION_ID);
+  }
 });
 
 test('the control carries no overlay and no candidate validation policy', () => {
@@ -72,16 +123,18 @@ test('the control carries no overlay and no candidate validation policy', () => 
   assert.equal(control.instructionOverlayId, null);
   assert.equal(control.postValidationPolicy, 'certified_only');
   assert.equal(control.runIdSegment, null);
+  assert.equal(control.status, 'production');
 });
 
-test('the Phase 2A candidate is operationally distinct from the control', () => {
+test('every Phase 2A candidate is operationally distinct from the control', () => {
   const control = candidateRegistry.candidateIdentity(candidateRegistry.CONTROL_VERSION);
-  const candidate = candidateRegistry.candidateIdentity(candidateRegistry.PHASE2A_VERSION);
-
-  assert.notEqual(candidate.candidateVersion, control.candidateVersion);
-  assert.notEqual(candidate.instructionOverlayId, control.instructionOverlayId);
-  assert.notEqual(candidate.postValidationPolicy, control.postValidationPolicy);
-  assert.notDeepEqual(candidate, control);
+  for (const version of [candidateRegistry.PHASE2A_VERSION, candidateRegistry.PHASE2A_V11_VERSION]) {
+    const candidate = candidateRegistry.candidateIdentity(version);
+    assert.notEqual(candidate.candidateVersion, control.candidateVersion);
+    assert.notEqual(candidate.instructionOverlayId, control.instructionOverlayId);
+    assert.notEqual(candidate.postValidationPolicy, control.postValidationPolicy);
+    assert.notDeepEqual(candidate, control);
+  }
 });
 
 // ── Explicit selection ──────────────────────────────────────────────────────
@@ -196,6 +249,7 @@ test('an incomplete candidate configuration is refused rather than half-applied'
   const complete = {
     candidateVersion: 'phase2a-test',
     role: 'candidate',
+    status: 'evaluation',
     modelConfigurationId: 'certified-v140',
     instructionOverlayId: 'overlay-1',
     postValidationPolicy: 'phase2a_evidence_discipline',
@@ -228,6 +282,7 @@ test('a candidate may not declare certified-only validation, and a control may n
     () => candidateRegistry.assertConfigurationComplete({
       candidateVersion: 'x',
       role: 'candidate',
+      status: 'evaluation',
       modelConfigurationId: 'certified-v140',
       instructionOverlayId: 'o',
       postValidationPolicy: 'certified_only',
@@ -240,8 +295,38 @@ test('a candidate may not declare certified-only validation, and a control may n
     () => candidateRegistry.assertConfigurationComplete({
       candidateVersion: 'certified-v140',
       role: 'control',
+      status: 'production',
       modelConfigurationId: 'certified-v140',
       instructionOverlayId: 'sneaky-overlay',
+      postValidationPolicy: 'certified_only',
+      runIdSegment: null,
+      description: 'd',
+    }),
+    candidateRegistry.CandidateConfigurationIncomplete
+  );
+});
+
+test('a candidate may not declare production status, and a control must declare it', () => {
+  assert.throws(
+    () => candidateRegistry.assertConfigurationComplete({
+      candidateVersion: 'x',
+      role: 'candidate',
+      status: 'production',
+      modelConfigurationId: 'certified-v140',
+      instructionOverlayId: 'o',
+      postValidationPolicy: 'phase2a_evidence_discipline',
+      runIdSegment: 'x',
+      description: 'd',
+    }),
+    candidateRegistry.CandidateConfigurationIncomplete
+  );
+  assert.throws(
+    () => candidateRegistry.assertConfigurationComplete({
+      candidateVersion: 'certified-v140',
+      role: 'control',
+      status: 'evaluation',
+      modelConfigurationId: 'certified-v140',
+      instructionOverlayId: null,
       postValidationPolicy: 'certified_only',
       runIdSegment: null,
       description: 'd',

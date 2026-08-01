@@ -140,6 +140,16 @@ function parseArgs(argv) {
         if (!candidateRegistry.isKnown(value)) {
           throw new Error(`--candidate-version must be one of ${candidateRegistry.versions().join(', ')}, received ${value}`);
         }
+        // isKnown() alone would let a REJECTED candidate launch again under its
+        // preserved identity. A rejected result stays resolvable as evidence,
+        // never as a thing this CLI can run a second time.
+        if (!candidateRegistry.isEligibleForEvaluation(value)) {
+          throw new Error(
+            `--candidate-version ${value} is not eligible for evaluation (status: rejected). `
+            + 'A rejected candidate is preserved as evidence, not relaunched under its own identity — '
+            + 'use a new corrected candidate version instead.'
+          );
+        }
         args.candidateVersion = value;
         break;
       }
