@@ -264,6 +264,10 @@ export function projectTodayCard(input: {
   projections: readonly TodayClosetProjection[];
   missingSlots: readonly string[];
   nowMs?: number;
+  /** Build 5.1. Defaults to false — headline stays the plain daypart greeting. */
+  generatedGreetingActive?: boolean;
+  /** Build 5.1. Ignored unless generatedGreetingActive is true. */
+  firstName?: string | null;
 }): TodayCardPresentation {
   const card = input.card;
   const byId = new Map<string, TodayClosetProjection>();
@@ -274,6 +278,8 @@ export function projectTodayCard(input: {
   const copy = resolveTodayDeterministicCopy({
     daypart: resolveDaypart(input.nowMs === undefined ? new Date() : new Date(input.nowMs)),
     weatherAvailable: false,
+    generatedGreetingActive: input.generatedGreetingActive === true,
+    firstName: input.firstName,
     stateId: copyStateFor(card),
   });
 

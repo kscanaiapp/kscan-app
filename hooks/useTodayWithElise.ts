@@ -82,6 +82,7 @@ import {
 } from '../services/todayWithElise/handoff';
 import { emitTodayWithEliseEvent } from '../services/todayWithElise/analytics';
 import { todayEventPayload } from '../services/todayWithElise/reporting';
+import { resolveUserFirstName } from '../services/userFirstName';
 import type { TodayWithEliseCardState } from '../types/todayWithElise';
 
 export type TodayWithEliseView = {
@@ -426,6 +427,15 @@ export function useTodayWithElise(): TodayWithEliseView {
     [current.result],
   );
 
+  /**
+   * Build 5.1. Resolved from the same authenticated `user` every other actor
+   * check in this hook already reads — no second identity source. Keyed on
+   * `user?.id` (not the `user` object reference) so the greeting recomputes
+   * exactly on an actor transition, not on every session-object refresh that
+   * leaves the id unchanged.
+   */
+  const greetingFirstName = useMemo(() => resolveUserFirstName(user).firstName, [user?.id]);
+
   const presentation = useMemo(
     () =>
       card
@@ -433,9 +443,11 @@ export function useTodayWithElise(): TodayWithEliseView {
             card,
             projections: (current.result?.projections ?? []) as readonly TodayClosetProjection[],
             missingSlots,
+            generatedGreetingActive: TODAY_WITH_ELISE_GENERATED_GREETING_ACTIVE,
+            firstName: greetingFirstName,
           })
         : null,
-    [card, current.result, missingSlots],
+    [card, current.result, missingSlots, greetingFirstName],
   );
 
   const handoffContext = useMemo(
