@@ -63,10 +63,19 @@ export const CLOSET_CANDIDATE_SOURCES = [
 
 export type ClosetCandidateSource = typeof CLOSET_CANDIDATE_SOURCES[number];
 
-/** Sources Build 1 will actually accept at intake. */
+/**
+ * Sources actually accepted at intake.
+ *
+ * `mirror_extract` (Build 2.5 Phase 0B) is a garment crop produced by the
+ * Mirror Selfie extraction pipeline, staged through
+ * services/closetMirrorStaging.ts behind its own dedicated flag — never a
+ * gallery pick, a camera capture, or a Recent Scan. Reachability is gated by
+ * that flag, not by this list; this list documents intake reality.
+ */
 export const CLOSET_CANDIDATE_ACTIVE_SOURCES: readonly ClosetCandidateSource[] = [
   'camera',
   'gallery',
+  'mirror_extract',
 ];
 
 export const CLOSET_CANDIDATE_STATUSES = [

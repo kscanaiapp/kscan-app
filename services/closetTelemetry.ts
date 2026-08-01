@@ -33,6 +33,32 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'closet_candidate_expired',
   'closet_candidate_cleanup_completed',
   'closet_candidate_cleanup_failed',
+  // Build 2.5 Phase 0B. Emitted once per stageMirrorSelfieGarmentCrops call —
+  // see services/closetMirrorStaging.ts. Deliberately the only Mirror event
+  // this phase adds: capture, validation, person-detection and segmentation
+  // stages do not exist yet and must not acquire telemetry ahead of themselves.
+  'mirror_selfie_crops_staged',
+  // Build 2.5 Step 3. The local extraction pipeline, which runs entirely on
+  // device and never uploads a pixel. These events describe SHAPE and OUTCOME
+  // only: how many people were found, how many crops came out, roughly how long
+  // it took, and what the user did next. No coordinate, no dimension, no URI,
+  // no session id and no crop key is emissible — see the property allowlist and
+  // the SAFE_STRING scrub below, which reject all of them by shape.
+  'mirror_selfie_source_selected',
+  'mirror_selfie_validation_completed',
+  'mirror_selfie_extraction_completed',
+  'mirror_selfie_extraction_cancelled',
+  'mirror_selfie_crop_review_completed',
+  // Build 2.5 Step 4. The extraction-selection -> candidate-staging coordinator
+  // (services/mirror/mirrorCandidateIntegration.ts). Describes SHAPE and
+  // OUTCOME only — how many crops, how many groups, how many settled which way,
+  // roughly how long it took. No session id, no crop key, no candidate id, no
+  // batch id: the property allowlist and the SAFE_STRING scrub below reject all
+  // of them by shape, same as every other Mirror event.
+  'mirror_candidate_staging_started',
+  'mirror_candidate_staging_completed',
+  'mirror_candidate_staging_partial',
+  'mirror_candidate_staging_cancelled',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
@@ -67,6 +93,33 @@ export const CLOSET_CANDIDATE_EVENT_PROPERTIES = [
   'automatic',
   'mediaFailed',
   'aborted',
+  // Build 2.5 Phase 0B — mirror_selfie_crops_staged only. Bounded counts, never
+  // a raw crop count above the 8-item batch cap and never the extraction
+  // session id, a crop key, a candidate id or a batch id.
+  'cropCountBucket',
+  'createdCount',
+  'duplicateCount',
+  'rejectedCount',
+  'batchLimitReached',
+  // Build 2.5 Step 3 — local extraction only. Every one is a coarse bucket or a
+  // boolean.
+  //
+  // NOTE ON BUCKET SPELLING: the scrub below rejects `+`, so the open-ended
+  // buckets are written `2_plus` / `9_plus`, never `2+` / `9+`. A `+` here would
+  // not fail loudly — it would be silently dropped, and the bucket would vanish
+  // at exactly the interesting end of the distribution.
+  'personCountBucket',
+  'sourceCountBucket',
+  'selectedCountBucket',
+  'reviewCountBucket',
+  'durationBucket',
+  'extractionSupported',
+  'personSelectionRequired',
+  // Build 2.5 Step 4 — mirror_candidate_staging_* only. Every value below is a
+  // coarse bucket or an enum, never a raw count above the partition size.
+  'groupCountBucket',
+  'successCountBucket',
+  'failureCountBucket',
 ] as const;
 
 export type ClosetCandidateEventProperty =

@@ -831,7 +831,16 @@ export async function createClosetCandidateBatch(actorRequest, input = {}) {
       sourceUri,
       sourceType: input.sourceType,
       sourceId: typeof asset?.assetId === 'string' ? asset.assetId : input.sourceId,
-      sourceLineageId: input.sourceLineageId,
+      // Per-asset lineage, when the caller supplies one, overrides the
+      // batch-wide fallback below. Existing camera/gallery callers never set
+      // `asset.sourceLineageId`, so their behavior is unchanged: every asset in
+      // their batch keeps sharing the one `input.sourceLineageId`. Build 2.5's
+      // Mirror crop-staging adapter is the first caller that needs a distinct,
+      // deterministic lineage PER crop rather than one shared across the batch.
+      sourceLineageId:
+        typeof asset?.sourceLineageId === 'string' && asset.sourceLineageId.trim()
+          ? asset.sourceLineageId.trim()
+          : input.sourceLineageId,
       batchId,
       batchPosition: sourceIndex,
       draft: input.draft,
