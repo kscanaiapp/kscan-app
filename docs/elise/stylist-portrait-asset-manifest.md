@@ -28,10 +28,10 @@ statically by `constants/stylistIdentity.ts`.
 
 | File | Dimensions | Mode | Size (bytes) | SHA-256 |
 |------|------------|------|--------------|---------|
-| `stylist_portrait_01.jpg` | 1024×1024 | sRGB/RGB | 128,525 | `ec0f49c164ab7685a00b4308c1aa897bc755e6bc129620ef7278cc853ace4101` |
-| `stylist_portrait_02.jpg` | 1024×1024 | sRGB/RGB | 154,033 | `7383215a8f5dbc3a4b484e5352e51ba6e97a0074e029ffb09286cb3624142c79` |
-| `stylist_portrait_03.jpg` | 1024×1024 | sRGB/RGB | 159,677 | `75228a74da3044759365f21befe40bdb0d1d4be9b33f8abbfad02af484740ca8` |
-| `stylist_portrait_04.jpg` | 1024×1024 | sRGB/RGB | 154,128 | `70cb206e8cae88fd36cc6ec7fc0afcbb7f41eaf331d98b0e2cd5f0377ffb5163` |
+| `stylist_portrait_01.jpg` | 1024×1024 | sRGB/RGB | 283,575 | `1c19a3ab86e561bad3dabb5b6768297b2a953a5d3abdd3c0a90b0cc11fdc3814` |
+| `stylist_portrait_02.jpg` | 1024×1024 | sRGB/RGB | 283,707 | `8c6352af31c7c839c588019958f5fcfa6996ea068777eb21cb970ce3936132cd` |
+| `stylist_portrait_03.jpg` | 1024×1024 | sRGB/RGB | 269,150 | `8f0a5fbaa1113418a2d2f3296d30b409eaad0ee30da669701238a741ef4baf99` |
+| `stylist_portrait_04.jpg` | 1024×1024 | sRGB/RGB | 254,296 | `251d33ab700e2ae328bdc9576c5f7c979b18dd097422affd3ddca3c0a9ab547d` |
 | `stylist_portrait_05.jpg` | 1024×1024 | sRGB/RGB | 190,375 | `5240c79b3206afd5ac04be986a3990e490aba55bcc17cc1c067605cf3eef33e5` |
 | `stylist_portrait_06.jpg` | 1024×1024 | sRGB/RGB | 134,600 | `8ebbeea72a842f9d88bb67fb570f15bf19bea4ee515dde52c77d044dabadd566` |
 | `stylist_portrait_07.jpg` | 1024×1024 | sRGB/RGB | 164,845 | `8c11c4a8297ee48091072d6122cd81a4a24c89fbed1ffcbf3931a8b3d8286db1` |
@@ -57,12 +57,17 @@ the exact hashes recorded above.
 ## Approved replacement record
 
 Portraits 01 and 02 were reprocessed on 2026-07-12 from owner-supplied,
-approved replacement PNG sources while retaining their stable IDs. Portrait 01
-shows a braided updo and cream blazer against a warm neutral background.
-Portrait 02 shows short hair, glasses, and a red polo against a neutral
-background. Both replacements retain centered facial features and
-circular-crop-safe spacing. Portraits 03 through 10 were reproduced
-byte-for-byte unchanged.
+approved replacement PNG sources while retaining their stable IDs. Portraits 03
+through 10 were reproduced byte-for-byte unchanged at that time.
+
+Portraits 01 through 04 were refreshed again on 2026-07-23 from owner-approved
+replacement sources, again retaining their stable IDs. Portrait 01 shows long
+box braids and a black top against a warm neutral boutique background. Portrait
+02 shows short hair, a trimmed beard, and a blue polo against a neutral grey
+background. All four retain centered facial features and circular-crop-safe
+spacing. Portraits 05 through 10 are unchanged. The `accessibilityLabel` values
+for 01 and 02 in `constants/stylistIdentity.ts` were updated to match the new
+subjects; the prior labels described the superseded images.
 
 ## Registry mapping
 

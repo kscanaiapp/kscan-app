@@ -746,8 +746,13 @@ test('portrait manifest matches exact shipped hashes and sizes', () => {
   const portraitDir = path.join(ROOT, 'assets', 'stylist-avatars', 'portraits');
   assert.match(portraitAssetManifest, /6 women and 4 men/);
   assert.match(portraitAssetManifest, /reprocessed on 2026-07-12/);
-  assert.match(portraitAssetManifest, /braided updo and cream blazer/);
-  assert.match(portraitAssetManifest, /short hair, glasses, and a red polo/);
+  // Portraits 01-04 were refreshed again on 2026-07-23; 01 and 02 changed
+  // subject, so the manifest prose describes the current images.
+  // Whitespace-tolerant: the manifest is hard-wrapped, so these phrases may
+  // break across lines as the prose is reflowed.
+  assert.match(portraitAssetManifest, /refreshed\s+again\s+on\s+2026-07-23/);
+  assert.match(portraitAssetManifest, /long\s+box\s+braids\s+and\s+a\s+black\s+top/);
+  assert.match(portraitAssetManifest, /short\s+hair,\s+a\s+trimmed\s+beard,\s+and\s+a\s+blue\s+polo/);
   assert.match(portraitAssetManifest, /quality 90/);
   assert.match(portraitAssetManifest, /AI-generated, fictional people/);
 
