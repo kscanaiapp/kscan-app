@@ -37,6 +37,10 @@ const FILES = [
   'services/todayWithElise/priorityEngine.ts',
   'services/todayWithElise/reporting.ts',
   'services/todayWithElise/weatherPolicy.ts',
+  // Build 5.1 weather handoff. Platform-neutral by design: it is the shared
+  // state between StyleChat and Today, so a fix on one branch that is forgotten
+  // on the other would silently desynchronize weather across platforms.
+  'services/weather/todayWeatherStore.ts',
   'hooks/useTodayWithElise.ts',
   'components/home/TodayWithEliseBoundary.tsx',
   'components/home/TodayWithEliseCard.tsx',

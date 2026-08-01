@@ -33,6 +33,7 @@ import { resetStylistVoicePreferenceState } from '../stores/stylistVoicePreferen
 import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
+import { clearTodayWeather } from '../services/weather/todayWeatherStore';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -84,6 +85,12 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   resetStyleChatGreetingState();
   resetStylistIdentityStore();
   resetStylistVoicePreferenceState();
+  // Defense in depth: the store already refuses to return a reading whose
+  // actorId does not match the caller, so this cannot be the only thing keeping
+  // weather from crossing accounts — it just stops the previous actor's reading
+  // from sitting in storage after they leave. Fire-and-forget: an AsyncStorage
+  // failure must never delay or fail a sign-out.
+  void clearTodayWeather();
 }
 
 export function AuthSessionProvider({ children }: { children: React.ReactNode }) {

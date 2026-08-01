@@ -83,6 +83,12 @@ import {
 import { emitTodayWithEliseEvent } from '../services/todayWithElise/analytics';
 import { todayEventPayload } from '../services/todayWithElise/reporting';
 import { resolveUserFirstName } from '../services/userFirstName';
+import {
+  describeTodayWeather,
+  resolveTodayWeatherSuitability,
+  type TodayWeatherInput,
+} from '../services/todayWithElise/weatherPolicy';
+import { readTodayWeather } from '../services/weather/todayWeatherStore';
 import type { TodayWithEliseCardState } from '../types/todayWithElise';
 
 export type TodayWithEliseView = {
@@ -436,6 +442,53 @@ export function useTodayWithElise(): TodayWithEliseView {
    */
   const greetingFirstName = useMemo(() => resolveUserFirstName(user).firstName, [user?.id]);
 
+  /**
+   * Weather shared from StyleChat, never fetched here.
+   *
+   * Today cannot call the weather-bearing Edge Function itself (it requires a
+   * chat session and consumes generation quota), so it reads whatever the last
+   * chat turn already resolved. That is what keeps this feature free of a second
+   * provider call, a second classifier, and a second permission prompt.
+   *
+   * Failure is silent by construction: the read never throws, and a null result
+   * — the normal case before any chat turn has run — simply renders no weather.
+   */
+  const [weatherReading, setWeatherReading] = useState<TodayWeatherInput | null>(null);
+  const weatherActorId = user?.id ?? null;
+
+  useEffect(() => {
+    if (!TODAY_WITH_ELISE_WEATHER_ACTIVE || !weatherActorId) {
+      setWeatherReading(null);
+      return;
+    }
+    let cancelled = false;
+    void readTodayWeather(weatherActorId)
+      .then((value) => {
+        if (!cancelled) setWeatherReading(value);
+      })
+      .catch(() => {
+        // Non-fatal by contract: weather must never surface an error on Home.
+        if (!cancelled) setWeatherReading(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Re-read per generation so a card refreshed after a chat turn picks up the
+    // reading that turn produced, without polling.
+  }, [weatherActorId, current.result]);
+
+  const weatherLine = useMemo(() => {
+    if (!TODAY_WITH_ELISE_WEATHER_ACTIVE) return null;
+    // Freshness, staleness and malformation are all decided by the existing
+    // policy — this hook contributes no weather judgement of its own.
+    const suitability = resolveTodayWeatherSuitability({
+      weatherActive: TODAY_WITH_ELISE_WEATHER_ACTIVE,
+      weather: weatherReading,
+      nowMs: Date.now(),
+    });
+    return describeTodayWeather(weatherReading, suitability);
+  }, [weatherReading]);
+
   const presentation = useMemo(
     () =>
       card
@@ -445,9 +498,10 @@ export function useTodayWithElise(): TodayWithEliseView {
             missingSlots,
             generatedGreetingActive: TODAY_WITH_ELISE_GENERATED_GREETING_ACTIVE,
             firstName: greetingFirstName,
+            weather: weatherLine,
           })
         : null,
-    [card, current.result, missingSlots, greetingFirstName],
+    [card, current.result, missingSlots, greetingFirstName, weatherLine],
   );
 
   const handoffContext = useMemo(

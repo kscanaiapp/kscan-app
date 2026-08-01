@@ -86,6 +86,18 @@ export interface EdgeChatResult {
    */
   adviceMetadata?: EliseAdviceMetadataClient | Record<string, unknown>;
   adviceContractVersion?: string;
+  /**
+   * Optional compact weather context, present only when this turn actually
+   * resolved live weather. Absent on every pre-deployment backend and on every
+   * request that sent no location, was denied, timed out, or failed — so absence
+   * is the normal case and must never be treated as an error.
+   *
+   * Deliberately left as `unknown`: the value crosses a trust boundary and is
+   * validated by `parseWeatherContextWire` before use. Typing it as the parsed
+   * shape here would let an unvalidated payload be read as if it were checked.
+   */
+  weatherContext?: unknown;
+  weatherContextVersion?: number;
 }
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
@@ -549,6 +561,16 @@ export class EdgeStyleChatProvider {
           : undefined;
       const includeAdvice =
         ELISE_ADVICE_METADATA_CLIENT_V1 && isRecord(rawAdvice);
+
+      // Optional weather context. Passed through UNVALIDATED and untyped by
+      // design — the store's `parseWeatherContextWire` is the single validation
+      // point, so a malformed payload is rejected in exactly one place rather
+      // than being half-checked here and trusted downstream. A backend that
+      // predates this field simply omits it and nothing changes.
+      const rawWeather = (data as unknown as Record<string, unknown>).weatherContext;
+      const weatherContextVersion = (data as unknown as Record<string, unknown>)
+        .weatherContextVersion;
+
       return {
         status,
         message,
@@ -558,6 +580,14 @@ export class EdgeStyleChatProvider {
           ? {
               adviceMetadata: rawAdvice,
               ...(adviceContractVersion ? { adviceContractVersion } : {}),
+            }
+          : {}),
+        ...(isRecord(rawWeather)
+          ? {
+              weatherContext: rawWeather,
+              ...(typeof weatherContextVersion === 'number'
+                ? { weatherContextVersion }
+                : {}),
             }
           : {}),
       };

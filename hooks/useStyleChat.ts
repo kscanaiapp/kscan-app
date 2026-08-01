@@ -9,6 +9,7 @@ import {
 import { getFriendlyStyleChatError } from '../services/style-chat/styleChatErrors';
 import type { StyleChatMessage, StyleChatSession, StyleChatUiBlock } from '../services/style-chat/types';
 import type { WeatherLocationInput } from '../constants/weatherStyling';
+import { saveTodayWeather } from '../services/weather/todayWeatherStore';
 import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
@@ -127,6 +128,11 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const { user } = useAuthSession();
   const { identity, isLoading: identityLoading } = useStylistIdentity();
   const actorId = user?.id ?? null;
+  // Mirrored into a ref for the same reason as the getters above: the send path
+  // reads the owner of the weather reading without taking `actorId` as a
+  // dependency and churning sendMessage/retry identity on every auth refresh.
+  const actorIdRef = useRef(actorId);
+  actorIdRef.current = actorId;
   const screenReaderEnabled = useScreenReaderEnabled();
   const voicePreference = useVoiceResponsesPreference();
   const [identityReady, setIdentityReady] = useState(!identityLoading);
@@ -472,6 +478,15 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             : {}),
         });
         if (!isCurrentSend()) return;
+
+        // Share this turn's weather with Today with Elise. Recorded BEFORE the
+        // status branches below because a reply that hit the daily limit or an
+        // operational failure still resolved real weather server-side, and Home
+        // has no other way to obtain it — Today cannot call this function itself.
+        // Best-effort and never awaited into the send path's critical timing.
+        if (actorIdRef.current) {
+          void saveTodayWeather(actorIdRef.current, (result as { weatherContext?: unknown }).weatherContext);
+        }
 
         // v2 capability outcomes: preserve the composer draft (text stays in
         // the composer because nothing was persisted) and never show an

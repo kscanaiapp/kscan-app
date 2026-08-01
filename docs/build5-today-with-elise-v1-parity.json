@@ -11,13 +11,14 @@
     "services/todayWithElise/generatedGreeting.ts": "15f3567c9b50c7d9b096e81c0d10e577e5c820da170d9ed0cc294c798e3c877c",
     "services/todayWithElise/handoff.ts": "49ba3741ba467278a464775a714c9243e66227f5e5f96e0b5266b57ec1fbc5e9",
     "services/todayWithElise/orchestrator.ts": "85db17643bd562591c244b6dc18127b8965ca1563e84af3c9d85b9c69ce493bf",
-    "services/todayWithElise/presentation.ts": "7ef6f2843ca5b7a8072a78f4abe499411c55bc484a7f686783f6a248f8911322",
+    "services/todayWithElise/presentation.ts": "d8ea37907c487b4fc301b77beddf428a16216aa3af185a5a62b7482e112c545f",
     "services/todayWithElise/priorityEngine.ts": "84ffbd532b91080a05d91a8e8001cac71838f8202fb63d4ce2c6bcab0cfaa8a2",
     "services/todayWithElise/reporting.ts": "b30120fe759ec212630ffea5bf2165b0f3d2e80b8cc4bc227ba7708b2c5ebd52",
-    "services/todayWithElise/weatherPolicy.ts": "ae5dba7af793e0fd36da2f6088a7c73c789e4d703fee723e4c59839400dbfffb",
-    "hooks/useTodayWithElise.ts": "bbcafa9a2cd67f855ce65ddb3ed7c3a4f488c7eb1cc497c63f33930134a23c76",
+    "services/todayWithElise/weatherPolicy.ts": "274e496296750c1373611b39cf7776a37fc5a5c95e3522278913390885ed8e23",
+    "services/weather/todayWeatherStore.ts": "3972ccd482fec91812317142f961999e0c5e0e79e7d3a27abfa3579a28c3947a",
+    "hooks/useTodayWithElise.ts": "65d6846a35e9080097d944921e7058b00cbb743477d83a1cc9e45077f60f8600",
     "components/home/TodayWithEliseBoundary.tsx": "c0ab0317fc55c305f6b03ef47cad64769c708b83da2147a3c71f2854f9d54422",
-    "components/home/TodayWithEliseCard.tsx": "1905864892d98789771ca8221f27e80ff08458d8c59352babf0e716ff53ac6fd",
+    "components/home/TodayWithEliseCard.tsx": "35d186bbe66f2ec18898c9329487ef0f1211f6df957afda6687283a52fd983a6",
     "components/home/TodayWithEliseSection.tsx": "432766629e6e0df7512419aa7a6723221d501db73f7ccd03a64f76dee3366aad"
   }
 }

@@ -17,6 +17,13 @@ export const TODAY_WEATHER_TIMEOUT_MS = 2000;
 export type TodayWeatherInput = {
   /** Rounded temperature in whole degrees Celsius, or null if unknown. */
   temperatureC: number | null;
+  /**
+   * Display-only Fahrenheit reading, supplied by the backend alongside the
+   * Celsius value rather than converted from it (converting would double-round).
+   * Optional: absent on any payload that predates it, and never used for a
+   * suitability decision — every threshold below reads temperatureC.
+   */
+  temperatureF?: number | null;
   /** Coarse precipitation signal only. */
   precipitation: 'none' | 'light' | 'heavy' | 'unknown';
   /** Coarse condition label allowlist — never free-form provider prose. */
@@ -139,4 +146,57 @@ export function resolveTodayWeatherSuitability(args: {
     suggestClosedFootwear: wet || (isFiniteNumber(temp) && temp <= 5),
     copyKey: 'weather.available',
   };
+}
+
+/** Coarse condition labels. Never provider prose — this allowlist is the vocabulary. */
+const CONDITION_LABELS: Readonly<Record<TodayWeatherInput['condition'], string>> = Object.freeze({
+  clear: 'Clear',
+  clouds: 'Cloudy',
+  rain: 'Rain',
+  snow: 'Snow',
+  wind: 'Windy',
+  unknown: '',
+});
+
+/**
+ * Build the compact weather line for the Today card.
+ *
+ * Returns null whenever the reading is unusable, so an unavailable, stale,
+ * denied, offline, or malformed state renders NO line at all rather than an
+ * apology or a placeholder — the card simply looks the way it always has.
+ *
+ * The styling cue is read from the suitability verdict, never recomputed here,
+ * so there is exactly one place in the app that decides what weather implies
+ * for outerwear and footwear.
+ */
+export function describeTodayWeather(
+  weather: TodayWeatherInput | null,
+  suitability: TodayWeatherSuitability,
+): { summary: string; cue: string | null } | null {
+  if (!suitability.usable || !weather) return null;
+
+  // Prefer the Fahrenheit reading the backend measured; fall back to Celsius
+  // rather than converting, so the number shown is always one that was actually
+  // reported. If neither exists, the line carries condition only.
+  const parts: string[] = [];
+  if (isFiniteNumber(weather.temperatureF)) {
+    parts.push(`${Math.round(weather.temperatureF)}°`);
+  } else if (isFiniteNumber(weather.temperatureC)) {
+    parts.push(`${Math.round(weather.temperatureC)}°C`);
+  }
+
+  const label = CONDITION_LABELS[weather.condition] ?? '';
+  if (label) parts.push(label);
+  if (parts.length === 0) return null;
+
+  let cue: string | null = null;
+  if (suitability.suggestOuterwear && suitability.suggestClosedFootwear) {
+    cue = 'Layer up and pick closed shoes.';
+  } else if (suitability.suggestOuterwear) {
+    cue = 'Worth a layer.';
+  } else if (suitability.suggestClosedFootwear) {
+    cue = 'Closed shoes are the safer pick.';
+  }
+
+  return { summary: parts.join(' · '), cue };
 }
