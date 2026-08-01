@@ -74,10 +74,12 @@ test('integration: Dressing Rooms uses dressing-rooms icon and keeps route', () 
   assert.match(HOME, /accessibilityLabel="Open Dressing Rooms"/);
 });
 
-test('integration: TextScan uses compact icon and preserves live navigation behavior', () => {
+test('integration: TextScan uses the shared icon size and preserves live navigation behavior', () => {
   assert.match(HOME, /name="textscan"/);
-  assert.match(HOME, /size=\{20\}/);
-  assert.match(HOME, /variant="compact"/);
+  // Previously 20pt/compact. TextScan now renders at the same 24pt as the four
+  // grid icons: at 20pt a 24-unit glyph scaled by 0.833, which both softened
+  // every edge and rendered its stroke ~30% lighter than its siblings.
+  assert.match(HOME, /name="textscan" size=\{24\}/);
   assert.match(HOME, /title="TEXTSCAN"/);
   assert.match(HOME, /testID="home-luxury-textscan"/);
   assert.match(HOME, /handleOpenTextScan/);
@@ -106,10 +108,24 @@ test('integration: SecondaryButton still supports icon slot used by TextScan', (
   assert.match(HOME, /icon=\{<KScanIcon name="textscan"/);
 });
 
-test('integration: chip dimensions stay icon-bounded at 28px', () => {
-  assert.match(HOME, /size=\{28\}/);
+test('integration: chip container stays 28px and every icon renders 1:1 at 24', () => {
+  // The tile and its icon container are unchanged; only the glyph inside them
+  // moved. A 24-unit viewBox drawn at 24pt maps one user unit to a whole number
+  // of device pixels at every integer density, so stroke edges land on pixel
+  // boundaries instead of being antialiased across two rows. 28 did not: it
+  // scaled by 7/6 and softened every edge in the set.
   assert.match(HOME, /chipIconWrap:\s*\{[\s\S]*width:\s*28/);
   assert.match(HOME, /height:\s*28/);
+  assert.doesNotMatch(HOME, /<KScanIcon[^>]*size=\{28\}/);
+
+  // Six now: the four grid tiles, TextScan, and the Voice Scan microphone —
+  // that pill previously carried no glyph at all and was the only entry on
+  // Home identified by text alone.
+  const iconSizes = [...HOME.matchAll(/<KScanIcon[^>]*size=\{(\d+)\}/g)].map((m) => m[1]);
+  assert.equal(iconSizes.length, 6, 'expected every Home product icon');
+  for (const size of iconSizes) {
+    assert.equal(size, '24', 'every Home icon must render at the 1:1 size');
+  }
 });
 
 test('integration: icon review screen is QA/dev gated and covers sizes/variants', () => {

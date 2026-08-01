@@ -4,6 +4,7 @@ export { TextScanIcon } from './TextScanIcon';
 export { RecentScansIcon } from './RecentScansIcon';
 export { VisualSearchIcon } from './VisualSearchIcon';
 export { SaveOrganizeIcon } from './SaveOrganizeIcon';
+export { VoiceScanIcon } from './VoiceScanIcon';
 export { StyleIcon } from './StyleIcon';
 export {
   KSCAN_ICON_STROKE,
