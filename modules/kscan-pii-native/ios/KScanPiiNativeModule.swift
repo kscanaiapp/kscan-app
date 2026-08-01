@@ -154,6 +154,12 @@ public class KScanPiiNativeModule: Module {
                 )
             case .success(let faces, let detectionDurationMs):
                 if faces.isEmpty {
+                    // No output artifact is written for this path (there is nothing
+                    // to mask), so outputWidth/outputHeight/sanitizedUri stay nil —
+                    // matching Android's equivalent branch, which omits the same
+                    // three fields rather than mirroring inputWidth/inputHeight.
+                    // outputChecksum intentionally still equals inputChecksum: the
+                    // pixel data is provably unchanged even though no file exists.
                     return NativeFaceMaskResult(
                         status: .noFaces,
                         platform: "ios",
@@ -162,18 +168,26 @@ public class KScanPiiNativeModule: Module {
                         sanitizerVersion: NativePrivacyConstants.sanitizerVersion,
                         inputWidth: inputWidth,
                         inputHeight: inputHeight,
+                        outputWidth: nil,
+                        outputHeight: nil,
                         facesDetected: 0,
                         facesAccepted: 0,
                         facesMasked: 0,
                         regionsChanged: 0,
                         regionsAlreadyRedacted: 0,
                         pixelsChanged: false,
+                        sanitizedUri: nil,
                         inputChecksum: inputChecksum,
                         outputChecksum: inputChecksum,
                         checksumAlgorithm: NativePrivacyConstants.checksumAlgorithm,
                         detectionDurationMs: detectionDurationMs,
+                        maskingDurationMs: nil,
+                        encodingDurationMs: nil,
+                        verificationDurationMs: nil,
                         totalDurationMs: durationSince(startedAt),
-                        warnings: ["No faces detected."]
+                        warnings: ["No faces detected."],
+                        errorCode: nil,
+                        failureReason: nil
                     )
                 }
 
@@ -291,7 +305,9 @@ public class KScanPiiNativeModule: Module {
                             encodingDurationMs: encodingDurationMs,
                             verificationDurationMs: verificationDurationMs,
                             totalDurationMs: durationSince(startedAt),
-                            warnings: []
+                            warnings: [],
+                            errorCode: nil,
+                            failureReason: nil
                         )
                     }
                 }
@@ -330,6 +346,12 @@ public class KScanPiiNativeModule: Module {
         pixelsChanged: Bool = false,
         totalDurationMs: Int? = nil
     ) -> NativeFaceMaskResult {
+        // No failure path on either platform reports partial per-stage timings or
+        // an output artifact — matching Android's buildFailureResult exactly, even
+        // for failures (like .invalidRegion) that occur after detection already
+        // measured a real duration. Only the aggregate totalDurationMs survives
+        // into a failure result; the rest stay nil rather than fabricating or
+        // silently promoting a partial measurement to a final one.
         return NativeFaceMaskResult(
             status: .failed,
             platform: "ios",
@@ -338,17 +360,26 @@ public class KScanPiiNativeModule: Module {
             sanitizerVersion: NativePrivacyConstants.sanitizerVersion,
             inputWidth: inputWidth,
             inputHeight: inputHeight,
-            inputChecksum: inputChecksum,
+            outputWidth: nil,
+            outputHeight: nil,
             facesDetected: facesDetected,
             facesAccepted: facesAccepted,
             facesMasked: facesMasked,
             regionsChanged: 0,
             regionsAlreadyRedacted: 0,
             pixelsChanged: pixelsChanged,
-            errorCode: errorCode,
-            failureReason: reason,
+            sanitizedUri: nil,
+            inputChecksum: inputChecksum,
+            outputChecksum: nil,
+            checksumAlgorithm: nil,
+            detectionDurationMs: nil,
+            maskingDurationMs: nil,
+            encodingDurationMs: nil,
+            verificationDurationMs: nil,
             totalDurationMs: totalDurationMs,
-            warnings: [reason]
+            warnings: [reason],
+            errorCode: errorCode,
+            failureReason: reason
         )
     }
 }
