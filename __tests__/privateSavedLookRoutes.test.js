@@ -39,15 +39,24 @@ test('Saved Looks leaf defaults OFF and activates only beneath every parent gate
   }
 });
 
-test('production and internal EAS profiles leave the Saved Looks leaf absent', () => {
+// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 3 ACTIVATION, deliberately.
+// The Phase 5 leaf is now set in every profile; what survives is that Saved
+// Looks remain a LEAF under the Elise and workspace gates, so no route or
+// storage can activate when any parent is off.
+test('every profile enables the Saved Looks leaf, which stays nested under its parents', () => {
   const eas = JSON.parse(read('eas.json'));
   for (const [profile, config] of Object.entries(eas.build)) {
     assert.equal(
-      Object.prototype.hasOwnProperty.call(config.env ?? {}, 'EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1'),
-      false,
-      `${profile} enabled the Phase 5 leaf`,
+      config.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1,
+      'true',
+      `${profile} does not enable the Phase 5 leaf`,
     );
   }
+  const flags = read('constants/featureFlags.ts');
+  assert.ok(
+    flags.includes('PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE =\n  PRIVATE_DRESSING_ROOM_ELISE_ACTIVE && PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1'),
+    'Saved Looks are no longer nested under the Elise gate',
+  );
 });
 
 test('ON entry points save the effective Look, open detail, and expose the distinct list route', () => {

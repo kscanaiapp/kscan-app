@@ -84,25 +84,32 @@ test('children activate only with parent', () => {
   assert.equal(flags.TODAY_WITH_ELISE_WEATHER_ACTIVE, true);
 });
 
-test('production and preview EAS profiles leave Today flags unset', () => {
+// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 5 ACTIVATION, deliberately.
+//
+// This asserted every Today flag was unset — correct while Build 5 shipped
+// dormant. The owner has since authorized the parent flag. The two optional
+// children stay OFF for this release, and they are asserted as an EXPLICIT
+// "false" rather than as absent, so the deferral is documented configuration,
+// not an accident of omission.
+test('every profile enables the Today parent and explicitly defers the optional children', () => {
   for (const profileName of ['production', 'preview', 'development']) {
     const profile = eas.build?.[profileName];
     if (!profile) continue;
     const env = profile.env || {};
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1,
-      undefined,
-      `${profileName} must not set TODAY_WITH_ELISE_V1`,
+      'true',
+      `${profileName} does not set TODAY_WITH_ELISE_V1`,
     );
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1,
-      undefined,
-      `${profileName} must not set GENERATED_GREETING`,
+      'false',
+      `${profileName} must explicitly defer GENERATED_GREETING`,
     );
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1,
-      undefined,
-      `${profileName} must not set WEATHER`,
+      'false',
+      `${profileName} must explicitly defer WEATHER`,
     );
   }
 });

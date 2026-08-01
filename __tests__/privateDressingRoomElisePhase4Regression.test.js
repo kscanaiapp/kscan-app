@@ -71,21 +71,36 @@ test('the derived flag is the only thing callers read', () => {
   assert.match(code(HOOK), /PRIVATE_DRESSING_ROOM_ELISE_ACTIVE/);
 });
 
-test('the Phase 4 flag is absent from every build profile', () => {
+// SUPERSEDED BY THE OWNER-AUTHORIZED BUILD 3 ACTIVATION, deliberately.
+//
+// This asserted the Phase 4 flag was absent everywhere — correct while Build 3
+// shipped dormant. Now that the owner has authorized activation, the invariant
+// that still matters is the NESTING: Phase 4 can never outrank the phases below
+// it. That is a property of the resolver, so it is asserted against the
+// resolver rather than against a frozen eas.json snapshot.
+test('the Phase 4 flag is enabled, and can never outrank its parents', () => {
   const eas = JSON.parse(read('eas.json'));
   for (const [profile, config] of Object.entries(eas.build ?? {})) {
-    const env = config.env ?? {};
     assert.equal(
-      'EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_ELISE_V1' in env,
-      false,
-      `${profile} must not carry the Phase 4 flag`,
+      config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_ELISE_V1,
+      'true',
+      `${profile} does not carry the Phase 4 flag`,
     );
   }
-  // And it is absent from the repository's committed environment entirely.
-  assert.equal(
-    read('eas.json').includes('PRIVATE_DRESSING_ROOM_ELISE'),
-    false,
-    'no profile may reference the Phase 4 flag',
+  // The nesting is what makes Phase 4 safe: turning it on without the
+  // workspace, or without interactions, must still yield nothing.
+  const flags = read('constants/featureFlags.ts');
+  assert.ok(
+    flags.includes('PRIVATE_DRESSING_ROOM_ELISE_ACTIVE =\n  PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE && PRIVATE_DRESSING_ROOM_ELISE_V1'),
+    'the Phase 4 nesting was altered',
+  );
+  assert.ok(
+    flags.includes('PRIVATE_DRESSING_ROOM_INTERACTIONS_ACTIVE =\n  PRIVATE_DRESSING_ROOM_V1 && PRIVATE_DRESSING_ROOM_INTERACTIONS_V1'),
+    'the Phase 3 nesting was altered',
+  );
+  assert.ok(
+    !/PRIVATE_DRESSING_ROOM_ELISE_ACTIVE\s*=\s*true\s*;/.test(flags),
+    'the derived capability was hardcoded instead of composed',
   );
 });
 
