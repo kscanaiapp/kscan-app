@@ -46,6 +46,9 @@ const NON_SUBMISSION_STATUSES = Object.freeze([
   'failed',
 ]);
 
+const DELETION_GRACE_MARKER_KEY = '@kscan/account-deletion/grace/v1';
+const inFlightSubmissions = new Map();
+
 class DeletionResponseError extends Error {
   constructor(message, code) {
     super(message);
@@ -56,6 +59,10 @@ class DeletionResponseError extends Error {
 
 function readString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function readIdentifier(data, camelKey, snakeKey) {
+  return readString(data[camelKey] ?? data[snakeKey]);
 }
 
 /**
@@ -95,6 +102,7 @@ async function getPendingDeletionRequest(supabase, userId) {
  * The single service-level normalizer. The UI must not read backend field names.
  *
  * @returns {{accepted: true, lifecycle: 'active', alreadyRequested: boolean,
+ *            deletionRequestId: string|null, correlationId: string|null,
  *            requestedAt: string|null, gracePeriodEndsAt: string|null,
  *            backendStatus: string}}
  * @throws {DeletionResponseError} on any response that is not provable acceptance.
@@ -119,6 +127,9 @@ function normalizeDeletionSubmissionResponse(data) {
 
   const requestedAt = readTimestamp(data, 'requestedAt', 'requested_at');
   const gracePeriodEndsAt = readTimestamp(data, 'gracePeriodEndsAt', 'grace_period_ends_at');
+  const deletionRequestId = readIdentifier(data, 'deletionRequestId', 'deletion_request_id') ??
+    readIdentifier(data, 'requestId', 'request_id');
+  const correlationId = readIdentifier(data, 'correlationId', 'correlation_id');
 
   // Legacy duplicate marker. Compatibility only; not the canonical shape.
   if (status === 'already_requested') {
@@ -126,6 +137,8 @@ function normalizeDeletionSubmissionResponse(data) {
       accepted: true,
       lifecycle: 'active',
       alreadyRequested: true,
+      deletionRequestId,
+      correlationId,
       requestedAt,
       gracePeriodEndsAt,
       backendStatus: status,
@@ -149,6 +162,8 @@ function normalizeDeletionSubmissionResponse(data) {
     accepted: true,
     lifecycle: 'active',
     alreadyRequested: data.alreadyRequested === true,
+    deletionRequestId,
+    correlationId,
     requestedAt,
     gracePeriodEndsAt,
     backendStatus: status,
@@ -156,22 +171,105 @@ function normalizeDeletionSubmissionResponse(data) {
 }
 
 async function submitAccountDeletionRequest(supabase, _session) {
-  const { data, error } = await supabase.functions.invoke('handle-user-deletion', {
-    body: {},
-  });
+  const actorId = readString(_session?.user?.id) ?? 'unknown';
+  const existing = inFlightSubmissions.get(actorId);
+  if (existing) return existing;
 
-  if (error) {
-    throw new Error(error.message || 'Unable to submit deletion request.');
+  const submission = (async () => {
+    const { data, error } = await supabase.functions.invoke('handle-user-deletion', {
+      body: {},
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Unable to submit deletion request.');
+    }
+
+    return normalizeDeletionSubmissionResponse(data);
+  })();
+  inFlightSubmissions.set(actorId, submission);
+  try {
+    return await submission;
+  } finally {
+    if (inFlightSubmissions.get(actorId) === submission) inFlightSubmissions.delete(actorId);
   }
+}
 
-  return normalizeDeletionSubmissionResponse(data);
+function createDeletionGraceMarker(ownerId, result) {
+  const normalizedOwnerId = readString(ownerId);
+  if (!normalizedOwnerId || !result?.accepted) {
+    throw new DeletionResponseError('Unable to isolate local deletion state.', 'INVALID_LOCAL_MARKER');
+  }
+  return {
+    version: 1,
+    ownerId: normalizedOwnerId,
+    deletionRequestId: readString(result.deletionRequestId),
+    correlationId: readString(result.correlationId),
+    backendStatus: readString(result.backendStatus),
+    isolatedAt: new Date().toISOString(),
+  };
+}
+
+async function persistDeletionGraceMarker(storage, marker) {
+  if (!storage?.setItem) throw new Error('Deletion marker storage unavailable.');
+  await storage.setItem(DELETION_GRACE_MARKER_KEY, JSON.stringify(marker));
+}
+
+async function reconcileAuthenticatedDeletionState({ supabase, storage, ownerId }) {
+  const { data, error } = await supabase.rpc('get_my_latest_deletion_status_v2');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] ?? null : data;
+  if (!row) return { status: 'no_cloud_request', purged: false };
+  return reconcileDeletionLocalState({
+    storage,
+    ownerId,
+    deletionStatus: readString(row.status),
+    purgedAt: row.purged_at ?? row.purgedAt ?? null,
+  });
+}
+
+async function reconcileDeletionLocalState({
+  storage,
+  ownerId,
+  deletionStatus,
+  purgedAt = null,
+  purgeOwnerData,
+}) {
+  if (!storage?.getItem || !storage?.removeItem) throw new Error('Deletion marker storage unavailable.');
+  const raw = await storage.getItem(DELETION_GRACE_MARKER_KEY);
+  if (!raw) return { status: 'no_marker', purged: false };
+  let marker;
+  try {
+    marker = JSON.parse(raw);
+  } catch {
+    return { status: 'invalid_marker', purged: false };
+  }
+  const normalizedOwnerId = readString(ownerId);
+  if (!normalizedOwnerId || marker?.ownerId !== normalizedOwnerId) {
+    return { status: 'different_owner', purged: false };
+  }
+  if (deletionStatus === 'restored' || deletionStatus === 'cancelled') {
+    await storage.removeItem(DELETION_GRACE_MARKER_KEY);
+    return { status: 'restored', purged: false };
+  }
+  if (deletionStatus !== 'purged' || !readString(purgedAt)) {
+    return { status: 'isolated', purged: false };
+  }
+  if (typeof purgeOwnerData !== 'function') throw new Error('Terminal local purge unavailable.');
+  await purgeOwnerData(normalizedOwnerId);
+  await storage.removeItem(DELETION_GRACE_MARKER_KEY);
+  return { status: 'purged', purged: true };
 }
 
 module.exports = {
   ACTIVE_DELETION_STATUSES,
   NON_SUBMISSION_STATUSES,
+  DELETION_GRACE_MARKER_KEY,
   DeletionResponseError,
+  createDeletionGraceMarker,
   getPendingDeletionRequest,
   normalizeDeletionSubmissionResponse,
+  persistDeletionGraceMarker,
+  reconcileAuthenticatedDeletionState,
+  reconcileDeletionLocalState,
   submitAccountDeletionRequest,
 };

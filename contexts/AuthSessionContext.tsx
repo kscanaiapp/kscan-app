@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, takeAuthBootstrapStorageError } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
@@ -29,6 +30,7 @@ import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHa
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
+import { reconcileAuthenticatedDeletionState } from '../services/accountDeletion';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -207,6 +209,13 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const ownerId = session?.user.id;
+    if (!ownerId) return;
+    void reconcileAuthenticatedDeletionState({ supabase, storage: AsyncStorage, ownerId })
+      .catch((error: unknown) => logError('Unable to reconcile account deletion state', error));
+  }, [session?.user.id]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
