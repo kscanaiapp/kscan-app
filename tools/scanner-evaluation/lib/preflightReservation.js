@@ -29,7 +29,8 @@
 
 const crypto = require('crypto');
 
-const RESERVATION_CONTRACT_VERSION = '1.0.0';
+const RESERVATION_CONTRACT_VERSION = '1.1.0';
+const BILLING_USAGE_CONTRACT_VERSION = '1.0.0';
 const CERTIFIED_MAX_OUTPUT_TOKENS = 2048;
 
 /** countTokens is evaluation infrastructure; its policy is NOT the v140 policy. */
@@ -125,6 +126,79 @@ function rateFor(pricing, model) {
 function attemptCostUsd(pricing, model, inputTokens, outputTokens) {
   const { inputPerMillionUsd, outputPerMillionUsd } = rateFor(pricing, model);
   return (inputTokens / 1e6) * inputPerMillionUsd + (outputTokens / 1e6) * outputPerMillionUsd;
+}
+
+function tokenCountOrNull(value) {
+  return Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+/**
+ * Derive the provider's billable output-token count without omitting thinking.
+ *
+ * Gemini charges candidates plus thinking as output. Older run artifacts did
+ * not retain thoughtsTokenCount, but did retain promptTokenCount and
+ * totalTokenCount. In that case total - prompt is the conservative observable
+ * output count. When both forms are present, the larger is used so a metadata
+ * disagreement can never reduce recorded spend.
+ */
+function deriveBillableOutputUsage({
+  promptTokenCount,
+  candidatesTokenCount,
+  thoughtsTokenCount,
+  totalTokenCount,
+} = {}) {
+  const prompt = tokenCountOrNull(promptTokenCount);
+  const candidates = tokenCountOrNull(candidatesTokenCount);
+  const thoughts = tokenCountOrNull(thoughtsTokenCount);
+  const total = tokenCountOrNull(totalTokenCount);
+
+  if (prompt == null) {
+    return { ok: false, reason: 'prompt_token_count_missing' };
+  }
+
+  const totalDelta = total == null
+    ? null
+    : total >= prompt
+      ? total - prompt
+      : null;
+
+  if (thoughts != null) {
+    if (candidates == null) {
+      return { ok: false, reason: 'candidate_token_count_missing_with_explicit_thoughts' };
+    }
+    const explicit = candidates + thoughts;
+    const billableOutputTokens = totalDelta == null ? explicit : Math.max(explicit, totalDelta);
+    return {
+      ok: true,
+      promptTokenCount: prompt,
+      candidatesTokenCount: candidates,
+      thoughtsTokenCount: thoughts,
+      totalTokenCount: total,
+      billableOutputTokens,
+      basis: totalDelta != null && totalDelta > explicit
+        ? 'max_candidates_plus_thoughts_or_total_minus_prompt'
+        : 'candidates_plus_thoughts',
+    };
+  }
+
+  if (totalDelta != null) {
+    return {
+      ok: true,
+      promptTokenCount: prompt,
+      candidatesTokenCount: candidates,
+      thoughtsTokenCount: null,
+      totalTokenCount: total,
+      billableOutputTokens: totalDelta,
+      basis: 'total_minus_prompt',
+    };
+  }
+
+  return {
+    ok: false,
+    reason: total != null && total < prompt
+      ? 'total_token_count_below_prompt_token_count'
+      : 'thinking_inclusive_output_count_unavailable',
+  };
 }
 
 /**
@@ -229,17 +303,39 @@ class ReservationLedger {
   }
 
   /** Replace a reservation with confirmed usage. Never additive, never twice. */
-  confirmAttempt({ caseId, role, promptTokenCount, candidatesTokenCount }) {
+  confirmAttempt({
+    caseId,
+    role,
+    promptTokenCount,
+    candidatesTokenCount,
+    thoughtsTokenCount,
+    totalTokenCount,
+  }) {
     const slot = this.slots.get(this.key(caseId, role));
     if (!slot) throw new Error(`no reservation for ${caseId}:${role}`);
     if (slot.state !== 'reserved') {
       this.events.doubleCountPrevented += 1;
       return { applied: false, reason: `slot already ${slot.state}` };
     }
-    const cost = attemptCostUsd(this.pricing, slot.model, promptTokenCount || 0, candidatesTokenCount || 0);
+    const usage = deriveBillableOutputUsage({
+      promptTokenCount,
+      candidatesTokenCount,
+      thoughtsTokenCount,
+      totalTokenCount,
+    });
+    if (!usage.ok) {
+      throw new Error(`thinking-inclusive usage is unavailable for ${caseId}:${role}: ${usage.reason}`);
+    }
+    const cost = attemptCostUsd(
+      this.pricing,
+      slot.model,
+      usage.promptTokenCount,
+      usage.billableOutputTokens,
+    );
     // The reservation is DROPPED and replaced, never added to.
     slot.state = 'confirmed';
     slot.confirmedUsd = cost;
+    slot.usage = usage;
     this.confirmedUsd += cost;
     this.generateAttempts[role] += 1;
     return { applied: true, confirmedUsd: cost };
@@ -285,6 +381,7 @@ class ReservationLedger {
       [...this.slots.values()].filter((s) => s.role === role && s.state === state).length;
     return {
       reservationContractVersion: RESERVATION_CONTRACT_VERSION,
+      billingUsageContractVersion: BILLING_USAGE_CONTRACT_VERSION,
       confirmedUsd: this.confirmedUsd,
       conservativeUnresolvedUsd: this.outstandingUsd(),
       totalAccountedUsd: this.totalAccountedUsd(),
@@ -310,11 +407,13 @@ class ReservationLedger {
 
 module.exports = {
   RESERVATION_CONTRACT_VERSION,
+  BILLING_USAGE_CONTRACT_VERSION,
   CERTIFIED_MAX_OUTPUT_TOKENS,
   COUNT_TOKENS_POLICY,
   countTokensRequestCap,
   isCountTokensRetryable,
   countTokensBackoffMs,
   exactRequestIdentity,
+  deriveBillableOutputUsage,
   ReservationLedger,
 };

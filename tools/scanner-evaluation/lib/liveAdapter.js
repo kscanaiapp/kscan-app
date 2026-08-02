@@ -125,7 +125,8 @@ function verifyPrivateOutputRoot(outputRoot, { storageRoot = process.env.KSCAN_E
           policy: 'Private evaluation run artifacts. Delete on expiry. Never committed, never shared.',
           containsImageBytes: false,
           containsPrompts: false,
-          containsRawProviderResponses: false,
+          containsRawProviderResponses: true,
+          rawProviderResponseScope: 'Exact model text only; no prompt, image, credential, URL, headers, or HTTP envelope.',
           containsCredentials: false,
         },
         null,
@@ -144,6 +145,12 @@ function verifyPrivateOutputRoot(outputRoot, { storageRoot = process.env.KSCAN_E
   }
   if (Date.parse(retention.expiresAt) <= new Date(now).getTime()) {
     throw new PreflightRefused('retention', 'retention.json has expired; execution is refused until the run root is retired');
+  }
+  if (retention.containsRawProviderResponses !== true) {
+    throw new PreflightRefused(
+      'retention',
+      'retention.json must authorize private raw model-text capture before execution',
+    );
   }
   return { root: target, retentionPath, retentionDays: retention.retentionDays, expiresAt: retention.expiresAt };
 }
@@ -294,6 +301,7 @@ function buildCaseRecord({ caseId, report, runIdentityRecord, outcome, attemptsU
       promptTokenCount: a.promptTokenCount,
       candidatesTokenCount: a.candidatesTokenCount,
       totalTokenCount: a.totalTokenCount,
+      thoughtsTokenCount: a.thoughtsTokenCount ?? null,
       errorCategory: a.errorCategory,
       certifiedFailureKind: a.certifiedFailureKind || null,
     })),

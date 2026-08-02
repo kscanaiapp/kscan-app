@@ -85,7 +85,7 @@ test('A: primary confirms and the unused fallback is released exactly once', () 
   const r = reserve(ledger, 'c1');
   const reservedTotal = ledger.outstandingUsd();
 
-  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 2532, candidatesTokenCount: 300 });
+  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 2532, candidatesTokenCount: 300, thoughtsTokenCount: 0, totalTokenCount: 2832 });
   const released = ledger.release({ caseId: 'c1', role: 'fallback' });
   assert.strictEqual(released.released, true);
 
@@ -105,7 +105,7 @@ test('A: primary confirms and the unused fallback is released exactly once', () 
 test('confirmed cost is retained even if later parsing or scoring fails', () => {
   const ledger = newLedger();
   reserve(ledger, 'c1');
-  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 2532, candidatesTokenCount: 300 });
+  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 2532, candidatesTokenCount: 300, thoughtsTokenCount: 0, totalTokenCount: 2832 });
   const spend = ledger.confirmedUsd;
   ledger.release({ caseId: 'c1', role: 'fallback' });
   // A downstream validation failure changes no accounting.
@@ -133,8 +133,8 @@ test('B: a failed primary with no usage metadata keeps its conservative reservat
 test('C: both attempts confirm, and neither reservation is added on top', () => {
   const ledger = newLedger();
   const r = reserve(ledger, 'c1');
-  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 2532, candidatesTokenCount: 10 });
-  ledger.confirmAttempt({ caseId: 'c1', role: 'fallback', promptTokenCount: 2540, candidatesTokenCount: 280 });
+  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 2532, candidatesTokenCount: 10, thoughtsTokenCount: 0, totalTokenCount: 2542 });
+  ledger.confirmAttempt({ caseId: 'c1', role: 'fallback', promptTokenCount: 2540, candidatesTokenCount: 280, thoughtsTokenCount: 0, totalTokenCount: 2820 });
 
   const t = ledger.totals();
   assert.strictEqual(t.conservativeUnresolvedUsd, 0);
@@ -147,9 +147,9 @@ test('C: both attempts confirm, and neither reservation is added on top', () => 
 test('confirming the same slot twice is prevented', () => {
   const ledger = newLedger();
   reserve(ledger, 'c1');
-  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 100, candidatesTokenCount: 10 });
+  ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 100, candidatesTokenCount: 10, thoughtsTokenCount: 0, totalTokenCount: 110 });
   const spend = ledger.confirmedUsd;
-  const second = ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 100, candidatesTokenCount: 10 });
+  const second = ledger.confirmAttempt({ caseId: 'c1', role: 'primary', promptTokenCount: 100, candidatesTokenCount: 10, thoughtsTokenCount: 0, totalTokenCount: 110 });
   assert.strictEqual(second.applied, false);
   assert.strictEqual(ledger.confirmedUsd, spend);
   assert.strictEqual(ledger.totals().doubleCountPrevented, 1);
@@ -177,7 +177,7 @@ test('E: a dispatched request whose response is lost stays cost-unknown', () => 
 test('the ledger never double-counts or double-releases across a mixed run', () => {
   const ledger = newLedger();
   reserve(ledger, 'a');
-  ledger.confirmAttempt({ caseId: 'a', role: 'primary', promptTokenCount: 2000, candidatesTokenCount: 100 });
+  ledger.confirmAttempt({ caseId: 'a', role: 'primary', promptTokenCount: 2000, candidatesTokenCount: 100, thoughtsTokenCount: 0, totalTokenCount: 2100 });
   ledger.release({ caseId: 'a', role: 'fallback' });
   reserve(ledger, 'b');
   ledger.retainUnknown({ caseId: 'b', role: 'primary' });

@@ -116,7 +116,7 @@ test('an approved private root is created with an explicit retention expiry', ()
     const retention = JSON.parse(fs.readFileSync(report.retentionPath, 'utf8'));
     assert.strictEqual(retention.containsImageBytes, false);
     assert.strictEqual(retention.containsPrompts, false);
-    assert.strictEqual(retention.containsRawProviderResponses, false);
+    assert.strictEqual(retention.containsRawProviderResponses, true);
     assert.strictEqual(retention.containsCredentials, false);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });

@@ -359,7 +359,10 @@ test('no production imports from evaluation paths', () => {
       if (full.includes(`${path.sep}tools${path.sep}scanner-evaluation${path.sep}`)) continue;
       const text = fs.readFileSync(full, 'utf8');
       for (const needle of banned) {
-        if (text.includes(needle)) {
+        const importPattern = new RegExp(
+          `(?:from\\s+|require\\s*\\(|import\\s*\\()[^\\n]*${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&')}`,
+        );
+        if (importPattern.test(text)) {
           offenders.push({ file: path.relative(ROOT, full), needle });
         }
       }

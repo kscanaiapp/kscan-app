@@ -1,0 +1,32 @@
+{
+  "pricingRecordVersion": "1.1.0",
+  "source": "https://ai.google.dev/gemini-api/docs/pricing",
+  "retrievedAt": "2026-08-02T16:01:34.0192097-04:00",
+  "retrievalNote": "Official Google Gemini API paid-tier pricing rechecked for the autonomous scanner benchmark. This is a new append-only record; it does not replace the 2026-07-29 provenance record.",
+  "currency": "USD",
+  "unit": "per 1,000,000 tokens",
+  "billingUsageContract": {
+    "outputDefinition": "candidatesTokenCount + thoughtsTokenCount",
+    "legacyFallback": "When thoughtsTokenCount is absent, use at least totalTokenCount - promptTokenCount. If both forms exist, use the larger observable count.",
+    "source": "https://ai.google.dev/api/generate-content#v1beta.GenerateContentResponse"
+  },
+  "models": {
+    "gemini-3.6-flash": {
+      "inputPerMillionUsd": 1.5,
+      "outputPerMillionUsd": 7.5,
+      "role": "certified Scanner primary",
+      "outputNote": "output price includes thinking tokens"
+    },
+    "gemini-3.5-flash-lite": {
+      "inputPerMillionUsd": 0.3,
+      "outputPerMillionUsd": 2.5,
+      "role": "certified Scanner fallback",
+      "outputNote": "output price includes thinking tokens"
+    }
+  },
+  "certifiedRouteParameters": {
+    "maxOutputTokens": 2048,
+    "maxAttemptsPerCall": 2,
+    "preflightRule": "Reserve the full output-token cap for each certified-legal attempt; observed confirmation must remain thinking-inclusive."
+  }
+}

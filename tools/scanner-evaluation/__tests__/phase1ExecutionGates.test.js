@@ -661,6 +661,7 @@ test('exact-product suppression and pilot limitations propagate into the plan', 
 test('no production endpoint or production credential appears in the evaluation path', () => {
   const evalDir = path.join(ROOT, 'tools/scanner-evaluation');
   const offenders = [];
+  let providerAllowNetCount = 0;
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
@@ -674,15 +675,22 @@ test('no production endpoint or production credential appears in the evaluation 
       }
       if (!/\.(js|json)$/.test(entry.name)) continue;
       const source = fs.readFileSync(full, 'utf8');
-      // A literal provider endpoint or a real project ref in the runner path would
-      // mean the harness can reach production without an injected adapter.
-      if (/generativelanguage\.googleapis\.com/.test(source)
-        || /wyyuqfdxucjksghsmhry/.test(source)
+      const relative = path.relative(ROOT, full).replace(/\\/g, '/');
+      const providerMatches = source.match(/generativelanguage\.googleapis\.com/g) || [];
+      if (relative === 'tools/scanner-evaluation/live-launcher.js') {
+        providerAllowNetCount += providerMatches.length;
+      } else if (providerMatches.length > 0) {
+        offenders.push(relative);
+      }
+      // The one injected Gemini transport is expected. Supabase endpoints and
+      // project references remain forbidden everywhere in the evaluation path.
+      if (/wyyuqfdxucjksghsmhry/.test(source)
         || /\.supabase\.co\/functions/.test(source)) {
-        offenders.push(path.relative(ROOT, full).replace(/\\/g, '/'));
+        offenders.push(relative);
       }
     }
   };
   walk(evalDir);
+  assert.equal(providerAllowNetCount, 1, 'the live launcher must scope exactly one provider allow-net host');
   assert.deepEqual(offenders, [], 'the evaluation path must contain no production endpoint or project reference');
 });

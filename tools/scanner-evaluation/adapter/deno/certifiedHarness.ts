@@ -49,8 +49,11 @@ interface HarnessArgs {
   certRoot: string;
   scenario: string;
   mode: string;
+  requestContract: string;
+  intent: string;
+  sourceEntryPath: string;
   out: string | null;
-  /** 'mock' drives the deterministic envelope. 'live' reaches the real provider. */
+  /** 'mock' drives a deterministic envelope; 'capture' hashes the exact provider request offline. */
   provider: string;
   /** Governed image to evaluate. Required in live mode; never logged. */
   imageFile: string | null;
@@ -161,6 +164,12 @@ function parseArgs(argv: string[]): HarnessArgs {
   const certRoot = get('--cert-root') ?? denoRuntime.env.get('KSCAN_CERT_V140_ROOT') ?? null;
   const scenario = get('--scenario') ?? 'completed';
   const mode = get('--mode') ?? 'identify_selected_item';
+  const requestContract = get('--request-contract') ?? 'v2';
+  if (!['v2', 'legacy'].includes(requestContract)) {
+    throw new Error(`unknown --request-contract: ${requestContract}`);
+  }
+  const intent = get('--intent') ?? 'identify_for_style';
+  const sourceEntryPath = get('--source-entry-path') ?? 'scanner_camera';
   // The certified function logs to stdout, so the machine-readable result is
   // written to a file rather than interleaved with those lines.
   const out = get('--out');
@@ -169,7 +178,7 @@ function parseArgs(argv: string[]): HarnessArgs {
   }
 
   const provider = get('--provider') ?? 'mock';
-  if (!['mock', 'live', 'count-tokens'].includes(provider)) throw new Error(`unknown --provider: ${provider}`);
+  if (!['mock', 'capture', 'live', 'count-tokens'].includes(provider)) throw new Error(`unknown --provider: ${provider}`);
 
   const imageFile = get('--image-file');
   const imageWidth = Number(get('--image-width') ?? '0');
@@ -201,9 +210,13 @@ function parseArgs(argv: string[]): HarnessArgs {
   if ((provider === 'live' || provider === 'count-tokens') && !denoRuntime.env.get('GEMINI_API_KEY')) {
     throw new Error(`${provider} mode requires GEMINI_API_KEY in the process environment`);
   }
+  if (provider === 'live' && !out) {
+    throw new Error('live mode requires --out so private raw model text can never reach stdout');
+  }
 
   return {
-    certRoot, scenario, mode, out, provider, imageFile, imageWidth, imageHeight, caseId, timeoutMs,
+    certRoot, scenario, mode, requestContract, intent, sourceEntryPath,
+    out, provider, imageFile, imageWidth, imageHeight, caseId, timeoutMs,
     candidateVersion, overlayFile,
   };
 }
@@ -392,8 +405,16 @@ const providerAttempts: Array<{
   promptTokenCount: number | null;
   candidatesTokenCount: number | null;
   totalTokenCount: number | null;
+  thoughtsTokenCount: number | null;
   errorCategory: string | null;
   certifiedFailureKind: string | null;
+}> = [];
+
+const privateRawProviderOutputs: Array<{
+  attemptIndex: number;
+  model: string;
+  rawModelTextSha256: string;
+  rawModelText: string;
 }> = [];
 
 /**
@@ -459,6 +480,7 @@ function installLiveFetchInterceptor(
       let promptTokenCount: number | null = null;
       let candidatesTokenCount: number | null = null;
       let totalTokenCount: number | null = null;
+      let thoughtsTokenCount: number | null = null;
       try {
         // Clone so the certified parser still receives an unread body.
         const body = await response.clone().json();
@@ -467,6 +489,22 @@ function installLiveFetchInterceptor(
           promptTokenCount = usage.promptTokenCount ?? null;
           candidatesTokenCount = usage.candidatesTokenCount ?? null;
           totalTokenCount = usage.totalTokenCount ?? null;
+          thoughtsTokenCount = usage.thoughtsTokenCount ?? null;
+        }
+        const parts = body?.candidates?.[0]?.content?.parts;
+        if (Array.isArray(parts)) {
+          const rawModelText = parts
+            .filter((part: unknown) => part && typeof (part as { text?: unknown }).text === 'string')
+            .map((part: unknown) => (part as { text: string }).text)
+            .join('');
+          if (rawModelText.length > 0) {
+            privateRawProviderOutputs.push({
+              attemptIndex: providerAttempts.length,
+              model,
+              rawModelTextSha256: await sha256Hex(rawModelText),
+              rawModelText,
+            });
+          }
         }
         if (httpStatus >= 400) {
           certifiedFailureKind = classifyProviderHttpFailure(httpStatus, {
@@ -490,6 +528,7 @@ function installLiveFetchInterceptor(
         promptTokenCount,
         candidatesTokenCount,
         totalTokenCount,
+        thoughtsTokenCount,
         errorCategory,
         certifiedFailureKind,
       });
@@ -505,6 +544,7 @@ function installLiveFetchInterceptor(
         promptTokenCount: null,
         candidatesTokenCount: null,
         totalTokenCount: null,
+        thoughtsTokenCount: null,
         errorCategory,
         certifiedFailureKind: aborted ? 'timeout' : 'network',
       });
@@ -540,6 +580,70 @@ const tokenCounts: {
 
 /** No-value sentinel, distinct from any real hash, for a field the certified request never carries. */
 const ABSENT_FIELD_SHA256 = 'absent-field-sha256-placeholder-not-a-real-digest';
+
+const capturedProviderRequest: {
+  serializedRequestPayloadSha256: string | null;
+  promptSha256: string | null;
+  generationConfigSha256: string | null;
+  responseSchemaSha256: string | null;
+  model: string | null;
+  captureCount: number;
+} = {
+  serializedRequestPayloadSha256: null,
+  promptSha256: null,
+  generationConfigSha256: null,
+  responseSchemaSha256: null,
+  model: null,
+  captureCount: 0,
+};
+
+/** Capture and hash the exact Gemini request without any network call. */
+function installCaptureInterceptor() {
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const host = (() => {
+      try { return new URL(url).host; } catch { return 'unparseable'; }
+    })();
+    if (host !== GEMINI_HOST) {
+      counters.unexpectedNetworkAttempts += 1;
+      if (host.endsWith('supabase.co') || host.includes('supabase')) counters.supabaseHostAttempts += 1;
+      else counters.commerceHostAttempts += 1;
+      if (!blockedHosts.includes(host)) blockedHosts.push(host);
+      throw new Error(`network denied by harness: host=${host}`);
+    }
+    const effective = applyOverlayToRequestInit(init) ?? init;
+    if (!effective || typeof effective.body !== 'string') {
+      throw new Error('capture: certified request carried no JSON body');
+    }
+    const parsed = JSON.parse(effective.body) as {
+      generationConfig?: { responseSchema?: unknown };
+    };
+    capturedProviderRequest.serializedRequestPayloadSha256 = await sha256Hex(effective.body);
+    capturedProviderRequest.promptSha256 = await sha256Hex(promptTextOf(effective));
+    capturedProviderRequest.generationConfigSha256 = await sha256Hex(JSON.stringify(parsed.generationConfig ?? null));
+    capturedProviderRequest.responseSchemaSha256 = await sha256Hex(
+      JSON.stringify(parsed.generationConfig?.responseSchema ?? null),
+    );
+    capturedProviderRequest.model = (url.match(/models\/([^:?]+)/) || [])[1] || 'unknown';
+    capturedProviderRequest.captureCount += 1;
+
+    // A non-fashion response stops commerce on both legacy and V2 paths. The
+    // response is synthetic and exists only to let the real handler terminate.
+    const responseText = scenarioBody('non_fashion').text;
+    return new Response(
+      JSON.stringify({
+        candidates: [{ content: { parts: [{ text: responseText }] } }],
+        usageMetadata: {
+          promptTokenCount: 100,
+          candidatesTokenCount: 40,
+          thoughtsTokenCount: 10,
+          totalTokenCount: 150,
+        },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as typeof fetch;
+}
 
 function installCountTokensInterceptor(primaryModel: string, fallbackModel: string) {
   const realFetch = globalThis.fetch.bind(globalThis);
@@ -648,7 +752,8 @@ function installFetchInterceptor(scenario: string) {
           latencyMs: 0,
           promptTokenCount: null,
           candidatesTokenCount: null,
-          totalTokenCount: null,
+        totalTokenCount: null,
+        thoughtsTokenCount: null,
           errorCategory: 'provider_5xx',
           certifiedFailureKind: 'http_5xx_transient',
         });
@@ -673,6 +778,7 @@ function installFetchInterceptor(scenario: string) {
         promptTokenCount: 100,
         candidatesTokenCount: 50,
         totalTokenCount: 150,
+        thoughtsTokenCount: 0,
         errorCategory: null,
         certifiedFailureKind: null,
       });
@@ -763,12 +869,15 @@ async function sha256Prefix(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 12);
 }
 
-async function buildV2Request(mode: string, image?: { base64: string; width: number; height: number }): Promise<Request> {
+async function buildRequest(
+  args: Pick<HarnessArgs, 'requestContract' | 'mode' | 'intent' | 'sourceEntryPath'>,
+  image?: { base64: string; width: number; height: number },
+): Promise<Request> {
   // The certified entry requires a selectedCandidate for identify_selected_item
   // (error code MISSING_SELECTED_CANDIDATE) — an application-level requirement
   // beyond contract validation. detect_items must NOT carry one.
   const selectedCandidate =
-    mode === 'identify_selected_item'
+    args.mode === 'identify_selected_item'
       ? {
           selectedCandidate: {
             candidateId: 'harness-candidate-01',
@@ -781,18 +890,50 @@ async function buildV2Request(mode: string, image?: { base64: string; width: num
       : {};
 
   const imageBase64 = image ? image.base64 : TINY_JPEG_BASE64;
+  const imageDigestPrefix = await sha256Prefix(imageBase64);
+  if (args.requestContract === 'legacy') {
+    // Mirrors services/scannerScanRequest.ts::legacyOptionsFor followed by
+    // services/scanIdentification.ts::legacyRequestBody. The timestamp value
+    // is fixed only to make this offline capture deterministic; the Edge
+    // handler does not include it in the provider request.
+    const body = {
+      imageBase64,
+      source: 'camera',
+      localPrivacyFiltered: false,
+      clientTimestamp: '1970-01-01T00:00:00.000Z',
+      multiItemDetection: true,
+      requestMode: args.mode === 'identify_selected_item' ? 'selected_item' : 'multi_item_detection',
+      scanSessionId: 'harness-session-0001',
+      imageDigestPrefix,
+      ...(args.mode === 'identify_selected_item'
+        ? {
+            selectedCandidate: {
+              candidateId: 'harness-candidate-01',
+              category: 'footwear',
+              subtype: 'sneaker',
+              bounds: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+            },
+          }
+        : {}),
+    };
+    return new Request('https://harness.invalid/scan-identify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: denoRuntime.env.get('SUPABASE_ANON_KEY') ?? '' },
+      body: JSON.stringify(body),
+    });
+  }
   const body = {
     ...selectedCandidate,
-    ...(mode === 'identify_selected_item'
-      ? { scanSessionId: 'harness-session-0001', imageDigestPrefix: await sha256Prefix(imageBase64) }
+    ...(args.mode === 'identify_selected_item'
+      ? { scanSessionId: 'harness-session-0001', imageDigestPrefix }
       : {}),
     contractVersion: 'fashion-identification-v2',
     requestId: 'harness-request-0001',
     // Only intents present in certified v140. identify_for_closet was added
     // after certification and would be rejected as invalid_intent.
-    intent: 'identify_for_style',
-    mode,
-    source: { entryPath: 'scanner_camera', platform: 'ios', appVersion: 'harness' },
+    intent: args.intent,
+    mode: args.mode,
+    source: { entryPath: args.sourceEntryPath, platform: 'ios', appVersion: 'harness' },
     evidence: [
       {
         evidenceId: 'harness-evidence-01',
@@ -829,7 +970,8 @@ async function buildV2Request(mode: string, image?: { base64: string; width: num
 
 async function main() {
   const {
-    certRoot, scenario, mode, out, provider, imageFile, imageWidth, imageHeight, caseId, timeoutMs,
+    certRoot, scenario, mode, requestContract, intent, sourceEntryPath,
+    out, provider, imageFile, imageWidth, imageHeight, caseId, timeoutMs,
     candidateVersion, overlayFile,
   } = parseArgs(denoRuntime.args);
   const envKeys = installEnv(provider);
@@ -837,7 +979,9 @@ async function main() {
   // Loaded and hash-verified BEFORE the certified entry is imported, so a bad
   // overlay stops the run before anything is dispatched.
   if (overlayFile) candidateOverlay = await loadOverlay(overlayFile, candidateVersion);
-  if (provider === 'live' || provider === 'count-tokens') {
+  if (provider === 'capture') {
+    installCaptureInterceptor();
+  } else if (provider === 'live' || provider === 'count-tokens') {
     const routingUrl = new URL(
       `file:///${certRoot.replace(/\\/g, '/').replace(/^\/+/, '')}/supabase/functions/_shared/llmModelRouting.ts`
     ).href;
@@ -865,7 +1009,7 @@ async function main() {
       ? { base64: base64OfFile(imageFile), width: imageWidth, height: imageHeight }
       : undefined;
 
-  const request = await buildV2Request(mode, image);
+  const request = await buildRequest({ requestContract, mode, intent, sourceEntryPath }, image);
   let status = 0;
   let payload: unknown = null;
   let handlerError: string | null = null;
@@ -929,6 +1073,24 @@ async function main() {
     return;
   }
 
+  if (provider === 'capture') {
+    const captureReport = JSON.stringify({
+      provider,
+      caseId,
+      requestContract,
+      mode,
+      intent: requestContract === 'v2' ? intent : null,
+      sourceEntryPath: requestContract === 'v2' ? sourceEntryPath : 'scanner_camera_legacy',
+      ...capturedProviderRequest,
+      externalNetworkCallCount: 0,
+      unexpectedNetworkAttemptCount: counters.unexpectedNetworkAttempts,
+      blockedHosts,
+    }, null, 2);
+    if (out) await denoRuntime.writeTextFile(out, `${captureReport}\n`);
+    else console.log(captureReport);
+    return;
+  }
+
   // The certified response carries the V2 result nested under
   // `identificationV2` alongside the legacy projection, not at the top level.
   const handlerLatencyMs = performance.now() - handlerStarted;
@@ -950,6 +1112,7 @@ async function main() {
         handlerLatencyMs,
         // Per-attempt telemetry: model, status, latency and token counts only.
         providerAttempts,
+        privateRawProviderOutputs: provider === 'live' ? privateRawProviderOutputs : undefined,
         attemptCount: provider === 'live' ? providerAttempts.length : counters.modelCalls,
         certRootAccepted: true,
         httpStatus: status,

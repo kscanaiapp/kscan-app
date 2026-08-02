@@ -19,6 +19,7 @@ const path = require('path');
 const CASES_DIR = 'cases';
 const RUN_MANIFEST = 'run-manifest.json';
 const FAILURES_DIR = 'failures';
+const RAW_PROVIDER_OUTPUT_DIR = 'raw-provider-output';
 
 class CallCeilingExceeded extends Error {
   constructor(ceiling) {
@@ -77,6 +78,10 @@ function caseResultPath(outputDir, caseId) {
 
 function failurePath(outputDir, caseId) {
   return path.join(outputDir, FAILURES_DIR, `${caseId}.json`);
+}
+
+function rawProviderOutputPath(outputDir, caseId) {
+  return path.join(outputDir, RAW_PROVIDER_OUTPUT_DIR, `${caseId}.json`);
 }
 
 /** Case ids that already have a durable result in this output directory. */
@@ -152,8 +157,33 @@ function writeCaseResult(outputDir, caseId, payload, { allowOverwrite = false } 
   const target = caseResultPath(outputDir, caseId);
   if (!allowOverwrite && fs.existsSync(target)) throw new DuplicateOutput(caseId);
   ensureDir(path.dirname(target));
-  fs.writeFileSync(target, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(target, `${JSON.stringify(payload, null, 2)}\n`, allowOverwrite ? 'utf8' : { encoding: 'utf8', flag: 'wx' });
   return target;
+}
+
+/** Raw model text is private, separate from normalized output, and exclusive-write. */
+function writeRawProviderOutput(outputDir, caseId, payload) {
+  const target = rawProviderOutputPath(outputDir, caseId);
+  if (fs.existsSync(target)) throw new DuplicateOutput(`raw-provider-output:${caseId}`);
+  if (!payload || !Array.isArray(payload.attempts) || payload.attempts.length === 0) {
+    throw new Error('raw provider output requires at least one captured attempt');
+  }
+  for (const [index, attempt] of payload.attempts.entries()) {
+    if (!attempt || typeof attempt.rawModelText !== 'string') {
+      throw new Error(`raw provider output attempt ${index} is missing rawModelText`);
+    }
+    if (!/^[0-9a-f]{64}$/.test(String(attempt.rawModelTextSha256 || ''))) {
+      throw new Error(`raw provider output attempt ${index} is missing its SHA-256`);
+    }
+  }
+  ensureDir(path.dirname(target));
+  fs.writeFileSync(target, `${JSON.stringify(payload, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+  return target;
+}
+
+function readRawProviderOutput(outputDir, caseId) {
+  const target = rawProviderOutputPath(outputDir, caseId);
+  return fs.existsSync(target) ? JSON.parse(fs.readFileSync(target, 'utf8')) : null;
 }
 
 /** Failures are preserved so a resume can distinguish "not tried" from "tried and failed". */
@@ -199,7 +229,7 @@ function loadAllResults(outputDir, expectedDatasetVersion) {
 function writeRunManifest(outputDir, manifest) {
   ensureDir(outputDir);
   const target = path.join(outputDir, RUN_MANIFEST);
-  fs.writeFileSync(target, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(target, `${JSON.stringify(manifest, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
   return target;
 }
 
@@ -234,6 +264,7 @@ function installCancellation(signals = ['SIGINT', 'SIGTERM']) {
 module.exports = {
   CASES_DIR,
   FAILURES_DIR,
+  RAW_PROVIDER_OUTPUT_DIR,
   RUN_MANIFEST,
   CallBudget,
   CallCeilingExceeded,
@@ -241,10 +272,13 @@ module.exports = {
   ensureDir,
   caseResultPath,
   failurePath,
+  rawProviderOutputPath,
   completedCaseIds,
   failedCaseIds,
   selectCases,
   writeCaseResult,
+  writeRawProviderOutput,
+  readRawProviderOutput,
   writeFailure,
   readCaseResult,
   loadAllResults,

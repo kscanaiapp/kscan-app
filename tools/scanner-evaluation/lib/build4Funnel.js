@@ -22,6 +22,7 @@ const preflightReservation = require('./preflightReservation');
 const runnerState = require('./runnerState');
 const scoringProjection = require('./scoringProjection');
 const runIdentity = require('./runIdentity');
+const suppressionMetrics = require('./suppressionMetrics');
 const taxonomy = require('./errorTaxonomy');
 const { scoreCaseAllProfiles, aggregateScores } = require('./scoreFields');
 
@@ -192,12 +193,15 @@ function reconcileReservations(ledger, caseId, attempts) {
       ledger.release({ caseId, role });
       continue;
     }
-    if (Number.isInteger(attempt.promptTokenCount) && Number.isInteger(attempt.candidatesTokenCount)) {
+    const billable = preflightReservation.deriveBillableOutputUsage(attempt);
+    if (billable.ok) {
       ledger.confirmAttempt({
         caseId,
         role,
         promptTokenCount: attempt.promptTokenCount,
         candidatesTokenCount: attempt.candidatesTokenCount,
+        thoughtsTokenCount: attempt.thoughtsTokenCount,
+        totalTokenCount: attempt.totalTokenCount,
       });
     } else {
       ledger.retainUnknown({ caseId, role });
@@ -257,6 +261,24 @@ function terminalRecord({ caseRecord, report, runIdentityRecord, ledger, tokenCo
       fallbackInputTokens: tokenCounts.fallback.inputTokens,
     },
   };
+}
+
+function persistPrivateRawOutputs({ outputRoot, caseId, runIdentityRecord, report }) {
+  const privateRawProviderOutputs = Array.isArray(report.privateRawProviderOutputs)
+    ? report.privateRawProviderOutputs
+    : [];
+  if (privateRawProviderOutputs.length > 0) {
+    runnerState.writeRawProviderOutput(outputRoot, caseId, {
+      schemaVersion: '1.0.0',
+      caseId,
+      runId: runIdentityRecord.runId,
+      candidateVersion: candidateVersionOf(runIdentityRecord),
+      attempts: privateRawProviderOutputs,
+    });
+  }
+  const sanitizedReport = { ...report };
+  delete sanitizedReport.privateRawProviderOutputs;
+  return sanitizedReport;
 }
 
 /**
@@ -335,12 +357,14 @@ function executeGovernedRun({
     });
   }
 
-  runnerState.writeRunManifest(outputRoot, {
-    ...resolvedIdentity,
-    selectionContractSha256: selectionArtifact.selectionContractSha256,
-    startedAt: new Date().toISOString(),
-    resume,
-  });
+  if (!priorRunManifest) {
+    runnerState.writeRunManifest(outputRoot, {
+      ...resolvedIdentity,
+      selectionContractSha256: selectionArtifact.selectionContractSha256,
+      startedAt: new Date().toISOString(),
+      resume: false,
+    });
+  }
 
   const refused = [];
   for (const caseRecord of selectedCases.toProcess) {
@@ -444,10 +468,16 @@ function executeGovernedRun({
     if (!report || !Array.isArray(report.providerAttempts)) {
       throw new Error(`certified adapter returned an invalid report for ${caseRecord.caseId}`);
     }
-    reconcileReservations(ledger, caseRecord.caseId, report.providerAttempts);
+    const sanitizedReport = persistPrivateRawOutputs({
+      outputRoot,
+      caseId: caseRecord.caseId,
+      runIdentityRecord: resolvedIdentity,
+      report,
+    });
+    reconcileReservations(ledger, caseRecord.caseId, sanitizedReport.providerAttempts);
     const record = terminalRecord({
       caseRecord,
-      report,
+      report: sanitizedReport,
       runIdentityRecord: resolvedIdentity,
       ledger,
       tokenCounts: { primary, fallback },
@@ -476,6 +506,10 @@ function executeGovernedRun({
     taxonomyVersion: taxonomy.TAXONOMY_VERSION,
     taxonomyHash: taxonomy.taxonomyHash(),
     reservation: ledger.totals(),
+    suppression: suppressionMetrics.summarizeSuppression(
+      durable,
+      new Map(cases.map((caseRecord) => [caseRecord.caseId, caseRecord])),
+    ),
     profiles: {
       neutral: aggregateScores(scoreable.map((record) => record.profiles.neutral)),
       trust_weighted: aggregateScores(scoreable.map((record) => record.profiles.trust_weighted)),
@@ -493,6 +527,7 @@ module.exports = {
   verifyPlan,
   reconcileReservations,
   restoreCompletedReservations,
+  persistPrivateRawOutputs,
   tokenCountsForCase,
   executeGovernedRun,
 };
