@@ -129,3 +129,45 @@ test('destructive worker fails closed until evidence pipeline readiness is appro
   assert.match(worker, /Evidence pipeline is not ready; automation paused/);
   assert.match(migration, /'account_deletion_evidence_pipeline_ready'[\s\S]*'enabled', false/i);
 });
+
+test('purge terminal transition is ordered after round-trip evidence finalization', () => {
+  const worker = fs.readFileSync(
+    path.join(root, 'supabase', 'functions', 'process-account-deletions', 'index.ts'),
+    'utf8',
+  );
+  const initializeAt = worker.indexOf('initializePurgeEvidence(supabase');
+  const directDeleteAt = worker.indexOf('deleteDirectUserRows(supabase, userId)');
+  const residualAt = worker.indexOf("eventType: 'RESIDUAL_VERIFICATION_PASSED'");
+  const crossUserAt = worker.indexOf("eventType: 'CROSS_USER_VERIFICATION_PASSED'");
+  const finalizeAt = worker.indexOf('finalizePurgeEvidence(supabase');
+  const terminalAt = worker.indexOf("const marked = await rpc('mark_deletion_request_purged'");
+  assert.ok(initializeAt > 0 && initializeAt < directDeleteAt);
+  assert.ok(residualAt > directDeleteAt);
+  assert.ok(crossUserAt > residualAt);
+  assert.ok(finalizeAt > crossUserAt);
+  assert.ok(terminalAt > finalizeAt);
+  assert.match(worker, /EVIDENCE_CHECKSUM_FAILED/);
+  assert.match(worker, /EVIDENCE_OBJECT_MISSING/);
+  assert.match(worker, /deliverLifecycleAlert/);
+});
+
+test('database terminal and crash-recovery paths require complete verified evidence', () => {
+  const migration = fs.readFileSync(
+    path.join(root, 'supabase', 'migrations', '20260802181610_account_lifecycle_evidence_store.sql'),
+    'utf8',
+  );
+  assert.match(migration, /create or replace function public\.mark_deletion_request_purged[\s\S]*generation_status = 'complete'[\s\S]*checksum_status = 'verified'/i);
+  assert.match(migration, /create or replace function public\.reconcile_orphaned_purging_requests[\s\S]*generation_status = 'complete'[\s\S]*checksum_status = 'verified'/i);
+});
+
+test('authenticated website intake source is allowlisted and written to lifecycle evidence', () => {
+  const handler = fs.readFileSync(
+    path.join(root, 'supabase', 'functions', 'handle-user-deletion', 'index.ts'),
+    'utf8',
+  );
+  assert.match(handler, /x-deletion-request-source/);
+  assert.match(handler, /external_web/);
+  assert.match(handler, /DELETE_REQUEST_AUTHENTICATED_WEB/);
+  assert.match(handler, /append_account_lifecycle_event/);
+  assert.match(handler, /request_source: requestSource/);
+});

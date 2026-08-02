@@ -869,3 +869,113 @@ comment on table public.account_lifecycle_events is
   'Append-only per-request SHA-256 hash-chain ledger. Client roles have no access.';
 comment on table public.evidence_access_events is
   'Append-only reviewer access log for lifecycle evidence retrieval and export.';
+
+-- Terminal purge is now evidence-gated at the database boundary as well as in
+-- the worker. This closes crash-recovery and direct-RPC bypasses: no caller can
+-- mark a request purged until an immutable bundle has completed round-trip
+-- checksum verification.
+create or replace function public.mark_deletion_request_purged(
+  p_request_id uuid,
+  p_worker_id text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  claimed public.deletion_requests;
+begin
+  update public.deletion_requests dr
+  set
+    status = 'purged',
+    purged_at = now(),
+    processed_at = now(),
+    failure_code = null,
+    failure_message = null,
+    worker_id = null,
+    worker_lease_expires_at = null,
+    worker_heartbeat_at = null,
+    current_step = null,
+    restoration_token_hash = null,
+    updated_at = now()
+  where dr.id = p_request_id
+    and dr.status = 'purging'
+    and (p_worker_id is null or dr.worker_id = p_worker_id)
+    and exists (
+      select 1
+      from public.account_lifecycle_evidence_index ei
+      where ei.deletion_request_id = dr.id
+        and ei.generation_status = 'complete'
+        and ei.checksum_status = 'verified'
+        and ei.finalized_at is not null
+        and ei.deleted_at is null
+    )
+  returning dr.* into claimed;
+
+  if claimed.id is null then
+    return false;
+  end if;
+
+  perform public.append_deletion_state_transition(
+    claimed.id,
+    claimed.subject_ref,
+    'purging',
+    'purged',
+    'worker',
+    p_worker_id,
+    'PURGED',
+    jsonb_build_object('evidence_gate', 'verified')
+  );
+  return true;
+end;
+$$;
+
+revoke all on function public.mark_deletion_request_purged(uuid, text) from public, anon, authenticated;
+grant execute on function public.mark_deletion_request_purged(uuid, text) to service_role;
+
+-- Crash reconciliation may close only the narrow window where the bundle was
+-- finalized but the worker died before the terminal RPC. Orphans without a
+-- complete verified bundle remain non-terminal for explicit recovery.
+create or replace function public.reconcile_orphaned_purging_requests(
+  p_limit integer default 25
+)
+returns setof public.deletion_requests
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  rec record;
+  v_row public.deletion_requests;
+begin
+  for rec in
+    select dr.id
+    from public.deletion_requests dr
+    where dr.status = 'purging'
+      and dr.user_id is null
+      and dr.purged_at is null
+      and dr.worker_lease_expires_at is not null
+      and dr.worker_lease_expires_at <= now()
+      and exists (
+        select 1
+        from public.account_lifecycle_evidence_index ei
+        where ei.deletion_request_id = dr.id
+          and ei.generation_status = 'complete'
+          and ei.checksum_status = 'verified'
+          and ei.finalized_at is not null
+          and ei.deleted_at is null
+      )
+    order by dr.updated_at asc
+    limit greatest(1, least(coalesce(p_limit, 25), 100))
+  loop
+    perform public.mark_deletion_request_purged(rec.id, null);
+    select * into v_row from public.deletion_requests where id = rec.id;
+    if v_row.id is not null then return next v_row; end if;
+  end loop;
+  return;
+end;
+$$;
+
+revoke all on function public.reconcile_orphaned_purging_requests(integer) from public, anon, authenticated;
+grant execute on function public.reconcile_orphaned_purging_requests(integer) to service_role;

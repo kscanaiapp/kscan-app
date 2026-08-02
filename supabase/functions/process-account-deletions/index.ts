@@ -1,6 +1,7 @@
 import {
   alertEvent,
   corsHeaders,
+  deliverLifecycleAlert,
   env,
   envOptional,
   json,
@@ -16,6 +17,13 @@ import {
   STORAGE_RESOURCES,
   SHARED_ROOM_TRANSFER_POLICY,
 } from '../_shared/deletion/userDataResources.ts';
+import {
+  appendEvidenceEvent,
+  finalizePurgeEvidence,
+  initializePurgeEvidence,
+  markEvidenceFailed,
+  type EvidenceReservation,
+} from '../_shared/deletion/evidence.ts';
 
 /**
  * Internal protected worker for automatic account purges.
@@ -393,6 +401,116 @@ async function buildDeletionPlan(
   };
 }
 
+async function captureDatabaseInventory(
+  supabase: ReturnType<typeof createAdmin>,
+  userId: string,
+) {
+  const rows = [];
+  for (const resource of USER_DATA_RESOURCES) {
+    rows.push(await countResourceRows(supabase, resource, userId));
+  }
+  return rows;
+}
+
+type SharedRoomBaseline = {
+  roomId: string;
+  itemCount: number;
+  otherParticipantCount: number;
+  otherMessageCount: number;
+  otherInspirationCount: number;
+};
+
+async function exactCount(
+  query: PromiseLike<{ count: number | null; error: { message: string } | null }>,
+  label: string,
+) {
+  const result = await query;
+  if (result.error) throw new Error(`${label}: ${result.error.message}`);
+  return result.count ?? 0;
+}
+
+async function captureSharedRoomBaseline(
+  supabase: ReturnType<typeof createAdmin>,
+  userId: string,
+): Promise<SharedRoomBaseline[]> {
+  const owned = await supabase.from('dressing_rooms').select('id').eq('user_id', userId);
+  if (owned.error) throw new Error(`cross-user baseline rooms: ${owned.error.message}`);
+  const baseline: SharedRoomBaseline[] = [];
+  for (const room of owned.data ?? []) {
+    const [itemCount, otherParticipantCount, otherMessageCount, otherInspirationCount] =
+      await Promise.all([
+        exactCount(
+          supabase.from('dressing_room_items').select('*', { count: 'exact', head: true }).eq('dressing_room_id', room.id),
+          `cross-user baseline items ${room.id}`,
+        ),
+        exactCount(
+          supabase.from('dressing_room_participants').select('*', { count: 'exact', head: true }).eq('dressing_room_id', room.id).neq('user_id', userId),
+          `cross-user baseline participants ${room.id}`,
+        ),
+        exactCount(
+          supabase.from('dressing_room_messages').select('*', { count: 'exact', head: true }).eq('room_id', room.id).neq('sender_id', userId),
+          `cross-user baseline messages ${room.id}`,
+        ),
+        exactCount(
+          supabase.from('dressing_room_inspiration_items').select('*', { count: 'exact', head: true }).eq('room_id', room.id).neq('user_id', userId),
+          `cross-user baseline inspiration ${room.id}`,
+        ),
+      ]);
+    baseline.push({ roomId: room.id, itemCount, otherParticipantCount, otherMessageCount, otherInspirationCount });
+  }
+  return baseline;
+}
+
+function assertTransfersProtectOtherUsers(
+  baseline: SharedRoomBaseline[],
+  transfers: Array<{ roomId: string; action: string }>,
+) {
+  const byRoom = new Map(transfers.map((row) => [row.roomId, row]));
+  for (const room of baseline) {
+    if (room.otherParticipantCount > 0 && byRoom.get(room.roomId)?.action !== 'transfer') {
+      throw new Error(`CROSS_USER_ANOMALY: shared room ${room.roomId} has no safe transfer target`);
+    }
+  }
+}
+
+async function verifySharedRoomPreservation(
+  supabase: ReturnType<typeof createAdmin>,
+  userId: string,
+  baseline: SharedRoomBaseline[],
+  transfers: Array<{ roomId: string; action: string }>,
+) {
+  const transferred = new Set(transfers.filter((row) => row.action === 'transfer').map((row) => row.roomId));
+  const verified = [];
+  for (const before of baseline.filter((room) => transferred.has(room.roomId))) {
+    const room = await supabase.from('dressing_rooms').select('id,user_id').eq('id', before.roomId).maybeSingle();
+    if (room.error || !room.data || room.data.user_id === userId) {
+      throw new Error(`CROSS_USER_ANOMALY: transferred room ${before.roomId} missing or still owned by subject`);
+    }
+    const afterRows = await captureRoomCounts(supabase, userId, before.roomId);
+    for (const key of ['itemCount', 'otherParticipantCount', 'otherMessageCount', 'otherInspirationCount'] as const) {
+      if (afterRows[key] !== before[key]) {
+        throw new Error(`CROSS_USER_ANOMALY: ${key} changed for shared room ${before.roomId}`);
+      }
+    }
+    verified.push({ roomId: before.roomId, preserved: true, ...afterRows });
+  }
+  return verified;
+}
+
+async function captureRoomCounts(
+  supabase: ReturnType<typeof createAdmin>,
+  userId: string,
+  roomId: string,
+) {
+  const [itemCount, otherParticipantCount, otherMessageCount, otherInspirationCount] = await Promise.all([
+    exactCount(supabase.from('dressing_room_items').select('*', { count: 'exact', head: true }).eq('dressing_room_id', roomId), `cross-user verify items ${roomId}`),
+    exactCount(supabase.from('dressing_room_participants').select('*', { count: 'exact', head: true }).eq('dressing_room_id', roomId).neq('user_id', userId), `cross-user verify participants ${roomId}`),
+    exactCount(supabase.from('dressing_room_messages').select('*', { count: 'exact', head: true }).eq('room_id', roomId).neq('sender_id', userId), `cross-user verify messages ${roomId}`),
+    exactCount(supabase.from('dressing_room_inspiration_items').select('*', { count: 'exact', head: true }).eq('room_id', roomId).neq('user_id', userId), `cross-user verify inspiration ${roomId}`),
+  ]);
+  return { itemCount, otherParticipantCount, otherMessageCount, otherInspirationCount };
+}
+
 async function heartbeat(
   requestId: string,
   workerId: string,
@@ -429,18 +547,89 @@ async function processClaimedRequest(
     return { status: 'skipped_grace' };
   }
 
-  await revokeAllSessions(userId, null);
-  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+  let evidenceReservation: EvidenceReservation | null = null;
+  let criticalEvent = 'EVIDENCE_GENERATION_FAILED';
+  try {
+  const environment = (envOptional('KSCAN_ENVIRONMENT') ?? '').toLowerCase();
+  if (environment !== 'staging' && environment !== 'production') {
+    throw new Error('KSCAN_ENVIRONMENT must be staging or production for destructive processing');
+  }
+  const identity = await supabase.auth.admin.getUserById(userId);
+  if (identity.error || !identity.data.user?.email) {
+    throw new Error('unable to load Auth email before purge evidence initialization');
+  }
+  const inventoryBefore = {
+    database: await captureDatabaseInventory(supabase, userId),
+    storage: await enumerateOwnedStorage(supabase, userId),
+  };
+  const sharedRoomBaseline = await captureSharedRoomBaseline(supabase, userId);
+  evidenceReservation = await initializePurgeEvidence(supabase, {
+    request,
+    email: identity.data.user.email,
+    environment,
+  });
+  await appendEvidenceEvent(supabase, {
+    requestId,
+    userId,
+    eventType: 'INVENTORY_BEFORE_CAPTURED',
+    outcome: 'success',
+    idempotencyKey: `inventory-before:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path,
+    metadata: { inventory: inventoryBefore, shared_rooms: sharedRoomBaseline },
+  });
+  await appendEvidenceEvent(supabase, {
+    requestId,
+    userId,
+    eventType: 'SYSTEM_VERSION_RECORDED',
+    outcome: 'success',
+    idempotencyKey: `system-version:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path,
+    metadata: {
+      worker_function_version: envOptional('FUNCTION_VERSION') ?? 'unconfigured',
+      deployment_sha: envOptional('DEPLOYMENT_SHA') ?? 'unconfigured',
+    },
+  });
+
+  const initialRevocation = await revokeAllSessions(userId, null);
+  await appendEvidenceEvent(supabase, {
+    requestId,
+    userId,
+    eventType: 'PURGE_SESSION_REVOCATION_COMPLETED',
+    outcome: initialRevocation.ok ? 'success' : 'failed',
+    idempotencyKey: `purge-session-revoke:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path,
+    metadata: { method: initialRevocation.method, ok: initialRevocation.ok },
+  });
+  if (!initialRevocation.ok) throw new Error('session revocation failed before destructive purge');
+  if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
 
   // Ledger: AUTH_DELETE_STARTED will be written just before auth delete.
   const direct = await deleteDirectUserRows(supabase, userId);
-  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+  await appendEvidenceEvent(supabase, {
+    requestId, userId, eventType: 'PURGE_DIRECT_ROWS_COMPLETED', outcome: 'success',
+    idempotencyKey: `purge-direct:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path, metadata: { results: direct },
+  });
+  if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
 
   const rooms = await transferSharedRooms(supabase, userId);
-  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+  criticalEvent = 'CROSS_USER_ANOMALY';
+  assertTransfersProtectOtherUsers(sharedRoomBaseline, rooms);
+  await appendEvidenceEvent(supabase, {
+    requestId, userId, eventType: 'PURGE_SHARED_ROOM_TRANSFER_COMPLETED', outcome: 'success',
+    idempotencyKey: `purge-rooms:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path, metadata: { results: rooms },
+  });
+  criticalEvent = 'EVIDENCE_GENERATION_FAILED';
+  if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
 
   const storage = await deleteOwnedStorage(supabase, userId);
-  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+  await appendEvidenceEvent(supabase, {
+    requestId, userId, eventType: 'PURGE_STORAGE_COMPLETED', outcome: 'success',
+    idempotencyKey: `purge-storage:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path, metadata: { results: storage },
+  });
+  if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
 
   await rpc('append_deletion_state_transition', {
     p_request_id: requestId,
@@ -462,6 +651,11 @@ async function processClaimedRequest(
     }
     logEvent('auth_user_already_absent', { uid: shortUserId(userId) });
   }
+  await appendEvidenceEvent(supabase, {
+    requestId, userId, eventType: 'AUTH_USER_DELETE_COMPLETED', outcome: 'success',
+    idempotencyKey: `purge-auth:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path, metadata: { auth_user_absent: true },
+  });
 
   // Confirm surviving request row.
   const surviving = await supabase
@@ -496,7 +690,8 @@ async function processClaimedRequest(
   // Renew the lease before this loop specifically: it issues one query per
   // registry resource (currently ~44), and unlike every other step in this
   // function it previously had no heartbeat guarding it.
-  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+  if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
+  criticalEvent = 'PURGE_VERIFICATION_FAILED';
   const coverage = [];
   const residual = [];
   for (const resource of USER_DATA_RESOURCES) {
@@ -521,6 +716,43 @@ async function processClaimedRequest(
     );
   }
 
+  const inventoryAfter = {
+    database: coverage,
+    storage: await enumerateOwnedStorage(supabase, userId),
+  };
+  await appendEvidenceEvent(supabase, {
+    requestId, eventType: 'INVENTORY_AFTER_CAPTURED', outcome: 'success',
+    idempotencyKey: `inventory-after:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path, metadata: { inventory: inventoryAfter },
+  });
+  await appendEvidenceEvent(supabase, {
+    requestId, eventType: 'RESIDUAL_VERIFICATION_PASSED', outcome: 'verified',
+    idempotencyKey: `residual-verified:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path,
+    metadata: { checked_resources: coverage.length, residual_count: 0 },
+  });
+
+  criticalEvent = 'CROSS_USER_ANOMALY';
+  const crossUser = await verifySharedRoomPreservation(
+    supabase,
+    userId,
+    sharedRoomBaseline,
+    rooms,
+  );
+  await appendEvidenceEvent(supabase, {
+    requestId, eventType: 'CROSS_USER_VERIFICATION_PASSED', outcome: 'verified',
+    idempotencyKey: `cross-user-verified:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path,
+    metadata: { shared_rooms_verified: crossUser },
+  });
+
+  criticalEvent = 'EVIDENCE_GENERATION_FAILED';
+  const evidence = await finalizePurgeEvidence(supabase, {
+    request,
+    environment,
+    reservation: evidenceReservation,
+  });
+
   const marked = await rpc('mark_deletion_request_purged', {
     p_request_id: requestId,
     p_worker_id: workerId,
@@ -538,6 +770,8 @@ async function processClaimedRequest(
     roomsTransferred: rooms.filter((r) => r.action === 'transfer').length,
     policy: SHARED_ROOM_TRANSFER_POLICY,
     coverageTables: coverage.length,
+    evidenceVersion: evidenceReservation.version,
+    evidenceChecksumManifestHash: evidence.checksumManifestHash,
   });
 
   return {
@@ -546,7 +780,30 @@ async function processClaimedRequest(
     rooms,
     storage,
     coverageCount: coverage.length,
+    evidenceVersion: evidenceReservation.version,
+    evidenceChecksumManifestHash: evidence.checksumManifestHash,
   };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'critical purge pipeline failure';
+    if (/checksum/i.test(message)) criticalEvent = 'EVIDENCE_CHECKSUM_FAILED';
+    else if (/missing|not found/i.test(message)) criticalEvent = 'EVIDENCE_OBJECT_MISSING';
+    await markEvidenceFailed(supabase, evidenceReservation);
+    await supabase.rpc('pause_account_deletion_automation', {
+      p_reason: `${criticalEvent}: ${message}`.slice(0, 500),
+    });
+    const delivered = await deliverLifecycleAlert({
+      event: criticalEvent,
+      deletionRequestId: requestId,
+      failureCategory: message,
+      evidenceReference: evidenceReservation?.path ?? null,
+    });
+    alertEvent(criticalEvent, {
+      deletionRequestId: requestId,
+      evidenceReference: evidenceReservation?.path ?? null,
+      alertDelivered: delivered,
+    });
+    throw error;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -688,6 +945,31 @@ Deno.serve(async (req) => {
       logEvent('worker_reconcile_failed', { status: reconcileResponse.status });
     }
 
+    const unsafeOrphans = await supabase
+      .from('deletion_requests')
+      .select('id')
+      .eq('status', 'purging')
+      .is('user_id', null)
+      .is('purged_at', null)
+      .lt('worker_lease_expires_at', new Date().toISOString())
+      .limit(25);
+    if (unsafeOrphans.error) {
+      throw new Error(`orphan evidence safety check failed: ${unsafeOrphans.error.message}`);
+    }
+    if ((unsafeOrphans.data ?? []).length > 0) {
+      await rpc('pause_account_deletion_automation', {
+        p_reason: 'EVIDENCE_OBJECT_MISSING: orphaned purge requires evidence recovery',
+      });
+      for (const orphan of unsafeOrphans.data ?? []) {
+        await deliverLifecycleAlert({
+          event: 'EVIDENCE_OBJECT_MISSING',
+          deletionRequestId: orphan.id,
+          failureCategory: 'ORPHANED_PURGE_EVIDENCE_RECOVERY_REQUIRED',
+        });
+      }
+      return json({ error: 'Orphaned purge requires evidence recovery; automation paused' }, 503);
+    }
+
     // Live claim path — only when kill switch enabled AND dry-run disabled.
     const claimResponse = await rpc('claim_deletion_requests_for_purge', {
       p_worker_id: workerId,
@@ -713,12 +995,24 @@ Deno.serve(async (req) => {
           requestIdPrefix: String(row.id).slice(0, 8),
           code: 'PURGE_ERROR',
         });
-        await rpc('schedule_deletion_retry_or_fail', {
-          p_request_id: row.id,
-          p_worker_id: workerId,
-          p_failure_code: 'PURGE_ERROR',
-          p_failure_message: message.slice(0, 500),
-        });
+        const current = await supabase
+          .from('deletion_requests')
+          .select('user_id,status,attempt_count')
+          .eq('id', row.id)
+          .maybeSingle();
+        const authUserAlreadyRemoved = current.data?.user_id == null;
+        if (!authUserAlreadyRemoved) {
+          await rpc('schedule_deletion_retry_or_fail', {
+            p_request_id: row.id,
+            p_worker_id: workerId,
+            p_failure_code: 'PURGE_ERROR',
+            p_failure_message: message.slice(0, 500),
+          });
+        } else {
+          alertEvent('purge_paused_for_manual_evidence_recovery', {
+            deletionRequestId: row.id,
+          });
+        }
         // P1-4: if that transition dead-lettered the request (attempts
         // exhausted -> terminal 'failed'), raise an operator alert. A
         // partially-purged user stuck in 'failed' needs manual attention.
@@ -734,7 +1028,11 @@ Deno.serve(async (req) => {
             code: 'PURGE_ERROR',
           });
         }
-        results.push({ requestId: row.id, status: 'retry_or_failed', error: message.slice(0, 200) });
+        results.push({
+          requestId: row.id,
+          status: authUserAlreadyRemoved ? 'paused_manual_evidence_recovery' : 'retry_or_failed',
+          error: message.slice(0, 200),
+        });
       }
     }
 

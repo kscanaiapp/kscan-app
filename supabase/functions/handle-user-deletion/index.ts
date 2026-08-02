@@ -14,8 +14,44 @@ import {
   shortUserId,
 } from '../_shared/deletion/common.ts';
 
-const deletionRequestNote = 'User-initiated deletion request from K Scan AI mobile app.';
 const ACTIVE_STATUSES = ['pending', 'processing', 'deactivated', 'purging', 'legal_hold'];
+
+function deletionRequestSource(req: Request): 'external_web' | 'mobile_app' {
+  return req.headers.get('x-deletion-request-source')?.trim() === 'external_web'
+    ? 'external_web'
+    : 'mobile_app';
+}
+
+async function appendIntakeEvidenceEvent(input: {
+  requestId: string;
+  userId: string;
+  requestSource: 'external_web' | 'mobile_app';
+}) {
+  const response = await rest('rpc/append_account_lifecycle_event', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_deletion_request_id: input.requestId,
+      p_correlation_id: input.requestId,
+      p_event_type:
+        input.requestSource === 'external_web'
+          ? 'DELETE_REQUEST_AUTHENTICATED_WEB'
+          : 'DELETE_REQUEST_AUTHENTICATED_MOBILE',
+      p_source: 'handle-user-deletion',
+      p_actor_type: 'user',
+      p_outcome: 'accepted',
+      p_idempotency_key: `delete-intake:${input.requestId}:${input.requestSource}`,
+      p_subject_user_id: input.userId,
+      p_sanitized_metadata: { request_source: input.requestSource },
+    }),
+  });
+  if (!response.ok) {
+    logEvent('deletion_intake_evidence_append_failed', {
+      uid: shortUserId(input.userId),
+      requestSource: input.requestSource,
+      status: response.status,
+    });
+  }
+}
 
 function isMissingColumn(detail: string, column: string) {
   return detail.includes('PGRST204') && detail.includes(`'${column}' column`);
@@ -28,6 +64,7 @@ Deno.serve(async (req) => {
   try {
     const user = await requireUser(req);
     const safeUid = shortUserId(user.id);
+    const requestSource = deletionRequestSource(req);
 
     const openRequestResponse = await rest(
       `deletion_requests?user_id=eq.${user.id}&status=in.(${ACTIVE_STATUSES.join(',')})&select=id,status,requested_at,grace_period_ends_at,deactivated_at,restoration_email_count,restoration_email_sent_at&order=requested_at.desc&limit=1`,
@@ -72,6 +109,11 @@ Deno.serve(async (req) => {
           return json({ error: 'Unable to deactivate account' }, 500);
         }
         await revokeAllSessions(user.id, user.accessToken);
+        await appendIntakeEvidenceEvent({
+          requestId: existing.id,
+          userId: user.id,
+          requestSource,
+        });
         let queued = false;
         if (user.email) {
           const emailResult = await sendRestorationEmail({
@@ -97,6 +139,12 @@ Deno.serve(async (req) => {
       logEvent('deletion_request_idempotent', {
         uid: safeUid,
         status: existing.status,
+        requestSource,
+      });
+      await appendIntakeEvidenceEvent({
+        requestId: existing.id,
+        userId: user.id,
+        requestSource,
       });
       return json({
         status: existing.status,
@@ -117,8 +165,11 @@ Deno.serve(async (req) => {
     const insertBody: Record<string, unknown> = {
       user_id: user.id,
       status: 'deactivated',
-      request_source: 'mobile_app',
-      notes: deletionRequestNote,
+      request_source: requestSource,
+      notes:
+        requestSource === 'external_web'
+          ? 'Authenticated user-initiated deletion request from K Scan AI website.'
+          : 'User-initiated deletion request from K Scan AI mobile app.',
       subject_ref: subjectRef,
       requested_at: requestedAt,
       deactivated_at: requestedAt,
@@ -221,7 +272,13 @@ Deno.serve(async (req) => {
       toState: 'deactivated',
       actorType: 'user',
       reasonCode: 'USER_REQUESTED',
-      metadata: { request_source: 'mobile_app' },
+      metadata: { request_source: requestSource },
+    });
+
+    await appendIntakeEvidenceEvent({
+      requestId: deletionRequest.id,
+      userId: user.id,
+      requestSource,
     });
 
     const revocation = await revokeAllSessions(user.id, user.accessToken);
@@ -267,6 +324,7 @@ Deno.serve(async (req) => {
       gracePeriodEndsAt: deletionRequest.grace_period_ends_at ?? gracePeriodEndsAt,
       sessionRevocationOk: revocation.ok,
       restorationEmailQueued,
+      requestSource,
     });
 
     return json({

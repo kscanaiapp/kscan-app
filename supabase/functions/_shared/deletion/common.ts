@@ -6,7 +6,7 @@
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-deletion-worker-secret',
+    'authorization, x-client-info, apikey, content-type, x-deletion-worker-secret, x-deletion-request-source',
   'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
 };
 
@@ -61,6 +61,68 @@ export function alertEvent(event: string, fields: Record<string, unknown> = {}) 
       ...fields,
     }),
   );
+}
+
+/**
+ * Deliver a sanitized lifecycle incident to the configured app-team sink.
+ * The caller must pause automation before or immediately after a false result.
+ * A missing sink is a delivery failure, never a silent success.
+ */
+export async function deliverLifecycleAlert(input: {
+  event: string;
+  deletionRequestId: string;
+  failureCategory: string;
+  evidenceReference?: string | null;
+}): Promise<boolean> {
+  const url = envOptional('ACCOUNT_LIFECYCLE_ALERT_WEBHOOK_URL');
+  const token = envOptional('ACCOUNT_LIFECYCLE_ALERT_WEBHOOK_TOKEN');
+  const payload = {
+    environment: envOptional('KSCAN_ENVIRONMENT') ?? 'unconfigured',
+    severity: 'critical',
+    event: input.event.replace(/[^A-Z0-9_]/gi, '_').slice(0, 80),
+    deletion_request_id: input.deletionRequestId,
+    timestamp: new Date().toISOString(),
+    worker_function_version: envOptional('FUNCTION_VERSION') ?? 'unconfigured',
+    failure_category: input.failureCategory.replace(/[^A-Z0-9_:-]/gi, '_').slice(0, 120),
+    evidence_reference: input.evidenceReference?.slice(0, 500) ?? null,
+  };
+  if (!url || !token) {
+    alertEvent('lifecycle_alert_sink_unconfigured', {
+      event: payload.event,
+      deletionRequestId: input.deletionRequestId,
+    });
+    return false;
+  }
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      alertEvent('lifecycle_alert_delivery_failed', {
+        event: payload.event,
+        deletionRequestId: input.deletionRequestId,
+        status: response.status,
+      });
+      return false;
+    }
+    logEvent('lifecycle_alert_delivered', {
+      event: payload.event,
+      deletionRequestId: input.deletionRequestId,
+    });
+    return true;
+  } catch (error) {
+    alertEvent('lifecycle_alert_delivery_failed', {
+      event: payload.event,
+      deletionRequestId: input.deletionRequestId,
+      type: error instanceof Error ? error.name : 'unknown',
+    });
+    return false;
+  }
 }
 
 /** URL-safe token from 32 cryptographically random bytes. */
