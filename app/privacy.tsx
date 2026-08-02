@@ -35,7 +35,11 @@ import {
   StatusPill,
   InlineNotice,
 } from '../components/luxury';
-import { submitAccountDeletionRequest } from '../services/accountDeletion';
+import {
+  createDeletionGraceMarker,
+  persistDeletionGraceMarker,
+  submitAccountDeletionRequest,
+} from '../services/accountDeletion';
 import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
@@ -267,33 +271,32 @@ export default function PrivacyScreen() {
     setDeletionConfirmVisible(false);
     setDeletionSubmitting(true);
     try {
+      const ownerId = user?.id;
+      if (!ownerId) throw new Error('Authenticated account identity unavailable.');
       const result = await submitAccountDeletionRequest(supabase, session);
+      const marker = createDeletionGraceMarker(ownerId, result);
+      await persistDeletionGraceMarker(AsyncStorage, marker).catch((error) => {
+        console.error('Unable to persist deletion grace marker', error);
+      });
+      await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY).catch(() => undefined);
+
+      // The backend has authoritatively accepted the request. Clear the visible
+      // actor immediately; never wait for an acknowledgement dialog to sign out.
+      await signOut().catch((error) => {
+        console.error('Remote sign-out failed after accepted deletion request', error);
+      });
       setDeletionPending(true);
-      const confirmationMessage =
-        result.status === 'already_requested'
-          ? 'Request already pending. You have been signed out.'
-          : 'Deletion request submitted. You have been signed out.';
+      const confirmationMessage = result.alreadyRequested
+        ? 'Your account deletion request is already active. You have been signed out.'
+        : 'Your account deletion request was submitted. You have been signed out.';
       setMessage(confirmationMessage);
+      setDeletionSubmitting(false);
+      router.replace('/auth');
 
       Alert.alert(
         'Account deletion request',
         confirmationMessage,
-        [
-          {
-            text: 'OK',
-            onPress: async () => {
-              try {
-                await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY);
-                await signOut();
-              } catch {
-                await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY).catch(() => undefined);
-              } finally {
-                setDeletionSubmitting(false);
-                router.replace('/auth');
-              }
-            },
-          },
-        ],
+        [{ text: 'OK' }],
         { cancelable: false }
       );
     } catch (error) {

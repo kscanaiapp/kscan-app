@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, User } from '@supabase/supabase-js';
 import {
   clearPersistedAuthSessions,
@@ -34,6 +35,7 @@ import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHa
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
+import { reconcileAuthenticatedDeletionState } from '../services/accountDeletion';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -268,6 +270,13 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const ownerId = session?.user.id;
+    if (!ownerId) return;
+    void reconcileAuthenticatedDeletionState({ supabase, storage: AsyncStorage, ownerId })
+      .catch((error: unknown) => logError('Unable to reconcile account deletion state', error));
+  }, [session?.user.id]);
 
   /**
    * Android suspends JavaScript timers while backgrounded, so Supabase's

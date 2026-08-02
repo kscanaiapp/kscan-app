@@ -43,8 +43,9 @@ test('submitAccountDeletionRequest returns already_requested when edge function 
   });
 
   const result = await submitAccountDeletionRequest(client, null);
-  assert.equal(result.status, 'already_requested');
-  assert.ok(result.request.requested_at);
+  assert.equal(result.accepted, true);
+  assert.equal(result.alreadyRequested, true);
+  assert.ok(result.requestedAt);
 });
 
 test('submitAccountDeletionRequest returns submitted and normalizes edge function pending response', async () => {
@@ -53,10 +54,10 @@ test('submitAccountDeletionRequest returns submitted and normalizes edge functio
   });
 
   const result = await submitAccountDeletionRequest(client, null);
-  assert.equal(result.status, 'submitted');
-  assert.equal(result.request.id, 'req-abc');
-  assert.equal(result.request.status, 'pending');
-  assert.ok(result.request.requested_at);
+  assert.equal(result.accepted, true);
+  assert.equal(result.deletionRequestId, 'req-abc');
+  assert.equal(result.backendStatus, 'pending');
+  assert.ok(result.requestedAt);
 });
 
 test('submitAccountDeletionRequest throws when edge function invocation returns an error', async () => {
