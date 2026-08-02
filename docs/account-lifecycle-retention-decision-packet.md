@@ -1,8 +1,8 @@
 # Account-lifecycle evidence retention decision packet
 
-Status: **decision required; no policy selected**  
+Status: **decision required; no policy selected**
 Scope: account-deletion lifecycle evidence, reviewer access records, dispute exports,
-temporary notification envelopes, holds, and backup/archive copies  
+temporary notification envelopes, holds, and backup/archive copies
 Safety state: `account_deletion_evidence_pipeline_ready = false`
 
 This packet presents finite, configurable choices. It does not make a legal or
@@ -87,4 +87,3 @@ The readiness flag remains false until:
 5. staging proves expiry, non-expiry, legal hold, failure pause, logging, and
    backup restore with matching checksums;
 6. the production approval packet identifies the exact policy rows and rollback.
-
