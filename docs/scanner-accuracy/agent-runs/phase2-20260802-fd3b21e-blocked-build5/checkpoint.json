@@ -1,0 +1,17 @@
+{
+  "checkpointVersion": "1.0.0",
+  "runId": "phase2-20260802-fd3b21e-blocked-build5",
+  "createdAt": "2026-08-02T20:37:48.7936482Z",
+  "phase": "PHASE_2_CURRENT_PRODUCT_BASELINE_CERTIFICATION",
+  "status": "BLOCKED",
+  "stopCategory": "ACTIVE_BUILD_5_CONTAMINATION",
+  "lastCompletedGate": "OFFLINE_RUNTIME_AND_DATASET_IDENTITY",
+  "providerExecutionAuthorized": false,
+  "baselineLocked": false,
+  "phase3Authorized": false,
+  "resumeRequirements": [
+    "Owner or physical-build manager supplies explicit iOS and Android governing Builds 1–4 tips with no Build 5 ancestry, or explicitly revises the Phase 2 boundary to authorize the supplied Build 5-inclusive tips.",
+    "Re-run branch/upstream/cleanliness and ancestry verification against those exact full SHAs.",
+    "Re-run offline runtime capture, then the existing pre-execution gates before any provider request."
+  ]
+}

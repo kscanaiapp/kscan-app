@@ -1,0 +1,20 @@
+{
+  "recordVersion": "1.0.0",
+  "phase2ExecutionStatus": "NOT_STARTED_STOP_CONDITION",
+  "stopCategory": "ACTIVE_BUILD_5_CONTAMINATION",
+  "historicalControlRunId": "baseline-v0.3.1-v140-20260731-1111-4368067-development-exec",
+  "historicalSourceSha": "4368067956b8f57ec2a7e28eeede93e52b48004a",
+  "historicalResultsReusable": false,
+  "reuseReason": "The provider payload matches, but the mobile request contract and Edge response-contract closure do not.",
+  "freshProviderRunRequiredAfterUnblock": true,
+  "geminiApiKeyGateInspected": false,
+  "credentialValuePrinted": false,
+  "tokenPreflightRequests": 0,
+  "generationAttempts": 0,
+  "fallbacks": 0,
+  "providerRequests": 0,
+  "costUsd": 0,
+  "rawProviderArtifactsWritten": 0,
+  "selectiveReruns": 0,
+  "reasonNotRun": "Both governing protected release tips contain explicit active Build 5 ancestry. The Phase 2 charter requires an immediate stop before provider execution."
+}

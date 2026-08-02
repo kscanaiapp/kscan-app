@@ -1,0 +1,115 @@
+{
+  "recordVersion": "1.0.0",
+  "recordId": "phase2-opening-verification-20260802-fd3b21e",
+  "createdAt": "2026-08-02T20:37:48.7936482Z",
+  "workspace": "C:\\src\\KScan-scanner-autonomous-20260802-benchmark",
+  "branch": "scanner/benchmark-autonomous-20260802",
+  "startingSha": "fd3b21e4f56abe46e3f28dcab58c105510695346",
+  "localHead": "fd3b21e4f56abe46e3f28dcab58c105510695346",
+  "remoteHead": "fd3b21e4f56abe46e3f28dcab58c105510695346",
+  "upstream": "origin/scanner/benchmark-autonomous-20260802",
+  "ahead": 0,
+  "behind": 0,
+  "mergeBase": "fd3b21e4f56abe46e3f28dcab58c105510695346",
+  "worktreeClean": true,
+  "trackedModifications": [],
+  "stagedFiles": [],
+  "untrackedFiles": [],
+  "phase1IsolationCommit": {
+    "sha": "d04b9c87f8001882ca786eb801a29f4be71b6fd1",
+    "isAncestor": true
+  },
+  "evaluationDependency": {
+    "manifest": "tools/scanner-evaluation/package.json",
+    "lockfile": "tools/scanner-evaluation/package-lock.json",
+    "directDependencies": {
+      "sharp": "0.35.3"
+    },
+    "devDependencies": {},
+    "sharpEntry": "tools/scanner-evaluation/node_modules/sharp/dist/index.cjs",
+    "sharpVersion": "0.35.3",
+    "nodeModulesLinkType": null,
+    "manualJunctionRequired": false,
+    "rootSharpResolution": null
+  },
+  "rootAndProductionBoundary": {
+    "comparisonBase": "274d40bdf736d730233299793b50efb48bec47cb",
+    "rootPackageJson": {
+      "baseGitObject": "1641a421b06fadf74d28237492d10a997cbc5884",
+      "headGitObject": "1641a421b06fadf74d28237492d10a997cbc5884",
+      "byteIdentical": true
+    },
+    "rootPackageLock": {
+      "baseGitObject": "f8e978ed8f432c4084693dd4dfa746bf0532bba4",
+      "headGitObject": "f8e978ed8f432c4084693dd4dfa746bf0532bba4",
+      "byteIdentical": true
+    },
+    "androidNativeTree": {
+      "baseGitObject": "4ec62ce1eea614b5e668abd191c854bc6257f09e",
+      "headGitObject": "4ec62ce1eea614b5e668abd191c854bc6257f09e",
+      "byteIdentical": true
+    },
+    "iosNativeTree": {
+      "trackedAtBase": false,
+      "trackedAtHead": false,
+      "changed": false
+    },
+    "easJson": {
+      "baseGitObject": "018cd39ac0ef02439a66998859f4cfb6a31d534e",
+      "headGitObject": "018cd39ac0ef02439a66998859f4cfb6a31d534e",
+      "byteIdentical": true
+    },
+    "appJson": {
+      "baseGitObject": "bf3797abbca163270a92525a7b12f797e3861395",
+      "headGitObject": "bf3797abbca163270a92525a7b12f797e3861395",
+      "byteIdentical": true
+    },
+    "edgeFunctionsTree": {
+      "baseGitObject": "5d34e792a532a85bf2db4fbfdf3f17aad6565566",
+      "headGitObject": "5d34e792a532a85bf2db4fbfdf3f17aad6565566",
+      "byteIdentical": true
+    },
+    "productionAggregate": {
+      "fileCount": 708,
+      "baseSha256": "afdb1b813f3eba8b50c110a4cb6efe4f909e010ad2f77f901872a89cb75667f9",
+      "headSha256": "afdb1b813f3eba8b50c110a4cb6efe4f909e010ad2f77f901872a89cb75667f9",
+      "byteIdentical": true
+    },
+    "evaluationDependencyInProductionImports": false
+  },
+  "cleanCheckoutSuite": {
+    "workspace": "C:\\src\\KScan-scanner-autonomous-20260802-clean-proof",
+    "command": "node --test tools/scanner-evaluation/__tests__/*.test.js",
+    "exitCode": 0,
+    "testsDiscovered": 526,
+    "passed": 525,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "Optional certified-source transcription re-derivation is skipped when KSCAN_CERT_V140_ROOT is unset; the private Edge-only snapshot is intentionally not misrepresented as the missing full mobile-plus-Edge certified root.",
+    "worktreeCleanAfter": true
+  },
+  "build5CommitsInBenchmarkBranch": {
+    "present": false,
+    "checked": [
+      "ffce4190fa6fd5765bb49ce11d4bdab055e426ef",
+      "a195788103bd8d9e47ef3c53dc5a95732cd159ac",
+      "9dc3364fc3fe3091445395bb47b9ae3d269873d7",
+      "8370129cbe2ca5453a9b6c7e0b2c43044d9fad82",
+      "41c2c1d2435d3b90dd07f470e72eafa8273acd66"
+    ]
+  },
+  "proof": {
+    "evaluationOnlyDependencyManifest": true,
+    "rootPackageJsonModified": false,
+    "rootLockfileModified": false,
+    "iosAndroidNativeDependenciesModified": false,
+    "easBuildInputChanged": false,
+    "edgeFunctionClosureChanged": false,
+    "productionBundleChanged": false,
+    "manualNodeModulesJunctionRequired": false,
+    "cleanInstallFromEvaluationManifest": "PASS",
+    "fullOfflineScannerSuite": "PASS",
+    "rootDependencyDiff": "NONE",
+    "productionClosureDiff": "NONE"
+  }
+}

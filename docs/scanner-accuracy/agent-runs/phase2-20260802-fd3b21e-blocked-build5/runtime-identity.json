@@ -1,0 +1,118 @@
+{
+  "recordVersion": "1.0.0",
+  "captureMode": "offline-fetch-intercept",
+  "providerCallCount": 0,
+  "certifiedControl": {
+    "branch": "cert/ios-phase-2b4-cross-path-v2",
+    "sourceCommit": "f5f4ed2eda4984db0658c3209fece223acd33188",
+    "entry": "supabase/functions/scan-identify/index.ts",
+    "bundleFileCount": 31,
+    "bundleSha256": "28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589"
+  },
+  "android": {
+    "governingWorktree": "C:\\src\\KScan-android-build25-prebuild-readiness",
+    "governingBranch": "validation/android-build25-prebuild-readiness",
+    "governingSha": "4d0ceb40655a7de7a2430bc4014ef0710aa8ca66",
+    "upstream": "origin/validation/android-build25-prebuild-readiness",
+    "upstreamSha": "4d0ceb40655a7de7a2430bc4014ef0710aa8ca66",
+    "ahead": 0,
+    "behind": 0,
+    "clean": true,
+    "scannerEntryPoint": "hooks/useKScan.js::runScannerIdentification -> services/scannerScanRequest.ts::runScannerIdentification -> services/scanIdentification.ts::identifyScanImage -> supabase.functions.invoke('scan-identify')",
+    "scannerConfigurationSource": "eas.json plus constants/featureFlags.ts",
+    "activeScannerVersion": "legacy-selected-item",
+    "candidateEnabled": false,
+    "clientControlledSelectionPossible": false,
+    "singleDispatchPath": true,
+    "featureFlags": {
+      "scannerIdentificationV2Enabled": false,
+      "scanIdentifyBackendEnabled": true,
+      "multiImageScannerEnabled": true
+    },
+    "mobileOrchestratorSha256": "bf5c16cbca15448f2da8639822c4fc1c382b4c7de039eb1826902229c065cd32",
+    "mobileTransportSha256": "009f342df06e4ce844eebd343515e845bc905e9ca04ce0137013d1eb910160e0",
+    "edgeBundleSha256": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
+    "lineage": {
+      "build1ContractTipAncestor": true,
+      "build1ContractTip": "0300d6be555ec6ca598a53dad8d8b657fedd4502",
+      "build2PostAuditTipAncestor": false,
+      "build2PostAuditTip": "ebd565fdaa81dfeee8bed38e9c071cc4d5df4729",
+      "build3CertifiedTipAncestor": true,
+      "build3CertifiedTip": "950de11966409e45c9721cfca30c38488de4d23c",
+      "build4DormantScannerTipAncestor": false,
+      "build4DormantScannerTip": "9a6ce53ac9191f66e7da7bca9e9391ebdf31fed5",
+      "build5FeatureTipAncestor": true,
+      "build5FeatureTip": "a195788103bd8d9e47ef3c53dc5a95732cd159ac",
+      "build5PropagationTipAncestor": true,
+      "build5PropagationTip": "8370129cbe2ca5453a9b6c7e0b2c43044d9fad82"
+    },
+    "activeBuild5Configuration": {
+      "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "true",
+      "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "true",
+      "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "true",
+      "profiles": ["preview", "development", "production"]
+    }
+  },
+  "ios": {
+    "governingWorktree": "C:\\src\\KScan-ios-build25-prebuild-readiness",
+    "governingBranch": "validation/ios-build25-prebuild-readiness",
+    "governingSha": "5c761ba7df2cfc7b22efa3d3326dca46850e02f0",
+    "upstream": "origin/validation/ios-build25-prebuild-readiness",
+    "upstreamSha": "5c761ba7df2cfc7b22efa3d3326dca46850e02f0",
+    "ahead": 0,
+    "behind": 0,
+    "clean": true,
+    "scannerEntryPoint": "hooks/useKScan.js::runScannerIdentification -> services/scannerScanRequest.ts::runScannerIdentification -> services/scanIdentification.ts::identifyScanImage -> supabase.functions.invoke('scan-identify')",
+    "scannerConfigurationSource": "eas.json plus constants/featureFlags.ts",
+    "activeScannerVersion": "legacy-selected-item",
+    "candidateEnabled": false,
+    "clientControlledSelectionPossible": false,
+    "singleDispatchPath": true,
+    "featureFlags": {
+      "scannerIdentificationV2Enabled": false,
+      "scanIdentifyBackendEnabled": true,
+      "multiImageScannerEnabled": false
+    },
+    "mobileOrchestratorSha256": "bf5c16cbca15448f2da8639822c4fc1c382b4c7de039eb1826902229c065cd32",
+    "mobileTransportSha256": "891d1e3f378f825f398ca8bba359a1a0a5aba325f2d36cfcb7ff2312c641259f",
+    "edgeBundleSha256": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
+    "lineage": {
+      "build1ContractTipAncestor": true,
+      "build1ContractTip": "a6cb2a4bab628a6f1fcc3edaec1aeaf5d1145d8a",
+      "build2PostAuditTipAncestor": false,
+      "build2PostAuditTip": "90a77b98cb0be9d8303b760e6e95ebb15a91caef",
+      "build3CertifiedTipAncestor": true,
+      "build3CertifiedTip": "dcacfc64adb707c27b2c8c61d1ee50d5449f9ee7",
+      "build4DormantScannerTipAncestor": false,
+      "build4DormantScannerTip": "9a6ce53ac9191f66e7da7bca9e9391ebdf31fed5",
+      "build5FeatureTipAncestor": true,
+      "build5FeatureTip": "9dc3364fc3fe3091445395bb47b9ae3d269873d7",
+      "build5PropagationTipAncestor": true,
+      "build5PropagationTip": "41c2c1d2435d3b90dd07f470e72eafa8273acd66"
+    },
+    "activeBuild5Configuration": {
+      "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "true",
+      "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "true",
+      "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "true",
+      "profiles": ["preview", "development", "production"]
+    }
+  },
+  "providerRequest": {
+    "primaryModel": "gemini-3.6-flash",
+    "fallbackModel": "gemini-3.5-flash-lite",
+    "maximumAttempts": 2,
+    "temperature": 0,
+    "maxOutputTokens": 2048,
+    "responseMimeType": "application/json",
+    "schemaConfigured": true,
+    "topP": null,
+    "topK": null,
+    "seed": null,
+    "timeoutMs": 14000,
+    "serializedRequestPayloadSha256": "f330ebb18c0a5292cc9b32729bda79ce26cc9852b7e26da16a8cea9a7cc5a5f5",
+    "renderedPromptSha256": "6f2f4dd1c3c2e2d76dffb49fc24283ddfaf49a836f527c02ed2b82ef19b7dd1d",
+    "generationConfigSha256": "b6862722990cdfd3b387eaaf2d6a0e9880036b1fedab17fefd07c7db56c2d22e",
+    "responseSchemaSha256": "894722a6500756bd6eeae0e4beb4712a6b223c6ce4045d599f8d46682a5861a8",
+    "providerParserSha256": "332b713a7b7c516cf2d63fb4500c1a32a035464d862f783a9bc22f31b0ef8f79"
+  }
+}

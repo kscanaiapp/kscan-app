@@ -1,0 +1,30 @@
+{
+  "recordVersion": "1.0.0",
+  "scoringContract": {
+    "version": "0.3.0",
+    "source": "tools/scanner-evaluation/lib/scoreFields.js",
+    "sourceSha256": "c2c8a53233d8e35272e76bb7885cf5f388caeedf5a9bdda3adb514aefaf57f6a",
+    "llmInScoringPath": false,
+    "notMeasuredExcluded": true,
+    "gradeableDenominatorsFrozen": true
+  },
+  "selectionContract": {
+    "version": "1.0.0",
+    "artifact": "evals/scanner-accuracy/execution/baseline-input-selection.v1.json",
+    "artifactFileSha256": "2a3c7ce173fd69089fdc373f2b3de3a05b814393ac0883f06cbd0f91f2278f67",
+    "contractSha256": "2a3b84e8af60dc2b43bcfb94b630ea2629e11933bbde69437ec0698f92d3a159",
+    "rule": "first_image_reference_in_frozen_manifest_order",
+    "selectedInputCount": 40,
+    "outputIndependent": true
+  },
+  "taxonomy": {
+    "version": "1.0.0",
+    "artifact": "tools/scanner-evaluation/ontology/fashion-taxonomy.v1.json",
+    "sha256": "2417a9da3956860a11cd7016fad27ffa7cbeadd8765cc71efa3d124985e2a9d0"
+  },
+  "normalizerAndProjection": {
+    "providerParserSha256": "332b713a7b7c516cf2d63fb4500c1a32a035464d862f783a9bc22f31b0ef8f79",
+    "scoringProjection": "tools/scanner-evaluation/lib/scoringProjection.js",
+    "mobileProjection": "services/scanIdentificationMapper.ts plus services/scanResultObject.ts"
+  }
+}
