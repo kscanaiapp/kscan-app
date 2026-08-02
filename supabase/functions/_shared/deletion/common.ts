@@ -63,27 +63,55 @@ export function alertEvent(event: string, fields: Record<string, unknown> = {}) 
   );
 }
 
+export const LIFECYCLE_ALERT_EVENTS = Object.freeze([
+  'DELETION_REQUEST_ACCEPTED',
+  'USER_DELETION_EMAIL_FAILED',
+  'ACCOUNT_RESTORED',
+  'PURGE_BECAME_ELIGIBLE',
+  'PURGE_CLAIMED',
+  'PURGE_STARTED',
+  'PURGE_COMPLETED',
+  'PROVIDER_REVOCATION_BLOCKED',
+  'EVIDENCE_GENERATION_FAILED',
+  'EVIDENCE_CHECKSUM_FAILED',
+  'EVIDENCE_OBJECT_MISSING',
+  'RESIDUAL_PII_DETECTED',
+  'CROSS_USER_ANOMALY_DETECTED',
+  'WORKER_LEASE_STUCK',
+  'BACKUP_FAILED',
+  'AUTOMATION_PAUSED',
+] as const);
+
+export type LifecycleAlertEvent = (typeof LIFECYCLE_ALERT_EVENTS)[number];
+
 /**
  * Deliver a sanitized lifecycle incident to the configured app-team sink.
  * The caller must pause automation before or immediately after a false result.
  * A missing sink is a delivery failure, never a silent success.
  */
 export async function deliverLifecycleAlert(input: {
-  event: string;
+  event: LifecycleAlertEvent;
   deletionRequestId: string;
-  failureCategory: string;
+  failureCategory?: string;
   evidenceReference?: string | null;
+  lifecycleState?: string | null;
+  userReference?: string | null;
+  severity?: 'info' | 'warning' | 'critical';
 }): Promise<boolean> {
   const url = envOptional('ACCOUNT_LIFECYCLE_ALERT_WEBHOOK_URL');
   const token = envOptional('ACCOUNT_LIFECYCLE_ALERT_WEBHOOK_TOKEN');
   const payload = {
     environment: envOptional('KSCAN_ENVIRONMENT') ?? 'unconfigured',
-    severity: 'critical',
-    event: input.event.replace(/[^A-Z0-9_]/gi, '_').slice(0, 80),
+    severity: input.severity ?? 'critical',
+    event: input.event,
     deletion_request_id: input.deletionRequestId,
+    redacted_user_reference: input.userReference?.slice(0, 32) ?? 'unavailable',
     timestamp: new Date().toISOString(),
-    worker_function_version: envOptional('FUNCTION_VERSION') ?? 'unconfigured',
-    failure_category: input.failureCategory.replace(/[^A-Z0-9_:-]/gi, '_').slice(0, 120),
+    lifecycle_state: input.lifecycleState?.replace(/[^A-Z0-9_:-]/gi, '_').slice(0, 80) ?? 'unknown',
+    application_function_version: envOptional('FUNCTION_VERSION') ?? 'unconfigured',
+    failure_category: (input.failureCategory ?? input.event)
+      .replace(/[^A-Z0-9_:-]/gi, '_')
+      .slice(0, 120),
     evidence_reference: input.evidenceReference?.slice(0, 500) ?? null,
   };
   if (!url || !token) {

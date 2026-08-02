@@ -211,6 +211,32 @@ Repository code cannot truthfully manufacture platform backup/restore proof.
 Do not set `account_deletion_evidence_pipeline_ready=true` until this test and
 the full dispute-response acceptance test have passed.
 
+After the approved backup system has independently restored a disposable
+bundle and the primary and restored copies have been downloaded into two
+access-controlled local directories, verify the restored bytes with:
+
+```powershell
+npm run privacy:verify-evidence-backup -- `
+  --request-id 2e981c64-7dd9-4ac7-930a-f1b3eb1e87d7 `
+  --environment staging `
+  --source-dir <downloaded-primary-bundle> `
+  --restored-dir <downloaded-isolated-restore-bundle>
+```
+
+The verifier reads only the 16 allowlisted evidence objects, verifies each
+copy's `SHA256SUMS`, and requires byte equality. On a missing, unreadable, or
+corrupt object it returns nonzero, attempts to pause deletion automation, and
+emits the sanitized `BACKUP_FAILED` alert to the configured lifecycle alert
+webhook. It does not delete either directory. Record the independent download
+access events, then delete both local test directories and the isolated restore
+through the approved backup-system workflow.
+
+The current deletion functions send notification payloads directly to the
+configured email service and do not persist a temporary completion-email
+envelope in this repository's database or Storage schema. Any provider-side
+queue or envelope retention must be documented and approved with the email
+system owner; it must not be represented as enforced by this evidence store.
+
 ## LIMITED acceptance test
 
 Using a disposable staging request, prove this exact sequence:

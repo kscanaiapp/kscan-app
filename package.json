@@ -21,6 +21,7 @@
     "privacy:export-lifecycle-evidence": "node scripts/export-lifecycle-evidence.js",
     "privacy:review-lifecycle": "node scripts/review-lifecycle-request.js",
     "privacy:purge-expired-evidence": "node scripts/purge-expired-lifecycle-evidence.js",
+    "privacy:verify-evidence-backup": "node scripts/verify-lifecycle-evidence-backup.js",
     "verify:apple-readiness": "node scripts/verify-apple-readiness.js",
     "verify:apple-submission": "node scripts/verify-apple-submission.js",
     "check:scan-readiness": "node scripts/check-scan-readiness.js",

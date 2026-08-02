@@ -24,6 +24,7 @@ import {
   markEvidenceFailed,
   type EvidenceReservation,
 } from '../_shared/deletion/evidence.ts';
+import { revokeLinkedProviders } from '../_shared/deletion/providerRevocation.ts';
 
 /**
  * Internal protected worker for automatic account purges.
@@ -547,8 +548,17 @@ async function processClaimedRequest(
     return { status: 'skipped_grace' };
   }
 
+  await deliverLifecycleAlert({
+    event: 'PURGE_STARTED',
+    deletionRequestId: requestId,
+    lifecycleState: 'purging',
+    userReference: shortUserId(userId),
+    severity: 'info',
+  });
+
   let evidenceReservation: EvidenceReservation | null = null;
-  let criticalEvent = 'EVIDENCE_GENERATION_FAILED';
+  let criticalEvent: Parameters<typeof deliverLifecycleAlert>[0]['event'] =
+    'EVIDENCE_GENERATION_FAILED';
   try {
   const environment = (envOptional('KSCAN_ENVIRONMENT') ?? '').toLowerCase();
   if (environment !== 'staging' && environment !== 'production') {
@@ -603,6 +613,26 @@ async function processClaimedRequest(
   if (!initialRevocation.ok) throw new Error('session revocation failed before destructive purge');
   if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
 
+  criticalEvent = 'PROVIDER_REVOCATION_BLOCKED';
+  const providerRevocation = await revokeLinkedProviders({
+    authUser: identity.data.user,
+    deletionRequestId: requestId,
+  });
+  await appendEvidenceEvent(supabase, {
+    requestId,
+    userId,
+    eventType: 'PROVIDER_REVOCATION_COMPLETED',
+    outcome: providerRevocation.ok ? 'success' : 'blocked',
+    idempotencyKey: `provider-revocation:${requestId}:v${evidenceReservation.version}`,
+    evidenceReference: evidenceReservation.path,
+    metadata: { results: providerRevocation.results },
+  });
+  if (!providerRevocation.ok) {
+    throw new Error('provider revocation blocked before destructive purge');
+  }
+  criticalEvent = 'EVIDENCE_GENERATION_FAILED';
+  if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
+
   // Ledger: AUTH_DELETE_STARTED will be written just before auth delete.
   const direct = await deleteDirectUserRows(supabase, userId);
   await appendEvidenceEvent(supabase, {
@@ -613,7 +643,7 @@ async function processClaimedRequest(
   if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
 
   const rooms = await transferSharedRooms(supabase, userId);
-  criticalEvent = 'CROSS_USER_ANOMALY';
+  criticalEvent = 'CROSS_USER_ANOMALY_DETECTED';
   assertTransfersProtectOtherUsers(sharedRoomBaseline, rooms);
   await appendEvidenceEvent(supabase, {
     requestId, userId, eventType: 'PURGE_SHARED_ROOM_TRANSFER_COMPLETED', outcome: 'success',
@@ -691,7 +721,7 @@ async function processClaimedRequest(
   // registry resource (currently ~44), and unlike every other step in this
   // function it previously had no heartbeat guarding it.
   if (!(await heartbeat(requestId, workerId))) throw new Error('WORKER_LEASE_LOST');
-  criticalEvent = 'PURGE_VERIFICATION_FAILED';
+  criticalEvent = 'RESIDUAL_PII_DETECTED';
   const coverage = [];
   const residual = [];
   for (const resource of USER_DATA_RESOURCES) {
@@ -732,7 +762,7 @@ async function processClaimedRequest(
     metadata: { checked_resources: coverage.length, residual_count: 0 },
   });
 
-  criticalEvent = 'CROSS_USER_ANOMALY';
+  criticalEvent = 'CROSS_USER_ANOMALY_DETECTED';
   const crossUser = await verifySharedRoomPreservation(
     supabase,
     userId,
@@ -765,6 +795,15 @@ async function processClaimedRequest(
     throw new Error('mark purged returned false');
   }
 
+  await deliverLifecycleAlert({
+    event: 'PURGE_COMPLETED',
+    deletionRequestId: requestId,
+    lifecycleState: 'purged',
+    userReference: shortUserId(userId),
+    evidenceReference: evidenceReservation.path,
+    severity: 'info',
+  });
+
   logEvent('purge_success', {
     requestIdPrefix: requestId.slice(0, 8),
     roomsTransferred: rooms.filter((r) => r.action === 'transfer').length,
@@ -787,6 +826,7 @@ async function processClaimedRequest(
     const message = error instanceof Error ? error.message : 'critical purge pipeline failure';
     if (/checksum/i.test(message)) criticalEvent = 'EVIDENCE_CHECKSUM_FAILED';
     else if (/missing|not found/i.test(message)) criticalEvent = 'EVIDENCE_OBJECT_MISSING';
+    else if (/lease/i.test(message)) criticalEvent = 'WORKER_LEASE_STUCK';
     await markEvidenceFailed(supabase, evidenceReservation);
     await supabase.rpc('pause_account_deletion_automation', {
       p_reason: `${criticalEvent}: ${message}`.slice(0, 500),
@@ -796,6 +836,16 @@ async function processClaimedRequest(
       deletionRequestId: requestId,
       failureCategory: message,
       evidenceReference: evidenceReservation?.path ?? null,
+      lifecycleState: 'purging',
+      userReference: shortUserId(userId),
+    });
+    await deliverLifecycleAlert({
+      event: 'AUTOMATION_PAUSED',
+      deletionRequestId: requestId,
+      failureCategory: criticalEvent,
+      evidenceReference: evidenceReservation?.path ?? null,
+      lifecycleState: 'paused',
+      userReference: shortUserId(userId),
     });
     alertEvent(criticalEvent, {
       deletionRequestId: requestId,
@@ -872,6 +922,16 @@ Deno.serve(async (req) => {
         }, {}),
       };
 
+      for (const row of Array.isArray(eligible) ? eligible : []) {
+        await deliverLifecycleAlert({
+          event: 'PURGE_BECAME_ELIGIBLE',
+          deletionRequestId: row.id,
+          lifecycleState: row.status ?? 'deactivated',
+          userReference: row.user_id ? shortUserId(row.user_id) : 'unavailable',
+          severity: 'info',
+        });
+      }
+
       // P1-4: surface conditions an operator must act on, straight from the
       // read-only health-check path. A request dead-lettered to 'failed', or
       // stuck in 'purging' past its lease, will not resolve on its own.
@@ -888,6 +948,15 @@ Deno.serve(async (req) => {
             alertEvent('deletion_request_stuck_purging', {
               requestIdPrefix: String(row.id).slice(0, 8),
               hasUser: Boolean(row.user_id),
+            });
+            await rpc('pause_account_deletion_automation', {
+              p_reason: 'WORKER_LEASE_STUCK',
+            });
+            await deliverLifecycleAlert({
+              event: 'WORKER_LEASE_STUCK',
+              deletionRequestId: String(row.id),
+              lifecycleState: 'purging',
+              userReference: row.user_id ? shortUserId(String(row.user_id)) : 'unavailable',
             });
           }
         }
@@ -983,6 +1052,16 @@ Deno.serve(async (req) => {
     const claimed = await claimResponse.json();
     const claimedRows = Array.isArray(claimed) ? claimed : [];
     logEvent('worker_claim', { count: claimedRows.length, workerIdPrefix: workerId.slice(0, 16) });
+
+    for (const row of claimedRows) {
+      await deliverLifecycleAlert({
+        event: 'PURGE_CLAIMED',
+        deletionRequestId: String(row.id),
+        lifecycleState: 'purging',
+        userReference: row.user_id ? shortUserId(String(row.user_id)) : 'unavailable',
+        severity: 'info',
+      });
+    }
 
     const results = [];
     for (const row of claimedRows) {

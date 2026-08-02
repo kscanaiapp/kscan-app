@@ -86,6 +86,33 @@ test('bundle generator emits the required sanitized files and verifies SHA256SUM
   assert.deepEqual(invalid.failures.map((item) => item.filename), ['timeline.jsonl']);
 });
 
+test('backup restore verifier requires checksum-valid byte-identical bundles', async () => {
+  const evidence = await loadEvidence();
+  const requestId = '2e981c64-7dd9-4ac7-930a-f1b3eb1e87d7';
+  const source = evidence.buildEvidenceFiles({
+    summary: {
+      deletion_request_id: requestId,
+      environment: 'staging',
+      evidence_version: 1,
+      evidence_bundle_path: `staging/2026/08/${requestId}/v1`,
+      lifecycle_state: 'purged',
+    },
+    timeline: [],
+    accessLog: [],
+    generatedAt: '2026-08-02T18:01:00.000Z',
+  });
+  const restored = new Map([...source].map(([name, value]) => [name, Buffer.from(value)]));
+
+  const verified = evidence.verifyEvidenceBackupRestore(source, restored);
+  assert.equal(verified.valid, true);
+  assert.equal(verified.sourceManifestHash, verified.restoredManifestHash);
+
+  restored.set('manifest.json', Buffer.from('corrupt\n'));
+  const corrupted = evidence.verifyEvidenceBackupRestore(source, restored);
+  assert.equal(corrupted.valid, false);
+  assert.ok(corrupted.failures.some((failure) => failure.filename === 'manifest.json'));
+});
+
 test('migration creates a private service-role-only evidence surface', () => {
   const migration = fs.readFileSync(
     path.join(root, 'supabase', 'migrations', '20260802181610_account_lifecycle_evidence_store.sql'),
@@ -113,6 +140,20 @@ test('review and export CLIs require authorization, checksum verification, and c
   assert.match(exporter, /upsert: false/);
   assert.match(exporter, /round-trip checksum verification/i);
   assert.match(exporter, /pause_account_deletion_automation/);
+});
+
+test('backup verifier pauses before emitting the sanitized BACKUP_FAILED alert', () => {
+  const verifier = fs.readFileSync(
+    path.join(root, 'scripts', 'verify-lifecycle-evidence-backup.js'),
+    'utf8',
+  );
+  assert.match(verifier, /verifyEvidenceBackupRestore/);
+  assert.match(verifier, /event: 'BACKUP_FAILED'/);
+  assert.match(verifier, /sanitized_failure_category/);
+  const reportAt = verifier.indexOf('async function reportFailure');
+  const pauseAt = verifier.indexOf('await pauseAutomation', reportAt);
+  const deliveryAt = verifier.indexOf('await deliverBackupFailureAlert', reportAt);
+  assert.ok(reportAt > 0 && pauseAt > reportAt && deliveryAt > pauseAt);
 });
 
 test('destructive worker fails closed until evidence pipeline readiness is approved', () => {
@@ -160,6 +201,20 @@ test('database terminal and crash-recovery paths require complete verified evide
   assert.match(migration, /create or replace function public\.reconcile_orphaned_purging_requests[\s\S]*generation_status = 'complete'[\s\S]*checksum_status = 'verified'/i);
 });
 
+test('automatic claims require a verified initial notice and no notification review', () => {
+  const migration = fs.readFileSync(
+    path.join(root, 'supabase', 'migrations', '20260802193330_account_deletion_notice_claim_guard.sql'),
+    'utf8',
+  );
+  assert.match(migration, /initial_deletion_notice_verified boolean not null default false/i);
+  assert.match(migration, /notification_review_required boolean not null default true/i);
+  assert.match(migration, /dr\.initial_deletion_notice_verified is true/i);
+  assert.match(migration, /dr\.notification_review_required is false/i);
+  assert.match(migration, /create or replace function public\.get_my_latest_deletion_status_v2/i);
+  assert.match(migration, /grant execute on function public\.get_my_latest_deletion_status_v2\(\) to authenticated/i);
+  assert.doesNotMatch(migration, /update public\.deletion_requests[\s\S]*initial_deletion_notice_verified\s*=\s*true/i);
+});
+
 test('authenticated website intake source is allowlisted and written to lifecycle evidence', () => {
   const handler = fs.readFileSync(
     path.join(root, 'supabase', 'functions', 'handle-user-deletion', 'index.ts'),
@@ -170,4 +225,6 @@ test('authenticated website intake source is allowlisted and written to lifecycl
   assert.match(handler, /DELETE_REQUEST_AUTHENTICATED_WEB/);
   assert.match(handler, /append_account_lifecycle_event/);
   assert.match(handler, /request_source: requestSource/);
+  assert.match(handler, /deletionRequestId: deletionRequest\.id/);
+  assert.match(handler, /correlationId: deletionRequest\.id/);
 });

@@ -2,6 +2,7 @@ import {
   addDaysIso,
   appendTransition,
   corsHeaders,
+  deliverLifecycleAlert,
   generateRestorationToken,
   hashRestorationToken,
   json,
@@ -125,9 +126,37 @@ Deno.serve(async (req) => {
             kind: 'request',
           });
           queued = emailResult.queued;
+          if (queued) {
+            await rest(`deletion_requests?id=eq.${existing.id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                confirmation_email_sent_at: new Date().toISOString(),
+                initial_deletion_notice_verified: true,
+                notification_review_required: false,
+              }),
+            });
+          }
         }
+        if (user.email && !queued) {
+          await deliverLifecycleAlert({
+            event: 'USER_DELETION_EMAIL_FAILED',
+            deletionRequestId: existing.id,
+            lifecycleState: 'deactivated',
+            userReference: safeUid,
+            severity: 'warning',
+          });
+        }
+        await deliverLifecycleAlert({
+          event: 'DELETION_REQUEST_ACCEPTED',
+          deletionRequestId: existing.id,
+          lifecycleState: 'deactivated',
+          userReference: safeUid,
+          severity: 'info',
+        });
         return json({
           status: 'deactivated',
+          deletionRequestId: existing.id,
+          correlationId: existing.id,
           requestedAt: existing.requested_at,
           gracePeriodEndsAt: grace,
           restorationEmailQueued: queued,
@@ -146,8 +175,17 @@ Deno.serve(async (req) => {
         userId: user.id,
         requestSource,
       });
+      await deliverLifecycleAlert({
+        event: 'DELETION_REQUEST_ACCEPTED',
+        deletionRequestId: existing.id,
+        lifecycleState: existing.status,
+        userReference: safeUid,
+        severity: 'info',
+      });
       return json({
         status: existing.status,
+        deletionRequestId: existing.id,
+        correlationId: existing.id,
         requestedAt: existing.requested_at,
         gracePeriodEndsAt: existing.grace_period_ends_at ?? null,
         restorationEmailQueued: false,
@@ -177,6 +215,8 @@ Deno.serve(async (req) => {
       restoration_token_hash: tokenHash,
       restoration_token_expires_at: gracePeriodEndsAt,
       restoration_email_count: 0,
+      initial_deletion_notice_verified: false,
+      notification_review_required: true,
     };
 
     let insertResponse = await rest('deletion_requests', {
@@ -200,8 +240,17 @@ Deno.serve(async (req) => {
         );
         const rows = retry.ok ? await retry.json() : [];
         if (Array.isArray(rows) && rows[0]) {
+          await deliverLifecycleAlert({
+            event: 'DELETION_REQUEST_ACCEPTED',
+            deletionRequestId: rows[0].id,
+            lifecycleState: 'deactivated',
+            userReference: safeUid,
+            severity: 'info',
+          });
           return json({
             status: 'deactivated',
+            deletionRequestId: rows[0].id,
+            correlationId: rows[0].id,
             requestedAt: rows[0].requested_at,
             gracePeriodEndsAt: rows[0].grace_period_ends_at ?? null,
             restorationEmailQueued: false,
@@ -307,6 +356,8 @@ Deno.serve(async (req) => {
             restoration_email_sent_at: new Date().toISOString(),
             restoration_email_count: 1,
             confirmation_email_sent_at: new Date().toISOString(),
+            initial_deletion_notice_verified: true,
+            notification_review_required: false,
           }),
         });
       } else {
@@ -319,6 +370,23 @@ Deno.serve(async (req) => {
       logEvent('restoration_email_skipped_no_email', { uid: safeUid });
     }
 
+    if (user.email && !restorationEmailQueued) {
+      await deliverLifecycleAlert({
+        event: 'USER_DELETION_EMAIL_FAILED',
+        deletionRequestId: deletionRequest.id,
+        lifecycleState: 'deactivated',
+        userReference: safeUid,
+        severity: 'warning',
+      });
+    }
+    await deliverLifecycleAlert({
+      event: 'DELETION_REQUEST_ACCEPTED',
+      deletionRequestId: deletionRequest.id,
+      lifecycleState: 'deactivated',
+      userReference: safeUid,
+      severity: 'info',
+    });
+
     logEvent('deletion_request_accepted', {
       uid: safeUid,
       gracePeriodEndsAt: deletionRequest.grace_period_ends_at ?? gracePeriodEndsAt,
@@ -329,6 +397,8 @@ Deno.serve(async (req) => {
 
     return json({
       status: 'deactivated',
+      deletionRequestId: deletionRequest.id,
+      correlationId: deletionRequest.id,
       requestedAt: deletionRequest.requested_at ?? requestedAt,
       gracePeriodEndsAt: deletionRequest.grace_period_ends_at ?? gracePeriodEndsAt,
       restorationEmailQueued,

@@ -1,6 +1,7 @@
 import {
   buildRestorationUrl,
   corsHeaders,
+  deliverLifecycleAlert,
   hashRestorationToken,
   json,
   logEvent,
@@ -125,6 +126,14 @@ Deno.serve(async (req) => {
         });
       }
     }
+
+    await deliverLifecycleAlert({
+      event: 'ACCOUNT_RESTORED',
+      deletionRequestId: String(restored.request_id),
+      lifecycleState: 'restored',
+      userReference: restored.user_id ? shortUserId(restored.user_id) : 'unavailable',
+      severity: 'info',
+    });
 
     return json({
       status: 'restored',
