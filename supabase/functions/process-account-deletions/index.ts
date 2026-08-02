@@ -653,6 +653,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Evidence storage/retrieval is a hard safety dependency for destructive
+    // processing. The readiness flag is deliberately false by default and may
+    // only be enabled after the private bucket, retention policy, reviewer
+    // authorization, export integration, checksum round-trip, and restore test
+    // have all passed. This prevents an operator from enabling the legacy
+    // worker booleans and purging without a dispute-ready evidence package.
+    const evidencePipelineReady = await readAppConfigFlag(
+      'account_deletion_evidence_pipeline_ready',
+    );
+    if (!evidencePipelineReady) {
+      await rpc('pause_account_deletion_automation', {
+        p_reason: 'EVIDENCE_PIPELINE_NOT_READY',
+      });
+      alertEvent('evidence_pipeline_not_ready', {
+        workerIdPrefix: workerId.slice(0, 16),
+      });
+      return json({ error: 'Evidence pipeline is not ready; automation paused' }, 503);
+    }
+
     // Crash recovery: close out any 'purging' rows whose auth user was already
     // deleted (user_id nulled by FK cascade) before the worker that claimed
     // them could call mark_deletion_request_purged. Pure ledger reconciliation
