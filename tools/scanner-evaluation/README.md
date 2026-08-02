@@ -78,7 +78,9 @@ a changed preparation is refused.
 | `certified_client_width_896` (default) | width pinned to 896, height proportional — the exact production mirror, so a portrait frame exceeds 896 on its long edge |
 | `max_dimension_896` | longest edge capped at 896; **differs from production** for any non-landscape source |
 
-Requires the `sharp` devDependency. This is a **production-equivalent pilot stage,
+Install the harness-local dependency set with
+`npm ci --prefix tools/scanner-evaluation`. This keeps `sharp` out of the mobile
+application's root dependency graph. This is a **production-equivalent pilot stage,
 not byte-for-byte production parity**. Fidelity limits are recorded in every
 preparation manifest: pixel dimensions, chroma subsampling and the requested quality
 setting match the certified client, but **entropy-coded bytes do not and no

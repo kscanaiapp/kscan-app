@@ -847,7 +847,7 @@ test('tracking guard enumerates every authorized Build 4 root', () => {
 test('every authorized Build 4 file on disk is tracked by git', () => {
   // This is the backstop for the exclude hazard: a clean `git status` is NOT
   // evidence that harness work was committed.
-  const report = trackingGuard.main(['--base', 'cf39d9ac']);
+  const report = trackingGuard.main(['--base', '274d40bdf736d730233299793b50efb48bec47cb']);
   assert.deepEqual(report.tracking.untracked, [], 'untracked authorized files must be staged with git add -f');
   assert.deepEqual(report.boundary.outsideAuthorizedRoots, [], 'Build 4 must not change files outside its roots');
   assert.equal(report.ok, true);
@@ -872,22 +872,22 @@ test('the path-boundary exception list is exactly the two owner-authorized files
   }
 });
 
-test('the authorized boundary exception is recorded and used, not silent', () => {
-  const report = trackingGuard.main(['--base', 'cf39d9ac']);
+test('the autonomous lane uses no root-manifest boundary exception', () => {
+  const report = trackingGuard.main(['--base', '274d40bdf736d730233299793b50efb48bec47cb']);
   const used = report.boundary.authorizedExceptionsUsed.map((e) => e.file).sort();
-  assert.deepEqual(used, ['package-lock.json', 'package.json'],
-    'the sharp devDependency touches both manifests and both must be reported as exceptions');
-  for (const exception of report.boundary.authorizedExceptionsUsed) {
-    assert.match(exception.authority, /owner decision/);
-    assert.equal(exception.record, 'evals/scanner-accuracy/authorization/phase1-execution-authorization.json');
-  }
+  assert.deepEqual(used, [], 'the next-build experiment may not touch root package manifests');
 });
 
-test('sharp is a devDependency only and is not reachable from application code', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  assert.ok(pkg.devDependencies.sharp, 'sharp must be declared as a devDependency');
-  assert.equal(pkg.dependencies && pkg.dependencies.sharp, undefined,
-    'sharp must NOT be a runtime dependency of the application');
+test('sharp is evaluation-local and is not reachable from application code', () => {
+  const rootPackage = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const evaluationPackage = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'tools/scanner-evaluation/package.json'),
+    'utf8',
+  ));
+  assert.equal(rootPackage.dependencies && rootPackage.dependencies.sharp, undefined);
+  assert.equal(rootPackage.devDependencies && rootPackage.devDependencies.sharp, undefined);
+  assert.equal(evaluationPackage.dependencies.sharp, '0.35.3',
+    'sharp must be pinned inside the evaluation-only dependency graph');
 
   // Nothing shipped to a device or an Edge Function may import the codec.
   const roots = ['app', 'components', 'services', 'hooks', 'contexts', 'constants', 'utils', 'supabase'];

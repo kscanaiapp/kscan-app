@@ -1,0 +1,10 @@
+{
+  "name": "kscan-scanner-evaluation-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated dependencies for the offline Scanner evaluation harness.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "sharp": "0.35.3"
+  }
+}
