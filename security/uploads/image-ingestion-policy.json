@@ -1,0 +1,92 @@
+{
+  "$schema": "https://kscan.internal/schemas/image-ingestion-policy.json",
+  "policyVersion": "1.0.0",
+  "effectiveDate": "2026-08-03",
+  "generatedFrom": "docs/security/secure-image-ingestion-inventory.md",
+  "description": "Single source of truth for the Secure Image Ingestion Gate. Every ingress path (Render /api/analyze, Storage-bound client uploads, any future Edge Function image path) must defer to this file instead of maintaining its own format/size constants. This closes the size-cap drift found in Phase 1 between the style-library-images bucket (5MB) and inspiration_items.file_size_bytes (10MB DB check).",
+  "notes": [
+    "This policy intentionally tightens two existing allowances found in Phase 1: (1) server.js currently allows 'image/heic' in ALLOWED_MIME_TYPES even though the client compression pipeline (services/imageUtils.js) only ever produces JPEG before upload — heic is dropped here because no repository evidence shows it is actually sent or required. (2) server.js's effective 15MB Express body cap and the 20MB app-level MAX_BASE64_BYTES check are both replaced by the tighter compressedMaxBytes values below, which are well above every observed real client output (200KB-2MB) and well below the previous ceiling.",
+    "Animated formats are disallowed for every accepted type (maxAnimationFrames=1 everywhere) because no ingress path in this repository sends or requires animated content.",
+    "Nothing here trusts filename, extension alone, Content-Type header alone, client-provided dimensions, or client-provided hashes — those are asserted server-side by the gate per docs/security/secure-image-ingestion-architecture.md."
+  ],
+  "allowedFormats": [
+    {
+      "id": "jpeg",
+      "expectedExtensions": [".jpg", ".jpeg"],
+      "allowedMimeTypes": ["image/jpeg"],
+      "requiredMagicBytes": [
+        { "offsetBytes": 0, "hexSignature": "FFD8FF" }
+      ],
+      "maxCompressedBytes": 10485760,
+      "maxWidthPx": 6000,
+      "maxHeightPx": 6000,
+      "maxTotalPixels": 24000000,
+      "maxAnimationFrames": 1,
+      "maxDecodedMemoryEstimateBytes": 100000000,
+      "metadataPolicy": "strip_all",
+      "outputReencodeFormat": "jpeg",
+      "outputQuality": { "min": 72, "max": 90, "default": 82 }
+    },
+    {
+      "id": "png",
+      "expectedExtensions": [".png"],
+      "allowedMimeTypes": ["image/png"],
+      "requiredMagicBytes": [
+        { "offsetBytes": 0, "hexSignature": "89504E470D0A1A0A" }
+      ],
+      "maxCompressedBytes": 10485760,
+      "maxWidthPx": 6000,
+      "maxHeightPx": 6000,
+      "maxTotalPixels": 24000000,
+      "maxAnimationFrames": 1,
+      "maxDecodedMemoryEstimateBytes": 100000000,
+      "metadataPolicy": "strip_all",
+      "outputReencodeFormat": "png",
+      "outputQuality": { "compressionLevel": { "min": 6, "max": 9, "default": 8 }, "lossless": true }
+    },
+    {
+      "id": "webp",
+      "expectedExtensions": [".webp"],
+      "allowedMimeTypes": ["image/webp"],
+      "requiredMagicBytes": [
+        { "offsetBytes": 0, "hexSignature": "52494646" },
+        { "offsetBytes": 8, "hexSignature": "57454250" }
+      ],
+      "maxCompressedBytes": 10485760,
+      "maxWidthPx": 6000,
+      "maxHeightPx": 6000,
+      "maxTotalPixels": 24000000,
+      "maxAnimationFrames": 1,
+      "maxDecodedMemoryEstimateBytes": 100000000,
+      "metadataPolicy": "strip_all",
+      "outputReencodeFormat": "webp",
+      "outputQuality": { "min": 72, "max": 90, "default": 82 }
+    }
+  ],
+  "disallowedFormats": [
+    { "id": "svg", "reason": "XML-based, script-execution and XXE risk; no repository evidence of use" },
+    { "id": "pdf", "reason": "Document format with active-content risk; no repository evidence of use" },
+    { "id": "tiff", "reason": "Complex/legacy container, historically high parser-vulnerability surface; no repository evidence of use" },
+    { "id": "gif", "reason": "Animated by design; no repository evidence of required use" },
+    { "id": "heic", "reason": "Allowed today in server.js ALLOWED_MIME_TYPES but never actually produced by the client compression pipeline (services/imageUtils.js emits JPEG only); no repository evidence it is required" },
+    { "id": "bmp", "reason": "Uncompressed legacy format, no repository evidence of use" },
+    { "id": "ico", "reason": "No repository evidence of use" },
+    { "id": "archive", "reason": "zip/tar/rar/7z — not an image; disallowed unconditionally" },
+    { "id": "executable", "reason": "exe/sh/bat/apk/dmg/elf/mach-o — not an image; disallowed unconditionally" },
+    { "id": "video", "reason": "mp4/mov/webm/avi — not an image; disallowed unconditionally" },
+    { "id": "arbitrary_binary", "reason": "Any content not matching a recognized, allow-listed image signature is rejected; the gate never falls back to permissive handling for unrecognized types" }
+  ],
+  "requestLimits": {
+    "preBufferStreamingCapBytes": 10485760,
+    "note": "This cap must be enforced while the request is still streaming in, before full in-memory buffering — see Phase 3 step 2. This closes the gap in server.js where express.json() fully buffers up to 15MB before any application-level check runs."
+  },
+  "trustBoundaryRules": [
+    "Never trust filename alone.",
+    "Never trust file extension alone.",
+    "Never trust the Content-Type / declared MIME header alone — it must match the detected magic-byte signature (see extensionConsistencyRequired).",
+    "Never trust client-supplied image dimensions.",
+    "Never trust client-provided hashes — the gate computes its own SHA-256 of received bytes and of canonical output.",
+    "Never fetch or trust an image URL without server-side fetch controls (size cap, redirect limit, private-IP/SSRF denylist, content-type re-validation on the fetched bytes) — no ingress path in this repository does this today; if one is added later it must reuse this same policy file and go through the same gate, not a bespoke fetch."
+  ],
+  "extensionConsistencyRequired": true
+}
