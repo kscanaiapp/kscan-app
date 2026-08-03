@@ -76,8 +76,10 @@ import { assessVariant } from './evidence.ts';
 import type { NormalizedRow } from './normalize.ts';
 import { planQueries, shouldRunFallback, type QueryPlan } from './queryPlanner.ts';
 import { filterByRelevance } from './relevance.ts';
-import { detectPotentialSimilarItems } from './closetSimilarity.ts';
-import type { ExistingItemCandidate } from './contracts.ts';
+import { classifySimilarItems } from './closetSimilarity.ts';
+import { retrieveCandidates } from './candidateRetrieval.ts';
+import type { ExistingItemCandidate, SimilarityRetrievalReport, SimilarityStageDiagnostics } from './contracts.ts';
+import { SIMILARITY_THRESHOLD_VERSION, type ThresholdOverrides } from './similarityThresholds.ts';
 
 /**
  * A provider, as far as the orchestrator is concerned.
@@ -116,6 +118,14 @@ export type OrchestrationOptions = {
   existingItems?: ExistingItemCandidate[];
   newScanImageUri?: string | null;
   newScanLabel?: string | null;
+  /** Checkpoint 4 — see `ProductMatchRequest.newScanProductUrl` etc. */
+  newScanProductUrl?: string | null;
+  newScanAuthoritativeId?: string | null;
+  newScanImageQuality?: 'ok' | 'poor' | 'missing' | null;
+  /** Checkpoint 4 — see `ProductMatchRequest.debugSimilarity`. */
+  debugSimilarity?: boolean;
+  /** Checkpoint 4 — calibration-only. See `similarityThresholds.ts`. */
+  thresholdOverrides?: ThresholdOverrides;
 };
 
 export type OrchestrationOutcome = {
@@ -530,18 +540,49 @@ export async function orchestrateProductMatch(input: {
   const listings = assembled.listings.slice(0, maxListings);
 
   // ── Stage: similarity (advisory only) ─────────────────────────────────────
+  //
+  // Two named sub-phases inside the ONE `similarity` stage entry — retrieval
+  // (cheap, structural pre-filtering) then comparison (the actual scoring).
+  // They stay inside a single `stages.run` call so the governed stage-name
+  // sequence never changes shape; the breakdown surfaces separately via
+  // `similarityDiagnostics` (see contracts.ts).
+  const existingItemsSupplied = options.existingItems !== undefined;
   const existingItems = options.existingItems ?? [];
+  let similarityRetrieval: SimilarityRetrievalReport | undefined;
+  let classifiedBeforeCap = 0;
   const potentialSimilarItems: PotentialSimilarItem[] = stages.run(
     'similarity',
     existingItems.length,
-    () =>
-      detectPotentialSimilarItems({
+    () => {
+      const { retained, report } = retrieveCandidates({ query, existingItems, now });
+      similarityRetrieval = report;
+      const results = classifySimilarItems({
         query,
-        existingItems,
+        existingItems: retained,
         newScanImageUri: options.newScanImageUri ?? null,
         newScanLabel: options.newScanLabel ?? null,
-      }),
+        newScanIdentity: {
+          productUrl: options.newScanProductUrl ?? null,
+          authoritativeId: options.newScanAuthoritativeId ?? null,
+          imageQuality: options.newScanImageQuality ?? null,
+        },
+        debug: options.debugSimilarity ?? false,
+        thresholdOverrides: options.thresholdOverrides,
+      });
+      classifiedBeforeCap = results.classifiedBeforeCap;
+      return results.items;
+    },
   );
+  const similarityStageTiming = stages.collapsed().find((stage) => stage.stage === 'similarity');
+  const similarityDiagnostics: SimilarityStageDiagnostics | undefined = existingItemsSupplied
+    ? {
+      thresholdVersion: SIMILARITY_THRESHOLD_VERSION,
+      retrieveMs: similarityRetrieval?.durationMs ?? 0,
+      compareMs: Math.max(0, (similarityStageTiming?.durationMs ?? 0) - (similarityRetrieval?.durationMs ?? 0)),
+      totalMs: similarityStageTiming?.durationMs ?? 0,
+      classifiedBeforeCap,
+    }
+    : undefined;
 
   const producedSomething = outcomes.some((outcome) => outcome.status === 'completed');
   const lostSomething = outcomes.some(
@@ -587,6 +628,8 @@ export async function orchestrateProductMatch(input: {
         providers: outcomes,
         potentialSimilarItems,
         retrieval,
+        ...(similarityRetrieval ? { similarityRetrieval } : {}),
+        ...(similarityDiagnostics ? { similarityDiagnostics } : {}),
         timings,
         emptyReason: 'no_results',
       },
@@ -605,6 +648,8 @@ export async function orchestrateProductMatch(input: {
       providers: outcomes,
       potentialSimilarItems,
       retrieval,
+      ...(similarityRetrieval ? { similarityRetrieval } : {}),
+      ...(similarityDiagnostics ? { similarityDiagnostics } : {}),
       timings,
       ...(assembled.tier === 'NO_CONFIDENT_MATCH' ? { emptyReason: 'below_confidence' as const } : {}),
     },

@@ -47,6 +47,7 @@ export type SelectionCandidateView = {
 
 export type SimilarityReason =
   | 'shared_product_url'
+  | 'authoritative_identifier_match'
   | 'same_brand'
   | 'same_model_tokens'
   | 'same_normalized_color'
@@ -54,6 +55,20 @@ export type SimilarityReason =
   | 'same_material'
   | 'same_silhouette'
   | 'same_pattern';
+
+/**
+ * Checkpoint 4 — named disagreements. See the backend's `ConflictReason` in
+ * `supabase/functions/product-match/contracts.ts` for the full rationale.
+ * `identifier_conflict` and `category_conflict` never reach the client: they
+ * suppress the notice on the backend instead of appearing here.
+ */
+export type ConflictReason =
+  | 'identifier_conflict'
+  | 'category_conflict'
+  | 'different_model_family'
+  | 'different_silhouette'
+  | 'different_colorway'
+  | 'different_pattern';
 
 export type SimilarItemAction =
   | 'reject_new_scan'
@@ -73,6 +88,12 @@ export type PotentialSimilarItemView = {
     existingItemLabel: string | null;
   };
   reasons: SimilarityReason[];
+  /**
+   * Checkpoint 4. Soft disagreements alongside `reasons` — may be non-empty
+   * even though a notice is shown (e.g. same brand and model, different
+   * colourway). Defaults to `[]` on a response that predates this field.
+   */
+  conflicts: ConflictReason[];
   advisoryConfidence: number;
   /** Every action the CONTRACT permits. Filtered for display by eligibility. */
   contractActions: SimilarItemAction[];
@@ -165,6 +186,9 @@ function parseSimilarItems(raw: unknown): PotentialSimilarItemView[] {
     const reasons = Array.isArray(entry.reasons)
       ? (entry.reasons.filter((r) => typeof r === 'string') as SimilarityReason[])
       : [];
+    const conflicts = Array.isArray(entry.conflicts)
+      ? (entry.conflicts.filter((c) => typeof c === 'string') as ConflictReason[])
+      : [];
     const contractActions = Array.isArray(entry.availableActions)
       ? (entry.availableActions.filter((a) => typeof a === 'string') as SimilarItemAction[])
       : [];
@@ -179,6 +203,7 @@ function parseSimilarItems(raw: unknown): PotentialSimilarItemView[] {
         existingItemLabel: str(comparison.existingItemLabel, 160),
       },
       reasons,
+      conflicts,
       advisoryConfidence: typeof entry.advisoryConfidence === 'number' ? entry.advisoryConfidence : 0,
       contractActions,
     });
