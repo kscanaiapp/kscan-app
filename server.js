@@ -1202,6 +1202,56 @@ app.use(
 // ample headroom while preventing abuse.
 app.use(express.json({ limit: '15mb' }));
 
+// ── Per-IP rate limiting for /api/analyze ──────────────────────────────────
+// This endpoint has no authentication and calls a paid provider (Gemini or
+// OpenRouter) per request — until this fix it had zero request-volume
+// control, discovered during the public-ingress perimeter audit
+// (docs/security/public-ingress-inventory.md). In-memory, per-process only:
+// acceptable for this single-instance Render deployment today; a
+// distributed store (e.g. Redis) would be needed if this service is ever
+// scaled to multiple instances. Deliberately dependency-free — render.yaml's
+// buildCommand installs an explicit package list (`npm install express cors
+// dotenv`), not `npm install`, so adding a new npm dependency here would
+// require a coordinated render.yaml change and was avoided.
+const ANALYZE_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const ANALYZE_RATE_LIMIT_MAX_REQUESTS = 10;
+const analyzeRequestLog = new Map(); // ip -> array of request timestamps (ms)
+
+function analyzeRateLimiter(req, res, next) {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowStart = now - ANALYZE_RATE_LIMIT_WINDOW_MS;
+
+  const timestamps = (analyzeRequestLog.get(ip) || []).filter((t) => t > windowStart);
+
+  if (timestamps.length >= ANALYZE_RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((timestamps[0] + ANALYZE_RATE_LIMIT_WINDOW_MS - now) / 1000));
+    res.set('Retry-After', String(retryAfterSeconds));
+    return res.status(429).json({
+      status: 'FAILED',
+      error: 'RATE_LIMITED',
+      message: 'Too many requests. Please try again shortly.',
+      retryAfterSeconds,
+    });
+  }
+
+  timestamps.push(now);
+  analyzeRequestLog.set(ip, timestamps);
+
+  // Amortized cleanup so analyzeRequestLog doesn't grow unbounded with
+  // one-off callers -- same "cheap probabilistic sweep" pattern used by
+  // check_and_increment_stylechat_burst in the Supabase migrations.
+  if (Math.random() < 0.01) {
+    for (const [key, value] of analyzeRequestLog) {
+      const fresh = value.filter((t) => t > windowStart);
+      if (fresh.length === 0) analyzeRequestLog.delete(key);
+      else analyzeRequestLog.set(key, fresh);
+    }
+  }
+
+  next();
+}
+
 function extractImageParts(imageInput) {
   if (!imageInput || typeof imageInput !== 'string') {
     return { mimeType: '', data: '' };
@@ -1385,7 +1435,7 @@ function validateImageInput(image) {
   return null; // valid
 }
 
-app.post('/api/analyze', async (req, res) => {
+app.post('/api/analyze', analyzeRateLimiter, async (req, res) => {
   try {
     console.log('[K-SCAN] /api/analyze hit');
     if (DEBUG) {
@@ -1642,4 +1692,8 @@ module.exports = {
   matchProducts,
   CONFIDENCE_THRESHOLD,
   WEIGHTS,
+  analyzeRateLimiter,
+  analyzeRequestLog,
+  ANALYZE_RATE_LIMIT_WINDOW_MS,
+  ANALYZE_RATE_LIMIT_MAX_REQUESTS,
 };
