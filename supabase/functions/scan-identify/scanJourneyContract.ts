@@ -30,6 +30,7 @@ import {
   buildSelectionRequiredPayload,
   isSelectionContractEnabled,
   suppressGuessedPrimary,
+  suppressV2GuessedIdentity,
   type SelectionLineage,
 } from './multiItemSelectionContract.ts';
 import {
@@ -165,6 +166,17 @@ export async function applyScanJourneyContract(
         // Suppression happens BEFORE the merge so the guessed primary cannot
         // survive by being re-added from the spread.
         response = { ...suppressGuessedPrimary(response), ...payload };
+        // …and again one level down. A V2 envelope treats
+        // `multiple_items_need_selection` as identity-bearing, so it carries
+        // the same guessed category/subtype/brand that was just stripped from
+        // the legacy fields. Stripping only the top level would move the guess
+        // rather than remove it.
+        if (response.identificationV2) {
+          response = {
+            ...response,
+            identificationV2: suppressV2GuessedIdentity(response.identificationV2),
+          };
+        }
       }
     }
 

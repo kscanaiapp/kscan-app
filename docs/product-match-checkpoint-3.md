@@ -175,6 +175,25 @@ Derivation is ordered: failure outranks selection, selection outranks
 everything else. A multi-item image has no single correct identification, so any
 state below selection would imply one.
 
+The selection array is named **`selectionCandidates`**, not `candidates` — a V2
+response already carries `identificationV2.candidates` with a different shape,
+and two differently-shaped `candidates` in one payload is the ambiguity a client
+team would trip over.
+
+### State emission coverage — read this before implementing the client
+
+`applicationState` is emitted on the **completed** response path only. The
+handler has 26 return sites; the early terminal ones (invalid image, rate
+limited, safety failure, `non_fashion`, technical failure) return before the
+contract layer runs and therefore carry **no** `applicationState`.
+
+That is backward-compatible — those responses are exactly what they are today —
+but it means **a client must treat an absent `applicationState` as "legacy
+shape", not as an error**. Adding states to those paths would require either a
+`NON_FASHION` state the vocabulary does not have, or calling the contract layer
+from 26 sites; both are contract decisions rather than wiring, and neither
+belongs in this checkpoint.
+
 ---
 
 ## 4. Similar-item flagging — plumbing only, engine NOT validated
@@ -239,6 +258,50 @@ Android line is canonical. Propagating this change is a prerequisite for any
 release shipping both lines.
 
 ---
+
+## 5b. Hostile validation — three defects found and fixed
+
+Validation reviewed the diff manually rather than re-running the tests, and
+found three real defects. All are fixed; each now has a regression test.
+
+**D1 — `validateSelectedItemRequest` was dead code.** Fully implemented, fully
+unit-tested, and never called from the request path. Every one of its tests
+passed while the guarantee it existed to provide — that a selection token cannot
+be swapped across request lineages — was **false in the running system**.
+
+*Fixed:* wired into the selected-item path, flag-gated, after the image digest
+is derived. Note what was and was not already protected: the deployed digest
+comparison already makes cross-**image** token reuse impossible, because a
+stolen token is useless without the original image bytes. What was open, and is
+now closed, is replaying a token from one detection against a request claiming a
+different session.
+
+*Guarded by:* `__tests__/scanJourneyWiring.test.js`, which enumerates every
+exported safety helper and fails if any has no caller outside its own module.
+Proven non-vacuous: removing the call from `index.ts` makes it fail.
+
+**D2 — the guess survived one level down.** Suppressing the legacy
+`identification` was not enough. `normalizeToV2` treats
+`multiple_items_need_selection` as identity-bearing, so
+`identificationV2.item.category/.subtype/.brand` carried the **same guessed
+primary** that had just been stripped above it. A V2 client still received "we
+identified this jacket" for an image containing four garments. Stripping only
+the top level moved the guess rather than removing it.
+
+*Fixed:* `suppressV2GuessedIdentity` blanks the identity fields and drops
+`resolutionLevel` to `unknown`, leaving the candidates intact. Implemented in
+the checkpoint's own module rather than in `fashionIdentificationV2.ts`, which
+is shared with other functions and pinned by the cross-path manifest.
+
+**D3 — ambiguous field name.** The selection array was called `candidates`,
+colliding conceptually with `identificationV2.candidates`. Renamed to
+`selectionCandidates`.
+
+**Independently re-verified:** the four drifted functions were re-downloaded
+fresh from production and re-diffed. Three are byte-identical (CR-normalized);
+`nike-shoe-details` differs by 30 lines and **0 non-comment lines**, confirming
+it is behaviourally unchanged and that nothing has been hot-patched since
+2026-08-03.
 
 ## 6. Results
 

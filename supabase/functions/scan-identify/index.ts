@@ -53,6 +53,10 @@ import {
 import { applyScanJourneyContract } from './scanJourneyContract.ts';
 import { sanitizeExistingItemCandidates } from './existingItemCandidates.ts';
 import {
+  isSelectionContractEnabled,
+  validateSelectedItemRequest,
+} from './multiItemSelectionContract.ts';
+import {
   getShoppingResults,
   buildShoppingQuery,
 } from './shoppingProvider.ts';
@@ -1608,6 +1612,8 @@ Deno.serve(async (req) => {
     // candidates keeps this function free of user-scoped table access and keeps
     // the comparison testable without a database.
     existingItems?: unknown;
+    // Checkpoint 3. The bundle echoed back from a candidate's `selectionToken`.
+    selectionToken?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -1922,6 +1928,41 @@ Deno.serve(async (req) => {
         correlationHash: typeof imageDigestPrefix === 'string' ? imageDigestPrefix : null,
       });
       return json(normalized('failed', 'The original outfit image is no longer available. Please start a new scan.'), 200);
+    }
+
+    // Checkpoint 3 — selection-token lineage check.
+    //
+    // The digest comparison above already makes cross-IMAGE token reuse
+    // impossible: a stolen token is useless without the original image bytes.
+    // What it does not catch is a token from one detection being replayed
+    // against a request claiming a DIFFERENT session, which is the swap this
+    // check closes. Flag-gated, so with the contract off this is one boolean
+    // and the deployed behaviour is unchanged.
+    if (useSelectedItemProvider && isSelectionContractEnabled()) {
+      const tokenCheck = validateSelectedItemRequest({
+        token: (body.selectionToken as Record<string, unknown> | undefined) ??
+          // A client that has not adopted the token bundle yet still gets its
+          // candidateId checked, rather than being rejected outright.
+          { candidateId: selectedCandidate?.candidateId, scanSessionId, imageDigestPrefix },
+        expected: {
+          scanId,
+          scanSessionId,
+          imageDigestPrefix,
+          evidenceId: internalRequest.evidenceId ?? null,
+        },
+      });
+      if (!tokenCheck.ok) {
+        console.warn(
+          '[scan-identify] selection_token_rejected reason=%s scanSessionId=%s requestMode=%s',
+          tokenCheck.reason,
+          scanSessionId,
+          requestMode,
+        );
+        return json(
+          normalized('failed', 'That selection no longer matches this scan. Please select the item again.'),
+          200,
+        );
+      }
     }
 
     console.log(

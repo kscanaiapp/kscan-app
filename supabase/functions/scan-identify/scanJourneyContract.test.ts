@@ -18,6 +18,7 @@ import {
   SELECTION_CONTRACT_DEFAULT_ENABLED,
   SUPPRESSED_WHEN_SELECTION_REQUIRED,
   suppressGuessedPrimary,
+  suppressV2GuessedIdentity,
   validateSelectedItemRequest,
   type SelectionLineage,
 } from './multiItemSelectionContract.ts';
@@ -61,7 +62,7 @@ Deno.test('a multi-garment scan produces an explicit selection-required state', 
   assertEquals(payload.applicationState, 'MULTI_ITEM_SELECTION_REQUIRED');
   // An explicit field, so no client has to infer intent from an array length.
   assertEquals(payload.selectionRequired, true);
-  assertEquals(payload.candidates.length, 3);
+  assertEquals(payload.selectionCandidates.length, 3);
 });
 
 Deno.test('one garment is not a selection problem', () => {
@@ -78,7 +79,7 @@ Deno.test('a candidate with no id is dropped rather than offered', () => {
     lineage: LINEAGE,
   });
   assert(payload !== null);
-  assertEquals(payload.candidates.length, 2, 'offering it would produce a request we must reject');
+  assertEquals(payload.selectionCandidates.length, 2, 'offering it would produce a request we must reject');
 });
 
 // ── precondition 2b: the backend must not guess ─────────────────────────────
@@ -118,7 +119,7 @@ Deno.test('the suppression list is exactly the fields that imply an identificati
 Deno.test('every candidate carries its own complete selection token', () => {
   const payload = buildSelectionRequiredPayload({ detectedGarments: GARMENTS, lineage: LINEAGE });
   assert(payload !== null);
-  for (const candidate of payload.candidates) {
+  for (const candidate of payload.selectionCandidates) {
     // Per-candidate rather than per-response, so a client cannot pair
     // candidate A's id with candidate B's lineage.
     assertEquals(candidate.selectionToken.candidateId, candidate.candidateId);
@@ -132,7 +133,7 @@ Deno.test('a valid selected-item request is accepted', () => {
   const payload = buildSelectionRequiredPayload({ detectedGarments: GARMENTS, lineage: LINEAGE });
   assert(payload !== null);
   const result = validateSelectedItemRequest({
-    token: payload.candidates[1].selectionToken,
+    token: payload.selectionCandidates[1].selectionToken,
     expected: LINEAGE,
     knownCandidateIds: GARMENTS.map((g) => g.candidateId),
   });
@@ -453,14 +454,99 @@ Deno.test('INTEGRATED: multi-item scan stops for selection and never calls produ
   assertEquals(after.selectionRequired, true);
   assertEquals(after.identification, undefined, 'no guessed primary survives');
   assertEquals(fetched, false, 'product-match must not run on an unresolved multi-item scan');
-  assertEquals((after.candidates as unknown[]).length, 3);
+  assertEquals((after.selectionCandidates as unknown[]).length, 3);
+});
+
+// ── regressions found during Checkpoint 3 hostile validation ────────────────
+
+Deno.test('REGRESSION: the guess does not survive one level down in the V2 envelope', () => {
+  // Suppressing the legacy `identification` was not enough. `normalizeToV2`
+  // treats `multiple_items_need_selection` as identity-bearing, so the V2
+  // envelope carried the SAME guessed category/subtype/brand that had just
+  // been stripped above it. Stripping only the top level moved the guess
+  // rather than removing it.
+  const v2 = {
+    contractVersion: 2,
+    status: 'multiple_items_need_selection',
+    resolutionLevel: 'category',
+    item: {
+      category: 'outerwear',
+      subtype: 'denim jacket',
+      brand: { value: 'Levi', confidence: 0.8 },
+      colors: { primary: 'blue' },
+    },
+    candidates: [{ candidateId: 'c1' }, { candidateId: 'c2' }],
+  };
+
+  const cleaned = suppressV2GuessedIdentity(v2) as typeof v2;
+  assertEquals(cleaned.item.category, null);
+  assertEquals(cleaned.item.subtype, null);
+  assertEquals(cleaned.item.brand.value, null);
+  assertEquals(cleaned.resolutionLevel, 'unknown');
+  // The candidates ARE the answer and must survive.
+  assertEquals(cleaned.candidates.length, 2);
+  // Untouched fields stay untouched.
+  assertEquals(cleaned.item.colors.primary, 'blue');
+});
+
+Deno.test('REGRESSION: a V2 envelope for any other status is left alone', () => {
+  const classified = {
+    status: 'completed',
+    resolutionLevel: 'exact',
+    item: { category: 'footwear', subtype: 'sneaker', brand: { value: 'Nike' } },
+  };
+  assertEquals(suppressV2GuessedIdentity(classified), classified);
+  assertEquals(suppressV2GuessedIdentity(null), null);
+  assertEquals(suppressV2GuessedIdentity('nonsense'), 'nonsense');
+});
+
+Deno.test('REGRESSION: applyScanJourneyContract strips the V2 guess too', async () => {
+  const after = await applyScanJourneyContract({
+    finalResponse: {
+      ...LEGACY_RESPONSE,
+      identificationV2: {
+        status: 'multiple_items_need_selection',
+        resolutionLevel: 'category',
+        item: { category: 'outerwear', subtype: 'denim jacket', brand: { value: 'Levi' } },
+        candidates: [{ candidateId: 'c1' }],
+      },
+    },
+    useMultiItemDetectionProvider: true,
+    detectedGarments: GARMENTS,
+    scanId: 'scan-1',
+    scanSessionId: 'session-abc',
+    imageDigestPrefix: 'digest123',
+    recommendedProductCount: 0,
+    identification: { item_type: 'outerwear' },
+    mode: 'image',
+    deps: { envGet: (k) => (k === 'SCAN_MULTI_ITEM_SELECTION_CONTRACT_ENABLED' ? 'true' : undefined) },
+  });
+
+  const v2 = after.identificationV2 as { item: { category: unknown; brand: { value: unknown } } };
+  assertEquals(v2.item.category, null, 'the V2 guess must not survive suppression');
+  assertEquals(v2.item.brand.value, null);
+  assertEquals(after.identification, undefined);
+});
+
+Deno.test('REGRESSION: the selection array is named unambiguously', () => {
+  // A V2 response already carries `identificationV2.candidates` with a
+  // different shape. Two differently-shaped `candidates` in one payload is the
+  // ambiguity a client team would trip over.
+  const payload = buildSelectionRequiredPayload({ detectedGarments: GARMENTS, lineage: LINEAGE });
+  assert(payload !== null);
+  assertEquals(
+    Object.prototype.hasOwnProperty.call(payload, 'candidates'),
+    false,
+    'the root selection array must not be called `candidates`',
+  );
+  assertEquals(payload.selectionCandidates.length, 3);
 });
 
 Deno.test('INTEGRATED: the selected item flows through to an enriched result', async () => {
   // Step 1 — the client picks a candidate and echoes its token back.
   const selection = buildSelectionRequiredPayload({ detectedGarments: GARMENTS, lineage: LINEAGE });
   assert(selection !== null);
-  const chosen = selection.candidates[1];
+  const chosen = selection.selectionCandidates[1];
   const validated = validateSelectedItemRequest({
     token: chosen.selectionToken,
     expected: LINEAGE,

@@ -102,7 +102,16 @@ export type SelectionRequiredPayload = {
   applicationState: Extract<ScanJourneyState, 'MULTI_ITEM_SELECTION_REQUIRED'>;
   /** Literal `true`. An explicit field, never inferred from an array length. */
   selectionRequired: true;
-  candidates: SelectionCandidate[];
+  /**
+   * Named `selectionCandidates`, NOT `candidates`.
+   *
+   * A V2 response already carries `identificationV2.candidates` with a
+   * different shape. Two differently-shaped `candidates` in one payload — one
+   * at the root, one nested — is exactly the ambiguity a client team
+   * implementing this would trip over, and the cost of avoiding it is one
+   * clearer name.
+   */
+  selectionCandidates: SelectionCandidate[];
   lineage: SelectionLineage;
   /**
    * States plainly, in the payload, that no identification is being asserted.
@@ -162,9 +171,50 @@ export function buildSelectionRequiredPayload(input: {
     selectionContractVersion: SELECTION_CONTRACT_VERSION,
     applicationState: 'MULTI_ITEM_SELECTION_REQUIRED',
     selectionRequired: true,
-    candidates,
+    selectionCandidates: candidates,
     lineage: input.lineage,
     primarySuppressedReason: 'backend_must_not_guess_selection',
+  };
+}
+
+/**
+ * Neutralizes the identity a V2 envelope asserts when selection is required.
+ *
+ * FOUND IN VALIDATION. Suppressing the legacy `identification` was not enough:
+ * `normalizeToV2` treats `multiple_items_need_selection` as identity-bearing,
+ * so `identificationV2.item.category`, `.subtype` and `.brand` are populated
+ * from the SAME guessed primary the legacy fields were stripped of. A V2 client
+ * therefore still received "we identified this jacket" for an image containing
+ * four garments — the guess survived the suppression by living one level down.
+ *
+ * Handled here rather than in `fashionIdentificationV2.ts` deliberately: that
+ * module is shared with other functions and pinned by the cross-path parity
+ * manifest, so changing its semantics is a wider blast radius than this
+ * checkpoint should take. The identity fields are blanked on the way out; the
+ * candidates in the V2 envelope are left intact, because those are the answer.
+ */
+export function suppressV2GuessedIdentity(v2: unknown): unknown {
+  if (!v2 || typeof v2 !== 'object' || Array.isArray(v2)) return v2;
+  const record = v2 as Record<string, unknown>;
+  if (record.status !== 'multiple_items_need_selection') return v2;
+
+  const item = record.item;
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return v2;
+  const itemRecord = item as Record<string, unknown>;
+
+  const brand = itemRecord.brand && typeof itemRecord.brand === 'object' && !Array.isArray(itemRecord.brand)
+    ? { ...(itemRecord.brand as Record<string, unknown>), value: null, confidence: null }
+    : itemRecord.brand;
+
+  return {
+    ...record,
+    resolutionLevel: 'unknown',
+    item: {
+      ...itemRecord,
+      category: null,
+      subtype: null,
+      brand,
+    },
   };
 }
 
