@@ -2,15 +2,14 @@
 'use strict';
 
 /**
- * Evaluates aggregate security promotion gate from check runs and comparison artifacts.
+ * Evaluates aggregate security promotion gate from check runs and local fixtures.
  * Node built-ins only.
  *
- * Usage:
- *   node security/scripts/evaluate-promotion-gate.js \
- *     --repo owner/name --sha <commit> --token <token> [--wait-seconds 900]
- *
- * Also supports local mode:
+ * Local mode:
  *   node security/scripts/evaluate-promotion-gate.js --local security/reports/promotion-input.json
+ *
+ * GitHub mode:
+ *   node security/scripts/evaluate-promotion-gate.js --repo owner/name --sha <sha> --token <token>
  */
 
 const fs = require('node:fs');
@@ -30,7 +29,29 @@ const REQUIRED_CHECKS = [
   'ZAP API staging',
 ];
 
-const STAGING_OPTIONAL_ON_MOBILE_ONLY = true;
+const OPERATIONAL_KEYS = new Set([
+  'staticScannerOperationalFailure',
+  'missingRequiredArtifact',
+  'zapOperationalFailure',
+  'stagingDeploymentFailure',
+  'syntheticCleanupFailure',
+  'scannerCrash',
+  'missingReport',
+  'zapExit3',
+]);
+
+const BLOCKING_KEYS = new Set([
+  'projectSecurityTestFailure',
+  'newConfirmedSecret',
+  'newCriticalRuntimeFinding',
+  'newHighRuntimeFinding',
+  'migrationValidationFailure',
+  'stagingHealthCheckFailure',
+  'authTestFailure',
+  'newBlockingZapFinding',
+  'candidateShaMismatch',
+  'zapConfigurationMissingOnProtectedPr',
+]);
 
 async function githubRequest(url, token) {
   const res = await fetch(url, {
@@ -57,7 +78,10 @@ async function pollChecks(repo, sha, token, waitSeconds) {
     );
     const byName = new Map();
     for (const run of data.check_runs || []) {
-      byName.set(run.name, run);
+      const existing = byName.get(run.name);
+      if (!existing || new Date(run.completed_at || 0) > new Date(existing.completed_at || 0)) {
+        byName.set(run.name, run);
+      }
     }
 
     const missing = REQUIRED_CHECKS.filter((n) => !byName.has(n));
@@ -76,7 +100,21 @@ async function pollChecks(repo, sha, token, waitSeconds) {
   throw new Error('Timed out waiting for required security checks');
 }
 
+function classifyCheckFailure(name, conclusion) {
+  if (conclusion === 'success' || conclusion === 'skipped') return null;
+  if (name.includes('ZAP') && (conclusion === 'failure' || conclusion === 'timed_out')) {
+    return { key: 'zapOperationalFailure', detail: `${name}: ${conclusion}` };
+  }
+  if (name === 'Security baseline comparison' || name === 'Static security gate') {
+    return { key: 'staticScannerOperationalFailure', detail: `${name}: ${conclusion}` };
+  }
+  return { key: 'upstreamFailure', detail: `${name}: ${conclusion}` };
+}
+
 function evaluateLocal(input) {
+  const expectedSha = input.expectedCandidateSha || input.headSha || null;
+  const observedSha = input.observedCandidateSha || input.headSha || null;
+
   const verdict = {
     repository: input.repository || 'local',
     pullRequest: input.pullRequest || 'n/a',
@@ -92,7 +130,12 @@ function evaluateLocal(input) {
     artifactLinks: input.artifactLinks || [],
     finalVerdict: 'PASS',
     failures: [],
+    blockingReason: null,
   };
+
+  if (expectedSha && observedSha && expectedSha !== observedSha) {
+    input.candidateShaMismatch = true;
+  }
 
   const checks = [
     ['staticScannerOperationalFailure', input.staticScannerOperationalFailure],
@@ -109,6 +152,10 @@ function evaluateLocal(input) {
     ['missingRequiredArtifact', input.missingRequiredArtifact],
     ['candidateShaMismatch', input.candidateShaMismatch],
     ['syntheticCleanupFailure', input.syntheticCleanupFailure],
+    ['scannerCrash', input.scannerCrash],
+    ['missingReport', input.missingReport],
+    ['zapExit3', input.zapExit3],
+    ['zapConfigurationMissingOnProtectedPr', input.zapConfigurationMissingOnProtectedPr],
   ];
 
   for (const [key, value] of checks) {
@@ -118,8 +165,28 @@ function evaluateLocal(input) {
   }
 
   if (verdict.failures.length > 0) {
-    const operational = verdict.failures.some((f) => f.includes('Operational') || f.includes('missing') || f.includes('Mismatch') || f.includes('Deployment'));
-    verdict.finalVerdict = operational ? 'OPERATIONAL FAILURE' : 'BLOCKED';
+    const operational = verdict.failures.some((f) => OPERATIONAL_KEYS.has(f));
+    const blocked = verdict.failures.some((f) => BLOCKING_KEYS.has(f));
+    if (operational && !blocked) {
+      verdict.finalVerdict = 'OPERATIONAL FAILURE';
+    } else if (blocked || operational) {
+      verdict.finalVerdict = operational && !verdict.failures.some((f) => BLOCKING_KEYS.has(f))
+        ? 'OPERATIONAL FAILURE'
+        : (operational && verdict.failures.every((f) => OPERATIONAL_KEYS.has(f))
+          ? 'OPERATIONAL FAILURE'
+          : 'BLOCKED');
+      // Prefer OPERATIONAL FAILURE when only operational keys are present.
+      if (verdict.failures.every((f) => OPERATIONAL_KEYS.has(f))) {
+        verdict.finalVerdict = 'OPERATIONAL FAILURE';
+      } else if (verdict.failures.some((f) => BLOCKING_KEYS.has(f))) {
+        verdict.finalVerdict = 'BLOCKED';
+      } else {
+        verdict.finalVerdict = 'OPERATIONAL FAILURE';
+      }
+    } else {
+      verdict.finalVerdict = 'BLOCKED';
+    }
+    verdict.blockingReason = verdict.failures.join(', ');
   } else if (input.reportOnlyFindings) {
     verdict.finalVerdict = 'PASS WITH REPORT-ONLY FINDINGS';
   }
@@ -142,6 +209,12 @@ function writeVerdict(verdict, outputDir) {
     `| Head SHA | ${verdict.headSha} |`,
     `| Merge SHA | ${verdict.mergeSha} |`,
     `| Deployed staging SHA | ${verdict.deployedStagingSha} |`,
+    `| Static scanners | ${JSON.stringify(verdict.staticScannerResults)} |`,
+    `| Baseline comparison | ${JSON.stringify(verdict.baselineComparison)} |`,
+    `| Staging | ${verdict.stagingDeploymentResult} |`,
+    `| ZAP Baseline | ${verdict.zapBaselineResult} |`,
+    `| ZAP API | ${verdict.zapApiResult} |`,
+    `| Blocking reason | ${verdict.blockingReason || 'none'} |`,
     '',
   ];
   if (verdict.failures?.length) {
@@ -162,7 +235,7 @@ async function main() {
     const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
     const verdict = evaluateLocal(input);
     writeVerdict(verdict, outputDir);
-    console.log(JSON.stringify({ finalVerdict: verdict.finalVerdict, failures: verdict.failures }));
+    console.log(JSON.stringify({ finalVerdict: verdict.finalVerdict, failures: verdict.failures, blockingReason: verdict.blockingReason }));
     process.exit(verdict.finalVerdict === 'PASS' || verdict.finalVerdict === 'PASS WITH REPORT-ONLY FINDINGS' ? 0 : 1);
   }
 
@@ -183,14 +256,22 @@ async function main() {
 
   const checks = await pollChecks(repo, sha, token, waitSeconds);
   const failures = [];
+  const flags = {};
+  const results = {};
+
   for (const name of REQUIRED_CHECKS) {
     const run = checks.get(name);
     if (!run) {
       failures.push(`missing check: ${name}`);
+      flags.missingRequiredArtifact = true;
+      results[name] = 'missing';
       continue;
     }
+    results[name] = run.conclusion;
     if (run.conclusion !== 'success' && run.conclusion !== 'skipped') {
       failures.push(`${name}: ${run.conclusion}`);
+      const classified = classifyCheckFailure(name, run.conclusion);
+      if (classified) flags[classified.key] = true;
     }
   }
 
@@ -198,22 +279,25 @@ async function main() {
     repository: repo,
     headSha: sha,
     mergeSha: sha,
-    staticScannerOperationalFailure: failures.some((f) => f.includes('scan') && f.includes('failure')),
-    missingRequiredArtifact: failures.some((f) => f.startsWith('missing check')),
-    baselineComparison: { requiredChecks: REQUIRED_CHECKS.length, failures },
+    expectedCandidateSha: sha,
+    observedCandidateSha: sha,
+    staticScannerResults: results,
+    baselineComparison: { result: results['Security baseline comparison'] },
+    stagingDeploymentResult: results['Staging security gate'],
+    zapBaselineResult: results['ZAP Baseline staging'],
+    zapApiResult: results['ZAP API staging'],
+    ...flags,
   });
-  verdict.failures = failures;
-
-  if (failures.length === 0) {
-    verdict.finalVerdict = 'PASS';
-  } else if (failures.some((f) => f.startsWith('missing check'))) {
-    verdict.finalVerdict = 'OPERATIONAL FAILURE';
-  } else {
-    verdict.finalVerdict = 'BLOCKED';
+  verdict.failures = [...new Set([...(verdict.failures || []), ...failures])];
+  if (verdict.failures.length > 0 && verdict.finalVerdict === 'PASS') {
+    verdict.finalVerdict = flags.missingRequiredArtifact || flags.zapOperationalFailure || flags.staticScannerOperationalFailure
+      ? 'OPERATIONAL FAILURE'
+      : 'BLOCKED';
+    verdict.blockingReason = verdict.failures.join(', ');
   }
 
   writeVerdict(verdict, outputDir);
-  console.log(JSON.stringify({ finalVerdict: verdict.finalVerdict, failures }));
+  console.log(JSON.stringify({ finalVerdict: verdict.finalVerdict, failures: verdict.failures, blockingReason: verdict.blockingReason }));
   process.exit(verdict.finalVerdict === 'PASS' || verdict.finalVerdict === 'PASS WITH REPORT-ONLY FINDINGS' ? 0 : 1);
 }
 
@@ -224,4 +308,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { REQUIRED_CHECKS, evaluateLocal, writeVerdict };
+module.exports = { REQUIRED_CHECKS, evaluateLocal, writeVerdict, classifyCheckFailure };

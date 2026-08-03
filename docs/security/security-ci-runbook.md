@@ -28,6 +28,15 @@ All security workflows trigger on:
 
 Post-merge pushes to protected branches provide assurance evidence; PR gates enforce merge.
 
+### ZAP Baseline staging behavior
+
+| Trigger | Missing `ZAP_STAGING_URL` / `ZAP_ALLOWED_HOST` | Variables configured |
+| --- | --- | --- |
+| Push to ordinary development branch | Skip success with summary | Validate target, health-check, passive scan |
+| Pull request to protected integration branch | Fail with explicit missing-variable annotation | Validate target, health-check, passive scan |
+
+Supabase project-root URLs use `/auth/v1/health` for reachability (accept 2xx/3xx/401/403 only; never 404/405). See `docs/security/staging-zap-baseline.md`.
+
 ## Required status checks (protected branches)
 
 Configure via `security/scripts/apply-branch-ruleset.sh` after checks appear in GitHub:
