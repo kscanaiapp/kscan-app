@@ -109,20 +109,26 @@ function loadV2EvidenceModule(v2Outcome) {
       }),
     },
     './eliseDirectImageAttachment': {
+      stageSanitizedEliseDirectImage: async (sanitizedUri, source, previewUri) => ({
+        previewUri: previewUri ?? sanitizedUri,
+        preparedUri: sanitizedUri,
+        source,
+        operationId: 'header-v2-operation',
+        candidateId: 'candidate-v2-1',
+        candidateBatchId: 'batch-v2-1',
+        candidateImageUri: 'file:///candidate-v2-1.jpg',
+        candidateThumbnailUri: 'file:///candidate-v2-1-thumb.jpg',
+      }),
       resolvePreparedDirectImageAttachment: async (prepared, options) => {
         calls.stage.push({ prepared, options });
         return {
           ok: true,
-          resolved: {
-            attachmentType: 'owned_item',
-            sourceType: 'saved_scan',
-            sourceId: 'saved-scan-uuid-1',
-            contractVersion: 'v2',
-          },
           summary: { title: options?.title ?? 'Photo', itemCount: 1 },
           prepared,
+          closetState: 'not_saved',
         };
       },
+      discardPreparedDirectImage: async () => {},
     },
     '../../types/eliseVisualContext': {},
     '../../types/fashionIdentificationV2': {},

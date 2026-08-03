@@ -478,7 +478,7 @@ export default function StyleChatSessionScreen() {
     hasAdditionalSendBlock:
       !canSend ||
       (attachmentsEnabled &&
-        chatAttachments.attachments.length > 0 &&
+        chatAttachments.hasActiveAttachments &&
         !chatAttachments.canSendWithAttachments),
   });
 
@@ -568,6 +568,11 @@ export default function StyleChatSessionScreen() {
           onRetry={(draftId, items, localScans) =>
             chatAttachments.retryAttachment(draftId, items, localScans)
           }
+          onSaveToCloset={(draftId) => {
+            void chatAttachments.saveDirectImageToCloset(draftId).then((result) => {
+              if (!result.ok) Alert.alert('Closet', result.message);
+            });
+          }}
           onFocus={chatAttachments.setFocusedAttachment}
           atAttachmentLimit={chatAttachments.atAttachmentLimit}
           atDirectImageLimit={chatAttachments.atDirectImageLimit}
@@ -590,7 +595,7 @@ export default function StyleChatSessionScreen() {
           }
           onSend={async text => {
             weather.markStylingIntent();
-            if (attachmentsEnabled && chatAttachments.attachments.length > 0) {
+            if (attachmentsEnabled && chatAttachments.hasActiveAttachments) {
               // Send rule: attachment-bearing sends require every attachment
               // ready; pending/failed chips block the send (remove to send
               // text only). The snapshot is immutable for this operation.
@@ -599,7 +604,9 @@ export default function StyleChatSessionScreen() {
               // Focus must be included when present — never send without it.
               if (
                 chatAttachments.focusedDraftId &&
-                !snapshot.references.length
+                !snapshot.drafts.some(
+                  (draft) => draft.draftId === chatAttachments.focusedDraftId,
+                )
               ) {
                 Alert.alert(
                   'Attachment',
@@ -625,11 +632,13 @@ export default function StyleChatSessionScreen() {
                   ...(snapshot.fashionContext
                     ? { fashionContext: snapshot.fashionContext }
                     : {}),
+                  onSending: () => chatAttachments.markSending(snapshot.drafts),
                   onSent: () => {
-                    chatAttachments.clearAttachments();
+                    chatAttachments.markSent(snapshot.drafts);
                     if (hasReadyEntry) clearVisualContext();
                     setComposerText('');
                   },
+                  onSendFailed: () => chatAttachments.markSendFailed(snapshot.drafts),
                 },
               });
               return;

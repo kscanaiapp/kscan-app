@@ -63,6 +63,8 @@ export type EliseVisualContextEntry = EliseVisualContextInput & {
   order: number;
   /** Optional local saved-scan id when the entry originated from a saved scan. */
   savedScanId?: string;
+  /** Durable app-local attachment media; this is not a committed Closet item. */
+  closetCandidateId?: string;
   /** Local URI of the preview derivative. Must never be sent remotely. */
   sanitizedPreviewUri?: string;
   /** Local URI of the original selected/captured image, used for retries. Must never be sent remotely. */
