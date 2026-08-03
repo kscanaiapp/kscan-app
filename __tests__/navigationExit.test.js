@@ -241,6 +241,7 @@ test('complete user-visible route inventory has an explicit exit classification'
     { file: 'app/auth/callback.tsx', kind: 'redirect-only' },
     { file: 'app/onboarding/index.tsx', kind: 'onboarding-root' },
     { file: 'app/dev/icon-review.tsx', kind: 'development-only' },
+    { file: 'app/dev/similarity-inspector.tsx', kind: 'development-only' },
     { file: 'app/style-chat/debug-memory.tsx', kind: 'development-only' },
   ];
   const discovered = walkTsx('app')
@@ -271,7 +272,12 @@ test('complete user-visible route inventory has an explicit exit classification'
     } else if (entry.kind === 'onboarding-root') {
       assert.match(source, /router\.push\('\/auth'\)/);
       assert.match(source, /BackHandler\.addEventListener\('hardwareBackPress'/);
-    } else if (entry.file === 'app/dev/icon-review.tsx') {
+    } else if (
+      entry.file === 'app/dev/icon-review.tsx'
+      || entry.file === 'app/dev/similarity-inspector.tsx'
+    ) {
+      // These gate on QA_TOOLS_ENABLED, which is itself a pure __DEV__
+      // constant, so the diagnostics are stripped from any release build.
       assert.match(source, /QA_TOOLS_ENABLED/);
     } else if (entry.kind === 'development-only') {
       assert.match(source, /__DEV__/);

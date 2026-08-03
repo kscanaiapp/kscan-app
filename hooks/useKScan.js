@@ -9,6 +9,8 @@ import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper'
 import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
+import { buildScannerSimilarityBinding } from '../services/scannerSimilarityBinding';
+import { createSimilarityLedger, pruneExpired } from '../services/similarityRequestLedger';
 import { readScanJourney, selectionDispatchFor } from '../services/scanJourney';
 import {
   buildSecondhandSearchRequest,
@@ -167,6 +169,13 @@ export function useKScan(actorId = null) {
   // to disabled so a session that somehow starts without resolving stays on the
   // legacy path rather than opting itself in.
   const scannerV2SessionRef = useRef({ enabled: false });
+  // Checkpoint 5A. In-memory only, by design: persisting it would write a
+  // description of the user's wardrobe into the same plaintext store that holds
+  // refresh tokens. A cold start simply rebuilds; a warm resume is guarded.
+  const similarityLedgerRef = useRef(createSimilarityLedger());
+  // Development-only mirror of the last attach attempt. Never rendered by a
+  // production result path — see `__tests__/scannerSimilarityContainment.test.js`.
+  const similarityDiagnosticsRef = useRef([]);
   currentActorRef.current = normalizedActorId;
 
   // Clears all candidate/selection/queue state and invalidates every pending
@@ -970,6 +979,21 @@ export function useKScan(actorId = null) {
               evidenceId: candidate.v2Correlation?.evidenceId,
             });
             if (!selectedEvidence) throw userSafeError('prepared evidence unavailable', ITEM_FAILURE_NOTICE);
+            // Checkpoint 5A. Built HERE and nowhere else: this is the first
+            // moment a specific garment identity exists, because the user has
+            // just chosen it. Detection deliberately gets no binding.
+            // `buildScannerSimilarityBinding` returns null when the flag is
+            // off, so the request below is unchanged in that case.
+            similarityLedgerRef.current = pruneExpired(similarityLedgerRef.current, Date.now());
+            const similarityBinding = buildScannerSimilarityBinding({
+              actorId: queueActor,
+              scanId: `${generation}:${candidate.id}`,
+              garment: candidate.garment,
+              ledger: similarityLedgerRef.current,
+              onInstrumentation: (record) => {
+                if (__DEV__) similarityDiagnosticsRef.current = [record, ...similarityDiagnosticsRef.current].slice(0, 20);
+              },
+            });
             const outcome = await runScannerIdentification({
               mode: 'identify_selected_item',
               evidence: selectedEvidence,
@@ -977,6 +1001,7 @@ export function useKScan(actorId = null) {
               requestId: createEvidenceId(),
               sessionFlag: scannerV2SessionRef.current,
               selectedCandidate: candidate.v2Correlation ?? undefined,
+              ...(similarityBinding ? { similarity: similarityBinding } : {}),
               legacyCorrelation: {
                 scanSessionId: candidate.detectionResponse.scanSessionId,
                 imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
@@ -993,6 +1018,11 @@ export function useKScan(actorId = null) {
               signal: requestController.signal,
             });
             detailResponse = outcome.response;
+            // Adopt the advanced ledger so a resume cannot rebuild and re-send
+            // a candidate set for a scan that already dispatched one.
+            if (outcome.similarity?.ledger) {
+              similarityLedgerRef.current = outcome.similarity.ledger;
+            }
             // The selected-item response carries the enriched journey state and
             // any advisory comparisons. Read here rather than at render time so
             // a later re-render cannot re-derive it from a stale response.

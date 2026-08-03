@@ -28,6 +28,11 @@ import {
   type ScannerV2RejectReason,
   type ScannerV2SessionFlag,
 } from './scannerIdentificationV2';
+import {
+  attachSimilarityCandidates,
+  type SimilarityAttachmentResult,
+  type SimilarityBinding,
+} from './scannerSimilarityAttachment';
 
 export type ScannerIdentificationOutcome = {
   /** Which contract actually produced `response`. */
@@ -48,6 +53,12 @@ export type ScannerIdentificationOutcome = {
    * genuine server defect while charging the user a second scan.
    */
   v2ValidationFailure?: string;
+  /**
+   * Checkpoint 5A. Present on every request that carried a similarity binding,
+   * whether or not candidates were attached — the caller needs the advanced
+   * ledger back, and device measurement needs the skip reason.
+   */
+  similarity?: SimilarityAttachmentResult;
 };
 
 export type RunScannerIdentificationInput = {
@@ -67,6 +78,15 @@ export type RunScannerIdentificationInput = {
   selectionToken?: Record<string, unknown>;
   localPrivacyFiltered?: boolean;
   signal?: AbortSignal;
+  /**
+   * Checkpoint 5A. Supplied by the platform binding on a resolved-item
+   * request; omitted (or `enabled: false`) everywhere else.
+   *
+   * Absent or disabled means no loader runs and no `existingItems` is built,
+   * so the request is byte-identical to the pre-mount one. See
+   * `scannerSimilarityAttachment.ts` for the attach rule.
+   */
+  similarity?: SimilarityBinding | null;
   /** Injected in tests. Defaults to the real transport. */
   transport?: (image: string, options: IdentifyScanOptions) => Promise<ScanIdentifyResponse>;
 };
@@ -117,13 +137,41 @@ export async function runScannerIdentification(
   input: RunScannerIdentificationInput,
 ): Promise<ScannerIdentificationOutcome> {
   const send = input.transport ?? identifyScanImage;
-  const legacyOptions = legacyOptionsFor(input);
+
+  // ── Checkpoint 5A: the single similarity mount point ──────────────────────
+  // Runs BEFORE the request options are built, so `existingItems` is part of
+  // the request from the start rather than injected into an already-formed
+  // body on one contract path only.
+  //
+  // With no binding, or a disabled one, `attachSimilarityCandidates` returns
+  // `attached: false` WITHOUT invoking either loader, and `existingItems`
+  // stays absent from the options object entirely — not present-and-empty.
+  // That is what makes flag-off byte-identical to the pre-mount request on
+  // both the legacy and V2 paths.
+  const similarity = input.similarity
+    ? await attachSimilarityCandidates(input.mode, input.similarity)
+    : undefined;
+  const similarityOutcome = similarity ? { similarity } : {};
+
+  const legacyOptions: IdentifyScanOptions = {
+    ...legacyOptionsFor(input),
+    ...(similarity?.attached && similarity.existingItems?.length
+      ? { existingItems: similarity.existingItems }
+      : {}),
+  };
 
   // Flag off → the legacy path, unchanged. The session-latched value is used,
   // never a fresh read, so an operation cannot switch contracts mid-flight.
   if (!input.sessionFlag?.enabled) {
     const response = await send(input.evidence.imageBase64, legacyOptions);
-    return { contractPath: 'legacy', response, identificationV2: null, candidates: [], fallbackUsed: false };
+    return {
+      contractPath: 'legacy',
+      response,
+      identificationV2: null,
+      candidates: [],
+      fallbackUsed: false,
+      ...similarityOutcome,
+    };
   }
 
   const built = buildScannerV2Request({
@@ -146,6 +194,7 @@ export async function runScannerIdentification(
       candidates: [],
       fallbackUsed: false,
       rejection: built.reason,
+      ...similarityOutcome,
     };
   }
   if (!validateScannerV2Request(built.request)) {
@@ -156,6 +205,7 @@ export async function runScannerIdentification(
       candidates: [],
       fallbackUsed: false,
       rejection: 'invalid_evidence',
+      ...similarityOutcome,
     };
   }
 
@@ -181,6 +231,7 @@ export async function runScannerIdentification(
       identificationV2: null,
       candidates: [],
       fallbackUsed: true,
+      ...similarityOutcome,
     };
   }
 
@@ -196,6 +247,7 @@ export async function runScannerIdentification(
       candidates: [],
       fallbackUsed: false,
       ...(response.status === 'failed' ? {} : { v2ValidationFailure: 'missing_identification_v2' }),
+      ...similarityOutcome,
     };
   }
 
@@ -208,6 +260,7 @@ export async function runScannerIdentification(
       candidates: [],
       fallbackUsed: false,
       v2ValidationFailure: validated.category,
+      ...similarityOutcome,
     };
   }
 
@@ -217,5 +270,6 @@ export async function runScannerIdentification(
     identificationV2: validated.result,
     candidates: extractScannerV2Candidates(validated.result, input.evidence.evidenceId),
     fallbackUsed: false,
+    ...similarityOutcome,
   };
 }

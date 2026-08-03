@@ -186,6 +186,29 @@ function loadScannerHarness({
     '../types/fashionIdentificationV2': fashionIdentificationV2Types,
     './scannerEvidenceGateway': scannerEvidenceGateway,
     './scannerIdentificationV2': scannerIdentificationV2,
+    // Checkpoint 5A. This file describes the LEGACY request shape, so the
+    // harness supplies the flag-off result. `buildScannerSimilarityBinding`
+    // is stubbed to null above, so no binding ever reaches the dispatcher and
+    // this stub is never actually invoked — it exists so the import resolves.
+    // The real mount is proven in `__tests__/scannerSimilarityMount.test.js`.
+    './scannerSimilarityAttachment': {
+      attachSimilarityCandidates: async (mode, binding) => ({
+        attached: false,
+        skipReason: 'flag_disabled',
+        ledger: (binding && binding.ledger) || null,
+        instrumentation: {
+          scanId: (binding && binding.scanId) || '',
+          mode,
+          attached: false,
+          skipReason: 'flag_disabled',
+          transmittedCount: 0,
+          payloadBytes: 0,
+          loadTimings: null,
+          report: null,
+          totalMs: 0,
+        },
+      }),
+    },
   });
   const hookPath = path.join(ROOT, 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
@@ -290,6 +313,14 @@ function loadScannerHarness({
     // is the real implementation.
     ...scanJourneyGlobals,
     beginScannerV2Session: () => ({ enabled: scannerV2Enabled === true }),
+    // Checkpoint 5A. This harness strips imports and injects each one as a
+    // sandbox global, so the similarity mount's dependencies must appear
+    // here too. The binding returns null (the flag-off result), which keeps
+    // every assertion in this file describing the legacy request it was
+    // written for.
+    createSimilarityLedger: () => ({ entries: [] }),
+    pruneExpired: (ledger) => ledger,
+    buildScannerSimilarityBinding: () => null,
     createEvidenceId: () => `evidence-${String((evidenceIdCounter += 1)).padStart(4, '0')}-test`,
     prepareScannerEvidence: scannerEvidenceGateway.prepareScannerEvidence,
     runScannerIdentification: (input) => scannerScanRequest.runScannerIdentification({

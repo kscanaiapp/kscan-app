@@ -118,6 +118,28 @@ const eliseAdapter = loadTsModule('services/style-chat/eliseIdentificationV2.ts'
 const transportStub = { identifyScanImage: null };
 
 const scannerRequest = loadTsModule('services/scannerScanRequest.ts', {
+    // Checkpoint 5A. These files describe the request shape WITHOUT similarity.
+    // No binding is supplied by them, so this stub is never actually invoked --
+    // it exists so the import resolves. The real mount is proven in
+    // `__tests__/scannerSimilarityMount.test.js`.
+    './scannerSimilarityAttachment': {
+      attachSimilarityCandidates: async (mode, binding) => ({
+        attached: false,
+        skipReason: 'flag_disabled',
+        ledger: (binding && binding.ledger) || null,
+        instrumentation: {
+          scanId: (binding && binding.scanId) || '',
+          mode,
+          attached: false,
+          skipReason: 'flag_disabled',
+          transmittedCount: 0,
+          payloadBytes: 0,
+          loadTimings: null,
+          report: null,
+          totalMs: 0,
+        },
+      }),
+    },
   './scanIdentification': {
     get identifyScanImage() { return transportStub.identifyScanImage; },
   },

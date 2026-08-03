@@ -65,6 +65,30 @@ export type CandidateLoadFailureReason =
   | 'load_timeout'
   | 'selection_failed';
 
+/**
+ * Wall clock per load, measured even when the load failed.
+ *
+ * WHY EACH LOAD IS TIMED INDEPENDENTLY
+ *
+ * These two reads run concurrently, so a single shared start/end pair would
+ * report the same duration for both and make the slow one unattributable —
+ * "candidate loading took 1.9s" cannot tell you whether the Closet read, the
+ * Recent Scans read, or both were responsible, which is exactly the question
+ * device measurement has to answer. Each loader therefore stamps its own
+ * start and end, and `combinedMs` records the wall clock of the concurrent
+ * pair so the parallelism benefit stays visible (combined < closet + recent).
+ */
+export type CandidateLoadTimings = {
+  closetMs: number;
+  recentScansMs: number;
+  closetStartedAtMs: number;
+  closetCompletedAtMs: number;
+  recentScansStartedAtMs: number;
+  recentScansCompletedAtMs: number;
+  /** Wall clock across both concurrent loads. */
+  combinedMs: number;
+};
+
 export type SimilarityCandidateOutcome = {
   candidates: TransmittedCandidate[];
   /** Serialized size of the transmitted array, in bytes. */
@@ -72,12 +96,19 @@ export type SimilarityCandidateOutcome = {
   /** Null when nothing was supplied to load from and nothing failed. */
   report: ClientCandidateReport | null;
   failureReason?: CandidateLoadFailureReason;
-  /** Wall clock for each load, measured even when the load failed. */
-  loadTimings: { closetMs: number; recentScansMs: number };
+  loadTimings: CandidateLoadTimings;
 };
 
 /** Returns raw stored records. May be async, may throw — both are handled. */
 export type RawRecordLoader = () => Promise<unknown[]> | unknown[];
+
+type LoadResult = {
+  records: unknown[];
+  failed: boolean;
+  startedAtMs: number;
+  completedAtMs: number;
+  durationMs: number;
+};
 
 export type BuildSimilarityCandidatesInput = {
   query: ClientScanQuery;
@@ -93,20 +124,34 @@ export type BuildSimilarityCandidatesInput = {
 async function loadSafely(
   loader: RawRecordLoader | null | undefined,
   deadlineMs: number,
-): Promise<{ records: unknown[]; failed: boolean }> {
-  if (!loader) return { records: [], failed: false };
+  now: () => number,
+): Promise<LoadResult> {
+  const startedAtMs = now();
+  const done = (records: unknown[], failed: boolean): LoadResult => {
+    const completedAtMs = now();
+    return { records, failed, startedAtMs, completedAtMs, durationMs: completedAtMs - startedAtMs };
+  };
+  if (!loader) return done([], false);
+
+  // The guard timer MUST be cleared once the race settles. An uncleared timer
+  // keeps the event loop alive for the full deadline after the work is already
+  // finished — on device that is a dangling timer per load on every scan, and
+  // it can fire a rejection into a settled race long after the scan completed.
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = loader();
     const settled = await Promise.race([
       Promise.resolve(result),
       new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('candidate_load_timeout')), deadlineMs);
+        timeoutId = setTimeout(() => reject(new Error('candidate_load_timeout')), deadlineMs);
       }),
     ]);
-    return { records: Array.isArray(settled) ? settled : [], failed: false };
+    return done(Array.isArray(settled) ? settled : [], false);
   } catch {
     // Deliberately swallowed and reported as a flag. See the failure contract.
-    return { records: [], failed: true };
+    return done([], true);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
 }
 
@@ -122,16 +167,19 @@ export async function buildSimilarityCandidates(
   const now = input.now ?? (() => Date.now());
   const deadlineMs = input.loadDeadlineMs ?? CANDIDATE_LOAD_DEADLINE_MS;
 
-  const closetStartedAt = now();
-  const recentStartedAt = now();
+  const combinedStartedAt = now();
   const [closet, recent] = await Promise.all([
-    loadSafely(input.loadClosetRecords, deadlineMs),
-    loadSafely(input.loadRecentScanRecords, deadlineMs),
+    loadSafely(input.loadClosetRecords, deadlineMs, now),
+    loadSafely(input.loadRecentScanRecords, deadlineMs, now),
   ]);
-  const loadedAt = now();
-  const loadTimings = {
-    closetMs: loadedAt - closetStartedAt,
-    recentScansMs: loadedAt - recentStartedAt,
+  const loadTimings: CandidateLoadTimings = {
+    closetMs: closet.durationMs,
+    recentScansMs: recent.durationMs,
+    closetStartedAtMs: closet.startedAtMs,
+    closetCompletedAtMs: closet.completedAtMs,
+    recentScansStartedAtMs: recent.startedAtMs,
+    recentScansCompletedAtMs: recent.completedAtMs,
+    combinedMs: now() - combinedStartedAt,
   };
 
   let failureReason: CandidateLoadFailureReason | undefined;
