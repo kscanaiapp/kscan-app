@@ -1,0 +1,237 @@
+# OWASP ZAP API safe scan against staging OpenAPI definition.
+# Safe mode (-S) performs passive baseline scanning without active API attacks.
+# Active scanning runs only when ZAP_ACTIVE_ENABLED=true.
+#
+# zap-api-scan.py flags:
+#   -t <file|url>   OpenAPI/SOAP target definition
+#   -f openapi      definition format
+#   -O <hostname>   hostname override for the OpenAPI servers (NOT a file path)
+#   -S              safe mode (no active attack phase)
+
+name: Security - ZAP API Staging
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Keep API scans off the staging deploy queue so scan jobs do not block each other.
+concurrency:
+  group: kscan-zap-api-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zap-api:
+    name: ZAP API staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ZAP_VERSION: "2.17.0"
+      ZAP_IMAGE_DIGEST: "sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
+      ZAP_IMAGE: "ghcr.io/zaproxy/zaproxy:stable@sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
+      PROTECTED_BASE_BRANCHES: master,ios/full-submission-readiness-v2,integration/ios-v18-release-candidate,integration/android-v27-closet-release-candidate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Resolve scan context
+        id: context
+        env:
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          echo "candidate_sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          PROTECTED="false"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            IFS=',' read -ra BASES <<< "${PROTECTED_BASE_BRANCHES}"
+            for branch in "${BASES[@]}"; do
+              if [ "${BASE_REF}" = "${branch}" ]; then
+                PROTECTED="true"
+                break
+              fi
+            done
+          fi
+          echo "protected_pr=${PROTECTED}" >> "$GITHUB_OUTPUT"
+
+          STAGING_BASE="${SUPABASE_STAGING_URL:-https://yzqjvdfgefveprobvvyw.supabase.co}"
+          STAGING_BASE="${STAGING_BASE%/}"
+          ALLOWED_HOST="${ZAP_ALLOWED_HOST:-yzqjvdfgefveprobvvyw.supabase.co}"
+          echo "staging_base=${STAGING_BASE}" >> "$GITHUB_OUTPUT"
+          echo "allowed_host=${ALLOWED_HOST}" >> "$GITHUB_OUTPUT"
+
+          if [ ! -f security/openapi/staging-api.yaml ]; then
+            echo "::error title=Missing OpenAPI definition::security/openapi/staging-api.yaml is required"
+            exit 3
+          fi
+
+          if grep -Eiq 'https?://wyyuqfdxucjksghsmhry\.supabase\.co' security/openapi/staging-api.yaml; then
+            echo "::error title=Production URL in OpenAPI::OpenAPI servers must not target the production project host"
+            exit 3
+          fi
+          if ! grep -Eiq 'https://yzqjvdfgefveprobvvyw\.supabase\.co' security/openapi/staging-api.yaml; then
+            echo "::error title=Missing staging server::OpenAPI must reference the staging project host"
+            exit 3
+          fi
+
+      - name: Validate staging target host
+        env:
+          STAGING_BASE: ${{ steps.context.outputs.staging_base }}
+          ZAP_ALLOWED_HOST: ${{ steps.context.outputs.allowed_host }}
+        run: |
+          set -euo pipefail
+          node security/scripts/validate-zap-target.js "${STAGING_BASE}" "${ZAP_ALLOWED_HOST}"
+
+      - name: Pre-pull ZAP image
+        run: |
+          set -euo pipefail
+          docker pull "${ZAP_IMAGE}"
+
+      - name: Run ZAP API safe scan
+        id: zap_api
+        env:
+          PR_HEAD_SHA: ${{ steps.context.outputs.candidate_sha }}
+          ZAP_ACTIVE_ENABLED: ${{ vars.ZAP_ACTIVE_ENABLED }}
+          STAGING_BASE: ${{ steps.context.outputs.staging_base }}
+          ALLOWED_HOST: ${{ steps.context.outputs.allowed_host }}
+        run: |
+          set -euo pipefail
+          echo "PR candidate SHA: ${PR_HEAD_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          install -d -m 0777 zap-api-out
+          # Mount the repository root as /zap/wrk so OpenAPI + output paths resolve under ZAP's workdir.
+          # -t expects the OpenAPI file; -O expects a hostname override (not a file path).
+          set +e
+          docker run --rm \
+            --user root \
+            --mount "type=bind,source=${PWD},target=/zap/wrk" \
+            --workdir /zap/wrk \
+            "${ZAP_IMAGE}" \
+            zap-api-scan.py \
+            -S \
+            -t security/openapi/staging-api.yaml \
+            -f openapi \
+            -O "${ALLOWED_HOST}" \
+            -c .zap/api-rules.tsv \
+            -J zap-api-out/zap-api-report.json \
+            -w zap-api-out/zap-api-report.md \
+            -r zap-api-out/zap-api-report.html \
+            | tee zap-api-out/zap-api-console.log
+          CODE=${PIPESTATUS[0]}
+          set -e
+
+          if [ ! -f zap-api-out/zap-api-report.json ]; then
+            echo "Operational failure: zap-api-report.json missing after safe scan (exit ${CODE})"
+            ls -la zap-api-out || true
+            if [ -f zap-api-out/zap-api-console.log ]; then
+              tail -n 80 zap-api-out/zap-api-console.log || true
+            fi
+            exit 3
+          fi
+          python3 -c "import json; json.load(open('zap-api-out/zap-api-report.json', encoding='utf-8'))"
+          echo "safe_scan_exit=${CODE}" >> "$GITHUB_OUTPUT"
+
+          if [ "${ZAP_ACTIVE_ENABLED}" = "true" ]; then
+            echo "Running ZAP API active scan (ZAP_ACTIVE_ENABLED=true)"
+            set +e
+            docker run --rm \
+              --user root \
+              --mount "type=bind,source=${PWD},target=/zap/wrk" \
+              --workdir /zap/wrk \
+              "${ZAP_IMAGE}" \
+              zap-api-scan.py \
+              -t security/openapi/staging-api.yaml \
+              -f openapi \
+              -O "${ALLOWED_HOST}" \
+              -c .zap/api-rules.tsv \
+              -J zap-api-out/zap-api-active-report.json \
+              -w zap-api-out/zap-api-active-report.md \
+              -r zap-api-out/zap-api-active-report.html \
+              | tee zap-api-out/zap-api-active-console.log
+            ACTIVE_CODE=${PIPESTATUS[0]}
+            set -e
+            echo "active_scan_exit=${ACTIVE_CODE}" >> "$GITHUB_OUTPUT"
+            CODE="${ACTIVE_CODE}"
+          fi
+
+          case "$CODE" in
+            0|1|2) exit 0 ;;
+            3)
+              echo "Operational failure: ZAP API returned exit code 3"
+              exit 3
+              ;;
+            *)
+              echo "Operational failure: unexpected ZAP API exit code ${CODE}"
+              exit 1
+              ;;
+          esac
+
+      - name: Summarize ZAP API results
+        if: always() && hashFiles('zap-api-out/zap-api-report.json') != ''
+        env:
+          SCANNER_NAME: OWASP ZAP API Safe Scan
+          SCANNER_VERSION: ${{ env.ZAP_VERSION }}
+          SUMMARY_FILE: zap-api-out/zap-api-summary.md
+          EXTRA_NOTES: |
+            Safe mode (-S) passive API scan.
+            Active scan report: zap-api-active-report.* when ZAP_ACTIVE_ENABLED=true.
+            Candidate SHA=${{ steps.context.outputs.candidate_sha }}
+            Staging host=${{ steps.context.outputs.allowed_host }}
+        run: |
+          set -euo pipefail
+          COUNTS="$(python3 - <<'PY'
+          import json,collections
+          data=json.load(open("zap-api-out/zap-api-report.json", encoding="utf-8"))
+          c=collections.Counter()
+          for site in data.get("site") or []:
+              for alert in site.get("alerts") or []:
+                  c[str(alert.get("riskdesc") or alert.get("riskcode") or "UNKNOWN")] += 1
+          print(json.dumps(dict(c)))
+          PY
+          )"
+          TOTAL="$(python3 - <<'PY'
+          import json
+          data=json.load(open("zap-api-out/zap-api-report.json", encoding="utf-8"))
+          total=0
+          for site in data.get("site") or []:
+              total += len(site.get("alerts") or [])
+          print(total)
+          PY
+          )"
+          if [ "$TOTAL" -gt 0 ]; then VERDICT="FINDINGS_REPORTED"; else VERDICT="NO_FINDINGS"; fi
+          export FINDING_COUNTS="${COUNTS}"
+          export REPORT_ONLY_VERDICT="${VERDICT}"
+          node security/scripts/write-security-summary.js
+
+      - name: Upload ZAP API artifact
+        if: always() && hashFiles('zap-api-out/zap-api-report.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: zap-api-report-${{ github.run_number }}
+          path: |
+            zap-api-out/zap-api-report.html
+            zap-api-out/zap-api-report.json
+            zap-api-out/zap-api-report.md
+            zap-api-out/zap-api-summary.md
+            zap-api-out/zap-api-console.log
+            zap-api-out/zap-api-active-report.html
+            zap-api-out/zap-api-active-report.json
+            zap-api-out/zap-api-active-report.md
+          if-no-files-found: error
+          retention-days: 30

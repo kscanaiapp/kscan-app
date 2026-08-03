@@ -1,13 +1,21 @@
-# Phase 1 report-only security pipeline for code, secrets, dependencies, and project checks.
-# Findings do not fail jobs. Install/config/report operational failures do fail.
+# Repository-wide static security pipeline with baseline comparison and promotion gate inputs.
+# Scanner operational failures and project test failures block. New blocking findings
+# are enforced via Security baseline comparison + Static security gate.
 # SHA pinning note: actions below use reviewed release tags resolved to full commit SHAs
-# from official GitHub release refs on 2026-07-26. Re-verify before Phase 2 enforcement.
+# from official GitHub release refs on 2026-07-26. Re-verify before changing pins.
 
 name: Security - Code and Dependencies
 
 on:
   push:
+    branches:
+      - "**"
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   workflow_dispatch:
 
 permissions:
@@ -22,7 +30,7 @@ env:
 
 jobs:
   project-checks:
-    name: Project checks
+    name: Project security checks
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -71,7 +79,7 @@ jobs:
         run: node security/scripts/write-security-summary.js
 
   gitleaks:
-    name: Gitleaks
+    name: Gitleaks secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -169,7 +177,7 @@ jobs:
           retention-days: 30
 
   semgrep:
-    name: Semgrep Community Edition
+    name: Semgrep code scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -295,7 +303,7 @@ jobs:
           retention-days: 30
 
   osv:
-    name: OSV-Scanner
+    name: OSV dependency scan
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -415,7 +423,7 @@ jobs:
           retention-days: 30
 
   trivy:
-    name: Trivy filesystem
+    name: Trivy repository scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -520,7 +528,7 @@ jobs:
           retention-days: 30
 
   npm-audit:
-    name: npm audit
+    name: npm dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -628,8 +636,94 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  security-summary:
-    name: Security summary
+  baseline-comparison:
+    name: Security baseline comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: always()
+    needs:
+      - project-checks
+      - gitleaks
+      - semgrep
+      - osv
+      - trivy
+      - npm-audit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Download scanner artifacts
+        # Pin download-artifact (NOT upload-artifact). v4.2.1 supports pattern + merge-multiple.
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          pattern: "*-report-${{ github.run_number }}"
+          path: security/reports
+          merge-multiple: true
+
+      - name: Collect reports for baseline comparison
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "Candidate head SHA: ${GITHUB_EVENT_PULL_REQUEST_HEAD_SHA:-n/a}"
+          echo "Workflow SHA (merge ref on PR): ${GITHUB_SHA}"
+          node security/scripts/collect-scanner-reports.js security/reports security/reports/collected
+
+      - name: Normalize and compare against baseline
+        id: compare
+        env:
+          GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          node security/scripts/normalize-security-findings.js security/reports/collected security/reports/collected/normalized-findings.json
+          set +e
+          node security/scripts/compare-security-baseline.js \
+            security/reports/collected/normalized-findings.json \
+            security/baselines/security-findings-baseline.json \
+            security/reports/collected
+          CODE=$?
+          set -e
+          if [ ! -f security/reports/collected/baseline-comparison.json ]; then
+            echo "Operational failure: baseline-comparison.json was not written"
+            exit 2
+          fi
+          VERDICT="$(python3 -c "import json; print(json.load(open('security/reports/collected/baseline-comparison.json', encoding='utf-8'))['finalPromotionVerdict'])")"
+          echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${CODE}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Security baseline comparison"
+            echo
+            echo "**Verdict:** ${VERDICT}"
+            echo "Candidate SHA: ${CANDIDATE_SHA}"
+            echo "Merge/workflow SHA: ${GITHUB_SHA}"
+            echo
+            cat security/reports/collected/baseline-comparison.md
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$CODE"
+
+      - name: Upload baseline comparison artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: baseline-comparison-${{ github.run_number }}
+          path: |
+            security/reports/collected/baseline-comparison.json
+            security/reports/collected/baseline-comparison.md
+            security/reports/collected/normalized-findings.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  static-security-gate:
+    name: Static security gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: always()
@@ -640,8 +734,9 @@ jobs:
       - osv
       - trivy
       - npm-audit
+      - baseline-comparison
     steps:
-      - name: Write aggregate summary
+      - name: Evaluate static gate
         env:
           PROJECT_CHECKS: ${{ needs.project-checks.result }}
           GITLEAKS: ${{ needs.gitleaks.result }}
@@ -649,38 +744,48 @@ jobs:
           OSV: ${{ needs.osv.result }}
           TRIVY: ${{ needs.trivy.result }}
           NPM_AUDIT: ${{ needs.npm-audit.result }}
+          BASELINE: ${{ needs.baseline-comparison.result }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           {
-            echo "## Security - Code and Dependencies (aggregate)"
+            echo "## Static security gate"
             echo
             echo "| Job | Result |"
             echo "| --- | --- |"
-            echo "| project-checks | ${PROJECT_CHECKS} |"
-            echo "| gitleaks | ${GITLEAKS} |"
-            echo "| semgrep | ${SEMGREP} |"
-            echo "| osv | ${OSV} |"
-            echo "| trivy | ${TRIVY} |"
-            echo "| npm-audit | ${NPM_AUDIT} |"
+            echo "| Project security checks | ${PROJECT_CHECKS} |"
+            echo "| Gitleaks secret scan | ${GITLEAKS} |"
+            echo "| Semgrep code scan | ${SEMGREP} |"
+            echo "| OSV dependency scan | ${OSV} |"
+            echo "| Trivy repository scan | ${TRIVY} |"
+            echo "| npm dependency audit | ${NPM_AUDIT} |"
+            echo "| Security baseline comparison | ${BASELINE} |"
             echo
-            echo "Phase 1: security findings are report-only."
-            echo "Operational failures (install/config/missing reports) fail their scanner jobs."
-            echo "Existing project tests retain normal failing behavior."
-            echo
-            echo "Repository: ${GITHUB_REPOSITORY}"
-            echo "Branch: ${GITHUB_REF_NAME}"
-            echo "Commit: ${GITHUB_SHA}"
-            echo "Event: ${GITHUB_EVENT_NAME}"
+            echo "Candidate SHA: ${CANDIDATE_SHA}"
+            echo "Workflow SHA: ${GITHUB_SHA}"
             echo "Run ID: ${GITHUB_RUN_ID}"
           } >> "$GITHUB_STEP_SUMMARY"
 
           FAIL=0
-          for RESULT in "$PROJECT_CHECKS" "$GITLEAKS" "$SEMGREP" "$OSV" "$TRIVY" "$NPM_AUDIT"; do
-            if [ "$RESULT" != "success" ]; then
+          FAILING=""
+          for PAIR in \
+            "Project security checks:${PROJECT_CHECKS}" \
+            "Gitleaks secret scan:${GITLEAKS}" \
+            "Semgrep code scan:${SEMGREP}" \
+            "OSV dependency scan:${OSV}" \
+            "Trivy repository scan:${TRIVY}" \
+            "npm dependency audit:${NPM_AUDIT}" \
+            "Security baseline comparison:${BASELINE}"
+          do
+            NAME="${PAIR%%:*}"
+            RESULT="${PAIR#*:}"
+            if [ "$RESULT" != "success" ] && [ "$RESULT" != "skipped" ]; then
               FAIL=1
+              FAILING="${FAILING} ${NAME}=${RESULT}"
             fi
           done
           if [ "$FAIL" -ne 0 ]; then
-            echo "One or more required jobs did not succeed. Aggregate summary recorded; failing to surface operational/test failures."
+            echo "Static security gate: BLOCKED due to upstream failure(s):${FAILING}"
             exit 1
           fi
+          echo "Static security gate: PASS"

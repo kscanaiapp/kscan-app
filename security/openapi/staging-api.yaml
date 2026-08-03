@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: K Scan AI Staging API
+  version: 1.0.0
+  description: |
+    Staging OpenAPI surface for K Scan AI Supabase Edge Functions.
+    Project ref yzqjvdfgefveprobvvyw (staging only). Production project is excluded from this definition.
+servers:
+  - url: https://yzqjvdfgefveprobvvyw.supabase.co/functions/v1
+    description: K Scan AI Staging Edge Functions
+paths:
+  /stylechat-generate:
+    post:
+      summary: Generate style chat response
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                sessionId:
+                  type: string
+      responses:
+        '200':
+          description: Generated response
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  /product-search-deals:
+    post:
+      summary: Search product deals
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Deal results
+        '401':
+          description: Unauthorized
+  /kickscrew-sneaker-description:
+    post:
+      summary: Fetch sneaker description from provider
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Description payload
+        '401':
+          description: Unauthorized
+  /handle-user-deletion:
+    post:
+      summary: Process account deletion workflow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Deletion accepted
+        '401':
+          description: Unauthorized
+  /privacy-data-export:
+    post:
+      summary: Request privacy data export
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Export initiated
+        '401':
+          description: Unauthorized
+  /privacy-correction-request:
+    post:
+      summary: Submit privacy correction request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Request recorded
+        '401':
+          description: Unauthorized
+  /search-vinted-secondhand:
+    post:
+      summary: Search secondhand listings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Search results
+        '401':
+          description: Unauthorized
+  /tryon-clothes-pro:
+    post:
+      summary: Virtual try-on provider proxy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Try-on result
+        '401':
+          description: Unauthorized
+  /nike-shoe-details:
+    post:
+      summary: Nike shoe details provider proxy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Shoe details
+        '401':
+          description: Unauthorized
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

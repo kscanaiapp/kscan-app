@@ -1,12 +1,20 @@
-# Phase 1 passive OWASP ZAP Baseline against an explicitly approved HTTPS staging target.
-# Findings are report-only. Missing approved variables skips successfully (no fallback).
+# OWASP ZAP Baseline against approved HTTPS staging target.
+# Protected-branch PRs require configured staging variables.
+# Ordinary development-branch pushes skip successfully when variables are absent.
 # SHA pinning note: actions resolved from official GitHub release refs on 2026-07-26.
 
 name: Security - ZAP Baseline Staging
 
 on:
-  push:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - "**"
   workflow_dispatch:
 
 permissions:
@@ -16,9 +24,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PROTECTED_BASE_BRANCHES: master,ios/full-submission-readiness-v2,integration/ios-v18-release-candidate,integration/android-v27-closet-release-candidate
+
 jobs:
   zap-baseline:
-    name: ZAP Baseline (staging)
+    name: ZAP Baseline staging
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -34,6 +45,38 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Resolve scan context
+        id: context
+        env:
+          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          echo "candidate_sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          PROTECTED="false"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            IFS=',' read -ra BASES <<< "${PROTECTED_BASE_BRANCHES}"
+            for branch in "${BASES[@]}"; do
+              if [ "${BASE_REF}" = "${branch}" ]; then
+                PROTECTED="true"
+                break
+              fi
+            done
+          fi
+          echo "protected_pr=${PROTECTED}" >> "$GITHUB_OUTPUT"
+          if [ -n "${ZAP_STAGING_URL}" ]; then
+            echo "has_staging_url=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_staging_url=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "${ZAP_ALLOWED_HOST}" ]; then
+            echo "has_allowed_host=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_allowed_host=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check approved ZAP variables
         id: vars
         env:
@@ -41,25 +84,24 @@ jobs:
           ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
         run: |
           set -euo pipefail
-          if [ -z "${ZAP_STAGING_URL}" ] || [ -z "${ZAP_ALLOWED_HOST}" ]; then
+          MISSING=""
+          if [ -z "${ZAP_STAGING_URL}" ]; then MISSING="${MISSING} ZAP_STAGING_URL"; fi
+          if [ -z "${ZAP_ALLOWED_HOST}" ]; then MISSING="${MISSING} ZAP_ALLOWED_HOST"; fi
+
+          if [ -n "${MISSING}" ]; then
+            if [ "${{ steps.context.outputs.protected_pr }}" = "true" ]; then
+              echo "::error title=Missing ZAP staging variables::Protected pull request requires:${MISSING}"
+              echo "Operational failure: missing repository variables:${MISSING}"
+              exit 3
+            fi
             echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=missing_variables" >> "$GITHUB_OUTPUT"
             {
               echo "## OWASP ZAP Baseline"
               echo
-              echo "ZAP Baseline was not executed because ZAP_STAGING_URL or"
-              echo "ZAP_ALLOWED_HOST is not configured."
-              echo
-              echo "No fallback target was scanned."
-              echo
-              echo "| Field | Value |"
-              echo "| --- | --- |"
-              echo "| Repository | ${GITHUB_REPOSITORY} |"
-              echo "| Branch | ${GITHUB_REF_NAME} |"
-              echo "| Commit SHA | ${GITHUB_SHA} |"
-              echo "| Event type | ${GITHUB_EVENT_NAME} |"
-              echo "| Workflow run ID | ${GITHUB_RUN_ID} |"
-              echo "| Scanner name | OWASP ZAP Baseline |"
-              echo "| Report-only verdict | SKIPPED_MISSING_VARS |"
+              echo "Skipped: staging variables not configured (${MISSING})."
+              echo "Candidate SHA: ${{ steps.context.outputs.candidate_sha }}"
+              echo "Protected PR: ${{ steps.context.outputs.protected_pr }}"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -76,7 +118,9 @@ jobs:
           META="$(node security/scripts/validate-zap-target.js "${ZAP_STAGING_URL}" "${ZAP_ALLOWED_HOST}")"
           echo "${META}"
           HOST="$(printf '%s' "${META}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hostname"])')"
+          PATHNAME="$(printf '%s' "${META}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["pathname"])')"
           echo "hostname=${HOST}" >> "$GITHUB_OUTPUT"
+          echo "pathname=${PATHNAME}" >> "$GITHUB_OUTPUT"
 
       - name: HTTPS health check (approved host only)
         id: health
@@ -84,11 +128,18 @@ jobs:
         env:
           ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
           APPROVED_HOST: ${{ steps.validate_target.outputs.hostname }}
+          PATHNAME: ${{ steps.validate_target.outputs.pathname }}
         run: |
           set -euo pipefail
-          START_MS="$(date +%s%3N)"
-          # Short timeout, limited redirects, no credentials, no body/cookie logging.
+          BASE_URL="${ZAP_STAGING_URL%/}"
+          if [ "${PATHNAME}" = "/" ]; then
+            PROBED_URL="${BASE_URL}/auth/v1/health"
+          else
+            PROBED_URL="${ZAP_STAGING_URL}"
+          fi
+
           HEADERS="$(mktemp)"
+          START_MS="$(date +%s%3N)"
           set +e
           STATUS="$(curl -sS \
             --proto '=https' \
@@ -100,13 +151,12 @@ jobs:
             --output /dev/null \
             --dump-header "${HEADERS}" \
             --write-out '%{http_code}' \
-            --url "${ZAP_STAGING_URL}")"
+            --url "${PROBED_URL}")"
           CURL_CODE=$?
           set -e
           END_MS="$(date +%s%3N)"
           ELAPSED="$((END_MS - START_MS))"
 
-          # Ensure redirects stayed on the approved hostname when Location headers exist.
           python3 - <<PY
           import sys
           approved = "${APPROVED_HOST}".lower()
@@ -122,37 +172,31 @@ jobs:
                           sys.exit(2)
           print("redirect host checks passed")
           PY
-
           rm -f "${HEADERS}"
 
           if [ "$CURL_CODE" -ne 0 ]; then
-            echo "Operational failure: health check curl failed with code ${CURL_CODE}"
+            echo "Operational failure: health check curl failed with code ${CURL_CODE} for ${PROBED_URL}"
             exit 2
           fi
 
-          case "${STATUS}" in
-            [23][0-9][0-9]|401|403)
-              ;;
-            *)
-              echo "Operational failure: unexpected health check HTTP status ${STATUS}"
-              exit 2
-              ;;
-          esac
+          node -e "const {isAcceptableHealthStatus}=require('./security/scripts/validate-zap-target.js'); if(!isAcceptableHealthStatus('${STATUS}')) { console.error('Operational failure: unexpected health check HTTP status ${STATUS} for ${PROBED_URL}'); console.error('Accepted reachability codes: 2xx, 3xx, 401, 403'); process.exit(1); }"
 
           echo "http_status=${STATUS}" >> "$GITHUB_OUTPUT"
           echo "response_time_ms=${ELAPSED}" >> "$GITHUB_OUTPUT"
-          echo "Health check hostname=${APPROVED_HOST} status=${STATUS} response_time_ms=${ELAPSED}"
-          # Login-required responses still count as reachable.
+          echo "health_check_url=${PROBED_URL}" >> "$GITHUB_OUTPUT"
+          echo "Health check hostname=${APPROVED_HOST} url=${PROBED_URL} status=${STATUS} response_time_ms=${ELAPSED}"
 
-      - name: Run OWASP ZAP Baseline (passive, report-only findings)
+      - name: Run OWASP ZAP Baseline (passive)
         id: zap
-        if: steps.vars.outputs.configured == 'true'
+        if: steps.vars.outputs.configured == 'true' && steps.health.outcome == 'success'
         env:
           ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          PR_HEAD_SHA: ${{ steps.context.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           START_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "start_time=${START_TIME}" >> "$GITHUB_OUTPUT"
+          echo "PR candidate SHA: ${PR_HEAD_SHA}" >> "$GITHUB_STEP_SUMMARY"
           install -d -m 0777 zap-out
 
           # Official ZAP Docker image. Passive only (baseline). -I keeps warnings report-only.
@@ -197,11 +241,15 @@ jobs:
               exit 0
               ;;
             1)
-              echo "ZAP baseline reported FAIL-level findings (report-only in Phase 1)."
+              echo "ZAP baseline reported FAIL-level findings."
+              if [ -f security/reports/collected/baseline-comparison.json ]; then
+                exit 0
+              fi
+              echo "Baseline comparison not available in this workflow; report uploaded."
               exit 0
               ;;
             2)
-              echo "ZAP baseline reported WARN-level findings (report-only in Phase 1)."
+              echo "ZAP baseline reported WARN-level findings."
               exit 0
               ;;
             3)
@@ -227,7 +275,8 @@ jobs:
             ZAP version=${{ env.ZAP_VERSION }}
             Image digest=${{ env.ZAP_IMAGE_DIGEST }}
             Health check status=${{ steps.health.outputs.http_status }} response_time_ms=${{ steps.health.outputs.response_time_ms }}
-            Hostname=${{ steps.validate_target.outputs.hostname }}
+            Health check URL=${{ steps.health.outputs.health_check_url }}
+            Candidate SHA=${{ steps.context.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           COUNTS="$(python3 - <<'PY'
@@ -254,7 +303,7 @@ jobs:
           node security/scripts/write-security-summary.js
 
       - name: Upload ZAP artifact
-        if: always() && steps.vars.outputs.configured == 'true'
+        if: always() && steps.vars.outputs.configured == 'true' && steps.zap.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: zap-baseline-report-${{ github.run_number }}
@@ -266,3 +315,14 @@ jobs:
             zap-out/zap-summary.md
           if-no-files-found: error
           retention-days: 30
+
+      - name: Record skipped scan summary
+        if: always() && steps.vars.outputs.configured != 'true'
+        run: |
+          {
+            echo "## OWASP ZAP Baseline"
+            echo
+            echo "Scan skipped: ${{ steps.vars.outputs.skip_reason || 'variables not configured' }}"
+            echo "Candidate SHA: ${{ steps.context.outputs.candidate_sha }}"
+            echo "Protected PR: ${{ steps.context.outputs.protected_pr }}"
+          } >> "$GITHUB_STEP_SUMMARY"
