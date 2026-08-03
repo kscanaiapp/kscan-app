@@ -2,22 +2,29 @@
 -- functions, and close an unauthenticated cross-user read path in
 -- get_item_reaction_counts WITHOUT breaking the legitimate anonymous
 -- public-room-preview caller (app/(public)/rooms/[token].tsx calls this RPC
--- unauthenticated via services/styleObjects.ts:587-589).
+-- unauthenticated via services/styleObjects.ts).
 --
 -- Context: this project's default privileges grant EXECUTE on newly created
 -- public-schema functions to anon/public unless explicitly revoked (already
--- observed once and fixed for the provider_request_* functions in
--- 20260803020100_provider_request_security_revoke_anon.sql). This migration
--- applies the same revoke to the remaining pre-existing RPCs that have no
--- legitimate anonymous caller.
+-- observed and fixed once for provider_request_* in PR #43's
+-- 20260803020100_provider_request_security_revoke_anon.sql). This applies
+-- the same revoke to the remaining pre-existing RPCs that have no
+-- legitimate anonymous caller. Data-only/privilege-only change -- no table,
+-- column, or unrelated function is added, dropped, or altered.
 --
--- Target: yzqjvdfgefveprobvvyw (staging) ONLY. Do not run against production.
+-- See docs/security/public-ingress-inventory.md and
+-- docs/security/supabase-exposure-audit.md for the full audit trail, and
+-- __tests__/security/anonGrantGuard.test.js for the regression guard that
+-- keeps ANON_EXECUTE_ALLOWLIST (security/scripts/anon-grant-guard.js) in
+-- sync with what this migration establishes as the intended state.
 
 -- These RPCs already internally raise on auth.uid() IS NULL, so the anon
 -- grant was never actually exploitable -- this is defense-in-depth, matching
 -- the pattern already established for the provider_request_* functions, not
 -- a fix for an active vulnerability. None of these have any anonymous
--- caller anywhere in the app (confirmed by repo-wide grep).
+-- caller anywhere in the app (confirmed by repo-wide grep, revalidated
+-- against live staging grants immediately before this migration was
+-- applied -- no drift since the original audit).
 revoke execute on function public.check_and_increment_stylechat_burst(integer) from anon;
 revoke execute on function public.create_look_from_dressing_room_items(uuid, text, text, uuid[]) from anon;
 revoke execute on function public.create_or_get_room_share(uuid) from anon;
@@ -30,7 +37,10 @@ revoke execute on function public.get_stylechat_daily_usage() from anon;
 
 -- Trigger functions: PUBLIC execute is unused (triggers always execute as
 -- the defining role regardless of caller grants; direct invocation would
--- fail anyway on a missing NEW/OLD record) but should not be left grantable.
+-- fail anyway on a missing NEW/OLD record; PostgREST also never exposes a
+-- RETURNS trigger function on its RPC surface at all -- confirmed live,
+-- calling one via /rest/v1/rpc/ returns 404 "not found in schema cache"
+-- regardless of grants) but should not remain grantable.
 revoke execute on function public.enforce_minor_privacy_defaults() from public;
 revoke execute on function public.handle_new_user() from public;
 revoke execute on function public.handle_new_user_privacy() from public;
