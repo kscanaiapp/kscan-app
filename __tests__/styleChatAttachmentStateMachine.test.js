@@ -66,6 +66,24 @@ test('empty attachment snapshots are stable for useSyncExternalStore', () => {
   assert.equal(store.getDraftAttachments('empty-session'), first);
 });
 
+test('applied draft mutations publish new useSyncExternalStore snapshot identities', () => {
+  const session = 'snapshot-identity-session';
+  store.clearDraftAttachments(session);
+
+  const empty = store.getDraftAttachments(session);
+  store.upsertDraftAttachment(session, readyDraft('closet-draft', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'));
+  const inserted = store.getDraftAttachments(session);
+  assert.notEqual(inserted, empty, 'inserting a draft must publish a new array snapshot');
+
+  const saved = { ...inserted[0], closetState: 'saved', closetItemId: 'closet-item-1' };
+  assert.equal(store.updateDraftAttachment(session, saved), true);
+  const updated = store.getDraftAttachments(session);
+  assert.notEqual(updated, inserted, 'updating Closet state must publish a new array snapshot');
+  assert.equal(updated[0].closetState, 'saved');
+
+  store.clearDraftAttachments(session);
+});
+
 test('drafts survive by session; snapshot returns only ready, immutable copies', () => {
   store.clearDraftAttachments(S);
   store.upsertDraftAttachment(S, readyDraft('d1', '11111111-1111-4111-8111-111111111111'));
@@ -135,8 +153,8 @@ test('attachment lifecycle covers required states; failed is retryable and remov
   }
   assert.match(hookSource, /retryAttachment/);
   assert.match(hookSource, /removeAttachment/);
-  // Send gating: only when every attachment is ready.
-  assert.match(hookSource, /every\(\(entry\) => entry\.state === 'ready'/);
+  // A failed send is retryable with the same ready attachment context.
+  assert.match(hookSource, /entry\.state === 'ready' \|\| entry\.state === 'send_failed'/);
   // Failed resolution never sends a local-only reference.
   assert.match(hookSource, /'failed_retryable'/);
   assert.doesNotMatch(hookSource, /localImageUri[^\n]*resolved:/);
@@ -163,10 +181,12 @@ test('photo intake keeps scanner protections: op id, abort, late-result discard,
   assert.match(intakeSource, /identifyScanImage/);
   assert.doesNotMatch(intakeSource, /localPrivacyFiltered:\s*true/);
   assert.match(intakeSource, /localPrivacyFiltered\s*,/);
-  // Save-through-Closet is mandatory: attach only after saveScan + cloud sync.
-  assert.match(intakeSource, /saveScan\(/);
-  assert.match(intakeSource, /saveScanToCloud/);
-  assert.match(intakeSource, /SAVE TO CLOSET & ATTACH/);
+  // Attach-first: candidate media is durable, while Closet promotion is optional.
+  assert.match(intakeSource, /createClosetCandidate/);
+  assert.match(intakeSource, /promoteSelectedClosetCandidates/);
+  assert.match(intakeSource, /Attach to Elise/);
+  assert.doesNotMatch(intakeSource, /Save to Closet & Attach/);
+  assert.doesNotMatch(intakeSource, /saveScanToCloud/);
   // Failed identification still allows manual save; no auto-send anywhere.
   assert.match(intakeSource, /manual/i);
   assert.doesNotMatch(intakeSource, /sendMessage/);

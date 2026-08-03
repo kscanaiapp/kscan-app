@@ -326,16 +326,18 @@ test('ISOLATION-OWNER-PURGE-IDEMPOTENT', async () => {
 
 // ── ISOLATION-ELISE-CLOSET-DOMAIN-ABSENCE ──────────────────────────────────
 
-test('ISOLATION-ELISE-CLOSET-DOMAIN-ABSENCE', () => {
+test('ISOLATION-ELISE-IDENTIFICATION-CLOSET-DOMAIN-ABSENCE', () => {
   const files = [
     'services/library.js',
     'services/actorContext.js',
-    'components/style-chat/StyleChatPhotoIntake.tsx',
+    'services/fashionIdentificationV2Core.ts',
+    'services/style-chat/eliseIdentificationV2.ts',
+    'services/style-chat/eliseIdentifyForStyle.ts',
   ];
   const forbidden = /closet_items|isCloset|saveToCloset|moveToCloset|promoteToCloset|closetItemId/;
   for (const f of files) {
     const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
-    assert.doesNotMatch(src, forbidden, `${f} must not introduce Closet domain logic`);
+    assert.doesNotMatch(src, forbidden, `${f} must not make Closet part of identification`);
   }
 });
 

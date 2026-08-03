@@ -33,13 +33,24 @@ function AttachmentChip({
   draft,
   onRemove,
   onRetry,
+  onSaveToCloset,
 }: {
   draft: DraftAttachment;
   onRemove: () => void;
   onRetry: () => void;
+  onSaveToCloset: () => void;
 }) {
-  const pending = !['ready', 'failed_retryable', 'rejected', 'unavailable', 'cancelled'].includes(draft.state);
-  const failed = draft.state === 'failed_retryable';
+  const pending = ![
+    'ready',
+    'sent',
+    'send_failed',
+    'failed_retryable',
+    'rejected',
+    'unavailable',
+    'cancelled',
+  ].includes(draft.state);
+  const failed = draft.state === 'failed_retryable' || draft.state === 'send_failed';
+  const resolutionFailed = draft.state === 'failed_retryable';
   const unavailable = draft.state === 'rejected' || draft.state === 'unavailable';
   const stateCopy = draft.state === 'ready' ? null : STATE_COPY[draft.state] ?? null;
 
@@ -70,8 +81,27 @@ function AttachmentChip({
         ) : draft.summary.itemCount && draft.summary.itemCount > 1 ? (
           <Text style={styles.chipState}>{draft.summary.itemCount} items</Text>
         ) : null}
+        {draft.closetState === 'saving' ? (
+          <Text style={styles.chipState}>Saving to Closet...</Text>
+        ) : draft.closetState === 'saved' ? (
+          <Text style={styles.chipState}>Saved to Closet</Text>
+        ) : draft.closetState === 'save_failed' ? (
+          <Text style={[styles.chipState, styles.chipStateFailed]}>Closet save failed</Text>
+        ) : null}
       </View>
-      {failed ? (
+      {draft.closetState === 'not_saved' || draft.closetState === 'save_failed' ? (
+        <TouchableOpacity
+          onPress={onSaveToCloset}
+          accessibilityRole="button"
+          accessibilityLabel={`Save ${draft.summary.title} to Closet`}
+          style={styles.chipSaveAction}
+        >
+          <Text style={styles.chipSaveText}>
+            {draft.closetState === 'save_failed' ? 'Retry save' : 'Save'}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+      {resolutionFailed ? (
         <TouchableOpacity
           onPress={onRetry}
           accessibilityRole="button"
@@ -103,6 +133,7 @@ export function StyleChatAttachmentBar({
   onUploadPhoto,
   onRemove,
   onRetry,
+  onSaveToCloset,
   disabled,
 }: {
   attachments: DraftAttachment[];
@@ -111,6 +142,7 @@ export function StyleChatAttachmentBar({
   onUploadPhoto: () => void;
   onRemove: (draftId: string) => void;
   onRetry: (draftId: string, items: OwnedClosetItem[], localScans?: SavedScanModel[]) => void;
+  onSaveToCloset: (draftId: string) => void;
   disabled?: boolean;
 }) {
   const closet = useOwnedClosetItems();
@@ -141,6 +173,7 @@ export function StyleChatAttachmentBar({
               draft={draft}
               onRemove={() => onRemove(draft.draftId)}
               onRetry={() => onRetry(draft.draftId, closet.items, closet.localScans as SavedScanModel[])}
+              onSaveToCloset={() => onSaveToCloset(draft.draftId)}
             />
           ))}
         </ScrollView>
@@ -373,6 +406,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipActionText: { ...LUXURY.typography.bodyStrong, color: LUXURY.colors.graphite },
+  chipSaveAction: { minHeight: 26, justifyContent: 'center', paddingHorizontal: 4 },
+  chipSaveText: { ...LUXURY.typography.caption, color: LUXURY.colors.plum, fontSize: 10 },
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',

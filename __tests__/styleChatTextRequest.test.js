@@ -69,6 +69,9 @@ function loadProvider(invoke) {
     if (specifier === '../../../types/styleChatAttachments') {
       return require('../types/styleChatAttachments.ts');
     }
+    if (specifier === '../../../types/fashionIdentificationV2') {
+      return { ELISE_FASHION_CONTEXT_V2: 'elise-fashion-context-v2' };
+    }
     if (specifier === '../../../constants/featureFlags') {
       // DR-2 client gate. These text-only tests assert the v1 payload shape,
       // which is unchanged when advice metadata is disabled (production

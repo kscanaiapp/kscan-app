@@ -122,6 +122,9 @@ export const ATTACHMENT_STATES = [
   'uploading_media',
   'finalizing',
   'ready',
+  'sending',
+  'sent',
+  'send_failed',
   'failed_retryable',
   'rejected',
   'cancelled',
@@ -143,6 +146,15 @@ export function isPendingAttachmentState(state: AttachmentState): boolean {
   return (PENDING_ATTACHMENT_STATES as readonly string[]).includes(state);
 }
 
+/** Optional Closet persistence is deliberately independent of attachment send state. */
+export const CLOSET_SAVE_STATES = [
+  'not_saved',
+  'saving',
+  'saved',
+  'save_failed',
+] as const;
+export type ClosetSaveState = (typeof CLOSET_SAVE_STATES)[number];
+
 /**
  * One draft attachment entry. The selection layer (local ids, local URIs,
  * job/retry state) NEVER becomes an Edge Function payload; only `resolved`
@@ -157,6 +169,9 @@ export type DraftAttachment = {
     localScanId?: string | null;
     localImageUri?: string | null;
     sanitizedImageUri?: string | null;
+    /** Durable Closet-candidate backing for a direct Elise image. Client-only. */
+    closetCandidateId?: string | null;
+    closetCandidateBatchId?: string | null;
     /** Stable remote row acquired during resolution; client-only until ready. */
     remoteSourceType?: OwnedItemSourceType | null;
     remoteSourceId?: string | null;
@@ -182,6 +197,10 @@ export type DraftAttachment = {
    * becomes a trust boundary.
    */
   fashionContext?: unknown;
+  /** Independent optional Closet transaction; never controls `state`. */
+  closetState?: ClosetSaveState;
+  /** Hydrated only after an idempotent candidate promotion succeeds. */
+  closetItemId?: string | null;
   /**
    * Per-attachment identification outcome (Phase 2B.3).
    *

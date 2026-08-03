@@ -28,15 +28,19 @@ test('scan-identify remains guarded before review', () => {
   assert.match(photoIntake, /step === 'review'/);
 });
 
-test('completed identification uses the shared mapper and preserves its structured analysis', () => {
+test('completed identification uses the shared mapper and persists candidate metadata', () => {
   assert.match(photoIntake, /mapScanIdentifyToAnalysis/);
   assert.doesNotMatch(photoIntake, /identification as any\)\?\.metadata/);
-  assert.match(photoIntake, /setIdentifiedAnalysis\(mapped\)/);
-  assert.match(photoIntake, /\.\.\.identifiedAnalysis/);
+  assert.match(photoIntake, /persistCandidateReview/);
+  assert.match(photoIntake, /color:\s*mapped\.metadata\.color/);
+  assert.match(photoIntake, /updateClosetCandidate/);
 });
 
-test('explicit save confirmation remains before attachment is created', () => {
-  assert.match(photoIntake, /saveScan/);
+test('attachment is explicit and Closet persistence remains optional', () => {
+  assert.match(photoIntake, /title="Attach to Elise"/);
+  assert.match(photoIntake, /['"]Save to Closet['"]/);
+  assert.match(photoIntake, /promoteSelectedClosetCandidates/);
+  assert.doesNotMatch(photoIntake, /Save to Closet & Attach/);
   assert.match(photoIntake, /onAttached/);
 });
 
