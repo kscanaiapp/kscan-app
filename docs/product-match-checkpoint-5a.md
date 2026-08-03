@@ -193,7 +193,18 @@ Create a **local, untracked** `.env` (never commit it, and never add the flag to
 cd C:\src\KScan-product-match-foundation-v1 && printf 'EXPO_PUBLIC_SCAN_SIMILAR_ITEM_ENABLED=true\n' >> .env && npx expo start --clear
 ```
 
-Scan the same already-owned item and capture:
+Scan the same already-owned item and capture.
+
+**How to read the instrumentation:** each attach attempt logs one line to the
+Metro console, `__DEV__` only, prefixed `[similarity]`, carrying the whole
+record as JSON. Filter the Metro output with:
+
+```bash
+npx react-native log-android | grep --line-buffered "\[similarity\]"
+```
+
+One line is emitted per attempt — including attempts that attach nothing, so
+"the flag is off" and "the Closet was empty" are visibly different facts.
 
 - [ ] Closet loader ran — record duration from the instrumentation record.
 - [ ] Recent Scans loader ran — record duration **separately**.
