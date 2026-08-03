@@ -35,7 +35,11 @@ supabase functions delete search-vinted-secondhand --project-ref yzqjvdfgefvepro
 supabase functions delete tryon-clothes-pro --project-ref yzqjvdfgefveprobvvyw
 ```
 
-**Not executed.** Per instruction, this is presented for approval before any removal. Two of the five (`privacy-correction-request`, `privacy-data-export`) are live-reachable, legitimate functionality that arguably *should* stay deployed regardless of how they got there — removing them would break a working Privacy screen feature that has nothing to do with this PR. The other three (`nike-shoe-details`, `search-vinted-secondhand`, `tryon-clothes-pro`) have no current caller and are reasonable candidates for rollback if the preference is to keep staging's function inventory limited to what's actively used. This is a product/ops call, not a security-mandated one — recommend deciding per-function rather than as a block.
+**Resolved 2026-08-03 (post-Checkpoint):** decided and executed as a standalone staging-operations action, deliberately separate from the next hardening code pass.
+
+- `privacy-correction-request` and `privacy-data-export` — **kept**. Live-reachable from the shipping Privacy screen, no external provider call, no new secret exposure.
+- `nike-shoe-details`, `search-vinted-secondhand`, `tryon-clothes-pro` — **removed** via `supabase functions delete <name> --project-ref yzqjvdfgefveprobvvyw`. All three had zero product callers and two of them (`nike-shoe-details`, `tryon-clothes-pro`) carried real, invocable provider-cost exposure (`RAPIDAPI_KEY` present on staging) with no offsetting product value — leaving an unhardened, costed, orphaned endpoint deployed runs directly counter to this initiative. Verified via `supabase functions list` immediately after: staging's inventory is now exactly the pre-PR set plus `stylechat-generate` (hardened) and the two legitimate, kept privacy functions — 8 functions total, none of the three removed ones present.
+- Deletion only removes the staging deployment, never the source in this repo (`supabase functions delete --help`: "This does NOT remove the Function locally") — any of the three can be redeployed from their unmodified source in seconds if a future product need reintroduces them, at which point they should go through this same hardening pattern rather than being deployed bare again.
 
 ## Prevention
 
