@@ -77,21 +77,52 @@ Two consequences.
 tend to reproduce on the same input. A budget race does not — and this is a
 budget race.
 
-**It sets a fair expectation for the §16 anomaly gate before the run, not
-after.** If per-case truncation is roughly a coin weighted at the historical
-p ≈ 0.182, the invalid count over 33 cases has a standard deviation of about
-2.2 cases, or ~6.7 percentage points. Two independent runs therefore differ by
-about 9.4 percentage points on average from sampling alone. The gate trips at
-more than 10 percentage points, so it sits at roughly one sigma of ordinary
-run-to-run variance for this metric at this sample size.
+**It sets the anomaly rule before the run, not after.** If per-case truncation
+is roughly a coin weighted at the historical p ≈ 0.182, the invalid count over
+33 cases has a standard deviation of about 2.2 cases, or ~6.7 percentage
+points. Two honest runs therefore differ by about 9.4 percentage points on
+average from sampling alone — so a ten-point trigger fires at roughly one sigma
+of ordinary noise. It would stop good runs constantly while saying nothing
+about whether anything is actually wrong.
 
-That is not a reason to change the gate, and it has not been changed. It is a
-reason to treat a tripped gate as a prompt to look for a cause rather than
-proof that one exists — and, if none is found and the token ledger looks like
-the table above, to record the variance itself as the established cause rather
-than stopping on `CONTROL_BASELINE_ANOMALY`. Recorded here, before any fresh
-result exists, so this reasoning cannot be fitted to an inconvenient outcome
-later.
+## Preregistered control-anomaly rule
+
+Anomaly detection is **not** removed. It is moved off the rate and onto the
+mechanism, and implemented as code rather than prose so it cannot be re-tuned
+after a result exists: `tools/scanner-evaluation/lib/controlAnomaly.js`, with
+14 tests in `__tests__/phase6ControlAnomaly.test.js`.
+
+The invalid-rate delta is computed and reported, and is **never** an input to
+the verdict. `assertRateDeltaIsNotAVerdictInput()` throws if a caller tries to
+pass one in, a sweep test asserts the verdict is identical across all 34
+possible invalid counts, and the delta is computed after the verdict so nothing
+above it can consult it.
+
+**EXPECTED_STOCHASTIC_VARIATION — the run is lockable** when all five hold:
+
+| check | passes when |
+|---|---|
+| execution identity | dataset, prompt, model, generation config, request identity, parser and normalizer all match; an unreported identity fails rather than being assumed |
+| capture consistency | completed equals planned, invalid causes sum to the invalid count, cost and latency accounting agree |
+| provider attribution | invalid cases carry a finish reason; zero invalid cases is clean, not unattributable |
+| dominant failure class | `output_budget_exhausted` still dominates; zero invalid cases passes |
+| ceiling mechanism | every truncation-labelled case terminated within 5% of the configured ceiling (~102 tokens at 2,048; historical truncations landed within 20) |
+
+**CONTROL_BASELINE_ANOMALY** only when one of those fails — an identity
+drifted, a new dominant class appeared, truncation labels stopped matching the
+ceiling, provider behaviour cannot be attributed, or the run disagrees with
+itself.
+
+The ceiling tolerance is a fraction rather than a token count because
+`maxOutputTokens` is a certified constant this layer does not own; if it
+changes, the tolerance scales with it instead of silently tightening.
+
+**The fresh control becomes the locked Phase 6 baseline whenever the verdict is
+EXPECTED_STOCHASTIC_VARIATION, regardless of how far its raw invalid count sits
+from the historical 6/33.** Candidate A is compared against that fresh lock and
+is never tuned against the historical count. The classifier also runs with no
+historical input at all, which is the honest expression of the fresh run being
+the baseline rather than a challenger to it.
 
 ## Resumption sequence
 
