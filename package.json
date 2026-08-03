@@ -19,7 +19,9 @@
     "qa:convergence": "node scripts/qa-convergence.js",
     "privacy:process-deletion": "node scripts/process-deletion-request.js",
     "verify:apple-readiness": "node scripts/verify-apple-readiness.js",
-    "verify:apple-submission": "node scripts/verify-apple-submission.js"
+    "verify:apple-submission": "node scripts/verify-apple-submission.js",
+    "test:security": "node --test __tests__/security/baselineComparison.test.js",
+    "verify:security": "node security/scripts/run-security-validation.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
