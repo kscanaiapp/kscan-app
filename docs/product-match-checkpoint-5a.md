@@ -123,10 +123,32 @@ forward, it's not required to call this validation complete.
    failure, no candidates, network failure, background/resume: identification
    and product results still complete in every case. → §6.
 
+## What this runtime test can and cannot prove
+
+Verified against the deployed project `wyyuqfdxucjksghsmhry` on 2026-08-03:
+**`product-match` is not among the deployed Edge Functions.** `scan-identify`
+is deployed (v141), and it accepts and sanitizes `existingItems`
+unconditionally — but the similarity *comparison* runs in `product-match`, via
+the bridge in `productMatchBridge.ts`.
+
+All five questions above are **client-side observable and fully testable**
+without it: the loaders running, the candidate bounding, the attached
+`existingItems`, the payload bytes, the privacy allowlist, the rollback, and
+the fail-open behavior all happen on device, before the request leaves.
+
+What this test **cannot** produce is a returned `potentialSimilarItem` or a
+rendered comparison. That is expected and is not a mount failure. Checkpoint 5A
+scope ends at "candidates are correctly attached to the real request"; the
+advisory response and its notice UI are the next build. Do not deploy
+`product-match` to make a comparison appear — that is a separate, owner-gated
+decision.
+
 ## 0. Preconditions
 
 - Android emulator or device with a **signed-in** KScan account.
 - Backend `SCAN_MULTI_ITEM_ENABLED=true` (otherwise see the known limitation).
+  This cannot be read from the client; the empirical check is §5 — if the scan
+  reaches a selection state, it is on.
 - A Closet containing **at least 3 items**, and at least one Recent Scan.
 - Branch `product-match/foundation-v1`, and record the exact SHA:
 
