@@ -24,9 +24,9 @@ const ANON_EXECUTE_ALLOWLIST = [
   // generic 'unavailable'. See docs/security/supabase-exposure-audit.md.
   'get_public_room_preview',
   // Aggregate reaction counts for the public room-preview screen -- fixed
-  // in this pass to require the caller either own the room or the room
-  // have an active, non-revoked, non-expired share. See
-  // security/perimeter/pending-rpc-hardening.sql.
+  // and applied to staging to require the caller either own the room or
+  // the room have an active, non-revoked, non-expired share. See
+  // supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql.
   'get_item_reaction_counts',
 ];
 

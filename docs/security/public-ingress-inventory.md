@@ -66,7 +66,7 @@ All of them, structurally — there is no "primary website perimeter" in front o
 
 ## 9/10. Database function and table exposure (anon/authenticated/service-role)
 
-Full detail in `docs/security/supabase-exposure-audit.md`. Headline: this project's default privileges grant `anon`/`public` EXECUTE on newly created public-schema functions unless explicitly revoked — already observed and fixed once for the provider-request functions in PR #43's migration set. This pass found the same pattern on nearly every other pre-existing RPC, and one genuine gap (`get_item_reaction_counts` — no `auth.uid()` check of any kind, unlike every other RPC in the schema). Fix prepared in `security/perimeter/pending-rpc-hardening.sql`, pending application to staging.
+Full detail in `docs/security/supabase-exposure-audit.md`. Headline: this project's default privileges grant `anon`/`public` EXECUTE on newly created public-schema functions unless explicitly revoked — already observed and fixed once for the provider-request functions in PR #43's migration set. This pass found the same pattern on nearly every other pre-existing RPC, and one genuine gap (`get_item_reaction_counts` — no `auth.uid()` check of any kind, unlike every other RPC in the schema). Fix applied to staging via `supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql` (plus a small follow-up, `20260803214253_..._trigger_cleanup.sql`), validated with synthetic data.
 
 ## 11/12. Hosting-provider firewall coverage vs. direct-origin bypass
 

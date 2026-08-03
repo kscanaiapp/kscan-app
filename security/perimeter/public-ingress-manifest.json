@@ -363,11 +363,11 @@
       "wafCoverage": "none",
       "directOriginExposure": true,
       "loggingBehavior": "no application-level logging",
-      "deploymentStatus": "live; fix prepared in security/perimeter/pending-rpc-hardening.sql, pending application",
+      "deploymentStatus": "live; fix applied to staging via supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql, validated with synthetic data (anon-with-active-share sees counts, anon-with-revoked-share sees nothing, owner always sees own counts, non-owner/non-shared authenticated caller sees nothing)",
       "intendedPublicStatus": "PUBLIC_WITH_ABUSE_CONTROLS (for the shared-room path) / AUTHENTICATED_AND_OWNER_SCOPED (for the owner path)",
-      "riskClassification": "SHOULD_NOT_BE_PUBLIC (as originally found - no auth.uid() check of any kind) -> fixed to PUBLIC_WITH_ABUSE_CONTROLS pending SQL application",
-      "recommendedControl": "apply security/perimeter/pending-rpc-hardening.sql; consider adding a rate limit on repeated calls with large item-id arrays",
-      "evidenceSource": "pg_get_functiondef read this session (original + fixed body); services/styleObjects.ts:587-589 (agent research)"
+      "riskClassification": "PUBLIC_WITH_ABUSE_CONTROLS",
+      "recommendedControl": "applied this pass -- was SHOULD_NOT_BE_PUBLIC (no auth.uid() check of any kind) before the fix; consider adding a rate limit on repeated calls with large item-id arrays",
+      "evidenceSource": "pg_get_functiondef read live (original + fixed body); services/styleObjects.ts:587-589 (agent research); synthetic-data validation this session; supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql"
     },
     {
       "name": "server.js /api/analyze (Render)",
