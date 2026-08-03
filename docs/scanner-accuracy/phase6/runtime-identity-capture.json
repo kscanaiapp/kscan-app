@@ -1,0 +1,143 @@
+{
+  "reportVersion": "1.0.0",
+  "executionMode": "offline-fetch-intercept",
+  "providerCallCount": 0,
+  "source": {
+    "certified": {
+      "snapshotVersion": "1.0.0",
+      "sourceCommit": "f5f4ed2eda4984db0658c3209fece223acd33188",
+      "entry": "supabase/functions/scan-identify/index.ts",
+      "fileCount": 31,
+      "aggregateSha256": "28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589",
+      "runtimeSupport": [
+        {
+          "path": "package.json",
+          "sha256": "365dada795d0cd112d4bec28ac47088766839e017c87a0fb62248e7c9aa77539"
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "fa743427e2443264f4d137c7810f42119385dfbb3545f3cec675f92ab0b2a400"
+        }
+      ],
+      "materializedFrom": "git object store",
+      "immutable": true,
+      "root": "C:\\Users\\jsmit\\AppData\\Local\\Temp\\kscan-runtime-identity-HPL5U5\\certified"
+    },
+    "protectedAndroid": {
+      "snapshotVersion": "1.0.0",
+      "sourceCommit": "4d0ceb40655a7de7a2430bc4014ef0710aa8ca66",
+      "entry": "supabase/functions/scan-identify/index.ts",
+      "fileCount": 31,
+      "aggregateSha256": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
+      "runtimeSupport": [
+        {
+          "path": "package.json",
+          "sha256": "1f83914ac948dbc8391c1b512bb4024971f673e187a295ea844d5d6fbd4a3872"
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "b7b385b4263bdbfb9d2e11eff0b4206b9005af84f2033846147c74f8b8cb9c94"
+        }
+      ],
+      "materializedFrom": "git object store",
+      "immutable": true,
+      "root": "C:\\Users\\jsmit\\AppData\\Local\\Temp\\kscan-runtime-identity-HPL5U5\\android"
+    },
+    "protectedIos": {
+      "snapshotVersion": "1.0.0",
+      "sourceCommit": "5c761ba7df2cfc7b22efa3d3326dca46850e02f0",
+      "entry": "supabase/functions/scan-identify/index.ts",
+      "fileCount": 31,
+      "aggregateSha256": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
+      "runtimeSupport": [
+        {
+          "path": "package.json",
+          "sha256": "365dada795d0cd112d4bec28ac47088766839e017c87a0fb62248e7c9aa77539"
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "fa743427e2443264f4d137c7810f42119385dfbb3545f3cec675f92ab0b2a400"
+        }
+      ],
+      "materializedFrom": "git object store",
+      "immutable": true,
+      "root": "C:\\Users\\jsmit\\AppData\\Local\\Temp\\kscan-runtime-identity-HPL5U5\\ios"
+    },
+    "protectedSourceClosuresByteIdentical": true
+  },
+  "mobileDispatch": {
+    "protectedAndroid": {
+      "v2Enabled": false,
+      "backendEnabled": true,
+      "multiImageEnabled": true,
+      "v2DefaultFailsClosed": true,
+      "selectedItemLegacyShapePresent": true,
+      "mobileOrchestratorSha256": "bf5c16cbca15448f2da8639822c4fc1c382b4c7de039eb1826902229c065cd32",
+      "mobileTransportSha256": "009f342df06e4ce844eebd343515e845bc905e9ca04ce0137013d1eb910160e0",
+      "selectedRuntimeContract": "legacy-selected-item"
+    },
+    "protectedIos": {
+      "v2Enabled": false,
+      "backendEnabled": true,
+      "multiImageEnabled": false,
+      "v2DefaultFailsClosed": true,
+      "selectedItemLegacyShapePresent": true,
+      "mobileOrchestratorSha256": "bf5c16cbca15448f2da8639822c4fc1c382b4c7de039eb1826902229c065cd32",
+      "mobileTransportSha256": "891d1e3f378f825f398ca8bba359a1a0a5aba325f2d36cfcb7ff2312c641259f",
+      "selectedRuntimeContract": "legacy-selected-item"
+    }
+  },
+  "historical": {
+    "provider": "capture",
+    "caseId": "unlabelled",
+    "requestContract": "v2",
+    "mode": "identify_selected_item",
+    "intent": "identify_for_style",
+    "sourceEntryPath": "scanner_camera",
+    "serializedRequestPayloadSha256": "f330ebb18c0a5292cc9b32729bda79ce26cc9852b7e26da16a8cea9a7cc5a5f5",
+    "promptSha256": "6f2f4dd1c3c2e2d76dffb49fc24283ddfaf49a836f527c02ed2b82ef19b7dd1d",
+    "generationConfigSha256": "b6862722990cdfd3b387eaaf2d6a0e9880036b1fedab17fefd07c7db56c2d22e",
+    "responseSchemaSha256": "894722a6500756bd6eeae0e4beb4712a6b223c6ce4045d599f8d46682a5861a8",
+    "model": "gemini-3.6-flash",
+    "captureCount": 1,
+    "externalNetworkCallCount": 0,
+    "unexpectedNetworkAttemptCount": 0,
+    "blockedHosts": [],
+    "providerParserSha256": "332b713a7b7c516cf2d63fb4500c1a32a035464d862f783a9bc22f31b0ef8f79",
+    "responseContractSha256": "6548f8e9b4f3e24a806f0dcf7875eaf8a62b751f0f85568ac69dc8110563a08c"
+  },
+  "current": {
+    "provider": "capture",
+    "caseId": "unlabelled",
+    "requestContract": "legacy",
+    "mode": "identify_selected_item",
+    "intent": null,
+    "sourceEntryPath": "scanner_camera_legacy",
+    "serializedRequestPayloadSha256": "f330ebb18c0a5292cc9b32729bda79ce26cc9852b7e26da16a8cea9a7cc5a5f5",
+    "promptSha256": "6f2f4dd1c3c2e2d76dffb49fc24283ddfaf49a836f527c02ed2b82ef19b7dd1d",
+    "generationConfigSha256": "b6862722990cdfd3b387eaaf2d6a0e9880036b1fedab17fefd07c7db56c2d22e",
+    "responseSchemaSha256": "894722a6500756bd6eeae0e4beb4712a6b223c6ce4045d599f8d46682a5861a8",
+    "model": "gemini-3.6-flash",
+    "captureCount": 1,
+    "externalNetworkCallCount": 0,
+    "unexpectedNetworkAttemptCount": 0,
+    "blockedHosts": [],
+    "providerParserSha256": "332b713a7b7c516cf2d63fb4500c1a32a035464d862f783a9bc22f31b0ef8f79",
+    "responseContractSha256": "be3011c26bbb1cc799630ea7b9edc824a885b16847378567eec4de59711efbf0"
+  },
+  "comparison": {
+    "comparisonVersion": "1.0.0",
+    "checks": {
+      "providerPayload": true,
+      "prompt": true,
+      "responseSchema": true,
+      "samplingConfiguration": true,
+      "model": true,
+      "providerParser": true,
+      "requestContract": false,
+      "responseContract": false
+    },
+    "reusable": false,
+    "rule": "Historical results are reusable only when every recorded request, model, schema, sampling, parser, and contract identity is byte-identical."
+  }
+}
