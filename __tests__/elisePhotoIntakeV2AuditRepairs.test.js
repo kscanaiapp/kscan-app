@@ -8,10 +8,9 @@
 //   1. LEGACY-FALLBACK REUSE — when the V2 orchestrator already performed its
 //      one permitted legacy retry, the intake must consume that paid response
 //      instead of purchasing a third identification of the same bytes.
-//   2. DURABLE-RECORD PARITY — a flag-on save must not be strictly poorer than
-//      a flag-off one. Material, silhouette, style tags and confidence are
-//      enriched from the styling-safe identity; the canonical result itself is
-//      deliberately NOT persisted (it carries transport correlation).
+//   2. ATTACH-FIRST SEPARATION — identification enriches a private candidate,
+//      Attach can consume that candidate without Closet promotion, and Save to
+//      Closet remains a separate, retryable action.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -36,15 +35,15 @@ test('the intake reuses the orchestrator-paid legacy response', () => {
   );
 });
 
-test('a flag-on save enriches durable metadata from the styling-safe identity', () => {
+test('identification enriches the private candidate from the styling-safe identity', () => {
   assert.ok(
-    source.includes('const savedIdentity = groundableItems(fashionContext)[0]?.identification ?? null;'),
+    source.includes('const identity = groundableItems(input.context ?? null)[0]?.identification ?? null;'),
     'enrichment reads the projection, never the canonical result',
   );
-  for (const field of ['material', 'silhouette', 'styleTags', 'confidenceScore']) {
+  for (const field of ['clothingType', 'primaryColor', 'secondaryColors', 'material']) {
     assert.ok(
       source.includes(field),
-      `the V2 save path must carry ${field} into the durable record`,
+      `the V2 candidate path must carry ${field} into private staging`,
     );
   }
   assert.ok(
@@ -53,11 +52,18 @@ test('a flag-on save enriches durable metadata from the styling-safe identity', 
   );
 });
 
-test('the save handler closure declares every read state (stale-capture guard)', () => {
-  const depsMatch = source.match(/\}, \[(title, category, color[^\]]*)\]\);/);
-  assert.ok(depsMatch, 'the handleSaveAndAttach dependency array is present');
+test('Attach and Save are independent handlers with complete context dependencies', () => {
+  const attachStart = source.indexOf('const handleAttach = useCallback');
+  const saveStart = source.indexOf('const handleSaveToCloset = useCallback');
+  const tryAnotherStart = source.indexOf('const handleTryAnother = useCallback');
+  assert.ok(attachStart >= 0 && saveStart > attachStart && tryAnotherStart > saveStart);
+
+  const attachBlock = source.slice(attachStart, saveStart);
+  const saveBlock = source.slice(saveStart, tryAnotherStart);
+  assert.doesNotMatch(attachBlock, /promoteSelectedClosetCandidates/);
+  assert.match(saveBlock, /promoteSelectedClosetCandidates/);
   assert.ok(
-    depsMatch[1].includes('fashionContext'),
-    'fashionContext is read inside the handler and must be a declared dependency',
+    attachBlock.includes('fashionContext') && saveBlock.includes('fashionContext'),
+    'both handlers must use the current identified context',
   );
 });

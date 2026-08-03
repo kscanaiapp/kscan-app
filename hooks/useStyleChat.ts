@@ -52,8 +52,10 @@ export type SendAttachmentsInput = {
    * as they are when the response lands.
    */
   fashionContext?: unknown;
+  onSending?: () => void;
   /** Called only after a successful attachment-aware send. */
   onSent?: () => void;
+  onSendFailed?: () => void;
 };
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
@@ -109,6 +111,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
   const sendScopeVersionRef = useRef(0);
+  const activeAttachmentSendFailureRef = useRef<(() => void) | null>(null);
   const retryStateRef = useRef<ReturnType<typeof createStyleChatRetryState<SendAttachmentsInput>> | null>(null);
   if (!retryStateRef.current) {
     retryStateRef.current = createStyleChatRetryState<SendAttachmentsInput>();
@@ -164,6 +167,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   }, [actorId, identityLoading]);
 
   useEffect(() => {
+    activeAttachmentSendFailureRef.current?.();
+    activeAttachmentSendFailureRef.current = null;
     const scopeVersion = sendScopeVersionRef.current + 1;
     sendScopeVersionRef.current = scopeVersion;
     isSendingRef.current = false;
@@ -174,6 +179,9 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       if (sendScopeVersionRef.current === scopeVersion) {
         sendScopeVersionRef.current += 1;
       }
+      const failActiveAttachmentSend = activeAttachmentSendFailureRef.current;
+      activeAttachmentSendFailureRef.current = null;
+      failActiveAttachmentSend?.();
     };
   }, [actorId, sessionId]);
 
@@ -388,10 +396,14 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       // must leave the composer draft (text + attachments) fully intact and
       // must never present an attachment-blind reply as attachment-aware.
       const sendAttachments = options?.attachments ?? null;
-      const hasAttachments = !!sendAttachments && sendAttachments.references.length > 0;
-      const attachmentUiBlocks: StyleChatUiBlock[] = hasAttachments
+      const hasAttachments =
+        !!sendAttachments &&
+        (sendAttachments.references.length > 0 || sendAttachments.fashionContext != null);
+      const attachmentUiBlocks: StyleChatUiBlock[] =
+        hasAttachments && sendAttachments.drafts.some((draft) => Boolean(draft.resolved))
         ? [buildAttachmentUiBlock(sendAttachments.drafts) as unknown as StyleChatUiBlock]
         : [];
+      let attachmentSendSucceeded = false;
 
       const skipUserPersistence = options?.skipUserPersistence === true;
       // Attachment sends defer persistence until backend v2 acknowledgement,
@@ -458,6 +470,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         // Active scan/upload/TextScan context is held in a ref so it is included on
         // every send while the context card is visible, without recreating sendMessage.
         const activeContext = activeContextRef.current ?? null;
+        if (hasAttachments) {
+          activeAttachmentSendFailureRef.current = sendAttachments?.onSendFailed ?? null;
+          sendAttachments?.onSending?.();
+        }
         const result = await provider.generateReply({
           sessionId,
           message: trimmed,
@@ -561,7 +577,6 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           setMessages(prev =>
             prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
           );
-          sendAttachments?.onSent?.();
         }
 
         // optimistic assistant bubble, then persist.
@@ -615,6 +630,11 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         setMessages(prev =>
           prev.map(m => (m.id === optimisticAssistant.id ? savedAssistant : m)),
         );
+        if (hasAttachments) {
+          attachmentSendSucceeded = true;
+          activeAttachmentSendFailureRef.current = null;
+          sendAttachments?.onSent?.();
+        }
 
         if (canSpeakNewMessages) {
           void speakAvatarMessage({
@@ -648,6 +668,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         setError(getFriendlyStyleChatError(err));
       } finally {
         if (isCurrentSend()) {
+          if (hasAttachments && !attachmentSendSucceeded) {
+            sendAttachments?.onSendFailed?.();
+          }
+          activeAttachmentSendFailureRef.current = null;
           isSendingRef.current = false;
           setIsSending(false);
         }

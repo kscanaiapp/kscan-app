@@ -454,6 +454,11 @@ export default function StyleChatSessionScreen() {
           onUploadPhoto={() => setPhotoIntakeVisible(true)}
           onRemove={chatAttachments.removeAttachment}
           onRetry={(draftId, items, localScans) => chatAttachments.retryAttachment(draftId, items, localScans)}
+          onSaveToCloset={(draftId) => {
+            void chatAttachments.saveDirectImageToCloset(draftId).then((result) => {
+              if (!result.ok) Alert.alert('Closet', result.message);
+            });
+          }}
           disabled={isSending}
         />
       ) : null}
@@ -464,7 +469,7 @@ export default function StyleChatSessionScreen() {
           onChangeText={setComposerText}
           onSend={text => {
             weather.markStylingIntent();
-            if (attachmentsEnabled && chatAttachments.attachments.length > 0) {
+            if (attachmentsEnabled && chatAttachments.hasActiveAttachments) {
               // Send rule: attachment-bearing sends require every attachment
               // ready; pending/failed chips block the send (remove to send
               // text only). The snapshot is immutable for this operation.
@@ -488,10 +493,12 @@ export default function StyleChatSessionScreen() {
                   ...(snapshot.fashionContext
                     ? { fashionContext: snapshot.fashionContext }
                     : {}),
+                  onSending: () => chatAttachments.markSending(snapshot.drafts),
                   onSent: () => {
-                    chatAttachments.clearAttachments();
+                    chatAttachments.markSent(snapshot.drafts);
                     setComposerText('');
                   },
+                  onSendFailed: () => chatAttachments.markSendFailed(snapshot.drafts),
                 },
               });
               return;
@@ -515,7 +522,7 @@ export default function StyleChatSessionScreen() {
           disabled={
             !canSend ||
             (attachmentsEnabled &&
-              chatAttachments.attachments.length > 0 &&
+              chatAttachments.hasActiveAttachments &&
               !chatAttachments.canSendWithAttachments)
           }
         />
@@ -524,16 +531,13 @@ export default function StyleChatSessionScreen() {
         <StyleChatPhotoIntake
           visible={photoIntakeVisible}
           onClose={() => setPhotoIntakeVisible(false)}
-          onAttached={(resolved, summary, fashionContext) => {
-            const result = chatAttachments.addResolvedOwnedItem(
-              resolved,
-              summary,
-              fashionContext,
-            );
+          onAttached={(input) => {
+            const result = chatAttachments.addUnsavedDirectImage(input);
             if (!result.ok) {
               Alert.alert('Attachment', result.message);
             }
           }}
+          onClosetOutcome={chatAttachments.applyClosetOutcome}
         />
       ) : null}
     </>

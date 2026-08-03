@@ -1,14 +1,12 @@
 // StyleChat photo intake (Phase 2) — guarded scanner-pipeline reuse.
 //
-// Flow (Part 12): picker → privacy/sanitization → scan-identify → review →
-// explicit SAVE TO CLOSET & ATTACH → saved_scan row (existing library save +
-// cloud-sync path) → private media backing (idempotent saga) → stable
-// owned-item contract handed back to the composer. Nothing auto-saves,
-// nothing auto-sends, no base64 or local URI ever enters a chat payload.
+// Flow: picker → privacy/sanitization → durable local candidate → identify →
+// ATTACH TO ELISE. Saving to Closet is a separate, optional, idempotent
+// promotion. Nothing auto-saves and no image bytes enter a chat payload.
 //
 // Guard invariants (Part 11): this modal consumes the same underlying
 // services as the scanner (permission guidance, sanitizeImageBeforeUpload,
-// identifyScanImage with abort + timeout, library saveScan) and implements
+// identifyScanImage with abort + timeout) and implements
 // the scanner's guard contract — single in-flight analysis, monotonic
 // operation id, abort on supersede/unmount, late results discarded, picker
 // cancellation is a no-op. The scanner's own hook and flow are untouched.
@@ -37,19 +35,17 @@ import {
 import { identifyScanImage } from '../../services/scanIdentification';
 import {
   mapScanIdentifyToAnalysis,
-  type MappedFashionAnalysis,
 } from '../../services/scanIdentificationMapper';
-import { saveScan } from '../../services/library';
 import { createActorRequest } from '../../services/actorContext';
-import { saveScanToCloud } from '../../services/savedScansCloud';
-import { supabase } from '../../services/supabaseClient';
-import { ensureSavedScanMediaBacking } from '../../services/savedScanMedia';
-import { recordAiStylistEvent } from '../../services/styleMemoryEvents';
+import type { StyleChatAttachmentSummary } from '../../types/styleChatAttachments';
 import {
-  STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
-  type StyleChatAttachment,
-  type StyleChatAttachmentSummary,
-} from '../../types/styleChatAttachments';
+  createClosetCandidate,
+  deleteClosetCandidate,
+  getClosetCandidate,
+  transitionClosetCandidate,
+  updateClosetCandidate,
+} from '../../services/closetCandidateLibrary';
+import { promoteSelectedClosetCandidates } from '../../services/closetCandidatePromotion';
 import type { EliseFashionContextV2 } from '../../types/fashionIdentificationV2';
 import { identifyDirectImageForStyle } from '../../services/style-chat/eliseDirectImageIdentification';
 import { beginEliseV2Session } from '../../services/style-chat/eliseIdentificationV2';
@@ -83,22 +79,36 @@ type IntakeStep =
   | 'identifying'
   | 'review'
   | 'manual_details'
-  | 'saving'
   | 'sanitizer_rejected'
   | 'identify_failed';
+
+type ClosetState = 'not_saved' | 'saving' | 'saved' | 'save_failed';
+
+export type StyleChatDirectImageAttachmentInput = {
+  candidateId: string;
+  batchId: string;
+  imageUri: string;
+  thumbnailUri?: string | null;
+  summary: StyleChatAttachmentSummary;
+  fashionContext: EliseFashionContextV2;
+  identificationState: 'ready';
+  closetState: ClosetState;
+  closetItemId?: string | null;
+};
 
 export function StyleChatPhotoIntake({
   visible,
   onClose,
   onAttached,
+  onClosetOutcome,
 }: {
   visible: boolean;
   onClose: () => void;
-  onAttached: (
-    resolved: StyleChatAttachment,
-    summary: StyleChatAttachmentSummary,
-    /** Canonical identity; present only on the V2 path (Phase 2B.3). */
-    fashionContext?: EliseFashionContextV2,
+  onAttached: (input: StyleChatDirectImageAttachmentInput) => void;
+  onClosetOutcome?: (
+    candidateId: string,
+    state: ClosetState,
+    closetItemId?: string | null,
   ) => void;
 }) {
   const [step, setStep] = useState<IntakeStep>('idle');
@@ -107,8 +117,10 @@ export function StyleChatPhotoIntake({
   const [category, setCategory] = useState('');
   const [color, setColor] = useState('');
   const [resultText, setResultText] = useState('');
-  const [identifiedAnalysis, setIdentifiedAnalysis] = useState<MappedFashionAnalysis | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [closetState, setClosetState] = useState<ClosetState>('not_saved');
+  const [closetItemId, setClosetItemId] = useState<string | null>(null);
+  const [attaching, setAttaching] = useState(false);
   /** Canonical V2 identity for this intake, when the flag produced one. */
   const [fashionContext, setFashionContext] = useState<EliseFashionContextV2 | null>(null);
   /** Bounded, honest copy for the identify-failed step. */
@@ -119,6 +131,16 @@ export function StyleChatPhotoIntake({
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const savingRef = useRef(false);
+  const attachingRef = useRef(false);
+  const closetStateRef = useRef<ClosetState>('not_saved');
+  const closetItemIdRef = useRef<string | null>(null);
+  const candidateRef = useRef<{
+    actorRequest: ReturnType<typeof createActorRequest>;
+    candidateId: string;
+    batchId: string;
+    imageUri: string;
+    thumbnailUri: string | null;
+  } | null>(null);
   /**
    * Elise V2 flag, latched once per intake operation.
    *
@@ -135,47 +157,137 @@ export function StyleChatPhotoIntake({
     setCategory('');
     setColor('');
     setResultText('');
-    setIdentifiedAnalysis(null);
     setSaveError(null);
+    setClosetState('not_saved');
+    setClosetItemId(null);
+    closetStateRef.current = 'not_saved';
+    closetItemIdRef.current = null;
+    setAttaching(false);
     setFashionContext(null);
     setIdentifyFailureMessage(null);
+    candidateRef.current = null;
+  }, []);
+
+  const discardCurrentCandidate = useCallback(async () => {
+    const staged = candidateRef.current;
+    candidateRef.current = null;
+    if (!staged) return;
+    await deleteClosetCandidate(staged.actorRequest, staged.candidateId).catch(() => null);
   }, []);
 
   useEffect(() => {
     return () => {
       operationIdRef.current += 1;
       abortRef.current?.abort();
+      void discardCurrentCandidate();
     };
+  }, [discardCurrentCandidate]);
+
+  const persistCandidateReview = useCallback(async (input: {
+    title: string;
+    category: string;
+    color?: string | null;
+    result?: string | null;
+    context?: EliseFashionContextV2 | null;
+  }): Promise<boolean> => {
+    const staged = candidateRef.current;
+    if (!staged) return false;
+    const identity = groundableItems(input.context ?? null)[0]?.identification ?? null;
+    const patch = {
+      title: input.title.trim(),
+      category: input.category.trim(),
+      clothingType: identity?.subtype ?? input.category.trim(),
+      primaryColor: input.color?.trim() || identity?.colors.primary || null,
+      secondaryColors: identity?.colors.secondary ?? [],
+      material: identity?.material ?? [],
+      notes: input.result?.trim() || null,
+      classificationVersion: input.context?.contractVersion ?? null,
+    };
+    const loaded = await getClosetCandidate(staged.actorRequest, staged.candidateId);
+    if (!loaded.ok) return false;
+    let status = loaded.candidate.status;
+    if (status === 'failed') {
+      const queued = await transitionClosetCandidate(staged.actorRequest, staged.candidateId, {
+        to: 'queued',
+      });
+      if (!queued || queued.ok !== true) return false;
+      status = 'queued';
+    }
+    if (status === 'queued' || status === 'waiting_for_network') {
+      const classifying = await transitionClosetCandidate(staged.actorRequest, staged.candidateId, {
+        to: 'classifying',
+        attempt: 'manual',
+      });
+      if (!classifying || classifying.ok !== true) return false;
+      status = 'classifying';
+    }
+    if (status === 'classifying' || status === 'needs_manual_classification') {
+      const ready = await transitionClosetCandidate(staged.actorRequest, staged.candidateId, {
+        to: 'ready_for_review',
+        patch,
+      });
+      return Boolean(ready && ready.ok === true);
+    }
+    if (status === 'ready_for_review' || status === 'duplicate' || status === 'saved') {
+      const updated = await updateClosetCandidate(
+        staged.actorRequest,
+        staged.candidateId,
+        patch,
+      );
+      return Boolean(updated && updated.ok === true);
+    }
+    return false;
+  }, []);
+
+  const markCandidateNeedsManual = useCallback(async () => {
+    const staged = candidateRef.current;
+    if (!staged) return;
+    const loaded = await getClosetCandidate(staged.actorRequest, staged.candidateId);
+    if (loaded.ok && loaded.candidate.status === 'classifying') {
+      await transitionClosetCandidate(staged.actorRequest, staged.candidateId, {
+        to: 'needs_manual_classification',
+      });
+    }
   }, []);
 
   const startPicker = useCallback(async () => {
     if (inFlightRef.current) return; // single in-flight analysis
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Photo Access Required',
-        'Allow K Scan to access your photo library in Settings to upload a photo.',
-        [{ text: 'OK' }],
-      );
+    let localUri: string;
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Photo Access Required',
+          'Allow K Scan to access your photo library in Settings to upload a photo.',
+          [{ text: 'OK' }],
+        );
+        onClose();
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        allowsEditing: false,
+        allowsMultipleSelection: false,
+      });
+      // Picker cancellation: no row, no upload, no state change.
+      if (picked.canceled || !picked.assets?.[0]?.uri) {
+        onClose();
+        return;
+      }
+      localUri = picked.assets[0].uri;
+    } catch {
+      setIdentifyFailureMessage('The photo picker could not finish. Try again.');
+      setStep('identify_failed');
       return;
     }
-
-    const picked = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 1,
-      allowsEditing: false,
-      allowsMultipleSelection: false,
-    });
-    // Picker cancellation: no row, no upload, no state change.
-    if (picked.canceled || !picked.assets?.[0]?.uri) return;
 
     const operationId = ++operationIdRef.current;
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     inFlightRef.current = true;
-    const localUri = picked.assets[0].uri;
     setImageUri(localUri);
-    setIdentifiedAnalysis(null);
     setSaveError(null);
     setFashionContext(null);
     setIdentifyFailureMessage(null);
@@ -201,10 +313,72 @@ export function StyleChatPhotoIntake({
         sanitizerStatus.faceBlurApplied && sanitizerStatus.plateMaskApplied
       );
 
+      // Stage only the sanitizer output in the existing actor-scoped candidate
+      // store. This gives the attachment a durable app-owned image without
+      // creating a Recent Scan or a committed Closet item.
+      const actorRequest = createActorRequest();
+      const staged = await createClosetCandidate(actorRequest, {
+        sourceUri: sanitizedUri,
+        sourceType: 'gallery',
+        sourceLineageId: `elise:intake_${operationId}`,
+        draft: { title: 'Photo' },
+      });
+      const candidate = 'candidate' in staged ? staged.candidate : null;
+      if (operationId !== operationIdRef.current) {
+        if (candidate?.candidateId) {
+          await deleteClosetCandidate(actorRequest, candidate.candidateId).catch(() => null);
+        }
+        return;
+      }
+      if (!candidate?.candidateId || !candidate.candidateImageUri) {
+        if (candidate?.candidateId) {
+          await deleteClosetCandidate(actorRequest, candidate.candidateId).catch(() => null);
+        }
+        setStep('sanitizer_rejected');
+        return;
+      }
+      candidateRef.current = {
+        actorRequest,
+        candidateId: candidate.candidateId,
+        batchId: candidate.batchId,
+        imageUri: candidate.candidateImageUri,
+        thumbnailUri: candidate.candidateThumbnailUri ?? null,
+      };
+      setImageUri(candidate.candidateImageUri);
+      const duplicateClosetItemId = candidate.duplicateMatch?.closetItemId ?? null;
+      if (candidate.status === 'duplicate' && duplicateClosetItemId) {
+        closetStateRef.current = 'saved';
+        closetItemIdRef.current = duplicateClosetItemId;
+        setClosetState('saved');
+        setClosetItemId(duplicateClosetItemId);
+      } else {
+        closetStateRef.current = 'not_saved';
+        closetItemIdRef.current = null;
+        setClosetState('not_saved');
+        setClosetItemId(null);
+      }
+      if (candidate.status === 'failed') {
+        await transitionClosetCandidate(actorRequest, candidate.candidateId, { to: 'queued' });
+      }
+      if (candidate.status === 'queued' || candidate.status === 'failed') {
+        await transitionClosetCandidate(actorRequest, candidate.candidateId, {
+          to: 'classifying',
+          attempt: 'manual',
+        });
+      } else if (candidate.status === 'waiting_for_network') {
+        await transitionClosetCandidate(actorRequest, candidate.candidateId, {
+          to: 'classifying',
+          attempt: 'manual',
+        });
+      }
+      if (operationId !== operationIdRef.current) return;
+
+      const analysisUri = candidate.candidateImageUri;
+
       // Identify through the existing guarded service (its own timeout+abort).
       setStep('identifying');
       const prepared = await ImageManipulator.manipulateAsync(
-        sanitizedUri,
+        analysisUri,
         [{ resize: { width: 1024 } }],
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true },
       );
@@ -234,7 +408,7 @@ export function StyleChatPhotoIntake({
       let paidLegacyResponse: Awaited<ReturnType<typeof identifyScanImage>> | null = null;
       if (v2Flag.enabled && prepared.base64) {
         const outcome = await identifyDirectImageForStyle({
-          preparedUri: sanitizedUri,
+          preparedUri: analysisUri,
           source: 'photo_library',
           requestId: `intake_${operationId}`,
           sessionFlag: v2Flag,
@@ -245,6 +419,19 @@ export function StyleChatPhotoIntake({
         if (operationId !== operationIdRef.current) return; // late result discard
 
         if (outcome.kind === 'identified') {
+          const candidateReady = await persistCandidateReview({
+            title: outcome.title,
+            category: outcome.category,
+            color: canonicalPrimaryColor(outcome.context),
+            result: canonicalSummary(outcome.context),
+            context: outcome.context,
+          });
+          if (operationId !== operationIdRef.current) return;
+          if (!candidateReady) {
+            setIdentifyFailureMessage('This photo could not be prepared for Elise. Try again.');
+            setStep('identify_failed');
+            return;
+          }
           setFashionContext(outcome.context);
           setTitle(outcome.title);
           setCategory(outcome.category);
@@ -255,12 +442,13 @@ export function StyleChatPhotoIntake({
           // The legacy mapped analysis is intentionally left null: the saved
           // record is built from the canonical identity instead, so the durable
           // row and Elise's grounding describe the same garment.
-          setIdentifiedAnalysis(null);
           setStep('review');
           return;
         }
         if (outcome.kind === 'cancelled') return;
         if (outcome.kind === 'no_evidence' || outcome.kind === 'needs_selection') {
+          await markCandidateNeedsManual();
+          if (operationId !== operationIdRef.current) return;
           // Honest terminal state with the existing manual/retry affordances.
           setIdentifyFailureMessage(
             outcome.kind === 'needs_selection'
@@ -300,21 +488,40 @@ export function StyleChatPhotoIntake({
       // Only a completed identification with a category proceeds to review;
       // failed / non_fashion / missing-category all offer the manual path.
       if (!mapped || mapped.type !== 'fashion' || !identifiedCategory) {
+        await markCandidateNeedsManual();
+        if (operationId !== operationIdRef.current) return;
         setStep('identify_failed');
         return;
       }
 
-      setIdentifiedAnalysis(mapped);
+      const candidateReady = await persistCandidateReview({
+        title: identifiedCategory,
+        category: identifiedCategory,
+        color: mapped.metadata.color,
+        result: mapped.result,
+      });
+      if (operationId !== operationIdRef.current) return;
+      if (!candidateReady) {
+        setIdentifyFailureMessage('This photo could not be prepared for Elise. Try again.');
+        setStep('identify_failed');
+        return;
+      }
+
       setTitle(identifiedCategory);
       setCategory(identifiedCategory);
       setColor(mapped.metadata.color);
       setResultText(mapped.result);
       setStep('review');
+    } catch {
+      if (operationId !== operationIdRef.current) return;
+      await markCandidateNeedsManual();
+      if (operationId !== operationIdRef.current) return;
+      setIdentifyFailureMessage('Identification stopped before this photo was ready. Try again.');
+      setStep('identify_failed');
     } finally {
-      if (operationId === operationIdRef.current) inFlightRef.current = false;
-      else inFlightRef.current = false;
+      inFlightRef.current = false;
     }
-  }, []);
+  }, [markCandidateNeedsManual, onClose, persistCandidateReview]);
 
   // Open picker automatically when the modal becomes visible from idle.
   useEffect(() => {
@@ -323,142 +530,145 @@ export function StyleChatPhotoIntake({
     }
   }, [visible, step, startPicker]);
 
-  const handleSaveAndAttach = useCallback(async () => {
-    if (savingRef.current) return; // duplicate-tap guard
+  const handleAttach = useCallback(async () => {
+    if (attachingRef.current) return;
+    const staged = candidateRef.current;
     const finalTitle = title.trim();
     const finalCategory = category.trim();
-    // Explicit save only; never an empty or category-less saved_scan.
-    if (!finalTitle || !finalCategory || !imageUri) {
+    if (!staged || !imageUri || !finalTitle || !finalCategory) {
       setSaveError('Add a title and category first.');
       return;
     }
-    savingRef.current = true;
-    setStep('saving');
+    if (!fashionContext) {
+      setSaveError('Try another photo so Elise can identify the item before attaching it.');
+      return;
+    }
+
+    attachingRef.current = true;
+    setAttaching(true);
     setSaveError(null);
-
-    // Captured at operation start and preserved through the whole async
-    // transaction. Ownership is derived from this, never chosen by this caller,
-    // and a stale context is rejected rather than written under the wrong owner.
-    const actorRequest = createActorRequest();
-
     try {
-      // 1. Local Closet save through the existing library path.
-      //
-      // On the V2 path (`identifiedAnalysis` null, `fashionContext` set) the
-      // durable metadata is enriched from the styling-safe identity. Without
-      // this, a flag-on save silently dropped material, silhouette, style tags
-      // and confidence that the legacy mapped analysis had always persisted —
-      // a strictly poorer durable record for the same garment. The canonical
-      // result itself is deliberately NOT persisted here: it carries transport
-      // correlation the projection exists to contain.
-      const savedIdentity = groundableItems(fashionContext)[0]?.identification ?? null;
-      const savedStyleTags = [
-        ...(savedIdentity?.pattern ?? []),
-        ...(savedIdentity?.attributes?.distinctive ?? []),
-      ];
-      const analysis = identifiedAnalysis
-        ? {
-            ...identifiedAnalysis,
-            result: resultText || identifiedAnalysis.result,
-            metadata: {
-              ...identifiedAnalysis.metadata,
-              category: finalCategory,
-              color: color.trim() || identifiedAnalysis.metadata.color,
-            },
-          }
-        : {
-            result: resultText || `${finalTitle} — added from StyleChat`,
-            metadata: {
-              category: finalCategory,
-              color: color.trim() || undefined,
-              ...(savedIdentity?.material?.length
-                ? { material: savedIdentity.material.join(', ') }
-                : {}),
-              ...(savedIdentity?.silhouette?.length
-                ? { silhouette: savedIdentity.silhouette[0] }
-                : {}),
-              ...(savedStyleTags.length ? { styleTags: savedStyleTags } : {}),
-              ...(typeof savedIdentity?.globalConfidence === 'number'
-                ? { confidenceScore: savedIdentity.globalConfidence }
-                : {}),
-            },
-          };
-      const scan = await saveScan({
-        photoUri: imageUri,
-        analysis,
-        source: 'upload',
-        actorRequest,
+      const ready = await persistCandidateReview({
+        title: finalTitle,
+        category: finalCategory,
+        color,
+        result: resultText,
+        context: fashionContext,
       });
-      if (!scan) throw new Error('save');
+      if (!ready || candidateRef.current?.candidateId !== staged.candidateId) {
+        setSaveError("Couldn't prepare this photo for Elise. Try again.");
+        return;
+      }
 
-      // 2. Stable remote row via the existing cloud-sync path (idempotent by
-      //    user_id + local_id). Never invents a UUID.
-      const cloudResult = await saveScanToCloud(scan);
-      if (!cloudResult.ok) throw new Error('sync');
-      const { data: row } = await supabase
-        .from('saved_scans')
-        .select('id')
-        .eq('local_id', scan.id)
-        .is('deleted_at', null)
-        .maybeSingle();
-      const savedScanId = row?.id as string | undefined;
-      if (!savedScanId) throw new Error('sync');
-
-      // 3. Private media backing (idempotent saga; retry-safe).
-      const media = await ensureSavedScanMediaBacking({
-        savedScanId,
-        localImageUri: scan.imageUri ?? imageUri,
-      });
-      if (!media.ok) throw new Error('media');
-
-      // 4. Hand the stable contract back to the composer draft.
-      //
-      // The canonical identity rides alongside it when this intake ran under V2.
-      // The user may have edited the title, category or colour on the review
-      // screen; those edits govern the SAVED RECORD and the chip, and the
-      // canonical identity still governs what Elise is told the garment is. They
-      // are different claims — a user renaming a jacket "work coat" has not
-      // reclassified it — so neither overwrites the other.
-      onAttached(
-        {
-          attachmentType: 'owned_item',
-          sourceType: 'saved_scan',
-          sourceId: savedScanId,
-          contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
-        },
-        {
+      onAttached({
+        candidateId: staged.candidateId,
+        batchId: staged.batchId,
+        imageUri: staged.imageUri,
+        thumbnailUri: staged.thumbnailUri,
+        summary: {
           title: finalTitle,
           subtitle: finalCategory,
-          imageUri: scan.thumbnailUri ?? scan.imageUri ?? imageUri,
+          imageUri: staged.thumbnailUri ?? staged.imageUri,
           itemCount: 1,
         },
-        fashionContext ?? undefined,
-      );
-      void recordAiStylistEvent({
-        eventType: 'stylechat_image_saved_and_attached',
-        signalKey: savedScanId,
-        payload: { category: finalCategory },
+        fashionContext,
+        identificationState: 'ready',
+        closetState: closetStateRef.current,
+        closetItemId: closetItemIdRef.current,
       });
+      candidateRef.current = null;
       resetState();
       onClose();
+    } finally {
+      attachingRef.current = false;
+      setAttaching(false);
+    }
+  }, [
+    title, category, color, resultText, imageUri, fashionContext, closetState, closetItemId,
+    persistCandidateReview, onAttached, onClose, resetState,
+  ]);
+
+  const handleSaveToCloset = useCallback(async () => {
+    if (savingRef.current || closetState === 'saved') return;
+    const staged = candidateRef.current;
+    const finalTitle = title.trim();
+    const finalCategory = category.trim();
+    if (!staged || !finalTitle || !finalCategory) {
+      setSaveError('Add a title and category first.');
+      return;
+    }
+
+    savingRef.current = true;
+    setSaveError(null);
+    closetStateRef.current = 'saving';
+    setClosetState('saving');
+    onClosetOutcome?.(staged.candidateId, 'saving');
+    try {
+      const ready = await persistCandidateReview({
+        title: finalTitle,
+        category: finalCategory,
+        color,
+        result: resultText,
+        context: fashionContext,
+      });
+      if (!ready) throw new Error('candidate_not_ready');
+      const result = await promoteSelectedClosetCandidates({
+        actorId: staged.actorRequest.actorId,
+        actorEpoch: staged.actorRequest.epoch,
+        batchId: staged.batchId,
+        candidateIds: [staged.candidateId],
+      });
+      const item = result?.results?.[0];
+      const committedClosetItemId = item?.committedClosetItemId ?? null;
+      if (
+        (item?.status === 'promoted' || item?.status === 'already_promoted') &&
+        typeof committedClosetItemId === 'string' &&
+        committedClosetItemId
+      ) {
+        closetStateRef.current = 'saved';
+        closetItemIdRef.current = committedClosetItemId;
+        setClosetState('saved');
+        setClosetItemId(committedClosetItemId);
+        onClosetOutcome?.(staged.candidateId, 'saved', committedClosetItemId);
+        return;
+      }
+      throw new Error('promotion_failed');
     } catch {
-      // Row/media failures stay retryable; the local record and image are
-      // preserved and the chip flow never claims readiness.
-      setStep((current) => (current === 'saving' ? 'review' : current));
-      setSaveError("Couldn't finish saving. Tap Save to retry, or cancel.");
+      closetStateRef.current = 'save_failed';
+      closetItemIdRef.current = null;
+      setClosetState('save_failed');
+      setSaveError("Couldn't save to Closet. You can still attach and retry later.");
+      onClosetOutcome?.(staged.candidateId, 'save_failed');
     } finally {
       savingRef.current = false;
     }
-  }, [title, category, color, resultText, imageUri, identifiedAnalysis, fashionContext, onAttached, onClose, resetState]);
+  }, [
+    closetState, title, category, color, resultText, fashionContext,
+    persistCandidateReview, onClosetOutcome,
+  ]);
+
+  const handleTryAnother = useCallback(async () => {
+    operationIdRef.current += 1;
+    abortRef.current?.abort();
+    await discardCurrentCandidate();
+    // `idle` has one picker owner: the visibility effect below. Calling
+    // `startPicker` here as well races two native picker requests because the
+    // in-flight guard is intentionally acquired only after a selection returns.
+    resetState();
+  }, [discardCurrentCandidate, resetState]);
 
   const handleCancel = () => {
     operationIdRef.current += 1;
     abortRef.current?.abort();
-    resetState();
-    onClose();
+    void (async () => {
+      if (savingRef.current) candidateRef.current = null;
+      else await discardCurrentCandidate();
+      resetState();
+      onClose();
+    })();
   };
 
-  const busy = step === 'sanitizing' || step === 'identifying' || step === 'saving';
+  const busy = step === 'sanitizing' || step === 'identifying';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={busy ? () => {} : handleCancel}>
@@ -472,9 +682,7 @@ export function StyleChatPhotoIntake({
               <Text style={styles.busyText}>
                 {step === 'sanitizing'
                   ? 'Checking image…'
-                  : step === 'identifying'
-                    ? 'Identifying this item…'
-                    : 'Saving to your Closet…'}
+                  : 'Identifying this item…'}
               </Text>
             </View>
           ) : null}
@@ -486,7 +694,7 @@ export function StyleChatPhotoIntake({
                 title="Image"
                 body="This image couldn’t be processed. Please try a clearer photo of the item."
               />
-              <PrimaryButton title="Try Again" onPress={() => { resetState(); void startPicker(); }} accessibilityLabel="Try again" />
+              <PrimaryButton title="Try Again" onPress={() => { void handleTryAnother(); }} accessibilityLabel="Try again" />
               <SecondaryButton title="Cancel" onPress={handleCancel} />
             </>
           ) : null}
@@ -506,7 +714,7 @@ export function StyleChatPhotoIntake({
                 onPress={() => setStep('manual_details')}
                 accessibilityLabel="Add details manually"
               />
-              <SecondaryButton title="Try Another Photo" onPress={() => { resetState(); void startPicker(); }} />
+              <SecondaryButton title="Try Another Photo" onPress={() => { void handleTryAnother(); }} />
               <SecondaryButton title="Cancel" onPress={handleCancel} />
             </>
           ) : null}
@@ -517,15 +725,32 @@ export function StyleChatPhotoIntake({
               <TextField label="Title" value={title} onChangeText={setTitle} />
               <TextField label="Category" value={category} onChangeText={setCategory} />
               {step === 'review' ? <TextField label="Color" value={color} onChangeText={setColor} /> : null}
-              {saveError ? <InlineNotice variant="error" title="Save" body={saveError} /> : null}
+              {saveError ? <InlineNotice variant="error" title="Photo" body={saveError} /> : null}
               <PrimaryButton
-                title="Save to Closet & Attach"
-                onPress={handleSaveAndAttach}
-                disabled={!title.trim() || !category.trim()}
-                accessibilityLabel="Save to closet and attach"
-                testID="save-and-attach-button"
+                title="Attach to Elise"
+                onPress={() => { void handleAttach(); }}
+                loading={attaching}
+                disabled={!title.trim() || !category.trim() || !fashionContext}
+                accessibilityLabel="Attach photo to Elise"
+                testID="attach-to-elise-button"
               />
-              <SecondaryButton title="Try Another Photo" onPress={() => { resetState(); void startPicker(); }} />
+              <SecondaryButton
+                title={closetState === 'saved'
+                  ? 'Saved to Closet'
+                  : closetState === 'save_failed'
+                    ? 'Retry Save to Closet'
+                    : 'Save to Closet'}
+                onPress={() => { void handleSaveToCloset(); }}
+                loading={closetState === 'saving'}
+                disabled={!title.trim() || !category.trim() || closetState === 'saved'}
+                accessibilityLabel="Save photo to Closet"
+                testID="save-to-closet-button"
+              />
+              <SecondaryButton
+                title="Try Another Photo"
+                onPress={() => { void handleTryAnother(); }}
+                disabled={closetState === 'saving' || attaching}
+              />
               <SecondaryButton title="Cancel" onPress={handleCancel} />
             </ScrollView>
           ) : null}

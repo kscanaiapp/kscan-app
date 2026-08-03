@@ -40,6 +40,9 @@ import type { OwnedClosetItem, OwnedItemSourceType } from '../types/ownedClosetI
 import type { OutfitVariation } from '../types/fashionReasoning';
 import type { SavedScanModel } from '../services/savedScansCloud';
 import type { Look } from '../types/styleObjects';
+import { createActorRequest } from '../services/actorContext';
+import { deleteClosetCandidate } from '../services/closetCandidateLibrary';
+import { promoteSelectedClosetCandidates } from '../services/closetCandidatePromotion';
 
 export type AddAttachmentResult = { ok: boolean; message?: string };
 
@@ -59,6 +62,19 @@ function attachmentItemCount(attachment: StyleChatAttachment, summaryCount?: num
 
 /** Resolution guard: one saga per draftId at a time. */
 const resolvingDraftIds = new Set<string>();
+const savingClosetCandidateIds = new Set<string>();
+
+export type UnsavedDirectImageInput = {
+  candidateId: string;
+  batchId: string;
+  imageUri: string;
+  thumbnailUri?: string | null;
+  summary: StyleChatAttachmentSummary;
+  fashionContext: unknown;
+  identificationState?: DraftAttachment['identificationState'];
+  closetState?: DraftAttachment['closetState'];
+  closetItemId?: string | null;
+};
 
 export function useStyleChatAttachments(sessionId: string) {
   const attachments = useSyncExternalStore(
@@ -67,10 +83,22 @@ export function useStyleChatAttachments(sessionId: string) {
     () => getDraftAttachments(sessionId),
   );
 
-  const hasPending = attachments.some((entry) => isPendingAttachmentState(entry.state));
-  const hasFailed = attachments.some((entry) => entry.state === 'failed_retryable');
-  const allReady = attachments.length > 0 && attachments.every((entry) => entry.state === 'ready');
-  const canSendWithAttachments = attachments.length === 0 || allReady;
+  const activeForSend = attachments.filter(
+    (entry) => entry.state !== 'sent' && entry.state !== 'cancelled',
+  );
+  const hasPending = activeForSend.some(
+    (entry) => isPendingAttachmentState(entry.state) || entry.state === 'sending',
+  );
+  const hasFailed = activeForSend.some(
+    (entry) => entry.state === 'failed_retryable' || entry.state === 'send_failed',
+  );
+  const allReady =
+    activeForSend.length > 0 &&
+    activeForSend.every(
+      (entry) => entry.state === 'ready' || entry.state === 'send_failed',
+    );
+  const canSendWithAttachments = activeForSend.length === 0 || allReady;
+  const hasActiveAttachments = activeForSend.length > 0;
 
   const validateAddition = useCallback(
     (candidate: StyleChatAttachment, candidateItemCount: number): AddAttachmentResult => {
@@ -79,7 +107,7 @@ export function useStyleChatAttachments(sessionId: string) {
       let pendingIndex = 0;
       const proposed = [
         ...getDraftAttachments(sessionId)
-          .filter((entry) => entry.resolved || entry.state !== 'cancelled')
+          .filter((entry) => entry.state !== 'cancelled' && entry.state !== 'sent')
           .map((entry) => ({
             attachment:
               entry.resolved ??
@@ -335,6 +363,125 @@ export function useStyleChatAttachments(sessionId: string) {
     [sessionId, validateAddition],
   );
 
+  /** A direct image is ready from its validated identity; Closet is optional. */
+  const addUnsavedDirectImage = useCallback(
+    (input: UnsavedDirectImageInput): AddAttachmentResult => {
+      const placeholder: StyleChatAttachment = {
+        attachmentType: 'owned_item',
+        sourceType: 'saved_scan',
+        sourceId: '00000000-0000-4000-8000-000000000001',
+        contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
+      };
+      const validation = validateAddition(placeholder, 1);
+      if (!validation.ok) return validation;
+      upsertDraftAttachment(sessionId, {
+        draftId: newDraftId(),
+        state: 'ready',
+        selection: {
+          localImageUri: input.imageUri,
+          sanitizedImageUri: input.imageUri,
+          closetCandidateId: input.candidateId,
+          closetCandidateBatchId: input.batchId,
+          retryCount: 0,
+          updatedAt: now(),
+        },
+        resolved: null,
+        summary: {
+          ...input.summary,
+          imageUri: input.thumbnailUri ?? input.summary.imageUri ?? input.imageUri,
+          itemCount: 1,
+        },
+        fashionContext: input.fashionContext,
+        identificationState: input.identificationState ?? 'ready',
+        closetState: input.closetState ?? 'not_saved',
+        closetItemId: input.closetItemId ?? null,
+      });
+      return { ok: true };
+    },
+    [sessionId, validateAddition],
+  );
+
+  const applyClosetOutcome = useCallback(
+    (
+      candidateId: string,
+      closetState: NonNullable<DraftAttachment['closetState']>,
+      closetItemId?: string | null,
+    ) => {
+      const live = getDraftAttachments(sessionId).find(
+        (entry) => entry.selection.closetCandidateId === candidateId,
+      );
+      if (!live) return;
+      updateDraftAttachment(sessionId, {
+        ...live,
+        closetState,
+        closetItemId: closetItemId ?? live.closetItemId ?? null,
+        selection: { ...live.selection, updatedAt: now() },
+      });
+    },
+    [sessionId],
+  );
+
+  const saveDirectImageToCloset = useCallback(
+    async (draftId: string): Promise<AddAttachmentResult> => {
+      const draft = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
+      const candidateId = draft?.selection.closetCandidateId ?? null;
+      if (!draft || !candidateId) return { ok: false, message: 'This photo cannot be saved.' };
+      if (draft.closetState === 'saved') return { ok: true };
+      if (savingClosetCandidateIds.has(candidateId)) return { ok: true };
+
+      savingClosetCandidateIds.add(candidateId);
+      applyClosetOutcome(candidateId, 'saving');
+      const actorRequest = createActorRequest();
+      try {
+        const result = await promoteSelectedClosetCandidates({
+          actorId: actorRequest.actorId,
+          actorEpoch: actorRequest.epoch,
+          batchId: draft.selection.closetCandidateBatchId ?? null,
+          candidateIds: [candidateId],
+        });
+        const item = result?.results?.[0];
+        const closetItemId = item?.committedClosetItemId ?? null;
+        if (
+          (item?.status === 'promoted' || item?.status === 'already_promoted') &&
+          typeof closetItemId === 'string' &&
+          closetItemId
+        ) {
+          applyClosetOutcome(candidateId, 'saved', closetItemId);
+          return { ok: true };
+        }
+        applyClosetOutcome(candidateId, 'save_failed');
+        return { ok: false, message: "Couldn't save to Closet. You can retry." };
+      } catch {
+        applyClosetOutcome(candidateId, 'save_failed');
+        return { ok: false, message: "Couldn't save to Closet. You can retry." };
+      } finally {
+        savingClosetCandidateIds.delete(candidateId);
+      }
+    },
+    [sessionId, applyClosetOutcome],
+  );
+
+  const setSnapshotSendState = useCallback(
+    (drafts: DraftAttachment[], state: 'sending' | 'send_failed' | 'sent') => {
+      for (const snapshot of drafts) {
+        const live = getDraftAttachments(sessionId).find(
+          (entry) => entry.draftId === snapshot.draftId,
+        );
+        if (!live) continue;
+        if (!live.selection.closetCandidateId && state === 'sent') {
+          removeDraftAttachment(sessionId, live.draftId);
+          continue;
+        }
+        updateDraftAttachment(sessionId, {
+          ...live,
+          state,
+          selection: { ...live.selection, updatedAt: now() },
+        });
+      }
+    },
+    [sessionId],
+  );
+
   const retryAttachment = useCallback(
     (draftId: string, items: OwnedClosetItem[], localScans?: SavedScanModel[]) => {
       const draft = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
@@ -429,7 +576,24 @@ export function useStyleChatAttachments(sessionId: string) {
   );
 
   const removeAttachment = useCallback(
-    (draftId: string) => removeDraftAttachment(sessionId, draftId),
+    (draftId: string) => {
+      const draft = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
+      removeDraftAttachment(sessionId, draftId);
+      const candidateId = draft?.selection.closetCandidateId;
+      const stillReferenced = candidateId
+        ? getDraftAttachments(sessionId).some(
+            (entry) => entry.selection.closetCandidateId === candidateId,
+          )
+        : false;
+      if (
+        draft &&
+        candidateId &&
+        !stillReferenced &&
+        draft.closetState !== 'saved'
+      ) {
+        void deleteClosetCandidate(createActorRequest(), candidateId);
+      }
+    },
     [sessionId],
   );
 
@@ -441,9 +605,7 @@ export function useStyleChatAttachments(sessionId: string) {
   const snapshotForSend = useCallback(() => {
     const snapshot = snapshotReadyAttachments(sessionId);
     // Phase 2B.3: the canonical identities of the ready drafts, in source order.
-    const fashionContextDecision = resolveSendFashionContext(
-      getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled'),
-    );
+    const fashionContextDecision = resolveSendFashionContext(snapshot.drafts);
     return {
       ...snapshot,
       fashionContext:
@@ -496,10 +658,17 @@ export function useStyleChatAttachments(sessionId: string) {
     hasFailed,
     allReady,
     canSendWithAttachments,
+    hasActiveAttachments,
     addOwnedItem,
     addLook,
     addOutfitDraft,
     addResolvedOwnedItem,
+    addUnsavedDirectImage,
+    applyClosetOutcome,
+    saveDirectImageToCloset,
+    markSending: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'sending'),
+    markSent: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'sent'),
+    markSendFailed: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'send_failed'),
     retryAttachment,
     removeAttachment,
     clearAttachments,
