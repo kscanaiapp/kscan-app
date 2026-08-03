@@ -223,7 +223,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
             ...entry,
             ...evidence.fields,
             status: 'ready',
-            savedScanId: evidence.savedScanId,
+            closetCandidateId: evidence.candidateId,
             sanitizedPreviewUri: prepared.sanitizedUri,
             privacyPolicy: prepared.policy,
             // Present only on the V2 path. Absent leaves the legacy behaviour

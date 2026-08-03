@@ -69,6 +69,9 @@ function loadProvider(invoke) {
     if (specifier === '../../../types/styleChatAttachments') {
       return require('../types/styleChatAttachments.ts');
     }
+    if (specifier === '../../../types/fashionIdentificationV2') {
+      return { ELISE_FASHION_CONTEXT_V2: 'elise-fashion-context-v2' };
+    }
     // DR-2 e931547 wired ELISE_ADVICE_METADATA_CLIENT_V1 into the provider so it
     // can passthrough optional advice metadata. The flag defaults OFF; the
     // provider only gates a passthrough branch on it, so the tests treat it as
