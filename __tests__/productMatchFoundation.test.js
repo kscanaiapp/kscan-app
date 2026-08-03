@@ -96,6 +96,30 @@ test('the feature flag defaults to disabled', () => {
   assert.match(config, /PRODUCT_MATCH_DEFAULT_ENABLED\s*=\s*false/);
 });
 
+test('exact claims default to disabled', () => {
+  const config = readFunctionFile('config.ts');
+  assert.match(config, /PRODUCT_MATCH_EXACT_CLAIMS_DEFAULT_ENABLED\s*=\s*false/);
+});
+
+test('the default ceilings are hang guards, not the Checkpoint 1 latency targets', () => {
+  // Checkpoint 1 shipped 3s/8s reasoned backwards from a latency goal, which
+  // hides the latency question instead of answering it: a provider truncated at
+  // 3s produces no evidence about why it took 3s.
+  const config = readFunctionFile('config.ts');
+  const defaults = /PRODUCT_MATCH_DEFAULT_DEADLINES[^=]*=\s*\{([\s\S]*?)\};/.exec(config);
+  assert.ok(defaults, 'PRODUCT_MATCH_DEFAULT_DEADLINES must be a literal');
+  const perProvider = Number(/perProviderMs:\s*(\d+)/.exec(defaults[1])?.[1]);
+  const total = Number(/totalMs:\s*(\d+)/.exec(defaults[1])?.[1]);
+  assert.ok(perProvider >= 10000, `per-provider ceiling ${perProvider}ms would truncate the measurement`);
+  assert.ok(total >= 9200, `total ceiling ${total}ms is tighter than the current end-to-end scan`);
+});
+
+test('the production scan baseline is stated as an anchor, not a target', () => {
+  const config = readFunctionFile('config.ts');
+  assert.match(config, /PRODUCT_MATCH_BASELINE_SCAN_MS\s*=\s*9200/);
+  assert.match(config, /Not a target and not a limit/);
+});
+
 test('the endpoint fails closed when the internal secret is unset', () => {
   const index = readFunctionFile('index.ts');
   // secretMatches returns false for a null expected secret; assert the guard
@@ -176,6 +200,107 @@ test('the JSON schema source enum matches the TypeScript union', () => {
   assert.deepEqual(
     [...schema.definitions.productSource.enum].sort(),
     unionMembers(contracts, 'ProductSource'),
+  );
+});
+
+test('THE SAFETY RULE: no duplicate verdict exists anywhere in the contract', () => {
+  // Closet similarity is advisory and must never become deduplication. Commerce
+  // dedupe getting it wrong costs a duplicate row; closet similarity getting it
+  // wrong costs the user an item they wanted to keep.
+  const similarity = readFunctionFile('closetSimilarity.ts');
+  const contracts = readFunctionFile('contracts.ts');
+
+  // Comments are stripped first: these files DISCUSS why there is no
+  // isDuplicate, and that prose is the point. What must not exist is a
+  // declaration.
+  const stripComments = (source) =>
+    source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  for (const [name, source] of [['closetSimilarity.ts', similarity], ['contracts.ts', contracts]]) {
+    assert.ok(
+      !/isDuplicate/.test(stripComments(source)),
+      `${name} must not declare an isDuplicate field`,
+    );
+  }
+
+  // The schema is JSON, so its prose lives in `description` values. Walk the
+  // structure and assert on PROPERTY NAMES instead of on the raw text.
+  const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf8'));
+  const walkKeys = (node, seen = new Set()) => {
+    if (!node || typeof node !== 'object') return seen;
+    for (const [key, value] of Object.entries(node)) {
+      seen.add(key);
+      walkKeys(value, seen);
+    }
+    return seen;
+  };
+  const keys = walkKeys(schema);
+  for (const key of keys) {
+    assert.ok(
+      !/duplicate/i.test(key),
+      `the schema must not declare a duplicate-verdict property ('${key}')`,
+    );
+  }
+
+  // And the advisory flag is present, so the absence above is a design, not a gap.
+  assert.match(contracts, /potentialSimilarItem:\s*true/);
+  assert.match(similarity, /resolution:\s*'user_required'/);
+});
+
+test('the similarity module never merges or deletes', () => {
+  const similarity = readFunctionFile('closetSimilarity.ts');
+  // No mutation verbs against the existing item — this module reports only.
+  for (const forbidden of [/\bmergeItems?\b/, /\bdeleteItem\b/, /\bremoveExisting\b/, /\.delete\(/]) {
+    assert.ok(!forbidden.test(similarity), `similarity must not perform ${forbidden}`);
+  }
+});
+
+test('all six user actions are declared and none is conditional', () => {
+  const contracts = readFunctionFile('contracts.ts');
+  const actions = /export const SIMILAR_ITEM_ACTIONS[^=]*=\s*\[([\s\S]*?)\]/.exec(contracts);
+  assert.ok(actions, 'SIMILAR_ITEM_ACTIONS must be a literal list');
+  const names = [...actions[1].matchAll(/'([a-z_]+)'/g)].map((match) => match[1]).sort();
+  assert.deepEqual(names, [
+    'add_to_closet', 'delete_existing_item', 'keep_both',
+    'keep_in_recent_scans', 'reject_new_scan', 'shop_identified_product',
+  ]);
+
+  // Every comparison offers the full set: eligibility is the client's business.
+  const similarity = readFunctionFile('closetSimilarity.ts');
+  assert.match(similarity, /availableActions:\s*\[\.\.\.SIMILAR_ITEM_ACTIONS\]/);
+});
+
+test('the test-catalog gate covers every known production row', () => {
+  const gate = readFunctionFile('catalogExclusion.ts');
+  const frozen = /KNOWN_PRODUCTION_TEST_ROWS[^=]*=\s*Object\.freeze\(\[([\s\S]*?)\]\)/.exec(gate);
+  assert.ok(frozen, 'the gate must carry the production rows as a frozen fixture');
+  const rowCount = (frozen[1].match(/\{\s*source:/g) || []).length;
+  assert.equal(rowCount, 14, 'all 14 production test rows must be pinned');
+});
+
+test('the JSON schema query-strategy enum matches the TypeScript union', () => {
+  const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf8'));
+  const contracts = readFunctionFile('contracts.ts');
+  assert.deepEqual(
+    [...schema.definitions.queryStrategy.enum].sort(),
+    unionMembers(contracts, 'QueryStrategy'),
+  );
+});
+
+test('the JSON schema similarity enums match the TypeScript unions', () => {
+  const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf8'));
+  const contracts = readFunctionFile('contracts.ts');
+  assert.deepEqual(
+    [...schema.definitions.similarityReason.enum].sort(),
+    unionMembers(contracts, 'SimilarityReason'),
+  );
+  assert.deepEqual(
+    [...schema.definitions.similarItemAction.enum].sort(),
+    unionMembers(contracts, 'SimilarItemAction'),
+  );
+  assert.deepEqual(
+    [...schema.definitions.stageName.enum].sort(),
+    unionMembers(contracts, 'StageName'),
   );
 });
 

@@ -1,0 +1,56 @@
+{
+  "id": "sneaker-category-noise-rejection",
+  "description": "Web shopping search returns adjacent products confidently. This case feeds the pipeline a realistic mix — the actual sneaker, a bag from the same brand and colour, and a shoe-care product — and asserts that only the sneaker survives. Production already discards results for `category_mismatch_removed`; this pins that behaviour as an explicit, counted rejection rather than a side effect.",
+  "query": {
+    "brand": "Nike",
+    "visibleBrandText": "Nike",
+    "model": "Air Force 1",
+    "canonicalCategory": "footwear",
+    "color": "white"
+  },
+  "providers": [
+    {
+      "source": "serper",
+      "delayMs": 880,
+      "status": "completed",
+      "products": [
+        {
+          "id": "1",
+          "title": "Nike Air Force 1 '07 white leather sneakers",
+          "source": "nike.com",
+          "price": "$115",
+          "type": "retail",
+          "productUrl": "https://www.nike.com/t/air-force-1-07-white-abc123"
+        },
+        {
+          "id": "2",
+          "title": "Nike white leather crossbody bag",
+          "source": "nike.com",
+          "price": "$60",
+          "type": "retail",
+          "productUrl": "https://www.nike.com/t/crossbody-bag-white-zz991"
+        },
+        {
+          "id": "3",
+          "title": "Nike sneaker cleaner spray for white shoes",
+          "source": "footlocker.com",
+          "price": "$14",
+          "type": "retail",
+          "productUrl": "https://www.footlocker.com/product/cleaner-kit-771"
+        },
+        {
+          "id": "4",
+          "title": "Assorted household items value pack",
+          "source": "example-marketplace.com",
+          "price": "$9",
+          "type": "retail",
+          "productUrl": "https://shop.example-marketplace.com/bundle-4471"
+        }
+      ]
+    }
+  ],
+  "expectedTier": "LIKELY_EXACT",
+  "expectedListingCount": 1,
+  "expectedCategoryConflictRejections": 2,
+  "notes": "The bag is rejected on category conflict and the cleaner on adjacent-product; both are reported in categoryConflictRejections, which is the counter the retrieval report exposes for 'this listing is not the product'. The household bundle is rejected on relevance score. Only the real sneaker remains, and it reaches LIKELY_EXACT because brand, model and colourway all agree while nothing supplies a decisive identifier."
+}

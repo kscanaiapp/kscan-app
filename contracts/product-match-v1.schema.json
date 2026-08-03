@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://kscan.app/contracts/product-match-v1.schema.json",
   "title": "K Scan Product Match V1",
-  "description": "Canonical product family / variant / listing contract returned by the internal product-match endpoint. Text attributes in, evidence-tiered matches out. The request carries no image data and no user identifier by design; see supabase/functions/product-match/index.ts.",
+  "description": "Canonical product family / variant / listing contract returned by the internal product-match endpoint. Text attributes in, evidence-tiered matches out, plus advisory comparisons against items the user already has. The query carries no image data and no user identifier by design; see supabase/functions/product-match/index.ts.",
   "type": "object",
   "definitions": {
     "productSource": {
@@ -13,11 +13,12 @@
     "matchTier": {
       "type": "string",
       "enum": ["EXACT", "LIKELY_EXACT", "PRODUCT_FAMILY", "SIMILAR", "NO_CONFIDENT_MATCH"],
-      "description": "EXACT requires an exact product identifier that two id-bearing sources independently agree on. It is not reachable by accumulating soft signals, and not reachable from a single retailer's own catalogue id."
+      "description": "EXACT requires decisive, authoritative identity evidence — an authoritative identifier (verified GTIN, manufacturer style code, first-party manufacturer record) which is sufficient alone, or the same identifier corroborated by two independent id-bearing catalogues. Not reachable by accumulating soft signals, and not reachable from a single retailer's own catalogue id. Separately, exact CLAIMS are disabled by default and reported as LIKELY_EXACT until the evidence paths are validated."
     },
     "evidenceKind": {
       "type": "string",
       "enum": [
+        "authoritative_product_id",
         "corroborated_product_id",
         "exact_product_id",
         "visible_brand_text",
@@ -30,6 +31,32 @@
         "pattern",
         "cross_source_agreement"
       ]
+    },
+    "queryStrategy": {
+      "type": "string",
+      "enum": [
+        "caller_supplied",
+        "visible_brand_model",
+        "brand_model",
+        "brand_color_category",
+        "material_silhouette_category",
+        "category_color"
+      ],
+      "description": "Named query construction paths. Naming them makes retrieval attributable: a caller_supplied result and a category_color result are different claims about how much was known."
+    },
+    "stageName": {
+      "type": "string",
+      "enum": ["plan", "retrieve", "normalize", "relevance", "dedupe", "tier", "similarity"]
+    },
+    "stageTiming": {
+      "type": "object",
+      "required": ["stage", "durationMs", "itemCount"],
+      "additionalProperties": false,
+      "properties": {
+        "stage": { "$ref": "#/definitions/stageName" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "itemCount": { "type": "integer", "minimum": 0 }
+      }
     },
     "matchEvidence": {
       "type": "object",
@@ -89,9 +116,25 @@
         "availability": { "type": ["string", "null"] }
       }
     },
+    "listingGroup": {
+      "type": "object",
+      "description": "One retailer's listings for a variant, rolled up. Grouping is presentation over the deduped set: dedupe decides what is the same thing, grouping decides how the survivors are arranged. Nothing is discarded.",
+      "required": ["groupKey", "retailer", "source", "listings", "representativePrice"],
+      "additionalProperties": false,
+      "properties": {
+        "groupKey": { "type": "string", "minLength": 1 },
+        "retailer": { "type": ["string", "null"] },
+        "source": { "$ref": "#/definitions/productSource" },
+        "listings": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/productListing" } },
+        "representativePrice": {
+          "type": ["string", "null"],
+          "description": "Verbatim from the strongest listing. Not parsed, not compared numerically, not converted — V1 has no currency model."
+        }
+      }
+    },
     "matchedVariant": {
       "type": "object",
-      "required": ["variant", "tier", "confidence", "evidence", "listings"],
+      "required": ["variant", "tier", "confidence", "evidence", "listings", "groups", "retailerCount"],
       "additionalProperties": false,
       "properties": {
         "variant": { "$ref": "#/definitions/productVariant" },
@@ -105,7 +148,9 @@
           "type": "array", "minItems": 1,
           "items": { "$ref": "#/definitions/productListing" },
           "description": "Never empty and never collapsed: a second retailer for the same variant is information, not a duplicate."
-        }
+        },
+        "groups": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/listingGroup" } },
+        "retailerCount": { "type": "integer", "minimum": 1 }
       }
     },
     "matchedFamily": {
@@ -136,6 +181,109 @@
         }
       }
     },
+    "existingItemSource": { "type": "string", "enum": ["closet", "recent_scan"] },
+    "similarityReason": {
+      "type": "string",
+      "enum": [
+        "shared_product_url",
+        "same_brand",
+        "same_model_tokens",
+        "same_normalized_color",
+        "same_canonical_category",
+        "same_material",
+        "same_silhouette",
+        "same_pattern"
+      ],
+      "description": "Named agreements rather than a bare score, because the user is being asked to make a judgement and '87% similar' does not help them make it."
+    },
+    "similarItemAction": {
+      "type": "string",
+      "enum": [
+        "reject_new_scan",
+        "add_to_closet",
+        "keep_in_recent_scans",
+        "delete_existing_item",
+        "shop_identified_product",
+        "keep_both"
+      ]
+    },
+    "existingItemCandidate": {
+      "type": "object",
+      "description": "An item the user already has, supplied by the caller. This service never reads the closet or the recent-scan list, and never fetches imageUri — it is echoed back for side-by-side display only.",
+      "required": ["id", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "source": { "$ref": "#/definitions/existingItemSource" },
+        "label": { "type": ["string", "null"], "maxLength": 160 },
+        "imageUri": { "type": ["string", "null"], "maxLength": 2048 },
+        "brand": { "type": ["string", "null"], "maxLength": 80 },
+        "model": { "type": ["string", "null"], "maxLength": 120 },
+        "canonicalCategory": { "type": ["string", "null"], "maxLength": 60 },
+        "color": { "type": ["string", "null"], "maxLength": 60 },
+        "material": { "type": ["string", "null"], "maxLength": 60 },
+        "silhouette": { "type": ["string", "null"], "maxLength": 60 },
+        "pattern": { "type": ["string", "null"], "maxLength": 60 },
+        "productUrl": { "type": ["string", "null"], "maxLength": 2048 }
+      }
+    },
+    "potentialSimilarItem": {
+      "type": "object",
+      "description": "ADVISORY ONLY, and never deduplication. There is deliberately no isDuplicate field in this contract: commerce dedupe getting it wrong costs a duplicate row, closet similarity getting it wrong costs the user an item they wanted. Nothing is merged, hidden or deleted; both records persist unless the user chooses otherwise.",
+      "required": [
+        "potentialSimilarItem", "existingItemId", "existingItemSource",
+        "comparison", "reasons", "advisoryConfidence", "availableActions", "resolution"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "potentialSimilarItem": { "type": "boolean", "const": true },
+        "existingItemId": { "type": "string", "minLength": 1 },
+        "existingItemSource": { "$ref": "#/definitions/existingItemSource" },
+        "comparison": {
+          "type": "object",
+          "required": ["newScanImageUri", "existingItemImageUri", "newScanLabel", "existingItemLabel"],
+          "additionalProperties": false,
+          "properties": {
+            "newScanImageUri": { "type": ["string", "null"] },
+            "existingItemImageUri": { "type": ["string", "null"] },
+            "newScanLabel": { "type": ["string", "null"] },
+            "existingItemLabel": { "type": ["string", "null"] }
+          }
+        },
+        "reasons": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/similarityReason" } },
+        "advisoryConfidence": {
+          "type": "number", "minimum": 0, "maximum": 1,
+          "description": "Orders candidates. Never gates an action and never auto-resolves anything."
+        },
+        "availableActions": {
+          "type": "array", "minItems": 6, "maxItems": 6,
+          "items": { "$ref": "#/definitions/similarItemAction" },
+          "description": "Always all six. This service never decides an action is inapplicable."
+        },
+        "resolution": {
+          "type": "string", "const": "user_required",
+          "description": "The backend reports a similarity; the person decides."
+        }
+      }
+    },
+    "retrievalReport": {
+      "type": "object",
+      "required": [
+        "strategiesUsed", "fallbackUsed", "categoryConflictRejections",
+        "lowRelevanceRejections", "testCatalogExclusions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strategiesUsed": { "type": "array", "items": { "$ref": "#/definitions/queryStrategy" } },
+        "fallbackUsed": { "type": "boolean" },
+        "categoryConflictRejections": { "type": "integer", "minimum": 0 },
+        "lowRelevanceRejections": { "type": "integer", "minimum": 0 },
+        "testCatalogExclusions": {
+          "type": "integer", "minimum": 0,
+          "description": "Catalog rows rejected by the production test-data gate."
+        }
+      }
+    },
     "productMatchQuery": {
       "type": "object",
       "additionalProperties": false,
@@ -163,12 +311,21 @@
         "query": { "$ref": "#/definitions/productMatchQuery" },
         "correlationId": { "type": "string", "maxLength": 64 },
         "sources": { "type": "array", "items": { "$ref": "#/definitions/productSource" } },
-        "limit": { "type": "integer", "minimum": 1, "maximum": 24 }
+        "limit": { "type": "integer", "minimum": 1, "maximum": 24 },
+        "existingItems": {
+          "type": "array", "maxItems": 25,
+          "items": { "$ref": "#/definitions/existingItemCandidate" }
+        },
+        "newScanImageUri": { "type": ["string", "null"], "maxLength": 2048 },
+        "newScanLabel": { "type": ["string", "null"], "maxLength": 160 }
       }
     },
     "response": {
       "type": "object",
-      "required": ["contractVersion", "version", "tier", "families", "listings", "providers", "timings"],
+      "required": [
+        "contractVersion", "version", "tier", "families", "listings",
+        "providers", "timings", "potentialSimilarItems", "retrieval"
+      ],
       "additionalProperties": false,
       "properties": {
         "contractVersion": { "type": "integer", "const": 1 },
@@ -177,9 +334,14 @@
         "families": { "type": "array", "items": { "$ref": "#/definitions/matchedFamily" } },
         "listings": { "type": "array", "items": { "$ref": "#/definitions/productListing" } },
         "providers": { "type": "array", "items": { "$ref": "#/definitions/providerOutcome" } },
+        "potentialSimilarItems": { "type": "array", "items": { "$ref": "#/definitions/potentialSimilarItem" } },
+        "retrieval": { "$ref": "#/definitions/retrievalReport" },
         "timings": {
           "type": "object",
-          "required": ["firstUsefulMatchMs", "completeMs", "deadlineExceeded", "partial"],
+          "required": [
+            "firstUsefulMatchMs", "completeMs", "deadlineExceeded", "partial",
+            "stages", "sequentialEquivalentMs", "baselineDeltaMs", "firstUsefulSlow"
+          ],
           "additionalProperties": false,
           "properties": {
             "firstUsefulMatchMs": {
@@ -191,6 +353,22 @@
             "partial": {
               "type": "boolean",
               "description": "True when at least one provider was lost while at least one other returned listings. The result is usable but incomplete."
+            },
+            "stages": {
+              "type": "array", "items": { "$ref": "#/definitions/stageTiming" },
+              "description": "Per-stage attribution. The deliverable of the latency work — a total is not actionable, a breakdown is."
+            },
+            "sequentialEquivalentMs": {
+              "type": "integer", "minimum": 0,
+              "description": "What the same providers would have cost run sequentially, so the benefit of concurrency is data rather than assertion."
+            },
+            "baselineDeltaMs": {
+              "type": "integer",
+              "description": "completeMs measured against the ~9.2s production scan anchor. Negative means inside the current budget. Reported for attribution; nothing branches on it."
+            },
+            "firstUsefulSlow": {
+              "type": "boolean",
+              "description": "First useful match arrived past the observational threshold. A label for finding slow cases — nothing was truncated because of it."
             }
           }
         },

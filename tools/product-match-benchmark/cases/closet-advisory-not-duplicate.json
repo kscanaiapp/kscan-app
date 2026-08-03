@@ -1,0 +1,52 @@
+{
+  "id": "closet-advisory-not-duplicate",
+  "description": "The user scans a sneaker they already own. Asserts that the pipeline OFFERS a comparison and does nothing else — no merge, no suppression of the commerce result, no duplicate verdict. The scan result and the closet item both continue to exist, and the decision belongs to the user.",
+  "query": {
+    "brand": "Nike",
+    "visibleBrandText": "Nike",
+    "model": "Air Force 1",
+    "canonicalCategory": "footwear",
+    "color": "white"
+  },
+  "existingItems": [
+    {
+      "id": "closet-af1-white",
+      "source": "closet",
+      "label": "White AF1",
+      "imageUri": "file:///closet/af1-white.jpg",
+      "brand": "Nike",
+      "model": "Air Force 1",
+      "canonicalCategory": "footwear",
+      "color": "white"
+    },
+    {
+      "id": "closet-grey-coat",
+      "source": "closet",
+      "label": "Grey wool coat",
+      "brand": "Acne Studios",
+      "canonicalCategory": "outerwear",
+      "color": "grey"
+    }
+  ],
+  "providers": [
+    {
+      "source": "serper",
+      "delayMs": 760,
+      "status": "completed",
+      "products": [
+        {
+          "id": "1",
+          "title": "Nike Air Force 1 '07 white leather sneakers",
+          "source": "nike.com",
+          "price": "$115",
+          "type": "retail",
+          "productUrl": "https://www.nike.com/t/air-force-1-07-white-abc123"
+        }
+      ]
+    }
+  ],
+  "expectedTier": "LIKELY_EXACT",
+  "expectedListingCount": 1,
+  "expectedPotentialSimilarItems": 1,
+  "notes": "Two closet items are supplied; only the sneaker agrees on enough named reasons to be worth showing, and the unrelated coat correctly produces nothing. The critical assertion is expectedListingCount = 1 ALONGSIDE expectedPotentialSimilarItems = 1: recognising that the user may already own this must not suppress the shopping result, because 'you own this' and 'here is where to buy it' are both answers the user might want."
+}

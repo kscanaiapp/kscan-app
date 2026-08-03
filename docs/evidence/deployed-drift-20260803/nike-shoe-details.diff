@@ -1,0 +1,8 @@
+--- repo/nike-shoe-details/index.ts (HEAD)
++++ deployed/nike-shoe-details/index.ts
+@@ -1,5 +1,3 @@
+-// Experimental provider. Upstream RapidAPI endpoint returned 404 for tested Nike URLs as of setup. Do not wire into production flows until a supported URL or endpoint is confirmed.
+-//
+ // Nike Shoe Details — Edge Function
+ //
+ // Accepts POST { product_url }  →  proxies a RapidAPI GET request server-side.

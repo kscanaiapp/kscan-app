@@ -33,8 +33,10 @@ import type {
   ProductMatchResponse,
   ProductSource,
   ProviderOutcomeStatus,
+  QueryStrategy,
+  StageTiming,
 } from './contracts.ts';
-import { MATCH_TIERS, PRODUCT_SOURCES } from './contracts.ts';
+import { MATCH_TIERS, PRODUCT_SOURCES, QUERY_STRATEGIES } from './contracts.ts';
 import { PRODUCT_MATCH_CONTRACT_VERSION, PRODUCT_MATCH_VERSION } from './config.ts';
 import type { DedupeStats } from './dedupe.ts';
 
@@ -69,11 +71,33 @@ export type ProductMatchEvent = {
   variants_merged_by_colorway: number;
   variants_with_cross_source_agreement: number;
 
-  /** Latency, split exactly the way the phase targets are stated. */
+  /** Latency, split so a change can be attributed rather than argued about. */
   first_useful_match_ms: number | null;
   complete_ms: number;
   deadline_exceeded: boolean;
   partial: boolean;
+  /** Per-stage attribution: [{stage,durationMs,itemCount}, ...] */
+  stages: StageTiming[];
+  /** What the same providers would have cost run sequentially. */
+  sequential_equivalent_ms: number;
+  /** complete_ms measured against the ~9.2 s production scan baseline. */
+  baseline_delta_ms: number;
+  /** First useful match arrived past the observational threshold. A label. */
+  first_useful_slow: boolean;
+
+  /** Retrieval attribution: what was searched and what was rejected, and why. */
+  strategies_used: QueryStrategy[];
+  fallback_used: boolean;
+  category_conflict_rejections: number;
+  low_relevance_rejections: number;
+  test_catalog_exclusions: number;
+
+  /**
+   * Advisory closet/recent-scan comparisons offered. A COUNT only — never an
+   * item id, never an image, never a resolution. This service does not know
+   * what the user chose and must not appear to.
+   */
+  potential_similar_item_count: number;
 
   /** Per-provider execution record. */
   providers: ProductMatchProviderTelemetry[];
@@ -147,6 +171,16 @@ export function buildProductMatchEvent(input: {
     complete_ms: response.timings.completeMs,
     deadline_exceeded: response.timings.deadlineExceeded,
     partial: response.timings.partial,
+    stages: response.timings.stages.map((stage) => ({ ...stage })),
+    sequential_equivalent_ms: response.timings.sequentialEquivalentMs,
+    baseline_delta_ms: response.timings.baselineDeltaMs,
+    first_useful_slow: response.timings.firstUsefulSlow,
+    strategies_used: [...response.retrieval.strategiesUsed],
+    fallback_used: response.retrieval.fallbackUsed,
+    category_conflict_rejections: response.retrieval.categoryConflictRejections,
+    low_relevance_rejections: response.retrieval.lowRelevanceRejections,
+    test_catalog_exclusions: response.retrieval.testCatalogExclusions,
+    potential_similar_item_count: response.potentialSimilarItems.length,
     providers: response.providers.map((provider) => ({
       source: provider.source,
       status: provider.status,
@@ -173,6 +207,10 @@ export function assertProductMatchTelemetry(event: ProductMatchEvent): void {
     'rows_in', 'listings_merged_by_url', 'variants_merged_by_exact_id',
     'variants_merged_by_colorway', 'variants_with_cross_source_agreement',
     'first_useful_match_ms', 'complete_ms', 'deadline_exceeded', 'partial',
+    'stages', 'sequential_equivalent_ms', 'baseline_delta_ms', 'first_useful_slow',
+    'strategies_used', 'fallback_used', 'category_conflict_rejections',
+    'low_relevance_rejections', 'test_catalog_exclusions',
+    'potential_similar_item_count',
     'providers', 'correlation_hash', 'app_platform', 'app_version',
   ]);
 
@@ -192,6 +230,23 @@ export function assertProductMatchTelemetry(event: ProductMatchEvent): void {
     }
     if (Object.keys(provider).length !== 4) {
       throw new Error('product-match telemetry: provider record carries unexpected fields');
+    }
+  }
+
+  for (const strategy of event.strategies_used) {
+    if (!(QUERY_STRATEGIES as readonly string[]).includes(strategy)) {
+      throw new Error(`product-match telemetry: unknown query strategy '${strategy}'`);
+    }
+  }
+
+  // Stage rows are categorical by construction; assert it so a future stage
+  // added with a free-text label cannot smuggle content into the event.
+  for (const stage of event.stages) {
+    if (Object.keys(stage).length !== 3) {
+      throw new Error('product-match telemetry: stage record carries unexpected fields');
+    }
+    if (typeof stage.stage !== 'string' || stage.stage.length > 24) {
+      throw new Error('product-match telemetry: stage name is not a short label');
     }
   }
 

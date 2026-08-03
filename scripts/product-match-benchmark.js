@@ -210,13 +210,19 @@ async function runCase(testCase, pipeline) {
   const scaledDeadlines = {
     perProviderMs: Math.max(1, Math.round(deadlines.perProviderMs * TIME_SCALE)),
     totalMs: Math.max(2, Math.round(deadlines.totalMs * TIME_SCALE)),
-    firstUsefulTargetMs: Math.max(1, Math.round(deadlines.firstUsefulTargetMs * TIME_SCALE)),
+    firstUsefulObservationMs: Math.max(1, Math.round(deadlines.firstUsefulObservationMs * TIME_SCALE)),
   };
 
   const { response } = await orchestrator.orchestrateProductMatch({
     query: testCase.query,
     providers,
-    options: { deadlines: scaledDeadlines },
+    options: {
+      deadlines: scaledDeadlines,
+      // Exact claims are replayed in whatever state the case declares, so a
+      // case can assert the gate and the policy independently.
+      exactClaimsEnabled: testCase.exactClaimsEnabled === true,
+      ...(testCase.existingItems ? { existingItems: testCase.existingItems } : {}),
+    },
   });
 
   const checks = [];
@@ -228,6 +234,31 @@ async function runCase(testCase, pipeline) {
   }
   if (typeof testCase.expectedListingCount === 'number') {
     checks.push({ name: 'listingCount', expected: testCase.expectedListingCount, actual: response.listings.length });
+  }
+  if (typeof testCase.expectedRetailerCount === 'number') {
+    const retailerCount = response.families[0]?.variants[0]?.retailerCount ?? 0;
+    checks.push({ name: 'retailerCount', expected: testCase.expectedRetailerCount, actual: retailerCount });
+  }
+  if (typeof testCase.expectedCategoryConflictRejections === 'number') {
+    checks.push({
+      name: 'categoryConflictRejections',
+      expected: testCase.expectedCategoryConflictRejections,
+      actual: response.retrieval.categoryConflictRejections,
+    });
+  }
+  if (typeof testCase.expectedPotentialSimilarItems === 'number') {
+    checks.push({
+      name: 'potentialSimilarItems',
+      expected: testCase.expectedPotentialSimilarItems,
+      actual: response.potentialSimilarItems.length,
+    });
+  }
+  if (Array.isArray(testCase.expectedStrategies)) {
+    checks.push({
+      name: 'strategies',
+      expected: testCase.expectedStrategies.join('+'),
+      actual: response.retrieval.strategiesUsed.join('+'),
+    });
   }
 
   const labelled = checks.length > 0;
@@ -342,10 +373,13 @@ async function main() {
   if (AS_JSON) {
     console.log(JSON.stringify(summary, null, 2));
   } else {
-    console.log('Product Match Benchmark — offline replay');
+    console.log('Product Match Benchmark — DIRECTIONAL offline replay');
+    console.log('  This is a contract and logic regression suite. It is NOT an accuracy');
+    console.log('  baseline, and no statistical claim may be made from these numbers.');
+    console.log('');
     console.log(`  seal        ${manifest.sealHash.slice(0, 16)}…`);
     console.log(`  cases       ${summary.caseCount} (${summary.labelledCount} labelled, ${summary.unlabelledCount} unlabelled)`);
-    console.log(`  accuracy    ${summary.accuracy === null ? 'not measured (no labelled cases)' : `${passed.length}/${labelled.length}`}`);
+    console.log(`  directional ${summary.accuracy === null ? 'not measured (no labelled cases)' : `${passed.length}/${labelled.length} cases behaved as specified`}`);
     console.log('');
     for (const result of results) {
       const status = !result.labelled ? 'UNLABELLED' : result.passed ? 'PASS' : 'FAIL';
@@ -359,6 +393,8 @@ async function main() {
     }
     console.log('');
     console.log('  NOTE: recorded latencies are replayed fixture values, not a production measurement.');
+    console.log('  NOTE: a directional suite proves the pipeline does what it says on cases we wrote.');
+    console.log('        It cannot tell you how often the pipeline is RIGHT about real scans.');
   }
 
   const failed = labelled.filter((result) => !result.passed);

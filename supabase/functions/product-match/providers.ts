@@ -35,17 +35,17 @@
  * out of scope here.
  */
 
-import type { ProductMatchQuery, ProductSource } from './contracts.ts';
+import type { PlannedQuery, ProductMatchQuery, ProductSource } from './contracts.ts';
 import type { ProviderExecutor } from './orchestrator.ts';
 import type { NormalizedRow } from './normalize.ts';
 import {
-  isTestCatalogRow,
   normalizeCatalogRow,
   normalizeRecommendedProduct,
   normalizeRetailerProduct,
   type NormalizeHints,
   type RawCatalogRow,
 } from './normalize.ts';
+import { applyCatalogExclusionGate } from './catalogExclusion.ts';
 import { searchKicksCrewProducts } from '../scan-identify/kicksCrewProvider.ts';
 import { searchFarfetchProducts } from '../scan-identify/farfetchProvider.ts';
 import { getShoppingResults } from '../scan-identify/shoppingProvider.ts';
@@ -70,40 +70,20 @@ function envEnabled(envGet: EnvGet, flagKey: string, ...keyNames: string[]): boo
 }
 
 /**
- * Builds the upstream search string from the canonical query.
+ * Picks the search string an executor sends upstream from the planned queries.
  *
- * Deliberately simple and separate from `scan-identify`'s weighted query
- * builder: this endpoint receives attributes a caller already resolved, so
- * re-running the scanner's query-weighting heuristics here would make the two
- * paths diverge silently. Callers that want the tuned query pass it in through
- * `searchQueries`, which wins.
+ * Query CONSTRUCTION now lives in `queryPlanner.ts`; this only chooses which of
+ * the planned queries to issue. One query per provider per pass is deliberate —
+ * issuing every planned query to every provider multiplies cost by the number
+ * of strategies for a benefit nothing has yet measured, and this phase is
+ * explicitly not spending provider calls ahead of evidence.
  */
-export function buildProviderQuery(query: ProductMatchQuery): string {
-  const supplied = query.searchQueries?.find(
-    (candidate) => typeof candidate === 'string' && candidate.trim().length > 0,
-  );
-  if (supplied) return supplied.trim().slice(0, 200);
-
-  const parts = [
-    query.visibleBrandText ?? query.brand,
-    query.color,
-    query.material,
-    query.model,
-    query.silhouette,
-    query.canonicalCategory,
-  ]
-    .map((part) => (typeof part === 'string' ? part.trim() : ''))
-    .filter((part) => part.length > 0);
-
-  const seen = new Set<string>();
-  const deduped = parts.filter((part) => {
-    const key = slugify(part);
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  return deduped.join(' ').slice(0, 200);
+export function selectProviderQuery(queries: PlannedQuery[]): string | null {
+  for (const planned of queries) {
+    const text = typeof planned?.text === 'string' ? planned.text.trim() : '';
+    if (text) return text.slice(0, 200);
+  }
+  return null;
 }
 
 function hintsFrom(query: ProductMatchQuery): NormalizeHints {
@@ -134,6 +114,12 @@ export type BuildProvidersOptions = {
   catalogClient?: CatalogClient | null;
   /** Restrict to a subset. Sources outside the list are omitted entirely. */
   only?: ProductSource[];
+  /**
+   * Called with the number of catalog rows the production test-data gate
+   * rejected. Reported so the gate's activity reaches the retrieval report
+   * rather than being an invisible filter.
+   */
+  onCatalogExclusions?: (count: number) => void;
 };
 
 export function buildProviderExecutors(options: BuildProvidersOptions = {}): ProviderExecutor[] {
@@ -147,8 +133,8 @@ export function buildProviderExecutors(options: BuildProvidersOptions = {}): Pro
     executors.push({
       source: 'kickscrew',
       enabled: envEnabled(envGet, 'KICKSCREW_ENABLED', 'KICKSCREW_RAPIDAPI_KEY', 'RAPIDAPI_KEY'),
-      run: async ({ query }) => {
-        const searchQuery = buildProviderQuery(query);
+      run: async ({ query, queries }) => {
+        const searchQuery = selectProviderQuery(queries);
         if (!searchQuery) return [];
         const result = await searchKicksCrewProducts(searchQuery, { limit: 8 });
         const hints = hintsFrom(query);
@@ -163,8 +149,8 @@ export function buildProviderExecutors(options: BuildProvidersOptions = {}): Pro
     executors.push({
       source: 'farfetch',
       enabled: envEnabled(envGet, 'FARFETCH_ENABLED', 'FARFETCH_RAPIDAPI_KEY', 'RAPIDAPI_KEY'),
-      run: async ({ query }) => {
-        const searchQuery = buildProviderQuery(query);
+      run: async ({ query, queries }) => {
+        const searchQuery = selectProviderQuery(queries);
         if (!searchQuery) return [];
         const result = await searchFarfetchProducts(searchQuery, { limit: 8 });
         const hints = hintsFrom(query);
@@ -179,8 +165,8 @@ export function buildProviderExecutors(options: BuildProvidersOptions = {}): Pro
     executors.push({
       source: 'serper',
       enabled: envEnabled(envGet, 'SHOPPING_ENABLED', 'SHOPPING_SERPER_API_KEY', 'SHOPPING_BRAVE_API_KEY'),
-      run: async ({ query }) => {
-        const searchQuery = buildProviderQuery(query);
+      run: async ({ query, queries }) => {
+        const searchQuery = selectProviderQuery(queries);
         if (!searchQuery) return [];
         const result = await getShoppingResults({ query: searchQuery, limit: 8 });
         if (result.provider === 'none') return [];
@@ -212,12 +198,16 @@ export function buildProviderExecutors(options: BuildProvidersOptions = {}): Pro
           .eq('canonical_category', category)
           .limit(30);
         if (error || !Array.isArray(data)) return [];
+
+        // Production `product_catalog` is currently 100% seeded test data, and
+        // the table is world-readable. The gate runs here, before anything is
+        // normalized, and reports how much it rejected — an exclusion nobody
+        // can count is an exclusion nobody notices has stopped working.
+        const gated = applyCatalogExclusionGate(data as RawCatalogRow[]);
+        if (gated.excludedCount > 0) options.onCatalogExclusions?.(gated.excludedCount);
+
         const hints = hintsFrom(query);
-        return (data as RawCatalogRow[])
-          // Production `product_catalog` is currently 100% seeded test data.
-          // Filtering here rather than at the query keeps the exclusion visible
-          // in code review and testable without a database.
-          .filter((row) => !isTestCatalogRow(row))
+        return gated.admitted
           .map((row) => normalizeCatalogRow(row, hints))
           .filter((row): row is NormalizedRow => row !== null);
       },
