@@ -1,0 +1,32 @@
+{
+  "baselineVersion": "deployed-edge-baseline-v1",
+  "capturedAtUtc": "2026-08-03T00:00:00Z",
+  "projectRef": "wyyuqfdxucjksghsmhry",
+  "note": "What production was ACTUALLY running when this branch was cut, verified by downloading each deployed function with `supabase functions download`, hashing every file with `git hash-object --no-filters`, and confirming the blob exists in this repository. Recorded separately from config/edge-function-manifest.json because that manifest describes the REPOSITORY, and once the repository moves ahead of production a passing parity gate no longer means 'repo equals production'. This file is what makes the difference legible.",
+  "functions": {
+    "scan-identify": {
+      "deployedVersion": 141,
+      "verifiedIdenticalToRepoAtCommit": "b2df58160e583e6512538cb2c43980cac46f9050",
+      "bundleHashAtThatCommit": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
+      "bundleFileCountAtThatCommit": 31
+    },
+    "stylechat-generate": {
+      "deployedVersion": 84,
+      "verifiedIdenticalToRepoAtCommit": "b2df58160e583e6512538cb2c43980cac46f9050",
+      "bundleHashAtThatCommit": "8d8911038840410bf9df1866a3afde7fa92e9464c77ff878d948aa1557932894",
+      "bundleFileCountAtThatCommit": 34
+    },
+    "style-outfit-generate": {
+      "deployedVersion": 3,
+      "verifiedIdenticalToRepoAtCommit": "b2df58160e583e6512538cb2c43980cac46f9050",
+      "bundleHashAtThatCommit": "b7339f46b44940f23f606ebca7bff9110818b5f166ad2c9bb7aea687df44ea72",
+      "bundleFileCountAtThatCommit": 6
+    }
+  },
+  "aheadOfProductionRule": "The repository MAY move ahead of production, but only while every behavioural change it adds is behind a flag that defaults off. That is what makes an un-deployed divergence safe: a deploy from this checkout changes no behaviour until an operator turns something on. __tests__/deployedBaselineDivergence.test.js enforces it.",
+  "checkpoint3Flags": [
+    "SCAN_MULTI_ITEM_SELECTION_CONTRACT_ENABLED",
+    "SCAN_PRODUCT_MATCH_ENABLED",
+    "SCAN_SIMILAR_ITEM_FLAG_ENABLED"
+  ]
+}

@@ -1,8 +1,8 @@
 // KicksCrew Sneaker Description — Edge Function
 //
 // Accepts POST { productUrl }  →  proxies a RapidAPI GET request server-side.
-// Uses the shared RAPIDAPI_KEY secret.  The key never leaves this function;
-// it is never forwarded, logged in plaintext, or included in any response body.
+// The KICKSCREW_RAPIDAPI_KEY secret never leaves this function; it is never
+// forwarded, logged in plaintext, or included in any response body.
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
@@ -41,9 +41,9 @@ Deno.serve(async (req) => {
   }
 
   // ── Validate secret ───────────────────────────────────────────────────────
-  const apiKey = Deno.env.get('RAPIDAPI_KEY');
+  const apiKey = Deno.env.get('KICKSCREW_RAPIDAPI_KEY');
   if (!apiKey) {
-    console.error('[kickscrew-sneaker-description] RAPIDAPI_KEY secret is not configured');
+    console.error('[kickscrew-sneaker-description] KICKSCREW_RAPIDAPI_KEY secret is not configured');
     return json({ error: 'KicksCrew API is not configured' }, 500);
   }
 
