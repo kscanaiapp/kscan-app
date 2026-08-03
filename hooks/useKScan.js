@@ -6,6 +6,8 @@ import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
 import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
+import { buildScannerSimilarityBinding } from '../services/scannerSimilarityBinding';
+import { createSimilarityLedger, pruneExpired } from '../services/similarityRequestLedger';
 import { readScanJourney, selectionDispatchFor } from '../services/scanJourney';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import {
@@ -150,6 +152,13 @@ export function useKScan() {
   // different contracts. Defaults to disabled so a session that somehow starts
   // without resolving stays on the legacy path rather than opting itself in.
   const scannerV2SessionRef = useRef({ enabled: false });
+  // Checkpoint 5A. In-memory only, by design: persisting it would write a
+  // description of the user's wardrobe into the same plaintext store that holds
+  // refresh tokens. A cold start simply rebuilds; a warm resume is guarded.
+  const similarityLedgerRef = useRef(createSimilarityLedger());
+  // Development-only mirror of the last attach attempt. Never rendered by a
+  // production result path — see `__tests__/scannerSimilarityContainment.test.js`.
+  const similarityDiagnosticsRef = useRef([]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -775,12 +784,30 @@ export function useKScan() {
         )
         : undefined;
 
+      // Checkpoint 5A. Built HERE and nowhere else: this is the first moment a
+      // specific garment identity exists, because the user has just chosen it.
+      // Detection deliberately gets no binding.
+      // `buildScannerSimilarityBinding` returns null when the flag is off, so
+      // the request below is unchanged in that case.
+      similarityLedgerRef.current = pruneExpired(similarityLedgerRef.current, Date.now());
+      const similarityBinding = buildScannerSimilarityBinding({
+        scanId: `${session.scanSessionId ?? session.evidenceId ?? 'scan'}:${candidate.id}`,
+        garment: candidate.source ?? candidate,
+        ledger: similarityLedgerRef.current,
+        onInstrumentation: (record) => {
+          if (__DEV__) {
+            similarityDiagnosticsRef.current = [record, ...similarityDiagnosticsRef.current].slice(0, 20);
+          }
+        },
+      });
+
       const outcome = await runScannerIdentification({
         mode: 'identify_selected_item',
         evidence,
         platform: 'ios',
         requestId: createEvidenceId(),
         sessionFlag: scannerV2SessionRef.current,
+        ...(similarityBinding ? { similarity: similarityBinding } : {}),
         selectedCandidate: {
           evidenceId: evidence.evidenceId,
           candidateId: candidate.id,
@@ -811,6 +838,11 @@ export function useKScan() {
         localPrivacyFiltered: session.localPrivacyFiltered,
         signal: activeAbortControllerRef.current?.signal,
       });
+      // Adopt the advanced ledger so a resume cannot rebuild and re-send a
+      // candidate set for a scan that already dispatched one.
+      if (outcome.similarity?.ledger) {
+        similarityLedgerRef.current = outcome.similarity.ledger;
+      }
       setScanJourney(readScanJourney(outcome.response));
       if (outcome.v2ValidationFailure || outcome.rejection) {
         throw userSafeError(

@@ -169,6 +169,14 @@ function loadUseKScanWithMocks({
     // to describe the legacy behaviour it was written for.
     ...scanJourneyGlobals,
     beginScannerV2Session: () => ({ enabled: false }),
+    // Checkpoint 5A. This harness strips imports and injects each one as a
+    // sandbox global, so the similarity mount's dependencies must appear
+    // here too. The binding returns null (the flag-off result), which keeps
+    // every assertion in this file describing the legacy request it was
+    // written for.
+    createSimilarityLedger: () => ({ entries: [] }),
+    pruneExpired: (ledger) => ledger,
+    buildScannerSimilarityBinding: () => null,
     createEvidenceId: () => `test-evidence-${(evidenceIdCounter += 1)}`,
     prepareScannerEvidence: ({ preparedImage, source, evidenceId }) => {
       if (typeof preparedImage !== 'string' || !preparedImage) return null;

@@ -410,6 +410,39 @@ export function resolveScannerIdentificationV2Enabled(
 /** Scanner V2 identification rollout. Disabled by default. */
 export const SCANNER_IDENTIFICATION_V2_ENABLED = resolveScannerIdentificationV2Enabled();
 
+// ── Similar-item candidate attachment (Checkpoint 5A) ────────────────────────
+/**
+ * Whether the scanner builds an on-device similar-item candidate set and
+ * attaches it to a resolved-item request as `existingItems`.
+ *
+ * WHY A CLIENT FLAG WHEN THE BACKEND ALREADY HAS ONE
+ *
+ * `SCAN_SIMILAR_ITEM_FLAG_ENABLED` (server, `scanJourneyContract.ts`) governs
+ * whether the backend PRODUCES a comparison. It cannot govern whether this
+ * device spends a Closet read, a Recent Scans read and a serialization pass
+ * building candidates on every scan — by the time the server sees the request
+ * that cost has already been paid. So the client needs its own switch, and
+ * with this one off no loader runs at all.
+ *
+ * The two are independent on purpose: the client may be dark while the backend
+ * is live (candidates simply never arrive, and the backend produces no
+ * comparison), and the backend may be dark while the client is live (candidates
+ * arrive, are sanitized, and are ignored). Neither combination is an error, and
+ * neither can produce a user-visible notice on its own.
+ *
+ * Default false. Only the exact string "true" opts in, so an unset, empty,
+ * mistyped or non-string value resolves to OFF — a failed flag read must
+ * behave exactly like a disabled feature.
+ */
+export function resolveScanSimilarItemEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_SCAN_SIMILAR_ITEM_ENABLED,
+): boolean {
+  return value === 'true';
+}
+
+/** On-device similar-item candidate attachment. Disabled by default. */
+export const SCAN_SIMILAR_ITEM_ENABLED = resolveScanSimilarItemEnabled();
+
 // ── Elise fashion-identification-v2 rollout (Phase 2B.3) ─────────────────────
 /**
  * Routes Elise's visual attachment identification through the canonical
