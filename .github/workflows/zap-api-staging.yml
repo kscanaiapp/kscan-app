@@ -71,39 +71,39 @@ jobs:
         env:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ZAP_ACTIVE_ENABLED: ${{ vars.ZAP_ACTIVE_ENABLED }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
         run: |
           set -euo pipefail
           echo "PR candidate SHA: ${PR_HEAD_SHA}" >> "$GITHUB_STEP_SUMMARY"
           install -d -m 0777 zap-api-out
-          DEF="${{ steps.api_def.outputs.definition }}"
-          if [ ! -f "$DEF" ] && [ ! -f "security/openapi/staging-api.yaml" ]; then
+          if [ ! -f "security/openapi/staging-api.yaml" ]; then
             echo "Operational failure: OpenAPI definition missing"
             exit 3
           fi
-          LOCAL_DEF="${PWD}/security/openapi/staging-api.yaml"
+          STAGING_BASE="${SUPABASE_STAGING_URL:-https://yzqjvdfgefveprobvvyw.supabase.co}"
+          STAGING_BASE="${STAGING_BASE%/}"
 
           set +e
           docker run --rm \
-            --mount "type=bind,source=${PWD}/.zap,target=/zap/wrk/.zap,readonly" \
             --mount "type=bind,source=${PWD}/security/openapi,target=/zap/wrk/openapi,readonly" \
             --mount "type=bind,source=${PWD}/zap-api-out,target=/zap/wrk/zap-api-out" \
             --workdir /zap/wrk \
             -t "${ZAP_IMAGE}" \
             zap-api-scan.py \
             -S \
-            -t "openapi/staging-api.yaml" \
+            -t "${STAGING_BASE}/functions/v1" \
             -f openapi \
-            -c .zap/api-rules.tsv \
+            -O "openapi/staging-api.yaml" \
             -J zap-api-out/zap-api-report.json \
             -w zap-api-out/zap-api-report.md \
-            -r zap-api-out/zap-api-report.html
+            -r zap-api-out/zap-api-report.html 2>zap-api-out/docker-stderr.log
           CODE=$?
           set -e
+          cat zap-api-out/docker-stderr.log || true
 
-          # Fix path: mount puts staging-api.yaml at /zap/wrk/openapi/staging-api.yaml
           if [ ! -f zap-api-out/zap-api-report.json ]; then
+            set +e
             docker run --rm \
-              --mount "type=bind,source=${PWD}/.zap,target=/zap/wrk/.zap,readonly" \
               --mount "type=bind,source=${PWD}/security/openapi,target=/zap/wrk/openapi,readonly" \
               --mount "type=bind,source=${PWD}/zap-api-out,target=/zap/wrk/zap-api-out" \
               --workdir /zap/wrk \
@@ -112,24 +112,25 @@ jobs:
               -S \
               -t "openapi/staging-api.yaml" \
               -f openapi \
-              -c .zap/api-rules.tsv \
               -J zap-api-out/zap-api-report.json \
               -w zap-api-out/zap-api-report.md \
-              -r zap-api-out/zap-api-report.html || true
+              -r zap-api-out/zap-api-report.html 2>>zap-api-out/docker-stderr.log
+            CODE=$?
+            set -e
+            cat zap-api-out/docker-stderr.log || true
           fi
 
           if [ "${ZAP_ACTIVE_ENABLED}" = "true" ]; then
             echo "Running ZAP API active scan (ZAP_ACTIVE_ENABLED=true)"
             docker run --rm \
-              --mount "type=bind,source=${PWD}/.zap,target=/zap/wrk/.zap,readonly" \
               --mount "type=bind,source=${PWD}/security/openapi,target=/zap/wrk/openapi,readonly" \
               --mount "type=bind,source=${PWD}/zap-api-out,target=/zap/wrk/zap-api-out" \
               --workdir /zap/wrk \
               -t "${ZAP_IMAGE}" \
               zap-api-scan.py \
-              -t "openapi/staging-api.yaml" \
+              -t "${STAGING_BASE}/functions/v1" \
               -f openapi \
-              -c .zap/api-rules.tsv \
+              -O "openapi/staging-api.yaml" \
               -J zap-api-out/zap-api-active-report.json \
               -w zap-api-out/zap-api-active-report.md \
               -r zap-api-out/zap-api-active-report.html || CODE=$?
