@@ -1,0 +1,19 @@
+# Local/staging development stack for the malware scanner (Phase 5). Not
+# started by any CI job or deployment automation in this repo -- run manually
+# (`docker compose up`) when a developer or the owner wants to exercise the
+# real scanning path (IMAGE_SCANNER_ENABLED=true) against a real clamd
+# instance instead of leaving scanning off. See
+# docs/security/malware-scanner-operations.md.
+
+services:
+  clamd:
+    build: .
+    ports:
+      # Bind to localhost only -- never 0.0.0.0 on a host with a public IP.
+      - "127.0.0.1:3310:3310"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "echo PING | nc -w 2 127.0.0.1 3310 | grep -q PONG"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
