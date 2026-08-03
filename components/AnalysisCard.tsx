@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,9 @@ import { MetadataChip } from './MetadataChip';
 import { ProductShelf, type Product } from './ProductShelf';
 import { PurchaseOptionsPanel } from './scan-results/PurchaseOptionsPanel';
 import type { PurchaseOption } from './scan-results/types';
+import { PotentialSimilarItemNotice } from './scan-results/PotentialSimilarItemNotice';
+import type { PotentialSimilarItemView } from '../services/scanJourney';
+import type { SimilarItemAction } from '../services/similarItemActions';
 import { ScanResultCard } from './scan/ScanResultCard';
 import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
@@ -113,6 +116,14 @@ export interface AnalysisCardProps {
   scanSourceType?: 'live_scan' | 'style_library_scan';
   /** Optional raw saved scans so the free-tier utility panel can show pairings. */
   relatedSavedScans?: unknown[];
+  /**
+   * Checkpoint 5B. Advisory similar-item comparisons for THIS scan, already
+   * parsed and validated by `services/scanJourney.ts`. Empty unless the backend
+   * returned comparisons, so an absent or failed similarity result renders
+   * nothing and never blocks the result card. Never carries scores, weights or
+   * thresholds — those stay in the development inspector.
+   */
+  potentialSimilarItems?: PotentialSimilarItemView[];
   onDismiss: () => void;
   onAddToDressingRoom?: () => void;
   /**
@@ -154,6 +165,7 @@ export function AnalysisCard({
   scanSourceId,
   scanSourceType = 'live_scan',
   relatedSavedScans,
+  potentialSimilarItems = [],
   onDismiss,
   onAddToDressingRoom,
   addToDressingRoomUnavailableReason,
@@ -166,6 +178,44 @@ export function AnalysisCard({
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const commerceOptions = toPurchaseOptions(purchaseOptions);
+
+  // Checkpoint 5B. Locally dismissed advisories, keyed by existing-item id.
+  // Deliberately NOT a contract action: a dismissal records no decision and
+  // touches no record, so it must not round-trip to the backend or resolve the
+  // comparison. Keyed rather than a single boolean so dismissing one notice
+  // does not hide a second, unrelated one.
+  const [dismissedSimilarIds, setDismissedSimilarIds] = useState<string[]>([]);
+  const visibleSimilarItems = potentialSimilarItems.filter(
+    (item) => !dismissedSimilarIds.includes(item.existingItemId),
+  );
+
+  const handleSimilarItemAction = useCallback(
+    (action: SimilarItemAction, item: PotentialSimilarItemView) => {
+      // Only actions with a real handler already in this screen are executed
+      // here. Anything else is acknowledged by hiding the advisory and nothing
+      // more — never silently substituted for a different action, and never
+      // routed into a mutation this component does not own. The destructive
+      // pair (reject_new_scan, delete_existing_item) is deliberately absent:
+      // it requires a confirmation flow and an ownership re-check that belong
+      // to the record's own screen, not to a result card.
+      if (action === 'add_to_closet') {
+        onAddToCloset?.();
+        return;
+      }
+      if (action === 'shop_identified_product') {
+        // Commerce is already on screen; opening it is the user scrolling.
+        // Explicitly does NOT resolve the advisory.
+        return;
+      }
+      if (action === 'keep_both' || action === 'keep_in_recent_scans') {
+        setDismissedSimilarIds((prev) =>
+          prev.includes(item.existingItemId) ? prev : [...prev, item.existingItemId],
+        );
+      }
+    },
+    [onAddToCloset],
+  );
+
   const reducedMotion = useReducedMotion();
   const translateY    = useRef(new Animated.Value(FROM_Y)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
@@ -432,6 +482,32 @@ export function AnalysisCard({
 
               {/* Catalog similarity matches: hide the entire section unless there
                   are at least 2 meaningful matches. */}
+              {/*
+                Checkpoint 5B — advisory similar-item notice.
+
+                Rendered ABOVE the commerce shelves so it is seen, and outside
+                any commerce gate so it can never remove or reorder product
+                results. Dismissal is local view state only: it hides the card
+                and mutates nothing, because the advisory is not a decision the
+                user owes us. `visibleSimilarItems` is empty whenever similarity
+                was off, failed, or found nothing, so the ordinary result screen
+                is byte-identical to before this checkpoint.
+              */}
+              {visibleSimilarItems.map((similarItem) => (
+                <PotentialSimilarItemNotice
+                  key={similarItem.existingItemId}
+                  item={similarItem}
+                  recordState={{
+                    existingItemExists: true,
+                    existingItemSource: similarItem.existingItemSource,
+                    newItemSavedToCloset: closetState === 'saved',
+                    newItemInRecentScans: !isLibraryScan,
+                    hasCommerceCandidates: commerceOptions.length > 0,
+                  }}
+                  onAction={handleSimilarItemAction}
+                />
+              ))}
+
               {priceDiscoveryEnabled && products.length >= 2 ? (
                 <ProductShelf products={products} />
               ) : null}

@@ -20,6 +20,19 @@ project_id = "wyyuqfdxucjksghsmhry"
 [functions.scan-identify]
 verify_jwt = false
 
+# Product match / similar-item engine. NOT a user-facing endpoint: it is called
+# server-to-server by scan-identify's productMatchBridge, which authenticates
+# with the shared `x-product-match-secret` header and sends no Authorization or
+# apikey header at all. Gateway JWT verification must therefore be off, or every
+# bridge call is rejected at the gateway with 401 before the handler's own
+# secret check ever runs — and the bridge records that as skipReason 'rejected',
+# which is indistinguishable in logs from the dormant-404 case. The function is
+# not thereby unprotected: index.ts fails closed when PRODUCT_MATCH_INTERNAL_SECRET
+# is unset or the header does not match, and returns 404 while PRODUCT_MATCH_ENABLED
+# is off. Declared explicitly so a deploy cannot inherit the CLI default of true.
+[functions.product-match]
+verify_jwt = false
+
 # Elise. Always authenticated; the function additionally applies the shared
 # account-active guard before attachment resolution, quota and the provider.
 [functions.stylechat-generate]

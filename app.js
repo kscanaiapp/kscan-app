@@ -294,6 +294,9 @@ export default function App() {
     selectScanItem,
     toggleScanCandidate,
     confirmSelectedCandidates,
+    // Checkpoint 5B. Advisory only, and empty unless the backend actually
+    // returned comparisons — the hook derives it from the real scan response.
+    potentialSimilarItems,
   } = useKScan(user?.id ?? null);
 
   const router = useRouter();
@@ -1160,6 +1163,7 @@ export default function App() {
             scanImageUri={activePhoto?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
             scanSourceType="live_scan"
+            potentialSimilarItems={potentialSimilarItems}
             onDismiss={dismissResult}
             onAddToDressingRoom={dressingRoomsEnabled ? () => {
               setAddAllToRoom(false);
