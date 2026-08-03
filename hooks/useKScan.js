@@ -991,7 +991,11 @@ export function useKScan(actorId = null) {
               garment: candidate.garment,
               ledger: similarityLedgerRef.current,
               onInstrumentation: (record) => {
-                if (__DEV__) similarityDiagnosticsRef.current = [record, ...similarityDiagnosticsRef.current].slice(0, 20);
+                if (!__DEV__) return;
+                similarityDiagnosticsRef.current = [record, ...similarityDiagnosticsRef.current].slice(0, 20);
+                // Without this the record is captured but unreadable on device,
+                // so per-stage device cost cannot be measured during runtime QA.
+                console.log('[similarity]', JSON.stringify(record));
               },
             });
             const outcome = await runScannerIdentification({
