@@ -45,6 +45,11 @@ import {
 import { orchestrateProductMatch } from './orchestrator.ts';
 import { buildProviderExecutors } from './providers.ts';
 import { buildProductMatchEvent, emitProductMatchEvent } from './telemetry.ts';
+import { readThresholdOverrides } from './similarityThresholds.ts';
+
+function isImageQuality(value: unknown): value is 'ok' | 'poor' | 'missing' {
+  return value === 'ok' || value === 'poor' || value === 'missing';
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -55,7 +60,17 @@ const CORS_HEADERS = {
 
 const MAX_BODY_BYTES = 8 * 1024;
 
-/** Exactly the fields `ProductMatchQuery` declares. Anything else is rejected. */
+/**
+ * Exactly the fields `ProductMatchQuery` declares. Anything else is rejected.
+ *
+ * This set carries a stricter invariant than "matches the type": every field
+ * here can end up embedded in a literal provider search string (see
+ * `queryPlanner.ts`), so NOTHING url-shaped or image-shaped may ever be added
+ * to it — see the governed test `no request field accepts image data`. The
+ * Checkpoint 4 identifier/URL/image-quality fields for the SCAN side of the
+ * advisory comparison deliberately live on the REQUEST instead (below), for
+ * exactly this reason.
+ */
 const ALLOWED_QUERY_FIELDS = new Set([
   'brand', 'visibleBrandText', 'model', 'canonicalCategory', 'color',
   'material', 'silhouette', 'pattern', 'styleTags', 'searchQueries',
@@ -64,6 +79,13 @@ const ALLOWED_QUERY_FIELDS = new Set([
 const ALLOWED_REQUEST_FIELDS = new Set([
   'query', 'correlationId', 'sources', 'limit',
   'existingItems', 'newScanImageUri', 'newScanLabel',
+  // Checkpoint 4 — comparison-only, same category as `newScanImageUri` above:
+  // echoed into the similarity engine, never forwarded to a provider. See
+  // `SimilarityScanIdentity` in contracts.ts for why these are not on `query`.
+  'newScanProductUrl', 'newScanAuthoritativeId', 'newScanImageQuality',
+  // Checkpoint 4 — dev/test opt-in for internal scoring detail. See
+  // `ProductMatchRequest.debugSimilarity`.
+  'debugSimilarity',
 ]);
 
 /**
@@ -78,6 +100,8 @@ const ALLOWED_REQUEST_FIELDS = new Set([
 const ALLOWED_EXISTING_ITEM_FIELDS = new Set([
   'id', 'source', 'label', 'imageUri', 'brand', 'model',
   'canonicalCategory', 'color', 'material', 'silhouette', 'pattern', 'productUrl',
+  // Checkpoint 4. See `ExistingItemCandidate.authoritativeId` / `.imageQuality`.
+  'authoritativeId', 'imageQuality',
 ]);
 
 const MAX_EXISTING_ITEMS = 25;
@@ -201,6 +225,7 @@ export function parseProductMatchRequest(raw: unknown): ParsedRequest {
       if (source !== 'closet' && source !== 'recent_scan') {
         return { ok: false, error: "existingItems source must be 'closet' or 'recent_scan'" };
       }
+      const imageQualityRaw = item.imageQuality;
       parsedItems.push({
         id,
         source,
@@ -214,6 +239,8 @@ export function parseProductMatchRequest(raw: unknown): ParsedRequest {
         silhouette: cleanString(item.silhouette, 60),
         pattern: cleanString(item.pattern, 60),
         productUrl: cleanString(item.productUrl, 2048),
+        authoritativeId: cleanString(item.authoritativeId, 128),
+        imageQuality: isImageQuality(imageQualityRaw) ? imageQualityRaw : undefined,
       });
     }
     existingItems = parsedItems;
@@ -221,6 +248,11 @@ export function parseProductMatchRequest(raw: unknown): ParsedRequest {
 
   const newScanImageUri = cleanString(body.newScanImageUri, 2048) ?? undefined;
   const newScanLabel = cleanString(body.newScanLabel, 160) ?? undefined;
+  const newScanProductUrl = cleanString(body.newScanProductUrl, 2048) ?? undefined;
+  const newScanAuthoritativeId = cleanString(body.newScanAuthoritativeId, 128) ?? undefined;
+  const newScanImageQualityRaw = body.newScanImageQuality;
+  const newScanImageQuality = isImageQuality(newScanImageQualityRaw) ? newScanImageQualityRaw : undefined;
+  const debugSimilarity = body.debugSimilarity === true;
 
   return {
     ok: true,
@@ -232,6 +264,10 @@ export function parseProductMatchRequest(raw: unknown): ParsedRequest {
       ...(existingItems ? { existingItems } : {}),
       ...(newScanImageUri ? { newScanImageUri } : {}),
       ...(newScanLabel ? { newScanLabel } : {}),
+      ...(newScanProductUrl ? { newScanProductUrl } : {}),
+      ...(newScanAuthoritativeId ? { newScanAuthoritativeId } : {}),
+      ...(newScanImageQuality ? { newScanImageQuality } : {}),
+      ...(debugSimilarity ? { debugSimilarity } : {}),
     },
   };
 }
@@ -317,6 +353,21 @@ export async function handleProductMatchRequest(
       ...(parsed.request.existingItems ? { existingItems: parsed.request.existingItems } : {}),
       ...(parsed.request.newScanImageUri ? { newScanImageUri: parsed.request.newScanImageUri } : {}),
       ...(parsed.request.newScanLabel ? { newScanLabel: parsed.request.newScanLabel } : {}),
+      ...(parsed.request.newScanProductUrl
+        ? { newScanProductUrl: parsed.request.newScanProductUrl }
+        : {}),
+      ...(parsed.request.newScanAuthoritativeId
+        ? { newScanAuthoritativeId: parsed.request.newScanAuthoritativeId }
+        : {}),
+      ...(parsed.request.newScanImageQuality
+        ? { newScanImageQuality: parsed.request.newScanImageQuality }
+        : {}),
+      // Checkpoint 4 — both dev/test-only. `debugSimilarity` must be explicitly
+      // requested per-request; threshold overrides are read from the
+      // environment so a calibration run can sweep them without a code change,
+      // and are never wired to anything a production client controls.
+      ...(parsed.request.debugSimilarity ? { debugSimilarity: true } : {}),
+      thresholdOverrides: readThresholdOverrides(envGet),
     },
   });
 

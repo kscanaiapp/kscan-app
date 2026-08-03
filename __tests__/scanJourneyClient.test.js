@@ -378,10 +378,168 @@ test('the copy never asserts a duplicate', () => {
     actions.SIMILAR_ITEM_NOTICE_TITLE,
     ...Object.values(actions.SIMILAR_ITEM_ACTION_LABELS),
     ...Object.values(actions.SIMILARITY_REASON_LABELS),
+    ...Object.values(actions.CONFLICT_REASON_LABELS),
     ...Object.values(actions.SIMILAR_ITEM_SOURCE_LABELS),
   ].join(' ').toLowerCase();
 
   for (const forbidden of ['duplicate', 'already own', 'same item', 'you own']) {
     assert.ok(!strings.includes(forbidden), `user-facing copy must not say "${forbidden}"`);
   }
+});
+
+// ── Checkpoint 4: destructive-action safety ─────────────────────────────────
+
+test('every destructive action requires confirmation and is never visually prioritized', () => {
+  const evaluated = actions.evaluateSimilarItemActions(BASE_STATE);
+  for (const entry of evaluated) {
+    const destructive = actions.ACTION_SCOPE[entry.action].destructive;
+    assert.equal(
+      entry.requiresConfirmation,
+      destructive,
+      `${entry.action}: requiresConfirmation must track ACTION_SCOPE.destructive`,
+    );
+    if (destructive) {
+      assert.equal(entry.emphasis, 'destructive', `${entry.action} must never be primary or secondary`);
+    } else {
+      assert.notEqual(entry.emphasis, 'destructive');
+    }
+  }
+  // Concretely: the two record-destroying actions, and only those.
+  // Spread into a host-realm array: values returned from the vm sandbox carry
+  // that realm's Array.prototype, and deepStrictEqual compares prototypes.
+  const needConfirm = [...evaluated.filter((e) => e.requiresConfirmation).map((e) => e.action)].sort();
+  assert.deepEqual(needConfirm, ['delete_existing_item', 'reject_new_scan']);
+});
+
+test('keep_both is the primary emphasis — the safe choice leads', () => {
+  const evaluated = actions.evaluateSimilarItemActions(BASE_STATE);
+  const primary = [...evaluated.filter((e) => e.emphasis === 'primary').map((e) => e.action)];
+  assert.deepEqual(primary, ['keep_both'], 'exactly one primary, and it must be the non-mutating one');
+});
+
+test('executing a destructive action unconfirmed throws rather than proceeding', () => {
+  assert.throws(
+    () => actions.assertConfirmedBeforeExecute('delete_existing_item', false),
+    /requires explicit confirmation/,
+  );
+  assert.throws(
+    () => actions.assertConfirmedBeforeExecute('reject_new_scan', false),
+    /requires explicit confirmation/,
+  );
+  // Confirmed destructive actions, and every non-destructive action, pass.
+  actions.assertConfirmedBeforeExecute('delete_existing_item', true);
+  actions.assertConfirmedBeforeExecute('keep_both', false);
+  actions.assertConfirmedBeforeExecute('add_to_closet', false);
+  actions.assertConfirmedBeforeExecute('shop_identified_product', false);
+});
+
+// ── Checkpoint 4: additional record states ──────────────────────────────────
+
+test('an archived existing record blocks both delete and keep_both, with a named reason', () => {
+  const state = { ...BASE_STATE, existingItemArchived: true };
+  const evaluated = actions.evaluateSimilarItemActions(state);
+  const byAction = Object.fromEntries(evaluated.map((e) => [e.action, e]));
+
+  assert.equal(byAction.delete_existing_item.eligible, false);
+  assert.equal(byAction.delete_existing_item.reason, 'existing_item_archived');
+  assert.equal(byAction.keep_both.eligible, false);
+  assert.equal(byAction.keep_both.reason, 'existing_item_archived');
+  // The new scan's own destinations are unaffected — archiving the OTHER
+  // record says nothing about where this one should go.
+  assert.equal(byAction.add_to_closet.eligible, true);
+  assert.equal(byAction.keep_in_recent_scans.eligible, true);
+  assert.equal(byAction.reject_new_scan.eligible, true);
+});
+
+test('an omitted existingItemArchived is treated as not archived', () => {
+  assert.equal(BASE_STATE.existingItemArchived, undefined);
+  assert.ok(actions.eligibleSimilarItemActions(BASE_STATE).includes('delete_existing_item'));
+});
+
+test('the new scan already in BOTH destinations leaves neither destination offered', () => {
+  const available = actions.eligibleSimilarItemActions({
+    ...BASE_STATE,
+    newItemSavedToCloset: true,
+    newItemInRecentScans: true,
+  });
+  assert.ok(!available.includes('add_to_closet'));
+  assert.ok(!available.includes('keep_in_recent_scans'));
+  // The user is never left with nothing to do.
+  assert.ok(available.includes('keep_both'));
+  assert.ok(available.includes('reject_new_scan'));
+});
+
+test('no record state leaves the user with an empty action set', () => {
+  const booleans = [true, false];
+  for (const existingItemExists of booleans) {
+    for (const newItemSavedToCloset of booleans) {
+      for (const newItemInRecentScans of booleans) {
+        for (const hasCommerceCandidates of booleans) {
+          for (const existingItemArchived of booleans) {
+            const state = {
+              existingItemSource: 'closet',
+              existingItemExists,
+              newItemSavedToCloset,
+              newItemInRecentScans,
+              hasCommerceCandidates,
+              existingItemArchived,
+            };
+            const available = actions.eligibleSimilarItemActions(state);
+            assert.ok(
+              available.length > 0,
+              `no action offered for ${JSON.stringify(state)}`,
+            );
+            assert.ok(
+              available.includes('reject_new_scan'),
+              `reject_new_scan must survive every state: ${JSON.stringify(state)}`,
+            );
+          }
+        }
+      }
+    }
+  }
+});
+
+test('an ineligible action never causes a different action to run in its place', () => {
+  // The failure this guards: a screen that maps "chosen action" through a
+  // filtered list by INDEX, so hiding one action silently shifts the rest.
+  const full = actions.evaluateSimilarItemActions(BASE_STATE);
+  const reduced = actions.evaluateSimilarItemActions({
+    ...BASE_STATE,
+    existingItemExists: false,
+    hasCommerceCandidates: false,
+  });
+  // Same length, same order, same actions — only the flags differ.
+  assert.deepEqual(
+    full.map((e) => e.action),
+    reduced.map((e) => e.action),
+    'evaluate must return every action in stable order so no index can shift',
+  );
+  assert.deepEqual(full.map((e) => e.action), actions.ALL_SIMILAR_ITEM_ACTIONS);
+});
+
+// ── Checkpoint 4: one existing item surfacing from two sources ──────────────
+
+test('two comparisons referring to the same existing item collapse to one', () => {
+  const deduped = actions.dedupeComparisonsByExistingItem([
+    { existingItemId: 'item-1', existingItemSource: 'closet', advisoryConfidence: 0.8 },
+    { existingItemId: 'item-1', existingItemSource: 'recent_scan', advisoryConfidence: 0.6 },
+    { existingItemId: 'item-2', existingItemSource: 'closet', advisoryConfidence: 0.5 },
+  ]);
+  assert.equal(deduped.length, 2);
+  // The first (strongest, since callers supply strongest-first) survives.
+  assert.equal(deduped[0].existingItemSource, 'closet');
+  assert.equal(deduped[0].advisoryConfidence, 0.8);
+  assert.deepEqual([...deduped.map((d) => d.existingItemId)], ['item-1', 'item-2']);
+});
+
+test('dedupe leaves distinct items untouched and tolerates malformed entries', () => {
+  const input = [
+    { existingItemId: 'a' },
+    { existingItemId: 'b' },
+    null,
+    { notAnId: true },
+  ];
+  const deduped = actions.dedupeComparisonsByExistingItem(input);
+  assert.deepEqual([...deduped.map((d) => d.existingItemId)], ['a', 'b']);
 });

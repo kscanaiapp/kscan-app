@@ -99,6 +99,18 @@ export type ProductMatchEvent = {
    */
   potential_similar_item_count: number;
 
+  /**
+   * Checkpoint 4 — similarity-stage calibration counters. Categorical/numeric
+   * only, matching the rest of this event: candidate counts, named sources, a
+   * version string, and timings. Never an item id.
+   */
+  similarity_threshold_version: string | null;
+  similarity_sources_checked: string[];
+  similarity_candidates_considered: number;
+  similarity_candidates_retained: number;
+  similarity_retrieve_ms: number;
+  similarity_compare_ms: number;
+
   /** Per-provider execution record. */
   providers: ProductMatchProviderTelemetry[];
 
@@ -181,6 +193,14 @@ export function buildProductMatchEvent(input: {
     low_relevance_rejections: response.retrieval.lowRelevanceRejections,
     test_catalog_exclusions: response.retrieval.testCatalogExclusions,
     potential_similar_item_count: response.potentialSimilarItems.length,
+    similarity_threshold_version: response.similarityDiagnostics?.thresholdVersion ?? null,
+    similarity_sources_checked: response.similarityRetrieval
+      ? [...response.similarityRetrieval.sourcesChecked]
+      : [],
+    similarity_candidates_considered: response.similarityRetrieval?.recordsConsidered ?? 0,
+    similarity_candidates_retained: response.similarityRetrieval?.candidatesRetained ?? 0,
+    similarity_retrieve_ms: response.similarityDiagnostics?.retrieveMs ?? 0,
+    similarity_compare_ms: response.similarityDiagnostics?.compareMs ?? 0,
     providers: response.providers.map((provider) => ({
       source: provider.source,
       status: provider.status,
@@ -211,6 +231,9 @@ export function assertProductMatchTelemetry(event: ProductMatchEvent): void {
     'strategies_used', 'fallback_used', 'category_conflict_rejections',
     'low_relevance_rejections', 'test_catalog_exclusions',
     'potential_similar_item_count',
+    'similarity_threshold_version', 'similarity_sources_checked',
+    'similarity_candidates_considered', 'similarity_candidates_retained',
+    'similarity_retrieve_ms', 'similarity_compare_ms',
     'providers', 'correlation_hash', 'app_platform', 'app_version',
   ]);
 

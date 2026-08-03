@@ -186,6 +186,7 @@
       "type": "string",
       "enum": [
         "shared_product_url",
+        "authoritative_identifier_match",
         "same_brand",
         "same_model_tokens",
         "same_normalized_color",
@@ -195,6 +196,18 @@
         "same_pattern"
       ],
       "description": "Named agreements rather than a bare score, because the user is being asked to make a judgement and '87% similar' does not help them make it."
+    },
+    "conflictReason": {
+      "type": "string",
+      "enum": [
+        "identifier_conflict",
+        "category_conflict",
+        "different_model_family",
+        "different_silhouette",
+        "different_colorway",
+        "different_pattern"
+      ],
+      "description": "Checkpoint 4. Named disagreements. identifier_conflict and category_conflict are structural — either one present means no notice is produced at all; the rest lower the score without blocking a notice outright."
     },
     "similarItemAction": {
       "type": "string",
@@ -224,7 +237,33 @@
         "material": { "type": ["string", "null"], "maxLength": 60 },
         "silhouette": { "type": ["string", "null"], "maxLength": 60 },
         "pattern": { "type": ["string", "null"], "maxLength": 60 },
-        "productUrl": { "type": ["string", "null"], "maxLength": 2048 }
+        "productUrl": { "type": ["string", "null"], "maxLength": 2048 },
+        "authoritativeId": { "type": ["string", "null"], "maxLength": 128 },
+        "imageQuality": { "type": ["string", "null"], "enum": ["ok", "poor", "missing", null] }
+      }
+    },
+    "similarityInternalDebug": {
+      "type": "object",
+      "description": "Checkpoint 4. Dev-only scoring detail, present ONLY when the caller opted in via request.debugSimilarity. Never emitted by default, so it cannot leak into production user copy by accident.",
+      "required": [
+        "thresholdVersion", "classification", "evidenceMode", "categoryFamily", "coverage",
+        "imageAvailability", "netScore", "potentialAt", "strongAt",
+        "distinctPositiveClasses", "minDistinctPositiveClasses", "adjustmentsApplied"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "thresholdVersion": { "type": "string" },
+        "classification": { "type": "string", "enum": ["POTENTIAL_SIMILAR_ITEM", "STRONG_SIMILARITY"] },
+        "evidenceMode": { "type": "string", "enum": ["identifier_backed", "attribute_only"] },
+        "categoryFamily": { "type": "string", "enum": ["uniform_basic", "identity_strong", "general"] },
+        "coverage": { "type": "string", "enum": ["rich", "partial", "thin"] },
+        "imageAvailability": { "type": "string", "enum": ["both", "one_missing", "none", "poor_quality"] },
+        "netScore": { "type": "number", "minimum": 0 },
+        "potentialAt": { "type": "number" },
+        "strongAt": { "type": "number" },
+        "distinctPositiveClasses": { "type": "integer", "minimum": 0 },
+        "minDistinctPositiveClasses": { "type": "integer", "minimum": 0 },
+        "adjustmentsApplied": { "type": "array", "items": { "type": "string" } }
       }
     },
     "potentialSimilarItem": {
@@ -232,7 +271,7 @@
       "description": "ADVISORY ONLY, and never deduplication. There is deliberately no isDuplicate field in this contract: commerce dedupe getting it wrong costs a duplicate row, closet similarity getting it wrong costs the user an item they wanted. Nothing is merged, hidden or deleted; both records persist unless the user chooses otherwise.",
       "required": [
         "potentialSimilarItem", "existingItemId", "existingItemSource",
-        "comparison", "reasons", "advisoryConfidence", "availableActions", "resolution"
+        "comparison", "reasons", "conflicts", "advisoryConfidence", "availableActions", "resolution"
       ],
       "additionalProperties": false,
       "properties": {
@@ -251,6 +290,10 @@
           }
         },
         "reasons": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/similarityReason" } },
+        "conflicts": {
+          "type": "array", "items": { "$ref": "#/definitions/conflictReason" },
+          "description": "Checkpoint 4. Soft disagreements found alongside the agreements above; may be non-empty even when a notice is shown. Never carries a STRUCTURAL conflict — those suppress the notice instead of appearing here."
+        },
         "advisoryConfidence": {
           "type": "number", "minimum": 0, "maximum": 1,
           "description": "Orders candidates. Never gates an action and never auto-resolves anything."
@@ -263,7 +306,47 @@
         "resolution": {
           "type": "string", "const": "user_required",
           "description": "The backend reports a similarity; the person decides."
-        }
+        },
+        "internal": { "$ref": "#/definitions/similarityInternalDebug" }
+      }
+    },
+    "candidateRejectionReason": {
+      "type": "string",
+      "enum": ["no_comparable_fields", "category_conflict", "over_scoring_cap"]
+    },
+    "similarityRetrievalReport": {
+      "type": "object",
+      "required": ["sourcesChecked", "recordsConsidered", "candidatesRetained", "candidatesRejected", "durationMs"],
+      "additionalProperties": false,
+      "properties": {
+        "sourcesChecked": { "type": "array", "items": { "$ref": "#/definitions/existingItemSource" } },
+        "recordsConsidered": { "type": "integer", "minimum": 0 },
+        "candidatesRetained": { "type": "integer", "minimum": 0 },
+        "candidatesRejected": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["reason", "count"],
+            "additionalProperties": false,
+            "properties": {
+              "reason": { "$ref": "#/definitions/candidateRejectionReason" },
+              "count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "durationMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "similarityStageDiagnostics": {
+      "type": "object",
+      "required": ["thresholdVersion", "retrieveMs", "compareMs", "totalMs", "classifiedBeforeCap"],
+      "additionalProperties": false,
+      "properties": {
+        "thresholdVersion": { "type": "string" },
+        "retrieveMs": { "type": "integer", "minimum": 0 },
+        "compareMs": { "type": "integer", "minimum": 0 },
+        "totalMs": { "type": "integer", "minimum": 0 },
+        "classifiedBeforeCap": { "type": "integer", "minimum": 0 }
       }
     },
     "retrievalReport": {
@@ -317,7 +400,14 @@
           "items": { "$ref": "#/definitions/existingItemCandidate" }
         },
         "newScanImageUri": { "type": ["string", "null"], "maxLength": 2048 },
-        "newScanLabel": { "type": ["string", "null"], "maxLength": 160 }
+        "newScanLabel": { "type": ["string", "null"], "maxLength": 160 },
+        "newScanProductUrl": { "type": ["string", "null"], "maxLength": 2048 },
+        "newScanAuthoritativeId": { "type": ["string", "null"], "maxLength": 128 },
+        "newScanImageQuality": { "type": ["string", "null"], "enum": ["ok", "poor", "missing", null] },
+        "debugSimilarity": {
+          "type": "boolean",
+          "description": "Checkpoint 4. Dev/test opt-in only — see potentialSimilarItem.internal."
+        }
       }
     },
     "response": {
@@ -336,6 +426,8 @@
         "providers": { "type": "array", "items": { "$ref": "#/definitions/providerOutcome" } },
         "potentialSimilarItems": { "type": "array", "items": { "$ref": "#/definitions/potentialSimilarItem" } },
         "retrieval": { "$ref": "#/definitions/retrievalReport" },
+        "similarityRetrieval": { "$ref": "#/definitions/similarityRetrievalReport" },
+        "similarityDiagnostics": { "$ref": "#/definitions/similarityStageDiagnostics" },
         "timings": {
           "type": "object",
           "required": [

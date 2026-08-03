@@ -30,6 +30,9 @@ export const MAX_EXISTING_ITEMS = 25;
 const ALLOWED_FIELDS = [
   'id', 'source', 'label', 'imageUri', 'brand', 'model',
   'canonicalCategory', 'color', 'material', 'silhouette', 'pattern', 'productUrl',
+  // Checkpoint 4. See product-match's `ExistingItemCandidate.authoritativeId`
+  // / `.imageQuality`. Additive: an older client that omits these is unaffected.
+  'authoritativeId', 'imageQuality',
 ] as const;
 
 const LENGTH_LIMITS: Record<string, number> = {
@@ -45,6 +48,8 @@ const LENGTH_LIMITS: Record<string, number> = {
   silhouette: 60,
   pattern: 60,
   productUrl: 2048,
+  authoritativeId: 128,
+  imageQuality: 8,
 };
 
 function clean(value: unknown, maxLength: number): string | null {

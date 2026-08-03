@@ -329,7 +329,53 @@ export type SimilarityReason =
   | 'same_material'
   | 'same_silhouette'
   | 'same_pattern'
-  | 'shared_product_url';
+  | 'shared_product_url'
+  /**
+   * A caller-supplied authoritative identifier (GTIN / UPC / SKU / style code —
+   * the caller normalizes to whichever it has) agreed on both sides. Checkpoint
+   * 4: stronger than `shared_product_url` because it is not sensitive to the
+   * item being relisted at a different URL.
+   */
+  | 'authoritative_identifier_match';
+
+/**
+ * Checkpoint 4 — named NEGATIVE evidence.
+ *
+ * Symmetric with `SimilarityReason` on purpose: a conflict is exactly as
+ * checkable and exactly as nameable as an agreement, and burying it inside a
+ * bare score would make "why did this get suppressed" as unanswerable as "why
+ * did this get shown" was before `SimilarityReason` existed.
+ *
+ * `identifier_conflict` and `category_conflict` are STRUCTURAL — either one
+ * present means no notice is produced at all, regardless of any other
+ * agreement (see `closetSimilarity.ts`). No amount of "same brand, same
+ * colour" should outrank a barcode or a canonical category saying these are
+ * different products.
+ *
+ * The other three are SOFT — they lower the net score but do not by themselves
+ * block a notice, because a real product legitimately varies this way (a scan
+ * can be the same shoe in a different colourway, and telling the user that is
+ * more useful than staying silent).
+ */
+export type ConflictReason =
+  | 'identifier_conflict'
+  | 'category_conflict'
+  | 'different_model_family'
+  | 'different_silhouette'
+  | 'different_colorway'
+  /**
+   * Both sides declare a pattern and they disagree — a floral dress against a
+   * striped one. Soft rather than structural because pattern vocabulary is
+   * noisy ("striped" / "stripe" / "breton") and a single mis-read pattern
+   * should lower confidence, not silence a comparison that is otherwise
+   * well-evidenced.
+   *
+   * There is deliberately NO `different_material` counterpart: material text
+   * is the noisiest field the scanner emits ("cotton" vs "cotton blend" vs
+   * "100% cotton" are the same garment), so a material conflict would fire
+   * constantly on agreement. Material only ever contributes positively.
+   */
+  | 'different_pattern';
 
 /**
  * Everything the user may choose. All six are offered whenever a comparison is
@@ -381,6 +427,16 @@ export type PotentialSimilarItem = {
   /** Named agreements, strongest first. Never empty. */
   reasons: SimilarityReason[];
   /**
+   * Checkpoint 4 — named disagreements found alongside the agreements above.
+   * May be non-empty even when a notice is shown: "same brand, same model,
+   * different colourway" is still worth surfacing. Never includes a
+   * STRUCTURAL conflict (`identifier_conflict` / `category_conflict`) — those
+   * suppress the notice entirely rather than appearing here. Defaults to `[]`
+   * when nothing conflicted; always present so a client does not have to treat
+   * "absent" and "empty" as different states.
+   */
+  conflicts: ConflictReason[];
+  /**
    * 0..1, advisory. Orders multiple candidates; never gates an action and never
    * auto-resolves anything.
    */
@@ -392,6 +448,30 @@ export type PotentialSimilarItem = {
    * similarity; it reports one.
    */
   resolution: 'user_required';
+  /**
+   * Checkpoint 4 — present ONLY when the caller opted in via
+   * `ProductMatchRequest.debugSimilarity`. Carries the scoring internals a
+   * calibration pass needs (threshold version, classification, evidence mode,
+   * coverage, the net score) and is never emitted by default, so a developer
+   * debug field can never reach production user copy by accident.
+   */
+  internal?: SimilarityInternalDebug;
+};
+
+/** Checkpoint 4 — dev-only scoring detail. See `PotentialSimilarItem.internal`. */
+export type SimilarityInternalDebug = {
+  thresholdVersion: string;
+  classification: 'POTENTIAL_SIMILAR_ITEM' | 'STRONG_SIMILARITY';
+  evidenceMode: 'identifier_backed' | 'attribute_only';
+  categoryFamily: 'uniform_basic' | 'identity_strong' | 'general';
+  coverage: 'rich' | 'partial' | 'thin';
+  imageAvailability: 'both' | 'one_missing' | 'none' | 'poor_quality';
+  netScore: number;
+  potentialAt: number;
+  strongAt: number;
+  distinctPositiveClasses: number;
+  minDistinctPositiveClasses: number;
+  adjustmentsApplied: string[];
 };
 
 // ── Provider execution reporting ─────────────────────────────────────────────
@@ -444,6 +524,29 @@ export type ProductMatchQuery = {
 };
 
 /**
+ * Checkpoint 4 — scan-side fields for the advisory closet/recent-scan
+ * comparison ONLY.
+ *
+ * Deliberately NOT part of `ProductMatchQuery`. That type is provider-search
+ * input — `queryPlanner.ts` builds literal search strings from it — and the
+ * module carries a hard invariant that it is text-only with no URL and no
+ * image reference, because either one could otherwise leak into a third-party
+ * provider query. `productUrl` and `authoritativeId` are exactly the kind of
+ * field this invariant exists to keep out, so they live here instead: on
+ * `ProductMatchRequest` directly, alongside `newScanImageUri` / `newScanLabel`
+ * (the same "echoed back for comparison, never forwarded to a provider"
+ * category those two already are).
+ */
+export type SimilarityScanIdentity = {
+  /** See `ExistingItemCandidate.productUrl`. */
+  productUrl?: string | null;
+  /** See `ExistingItemCandidate.authoritativeId`. */
+  authoritativeId?: string | null;
+  /** See `ExistingItemCandidate.imageQuality`. */
+  imageQuality?: 'ok' | 'poor' | 'missing' | null;
+};
+
+/**
  * An item the user already has, supplied by the caller for advisory comparison.
  *
  * The caller owns the closet and the recent-scan list; this service does not
@@ -467,6 +570,13 @@ export type ExistingItemCandidate = {
   silhouette?: string | null;
   pattern?: string | null;
   productUrl?: string | null;
+  /** Checkpoint 4. See `ProductMatchQuery.authoritativeId`. */
+  authoritativeId?: string | null;
+  /**
+   * Checkpoint 4. Explicit quality hint for THIS item's stored image. Defaults
+   * to `'ok'` when omitted — see `ProductMatchQuery.newScanImageQuality`.
+   */
+  imageQuality?: 'ok' | 'poor' | 'missing' | null;
 };
 
 /**
@@ -527,6 +637,24 @@ export type ProductMatchRequest = {
   /** Image of the scan being matched, for side-by-side display only. */
   newScanImageUri?: string | null;
   newScanLabel?: string | null;
+  /**
+   * Checkpoint 4 — see `SimilarityScanIdentity`. Flattened onto the request
+   * (rather than nested) to match the existing `newScanImageUri`/
+   * `newScanLabel` fields, which are the same kind of thing: comparison-only,
+   * never forwarded to a provider.
+   */
+  newScanProductUrl?: string | null;
+  newScanAuthoritativeId?: string | null;
+  newScanImageQuality?: 'ok' | 'poor' | 'missing' | null;
+  /**
+   * Checkpoint 4 — dev/test opt-in ONLY. When true, each `PotentialSimilarItem`
+   * carries `internal` scoring detail (classification, evidence mode, coverage,
+   * net score). Never set by a production client; the inspection surface and
+   * the calibration tooling are the only intended callers. Absent this flag,
+   * `internal` is never populated, which is what keeps developer-only scoring
+   * detail out of production user copy structurally rather than by convention.
+   */
+  debugSimilarity?: boolean;
 };
 
 /**
@@ -618,8 +746,73 @@ export type ProductMatchResponse = {
   potentialSimilarItems: PotentialSimilarItem[];
   /** What the query planner did, for attribution. */
   retrieval: RetrievalReport;
+  /**
+   * Checkpoint 4. Present whenever `existingItems` was supplied (even empty),
+   * absent otherwise — so "the caller sent no candidates" and "the caller sent
+   * candidates and none survived retrieval" stay distinguishable. See
+   * `candidateRetrieval.ts`.
+   */
+  similarityRetrieval?: SimilarityRetrievalReport;
+  /**
+   * Checkpoint 4. Sub-timings inside the single `similarity` entry of
+   * `timings.stages`. Kept as a SEPARATE field rather than new stage names so
+   * the governed `stages` sequence (`plan, retrieve, normalize, relevance,
+   * dedupe, tier, similarity`) never changes shape for an existing consumer.
+   */
+  similarityDiagnostics?: SimilarityStageDiagnostics;
   /** Present only when the whole result is empty, explaining why. */
   emptyReason?: 'no_query' | 'no_eligible_providers' | 'no_results' | 'below_confidence';
+};
+
+/**
+ * Checkpoint 4 — candidate-retrieval accounting for the advisory similarity
+ * stage. Answers "what did we even have to compare against" independently of
+ * "how many comparisons were shown" (`potentialSimilarItems.length`), because
+ * a calibration pass needs both — a threshold change can only be judged
+ * against the population it ran over.
+ */
+export type SimilarityRetrievalReport = {
+  /** Sources the caller actually supplied candidates from. */
+  sourcesChecked: ExistingItemSource[];
+  /** Candidates the caller sent, before any filtering here. */
+  recordsConsidered: number;
+  /** Candidates that survived pre-score filtering and were actually compared. */
+  candidatesRetained: number;
+  /** Candidates dropped before scoring, by named reason. Sums to the delta
+   *  between `recordsConsidered` and `candidatesRetained`. */
+  candidatesRejected: Array<{ reason: CandidateRejectionReason; count: number }>;
+  /** Wall-clock time spent on retrieval/pre-filtering, milliseconds. */
+  durationMs: number;
+};
+
+/**
+ * Why a candidate was dropped before it ever reached scoring. Named so
+ * "rejected before scoring" is attributable rather than a bare count.
+ */
+export type CandidateRejectionReason =
+  /** Neither side has a single comparable attribute — scoring would be a
+   *  guaranteed no-op, so it is skipped rather than performed. */
+  | 'no_comparable_fields'
+  /** A structural category conflict was cheap to detect up front — see
+   *  `ConflictReason.category_conflict`. Rejecting here means the (more
+   *  expensive) full comparison never runs for an item that could never
+   *  qualify anyway. */
+  | 'category_conflict'
+  /** Beyond the per-request candidate cap, after the caller's own list was
+   *  already within `MAX_EXISTING_ITEMS` — a second, defensive bound. */
+  | 'over_scoring_cap';
+
+/** Checkpoint 4 — timing breakdown for the `similarity` stage. */
+export type SimilarityStageDiagnostics = {
+  thresholdVersion: string;
+  /** Time spent selecting/pruning candidates, before any pair was scored. */
+  retrieveMs: number;
+  /** Time spent scoring the retained candidates. */
+  compareMs: number;
+  /** `retrieveMs + compareMs`, i.e. the total cost of the `similarity` stage. */
+  totalMs: number;
+  /** `potentialSimilarItems.length` before the display cap was applied. */
+  classifiedBeforeCap: number;
 };
 
 /** What was searched, what came back, and what was thrown away and why. */
