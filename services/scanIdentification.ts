@@ -90,6 +90,26 @@ export type IdentifyScanOptions = {
    * `services/scannerIdentificationV2.ts` supplies this field.
    */
   contractRequestV2?: Record<string, unknown>;
+  /**
+   * Checkpoint 4.5 — the BOUNDED advisory-similarity candidate set.
+   *
+   * Built on device by `services/similarItemCandidateProvider.ts`, which caps
+   * it, prunes it and reports what it dropped. This transport only forwards
+   * it; it never builds, loads, reorders or trims candidates itself.
+   *
+   * ABSENT BY DEFAULT, for the same load-bearing reason as `contractRequestV2`
+   * above: Elise's attachment path and StyleChat share this transport and
+   * never pass it, so their request body stays byte-for-byte what it is today.
+   *
+   * Absent is also the FAILURE mode. If candidate building fails, times out,
+   * or is skipped, the caller simply omits this field — the backend then
+   * receives no `existingItems`, produces no comparison, and the scan and its
+   * commerce results are identical to today. Similarity can never fail a scan.
+   *
+   * Contains no image bytes: `imageUri` entries are references the client
+   * already holds for local rendering.
+   */
+  existingItems?: unknown[];
 };
 
 function failed(userMessage = NEUTRAL_FAILED_MESSAGE): ScanIdentifyResponse {
@@ -500,7 +520,7 @@ export async function identifyScanImage(
     ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
     ...(options.selectedCandidate ? { selectedCandidate: options.selectedCandidate } : {}),
     ...(options.selectionToken ? { selectionToken: options.selectionToken } : {}),
-    ...(options.selectionToken ? { selectionToken: options.selectionToken } : {}),
+    ...(options.existingItems?.length ? { existingItems: options.existingItems } : {}),
     clientTimestamp: new Date().toISOString(),
   };
 
@@ -514,6 +534,12 @@ export async function identifyScanImage(
       ...options.contractRequestV2,
       ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
       ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
+      // Checkpoint 4.5: merged onto the V2 envelope as well as the legacy body.
+      // The deployed handler reads `existingItems` from the TOP LEVEL on both
+      // contract paths (`sanitizeExistingItemCandidates(body.existingItems)`),
+      // and the Scanner now sends V2 — so omitting it here would leave the
+      // feature wired only on a path the scanner no longer takes.
+      ...(options.existingItems?.length ? { existingItems: options.existingItems } : {}),
     }
     : (legacyRequestBody as unknown as Record<string, unknown>);
 
