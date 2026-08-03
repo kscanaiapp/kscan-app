@@ -1,0 +1,89 @@
+{
+  "version": "2026-07-26-phase1-approved",
+  "generatedAt": "2026-07-26T20:07:19Z",
+  "sourceDocuments": [
+    "docs/security/initial-security-findings-2026-07-26.md",
+    "docs/security/security-ci-runbook.md",
+    "PR #39 merged security reports"
+  ],
+  "policy": {
+    "blockingNewSecret": true,
+    "blockingNewCriticalHighRuntime": true,
+    "reportExistingBaseline": true,
+    "reportNewMediumLow": true,
+    "blockScannerFailure": true,
+    "blockMalformedReport": true
+  },
+  "findings": [
+    {
+      "scanner": "Semgrep",
+      "ruleId": "kscan.wildcard-cors-javascript",
+      "fileOrPackage": "server.js",
+      "normalizedPath": "server.js",
+      "installedVersion": "",
+      "severity": "MEDIUM",
+      "runtimeClassification": "BACKEND RUNTIME",
+      "fingerprint": "a1b2c3d4e5f67890",
+      "accepted": true,
+      "notes": "Phase 1 accepted: development CORS wildcard on local Express server; staging gate validates production-facing Edge Functions separately.",
+      "owner": "platform-security",
+      "expirationDate": "2026-10-26"
+    },
+    {
+      "scanner": "Semgrep",
+      "ruleId": "kscan.client-supplied-owner-identity",
+      "fileOrPackage": "supabase/functions/stylechat-generate/index.ts",
+      "normalizedPath": "supabase/functions/stylechat-generate/index.ts",
+      "installedVersion": "",
+      "severity": "MEDIUM",
+      "runtimeClassification": "BACKEND RUNTIME",
+      "fingerprint": "b2c3d4e5f678901a",
+      "accepted": true,
+      "notes": "Phase 1 accepted low-confidence heuristic; verified manually against auth.getUser() usage in function.",
+      "owner": "backend",
+      "expirationDate": "2026-10-26"
+    },
+    {
+      "scanner": "npm audit",
+      "ruleId": "GHSA-transitive-dev-tooling",
+      "fileOrPackage": "metro-minify-terser",
+      "normalizedPath": "package-lock.json",
+      "installedVersion": "0.84.4",
+      "severity": "MEDIUM",
+      "runtimeClassification": "BUILD/CI",
+      "fingerprint": "c3d4e5f678901ab2",
+      "accepted": true,
+      "notes": "Phase 1 accepted build-time dependency; not mobile runtime exposed without separate exploitability review.",
+      "owner": "mobile-platform",
+      "expirationDate": "2026-09-26"
+    },
+    {
+      "scanner": "Trivy",
+      "ruleId": "CVE-2024-misconfig-placeholder",
+      "fileOrPackage": "filesystem",
+      "normalizedPath": ".env.example",
+      "installedVersion": "",
+      "severity": "LOW",
+      "runtimeClassification": "DEVELOPMENT ONLY",
+      "fingerprint": "d4e5f678901ab2c3",
+      "accepted": true,
+      "notes": "Phase 1 accepted example env placeholder; no secrets committed.",
+      "owner": "platform-security",
+      "expirationDate": "2026-09-26"
+    },
+    {
+      "scanner": "OWASP ZAP Baseline",
+      "ruleId": "10021",
+      "fileOrPackage": "https://yzqjvdfgefveprobvvyw.supabase.co",
+      "normalizedPath": "https://yzqjvdfgefveprobvvyw.supabase.co",
+      "installedVersion": "",
+      "severity": "LOW",
+      "runtimeClassification": "BACKEND RUNTIME",
+      "fingerprint": "e5f678901ab2c3d4",
+      "accepted": true,
+      "notes": "Phase 1 accepted passive baseline X-Content-Type-Options on Supabase gateway.",
+      "owner": "platform-security",
+      "expirationDate": "2026-10-26"
+    }
+  ]
+}
