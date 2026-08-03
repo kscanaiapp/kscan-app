@@ -5,6 +5,14 @@
 // payload content — this function's fields carry real user image data in
 // production, and that must never round-trip into logs or provider-shaped
 // error bodies.
+//
+// Secure Image Ingestion Gate (Phase 9) focus: this function now accepts
+// only clean_object_id references, resolved against a fake
+// `image_scan_verdicts` table + `image-ingestion-clean` storage bucket. The
+// fake Supabase client below models both, including a real SHA-256 hash
+// check, so the hash-mismatch / expired-verdict / no-verdict / cross-user
+// rejection paths are exercised the same way RLS + resolveCleanImage would
+// behave against the real project.
 
 import { assertEquals, assertExists } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 
@@ -15,8 +23,23 @@ Deno.env.set('RAPIDAPI_KEY', 'fake-rapidapi-key');
 const { handleTryOnRequest, parseRequest } = await import('./index.ts');
 const { authenticateRequest } = await import('../_shared/security/context.ts');
 
-const FAKE_PERSON_IMAGE = 'data:image/jpeg;base64,FAKEPERSONIMAGEBYTESxyz123';
-const FAKE_GARMENT_IMAGE = 'data:image/jpeg;base64,FAKEGARMENTIMAGEBYTESabc789';
+async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+const PERSON_OBJECT_ID = 'user-1/person-clean.jpg';
+const GARMENT_OBJECT_ID = 'user-1/garment-clean.jpg';
+
+const PERSON_BYTES = new TextEncoder().encode('FAKEPERSONIMAGEBYTESxyz123-canonical');
+const GARMENT_BYTES = new TextEncoder().encode('FAKEGARMENTIMAGEBYTESabc789-canonical');
+const PERSON_HASH = await sha256Hex(PERSON_BYTES);
+const GARMENT_HASH = await sha256Hex(GARMENT_BYTES);
+
+const FUTURE_ISO = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+const PAST_ISO = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+type VerdictFixture = { verdict: string; sha256_canonical: string; expires_at: string | null } | undefined;
 
 function req(init: RequestInit & { path?: string } = {}): Request {
   return new Request(`https://x.test${init.path ?? ''}`, init);
@@ -31,29 +54,81 @@ function postJson(body: unknown, headers: Record<string, string> = {}): Request 
 }
 
 function validBody(overrides: Record<string, unknown> = {}) {
-  return { person_image: FAKE_PERSON_IMAGE, top_garment: FAKE_GARMENT_IMAGE, ...overrides };
+  return { person_image_object_id: PERSON_OBJECT_ID, top_garment_object_id: GARMENT_OBJECT_ID, ...overrides };
 }
+
+// Default happy-path fixtures: both objects have a CLEAN, unexpired verdict
+// whose sha256_canonical matches the bytes actually stored under that id.
+const DEFAULT_VERDICTS: Record<string, VerdictFixture> = {
+  [PERSON_OBJECT_ID]: { verdict: 'CLEAN', sha256_canonical: PERSON_HASH, expires_at: FUTURE_ISO },
+  [GARMENT_OBJECT_ID]: { verdict: 'CLEAN', sha256_canonical: GARMENT_HASH, expires_at: FUTURE_ISO },
+};
+const DEFAULT_OBJECTS: Record<string, Uint8Array> = {
+  [PERSON_OBJECT_ID]: PERSON_BYTES,
+  [GARMENT_OBJECT_ID]: GARMENT_BYTES,
+};
 
 function fakeSupabaseClient(opts: {
   accountStatus?: string;
   rpcImpl?: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+  verdicts?: Record<string, VerdictFixture>;
+  objects?: Record<string, Uint8Array>;
 }) {
+  const verdicts = opts.verdicts ?? DEFAULT_VERDICTS;
+  const objects = opts.objects ?? DEFAULT_OBJECTS;
+
   return {
     auth: { getUser: () => Promise.resolve({ data: { user: { id: 'user-1' } }, error: null }) },
-    from: (_table: string) => ({
-      select: (_cols: string) => ({
-        eq: (_col: string, _val: string) => ({
-          maybeSingle: () => Promise.resolve({ data: { account_status: opts.accountStatus ?? 'active' }, error: null }),
+    from: (table: string) => {
+      if (table === 'image_scan_verdicts') {
+        return {
+          select: (_cols: string) => ({
+            eq: (_col1: string, objectId: string) => ({
+              eq: (_col2: string, _verdictValue: string) => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: () => {
+                      const fixture = verdicts[objectId];
+                      if (!fixture) return Promise.resolve({ data: null, error: null });
+                      return Promise.resolve({ data: { clean_object_id: objectId, ...fixture }, error: null });
+                    },
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      // profiles / account-status lookup (existing auth-context behavior).
+      return {
+        select: (_cols: string) => ({
+          eq: (_col: string, _val: string) => ({
+            maybeSingle: () => Promise.resolve({ data: { account_status: opts.accountStatus ?? 'active' }, error: null }),
+          }),
         }),
+      };
+    },
+    storage: {
+      from: (_bucket: string) => ({
+        download: (objectId: string) => {
+          const bytes = objects[objectId];
+          if (!bytes) return Promise.resolve({ data: null, error: { message: 'not found' } });
+          return Promise.resolve({ data: { arrayBuffer: () => Promise.resolve(bytes.buffer) }, error: null });
+        },
       }),
-    }),
+    },
     rpc: opts.rpcImpl ?? (() => Promise.resolve({ data: [{ allowed: true, reservation_id: 'res-1', abuse_state: 'normal', retry_after_seconds: null, reason: null }], error: null })),
     // deno-lint-ignore no-explicit-any
   } as any;
 }
 
-function authenticateAs(accountStatus: string, rpcImpl?: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>) {
-  return (r: Request) => authenticateRequest(r, { clientFactory: () => fakeSupabaseClient({ accountStatus, rpcImpl }) });
+function authenticateAs(
+  accountStatus: string,
+  rpcImpl?: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>,
+  verdicts?: Record<string, VerdictFixture>,
+  objects?: Record<string, Uint8Array>,
+) {
+  return (r: Request) => authenticateRequest(r, { clientFactory: () => fakeSupabaseClient({ accountStatus, rpcImpl, verdicts, objects }) });
 }
 
 function allowingQuota() {
@@ -85,7 +160,7 @@ Deno.test('POST with no Authorization header is rejected unauthorized before any
   assertEquals(res.status, 401);
 });
 
-Deno.test('a valid active-account user reaches provider logic (success path)', async () => {
+Deno.test('a valid active-account user with CLEAN-verdict objects reaches provider logic (success path)', async () => {
   const res = await handleTryOnRequest(postJson(validBody()), {
     authenticate: allowingQuota(),
     fetchImpl: () => Promise.resolve(jsonResponse({ image_url: 'https://cdn.example/result.jpg' })),
@@ -105,24 +180,23 @@ Deno.test('a locked account is rejected account_unavailable', async () => {
 
 // ── Validation ───────────────────────────────────────────────────────────────
 
-Deno.test('parseRequest rejects a missing person_image', () => {
-  const result = parseRequest({ top_garment: FAKE_GARMENT_IMAGE });
+Deno.test('parseRequest rejects a missing person_image_object_id', () => {
+  const result = parseRequest({ top_garment_object_id: GARMENT_OBJECT_ID });
   assertEquals('validationError' in result, true);
 });
 
-Deno.test('parseRequest rejects when neither top_garment nor bottom_garment is present', () => {
-  const result = parseRequest({ person_image: FAKE_PERSON_IMAGE });
+Deno.test('parseRequest rejects when neither top_garment_object_id nor bottom_garment_object_id is present', () => {
+  const result = parseRequest({ person_image_object_id: PERSON_OBJECT_ID });
   assertEquals('validationError' in result, true);
 });
 
-Deno.test('parseRequest accepts bottom_garment alone', () => {
-  const result = parseRequest({ person_image: FAKE_PERSON_IMAGE, bottom_garment: FAKE_GARMENT_IMAGE });
+Deno.test('parseRequest accepts bottom_garment_object_id alone', () => {
+  const result = parseRequest({ person_image_object_id: PERSON_OBJECT_ID, bottom_garment_object_id: GARMENT_OBJECT_ID });
   assertEquals('validationError' in result, false);
 });
 
-Deno.test('an oversized body (over the 10MB image-payload cap) is rejected 400 before any provider call', async () => {
-  const hugeImage = 'a'.repeat(11 * 1024 * 1024);
-  const res = await handleTryOnRequest(postJson(validBody({ person_image: hugeImage })), {
+Deno.test('an oversized body (over the 10MB request cap) is rejected 400 before any provider call', async () => {
+  const res = await handleTryOnRequest(postJson(validBody({ resolution: 'x'.repeat(11 * 1024 * 1024) })), {
     authenticate: allowingQuota(),
     fetchImpl: () => { throw new Error('must not be called'); },
   });
@@ -137,6 +211,59 @@ Deno.test('malformed JSON body is rejected 400', async () => {
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer good-token' },
     body: '{not json',
   }), { authenticate: allowingQuota() });
+  assertEquals(res.status, 400);
+});
+
+// ── Secure Image Ingestion Gate: downstream enforcement (Phase 9) ────────────
+
+Deno.test('an object id with no verdict row at all is rejected (unknown / cross-user reference)', async () => {
+  const res = await handleTryOnRequest(postJson(validBody({ person_image_object_id: 'other-user/not-mine.jpg' })), {
+    authenticate: authenticateAs('active', undefined, {}, {}), // no verdicts, no objects known
+    fetchImpl: () => { throw new Error('must not be called — provider must never be reached without a resolved CLEAN image'); },
+  });
+  assertEquals(res.status, 400);
+  const body = await res.json();
+  assertEquals(body.error, 'Image reference is invalid or has expired');
+});
+
+Deno.test('an object id whose verdict is not CLEAN (e.g. still PENDING) is rejected', async () => {
+  const res = await handleTryOnRequest(postJson(validBody()), {
+    authenticate: authenticateAs('active', undefined, {
+      [PERSON_OBJECT_ID]: undefined, // simulates: row exists but verdict != 'CLEAN', so the .eq('verdict','CLEAN') filter finds nothing
+      [GARMENT_OBJECT_ID]: { verdict: 'CLEAN', sha256_canonical: GARMENT_HASH, expires_at: FUTURE_ISO },
+    }, DEFAULT_OBJECTS),
+    fetchImpl: () => { throw new Error('must not be called'); },
+  });
+  assertEquals(res.status, 400);
+});
+
+Deno.test('an expired CLEAN verdict is rejected (stale verdict use)', async () => {
+  const res = await handleTryOnRequest(postJson(validBody()), {
+    authenticate: authenticateAs('active', undefined, {
+      [PERSON_OBJECT_ID]: { verdict: 'CLEAN', sha256_canonical: PERSON_HASH, expires_at: PAST_ISO },
+      [GARMENT_OBJECT_ID]: { verdict: 'CLEAN', sha256_canonical: GARMENT_HASH, expires_at: FUTURE_ISO },
+    }, DEFAULT_OBJECTS),
+    fetchImpl: () => { throw new Error('must not be called'); },
+  });
+  assertEquals(res.status, 400);
+});
+
+Deno.test('a hash mismatch between the verdict record and the downloaded bytes is rejected (forged/substituted object)', async () => {
+  const tamperedObjects = { ...DEFAULT_OBJECTS, [PERSON_OBJECT_ID]: new TextEncoder().encode('SOMETHING-ELSE-ENTIRELY') };
+  const res = await handleTryOnRequest(postJson(validBody()), {
+    authenticate: authenticateAs('active', undefined, DEFAULT_VERDICTS, tamperedObjects),
+    fetchImpl: () => { throw new Error('must not be called'); },
+  });
+  assertEquals(res.status, 400);
+});
+
+Deno.test('a bare-string clean_object_id cannot be forged into a verdict without a matching DB row', async () => {
+  // Even a well-formed-looking object id path is worthless without a real
+  // verdict row backing it — the fake client's verdict map is empty here.
+  const res = await handleTryOnRequest(postJson(validBody({ person_image_object_id: 'user-1/looks-plausible.jpg' })), {
+    authenticate: authenticateAs('active', undefined, {}, {}),
+    fetchImpl: () => { throw new Error('must not be called'); },
+  });
   assertEquals(res.status, 400);
 });
 
@@ -271,7 +398,7 @@ Deno.test('missing RAPIDAPI_KEY is reported as a 500 configuration error', async
 
 // ── Privacy / Zero-Knowledge ──────────────────────────────────────────────────
 
-Deno.test('no response body ever contains the raw person_image or garment image content', async () => {
+Deno.test('no response body ever contains the raw resolved image bytes', async () => {
   const res = await handleTryOnRequest(postJson(validBody()), {
     authenticate: allowingQuota(),
     fetchImpl: () => Promise.resolve(jsonResponse({ image_url: 'https://cdn.example/result.jpg' })),
@@ -281,10 +408,15 @@ Deno.test('no response body ever contains the raw person_image or garment image 
   assertEquals(rawText.includes('FAKEGARMENTIMAGEBYTES'), false);
 });
 
-Deno.test('a validation-error response never echoes the submitted image content', async () => {
-  const res = await handleTryOnRequest(postJson({ person_image: 'data:image/jpeg;base64,LEAKEDSECRETIMAGE' }), { authenticate: allowingQuota() });
+Deno.test('an unresolvable object id never echoes its own path/content back in the error', async () => {
+  const res = await handleTryOnRequest(
+    postJson(validBody({ person_image_object_id: 'user-1/LEAKEDSECRETPATH.jpg' })),
+    { authenticate: allowingQuota() }, // default fixtures don't include this object id -> no verdict row
+  );
   const rawText = await res.text();
-  assertEquals(rawText.includes('LEAKEDSECRETIMAGE'), false);
+  assertEquals(rawText.includes('LEAKEDSECRETPATH'), false);
+  // The generic message is returned regardless of the object id's shape.
+  assertEquals(JSON.parse(rawText).error, 'Image reference is invalid or has expired');
 });
 
 Deno.test('no response body ever contains the RAPIDAPI_KEY value', async () => {

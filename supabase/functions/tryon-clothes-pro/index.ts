@@ -8,18 +8,24 @@
 // MODELSLAB_API_KEY/MODELSLAB_TRYON_ENABLED being present on staging for an
 // unrelated path.
 //
-// Zero-Knowledge constraint: person_image/top_garment/bottom_garment carry
-// user image data (or an image reference). This function never logs their
-// content, never persists them (no DB writes exist in this function), and
-// never echoes them back beyond the raw upstream passthrough the caller
-// already expects. Security hardening (Pass 4) adds a bounded request-size
-// limit — previously absent — specifically because unbounded image payloads
-// are both a cost-abuse vector and a privacy-surface-area concern; every
-// other control (auth, quota, provider hardening) mirrors the other 4
-// functions in this pass. There is currently no live caller
-// (services/tryOnClothesPro.ts is unimported anywhere under app/components/
-// hooks/contexts), so this function is hardened and tested here but stays
-// undeployed pending a real product need.
+// Secure Image Ingestion Gate (Phase 9 downstream enforcement,
+// docs/security/secure-image-ingestion-architecture.md): this function no
+// longer accepts inline base64 image bytes. It accepts only CLEAN-verdict
+// object ids from the private `image-ingestion-clean` bucket
+// (security/scan-worker/scanQuarantineObject.js is the only writer). For each
+// object id: the caller's own RLS-scoped Supabase client resolves it against
+// `image_scan_verdicts` (ownership is enforced by RLS — a foreign or unknown
+// object id simply returns no row, never a different user's image) and
+// confirms verdict='CLEAN' and not expired, then downloads the object from
+// `image-ingestion-clean` (RLS-scoped to the same owner) and re-verifies its
+// SHA-256 against the verdict row before use — this is what prevents
+// "clean-verdict reuse for different bytes." This rewrite was possible
+// without a client-visible contract change ONLY because there is still no
+// live caller (services/tryOnClothesPro.ts is unimported anywhere under
+// app/components/hooks/contexts) — the request shape is the safe redesign
+// point precisely because nothing depends on the old one. If a live caller
+// is ever wired up, it must upload through the quarantine flow and pass the
+// resulting clean_object_id, not raw bytes.
 
 import { authenticateRequest } from '../_shared/security/context.ts';
 import { buildCorsHeaders, handleCorsPreflight, type CorsPolicy } from '../_shared/security/cors.ts';
@@ -72,11 +78,11 @@ function optionalBoolean(value: unknown): boolean | null {
 }
 
 interface TryOnRequest {
-  personImage:   string;
-  topGarment:    string | null;
-  bottomGarment: string | null;
-  resolution:    string | null;
-  restoreFace:   boolean | null;
+  personImageObjectId:   string;
+  topGarmentObjectId:    string | null;
+  bottomGarmentObjectId: string | null;
+  resolution:            string | null;
+  restoreFace:           boolean | null;
 }
 
 export function parseRequest(raw: unknown): TryOnRequest | { validationError: string } {
@@ -86,24 +92,69 @@ export function parseRequest(raw: unknown): TryOnRequest | { validationError: st
 
   const body = raw as Record<string, unknown>;
 
-  if (!validImageField(body.person_image)) {
-    return { validationError: 'person_image is required and must be a non-empty string' };
+  if (!validImageField(body.person_image_object_id)) {
+    return { validationError: 'person_image_object_id is required and must be a non-empty string' };
   }
 
-  const topGarment    = validImageField(body.top_garment)    ? body.top_garment    as string : null;
-  const bottomGarment = validImageField(body.bottom_garment) ? body.bottom_garment as string : null;
+  const topGarmentObjectId    = validImageField(body.top_garment_object_id)    ? body.top_garment_object_id    as string : null;
+  const bottomGarmentObjectId = validImageField(body.bottom_garment_object_id) ? body.bottom_garment_object_id as string : null;
 
-  if (!topGarment && !bottomGarment) {
-    return { validationError: 'At least one of top_garment or bottom_garment is required' };
+  if (!topGarmentObjectId && !bottomGarmentObjectId) {
+    return { validationError: 'At least one of top_garment_object_id or bottom_garment_object_id is required' };
   }
 
   return {
-    personImage:   body.person_image as string,
-    topGarment,
-    bottomGarment,
-    resolution:    optionalString(body.resolution),
-    restoreFace:   optionalBoolean(body.restore_face),
+    personImageObjectId:   body.person_image_object_id as string,
+    topGarmentObjectId,
+    bottomGarmentObjectId,
+    resolution:            optionalString(body.resolution),
+    restoreFace:           optionalBoolean(body.restore_face),
   };
+}
+
+const CLEAN_BUCKET = 'image-ingestion-clean';
+
+// Resolves a clean_object_id to its base64 bytes, enforcing every Phase 9
+// requirement: ownership (RLS on image_scan_verdicts + storage.objects, both
+// scoped to the caller's own JWT — a foreign object id simply matches no
+// row), a CLEAN verdict (never PENDING/rejected), non-expiry, and a hash
+// match between the verdict record and the bytes actually downloaded (so a
+// stale or substituted object can never be served under an old verdict).
+// Returns a generic failure reason only — never surfaced verbatim to the
+// caller (see the single generic error message used at each call site below).
+async function resolveCleanImage(
+  supabaseClient: SupabaseClient,
+  objectId: string,
+): Promise<{ ok: true; base64: string } | { ok: false; reason: string }> {
+  const { data: verdict, error: verdictError } = await supabaseClient
+    .from('image_scan_verdicts')
+    .select('clean_object_id, sha256_canonical, verdict, expires_at')
+    .eq('clean_object_id', objectId)
+    .eq('verdict', 'CLEAN')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (verdictError) return { ok: false, reason: 'verdict_lookup_error' };
+  if (!verdict) return { ok: false, reason: 'no_clean_verdict' };
+  if (verdict.expires_at && new Date(verdict.expires_at).getTime() <= Date.now()) {
+    return { ok: false, reason: 'verdict_expired' };
+  }
+
+  const { data: fileData, error: downloadError } = await supabaseClient.storage.from(CLEAN_BUCKET).download(objectId);
+  if (downloadError || !fileData) return { ok: false, reason: 'object_download_error' };
+
+  const bytes = new Uint8Array(await fileData.arrayBuffer());
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const sha256Hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  if (sha256Hex !== verdict.sha256_canonical) {
+    return { ok: false, reason: 'hash_mismatch' };
+  }
+
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+  return { ok: true, base64: btoa(binary) };
 }
 
 function json(body: unknown, status: number, corsHeaders: Record<string, string>, extraHeaders: Record<string, string> = {}): Response {
@@ -214,11 +265,39 @@ export async function handleTryOnRequest(req: Request, overrides: RequestOverrid
     return json({ error: parsed.validationError, requestId }, 400, corsHeaders);
   }
 
+  // ── Secure Image Ingestion Gate: resolve each object id to CLEAN bytes
+  // before anything else. A single generic message covers every failure
+  // reason (ownership mismatch, no CLEAN verdict, expiry, hash mismatch) —
+  // per "do not expose ... security thresholds" in required operational
+  // behavior, none of resolveCleanImage's internal `reason` values are ever
+  // returned to the caller. ──────────────────────────────────────────────────
+  const personImageResult = await resolveCleanImage(userClient, parsed.personImageObjectId);
+  if (!personImageResult.ok) {
+    return json({ error: 'Image reference is invalid or has expired', requestId }, 400, corsHeaders);
+  }
+  let topGarmentBase64: string | null = null;
+  if (parsed.topGarmentObjectId) {
+    const topResult = await resolveCleanImage(userClient, parsed.topGarmentObjectId);
+    if (!topResult.ok) {
+      return json({ error: 'Image reference is invalid or has expired', requestId }, 400, corsHeaders);
+    }
+    topGarmentBase64 = topResult.base64;
+  }
+  let bottomGarmentBase64: string | null = null;
+  if (parsed.bottomGarmentObjectId) {
+    const bottomResult = await resolveCleanImage(userClient, parsed.bottomGarmentObjectId);
+    if (!bottomResult.ok) {
+      return json({ error: 'Image reference is invalid or has expired', requestId }, 400, corsHeaders);
+    }
+    bottomGarmentBase64 = bottomResult.base64;
+  }
+  const personImageBase64 = personImageResult.base64;
+
   // ── Quota reservation (visual_tryon: the tightest concurrency/cost budget
   // of the 5 functions in this pass, reflecting real per-call provider cost). ──
   let reservationId: string | null = null;
   {
-    const fingerprint = await computeRequestFingerprint([userId, FUNCTION_NAME, parsed.personImage, parsed.topGarment ?? '', parsed.bottomGarment ?? '', parsed.resolution ?? '']);
+    const fingerprint = await computeRequestFingerprint([userId, FUNCTION_NAME, parsed.personImageObjectId, parsed.topGarmentObjectId ?? '', parsed.bottomGarmentObjectId ?? '', parsed.resolution ?? '']);
     const reservation = await reserveProviderRequest(userClient, {
       functionName: FUNCTION_NAME,
       providerCategory: PROVIDER_CATEGORY,
@@ -239,12 +318,13 @@ export async function handleTryOnRequest(req: Request, overrides: RequestOverrid
     }
   }
 
-  // ── Build form body (unchanged) ──────────────────────────────────────────
+  // ── Build form body. Values are now resolved CLEAN bytes, not caller-supplied
+  // base64 — the request/response shape RapidAPI sees is otherwise unchanged. ──
   const params = new URLSearchParams();
   params.set('task_type',    'try_on');
-  params.set('person_image', parsed.personImage);
-  if (parsed.topGarment)    params.set('top_garment',    parsed.topGarment);
-  if (parsed.bottomGarment) params.set('bottom_garment', parsed.bottomGarment);
+  params.set('person_image', personImageBase64);
+  if (topGarmentBase64)     params.set('top_garment',    topGarmentBase64);
+  if (bottomGarmentBase64)  params.set('bottom_garment', bottomGarmentBase64);
   if (parsed.resolution)    params.set('resolution',     parsed.resolution);
   if (parsed.restoreFace !== null) {
     params.set('restore_face', String(parsed.restoreFace));
