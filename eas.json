@@ -12,6 +12,7 @@
         "applicationArchivePath": "android/app/build/outputs/apk/release/app-release.apk"
       },
       "env": {
+        "EXPO_PUBLIC_SCAN_SIMILAR_ITEM_ENABLED": "true",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
