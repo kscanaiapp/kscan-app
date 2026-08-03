@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: |
     Staging OpenAPI surface for K Scan AI Supabase Edge Functions.
-    Project ref yzqjvdfgefveprobvvyw (staging). Production wyyuqfdxucjksghsmhry is excluded.
+    Project ref yzqjvdfgefveprobvvyw (staging only). Production project is excluded from this definition.
 servers:
   - url: https://yzqjvdfgefveprobvvyw.supabase.co/functions/v1
     description: K Scan AI Staging Edge Functions

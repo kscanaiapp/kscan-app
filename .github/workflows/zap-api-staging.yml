@@ -82,8 +82,12 @@ jobs:
             exit 3
           fi
 
-          if grep -qi 'wyyuqfdxucjksghsmhry' security/openapi/staging-api.yaml; then
-            echo "::error title=Production URL in OpenAPI::OpenAPI must not reference production project"
+          if grep -Eiq 'https?://wyyuqfdxucjksghsmhry\.supabase\.co' security/openapi/staging-api.yaml; then
+            echo "::error title=Production URL in OpenAPI::OpenAPI servers must not target the production project host"
+            exit 3
+          fi
+          if ! grep -Eiq 'https://yzqjvdfgefveprobvvyw\.supabase\.co' security/openapi/staging-api.yaml; then
+            echo "::error title=Missing staging server::OpenAPI must reference the staging project host"
             exit 3
           fi
 
