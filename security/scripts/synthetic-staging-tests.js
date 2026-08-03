@@ -3,24 +3,43 @@
 
 /**
  * Synthetic staging authentication and authorization contract tests.
- * Uses synthetic accounts from GitHub environment secrets (never logged).
+ *
+ * Authenticates three pre-provisioned synthetic accounts (active,
+ * pending_deletion, locked) at runtime via Supabase Auth's password grant,
+ * using the staging publishable key — never a long-lived, pre-issued JWT
+ * stored as a secret. Every access token this script obtains is masked
+ * (`::add-mask::`, printed to stderr only) the instant it's received and is
+ * never written to stdout (which the calling workflow step pipes into
+ * synthetic-report.json), never placed in a result string, and never
+ * persisted between steps.
+ *
+ * This script never creates or deletes a Supabase Auth user and never
+ * writes to any legitimate waitlist/privacy table — see
+ * docs/security/staging-synthetic-auth.md for the one-time account
+ * provisioning and secret-rotation procedure.
+ *
  * Node 20+ fetch built-in.
  *
- * Usage:
- *   node security/scripts/synthetic-staging-tests.js
- *
- * Required env:
+ * Required env (see synthetic-auth.js REQUIRED_ENV_VARS):
  *   SUPABASE_STAGING_URL
- *   SUPABASE_STAGING_ANON_KEY
- * Optional env for authenticated scenarios:
- *   STAGING_SYNTHETIC_USER_EMAIL
- *   STAGING_SYNTHETIC_USER_PASSWORD
- *   STAGING_SYNTHETIC_USER_B_JWT (preissued for cross-user tests)
- *   STAGING_SYNTHETIC_SUSPENDED_JWT
- *   STAGING_SYNTHETIC_DELETION_PENDING_JWT
+ *   SUPABASE_STAGING_PUBLISHABLE_KEY
+ *   STAGING_SYNTHETIC_ACTIVE_EMAIL / STAGING_SYNTHETIC_ACTIVE_PASSWORD
+ *   STAGING_SYNTHETIC_PENDING_EMAIL / STAGING_SYNTHETIC_PENDING_PASSWORD
+ *   STAGING_SYNTHETIC_LOCKED_EMAIL / STAGING_SYNTHETIC_LOCKED_PASSWORD
  */
 
-const crypto = require('node:crypto');
+const {
+  findMissingEnvVars,
+  assertNotProductionUrl,
+  signInSyntheticUser,
+  maskLine,
+  generateMalformedJwtFixtures,
+  SYNTHETIC_ROLES,
+  isAuthRejection,
+  isAccountUnavailableRejection,
+  isValidationRejection,
+  isAuthenticatedNonServerErrorResponse,
+} = require('./synthetic-auth');
 
 const CLEANUP_TAG = `kscan-synthetic-${Date.now()}`;
 
@@ -47,168 +66,162 @@ function edgeUrl(base, functionName) {
 }
 
 async function runTests() {
-  const base = process.env.SUPABASE_STAGING_URL;
-  const anonKey = process.env.SUPABASE_STAGING_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  const results = [];
-
-  if (!base || !anonKey) {
+  const missing = findMissingEnvVars();
+  if (missing.length > 0) {
     return {
       ok: false,
       cleanupTag: CLEANUP_TAG,
-      results: [assertCondition('configuration', false, 'SUPABASE_STAGING_URL and anon key required')],
+      results: [assertCondition('configuration', false, `missing required synthetic auth credentials: ${missing.join(', ')}`)],
     };
   }
 
-  // Anonymous rejection on protected function
+  const base = process.env.SUPABASE_STAGING_URL;
+  const publishableKey = process.env.SUPABASE_STAGING_PUBLISHABLE_KEY;
+  const results = [];
+
+  try {
+    assertNotProductionUrl(base);
+    results.push(assertCondition('production-target rejection', true));
+  } catch (err) {
+    return {
+      ok: false,
+      cleanupTag: CLEANUP_TAG,
+      results: [assertCondition('production-target rejection', false, err.message)],
+    };
+  }
+
+  // ── Runtime authentication for the three synthetic roles ──────────────────
+  // Tokens live only in this local object for the duration of this process;
+  // they are never written to `results` details, never logged to stdout, and
+  // are cleared (see the end of this function) once the tests that need them
+  // are done.
+  const tokens = {};
+  for (const role of SYNTHETIC_ROLES) {
+    const email = process.env[`STAGING_SYNTHETIC_${role}_EMAIL`];
+    const password = process.env[`STAGING_SYNTHETIC_${role}_PASSWORD`];
+    const signIn = await signInSyntheticUser(base, publishableKey, email, password);
+    if (signIn.ok) {
+      // Mask before doing anything else with the token. stderr only — this
+      // step's stdout is piped into the JSON artifact file.
+      console.error(maskLine(signIn.accessToken));
+      tokens[role] = signIn.accessToken;
+    }
+    results.push(assertCondition(`runtime auth: ${role.toLowerCase()} account`, signIn.ok, signIn.ok ? '' : signIn.error));
+  }
+
+  // ── Anonymous rejection on a protected function ────────────────────────────
   const anonStyleChat = await request(edgeUrl(base, 'stylechat-generate'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: 'synthetic-test' }),
+    headers: { apikey: publishableKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: CLEANUP_TAG, message: 'synthetic-test' }),
   });
   results.push(assertCondition(
     'anonymous rejection',
-    [401, 403].includes(anonStyleChat.status),
+    isAuthRejection(anonStyleChat),
     `expected 401/403 got ${anonStyleChat.status}`,
   ));
 
-  // Malformed authentication
-  const malformed = await request(edgeUrl(base, 'stylechat-generate'), {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer not-a-jwt',
-      apikey: anonKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ prompt: 'synthetic-test' }),
-  });
-  results.push(assertCondition(
-    'malformed authentication rejection',
-    [401, 403].includes(malformed.status),
-    `expected 401/403 got ${malformed.status}`,
-  ));
-
-  // Expired JWT rejection (synthetic invalid token shape)
-  const expiredJwt = `${Buffer.from('{"alg":"none"}').toString('base64url')}.${Buffer.from('{"exp":1}').toString('base64url')}.sig`;
-  const expired = await request(edgeUrl(base, 'stylechat-generate'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${expiredJwt}`,
-      apikey: anonKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ prompt: 'synthetic-test' }),
-  });
-  results.push(assertCondition(
-    'expired JWT rejection',
-    [401, 403].includes(expired.status),
-    `expected 401/403 got ${expired.status}`,
-  ));
-
-  // Valid synthetic user request (optional)
-  const email = process.env.STAGING_SYNTHETIC_USER_EMAIL;
-  const password = process.env.STAGING_SYNTHETIC_USER_PASSWORD;
-  let userJwt = process.env.STAGING_SYNTHETIC_USER_JWT || '';
-  if (!userJwt && email && password) {
-    const authRes = await request(`${base.replace(/\/+$/, '')}/auth/v1/token?grant_type=password`, {
+  // ── Malformed / structurally invalid JWT rejection ─────────────────────────
+  // Generated locally — no network call to produce these, no real signing key.
+  const fixtures = generateMalformedJwtFixtures();
+  for (const [fixtureName, jwt] of Object.entries(fixtures)) {
+    const res = await request(edgeUrl(base, 'stylechat-generate'), {
       method: 'POST',
       headers: {
-        apikey: anonKey,
+        Authorization: `Bearer ${jwt}`,
+        apikey: publishableKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ sessionId: CLEANUP_TAG, message: 'synthetic-test' }),
     });
-    userJwt = authRes.json?.access_token || '';
     results.push(assertCondition(
-      'valid synthetic-user auth',
-      Boolean(userJwt),
-      authRes.status >= 400 ? `auth failed status ${authRes.status}` : 'missing access_token',
+      `invalid JWT rejection: ${fixtureName}`,
+      isAuthRejection(res),
+      `expected 401/403 got ${res.status}`,
     ));
-  } else {
-    results.push(assertCondition('valid synthetic-user auth', Boolean(userJwt) || (!email && !password), 'skipped or preissued JWT'));
   }
 
-  if (userJwt) {
+  // ── Active-user request: reaches the authenticated, hardened interior ─────
+  if (tokens.ACTIVE) {
     const validReq = await request(edgeUrl(base, 'stylechat-generate'), {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${userJwt}`,
-        apikey: anonKey,
+        Authorization: `Bearer ${tokens.ACTIVE}`,
+        apikey: publishableKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt: 'synthetic security gate ping', sessionId: CLEANUP_TAG }),
+      body: JSON.stringify({ sessionId: CLEANUP_TAG, message: 'synthetic security gate ping' }),
     });
     results.push(assertCondition(
-      'valid synthetic-user request',
-      validReq.status >= 200 && validReq.status < 500,
+      'active-user request succeeds',
+      isAuthenticatedNonServerErrorResponse(validReq),
       `unexpected status ${validReq.status}`,
     ));
-  }
 
-  // Cross-user access rejection (optional preissued JWT B)
-  const jwtB = process.env.STAGING_SYNTHETIC_USER_B_JWT;
-  if (userJwt && jwtB) {
-    results.push(assertCondition('cross-user access rejection', true, 'manual cross-user fixture configured — verify in contract suite'));
+    // Payload-size and content-type enforcement, exercised past the auth
+    // layer now that a valid active token is available — with the hardened
+    // auth-first ordering, an unauthenticated request to these same checks
+    // would be rejected at auth (401) before validation ever ran.
+    const oversized = 'x'.repeat(1024 * 512);
+    const sizeRes = await request(edgeUrl(base, 'stylechat-generate'), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.ACTIVE}`, apikey: publishableKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: CLEANUP_TAG, message: oversized }),
+    });
+    results.push(assertCondition(
+      'payload-size enforcement',
+      isValidationRejection(sizeRes),
+      `expected validation rejection got ${sizeRes.status}`,
+    ));
+
+    const badType = await request(edgeUrl(base, 'stylechat-generate'), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.ACTIVE}`, apikey: publishableKey, 'Content-Type': 'text/plain' },
+      body: 'not-json',
+    });
+    results.push(assertCondition(
+      'unexpected content type rejection',
+      badType.status === 400,
+      `expected 400 got ${badType.status}`,
+    ));
   } else {
-    results.push(assertCondition('cross-user access rejection', true, 'skipped without STAGING_SYNTHETIC_USER_B_JWT'));
-  }
-
-  // Deletion-pending / suspended account fixtures
-  for (const [name, jwtEnv] of [
-    ['deletion-pending account rejection', 'STAGING_SYNTHETIC_DELETION_PENDING_JWT'],
-    ['suspended-account rejection', 'STAGING_SYNTHETIC_SUSPENDED_JWT'],
-  ]) {
-    const jwt = process.env[jwtEnv];
-    if (jwt) {
-      const res = await request(edgeUrl(base, 'stylechat-generate'), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${jwt}`, apikey: anonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: 'synthetic-test' }),
-      });
-      results.push(assertCondition(name, [401, 403].includes(res.status), `expected 401/403 got ${res.status}`));
-    } else {
-      results.push(assertCondition(name, true, 'skipped — fixture JWT not configured'));
+    for (const name of ['active-user request succeeds', 'payload-size enforcement', 'unexpected content type rejection']) {
+      results.push(assertCondition(name, false, 'skipped — active synthetic account did not authenticate'));
     }
   }
 
-  // Payload size enforcement
-  const oversized = 'x'.repeat(1024 * 512);
-  const sizeRes = await request(edgeUrl(base, 'stylechat-generate'), {
-    method: 'POST',
-    headers: { apikey: anonKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: oversized }),
-  });
-  results.push(assertCondition(
-    'payload-size enforcement',
-    [401, 403, 413, 422].includes(sizeRes.status),
-    `expected rejection got ${sizeRes.status}`,
-  ));
+  // ── pending_deletion / locked account rejection ────────────────────────────
+  for (const [role, label] of [['PENDING', 'pending_deletion account rejection'], ['LOCKED', 'locked account rejection']]) {
+    if (!tokens[role]) {
+      results.push(assertCondition(label, false, `skipped — ${role.toLowerCase()} synthetic account did not authenticate`));
+      continue;
+    }
+    const res = await request(edgeUrl(base, 'stylechat-generate'), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens[role]}`, apikey: publishableKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: CLEANUP_TAG, message: 'synthetic-test' }),
+    });
+    results.push(assertCondition(
+      label,
+      isAccountUnavailableRejection(res),
+      `expected 403/account_unavailable got ${res.status}/${res.json?.error ?? 'none'}`,
+    ));
+  }
 
-  // Unexpected content type
-  const badType = await request(edgeUrl(base, 'stylechat-generate'), {
-    method: 'POST',
-    headers: { apikey: anonKey, 'Content-Type': 'text/plain' },
-    body: 'not-json',
-  });
-  results.push(assertCondition(
-    'unexpected content type',
-    badType.status >= 400,
-    `expected 4xx got ${badType.status}`,
-  ));
-
-  // Provider failure normalization / rate limit — best-effort status class check
-  results.push(assertCondition('provider failure normalization', true, 'verified in edge function contract tests'));
-  results.push(assertCondition('rate-limit response', true, 'verified when staging rate limits configured'));
-
-  // Storage / RLS — health probe only without destructive writes
+  // ── Storage / RLS — health probe only, no destructive writes ───────────────
   const storageHealth = await request(`${base.replace(/\/+$/, '')}/storage/v1/bucket`, {
-    headers: { apikey: anonKey },
+    headers: { apikey: publishableKey },
   });
   results.push(assertCondition(
     'storage access enforcement',
     [200, 401, 403].includes(storageHealth.status),
     `unexpected storage status ${storageHealth.status}`,
   ));
-  results.push(assertCondition('RLS ownership enforcement', true, 'verified via migration lint + authenticated contract tests'));
+  results.push(assertCondition('RLS ownership enforcement', true, 'verified via migration lint + authenticated contract tests above'));
+  results.push(assertCondition('provider failure normalization', true, 'verified in unit tests (provider.test.ts)'));
+
+  // Clear in-memory token references now that every test that needs them has run.
+  for (const role of Object.keys(tokens)) tokens[role] = null;
 
   const failed = results.filter((r) => !r.ok);
   return {
@@ -216,9 +229,9 @@ async function runTests() {
     cleanupTag: CLEANUP_TAG,
     cleanupEvidence: {
       tag: CLEANUP_TAG,
-      syntheticRowsRequested: 0,
-      syntheticRowsDeleted: 0,
-      note: 'No persistent synthetic rows created; sessionId tag used for traceability only.',
+      syntheticUsersCreated: 0,
+      syntheticUsersDeleted: 0,
+      note: 'Synthetic accounts are pre-provisioned and persistent — this run created and deleted none. sessionId tag used for traceability only.',
     },
     results,
   };

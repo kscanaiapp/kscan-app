@@ -310,15 +310,19 @@ jobs:
       - name: Run synthetic staging tests
         env:
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
-          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
-          STAGING_SYNTHETIC_USER_EMAIL: ${{ secrets.STAGING_SYNTHETIC_USER_EMAIL }}
-          STAGING_SYNTHETIC_USER_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_USER_PASSWORD }}
-          STAGING_SYNTHETIC_USER_JWT: ${{ secrets.STAGING_SYNTHETIC_USER_JWT }}
-          STAGING_SYNTHETIC_USER_B_JWT: ${{ secrets.STAGING_SYNTHETIC_USER_B_JWT }}
-          STAGING_SYNTHETIC_SUSPENDED_JWT: ${{ secrets.STAGING_SYNTHETIC_SUSPENDED_JWT }}
-          STAGING_SYNTHETIC_DELETION_PENDING_JWT: ${{ secrets.STAGING_SYNTHETIC_DELETION_PENDING_JWT }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          STAGING_SYNTHETIC_PENDING_EMAIL: ${{ secrets.STAGING_SYNTHETIC_PENDING_EMAIL }}
+          STAGING_SYNTHETIC_PENDING_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_PENDING_PASSWORD }}
+          STAGING_SYNTHETIC_LOCKED_EMAIL: ${{ secrets.STAGING_SYNTHETIC_LOCKED_EMAIL }}
+          STAGING_SYNTHETIC_LOCKED_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_LOCKED_PASSWORD }}
         run: |
           set -euo pipefail
+          # Runtime-authenticated tokens are masked by the script itself
+          # (::add-mask:: to stderr) the instant each is received. Only
+          # stdout — the final JSON report, no token ever included — is
+          # captured into the artifact file.
           node security/scripts/synthetic-staging-tests.js | tee synthetic-report.json
           python3 -c "import json; r=json.load(open('synthetic-report.json')); assert r['ok'], r"
 
@@ -332,7 +336,8 @@ jobs:
           r=json.load(open("synthetic-report.json", encoding="utf-8"))
           c=r.get("cleanupEvidence", {})
           print("Synthetic cleanup tag:", c.get("tag"))
-          print("Synthetic rows deleted:", c.get("syntheticRowsDeleted", 0))
+          print("Synthetic users created this run:", c.get("syntheticUsersCreated", 0))
+          print("Synthetic users deleted this run:", c.get("syntheticUsersDeleted", 0))
           PY
           fi
 
