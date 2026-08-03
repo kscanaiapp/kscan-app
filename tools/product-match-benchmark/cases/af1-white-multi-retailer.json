@@ -1,0 +1,64 @@
+{
+  "id": "af1-white-multi-retailer",
+  "description": "Two retailers and one web-search surface return the same white sneaker. Exercises cross-source dedupe (same canonical URL from Farfetch and Serper), variant grouping by exact identifier, and the LIKELY_EXACT gate — brand, model and colourway all agree, but no source carrying an identifier also agrees on brand, so EXACT must not be claimed.",
+  "query": {
+    "brand": "Nike",
+    "visibleBrandText": "Nike",
+    "model": "Air Force 1",
+    "canonicalCategory": "footwear",
+    "color": "white"
+  },
+  "providers": [
+    {
+      "source": "farfetch",
+      "delayMs": 420,
+      "status": "completed",
+      "products": [
+        {
+          "id": "ff-19334521",
+          "title": "Nike Air Force 1 '07 sneakers",
+          "retailer": "Farfetch",
+          "source": "Farfetch",
+          "price": "$115",
+          "type": "retail",
+          "imageUrl": "https://cdn.farfetch-example.test/19334521.jpg",
+          "productUrl": "https://www.farfetch.com/shopping/men/nike-air-force-1-07-sneakers-item-19334521.aspx?utm_source=partner"
+        }
+      ]
+    },
+    {
+      "source": "serper",
+      "delayMs": 980,
+      "status": "completed",
+      "products": [
+        {
+          "id": "1",
+          "title": "Nike Air Force 1 '07 Men's Shoes",
+          "source": "nike.com",
+          "price": "$115.00",
+          "type": "retail",
+          "imageUrl": "https://cdn.nike-example.test/af1.jpg",
+          "productUrl": "https://www.nike.com/t/air-force-1-07-mens-shoes-5QFp5Z"
+        },
+        {
+          "id": "2",
+          "title": "Nike Air Force 1 '07 sneakers",
+          "source": "Farfetch",
+          "price": "$115",
+          "type": "retail",
+          "productUrl": "https://farfetch.com/shopping/men/nike-air-force-1-07-sneakers-item-19334521.aspx"
+        }
+      ]
+    },
+    {
+      "source": "kickscrew",
+      "delayMs": 3400,
+      "status": "timeout",
+      "products": []
+    }
+  ],
+  "expectedTier": "LIKELY_EXACT",
+  "expectedFamilyCount": 1,
+  "expectedListingCount": 2,
+  "notes": "The Farfetch listing appears twice — once first-party, once as a Serper shopping card pointing at the same product page. Canonicalization strips `www.` and the tracking parameter, so rule 1 collapses them into a single listing and the first-party row wins. The KicksCrew provider is recorded as a timeout at 3400ms, which is past the 3000ms default per-provider deadline: the case therefore also asserts that a straggler does not remove the two listings that did arrive."
+}

@@ -28,7 +28,11 @@
     "verify:edge-parity": "node scripts/check-edge-function-parity.js",
     "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js",
     "deploy:edge-functions": "node scripts/deploy-edge-functions.js",
-    "test:backend": "node scripts/run-backend-tests.js"
+    "test:backend": "node scripts/run-backend-tests.js",
+    "test:product-match": "node scripts/run-backend-tests.js product-match",
+    "test:product-match-governance": "node --test __tests__/productMatchFoundation.test.js",
+    "bench:product-match": "node scripts/product-match-benchmark.js",
+    "bench:product-match:reseal": "node scripts/product-match-benchmark.js --reseal"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
