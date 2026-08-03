@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-03T16:10:21.585Z",
-    "generatedFromGitSha": "8250479d7e6c320fc9822f73da571ed7cf7d1fcf"
+    "generatedAtUtc": "2026-08-03T16:28:36.829Z",
+    "generatedFromGitSha": "9a1d1ebb42c86172e97cb7cece3afed9c13a80c0"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,8 +21,8 @@
         ],
         "bundleFileCount": 36,
         "treeFileCount": 46,
-        "bundleHash": "56698fc987befcd68b564f09cd239028c6873e1c204342fdf40a7377efbd9064",
-        "treeHash": "94b970f94ec54448cfe5eb8b162790b192fd1ac9aaa06a2d22d74bc04f4a2901",
+        "bundleHash": "038cc9fdf9c81685ea330de1b2342d161741546cb58ddf4966b1d030fba3115d",
+        "treeHash": "c93edb8de2140fe447eac1f49008a2627b243759f6e2d99dddf627c2d6b3c110",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -121,7 +121,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "cfddfad1bf7b84cefb1960303a5653b5f29880b15c6f94f29cfdd5968e3fc430",
+            "sha256": "4a5234364a57f5a79a6f15133277aa55e4c66f7baf34a0c259675cc43c3df820",
             "bundle": true
           },
           {
@@ -141,7 +141,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/multiItemSelectionContract.ts",
-            "sha256": "9b17f76df7543dfdf80f91716cb6c5288bcbee894d6f3d3e8298be3b6f14b96a",
+            "sha256": "b3fb22b7234783843ed6baf4d59b799afc04a2639c605b06dfd1961877c20c1b",
             "bundle": true
           },
           {
@@ -191,12 +191,12 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanJourneyContract.test.ts",
-            "sha256": "150116d3b3159c7da5fc519c32ccee01342593e86932512b0cdd4b7bbba3393f",
+            "sha256": "0ee14b43116e962529cdd96296946d2556c45f4d34a76adfc366e1db906a21b0",
             "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/scanJourneyContract.ts",
-            "sha256": "84d40b660b1ed3d037a2a4445bcd3671f41be05ce6dd14643c6d7bfcef37c333",
+            "sha256": "7df7b71fc99a93e0d17a65243402ba0578c81a7bbb1c1dc94d755f0f2151df56",
             "bundle": true
           },
           {
