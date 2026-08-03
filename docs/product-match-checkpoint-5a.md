@@ -99,6 +99,30 @@ The autonomous environment has **no authenticated Android session**, so runtime
 validation could not be executed here. Authentication was not bypassed. Run the
 steps below on a device or emulator with a real signed-in account.
 
+## This test answers five questions, not general QA
+
+Everything below maps to one of these. If a step doesn't move one of these five
+forward, it's not required to call this validation complete.
+
+1. **Does the real path invoke the loaders?** — flag on: Closet loader runs,
+   Recent Scans loader runs, counts appear in diagnostics, candidates are
+   capped, `existingItems` appears in the outgoing request. → §3.
+2. **Does flag-off rollback truly restore the old flow?** — flag off: no
+   similarity loader call, no `existingItems` field, scan behavior unchanged.
+   → §2.
+3. **Is the multi-item dependency satisfied?** — `SCAN_MULTI_ITEM_ENABLED` is
+   active on the test backend, the scan reaches a selection state, and the
+   resolved-item request carries candidates only after that selection. → §5,
+   and confirm the backend flag under Preconditions before anything else.
+4. **What does loading cost on the device?** — Closet load time, Recent Scans
+   load time (separately — that's the defect this checkpoint fixed), adaptation
+   /prune time, payload size, and full scan duration. Don't judge the feature
+   from total scan time alone: if the scan gets slower, the per-stage timings
+   say which stage did it. → §3, §9.
+5. **Does failure stay invisible to the primary scan?** — candidate loader
+   failure, no candidates, network failure, background/resume: identification
+   and product results still complete in every case. → §6.
+
 ## 0. Preconditions
 
 - Android emulator or device with a **signed-in** KScan account.
