@@ -5,9 +5,42 @@ Not a release branch. Nothing here is integrated, activated, or deployed.
 ## Status
 
     PHASE 6 STATUS:                 BLOCKED
-    FINAL CLASSIFICATION:           INCONCLUSIVE
+    FINAL CLASSIFICATION:           BLOCKED — PROVIDER CREDENTIAL UNAVAILABLE
     BLOCKING DEPENDENCY:            no working provider credential in this environment
     READY FOR OWNER REVIEW:         YES
+
+Re-verified on the post-hotfix pass: `GEMINI_API_KEY` is present but unchanged
+(19 characters) and the provider rejects it, HTTP 400, on a metadata-only probe
+sent as a header with no image, no generation and no query parameter. No
+placeholder was substituted and no filesystem, product config or shell history
+was searched for a credential.
+
+## Locked Elise hotfix inputs
+
+Future-integration inputs only. Not merged, not built from, not modified.
+
+    ANDROID BRANCH:   hotfix/android-elise-attach-first
+    ANDROID BASELINE: 4d0ceb40655a7de7a2430bc4014ef0710aa8ca66
+    ANDROID FINAL:    e63d5947b134ff3ee55034a77dd1279a2c3e4cea
+    ANDROID STATE:    clean, pushed, 0 ahead / 0 behind
+
+    IOS BRANCH:       hotfix/ios-elise-attach-first
+    IOS BASELINE:     5c761ba7df2cfc7b22efa3d3326dca46850e02f0
+    IOS FINAL:        1ace13ffe8c1032d9b1b913863b7ea61da33e095
+    IOS STATE:        clean, pushed, 0 ahead / 0 behind
+
+    HOTFIX CHANGES SCANNER PROVIDER PAYLOAD:        NO
+    HOTFIX CHANGES IDENTIFICATION REQUEST CONTRACT: NO
+    HOTFIX CHANGES IDENTIFICATION RESPONSE CONTRACT: NO
+    HOTFIX CHANGES PARSER OR NORMALIZER:            NO
+
+Verified from the **committed** diffs, not the previously inspected working
+trees. Neither diff contains a `supabase/` path, a scanner service, a
+identification type, a feature flag, `eas.json`, `app.json`, a lockfile, a
+migration or any benchmark file. Zero changed lines touch an `identifyScanImage`
+or `mapScanIdentifyToAnalysis` call site. The one removed `source: 'upload'`
+line in each lane belongs to the deleted `saveScan({...})` persistence call, not
+to an identification request.
 
 Everything that does not require a provider call is complete: benchmark
 certification, the frozen product-contract snapshot, dataset identity, failure
