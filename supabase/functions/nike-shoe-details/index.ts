@@ -1,5 +1,32 @@
 // Experimental provider. Upstream RapidAPI endpoint returned 404 for tested Nike URLs as of setup. Do not wire into production flows until a supported URL or endpoint is confirmed.
 //
+// DECISION 2026-08-03 — warning DELIBERATELY RETAINED.
+//
+// The copy deployed to production (v68) has these two lines deleted. That
+// deletion was reviewed during the Checkpoint 3 drift reconciliation and is NOT
+// being adopted, for three reasons:
+//
+//   1. Nothing in the repository, the deploy history, or any commit message
+//      records who determined the upstream endpoint had started working.
+//      Deleting a caveat is not evidence that the caveat stopped being true.
+//   2. The claim is still verifiable-false as far as anyone here can tell: no
+//      call was made to check (paid provider execution is not authorized this
+//      phase), so the 404 finding stands unrefuted.
+//   3. The warning has NO RUNTIME BEHAVIOUR. Retaining a comment cannot revert
+//      production behaviour, so keeping it does not violate the reconciliation
+//      rule that a clean build must not silently undo a deployed fix. Every
+//      behavioural delta from v68 IS adopted; this is the only exception and it
+//      is inert.
+//
+// Confirmed unwired at the time of this decision: `services/nikeShoeDetails.ts`
+// exists but `fetchNikeShoeDetails` has no caller outside
+// `services/nikeShoeDetailsDevHelper.ts`. No screen, hook or store reaches it,
+// so the warning is being honoured in practice.
+//
+// To retire this warning: make one successful call against a current Nike
+// product URL, record the response, and delete these lines in a commit that
+// cites it.
+//
 // Nike Shoe Details — Edge Function
 //
 // Accepts POST { product_url }  →  proxies a RapidAPI GET request server-side.

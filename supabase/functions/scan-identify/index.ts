@@ -48,6 +48,10 @@ import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
 } from '../_shared/catalogRetrieval.ts';
+// Checkpoint 3. Single entry point, called once after the legacy response is
+// complete; every feature behind it is flag-gated and defaults off.
+import { applyScanJourneyContract } from './scanJourneyContract.ts';
+import { sanitizeExistingItemCandidates } from './existingItemCandidates.ts';
 import {
   getShoppingResults,
   buildShoppingQuery,
@@ -1599,6 +1603,11 @@ Deno.serve(async (req) => {
     scanId?: unknown;
     scan_id?: unknown;
     id?: unknown;
+    // Checkpoint 3. Closet / Recent Scans candidates the CLIENT supplies for
+    // advisory comparison. The backend does not read the closet: forwarding
+    // candidates keeps this function free of user-scoped table access and keeps
+    // the comparison testable without a database.
+    existingItems?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -1668,6 +1677,11 @@ Deno.serve(async (req) => {
     useMultiItemProvider &&
     requestMode === 'selected_item' &&
     Boolean(selectedCandidate);
+  // Checkpoint 3. Parsed unconditionally so the similarity seam can report how
+  // many candidates a client SENT even while the flag is off — the calibration
+  // pass needs that population measured before the engine is switched on, not
+  // after.
+  const multiItemRequestExistingItems = sanitizeExistingItemCandidates(body.existingItems);
   const useMultiItemDetectionProvider =
     useMultiItemProvider && requestMode !== 'selected_item';
   const scanSessionId = safeCorrelationId(body.scanSessionId) ?? crypto.randomUUID();
@@ -3417,6 +3431,32 @@ Deno.serve(async (req) => {
         correlationHash: typeof scanId === 'string' ? scanId.slice(0, 12) : null,
       });
     }
+
+    // ── Checkpoint 3: selection contract + product-match bridge ─────────────
+    //
+    // Placed at the very end, after `finalResponse` is fully assembled, and
+    // written to be additive. Both blocks are flag-gated and default OFF, so
+    // with no configuration change this section is a pair of boolean checks
+    // and the response returned is byte-identical to the deployed function.
+    // That is the legacy rollback path, and it is why the wiring lives here
+    // rather than threaded through the assembly above.
+    finalResponse = await applyScanJourneyContract({
+      finalResponse,
+      useMultiItemDetectionProvider,
+      detectedGarments,
+      scanId,
+      scanSessionId,
+      imageDigestPrefix,
+      evidenceId: internalRequest.evidenceId ?? null,
+      recommendedProductCount: finalRecommendedProducts.length,
+      identification: completedResponseWithAttributes.identification as
+        | Record<string, unknown>
+        | undefined,
+      attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
+      existingItems: multiItemRequestExistingItems,
+      mode,
+    });
+
     return json(finalResponse, 200);
   } catch (err) {
     const isTimeout =
