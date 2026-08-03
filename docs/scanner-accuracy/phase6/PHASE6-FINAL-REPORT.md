@@ -298,6 +298,13 @@ description inherits the weakness. Fix identification first.
 
 ---
 
+Detailed, ranked and impact-costed recommendations — split by recognition/model,
+prompt/generation, dataset/taxonomy, product-matching, and specialist sources,
+with every conclusion labelled proven or hypothesis — are in
+`SCANNER-ACCURACY-RECOMMENDATIONS.md`.
+
+---
+
 ## 7. Benchmark findings for the audit handoff
 
 Four defects surfaced during execution. None were repaired mid-measurement
@@ -360,6 +367,7 @@ run the *control* prompt across 33 cases and produced a plausible null result.
     EAS BUILD PERFORMED:         NO
 
     OWNER APPROVAL REQUIRED:     YES
+    PHASE CLOSED:                YES
 
 No candidate is recommended for forward-port to a future physical Build 6. The
 locked control, the Candidate A evidence, and the confirmed truncation mechanism
