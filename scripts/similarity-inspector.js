@@ -60,7 +60,13 @@ const HTML_OUT = htmlFlagIndex >= 0 ? (args[htmlFlagIndex + 1] || 'similarity-in
 const moduleCache = new Map();
 
 function loadModule(absolutePath) {
-  const resolved = absolutePath.endsWith('.ts') ? absolutePath : `${absolutePath}.ts`;
+  let resolved = absolutePath;
+  if (!/\.(ts|tsx|js)$/.test(resolved)) {
+    // Client modules import each other without an extension; resolve the way
+    // Metro/tsc would rather than assuming `.ts`.
+    const candidate = ['.ts', '.tsx', '.js'].find((ext) => fs.existsSync(`${resolved}${ext}`));
+    resolved = candidate ? `${resolved}${candidate}` : `${resolved}.ts`;
+  }
   if (moduleCache.has(resolved)) return moduleCache.get(resolved);
 
   const source = fs.readFileSync(resolved, 'utf8');
@@ -77,10 +83,11 @@ function loadModule(absolutePath) {
 
   const sandbox = {
     console, exports: mod.exports, module: mod,
-    URL, URLSearchParams,
+    URL, URLSearchParams, TextEncoder,
     setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout,
     Promise, Date, Math, JSON, Number, Object, Array, Set, Map, String, Boolean,
     Error, TypeError, RegExp, isNaN, parseInt, parseFloat, performance: globalThis.performance,
+    process: { env: {} },
     // No `fetch`, no `Deno.env` value. See the header — offline is structural.
     Deno: { env: { get: () => undefined } },
     require: (specifier) => {
@@ -343,6 +350,207 @@ const FIXTURES = [
   },
 ];
 
+// ── Checkpoint 4.5: client-shaped end-to-end scenarios ──────────────────────
+//
+// These run the REAL client path — raw stored records in their actual stored
+// shapes, through the real adapters, the real selector, the real transport
+// sanitizer, and the real backend retrieval + scorer — so the whole funnel is
+// visible in one place with counts and timings at every stage.
+//
+// The records below are written in the shapes the survey found in
+// `services/closetLibrary.js` (`category`/`primaryColor`/`material[]`/
+// `sourceLineageId`) and `services/savedScansCloud.ts` +
+// `services/identificationSnapshot.ts` (`attributes` /
+// `identificationSnapshotV2`), NOT in the flat contract shape — proving the
+// adapters, not just the selector.
+
+/** Builds a synthetic Closet of `count` items in the REAL stored shape. */
+function syntheticCloset(count, options = {}) {
+  const { sameCategoryRatio = 1, brand = 'Nike' } = options;
+  return Array.from({ length: count }, (_, index) => ({
+    id: `closet_${index}`,
+    title: `Item ${index}`,
+    category: index / count < sameCategoryRatio ? 'footwear' : 'outerwear',
+    clothingType: 'sneaker',
+    subtype: index % 4 === 0 ? 'low-top' : 'high-top',
+    brand: index % 3 === 0 ? brand : 'Adidas',
+    primaryColor: index % 2 === 0 ? 'white' : 'black',
+    material: ['leather'],
+    thumbnailUri: `file:///closet/thumb-${index}.jpg`,
+    updatedAt: new Date(1_700_000_000_000 + index * 1000).toISOString(),
+  }));
+}
+
+const CLIENT_SCENARIOS = [
+  {
+    id: 'empty-closet',
+    label: 'Empty Closet and no Recent Scans',
+    closet: [],
+    recentScans: [],
+  },
+  {
+    id: 'small-closet',
+    label: 'Small Closet (12 items), mixed categories',
+    closet: syntheticCloset(12, { sameCategoryRatio: 0.5 }),
+    recentScans: [],
+  },
+  {
+    id: 'medium-closet',
+    label: 'Medium Closet (120 items), mixed categories',
+    closet: syntheticCloset(120, { sameCategoryRatio: 0.5 }),
+    recentScans: [],
+  },
+  {
+    id: 'large-closet',
+    label: 'Large synthetic Closet (900 items), mixed categories',
+    closet: syntheticCloset(900, { sameCategoryRatio: 0.5 }),
+    recentScans: [],
+  },
+  {
+    id: 'large-same-category',
+    label: 'Large Closet (900 items) where EVERY item is the scanned category',
+    closet: syntheticCloset(900, { sameCategoryRatio: 1 }),
+    recentScans: [],
+  },
+  {
+    id: 'overlapping-sources',
+    label: 'Closet and Recent Scans holding the same physical garment',
+    closet: [{
+      id: 'closet_promoted',
+      title: 'White AF1',
+      category: 'footwear',
+      brand: 'Nike',
+      primaryColor: 'white',
+      material: ['leather'],
+      thumbnailUri: 'file:///closet/af1.jpg',
+      sourceLineageId: 'local:scan_42',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    }],
+    recentScans: [{
+      id: 'scan_42',
+      attributes: { category: 'footwear', color_palette: ['white'], material_estimate: 'leather' },
+      identificationSnapshotV2: {
+        item: { category: 'footwear', brand: { value: 'Nike' }, colors: { primary: 'white' } },
+        exactProduct: { brand: 'Nike', model: 'Air Force 1', sku: 'CW2288-111' },
+      },
+      thumbnailUri: 'file:///recent/af1.jpg',
+      createdAt: '2026-08-02T00:00:00.000Z',
+    }],
+  },
+  {
+    id: 'missing-images-and-archived',
+    label: 'Missing images, archived records, incomplete metadata',
+    closet: [
+      { id: 'closet_noimg', category: 'footwear', brand: 'Nike', primaryColor: 'white' },
+      { id: 'closet_archived', category: 'footwear', brand: 'Nike', deletedAt: '2026-07-01T00:00:00.000Z' },
+      { id: 'closet_bare', title: 'Mystery item' },
+    ],
+    recentScans: [
+      { id: 'scan_thin', attributes: { category: 'footwear' } },
+    ],
+  },
+];
+
+const CLIENT_SCAN_QUERY = {
+  brand: 'Nike',
+  visibleBrandText: 'Nike',
+  model: 'Air Force 1',
+  canonicalCategory: 'footwear',
+  color: 'white',
+};
+
+function runClientScenarios() {
+  const adapters = loadClientModule('services/similarItemCandidateAdapters.ts');
+  const selection = loadClientModule('services/similarItemCandidates.ts');
+  const sanitizer = loadModule(path.join(ROOT, 'supabase/functions/scan-identify/existingItemCandidates.ts'));
+  const retrieval = loadModule(path.join(PRODUCT_MATCH_DIR, 'candidateRetrieval.ts'));
+  const closetSimilarity = loadModule(path.join(PRODUCT_MATCH_DIR, 'closetSimilarity.ts'));
+
+  return CLIENT_SCENARIOS.map((scenario) => {
+    const ms = () => Number(process.hrtime.bigint()) / 1e6;
+
+    const adaptStartedAt = ms();
+    const closetRecords = adapters.closetRecordsToCandidates(scenario.closet);
+    const recentScanRecords = adapters.recentScanRecordsToCandidates(scenario.recentScans);
+    const adaptMs = ms() - adaptStartedAt;
+
+    const selectStartedAt = ms();
+    const { candidates, report } = selection.selectComparisonCandidates({
+      query: CLIENT_SCAN_QUERY,
+      closetRecords,
+      recentScanRecords,
+      config: { cap: selection.DEFAULT_CLIENT_CANDIDATE_CAP },
+    });
+    const selectMs = ms() - selectStartedAt;
+
+    const serializeStartedAt = ms();
+    const payloadBytes = selection.candidatePayloadBytes(candidates);
+    const serializeMs = ms() - serializeStartedAt;
+
+    // Transport gate — exactly what scan-identify would accept.
+    const sanitized = sanitizer.sanitizeExistingItemCandidates(candidates);
+
+    // Backend halves.
+    const backendRetrieveStartedAt = ms();
+    const retrieved = retrieval.retrieveCandidates({
+      query: CLIENT_SCAN_QUERY,
+      existingItems: sanitized,
+    });
+    const backendRetrieveMs = ms() - backendRetrieveStartedAt;
+
+    const backendScoreStartedAt = ms();
+    const scored = closetSimilarity.classifySimilarItems({
+      query: CLIENT_SCAN_QUERY,
+      existingItems: retrieved.retained,
+      newScanImageUri: 'file:///scan/new.jpg',
+      newScanLabel: 'Scanned sneaker',
+      debug: true,
+    });
+    const backendScoreMs = ms() - backendScoreStartedAt;
+
+    return {
+      id: scenario.id,
+      label: scenario.label,
+      funnel: {
+        recordsLoaded: report.recordsLoaded.total,
+        recordsConsidered: report.recordsConsidered,
+        clientRetained: report.recordsRetained,
+        transmitted: report.recordsTransmitted,
+        acceptedByTransport: sanitized.length,
+        backendRetained: retrieved.retained.length,
+        noticesProduced: scored.items.length,
+        classifiedBeforeCap: scored.classifiedBeforeCap,
+      },
+      rejections: {
+        client: report.recordsRejected.map((r) => `${r.reason}:${r.count}`),
+        backend: retrieved.report.candidatesRejected.map((r) => `${r.reason}:${r.count}`),
+      },
+      sourceCounts: report.sourceCounts,
+      payloadBytes,
+      timings: {
+        adaptMs: Number(adaptMs.toFixed(3)),
+        normalizeMs: report.timings.normalizeMs,
+        pruneMs: report.timings.pruneMs,
+        prioritizeMs: report.timings.prioritizeMs,
+        dedupeMs: report.timings.dedupeMs,
+        clientTotalMs: Number(selectMs.toFixed(3)),
+        serializeMs: Number(serializeMs.toFixed(3)),
+        backendRetrieveMs: Number(backendRetrieveMs.toFixed(3)),
+        backendScoreMs: Number(backendScoreMs.toFixed(3)),
+        endToEndMs: Number((adaptMs + selectMs + serializeMs + backendRetrieveMs + backendScoreMs).toFixed(3)),
+      },
+      classifications: scored.items.map((item) => ({
+        existingItemId: item.existingItemId,
+        source: item.existingItemSource,
+        classification: item.internal?.classification ?? 'POTENTIAL_SIMILAR_ITEM',
+        reasons: item.reasons,
+        conflicts: item.conflicts,
+      })),
+      prioritizationVersion: report.prioritizationVersion,
+    };
+  });
+}
+
 // ── Run ──────────────────────────────────────────────────────────────────────
 
 function main() {
@@ -396,12 +604,15 @@ function main() {
     };
   });
 
+  const clientScenarios = runClientScenarios();
+
   const summary = {
     generatedBy: 'scripts/similarity-inspector.js (DEV ONLY — never called from production code)',
     candidateCount: rows.length,
     noticeCount: rows.filter((r) => r.classification !== 'NO_NOTICE').length,
     totalTimingMs: Number(rows.reduce((sum, r) => sum + r.timingMs, 0).toFixed(4)),
     rows,
+    clientScenarios,
   };
 
   if (AS_JSON) {
@@ -446,6 +657,53 @@ function printConsoleReport(summary) {
     }
     console.log(`  confirm req'd : ${row.confirmationRequired.join(', ') || '(none)'}`);
     console.log(`  timing        : ${row.timingMs}ms`);
+    console.log('');
+  }
+
+  printClientScenarios(summary.clientScenarios);
+}
+
+/**
+ * The Checkpoint 4.5 view: the real client funnel, stage by stage.
+ *
+ * Timings here are Node-on-desktop measurements of PURE LOGIC over synthetic
+ * records. They bound the algorithmic cost and nothing else — they are not
+ * device measurements, and they exclude real Closet/Recent-Scans I/O, JSON
+ * transport and the network entirely.
+ */
+function printClientScenarios(scenarios) {
+  if (!scenarios || scenarios.length === 0) return;
+  console.log('═'.repeat(78));
+  console.log('CLIENT FLOW — real stored shapes → adapters → selector → transport → backend');
+  console.log('Synthetic records, pure logic, measured in Node. NOT a device measurement.');
+  console.log('CAVEAT: the first scenario to do substantial work absorbs JIT warm-up, so');
+  console.log('a single row\'s backend-score figure is not comparable across rows.');
+  console.log('═'.repeat(78));
+  console.log('');
+
+  for (const scenario of scenarios) {
+    const f = scenario.funnel;
+    console.log(`${scenario.id}  —  ${scenario.label}`);
+    console.log(
+      `  funnel   : loaded ${f.recordsLoaded} → considered ${f.recordsConsidered} → retained ${f.clientRetained}`
+      + ` → transmitted ${f.transmitted} → accepted ${f.acceptedByTransport}`
+      + ` → backend retained ${f.backendRetained} → notices ${f.noticesProduced}`,
+    );
+    console.log(`  rejected : client [${scenario.rejections.client.join(', ') || 'none'}]`);
+    console.log(`             backend [${scenario.rejections.backend.join(', ') || 'none'}]`);
+    console.log(`  sources  : closet ${scenario.sourceCounts.closet}, recent_scan ${scenario.sourceCounts.recent_scan}`);
+    console.log(`  payload  : ${scenario.payloadBytes} bytes`);
+    const t = scenario.timings;
+    console.log(
+      `  client   : adapt ${t.adaptMs}ms | normalize ${t.normalizeMs}ms | prune ${t.pruneMs}ms`
+      + ` | prioritize ${t.prioritizeMs}ms | dedupe ${t.dedupeMs}ms | serialize ${t.serializeMs}ms`,
+    );
+    console.log(`  backend  : retrieve ${t.backendRetrieveMs}ms | score ${t.backendScoreMs}ms`);
+    console.log(`  total    : ${t.endToEndMs}ms (logic only — no I/O, no network)`);
+    for (const c of scenario.classifications) {
+      console.log(`    [${c.classification}] ${c.existingItemId} (${c.source})  ${c.reasons.join(', ')}`
+        + `${c.conflicts.length ? `  conflicts: ${c.conflicts.join(', ')}` : ''}`);
+    }
     console.log('');
   }
 }
