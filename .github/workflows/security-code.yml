@@ -636,6 +636,59 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  secure-upload-gate:
+    name: Secure Upload Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run image-ingestion-policy.json / manifest guard
+        run: node security/scripts/image-ingestion-gate-guard.js
+
+      - name: Run Secure Image Ingestion Gate unit + integration tests
+        run: npm run test:image-ingestion
+
+      - name: Write secure-upload-gate summary
+        if: always()
+        env:
+          SCANNER_NAME: secure-upload-gate
+          SCANNER_VERSION: node-20 / image-ingestion-gate-guard.js / test:image-ingestion
+          START_TIME: ${{ github.event.repository.updated_at }}
+          END_TIME: ${{ github.event.head_commit.timestamp }}
+          FINDING_COUNTS: '{"job":"see-logs"}'
+          REPORT_ONLY_VERDICT: EXISTING_TESTS_ENFORCED
+          EXTRA_NOTES: |
+            Validates: security/uploads/image-ingestion-policy.json exists and parses;
+            every known image-ingress route is classified in
+            security/perimeter/image-ingestion-manifest.json with an acceptable
+            enforcementStatus; no live surface silently omits its malware-scan
+            classification; no held function has drifted live without
+            reclassification. Also runs the full Secure Image Ingestion Gate test
+            suite (magic-byte detection, decode/re-encode, metadata stripping,
+            EICAR rejection via an in-process fake scanner, quarantine/verdict
+            RLS shape, downstream tryon-clothes-pro enforcement). No malicious
+            fixtures are written to disk or uploaded as artifacts -- EICAR is
+            used only in-memory against a fake local INSTREAM server inside the
+            test process. Real scanner health/signature-age checks
+            (evaluateScannerHealth) are exercised by the unit tests against
+            synthetic input, not a real clamd instance -- no scanner is deployed
+            by this pass, so there is no live scanner for CI to probe yet; see
+            docs/security/malware-scanner-operations.md for the activation
+            sequence.
+          SUMMARY_FILE: secure-upload-gate-summary.md
+        run: node security/scripts/write-security-summary.js
+
   baseline-comparison:
     name: Security baseline comparison
     runs-on: ubuntu-latest
@@ -648,6 +701,7 @@ jobs:
       - osv
       - trivy
       - npm-audit
+      - secure-upload-gate
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -734,6 +788,7 @@ jobs:
       - osv
       - trivy
       - npm-audit
+      - secure-upload-gate
       - baseline-comparison
     steps:
       - name: Evaluate static gate
@@ -744,6 +799,7 @@ jobs:
           OSV: ${{ needs.osv.result }}
           TRIVY: ${{ needs.trivy.result }}
           NPM_AUDIT: ${{ needs.npm-audit.result }}
+          SECURE_UPLOAD_GATE: ${{ needs.secure-upload-gate.result }}
           BASELINE: ${{ needs.baseline-comparison.result }}
           CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
@@ -759,6 +815,7 @@ jobs:
             echo "| OSV dependency scan | ${OSV} |"
             echo "| Trivy repository scan | ${TRIVY} |"
             echo "| npm dependency audit | ${NPM_AUDIT} |"
+            echo "| Secure Upload Gate | ${SECURE_UPLOAD_GATE} |"
             echo "| Security baseline comparison | ${BASELINE} |"
             echo
             echo "Candidate SHA: ${CANDIDATE_SHA}"
@@ -775,6 +832,7 @@ jobs:
             "OSV dependency scan:${OSV}" \
             "Trivy repository scan:${TRIVY}" \
             "npm dependency audit:${NPM_AUDIT}" \
+            "Secure Upload Gate:${SECURE_UPLOAD_GATE}" \
             "Security baseline comparison:${BASELINE}"
           do
             NAME="${PAIR%%:*}"
