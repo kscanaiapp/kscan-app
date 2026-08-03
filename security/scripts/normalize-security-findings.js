@@ -299,5 +299,6 @@ module.exports = {
   normalizeNpmAudit,
   normalizeZap,
   fingerprint,
+  normalizePath,
   RUNTIME_CLASSIFICATIONS,
 };

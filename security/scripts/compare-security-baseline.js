@@ -34,10 +34,23 @@ function loadJson(filePath, label) {
 
 function indexBaseline(baseline) {
   const byFingerprint = new Map();
+  const byStableKey = new Map();
   for (const item of baseline.findings || []) {
     byFingerprint.set(item.fingerprint, item);
+    const key = stableKey(item);
+    if (key) byStableKey.set(key, item);
   }
-  return byFingerprint;
+  return { byFingerprint, byStableKey };
+}
+
+function stableKey(finding) {
+  const scanner = finding.scanner || '';
+  const ruleId = finding.ruleId || '';
+  const normalizedPath = String(finding.normalizedPath || finding.fileOrPackage || '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '');
+  if (!scanner || !ruleId) return '';
+  return `${scanner}|${ruleId}|${normalizedPath}`;
 }
 
 function severityRank(severity) {
@@ -55,14 +68,17 @@ function isBlockingNewFinding(finding) {
   return BLOCKING_RUNTIME.has(finding.runtimeClassification);
 }
 
-function compare(normalized, baseline) {
-  const baselineIndex = indexBaseline(baseline);
+function compare(normalized, baseline, context = {}) {
+  const { byFingerprint, byStableKey } = indexBaseline(baseline);
   const currentFingerprints = new Set();
 
   const result = {
     comparedAt: new Date().toISOString(),
     baselineVersion: baseline.version || 'unknown',
     baselineGeneratedAt: baseline.generatedAt || null,
+    candidateSha: context.candidateSha || null,
+    mergeSha: context.mergeSha || null,
+    pullRequestNumber: context.pullRequestNumber || null,
     newBlockingFindings: [],
     newReportOnlyFindings: [],
     existingBaselineFindings: [],
@@ -76,7 +92,13 @@ function compare(normalized, baseline) {
 
   for (const finding of normalized.findings || []) {
     currentFingerprints.add(finding.fingerprint);
-    const baselineFinding = baselineIndex.get(finding.fingerprint);
+    let baselineFinding = byFingerprint.get(finding.fingerprint);
+    let matchedVia = 'fingerprint';
+    if (!baselineFinding) {
+      const key = stableKey(finding);
+      baselineFinding = key ? byStableKey.get(key) : undefined;
+      matchedVia = baselineFinding ? 'stableKey' : 'none';
+    }
 
     if (!baselineFinding) {
       if (isBlockingNewFinding(finding)) {
@@ -90,6 +112,7 @@ function compare(normalized, baseline) {
     result.existingBaselineFindings.push({
       ...finding,
       changeType: 'EXISTING_FINDING',
+      matchedVia,
       baselineAccepted: baselineFinding.accepted !== false,
       baselineNotes: baselineFinding.notes || '',
     });
@@ -130,9 +153,13 @@ function compare(normalized, baseline) {
     }
   }
 
-  for (const [fingerprint, baselineFinding] of baselineIndex.entries()) {
+  for (const [fingerprint, baselineFinding] of byFingerprint.entries()) {
     if (!currentFingerprints.has(fingerprint)) {
-      result.resolvedFindings.push({ ...baselineFinding, changeType: 'RESOLVED_FINDING' });
+      const key = stableKey(baselineFinding);
+      const stillPresent = (normalized.findings || []).some((f) => stableKey(f) === key);
+      if (!stillPresent) {
+        result.resolvedFindings.push({ ...baselineFinding, changeType: 'RESOLVED_FINDING' });
+      }
     }
   }
 
@@ -158,6 +185,14 @@ function writeReports(result, outputDir) {
     '# Security Baseline Comparison',
     '',
     `**Final promotion verdict:** ${result.finalPromotionVerdict}`,
+    '',
+    '## Candidate',
+    '',
+    `| Field | Value |`,
+    `| --- | --- |`,
+    `| Candidate SHA | ${result.candidateSha || 'unknown'} |`,
+    `| Merge SHA | ${result.mergeSha || 'unknown'} |`,
+    `| Pull request | ${result.pullRequestNumber || 'n/a'} |`,
     '',
     '## Summary',
     '',
@@ -219,7 +254,13 @@ function main() {
     process.exit(2);
   }
 
-  const result = compare(normalized, baseline);
+  const context = {
+    candidateSha: process.env.GITHUB_EVENT_PULL_REQUEST_HEAD_SHA || process.env.CANDIDATE_SHA || null,
+    mergeSha: process.env.GITHUB_SHA || null,
+    pullRequestNumber: process.env.GITHUB_EVENT_PULL_REQUEST_NUMBER || null,
+  };
+
+  const result = compare(normalized, baseline, context);
   const jsonPath = writeReports(result, outputDir);
   console.log(JSON.stringify({
     verdict: result.finalPromotionVerdict,
@@ -237,4 +278,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { compare, isBlockingNewFinding, writeReports };
+module.exports = { compare, isBlockingNewFinding, writeReports, stableKey };
