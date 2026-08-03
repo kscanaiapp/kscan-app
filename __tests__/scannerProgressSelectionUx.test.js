@@ -6,6 +6,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+// Checkpoint 3.5: the hook now reads the scan-journey contract. The real
+// implementation is supplied rather than a stub — a stub of a pure contract
+// reader would silently diverge from what the app ships.
+const scanJourneyGlobals = require('./helpers/loadScanJourneyModule');
 const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -284,6 +288,7 @@ function loadScannerHarness({
     // adapter. The transport below is the single stub; everything above it —
     // evidence gateway, request builder, response validator, fallback policy —
     // is the real implementation.
+    ...scanJourneyGlobals,
     beginScannerV2Session: () => ({ enabled: scannerV2Enabled === true }),
     createEvidenceId: () => `evidence-${String((evidenceIdCounter += 1)).padStart(4, '0')}-test`,
     prepareScannerEvidence: scannerEvidenceGateway.prepareScannerEvidence,

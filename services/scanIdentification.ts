@@ -66,6 +66,15 @@ export type IdentifyScanOptions = {
   imageDigestPrefix?: string;
   selectedCandidate?: ScanSelectedCandidate;
   /**
+   * Checkpoint 3.5 selection-lineage token, echoed back verbatim from the
+   * candidate the user chose.
+   *
+   * Only the Scanner's selected-item path supplies it. Elise and StyleChat
+   * share this transport and never pass it, so their request body is unchanged
+   * — the same reason `contractRequestV2` below is absent by default.
+   */
+  selectionToken?: Record<string, unknown>;
+  /**
    * Scanner-only fashion-identification-v2 envelope (Phase 2B.2).
    *
    * When present, this object is sent as the request body instead of the legacy
@@ -500,6 +509,7 @@ export async function identifyScanImage(
     ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
     ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
     ...(options.selectedCandidate ? { selectedCandidate: options.selectedCandidate } : {}),
+    ...(options.selectionToken ? { selectionToken: options.selectionToken } : {}),
   };
 
   // Phase 2B.2: a Scanner V2 envelope replaces the legacy body. The two

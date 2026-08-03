@@ -9,6 +9,7 @@ import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper'
 import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
+import { readScanJourney, selectionDispatchFor } from '../services/scanJourney';
 import {
   buildSecondhandSearchRequest,
   searchVintedSecondhand,
@@ -121,6 +122,17 @@ export function useKScan(actorId = null) {
   // Single nonblocking session-level notices. Never provider details.
   const [detectionNotice, setDetectionNotice] = useState(null);
   const [queueNotice, setQueueNotice] = useState(null);
+  // Checkpoint 3.5. The scan-journey view of the most recent response. Seeded
+  // from `null`, which `readScanJourney` resolves to a legacy-derived FAILED —
+  // the correct "nothing has happened yet" answer for a screen that renders
+  // before any scan runs.
+  //
+  // DECLARED LAST, DELIBERATELY. The useKScan test harnesses mock `useState`
+  // with an index-keyed slot array, so inserting a state hook anywhere above
+  // renumbers every hook after it and every existing assertion in those files
+  // reads the wrong slot. Appending is the difference between a two-line
+  // addition and a rewrite of two large suites.
+  const [scanJourney, setScanJourney] = useState(() => readScanJourney(null));
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -601,6 +613,10 @@ export function useKScan(actorId = null) {
         // Candidate review: render immediately after detection. No commerce
         // request, no auto-selection, no artificial presentation delay.
         successPulse();
+        // Read the contract off the DETECTION response, before any selection.
+        // This is the point at which MULTI_ITEM_SELECTION_REQUIRED exists, and
+        // the tokens it carries are what the follow-up request will echo back.
+        setScanJourney(readScanJourney(data.candidates?.[0]?.detectionResponse ?? null));
         setScanCandidates(data.candidates);
         scanCandidatesRef.current = data.candidates;
         setSelectedCandidateIds([]);
@@ -965,10 +981,22 @@ export function useKScan(actorId = null) {
                 scanSessionId: candidate.detectionResponse.scanSessionId,
                 imageDigestPrefix: candidate.detectionResponse.imageDigestPrefix,
               },
+              // Checkpoint 3.5. The backend's own selection token, carried
+              // through from detection untouched. `selectionDispatchFor`
+              // returns the legacy correlation pair instead when the response
+              // predates the contract, so this is additive on every path.
+              ...selectionDispatchFor(
+                findSelectionCandidate(candidate.detectionResponse, candidate.selectedCandidate?.candidateId),
+                candidate.detectionResponse,
+              ),
               localPrivacyFiltered: candidate.preparedPrivacyFiltered === true,
               signal: requestController.signal,
             });
             detailResponse = outcome.response;
+            // The selected-item response carries the enriched journey state and
+            // any advisory comparisons. Read here rather than at render time so
+            // a later re-render cannot re-derive it from a stale response.
+            setScanJourney(readScanJourney(outcome.response));
             detailIdentificationV2 = outcome.identificationV2;
             detailEvidenceSource = selectedEvidence.source;
             if (outcome.v2ValidationFailure || outcome.rejection) requestFailed = true;
@@ -1268,5 +1296,31 @@ export function useKScan(actorId = null) {
     selectScanItem,
     toggleScanCandidate,
     confirmSelectedCandidates,
+    // Checkpoint 3.5 — scan-journey contract surface.
+    //
+    // Exposed as data rather than acted on here. `scanJourneyState` is what the
+    // backend said (or, on a legacy response, what was derived from it), and
+    // `potentialSimilarItems` is the advisory comparison set. Screens decide
+    // what to render; this hook does not merge, suppress or delete anything on
+    // their behalf.
+    scanJourneyState: scanJourney.state,
+    scanJourneyIsLegacy: scanJourney.derivedFromLegacy,
+    selectionRequired: scanJourney.selectionRequired,
+    selectionCandidates: scanJourney.selectionCandidates,
+    potentialSimilarItems: scanJourney.potentialSimilarItems,
   };
+}
+
+/**
+ * Finds the contract candidate matching a chosen candidate id.
+ *
+ * Returns null rather than falling back to the first candidate. Substituting a
+ * neighbouring candidate is the client-side version of the guess the backend
+ * refuses to make, and it would send one garment's token for another garment's
+ * selection.
+ */
+function findSelectionCandidate(detectionResponse, candidateId) {
+  if (!candidateId) return null;
+  const journey = readScanJourney(detectionResponse);
+  return journey.selectionCandidates.find((entry) => entry.candidateId === candidateId) ?? null;
 }

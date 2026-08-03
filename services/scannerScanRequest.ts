@@ -60,6 +60,11 @@ export type RunScannerIdentificationInput = {
   selectedCandidate?: ScannerCandidateCorrelation;
   /** Server-issued correlation the deployed handler still requires. */
   legacyCorrelation?: ScannerLegacyCorrelation;
+  /**
+   * Checkpoint 3.5 selection token, echoed back from the candidate the user
+   * chose. Opaque to this module by design — it is passed through untouched.
+   */
+  selectionToken?: Record<string, unknown>;
   localPrivacyFiltered?: boolean;
   signal?: AbortSignal;
   /** Injected in tests. Defaults to the real transport. */
@@ -97,6 +102,13 @@ function legacyOptionsFor(input: RunScannerIdentificationInput): IdentifyScanOpt
         },
       }
       : {}),
+    // Checkpoint 3.5. The backend's own token, echoed back VERBATIM. Never
+    // reassembled from parts here: the whole value of the server issuing a
+    // bundle is that the client did not build it, so a client-side
+    // reconstruction would validate against itself rather than against the
+    // detection. Absent on responses that predate the contract, in which case
+    // the legacy scanSessionId/imageDigestPrefix pair above still correlates.
+    ...(isSelected && input.selectionToken ? { selectionToken: input.selectionToken } : {}),
     ...(input.signal ? { signal: input.signal } : {}),
   };
 }
