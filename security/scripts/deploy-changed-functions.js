@@ -16,6 +16,7 @@
 const { execFileSync } = require('node:child_process');
 const { computeFunctionManifest } = require('./select-changed-functions');
 const { assertNotProductionRef } = require('./select-candidate-migrations');
+const { filterToApproved } = require('./staging-deployment-allowlist');
 
 // shell:true only on Windows, where the npm-installed CLI resolves through a
 // .cmd shim that execFileSync cannot invoke directly; CI's Linux runner gets
@@ -41,22 +42,28 @@ function main() {
     process.exit(1);
   }
 
-  const result = computeFunctionManifest(baseSha, headSha);
+  const computed = computeFunctionManifest(baseSha, headSha);
+  const { approved, heldBack } = filterToApproved(computed.manifest);
+  const result = { ...computed, heldBack };
 
   // Print the manifest before deploying anything, per the required "print
   // the final function manifest before deploying" behavior.
-  console.error(`Function deployment manifest: ${result.manifest.length ? result.manifest.join(', ') : '(none)'}`);
+  console.error(`Function deployment manifest: ${computed.manifest.length ? computed.manifest.join(', ') : '(none)'}`);
+  console.error(`Approved for automatic deployment: ${approved.length ? approved.join(', ') : '(none)'}`);
+  if (heldBack.length > 0) {
+    console.error(`Changed in source but held back — not on the staging deployment allowlist: ${heldBack.join(', ')}`);
+  }
   if (result.refused.length > 0) {
     console.error(`Refused (not on disk, not a valid deploy target): ${result.refused.join(', ')}`);
   }
 
-  if (result.manifest.length === 0) {
-    console.log(JSON.stringify({ ...result, projectRef, deployed: [] }, null, 2));
+  if (approved.length === 0) {
+    console.log(JSON.stringify({ ...result, projectRef, deployed: [], outcome: computed.manifest.length ? 'DEPLOYMENT_BLOCKED' : 'NO_CHANGED_FUNCTIONS' }, null, 2));
     return;
   }
 
   const deployed = [];
-  for (const fnName of result.manifest) {
+  for (const fnName of approved) {
     try {
       deployOne(fnName, projectRef);
       deployed.push(fnName);
