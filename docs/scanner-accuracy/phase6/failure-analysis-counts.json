@@ -1,0 +1,167 @@
+{
+  "reportVersion": "1.0.0",
+  "purpose": "Phase 6 §11 deterministic failure analysis over prior Build 4 Phase 3 live runs.",
+  "providerCallsThisAnalysis": 0,
+  "control": {
+    "label": "certified-v140 (control)",
+    "caseCount": 33,
+    "byStatus": {
+      "provider_success": 27,
+      "provider_output_invalid": 6
+    },
+    "byFailureStage": {
+      "complete": 27,
+      "validation": 6
+    },
+    "invalidSubclassification": {
+      "unclassified": 6
+    },
+    "sanitizedExamples": [
+      {
+        "caseId": "set-fishskin-jacket",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 9608,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 12835,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "set-vignon-dinner-dress-met-c-i-69-14-3",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 9719,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "tiera-accessory-521e3b1022",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 11937,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "tiera-pants-24e666e3bd",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 10578,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "tiera-top-97c77cbd99",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 10429,
+        "sanitizedErrors": []
+      }
+    ],
+    "operational": {
+      "p50LatencyMs": 8069,
+      "p95LatencyMs": 11937,
+      "meanLatencyMs": 8249,
+      "totalCostUsd": 0.118752,
+      "costPerCaseUsd": 0.003599,
+      "totalAttempts": 33,
+      "totalModelCalls": 33,
+      "fallbackAttempts": 0
+    }
+  },
+  "candidate": {
+    "label": "phase2a-v1.0.0 (historical, rejected)",
+    "caseCount": 33,
+    "byStatus": {
+      "provider_success": 19,
+      "provider_output_invalid": 14
+    },
+    "byFailureStage": {
+      "complete": 19,
+      "validation": 14
+    },
+    "invalidSubclassification": {
+      "unclassified": 14
+    },
+    "sanitizedExamples": [
+      {
+        "caseId": "set-balschoen-van-wit-satijn-met-strikken-op",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 8889,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "set-dr-kt-nordiska-museet-nm-0053061d",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 10873,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "set-dr-kt-nordiska-museet-nm-0057203c",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 9782,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "set-fishskin-jacket",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 10149,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "set-vignon-dinner-dress-met-c-i-69-14-12",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 10792,
+        "sanitizedErrors": []
+      },
+      {
+        "caseId": "tiera-accessory-396b72f77b",
+        "tags": [
+          "unclassified"
+        ],
+        "attemptCount": 1,
+        "latencyMs": 10443,
+        "sanitizedErrors": []
+      }
+    ],
+    "operational": {
+      "p50LatencyMs": 9782,
+      "p95LatencyMs": 11722,
+      "meanLatencyMs": 9167,
+      "totalCostUsd": 0.162599,
+      "costPerCaseUsd": 0.004927,
+      "totalAttempts": 33,
+      "totalModelCalls": 33,
+      "fallbackAttempts": 0
+    }
+  }
+}
