@@ -1,6 +1,11 @@
 # Provider Edge Function Rollback
 
-Status: no staging deployment or migration apply has happened yet — this documents the rollback path that will be exercised once Checkpoint 1 is approved and Phase 10 begins. Kept current as deployments actually happen.
+Status: exercised through Checkpoint 2. The migration and `stylechat-generate` are live on staging (`yzqjvdfgefveprobvvyw`).
+
+## Current staging state (Checkpoint 2)
+
+- **stylechat-generate**: prior version 47 (pre-hardening) → new version 48 (deployed at Checkpoint 2). Rollback target is version 47's source, which is the exact content of `supabase/functions/stylechat-generate/index.ts` at commit `5adf76e` (the branch base, before this feature's commits) — retrievable via `git show 5adf76e:supabase/functions/stylechat-generate/index.ts`.
+- **Migration**: `20260803020000_provider_request_security.sql` + two additive follow-ups (`20260803020100_..._revoke_anon.sql`, `20260803020200_..._fix_trigger_search_path.sql`) all applied successfully. No destructive DDL in any of the three — every statement is `create table if not exists`, `create or replace function`, `create index if not exists`, or a `revoke`/`grant`. Reverting any of them is a `drop`/re-`grant`, not a data-loss operation (see below).
 
 ## Rollback: shared security modules
 
