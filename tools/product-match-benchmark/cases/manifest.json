@@ -1,8 +1,12 @@
 {
   "manifestVersion": "product-match-benchmark-v1",
-  "caseCount": 1,
+  "caseCount": 5,
   "cases": [
-    "af1-white-multi-retailer.json"
+    "af1-white-multi-retailer.json",
+    "closet-advisory-not-duplicate.json",
+    "coat-unbranded-material-led.json",
+    "partial-result-preserved.json",
+    "sneaker-category-noise-rejection.json"
   ],
-  "sealHash": "a9d76cc6526874316368ed5c147658e8aa4cea8fb9aef0021042fa3d058f59ea"
+  "sealHash": "da2e738d048f0b598a35e7ecf87fbbb7dbd3f459404ce78b1c1f0ae30227b691"
 }

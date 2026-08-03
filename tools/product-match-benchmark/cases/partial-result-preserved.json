@@ -1,0 +1,50 @@
+{
+  "id": "partial-result-preserved",
+  "description": "One provider answers quickly, one errors, and one runs past its ceiling. Asserts that the usable result survives all of it. This is the behavioural opposite of the deployed sequential cascade, where a slow provider early in the chain delays or starves everything behind it.",
+  "query": {
+    "brand": "Nike",
+    "visibleBrandText": "Nike",
+    "model": "Air Force 1",
+    "canonicalCategory": "footwear",
+    "color": "white"
+  },
+  "providers": [
+    {
+      "source": "serper",
+      "delayMs": 900,
+      "status": "completed",
+      "products": [
+        {
+          "id": "1",
+          "title": "Nike Air Force 1 '07 white leather sneakers",
+          "source": "nike.com",
+          "price": "$115",
+          "type": "retail",
+          "productUrl": "https://www.nike.com/t/air-force-1-07-white-abc123"
+        }
+      ]
+    },
+    {
+      "source": "farfetch",
+      "delayMs": 1400,
+      "status": "error",
+      "products": []
+    },
+    {
+      "source": "kickscrew",
+      "delayMs": 18000,
+      "status": "completed",
+      "products": [
+        {
+          "id": "kc-1",
+          "title": "Nike Air Force 1 07 white",
+          "retailer": "KicksCrew",
+          "productUrl": "https://kickscrew.com/products/af1-white"
+        }
+      ]
+    }
+  ],
+  "expectedTier": "LIKELY_EXACT",
+  "expectedListingCount": 1,
+  "notes": "KicksCrew is recorded at 18s, past the 15s per-provider hang guard, so its listing never arrives — and that is the point: the result is returned anyway rather than waiting or failing. The remaining Serper listing stands. A sequential cascade with the same providers would have spent 900ms + 1400ms + the guard before returning anything at all."
+}

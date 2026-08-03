@@ -265,7 +265,7 @@ Deno.test('cross-source agreement is recorded when more than one source produced
 
 Deno.test('every declared evidence kind has a weight', () => {
   const kinds = Object.keys(EVIDENCE_WEIGHTS);
-  assertEquals(kinds.length, 11);
+  assertEquals(kinds.length, 12);
   for (const weight of Object.values(EVIDENCE_WEIGHTS)) {
     assert(weight > 0 && weight <= 1, 'weights must be a usable fraction');
   }

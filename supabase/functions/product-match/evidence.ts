@@ -9,13 +9,23 @@
  * score with the wrong kind of evidence stays in a lower tier. This is what
  * stops a very confident SIMILAR from being rendered as an EXACT.
  *
- *   EXACT              An exact product identifier that TWO id-bearing sources
- *                      independently agree on, AND brand agreement.
- *                      Unreachable by inference, and unreachable from a single
- *                      retailer's own catalogue id — Farfetch saying "this is
- *                      item 19334521" identifies a row in Farfetch's database,
- *                      not the item in the photograph. The gate below is the
- *                      only door.
+ *   EXACT              DECISIVE, AUTHORITATIVE IDENTITY EVIDENCE, plus brand
+ *                      agreement. Two routes qualify:
+ *                        (a) an authoritative identifier — verified GTIN,
+ *                            manufacturer style code, first-party manufacturer
+ *                            record. Sufficient ALONE; no second provider.
+ *                        (b) the same identifier corroborated by two
+ *                            independent id-bearing catalogues.
+ *                      (a) is the durable definition; (b) is the stand-in
+ *                      available today. Unreachable by inference, and
+ *                      unreachable from a single retailer's own catalogue id —
+ *                      Farfetch saying "item 19334521" identifies a row in
+ *                      Farfetch's database, not the item in the photograph.
+ *
+ *                      Independently of the gate, exact CLAIMS are disabled by
+ *                      default (PRODUCT_MATCH_EXACT_CLAIMS_ENABLED) and are
+ *                      reported as LIKELY_EXACT until the evidence paths are
+ *                      validated end to end. See `applyExactClaimPolicy`.
  *
  *   LIKELY_EXACT       Brand established (visible text or a provider-labelled
  *                      brand), the model token agrees, and the colourway
@@ -59,6 +69,7 @@ import { contentTokens, normalizeBrand, normalizeColor, normalizeText, slugify }
  * glance. These are ordering weights only — see the file header.
  */
 export const EVIDENCE_WEIGHTS: Record<EvidenceKind, number> = {
+  authoritative_product_id: 0.50,
   corroborated_product_id: 0.45,
   exact_product_id: 0.30,
   visible_brand_text: 0.20,
@@ -198,13 +209,16 @@ export function assignTier(evidence: MatchEvidence[]): TierAssessment {
   const model = has(evidence, 'model_token');
   const colorway = has(evidence, 'colorway');
   const category = has(evidence, 'category');
-  const corroboratedId = has(evidence, 'corroborated_product_id');
-  const exactId = corroboratedId || has(evidence, 'exact_product_id');
+  // Decisive identity: authoritative on its own, or corroborated across two
+  // independent id-bearing catalogues. Written as a named boolean so the rule
+  // reads as the concept rather than as the workaround.
+  const decisiveIdentity =
+    has(evidence, 'authoritative_product_id') || has(evidence, 'corroborated_product_id');
+  const exactId = decisiveIdentity || has(evidence, 'exact_product_id');
 
-  // EXACT — an identifier two id-bearing catalogues agree on, plus brand
-  // agreement. No inferential route exists, and one retailer's own catalogue id
-  // is explicitly not enough.
-  if (corroboratedId && brandEstablished) {
+  // EXACT — decisive identity plus brand agreement. No inferential route
+  // exists, and one retailer's own catalogue id is explicitly not enough.
+  if (decisiveIdentity && brandEstablished) {
     return { tier: 'EXACT', confidence, evidence };
   }
 
@@ -242,11 +256,38 @@ export function assignTier(evidence: MatchEvidence[]): TierAssessment {
   return { tier: 'NO_CONFIDENT_MATCH', confidence, evidence };
 }
 
-/** Convenience: evidence collection and tier assignment in one call. */
+/**
+ * Applies the exact-claims policy to an assessment.
+ *
+ * When exact claims are disabled, a match whose EVIDENCE satisfies the EXACT
+ * gate is REPORTED as `LIKELY_EXACT`. The evidence array is left untouched, so
+ * the downgrade is legible in the response and in telemetry: a reader can see
+ * `corroborated_product_id` sitting under a `LIKELY_EXACT` tier and understand
+ * exactly what happened. Stripping the evidence to "justify" the lower tier
+ * would destroy the only record of why the flag matters.
+ *
+ * This is a separate function rather than a branch inside `assignTier` because
+ * the gate and the policy answer different questions and must stay
+ * independently testable — the rule has to be provably correct while the claim
+ * is still switched off.
+ */
+export function applyExactClaimPolicy(
+  assessment: TierAssessment,
+  exactClaimsEnabled: boolean,
+): TierAssessment {
+  if (exactClaimsEnabled || assessment.tier !== 'EXACT') return assessment;
+  return { ...assessment, tier: 'LIKELY_EXACT' };
+}
+
+/** Convenience: evidence collection, tier assignment, and claim policy. */
 export function assessVariant(input: {
   query: ProductMatchQuery;
   family: DedupedFamily;
   variant: DedupedVariant;
+  exactClaimsEnabled?: boolean;
 }): TierAssessment {
-  return assignTier(collectEvidence(input));
+  return applyExactClaimPolicy(
+    assignTier(collectEvidence(input)),
+    input.exactClaimsEnabled === true,
+  );
 }

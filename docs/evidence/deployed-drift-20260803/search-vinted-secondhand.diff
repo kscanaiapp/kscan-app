@@ -1,0 +1,24 @@
+--- repo/search-vinted-secondhand/index.ts (HEAD)
++++ deployed/search-vinted-secondhand/index.ts
+@@ -1,3 +1,9 @@
++// Static top-level import (was a dynamic await import()). The Supabase
++// server-side (--use-api) bundler does not follow dynamic import() of the
++// shared guard, which left the module unbundled and 500'd the function.
++// Static import makes the bundler include the shared account-state guard.
++import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAccountActiveIfAuthenticated.ts';
++
+ const corsHeaders = {
+   'Access-Control-Allow-Origin': '*',
+   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+@@ -262,6 +268,11 @@
+   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+ 
++  {
++    const blocked = await assertAccountActiveIfAuthenticated(req);
++    if (blocked) return blocked;
++  }
++
+   if (!isEnabled()) {
+     return json(response(false, [], undefined, 'FEATURE_DISABLED'));
+   }

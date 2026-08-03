@@ -20,6 +20,7 @@
 
 import type { ProductListing, ProductSource, ProductVariant, ProductFamily } from './contracts.ts';
 import { sourceCanCarryExactId } from './contracts.ts';
+import { isExcludedCatalogRow } from './catalogExclusion.ts';
 import {
   canonicalizeProductUrl,
   contentTokens,
@@ -281,28 +282,12 @@ export function normalizeCatalogRow(
 /**
  * Rejects catalog rows that are demonstration or test fixtures.
  *
- * This is not hypothetical hygiene. The production `product_catalog` table
- * currently holds 14 rows and every one of them is seeded test data
- * (`source = 'TEST'`, retailers `K Scan Demo Catalog` / `TEST_RETAILER_A` /
- * `TEST_RETAILER_B`, brand `KSCAN_TEST`), and the table is world-readable under
- * a `qual = true` SELECT policy. They have not surfaced to users only because
- * the similarity matcher's threshold happens to exclude them — an accident of
- * tuning, not a control. Anything reading that table must filter for itself.
+ * Thin delegate to `catalogExclusion.ts`, which owns the rules, the named
+ * reasons, the per-rule counts and the frozen fixture of the real production
+ * rows. Kept here as a named export because "does the normalizer drop test
+ * data" is a question people ask of the normalizer — but there is exactly one
+ * implementation, so the gate cannot drift from what callers actually apply.
  */
 export function isTestCatalogRow(raw: RawCatalogRow): boolean {
-  const source = typeof raw?.source === 'string' ? raw.source.trim().toUpperCase() : '';
-  if (source === 'TEST' || source === 'DEMO' || source === 'FIXTURE') return true;
-
-  const brand = typeof raw?.brand === 'string' ? raw.brand.toUpperCase() : '';
-  if (brand.startsWith('KSCAN_TEST') || brand.startsWith('TEST ') || brand === 'TEST') return true;
-
-  const retailer = typeof raw?.retailer === 'string' ? raw.retailer.toUpperCase() : '';
-  if (retailer.startsWith('TEST_') || retailer.includes('DEMO CATALOG')) return true;
-
-  const externalId = typeof raw?.external_product_id === 'string'
-    ? raw.external_product_id.toLowerCase()
-    : '';
-  if (externalId.startsWith('test-') || externalId.startsWith('kscan-test-')) return true;
-
-  return false;
+  return isExcludedCatalogRow(raw);
 }

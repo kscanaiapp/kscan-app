@@ -28,13 +28,20 @@
  */
 
 import {
+  areExactClaimsEnabled,
   isProductMatchEnabled,
   readDeadlines,
   PRODUCT_MATCH_CONTRACT_VERSION,
   PRODUCT_MATCH_MAX_LISTINGS,
   PRODUCT_MATCH_VERSION,
 } from './config.ts';
-import { isProductSource, type ProductMatchQuery, type ProductMatchRequest, type ProductSource } from './contracts.ts';
+import {
+  isProductSource,
+  type ExistingItemCandidate,
+  type ProductMatchQuery,
+  type ProductMatchRequest,
+  type ProductSource,
+} from './contracts.ts';
 import { orchestrateProductMatch } from './orchestrator.ts';
 import { buildProviderExecutors } from './providers.ts';
 import { buildProductMatchEvent, emitProductMatchEvent } from './telemetry.ts';
@@ -54,7 +61,26 @@ const ALLOWED_QUERY_FIELDS = new Set([
   'material', 'silhouette', 'pattern', 'styleTags', 'searchQueries',
 ]);
 
-const ALLOWED_REQUEST_FIELDS = new Set(['query', 'correlationId', 'sources', 'limit']);
+const ALLOWED_REQUEST_FIELDS = new Set([
+  'query', 'correlationId', 'sources', 'limit',
+  'existingItems', 'newScanImageUri', 'newScanLabel',
+]);
+
+/**
+ * Fields accepted on an existing-item candidate.
+ *
+ * `imageUri` is present here and NOT in `ALLOWED_QUERY_FIELDS`, and the
+ * distinction is load-bearing: a query field would be forwarded to a provider,
+ * whereas an existing-item image is echoed straight back to the client that
+ * supplied it so the user can see the two items side by side. Nothing in this
+ * service fetches it, reads it, or sends it anywhere.
+ */
+const ALLOWED_EXISTING_ITEM_FIELDS = new Set([
+  'id', 'source', 'label', 'imageUri', 'brand', 'model',
+  'canonicalCategory', 'color', 'material', 'silhouette', 'pattern', 'productUrl',
+]);
+
+const MAX_EXISTING_ITEMS = 25;
 
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -150,7 +176,64 @@ export function parseProductMatchRequest(raw: unknown): ParsedRequest {
 
   const correlationId = cleanString(body.correlationId, 64) ?? undefined;
 
-  return { ok: true, request: { query, ...(sources ? { sources } : {}), ...(limit ? { limit } : {}), ...(correlationId ? { correlationId } : {}) } };
+  let existingItems: ExistingItemCandidate[] | undefined;
+  if (body.existingItems !== undefined) {
+    if (!Array.isArray(body.existingItems)) {
+      return { ok: false, error: 'existingItems must be an array' };
+    }
+    if (body.existingItems.length > MAX_EXISTING_ITEMS) {
+      return { ok: false, error: `existingItems exceeds ${MAX_EXISTING_ITEMS}` };
+    }
+    const parsedItems: ExistingItemCandidate[] = [];
+    for (const raw of body.existingItems) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        return { ok: false, error: 'existingItems entries must be objects' };
+      }
+      const item = raw as Record<string, unknown>;
+      for (const key of Object.keys(item)) {
+        if (!ALLOWED_EXISTING_ITEM_FIELDS.has(key)) {
+          return { ok: false, error: `unsupported existingItems field '${key}'` };
+        }
+      }
+      const id = cleanString(item.id, 128);
+      const source = cleanString(item.source, 24);
+      if (!id) return { ok: false, error: 'existingItems entries require an id' };
+      if (source !== 'closet' && source !== 'recent_scan') {
+        return { ok: false, error: "existingItems source must be 'closet' or 'recent_scan'" };
+      }
+      parsedItems.push({
+        id,
+        source,
+        label: cleanString(item.label, 160),
+        imageUri: cleanString(item.imageUri, 2048),
+        brand: cleanString(item.brand, 80),
+        model: cleanString(item.model, 120),
+        canonicalCategory: cleanString(item.canonicalCategory, 60),
+        color: cleanString(item.color, 60),
+        material: cleanString(item.material, 60),
+        silhouette: cleanString(item.silhouette, 60),
+        pattern: cleanString(item.pattern, 60),
+        productUrl: cleanString(item.productUrl, 2048),
+      });
+    }
+    existingItems = parsedItems;
+  }
+
+  const newScanImageUri = cleanString(body.newScanImageUri, 2048) ?? undefined;
+  const newScanLabel = cleanString(body.newScanLabel, 160) ?? undefined;
+
+  return {
+    ok: true,
+    request: {
+      query,
+      ...(sources ? { sources } : {}),
+      ...(limit ? { limit } : {}),
+      ...(correlationId ? { correlationId } : {}),
+      ...(existingItems ? { existingItems } : {}),
+      ...(newScanImageUri ? { newScanImageUri } : {}),
+      ...(newScanLabel ? { newScanLabel } : {}),
+    },
+  };
 }
 
 /**
@@ -210,12 +293,16 @@ export async function handleProductMatchRequest(
     return json({ error: 'INVALID_REQUEST', code: 'INVALID_REQUEST', detail: parsed.error }, 400);
   }
 
+  let testCatalogExclusions = 0;
   const executors = buildProviderExecutors({
     envGet,
     // No catalog client is constructed here. See providers.ts — reading
     // product_catalog requires an injected client and this phase does not mint
     // a service-role credential inside a retrieval path.
     catalogClient: null,
+    onCatalogExclusions: (count) => {
+      testCatalogExclusions += count;
+    },
     ...(parsed.request.sources ? { only: parsed.request.sources } : {}),
   });
 
@@ -224,10 +311,20 @@ export async function handleProductMatchRequest(
     providers: executors,
     options: {
       deadlines: readDeadlines(envGet),
+      exactClaimsEnabled: areExactClaimsEnabled(envGet),
       ...(deps.now ? { now: deps.now } : {}),
       ...(parsed.request.limit ? { maxListings: parsed.request.limit } : {}),
+      ...(parsed.request.existingItems ? { existingItems: parsed.request.existingItems } : {}),
+      ...(parsed.request.newScanImageUri ? { newScanImageUri: parsed.request.newScanImageUri } : {}),
+      ...(parsed.request.newScanLabel ? { newScanLabel: parsed.request.newScanLabel } : {}),
     },
   });
+
+  // The gate's count is owned by the catalog executor, which the orchestrator
+  // does not see into. Stitched in here rather than threaded through the
+  // orchestration signature, because the alternative is a provider-specific
+  // field on a provider-agnostic type.
+  response.retrieval.testCatalogExclusions = testCatalogExclusions;
 
   // Telemetry is built and validated on every request, and written on none.
   // Validating unconditionally means the privacy assertion is exercised by real
@@ -251,14 +348,24 @@ export async function handleProductMatchRequest(
     );
   }
 
+  // Stage attribution is logged inline as well as returned, so a latency
+  // question can be answered from logs alone before telemetry is persisted.
   console.log(
-    '[product-match] done tier=%s families=%d listings=%d firstUsefulMs=%s completeMs=%d partial=%s',
+    '[product-match] done tier=%s families=%d listings=%d firstUsefulMs=%s completeMs=%d seqEquivMs=%d baselineDeltaMs=%d partial=%s strategies=%s fallback=%s rejected=%d/%d catalogExcluded=%d stages=%s',
     response.tier,
     response.families.length,
     response.listings.length,
     String(response.timings.firstUsefulMatchMs),
     response.timings.completeMs,
+    response.timings.sequentialEquivalentMs,
+    response.timings.baselineDeltaMs,
     String(response.timings.partial),
+    response.retrieval.strategiesUsed.join('+') || 'none',
+    String(response.retrieval.fallbackUsed),
+    response.retrieval.categoryConflictRejections,
+    response.retrieval.lowRelevanceRejections,
+    response.retrieval.testCatalogExclusions,
+    response.timings.stages.map((stage) => `${stage.stage}:${stage.durationMs}`).join(','),
   );
 
   return json(response);

@@ -1,0 +1,44 @@
+{
+  "id": "coat-unbranded-material-led",
+  "description": "An unbranded grey wool coat — the population the deployed single-query path serves worst, because it has no brand and no model name to search with. Exercises the outerwear route leading with material and silhouette rather than brand, and asserts that a result with no identity evidence lands at SIMILAR rather than being dropped or over-claimed.",
+  "query": {
+    "canonicalCategory": "coat",
+    "color": "grey",
+    "material": "wool",
+    "silhouette": "double breasted"
+  },
+  "providers": [
+    {
+      "source": "serper",
+      "delayMs": 1120,
+      "status": "completed",
+      "products": [
+        {
+          "id": "1",
+          "title": "Grey double breasted wool overcoat",
+          "source": "cos.com",
+          "price": "$250",
+          "type": "retail",
+          "productUrl": "https://www.cos.com/en/product/grey-wool-overcoat-1234"
+        },
+        {
+          "id": "2",
+          "title": "Wool blend double-breasted coat in grey",
+          "source": "arket.com",
+          "price": "$229",
+          "type": "retail",
+          "productUrl": "https://www.arket.com/coat-grey-9911"
+        }
+      ]
+    },
+    {
+      "source": "farfetch",
+      "delayMs": 640,
+      "status": "empty",
+      "products": []
+    }
+  ],
+  "expectedTier": "SIMILAR",
+  "expectedStrategies": ["material_silhouette_category", "category_color"],
+  "notes": "expectedStrategies pins the ROUTE decision, which is the subject of this case: outerwear leads with material and silhouette, and every brand strategy is SKIPPED because the query carries no brand at all. That skip is the important behaviour — a brand_color_category query built without a brand would be a category_color query wearing the wrong label, and the retrieval report would then misdescribe what was known about the item. Both listings are unbranded and colour-agreeing, so SIMILAR is the honest ceiling: with no brand and no model, PRODUCT_FAMILY would be a claim the evidence does not support."
+}
