@@ -6,6 +6,7 @@ import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
 import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
+import { readScanJourney, selectionDispatchFor } from '../services/scanJourney';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import {
   buildSecondhandSearchRequest,
@@ -118,6 +119,15 @@ export function useKScan() {
   // from the first synchronous guard activation until the attempt fully settles
   // (success, failure, timeout, abort, or picker cancellation).
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // Checkpoint 3.5. The scan-journey view of the most recent response. Seeded
+  // from `null`, which `readScanJourney` resolves to a legacy-derived FAILED —
+  // the correct "nothing has happened yet" answer for a screen that renders
+  // before any scan runs.
+  //
+  // DECLARED LAST, DELIBERATELY, matching the Android line: the useKScan test
+  // harnesses mock `useState` with an index-keyed slot array, so inserting a
+  // hook anywhere above renumbers every hook after it.
+  const [scanJourney, setScanJourney] = useState(() => readScanJourney(null));
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -606,6 +616,13 @@ export function useKScan() {
         const identifyResponse = outcome.response;
         session.v2Candidates = outcome.candidates;
         session.evidenceSource = evidenceSource;
+        // Checkpoint 3.5. Read the contract off the DETECTION response, before
+        // any selection: this is the point at which MULTI_ITEM_SELECTION_REQUIRED
+        // exists, and the tokens it carries are what the follow-up request
+        // echoes back. Retained on the session so the selected-item dispatch
+        // can find the chosen candidate's token.
+        session.detectionResponse = identifyResponse;
+        setScanJourney(readScanJourney(identifyResponse));
 
         // Throws a user-safe error on 'failed' → handled by the catch below.
         const data = mapScanIdentifyToAnalysis(identifyResponse, {
@@ -783,9 +800,18 @@ export function useKScan() {
           scanSessionId: session.scanSessionId,
           imageDigestPrefix: session.imageDigestPrefix,
         },
+        // Checkpoint 3.5. The backend's own selection token, carried through
+        // from detection untouched. `selectionDispatchFor` returns the legacy
+        // correlation pair instead when the response predates the contract, so
+        // this is additive on every path.
+        ...selectionDispatchFor(
+          findSelectionCandidate(session.detectionResponse, candidate?.candidateId),
+          session.detectionResponse,
+        ),
         localPrivacyFiltered: session.localPrivacyFiltered,
         signal: activeAbortControllerRef.current?.signal,
       });
+      setScanJourney(readScanJourney(outcome.response));
       if (outcome.v2ValidationFailure || outcome.rejection) {
         throw userSafeError(
           'scanner v2 contract failure',
@@ -987,5 +1013,29 @@ export function useKScan() {
     selectStaticFixture,
     uploadPhoto,
     selectGalleryPhoto,
+    // Checkpoint 3.5 — scan-journey contract surface. Identical shape to the
+    // Android line, so a shared screen reads the same fields on both platforms.
+    //
+    // Exposed as data rather than acted on here. Screens decide what to render;
+    // this hook does not merge, suppress or delete anything on their behalf.
+    scanJourneyState: scanJourney.state,
+    scanJourneyIsLegacy: scanJourney.derivedFromLegacy,
+    selectionRequired: scanJourney.selectionRequired,
+    selectionCandidates: scanJourney.selectionCandidates,
+    potentialSimilarItems: scanJourney.potentialSimilarItems,
   };
+}
+
+/**
+ * Finds the contract candidate matching a chosen candidate id.
+ *
+ * Returns null rather than falling back to the first candidate. Substituting a
+ * neighbouring candidate is the client-side version of the guess the backend
+ * refuses to make, and it would send one garment's token for another garment's
+ * selection.
+ */
+function findSelectionCandidate(detectionResponse, candidateId) {
+  if (!candidateId) return null;
+  const journey = readScanJourney(detectionResponse);
+  return journey.selectionCandidates.find((entry) => entry.candidateId === candidateId) ?? null;
 }

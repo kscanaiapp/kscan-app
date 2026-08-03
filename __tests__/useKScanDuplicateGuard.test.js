@@ -3,6 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+// Checkpoint 3.5: the hook now reads the scan-journey contract. The real
+// implementation is supplied rather than a stub — a stub of a pure contract
+// reader would silently diverge from what the app ships.
+const scanJourneyGlobals = require('./helpers/loadScanJourneyModule');
 
 function stripImports(source) {
   const lines = source.split(/\r?\n/);
@@ -163,6 +167,7 @@ function loadUseKScanWithMocks({
     // the injected identifyScanImage exactly once — while exercising the new
     // path. The session flag defaults to DISABLED here, so this file continues
     // to describe the legacy behaviour it was written for.
+    ...scanJourneyGlobals,
     beginScannerV2Session: () => ({ enabled: false }),
     createEvidenceId: () => `test-evidence-${(evidenceIdCounter += 1)}`,
     prepareScannerEvidence: ({ preparedImage, source, evidenceId }) => {
