@@ -114,6 +114,7 @@ jobs:
     outputs:
       deployed_sha: ${{ steps.record.outputs.deployed_sha }}
       merge_sha: ${{ steps.record.outputs.merge_sha }}
+      base_sha: ${{ steps.record.outputs.base_sha }}
     steps:
       - name: Checkout merge candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -123,14 +124,25 @@ jobs:
 
       - name: Record candidate SHAs
         id: record
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FALLBACK_BASE_BRANCH: ${{ github.base_ref || 'ios/full-submission-readiness-v2' }}
         run: |
           set -euo pipefail
           HEAD_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
           MERGE_SHA="$(git rev-parse HEAD)"
+          if [ -n "${PR_BASE_SHA:-}" ]; then
+            BASE_SHA="${PR_BASE_SHA}"
+          else
+            git fetch origin "${FALLBACK_BASE_BRANCH}" --depth=1 --quiet || true
+            BASE_SHA="$(git merge-base "origin/${FALLBACK_BASE_BRANCH}" HEAD)"
+          fi
           echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "merge_sha=${MERGE_SHA}" >> "$GITHUB_OUTPUT"
           echo "deployed_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "base_sha=${BASE_SHA}" >> "$GITHUB_OUTPUT"
           echo "Candidate head SHA: ${HEAD_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate base SHA: ${BASE_SHA}" >> "$GITHUB_STEP_SUMMARY"
           echo "Merge tree SHA: ${MERGE_SHA}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify staging project reference
@@ -170,46 +182,77 @@ jobs:
           REF="${SUPABASE_STAGING_PROJECT_REF:-yzqjvdfgefveprobvvyw}"
           supabase link --project-ref "$REF" --yes
 
-      - name: Deploy changed Edge Functions to staging
+      - name: Snapshot staging state (before)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          DEPLOYED=""
-          if [ -d supabase/functions ]; then
-            for dir in supabase/functions/*/; do
-              fn="$(basename "$dir")"
-              [ "$fn" = "_shared" ] && continue
-              echo "Deploying function: $fn"
-              supabase functions deploy "$fn" --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}"
-              DEPLOYED="${DEPLOYED} ${fn}"
-            done
-          fi
-          echo "deployed_functions=${DEPLOYED}" >> "$GITHUB_ENV"
+          supabase functions list --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" --output-format json > /tmp/staging-functions-before.json
+          node security/scripts/snapshot-legitimate-staging-data.js "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" > /tmp/legitimate-data-before.json
 
-      - name: Apply staging migrations
-        if: contains(needs.classify-changes.outputs.classifications, 'DATABASE MIGRATION')
+      - name: Apply candidate migrations only
+        id: migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          # `db push` (CLI 2.109.1) has no --project-ref flag; it pushes to whatever
-          # project the prior "Link staging project" step already linked in this job.
-          supabase db push --linked
+          # Never a blanket `db push` — this project has known migration-history
+          # drift (staging carries migrations whose .sql files are absent from
+          # some branches), and `db push` refuses to run at all while that's
+          # true. Apply only the migration files this PR actually introduces.
+          node security/scripts/apply-candidate-migrations.js \
+            "${{ steps.record.outputs.base_sha }}" \
+            "${{ steps.record.outputs.deployed_sha }}" \
+            "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" \
+            | tee /tmp/migration-result.json
+          OUTCOME="$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/migration-result.json','utf8')).outcome)")"
+          echo "outcome=${OUTCOME}" >> "$GITHUB_OUTPUT"
+          if [ "$OUTCOME" = "MIGRATION_HISTORY_CONFLICT" ] || [ "$OUTCOME" = "OPERATIONAL_FAILURE" ]; then
+            exit 1
+          fi
+
+      - name: Deploy changed Edge Functions only
+        id: functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Never a loop over every directory in supabase/functions/ — deploy
+          # only functions this PR changed, plus any function proven (by real
+          # import analysis, not "_shared changed so deploy everything") to
+          # import a shared module this PR changed.
+          node security/scripts/deploy-changed-functions.js \
+            "${{ steps.record.outputs.base_sha }}" \
+            "${{ steps.record.outputs.deployed_sha }}" \
+            "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" \
+            | tee /tmp/functions-result.json
+          OUTCOME="$(node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/functions-result.json','utf8')); console.log(r.outcome || (r.deployed && r.deployed.length ? 'DEPLOYED' : 'NO_CHANGED_FUNCTIONS'))")"
+          echo "outcome=${OUTCOME}" >> "$GITHUB_OUTPUT"
+
+      - name: Snapshot staging state (after) and report side effects
+        if: always()
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" --output-format json > /tmp/staging-functions-after.json
+          node security/scripts/report-staging-inventory-diff.js /tmp/staging-functions-before.json /tmp/staging-functions-after.json | tee /tmp/inventory-diff.json
+          node security/scripts/snapshot-legitimate-staging-data.js "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" > /tmp/legitimate-data-after.json
 
       - name: Record deployment state
+        if: always()
+        env:
+          BASE_SHA: ${{ steps.record.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.record.outputs.deployed_sha }}
+          STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
+          MIGRATION_RESULT_FILE: /tmp/migration-result.json
+          FUNCTION_RESULT_FILE: /tmp/functions-result.json
+          INVENTORY_DIFF_FILE: /tmp/inventory-diff.json
+          LEGITIMATE_BEFORE_FILE: /tmp/legitimate-data-before.json
+          LEGITIMATE_AFTER_FILE: /tmp/legitimate-data-after.json
         run: |
           set -euo pipefail
-          {
-            echo "## Staging deployment"
-            echo
-            echo "| Field | Value |"
-            echo "| --- | --- |"
-            echo "| Staging project | ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }} |"
-            echo "| Candidate SHA | ${{ steps.record.outputs.deployed_sha }} |"
-            echo "| Functions deployed | ${deployed_functions:-none recorded} |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          node security/scripts/write-staging-deploy-summary.js >> "$GITHUB_STEP_SUMMARY"
 
   staging-health:
     name: Staging health checks
