@@ -1,0 +1,12 @@
+{
+  "record": "phase6-control-artifact-checksums",
+  "runId": "baseline-v0.3.1-v140-20260803-0531-e4ac29c-development-exec",
+  "algorithm": "sha256",
+  "files": {
+    "control-baseline.json": "b361a4dcc96837ef8c13498d3a78ddd582d232e73d8122e7fa9e46bf969b9663",
+    "control-baseline.md": "004f40010e71ff5b6894875cc7afaa5fb16bf0281178ac18ec0eadcf46cb3480",
+    "control-dataset-identity.json": "366b82fd3ffc9c006a7a5b6297a2f1af42685ddad4da218ee2bd060321afa8f0",
+    "control-provider-summary.json": "5a9cccc8cceac0ee73aad09bc38f3a56719715baac2e5412f9b1850fb0234843",
+    "control-runtime-identity.json": "53adab6d930c64a11dfc4b44e741c2e67ad4c27b93d1dc867c6c5f3b63b0bfe0"
+  }
+}

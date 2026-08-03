@@ -1,0 +1,55 @@
+{
+  "record": "phase6-control-runtime-identity",
+  "runId": "baseline-v0.3.1-v140-20260803-0531-e4ac29c-development-exec",
+  "entryPoint": "hooks/useKScan.js::runScannerIdentification -> services/scannerScanRequest.ts::runScannerIdentification -> services/scanIdentification.ts::identifyScanImage -> supabase.functions.invoke('scan-identify')",
+  "activeScannerVersion": "legacy-selected-item",
+  "requestContract": "legacy",
+  "mode": "identify_selected_item",
+  "sourceEntryPath": "scanner_camera_legacy",
+  "requestIntents": [
+    "identify_and_shop",
+    "identify_for_style",
+    "identify_for_closet"
+  ],
+  "imageInputShape": "base64 JPEG inline_data; client re-encodes to 896px max dimension at quality 0.65; Edge Function refuses payloads over 2MB base64 before any provider call",
+  "activeModel": "gemini-3.6-flash",
+  "fallbackModel": "gemini-3.5-flash-lite",
+  "samplingConfiguration": {
+    "temperature": 0,
+    "maxOutputTokens": 2048,
+    "responseMimeType": "application/json",
+    "responseSchema": "SELECTED_ITEM_RESPONSE_SCHEMA",
+    "thinkingConfig": null,
+    "topP": null,
+    "topK": null,
+    "seed": null
+  },
+  "timeoutMs": 14000,
+  "maximumProviderAttempts": 2,
+  "activePromptSha256": "6f2f4dd1c3c2e2d76dffb49fc24283ddfaf49a836f527c02ed2b82ef19b7dd1d",
+  "serializedRequestPayloadSha256": "f330ebb18c0a5292cc9b32729bda79ce26cc9852b7e26da16a8cea9a7cc5a5f5",
+  "generationConfigSha256": "b6862722990cdfd3b387eaaf2d6a0e9880036b1fedab17fefd07c7db56c2d22e",
+  "responseSchemaSha256": "894722a6500756bd6eeae0e4beb4712a6b223c6ce4045d599f8d46682a5861a8",
+  "parserContractSha256": "332b713a7b7c516cf2d63fb4500c1a32a035464d862f783a9bc22f31b0ef8f79",
+  "responseContractSha256": "be3011c26bbb1cc799630ea7b9edc824a885b16847378567eec4de59711efbf0",
+  "singleDispatchState": "single dispatch proven; one scan produces one provider call",
+  "candidateEnabled": false,
+  "clientControlledSelectionPossible": false,
+  "rollbackSelector": "certified-v140 is the active control; no candidate is registered in any product path, so rollback is the absence of a change rather than a switch",
+  "certifiedControlComparison": {
+    "certifiedRef": "certified-v140 (cert/ios-phase-2b4-cross-path-v2 f5f4ed2, cert/android-phase-2b4-cross-path-v2 b9b0926)",
+    "checks": {
+      "providerPayload": true,
+      "prompt": true,
+      "responseSchema": true,
+      "samplingConfiguration": true,
+      "model": true,
+      "providerParser": true,
+      "requestContract": false,
+      "responseContract": false
+    },
+    "historicalResultsReusable": false,
+    "rule": "Historical results are reusable only when every recorded request, model, schema, sampling, parser, and contract identity is byte-identical.",
+    "interpretation": "Provider payload, prompt, response schema, sampling, model and provider parser are byte-identical between certified-v140 and the current product. The request contract differs (the product dispatches legacy-selected-item, not V2) and the response contract differs (the product adds the identify_for_closet intent and three Closet entry paths in _shared/fashionIdentificationV2.ts). scan-identify/index.ts itself is byte-identical between certified-v140 and both current platform lines. Under the equivalence rule this is provider-payload equivalence only, which is explicitly insufficient for reuse."
+  }
+}

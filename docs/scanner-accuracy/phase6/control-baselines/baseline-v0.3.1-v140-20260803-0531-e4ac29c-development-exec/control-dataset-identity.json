@@ -1,0 +1,18 @@
+{
+  "record": "phase6-control-dataset-identity",
+  "runId": "baseline-v0.3.1-v140-20260803-0531-e4ac29c-development-exec",
+  "datasetVersion": "0.3.1",
+  "datasetManifestSha256": "5b2db5b9c0edf6093dbd982c64297e61b3677b0bb54b0cdcf3e70be2eb7b13af",
+  "datasetAggregateSha256": "77e90edfe33d013285616ab1fa591112254b119be13620b606bfb57f37924883",
+  "selectionContractSha256": "2a3b84e8af60dc2b43bcfb94b630ea2629e11933bbde69437ec0698f92d3a159",
+  "taxonomyVersion": "1.0.0",
+  "taxonomyHash": "3c93e35a66b34c42a8563d080794bafbaf640377c121622f3a10a3b2fb7a051a",
+  "split": "development",
+  "developmentCaseCount": 33,
+  "holdoutCaseCount": 7,
+  "holdoutOpened": false,
+  "capturePreparationMode": "certified_client_equivalent",
+  "preparationManifestSha256": "7308afab2a4bf5b381c060a79138edb7342402dc7404aad95e806f8f184fec35",
+  "preparationTransformSignature": "w896/q65/cap2097152",
+  "evaluationMediaTrackedByGit": 0
+}
