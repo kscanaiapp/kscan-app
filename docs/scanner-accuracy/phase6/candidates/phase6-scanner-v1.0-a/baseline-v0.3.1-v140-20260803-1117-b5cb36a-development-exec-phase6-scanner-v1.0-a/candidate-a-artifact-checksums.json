@@ -1,0 +1,13 @@
+{
+  "record": "phase6-candidate-a-artifact-checksums",
+  "runId": "baseline-v0.3.1-v140-20260803-1117-b5cb36a-development-exec-phase6-scanner-v1.0-a",
+  "algorithm": "sha256",
+  "files": {
+    "candidate-a-comparison.json": "b4e9b285814213500850cd05d88b125d585f84343b1672e6ce2a261b70c7d2bb",
+    "candidate-a-hypothesis-verdict.json": "88c731d374e7c53861d629714157bba69dda491e9011ec036633a36ad087650e",
+    "candidate-a-provider-summary.json": "f48a350fbd6c52f784b1e14be7b3c0f9e945c6df236c144c03ef6d3225cb27ff",
+    "candidate-a-results.json": "2255eb740b1c7624ea9287c741df45932ceaac5e832c3f74e2be4d8d4363c7db",
+    "candidate-a-results.md": "b87538620d3d06c16722c451a23cd88707c23616153c16c1fca2d38ea71c94ab",
+    "candidate-a-runtime-identity.json": "d0f80d39433b12c9d913539447ad1fa5cba18d5e0aba3f5389f6b12cb955329d"
+  }
+}

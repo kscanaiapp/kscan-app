@@ -1,0 +1,27 @@
+{
+  "record": "phase6-candidate-a-hypothesis-verdict",
+  "runId": "baseline-v0.3.1-v140-20260803-1117-b5cb36a-development-exec-phase6-scanner-v1.0-a",
+  "hypothesisRecord": "docs/scanner-accuracy/phase6/candidate-a-hypothesis.md",
+  "preregisteredPrediction": {
+    "primaryMetric": "invalid-output rate on the 33-case development split",
+    "direction": "no worse than control",
+    "effectRange": "6 to 8 invalid cases",
+    "pointPrediction": 7.5,
+    "note": "Predicted against a 6-invalid historical control. The FRESH locked control is 3 invalid, a harder target. The prediction was NOT revised after that became known."
+  },
+  "observed": {
+    "controlInvalidOutput": 3,
+    "candidateInvalidOutput": 2,
+    "controlTruncated": 3,
+    "candidateTruncated": 2,
+    "thinkingTokenChangePct": -18,
+    "p50LatencyChangePct": -23.9,
+    "p95LatencyChangePct": -7.1,
+    "costChangePct": -10.4,
+    "abstentionChangePp": -3.3,
+    "accuracyAmongAnsweredChangePp": -9.7,
+    "accuracyOverClassifiableChangePp": -4.4
+  },
+  "hypothesisSupported": "PARTIAL",
+  "failureExplanation": "The reliability half is supported and the mechanism responded: thinking tokens fell 18.0%, which is the first direct evidence that prompt instruction CAN reduce this provider's dynamic reasoning allowance. That was the preregistered primary risk and it did not materialise. Truncation fell 3 to 2 and latency and cost both improved. The accuracy half is NOT supported. The preregistered expectation was that subtype and material would improve; subtype lost 3 discordant field-pairs and gained none, and material was unchanged. Critically this is NOT the suppression artifact the hypothesis named as its secondary risk: abstention FELL 3.3 points and the candidate answered 3 more classifiable fields, yet got 4 fewer right. It answers more and answers worse. Less deliberation bought reliability at the cost of judgement, which is a real trade rather than a scoring artifact."
+}

@@ -1,0 +1,14 @@
+{
+  "record": "phase6-candidate-a-runtime-identity",
+  "runId": "baseline-v0.3.1-v140-20260803-1117-b5cb36a-development-exec-phase6-scanner-v1.0-a",
+  "candidateVersion": "phase6-scanner-v1.0-a",
+  "adapterId": "v140",
+  "certifiedBundleSha256": "28737e0c96047fa014c526886b32b3e5191283a9ed7441641da4d3b0ce632589",
+  "certifiedCommit": "f5f4ed2eda4984db0658c3209fece223acd33188",
+  "capturePreparationMode": "certified_client_equivalent",
+  "preparationManifestSha256": "7308afab2a4bf5b381c060a79138edb7342402dc7404aad95e806f8f184fec35",
+  "taxonomyVersion": "1.0.0",
+  "taxonomyHash": "3c93e35a66b34c42a8563d080794bafbaf640377c121622f3a10a3b2fb7a051a",
+  "selectionContractSha256": "2a3b84e8af60dc2b43bcfb94b630ea2629e11933bbde69437ec0698f92d3a159",
+  "differsFromControlOnlyBy": "the appended candidate instruction overlay"
+}

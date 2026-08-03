@@ -1,0 +1,750 @@
+{
+  "record": "phase6-candidate-a-results",
+  "recordVersion": "1.0.0",
+  "runId": "baseline-v0.3.1-v140-20260803-1117-b5cb36a-development-exec-phase6-scanner-v1.0-a",
+  "candidateId": "phase6-scanner-v1.0-a",
+  "candidateCommit": "b5cb36a91922310e4270af0fe0cc7fd7d0b5c52e",
+  "controlRunId": "baseline-v0.3.1-v140-20260803-0531-e4ac29c-development-exec",
+  "controlLockCommit": "6c46f1464c80042c0dfa35ef3e5d5714ee3dd3b8",
+  "datasetHash": "77e90edfe33d013285616ab1fa591112254b119be13620b606bfb57f37924883",
+  "promptSha256": "6f2f4dd1c3c2e2d76dffb49fc24283ddfaf49a836f527c02ed2b82ef19b7dd1d",
+  "overlayTextSha256": "b470706f3788912ee9d447a68bc9716a13c3f247a13fac0e5348b5be682e4764",
+  "schemaSha256": "894722a6500756bd6eeae0e4beb4712a6b223c6ce4045d599f8d46682a5861a8",
+  "parserSha256": "332b713a7b7c516cf2d63fb4500c1a32a035464d862f783a9bc22f31b0ef8f79",
+  "normalizerSha256": "be3011c26bbb1cc799630ea7b9edc824a885b16847378567eec4de59711efbf0",
+  "model": "gemini-3.6-flash",
+  "generationConfig": {
+    "temperature": 0,
+    "maxOutputTokens": 2048,
+    "responseMimeType": "application/json",
+    "responseSchema": "SELECTED_ITEM_RESPONSE_SCHEMA",
+    "thinkingConfig": null,
+    "topP": null,
+    "topK": null,
+    "seed": null
+  },
+  "generationConfigChanged": false,
+  "control": {
+    "caseCount": 33,
+    "valid": 29,
+    "invalidOutput": 3,
+    "truncated": 3,
+    "otherInvalid": 0,
+    "adapterFailures": 1,
+    "inputTokens": 54320,
+    "responseTokens": 4779,
+    "thinkingTokens": 45506,
+    "billedOutputTokens": 50285,
+    "p50LatencyMs": 9158,
+    "p95LatencyMs": 10960,
+    "meanLatencyMs": 8648,
+    "dispatchedCostUsd": 0.458617,
+    "truncatedDistanceFromCeiling": [
+      18,
+      15,
+      15
+    ]
+  },
+  "candidate": {
+    "caseCount": 33,
+    "valid": 31,
+    "invalidOutput": 2,
+    "truncated": 2,
+    "otherInvalid": 0,
+    "adapterFailures": 0,
+    "inputTokens": 62397,
+    "responseTokens": 5027,
+    "thinkingTokens": 37302,
+    "billedOutputTokens": 42329,
+    "p50LatencyMs": 6967,
+    "p95LatencyMs": 10178,
+    "meanLatencyMs": 7102,
+    "dispatchedCostUsd": 0.411063,
+    "truncatedDistanceFromCeiling": [
+      15,
+      15
+    ]
+  },
+  "accuracyMetrics": {
+    "control": {
+      "neutral": {
+        "caseCount": 29,
+        "scoringContractVersion": "0.3.0",
+        "profile": "neutral",
+        "meanPenalty": 5.681034482758621,
+        "categoryCorrectRate": 0.41379310344827586,
+        "clothingTypeCorrectRate": 0.3793103448275862,
+        "subtypeCorrectRate": 0.3793103448275862,
+        "primaryColorCorrectRate": 0.6206896551724138,
+        "materialCorrectRate": 0.3448275862068966,
+        "brandPrecisionSignals": {
+          "concretePredictions": 0,
+          "correct": 0,
+          "falsePositives": 0,
+          "notMeasuredCases": 3,
+          "falsePositiveCohortN": 26,
+          "positiveBrandCorrectness": "not_measured",
+          "note": "Positive brand correctness requires at least one case with a concrete brand ground truth. The v0.3.1 corpus has none, so it is not_measured, NOT 0. Brand false positives remain measurable over the cohort where the governed review established that no reliable product-level brand evidence is visible."
+        },
+        "identification": {
+          "category": {
+            "gradeableN": 18,
+            "correct": 12,
+            "acceptablyBroad": 0,
+            "wrong": 6,
+            "ungradeableN": 11,
+            "notMeasuredN": 0,
+            "correctRate": 0.6666666666666666,
+            "strictCorrectRate": 0.6666666666666666,
+            "oneSamplePercentagePoints": 5.555555555555555
+          },
+          "clothingType": {
+            "gradeableN": 18,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 18,
+            "ungradeableN": 11,
+            "notMeasuredN": 0,
+            "correctRate": 0,
+            "strictCorrectRate": 0,
+            "oneSamplePercentagePoints": 5.555555555555555
+          },
+          "subtype": {
+            "gradeableN": 15,
+            "correct": 0,
+            "acceptablyBroad": 6,
+            "wrong": 9,
+            "ungradeableN": 14,
+            "notMeasuredN": 0,
+            "correctRate": 0.4,
+            "strictCorrectRate": 0,
+            "oneSamplePercentagePoints": 6.666666666666667
+          },
+          "primaryColor": {
+            "gradeableN": 21,
+            "correct": 14,
+            "acceptablyBroad": 1,
+            "wrong": 6,
+            "ungradeableN": 8,
+            "notMeasuredN": 0,
+            "correctRate": 0.7142857142857143,
+            "strictCorrectRate": 0.6666666666666666,
+            "oneSamplePercentagePoints": 4.761904761904762
+          },
+          "material": {
+            "gradeableN": 9,
+            "correct": 7,
+            "acceptablyBroad": 0,
+            "wrong": 2,
+            "ungradeableN": 20,
+            "notMeasuredN": 0,
+            "correctRate": 0.7777777777777778,
+            "strictCorrectRate": 0.7777777777777778,
+            "oneSamplePercentagePoints": 11.11111111111111
+          },
+          "pattern": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 29,
+            "notMeasuredN": 0,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          },
+          "brand": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 26,
+            "notMeasuredN": 3,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          }
+        },
+        "exactProduct": {
+          "exactProductPrecision": "not_measured",
+          "incorrectExactMatchRate": "not_measured",
+          "futureExactProductEvaluationCases": 29,
+          "unexpectedExactProductClaims": 0,
+          "note": "The deployed contract hardcodes exactProduct: null and never claims exact_product or model_family resolution. These metrics are out of scope for this contract, not zero. Cases are retained and tagged futureExactProductEvaluation."
+        },
+        "abstention": {
+          "correct": 18,
+          "incorrect": 11
+        },
+        "nonFashion": {
+          "cases": 1,
+          "correct": 0,
+          "falsePositives": 1,
+          "incorrectAbstentions": 0
+        },
+        "nonFashionFalsePositiveRate": 1,
+        "underIdentification": {
+          "count": 18
+        },
+        "schemaParseFailureRate": 0,
+        "fallbackInvocationRate": 0,
+        "dispositionTotals": {
+          "unsupported_certainty": 75,
+          "correct_abstention": 56,
+          "acceptably_broad": 7,
+          "unknown_when_evidence_exists": 35,
+          "correct": 54,
+          "not_measured": 32,
+          "incorrect_abstention": 11,
+          "unscorable": 36,
+          "incorrect": 24,
+          "under_identification": 18
+        },
+        "commerce": {
+          "commerceLinkValidity": "not_measured",
+          "retailerRelevance": "not_measured",
+          "duplicateRetailerRate": "not_measured",
+          "commerceCostUsd": 0,
+          "note": "Commerce is disabled for the identification baseline via shouldRunCommerce(identify_for_style). These are not_measured, NOT zero, and may not enter any candidate pass/fail decision until a separate authorized commerce evaluation exists."
+        },
+        "structurallyUnmeasurable": {
+          "silhouette": "not_measured",
+          "constructionDetails": "not_measured",
+          "designDetails": "not_measured",
+          "note": "The certified V2 contract emits item.silhouette, but the governed dataset schema carries no silhouette, construction or design-detail ground-truth field, so these cannot be scored at any sample size. Adding them requires a new labeling pass, not a scorer change."
+        }
+      },
+      "trust_weighted": {
+        "caseCount": 29,
+        "scoringContractVersion": "0.3.0",
+        "profile": "trust_weighted",
+        "meanPenalty": 14.922413793103448,
+        "categoryCorrectRate": 0.41379310344827586,
+        "clothingTypeCorrectRate": 0.3793103448275862,
+        "subtypeCorrectRate": 0.3793103448275862,
+        "primaryColorCorrectRate": 0.6206896551724138,
+        "materialCorrectRate": 0.3448275862068966,
+        "brandPrecisionSignals": {
+          "concretePredictions": 0,
+          "correct": 0,
+          "falsePositives": 0,
+          "notMeasuredCases": 3,
+          "falsePositiveCohortN": 26,
+          "positiveBrandCorrectness": "not_measured",
+          "note": "Positive brand correctness requires at least one case with a concrete brand ground truth. The v0.3.1 corpus has none, so it is not_measured, NOT 0. Brand false positives remain measurable over the cohort where the governed review established that no reliable product-level brand evidence is visible."
+        },
+        "identification": {
+          "category": {
+            "gradeableN": 18,
+            "correct": 12,
+            "acceptablyBroad": 0,
+            "wrong": 6,
+            "ungradeableN": 11,
+            "notMeasuredN": 0,
+            "correctRate": 0.6666666666666666,
+            "strictCorrectRate": 0.6666666666666666,
+            "oneSamplePercentagePoints": 5.555555555555555
+          },
+          "clothingType": {
+            "gradeableN": 18,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 18,
+            "ungradeableN": 11,
+            "notMeasuredN": 0,
+            "correctRate": 0,
+            "strictCorrectRate": 0,
+            "oneSamplePercentagePoints": 5.555555555555555
+          },
+          "subtype": {
+            "gradeableN": 15,
+            "correct": 0,
+            "acceptablyBroad": 6,
+            "wrong": 9,
+            "ungradeableN": 14,
+            "notMeasuredN": 0,
+            "correctRate": 0.4,
+            "strictCorrectRate": 0,
+            "oneSamplePercentagePoints": 6.666666666666667
+          },
+          "primaryColor": {
+            "gradeableN": 21,
+            "correct": 14,
+            "acceptablyBroad": 1,
+            "wrong": 6,
+            "ungradeableN": 8,
+            "notMeasuredN": 0,
+            "correctRate": 0.7142857142857143,
+            "strictCorrectRate": 0.6666666666666666,
+            "oneSamplePercentagePoints": 4.761904761904762
+          },
+          "material": {
+            "gradeableN": 9,
+            "correct": 7,
+            "acceptablyBroad": 0,
+            "wrong": 2,
+            "ungradeableN": 20,
+            "notMeasuredN": 0,
+            "correctRate": 0.7777777777777778,
+            "strictCorrectRate": 0.7777777777777778,
+            "oneSamplePercentagePoints": 11.11111111111111
+          },
+          "pattern": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 29,
+            "notMeasuredN": 0,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          },
+          "brand": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 26,
+            "notMeasuredN": 3,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          }
+        },
+        "exactProduct": {
+          "exactProductPrecision": "not_measured",
+          "incorrectExactMatchRate": "not_measured",
+          "futureExactProductEvaluationCases": 29,
+          "unexpectedExactProductClaims": 0,
+          "note": "The deployed contract hardcodes exactProduct: null and never claims exact_product or model_family resolution. These metrics are out of scope for this contract, not zero. Cases are retained and tagged futureExactProductEvaluation."
+        },
+        "abstention": {
+          "correct": 18,
+          "incorrect": 11
+        },
+        "nonFashion": {
+          "cases": 1,
+          "correct": 0,
+          "falsePositives": 1,
+          "incorrectAbstentions": 0
+        },
+        "nonFashionFalsePositiveRate": 1,
+        "underIdentification": {
+          "count": 18
+        },
+        "schemaParseFailureRate": 0,
+        "fallbackInvocationRate": 0,
+        "dispositionTotals": {
+          "unsupported_certainty": 75,
+          "correct_abstention": 56,
+          "acceptably_broad": 7,
+          "unknown_when_evidence_exists": 35,
+          "correct": 54,
+          "not_measured": 32,
+          "incorrect_abstention": 11,
+          "unscorable": 36,
+          "incorrect": 24,
+          "under_identification": 18
+        },
+        "commerce": {
+          "commerceLinkValidity": "not_measured",
+          "retailerRelevance": "not_measured",
+          "duplicateRetailerRate": "not_measured",
+          "commerceCostUsd": 0,
+          "note": "Commerce is disabled for the identification baseline via shouldRunCommerce(identify_for_style). These are not_measured, NOT zero, and may not enter any candidate pass/fail decision until a separate authorized commerce evaluation exists."
+        },
+        "structurallyUnmeasurable": {
+          "silhouette": "not_measured",
+          "constructionDetails": "not_measured",
+          "designDetails": "not_measured",
+          "note": "The certified V2 contract emits item.silhouette, but the governed dataset schema carries no silhouette, construction or design-detail ground-truth field, so these cannot be scored at any sample size. Adding them requires a new labeling pass, not a scorer change."
+        }
+      }
+    },
+    "candidate": {
+      "neutral": {
+        "caseCount": 31,
+        "scoringContractVersion": "0.3.0",
+        "profile": "neutral",
+        "meanPenalty": 5.959677419354839,
+        "categoryCorrectRate": 0.3548387096774194,
+        "clothingTypeCorrectRate": 0.3870967741935484,
+        "subtypeCorrectRate": 0.2903225806451613,
+        "primaryColorCorrectRate": 0.5161290322580645,
+        "materialCorrectRate": 0.3225806451612903,
+        "brandPrecisionSignals": {
+          "concretePredictions": 0,
+          "correct": 0,
+          "falsePositives": 0,
+          "notMeasuredCases": 3,
+          "falsePositiveCohortN": 28,
+          "positiveBrandCorrectness": "not_measured",
+          "note": "Positive brand correctness requires at least one case with a concrete brand ground truth. The v0.3.1 corpus has none, so it is not_measured, NOT 0. Brand false positives remain measurable over the cohort where the governed review established that no reliable product-level brand evidence is visible."
+        },
+        "identification": {
+          "category": {
+            "gradeableN": 19,
+            "correct": 11,
+            "acceptablyBroad": 0,
+            "wrong": 8,
+            "ungradeableN": 12,
+            "notMeasuredN": 0,
+            "correctRate": 0.5789473684210527,
+            "strictCorrectRate": 0.5789473684210527,
+            "oneSamplePercentagePoints": 5.2631578947368425
+          },
+          "clothingType": {
+            "gradeableN": 19,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 19,
+            "ungradeableN": 12,
+            "notMeasuredN": 0,
+            "correctRate": 0,
+            "strictCorrectRate": 0,
+            "oneSamplePercentagePoints": 5.2631578947368425
+          },
+          "subtype": {
+            "gradeableN": 16,
+            "correct": 2,
+            "acceptablyBroad": 2,
+            "wrong": 12,
+            "ungradeableN": 15,
+            "notMeasuredN": 0,
+            "correctRate": 0.25,
+            "strictCorrectRate": 0.125,
+            "oneSamplePercentagePoints": 6.25
+          },
+          "primaryColor": {
+            "gradeableN": 22,
+            "correct": 13,
+            "acceptablyBroad": 1,
+            "wrong": 8,
+            "ungradeableN": 9,
+            "notMeasuredN": 0,
+            "correctRate": 0.6363636363636364,
+            "strictCorrectRate": 0.5909090909090909,
+            "oneSamplePercentagePoints": 4.545454545454546
+          },
+          "material": {
+            "gradeableN": 9,
+            "correct": 7,
+            "acceptablyBroad": 0,
+            "wrong": 2,
+            "ungradeableN": 22,
+            "notMeasuredN": 0,
+            "correctRate": 0.7777777777777778,
+            "strictCorrectRate": 0.7777777777777778,
+            "oneSamplePercentagePoints": 11.11111111111111
+          },
+          "pattern": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 31,
+            "notMeasuredN": 0,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          },
+          "brand": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 28,
+            "notMeasuredN": 3,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          }
+        },
+        "exactProduct": {
+          "exactProductPrecision": "not_measured",
+          "incorrectExactMatchRate": "not_measured",
+          "futureExactProductEvaluationCases": 31,
+          "unexpectedExactProductClaims": 0,
+          "note": "The deployed contract hardcodes exactProduct: null and never claims exact_product or model_family resolution. These metrics are out of scope for this contract, not zero. Cases are retained and tagged futureExactProductEvaluation."
+        },
+        "abstention": {
+          "correct": 19,
+          "incorrect": 12
+        },
+        "nonFashion": {
+          "cases": 1,
+          "correct": 0,
+          "falsePositives": 1,
+          "incorrectAbstentions": 0
+        },
+        "nonFashionFalsePositiveRate": 1,
+        "underIdentification": {
+          "count": 19
+        },
+        "schemaParseFailureRate": 0,
+        "fallbackInvocationRate": 0,
+        "dispositionTotals": {
+          "unsupported_certainty": 85,
+          "correct_abstention": 59,
+          "acceptably_broad": 3,
+          "unknown_when_evidence_exists": 37,
+          "correct": 54,
+          "not_measured": 34,
+          "incorrect_abstention": 12,
+          "unscorable": 38,
+          "incorrect": 31,
+          "under_identification": 19
+        },
+        "commerce": {
+          "commerceLinkValidity": "not_measured",
+          "retailerRelevance": "not_measured",
+          "duplicateRetailerRate": "not_measured",
+          "commerceCostUsd": 0,
+          "note": "Commerce is disabled for the identification baseline via shouldRunCommerce(identify_for_style). These are not_measured, NOT zero, and may not enter any candidate pass/fail decision until a separate authorized commerce evaluation exists."
+        },
+        "structurallyUnmeasurable": {
+          "silhouette": "not_measured",
+          "constructionDetails": "not_measured",
+          "designDetails": "not_measured",
+          "note": "The certified V2 contract emits item.silhouette, but the governed dataset schema carries no silhouette, construction or design-detail ground-truth field, so these cannot be scored at any sample size. Adding them requires a new labeling pass, not a scorer change."
+        }
+      },
+      "trust_weighted": {
+        "caseCount": 31,
+        "scoringContractVersion": "0.3.0",
+        "profile": "trust_weighted",
+        "meanPenalty": 15.629032258064516,
+        "categoryCorrectRate": 0.3548387096774194,
+        "clothingTypeCorrectRate": 0.3870967741935484,
+        "subtypeCorrectRate": 0.2903225806451613,
+        "primaryColorCorrectRate": 0.5161290322580645,
+        "materialCorrectRate": 0.3225806451612903,
+        "brandPrecisionSignals": {
+          "concretePredictions": 0,
+          "correct": 0,
+          "falsePositives": 0,
+          "notMeasuredCases": 3,
+          "falsePositiveCohortN": 28,
+          "positiveBrandCorrectness": "not_measured",
+          "note": "Positive brand correctness requires at least one case with a concrete brand ground truth. The v0.3.1 corpus has none, so it is not_measured, NOT 0. Brand false positives remain measurable over the cohort where the governed review established that no reliable product-level brand evidence is visible."
+        },
+        "identification": {
+          "category": {
+            "gradeableN": 19,
+            "correct": 11,
+            "acceptablyBroad": 0,
+            "wrong": 8,
+            "ungradeableN": 12,
+            "notMeasuredN": 0,
+            "correctRate": 0.5789473684210527,
+            "strictCorrectRate": 0.5789473684210527,
+            "oneSamplePercentagePoints": 5.2631578947368425
+          },
+          "clothingType": {
+            "gradeableN": 19,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 19,
+            "ungradeableN": 12,
+            "notMeasuredN": 0,
+            "correctRate": 0,
+            "strictCorrectRate": 0,
+            "oneSamplePercentagePoints": 5.2631578947368425
+          },
+          "subtype": {
+            "gradeableN": 16,
+            "correct": 2,
+            "acceptablyBroad": 2,
+            "wrong": 12,
+            "ungradeableN": 15,
+            "notMeasuredN": 0,
+            "correctRate": 0.25,
+            "strictCorrectRate": 0.125,
+            "oneSamplePercentagePoints": 6.25
+          },
+          "primaryColor": {
+            "gradeableN": 22,
+            "correct": 13,
+            "acceptablyBroad": 1,
+            "wrong": 8,
+            "ungradeableN": 9,
+            "notMeasuredN": 0,
+            "correctRate": 0.6363636363636364,
+            "strictCorrectRate": 0.5909090909090909,
+            "oneSamplePercentagePoints": 4.545454545454546
+          },
+          "material": {
+            "gradeableN": 9,
+            "correct": 7,
+            "acceptablyBroad": 0,
+            "wrong": 2,
+            "ungradeableN": 22,
+            "notMeasuredN": 0,
+            "correctRate": 0.7777777777777778,
+            "strictCorrectRate": 0.7777777777777778,
+            "oneSamplePercentagePoints": 11.11111111111111
+          },
+          "pattern": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 31,
+            "notMeasuredN": 0,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          },
+          "brand": {
+            "gradeableN": 0,
+            "correct": 0,
+            "acceptablyBroad": 0,
+            "wrong": 0,
+            "ungradeableN": 28,
+            "notMeasuredN": 3,
+            "correctRate": "not_measured",
+            "strictCorrectRate": "not_measured",
+            "oneSamplePercentagePoints": "not_measured"
+          }
+        },
+        "exactProduct": {
+          "exactProductPrecision": "not_measured",
+          "incorrectExactMatchRate": "not_measured",
+          "futureExactProductEvaluationCases": 31,
+          "unexpectedExactProductClaims": 0,
+          "note": "The deployed contract hardcodes exactProduct: null and never claims exact_product or model_family resolution. These metrics are out of scope for this contract, not zero. Cases are retained and tagged futureExactProductEvaluation."
+        },
+        "abstention": {
+          "correct": 19,
+          "incorrect": 12
+        },
+        "nonFashion": {
+          "cases": 1,
+          "correct": 0,
+          "falsePositives": 1,
+          "incorrectAbstentions": 0
+        },
+        "nonFashionFalsePositiveRate": 1,
+        "underIdentification": {
+          "count": 19
+        },
+        "schemaParseFailureRate": 0,
+        "fallbackInvocationRate": 0,
+        "dispositionTotals": {
+          "unsupported_certainty": 85,
+          "correct_abstention": 59,
+          "acceptably_broad": 3,
+          "unknown_when_evidence_exists": 37,
+          "correct": 54,
+          "not_measured": 34,
+          "incorrect_abstention": 12,
+          "unscorable": 38,
+          "incorrect": 31,
+          "under_identification": 19
+        },
+        "commerce": {
+          "commerceLinkValidity": "not_measured",
+          "retailerRelevance": "not_measured",
+          "duplicateRetailerRate": "not_measured",
+          "commerceCostUsd": 0,
+          "note": "Commerce is disabled for the identification baseline via shouldRunCommerce(identify_for_style). These are not_measured, NOT zero, and may not enter any candidate pass/fail decision until a separate authorized commerce evaluation exists."
+        },
+        "structurallyUnmeasurable": {
+          "silhouette": "not_measured",
+          "constructionDetails": "not_measured",
+          "designDetails": "not_measured",
+          "note": "The certified V2 contract emits item.silhouette, but the governed dataset schema carries no silhouette, construction or design-detail ground-truth field, so these cannot be scored at any sample size. Adding them requires a new labeling pass, not a scorer change."
+        }
+      }
+    }
+  },
+  "suppressionMetrics": {
+    "control": {
+      "classifiableN": 90,
+      "answeredN": 59,
+      "suppressedN": 31,
+      "correctN": 40,
+      "abstentionRatePct": 34.4,
+      "accuracyAmongAnsweredPct": 67.8,
+      "accuracyOverClassifiablePct": 44.4
+    },
+    "candidate": {
+      "classifiableN": 90,
+      "answeredN": 62,
+      "suppressedN": 28,
+      "correctN": 36,
+      "abstentionRatePct": 31.1,
+      "accuracyAmongAnsweredPct": 58.1,
+      "accuracyOverClassifiablePct": 40
+    }
+  },
+  "pairedComparison": {
+    "pairedCaseCount": 33,
+    "scoreableInBoth": 28,
+    "controlInvalidToCandidateValid": [
+      "set-dr-kt-nordiska-museet-nm-0057203c",
+      "tiera-accessory-521e3b1022",
+      "tiera-footwear-181bcf34e6"
+    ],
+    "controlValidToCandidateInvalid": [
+      "tiera-top-485911abee"
+    ],
+    "fieldLevel": {
+      "category": {
+        "controlOnly": 3,
+        "candidateOnly": 2,
+        "both": 9,
+        "neither": 14,
+        "net": -1
+      },
+      "clothingType": {
+        "controlOnly": 0,
+        "candidateOnly": 0,
+        "both": 3,
+        "neither": 25,
+        "net": 0
+      },
+      "subtype": {
+        "controlOnly": 3,
+        "candidateOnly": 0,
+        "both": 4,
+        "neither": 21,
+        "net": -3
+      },
+      "primaryColor": {
+        "controlOnly": 2,
+        "candidateOnly": 1,
+        "both": 13,
+        "neither": 12,
+        "net": -1
+      },
+      "material": {
+        "controlOnly": 0,
+        "candidateOnly": 0,
+        "both": 7,
+        "neither": 21,
+        "net": 0
+      },
+      "pattern": {
+        "controlOnly": 0,
+        "candidateOnly": 0,
+        "both": 0,
+        "neither": 28,
+        "net": 0
+      },
+      "brand": {
+        "controlOnly": 0,
+        "candidateOnly": 0,
+        "both": 16,
+        "neither": 12,
+        "net": 0
+      }
+    },
+    "discordantFieldsFavouringControl": 8,
+    "discordantFieldsFavouringCandidate": 3,
+    "note": "Field accuracy is computed only over cases scoreable in BOTH runs, so a reliability change cannot masquerade as an accuracy change."
+  },
+  "decision": "PARTIAL",
+  "hypothesisSupported": "PARTIAL"
+}

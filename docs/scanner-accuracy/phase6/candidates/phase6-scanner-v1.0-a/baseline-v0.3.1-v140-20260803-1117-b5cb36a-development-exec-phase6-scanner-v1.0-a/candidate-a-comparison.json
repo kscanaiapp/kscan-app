@@ -1,0 +1,66 @@
+{
+  "pairedCaseCount": 33,
+  "scoreableInBoth": 28,
+  "controlInvalidToCandidateValid": [
+    "set-dr-kt-nordiska-museet-nm-0057203c",
+    "tiera-accessory-521e3b1022",
+    "tiera-footwear-181bcf34e6"
+  ],
+  "controlValidToCandidateInvalid": [
+    "tiera-top-485911abee"
+  ],
+  "fieldLevel": {
+    "category": {
+      "controlOnly": 3,
+      "candidateOnly": 2,
+      "both": 9,
+      "neither": 14,
+      "net": -1
+    },
+    "clothingType": {
+      "controlOnly": 0,
+      "candidateOnly": 0,
+      "both": 3,
+      "neither": 25,
+      "net": 0
+    },
+    "subtype": {
+      "controlOnly": 3,
+      "candidateOnly": 0,
+      "both": 4,
+      "neither": 21,
+      "net": -3
+    },
+    "primaryColor": {
+      "controlOnly": 2,
+      "candidateOnly": 1,
+      "both": 13,
+      "neither": 12,
+      "net": -1
+    },
+    "material": {
+      "controlOnly": 0,
+      "candidateOnly": 0,
+      "both": 7,
+      "neither": 21,
+      "net": 0
+    },
+    "pattern": {
+      "controlOnly": 0,
+      "candidateOnly": 0,
+      "both": 0,
+      "neither": 28,
+      "net": 0
+    },
+    "brand": {
+      "controlOnly": 0,
+      "candidateOnly": 0,
+      "both": 16,
+      "neither": 12,
+      "net": 0
+    }
+  },
+  "discordantFieldsFavouringControl": 8,
+  "discordantFieldsFavouringCandidate": 3,
+  "note": "Field accuracy is computed only over cases scoreable in BOTH runs, so a reliability change cannot masquerade as an accuracy change."
+}
