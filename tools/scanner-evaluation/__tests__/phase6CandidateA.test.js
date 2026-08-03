@@ -36,15 +36,42 @@ test('Candidate A is registered as a candidate on certified topology', () => {
 test('Candidate A cannot collide with the control result identity', () => {
   const control = registry.resolveCandidate(CONTROL);
   const candidate = registry.resolveCandidate(CANDIDATE);
+  // The control's segment is null by design so certified run ids stay
+  // byte-identical to the certified runner's; Candidate A must not share it.
   assert.notEqual(control.runIdSegment, candidate.runIdSegment);
-  assert.doesNotThrow(() => registry.assertDistinctResultIdentity(CONTROL, CANDIDATE));
+  assert.equal(candidate.runIdSegment, CANDIDATE);
+
+  assert.throws(
+    () => registry.assertDistinctResultIdentity(
+      { candidateVersion: CONTROL, runId: 'shared-run', outputRoot: '/a' },
+      { candidateVersion: CANDIDATE, runId: 'shared-run', outputRoot: '/b' },
+    ),
+    /both name runId/,
+    'a control and Candidate A sharing one runId must be refused',
+  );
+  assert.throws(
+    () => registry.assertDistinctResultIdentity(
+      { candidateVersion: CONTROL, runId: 'r1', outputRoot: '/same' },
+      { candidateVersion: CANDIDATE, runId: 'r2', outputRoot: '/same' },
+    ),
+    /one output root/,
+    'a control and Candidate A sharing one output root must be refused',
+  );
+  assert.equal(
+    registry.assertDistinctResultIdentity(
+      { candidateVersion: CONTROL, runId: 'r1', outputRoot: '/control' },
+      { candidateVersion: CANDIDATE, runId: 'r2', outputRoot: '/candidate' },
+    ),
+    true,
+  );
 });
 
 test('selecting Candidate A requires naming it; nothing defaults onto it', () => {
-  // Resolving with no selection must not land on a candidate.
-  const resolved = registry.resolveCandidate(undefined);
-  assert.equal(resolved.role, 'control');
-  assert.equal(resolved.candidateVersion, CONTROL);
+  // Stronger than a control default: an unnamed selection is refused outright,
+  // so no caller can drift onto candidate behaviour by omission.
+  assert.throws(() => registry.resolveCandidate(undefined), /unknown candidate version/);
+  assert.throws(() => registry.resolveCandidate(''), /unknown candidate version/);
+  assert.throws(() => registry.resolveCandidate('phase6-scanner-v1.0'), /unknown candidate version/);
 });
 
 test('the overlay artifact loads and its declared hash matches its bytes', () => {
