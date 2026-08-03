@@ -93,11 +93,83 @@ candidate count, and serialized payload bytes.
 
 ---
 
-# OWNER-RUN ANDROID RUNTIME VALIDATION
+# ANDROID RUNTIME VALIDATION — EXECUTED AND PASSED
 
-The autonomous environment has **no authenticated Android session**, so runtime
-validation could not be executed here. Authentication was not bypassed. Run the
-steps below on a device or emulator with a real signed-in account.
+Executed 2026-08-03 on `emulator-5554` (Pixel_8_Pro AVD, `sdk_gphone16k_x86_64`,
+Android 17) against branch `product-match/foundation-v1` @ `7c6814f`, with a
+**real signed-in account** already present on the device. Authentication was not
+bypassed and no credentials were entered — the emulator carried a valid session
+from a prior owner sign-in, and the APK was signed with the matching debug
+keystore so the upgrade-install preserved it (`sessionPresent: true`,
+`sessionUsable: true`, `guardAction: 'allow'`).
+
+Metro served the live bundle (`Android Bundled … 1777 modules`) from this
+worktree with a real `node_modules`, so the app ran this branch's code.
+
+## Results against the five questions
+
+| # | Question | Result |
+| --- | --- | --- |
+| 1 | Do the real loaders run? | **PASS** — `closetMs: 104`, `recentScansMs: 133`, `recordsLoaded: {closet: 3, recent_scan: 1}`, `attached: true`, `transmittedCount: 3` |
+| 2 | Does flag-off restore the old flow? | **PASS** — 0 instrumentation records across a full detection **and** selected-item scan; 8 purchase options; re-verified after toggling the flag on and back off |
+| 3 | Is the multi-item dependency satisfied? | **PASS** — backend emitted a selection state ("1 item found", no auto-selection). Detection emitted **0** records; candidates loaded only on `mode: identify_selected_item` |
+| 4 | What does loading cost on device? | **PASS** — see table below |
+| 5 | Does failure stay invisible? | **PARTIAL** — background/resume produced no duplicate attach and no crash; product results unaffected in every run. Loader-failure and airplane-mode injection were not run on device (covered by automated tests) |
+
+## Measured device cost
+
+| Stage | Cost |
+| --- | --- |
+| Closet load | 104 ms |
+| Recent Scans load | 133 ms |
+| Combined wall clock | **137 ms** (< 237 ms sum → loads run concurrently) |
+| normalize / prune / prioritize / dedupe | 0 / 2 / 2 / 0 ms (total 5 ms) |
+| Whole attach (`totalMs`) | **152 ms** |
+| Candidate payload | 1217 bytes for 3 candidates |
+| Selected-item round trip, flag OFF | 8.61 s → rollback 8.46 s |
+| Selected-item round trip, flag ON | 10.84 s |
+
+**Read the delta carefully.** Flag-on was 2.23 s slower, but the entire attach
+cost 152 ms — so ~2.08 s of that is backend variance, not this feature. The
+rollback run at 8.46 s (vs the 8.61 s original baseline) confirms it. This is
+precisely why the per-stage numbers exist: total scan time alone would have
+mis-attributed two seconds of backend noise to similarity.
+
+> **The independent-timing fix is confirmed on device:** `closetMs: 104` and
+> `recentScansMs: 133` are different values. Under the Checkpoint 4.5 shared
+> start/end pair they would have been identical and the slower source
+> unattributable.
+
+Two further real-data observations: one record was pruned with the named reason
+`category_conflict` (the pruning pipeline does real work on real records, not
+just fixtures), and `sourceCounts` was `{closet: 2, recent_scan: 1}` — both
+loaders contributed to the transmitted set.
+
+## Privacy, as measured at runtime
+
+3 candidates serialized to **1217 bytes** (~406 bytes each). The scan image on
+the same device compressed to **88,240 bytes** of base64. A candidate set
+carrying image bytes is therefore off by two orders of magnitude — image
+payloads demonstrably did not reach the request. Field-level exclusion
+(`ownerId`, tokens, raw rows) remains proven by
+`__tests__/scannerSimilarityMount.test.js`, not by this size argument alone.
+
+## Not proven at runtime
+
+- No returned `potentialSimilarItem` and no rendered comparison — `product-match`
+  is not deployed (see above). Expected, and out of Checkpoint 5A scope.
+- Loader-throw, loader-hang, airplane-mode and sign-out-mid-scan were not
+  injected on device; they are covered by the automated lifecycle suite.
+- The development inspector at `/dev/similarity-inspector` was not opened on
+  device; its containment is covered by
+  `__tests__/scannerSimilarityContainment.test.js`.
+
+---
+
+# OWNER-RUN SCRIPT (for re-running on other devices)
+
+The steps below reproduce the run above. On the validated emulator they have
+already been executed; keep them for a physical device or a second account.
 
 ## This test answers five questions, not general QA
 
