@@ -506,9 +506,22 @@ function executeGovernedRun({
     taxonomyVersion: taxonomy.TAXONOMY_VERSION,
     taxonomyHash: taxonomy.taxonomyHash(),
     reservation: ledger.totals(),
+    // Labels come from the GOVERNED MANIFEST, not from this invocation's case
+    // selection.
+    //
+    // `durable` spans every completed case in the run. On a resume, `cases` is
+    // only the cases still to process, so a resumed run summarized 33 records
+    // against a 2-entry label map and threw `missing governed label`. The
+    // expensive part — the provider calls — had already succeeded, and the run
+    // died in reporting.
+    //
+    // The manifest is the authority for labels in both cases. On a fresh run
+    // this is behaviourally identical, because every durable record is a
+    // governed case by construction and `foreignCompleted` above already
+    // refuses anything else. It changes no label, no denominator and no score.
     suppression: suppressionMetrics.summarizeSuppression(
       durable,
-      new Map(cases.map((caseRecord) => [caseRecord.caseId, caseRecord])),
+      new Map(manifest.cases.map((caseRecord) => [caseRecord.caseId, caseRecord])),
     ),
     profiles: {
       neutral: aggregateScores(scoreable.map((record) => record.profiles.neutral)),
