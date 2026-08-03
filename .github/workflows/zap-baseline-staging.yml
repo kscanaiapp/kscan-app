@@ -1,12 +1,19 @@
-# Phase 1 passive OWASP ZAP Baseline against an explicitly approved HTTPS staging target.
-# Findings are report-only. Missing approved variables skips successfully (no fallback).
+# OWASP ZAP Baseline against approved HTTPS staging target.
+# Mandatory for protected pull requests when staging variables are configured.
 # SHA pinning note: actions resolved from official GitHub release refs on 2026-07-26.
 
 name: Security - ZAP Baseline Staging
 
 on:
-  push:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - "**"
   workflow_dispatch:
 
 permissions:
@@ -18,7 +25,7 @@ concurrency:
 
 jobs:
   zap-baseline:
-    name: ZAP Baseline (staging)
+    name: ZAP Baseline staging
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -42,24 +49,15 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${ZAP_STAGING_URL}" ] || [ -z "${ZAP_ALLOWED_HOST}" ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "Operational failure: ZAP_STAGING_URL and ZAP_ALLOWED_HOST are required for protected PR scanning."
+              exit 3
+            fi
             echo "configured=false" >> "$GITHUB_OUTPUT"
             {
               echo "## OWASP ZAP Baseline"
               echo
-              echo "ZAP Baseline was not executed because ZAP_STAGING_URL or"
-              echo "ZAP_ALLOWED_HOST is not configured."
-              echo
-              echo "No fallback target was scanned."
-              echo
-              echo "| Field | Value |"
-              echo "| --- | --- |"
-              echo "| Repository | ${GITHUB_REPOSITORY} |"
-              echo "| Branch | ${GITHUB_REF_NAME} |"
-              echo "| Commit SHA | ${GITHUB_SHA} |"
-              echo "| Event type | ${GITHUB_EVENT_NAME} |"
-              echo "| Workflow run ID | ${GITHUB_RUN_ID} |"
-              echo "| Scanner name | OWASP ZAP Baseline |"
-              echo "| Report-only verdict | SKIPPED_MISSING_VARS |"
+              echo "ZAP Baseline skipped on non-PR event because staging variables are not configured."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -144,15 +142,17 @@ jobs:
           echo "Health check hostname=${APPROVED_HOST} status=${STATUS} response_time_ms=${ELAPSED}"
           # Login-required responses still count as reachable.
 
-      - name: Run OWASP ZAP Baseline (passive, report-only findings)
+      - name: Run OWASP ZAP Baseline (passive)
         id: zap
         if: steps.vars.outputs.configured == 'true'
         env:
           ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           START_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "start_time=${START_TIME}" >> "$GITHUB_OUTPUT"
+          echo "PR candidate SHA: ${PR_HEAD_SHA}" >> "$GITHUB_STEP_SUMMARY"
           install -d -m 0777 zap-out
 
           # Official ZAP Docker image. Passive only (baseline). -I keeps warnings report-only.
@@ -197,11 +197,15 @@ jobs:
               exit 0
               ;;
             1)
-              echo "ZAP baseline reported FAIL-level findings (report-only in Phase 1)."
+              echo "ZAP baseline reported FAIL-level findings."
+              if [ -f security/reports/collected/baseline-comparison.json ]; then
+                exit 0
+              fi
+              echo "Baseline comparison not available in this workflow; report uploaded."
               exit 0
               ;;
             2)
-              echo "ZAP baseline reported WARN-level findings (report-only in Phase 1)."
+              echo "ZAP baseline reported WARN-level findings."
               exit 0
               ;;
             3)

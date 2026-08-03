@@ -1,0 +1,4 @@
+# ZAP API scan rule configuration (TSV)
+# Format: ruleId<TAB>WARN|FAIL|IGNORE|INFO<TAB>comment
+# Safe mode (-S) uses passive API baseline scanning only.
+# Active scan rules apply when ZAP_ACTIVE_ENABLED=true.
