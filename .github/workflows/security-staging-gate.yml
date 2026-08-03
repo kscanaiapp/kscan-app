@@ -194,7 +194,9 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          supabase db push --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}"
+          # `db push` (CLI 2.109.1) has no --project-ref flag; it pushes to whatever
+          # project the prior "Link staging project" step already linked in this job.
+          supabase db push --linked
 
       - name: Record deployment state
         run: |
