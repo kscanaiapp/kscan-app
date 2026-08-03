@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kscan.app/contracts/product-match-v1.schema.json",
+  "title": "K Scan Product Match V1",
+  "description": "Canonical product family / variant / listing contract returned by the internal product-match endpoint. Text attributes in, evidence-tiered matches out. The request carries no image data and no user identifier by design; see supabase/functions/product-match/index.ts.",
+  "type": "object",
+  "definitions": {
+    "productSource": {
+      "type": "string",
+      "enum": ["kickscrew", "farfetch", "serper", "brave", "catalog"],
+      "description": "Sources already reachable from the deployed scan-identify closure. No new external providers are introduced by this contract."
+    },
+    "matchTier": {
+      "type": "string",
+      "enum": ["EXACT", "LIKELY_EXACT", "PRODUCT_FAMILY", "SIMILAR", "NO_CONFIDENT_MATCH"],
+      "description": "EXACT requires an exact product identifier that two id-bearing sources independently agree on. It is not reachable by accumulating soft signals, and not reachable from a single retailer's own catalogue id."
+    },
+    "evidenceKind": {
+      "type": "string",
+      "enum": [
+        "corroborated_product_id",
+        "exact_product_id",
+        "visible_brand_text",
+        "brand_guess",
+        "model_token",
+        "colorway",
+        "category",
+        "material",
+        "silhouette",
+        "pattern",
+        "cross_source_agreement"
+      ]
+    },
+    "matchEvidence": {
+      "type": "object",
+      "required": ["kind", "weight"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "$ref": "#/definitions/evidenceKind" },
+        "detail": { "type": "string", "maxLength": 200 },
+        "weight": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "productFamily": {
+      "type": "object",
+      "required": ["familyKey", "brand", "model", "canonicalCategory", "displayName"],
+      "additionalProperties": false,
+      "properties": {
+        "familyKey": { "type": "string", "minLength": 1 },
+        "brand": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "canonicalCategory": { "type": ["string", "null"] },
+        "displayName": { "type": "string" }
+      }
+    },
+    "productVariant": {
+      "type": "object",
+      "required": ["variantKey", "familyKey", "colorway", "exactProductId", "sizeHint"],
+      "additionalProperties": false,
+      "properties": {
+        "variantKey": { "type": "string", "minLength": 1 },
+        "familyKey": { "type": "string", "minLength": 1 },
+        "colorway": { "type": ["string", "null"] },
+        "exactProductId": {
+          "type": ["string", "null"],
+          "description": "Never synthesized. Present only when a capable source supplied one."
+        },
+        "sizeHint": { "type": ["string", "null"] }
+      }
+    },
+    "productListing": {
+      "type": "object",
+      "required": [
+        "listingKey", "variantKey", "familyKey", "source", "retailer",
+        "title", "productUrl", "imageUrl", "price", "currency", "availability"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "listingKey": { "type": "string", "minLength": 1 },
+        "variantKey": { "type": "string", "minLength": 1 },
+        "familyKey": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/definitions/productSource" },
+        "retailer": { "type": ["string", "null"] },
+        "title": { "type": "string" },
+        "productUrl": { "type": ["string", "null"] },
+        "imageUrl": { "type": ["string", "null"] },
+        "price": { "type": ["string", "null"] },
+        "currency": { "type": ["string", "null"] },
+        "availability": { "type": ["string", "null"] }
+      }
+    },
+    "matchedVariant": {
+      "type": "object",
+      "required": ["variant", "tier", "confidence", "evidence", "listings"],
+      "additionalProperties": false,
+      "properties": {
+        "variant": { "$ref": "#/definitions/productVariant" },
+        "tier": { "$ref": "#/definitions/matchTier" },
+        "confidence": {
+          "type": "number", "minimum": 0, "maximum": 1,
+          "description": "Ordering score only. A tier is never reached by confidence alone."
+        },
+        "evidence": { "type": "array", "items": { "$ref": "#/definitions/matchEvidence" } },
+        "listings": {
+          "type": "array", "minItems": 1,
+          "items": { "$ref": "#/definitions/productListing" },
+          "description": "Never empty and never collapsed: a second retailer for the same variant is information, not a duplicate."
+        }
+      }
+    },
+    "matchedFamily": {
+      "type": "object",
+      "required": ["family", "tier", "variants"],
+      "additionalProperties": false,
+      "properties": {
+        "family": { "$ref": "#/definitions/productFamily" },
+        "tier": { "$ref": "#/definitions/matchTier" },
+        "variants": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/matchedVariant" } }
+      }
+    },
+    "providerOutcome": {
+      "type": "object",
+      "required": ["source", "status", "durationMs", "rawCount"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "$ref": "#/definitions/productSource" },
+        "status": {
+          "type": "string",
+          "enum": ["completed", "empty", "timeout", "error", "skipped", "disabled"]
+        },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "rawCount": { "type": "integer", "minimum": 0 },
+        "reason": {
+          "type": "string", "maxLength": 64,
+          "description": "Stable classifier only. Never a provider message, URL, or credential."
+        }
+      }
+    },
+    "productMatchQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Text attributes only. There is deliberately no field for image bytes or an image URL: this endpoint introduces no new privacy boundary.",
+      "properties": {
+        "brand": { "type": ["string", "null"], "maxLength": 80 },
+        "visibleBrandText": { "type": ["string", "null"], "maxLength": 80 },
+        "model": { "type": ["string", "null"], "maxLength": 120 },
+        "canonicalCategory": { "type": ["string", "null"], "maxLength": 60 },
+        "color": { "type": ["string", "null"], "maxLength": 60 },
+        "material": { "type": ["string", "null"], "maxLength": 60 },
+        "silhouette": { "type": ["string", "null"], "maxLength": 60 },
+        "pattern": { "type": ["string", "null"], "maxLength": 60 },
+        "styleTags": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 200 } },
+        "searchQueries": { "type": "array", "maxItems": 4, "items": { "type": "string", "maxLength": 200 } }
+      }
+    }
+  },
+  "properties": {
+    "request": {
+      "type": "object",
+      "required": ["query"],
+      "additionalProperties": false,
+      "properties": {
+        "query": { "$ref": "#/definitions/productMatchQuery" },
+        "correlationId": { "type": "string", "maxLength": 64 },
+        "sources": { "type": "array", "items": { "$ref": "#/definitions/productSource" } },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 24 }
+      }
+    },
+    "response": {
+      "type": "object",
+      "required": ["contractVersion", "version", "tier", "families", "listings", "providers", "timings"],
+      "additionalProperties": false,
+      "properties": {
+        "contractVersion": { "type": "integer", "const": 1 },
+        "version": { "type": "string" },
+        "tier": { "$ref": "#/definitions/matchTier" },
+        "families": { "type": "array", "items": { "$ref": "#/definitions/matchedFamily" } },
+        "listings": { "type": "array", "items": { "$ref": "#/definitions/productListing" } },
+        "providers": { "type": "array", "items": { "$ref": "#/definitions/providerOutcome" } },
+        "timings": {
+          "type": "object",
+          "required": ["firstUsefulMatchMs", "completeMs", "deadlineExceeded", "partial"],
+          "additionalProperties": false,
+          "properties": {
+            "firstUsefulMatchMs": {
+              "type": ["integer", "null"], "minimum": 0,
+              "description": "Time to the first match at a useful tier. Measured, never used to relax a tier."
+            },
+            "completeMs": { "type": "integer", "minimum": 0 },
+            "deadlineExceeded": { "type": "boolean" },
+            "partial": {
+              "type": "boolean",
+              "description": "True when at least one provider was lost while at least one other returned listings. The result is usable but incomplete."
+            }
+          }
+        },
+        "emptyReason": {
+          "type": "string",
+          "enum": ["no_query", "no_eligible_providers", "no_results", "below_confidence"]
+        }
+      }
+    }
+  },
+  "required": ["request", "response"],
+  "additionalProperties": false
+}

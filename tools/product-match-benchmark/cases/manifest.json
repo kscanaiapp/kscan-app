@@ -1,0 +1,8 @@
+{
+  "manifestVersion": "product-match-benchmark-v1",
+  "caseCount": 1,
+  "cases": [
+    "af1-white-multi-retailer.json"
+  ],
+  "sealHash": "a9d76cc6526874316368ed5c147658e8aa4cea8fb9aef0021042fa3d058f59ea"
+}
