@@ -263,6 +263,32 @@ function classifyOutcome(report) {
 }
 
 /**
+ * Why an otherwise-successful provider response failed the certified contract.
+ *
+ * `output_budget_exhausted` is asserted only on the provider's own
+ * `finishReason`. The token-accounting comparison is recorded alongside it as
+ * corroboration, never as the trigger: `maxOutputTokens` is a certified
+ * constant this module must not re-derive or assume, and a run whose provider
+ * omits `finishReason` must degrade to `unclassified` rather than guess.
+ *
+ * Returns null when the case is not an invalid-output case at all, so a
+ * transport failure never acquires a parse-side cause.
+ */
+function classifyInvalidOutputCause(outcome, attempts) {
+  if (!outcome || outcome.stage !== 'validation') return null;
+  const last = attempts.length ? attempts[attempts.length - 1] : null;
+  if (!last) return 'unclassified';
+
+  const reason = typeof last.finishReason === 'string' ? last.finishReason.toUpperCase() : null;
+  if (reason === 'MAX_TOKENS') return 'output_budget_exhausted';
+  if (reason === 'SAFETY' || reason === 'BLOCKLIST' || reason === 'PROHIBITED_CONTENT') return 'provider_safety_block';
+  if (reason === 'RECITATION') return 'provider_recitation_block';
+  if (reason === 'STOP') return 'malformed_despite_complete_generation';
+  if (reason === null) return 'unclassified';
+  return 'other_finish_reason';
+}
+
+/**
  * Build the sanitized private run record for one case.
  *
  * Everything here is either an opaque id, a hash, a number, an enum, or the
@@ -302,9 +328,17 @@ function buildCaseRecord({ caseId, report, runIdentityRecord, outcome, attemptsU
       candidatesTokenCount: a.candidatesTokenCount,
       totalTokenCount: a.totalTokenCount,
       thoughtsTokenCount: a.thoughtsTokenCount ?? null,
+      finishReason: a.finishReason ?? null,
       errorCategory: a.errorCategory,
       certifiedFailureKind: a.certifiedFailureKind || null,
     })),
+    // Deterministic sub-classification of an invalid provider output.
+    //
+    // `provider_output_invalid` alone cannot tell a prompt defect from a budget
+    // defect, and the two demand opposite repairs: reword the prompt, or give
+    // the response more room. This splits the bucket from provider metadata
+    // only — no heuristics over model prose, nothing an LLM judged.
+    invalidOutputCause: classifyInvalidOutputCause(outcome, attempts),
     // Mutually exclusive stages: a request that never returned is recorded as a
     // transport failure and is NOT also counted as a parse failure.
     parseStatus:
@@ -332,5 +366,6 @@ module.exports = {
   verifyExecutionSource,
   verifySealAlignment,
   classifyOutcome,
+  classifyInvalidOutputCause,
   buildCaseRecord,
 };

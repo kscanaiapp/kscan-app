@@ -406,6 +406,19 @@ const providerAttempts: Array<{
   candidatesTokenCount: number | null;
   totalTokenCount: number | null;
   thoughtsTokenCount: number | null;
+  /**
+   * Provider `candidates[0].finishReason` — an enum, never content.
+   *
+   * WHY IT IS RETAINED: `provider_output_invalid` is a single bucket that hides
+   * two different defects. A response the model finished writing but shaped
+   * wrongly is a PROMPT problem. A response cut off at the output ceiling is a
+   * BUDGET problem, and no prompt wording repairs it. Without this field both
+   * present identically — HTTP 200, low `candidatesTokenCount`, unparseable —
+   * so a candidate could be blamed for, or credited with, the wrong cause.
+   * It is an enum drawn from a closed provider vocabulary, so retaining it
+   * cannot leak prompt text, image bytes or model prose.
+   */
+  finishReason: string | null;
   errorCategory: string | null;
   certifiedFailureKind: string | null;
 }> = [];
@@ -481,6 +494,7 @@ function installLiveFetchInterceptor(
       let candidatesTokenCount: number | null = null;
       let totalTokenCount: number | null = null;
       let thoughtsTokenCount: number | null = null;
+      let finishReason: string | null = null;
       try {
         // Clone so the certified parser still receives an unread body.
         const body = await response.clone().json();
@@ -491,6 +505,8 @@ function installLiveFetchInterceptor(
           totalTokenCount = usage.totalTokenCount ?? null;
           thoughtsTokenCount = usage.thoughtsTokenCount ?? null;
         }
+        const rawFinishReason = body?.candidates?.[0]?.finishReason;
+        finishReason = typeof rawFinishReason === 'string' ? rawFinishReason : null;
         const parts = body?.candidates?.[0]?.content?.parts;
         if (Array.isArray(parts)) {
           const rawModelText = parts
@@ -529,6 +545,7 @@ function installLiveFetchInterceptor(
         candidatesTokenCount,
         totalTokenCount,
         thoughtsTokenCount,
+        finishReason,
         errorCategory,
         certifiedFailureKind,
       });
@@ -545,6 +562,7 @@ function installLiveFetchInterceptor(
         candidatesTokenCount: null,
         totalTokenCount: null,
         thoughtsTokenCount: null,
+        finishReason: null,
         errorCategory,
         certifiedFailureKind: aborted ? 'timeout' : 'network',
       });
