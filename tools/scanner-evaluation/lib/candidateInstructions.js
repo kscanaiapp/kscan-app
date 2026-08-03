@@ -41,6 +41,7 @@ const ARTIFACT_DIR = path.join(__dirname, '..', 'adapter');
 /** Overlay id -> artifact filename. The registry names the id; this maps it to bytes. */
 const OVERLAY_ARTIFACTS = Object.freeze({
   'phase2a-fashion-specificity-v1': 'phase2a-instruction-overlay.v1.json',
+  'phase6-decisive-specificity-v1': 'phase6-scanner-v1.0-a-overlay.v1.json',
 });
 
 class UnknownInstructionOverlay extends Error {

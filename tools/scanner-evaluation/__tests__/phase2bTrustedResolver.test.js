@@ -28,9 +28,12 @@ const REASONS = resolver.RESOLUTION_REASONS;
 
 // ── Supported identities and the default ────────────────────────────────────
 
-test('the supported identities are exactly the certified control and the Phase 2A candidate', () => {
+test('the supported identities are exactly the certified control and the registered candidates', () => {
   const resolution = resolver.resolveTrustedVersion(null);
-  assert.deepEqual([...resolution.supportedVersions].sort(), ['certified-v140', 'phase2a-v1.0.0']);
+  assert.deepEqual(
+    [...resolution.supportedVersions].sort(),
+    ['certified-v140', 'phase2a-v1.0.0', 'phase6-scanner-v1.0-a'],
+  );
   assert.equal(resolution.controlVersion, 'certified-v140');
 });
 

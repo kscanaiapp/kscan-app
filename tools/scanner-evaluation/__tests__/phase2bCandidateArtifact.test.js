@@ -44,7 +44,22 @@ test('the API returns every field an integration point needs', () => {
   assert.ok(descriptor.instructionLineCount > 0);
 
   assert.equal(candidateArtifact.controlVersion(), 'certified-v140');
-  assert.deepEqual(candidateArtifact.describeAll().map((d) => d.candidateVersion), [CONTROL, CANDIDATE]);
+  assert.deepEqual(
+    candidateArtifact.describeAll().map((d) => d.candidateVersion),
+    [CONTROL, CANDIDATE, 'phase6-scanner-v1.0-a'],
+  );
+});
+
+test('every registered candidate is describable, so none can ship undocumented', () => {
+  for (const descriptor of candidateArtifact.describeAll()) {
+    if (descriptor.role === 'control') continue;
+    assert.equal(typeof descriptor.overlayId, 'string', `${descriptor.candidateVersion} needs an overlay id`);
+    assert.equal(descriptor.mechanism, 'append', `${descriptor.candidateVersion} must append, never rewrite`);
+    assert.equal(descriptor.modelConfigurationId, 'certified-v140');
+    assert.equal(descriptor.instructionSha256.length, 64);
+    assert.ok(descriptor.instructionLineCount > 0);
+    assert.notEqual(descriptor.postValidationPolicy, 'certified_only');
+  }
 });
 
 test('the control is described as a real version with no instruction artifact', () => {

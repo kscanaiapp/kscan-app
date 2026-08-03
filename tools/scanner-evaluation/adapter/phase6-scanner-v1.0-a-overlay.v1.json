@@ -1,0 +1,33 @@
+{
+  "artifact": "phase6-scanner-v1.0-a-overlay",
+  "artifactVersion": "1.0.0",
+  "overlayId": "phase6-decisive-specificity-v1",
+  "candidateVersion": "phase6-scanner-v1.0-a",
+  "appliesTo": "the leading text part of the certified scan-identify provider request",
+  "mechanism": "append",
+  "note": "The certified prompt is never rewritten. This text is appended after it, so the certified instructions remain first, verbatim and traceable. Lines are joined with a single newline; the joined text is what textSha256 covers.",
+  "designConstraint": "Overlay LENGTH is a measured variable in this candidate, not an incidental property. The certified request already consumes a mean 1,698 prompt tokens, and output plus thinking share one 2,048-token ceiling. The rejected phase2a-v1.0.0 overlay added roughly 1,000 prompt tokens and moved the count of cases finishing within 20 tokens of that ceiling from 6 to 13, with invalid output rising 18.2% to 42.4%. This overlay is held to roughly a fifth of that length (about 192 tokens against about 999) so the specificity instruction can be tested without re-running the length confound. At the observed sensitivity of roughly one extra invalid case per 125 added prompt tokens, this overlay predicts about 1.5 extra invalid cases on the 33-case development split, against the 8 the rejected overlay produced.",
+  "textSha256": "b470706f3788912ee9d447a68bc9716a13c3f247a13fac0e5348b5be682e4764",
+  "lines": [
+    "",
+    "",
+    "K SCAN AI PHASE 6 CANDIDATE INSTRUCTIONS (phase6-scanner-v1.0-a)",
+    "",
+    "Everything above still applies. Two refinements. No new fields, no renamed",
+    "fields, no change to the response shape.",
+    "",
+    "1. SPECIFIC FASHION TERM",
+    "",
+    "Use the specific fashion term the image supports: \"trench coat\" rather than",
+    "\"coat\", \"chelsea boot\" rather than \"shoe\", \"tote bag\" rather than \"bag\". Do",
+    "not answer with a generic word such as \"clothing\", \"item\", \"apparel\" or",
+    "\"accessory\" when a specific term is actually visible.",
+    "",
+    "2. ANSWER DIRECTLY",
+    "",
+    "Read the image and answer at once. Do not deliberate, weigh alternatives, or",
+    "reason step by step before writing. Where a detail is not visible, give the",
+    "value this contract already defines for an absent detail and move on rather",
+    "than reasoning toward a guess."
+  ]
+}

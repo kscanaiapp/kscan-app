@@ -52,6 +52,20 @@ const CONTROL_VERSION = 'certified-v140';
 /** The Phase 2A candidate. One identifier, used everywhere, with no aliases. */
 const PHASE2A_VERSION = 'phase2a-v1.0.0';
 
+/**
+ * Phase 6 Candidate A.
+ *
+ * Same instruction CONTENT family as Phase 2A — name the specific fashion term —
+ * at roughly a fifth of the length, plus an explicit instruction to answer
+ * without deliberating. Length is the variable under test, not a side effect:
+ * Phase 2A's ~1,000 added prompt tokens correlated with invalid output rising
+ * from 18.2% to 42.4%, and every invalid case in both runs terminated within
+ * ~20 tokens of the certified 2,048 output ceiling that response and thinking
+ * share. This entry exists to separate the instruction's accuracy effect from
+ * its length's reliability cost.
+ */
+const PHASE6_A_VERSION = 'phase6-scanner-v1.0-a';
+
 /** Model topology shared by control and every Phase 2A candidate. */
 const CERTIFIED_MODEL_CONFIGURATION_ID = 'certified-v140';
 
@@ -128,6 +142,19 @@ const REGISTRY = Object.freeze({
     description:
       'Phase 2A candidate: certified topology, certified request structure, plus a deterministic '
       + 'fashion-specificity instruction overlay and candidate-scoped evidence-discipline validation.',
+  }),
+  [PHASE6_A_VERSION]: Object.freeze({
+    candidateVersion: PHASE6_A_VERSION,
+    role: 'candidate',
+    modelConfigurationId: CERTIFIED_MODEL_CONFIGURATION_ID,
+    instructionOverlayId: 'phase6-decisive-specificity-v1',
+    postValidationPolicy: 'phase6_evidence_discipline',
+    runIdSegment: PHASE6_A_VERSION,
+    description:
+      'Phase 6 Candidate A: certified topology and certified request structure, plus a '
+      + 'length-constrained fashion-specificity overlay that also instructs the model to answer '
+      + 'without deliberating. Tests whether Phase 2A\'s accuracy gains survive when the overlay is '
+      + 'small enough not to push the shared output/thinking budget past its ceiling.',
   }),
 });
 

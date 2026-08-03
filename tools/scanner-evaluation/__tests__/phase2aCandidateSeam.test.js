@@ -40,20 +40,33 @@ const RUN_ID_PARTS = Object.freeze({
 
 // ── Registry shape ──────────────────────────────────────────────────────────
 
-test('the registry exposes exactly one control and the single Phase 2A candidate', () => {
+test('the registry exposes exactly one control and the registered candidates', () => {
   const all = candidateRegistry.versions();
-  assert.deepEqual(all.slice().sort(), ['certified-v140', 'phase2a-v1.0.0']);
+  // Exact membership, not a subset check: a candidate appearing without being
+  // named here is the thing this assertion exists to catch.
+  assert.deepEqual(
+    all.slice().sort(),
+    ['certified-v140', 'phase2a-v1.0.0', 'phase6-scanner-v1.0-a'],
+  );
 
   const controls = all.filter((version) => candidateRegistry.resolveCandidate(version).role === 'control');
   assert.deepEqual(controls, [candidateRegistry.CONTROL_VERSION]);
 
-  // One identifier, no aliases: nothing else in the registry may point at the
-  // same overlay or the same run-id segment.
+  // One identifier, no aliases: no two entries may share a run-id segment, or
+  // their results would be written into one identity and scored against
+  // themselves. The control's segment is null by design and excluded.
   const segments = all
     .map((version) => candidateRegistry.resolveCandidate(version).runIdSegment)
     .filter((segment) => segment !== null);
-  assert.deepEqual(segments, [candidateRegistry.PHASE2A_VERSION]);
+  assert.deepEqual(segments.slice().sort(), ['phase2a-v1.0.0', 'phase6-scanner-v1.0-a']);
   assert.equal(new Set(segments).size, segments.length);
+
+  // Likewise for overlays: two candidates pointing at one overlay would be the
+  // same prompt under two names.
+  const overlays = all
+    .map((version) => candidateRegistry.resolveCandidate(version).instructionOverlayId)
+    .filter((overlay) => overlay !== null);
+  assert.equal(new Set(overlays).size, overlays.length);
 });
 
 test('control and candidate share the certified model topology', () => {
