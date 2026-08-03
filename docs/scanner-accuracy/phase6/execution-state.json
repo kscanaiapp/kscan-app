@@ -53,7 +53,17 @@
       "No placeholder was substituted.",
       "No generation call was issued."
     ],
-    "resolution": "Inject a valid GEMINI_API_KEY into the environment of the process that runs the harness, then resume from nextAuthorizedState."
+    "environmentScopeDiagnosis": {
+      "purpose": "Distinguish a stale inherited process environment from a stale stored value. Only the named variable GEMINI_API_KEY was read, at its own scopes; no other variable, file or secret store was enumerated. No value was printed.",
+      "process": { "set": true, "length": 19, "aizaPrefix": false },
+      "user": { "set": true, "length": 19, "aizaPrefix": false },
+      "machine": { "set": false },
+      "shellsChecked": ["bash", "powershell"],
+      "bothShellsAgree": true,
+      "conclusion": "Not a process-inheritance problem. A child process cannot see a parent's post-launch environment edits, which would have shown Process stale and User current. Here the persisted User-scope value is itself 19 characters and not AIza-prefixed, so the variable that would be inherited by any newly launched process carries the same invalid value. Restarting the agent alone would not resolve this.",
+      "expectedKeyShape": "Google AI Studio keys are approximately 39 characters and begin with 'AIza'."
+    },
+    "resolution": "Set GEMINI_API_KEY to the valid key at User scope (or in the launching shell), confirm with a length/prefix check that it reads ~39 characters with an AIza prefix, then relaunch the agent so the new value is inherited, and resume from nextAuthorizedState."
   },
   "identitiesVerifiedThisPass": {
     "benchmark": {
