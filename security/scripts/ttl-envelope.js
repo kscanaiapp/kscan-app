@@ -57,7 +57,7 @@ const PROVIDER_RETRY_ENVELOPES = [
     // :248-251 (maxAttempts: 2)
     uploadTimeoutMs: 20_000,
     maxAttempts: 2,
-    // supabase/migrations/20260803020300_provider_request_ttl_tuning.sql
+    // supabase/migrations/20260803160206_provider_request_ttl_tuning.sql
     reservationTtlSeconds: 45,
   },
   {
@@ -66,7 +66,7 @@ const PROVIDER_RETRY_ENVELOPES = [
     // :201-203 (maxAttempts: 2)
     uploadTimeoutMs: 8_000,
     maxAttempts: 2,
-    // supabase/migrations/20260803020300_provider_request_ttl_tuning.sql
+    // supabase/migrations/20260803160206_provider_request_ttl_tuning.sql
     reservationTtlSeconds: 20,
   },
 ];
