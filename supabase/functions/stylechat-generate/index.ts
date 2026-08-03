@@ -14,15 +14,33 @@
 // Kill switch: set STYLECHAT_AI_ENABLED=false (trim/case-insensitive) to disable Gemini.
 // Model precedence: STYLECHAT_GEMINI_MODEL, then GEMINI_MODEL, else DEFAULT_MODEL (gemini-1.5-flash).
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { authenticateRequest } from '../_shared/security/context.ts';
+import { buildCorsHeaders, handleCorsPreflight, isMethodAllowed, type CorsPolicy } from '../_shared/security/cors.ts';
+import { securityErrorResponse } from '../_shared/security/errors.ts';
+import { logSecurityEvent, safeUserIdFragment, sanitizeLogText } from '../_shared/security/logging.ts';
+import {
+  CallerCancelledError,
+  classifyProviderStatus,
+  ProviderHttpError,
+  ProviderTimeoutError,
+  withBoundedRetries,
+} from '../_shared/security/provider.ts';
+import {
+  completeProviderRequest,
+  computeRequestFingerprint,
+  releaseProviderRequest,
+  reserveProviderRequest,
+} from '../_shared/security/quota.ts';
+import { assertJsonContentType, readJsonBody, validateRequestBody, type RequestSchema } from '../_shared/security/validation.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const FUNCTION_NAME = 'stylechat-generate';
+const PROVIDER_CATEGORY = 'gemini_chat';
+
+const CORS_POLICY: CorsPolicy = { allowedMethods: ['POST'] };
+
+const MAX_REQUEST_BODY_BYTES = 4 * 1024; // 4 KB — well above a 500-char message, well below abuse territory.
 
 const DAILY_LIMIT          = 25;
 const MAX_MESSAGE_CHARS    = 500;
@@ -35,7 +53,13 @@ const GEMINI_API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/m
 
 // Stable GA default; operator should set STYLECHAT_GEMINI_MODEL at deployment.
 const DEFAULT_MODEL = 'gemini-1.5-flash';
-const UUID_V4ISH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const REQUEST_SCHEMA: RequestSchema = {
+  fields: {
+    sessionId: { type: 'uuid', required: true },
+    message: { type: 'string', required: true, minLength: 1, maxLength: MAX_MESSAGE_CHARS },
+  },
+};
 
 // ── System prompt (server-side only) ──────────────────────────────────────────
 
@@ -69,10 +93,10 @@ const readTrimmedEnv = (name: string): string | undefined => {
   return value ? value : undefined;
 };
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: { ...extraHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store, private' },
   });
 }
 
@@ -239,13 +263,6 @@ type GeminiErrorMeta = {
   message?: string;
 };
 
-// Collapses whitespace and clamps length so log lines never leak raw payloads.
-function sanitizeLogText(value: unknown, maxLength = 180): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const collapsed = value.replace(/\s+/g, ' ').trim();
-  return collapsed ? collapsed.slice(0, maxLength) : undefined;
-}
-
 // Parses only the safe metadata fields from a Gemini error payload. Never returns
 // or logs error.details, the raw body, or request contents.
 function extractGeminiErrorMeta(raw: string): GeminiErrorMeta {
@@ -325,18 +342,39 @@ async function callGemini(
   geminiBody: GeminiBody,
   attempt: 'initial' | 'retry',
   modelName: string,
+  callerSignal?: AbortSignal,
 ): Promise<GeminiCallResult> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
   const callStartedAt = Date.now();
 
-  try {
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiBody),
-      signal: controller.signal,
-    });
+  {
+    // fetchWithTimeout (security/provider.ts) enforces GEMINI_TIMEOUT_MS, propagates
+    // the inbound request's own cancellation distinctly from a timeout, and classifies
+    // non-2xx responses — but we still need the raw body text for diagnostic logging
+    // below, so a non-ok response is handled via classifyProviderStatus here rather
+    // than letting fetchWithTimeout throw before the body can be read.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+    const onCallerAbort = () => controller.abort();
+    callerSignal?.addEventListener('abort', onCallerAbort);
+
+    let geminiRes: Response;
+    try {
+      geminiRes = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geminiBody),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
+        if (callerSignal?.aborted) throw new CallerCancelledError();
+        throw new ProviderTimeoutError();
+      }
+      throw fetchErr;
+    } finally {
+      clearTimeout(timer);
+      callerSignal?.removeEventListener('abort', onCallerAbort);
+    }
 
     const raw = await geminiRes.text().catch(() => '');
     const elapsedMs = Date.now() - callStartedAt;
@@ -354,7 +392,8 @@ async function callGemini(
         raw.length,
         elapsedMs,
       );
-      throw new Error(`Gemini returned ${geminiRes.status}`);
+      const kind = classifyProviderStatus(geminiRes.status);
+      throw new ProviderHttpError(geminiRes.status, kind === 'ok' ? 'server_error' : kind);
     }
 
     let geminiData: GeminiResponse;
@@ -429,8 +468,6 @@ async function callGemini(
       tokenEstimate,
       finishReason,
     };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -460,50 +497,72 @@ function buildMemoryText(
 
 // ── Main handler ───────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
+// Exported (rather than passed inline to Deno.serve) so tests can invoke the
+// real request-handling logic directly with a constructed Request, stubbing
+// only the network boundary (Supabase auth/REST/RPC, Gemini) — see index.test.ts.
+export async function handleStyleChatRequest(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req, CORS_POLICY);
+  if (preflight) return preflight;
+
+  const corsHeaders = buildCorsHeaders(req, CORS_POLICY);
+  const respond = (body: unknown, status = 200) => json(body, status, corsHeaders);
+
+  if (!isMethodAllowed(req, CORS_POLICY)) {
+    return securityErrorResponse('invalid_request', crypto.randomUUID(), {
+      message: 'Method not allowed',
+      corsHeaders,
+    });
   }
 
-  if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
+  // ── 1. Verified authentication, user binding, and account-state enforcement ──
+  // Rejects missing/malformed/expired/invalid tokens and non-active accounts
+  // (pending_deletion, locked) before any provider-adjacent work happens.
+
+  const authResult = await authenticateRequest(req);
+  if (!authResult.ok) {
+    logSecurityEvent({
+      requestId: authResult.requestId,
+      functionName: FUNCTION_NAME,
+      providerCategory: PROVIDER_CATEGORY,
+      outcome: 'denied',
+      status: authResult.category === 'unauthorized' ? 401 : authResult.category === 'internal_error' ? 500 : 403,
+      errorCategory: authResult.category,
+    });
+    return securityErrorResponse(authResult.category, authResult.requestId, {
+      message: authResult.message,
+      corsHeaders,
+    });
   }
 
-  // ── 1. Verify authenticated user from JWT ────────────────────────────────────
+  const { context: authContext, supabaseClient: userClient } = authResult;
+  const { userId, requestId } = authContext;
+  const uidFragment = safeUserIdFragment(userId);
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return json({ error: 'Missing authorization' }, 401);
+  // ── 2. Content type, payload size, and schema validation ────────────────────
+
+  if (!assertJsonContentType(req)) {
+    logSecurityEvent({ requestId, userIdFragment: uidFragment, functionName: FUNCTION_NAME, providerCategory: PROVIDER_CATEGORY, outcome: 'denied', status: 400, errorCategory: 'invalid_request' });
+    return securityErrorResponse('invalid_request', requestId, { message: 'Content-Type must be application/json', corsHeaders });
   }
 
-  const supabaseUrl     = Deno.env.get('SUPABASE_URL');
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[stylechat-generate] Supabase function env is not configured');
-    return json({ error: 'Server configuration error' }, 500);
+  const bodyResult = await readJsonBody(req, MAX_REQUEST_BODY_BYTES);
+  if (!bodyResult.ok) {
+    logSecurityEvent({ requestId, userIdFragment: uidFragment, functionName: FUNCTION_NAME, providerCategory: PROVIDER_CATEGORY, outcome: 'denied', status: 400, errorCategory: 'invalid_request' });
+    return securityErrorResponse('invalid_request', requestId, { corsHeaders });
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return json({ error: 'Not authenticated' }, 401);
+  const validation = validateRequestBody(bodyResult.value, REQUEST_SCHEMA);
+  if (!validation.ok) {
+    // Field-level detail stays server-side; the client only sees the generic category.
+    console.warn('[stylechat-generate] validation_failed requestId=%s issues=%s', requestId, validation.issues.join('; '));
+    logSecurityEvent({ requestId, userIdFragment: uidFragment, functionName: FUNCTION_NAME, providerCategory: PROVIDER_CATEGORY, outcome: 'denied', status: 400, errorCategory: 'invalid_request' });
+    return securityErrorResponse('invalid_request', requestId, { corsHeaders });
   }
 
-  const userId = user.id;
-
-  // ── 2. Parse and validate request body ──────────────────────────────────────
-
-  let body: {
-    sessionId?: unknown;
-    message?: unknown;
-  } = {};
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+  const sessionId = (validation.value.sessionId as string).trim();
+  const message = (validation.value.message as string).trim();
+  if (!message) {
+    return securityErrorResponse('invalid_request', requestId, { message: 'message required', corsHeaders });
   }
 
   // Kill switch is trim/case-insensitive; only an explicit "false" disables AI.
@@ -516,23 +575,11 @@ Deno.serve(async (req) => {
     readTrimmedEnv('GEMINI_MODEL') ||
     DEFAULT_MODEL;
 
-  const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
-  const message   = typeof body.message   === 'string' ? body.message.trim()   : '';
-
-  if (!sessionId) return json({ error: 'sessionId required' }, 400);
-  if (!message)   return json({ error: 'message required' }, 400);
-  if (!UUID_V4ISH_RE.test(sessionId)) {
-    return json({ error: 'sessionId must be a valid UUID' }, 400);
-  }
-  if (message.length > MAX_MESSAGE_CHARS) {
-    return json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters` }, 400);
-  }
-
   // ── 3. Kill switch ────────────────────────────────────────────────────────────
 
   if (isAiDisabled) {
     console.log('[stylechat-generate] kill switch active — returning fallback');
-    return json({
+    return respond({
       status: 'success',
       message: {
         sender: 'assistant',
@@ -541,12 +588,13 @@ Deno.serve(async (req) => {
         tokenEstimate: 0,
       },
       usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT },
+      requestId,
     });
   }
 
   if (!geminiKey) {
     console.error('[stylechat-generate] GEMINI_API_KEY not configured');
-    return json({ error: 'AI provider not configured' }, 500);
+    return securityErrorResponse('internal_error', requestId, { corsHeaders });
   }
 
   // ── 4. Verify session ownership ──────────────────────────────────────────────
@@ -560,7 +608,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (sessionError || !sessionRow) {
-    return json({ error: 'Session not found' }, 404);
+    return securityErrorResponse('invalid_request', requestId, { message: 'Session not found', corsHeaders });
   }
 
 
@@ -582,7 +630,7 @@ Deno.serve(async (req) => {
 
   if (burstError) {
     console.error('[stylechat-generate] burst RPC error:', burstError.message);
-    return json({ error: 'Usage check failed' }, 500);
+    return securityErrorResponse('internal_error', requestId, { message: 'Usage check failed', corsHeaders });
   }
 
   const burstRow = Array.isArray(burstData) ? burstData[0] : burstData;
@@ -591,7 +639,7 @@ Deno.serve(async (req) => {
   // Return the standard error contract shape so the client renders it gracefully.
   if (!burstRow || typeof burstRow.allowed !== 'boolean') {
     console.error('[stylechat-generate] usage_check_failed gate=burst reason=malformed_rpc_response');
-    return json({
+    return respond({
       status: 'error',
       message: {
         sender: 'assistant',
@@ -600,17 +648,27 @@ Deno.serve(async (req) => {
         tokenEstimate: 0,
       },
       usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT },
+      requestId,
     });
   }
 
   if (!burstRow.allowed) {
     const retryAfter = (burstRow?.retry_after_seconds ?? 60) as number;
     const burstResetAt = (burstRow?.reset_at ?? null) as string | null;
-    console.log(
-      '[stylechat-generate] burst_limit uid=%s retryAfterSeconds=%d',
-      userId.slice(0, 8),
-      retryAfter,
-    );
+    logSecurityEvent({
+      requestId,
+      userIdFragment: uidFragment,
+      functionName: FUNCTION_NAME,
+      providerCategory: PROVIDER_CATEGORY,
+      outcome: 'denied',
+      status: 429,
+      quotaDecision: 'denied',
+      abuseState: 'throttled',
+      errorCategory: 'rate_limited',
+    });
+    // Preserve the existing client contract (services/style-chat/providers/
+    // edgeStyleChatProvider.ts parses status:'burst_limit' with this exact
+    // message/usage shape) while adding Retry-After and a safe request ID.
     return new Response(
       JSON.stringify({
         status: 'burst_limit',
@@ -625,11 +683,12 @@ Deno.serve(async (req) => {
           messagesLimit: DAILY_LIMIT,
           resetAt:       burstResetAt,
         },
+        requestId,
       }),
       {
         status: 429,
         headers: {
-          ...CORS_HEADERS,
+          ...corsHeaders,
           'Content-Type':  'application/json',
           'Retry-After':   String(retryAfter),
           'Cache-Control': 'no-store, private',
@@ -647,7 +706,7 @@ Deno.serve(async (req) => {
 
   if (quotaError) {
     console.error('[stylechat-generate] quota RPC error:', quotaError.message);
-    return json({ error: 'Usage check failed' }, 500);
+    return securityErrorResponse('internal_error', requestId, { message: 'Usage check failed', corsHeaders });
   }
 
   const quotaRow = Array.isArray(quotaData) ? quotaData[0] : quotaData;
@@ -660,7 +719,7 @@ Deno.serve(async (req) => {
     typeof quotaRow.limit_reached !== 'boolean'
   ) {
     console.error('[stylechat-generate] usage_check_failed gate=daily reason=malformed_rpc_response');
-    return json({
+    return respond({
       status: 'error',
       message: {
         sender: 'assistant',
@@ -669,6 +728,7 @@ Deno.serve(async (req) => {
         tokenEstimate: 0,
       },
       usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT },
+      requestId,
     });
   }
 
@@ -680,8 +740,18 @@ Deno.serve(async (req) => {
   const resetAt = new Date(nowMs - (nowMs % 86_400_000) + 86_400_000).toISOString();
 
   if (limitReached) {
-    console.log('[stylechat-generate] daily quota exhausted for hashed_uid=%s', userId.slice(0, 8));
-    return json({
+    console.log('[stylechat-generate] daily quota exhausted for hashed_uid=%s', uidFragment);
+    logSecurityEvent({
+      requestId,
+      userIdFragment: uidFragment,
+      functionName: FUNCTION_NAME,
+      providerCategory: PROVIDER_CATEGORY,
+      outcome: 'denied',
+      status: 200,
+      quotaDecision: 'denied',
+      errorCategory: 'rate_limited',
+    });
+    return respond({
       status: 'limit_reached',
       message: {
         sender: 'system',
@@ -690,6 +760,7 @@ Deno.serve(async (req) => {
         tokenEstimate: 0,
       },
       usage: { messagesUsed, messagesLimit, resetAt },
+      requestId,
     });
   }
 
@@ -838,8 +909,68 @@ Deno.serve(async (req) => {
   let wasRetried     = false;
   let usedFallback   = false;
 
+  // ── 7b. Provider-cost reservation (additive; fails open pre-migration) ──────
+  // reserve_provider_request/complete_provider_request/release_provider_request
+  // are defined in the pending quota migration (docs/security/provider-cost-controls.md)
+  // and are not yet applied to staging. Until that migration lands, the RPC call
+  // below errors and we deliberately proceed WITHOUT blocking StyleChat — the
+  // pre-existing burst + daily quota RPCs above already enforce the real limit.
+  // Once the migration is live, `allowed: false` here is a genuine policy denial
+  // (fail-closed); an RPC-level error (missing function, DB hiccup) is treated
+  // as fail-open so an outage in this additive layer can never take StyleChat down.
+  let reservationId: string | null = null;
+  {
+    const fingerprint = await computeRequestFingerprint([userId, FUNCTION_NAME, sessionId, message]);
+    const reservation = await reserveProviderRequest(userClient, {
+      functionName: FUNCTION_NAME,
+      providerCategory: PROVIDER_CATEGORY,
+      requestId,
+      requestFingerprint: fingerprint,
+    });
+
+    if (reservation.ok && !reservation.value.allowed) {
+      logSecurityEvent({
+        requestId,
+        userIdFragment: uidFragment,
+        functionName: FUNCTION_NAME,
+        providerCategory: PROVIDER_CATEGORY,
+        outcome: 'denied',
+        status: 429,
+        quotaDecision: 'denied',
+        abuseState: reservation.value.abuseState,
+        errorCategory: 'rate_limited',
+      });
+      return securityErrorResponse('rate_limited', requestId, {
+        retryAfterSeconds: reservation.value.retryAfterSeconds ?? 60,
+        corsHeaders,
+      });
+    }
+
+    if (reservation.ok && reservation.value.allowed) {
+      reservationId = reservation.value.reservationId;
+    } else if (!reservation.ok) {
+      console.warn('[stylechat-generate] reservation_unavailable requestId=%s reason=%s', requestId, reservation.error);
+    }
+  }
+
   try {
-    const initial = await callGemini(geminiUrl, geminiBody, 'initial', modelName);
+    // Bounded retry (with jittered backoff) covers genuine transient provider
+    // failures — 429/5xx — distinct from the completeness-retry below, which
+    // reissues a *different* prompt when a successful reply looks truncated.
+    const initial = await withBoundedRetries(
+      () => callGemini(geminiUrl, geminiBody, 'initial', modelName, req.signal),
+      {
+        maxAttempts: 2,
+        onRetry: (attemptNum, delayMs, retryErr) => {
+          console.warn(
+            '[stylechat-generate] transient_retry attempt=%d delayMs=%d reason=%s',
+            attemptNum,
+            delayMs,
+            retryErr instanceof ProviderHttpError ? retryErr.kind : retryErr instanceof ProviderTimeoutError ? 'timeout' : 'unknown',
+          );
+        },
+      },
+    );
     assistantText = initial.text;
     tokenEstimate = initial.tokenEstimate;
 
@@ -872,7 +1003,7 @@ Deno.serve(async (req) => {
       const retryBody = buildGeminiBody(systemText, buildRetryTurns(turns));
 
       try {
-        const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName);
+        const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName, req.signal);
         const retryIncompleteReason = incompleteReasonFor(
           retry.text,
           message,
@@ -923,7 +1054,8 @@ Deno.serve(async (req) => {
           );
         }
       } catch (retryErr) {
-        const retryTimedOut = retryErr instanceof DOMException && retryErr.name === 'AbortError';
+        if (retryErr instanceof CallerCancelledError) throw retryErr;
+        const retryTimedOut = retryErr instanceof ProviderTimeoutError;
         const initialHasText = initial.text.trim().length > 0;
 
         if (initialHasText && initial.finishReason !== 'MAX_TOKENS') {
@@ -964,11 +1096,38 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     const elapsedMs   = Date.now() - startedAt;
-    const isTimeout   = err instanceof DOMException && err.name === 'AbortError';
-    console.warn('[stylechat-generate] %s elapsedMs=%d', isTimeout ? 'timeout' : 'error', elapsedMs);
+    const isTimeout   = err instanceof ProviderTimeoutError;
+    const isCancelled = err instanceof CallerCancelledError;
+    console.warn(
+      '[stylechat-generate] %s elapsedMs=%d',
+      isCancelled ? 'caller_cancelled' : isTimeout ? 'timeout' : 'error',
+      elapsedMs,
+    );
+
+    if (reservationId) {
+      const releaseResult = await releaseProviderRequest(
+        userClient,
+        reservationId,
+        isCancelled ? 'caller_cancelled' : isTimeout ? 'provider_timeout' : 'provider_error',
+      );
+      if (!releaseResult.ok) {
+        console.warn('[stylechat-generate] reservation_release_failed requestId=%s', requestId);
+      }
+    }
+
+    logSecurityEvent({
+      requestId,
+      userIdFragment: uidFragment,
+      functionName: FUNCTION_NAME,
+      providerCategory: PROVIDER_CATEGORY,
+      outcome: 'provider_error',
+      latencyMs: elapsedMs,
+      quotaDecision: reservationId ? 'released' : 'not_applicable',
+      status: 200,
+    });
 
     // Return safe fallback — do not expose internal error details.
-    return json({
+    return respond({
       status: 'error',
       message: {
         sender: 'assistant',
@@ -977,7 +1136,19 @@ Deno.serve(async (req) => {
         tokenEstimate: 0,
       },
       usage: { messagesUsed, messagesLimit, resetAt },
+      requestId,
     });
+  }
+
+  // The Gemini interaction finished without an unrecovered exception — either a
+  // real reply or a locally-substituted fallback text. Either way the reservation
+  // (if the migration is live) is done, not abandoned; release semantics are only
+  // for the hard-failure path in the outer catch above.
+  if (reservationId) {
+    const completeResult = await completeProviderRequest(userClient, reservationId);
+    if (!completeResult.ok) {
+      console.warn('[stylechat-generate] reservation_complete_failed requestId=%s', requestId);
+    }
   }
 
   const elapsedMs = Date.now() - startedAt;
@@ -1007,7 +1178,7 @@ Deno.serve(async (req) => {
   // In production, keep this minimal. No PII, no secrets, no full messages.
   console.log(
     '[stylechat-generate] ok uid=%s session=%s model=%s memoryChars=%d historyMsgs=%d responseChars=%d tokens=%d retried=%s fallback=%s elapsedMs=%d',
-    userId.slice(0, 8),
+    uidFragment,
     sessionId.slice(0, 8),
     modelName,
     memoryText.length,
@@ -1019,10 +1190,21 @@ Deno.serve(async (req) => {
     elapsedMs,
   );
 
+  logSecurityEvent({
+    requestId,
+    userIdFragment: uidFragment,
+    functionName: FUNCTION_NAME,
+    providerCategory: PROVIDER_CATEGORY,
+    outcome: usedFallback ? 'provider_error' : 'success',
+    latencyMs: elapsedMs,
+    quotaDecision: reservationId ? 'completed' : 'not_applicable',
+    status: 200,
+  });
+
   // When a fallback message was substituted (Gemini failed, retry failed, or retry was
   // truncated/empty), surface status "error" while preserving the message shape. Real
   // and best-effort Gemini text return status "success".
-  return json({
+  return respond({
     status: usedFallback ? 'error' : 'success',
     message: {
       sender: 'assistant',
@@ -1031,5 +1213,8 @@ Deno.serve(async (req) => {
       tokenEstimate: finalTokenEstimate,
     },
     usage: { messagesUsed, messagesLimit, resetAt },
+    requestId,
   });
-});
+}
+
+Deno.serve(handleStyleChatRequest);
