@@ -4,7 +4,14 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install express cors dotenv
+    # NOTE (Secure Image Ingestion Gate): `sharp` was added here to power
+    # server-side decode/re-encode of /api/analyze uploads (see
+    # security/ingestion-gate/reencode.js). It is a native binary (libvips) —
+    # unlike express/cors/dotenv this adds real build time/size to a free-tier
+    # service. Verify a build succeeds on this plan BEFORE merging; see
+    # docs/security/image-ingestion-rollback.md for the rollback (just revert
+    # this line) if the free-tier build fails or times out.
+    buildCommand: npm install express cors dotenv sharp
     startCommand: node server.js
     healthCheckPath: /api/health
     envVars:
@@ -23,3 +30,16 @@ services:
         value: "*"
       - key: KSCAN_LOG_MATCH
         value: "true"
+      # Secure Image Ingestion Gate (docs/security/secure-image-ingestion-architecture.md).
+      # Re-encode/metadata-strip is always active once sharp is installed.
+      # Malware scanning stays OFF until a clamd instance is deployed and
+      # reachable — turning this on before that exists would fail every
+      # request closed (SCANNER_UNAVAILABLE). See malware-scanner-operations.md.
+      - key: IMAGE_SCANNER_ENABLED
+        value: "false"
+      - key: CLAMD_HOST
+        sync: false
+      - key: CLAMD_PORT
+        sync: false
+      - key: IMAGE_VERDICT_SECRET
+        sync: false

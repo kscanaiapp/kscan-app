@@ -21,7 +21,9 @@
     "verify:apple-readiness": "node scripts/verify-apple-readiness.js",
     "verify:apple-submission": "node scripts/verify-apple-submission.js",
     "test:security": "node --test __tests__/security/baselineComparison.test.js",
-    "verify:security": "node security/scripts/run-security-validation.js"
+    "verify:security": "node security/scripts/run-security-validation.js",
+    "test:image-ingestion": "node --test __tests__/security/imageIngestion*.test.js",
+    "scan-worker:run": "node security/scan-worker/scanQuarantineObject.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -52,7 +54,8 @@
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "sharp": "^0.33.5"
   },
   "engines": {
     "node": ">=20"

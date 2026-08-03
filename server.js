@@ -1,8 +1,21 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { runIngestionGate, VERDICTS } = require('./security/ingestion-gate/gate');
 
 require('dotenv').config();
+
+// Secure Image Ingestion Gate (docs/security/secure-image-ingestion-architecture.md).
+// Re-encode/metadata-strip runs whenever `sharp` is installed (see render.yaml
+// buildCommand). Malware scanning is a separate, explicit opt-in — it must
+// stay off until a clamd instance is actually deployed and reachable, since
+// enabling it with no scanner present would fail every request closed.
+const IMAGE_SCANNER_ENABLED = process.env.IMAGE_SCANNER_ENABLED === 'true';
+const IMAGE_VERDICT_SECRET = process.env.IMAGE_VERDICT_SECRET || null;
+const INGESTION_GATE_STATUS_CODES = {
+  [VERDICTS.SCANNER_UNAVAILABLE]: 503,
+  [VERDICTS.SCAN_TIMEOUT]: 503,
+};
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1455,7 +1468,7 @@ app.post('/api/analyze', analyzeRateLimiter, async (req, res) => {
       });
     }
 
-    const { mimeType, data } = extractImageParts(image);
+    let { mimeType, data } = extractImageParts(image);
 
     if (DEBUG) {
       console.log('[K-SCAN] extracted mimeType:', mimeType);
@@ -1463,7 +1476,46 @@ app.post('/api/analyze', analyzeRateLimiter, async (req, res) => {
     }
 
     // ── Always log the image receipt so failures are diagnosable ───────────────
+    // Never logs the base64 payload itself, only its length/type.
     console.log(`[K-SCAN] image received — mimeType: ${mimeType || '(none)'}  dataLen: ${data?.length ?? 0}`);
+
+    // ── Secure Image Ingestion Gate ──────────────────────────────────────────
+    // Magic-byte detection, dimension/frame-count limits, and (once `sharp` is
+    // installed — see render.yaml) decode + re-encode + metadata strip always
+    // run here. The re-encoded, metadata-stripped buffer — never the original
+    // client bytes — is what gets forwarded to Gemini/OpenRouter below.
+    // Malware scanning only runs when IMAGE_SCANNER_ENABLED=true (see top of
+    // file); until a scanner is deployed this stays off by design.
+    let gateResult;
+    try {
+      gateResult = await runIngestionGate(Buffer.from(data, 'base64'), {
+        declaredMimeType: mimeType,
+        scanEnabled: IMAGE_SCANNER_ENABLED,
+        verdictSecret: IMAGE_VERDICT_SECRET || undefined,
+      });
+    } catch (gateErr) {
+      console.error('[K-SCAN] ingestion gate threw unexpectedly:', gateErr.message);
+      return res.status(503).json({
+        result: 'Temporary scanning service unavailable. Please try again shortly.',
+        metadata: { category: '', color: '', silhouette: '' },
+        products: [],
+      });
+    }
+
+    if (!gateResult.ok) {
+      console.warn(`[K-SCAN] ingestion gate rejected — verdict=${gateResult.verdict}`);
+      const status = INGESTION_GATE_STATUS_CODES[gateResult.verdict] || 400;
+      return res.status(status).json({
+        result: gateResult.userMessage,
+        metadata: { category: '', color: '', silhouette: '' },
+        products: [],
+      });
+    }
+
+    // From here on, use the canonical (decoded, re-encoded, metadata-stripped)
+    // bytes instead of the original upload.
+    mimeType = gateResult.canonicalMimeType;
+    data = gateResult.canonicalBuffer.toString('base64');
 
     // ── Diagnostic response headers ───────────────────────────────────────────
     // Never in response body. In production: only when VALIDATION_SECRET_KEY auth
@@ -1676,6 +1728,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  app,
   parseAIResponse,
   extractMetadataFromProse,
   normalizeAttributeValue,
