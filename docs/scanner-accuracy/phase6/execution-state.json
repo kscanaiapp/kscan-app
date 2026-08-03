@@ -1,0 +1,85 @@
+{
+  "record": "phase6-execution-state",
+  "recordVersion": "1.0.0",
+  "purpose": "Persisted Phase 6 provider-execution state machine position. Resume only from nextAuthorizedState.",
+  "currentState": "BLOCKED_PRE_AUTHENTICATION",
+  "previousState": "BLOCKED_PRE_AUTHENTICATION",
+  "nextAuthorizedState": "AUTHENTICATED",
+  "updatedAt": "2026-08-03",
+  "runId": null,
+  "branch": "scanner/phase6-autonomous",
+  "commit": "7140032842d18395e943d25ffd1280d55b117717",
+  "costReservedUsd": 0,
+  "costSpentUsd": 0,
+  "providerGenerationCalls": 0,
+  "stateMachine": [
+    "AUTHENTICATED",
+    "SMOKE_PASSED",
+    "CONTROL_PREFLIGHT_RESERVED",
+    "CONTROL_COMPLETE",
+    "CONTROL_CLASSIFIED",
+    "CONTROL_LOCKED_AND_PUSHED",
+    "CANDIDATE_A_PREFLIGHT_RESERVED",
+    "CANDIDATE_A_COMPLETE",
+    "PAIRED_COMPARISON_COMPLETE",
+    "CANDIDATE_A_DECIDED",
+    "AUDIT_HANDOFF | GENERATION_CONFIG_AUTHORIZED | REJECTED"
+  ],
+  "blocker": {
+    "stopCategory": "PROVIDER_CREDENTIAL_UNAVAILABLE",
+    "gate": "AUTHENTICATED",
+    "credentialPresent": true,
+    "credentialLength": 19,
+    "credentialUnchangedSincePriorPass": true,
+    "probe": {
+      "method": "GET https://generativelanguage.googleapis.com/v1beta/models",
+      "authTransport": "x-goog-api-key request header",
+      "imageSent": false,
+      "generationRequested": false,
+      "costUsd": 0,
+      "httpStatus": 400,
+      "providerCode": 400,
+      "providerStatus": "INVALID_ARGUMENT",
+      "providerMessage": "API key not valid. Please pass a valid API key."
+    },
+    "probeSoundnessControl": {
+      "purpose": "Prove the failure is the credential value and not a malformed probe.",
+      "requestWithNoKey": 403,
+      "requestWithSuppliedKey": 400,
+      "interpretation": "The two statuses differ, so the supplied value IS transmitted and parsed as a key and is then rejected on its value. A malformed or misrouted probe would not produce provider message 'API key not valid'."
+    },
+    "notPerformed": [
+      "No filesystem, .env, product configuration, user directory, shell history or secret store was searched for a credential.",
+      "No placeholder was substituted.",
+      "No generation call was issued."
+    ],
+    "resolution": "Inject a valid GEMINI_API_KEY into the environment of the process that runs the harness, then resume from nextAuthorizedState."
+  },
+  "identitiesVerifiedThisPass": {
+    "benchmark": {
+      "branch": "scanner/phase6-autonomous",
+      "head": "7140032842d18395e943d25ffd1280d55b117717",
+      "clean": true
+    },
+    "candidate": {
+      "branch": "scanner/phase6-candidate",
+      "head": "15ab67376e89decc0f2803d43464769d7af1088c",
+      "clean": true
+    },
+    "audit": {
+      "branch": "scanner/phase6-audit",
+      "head": "6160d5a4f624e2583357ed1dec98a1fc1bc716ca",
+      "clean": true
+    },
+    "androidEliseHotfix": "e63d5947b134ff3ee55034a77dd1279a2c3e4cea",
+    "iosEliseHotfix": "1ace13ffe8c1032d9b1b913863b7ea61da33e095"
+  },
+  "artifactsNotCreated": {
+    "reason": "Their preconditions are downstream of AUTHENTICATED and none were reached.",
+    "paths": [
+      "docs/scanner-accuracy/phase6/control-baselines/<run-id>/",
+      "docs/scanner-accuracy/phase6/control-anomalies/<run-id>/",
+      "docs/scanner-accuracy/phase6/candidates/phase6-scanner-v1.0-a/<run-id>/"
+    ]
+  }
+}
