@@ -56,19 +56,41 @@ test('the staging security gate classifies against the new staging authority', (
   }
 });
 
-test('the frozen legacy fork cannot reach the staging deploy job', () => {
+test('staging deploy authority is an allow-list containing only the governing branch', () => {
   const gate = readWorkflow('security-staging-gate.yml');
 
+  // A deny-list is not enough: any branch not named would still deploy. The
+  // gate must name the branches that MAY deploy.
   assert.match(
     gate,
-    new RegExp(`github\\.ref\\s*!=\\s*'refs/heads/${FROZEN_LEGACY_BRANCH}'`),
-    'the deploy job must refuse pushes on the frozen legacy branch',
+    new RegExp(`github\\.ref\\s*==\\s*'refs/heads/${STAGING_AUTHORITY_BRANCH}'`),
+    'the deploy job must allow the governing staging branch by name',
   );
   assert.match(
     gate,
-    new RegExp(`github\\.base_ref\\s*!=\\s*'${FROZEN_LEGACY_BRANCH}'`),
-    'the deploy job must refuse pull requests targeting the frozen legacy branch',
+    new RegExp(`github\\.base_ref\\s*==\\s*'${STAGING_AUTHORITY_BRANCH}'`),
+    'the deploy job must allow PRs into the governing staging branch',
   );
+  assert.ok(
+    !/github\.ref\s*!=/.test(gate),
+    'deploy authority must not be expressed as a deny-list',
+  );
+});
+
+test('the frozen fork and preservation branches cannot satisfy the deploy allow-list', () => {
+  const gate = readWorkflow('security-staging-gate.yml');
+  const condition = gate.slice(gate.indexOf('deploy-staging'));
+
+  for (const branch of [
+    FROZEN_LEGACY_BRANCH,
+    'recovery/staging-production-parity-candidate',
+    'recovery/staging-production-baseline',
+  ]) {
+    assert.ok(
+      !new RegExp(`github\\.(ref|base_ref)\\s*==\\s*'(refs/heads/)?${branch}'`).test(condition),
+      `${branch} must never appear in the staging deploy allow-list`,
+    );
+  }
 });
 
 test('staging deployments still refuse the production project', () => {
