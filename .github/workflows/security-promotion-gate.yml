@@ -1,0 +1,104 @@
+# Aggregate Security promotion gate — evaluates all required security checks for a candidate SHA.
+
+name: Security - Promotion Gate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - "**"
+  workflow_run:
+    workflows:
+      - Security - Code and Dependencies
+      - K Scan Staging Security Gate
+      - Security - ZAP Baseline Staging
+      - Security - ZAP API Staging
+    types:
+      - completed
+
+permissions:
+  contents: read
+  checks: read
+  actions: read
+
+jobs:
+  security-promotion-gate:
+    name: Security promotion gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: |
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion != 'cancelled'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Resolve candidate SHA
+        id: sha
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          elif [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            SHA="${{ github.sha }}"
+          fi
+          echo "head_sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "merge_sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for required security checks
+        id: wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node security/scripts/evaluate-promotion-gate.js \
+            --repo "${{ github.repository }}" \
+            --sha "${{ steps.sha.outputs.head_sha }}" \
+            --token "${{ github.token }}" \
+            --wait-seconds 1200 || EC=$?
+          if [ -f security/reports/promotion-verdict.json ]; then
+            VERDICT="$(python3 -c "import json; print(json.load(open('security/reports/promotion-verdict.json', encoding='utf-8'))['finalVerdict'])")"
+            echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"
+          fi
+          exit ${EC:-0}
+
+      - name: Publish promotion gate summary
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f security/reports/promotion-verdict.md ]; then
+            cat security/reports/promotion-verdict.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Promotion verdict artifact missing" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Repository | ${{ github.repository }} |"
+            echo "| Pull request | ${{ github.event.pull_request.number || 'n/a' }} |"
+            echo "| Head SHA | ${{ steps.sha.outputs.head_sha }} |"
+            echo "| Merge SHA | ${{ steps.sha.outputs.merge_sha }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload promotion verdict artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: promotion-verdict-${{ github.run_number }}
+          path: |
+            security/reports/promotion-verdict.json
+            security/reports/promotion-verdict.md
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,479 @@
+# K Scan Staging Security Gate — serialized staging deployment and dynamic validation.
+# Deploys PR merge candidates to staging (yzqjvdfgefveprobvvyw) when staging-impact
+# surfaces change. Production (wyyuqfdxucjksghsmhry) is never targeted.
+
+name: K Scan Staging Security Gate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-staging-deployment
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EXPECTED_STAGING_REF: yzqjvdfgefveprobvvyw
+  PRODUCTION_REF: wyyuqfdxucjksghsmhry
+
+jobs:
+  classify-changes:
+    name: Classify changed surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      staging_impact: ${{ steps.classify.outputs.staging_impact }}
+      mobile_only: ${{ steps.classify.outputs.mobile_only }}
+      classifications: ${{ steps.classify.outputs.classifications }}
+    steps:
+      - name: Checkout merge candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed surfaces
+        id: classify
+        env:
+          GITHUB_BASE_REF: origin/${{ github.base_ref || 'ios/full-submission-readiness-v2' }}
+        run: |
+          set -euo pipefail
+          node security/scripts/classify-changed-surfaces.js > classification.json
+          STAGING_IMPACT="$(python3 -c "import json; print(str(json.load(open('classification.json'))['stagingImpact']).lower())")"
+          MOBILE_ONLY="$(python3 -c "import json; print(str(json.load(open('classification.json'))['mobileOnly']).lower())")"
+          CLASSIFICATIONS="$(python3 -c "import json; print(','.join(json.load(open('classification.json'))['classifications']))")"
+          echo "staging_impact=${STAGING_IMPACT}" >> "$GITHUB_OUTPUT"
+          echo "mobile_only=${MOBILE_ONLY}" >> "$GITHUB_OUTPUT"
+          echo "classifications=${CLASSIFICATIONS}" >> "$GITHUB_OUTPUT"
+          cat classification.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload classification artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: change-classification-${{ github.run_number }}
+          path: classification.json
+          retention-days: 30
+
+  migration-validation:
+    name: Migration validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: classify-changes
+    if: contains(needs.classify-changes.outputs.classifications, 'DATABASE MIGRATION')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Validate migration syntax and destructive operations
+        run: |
+          set -euo pipefail
+          node security/scripts/detect-destructive-migrations.js supabase/migrations > destructive-report.json
+          cat destructive-report.json
+          for f in supabase/migrations/*.sql; do
+            [ -f "$f" ] || continue
+            python3 -c "open('$f', encoding='utf-8').read()"
+            echo "syntax ok: $f"
+          done
+
+      - name: Upload migration validation artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: migration-validation-${{ github.run_number }}
+          path: destructive-report.json
+          retention-days: 30
+
+  deploy-staging:
+    name: Deploy staging candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs:
+      - classify-changes
+      - migration-validation
+    if: |
+      always() &&
+      needs.classify-changes.outputs.staging_impact == 'true' &&
+      (needs.migration-validation.result == 'success' || needs.migration-validation.result == 'skipped')
+    environment: staging
+    outputs:
+      deployed_sha: ${{ steps.record.outputs.deployed_sha }}
+      merge_sha: ${{ steps.record.outputs.merge_sha }}
+      base_sha: ${{ steps.record.outputs.base_sha }}
+    steps:
+      - name: Checkout merge candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Record candidate SHAs
+        id: record
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FALLBACK_BASE_BRANCH: ${{ github.base_ref || 'ios/full-submission-readiness-v2' }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          MERGE_SHA="$(git rev-parse HEAD)"
+          if [ -n "${PR_BASE_SHA:-}" ]; then
+            BASE_SHA="${PR_BASE_SHA}"
+          else
+            git fetch origin "${FALLBACK_BASE_BRANCH}" --depth=1 --quiet || true
+            BASE_SHA="$(git merge-base "origin/${FALLBACK_BASE_BRANCH}" HEAD)"
+          fi
+          echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "merge_sha=${MERGE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "deployed_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "base_sha=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Candidate head SHA: ${HEAD_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate base SHA: ${BASE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Merge tree SHA: ${MERGE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate required staging secrets and variables
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_STAGING_PROJECT_REF SUPABASE_STAGING_URL SUPABASE_STAGING_PUBLISHABLE_KEY; do
+            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required staging variables:"
+            printf -- '- %s\n' "${missing[@]}"
+            echo "Refusing to deploy before preflight secrets are present."
+            exit 1
+          fi
+          if [ "${SUPABASE_STAGING_PROJECT_REF}" = "wyyuqfdxucjksghsmhry" ]; then
+            echo "Refusing production project reference"
+            exit 1
+          fi
+          case "${SUPABASE_STAGING_URL}" in
+            *wyyuqfdxucjksghsmhry*) echo "Refusing production URL"; exit 1 ;;
+          esac
+
+      - name: Verify staging project reference
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+        run: |
+          set -euo pipefail
+          EXPECTED="${SUPABASE_STAGING_PROJECT_REF:-yzqjvdfgefveprobvvyw}"
+          if [ "$EXPECTED" = "wyyuqfdxucjksghsmhry" ]; then
+            echo "Refusing production project reference"
+            exit 1
+          fi
+          node security/scripts/verify-staging-project-ref.js "$EXPECTED"
+
+      - name: Setup Supabase CLI
+        id: setup_supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Validate Supabase configuration
+        run: |
+          set -euo pipefail
+          if [ -d supabase/functions ]; then
+            ls -la supabase/functions
+          fi
+          if [ -d supabase/migrations ]; then
+            ls supabase/migrations/*.sql | tail -5
+          fi
+          # Guard against reintroducing unsupported CLI usage in tracked scripts.
+          PATTERN='db push ''--project-ref'
+          if grep -R --include='*.yml' --include='*.js' --include='*.mjs' --include='*.sh' --include='*.ps1' -nF "db push --project-ref" .github scripts security/scripts 2>/dev/null \
+            | grep -v 'Found unsupported' \
+            | grep -v 'PATTERN=' \
+            | grep -v "Guard against reintroducing"; then
+            echo "Found unsupported db-push project-ref usage"
+            exit 1
+          fi
+          unset PATTERN
+
+      - name: Link staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          REF="${SUPABASE_STAGING_PROJECT_REF:-yzqjvdfgefveprobvvyw}"
+          supabase link --project-ref "$REF" --yes
+
+      - name: Snapshot staging state (before)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" --output-format json > /tmp/staging-functions-before.json
+          node security/scripts/snapshot-legitimate-staging-data.js "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" > /tmp/legitimate-data-before.json
+
+      - name: Apply candidate migrations only
+        id: migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Never a blanket `db push` — this project has known migration-history
+          # drift (staging carries migrations whose .sql files are absent from
+          # some branches), and `db push` refuses to run at all while that's
+          # true. Apply only the migration files this PR actually introduces.
+          node security/scripts/apply-candidate-migrations.js \
+            "${{ steps.record.outputs.base_sha }}" \
+            "${{ steps.record.outputs.deployed_sha }}" \
+            "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" \
+            | tee /tmp/migration-result.json
+          OUTCOME="$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/migration-result.json','utf8')).outcome)")"
+          echo "outcome=${OUTCOME}" >> "$GITHUB_OUTPUT"
+          if [ "$OUTCOME" = "MIGRATION_HISTORY_CONFLICT" ] || [ "$OUTCOME" = "OPERATIONAL_FAILURE" ]; then
+            exit 1
+          fi
+
+      - name: Deploy changed Edge Functions only
+        id: functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Never a loop over every directory in supabase/functions/ — deploy
+          # only functions this PR changed, plus any function proven (by real
+          # import analysis, not "_shared changed so deploy everything") to
+          # import a shared module this PR changed.
+          node security/scripts/deploy-changed-functions.js \
+            "${{ steps.record.outputs.base_sha }}" \
+            "${{ steps.record.outputs.deployed_sha }}" \
+            "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" \
+            | tee /tmp/functions-result.json
+          OUTCOME="$(node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/functions-result.json','utf8')); console.log(r.outcome || (r.deployed && r.deployed.length ? 'DEPLOYED' : 'NO_CHANGED_FUNCTIONS'))")"
+          echo "outcome=${OUTCOME}" >> "$GITHUB_OUTPUT"
+
+      - name: Snapshot staging state (after) and report side effects
+        if: always() && steps.setup_supabase.outcome == 'success'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" --output-format json > /tmp/staging-functions-after.json
+          node security/scripts/report-staging-inventory-diff.js /tmp/staging-functions-before.json /tmp/staging-functions-after.json | tee /tmp/inventory-diff.json
+          node security/scripts/snapshot-legitimate-staging-data.js "${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}" > /tmp/legitimate-data-after.json
+
+      - name: Record deployment state
+        if: always()
+        env:
+          BASE_SHA: ${{ steps.record.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.record.outputs.deployed_sha }}
+          STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
+          MIGRATION_RESULT_FILE: /tmp/migration-result.json
+          FUNCTION_RESULT_FILE: /tmp/functions-result.json
+          INVENTORY_DIFF_FILE: /tmp/inventory-diff.json
+          LEGITIMATE_BEFORE_FILE: /tmp/legitimate-data-before.json
+          LEGITIMATE_AFTER_FILE: /tmp/legitimate-data-after.json
+        run: |
+          set -euo pipefail
+          node security/scripts/write-staging-deploy-summary.js >> "$GITHUB_STEP_SUMMARY"
+
+  staging-health:
+    name: Staging health checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - classify-changes
+      - deploy-staging
+    if: |
+      always() &&
+      needs.classify-changes.outputs.staging_impact == 'true' &&
+      needs.deploy-staging.result == 'success'
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Run staging health checks
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run test:verify-supabase
+
+  synthetic-tests:
+    name: Synthetic auth tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - classify-changes
+      - deploy-staging
+      - staging-health
+    if: |
+      always() &&
+      needs.classify-changes.outputs.staging_impact == 'true' &&
+      needs.deploy-staging.result == 'success' &&
+      (needs.staging-health.result == 'success' || needs.staging-health.result == 'skipped')
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Run synthetic staging tests
+        env:
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          STAGING_SYNTHETIC_PENDING_EMAIL: ${{ secrets.STAGING_SYNTHETIC_PENDING_EMAIL }}
+          STAGING_SYNTHETIC_PENDING_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_PENDING_PASSWORD }}
+          STAGING_SYNTHETIC_LOCKED_EMAIL: ${{ secrets.STAGING_SYNTHETIC_LOCKED_EMAIL }}
+          STAGING_SYNTHETIC_LOCKED_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_LOCKED_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Runtime-authenticated tokens are masked by the script itself
+          # (::add-mask:: to stderr) the instant each is received. Only
+          # stdout — the final JSON report, no token ever included — is
+          # captured into the artifact file.
+          node security/scripts/synthetic-staging-tests.js | tee synthetic-report.json
+          python3 -c "import json; r=json.load(open('synthetic-report.json')); assert r['ok'], r"
+
+      - name: Record synthetic cleanup evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f synthetic-report.json ]; then
+            python3 - <<'PY'
+          import json
+          r=json.load(open("synthetic-report.json", encoding="utf-8"))
+          c=r.get("cleanupEvidence", {})
+          print("Synthetic cleanup tag:", c.get("tag"))
+          print("Synthetic users created this run:", c.get("syntheticUsersCreated", 0))
+          print("Synthetic users deleted this run:", c.get("syntheticUsersDeleted", 0))
+          PY
+          fi
+
+      - name: Upload synthetic test artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: synthetic-staging-tests-${{ github.run_number }}
+          path: synthetic-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  contract-tests:
+    name: Contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: classify-changes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run mobile contract and security tests
+        run: |
+          set -euo pipefail
+          npm run test:privacy
+          npm run test:auth-privacy
+          npm run test:analyze-contract
+          npm run test:verify-supabase
+
+  staging-security-gate:
+    name: Staging security gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always()
+    needs:
+      - classify-changes
+      - migration-validation
+      - deploy-staging
+      - staging-health
+      - synthetic-tests
+      - contract-tests
+    steps:
+      - name: Publish staging gate verdict
+        env:
+          STAGING_IMPACT: ${{ needs.classify-changes.outputs.staging_impact }}
+          MOBILE_ONLY: ${{ needs.classify-changes.outputs.mobile_only }}
+          MIGRATION: ${{ needs.migration-validation.result }}
+          DEPLOY: ${{ needs.deploy-staging.result }}
+          HEALTH: ${{ needs.staging-health.result }}
+          SYNTHETIC: ${{ needs.synthetic-tests.result }}
+          CONTRACT: ${{ needs.contract-tests.result }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          VERDICT="PASS"
+          FAIL=0
+
+          if [ "$CONTRACT" != "success" ]; then
+            VERDICT="BLOCKED"
+            FAIL=1
+          fi
+
+          if [ "$STAGING_IMPACT" = "true" ]; then
+            if [ "$MIGRATION" = "failure" ]; then VERDICT="BLOCKED"; FAIL=1; fi
+            if [ "$DEPLOY" = "failure" ]; then VERDICT="OPERATIONAL FAILURE"; FAIL=1; fi
+            if [ "$HEALTH" = "failure" ]; then VERDICT="BLOCKED"; FAIL=1; fi
+            if [ "$SYNTHETIC" = "failure" ]; then VERDICT="BLOCKED"; FAIL=1; fi
+          else
+            if [ "$MOBILE_ONLY" = "true" ]; then
+              VERDICT="PASS WITH REPORT-ONLY FINDINGS"
+            fi
+          fi
+
+          {
+            echo "## Staging security gate"
+            echo
+            echo "**Verdict:** ${VERDICT}"
+            echo
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| Staging impact | ${STAGING_IMPACT} |"
+            echo "| Mobile only | ${MOBILE_ONLY} |"
+            echo "| Migration validation | ${MIGRATION} |"
+            echo "| Deploy staging | ${DEPLOY} |"
+            echo "| Health checks | ${HEALTH} |"
+            echo "| Synthetic tests | ${SYNTHETIC} |"
+            echo "| Contract tests | ${CONTRACT} |"
+            echo "| Candidate SHA | ${HEAD_SHA} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$FAIL" -ne 0 ]; then
+            exit 1
+          fi
