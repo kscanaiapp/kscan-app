@@ -27,6 +27,12 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   EXPECTED_STAGING_REF: yzqjvdfgefveprobvvyw
   PRODUCTION_REF: wyyuqfdxucjksghsmhry
+  # The governing staging branch. Diffs are classified against this branch, and
+  # it is the only line from which staging deployments are authorized.
+  STAGING_AUTHORITY_BRANCH: staging/production-parity
+  # Legacy testing fork. FROZEN: preserved for historical CI and selective
+  # commit recovery only, and never a staging deployment source.
+  FROZEN_LEGACY_BRANCH: ios/full-submission-readiness-v2
 
 jobs:
   classify-changes:
@@ -46,7 +52,7 @@ jobs:
       - name: Classify changed surfaces
         id: classify
         env:
-          GITHUB_BASE_REF: origin/${{ github.base_ref || 'ios/full-submission-readiness-v2' }}
+          GITHUB_BASE_REF: origin/${{ github.base_ref || 'staging/production-parity' }}
         run: |
           set -euo pipefail
           node security/scripts/classify-changed-surfaces.js > classification.json
@@ -109,7 +115,9 @@ jobs:
     if: |
       always() &&
       needs.classify-changes.outputs.staging_impact == 'true' &&
-      (needs.migration-validation.result == 'success' || needs.migration-validation.result == 'skipped')
+      (needs.migration-validation.result == 'success' || needs.migration-validation.result == 'skipped') &&
+      github.ref != 'refs/heads/ios/full-submission-readiness-v2' &&
+      github.base_ref != 'ios/full-submission-readiness-v2'
     environment: staging
     outputs:
       deployed_sha: ${{ steps.record.outputs.deployed_sha }}
@@ -126,7 +134,7 @@ jobs:
         id: record
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          FALLBACK_BASE_BRANCH: ${{ github.base_ref || 'ios/full-submission-readiness-v2' }}
+          FALLBACK_BASE_BRANCH: ${{ github.base_ref || 'staging/production-parity' }}
         run: |
           set -euo pipefail
           HEAD_SHA="${{ github.event.pull_request.head.sha || github.sha }}"

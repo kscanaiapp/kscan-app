@@ -39,7 +39,10 @@ jobs:
       ZAP_VERSION: "2.17.0"
       ZAP_IMAGE_DIGEST: "sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
       ZAP_IMAGE: "ghcr.io/zaproxy/zaproxy:stable@sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
-      PROTECTED_BASE_BRANCHES: master,ios/full-submission-readiness-v2,integration/ios-v18-release-candidate,integration/android-v27-closet-release-candidate
+      # staging/production-parity is the governing staging branch; PRs into it get
+      # the same scan treatment as release lines. ios/full-submission-readiness-v2 is
+      # FROZEN and retained here for historical CI only — it is not a deploy source.
+      PROTECTED_BASE_BRANCHES: master,staging/production-parity,ios/full-submission-readiness-v2,integration/ios-v18-release-candidate,integration/android-v27-closet-release-candidate
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
