@@ -112,12 +112,25 @@ jobs:
     needs:
       - classify-changes
       - migration-validation
+    # DEPLOY AUTHORITY IS AN ALLOW-LIST, NOT A DENY-LIST.
+    #
+    # This job is the only one in the workflow that writes to staging. It previously
+    # ran for any branch whose diff looked staging-impacting, which meant a
+    # preservation or candidate branch could reach the Supabase steps. A push of
+    # recovery/staging-production-parity-candidate on 2026-08-04 did start this job
+    # and was stopped only by an unrelated hard failure — it must be structurally
+    # impossible instead of accidentally safe.
+    #
+    # Only the governing staging branch, or an explicit manual dispatch, may deploy.
     if: |
       always() &&
       needs.classify-changes.outputs.staging_impact == 'true' &&
       (needs.migration-validation.result == 'success' || needs.migration-validation.result == 'skipped') &&
-      github.ref != 'refs/heads/ios/full-submission-readiness-v2' &&
-      github.base_ref != 'ios/full-submission-readiness-v2'
+      (
+        github.ref == 'refs/heads/staging/production-parity' ||
+        github.base_ref == 'staging/production-parity' ||
+        github.event_name == 'workflow_dispatch'
+      )
     environment: staging
     outputs:
       deployed_sha: ${{ steps.record.outputs.deployed_sha }}
