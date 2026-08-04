@@ -206,6 +206,7 @@ const ARRAY_ATTR_KEYS = ['colorPalette', 'styleTags'] as const;
 const IDENTIFICATION_STRING_KEYS = [
   'visual_observation',
   'item_type',
+  'clothing_type',
   'subtype',
   'primary_color',
   'pattern',
@@ -315,6 +316,7 @@ The \`attributes\` object is legacy and must remain populated for the current ap
 The optional \`identification\` object must include:
 - visual_observation
 - item_type
+- clothing_type
 - subtype
 - primary_color
 - secondary_colors
@@ -337,6 +339,12 @@ The optional \`identification\` object must include:
 - non_fashion
 - styling_suggestions
 - scan_quality_note
+
+The three taxonomy levels are distinct and must not repeat each other:
+- item_type: the broad product category (pants, top, outerwear, footwear, bag).
+- clothing_type: the recognizable garment or footwear family within that category (jeans, blazer, boot).
+- subtype: the most specific style or construction you can support (wide_leg_jeans, double-breasted blazer, chelsea boot).
+Set any level you cannot support from what is visible to "unknown" rather than repeating another level.
 
 If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
 
@@ -364,6 +372,7 @@ Return strict JSON only, matching exactly this shape:
   "identification": {
     "visual_observation": "A concise 1-2 sentence description of the dominant fashion item only.",
     "item_type": "blazer",
+    "clothing_type": "blazer",
     "subtype": "double-breasted blazer",
     "primary_color": "black",
     "secondary_colors": [],
@@ -417,6 +426,7 @@ Expected output:
   "identification": {
     "visual_observation": "A black double-breasted blazer with structured shoulders, peak lapels, and gold buttons.",
     "item_type": "blazer",
+    "clothing_type": "blazer",
     "subtype": "double-breasted blazer",
     "primary_color": "black",
     "secondary_colors": [],
@@ -468,6 +478,7 @@ Expected output:
   "identification": {
     "visual_observation": "A floral puff-sleeve midi dress with a fitted waist and soft flowing skirt.",
     "item_type": "dress",
+    "clothing_type": "dress",
     "subtype": "puff-sleeve midi dress",
     "primary_color": "multi",
     "secondary_colors": ["green", "pink"],
@@ -518,7 +529,8 @@ Expected output:
   },
   "identification": {
     "visual_observation": "White low-top leather sneakers with a rubber sole and minimal branding.",
-    "item_type": "sneakers",
+    "item_type": "footwear",
+    "clothing_type": "sneaker",
     "subtype": "low-top leather sneakers",
     "primary_color": "white",
     "secondary_colors": [],
@@ -572,6 +584,7 @@ Expected output:
   "identification": {
     "visual_observation": "The image appears to show a non-fashion item.",
     "item_type": "NON_FASHION",
+    "clothing_type": "unknown",
     "subtype": "unknown",
     "primary_color": "unknown",
     "secondary_colors": [],
@@ -638,6 +651,7 @@ Use exactly this response shape:
     {
       "label": "black blazer",
       "category": "blazer",
+      "clothing_type": "blazer",
       "subtype": "double-breasted blazer",
       "bounds": { "x": 0.12, "y": 0.08, "width": 0.76, "height": 0.54 },
       "confidenceScore": 0.86,
@@ -667,6 +681,12 @@ const MULTI_ITEM_RESPONSE_SCHEMA = {
         properties: {
           label: { type: 'STRING' },
           category: { type: 'STRING' },
+          // Optional here, unlike the single-item schema. This pass answers a
+          // DETECTION question and the prompt asks each candidate to stay
+          // compact; forcing a third taxonomy level on every candidate would
+          // spend the shared output budget on the pass that does not carry the
+          // identification. The selected-item pass requires it.
+          clothing_type: { type: 'STRING' },
           subtype: { type: 'STRING' },
           bounds: {
             type: 'OBJECT',
@@ -723,6 +743,7 @@ const SELECTED_ITEM_RESPONSE_SCHEMA = {
       properties: {
         visual_observation: { type: 'STRING' },
         item_type: { type: 'STRING' },
+        clothing_type: { type: 'STRING' },
         subtype: { type: 'STRING' },
         primary_color: { type: 'STRING' },
         pattern: { type: 'STRING' },
@@ -732,9 +753,15 @@ const SELECTED_ITEM_RESPONSE_SCHEMA = {
         confidence_score: { type: 'NUMBER', minimum: 0, maximum: 1 },
         non_fashion: { type: 'BOOLEAN' },
       },
+      // `clothing_type` is required alongside its two sibling taxonomy levels,
+      // which is what makes it answerable at all. The prompt sanctions
+      // "unknown" for a level the image does not support, so requiring the KEY
+      // never forces a fabricated VALUE — the same convention item_type and
+      // subtype already rely on.
       required: [
         'visual_observation',
         'item_type',
+        'clothing_type',
         'subtype',
         'primary_color',
         'confidence_score',
@@ -800,6 +827,7 @@ The \`attributes\` object is legacy and must remain populated for the current ap
 The optional \`identification\` object must include:
 - visual_observation
 - item_type
+- clothing_type
 - subtype
 - primary_color
 - secondary_colors
@@ -822,6 +850,12 @@ The optional \`identification\` object must include:
 - non_fashion
 - styling_suggestions
 - scan_quality_note
+
+The three taxonomy levels are distinct and must not repeat each other:
+- item_type: the broad product category (pants, top, outerwear, footwear, bag).
+- clothing_type: the recognizable garment or footwear family within that category (jeans, blazer, boot).
+- subtype: the most specific style or construction the query supports (wide_leg_jeans, double-breasted blazer, chelsea boot).
+Set any level the query does not support to "unknown" rather than repeating another level.
 
 If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
 
@@ -849,6 +883,7 @@ Return strict JSON only, matching exactly this shape:
   "identification": {
     "visual_observation": "A concise 1-2 sentence description of the described fashion item.",
     "item_type": "blazer",
+    "clothing_type": "blazer",
     "subtype": "double-breasted blazer",
     "primary_color": "black",
     "secondary_colors": [],
@@ -2733,7 +2768,18 @@ Deno.serve(async (req) => {
       elapsedMs,
     );
 
-    const completedResponse = normalized('completed', userMessage, attributes, identification);
+    // ── V2-only taxonomy tier isolation (Phase 7) ───────────────────────────
+    // `clothing_type` is a V2 contract addition. The legacy `identification`
+    // object is a passthrough that legacy clients still receive, so the field
+    // is held out of it and re-attached for V2 normalization only. Both views
+    // still derive from the same sanitized identification, so they cannot
+    // disagree — the legacy view simply does not carry the third tier.
+    const v2ClothingType = safeString(identification?.clothing_type);
+    const legacyIdentification = identification
+      ? (({ clothing_type: _omitted, ...rest }) => rest)(identification)
+      : identification;
+
+    const completedResponse = normalized('completed', userMessage, attributes, legacyIdentification);
     const completedResponseWithAttributes = ensureLegacyAttributes(completedResponse);
     const completedNormalizedId = normalizeIdentification(
       completedResponseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
@@ -2752,6 +2798,7 @@ Deno.serve(async (req) => {
         // follow-up selected-item request stays correlated to this detection.
         evidenceId: v2EvidenceIds[0] ?? '',
         category: garment.category ?? null,
+        ...(garment.clothingType ? { clothingType: garment.clothingType } : {}),
         subtype: garment.subtype ?? null,
         ...(garment.bounds ? { bounds: garment.bounds } : {}),
       }))
@@ -2760,9 +2807,13 @@ Deno.serve(async (req) => {
       requestId: internalRequest.requestId ?? scanId,
       outcome: v2DetectionCandidates ? 'multiple_items_need_selection' : 'classified',
       evidenceIds: v2EvidenceIds,
-      identification: completedResponseWithAttributes.identification as
-        | Record<string, unknown>
-        | undefined,
+      identification: (() => {
+        const base = completedResponseWithAttributes.identification as
+          | Record<string, unknown>
+          | undefined;
+        if (!v2ClothingType) return base;
+        return { ...(base ?? {}), clothing_type: v2ClothingType };
+      })(),
       attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
       ...(v2DetectionCandidates ? { candidates: v2DetectionCandidates } : {}),
     });
