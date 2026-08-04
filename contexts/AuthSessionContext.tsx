@@ -46,17 +46,38 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const bootSession = data.session ?? null;
-      const usableSession = isSessionUsable(bootSession) ? bootSession : null;
-      if (bootSession && !usableSession) {
-        invalidateAllMemoryCache();
-        await supabase.auth.signOut();
-      }
-      if (!mounted) return;
-      setSession(usableSession);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        const bootSession = data.session ?? null;
+        let usableSession = isSessionUsable(bootSession) ? bootSession : null;
+
+        // An expired access token is normally recoverable via the refresh
+        // token. Signing out here discarded a still-valid login and forced the
+        // user back to the auth screen on any cold start after expiry.
+        if (bootSession && !usableSession) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          const refreshedSession = refreshed?.session ?? null;
+          if (isSessionUsable(refreshedSession)) {
+            usableSession = refreshedSession;
+          } else {
+            invalidateAllMemoryCache();
+            await supabase.auth.signOut();
+          }
+        }
+        if (!mounted) return;
+        setSession(usableSession);
+      })
+      .catch(() => {
+        // Boot must always complete. Leaving `loading` true stranded the app on
+        // a permanent spinner, which is indistinguishable from a failed login.
+        if (!mounted) return;
+        setSession(null);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setLoading(false);
+      });
 
     const {
       data: { subscription },
