@@ -25,11 +25,15 @@ const STAGING_DEPLOYMENT_ALLOWLIST = [
   // Hardened and cleared for redeploy in Pass 4.
   'product-search-deals',
   'kickscrew-sneaker-description',
+  // Staging deployment observability — approved for controlled pipeline proof.
+  'staging-health',
   // Deliberately NOT listed — hardened in source this pass but kept
   // undeployed pending an explicit follow-up decision:
   //   'search-vinted-secondhand' — required Apify secrets absent from staging
   //   'tryon-clothes-pro'        — no explicit deploy decision made this pass
   //   'nike-shoe-details'        — no live caller, no deploy decision made
+  //   'scan-identify'            — not first resumed deployment
+  //   'shared-room-image-url'    — not present in this branch yet
 ];
 
 // Splits a computed deploy manifest into what's actually approved to deploy

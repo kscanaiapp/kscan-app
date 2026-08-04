@@ -1,0 +1,4 @@
+artifacts/staging-deployments/
+artifacts/staging-migrations/
+artifacts/staging-rollbacks/
+!artifacts/**/.gitkeep
