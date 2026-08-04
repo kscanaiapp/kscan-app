@@ -21,6 +21,11 @@
     "verify:apple-readiness": "node scripts/verify-apple-readiness.js",
     "verify:apple-submission": "node scripts/verify-apple-submission.js",
     "test:security": "node --test __tests__/security/baselineComparison.test.js",
+    "test:staging-deploy": "node --test __tests__/staging/stagingDeployPipeline.test.js",
+    "staging:preflight": "node scripts/staging-deploy-preflight.mjs",
+    "staging:apply-migration": "node scripts/apply-staging-migration.mjs",
+    "staging:deploy-function": "node scripts/deploy-staging-function.mjs",
+    "staging:rollback-function": "node scripts/rollback-staging-function.mjs",
     "verify:security": "node security/scripts/run-security-validation.js"
   },
   "dependencies": {
