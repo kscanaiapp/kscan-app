@@ -1,0 +1,374 @@
+# Controlled staging deployment pipeline.
+# Deploys exactly one allow-listed Edge Function (and optionally one approved migration)
+# to K Scan AI Staging (yzqjvdfgefveprobvvyw). Production is never targeted.
+
+name: K Scan Staging Controlled Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: Exactly one Edge Function to deploy
+        required: true
+        default: staging-health
+        type: string
+      verify_jwt:
+        description: Whether the function expects JWT verification
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      approved_migration_version:
+        description: Optional single migration version to apply before deploy (14 digits)
+        required: false
+        default: ''
+        type: string
+      approve_migration:
+        description: Must be YES to apply the approved migration
+        required: false
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'YES'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-staging-deployment
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EXPECTED_STAGING_REF: yzqjvdfgefveprobvvyw
+  PRODUCTION_REF: wyyuqfdxucjksghsmhry
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    outputs:
+      function_name: ${{ steps.scope.outputs.function_name }}
+      verify_jwt: ${{ steps.scope.outputs.verify_jwt }}
+      migration_version: ${{ steps.scope.outputs.migration_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Validate required staging variables
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_STAGING_PROJECT_REF SUPABASE_STAGING_URL SUPABASE_STAGING_ANON_KEY; do
+            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required staging variables:"
+            printf -- '- %s\n' "${missing[@]}"
+            exit 1
+          fi
+          if [ "${SUPABASE_STAGING_PROJECT_REF}" = "wyyuqfdxucjksghsmhry" ]; then
+            echo "Production project ref is forbidden"
+            exit 1
+          fi
+
+      - name: Record deployment scope
+        id: scope
+        run: |
+          set -euo pipefail
+          FN="${{ inputs.function_name }}"
+          if [ -z "$FN" ] || [ "$FN" = "all" ]; then
+            echo "Invalid function_name"
+            exit 1
+          fi
+          echo "function_name=${FN}" >> "$GITHUB_OUTPUT"
+          echo "verify_jwt=${{ inputs.verify_jwt }}" >> "$GITHUB_OUTPUT"
+          echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Run staging preflight
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          DEPLOY_FUNCTIONS: ${{ inputs.function_name }}
+          APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
+        run: |
+          set -euo pipefail
+          node scripts/staging-deploy-preflight.mjs --json --allow-dirty | tee preflight.json
+
+      - name: Upload preflight artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-preflight-${{ github.run_number }}
+          path: preflight.json
+          retention-days: 30
+
+  migration-plan:
+    name: Migration plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: preflight
+    environment: staging
+    outputs:
+      apply: ${{ steps.plan.outputs.apply }}
+    steps:
+      - name: Plan
+        id: plan
+        run: |
+          set -euo pipefail
+          VER="${{ needs.preflight.outputs.migration_version }}"
+          APPROVE="${{ inputs.approve_migration }}"
+          if [ -n "$VER" ] && [ "$APPROVE" = "YES" ]; then
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  approved-single-migration:
+    name: Approved single migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - preflight
+      - migration-plan
+    if: needs.migration-plan.outputs.apply == 'true'
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Apply one approved migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+          APPROVE_STAGING_MIGRATION: YES
+        run: |
+          set -euo pipefail
+          node scripts/apply-staging-migration.mjs | tee migration-result.json
+
+      - name: Upload migration artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-migration-${{ github.run_number }}
+          path: |
+            migration-result.json
+            artifacts/staging-migrations/
+          if-no-files-found: warn
+          retention-days: 30
+
+  source-validation:
+    name: Source validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - preflight
+      - migration-plan
+      - approved-single-migration
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      (needs.approved-single-migration.result == 'success' || needs.approved-single-migration.result == 'skipped')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate function source exists
+        run: |
+          set -euo pipefail
+          FN="${{ needs.preflight.outputs.function_name }}"
+          test -f "supabase/functions/${FN}/index.ts"
+          echo "source ok: ${FN}"
+
+      - name: Deno check (best effort)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          FN="${{ needs.preflight.outputs.function_name }}"
+          if command -v deno >/dev/null 2>&1; then
+            deno check "supabase/functions/${FN}/index.ts"
+          else
+            curl -fsSL https://deno.land/install.sh | sh
+            export DENO_INSTALL="$HOME/.deno"
+            export PATH="$DENO_INSTALL/bin:$PATH"
+            deno check "supabase/functions/${FN}/index.ts"
+          fi
+
+  deploy-one-function:
+    name: Deploy one function
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - preflight
+      - source-validation
+    if: needs.source-validation.result == 'success'
+    environment: staging
+    outputs:
+      manifest_path: ${{ steps.deploy.outputs.manifest_path }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Deploy function
+        id: deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          DEPLOY_FUNCTIONS: ${{ needs.preflight.outputs.function_name }}
+          FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
+          EXPECTED_VERIFY_JWT: ${{ needs.preflight.outputs.verify_jwt }}
+          APPROVED_MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+          SKIP_PREFLIGHT_REMOTE: 'false'
+        run: |
+          set -euo pipefail
+          node scripts/deploy-staging-function.mjs | tee deploy-result.json
+          MANIFEST="$(python3 -c "import json; print(json.load(open('deploy-result.json')).get('manifestPath',''))")"
+          echo "manifest_path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload deploy artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-deploy-${{ github.run_number }}
+          path: |
+            deploy-result.json
+            artifacts/staging-deployments/
+          if-no-files-found: warn
+          retention-days: 30
+
+  health-check:
+    name: Health check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - preflight
+      - deploy-one-function
+    environment: staging
+    steps:
+      - name: Probe deployed function
+        env:
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
+        run: |
+          set -euo pipefail
+          BASE="${SUPABASE_STAGING_URL%/}"
+          FN="${FUNCTION_NAME}"
+          if [ "$FN" = "staging-health" ]; then
+            CODE=$(curl -sS -o /tmp/health.json -w "%{http_code}" \
+              -H "apikey: ${SUPABASE_STAGING_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_STAGING_ANON_KEY}" \
+              "${BASE}/functions/v1/staging-health")
+            cat /tmp/health.json
+            test "$CODE" = "200"
+            python3 - <<'PY'
+          import json
+          body=json.load(open("/tmp/health.json", encoding="utf-8"))
+          assert body.get("status") == "healthy", body
+          assert body.get("environment") == "staging", body
+          text=json.dumps(body).lower()
+          for bad in ("service_role", "password", "eyj"):
+              assert bad not in text, bad
+          PY
+          else
+            CODE=$(curl -sS -o /tmp/opt.txt -w "%{http_code}" -X OPTIONS \
+              -H "apikey: ${SUPABASE_STAGING_ANON_KEY}" \
+              "${BASE}/functions/v1/${FN}")
+            test "$CODE" != "503"
+          fi
+
+  synthetic-tests:
+    name: Synthetic tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - preflight
+      - health-check
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Run staging deployment smoke tests
+        run: |
+          set -euo pipefail
+          node --test __tests__/staging/stagingDeployPipeline.test.js
+
+  publish-deployment-artifact:
+    name: Publish deployment artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - deploy-one-function
+      - health-check
+      - synthetic-tests
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          set -euo pipefail
+          {
+            echo "## Controlled staging deployment"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Function | ${{ needs.preflight.outputs.function_name }} |"
+            echo "| Deploy | ${{ needs.deploy-one-function.result }} |"
+            echo "| Health | ${{ needs.health-check.result }} |"
+            echo "| Synthetic | ${{ needs.synthetic-tests.result }} |"
+            echo "| Manifest | ${{ needs.deploy-one-function.outputs.manifest_path }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ needs.health-check.result }}" != "success" ] || [ "${{ needs.deploy-one-function.result }}" != "success" ]; then
+            exit 1
+          fi

@@ -434,9 +434,9 @@ v0.4 enforces a single flat cap of 25/day for all users. After beta usage data i
 
 ## 23. Deployment Checklist (operator steps before exposing to beta)
 
-1. Apply migration: `supabase db push --project-ref yzqjvdfgefveprobvvyw`
+1. Apply migration via the staging controlled pipeline (`scripts/apply-staging-migration.mjs`) — never `supabase db push --project-ref` (unsupported on installed CLI)
 2. Set secrets (see §5)
-3. Deploy Edge Function: `supabase functions deploy stylechat-generate --project-ref yzqjvdfgefveprobvvyw`
+3. Deploy Edge Function via `scripts/deploy-staging-function.mjs` (or `supabase functions deploy stylechat-generate --project-ref yzqjvdfgefveprobvvyw` for an explicitly approved single function)
 4. Test kill switch: set `STYLECHAT_AI_ENABLED=false`, send a StyleChat message, confirm fallback string
 5. Test live AI: set `STYLECHAT_AI_ENABLED=true`, send a style question, confirm Gemini response
 6. Test quota: consume 25 messages, confirm limit notice on 26th (not persisted as assistant row)
