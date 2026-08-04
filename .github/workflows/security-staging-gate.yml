@@ -14,7 +14,21 @@ on:
   push:
     branches:
       - "**"
+  # Manual dispatch is a deploy path, so it must carry explicit, validated intent.
+  # Without these inputs a dispatch from any branch would satisfy the deploy
+  # allow-list purely by being manual.
   workflow_dispatch:
+    inputs:
+      confirm_staging_deploy:
+        description: Type DEPLOY-TO-STAGING to authorize a staging write
+        required: true
+        default: ''
+        type: string
+      staging_project_ref:
+        description: Target project ref (must be the staging project)
+        required: true
+        default: yzqjvdfgefveprobvvyw
+        type: string
 
 permissions:
   contents: read
@@ -129,7 +143,11 @@ jobs:
       (
         github.ref == 'refs/heads/staging/production-parity' ||
         github.base_ref == 'staging/production-parity' ||
-        github.event_name == 'workflow_dispatch'
+        (
+          github.event_name == 'workflow_dispatch' &&
+          inputs.confirm_staging_deploy == 'DEPLOY-TO-STAGING' &&
+          inputs.staging_project_ref == 'yzqjvdfgefveprobvvyw'
+        )
       )
     environment: staging
     outputs:
@@ -155,8 +173,17 @@ jobs:
           if [ -n "${PR_BASE_SHA:-}" ]; then
             BASE_SHA="${PR_BASE_SHA}"
           else
-            git fetch origin "${FALLBACK_BASE_BRANCH}" --depth=1 --quiet || true
-            BASE_SHA="$(git merge-base "origin/${FALLBACK_BASE_BRANCH}" HEAD)"
+            # FAIL CLOSED: if the governing base ref cannot be resolved we do not
+            # know what this candidate actually changes, so nothing may be
+            # deployed. Never fall back to a broader diff or an empty base.
+            if ! git fetch origin "${FALLBACK_BASE_BRANCH}" --depth=1 --quiet; then
+              echo "::error::Cannot resolve governing base branch '${FALLBACK_BASE_BRANCH}'. Refusing to deploy."
+              exit 1
+            fi
+            if ! BASE_SHA="$(git merge-base "origin/${FALLBACK_BASE_BRANCH}" HEAD)"; then
+              echo "::error::No merge base with '${FALLBACK_BASE_BRANCH}'. Refusing to deploy."
+              exit 1
+            fi
           fi
           echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "merge_sha=${MERGE_SHA}" >> "$GITHUB_OUTPUT"
