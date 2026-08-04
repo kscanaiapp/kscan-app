@@ -223,17 +223,24 @@ export default function OnboardingScreen() {
     [moveToTermsOnce, replaceHomeOnce, user?.id],
   );
 
-  const goToHome = useCallback(async () => {
-    setStep(6);
-    if (user?.id) {
-      await markOnboardingComplete(user.id);
-    }
-    replaceHomeOnce();
-  }, [replaceHomeOnce, user?.id]);
-
   const goToAuth = useCallback(() => {
     router.push('/auth');
   }, [router]);
+
+  const goToHome = useCallback(async () => {
+    // Advancing without recording completion sent the user to "/", where the
+    // routing guard read onboardingComplete === false and bounced them straight
+    // back here — an unbreakable onboarding loop. Only advance once completion
+    // is actually persisted for a known user.
+    if (!user?.id) {
+      setCreateError('Your session ended before we could finish setup. Please sign in again.');
+      goToAuth();
+      return;
+    }
+    await markOnboardingComplete(user.id);
+    setStep(6);
+    replaceHomeOnce();
+  }, [replaceHomeOnce, user?.id, goToAuth]);
 
   // ── Step 3: Create Account handler ───────────────────────────────────────
 
