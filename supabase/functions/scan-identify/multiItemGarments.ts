@@ -37,6 +37,13 @@ export type SanitizedDetectedGarment = {
   order: number;
   label: string;
   category: string;
+  /**
+   * Middle taxonomy tier, when the detection pass supplied one. Optional: this
+   * pass is deliberately compact and its schema does not require the field.
+   * Kept as a top-level sibling of category/subtype rather than inside
+   * `identification`, which is a legacy passthrough object.
+   */
+  clothingType?: string;
   subtype: string;
   bounds?: {
     x: number;
@@ -177,6 +184,10 @@ function sanitizeGarment(raw: unknown, index: number): SanitizedDetectedGarment 
   const subtype = cleanString(src.subtype) ?? cleanString(identification.subtype) ?? category;
   if (category === 'unknown' && subtype === 'unknown') return undefined;
 
+  // No fallback to category or subtype: an absent middle tier stays absent
+  // rather than being back-filled from a neighbouring level.
+  const clothingType = cleanString(src.clothing_type);
+
   const attributes = attributesFromIdentification({
     ...identification,
     item_type: category,
@@ -194,6 +205,7 @@ function sanitizeGarment(raw: unknown, index: number): SanitizedDetectedGarment 
     order: index,
     label,
     category,
+    ...(clothingType ? { clothingType } : {}),
     subtype,
     ...(bounds ? { bounds } : {}),
     ...(confidence !== undefined ? { confidenceScore: confidence } : {}),

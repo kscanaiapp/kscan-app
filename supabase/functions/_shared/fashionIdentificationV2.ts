@@ -184,6 +184,20 @@ export type FashionIdentificationResultV2 = {
   resolutionLevel: FashionIdentificationResolutionLevel;
   item: {
     category: string | null;
+    /**
+     * The middle taxonomy tier: the recognizable garment or footwear FAMILY
+     * (`jeans`, `blazer`, `boot`), between the broad `category` (`pants`,
+     * `footwear`) and the specific `subtype` (`wide_leg_jeans`,
+     * `chelsea_boot`).
+     *
+     * A normalized descriptive string, not a controlled enum. The repository
+     * has no canonical middle-tier vocabulary — `normalizeCategory` returns
+     * level-1 values only, and the evaluation ontology is explicitly
+     * evaluation-only and derived from a 33-case pilot. An enum built from
+     * that would reject valid garment families outside the pilot, so this
+     * follows the same free-string convention `subtype` already uses.
+     */
+    clothingType: string | null;
     subtype: string | null;
     brand: {
       value: string | null;
@@ -225,6 +239,7 @@ export type FashionIdentificationResultV2 = {
     candidateId: string;
     evidenceId: string;
     category: string | null;
+    clothingType?: string | null;
     subtype: string | null;
     bounds?: { x: number; y: number; width: number; height: number };
     detectionDigest?: string | null;
@@ -596,6 +611,7 @@ export type ProviderNormalizationInput = {
     candidateId: string;
     evidenceId: string;
     category: string | null;
+    clothingType?: string | null;
     subtype: string | null;
     bounds?: { x: number; y: number; width: number; height: number };
     detectionDigest?: string | null;
@@ -701,6 +717,11 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
   }
 
   const category = str(id.item_type) ?? str(attrs.category);
+  // Read from the provider's own field ONLY. There is deliberately no fallback
+  // to category or subtype: synthesising the middle tier from a neighbouring
+  // one would score a single model assertion in two taxonomy denominators and
+  // report a capability the scanner does not have.
+  const clothingType = str(id.clothing_type);
   const subtype = str(id.subtype);
 
   const primaryColor = str(id.primary_color) ??
@@ -752,6 +773,7 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
     resolutionLevel,
     item: {
       category: isIdentityBearing ? category : null,
+      clothingType: isIdentityBearing ? clothingType : null,
       subtype: isIdentityBearing ? subtype : null,
       brand: {
         value: isIdentityBearing ? brandValue : null,
