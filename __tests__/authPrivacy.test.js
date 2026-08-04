@@ -292,9 +292,14 @@ test('mapAuthError: network error maps to network copy', () => {
   assert.match(msg, /connection/i);
 });
 
-test('mapAuthError: unknown error is masked with safe generic copy', () => {
+test('mapAuthError: unknown error returns safe copy that does not blame credentials', () => {
   const msg = mapAuthError('Some unexpected error from server', 'sign-in');
-  assert.equal(msg, 'Sign-in failed. Please check your email and password and try again.');
+  assert.ok(msg.length > 0);
+  // Previously this asserted the copy told the user to check their "email and
+  // password". That is what made a backend outage read as a rejected password,
+  // so the contract is now the inverse: an unattributed failure must not
+  // implicate the user's credentials.
+  assert.doesNotMatch(msg, /password/i);
 });
 
 test('mapAuthError: "rate limit" → rate-limit copy', () => {
