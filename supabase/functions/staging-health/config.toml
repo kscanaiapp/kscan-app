@@ -1,0 +1,2 @@
+# Staging health — public shallow probe, no JWT required.
+verify_jwt = false
