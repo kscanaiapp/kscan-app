@@ -214,8 +214,7 @@ jobs:
           test -f "supabase/functions/${FN}/index.ts"
           echo "source ok: ${FN}"
 
-      - name: Deno check (best effort)
-        continue-on-error: true
+      - name: Deno check
         run: |
           set -euo pipefail
           FN="${{ needs.preflight.outputs.function_name }}"
@@ -345,14 +344,92 @@ jobs:
           set -euo pipefail
           node --test __tests__/staging/stagingDeployPipeline.test.js
 
+  rollback-on-failure:
+    name: Rollback on failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - preflight
+      - deploy-one-function
+      - health-check
+      - synthetic-tests
+    if: |
+      always() &&
+      needs.deploy-one-function.result == 'success' &&
+      (needs.health-check.result == 'failure' || needs.synthetic-tests.result == 'failure')
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Download deployment manifest
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          name: staging-deploy-${{ github.run_number }}
+          path: .
+
+      - name: Resolve manifest path
+        id: manifest
+        run: |
+          set -euo pipefail
+          MANIFEST="${{ needs.deploy-one-function.outputs.manifest_path }}"
+          if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
+            MANIFEST="$(find artifacts/staging-deployments -name '*.json' -type f 2>/dev/null | head -1 || true)"
+          fi
+          if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
+            echo "No deployment manifest available for rollback"
+            exit 1
+          fi
+          echo "path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+          echo "Using manifest: ${MANIFEST}"
+
+      - name: Roll back deployed function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          node scripts/rollback-staging-function.mjs --manifest "${{ steps.manifest.outputs.path }}" | tee rollback-result.json
+
+      - name: Upload rollback artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-rollback-${{ github.run_number }}
+          path: |
+            rollback-result.json
+            artifacts/staging-rollbacks/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail workflow after rollback attempt
+        run: |
+          set -euo pipefail
+          echo "Post-deployment validation failed; rollback attempted."
+          exit 1
+
   publish-deployment-artifact:
     name: Publish deployment artifact
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
+      - preflight
       - deploy-one-function
       - health-check
       - synthetic-tests
+      - rollback-on-failure
     if: always()
     steps:
       - name: Summary
@@ -367,8 +444,17 @@ jobs:
             echo "| Deploy | ${{ needs.deploy-one-function.result }} |"
             echo "| Health | ${{ needs.health-check.result }} |"
             echo "| Synthetic | ${{ needs.synthetic-tests.result }} |"
+            echo "| Rollback | ${{ needs.rollback-on-failure.result }} |"
             echo "| Manifest | ${{ needs.deploy-one-function.outputs.manifest_path }} |"
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ needs.health-check.result }}" != "success" ] || [ "${{ needs.deploy-one-function.result }}" != "success" ]; then
+          if [ "${{ needs.deploy-one-function.result }}" != "success" ]; then
+            echo "Deploy failed"
+            exit 1
+          fi
+          if [ "${{ needs.health-check.result }}" != "success" ] || [ "${{ needs.synthetic-tests.result }}" != "success" ]; then
+            echo "Post-deployment validation failed"
+            if [ "${{ needs.rollback-on-failure.result }}" != "success" ]; then
+              echo "Rollback did not succeed — workflow failed"
+            fi
             exit 1
           fi

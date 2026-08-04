@@ -249,6 +249,33 @@ test('workflows: no executable db push --project-ref and concurrency group prese
   assert.match(gate, /group:\s*kscan-staging-deployment/);
   assert.match(gate, /Missing required staging variables/);
   assert.match(controlled, /Deploy one function/);
+  assert.match(controlled, /rollback-on-failure:/);
+  assert.match(controlled, /rollback-staging-function\.mjs/);
+  assert.match(controlled, /needs\.health-check\.result == 'failure'/);
+  assert.match(controlled, /needs\.synthetic-tests\.result == 'failure'/);
+  assert.doesNotMatch(controlled, /Deno check \(best effort\)/);
+});
+
+test('deploy script: failed health check invokes rollback before exit', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy-staging-function.mjs'), 'utf8');
+  assert.match(src, /Post-deploy health check failed — invoking rollback/);
+  assert.match(src, /rollback-staging-function\.mjs/);
+  assert.match(src, /Deployment rolled back after health failure/);
+});
+
+test('preflight: empty DEPLOY_FUNCTIONS deploys nothing by default', () => {
+  const script = path.join(ROOT, 'scripts', 'staging-deploy-preflight.mjs');
+  const result = runNode(script, {
+    SUPABASE_ACCESS_TOKEN: 'token',
+    SUPABASE_STAGING_PROJECT_REF: 'yzqjvdfgefveprobvvyw',
+    SUPABASE_STAGING_URL: 'https://yzqjvdfgefveprobvvyw.supabase.co',
+    SUPABASE_STAGING_ANON_KEY: 'sb_publishable_test_key_value_long_enough',
+    DEPLOY_FUNCTIONS: '',
+  }, ['--skip-remote', '--allow-dirty', '--json']);
+  assert.equal(result.status, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.deepEqual(payload.deployFunctions, []);
+  assert.equal(payload.deployFunctionsDefault, 'deploy nothing');
 });
 
 test('docs/scripts: apply-candidate-migrations never calls db push', () => {
