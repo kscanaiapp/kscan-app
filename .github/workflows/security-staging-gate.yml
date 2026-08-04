@@ -150,11 +150,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
-          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
           missing=()
-          for v in SUPABASE_ACCESS_TOKEN SUPABASE_STAGING_PROJECT_REF SUPABASE_STAGING_URL SUPABASE_STAGING_ANON_KEY; do
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_STAGING_PROJECT_REF SUPABASE_STAGING_URL SUPABASE_STAGING_PUBLISHABLE_KEY; do
             if [ -z "${!v:-}" ]; then missing+=("$v"); fi
           done
           if [ "${#missing[@]}" -gt 0 ]; then
@@ -185,6 +185,7 @@ jobs:
           node security/scripts/verify-staging-project-ref.js "$EXPECTED"
 
       - name: Setup Supabase CLI
+        id: setup_supabase
         uses: supabase/setup-cli@v1
         with:
           version: 2.109.1
@@ -266,7 +267,7 @@ jobs:
           echo "outcome=${OUTCOME}" >> "$GITHUB_OUTPUT"
 
       - name: Snapshot staging state (after) and report side effects
-        if: always()
+        if: always() && steps.setup_supabase.outcome == 'success'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -314,7 +315,7 @@ jobs:
       - name: Run staging health checks
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_STAGING_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
           npm ci
