@@ -419,7 +419,7 @@ test('preserve: permission card icons and profile avatar fallback unchanged', ()
   assert.match(permissions, /icon="◈"/);
   assert.doesNotMatch(permissions, /KScanIcon/);
   // Home profile button keeps its initial/sparkle avatar fallback.
-  assert.match(HOME, /profileName \? profileName\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
+  assert.match(HOME, /preferredName \? preferredName\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
 });
 
 test('preserve: VoiceScan placeholder stays inactive and non-interactive', () => {

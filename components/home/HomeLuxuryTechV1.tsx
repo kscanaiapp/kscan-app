@@ -21,6 +21,7 @@ import {
   createStyleChatSessionLaunchGuard,
   launchStyleChatSession,
 } from '../../services/style-chat/sessionLaunchGuard';
+import { resolvePreferredName } from '../../services/userFirstName';
 import type { StylePick } from '../../types/stylePicks';
 import {
   LuxuryScreen,
@@ -158,10 +159,7 @@ export default function HomeLuxuryTechV1() {
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
 
-  const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
-  const profileName =
-    (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
-  const firstName = profileName?.split(' ')[0] ?? null;
+  const preferredName = resolvePreferredName(user);
 
   const hasStylePicks = picks.length > 0;
   // Nothing to show: not loading, no error, and no real picks. Render the
@@ -274,7 +272,7 @@ export default function HomeLuxuryTechV1() {
             >
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarText}>
-                  {profileName ? profileName.charAt(0).toUpperCase() : '✦'}
+                  {preferredName ? preferredName.charAt(0).toUpperCase() : '✦'}
                 </Text>
               </View>
             </Pressable>
@@ -286,9 +284,9 @@ export default function HomeLuxuryTechV1() {
       {isAuthenticated && (
         <Text
           style={styles.greeting}
-          accessibilityLabel={`Welcome, ${firstName ?? 'K Scanner'}`}
+          accessibilityLabel={`Welcome, ${preferredName ?? 'K Scanner'}`}
         >
-          {`Welcome, ${firstName ?? 'K Scanner'}`}
+          {`Welcome, ${preferredName ?? 'K Scanner'}`}
         </Text>
       )}
 

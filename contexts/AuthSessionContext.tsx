@@ -29,6 +29,7 @@ import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHa
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
+import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -50,7 +51,7 @@ export interface AuthSessionContextValue {
   /** True during a background token refresh. Writes should be deferred. */
   isRefreshing: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<SignUpResult>;
+  signUp: (email: string, password: string, profile?: SignupNameInput) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
 }
 
@@ -213,11 +214,21 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     if (error) throw error;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
+  const signUp = useCallback(async (
+    email: string,
+    password: string,
+    profile?: SignupNameInput,
+  ): Promise<SignUpResult> => {
+    // Carried in options.data so the name survives email confirmation: Supabase
+    // persists it on the user at sign-up, before any session exists.
+    const nameMetadata = buildSignupNameMetadata(profile ?? {});
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: AUTH_CALLBACK_URL },
+      options: {
+        emailRedirectTo: AUTH_CALLBACK_URL,
+        ...(Object.keys(nameMetadata).length > 0 ? { data: nameMetadata } : {}),
+      },
     });
     if (error) throw error;
     return {

@@ -60,6 +60,7 @@ function loadService(mockClient) {
       TERMS_VERSION: '1.0',
       PRIVACY_VERSION: '1.0',
       AGE_VERSION: '1.0',
+      AI_PROCESSING_VERSION: 'v1',
     },
     '../src/utils/errorLogger': { logError: () => {} },
   });
@@ -85,6 +86,7 @@ test('recognizes an existing account only when all current legal versions are pr
     { acceptance_type: 'terms', policy_version: '1.0' },
     { acceptance_type: 'privacy', policy_version: '1.0' },
     { acceptance_type: 'minimum_age', policy_version: '1.0' },
+    { acceptance_type: 'ai_processing', policy_version: 'v1' },
   ]);
   const { hasCurrentLegalAcceptances } = loadService(client);
 
@@ -116,6 +118,7 @@ test('rejects empty termsVersion', async () => {
     termsVersion: '',
     privacyVersion: '1.0',
     minimumAgeVersion: '1.0',
+    aiProcessingVersion: '4.0',
   }, client);
   assert.equal(result.ok, false);
   assert.equal(result.error, 'Unable to save your preferences. Please try again.');
@@ -128,6 +131,7 @@ test('rejects empty privacyVersion', async () => {
     termsVersion: '1.0',
     privacyVersion: '',
     minimumAgeVersion: '1.0',
+    aiProcessingVersion: '4.0',
   }, client);
   assert.equal(result.ok, false);
 });
@@ -139,6 +143,7 @@ test('rejects empty minimumAgeVersion', async () => {
     termsVersion: '1.0',
     privacyVersion: '1.0',
     minimumAgeVersion: '',
+    aiProcessingVersion: '4.0',
   }, client);
   assert.equal(result.ok, false);
 });
@@ -152,6 +157,7 @@ test('rejects missing authenticated user', async () => {
     termsVersion: '1.0',
     privacyVersion: '1.0',
     minimumAgeVersion: '1.0',
+    aiProcessingVersion: '4.0',
   }, client);
   assert.equal(result.ok, false);
   assert.equal(result.error, 'Unable to save your preferences. Please try again.');
@@ -159,34 +165,78 @@ test('rejects missing authenticated user', async () => {
 
 // ─── Upsert behavior ────────────────────────────────────────────────────────
 
-test('builds exactly three legal acceptance rows', async () => {
+test('builds exactly four legal acceptance rows', async () => {
   const client = createMockClient({ session: { user: { id: 'user-1' } } });
   const { recordLegalAcceptances } = loadService(client);
   await recordLegalAcceptances({
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
 
   assert.equal(client._upsertCalls.length, 1);
   const call = client._upsertCalls[0];
   assert.equal(call.tableName, 'legal_acceptances');
-  assert.equal(call.rows.length, 3);
+  assert.equal(call.rows.length, 4);
 });
 
-test('uses acceptance_type values: terms, privacy, minimum_age', async () => {
+test('uses acceptance_type values: terms, privacy, minimum_age, ai_processing', async () => {
   const client = createMockClient({ session: { user: { id: 'user-1' } } });
   const { recordLegalAcceptances } = loadService(client);
   await recordLegalAcceptances({
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
 
   const types = client._upsertCalls[0].rows.map((r) => r.acceptance_type);
   assert.ok(types.includes('terms'));
   assert.ok(types.includes('privacy'));
   assert.ok(types.includes('minimum_age'));
+  assert.ok(types.includes('ai_processing'));
+});
+
+test('records AI image-processing consent as its own versioned row', async () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const { recordLegalAcceptances } = loadService(client);
+  await recordLegalAcceptances({
+    termsVersion: '1.0',
+    privacyVersion: '2.0',
+    minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
+  }, client);
+
+  const aiRow = client._upsertCalls[0].rows.find((r) => r.acceptance_type === 'ai_processing');
+  assert.ok(aiRow, 'ai_processing row must be present');
+  assert.equal(aiRow.policy_version, '4.0');
+  assert.equal(aiRow.user_id, 'user-1');
+  assert.equal(aiRow.source, 'mobile');
+});
+
+test('rejects empty aiProcessingVersion', async () => {
+  const client = createMockClient({ session: { user: { id: 'user-1' } } });
+  const { recordLegalAcceptances } = loadService(client);
+  const result = await recordLegalAcceptances({
+    termsVersion: '1.0',
+    privacyVersion: '1.0',
+    minimumAgeVersion: '1.0',
+    aiProcessingVersion: '',
+  }, client);
+  assert.equal(result.ok, false);
+  assert.equal(result.error, 'Unable to save your preferences. Please try again.');
+});
+
+test('does not restore onboarding when only the pre-AI-consent versions are present', async () => {
+  const client = createAcceptanceReadClient([
+    { acceptance_type: 'terms', policy_version: '1.0' },
+    { acceptance_type: 'privacy', policy_version: '1.0' },
+    { acceptance_type: 'minimum_age', policy_version: '1.0' },
+  ]);
+  const { hasCurrentLegalAcceptances } = loadService(client);
+
+  assert.equal(await hasCurrentLegalAcceptances('legacy-user', client), false);
 });
 
 test('uses source: mobile', async () => {
@@ -196,6 +246,7 @@ test('uses source: mobile', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
 
   const rows = client._upsertCalls[0].rows;
@@ -211,6 +262,7 @@ test('uses app_version null when unavailable', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
 
   const rows = client._upsertCalls[0].rows;
@@ -226,6 +278,7 @@ test('uses app_version when provided', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
     appVersion: '1.2.3',
   }, client);
 
@@ -242,6 +295,7 @@ test('uses upsert on user_id,acceptance_type,policy_version', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
 
   const options = client._upsertCalls[0].options;
@@ -255,6 +309,7 @@ test('uses ignoreDuplicates: true', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
 
   const options = client._upsertCalls[0].options;
@@ -271,6 +326,7 @@ test('maps Supabase error to safe app-level error', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
   assert.equal(result.ok, false);
   assert.equal(result.error, 'Unable to save your preferences. Please try again.');
@@ -283,6 +339,7 @@ test('derives user_id from session user, not from caller', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
 
   const rows = client._upsertCalls[0].rows;
@@ -298,12 +355,14 @@ test('trims policy versions before persisting', async () => {
     termsVersion: '  1.0  ',
     privacyVersion: '  2.0  ',
     minimumAgeVersion: '  3.0  ',
+    aiProcessingVersion: '  4.0  ',
   }, client);
 
   const rows = client._upsertCalls[0].rows;
   assert.equal(rows[0].policy_version, '1.0');
   assert.equal(rows[1].policy_version, '2.0');
   assert.equal(rows[2].policy_version, '3.0');
+  assert.equal(rows[3].policy_version, '4.0');
 });
 
 test('returns ok: true on success', async () => {
@@ -313,6 +372,7 @@ test('returns ok: true on success', async () => {
     termsVersion: '1.0',
     privacyVersion: '2.0',
     minimumAgeVersion: '3.0',
+    aiProcessingVersion: '4.0',
   }, client);
   assert.equal(result.ok, true);
   assert.equal(result.error, undefined);
