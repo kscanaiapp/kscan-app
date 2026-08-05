@@ -252,6 +252,12 @@ export function StyleChatPhotoIntake({
 
   const startPicker = useCallback(async () => {
     if (inFlightRef.current) return; // single in-flight analysis
+    // Claimed BEFORE the first await. The composer passes a fresh inline
+    // `onClose` on every render, so this callback — and the auto-open effect
+    // that depends on it — is rebuilt while the user is still standing in the
+    // gallery. A claim taken after the picker returns leaves that whole window
+    // unguarded and lets the effect launch a second native picker.
+    inFlightRef.current = true;
     let localUri: string;
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -278,6 +284,9 @@ export function StyleChatPhotoIntake({
       }
       localUri = picked.assets[0].uri;
     } catch {
+      // Safe to release inline: `identify_failed` is not `idle`, so the
+      // auto-open effect cannot re-enter on this path.
+      inFlightRef.current = false;
       setIdentifyFailureMessage('The photo picker could not finish. Try again.');
       setStep('identify_failed');
       return;
@@ -286,7 +295,6 @@ export function StyleChatPhotoIntake({
     const operationId = ++operationIdRef.current;
     abortRef.current?.abort();
     abortRef.current = new AbortController();
-    inFlightRef.current = true;
     setImageUri(localUri);
     setSaveError(null);
     setFashionContext(null);
@@ -530,6 +538,14 @@ export function StyleChatPhotoIntake({
     }
   }, [visible, step, startPicker]);
 
+  // Dismissal is what releases the picker claim on the cancel and
+  // permission-denied paths. Releasing it inline there would race the parent's
+  // `onClose`: in the render between clearing the flag and `visible` turning
+  // false, the effect above would reopen the gallery the user just dismissed.
+  useEffect(() => {
+    if (!visible) inFlightRef.current = false;
+  }, [visible]);
+
   const handleAttach = useCallback(async () => {
     if (attachingRef.current) return;
     const staged = candidateRef.current;
@@ -652,8 +668,7 @@ export function StyleChatPhotoIntake({
     abortRef.current?.abort();
     await discardCurrentCandidate();
     // `idle` has one picker owner: the visibility effect below. Calling
-    // `startPicker` here as well races two native picker requests because the
-    // in-flight guard is intentionally acquired only after a selection returns.
+    // `startPicker` here as well would request two native pickers for one tap.
     resetState();
   }, [discardCurrentCandidate, resetState]);
 
