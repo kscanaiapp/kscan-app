@@ -741,6 +741,26 @@ export function StyleChatPhotoIntake({
               <TextField label="Category" value={category} onChangeText={setCategory} />
               {step === 'review' ? <TextField label="Color" value={color} onChangeText={setColor} /> : null}
               {saveError ? <InlineNotice variant="error" title="Photo" body={saveError} /> : null}
+              {/*
+                Attaching requires a real identified context, and only the V2
+                `identified` outcome produces one. Every other route here — the
+                legacy identification path, and `manual_details` after a failed
+                or ambiguous identification — arrives with `fashionContext`
+                null, which disables the primary action below.
+                Without this notice that disabled control is unexplained: the
+                sheet shows a filled-in garment and a working "Save to Closet"
+                beside a button that can never activate, and the user is left
+                with no way to tell that the recovery is another photo. State
+                the reason and keep the retry visible rather than fabricating a
+                context the identification never produced.
+              */}
+              {!fashionContext ? (
+                <InlineNotice
+                  variant="info"
+                  title="Attach to Elise"
+                  body="Elise needs to identify this item before it can be attached. Saving to your Closet still works — to attach it, try another photo of a single piece."
+                />
+              ) : null}
               <PrimaryButton
                 title="Attach to Elise"
                 onPress={() => { void handleAttach(); }}
