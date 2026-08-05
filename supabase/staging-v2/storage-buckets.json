@@ -1,0 +1,36 @@
+{
+  "$comment": [
+    "Storage buckets required by the production backend contract, with production's",
+    "exact configuration. Read by scripts/staging-v2/configure-storage.mjs; the rows",
+    "themselves are provisioned by reviewed migrations so bucket state is reproducible",
+    "from source control rather than from an imperative command.",
+    "",
+    "Staging additionally carries image-ingestion-clean, image-ingestion-quarantine",
+    "(staging-security-required) and investor-docs (legacy-unused). Those are NOT",
+    "listed here because they are not part of the production contract; see",
+    "docs/staging-rebuild/backend-authority-manifest.md for their classification."
+  ],
+  "buckets": [
+    {
+      "id": "legal-documents",
+      "public": true,
+      "file_size_limit": null,
+      "allowed_mime_types": null,
+      "policies": [],
+      "note": "Public bucket. Production defines no storage.objects policy for it; reads are served through the public path and writes stay service-role only."
+    },
+    {
+      "id": "style-library-images",
+      "public": false,
+      "file_size_limit": 5242880,
+      "allowed_mime_types": ["image/jpeg", "image/png", "image/webp"],
+      "policies": [
+        "Users can read own style library images",
+        "Users can upload own style library images",
+        "Users can update own style library images",
+        "Users can delete own style library images"
+      ],
+      "note": "All four policies are owner-scoped on (storage.foldername(name))[1] = auth.uid()::text and are byte-identical to production."
+    }
+  ]
+}
