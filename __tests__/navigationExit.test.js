@@ -196,7 +196,10 @@ test('Android Hardware Back is wired for scanner results, Closet, Elise, setting
   assert.match(closetIntake, /onRequestClose=\{onClose\}/);
   assert.match(elisePhoto, /onRequestClose=\{busy \? \(\) => \{\} : handleCancel\}/);
   assert.match(eliseAttachments, /onRequestClose=/);
-  assert.match(privacy, /onRequestClose=\{\(\) => setDeletionConfirmVisible\(false\)\}/);
+  assert.match(
+    privacy,
+    /onRequestClose=\{\(\) => \{\s*if \(!deletionSubmitting\) setDeletionConfirmVisible\(false\);\s*\}\}/,
+  );
   assert.match(styleChatHeader, /BackHandler\.addEventListener\('hardwareBackPress'/);
   assert.match(styleChatHeader, /router\.dismissTo\('\/'\)/);
 });
