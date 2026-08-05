@@ -35,7 +35,13 @@
     "staging:apply-migration": "node scripts/apply-staging-migration.mjs",
     "staging:deploy-function": "node scripts/deploy-staging-function.mjs",
     "staging:rollback-function": "node scripts/rollback-staging-function.mjs",
-    "verify:security": "node security/scripts/run-security-validation.js"
+    "verify:security": "node security/scripts/run-security-validation.js",
+    "test:staging-v2-guard": "node --test __tests__/staging/stagingV2WriteGuard.test.js",
+    "stagingv2:apply-migrations": "node scripts/staging-v2/apply-migrations.mjs",
+    "stagingv2:deploy-function": "node scripts/staging-v2/deploy-function.mjs",
+    "stagingv2:configure-storage": "node scripts/staging-v2/configure-storage.mjs",
+    "stagingv2:seed": "node scripts/staging-v2/seed-fixtures.mjs",
+    "stagingv2:validate-target": "node scripts/staging-v2/validate-target.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
