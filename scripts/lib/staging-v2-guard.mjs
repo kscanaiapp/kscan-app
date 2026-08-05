@@ -1,49 +1,41 @@
 /**
- * Staging v2 write-target guard.
+ * Staging write-target guard for the in-place K Scan AI Staging rebuild.
  *
- * Single choke point for EVERY write-capable operation in the Staging v2 rebuild:
- * migration application, Edge Function deployment, Storage configuration, seed
- * execution, workflow dispatch, project reset, and (later) ZAP target validation.
+ * Single choke point for EVERY write-capable operation: migration application,
+ * Edge Function deployment, Storage configuration, seed execution, workflow
+ * dispatch, scoped schema rebuild, and (later) ZAP target validation.
  *
- * Design rules (Phase 1, Step 1):
+ * Design rules:
  *   1. The caller must pass an explicit target project reference.
  *   2. The reference is compared against a source-controlled allow-list.
  *   3. The production reference is always rejected for writes.
- *   4. The old staging reference is rejected for writes; read-only is permitted.
- *   5. Writes require the Staging v2 reference specifically.
+ *   4. Any reference outside the allow-list is rejected for writes.
+ *   5. Writes require the K Scan AI Staging reference specifically.
  *   6. A missing / empty / unresolved reference fails closed.
  *   7. The resolved safe target is printed before the operation proceeds.
  *   8. The target is NEVER inferred from `supabase link` / the linked project.
  *
- * Production may still be *named* here: this file is the rejection authority, and
- * read-only comparison tooling legitimately needs the production reference.
+ * Production is *named* here deliberately: this file is the rejection authority,
+ * and read-only parity tooling legitimately needs the production reference.
  */
+
+import {
+  STAGING_PROJECT_REF,
+  STAGING_PROJECT_NAME,
+  STAGING_PROJECT_URL,
+  PROTECTED_TABLES,
+} from './staging-v2-project.mjs';
 
 /** Read-only behavioural and structural source of truth. Never a write target. */
 export const PRODUCTION_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
 
-/** Preserved reference project. Read-only only; never a write target, never reset. */
-export const OLD_STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
+export { STAGING_PROJECT_REF, STAGING_PROJECT_NAME, STAGING_PROJECT_URL, PROTECTED_TABLES };
 
-/**
- * K Scan AI Staging v2. Populated by scripts/lib/staging-v2-project.json once the
- * project exists so that the allow-list stays reviewable in source control.
- */
-import { STAGING_V2_PROJECT_REF } from './staging-v2-project.mjs';
+/** The ONLY project reference any write-capable operation may resolve to. */
+export const WRITE_ALLOW_LIST = Object.freeze([STAGING_PROJECT_REF]);
 
-export { STAGING_V2_PROJECT_REF };
-
-/** The ONLY project references any write-capable operation may resolve to. */
-export const WRITE_ALLOW_LIST = Object.freeze(
-  [STAGING_V2_PROJECT_REF].filter((ref) => typeof ref === 'string' && ref.length > 0),
-);
-
-/** Projects that may be read but never written. */
-export const READ_ONLY_ALLOW_LIST = Object.freeze([
-  PRODUCTION_PROJECT_REF,
-  OLD_STAGING_PROJECT_REF,
-  ...WRITE_ALLOW_LIST,
-]);
+/** Projects that may be read. Production is readable for parity comparison only. */
+export const READ_ONLY_ALLOW_LIST = Object.freeze([PRODUCTION_PROJECT_REF, STAGING_PROJECT_REF]);
 
 const PROJECT_REF_RE = /^[a-z]{20}$/;
 
@@ -78,7 +70,7 @@ export function normalizeProjectRef(value) {
  * @param {object} options
  * @param {string} options.operation      Human-readable operation name (required, for the audit line).
  * @param {string} options.projectRef     Explicit target reference (required; no fallback, no inference).
- * @param {boolean} [options.readOnly]    True for read-only operations (production/old staging permitted).
+ * @param {boolean} [options.readOnly]    True for read-only operations (production permitted).
  * @param {(msg: string) => void} [options.logger]
  * @returns {{ projectRef: string, operation: string, readOnly: boolean, url: string }}
  */
@@ -113,39 +105,21 @@ export function resolveTarget({ operation, projectRef, readOnly = false, logger 
     );
   }
 
-  // Rule 4 — old staging is preserved; read-only access only.
-  if (ref === OLD_STAGING_PROJECT_REF && !readOnly) {
-    reject(
-      'OLD_STAGING_WRITE_REJECTED',
-      `[${operation}] REFUSED: ${OLD_STAGING_PROJECT_REF} is the preserved old staging project. ` +
-        'It is retained as a reference and must not be modified.',
-    );
-  }
-
   if (readOnly) {
     if (!READ_ONLY_ALLOW_LIST.includes(ref)) {
       reject(
         'READ_TARGET_NOT_ALLOWED',
         `[${operation}] REFUSED: ${ref} is not in the read allow-list ` +
-          `(${READ_ONLY_ALLOW_LIST.join(', ') || 'empty'}).`,
+          `(${READ_ONLY_ALLOW_LIST.join(', ')}).`,
       );
     }
-  } else {
-    // Rule 5 + Rule 2 — writes must land on an allow-listed Staging v2 reference.
-    if (WRITE_ALLOW_LIST.length === 0) {
-      reject(
-        'WRITE_ALLOW_LIST_EMPTY',
-        `[${operation}] REFUSED: the Staging v2 write allow-list is empty. ` +
-          'Populate scripts/lib/staging-v2-project.mjs with the created project reference first.',
-      );
-    }
-    if (!WRITE_ALLOW_LIST.includes(ref)) {
-      reject(
-        'WRITE_TARGET_NOT_ALLOWED',
-        `[${operation}] REFUSED: ${ref} is not an allow-listed Staging v2 write target ` +
-          `(${WRITE_ALLOW_LIST.join(', ')}).`,
-      );
-    }
+  } else if (!WRITE_ALLOW_LIST.includes(ref)) {
+    // Rules 2, 4, 5 — writes land on K Scan AI Staging or nowhere.
+    reject(
+      'WRITE_TARGET_NOT_ALLOWED',
+      `[${operation}] REFUSED: ${ref} is not the allow-listed staging write target ` +
+        `(${WRITE_ALLOW_LIST.join(', ')}).`,
+    );
   }
 
   const resolved = {
@@ -166,7 +140,7 @@ export function resolveTarget({ operation, projectRef, readOnly = false, logger 
 }
 
 /** Convenience wrapper: authorize a write target or throw. */
-export function assertStagingV2WriteTarget(operation, projectRef, logger) {
+export function assertStagingWriteTarget(operation, projectRef, logger) {
   return resolveTarget({ operation, projectRef, readOnly: false, logger });
 }
 
@@ -176,23 +150,71 @@ export function assertReadOnlyTarget(operation, projectRef, logger) {
 }
 
 /**
- * Destructive-reset authority. Deliberately narrower than a generic reset command:
- * it can only ever resolve to Staging v2, and additionally demands typed confirmation.
+ * Destructive-rebuild authority.
+ *
+ * Deliberately NOT a generic reset command: the target can only ever resolve to
+ * the allow-listed staging reference, the confirmation phrase is bound to that
+ * reference so it cannot be replayed against another project, and the caller must
+ * declare that protected-table evidence has been captured first.
  */
-export const RESET_CONFIRMATION_PHRASE = 'RESET-STAGING-V2';
+export const RESET_CONFIRMATION_PHRASE = `REBUILD-${STAGING_PROJECT_REF}`;
 
-export function assertResetAuthorized({ projectRef, confirmation, logger } = {}) {
+export function assertRebuildAuthorized({
+  projectRef,
+  confirmation,
+  protectedBackupVerified,
+  logger,
+} = {}) {
   const resolved = resolveTarget({
-    operation: 'staging-v2-reset',
+    operation: 'staging-scoped-rebuild',
     projectRef,
     readOnly: false,
     logger,
   });
   if (confirmation !== RESET_CONFIRMATION_PHRASE) {
     reject(
-      'RESET_CONFIRMATION_MISSING',
-      `[staging-v2-reset] REFUSED: typed confirmation required (expected "${RESET_CONFIRMATION_PHRASE}").`,
+      'REBUILD_CONFIRMATION_MISSING',
+      `[staging-scoped-rebuild] REFUSED: typed confirmation required (expected "${RESET_CONFIRMATION_PHRASE}").`,
+    );
+  }
+  if (protectedBackupVerified !== true) {
+    reject(
+      'PROTECTED_BACKUP_UNVERIFIED',
+      `[staging-scoped-rebuild] REFUSED: a verified backup of ${PROTECTED_TABLES.join(', ')} ` +
+        'must exist before any destructive staging action.',
     );
   }
   return resolved;
+}
+
+/**
+ * Statement-level protection for the Waitlist and website privacy tables.
+ *
+ * Applied to any SQL a rebuild step is about to run, so that a hand-written or
+ * generated statement cannot drop/truncate/alter a protected table even when the
+ * target project itself is correctly authorized.
+ */
+export function assertDoesNotTouchProtectedTables(sql, { operation = 'sql' } = {}) {
+  const text = String(sql || '');
+  for (const qualified of PROTECTED_TABLES) {
+    const bare = qualified.split('.')[1];
+    const namePattern = `(?:public\\.)?"?${bare}"?`;
+    const rules = [
+      { id: 'DROP', regex: new RegExp(`\\bdrop\\s+table\\s+(?:if\\s+exists\\s+)?${namePattern}`, 'i') },
+      { id: 'TRUNCATE', regex: new RegExp(`\\btruncate\\s+(?:table\\s+)?${namePattern}`, 'i') },
+      { id: 'DELETE', regex: new RegExp(`\\bdelete\\s+from\\s+${namePattern}`, 'i') },
+      { id: 'ALTER', regex: new RegExp(`\\balter\\s+table\\s+(?:if\\s+exists\\s+)?${namePattern}`, 'i') },
+      { id: 'UPDATE', regex: new RegExp(`\\bupdate\\s+${namePattern}\\s+set\\b`, 'i') },
+    ];
+    for (const rule of rules) {
+      if (rule.regex.test(text)) {
+        reject(
+          'PROTECTED_TABLE_TOUCHED',
+          `[${operation}] REFUSED: statement performs ${rule.id} on protected table ${qualified}. ` +
+            'Waitlist and website privacy data must remain untouched.',
+        );
+      }
+    }
+  }
+  return true;
 }

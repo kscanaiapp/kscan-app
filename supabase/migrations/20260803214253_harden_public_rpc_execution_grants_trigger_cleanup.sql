@@ -12,12 +12,37 @@
 -- should not remain grantable. Data/behavior-neutral: closes the same
 -- hygiene gap the prior migration intended to close, nothing else changes.
 
-revoke execute on function public.enforce_minor_privacy_defaults() from anon;
-revoke execute on function public.handle_new_user() from anon;
-revoke execute on function public.handle_new_user_privacy() from anon;
-revoke execute on function public.normalize_dressing_room_note() from anon;
-revoke execute on function public.set_profiles_updated_at() from anon;
-revoke execute on function public.set_provider_request_limits_updated_at() from anon;
-revoke execute on function public.set_style_objects_updated_at() from anon;
-revoke execute on function public.set_updated_at() from anon;
-revoke execute on function public.update_privacy_settings_updated_at() from anon;
+-- Same catalogue-lookup form as the migration this follows up, and for the same
+-- reason: three of these nine trigger functions exist only on the staging
+-- lineage, so bare REVOKE statements abort with 42883 when this file is
+-- replayed against the production backend contract. Revoking only where the
+-- function exists keeps the intent identical on both lineages.
+do $$
+declare
+  v_target text;
+  v_targets constant text[] := array[
+    'enforce_minor_privacy_defaults',
+    'handle_new_user',
+    'handle_new_user_privacy',
+    'normalize_dressing_room_note',
+    'set_profiles_updated_at',
+    'set_provider_request_limits_updated_at',
+    'set_style_objects_updated_at',
+    'set_updated_at',
+    'update_privacy_settings_updated_at'
+  ];
+begin
+  foreach v_target in array v_targets loop
+    if exists (
+      select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname = v_target
+        and p.pronargs = 0
+    ) then
+      execute format('revoke execute on function public.%I() from anon', v_target);
+    end if;
+  end loop;
+end;
+$$;

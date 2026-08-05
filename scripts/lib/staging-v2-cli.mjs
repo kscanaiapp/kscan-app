@@ -39,15 +39,16 @@ export function parseArgs(argv) {
 /**
  * Resolve the target project reference for a guarded operation.
  *
- * Precedence is explicit-only: `--project-ref`, then the dedicated
- * SUPABASE_STAGING_V2_PROJECT_REF variable. Both are still validated against the
- * source-controlled allow-list, so a wrong value fails closed rather than
- * widening authority. The linked Supabase project is never consulted.
+ * Precedence is explicit-only: `--project-ref`, then the pre-existing
+ * SUPABASE_STAGING_PROJECT_REF variable (kept under its established name — this
+ * rebuild renames nothing). Both are validated against the source-controlled
+ * allow-list, so a wrong value fails closed rather than widening authority. The
+ * linked Supabase project is never consulted.
  */
 export function resolveCliTarget(operation, args, { readOnly = false } = {}) {
   const explicit =
     (typeof args['project-ref'] === 'string' ? args['project-ref'] : '') ||
-    process.env.SUPABASE_STAGING_V2_PROJECT_REF ||
+    process.env.SUPABASE_STAGING_PROJECT_REF ||
     '';
   return resolveTarget({ operation, projectRef: explicit, readOnly });
 }

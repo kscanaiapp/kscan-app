@@ -41,15 +41,49 @@ revoke execute on function public.get_stylechat_daily_usage() from anon;
 -- RETURNS trigger function on its RPC surface at all -- confirmed live,
 -- calling one via /rest/v1/rpc/ returns 404 "not found in schema cache"
 -- regardless of grants) but should not remain grantable.
-revoke execute on function public.enforce_minor_privacy_defaults() from public;
-revoke execute on function public.handle_new_user() from public;
-revoke execute on function public.handle_new_user_privacy() from public;
-revoke execute on function public.normalize_dressing_room_note() from public;
-revoke execute on function public.set_profiles_updated_at() from public;
-revoke execute on function public.set_provider_request_limits_updated_at() from public;
-revoke execute on function public.set_style_objects_updated_at() from public;
-revoke execute on function public.set_updated_at() from public;
-revoke execute on function public.update_privacy_settings_updated_at() from public;
+--
+-- Applied through a catalogue lookup rather than as bare REVOKE statements.
+-- This migration was originally authored against the staging lineage, where
+-- three of these trigger functions exist that the production backend contract
+-- does not define: handle_new_user_privacy, set_provider_request_limits_updated_at,
+-- and update_privacy_settings_updated_at. A bare REVOKE on a non-existent
+-- function raises 42883 and aborts the whole migration, so replaying this file
+-- on a production-derived database failed outright.
+--
+-- Revoking only where the function is actually present keeps the security
+-- intent identical on both lineages -- every listed function that exists loses
+-- its PUBLIC execute grant -- while allowing the file to replay against the
+-- production contract. The set is still an explicit allow-list, not a
+-- wildcard: a new trigger function does not silently inherit this treatment.
+do $$
+declare
+  v_target text;
+  v_targets constant text[] := array[
+    'enforce_minor_privacy_defaults',
+    'handle_new_user',
+    'handle_new_user_privacy',
+    'normalize_dressing_room_note',
+    'set_profiles_updated_at',
+    'set_provider_request_limits_updated_at',
+    'set_style_objects_updated_at',
+    'set_updated_at',
+    'update_privacy_settings_updated_at'
+  ];
+begin
+  foreach v_target in array v_targets loop
+    if exists (
+      select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname = v_target
+        and p.pronargs = 0
+    ) then
+      execute format('revoke execute on function public.%I() from public', v_target);
+    end if;
+  end loop;
+end;
+$$;
 
 -- get_item_reaction_counts had NO access control at all (no auth.uid()
 -- check, unlike every other RPC in this schema) -- any caller, including

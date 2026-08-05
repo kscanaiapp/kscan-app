@@ -1,15 +1,28 @@
 /**
- * K Scan AI Staging v2 project identity.
+ * K Scan AI Staging project identity — the in-place rebuild target.
  *
- * This is the ONLY place the Staging v2 write allow-list is seeded. Keeping it in
- * source control (rather than reading an env var) means the allow-list is
- * reviewable in a diff and cannot be widened at runtime by a mis-set variable.
+ * This project is NOT replaced. Its name, reference, and URL are retained; only
+ * its application-facing backend is rebuilt to match the production contract.
  *
- * Until the project exists this stays empty, and every write-capable operation
- * fails closed with WRITE_ALLOW_LIST_EMPTY.
+ * The write allow-list is seeded here, in source control, rather than from an
+ * environment variable — so it is reviewable in a diff and cannot be widened at
+ * runtime by a mis-set variable.
  */
 
-export const STAGING_V2_PROJECT_NAME = 'K Scan AI Staging v2';
-export const STAGING_V2_PROJECT_REF = '';
-export const STAGING_V2_REGION = 'us-east-2';
-export const STAGING_V2_ORGANIZATION_ID = 'dtcbsuytyjpvadcnyymn';
+export const STAGING_PROJECT_NAME = 'K Scan AI Staging';
+export const STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
+export const STAGING_PROJECT_URL = 'https://yzqjvdfgefveprobvvyw.supabase.co';
+export const STAGING_REGION = 'us-west-1';
+export const STAGING_ORGANIZATION_ID = 'dtcbsuytyjpvadcnyymn';
+
+/**
+ * Objects that must survive every rebuild operation untouched.
+ *
+ * The Waitlist carries retained real signups and the website sale/share opt-out
+ * table carries real website privacy requests. Neither may be dropped,
+ * truncated, altered, reseeded, or migrated elsewhere during this phase.
+ */
+export const PROTECTED_TABLES = Object.freeze([
+  'public.waitlist_signups',
+  'public.website_sale_share_opt_out_requests',
+]);
