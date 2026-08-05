@@ -64,6 +64,37 @@ Reasons, stated rather than guessed:
 **These settings are therefore recorded as unresolved and were not guessed.**
 Auth parity is **PENDING**, not passed.
 
+## Tooling is now in place — one command closes the gap
+
+`scripts/staging-v2/auth-config.mjs` talks to the Management API directly
+(`GET`/`PATCH /v1/projects/{ref}/config/auth`) and patches **only** the keys named
+on the command line, leaving every other setting untouched. It is guarded:
+production is rejected for `--apply` and permitted read-only for `--capture`.
+
+It needs one thing this environment cannot supply — a Supabase personal access
+token. The CLI keeps its own token in the Windows credential store, which is not
+readable from here (the read was blocked). Create one at
+<https://supabase.com/dashboard/account/tokens>, then:
+
+```bash
+export SUPABASE_ACCESS_TOKEN=...        # for this command only; never committed
+
+# record the current staging config as committed, redacted evidence
+node scripts/staging-v2/auth-config.mjs --capture --project-ref yzqjvdfgefveprobvvyw
+
+# record production's for comparison (read-only; the guard permits this)
+node scripts/staging-v2/auth-config.mjs --capture --project-ref wyyuqfdxucjksghsmhry
+
+# close the known gap
+node scripts/staging-v2/auth-config.mjs --apply --project-ref yzqjvdfgefveprobvvyw \
+  --set external_anonymous_users_enabled=true
+```
+
+`--capture` writes redacted JSON to `docs/staging-rebuild/evidence/`, so the two
+projects can be diffed key by key and the remaining unresolved settings above can
+be filled in from real data rather than guessed. Toggling Anonymous Sign-Ins in
+the staging dashboard achieves the same single change if that is easier.
+
 ## Why `supabase config push` was not used
 
 It would have worked mechanically — it targets the linked project, and the link

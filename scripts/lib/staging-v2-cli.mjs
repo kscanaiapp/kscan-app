@@ -10,7 +10,7 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolveTarget, TargetRejectedError } from './staging-v2-guard.mjs';
+import { resolveTarget, TargetRejectedError, assertLinkedProjectSafe } from './staging-v2-guard.mjs';
 
 /** Parse `--key value` / `--key=value` / `--flag` argv into a plain object. */
 export function parseArgs(argv) {
@@ -55,9 +55,23 @@ export function resolveCliTarget(operation, args, { readOnly = false } = {}) {
   return resolveTarget({ operation, projectRef: explicit, readOnly });
 }
 
-/** Run a guarded entry point, converting guard rejections into exit code 2. */
-export async function runGuarded(operation, main) {
+/**
+ * Run a guarded entry point, converting guard rejections into exit code 2.
+ *
+ * Before the operation runs, the working directory's Supabase link is checked.
+ * Commands like `db push` / `db dump` / `db reset` take no `--project-ref` and
+ * act on the linked project, so a directory linked to production is refused
+ * outright — the link can veto a target, never choose one.
+ */
+export async function runGuarded(operation, main, { root } = {}) {
   try {
+    // The spawned `supabase` process inherits this cwd, so cwd is what the CLI
+    // will actually resolve a link from. The script's own repo root is checked
+    // too when it differs, since that is where supabase/.temp lives for a script
+    // invoked by absolute path from elsewhere.
+    const dirs = new Set([process.cwd()]);
+    if (root) dirs.add(root);
+    for (const dir of dirs) assertLinkedProjectSafe({ root: dir, operation });
     await main();
   } catch (err) {
     if (err instanceof TargetRejectedError) {

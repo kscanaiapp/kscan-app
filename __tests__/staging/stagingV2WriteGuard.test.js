@@ -157,6 +157,79 @@ test('ZAP target validation accepts the staging URL', () => {
   assert.match(combined(result), new RegExp(`zap-target -> ${STAGING_REF}`));
 });
 
+/* ---------------------------------------------------------------------- */
+/* Linked-project quarantine                                                */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * `db push`, `db dump`, `db reset` and `migration list` accept no
+ * --project-ref and act on the linked project. A directory linked to production
+ * must therefore refuse every guarded command, even one passing the correct
+ * staging --project-ref.
+ */
+function makeLinkedDir(ref) {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-link-'));
+  if (ref) {
+    fs.mkdirSync(path.join(dir, 'supabase', '.temp'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'supabase', '.temp', 'project-ref'), ref);
+  }
+  return dir;
+}
+
+function runFrom(cwd, script, args) {
+  return spawnSync(process.execPath, [path.join(ROOT, script), ...args], {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, SUPABASE_STAGING_PROJECT_REF: '' },
+  });
+}
+
+for (const entry of WRITE_ENTRY_POINTS) {
+  test(`${entry.name}: refuses to run from a production-linked directory`, () => {
+    const dir = makeLinkedDir(PRODUCTION_REF);
+    const result = runFrom(dir, entry.script, entry.args(STAGING_REF));
+    assert.notEqual(result.status, 0, `${entry.script} ran from a production-linked directory`);
+    assert.match(combined(result), /LINKED_PROJECT_IS_PRODUCTION/);
+  });
+}
+
+test('guarded commands refuse a directory linked to any non-staging project', () => {
+  const dir = makeLinkedDir(FOREIGN_REF);
+  const result = runFrom(dir, 'scripts/staging-v2/apply-migrations.mjs', [
+    '--project-ref',
+    STAGING_REF,
+    '--dry-run',
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(combined(result), /LINKED_PROJECT_NOT_STAGING/);
+});
+
+test('an unlinked directory is safe: the link can veto a target, never choose one', async () => {
+  const guard = await loadGuard();
+  const dir = makeLinkedDir('');
+  assert.deepEqual(guard.assertLinkedProjectSafe({ root: dir, operation: 't' }), {
+    linked: '',
+    state: 'UNLINKED',
+  });
+  // Unlinked still does not grant a target: an explicit ref is required.
+  assert.throws(() => guard.assertStagingWriteTarget('t', '', null), hasCode('TARGET_MISSING'));
+});
+
+test('the standalone link checker rejects a production-linked directory', () => {
+  const dir = makeLinkedDir(PRODUCTION_REF);
+  const result = runFrom(dir, 'scripts/staging-v2/check-linked-project.mjs', []);
+  assert.equal(result.status, 2);
+  assert.match(combined(result), /LINKED_PROJECT_IS_PRODUCTION/);
+});
+
+test('the standalone link checker accepts a staging-linked directory', () => {
+  const dir = makeLinkedDir(STAGING_REF);
+  const result = runFrom(dir, 'scripts/staging-v2/check-linked-project.mjs', []);
+  assert.equal(result.status, 0, combined(result));
+});
+
 /** assert.throws matches on `message`; the guard carries its reason on `code`. */
 function hasCode(...codes) {
   return (err) => {

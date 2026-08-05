@@ -35,7 +35,27 @@ Verified by object-level comparison, not counts. See
 | Client-required RPCs | 29/29 match on identity args, return type, security mode, `search_path` |
 | Storage policies (`style-library-images`) | 4/4 byte-identical to production |
 | Storage buckets | both production buckets present |
-| Edge Functions | 16/16 production functions deployed, `verify_jwt` parity exact |
+| Edge Functions | 16/16 production functions deployed from repo source, `verify_jwt` parity exact |
+
+### Edge Function currency
+
+Deploying the 6 missing functions was not sufficient. The 10 that already existed
+on staging were **far behind** production — `scan-identify` was at v3 against
+production's v141, `stylechat-generate` v54 against v84, `handle-user-deletion`
+v20 against v69 — and the stale `stylechat-generate` rejected a well-formed
+request outright. All 16 were therefore redeployed from this branch's source, so
+staging runs the same code the repository describes.
+
+### Provider / model runtime validation
+
+Deployment success proves nothing about model configuration: a retired Gemini
+model fails only at invocation. `scripts/staging-v2/provider-preflight.mjs`
+closes that by invoking each model-dependent function with a synthetic request.
+Result on 2026-08-05: **3/3 answered, 0 failing, 0 secret-name gaps** —
+`scan-identify` (classified a synthetic image as NON_FASHION),
+`stylechat-generate` (`model: gemini-3.6-flash`), and `style-outfit-generate`
+(returned outfit suggestions with reasoning). The retired-model hazard flagged in
+the secret manifest is **not** present on staging.
 
 ## Client-required RPC inventory
 
@@ -104,6 +124,6 @@ button behaviour changed, excluded from acceptance testing.
 
 | Gap | Status |
 |---|---|
-| `can_react_to_dressing_room_item(p_item_id uuid)` | Exists in production; **no migration in this branch creates it**. Present on staging only because production-lineage migrations that reference it ran. Needs its source recovered or authored before the baseline is fully complete. |
+| `can_react_to_dressing_room_item(p_item_id uuid)` | **CLOSED.** No migration created it anywhere — absent from git history, deleted branches, and `schema_migrations.statements`. Its definition was read read-only from production and reproduced in `20260805130000_production_live_derived_can_react_to_dressing_room_item.sql`, which is labelled *production-live-derived*, not a recovered historical migration. Verified byte-exact against production: contract md5 `0d87fca42ef99fe17c859ba1f4fccb4f`, body md5 `685a308aee98aae208c78cc2247b3eda`, ACL `anon=false, authenticated=true, service_role=true`. |
 | 4 `provider_request_*` migrations | **Recovered** from git history (`9e4556e`, `222989f`, `3e2140f`) and restored to `supabase/migrations/`. |
 | `20260804101903_legal_acceptances` | **Recovered** verbatim from staging's own `supabase_migrations.schema_migrations.statements`. History-only difference from production's `20260617000001`; resulting schema is identical. |

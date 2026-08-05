@@ -19,6 +19,9 @@
  * and read-only parity tooling legitimately needs the production reference.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 import {
   STAGING_PROJECT_REF,
   STAGING_PROJECT_NAME,
@@ -185,6 +188,57 @@ export function assertRebuildAuthorized({
     );
   }
   return resolved;
+}
+
+/**
+ * Linked-project safety.
+ *
+ * Several Supabase CLI database commands — `db push`, `db dump`, `db reset`,
+ * `migration list` — accept no `--project-ref` and act on whatever project the
+ * working directory is linked to. That makes a stale link an execution hazard
+ * independent of anything the caller passes.
+ *
+ * This is the inverse of the resolveTarget rule and does not contradict it: the
+ * link is never used to *choose* a target, only to *veto* one. A directory
+ * linked to production cannot run a guarded command at all.
+ *
+ * Unlinked is safe and permitted: commands that genuinely need a link establish
+ * it themselves through runSupabaseLinkedTo, which links to the already-
+ * authorized target and verifies the marker before proceeding.
+ */
+export function readLinkedProjectRef(root = process.cwd()) {
+  try {
+    return fs.readFileSync(path.join(root, 'supabase', '.temp', 'project-ref'), 'utf8').trim();
+  } catch {
+    return '';
+  }
+}
+
+export function assertLinkedProjectSafe({ root, operation = 'guarded-command', linkedRef } = {}) {
+  const linked = normalizeProjectRef(
+    linkedRef !== undefined ? linkedRef : readLinkedProjectRef(root),
+  );
+
+  if (linked === '') return { linked: '', state: 'UNLINKED' };
+
+  if (linked === PRODUCTION_PROJECT_REF) {
+    reject(
+      'LINKED_PROJECT_IS_PRODUCTION',
+      `[${operation}] REFUSED: this directory is linked to production (${PRODUCTION_PROJECT_REF}). ` +
+        'Supabase database commands act on the linked project when no --project-ref is accepted, ' +
+        'so no guarded command may run here. Unlink it first.',
+    );
+  }
+
+  if (!WRITE_ALLOW_LIST.includes(linked)) {
+    reject(
+      'LINKED_PROJECT_NOT_STAGING',
+      `[${operation}] REFUSED: this directory is linked to ${linked}, which is not the ` +
+        `allow-listed staging project (${WRITE_ALLOW_LIST.join(', ')}).`,
+    );
+  }
+
+  return { linked, state: 'STAGING' };
 }
 
 /**
