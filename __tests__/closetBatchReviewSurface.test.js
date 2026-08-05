@@ -20,7 +20,11 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NOW = Date.parse('2026-07-28T12:00:00.000Z');
+// The projection reads the real clock (eligibility defaults nowMs to Date.now()),
+// so a frozen literal here silently rots: every "live" fixture below is minted
+// relative to NOW, and once wall-clock passed NOW + the candidate TTL they all
+// became `expired` and lost their selection controls.
+const NOW = Date.now();
 
 // ── Mini renderer ────────────────────────────────────────────────────────────
 
