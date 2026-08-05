@@ -126,6 +126,13 @@ alter table public.deletion_requests
 
 -- One active lifecycle request per user (new + legacy open statuses).
 drop index if exists deletion_requests_one_open_per_user_idx;
+-- Dropped rather than created IF NOT EXISTS: the staging project already carried
+-- an index of this name built outside migration control, with the narrower
+-- predicate status IN ('pending','processing'). IF NOT EXISTS would have
+-- silently kept that weaker constraint and left real drift behind a migration
+-- that appeared to succeed. Dropping first makes the production predicate below
+-- authoritative on every lineage.
+drop index if exists deletion_requests_one_active_per_user_idx;
 create unique index deletion_requests_one_active_per_user_idx
   on public.deletion_requests (user_id)
   where status in ('pending', 'processing', 'deactivated', 'purging', 'legal_hold')

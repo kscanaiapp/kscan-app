@@ -8,6 +8,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { resolveTarget, TargetRejectedError } from './staging-v2-guard.mjs';
 
 /** Parse `--key value` / `--key=value` / `--flag` argv into a plain object. */
@@ -67,17 +69,8 @@ export async function runGuarded(operation, main) {
   }
 }
 
-/**
- * Invoke the Supabase CLI with an explicit `--project-ref`.
- *
- * `--project-ref` is appended by this helper from an already-guarded target, so a
- * caller cannot accidentally omit it and fall through to the linked project.
- */
-export function runSupabaseForTarget(target, argv, { stdio = 'pipe' } = {}) {
-  if (!target || !target.projectRef) {
-    throw new Error('runSupabaseForTarget called without a guarded target');
-  }
-  const result = spawnSync('supabase', [...argv, '--project-ref', target.projectRef], {
+function runSupabase(argv, { stdio = 'pipe' } = {}) {
+  const result = spawnSync('supabase', argv, {
     encoding: 'utf8',
     stdio,
     shell: process.platform === 'win32',
@@ -89,4 +82,52 @@ export function runSupabaseForTarget(target, argv, { stdio = 'pipe' } = {}) {
     throw new Error(`supabase ${argv.join(' ')} exited ${result.status}\n${detail}`);
   }
   return result.stdout || '';
+}
+
+/**
+ * Invoke the Supabase CLI with an explicit `--project-ref`.
+ *
+ * `--project-ref` is appended by this helper from an already-guarded target, so a
+ * caller cannot accidentally omit it and fall through to the linked project.
+ */
+export function runSupabaseForTarget(target, argv, { stdio = 'pipe' } = {}) {
+  if (!target || !target.projectRef) {
+    throw new Error('runSupabaseForTarget called without a guarded target');
+  }
+  return runSupabase([...argv, '--project-ref', target.projectRef], { stdio });
+}
+
+/**
+ * Invoke a Supabase CLI command that only accepts `--linked` (notably `db push`,
+ * which has no `--project-ref` flag).
+ *
+ * The link is *constrained by* the guarded target, never a source of it: the
+ * project is linked to the already-authorized reference, the on-disk link marker
+ * is then read back and asserted to equal that reference, and the command runs
+ * only if they match. A pre-existing link to any other project — production
+ * included — is overwritten by the authorized target rather than honoured, and a
+ * link that fails to settle on the guarded reference aborts the operation.
+ */
+export function runSupabaseLinkedTo(target, argv, { stdio = 'pipe', root } = {}) {
+  if (!target || !target.projectRef) {
+    throw new Error('runSupabaseLinkedTo called without a guarded target');
+  }
+
+  runSupabase(['link', '--project-ref', target.projectRef, '--yes']);
+
+  const markerPath = path.join(root || process.cwd(), 'supabase', '.temp', 'project-ref');
+  let linked = '';
+  try {
+    linked = fs.readFileSync(markerPath, 'utf8').trim();
+  } catch {
+    throw new Error(`Could not read the link marker at ${markerPath}; refusing to run ${argv[0]}.`);
+  }
+  if (linked !== target.projectRef) {
+    throw new Error(
+      `LINK_MISMATCH: linked project is ${linked} but the authorized target is ${target.projectRef}. Refusing.`,
+    );
+  }
+  console.log(`[guard] link verified: ${linked} === authorized target`);
+
+  return runSupabase([...argv, '--linked'], { stdio });
 }
