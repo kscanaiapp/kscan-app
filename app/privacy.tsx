@@ -31,7 +31,6 @@ import {
   KScanHeader,
   PrimaryButton,
   SecondaryButton,
-  TertiaryButton,
   SectionHeader,
   StatusPill,
   InlineNotice,
@@ -64,7 +63,7 @@ const PRIVACY_COPY = {
     'K Scan is not designed for facial recognition or identifying people.',
   ],
   deletion:
-    'You can request account deletion from this screen. Your request will be reviewed and processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.',
+    'Your account will be deactivated immediately. You will have 30 days to restore it before your account and associated data are permanently deleted, subject to required legal retention.',
 };
 
 const SYNC_STATUS_LABELS: Record<string, string> = {
@@ -265,7 +264,7 @@ export default function PrivacyScreen() {
   };
 
   const confirmDeletion = async () => {
-    setDeletionConfirmVisible(false);
+    if (deletionSubmitting) return;
     setDeletionSubmitting(true);
     try {
       // The service normalizer owns the backend field names. `accepted` means an
@@ -274,6 +273,7 @@ export default function PrivacyScreen() {
       // later, restorable-window-gated step.
       const result = await submitAccountDeletionRequest(supabase, session);
       setDeletionPending(true);
+      setDeletionConfirmVisible(false);
       const confirmationMessage = result.alreadyRequested
         ? 'Your account deletion request is already active. You have been signed out.'
         : 'Your account deletion request was submitted. You have been signed out.';
@@ -311,6 +311,7 @@ export default function PrivacyScreen() {
       );
     } catch (error) {
       console.error('Account deletion request failed', error);
+      setDeletionConfirmVisible(false);
       setMessage("We couldn't submit your request right now. Please try again later.");
       setDeletionSubmitting(false);
     }
@@ -362,7 +363,9 @@ export default function PrivacyScreen() {
         transparent
         visible={deletionConfirmVisible}
         animationType="fade"
-        onRequestClose={() => setDeletionConfirmVisible(false)}
+        onRequestClose={() => {
+          if (!deletionSubmitting) setDeletionConfirmVisible(false);
+        }}
       >
         <View style={styles.modalScrim}>
           <View style={styles.modalCard}>
@@ -370,20 +373,25 @@ export default function PrivacyScreen() {
             <Text style={styles.modalBody}>{PRIVACY_COPY.deletion}</Text>
             <View style={styles.modalActions}>
               <SecondaryButton
-                title="Cancel"
-                onPress={() => setDeletionConfirmVisible(false)}
+                title="CANCEL"
+                onPress={() => {
+                  if (!deletionSubmitting) setDeletionConfirmVisible(false);
+                }}
                 disabled={deletionSubmitting}
                 style={styles.modalButton}
+                textStyle={styles.modalButtonText}
                 accessibilityLabel="Cancel account deletion"
+                accessibilityHint="Closes this dialog without making any changes"
               />
-              <TertiaryButton
-                title="Delete"
+              <PrimaryButton
+                title="DELETE ACCOUNT"
                 onPress={confirmDeletion}
                 disabled={deletionSubmitting}
-                style={styles.modalButton}
-                textStyle={{ color: LUXURY.colors.error }}
-                accessibilityLabel="Confirm account deletion"
-                accessibilityHint="Permanently request account deletion"
+                loading={deletionSubmitting}
+                style={styles.modalDeleteButton}
+                textStyle={styles.modalButtonText}
+                accessibilityLabel="Delete account"
+                accessibilityHint="Permanently requests deletion of your account after a 30 day restoration window"
               />
             </View>
           </View>
@@ -792,10 +800,32 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   modalActions: {
-    flexDirection: 'row',
-    gap: SPACING.md,
+    flexDirection: 'column',
+    width: '100%',
+    gap: 12,
   },
   modalButton: {
-    flex: 1,
+    width: '100%',
+    minHeight: 52,
+    height: 52,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDeleteButton: {
+    width: '100%',
+    minHeight: 52,
+    height: 52,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: LUXURY.colors.error,
+  },
+  modalButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0,
+    textTransform: 'none',
   },
 });
