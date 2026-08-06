@@ -87,6 +87,8 @@ export type SelectionCandidate = {
   /** What the user is choosing between. Enough to render, not to shop. */
   label: string | null;
   category: string | null;
+  /** Phase 7. See `SanitizedDetectedGarment.clothingType` in multiItemGarments.ts. */
+  clothingType: string | null;
   subtype: string | null;
   bounds?: unknown;
   /**
@@ -125,6 +127,7 @@ type RawGarment = {
   candidateId?: unknown;
   label?: unknown;
   category?: unknown;
+  clothingType?: unknown;
   subtype?: unknown;
   bounds?: unknown;
 };
@@ -159,6 +162,7 @@ export function buildSelectionRequiredPayload(input: {
       candidateId,
       label: str(garment.label),
       category: str(garment.category, 60),
+      clothingType: str(garment.clothingType, 60),
       subtype: str(garment.subtype, 60),
       ...(garment.bounds ? { bounds: garment.bounds } : {}),
       selectionToken: { ...input.lineage, candidateId },
@@ -192,6 +196,11 @@ export function buildSelectionRequiredPayload(input: {
  * manifest, so changing its semantics is a wider blast radius than this
  * checkpoint should take. The identity fields are blanked on the way out; the
  * candidates in the V2 envelope are left intact, because those are the answer.
+ *
+ * Phase 7: `clothingType` is exactly the same kind of guessed-primary identity
+ * field as `category` and `subtype` — `normalizeToV2` populates it from the
+ * same identity-bearing path — so it is blanked here too. Leaving it out would
+ * reopen the precise leak this function exists to close, one field over.
  */
 export function suppressV2GuessedIdentity(v2: unknown): unknown {
   if (!v2 || typeof v2 !== 'object' || Array.isArray(v2)) return v2;
@@ -212,6 +221,7 @@ export function suppressV2GuessedIdentity(v2: unknown): unknown {
     item: {
       ...itemRecord,
       category: null,
+      clothingType: null,
       subtype: null,
       brand,
     },
