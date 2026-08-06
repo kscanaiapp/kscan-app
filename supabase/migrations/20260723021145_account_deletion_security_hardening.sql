@@ -221,6 +221,20 @@ grant execute on function public.revoke_user_sessions(uuid) to service_role;
 -- 5. Retry clears purge_started_at; claim requires pending_deletion profile
 -- ---------------------------------------------------------------------------
 
+-- Postgres cannot CREATE OR REPLACE a function across a return-type change:
+-- the 20260722191013 definition below returns text, this one returns
+-- boolean. An explicit drop is required for a clean replay from an empty
+-- database (INFRA-02). No dependent view, trigger, other function, policy,
+-- or scheduled job references this function (reviewed 2026-08-06); grants
+-- are re-issued immediately below regardless.
+drop function if exists public.schedule_deletion_retry_or_fail(
+  uuid,
+  text,
+  text,
+  text,
+  integer
+);
+
 create or replace function public.schedule_deletion_retry_or_fail(
   p_request_id uuid,
   p_worker_id text,
@@ -313,6 +327,19 @@ $$;
 
 revoke all on function public.schedule_deletion_retry_or_fail(uuid, text, text, text, integer) from public;
 grant execute on function public.schedule_deletion_retry_or_fail(uuid, text, text, text, integer) to service_role;
+
+-- Postgres cannot CREATE OR REPLACE a function that renames an existing
+-- input parameter in place: the 20260722191013 definition below names its
+-- third parameter p_lease_interval, this one renames it to p_lease. An
+-- explicit drop is required for a clean replay from an empty database
+-- (INFRA-02). No dependent view, trigger, other function, policy, or
+-- scheduled job references this function (reviewed 2026-08-06); grants are
+-- re-issued immediately below regardless.
+drop function if exists public.claim_deletion_requests_for_purge(
+  text,
+  integer,
+  interval
+);
 
 create or replace function public.claim_deletion_requests_for_purge(
   p_worker_id text,
