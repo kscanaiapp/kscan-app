@@ -2,16 +2,35 @@
 
 name: Security - Promotion Gate
 
-# Triggered ONLY by the completion of each upstream security workflow, never
-# directly by push/pull_request. Direct triggers used to start this job racing
-# in parallel with the workflows whose results it reads — on a push, all five
-# workflows fired within the same three seconds, so a fixed wait/poll here was
-# the only thing standing between it and evaluating an empty check-run list.
-# workflow_run guarantees at least one required check has just finished before
-# this ever runs; a single non-blocking pass then either reaches a final
-# verdict or reports PENDING for the next upstream completion to pick up. See
-# security/scripts/evaluate-promotion-gate.js for the non-blocking evaluation.
+# TRIGGER CORRECTION (2026-08-06, same day as the rename fix below): a first
+# version of this fix moved to `workflow_run`-only triggering to avoid racing
+# the four upstream workflows. That was wrong for THIS repo specifically:
+# GitHub only evaluates `workflow_run` (and `workflow_dispatch`) trigger
+# definitions from the copy of the workflow file on the DEFAULT branch, and
+# master carries no .github/workflows at all. Every historical run of this
+# workflow was push/pull_request-triggered — workflow_run has never once fired
+# it, before or after that change — so removing push/pull_request made the
+# gate never run at all, silently, which is worse than the 20-minute timeout
+# it replaced. `workflow_run` is kept below for forward compatibility (it
+# starts working for free if the workflow files are ever published to
+# master) but push/pull_request is restored as the trigger that actually works.
+#
+# The race this created (all five workflows starting within ~3 seconds of a
+# push) is handled differently now: evaluate-promotion-gate.js's required-check
+# names are corrected (see below) so the bounded wait below actually converges
+# — observed upstream completion times top out around 2 minutes, so a 5-minute
+# ceiling is generous headroom, not a blind 20-minute wait for names that could
+# never match.
 on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - "**"
   workflow_run:
     workflows:
       - Security - Code and Dependencies
@@ -30,18 +49,18 @@ jobs:
   security-promotion-gate:
     name: Security promotion gate
     runs-on: ubuntu-latest
-    # A single non-blocking pass completes in seconds; 30 minutes was sized for
-    # the old 20-minute internal poll, which no longer exists.
-    timeout-minutes: 5
-    if: github.event.workflow_run.conclusion != 'cancelled'
+    timeout-minutes: 10
+    if: |
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion != 'cancelled'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The upstream workflow's head_sha, not whatever ref this workflow
-          # file itself lives on — evaluation must read the candidate's own
-          # security/scripts/evaluate-promotion-gate.js, not the default branch's.
-          ref: ${{ github.event.workflow_run.head_sha }}
+          # On workflow_run this is the upstream workflow's head_sha rather
+          # than whatever ref this file itself lives on; on push/pull_request
+          # it defaults to the triggering ref, which is already correct.
+          ref: ${{ github.event.workflow_run.head_sha || '' }}
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -52,8 +71,21 @@ jobs:
         id: sha
         run: |
           set -euo pipefail
-          SHA="${{ github.event.workflow_run.head_sha }}"
-          PR="${{ github.event.workflow_run.pull_requests[0].number }}"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            PR="${{ github.event.workflow_run.pull_requests[0].number }}"
+            # workflow_run already means one required workflow just finished —
+            # only a short settle-wait is needed for the rest.
+            echo "wait_seconds=30" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            SHA="${{ github.event.pull_request.head.sha }}"
+            PR="${{ github.event.pull_request.number }}"
+            echo "wait_seconds=300" >> "$GITHUB_OUTPUT"
+          else
+            SHA="${{ github.sha }}"
+            PR=""
+            echo "wait_seconds=300" >> "$GITHUB_OUTPUT"
+          fi
           echo "head_sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "merge_sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "pull_request=${PR:-n/a}" >> "$GITHUB_OUTPUT"
@@ -68,14 +100,17 @@ jobs:
             --repo "${{ github.repository }}" \
             --sha "${{ steps.sha.outputs.head_sha }}" \
             --token "${{ github.token }}" \
-            --wait-seconds 30 || EC=$?
+            --wait-seconds "${{ steps.sha.outputs.wait_seconds }}" || EC=$?
           if [ -f security/reports/promotion-verdict.json ]; then
             VERDICT="$(python3 -c "import json; print(json.load(open('security/reports/promotion-verdict.json', encoding='utf-8'))['finalVerdict'])")"
             echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"
           fi
-          # PASS and PENDING both exit 0 from the evaluator itself — PENDING
-          # means another required workflow hasn't finished yet, and this job
-          # runs again on its completion, so it is not a job failure here.
+          # PASS and PENDING both exit 0 from the evaluator itself. PENDING on
+          # the workflow_run path means another required workflow hasn't
+          # finished yet and this job runs again on its completion; on the
+          # push/pull_request path (the one that actually fires here) the
+          # 5-minute wait above should already have resolved everything, so a
+          # PENDING result there is itself worth surfacing, not silently OK.
           exit ${EC:-0}
 
       - name: Publish promotion gate summary
