@@ -12,25 +12,32 @@
 #   report validation, and exact-SHA staging-deployment binding so a scan can
 #   no longer be misread as evidence for a SHA that isn't what's deployed.
 #
-# SHA binding: automatic triggers are restricted to the canonical staging
-# branch (staging/production-parity) — this workflow no longer runs for
-# arbitrary feature/recovery/audit branches. The job also resolves the SHA
-# GitHub actually has recorded as the latest successful `staging` environment
-# deployment and records candidate/deployed SHA + their match in diagnostics
-# and in the run summary. A mismatch does not fail this report-only scan (ZAP
-# is still validly probing whatever is live), but it is recorded so
-# downstream evidence/promotion logic can refuse to treat the run as
-# exact-SHA proof when it isn't one.
+# SHA binding: dynamic scanning only actually runs for the canonical staging
+# branch (staging/production-parity) — enforced by the "Check approved ZAP
+# variables" step's branch-authority check below, not by a trigger-level
+# branch filter. (2026-08-06, second pass: a trigger-level filter was tried
+# first and reverted — it broke evaluate-promotion-gate.js's required-check
+# evaluation, which looks up this check-run by name for ANY candidate SHA
+# regardless of what branch a PR targets. A trigger-level filter means the
+# check-run does not exist at all for a SHA whose PR targets e.g. `master`,
+# which evaluate-promotion-gate.js reports as OPERATIONAL FAILURE
+# ["missing check"] rather than the "skipped" it already knows how to
+# accept — permanently blocking any such PR. A job-level skip keeps the
+# check-run existing-but-skipped for non-staging branches, matching the
+# same pattern security-staging-gate.yml's own jobs already use.) The job
+# also resolves the SHA GitHub actually has recorded as the latest
+# successful `staging` environment deployment and records candidate/
+# deployed SHA + their match in diagnostics and in the run summary. A
+# mismatch does not fail this report-only scan (ZAP is still validly
+# probing whatever is live), but it is recorded so downstream evidence/
+# promotion logic can refuse to treat the run as exact-SHA proof when it
+# isn't one.
 
 name: Security - ZAP Baseline Staging
 
 on:
   push:
-    branches:
-      - staging/production-parity
   pull_request:
-    branches:
-      - staging/production-parity
   workflow_dispatch:
     inputs:
       candidate_sha:
@@ -114,13 +121,38 @@ jobs:
             echo "::warning title=SHA not exact-match::candidate_sha=${CANDIDATE_SHA} deployed_staging_sha=${DEPLOYED_SHA:-<none>} — this run cannot serve as exact-SHA staging evidence for the candidate."
           fi
 
-      - name: Check approved ZAP variables
+      - name: Check approved ZAP variables and branch authority
         id: vars
         env:
           ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
           ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
         run: |
           set -euo pipefail
+          # Dynamic scanning only ever actually runs for the canonical staging
+          # branch — workflow_dispatch is always an explicit, authorized manual
+          # invocation regardless of ref. See the file header for why this is a
+          # job-level skip rather than a trigger-level branch filter.
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "${TARGET_BRANCH}" != "staging/production-parity" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## OWASP ZAP Baseline"
+              echo
+              echo "ZAP Baseline was not executed because the target branch"
+              echo "(${TARGET_BRANCH}) is not the canonical staging branch"
+              echo "(staging/production-parity)."
+              echo
+              echo "| Field | Value |"
+              echo "| --- | --- |"
+              echo "| Repository | ${GITHUB_REPOSITORY} |"
+              echo "| Target branch | ${TARGET_BRANCH} |"
+              echo "| Commit SHA | ${GITHUB_SHA} |"
+              echo "| Event type | ${GITHUB_EVENT_NAME} |"
+              echo "| Scanner name | OWASP ZAP Baseline |"
+              echo "| Report-only verdict | SKIPPED_UNAUTHORIZED_BRANCH |"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ -z "${ZAP_STAGING_URL}" ] || [ -z "${ZAP_ALLOWED_HOST}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
             {

@@ -8,28 +8,33 @@
 #   -O <hostname>   hostname override for the OpenAPI servers (NOT a file path)
 #   -S              safe mode (no active attack phase)
 #
-# 2026-08-06 SHA-binding repair: this workflow previously triggered on
-# `push: branches: ["**"]` and any `pull_request` regardless of base branch —
-# a `protected_pr` output was computed from PROTECTED_BASE_BRANCHES but never
-# actually used to gate execution, so every push to every branch ran a live
-# ZAP scan against the shared staging target. That is exactly the "dynamic
-# ZAP for arbitrary feature/recovery/audit branches" failure mode the
-# security funnel must not have. Triggers are now restricted to the
-# canonical staging branch (staging/production-parity); the dead
-# PROTECTED_BASE_BRANCHES/protected_pr logic is removed since the trigger
-# filter now does that job natively. Candidate vs. actually-deployed staging
-# SHA is also resolved and recorded so a scan can't be misread as exact-SHA
-# evidence for a candidate that isn't what's live.
+# 2026-08-06 SHA-binding repair (first pass): this workflow previously
+# triggered on `push: branches: ["**"]` and any `pull_request` regardless of
+# base branch — a `protected_pr` output was computed from
+# PROTECTED_BASE_BRANCHES but never actually used to gate execution, so
+# every push to every branch ran a live ZAP scan against the shared staging
+# target. Triggers were restricted to staging/production-parity to fix that.
+#
+# 2026-08-06 branch-caused-failure repair (second pass): the trigger-level
+# branch filter above broke evaluate-promotion-gate.js's required-check
+# evaluation for any PR NOT targeting staging/production-parity (e.g. one
+# targeting master) — it looks up this check-run by name for the candidate
+# SHA regardless of what branch the PR targets, and a trigger-level filter
+# means the check-run does not exist at all in that case (OPERATIONAL
+# FAILURE ["missing check"], not the "skipped" it already knows how to
+# accept — permanently blocking such PRs). Reverted to an unconditional
+# trigger with a job-level branch-authority skip instead, matching
+# security-staging-gate.yml's own always-fires/jobs-skip pattern. Dynamic
+# scanning still only actually runs for staging/production-parity —
+# enforced in "Resolve scan context" below, not by the trigger. Candidate
+# vs. actually-deployed staging SHA is resolved and recorded so a scan
+# can't be misread as exact-SHA evidence for a candidate that isn't live.
 
 name: Security - ZAP API Staging
 
 on:
   push:
-    branches:
-      - staging/production-parity
   pull_request:
-    branches:
-      - staging/production-parity
     types:
       - opened
       - synchronize
@@ -69,11 +74,58 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Check branch authority and target configuration
+        id: gate
+        env:
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Dynamic scanning only ever actually runs for the canonical staging
+          # branch — workflow_dispatch is always an explicit, authorized manual
+          # invocation regardless of ref. See the file header for why this is a
+          # job-level skip rather than a trigger-level branch filter.
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "${TARGET_BRANCH}" != "staging/production-parity" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## OWASP ZAP API Safe Scan"
+              echo
+              echo "ZAP API was not executed because the target branch"
+              echo "(${TARGET_BRANCH}) is not the canonical staging branch"
+              echo "(staging/production-parity)."
+              echo
+              echo "| Field | Value |"
+              echo "| --- | --- |"
+              echo "| Repository | ${GITHUB_REPOSITORY} |"
+              echo "| Target branch | ${TARGET_BRANCH} |"
+              echo "| Commit SHA | ${GITHUB_SHA} |"
+              echo "| Event type | ${GITHUB_EVENT_NAME} |"
+              echo "| Scanner name | OWASP ZAP API Safe Scan |"
+              echo "| Report-only verdict | SKIPPED_UNAUTHORIZED_BRANCH |"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -z "${SUPABASE_STAGING_URL}" ] && [ -z "${ZAP_ALLOWED_HOST}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## OWASP ZAP API Safe Scan"
+              echo
+              echo "ZAP API was not executed because neither SUPABASE_STAGING_URL"
+              echo "nor ZAP_ALLOWED_HOST is configured."
+              echo "| Report-only verdict | SKIPPED_MISSING_VARS |"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
       - name: Create mandatory diagnostics directory
+        if: steps.gate.outputs.configured == 'true'
         run: install -d -m 0777 zap-api-out/diagnostics
 
       - name: Resolve candidate and deployed staging SHA
         id: shas
+        if: steps.gate.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
@@ -121,6 +173,7 @@ jobs:
 
       - name: Resolve scan context
         id: context
+        if: steps.gate.outputs.configured == 'true'
         env:
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
@@ -147,11 +200,13 @@ jobs:
           fi
 
       - name: Validate staging target host
+        if: steps.gate.outputs.configured == 'true'
         run: |
           set -euo pipefail
           node security/scripts/validate-zap-target.js "${{ steps.context.outputs.staging_base }}" "${{ steps.context.outputs.allowed_host }}" | tee zap-api-out/diagnostics/target-validation.txt
 
       - name: Pre-pull ZAP image
+        if: steps.gate.outputs.configured == 'true'
         run: |
           set -euo pipefail
           docker version > zap-api-out/diagnostics/docker-version.txt 2>&1 || true
@@ -165,6 +220,7 @@ jobs:
 
       - name: Run ZAP API safe scan
         id: zap_api
+        if: steps.gate.outputs.configured == 'true'
         env:
           PR_HEAD_SHA: ${{ steps.shas.outputs.candidate_sha }}
           ZAP_ACTIVE_ENABLED: ${{ vars.ZAP_ACTIVE_ENABLED }}
@@ -244,7 +300,7 @@ jobs:
           esac
 
       - name: Validate mandatory reports
-        if: always()
+        if: always() && steps.gate.outputs.configured == 'true'
         run: |
           set -euo pipefail
           REQUIRED="zap-api-out/zap-api-report.html zap-api-out/zap-api-report.json zap-api-out/zap-api-report.md zap-api-out/zap-api-console.log"
@@ -276,7 +332,7 @@ jobs:
           fi
 
       - name: Summarize ZAP API results
-        if: always() && hashFiles('zap-api-out/zap-api-report.json') != ''
+        if: always() && steps.gate.outputs.configured == 'true' && hashFiles('zap-api-out/zap-api-report.json') != ''
         env:
           SCANNER_NAME: OWASP ZAP API Safe Scan
           SCANNER_VERSION: ${{ env.ZAP_VERSION }}

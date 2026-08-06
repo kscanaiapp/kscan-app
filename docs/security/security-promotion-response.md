@@ -31,13 +31,27 @@
 
 ## Emergency bypass
 
-Branch ruleset allows **OrganizationAdmin** bypass only. Every bypass must be:
+2026-08-06: the branch ruleset has **no bypass actors at all**
+(`bypass_actors: []`) — `kscanaiapp/kscan-app` is a personal-account
+repository, not a GitHub organization, so the `OrganizationAdmin`/`Team`
+bypass actor types this doc previously described are not valid for it (the
+Rulesets API rejects them outright: "ruleset source must be in an
+organization"). This applies to the repo owner too; there is no user or
+role that can push past the required checks while the ruleset is active.
+
+To bypass in a genuine emergency, a repo admin must temporarily disable or
+delete the ruleset itself via the GitHub UI or `gh api --method PATCH
+repos/kscanaiapp/kscan-app/rulesets/<id> -f enforcement=disabled` (or
+`--method DELETE`), then re-apply it via
+`security/scripts/apply-branch-ruleset.sh` once the emergency is resolved.
+Every such bypass must be:
 
 - Recorded in incident log
 - Retested within 24 hours
 - Followed by a corrective PR
 
-Identity: GitHub organization administrators for `kscanaiapp`.
+Identity: the repository owner (`kscanaiapp`), the only account with the
+permission this action requires.
 
 ## Promotion procedure (normal)
 
