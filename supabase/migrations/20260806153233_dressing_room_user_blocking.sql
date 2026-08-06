@@ -101,6 +101,16 @@ create index dressing_room_participants_active_idx
 
 -- ── 3. Internal (unexposed-schema) pair-relationship helpers ────────────
 
+-- The header above notes `internal` is "an existing" schema, which holds on
+-- any database that already ran 20260804090000_edge_function_errors.sql —
+-- but that migration is not part of this branch's migration set, so a clean
+-- replay from an empty database failed here with:
+--   ERROR: schema "internal" does not exist (SQLSTATE 3F000)
+-- Create it idempotently so this migration carries its own prerequisite.
+-- No-op wherever the schema already exists, so hosted databases are
+-- unaffected and no existing grant or ownership is altered.
+create schema if not exists internal;
+
 create or replace function internal.is_dressing_room_pair_blocked(user_a uuid, user_b uuid)
  returns boolean
  language sql
