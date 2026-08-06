@@ -6,11 +6,11 @@
     "backend": [
       {
         "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-        "sha256": "da4aa4210ae3bbf4ff878e5ca34165e95b45c1584a7b4217b6baed59d13a99fe"
+        "sha256": "1b15888dc434fba0bbd3bd242254dd111d29a9b9a76dd6a8bcecb0b566bad813"
       },
       {
         "path": "supabase/functions/scan-identify/index.ts",
-        "sha256": "4a5234364a57f5a79a6f15133277aa55e4c66f7baf34a0c259675cc43c3df820"
+        "sha256": "938ca14476e63f70397195d25ab47dabfa6c4509bfff4feb3718631c2cff751f"
       },
       {
         "path": "supabase/functions/scan-identify/v2Activation.ts",
