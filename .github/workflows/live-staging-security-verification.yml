@@ -1,0 +1,128 @@
+# Live staging RLS/grant/Storage verification (Phase 3 of the staging
+# security funnel). Unlike the unit-tested guard scripts
+# (anon-grant-guard.js, rls-storage-guard.js), which had no CI data source
+# before this workflow, this queries the ACTUAL live state of K Scan AI
+# Staging via the Supabase Management API's SQL endpoint, authenticated with
+# the repo's existing SUPABASE_ACCESS_TOKEN secret -- no new
+# database-connection credential was required.
+#
+# Every query is a hardcoded, reviewed read-only SELECT (see
+# security/scripts/query-staging-metadata.js QUERIES) run inside an explicit
+# `BEGIN READ ONLY` transaction with a short statement timeout. Only a
+# genuine PASS gives this job a passing conclusion -- a missing credential
+# reports NOT_CONFIGURED and still fails the check, since an unverified
+# state must never be mistaken for a verified-secure one.
+#
+# Trigger fires unconditionally (not branch-filtered) and a job-level check
+# gates the actual verification to the canonical staging branch instead --
+# the same fix applied to zap-baseline-staging.yml/zap-api-staging.yml the
+# same day: a trigger-level branch filter makes this check-run not exist at
+# all for a PR targeting e.g. master, which evaluate-promotion-gate.js
+# reports as OPERATIONAL FAILURE ["missing check"] rather than the
+# "skipped" it already knows how to accept, permanently blocking such PRs.
+#
+# `environment: staging` gates secret access the same way every other
+# staging-touching job in this repo does. Fork pull_request runs already
+# cannot see repository secrets at all under GitHub's default `pull_request`
+# trigger semantics (this workflow deliberately does not use
+# pull_request_target, which would change that) -- environment gating is
+# defense in depth on top of that, not the only protection.
+
+name: Security - Live Staging Verification
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-staging-verification:
+    name: Live staging verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Check branch authority
+        id: gate
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "${TARGET_BRANCH}" != "staging/production-parity" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Live staging RLS/grant/Storage verification"
+              echo
+              echo "Not executed: target branch (${TARGET_BRANCH}) is not the"
+              echo "canonical staging branch (staging/production-parity)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Run live RLS/grant/Storage verification
+        id: verify
+        if: steps.gate.outputs.configured == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          set +e
+          node security/scripts/verify-live-staging-security.js \
+            --project-ref "${PROJECT_REF:-yzqjvdfgefveprobvvyw}" \
+            --timeout-ms 8000 \
+            --json live-staging-verification-report.json
+          CODE=$?
+          set -e
+          echo "exit_code=${CODE}" >> "$GITHUB_OUTPUT"
+          OVERALL="$(python3 -c "import json; print(json.load(open('live-staging-verification-report.json'))['overall'])")"
+          echo "overall=${OVERALL}" >> "$GITHUB_OUTPUT"
+
+      - name: Write summary
+        if: always() && steps.gate.outputs.configured == 'true' && hashFiles('live-staging-verification-report.json') != ''
+        run: |
+          set -euo pipefail
+          {
+            echo "## Live staging RLS/grant/Storage verification"
+            echo
+            echo "Overall: **${{ steps.verify.outputs.overall }}**"
+            echo
+            echo '```json'
+            cat live-staging-verification-report.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload verification report
+        if: always() && steps.gate.outputs.configured == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: live-staging-verification-${{ github.run_number }}
+          path: live-staging-verification-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce verdict
+        if: steps.gate.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.verify.outputs.exit_code }}" != "0" ]; then
+            echo "Live staging verification did not PASS (overall: ${{ steps.verify.outputs.overall }}). See live-staging-verification-report.json for detail. A NOT_CONFIGURED or OPERATIONAL_FAILURE result blocks the same as a real FAIL -- an unverified state is never treated as verified-secure."
+            exit 1
+          fi
+          echo "Live staging verification PASSED."

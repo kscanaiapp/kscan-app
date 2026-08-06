@@ -58,8 +58,10 @@ const ALWAYS_REQUIRED_CHECKS = [
 const DEPLOYMENT_REQUIRED_CHECKS = [
   'Staging health checks',
   'Synthetic auth tests',
+  'Authorization-negative tests', // added 2026-08-06 — new job in security-staging-gate.yml, same deploy-gating as Synthetic auth tests
   'ZAP Baseline (staging)', // was 'ZAP Baseline staging' — parens are load-bearing
   'ZAP API staging',
+  'Live staging verification', // added 2026-08-06 — live RLS/grant/Storage check, same skip-on-non-staging-branch pattern as ZAP
 ];
 
 /**
@@ -115,6 +117,8 @@ const BLOCKING_KEYS = new Set([
   'candidateShaMismatch',
   'zapConfigurationMissingOnProtectedPr',
   'artifactExposureFailure',
+  'liveStagingVerificationFailure',
+  'authorizationNegativeTestFailure',
 ]);
 
 async function githubRequest(url, token) {
@@ -191,8 +195,14 @@ function classifyCheckFailure(name, conclusion) {
   if (name === 'Synthetic auth tests') {
     return { key: 'authTestFailure', detail: `${name}: ${conclusion}` };
   }
+  if (name === 'Authorization-negative tests') {
+    return { key: 'authorizationNegativeTestFailure', detail: `${name}: ${conclusion}` };
+  }
   if (name === 'Candidate Artifact Exposure Gate') {
     return { key: 'artifactExposureFailure', detail: `${name}: ${conclusion}` };
+  }
+  if (name === 'Live staging verification') {
+    return { key: 'liveStagingVerificationFailure', detail: `${name}: ${conclusion}` };
   }
   return { key: 'upstreamFailure', detail: `${name}: ${conclusion}` };
 }

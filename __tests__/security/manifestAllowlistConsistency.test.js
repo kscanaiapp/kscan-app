@@ -41,9 +41,9 @@ test('every anon-allowlist entry has a corresponding manifest RPC surface', () =
   }
 });
 
-test('the manifest RPC surfaces are exactly get_public_room_preview and get_item_reaction_counts (no untracked public RPC exists yet)', () => {
+test('the manifest RPC surfaces are exactly the three reviewed public RPCs (no untracked public RPC exists yet)', () => {
   const names = manifest.surfaces.filter((s) => s.type === 'supabase_rpc').map((s) => s.name).sort();
-  assert.deepEqual(names, ['get_item_reaction_counts', 'get_public_room_preview']);
+  assert.deepEqual(names, ['get_item_reaction_counts', 'get_public_room_decision_preview', 'get_public_room_preview']);
 });
 
 test('manifest and allowlist stay in exact 1:1 correspondence (same length, same names)', () => {

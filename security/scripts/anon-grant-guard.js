@@ -28,6 +28,13 @@ const ANON_EXECUTE_ALLOWLIST = [
   // the room have an active, non-revoked, non-expired share. See
   // supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql.
   'get_item_reaction_counts',
+  // Same opaque-share-token pattern as get_public_room_preview: validates
+  // the token by regex before any query, gated entirely by an active,
+  // non-revoked, non-expired room_shares row. Reviewed 2026-08-06 alongside
+  // supabase/migrations/20260806140000_close_unintended_anon_rpc_surface.sql,
+  // which revoked anon EXECUTE from the 22 other functions live
+  // introspection found ungranted-but-unreviewed on that same date.
+  'get_public_room_decision_preview',
 ];
 
 // liveGrants: [{ functionName, anonCanExecute }]. Returns functions with
