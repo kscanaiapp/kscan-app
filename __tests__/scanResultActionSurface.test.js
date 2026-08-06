@@ -66,8 +66,21 @@ test('the pinned action row background is opaque', () => {
 });
 
 test('the pinned review CTA background is opaque too', () => {
-  // The second bar on the same screen. Fixing only one leaves the defect.
-  const wrap = styleBlock(stripComments(read(RESULT_V2)), 'reviewCtaWrap');
+  // PLATFORM DIVERGENCE, deliberate: the candidate-review mode and its second
+  // pinned bar are Android-only — this line has no MultiItemResultNavigator and
+  // no reviewCtaWrap. Asserted only where the surface exists, so the Android
+  // line cannot quietly lose the fix and the iOS line cannot fail for a bar it
+  // does not render.
+  const source = stripComments(read(RESULT_V2));
+  if (!source.includes('reviewCtaWrap: {')) {
+    assert.equal(
+      source.includes('candidateReview'),
+      false,
+      'a review surface exists but declares no pinned bar — re-check this gate',
+    );
+    return;
+  }
+  const wrap = styleBlock(source, 'reviewCtaWrap');
   assert.match(wrap, /backgroundColor:/);
   assert.equal(TRANSLUCENT.test(wrap), false);
   assert.equal(/opacity:/.test(wrap), false);

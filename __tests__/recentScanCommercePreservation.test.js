@@ -174,6 +174,11 @@ function purchaseOption() {
   };
 }
 
+/** The retailer destination, whichever key this platform canonicalizes it to. */
+function destinationOf(option) {
+  return option?.productUrl ?? option?.purchaseUrl ?? option?.url ?? null;
+}
+
 async function saveScanWithCommerce(env, disk) {
   disk.files.set('/picked/scan.jpg', Buffer.from('scan').toString('base64'));
   env.actorContext.advanceActorEpoch('user-a');
@@ -236,9 +241,12 @@ test('a saved scan keeps retailer, price, currency and destination URL', async (
   assert.equal(option.retailer, 'Example Retailer');
   assert.equal(option.price, '189.00');
   assert.equal(option.currency, 'USD');
-  assert.equal(option.productUrl, DESTINATION);
-  assert.equal(option.purchaseUrl, DESTINATION);
-  assert.match(option.productUrl, /^https:\/\//, 'the destination must remain an HTTPS URL');
+  // PLATFORM DIVERGENCE, deliberate: the Android line keeps productUrl and
+  // purchaseUrl as supplied; the iOS canonicalizer collapses them into a single
+  // productUrl. What must be equivalent is that the DESTINATION survives, not
+  // which key carries it.
+  assert.equal(destinationOf(option), DESTINATION);
+  assert.match(destinationOf(option), /^https:\/\//, 'the destination must remain an HTTPS URL');
 });
 
 test('commerce survives a COLD RELOAD, not just a warm read', async () => {
@@ -254,7 +262,7 @@ test('commerce survives a COLD RELOAD, not just a warm read', async () => {
   assert.equal(option.retailer, 'Example Retailer');
   assert.equal(option.price, '189.00');
   assert.equal(option.currency, 'USD');
-  assert.equal(option.productUrl, DESTINATION);
+  assert.equal(destinationOf(option), DESTINATION);
 });
 
 test('the reopened scan carries full commerce, not a lightweight list projection', async () => {
@@ -263,12 +271,13 @@ test('the reopened scan carries full commerce, not a lightweight list projection
   const [scan] = await boot(disk).library.loadLibrary('user-a');
 
   // A detail view that only got id/title/thumbnail would render no commerce.
-  for (const field of ['retailer', 'price', 'currency', 'productUrl']) {
+  for (const field of ['retailer', 'price', 'currency']) {
     assert.ok(
       Object.prototype.hasOwnProperty.call(scan.purchaseOptions[0], field),
       `${field} must survive into the reopened record`,
     );
   }
+  assert.equal(destinationOf(scan.purchaseOptions[0]), DESTINATION);
 });
 
 // ── Promotion is non-destructive and commerce-free ───────────────────────────
@@ -442,5 +451,9 @@ test('NEGATIVE CONTROL: a lost destination URL after reload would be detected', 
 
   const scans = await boot(disk).library.loadLibrary('user-a');
   const option = scans[0].purchaseOptions[0];
-  assert.notEqual(option?.productUrl, DESTINATION, 'a dropped merchant URL must not read as preserved');
+  assert.notEqual(
+    destinationOf(option),
+    DESTINATION,
+    'a dropped merchant URL must not read as preserved',
+  );
 });
