@@ -6,13 +6,32 @@
 # per-commit check.
 #
 # This workflow does not build, deploy, or merge anything. It locates the
-# most recent completed runs of the four upstream security workflows FOR
-# THE EXACT candidate SHA, downloads their evidence artifacts, assembles the
+# most recent completed runs of the upstream security workflows FOR THE
+# EXACT candidate SHA, downloads their evidence artifacts, assembles the
 # exact-SHA evidence bundle (build-security-evidence.js), and derives the
-# Pre-Publish verdict (build-pre-publish-verdict.js) from it. Verdict
-# artifacts are always produced, including when BLOCKED or an
-# OPERATIONAL FAILURE prevents evaluation — a silent gate is worse than one
-# that fails loudly.
+# Pre-Publish verdict (build-pre-publish-verdict.js) from it.
+#
+# STRUCTURE — why it is three jobs rather than one:
+#
+# This gate previously finished as "No jobs were run" (runs 31111680352,
+# 31112532309, 31120887611 — all total_jobs: 0). Root cause was a workflow
+# file that failed GitHub's schema validation outright, so no job could be
+# enumerated and no verdict could exist. A gate that can report nothing is
+# indistinguishable from a gate that passed, which is the single most
+# dangerous state a security control can occupy.
+#
+# The structure below makes that unrepresentable:
+#
+#   prepublish-preflight  carries NO eligibility `if:`. If the workflow
+#                         triggers at all, this job runs. Every eligibility
+#                         question is answered in executable steps, not in a
+#                         condition that could skip the job.
+#   evaluate-candidate    may skip — but only on preflight's explicit
+#                         instruction, and its skipping is itself recorded.
+#   publish-verdict       `if: always()`. Runs on success, failure, skip,
+#                         and cancellation of everything above it, and is
+#                         the only job that decides this workflow's
+#                         conclusion. It always writes a verdict.
 
 name: Security - Pre-Publish Release Security Gate
 
@@ -32,20 +51,29 @@ permissions:
   # GITHUB_TOKEN cannot be granted ruleset/branch-protection read access
   # this way at all (that's a GitHub App permission concept, not a workflow
   # permissions key; a workflow declaring it fails GitHub's schema
-  # validation outright and never runs). The "Check branch protection
-  # status" step below already treats a failed/empty rulesets query as
-  # READY_NOT_APPLIED rather than assuming PASS, so no elevated permission
-  # is required for this workflow to behave correctly either way.
+  # validation outright and never runs — the original "No jobs were run"
+  # defect). The branch-protection step treats a failed/empty rulesets
+  # query as READY_NOT_APPLIED rather than assuming PASS, so no elevated
+  # permission is required for correct behavior.
 
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:
-  pre-publish-release-security-gate:
-    name: Pre-Publish Release Security Gate
+  # ── Always runs. No eligibility condition of any kind. ──────────────────
+  prepublish-preflight:
+    name: Pre-publish preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    outputs:
+      eligible: ${{ steps.preflight.outputs.eligible }}
+      candidate_sha: ${{ steps.preflight.outputs.candidate_sha }}
+      staging_validated_sha: ${{ steps.preflight.outputs.staging_validated_sha }}
+      sha_match: ${{ steps.preflight.outputs.sha_match }}
+      evidence_available: ${{ steps.preflight.outputs.evidence_available }}
+      preflight_verdict: ${{ steps.preflight.outputs.preflight_verdict }}
+      preflight_reason: ${{ steps.preflight.outputs.preflight_reason }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,31 +85,40 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Confirm candidate SHA is reachable from the canonical staging branch
+      # Resolve the facts preflight needs. Every lookup is failure-tolerant:
+      # an unresolvable value becomes an explicit "false"/empty that
+      # preflight classifies, never an aborted job.
+      - name: Resolve candidate facts
+        id: facts
         env:
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
-          set -euo pipefail
-          if ! git cat-file -e "${CANDIDATE_SHA}^{commit}" 2>/dev/null; then
-            echo "::error::candidate_sha ${CANDIDATE_SHA} does not exist in this checkout"
-            exit 3
+          set -uo pipefail
+          SHA_EXISTS=false
+          if [ -n "${CANDIDATE_SHA:-}" ] && git cat-file -e "${CANDIDATE_SHA}^{commit}" 2>/dev/null; then
+            SHA_EXISTS=true
           fi
-          git fetch origin staging/production-parity --quiet
-          if ! git merge-base --is-ancestor "${CANDIDATE_SHA}" origin/staging/production-parity; then
-            echo "::error::candidate_sha ${CANDIDATE_SHA} is not an ancestor of origin/staging/production-parity — refusing to evaluate an unauthorized candidate"
-            exit 3
-          fi
-          echo "candidate_sha ${CANDIDATE_SHA} confirmed reachable from staging/production-parity"
+          echo "sha_exists=${SHA_EXISTS}" >> "$GITHUB_OUTPUT"
 
-      - name: Locate and download upstream evidence for this exact SHA
+          # The SHA actually validated on staging: the tip of the canonical
+          # staging branch that the candidate must exactly equal.
+          STAGING_SHA=""
+          if git fetch origin staging/production-parity --quiet 2>/dev/null; then
+            STAGING_SHA="$(git rev-parse origin/staging/production-parity 2>/dev/null || true)"
+          fi
+          echo "staging_validated_sha=${STAGING_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Locate upstream evidence for this exact SHA
         id: locate
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           install -d -m 0777 pre-publish-inputs
           : > pre-publish-inputs/missing-runs.txt
+          FOUND_ANY=false
 
           declare -A WORKFLOW_DIRS=(
             ["Security - Promotion Gate"]="promotion-gate"
@@ -96,18 +133,72 @@ jobs:
             DIR="pre-publish-inputs/${WORKFLOW_DIRS[$WF]}"
             install -d -m 0777 "$DIR"
             RUN_ID="$(gh run list --repo "${{ github.repository }}" --workflow "$WF" --json databaseId,headSha,status \
-              -q "[.[] | select(.headSha == \"${CANDIDATE_SHA}\" and .status == \"completed\")] | sort_by(.databaseId) | last | .databaseId // empty")"
+              -q "[.[] | select(.headSha == \"${CANDIDATE_SHA}\" and .status == \"completed\")] | sort_by(.databaseId) | last | .databaseId // empty" 2>/dev/null || true)"
             if [ -z "$RUN_ID" ]; then
               echo "MISSING: no completed run of '${WF}' for SHA ${CANDIDATE_SHA}" | tee -a pre-publish-inputs/missing-runs.txt
               continue
             fi
             echo "Found run ${RUN_ID} for '${WF}'"
-            if ! gh run download "$RUN_ID" --repo "${{ github.repository }}" --dir "$DIR" 2>>pre-publish-inputs/missing-runs.txt; then
+            if gh run download "$RUN_ID" --repo "${{ github.repository }}" --dir "$DIR" 2>>pre-publish-inputs/missing-runs.txt; then
+              FOUND_ANY=true
+            else
               echo "DOWNLOAD_FAILED: '${WF}' run ${RUN_ID}" | tee -a pre-publish-inputs/missing-runs.txt
             fi
           done
 
+          echo "evidence_available=${FOUND_ANY}" >> "$GITHUB_OUTPUT"
           cat pre-publish-inputs/missing-runs.txt || true
+
+      # The eligibility decision itself. Runs unconditionally; classifies
+      # rather than aborts; always exits 0 so the verdict job is reachable.
+      - name: Run preflight validation
+        id: preflight
+        env:
+          PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -uo pipefail
+          node security/scripts/prepublish-preflight.js \
+            --trigger-event "${{ github.event_name }}" \
+            --candidate-sha "${{ inputs.candidate_sha }}" \
+            --ref "${{ github.ref }}" \
+            --staging-validated-sha "${{ steps.facts.outputs.staging_validated_sha }}" \
+            --project-ref "${PROJECT_REF:-yzqjvdfgefveprobvvyw}" \
+            --sha-exists "${{ steps.facts.outputs.sha_exists }}" \
+            --evidence-available "${{ steps.locate.outputs.evidence_available || 'false' }}" \
+            --json pre-publish-inputs/preflight-report.json
+
+      - name: Upload preflight report and located evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prepublish-preflight-${{ github.run_number }}
+          path: pre-publish-inputs/
+          if-no-files-found: warn
+          retention-days: 90
+
+  # ── May skip, but only because preflight said so, and never silently. ───
+  evaluate-candidate:
+    name: Evaluate candidate evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: prepublish-preflight
+    if: needs.prepublish-preflight.outputs.eligible == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Download preflight-located evidence
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          name: prepublish-preflight-${{ github.run_number }}
+          path: pre-publish-inputs
 
       - name: Check branch protection status
         id: branch_protection
@@ -115,17 +206,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          set +e
-          RULESETS="$(gh api "repos/${{ github.repository }}/rulesets" 2>/dev/null)"
-          QUERY_CODE=$?
-          set -e
-          if [ "$QUERY_CODE" -ne 0 ] || [ -z "$RULESETS" ]; then
+          set -uo pipefail
+          RULESETS="$(gh api "repos/${{ github.repository }}/rulesets" 2>/dev/null || true)"
+          if [ -z "$RULESETS" ]; then
             echo "status=READY_NOT_APPLIED" >> "$GITHUB_OUTPUT"
-            echo "Branch protection status: could not be confirmed (query failed or GITHUB_TOKEN lacks administration:read) — treated as READY_NOT_APPLIED, never assumed PASS."
+            echo "Branch protection status: could not be confirmed — treated as READY_NOT_APPLIED, never assumed PASS."
             exit 0
           fi
-          ACTIVE_COUNT="$(echo "$RULESETS" | python3 -c "import json,sys; data=json.load(sys.stdin); print(sum(1 for r in data if r.get('enforcement') == 'active'))")"
+          ACTIVE_COUNT="$(echo "$RULESETS" | python3 -c "import json,sys; data=json.load(sys.stdin); print(sum(1 for r in data if r.get('enforcement') == 'active'))" 2>/dev/null || echo 0)"
           if [ "${ACTIVE_COUNT:-0}" -gt 0 ]; then
             echo "status=PASS" >> "$GITHUB_OUTPUT"
           else
@@ -134,18 +222,18 @@ jobs:
 
       - name: Assemble exact-SHA evidence bundle
         env:
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ needs.prepublish-preflight.outputs.candidate_sha }}
           BRANCH_PROTECTION_STATUS: ${{ steps.branch_protection.outputs.status }}
         run: |
-          set -euo pipefail
-          PROMOTION_VERDICT="$(find pre-publish-inputs/promotion-gate -name 'promotion-verdict.json' | head -1 || true)"
-          ZAP_BASELINE_CTX="$(find pre-publish-inputs/zap-baseline -name 'run-context.json' | head -1 || true)"
-          ZAP_API_CTX="$(find pre-publish-inputs/zap-api -name 'run-context.json' | head -1 || true)"
-          ZAP_BASELINE_REPORT="$(find pre-publish-inputs/zap-baseline -name 'zap-baseline-report.json' | head -1 || true)"
-          ZAP_API_REPORT="$(find pre-publish-inputs/zap-api -name 'zap-api-report.json' | head -1 || true)"
-          ARTIFACT_EXPOSURE_REPORT="$(find pre-publish-inputs/artifact-exposure -name 'artifact-exposure-report.json' | head -1 || true)"
-          LIVE_STAGING_REPORT="$(find pre-publish-inputs/live-staging-verification -name 'live-staging-verification-report.json' | head -1 || true)"
-          AUTHZ_NEGATIVE_REPORT="$(find pre-publish-inputs/staging-gate -name 'authorization-negative-report.json' | head -1 || true)"
+          set -uo pipefail
+          PROMOTION_VERDICT="$(find pre-publish-inputs/promotion-gate -name 'promotion-verdict.json' 2>/dev/null | head -1 || true)"
+          ZAP_BASELINE_CTX="$(find pre-publish-inputs/zap-baseline -name 'run-context.json' 2>/dev/null | head -1 || true)"
+          ZAP_API_CTX="$(find pre-publish-inputs/zap-api -name 'run-context.json' 2>/dev/null | head -1 || true)"
+          ZAP_BASELINE_REPORT="$(find pre-publish-inputs/zap-baseline -name 'zap-baseline-report.json' 2>/dev/null | head -1 || true)"
+          ZAP_API_REPORT="$(find pre-publish-inputs/zap-api -name 'zap-api-report.json' 2>/dev/null | head -1 || true)"
+          ARTIFACT_EXPOSURE_REPORT="$(find pre-publish-inputs/artifact-exposure -name 'artifact-exposure-report.json' 2>/dev/null | head -1 || true)"
+          LIVE_STAGING_REPORT="$(find pre-publish-inputs/live-staging-verification -name 'live-staging-verification-report.json' 2>/dev/null | head -1 || true)"
+          AUTHZ_NEGATIVE_REPORT="$(find pre-publish-inputs/staging-gate -name 'authorization-negative-report.json' 2>/dev/null | head -1 || true)"
 
           ARGS=(--candidate-sha "${CANDIDATE_SHA}" --output-dir security/evidence --branch-protection-status "${BRANCH_PROTECTION_STATUS:-READY_NOT_APPLIED}")
           [ -n "$PROMOTION_VERDICT" ] && ARGS+=(--promotion-verdict "$PROMOTION_VERDICT")
@@ -161,33 +249,134 @@ jobs:
           node security/scripts/build-security-evidence.js "${ARGS[@]}"
           cat security/evidence/security-evidence.json
 
+      - name: Upload assembled evidence bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prepublish-evidence-${{ github.run_number }}
+          path: security/evidence/
+          if-no-files-found: warn
+          retention-days: 90
+
+  # ── Always runs. Decides the workflow's conclusion. Always emits. ───────
+  publish-verdict:
+    name: Pre-Publish Release Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [prepublish-preflight, evaluate-candidate]
+    if: ${{ always() }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      # Both downloads are best-effort: their absence is a classified input
+      # to the verdict, never a reason the verdict cannot be produced.
+      - name: Download preflight report
+        continue-on-error: true
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          name: prepublish-preflight-${{ github.run_number }}
+          path: pre-publish-inputs
+
+      - name: Download assembled evidence bundle
+        continue-on-error: true
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          name: prepublish-evidence-${{ github.run_number }}
+          path: security/evidence
+
       - name: Build Pre-Publish verdict
         id: verdict
+        env:
+          PREFLIGHT_RESULT: ${{ needs.prepublish-preflight.result }}
+          EVALUATE_RESULT: ${{ needs.evaluate-candidate.result }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          EVIDENCE_ARG=()
+          if [ -f security/evidence/security-evidence.json ]; then
+            EVIDENCE_ARG=(--evidence security/evidence/security-evidence.json)
+          fi
+          PREFLIGHT_ARG=()
+          if [ -f pre-publish-inputs/preflight-report.json ]; then
+            PREFLIGHT_ARG=(--preflight-report pre-publish-inputs/preflight-report.json)
+          fi
+
           set +e
           node security/scripts/build-pre-publish-verdict.js \
-            --evidence security/evidence/security-evidence.json \
-            --output-dir security/evidence
+            "${EVIDENCE_ARG[@]}" \
+            "${PREFLIGHT_ARG[@]}" \
+            --output-dir security/evidence \
+            --workflow-run-id "${{ github.run_id }}" \
+            --workflow-sha "${{ github.sha }}" \
+            --trigger-event "${{ github.event_name }}" \
+            --job-status "preflight=${PREFLIGHT_RESULT}" \
+            --job-status "evidence_evaluation=${EVALUATE_RESULT}"
           CODE=$?
           set -e
           echo "verdict_exit_code=${CODE}" >> "$GITHUB_OUTPUT"
-          cat security/evidence/pre-publish-security-verdict.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Phase 7: the summary must make "workflow triggered" impossible to
+      # confuse with "security scan completed". Written even if the verdict
+      # step somehow produced no markdown.
+      - name: Write GitHub summary
+        if: always()
+        run: |
+          set -uo pipefail
+          if [ -f security/evidence/pre-publish-security-verdict.md ]; then
+            cat security/evidence/pre-publish-security-verdict.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "# Pre-Publish Release Security Gate"
+              echo
+              echo "Verdict: **OPERATIONAL FAILURE**"
+              echo
+              echo "No verdict markdown was produced by the verdict builder. The gate"
+              echo "could not evaluate this candidate, and no promotion eligibility is"
+              echo "implied. This is a gate malfunction, not a passing result."
+              echo
+              echo "| Job | Result |"
+              echo "| --- | --- |"
+              echo "| prepublish-preflight | ${{ needs.prepublish-preflight.result }} |"
+              echo "| evaluate-candidate | ${{ needs.evaluate-candidate.result }} |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload Pre-Publish verdict artifacts
+        id: upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pre-publish-verdict-${{ github.run_number }}
           path: |
             security/evidence/
-            pre-publish-inputs/missing-runs.txt
+            pre-publish-inputs/
           if-no-files-found: warn
           retention-days: 90
 
+      # Phase 6: artifact upload must not determine the verdict, but its
+      # failure is itself an operational failure worth reporting separately.
+      - name: Report artifact-upload failure separately
+        if: always() && steps.upload.outcome == 'failure'
+        run: |
+          {
+            echo
+            echo "> **Artifact upload failed** for this run. The verdict above still"
+            echo "> stands as computed and is preserved in this summary; only its"
+            echo "> downloadable copy is missing. Treat the run as OPERATIONAL"
+            echo "> FAILURE for evidence-retention purposes, separately from the"
+            echo "> security result itself."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Pre-publish verdict artifact upload failed; verdict preserved in job summary only."
+
       - name: Enforce verdict
         run: |
-          set -euo pipefail
+          set -uo pipefail
           if [ "${{ steps.verdict.outputs.verdict_exit_code }}" != "0" ]; then
             echo "Pre-Publish Release Security Gate did not pass — see pre-publish-security-verdict.json for the reason. Owner approval is NOT eligible."
             exit 1

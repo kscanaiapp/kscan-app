@@ -40,13 +40,38 @@ const BLOCKER_DIMENSIONS = [
   'branch_protection', // added 2026-08-06 — READY_NOT_APPLIED blocks final production eligibility (Phase 8)
 ];
 
+// GitHub reports a needs-dependency's result as one of success / failure /
+// cancelled / skipped, or the key is absent entirely when the job never
+// existed. None of the non-success values may ever read as PASS: a required
+// scan that was skipped proves nothing, and treating "didn't run" as "ran
+// clean" is precisely the failure mode this gate exists to prevent.
+function classifyDependency(status) {
+  if (status === 'success') return 'PASS';
+  if (status === 'failure') return 'FAIL';
+  if (status === 'cancelled') return 'CANCELLED';
+  if (status === 'skipped') return 'SKIPPED';
+  if (!status) return 'MISSING';
+  return 'MISSING';
+}
+
+const NON_PASSING_DEPENDENCY_STATES = ['FAIL', 'SKIPPED', 'CANCELLED', 'MISSING'];
+
 function parseArgs(argv) {
-  const out = { outputDir: 'security/evidence' };
+  const out = { outputDir: 'security/evidence', jobStatuses: {} };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--evidence') out.evidencePath = argv[++i];
     else if (a === '--rollback-manifest') out.rollbackManifestPath = argv[++i];
     else if (a === '--output-dir') out.outputDir = argv[++i];
+    else if (a === '--preflight-report') out.preflightReportPath = argv[++i];
+    else if (a === '--workflow-run-id') out.workflowRunId = argv[++i];
+    else if (a === '--workflow-sha') out.workflowSha = argv[++i];
+    else if (a === '--trigger-event') out.triggerEvent = argv[++i];
+    else if (a === '--job-status') {
+      const raw = argv[++i] || '';
+      const idx = raw.indexOf('=');
+      if (idx > 0) out.jobStatuses[raw.slice(0, idx)] = raw.slice(idx + 1);
+    }
   }
   return out;
 }
@@ -62,30 +87,96 @@ function readJsonIfExists(filePath) {
 
 function buildVerdict(args) {
   const evidence = readJsonIfExists(args.evidencePath);
+  const preflight = readJsonIfExists(args.preflightReportPath);
+  const jobStatuses = args.jobStatuses || {};
+
+  // Run context is stamped onto every verdict regardless of outcome, so a
+  // reader can always tell which run produced it and what triggered it --
+  // including on the paths that produce no evidence bundle at all.
+  const runContext = {
+    workflow_run_id: args.workflowRunId || null,
+    workflow_sha: args.workflowSha || null,
+    trigger_event: args.triggerEvent || null,
+    preflight: preflight ? preflight.preflight_verdict : 'MISSING',
+    preflight_reason: preflight ? preflight.preflight_reason : null,
+  };
+
+  // Preflight decided the candidate is ineligible. Downstream scans were
+  // deliberately not run, so their dimensions report SKIPPED (never PASS)
+  // and the gate's verdict is preflight's own classification: BLOCKED for a
+  // real security refusal, OPERATIONAL FAILURE for "could not evaluate".
+  if (preflight && preflight.preflight_verdict !== 'PASS') {
+    const skipped = preflight.preflight_verdict === 'BLOCKED' ? 'SKIPPED' : 'SKIPPED';
+    return {
+      ...runContext,
+      candidate_sha: preflight.candidate_sha || null,
+      staging_validated_sha: preflight.staging_validated_sha || null,
+      sha_match: Boolean(preflight.sha_match),
+      secret_scan: skipped,
+      artifact_scan: skipped,
+      dependency_scan: skipped,
+      static_analysis: skipped,
+      configuration_scan: skipped,
+      infrastructure_scan: skipped,
+      staging_dynamic_security: skipped,
+      authentication_and_permissions: skipped,
+      migration_validation: skipped,
+      rls_and_grants: skipped,
+      authorization_negative_tests: skipped,
+      eas_environment_targeting: skipped,
+      branch_protection: skipped,
+      exact_sha_deployment: skipped,
+      required_evidence_present: Boolean(preflight.evidence_available),
+      known_blockers: BLOCKER_DIMENSIONS.length,
+      promotion_eligible: false,
+      finalVerdict: preflight.preflight_verdict === 'BLOCKED' ? 'BLOCKED' : 'OPERATIONAL FAILURE',
+      verdict: preflight.preflight_verdict === 'BLOCKED' ? 'BLOCKED' : 'OPERATIONAL FAILURE',
+      reason: preflight.preflight_reason
+        || 'Preflight did not pass; downstream security checks were intentionally not run.',
+      rollback_manifest_present: false,
+    };
+  }
+
+  // Any required upstream job that failed, was cancelled, was skipped, or
+  // never existed is surfaced before evidence parsing -- evidence assembled
+  // from an incomplete set of runs must not read as a clean bill of health.
+  const dependencyResults = Object.fromEntries(
+    Object.entries(jobStatuses).map(([name, status]) => [name, classifyDependency(status)]),
+  );
+  const brokenDependencies = Object.entries(dependencyResults)
+    .filter(([, result]) => NON_PASSING_DEPENDENCY_STATES.includes(result));
 
   if (!evidence) {
-    const verdict = {
-      candidate_sha: null,
-      staging_validated_sha: null,
-      sha_match: false,
-      secret_scan: 'UNKNOWN',
-      artifact_scan: 'UNKNOWN',
-      dependency_scan: 'UNKNOWN',
-      static_analysis: 'UNKNOWN',
-      configuration_scan: 'UNKNOWN',
-      infrastructure_scan: 'UNKNOWN',
-      staging_dynamic_security: 'UNKNOWN',
-      authentication_and_permissions: 'UNKNOWN',
-      eas_environment_targeting: 'UNKNOWN',
-      branch_protection: 'UNKNOWN',
-      exact_sha_deployment: 'UNKNOWN',
+    return {
+      ...runContext,
+      candidate_sha: preflight ? preflight.candidate_sha : null,
+      staging_validated_sha: preflight ? preflight.staging_validated_sha : null,
+      sha_match: preflight ? Boolean(preflight.sha_match) : false,
+      secret_scan: dependencyResults.secret_scan || 'MISSING',
+      artifact_scan: dependencyResults.artifact_scan || 'MISSING',
+      dependency_scan: dependencyResults.dependency_scan || 'MISSING',
+      static_analysis: dependencyResults.static_analysis || 'MISSING',
+      configuration_scan: 'MISSING',
+      infrastructure_scan: 'MISSING',
+      staging_dynamic_security: 'MISSING',
+      authentication_and_permissions: 'MISSING',
+      migration_validation: 'MISSING',
+      rls_and_grants: 'MISSING',
+      authorization_negative_tests: 'MISSING',
+      eas_environment_targeting: 'MISSING',
+      branch_protection: 'MISSING',
+      exact_sha_deployment: 'MISSING',
       required_evidence_present: false,
-      known_blockers: 1,
+      known_blockers: BLOCKER_DIMENSIONS.length,
       promotion_eligible: false,
       finalVerdict: 'OPERATIONAL FAILURE',
-      reason: 'No evidence bundle was available to evaluate — cannot certify a candidate with no evidence.',
+      verdict: 'OPERATIONAL FAILURE',
+      reason: brokenDependencies.length > 0
+        ? `No evidence bundle was available to evaluate, and ${brokenDependencies.length} required upstream check(s) did not complete successfully: ${brokenDependencies.map(([n, r]) => `${n}=${r}`).join(', ')}.`
+        : 'No evidence bundle was available to evaluate — cannot certify a candidate with no evidence.',
+      rollback_manifest_present: false,
+      dependency_results: dependencyResults,
     };
-    return verdict;
   }
 
   const knownBlockers = BLOCKER_DIMENSIONS.filter((dim) => evidence[dim] !== 'PASS').length;
@@ -94,7 +185,13 @@ function buildVerdict(args) {
 
   let finalVerdict;
   let reason;
-  if (!requiredEvidencePresent) {
+  if (brokenDependencies.length > 0) {
+    // A required job that did not succeed outranks whatever the evidence
+    // bundle says -- the bundle may have been assembled from a partial set
+    // of runs and would otherwise look clean.
+    finalVerdict = brokenDependencies.some(([, r]) => r === 'FAIL') ? 'BLOCKED' : 'OPERATIONAL FAILURE';
+    reason = `${brokenDependencies.length} required upstream check(s) did not complete successfully: ${brokenDependencies.map(([n, r]) => `${n}=${r}`).join(', ')}. A skipped, cancelled, or missing required scan is never treated as a pass.`;
+  } else if (!requiredEvidencePresent) {
     finalVerdict = 'OPERATIONAL FAILURE';
     reason = 'Required evidence (promotion verdict and/or ZAP diagnostics) is missing for this candidate — cannot evaluate.';
   } else if (!shaMatch) {
@@ -116,6 +213,7 @@ function buildVerdict(args) {
   const rollbackManifest = readJsonIfExists(args.rollbackManifestPath);
 
   return {
+    ...runContext,
     candidate_sha: evidence.candidate_sha,
     staging_validated_sha: evidence.deployed_staging_sha,
     sha_match: shaMatch,
@@ -131,6 +229,7 @@ function buildVerdict(args) {
     known_blockers: knownBlockers,
     promotion_eligible: promotionEligible,
     finalVerdict,
+    verdict: finalVerdict,
     reason,
     rollback_manifest_present: Boolean(rollbackManifest),
     migration_validation: evidence.migration_validation,
@@ -139,6 +238,7 @@ function buildVerdict(args) {
     eas_environment_targeting: evidence.eas_environment_targeting,
     branch_protection: evidence.branch_protection,
     exact_sha_deployment: evidence.exact_sha_deployment,
+    dependency_results: dependencyResults,
   };
 }
 
@@ -155,6 +255,15 @@ function toMarkdown(verdict) {
     `SHA match: **${verdict.sha_match}**`,
     `Promotion eligible: **${verdict.promotion_eligible}**`,
     `Known blockers: ${verdict.known_blockers}`,
+    '',
+    `Preflight: **${verdict.preflight || 'MISSING'}**`,
+    verdict.preflight_reason ? `Preflight reason: ${verdict.preflight_reason}` : '',
+    `Trigger event: \`${verdict.trigger_event || 'unknown'}\``,
+    `Workflow run ID: \`${verdict.workflow_run_id || 'unknown'}\``,
+    `Workflow SHA: \`${verdict.workflow_sha || 'unknown'}\``,
+    '',
+    '> A dimension reading SKIPPED, MISSING, or CANCELLED is **not** a pass.',
+    '> It means the check did not produce a usable result for this candidate.',
     '',
     '| Dimension | Result |',
     '| --- | --- |',
@@ -240,4 +349,10 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { buildVerdict, BLOCKER_DIMENSIONS };
+module.exports = {
+  buildVerdict,
+  toMarkdown,
+  classifyDependency,
+  BLOCKER_DIMENSIONS,
+  NON_PASSING_DEPENDENCY_STATES,
+};
