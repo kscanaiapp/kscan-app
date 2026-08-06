@@ -98,7 +98,12 @@ export function KScanHeader({
           {title && !showBrandMark && (
             <Text
               style={[LUXURY.typography.displayTitle, styles.title, titleStyle]}
-              numberOfLines={1}
+              // Wrap onto a second line before truncating — at increased
+              // font/display scaling a single line is not enough room for
+              // titles like "Dressing Rooms" and it must never render as
+              // "Dressing Roo…" (see BUG-07). ellipsizeMode remains a safety
+              // net for the rare title that still overflows two lines.
+              numberOfLines={2}
               ellipsizeMode="tail"
               accessibilityRole="header"
             >

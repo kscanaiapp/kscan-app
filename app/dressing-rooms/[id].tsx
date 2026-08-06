@@ -52,6 +52,7 @@ import {
   getItemReactionCounts,
   getMyItemReaction,
   getDressingRoomDetail,
+  getRoomShareStatus,
   listDressingRoomInspirationItems,
   removeDressingRoomItem,
   removeInspirationFromDressingRoom,
@@ -63,6 +64,7 @@ import {
   updateDressingRoom,
   updateDressingRoomNote,
 } from '../../services/styleObjects';
+import { shouldOfferDisableSharedLink } from '../../services/roomShareState';
 import {
   isActiveDressingRoomReactionType,
   type DressingRoomReactionType,
@@ -279,6 +281,11 @@ function DressingRoomDetailContent() {
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [revokingShare, setRevokingShare] = useState(false);
+  // null = unknown (loading or not yet fetched) — "Disable Shared Link"
+  // must only render for a *confirmed* active link, never while unknown,
+  // so a loading/error state can't briefly show the wrong destructive
+  // action (BUG-12).
+  const [hasActiveShare, setHasActiveShare] = useState<boolean | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const [creatingLook, setCreatingLook] = useState(false);
@@ -364,6 +371,38 @@ function DressingRoomDetailContent() {
       setSelectedIds((current) => current.filter((itemId) => detail.items.some((item) => item.id === itemId)));
       setShareError(null);
       setShareMessage(null);
+
+      // Re-derive share-link state on every load (initial, focus, and
+      // foreground revalidation all route through reload()) so "Disable
+      // Shared Link" always reflects reality, not a stale cached value
+      // (BUG-12). Not gated on the sharing feature flag: canShareRoom
+      // already hides the whole control when the flag is off, so a
+      // harmless extra fetch here never surfaces anything.
+      const isRoomOwner = Boolean(user?.id && detail.room.userId === user.id);
+      if (isRoomOwner) {
+        setHasActiveShare(null); // unknown while (re)checking
+        getRoomShareStatus(roomId)
+          .then((status) => {
+            if (
+              requestId !== roomLoadRequestId.current ||
+              activeActorIdRef.current !== requestedActorId ||
+              activeRoomIdRef.current !== roomId
+            ) return;
+            setHasActiveShare(status.active);
+          })
+          .catch((shareStatusErr) => {
+            console.error('Load room share status failed', shareStatusErr);
+            if (
+              requestId !== roomLoadRequestId.current ||
+              activeActorIdRef.current !== requestedActorId ||
+              activeRoomIdRef.current !== roomId
+            ) return;
+            // Unknown status must never show the destructive control.
+            setHasActiveShare(null);
+          });
+      } else {
+        setHasActiveShare(null);
+      }
     } catch (err: any) {
       if (
         requestId !== roomLoadRequestId.current ||
@@ -566,6 +605,7 @@ function DressingRoomDetailContent() {
       const shareUrl = `${KSCAN_PUBLIC_BASE_URL}/rooms/${encodeURIComponent(shareToken)}`;
       await Share.share(buildRoomSharePayload(shareUrl));
       setShareMessage('Room link ready to share.');
+      setHasActiveShare(true);
     } catch (err: any) {
       console.error('Share dressing room failed', err);
       setShareError(DRESSING_ROOM_SHARE_ERROR);
@@ -623,6 +663,9 @@ function DressingRoomDetailContent() {
             try {
               const revoked = await revokeRoomShare(room.id);
               setShareMessage(revoked ? 'Shared link disabled.' : 'No active shared link to disable.');
+              // Either way there is no active link now — a revoke that
+              // found nothing to revoke still means "not active".
+              setHasActiveShare(false);
             } catch (err: any) {
               console.error('Revoke dressing room share failed', err);
               setShareError(DRESSING_ROOM_SHARE_ERROR);
@@ -881,14 +924,21 @@ function DressingRoomDetailContent() {
                     accessibilityLabel="Share room link"
                     accessibilityHint="Create or copy a private invite link for this room"
                   />
-                  <SecondaryButton
-                    title={revokingShare ? 'Disabling Link' : 'Disable Shared Link'}
-                    onPress={handleRevokeShare}
-                    disabled={revokingShare}
-                    loading={revokingShare}
-                    accessibilityLabel="Disable shared room link"
-                    accessibilityHint="Revoke the current invite link so it no longer works"
-                  />
+                  {shouldOfferDisableSharedLink(hasActiveShare) || revokingShare ? (
+                    // Only offered for a *confirmed* active link (BUG-12) —
+                    // never for a room that has never been shared, and
+                    // never while the status is still unknown/loading.
+                    // `revokingShare` keeps the button visible for the
+                    // duration of an in-flight revoke it already started.
+                    <SecondaryButton
+                      title={revokingShare ? 'Disabling Link' : 'Disable Shared Link'}
+                      onPress={handleRevokeShare}
+                      disabled={revokingShare}
+                      loading={revokingShare}
+                      accessibilityLabel="Disable shared room link"
+                      accessibilityHint="Revoke the current invite link so it no longer works"
+                    />
+                  ) : null}
                   {shareError ? <Text style={styles.shareError}>{shareError}</Text> : null}
                   {shareMessage ? <Text style={styles.shareMessage}>{shareMessage}</Text> : null}
                 </>

@@ -276,6 +276,24 @@ test('removing the final shared room transitions to the normal empty state', () 
   );
 });
 
+// BUG-12: "No shared rooms yet" must not appear twice on screen. The
+// SectionHeader's subtitle used to repeat the exact same sentence that the
+// EmptyStateCard renders as its own title just below it.
+test('empty-state section subtitle does not repeat the EmptyStateCard title (BUG-12)', () => {
+  const presentation = logic.getSharedWithMeSectionPresentation({
+    phase: 'empty',
+    rooms: [],
+    loading: false,
+  });
+
+  assert.equal(presentation.showEmpty, true);
+  assert.equal(presentation.emptyTitle, logic.SHARED_WITH_ME_EMPTY_TITLE);
+  // The header subtitle must not duplicate the empty-state title text.
+  assert.notEqual(presentation.sectionSubtitle, logic.SHARED_WITH_ME_EMPTY_TITLE);
+  assert.notEqual(presentation.sectionSubtitle, 'No shared rooms yet');
+  assert.equal(presentation.sectionSubtitle, '');
+});
+
 test('stale generation and actor mismatches are ignored', () => {
   const previous = {
     phase: 'loading',

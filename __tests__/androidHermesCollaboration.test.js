@@ -265,6 +265,9 @@ test('ANDROID REACTION HERMES TEST: generated and caller IDs preserve reaction i
       readSnapshotDedupeKey: () => null,
       resolveDressingRoomImageSource: () => ({ kind: 'none' }),
     },
+    './roomShareState': {
+      evaluateRoomShareRow: () => ({ active: false, shareToken: null }),
+    },
   });
 
   await styleObjects.setItemReaction('item-a', 'heart', {

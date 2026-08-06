@@ -85,6 +85,13 @@ function loadStyleObjects() {
           bumpCollabActorGeneration: () => 1,
         };
       }
+      if (id === './roomShareState') {
+        // Stub the share-link status helper — only used by getRoomShareStatus,
+        // which is not exercised by these product-save-policy tests.
+        return {
+          evaluateRoomShareRow: () => ({ active: false, shareToken: null }),
+        };
+      }
       throw new Error(`Unexpected require: ${id}`);
     },
   };
@@ -170,6 +177,13 @@ function loadStyleObjectsWithExtensionCapture(flagOverrides) {
           isCurrentCollabGeneration: () => true,
           setItemReactionDesiredState: async () => ({ ok: true }),
           bumpCollabActorGeneration: () => 1,
+        };
+      }
+      if (id === './roomShareState') {
+        // Stub the share-link status helper — only used by getRoomShareStatus,
+        // which is not exercised by these product-save-policy tests.
+        return {
+          evaluateRoomShareRow: () => ({ active: false, shareToken: null }),
         };
       }
       throw new Error(`Unexpected require: ${id}`);

@@ -22,6 +22,8 @@ import {
   readSnapshotDedupeKey,
   resolveDressingRoomImageSource,
 } from './dressingRoomItemContract';
+import { evaluateRoomShareRow } from './roomShareState';
+import type { RoomShareStatus } from './roomShareState';
 import type {
   DressingRoom,
   DressingRoomItem,
@@ -587,6 +589,27 @@ export async function revokeRoomShare(roomId: string): Promise<boolean> {
   });
   if (error) throw safeError(error, 'Unable to disable shared room link.');
   return Boolean(data);
+}
+
+/**
+ * Authoritative active-share status for a room, so "Disable Shared Link"
+ * can be gated on real link state instead of on ownership permissions
+ * alone (see BUG-12). Uses the same is_active/revoked_at/expires_at
+ * predicate the RPCs enforce; the unique partial index on room_shares
+ * guarantees at most one active row per room, so maybeSingle() is safe.
+ */
+export async function getRoomShareStatus(roomId: string): Promise<RoomShareStatus> {
+  const { data, error } = await supabase
+    .from('room_shares')
+    .select('is_active, revoked_at, expires_at, share_token')
+    .eq('room_id', roomId)
+    .eq('is_active', true)
+    .is('revoked_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw safeError(error, 'Unable to check shared link status.');
+  return evaluateRoomShareRow(data ?? null);
 }
 
 export async function getDressingRoomDetail(roomId: string): Promise<RoomDetail> {

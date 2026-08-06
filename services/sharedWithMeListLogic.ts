@@ -397,7 +397,11 @@ export function getSharedWithMeSectionPresentation(input: {
   } else if (temporaryFailure) {
     sectionSubtitle = 'Could not refresh';
   } else if (empty) {
-    sectionSubtitle = 'No shared rooms yet';
+    // The EmptyStateCard rendered below already states "No shared rooms
+    // yet" as its title (see SHARED_WITH_ME_EMPTY_TITLE) — repeating it in
+    // the section subtitle would put the same sentence on screen twice
+    // (BUG-12). Leave the header with just its title in this state.
+    sectionSubtitle = '';
   } else {
     const count = input.rooms.length;
     sectionSubtitle = `${count} shared room${count === 1 ? '' : 's'}`;
