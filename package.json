@@ -3,6 +3,8 @@
   "version": "1.0.1",
   "main": "expo-router/entry",
   "scripts": {
+    "prepare": "node scripts/setup-git-hooks.js",
+    "setup:hooks": "node scripts/setup-git-hooks.js",
     "server": "node server.js",
     "test:all": "node scripts/run-all-tests.js",
     "test:privacy": "node --test __tests__/privacyPolicy.test.js __tests__/privacyPreferenceMerge.test.js",
@@ -29,7 +31,7 @@
     "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js",
     "deploy:edge-functions": "node scripts/deploy-edge-functions.js",
     "test:backend": "node scripts/run-backend-tests.js",
-    "test:security": "node --test __tests__/security/baselineComparison.test.js",
+    "test:security": "node --test __tests__/security/anonGrantGuard.test.js __tests__/security/baselineComparison.test.js __tests__/security/candidateMigrations.test.js __tests__/security/changedFunctions.test.js __tests__/security/deploymentAllowlist.test.js __tests__/security/manifestAllowlistConsistency.test.js __tests__/security/perimeterManifestGuard.test.js __tests__/security/promotionGateCheckRuns.test.js __tests__/security/rlsStorageGuard.test.js __tests__/security/scanCandidateArtifacts.test.js __tests__/security/securityEvidenceAndPrePublishGate.test.js __tests__/security/syntheticAuth.test.js __tests__/security/ttlEnvelopeInvariant.test.js",
     "test:staging-deploy": "node --test __tests__/staging/stagingDeployPipeline.test.js",
     "staging:preflight": "node scripts/staging-deploy-preflight.mjs",
     "staging:apply-migration": "node scripts/apply-staging-migration.mjs",
