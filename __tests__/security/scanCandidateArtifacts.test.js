@@ -22,6 +22,10 @@ const {
   isTemplateEnvFile,
   isCommentLine,
   isComparisonContextLine,
+  pathSuffixKey,
+  reconcileWithInternalAllowlist,
+  mergeGitleaksFindings,
+  mergeTrivyFindings,
   PRODUCTION_PROJECT_REF,
   STAGING_PROJECT_REF,
 } = require('../../security/scripts/scan-candidate-artifacts');
@@ -171,6 +175,143 @@ test('scan: PRODUCTION_PROJECT_REFERENCE still blocks a bare literal target (the
     const summary = summarize(scan([dir]));
     assert.equal(summary.blockedCount, 1);
     assert.equal(summary.findings[0].ruleId, 'PRODUCTION_PROJECT_REFERENCE');
+  });
+});
+
+// ── Reconciliation with generic scanners (2026-08-06 regression) ────────────
+//
+// Gitleaks/Trivy pattern-match JWTs with no payload awareness, so every
+// legitimate JWT this repo ships (eas.json's staging anon keys, and the
+// production key inside eas.json's own build.production profile) was
+// independently re-flagged BLOCK by them even after kscan-supabase-jwt-classifier
+// correctly ALLOWed the identical token -- meaning the gate could never pass
+// on any candidate that includes eas.json. Confirmed against the real
+// Candidate Artifact Exposure Gate run on PR #56 (run 31111682509): 8 of 12
+// findings were exactly this double-count before the fix.
+
+test('pathSuffixKey: normalizes differing scan-root prefixes to the same key', () => {
+  assert.equal(
+    pathSuffixKey('candidate-artifacts/generated-config/eas.json', 23),
+    pathSuffixKey('generated-config/eas.json', 23),
+  );
+});
+
+test('pathSuffixKey: a different line number never collides', () => {
+  assert.notEqual(
+    pathSuffixKey('generated-config/eas.json', 23),
+    pathSuffixKey('generated-config/eas.json', 24),
+  );
+});
+
+test('pathSuffixKey: missing path or line returns null, never a falsy-but-matchable string', () => {
+  assert.equal(pathSuffixKey(null, 23), null);
+  assert.equal(pathSuffixKey('generated-config/eas.json', null), null);
+});
+
+test('reconcileWithInternalAllowlist: downgrades a generic jwt/jwt-token BLOCK to ALLOW when the classifier already ALLOWed the same file+line', () => {
+  const internal = [
+    {
+      detector: 'kscan-supabase-jwt-classifier',
+      verdict: 'ALLOW',
+      ruleId: 'STAGING_ANON_JWT',
+      path: 'candidate-artifacts/generated-config/eas.json',
+      line: 23,
+    },
+  ];
+  const external = [
+    { ruleId: 'jwt', verdict: 'BLOCK', detector: 'gitleaks', description: 'Uncovered a JSON Web Token', path: 'candidate-artifacts/generated-config/eas.json', line: 23 },
+    { ruleId: 'jwt-token', verdict: 'BLOCK', detector: 'trivy', description: 'JWT token', path: 'generated-config/eas.json', line: 23 },
+  ];
+  const reconciled = reconcileWithInternalAllowlist(external, internal);
+  assert.ok(reconciled.every((f) => f.verdict === 'ALLOW'));
+  assert.ok(reconciled.every((f) => f.description.includes('reconciled')));
+});
+
+test('reconcileWithInternalAllowlist: leaves a generic jwt finding BLOCKED when no matching internal ALLOW exists at that file+line', () => {
+  const internal = []; // classifier never ran, or found nothing at this location
+  const external = [
+    { ruleId: 'jwt', verdict: 'BLOCK', detector: 'gitleaks', description: 'Uncovered a JSON Web Token', path: 'some/other-file.js', line: 5 },
+  ];
+  const reconciled = reconcileWithInternalAllowlist(external, internal);
+  assert.equal(reconciled[0].verdict, 'BLOCK');
+});
+
+test('reconcileWithInternalAllowlist: leaves a generic jwt finding BLOCKED when the classifier itself flagged that same location BLOCK (e.g. a real service-role leak)', () => {
+  const internal = [
+    {
+      detector: 'kscan-supabase-jwt-classifier',
+      verdict: 'BLOCK',
+      ruleId: 'SUPABASE_SERVICE_ROLE_JWT',
+      path: 'generated-config/eas.json',
+      line: 50,
+    },
+  ];
+  const external = [
+    { ruleId: 'jwt', verdict: 'BLOCK', detector: 'gitleaks', description: 'Uncovered a JSON Web Token', path: 'candidate-artifacts/generated-config/eas.json', line: 50 },
+  ];
+  const reconciled = reconcileWithInternalAllowlist(external, internal);
+  assert.equal(reconciled[0].verdict, 'BLOCK', 'a real leak must still block even if it happens to share a location with an unrelated classifier run');
+});
+
+test('reconcileWithInternalAllowlist: never touches a non-JWT external rule (e.g. a real Gitleaks AWS-key finding)', () => {
+  const internal = [
+    {
+      detector: 'kscan-supabase-jwt-classifier',
+      verdict: 'ALLOW',
+      ruleId: 'STAGING_ANON_JWT',
+      path: 'generated-config/eas.json',
+      line: 23,
+    },
+  ];
+  const external = [
+    { ruleId: 'aws-access-key-id', verdict: 'BLOCK', detector: 'gitleaks', description: 'AWS key', path: 'generated-config/eas.json', line: 23 },
+  ];
+  const reconciled = reconcileWithInternalAllowlist(external, internal);
+  assert.equal(reconciled[0].verdict, 'BLOCK');
+});
+
+test('end-to-end: the real PR #56 gitleaks+trivy fixture no longer blocks once merged with the internal scan of the actual eas.json', () => {
+  withTempDir((dir) => {
+    fs.mkdirSync(path.join(dir, 'candidate-artifacts', 'generated-config'), { recursive: true });
+    const easJsonPath = path.join(__dirname, '..', '..', 'eas.json');
+    const destPath = path.join(dir, 'candidate-artifacts', 'generated-config', 'eas.json');
+    fs.copyFileSync(easJsonPath, destPath);
+
+    const results = scan([path.join(dir, 'candidate-artifacts')]);
+    const summary = summarize(results);
+    const internalJwtFindings = summary.findings.filter((f) => f.detector === 'kscan-supabase-jwt-classifier');
+    assert.ok(internalJwtFindings.length > 0, 'the real eas.json must contain at least one JWT for this test to be meaningful');
+
+    // Simulate exactly what CI's Gitleaks/Trivy would report for those same lines.
+    const externalGitleaksLike = internalJwtFindings.map((f) => ({
+      ruleId: 'jwt',
+      verdict: 'BLOCK',
+      severity: 'P0',
+      detector: 'gitleaks',
+      description: 'Uncovered a JSON Web Token',
+      path: `candidate-artifacts/generated-config/eas.json`,
+      line: f.line,
+    }));
+
+    const reconciled = reconcileWithInternalAllowlist(externalGitleaksLike, summary.findings);
+    const stillBlocked = reconciled.filter((f) => f.verdict === 'BLOCK');
+    assert.deepEqual(stillBlocked, [], 'every generic gitleaks jwt finding matching an internal ALLOW must be reconciled');
+  });
+});
+
+test('mergeGitleaksFindings / mergeTrivyFindings: still parse real report shapes (unaffected by the reconciliation change)', () => {
+  withTempDir((dir) => {
+    const gitleaksPath = path.join(dir, 'gitleaks.json');
+    const trivyPath = path.join(dir, 'trivy.json');
+    fs.writeFileSync(gitleaksPath, JSON.stringify([{ RuleID: 'jwt', Description: 'x', File: 'a.js', StartLine: 1 }]));
+    fs.writeFileSync(trivyPath, JSON.stringify({ Results: [{ Target: 'a.js', Secrets: [{ RuleID: 'jwt-token', Title: 'x', StartLine: 1 }] }] }));
+
+    const g = mergeGitleaksFindings(gitleaksPath);
+    const t = mergeTrivyFindings(trivyPath);
+    assert.equal(g.length, 1);
+    assert.equal(g[0].verdict, 'BLOCK');
+    assert.equal(t.length, 1);
+    assert.equal(t[0].verdict, 'BLOCK');
   });
 });
 

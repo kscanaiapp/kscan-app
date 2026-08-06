@@ -388,6 +388,61 @@ function fileHashIfExists(filePath) {
   }
 }
 
+// Gitleaks reports File relative to the scan root it was invoked with
+// (e.g. "candidate-artifacts/generated-config/eas.json"); Trivy reports
+// Target relative to its own working directory (e.g.
+// "generated-config/eas.json"). Neither is guaranteed to match this
+// script's own `path` values byte-for-byte, so reconciliation below keys
+// on the last two path segments (directory + filename) instead of a full
+// path comparison.
+function pathSuffixKey(filePath, line) {
+  if (!filePath || !line) return null;
+  const parts = String(filePath).replace(/\\/g, '/').split('/').filter(Boolean);
+  const suffix = parts.slice(-2).join('/');
+  return `${suffix}:${line}`;
+}
+
+// Generic secret scanners (Gitleaks, Trivy) detect a JWT-shaped token by
+// pattern alone -- they cannot decode its payload to tell a staging
+// anon/publishable key from a service-role or production key, so every
+// JWT this repo legitimately ships (e.g. eas.json's staging anon keys, or
+// the production key inside eas.json's own build.production profile) is
+// unconditionally flagged BLOCK. Left as-is, the gate could never pass on
+// any candidate that includes eas.json -- an operational failure
+// identical in kind to the ZAP health-check bug this funnel already fixed
+// (docs/security/staging-security-pipeline-map.md "Repairs made in this
+// pass"): a scanner that can never pass is not a working control.
+//
+// Reconciliation is intentionally narrow: an external BLOCK is downgraded
+// to ALLOW only when (a) it is one of the two known generic JWT rule IDs
+// and (b) this script's own kscan-supabase-jwt-classifier -- which does
+// decode the payload -- already classified a JWT ALLOW at the exact same
+// file + line in this same scan run. A JWT anywhere else, or one this
+// classifier itself flagged BLOCK/MANUAL_REVIEW, is untouched and still
+// blocks. This does not add a bypass for any other rule or detector.
+const GENERIC_JWT_RULE_IDS = new Set(['jwt', 'jwt-token']);
+
+function reconcileWithInternalAllowlist(externalFindings, internalFindings) {
+  const allowedJwtLocations = new Set(
+    internalFindings
+      .filter((f) => f.detector === 'kscan-supabase-jwt-classifier' && f.verdict === 'ALLOW')
+      .map((f) => pathSuffixKey(f.path, f.line))
+      .filter(Boolean),
+  );
+
+  return externalFindings.map((finding) => {
+    if (!GENERIC_JWT_RULE_IDS.has(finding.ruleId)) return finding;
+    const key = pathSuffixKey(finding.path, finding.line);
+    if (!key || !allowedJwtLocations.has(key)) return finding;
+    return {
+      ...finding,
+      verdict: 'ALLOW',
+      severity: 'INFO',
+      description: `${finding.description} (reconciled: kscan-supabase-jwt-classifier already classified the JWT at this exact file/line as expected client-facing material)`,
+    };
+  });
+}
+
 // Gitleaks JSON report: an array of {RuleID, Description, File, StartLine, Match, ...}.
 // An empty/absent report (no leaks, or the step never ran) yields no findings — never
 // treated as an error, since "not configured to run" and "ran clean" both parse to [].
@@ -471,10 +526,10 @@ function main() {
   const results = scan(existingTargets);
   const summary = summarize(results);
 
-  const externalFindings = [
-    ...mergeGitleaksFindings(gitleaksReport),
-    ...mergeTrivyFindings(trivyReport),
-  ];
+  const externalFindings = reconcileWithInternalAllowlist(
+    [...mergeGitleaksFindings(gitleaksReport), ...mergeTrivyFindings(trivyReport)],
+    summary.findings,
+  );
   summary.findings = [...summary.findings, ...externalFindings];
   summary.totalFindings = summary.findings.length;
   summary.blockedCount = summary.findings.filter((f) => f.verdict === 'BLOCK').length;
@@ -519,6 +574,10 @@ module.exports = {
   isCommentLine,
   isComparisonContextLine,
   findEasProductionProfileLineRange,
+  pathSuffixKey,
+  reconcileWithInternalAllowlist,
+  mergeGitleaksFindings,
+  mergeTrivyFindings,
   PRODUCTION_PROJECT_REF,
   STAGING_PROJECT_REF,
   PATTERN_RULES,
