@@ -1,0 +1,23 @@
+{
+  "baseline_established": false,
+  "reason": "ZAP Baseline was operationally failing on every run prior to 2026-08-06 (health-check step probed the bare Supabase project root, which returns HTTP 404 by default, so ZAP itself never started). Phase 14 of the staging security funnel explicitly forbids baselining an operational failure or a missing report. This file intentionally holds no findings until the first successful post-fix ZAP Baseline AND ZAP API run against an exact-SHA-matched staging candidate.",
+  "how_to_establish": "See docs/security/zap-baseline-record.md. Once a Security - ZAP Baseline Staging and Security - ZAP API Staging run both complete operationally successfully (reports present and parseable, sha_match: true in their diagnostics run-context.json) for the same candidate_sha, replace this file's contents with that run's findings using the schema below and set baseline_established: true.",
+  "candidate_sha": null,
+  "deployed_staging_sha": null,
+  "established_at": null,
+  "zap_version": "2.17.0",
+  "zap_image_digest": "sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2",
+  "approved_host": "yzqjvdfgefveprobvvyw.supabase.co",
+  "findings": [],
+  "finding_schema": {
+    "finding_id": "stable identifier — e.g. ZAP ruleId + endpoint hash",
+    "zap_rule_id": "ZAP plugin/rule ID",
+    "risk": "High | Medium | Low | Informational",
+    "endpoint": "method + path, redacted of query values",
+    "classification": "confirmed_vulnerability | probable_vulnerability | configuration_weakness | informational | verified_false_positive | manual_validation_required",
+    "evidence_redacted": "short, non-sensitive evidence snippet — never a full response body, header, cookie, or token",
+    "first_seen_candidate_sha": "sha",
+    "first_seen_at": "ISO 8601 timestamp",
+    "status": "open | accepted_risk | fixed"
+  }
+}

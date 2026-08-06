@@ -1,0 +1,156 @@
+# Pre-Publish Release Security Gate — the final, human-triggered checkpoint
+# before an exact staging-validated candidate becomes eligible for owner
+# approval to promote to production. Runs ONLY for a candidate SHA an owner
+# names explicitly (workflow_dispatch), never automatically for arbitrary
+# pushes — this is a deliberate, infrequent, high-stakes gate, not a
+# per-commit check.
+#
+# This workflow does not build, deploy, or merge anything. It locates the
+# most recent completed runs of the four upstream security workflows FOR
+# THE EXACT candidate SHA, downloads their evidence artifacts, assembles the
+# exact-SHA evidence bundle (build-security-evidence.js), and derives the
+# Pre-Publish verdict (build-pre-publish-verdict.js) from it. Verdict
+# artifacts are always produced, including when BLOCKED or an
+# OPERATIONAL FAILURE prevents evaluation — a silent gate is worse than one
+# that fails loudly.
+
+name: Security - Pre-Publish Release Security Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact candidate SHA already validated in staging
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  pre-publish-release-security-gate:
+    name: Pre-Publish Release Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Confirm candidate SHA is reachable from the canonical staging branch
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if ! git cat-file -e "${CANDIDATE_SHA}^{commit}" 2>/dev/null; then
+            echo "::error::candidate_sha ${CANDIDATE_SHA} does not exist in this checkout"
+            exit 3
+          fi
+          git fetch origin staging/production-parity --quiet
+          if ! git merge-base --is-ancestor "${CANDIDATE_SHA}" origin/staging/production-parity; then
+            echo "::error::candidate_sha ${CANDIDATE_SHA} is not an ancestor of origin/staging/production-parity — refusing to evaluate an unauthorized candidate"
+            exit 3
+          fi
+          echo "candidate_sha ${CANDIDATE_SHA} confirmed reachable from staging/production-parity"
+
+      - name: Locate and download upstream evidence for this exact SHA
+        id: locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          install -d -m 0777 pre-publish-inputs
+          : > pre-publish-inputs/missing-runs.txt
+
+          declare -A WORKFLOW_DIRS=(
+            ["Security - Promotion Gate"]="promotion-gate"
+            ["Security - ZAP Baseline Staging"]="zap-baseline"
+            ["Security - ZAP API Staging"]="zap-api"
+            ["Security - Candidate Artifact Exposure Gate"]="artifact-exposure"
+          )
+
+          for WF in "${!WORKFLOW_DIRS[@]}"; do
+            DIR="pre-publish-inputs/${WORKFLOW_DIRS[$WF]}"
+            install -d -m 0777 "$DIR"
+            RUN_ID="$(gh run list --repo "${{ github.repository }}" --workflow "$WF" --json databaseId,headSha,status \
+              -q "[.[] | select(.headSha == \"${CANDIDATE_SHA}\" and .status == \"completed\")] | sort_by(.databaseId) | last | .databaseId // empty")"
+            if [ -z "$RUN_ID" ]; then
+              echo "MISSING: no completed run of '${WF}' for SHA ${CANDIDATE_SHA}" | tee -a pre-publish-inputs/missing-runs.txt
+              continue
+            fi
+            echo "Found run ${RUN_ID} for '${WF}'"
+            if ! gh run download "$RUN_ID" --repo "${{ github.repository }}" --dir "$DIR" 2>>pre-publish-inputs/missing-runs.txt; then
+              echo "DOWNLOAD_FAILED: '${WF}' run ${RUN_ID}" | tee -a pre-publish-inputs/missing-runs.txt
+            fi
+          done
+
+          cat pre-publish-inputs/missing-runs.txt || true
+
+      - name: Assemble exact-SHA evidence bundle
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          PROMOTION_VERDICT="$(find pre-publish-inputs/promotion-gate -name 'promotion-verdict.json' | head -1 || true)"
+          ZAP_BASELINE_CTX="$(find pre-publish-inputs/zap-baseline -name 'run-context.json' | head -1 || true)"
+          ZAP_API_CTX="$(find pre-publish-inputs/zap-api -name 'run-context.json' | head -1 || true)"
+          ZAP_BASELINE_REPORT="$(find pre-publish-inputs/zap-baseline -name 'zap-baseline-report.json' | head -1 || true)"
+          ZAP_API_REPORT="$(find pre-publish-inputs/zap-api -name 'zap-api-report.json' | head -1 || true)"
+          ARTIFACT_EXPOSURE_REPORT="$(find pre-publish-inputs/artifact-exposure -name 'artifact-exposure-report.json' | head -1 || true)"
+
+          ARGS=(--candidate-sha "${CANDIDATE_SHA}" --output-dir security/evidence)
+          [ -n "$PROMOTION_VERDICT" ] && ARGS+=(--promotion-verdict "$PROMOTION_VERDICT")
+          [ -n "$ZAP_BASELINE_CTX" ] && ARGS+=(--zap-baseline-run-context "$ZAP_BASELINE_CTX")
+          [ -n "$ZAP_API_CTX" ] && ARGS+=(--zap-api-run-context "$ZAP_API_CTX")
+          [ -n "$ZAP_BASELINE_REPORT" ] && ARGS+=(--zap-baseline-report "$ZAP_BASELINE_REPORT")
+          [ -n "$ZAP_API_REPORT" ] && ARGS+=(--zap-api-report "$ZAP_API_REPORT")
+          [ -n "$ARTIFACT_EXPOSURE_REPORT" ] && ARGS+=(--artifact-exposure-report "$ARTIFACT_EXPOSURE_REPORT")
+
+          node security/scripts/build-security-evidence.js "${ARGS[@]}"
+          cat security/evidence/security-evidence.json
+
+      - name: Build Pre-Publish verdict
+        id: verdict
+        run: |
+          set -euo pipefail
+          set +e
+          node security/scripts/build-pre-publish-verdict.js \
+            --evidence security/evidence/security-evidence.json \
+            --output-dir security/evidence
+          CODE=$?
+          set -e
+          echo "verdict_exit_code=${CODE}" >> "$GITHUB_OUTPUT"
+          cat security/evidence/pre-publish-security-verdict.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Pre-Publish verdict artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pre-publish-verdict-${{ github.run_number }}
+          path: |
+            security/evidence/
+            pre-publish-inputs/missing-runs.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Enforce verdict
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.verdict.outputs.verdict_exit_code }}" != "0" ]; then
+            echo "Pre-Publish Release Security Gate did not pass — see pre-publish-security-verdict.json for the reason. Owner approval is NOT eligible."
+            exit 1
+          fi
+          echo "Pre-Publish Release Security Gate PASSED for candidate ${{ inputs.candidate_sha }}. Owner approval eligible — this workflow does not grant it automatically."
