@@ -101,6 +101,25 @@ create index dressing_room_participants_active_idx
 
 -- ── 3. Internal (unexposed-schema) pair-relationship helpers ────────────
 
+-- The `internal` schema is created by an operational migration that is NOT in
+-- this repository (20260804090000_edge_function_errors exists on the hosted
+-- databases only). This migration therefore cannot assume the schema is
+-- present: replaying the repo migration set into an empty database fails with
+-- `schema "internal" does not exist` (3F000) without this. Both statements are
+-- idempotent and are no-ops where the schema already exists, so this is safe
+-- to apply to an environment that already has it.
+create schema if not exists internal;
+
+-- USAGE on the schema is required in addition to EXECUTE on the function:
+-- the RLS policies below reference internal.is_dressing_room_pair_blocked and
+-- RLS predicates evaluate as the QUERYING role, so without this an ordinary
+-- authenticated read would fail with "permission denied for schema internal".
+-- USAGE alone exposes nothing: object-level privileges still apply, and the
+-- schema is absent from the PostgREST exposed-schema list either way.
+revoke all on schema internal from public;
+revoke all on schema internal from anon;
+grant usage on schema internal to authenticated;
+
 create or replace function internal.is_dressing_room_pair_blocked(user_a uuid, user_b uuid)
  returns boolean
  language sql
