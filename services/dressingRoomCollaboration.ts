@@ -41,9 +41,13 @@ export type CollaborationAccessDecision =
       currentOwnerId: string;
       relationship: CollaborationRelationship;
       canView: true;
-      canReact: true;
-      canMessage: true;
-      canReply: true;
+      // canMessage/canReact/canReply are the backend's live block-aware
+      // capability grant, not vestigial constants — e.g. an owner whose sole
+      // participant is blocked still has ok:true (room + history preserved)
+      // but canMessage:false. Never hardcode these to true.
+      canReact: boolean;
+      canMessage: boolean;
+      canReply: boolean;
       canSubscribe: true;
       canUpdateReadState: false;
       accessVersion: number;
@@ -143,9 +147,9 @@ export function parseCollaborationAccess(raw: unknown): CollaborationAccessDecis
     currentOwnerId: row.currentOwnerId,
     relationship,
     canView: true,
-    canReact: true,
-    canMessage: true,
-    canReply: true,
+    canReact: row.canReact === true,
+    canMessage: row.canMessage === true,
+    canReply: row.canReply === true,
     canSubscribe: true,
     canUpdateReadState: false,
     accessVersion: row.accessVersion,
