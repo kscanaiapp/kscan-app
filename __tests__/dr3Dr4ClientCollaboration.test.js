@@ -248,8 +248,18 @@ test('DR-3 client access failures collapse to one generic message (no existence 
   assert.equal(notFound.ok, false);
   assert.equal(unauthorized.ok, false);
   assert.equal(collab.isCollaborationAccessError(collab.COLLAB_ACCESS_ERROR), true);
-  // Exactly one user-facing string exists for loss of access.
-  assert.equal(collab.COLLAB_ACCESS_ERROR, 'You no longer have access to this room.');
+  // Exactly one user-facing string exists for loss of access. It is neutral by
+  // contract: the same denial covers an expired link and a block in either
+  // direction, so it must not assert a state change ("you no longer have
+  // access" is untrue for a first-time joiner blocked before joining) and must
+  // not disclose that a block exists.
+  assert.equal(collab.COLLAB_ACCESS_ERROR, 'This Dressing Room is no longer available.');
+  // The classifier must still recognise the historical wording, or persisted
+  // strings would silently stop being treated as access loss.
+  assert.equal(
+    collab.isCollaborationAccessError('You no longer have access to this room.'),
+    true,
+  );
   assert.doesNotMatch(panel, /not_found/);
 });
 

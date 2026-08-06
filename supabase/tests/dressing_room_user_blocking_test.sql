@@ -1,6 +1,9 @@
 begin;
 
-select plan(52);
+-- 54 assertions follow. Keep this count in sync when adding or removing one:
+-- pgTAP reports a plan mismatch (not a failure) when they diverge, which is
+-- easy to read past in CI output.
+select plan(54);
 
 -- RLS-dependent assertions in this file explicitly `set local role authenticated`
 -- around themselves (in addition to set_config('request.jwt.claim.sub', ...)):
