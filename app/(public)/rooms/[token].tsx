@@ -42,6 +42,7 @@ import {
   setItemReaction,
 } from '../../../services/styleObjects';
 import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
+import { resolveCollaborationAccess } from '../../../services/dressingRoomCollaboration';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
@@ -453,6 +454,7 @@ function SharedRoomChatSection({
   const { isAuthenticated } = useAuthSession();
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [roomOwnerId, setRoomOwnerId] = useState<string | null>(null);
   const joinInFlight = useRef(false);
 
   const handleJoin = useCallback(async () => {
@@ -463,6 +465,12 @@ function SharedRoomChatSection({
     try {
       const joinedRoomId = await joinSharedRoom(token);
       onJoined(joinedRoomId);
+      // Best-effort: used only to pick the right Block-user confirmation
+      // copy (participant-blocks-owner vs. participant-blocks-participant).
+      // A failure here never blocks entering the room, and the panel below
+      // simply falls back to the safer "you may leave this room" copy.
+      const access = await resolveCollaborationAccess(joinedRoomId).catch(() => null);
+      setRoomOwnerId(access && access.ok ? access.currentOwnerId : null);
     } catch (err: any) {
       // err.message is a friendly string from services/roomMessages - never a
       // raw Supabase/RLS error and never a token.
@@ -478,7 +486,7 @@ function SharedRoomChatSection({
   }
 
   if (roomId) {
-    return <RoomMessagesPanel roomId={roomId} />;
+    return <RoomMessagesPanel roomId={roomId} isOwner={false} roomOwnerId={roomOwnerId} />;
   }
 
   return (

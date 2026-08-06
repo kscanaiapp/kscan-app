@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -39,6 +39,11 @@ import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
+import {
+  listDressingRoomBlockedUsers,
+  unblockDressingRoomUser,
+  type DressingRoomBlockedUser,
+} from '../services/dressingRoomBlocks';
 
 const PRIVACY_COPY = {
   saleRemote:
@@ -169,6 +174,54 @@ function DataRequestCard({
   );
 }
 
+interface BlockedUsersCardProps {
+  loading: boolean;
+  error: string | null;
+  blockedUsers: DressingRoomBlockedUser[];
+  unblockingId: string | null;
+  onUnblock: (blockedUserId: string) => void;
+}
+
+function BlockedUsersCard({
+  loading,
+  error,
+  blockedUsers,
+  unblockingId,
+  onUnblock,
+}: BlockedUsersCardProps) {
+  return (
+    <View style={styles.dataCard}>
+      <SectionHeader
+        title="Blocked Users"
+        subtitle="Accounts you've blocked in Dressing Rooms"
+      />
+      {loading ? (
+        <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+      ) : error ? (
+        <Text style={styles.blockedUsersError}>{error}</Text>
+      ) : blockedUsers.length === 0 ? (
+        <Text style={styles.blockedUsersEmpty}>You haven't blocked anyone.</Text>
+      ) : (
+        <View style={styles.blockedUsersList}>
+          {blockedUsers.map((entry) => (
+            <View key={entry.blockedUserId} style={styles.blockedUsersRow}>
+              <Text style={styles.blockedUsersLabel}>Blocked User</Text>
+              <SecondaryButton
+                title={unblockingId === entry.blockedUserId ? 'Unblocking…' : 'Unblock'}
+                onPress={() => onUnblock(entry.blockedUserId)}
+                disabled={unblockingId === entry.blockedUserId}
+                accessibilityLabel="Unblock user"
+                accessibilityHint="Removes this account from your blocked list"
+                testID={`privacy-unblock-${entry.blockedUserId}`}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 interface AccountDeletionCardProps {
   pending: boolean;
   disabled: boolean;
@@ -218,6 +271,10 @@ export default function PrivacyScreen() {
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
   const [deletionConfirmVisible, setDeletionConfirmVisible] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<DressingRoomBlockedUser[]>([]);
+  const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
+  const [blockedUsersError, setBlockedUsersError] = useState<string | null>(null);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
   const accountDeletionPending = hasPendingDeletionProfile(profile);
@@ -235,6 +292,54 @@ export default function PrivacyScreen() {
 
   const syncChipLabel = SYNC_STATUS_LABELS[syncStatus] ?? syncStatus;
   const syncChipVariant = SYNC_STATUS_VARIANTS[syncStatus] ?? 'neutral';
+
+  const loadBlockedUsers = useCallback(async () => {
+    if (!isAuthenticated) {
+      setBlockedUsers([]);
+      return;
+    }
+    setBlockedUsersLoading(true);
+    setBlockedUsersError(null);
+    try {
+      const rows = await listDressingRoomBlockedUsers();
+      setBlockedUsers(rows);
+    } catch (err: any) {
+      setBlockedUsersError(
+        typeof err?.message === 'string' ? err.message : "We couldn't load your blocked users.",
+      );
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    void loadBlockedUsers();
+  }, [loadBlockedUsers]);
+
+  const handleUnblock = useCallback(
+    (blockedUserId: string) => {
+      Alert.alert('Unblock this user?', 'You will not automatically regain any prior shared Dressing Room access.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          onPress: async () => {
+            setUnblockingId(blockedUserId);
+            try {
+              await unblockDressingRoomUser(blockedUserId);
+              setBlockedUsers((current) =>
+                current.filter((entry) => entry.blockedUserId !== blockedUserId),
+              );
+            } catch {
+              Alert.alert("We couldn't unblock that user. Please try again.");
+            } finally {
+              setUnblockingId(null);
+            }
+          },
+        },
+      ]);
+    },
+    [],
+  );
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Your privacy preferences will continue to be stored on this device.', [
@@ -548,6 +653,16 @@ export default function PrivacyScreen() {
               onCorrection={handleCorrection}
             />
 
+            {isAuthenticated ? (
+              <BlockedUsersCard
+                loading={blockedUsersLoading}
+                error={blockedUsersError}
+                blockedUsers={blockedUsers}
+                unblockingId={unblockingId}
+                onUnblock={handleUnblock}
+              />
+            ) : null}
+
             <AccountDeletionCard
               pending={deletionPending || accountDeletionPending}
               disabled={!isAuthenticated || saving || deletionSubmitting || deletionPending || accountDeletionPending}
@@ -721,6 +836,30 @@ const styles = StyleSheet.create({
   },
   correctionButton: {
     width: '100%',
+  },
+  blockedUsersList: {
+    gap: SPACING.sm,
+  },
+  blockedUsersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  blockedUsersLabel: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.graphite,
+  },
+  blockedUsersEmpty: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.stone,
+  },
+  blockedUsersError: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.error,
   },
   correctionBox: {
     gap: SPACING.sm,

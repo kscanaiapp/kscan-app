@@ -13,12 +13,10 @@ import {
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import {
   DRESSING_ROOM_COLLABORATION_V1,
-  DRESSING_ROOM_MESSAGES_V1,
   DRESSING_ROOM_REALTIME_SYNC_V1,
   DRESSING_ROOM_THREADS_V1,
 } from '../../constants/featureFlags';
 import {
-  listRoomMessages,
   listRoomMessagesPage,
   catchUpRoomMessages,
   mergeRoomMessages,
@@ -46,18 +44,18 @@ import {
   readHiddenUserIds,
 } from '../../services/ugcSafetyStore';
 import { submitContentReport } from '../../services/contentReports';
+import {
+  blockDressingRoomUser,
+  DRESSING_ROOM_INTERACTION_UNAVAILABLE_ERROR,
+} from '../../services/dressingRoomBlocks';
 
 const MESSAGES_EMPTY_COPY = 'No messages yet. Start the conversation about this room.';
 const MESSAGES_FILTERED_EMPTY_COPY =
   'You have reported or hidden all recent activity in this room.';
 const COMPOSER_PLACEHOLDER = 'Message about this room…';
 
-function collabMessagesEnabled() {
-  return DRESSING_ROOM_COLLABORATION_V1 && DRESSING_ROOM_MESSAGES_V1;
-}
-
 function threadsEnabled() {
-  return collabMessagesEnabled() && DRESSING_ROOM_THREADS_V1;
+  return DRESSING_ROOM_THREADS_V1;
 }
 
 function syncEnabled() {
@@ -78,11 +76,15 @@ function formatMessageTimestamp(createdAt: string) {
 function MessageRow({
   message,
   onReport,
+  onReportUser,
+  onBlock,
   onReply,
   replyEnabled,
 }: {
   message: RoomMessage;
   onReport: (message: RoomMessage) => void;
+  onReportUser: (message: RoomMessage) => void;
+  onBlock: (message: RoomMessage) => void;
   onReply?: (message: RoomMessage) => void;
   replyEnabled: boolean;
 }) {
@@ -109,6 +111,26 @@ function MessageRow({
               <Text style={styles.replyButtonText}>Reply</Text>
             </TouchableOpacity>
           ) : null}
+          {!message.isMine ? (
+            <TouchableOpacity
+              onPress={() => onReportUser(message)}
+              accessibilityRole="button"
+              accessibilityLabel="Report user"
+              testID={`room-message-report-user-${message.id}`}
+            >
+              <Text style={styles.reportButtonText}>Report user</Text>
+            </TouchableOpacity>
+          ) : null}
+          {!message.isMine ? (
+            <TouchableOpacity
+              onPress={() => onBlock(message)}
+              accessibilityRole="button"
+              accessibilityLabel="Block user"
+              testID={`room-message-block-${message.id}`}
+            >
+              <Text style={styles.reportButtonText}>Block</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             onPress={() => onReport(message)}
             accessibilityRole="button"
@@ -124,7 +146,21 @@ function MessageRow({
   );
 }
 
-export function RoomMessagesPanel({ roomId }: { roomId: string }) {
+export function RoomMessagesPanel({
+  roomId,
+  isOwner = false,
+  roomOwnerId = null,
+}: {
+  roomId: string;
+  /** True when the current viewer owns this Dressing Room. */
+  isOwner?: boolean;
+  /** The room owner's user id, when known to the caller (used only to pick
+   *  confirmation copy for Block user — participant-blocks-owner vs.
+   *  participant-blocks-fellow-participant). Optional: when absent, the
+   *  participant confirmation defaults to the safer "you may leave this
+   *  room" copy. */
+  roomOwnerId?: string | null;
+}) {
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -158,14 +194,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
     setAccessRevoked(false);
     try {
       const [fetchedPage, hiddenContentIds, hiddenUserIdsResult] = await Promise.all([
-        collabMessagesEnabled()
-          ? listRoomMessagesPage({ roomId })
-          : listRoomMessages(roomId).then((all) => ({
-              messages: all,
-              nextCursor: null as MessageCursor | null,
-              newestCursor: null as MessageCursor | null,
-              accessVersion: 0,
-            })),
+        listRoomMessagesPage({ roomId }),
         readHiddenContentIds().catch(() => [] as string[]),
         readHiddenUserIds().catch(() => [] as string[]),
       ]);
@@ -190,7 +219,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
   }, [clearInteractiveState, roomId]);
 
   const loadOlder = useCallback(async () => {
-    if (!collabMessagesEnabled() || !olderCursor || loadingOlder) return;
+    if (!olderCursor || loadingOlder) return;
     setLoadingOlder(true);
     try {
       const page = await listRoomMessagesPage({
@@ -282,6 +311,76 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
       );
     },
     [roomId],
+  );
+
+  const handleReportUser = useCallback(
+    (message: RoomMessage) => {
+      if (!message.senderId || message.isMine) return;
+      Alert.alert(
+        'Report this user?',
+        'We will review this account for violations of our community guidelines. This does not block them — use Block user separately if you also want to stop interacting with them.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Report user',
+            style: 'destructive',
+            onPress: async () => {
+              const result = await submitContentReport({
+                targetType: 'user',
+                targetId: message.senderId,
+                reportedUserId: message.senderId,
+                roomId,
+                reasonCategory: 'inappropriate',
+              });
+              if (result.ok) {
+                Alert.alert('Thanks. We received your report.');
+              } else {
+                Alert.alert("We couldn't send that report. Please try again.");
+              }
+            },
+          },
+        ],
+      );
+    },
+    [roomId],
+  );
+
+  const handleBlock = useCallback(
+    (message: RoomMessage) => {
+      if (!message.senderId || message.isMine) return;
+
+      const blockingOwner = message.senderId === roomOwnerId;
+      const title = 'Block this user?';
+      const body = isOwner
+        ? 'They will no longer be able to access shared Dressing Rooms with you or send you Dressing Room messages. Existing messages may be retained for safety and recordkeeping.'
+        : blockingOwner
+          ? 'You will leave this shared Dressing Room and will no longer receive or send Dressing Room messages with this user. Existing messages may be retained for safety and recordkeeping.'
+          : 'You will leave this shared Dressing Room. Existing messages may be retained for safety and recordkeeping.';
+
+      Alert.alert(title, body, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block user',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockDressingRoomUser(message.senderId);
+              Alert.alert('User blocked.');
+              // The backend has already applied every access consequence in
+              // the same transaction; the next load/access check reflects it.
+              void load();
+            } catch (err: any) {
+              const errorMessage =
+                typeof err?.message === 'string'
+                  ? err.message
+                  : DRESSING_ROOM_INTERACTION_UNAVAILABLE_ERROR;
+              Alert.alert(errorMessage);
+            }
+          },
+        },
+      ]);
+    },
+    [isOwner, load, roomOwnerId],
   );
 
   useEffect(() => {
@@ -433,7 +532,7 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
             </View>
           ) : (
             <View style={styles.messageList} testID="room-messages-list">
-              {collabMessagesEnabled() && olderCursor ? (
+              {olderCursor ? (
                 <TouchableOpacity
                   style={styles.pillButton}
                   onPress={() => {
@@ -456,6 +555,8 @@ export function RoomMessagesPanel({ roomId }: { roomId: string }) {
                   key={message.id}
                   message={message}
                   onReport={handleReport}
+                  onReportUser={handleReportUser}
+                  onBlock={handleBlock}
                   replyEnabled={threadsEnabled() && !accessRevoked}
                   onReply={(target) => setReplyTo(target)}
                 />
