@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-03T18:03:57.445Z",
-    "generatedFromGitSha": "033244712de36431ac72aefe1a1506c6413bb802"
+    "generatedAtUtc": "2026-08-06T03:18:59.192Z",
+    "generatedFromGitSha": "476e8a68166e3641c9548f154483866026694d77"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,8 +21,8 @@
         ],
         "bundleFileCount": 36,
         "treeFileCount": 46,
-        "bundleHash": "83082b108cc36ec30d1142094371f27590883d8df189b816d99002f4eb3c8317",
-        "treeHash": "0ccfe0910156a9d6f7379b11d576d41e8b164590ee856e26a3006be70533013a",
+        "bundleHash": "56ea585249b5a8e29faaffc01819b06819c01f769fb49abe863ed96e6ac5d993",
+        "treeHash": "c73baa127fd52281782e0e96cb9c4a88a8f3294c98164960729802b296a5095a",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -41,7 +41,7 @@
           },
           {
             "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-            "sha256": "da4aa4210ae3bbf4ff878e5ca34165e95b45c1584a7b4217b6baed59d13a99fe",
+            "sha256": "1b15888dc434fba0bbd3bd242254dd111d29a9b9a76dd6a8bcecb0b566bad813",
             "bundle": true
           },
           {
@@ -121,7 +121,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "4a5234364a57f5a79a6f15133277aa55e4c66f7baf34a0c259675cc43c3df820",
+            "sha256": "938ca14476e63f70397195d25ab47dabfa6c4509bfff4feb3718631c2cff751f",
             "bundle": true
           },
           {
@@ -136,7 +136,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/multiItemGarments.ts",
-            "sha256": "6b91ff2b7978cc4a7975d0b4590e966633f1c260281c900316843c23d9260a16",
+            "sha256": "644fe535c60698b7b4ac8976f3a4c5570f400f25399aa31a54d44ee277cde1b9",
             "bundle": true
           },
           {
