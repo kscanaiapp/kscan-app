@@ -41,6 +41,16 @@ import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 // stale offset.
 const SIMILAR_SCROLL_TOP_OFFSET = 20;
 
+/**
+ * Height to reserve for the sticky action row BEFORE it has been measured.
+ *
+ * Two wrapped lines of 48pt buttons + the 8pt gap between them + the row's own
+ * 12pt top padding. Four actions wrap to two lines on a narrow screen, and this
+ * is the only frame where a too-small estimate is visible as the last item
+ * sitting behind the bar. Excludes the safe-area inset, which the caller adds.
+ */
+const ESTIMATED_ACTION_ROW_HEIGHT = 48 * 2 + SPACING.sm + SPACING.md;
+
 function isRenderableSimilarFind(product: ProductMatch | null | undefined): product is ProductMatch {
   if (!product) return false;
 
@@ -205,6 +215,24 @@ export function ScanResultV2({
   const similarFindsTargetReady =
     hasRenderableSimilarFinds && similarFindsTarget?.key === similarFindsKey;
 
+  /**
+   * Will the sticky action row render anything?
+   *
+   * Mirrors this screen's own ScanResultActionRow props, and must keep
+   * mirroring them: the next-step prompt is framing FOR these actions, so a
+   * prompt shown without them asks a question the screen cannot answer. The
+   * confirmation step withholds every action except Find Matches, which is the
+   * case the Android line does not have.
+   */
+  const hasStickyActions =
+    (!isConfirmationStep &&
+      (typeof onSaveToLibrary === 'function' ||
+        typeof onAskStyleChat === 'function' ||
+        typeof onAddToDressingRoom === 'function')) ||
+    (confirmationCandidates.length > 0
+      ? typeof onAnalyzeSelectedCandidate === 'function'
+      : similarFindsTargetReady);
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -256,7 +284,10 @@ export function ScanResultV2({
               >
                 <EmptyStateCard
                   title="Scan result unavailable"
-                  subtitle="Your scan data could not be loaded."
+                  // The body says what to expect next, not the title again.
+                  // "Your scan data could not be loaded" restated the heading
+                  // and left the user with nothing they did not already know.
+                  subtitle="Nothing was saved, so you can scan this item again."
                   action={{
                     label: 'Scan Again',
                     onPress: runExit,
@@ -301,12 +332,21 @@ export function ScanResultV2({
               contentContainerStyle={[
                 styles.cardInner,
                 {
-                  // Ensure the last scrollable content clears the absolute sticky
-                  // action row, including its measured height, safe-area inset,
-                  // and a small extra margin.
+                  // Clear the absolutely-positioned action row.
+                  //
+                  // The measured height ALREADY contains the row's own bottom
+                  // inset padding, so the inset is only added while no
+                  // measurement exists yet — adding it to a measured height
+                  // double-counts it and leaves a dead gap under the content.
+                  //
+                  // The pre-measurement estimate has to cover the row WRAPPED to
+                  // two lines, which is what four actions do on a narrow screen.
+                  // The old floor of 100 was under a single line plus its inset,
+                  // so the last item sat behind the bar until onLayout landed.
                   paddingBottom:
-                    Math.max(actionRowHeight, 100) +
-                    Math.max(insets.bottom, SPACING.md) +
+                    (actionRowHeight > 0
+                      ? actionRowHeight
+                      : ESTIMATED_ACTION_ROW_HEIGHT + Math.max(insets.bottom, SPACING.md)) +
                     SPACING.xl,
                 },
               ]}
@@ -443,10 +483,17 @@ export function ScanResultV2({
                 </View>
               ) : null}
 
-              {/* Next-step framing above sticky actions */}
-              <Text style={styles.nextStepPrompt}>
-                What would you like to do with this look?
-              </Text>
+              {/* Next-step framing above sticky actions.
+                  Gated on there BEING sticky actions: every handler below is
+                  conditional (a feature freeze, the confirmation step, no active
+                  scan item, too few similar finds), and when they all resolve to
+                  undefined the row renders null — leaving this question with
+                  nothing to answer it. */}
+              {hasStickyActions ? (
+                <Text style={styles.nextStepPrompt}>
+                  What would you like to do with this look?
+                </Text>
+              ) : null}
 
               {/* Closet tools footer (flag-guarded; renders null by default) */}
               <ScanResultUtilityFooter result={v2Data} />

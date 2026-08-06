@@ -31,19 +31,31 @@ import {
 } from '../../services/closetCandidateErrors';
 import { ClosetCandidateManualClassifyModal } from './ClosetCandidateManualClassifyModal';
 
-/** Category / subtype / colour, in that order, skipping what is absent. */
+/**
+ * Category / subtype / colour, in that order, skipping what is absent — and
+ * skipping what has already been said. A plain top classifies as category "top"
+ * AND subtype "top", which read as "top · top · black" on the card.
+ */
 function describe(candidate: {
   category?: string | null;
   clothingType?: string | null;
   subtype?: string | null;
   primaryColor?: string | null;
 }): string | null {
-  const parts = [
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  for (const part of [
     candidate.category,
     candidate.clothingType,
     candidate.subtype,
     candidate.primaryColor,
-  ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0);
+  ]) {
+    if (typeof part !== 'string' || !part.trim()) continue;
+    const key = part.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push(part);
+  }
   return parts.length ? parts.join(' · ') : null;
 }
 

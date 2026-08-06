@@ -40,7 +40,10 @@ const CLOSET_DIR    = FileSystem.documentDirectory + 'kscan_closet/';
 const CLOSET_PATH   = CLOSET_DIR + 'kscan_closet.json';
 const IMAGES_DIR    = CLOSET_DIR + 'images/';
 const THUMBS_DIR    = CLOSET_DIR + 'thumbnails/';
-const THUMB_WIDTH   = 160;
+// See services/library.js for the sizing rationale. Device pixels, not dp: the
+// Closet grid card renders at ~176dp and Android ships at up to 3.5x.
+const THUMB_WIDTH   = 640;
+const THUMB_COMPRESS = 0.88;
 const IMAGE_WIDTH   = 1440;
 
 /**
@@ -615,12 +618,12 @@ async function deriveClosetMedia(sourceUri, stable = null) {
     const thumb = await ImageManipulator.manipulateAsync(
       sourceUri,
       [{ resize: { width: THUMB_WIDTH } }],
-      { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      { compress: THUMB_COMPRESS, format: ImageManipulator.SaveFormat.JPEG }
     );
     if (stable) {
       // A thumbnail conflict is NOT fatal, exactly as a thumbnail failure is not:
       // the item still owns a full image, and refusing the whole promotion over a
-      // 160px derivative would be a worse answer than showing no thumbnail.
+      // single derivative would be a worse answer than showing no thumbnail.
       const placed = await placeAtStableClosetPath(thumb?.uri, THUMBS_DIR, stable.assetId, stable);
       thumbnailUri = placed.ok ? placed.path : null;
     } else {

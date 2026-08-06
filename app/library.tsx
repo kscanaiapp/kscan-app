@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -143,6 +143,23 @@ function mirrorStagingProgressLabel(integration: {
   return `${successCount} of ${totalCropCount} garments were added to your review.`;
 }
 
+/**
+ * The Closet card's secondary line, or nothing when it would only repeat the
+ * title.
+ *
+ * A promoted item's title is built from its taxonomy — brand plus the most
+ * specific descriptor — so an item with neither a brand nor a subtype gets its
+ * bare category as a title. Rendering the category underneath it produced a
+ * card reading "Tops" over "Tops".
+ */
+function closetCardSubtitle(title: string, category: string | null): string | undefined {
+  const fallback = 'Owned item';
+  if (!category) return fallback;
+  return category.trim().toLowerCase() === String(title ?? '').trim().toLowerCase()
+    ? undefined
+    : category;
+}
+
 function formatDate(iso: string): string {
   try {
     const date = new Date(iso);
@@ -197,7 +214,10 @@ const SECTION_CHROME = {
     title: 'Your Closet',
     subtitle: 'YOUR OWNED WARDROBE',
     emptyTitle: 'Your Closet is empty',
-    emptyBody: 'Add items you own to build your Closet.',
+    // No emptyBody. The Closet's empty body depends on whether direct intake is
+    // available, so it is written at the call site. A static string here was a
+    // SECOND body for the same state that nothing rendered — the kind of
+    // duplicate copy this table exists to prevent.
   },
 } as const;
 
@@ -255,6 +275,28 @@ export default function LibraryScreen() {
   // and the status panel renders from it, so a staged photo appears immediately
   // rather than on the next focus.
   const closetCandidates = useClosetCandidates();
+
+  /**
+   * Promotion is the ONLY path that writes a committed Closet item from the
+   * candidate side, and the two hooks hold independent snapshots. Without this
+   * bridge the item lands on disk and the grid below never re-reads it, which
+   * reads to the user as "the item I just added is missing" — or, on a
+   * first-ever add, as an empty Closet.
+   *
+   * The re-read is additive: `refresh` cannot clear the grid, so a promotion
+   * whose follow-up read fails leaves the existing items alone.
+   */
+  const closetCandidatesWithCommitBridge = useMemo(
+    () => ({
+      ...closetCandidates,
+      promoteSelected: async (...args: Parameters<typeof closetCandidates.promoteSelected>) => {
+        const result = await closetCandidates.promoteSelected(...args);
+        await closet.refresh();
+        return result;
+      },
+    }),
+    [closetCandidates, closet.refresh]
+  );
   const [closetIntakeVisible, setClosetIntakeVisible] = useState(false);
   const [mirrorSelfieVisible, setMirrorSelfieVisible] = useState(false);
   const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -542,6 +584,11 @@ export default function LibraryScreen() {
   // this the route could resolve to Recent Scans while the header still claimed
   // "Your Closet" — the alias that made scan history look like owned inventory.
   const chrome = CLOSET_SEPARATION_V1 ? SECTION_CHROME[section] : LEGACY_CHROME;
+  // This empty state only ever renders under the Recent Scans or the
+  // pre-separation chrome; the Closet writes its own, intake-dependent body.
+  const recentEmptyBody = CLOSET_SEPARATION_V1
+    ? SECTION_CHROME.recent.emptyBody
+    : LEGACY_CHROME.emptyBody;
 
   const scanPairs = scans.reduce<[SavedScan, SavedScan | null][]>((pairs, scan, i) => {
     if (i % 2 === 0) pairs.push([scan, scans[i + 1] ?? null]);
@@ -676,12 +723,32 @@ export default function LibraryScreen() {
               unchanged and remains the only owned-inventory view.
             */}
             {CLOSET_CANDIDATE_STAGING_ACTIVE ? (
-              <ClosetCandidateStatusPanel api={closetCandidates} />
+              <ClosetCandidateStatusPanel api={closetCandidatesWithCommitBridge} />
             ) : null}
             {closet.loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
               </View>
+            ) : closet.error && closet.items.length === 0 ? (
+              /*
+                A Closet we could not READ is not an empty Closet. Saying
+                "empty" here would tell the user their items are gone and offer
+                "Add Item" as the remedy, when the items are on disk and the
+                remedy is to try the read again.
+              */
+              <EmptyStateCard
+                testID="closet-load-error-card"
+                title="We couldn't load your Closet"
+                subtitle={`${closet.error.message} Your items are safe — this was a problem reading them.`}
+                action={{
+                  label: 'Try Again',
+                  onPress: () => {
+                    void closet.refresh();
+                  },
+                  accessibilityLabel: 'Try loading your Closet again',
+                  testID: 'closet-load-error-retry-button',
+                }}
+              />
             ) : closet.items.length === 0 ? (
               <EmptyStateCard
                 title={chrome.emptyTitle}
@@ -712,7 +779,7 @@ export default function LibraryScreen() {
                       imageUrl={a.thumbnailUri ?? a.imageUri}
                       title={a.title}
                       accessibilityLabel={`${a.title} Closet item`}
-                      subtitle={a.category ?? 'Owned item'}
+                      subtitle={closetCardSubtitle(a.title, a.category)}
                       date={formatDate(a.createdAt)}
                       status="Closet"
                       onDelete={() => handleDeleteClosetItem(a.id)}
@@ -725,7 +792,7 @@ export default function LibraryScreen() {
                         imageUrl={b.thumbnailUri ?? b.imageUri}
                         title={b.title}
                         accessibilityLabel={`${b.title} Closet item`}
-                        subtitle={b.category ?? 'Owned item'}
+                        subtitle={closetCardSubtitle(b.title, b.category)}
                         date={formatDate(b.createdAt)}
                         status="Closet"
                         onDelete={() => handleDeleteClosetItem(b.id)}
@@ -758,7 +825,7 @@ export default function LibraryScreen() {
         ) : scans.length === 0 ? (
           <EmptyStateCard
             title={chrome.emptyTitle}
-            subtitle={chrome.emptyBody}
+            subtitle={recentEmptyBody}
             action={
               CLOSET_SEPARATION_V1
                 ? {
@@ -776,7 +843,11 @@ export default function LibraryScreen() {
           <View style={styles.singleCardRow}>
             <SavedLookCard
               testID="scan-card"
-              imageUrl={scans[0].thumbnailUri}
+              // The solo card spans both columns, so a card-sized thumbnail is
+              // the one derivative that cannot cover it. This is a single card,
+              // not a list cell — reading the full image here is cheap and is
+              // the only way the layout is not upscaling.
+              imageUrl={scans[0].imageUri ?? scans[0].thumbnailUri}
               title={scans[0].attributes.category || 'Scan'}
               accessibilityLabel={`${scans[0].attributes.category || 'Scan'} Recent Scan`}
               subtitle={scans[0].result}
@@ -794,7 +865,7 @@ export default function LibraryScreen() {
               <View key={a.id} style={styles.gridRow}>
                 <SavedLookCard
                   testID="scan-card"
-                  imageUrl={a.thumbnailUri}
+                  imageUrl={a.thumbnailUri ?? a.imageUri}
                   title={a.attributes.category || 'Scan'}
                   accessibilityLabel={`${a.attributes.category || 'Scan'} Recent Scan`}
                   subtitle={a.result}
@@ -807,7 +878,7 @@ export default function LibraryScreen() {
                 />
                 {b ? (
                   <SavedLookCard
-                    imageUrl={b.thumbnailUri}
+                    imageUrl={b.thumbnailUri ?? b.imageUri}
                     title={b.attributes.category || 'Scan'}
                     accessibilityLabel={`${b.attributes.category || 'Scan'} Recent Scan`}
                     subtitle={b.result}
