@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image, useWindowDimensions } from 'react-native';
 import {
   PrimaryButton,
   SecondaryButton,
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { getWelcomeHeroImageHeight } from '../../services/onboardingLayout';
 
 interface WelcomeStepV1Props {
   onGetStarted: () => void;
@@ -23,11 +24,14 @@ interface WelcomeStepV1Props {
  * - Secondary "I Already Have An Account" CTA
  */
 export function WelcomeStepV1({ onGetStarted, onAlreadyHaveAccount }: WelcomeStepV1Props) {
+  const { height: windowHeight } = useWindowDimensions();
+  const heroHeight = getWelcomeHeroImageHeight(windowHeight);
+
   return (
     <View style={styles.stepContent} testID="onboarding-welcome-screen-v1">
       <Image
         source={require('../../assets/images/welcome-hero.png')}
-        style={styles.heroImage}
+        style={[styles.heroImage, { height: heroHeight }]}
         resizeMode="cover"
         accessibilityLabel="Welcome to K Scan"
       />
@@ -71,7 +75,8 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: '100%',
-    height: 320,
+    // Height is set responsively via getWelcomeHeroImageHeight — never
+    // hardcode a device height here (see BUG-01).
     borderRadius: RADIUS.xl,
     marginBottom: SPACING.xl,
   },
