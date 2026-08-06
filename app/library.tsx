@@ -790,7 +790,11 @@ export default function LibraryScreen() {
           <View style={styles.singleCardRow}>
             <SavedLookCard
               testID="scan-card"
-              imageUrl={scans[0].thumbnailUri}
+              // The solo card spans both columns, so a card-sized thumbnail is
+              // the one derivative that cannot cover it. This is a single card,
+              // not a list cell — reading the full image here is cheap and is
+              // the only way the layout is not upscaling.
+              imageUrl={scans[0].imageUri ?? scans[0].thumbnailUri}
               title={scans[0].attributes.category || 'Scan'}
               accessibilityLabel={`${scans[0].attributes.category || 'Scan'} Recent Scan`}
               subtitle={scans[0].result}
@@ -808,7 +812,7 @@ export default function LibraryScreen() {
               <View key={a.id} style={styles.gridRow}>
                 <SavedLookCard
                   testID="scan-card"
-                  imageUrl={a.thumbnailUri}
+                  imageUrl={a.thumbnailUri ?? a.imageUri}
                   title={a.attributes.category || 'Scan'}
                   accessibilityLabel={`${a.attributes.category || 'Scan'} Recent Scan`}
                   subtitle={a.result}
@@ -821,7 +825,7 @@ export default function LibraryScreen() {
                 />
                 {b ? (
                   <SavedLookCard
-                    imageUrl={b.thumbnailUri}
+                    imageUrl={b.thumbnailUri ?? b.imageUri}
                     title={b.attributes.category || 'Scan'}
                     accessibilityLabel={`${b.attributes.category || 'Scan'} Recent Scan`}
                     subtitle={b.result}

@@ -14,12 +14,15 @@
  * Recent Scan image, and the picker-owned original is never a deletion candidate
  * at all.
  *
- * DIMENSIONS ARE THE REPOSITORY'S PROVEN PRODUCTION VALUES (1440px / q0.9 full,
- * 160px / q0.8 thumbnail), identical to services/closetLibrary.js. They are NOT
- * re-derived here and are deliberately not replaced with a new 1024x1024 standard:
- * a candidate is promoted into a committed Closet item in Build 2, and a candidate
- * derivative smaller than the Closet's own would silently downgrade every promoted
- * item's media.
+ * DIMENSIONS MATCH services/closetLibrary.js EXACTLY (1440px / q0.9 full,
+ * 640px / q0.88 thumbnail). They are NOT re-derived here: a candidate is promoted
+ * into a committed Closet item in Build 2, and a candidate derivative smaller than
+ * the Closet's own would silently downgrade every promoted item's media.
+ *
+ * The thumbnail was 160px / q0.8 through Build 25 Phase 1. That is 3-4x smaller
+ * than the card that renders it once device pixel ratio is applied, which is what
+ * destroyed patterned garments (BUG-05). Any future change must move all three
+ * media stores together.
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
@@ -38,7 +41,8 @@ export const CANDIDATE_THUMBS_DIR = CANDIDATE_DIR + 'thumbnails/';
 
 /** Identical to the committed Closet. See the module note above. */
 const IMAGE_WIDTH = 1440;
-const THUMB_WIDTH = 160;
+const THUMB_WIDTH = 640;
+const THUMB_COMPRESS = 0.88;
 
 /**
  * Source-image ceiling. Above this we refuse before decoding: a manipulator
@@ -285,7 +289,7 @@ export async function deriveCandidateMedia(sourceUri, deps = {}) {
     const thumb = await manipulator.manipulateAsync(
       sourceUri,
       [{ resize: { width: THUMB_WIDTH } }],
-      { compress: 0.8, format: manipulator.SaveFormat.JPEG },
+      { compress: THUMB_COMPRESS, format: manipulator.SaveFormat.JPEG },
     );
     thumbnailUri = await moveToFreshCandidatePath(
       thumb?.uri,

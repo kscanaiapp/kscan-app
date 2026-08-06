@@ -21,7 +21,14 @@ const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
 const IMAGES_DIR   = LIB_DIR + 'images/';
 const THUMBS_DIR   = LIB_DIR + 'thumbnails/';
 const MAX_SCANS     = 25;
-const THUMB_WIDTH   = 160; // px — small square-ish card thumbnail
+// px. Sized in DEVICE PIXELS against the largest surface that renders it, not in
+// dp: the Library grid card is ~176dp wide and Android ships at up to 3.5x, so a
+// 160px derivative was being upscaled 3-4x. Patterns are high-frequency detail —
+// stripes and plaid alias into mush at 160px and no amount of upscaling restores
+// them. 640 covers 176dp x 3.5. Must stay >= the candidate value in
+// services/closetCandidateMedia.js, which promotion copies from.
+const THUMB_WIDTH   = 640;
+const THUMB_COMPRESS = 0.88;
 const IMAGE_WIDTH   = 1440; // px — room-upload friendly, still compact
 const VALID_SCAN_SOURCES = new Set(['camera', 'upload', 'textscan', 'unknown']);
 let libraryMutationQueue = Promise.resolve();
@@ -242,7 +249,10 @@ async function generateThumbnail(photoUri, assetId) {
     const result = await ImageManipulator.manipulateAsync(
       photoUri,
       [{ resize: { width: THUMB_WIDTH } }],
-      { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      // q0.8 is fine on a 1440px image and wrong on a thumbnail: the same
+      // quantization covers far more of the frame, so a patterned weave picks up
+      // visible block artifacts exactly where the detail matters.
+      { compress: THUMB_COMPRESS, format: ImageManipulator.SaveFormat.JPEG }
     );
     // Move out of OS cache into app-owned persistent storage, no-overwrite.
     return await moveToFreshMediaPath(result.uri, THUMBS_DIR, assetId);
