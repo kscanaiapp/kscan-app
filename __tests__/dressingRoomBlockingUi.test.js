@@ -451,6 +451,61 @@ test('reactions: the raw-table path is still block-enforced by RLS', () => {
   assert.match(body, /is_dressing_room_pair_blocked/);
 });
 
+// ── Migration self-containment ───────────────────────────────────────────
+
+test('blocking migration creates the internal schema it depends on', () => {
+  // Found by replaying the repo migration set into an empty database:
+  // the migration defines internal.* helpers but no migration in this repo
+  // ever creates the `internal` schema (it is created by
+  // 20260804090000_edge_function_errors, which exists only on the hosted
+  // databases). Applying to any environment built from this repo failed with
+  // `schema "internal" does not exist` (SQLSTATE 3F000).
+  const blocking = readSource(
+    'supabase/migrations/20260806153233_dressing_room_user_blocking.sql',
+  );
+  assert.match(blocking, /create schema if not exists internal;/);
+
+  const createsAt = blocking.indexOf('create schema if not exists internal;');
+  const firstUse = blocking.search(/create or replace function internal\./);
+  assert.ok(firstUse > -1, 'the migration should define internal helpers');
+  assert.ok(
+    createsAt < firstUse,
+    'the schema must be created before the first internal.* object',
+  );
+});
+
+test('blocking migration grants schema USAGE so RLS predicates can run', () => {
+  // EXECUTE on the function is not sufficient. The RLS policies reference
+  // internal.is_dressing_room_pair_blocked and predicates evaluate as the
+  // QUERYING role, so authenticated also needs USAGE on the schema or an
+  // ordinary read fails with "permission denied for schema internal".
+  const blocking = readSource(
+    'supabase/migrations/20260806153233_dressing_room_user_blocking.sql',
+  );
+  assert.match(blocking, /grant usage on schema internal to authenticated;/);
+  assert.match(blocking, /revoke all on schema internal from public;/);
+  assert.match(blocking, /revoke all on schema internal from anon;/);
+});
+
+test('no repo migration other than the blocking one assumes the internal schema', () => {
+  // If another migration starts using internal.* it must create it too, or we
+  // are back to an unreplayable set.
+  const dir = path.join(ROOT, 'supabase/migrations');
+  const offenders = [];
+  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.sql'))) {
+    if (file === '20260806153233_dressing_room_user_blocking.sql') continue;
+    const sql = fs.readFileSync(path.join(dir, file), 'utf8');
+    if (/\binternal\.[a-z_]/i.test(sql) && !/create schema if not exists internal/i.test(sql)) {
+      offenders.push(file);
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `these migrations use the internal schema without creating it: ${offenders.join(', ')}`,
+  );
+});
+
 // ── pgTAP plan integrity ─────────────────────────────────────────────────
 
 test('pgTAP blocking suite declares a plan matching its assertion count', () => {
