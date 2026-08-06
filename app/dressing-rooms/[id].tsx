@@ -1020,7 +1020,9 @@ function DressingRoomDetailContent() {
 
             {/* Room Chat — shared messaging (owner + authorized participants).
                 Authenticated only; never rendered on the public preview. */}
-            {isAuthenticated && ROOM_CHAT_ENABLED ? <RoomMessagesPanel roomId={roomId} /> : null}
+            {isAuthenticated && ROOM_CHAT_ENABLED ? (
+              <RoomMessagesPanel roomId={roomId} isOwner roomOwnerId={user?.id ?? null} />
+            ) : null}
 
             <View style={styles.dangerZone}>
               <TertiaryButton
