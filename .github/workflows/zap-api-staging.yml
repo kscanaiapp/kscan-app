@@ -7,23 +7,44 @@
 #   -f openapi      definition format
 #   -O <hostname>   hostname override for the OpenAPI servers (NOT a file path)
 #   -S              safe mode (no active attack phase)
+#
+# 2026-08-06 SHA-binding repair: this workflow previously triggered on
+# `push: branches: ["**"]` and any `pull_request` regardless of base branch —
+# a `protected_pr` output was computed from PROTECTED_BASE_BRANCHES but never
+# actually used to gate execution, so every push to every branch ran a live
+# ZAP scan against the shared staging target. That is exactly the "dynamic
+# ZAP for arbitrary feature/recovery/audit branches" failure mode the
+# security funnel must not have. Triggers are now restricted to the
+# canonical staging branch (staging/production-parity); the dead
+# PROTECTED_BASE_BRANCHES/protected_pr logic is removed since the trigger
+# filter now does that job natively. Candidate vs. actually-deployed staging
+# SHA is also resolved and recorded so a scan can't be misread as exact-SHA
+# evidence for a candidate that isn't what's live.
 
 name: Security - ZAP API Staging
 
 on:
+  push:
+    branches:
+      - staging/production-parity
   pull_request:
+    branches:
+      - staging/production-parity
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
-  push:
-    branches:
-      - "**"
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Candidate SHA to record in evidence (defaults to the triggering SHA)
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  deployments: read
 
 # Keep API scans off the staging deploy queue so scan jobs do not block each other.
 concurrency:
@@ -39,10 +60,6 @@ jobs:
       ZAP_VERSION: "2.17.0"
       ZAP_IMAGE_DIGEST: "sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
       ZAP_IMAGE: "ghcr.io/zaproxy/zaproxy:stable@sha256:8d387b1a63e3425beef4846e39719f5af2a787753af2d8b6558c6257d7a577a2"
-      # staging/production-parity is the governing staging branch; PRs into it get
-      # the same scan treatment as release lines. ios/full-submission-readiness-v2 is
-      # FROZEN and retained here for historical CI only — it is not a deploy source.
-      PROTECTED_BASE_BRANCHES: master,staging/production-parity,ios/full-submission-readiness-v2,integration/ios-v18-release-candidate,integration/android-v27-closet-release-candidate
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,28 +69,63 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Create mandatory diagnostics directory
+        run: install -d -m 0777 zap-api-out/diagnostics
+
+      - name: Resolve candidate and deployed staging SHA
+        id: shas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          CANDIDATE_SHA="${INPUT_CANDIDATE_SHA:-${{ github.event.pull_request.head.sha || github.sha }}}"
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+
+          DEPLOYED_JSON="$(node security/scripts/resolve-deployed-staging-sha.js --repo "${{ github.repository }}" --token "${GH_TOKEN}" --environment staging)"
+          echo "${DEPLOYED_JSON}"
+          DEPLOYED_SHA="$(printf '%s' "${DEPLOYED_JSON}" | python3 -c 'import json,sys; v=json.load(sys.stdin).get("deployedSha"); print(v or "")')"
+          echo "deployed_sha=${DEPLOYED_SHA}" >> "$GITHUB_OUTPUT"
+
+          if [ -n "${DEPLOYED_SHA}" ] && [ "${DEPLOYED_SHA}" = "${CANDIDATE_SHA}" ]; then
+            SHA_MATCH="true"
+          else
+            SHA_MATCH="false"
+          fi
+          echo "sha_match=${SHA_MATCH}" >> "$GITHUB_OUTPUT"
+
+          python3 - <<PY
+          import json
+          run_context = {
+              "workflow": "${{ github.workflow }}",
+              "run_id": "${{ github.run_id }}",
+              "run_number": "${{ github.run_number }}",
+              "repository": "${{ github.repository }}",
+              "event_name": "${{ github.event_name }}",
+              "ref": "${{ github.ref }}",
+              "candidate_sha": "${CANDIDATE_SHA}",
+              "deployed_staging_sha": "${DEPLOYED_SHA}" or None,
+              "sha_match": "${SHA_MATCH}" == "true",
+              "staging_project_ref": "yzqjvdfgefveprobvvyw",
+              "zap_version": "${{ env.ZAP_VERSION }}",
+              "zap_image_digest": "${{ env.ZAP_IMAGE_DIGEST }}",
+          }
+          with open("zap-api-out/diagnostics/run-context.json", "w", encoding="utf-8") as f:
+              json.dump(run_context, f, indent=2)
+              f.write("\n")
+          PY
+
+          if [ "${SHA_MATCH}" != "true" ]; then
+            echo "::warning title=SHA not exact-match::candidate_sha=${CANDIDATE_SHA} deployed_staging_sha=${DEPLOYED_SHA:-<none>} — this run cannot serve as exact-SHA staging evidence for the candidate."
+          fi
+
       - name: Resolve scan context
         id: context
         env:
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
-          echo "candidate_sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
-          PROTECTED="false"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            IFS=',' read -ra BASES <<< "${PROTECTED_BASE_BRANCHES}"
-            for branch in "${BASES[@]}"; do
-              if [ "${BASE_REF}" = "${branch}" ]; then
-                PROTECTED="true"
-                break
-              fi
-            done
-          fi
-          echo "protected_pr=${PROTECTED}" >> "$GITHUB_OUTPUT"
-
           STAGING_BASE="${SUPABASE_STAGING_URL:-https://yzqjvdfgefveprobvvyw.supabase.co}"
           STAGING_BASE="${STAGING_BASE%/}"
           ALLOWED_HOST="${ZAP_ALLOWED_HOST:-yzqjvdfgefveprobvvyw.supabase.co}"
@@ -95,22 +147,26 @@ jobs:
           fi
 
       - name: Validate staging target host
-        env:
-          STAGING_BASE: ${{ steps.context.outputs.staging_base }}
-          ZAP_ALLOWED_HOST: ${{ steps.context.outputs.allowed_host }}
         run: |
           set -euo pipefail
-          node security/scripts/validate-zap-target.js "${STAGING_BASE}" "${ZAP_ALLOWED_HOST}"
+          node security/scripts/validate-zap-target.js "${{ steps.context.outputs.staging_base }}" "${{ steps.context.outputs.allowed_host }}" | tee zap-api-out/diagnostics/target-validation.txt
 
       - name: Pre-pull ZAP image
         run: |
           set -euo pipefail
-          docker pull "${ZAP_IMAGE}"
+          docker version > zap-api-out/diagnostics/docker-version.txt 2>&1 || true
+          {
+            echo "image=${ZAP_IMAGE}"
+            echo "version=${ZAP_VERSION}"
+            echo "digest=${ZAP_IMAGE_DIGEST}"
+          } > zap-api-out/diagnostics/zap-image.txt
+          docker pull "${ZAP_IMAGE}" >> zap-api-out/diagnostics/zap-image.txt 2>&1
+          echo "pull_result=$?" >> zap-api-out/diagnostics/zap-image.txt
 
       - name: Run ZAP API safe scan
         id: zap_api
         env:
-          PR_HEAD_SHA: ${{ steps.context.outputs.candidate_sha }}
+          PR_HEAD_SHA: ${{ steps.shas.outputs.candidate_sha }}
           ZAP_ACTIVE_ENABLED: ${{ vars.ZAP_ACTIVE_ENABLED }}
           STAGING_BASE: ${{ steps.context.outputs.staging_base }}
           ALLOWED_HOST: ${{ steps.context.outputs.allowed_host }}
@@ -135,9 +191,11 @@ jobs:
             -J zap-api-out/zap-api-report.json \
             -w zap-api-out/zap-api-report.md \
             -r zap-api-out/zap-api-report.html \
-            | tee zap-api-out/zap-api-console.log
+            > >(tee zap-api-out/zap-api-console.log zap-api-out/diagnostics/zap-stdout.log) \
+            2> zap-api-out/diagnostics/zap-stderr.log
           CODE=${PIPESTATUS[0]}
           set -e
+          echo "${CODE}" > zap-api-out/diagnostics/zap-exit-code.txt
 
           if [ ! -f zap-api-out/zap-api-report.json ]; then
             echo "Operational failure: zap-api-report.json missing after safe scan (exit ${CODE})"
@@ -185,6 +243,38 @@ jobs:
               ;;
           esac
 
+      - name: Validate mandatory reports
+        if: always()
+        run: |
+          set -euo pipefail
+          REQUIRED="zap-api-out/zap-api-report.html zap-api-out/zap-api-report.json zap-api-out/zap-api-report.md zap-api-out/zap-api-console.log"
+          {
+            echo "ZAP API report validation — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+          } > zap-api-out/diagnostics/report-validation.txt
+          FAILED=0
+          for f in $REQUIRED; do
+            if [ -f "$f" ]; then
+              echo "present: $f" >> zap-api-out/diagnostics/report-validation.txt
+            else
+              echo "MISSING: $f" >> zap-api-out/diagnostics/report-validation.txt
+              FAILED=1
+            fi
+          done
+          if [ -f zap-api-out/zap-api-report.json ]; then
+            if python3 -c "import json; json.load(open('zap-api-out/zap-api-report.json', encoding='utf-8'))" 2>>zap-api-out/diagnostics/report-validation.txt; then
+              echo "parseable: zap-api-out/zap-api-report.json" >> zap-api-out/diagnostics/report-validation.txt
+            else
+              echo "UNPARSEABLE: zap-api-out/zap-api-report.json" >> zap-api-out/diagnostics/report-validation.txt
+              FAILED=1
+            fi
+          fi
+          cat zap-api-out/diagnostics/report-validation.txt
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Operational failure: one or more mandatory ZAP API reports are missing or unparseable"
+            exit 2
+          fi
+
       - name: Summarize ZAP API results
         if: always() && hashFiles('zap-api-out/zap-api-report.json') != ''
         env:
@@ -194,7 +284,9 @@ jobs:
           EXTRA_NOTES: |
             Safe mode (-S) passive API scan.
             Active scan report: zap-api-active-report.* when ZAP_ACTIVE_ENABLED=true.
-            Candidate SHA=${{ steps.context.outputs.candidate_sha }}
+            Candidate SHA=${{ steps.shas.outputs.candidate_sha }}
+            Deployed staging SHA=${{ steps.shas.outputs.deployed_sha }}
+            Exact-SHA match=${{ steps.shas.outputs.sha_match }}
             Staging host=${{ steps.context.outputs.allowed_host }}
         run: |
           set -euo pipefail
@@ -221,8 +313,14 @@ jobs:
           export FINDING_COUNTS="${COUNTS}"
           export REPORT_ONLY_VERDICT="${VERDICT}"
           node security/scripts/write-security-summary.js
+          {
+            echo
+            echo "| Candidate SHA | ${{ steps.shas.outputs.candidate_sha }} |"
+            echo "| Deployed staging SHA | ${{ steps.shas.outputs.deployed_sha }} |"
+            echo "| Exact-SHA match | ${{ steps.shas.outputs.sha_match }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload ZAP API artifact
+      - name: Upload ZAP API report artifact
         if: always() && hashFiles('zap-api-out/zap-api-report.json') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -237,4 +335,13 @@ jobs:
             zap-api-out/zap-api-active-report.json
             zap-api-out/zap-api-active-report.md
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload ZAP API diagnostics artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: zap-api-diagnostics-${{ github.run_number }}
+          path: zap-api-out/diagnostics/
+          if-no-files-found: warn
           retention-days: 30

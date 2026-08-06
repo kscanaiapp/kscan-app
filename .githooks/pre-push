@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Broader local security checks, run before a push leaves the machine.
+# Installed via `git config core.hooksPath .githooks` (see
+# scripts/setup-git-hooks.js / `npm run setup:hooks`).
+#
+# Scoped to files actually changed in the range being pushed — this is a
+# local convenience gate, not a substitute for the required GitHub PR/push
+# checks in security-code.yml and security-staging-gate.yml, which always
+# run server-side regardless of what happens here. Emergency override:
+# `git push --no-verify`.
+
+set -uo pipefail
+FAILED=0
+ZERO_SHA='0000000000000000000000000000000000000000'
+ALL_CHANGED_FILES=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$ZERO_SHA" ] && continue # branch deletion
+
+  if [ "$remote_sha" = "$ZERO_SHA" ]; then
+    BASE="$(git merge-base origin/staging/production-parity "$local_sha" 2>/dev/null || true)"
+    [ -z "$BASE" ] && BASE="${local_sha}~1"
+  else
+    BASE="$remote_sha"
+  fi
+
+  FILES="$(git diff --name-only "$BASE" "$local_sha" 2>/dev/null || true)"
+  ALL_CHANGED_FILES="$ALL_CHANGED_FILES
+$FILES"
+done
+
+ALL_CHANGED_FILES="$(printf '%s\n' "$ALL_CHANGED_FILES" | sed '/^$/d' | sort -u)"
+
+if [ -z "$ALL_CHANGED_FILES" ]; then
+  exit 0
+fi
+
+echo "pre-push: checking $(printf '%s\n' "$ALL_CHANGED_FILES" | wc -l) changed file(s)..."
+
+# 1. Relevant TypeScript validation.
+if [ -f tsconfig.json ] && printf '%s\n' "$ALL_CHANGED_FILES" | grep -qE '\.(ts|tsx)$'; then
+  if command -v npx >/dev/null 2>&1; then
+    if ! npx --no-install tsc --noEmit; then
+      echo "pre-push: BLOCKED — TypeScript type check failed."
+      FAILED=1
+    fi
+  fi
+fi
+
+# 2. Changed security tests + RLS/grant tests (same suite today).
+if printf '%s\n' "$ALL_CHANGED_FILES" | grep -qE '^(security/|__tests__/security/)'; then
+  if ! npm run --silent test:security; then
+    echo "pre-push: BLOCKED — security test suite failed."
+    FAILED=1
+  fi
+fi
+
+# 3. Migration validation.
+if printf '%s\n' "$ALL_CHANGED_FILES" | grep -qE '^supabase/migrations/.*\.sql$'; then
+  if ! node security/scripts/detect-destructive-migrations.js supabase/migrations; then
+    echo "pre-push: BLOCKED — migration validation failed."
+    FAILED=1
+  fi
+fi
+
+# 4. Edge Function contract tests.
+if printf '%s\n' "$ALL_CHANGED_FILES" | grep -qE '^supabase/functions/'; then
+  if ! npm run --silent test:edge-parity; then
+    echo "pre-push: BLOCKED — Edge Function contract tests failed."
+    FAILED=1
+  fi
+fi
+
+# 5. Production-reference guard, scoped to files where it would take effect.
+#    Excludes guard/rejection-language lines (workflows legitimately embed
+#    the production ref as a literal to check against and reject).
+PRODUCTION_REF='wyyuqfdxucjksghsmhry'
+GUARD_LANGUAGE='grep|reject|forbidden|must not|production.?ref|assert|blocked|error|fail'
+for f in $ALL_CHANGED_FILES; do
+  case "$f" in
+    .github/workflows/*.yml|.github/workflows/*.yaml|supabase/config.toml|.env|.env.*|app.json|eas.json)
+      if [ -f "$f" ] && grep -In "$PRODUCTION_REF" "$f" 2>/dev/null | grep -viqE "$GUARD_LANGUAGE"; then
+        echo "pre-push: BLOCKED — $f references the production Supabase project ref ($PRODUCTION_REF) outside a guard/rejection context."
+        FAILED=1
+      fi
+      ;;
+  esac
+done
+
+# 6. Security workflow tests, when workflow or security-script files change.
+if printf '%s\n' "$ALL_CHANGED_FILES" | grep -qE '^(\.github/workflows/|security/scripts/)'; then
+  if ! npm run --silent verify:security; then
+    echo "pre-push: BLOCKED — security workflow/script validation failed (npm run verify:security)."
+    FAILED=1
+  fi
+fi
+
+# 7. Branch-authority reminder (non-blocking): direct pushes to the branches
+#    the staging/production security funnel treats as authoritative should
+#    normally go through a PR. $remote_ref here is the last ref processed by
+#    the while-read loop above (bash does not subshell a plain `while read`
+#    reading the script's own stdin, so the loop variables persist).
+case "${remote_ref:-}" in
+  refs/heads/staging/production-parity|refs/heads/master)
+    echo "pre-push: NOTE — pushing directly to ${remote_ref#refs/heads/}. Confirm this is an authorized, reviewed change."
+    ;;
+esac
+
+# 8. package.json / package-lock.json must move together.
+if printf '%s\n' "$ALL_CHANGED_FILES" | grep -qx 'package.json'; then
+  if ! printf '%s\n' "$ALL_CHANGED_FILES" | grep -qx 'package-lock.json'; then
+    echo "pre-push: WARNING — package.json changed without package-lock.json. Confirm the lockfile is actually in sync (not blocking)."
+  fi
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+  echo
+  echo "pre-push checks failed. Fix the issues above, or (only if you are certain) re-run with --no-verify."
+  exit 1
+fi
+
+exit 0

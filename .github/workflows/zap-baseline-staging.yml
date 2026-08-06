@@ -1,16 +1,46 @@
 # Phase 1 passive OWASP ZAP Baseline against an explicitly approved HTTPS staging target.
 # Findings are report-only. Missing approved variables skips successfully (no fallback).
 # SHA pinning note: actions resolved from official GitHub release refs on 2026-07-26.
+#
+# 2026-08-06 operational-failure repair:
+#   The health-check step used to curl ZAP_STAGING_URL directly (the bare
+#   Supabase project root), which Supabase serves as HTTP 404 by default —
+#   every run failed here before ZAP ever started. security/scripts/
+#   validate-zap-target.js already exported the correct fix
+#   (deriveHealthCheckUrl/isAcceptableHealthStatus) but nothing called it.
+#   This revision wires that in and adds mandatory diagnostics, explicit
+#   report validation, and exact-SHA staging-deployment binding so a scan can
+#   no longer be misread as evidence for a SHA that isn't what's deployed.
+#
+# SHA binding: automatic triggers are restricted to the canonical staging
+# branch (staging/production-parity) — this workflow no longer runs for
+# arbitrary feature/recovery/audit branches. The job also resolves the SHA
+# GitHub actually has recorded as the latest successful `staging` environment
+# deployment and records candidate/deployed SHA + their match in diagnostics
+# and in the run summary. A mismatch does not fail this report-only scan (ZAP
+# is still validly probing whatever is live), but it is recorded so
+# downstream evidence/promotion logic can refuse to treat the run as
+# exact-SHA proof when it isn't one.
 
 name: Security - ZAP Baseline Staging
 
 on:
   push:
+    branches:
+      - staging/production-parity
   pull_request:
+    branches:
+      - staging/production-parity
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Candidate SHA to record in evidence (defaults to the triggering SHA)
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  deployments: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,6 +63,56 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "20"
+
+      - name: Create mandatory diagnostics directory
+        run: install -d -m 0777 zap-out/diagnostics
+
+      - name: Resolve candidate and deployed staging SHA
+        id: shas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          CANDIDATE_SHA="${INPUT_CANDIDATE_SHA:-${{ github.event.pull_request.head.sha || github.sha }}}"
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+
+          DEPLOYED_JSON="$(node security/scripts/resolve-deployed-staging-sha.js --repo "${{ github.repository }}" --token "${GH_TOKEN}" --environment staging)"
+          echo "${DEPLOYED_JSON}"
+          DEPLOYED_SHA="$(printf '%s' "${DEPLOYED_JSON}" | python3 -c 'import json,sys; v=json.load(sys.stdin).get("deployedSha"); print(v or "")')"
+          echo "deployed_sha=${DEPLOYED_SHA}" >> "$GITHUB_OUTPUT"
+
+          if [ -n "${DEPLOYED_SHA}" ] && [ "${DEPLOYED_SHA}" = "${CANDIDATE_SHA}" ]; then
+            SHA_MATCH="true"
+          else
+            SHA_MATCH="false"
+          fi
+          echo "sha_match=${SHA_MATCH}" >> "$GITHUB_OUTPUT"
+
+          python3 - <<PY
+          import json
+          run_context = {
+              "workflow": "${{ github.workflow }}",
+              "run_id": "${{ github.run_id }}",
+              "run_number": "${{ github.run_number }}",
+              "repository": "${{ github.repository }}",
+              "event_name": "${{ github.event_name }}",
+              "ref": "${{ github.ref }}",
+              "candidate_sha": "${CANDIDATE_SHA}",
+              "deployed_staging_sha": "${DEPLOYED_SHA}" or None,
+              "sha_match": "${SHA_MATCH}" == "true",
+              "staging_project_ref": "yzqjvdfgefveprobvvyw",
+              "zap_version": "${{ env.ZAP_VERSION }}",
+              "zap_image_digest": "${{ env.ZAP_IMAGE_DIGEST }}",
+          }
+          with open("zap-out/diagnostics/run-context.json", "w", encoding="utf-8") as f:
+              json.dump(run_context, f, indent=2)
+              f.write("\n")
+          PY
+
+          if [ "${SHA_MATCH}" != "true" ]; then
+            echo "::warning title=SHA not exact-match::candidate_sha=${CANDIDATE_SHA} deployed_staging_sha=${DEPLOYED_SHA:-<none>} — this run cannot serve as exact-SHA staging evidence for the candidate."
+          fi
 
       - name: Check approved ZAP variables
         id: vars
@@ -74,15 +154,19 @@ jobs:
         run: |
           set -euo pipefail
           META="$(node security/scripts/validate-zap-target.js "${ZAP_STAGING_URL}" "${ZAP_ALLOWED_HOST}")"
-          echo "${META}"
+          echo "${META}" | tee zap-out/diagnostics/target-validation.txt
           HOST="$(printf '%s' "${META}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hostname"])')"
           echo "hostname=${HOST}" >> "$GITHUB_OUTPUT"
+
+          HEALTH_URL="$(node -e "console.log(require('./security/scripts/validate-zap-target.js').deriveHealthCheckUrl(process.argv[1]))" "${ZAP_STAGING_URL}")"
+          echo "health_url=${HEALTH_URL}" >> "$GITHUB_OUTPUT"
+          echo "resolved_health_check_url=${HEALTH_URL}" >> zap-out/diagnostics/target-validation.txt
 
       - name: HTTPS health check (approved host only)
         id: health
         if: steps.vars.outputs.configured == 'true'
         env:
-          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          HEALTH_URL: ${{ steps.validate_target.outputs.health_url }}
           APPROVED_HOST: ${{ steps.validate_target.outputs.hostname }}
         run: |
           set -euo pipefail
@@ -100,7 +184,7 @@ jobs:
             --output /dev/null \
             --dump-header "${HEADERS}" \
             --write-out '%{http_code}' \
-            --url "${ZAP_STAGING_URL}")"
+            --url "${HEALTH_URL}")"
           CURL_CODE=$?
           set -e
           END_MS="$(date +%s%3N)"
@@ -126,23 +210,50 @@ jobs:
           rm -f "${HEADERS}"
 
           if [ "$CURL_CODE" -ne 0 ]; then
+            {
+              echo "health_url=${HEALTH_URL}"
+              echo "hostname=${APPROVED_HOST}"
+              echo "curl_exit_code=${CURL_CODE}"
+              echo "result=operational_failure"
+            } >> zap-out/diagnostics/health-check.txt
             echo "Operational failure: health check curl failed with code ${CURL_CODE}"
             exit 2
           fi
 
-          case "${STATUS}" in
-            [23][0-9][0-9]|401|403)
-              ;;
-            *)
-              echo "Operational failure: unexpected health check HTTP status ${STATUS}"
-              exit 2
-              ;;
-          esac
+          STATUS_OK="$(node -e "console.log(require('./security/scripts/validate-zap-target.js').isAcceptableHealthStatus(process.argv[1]))" "${STATUS}")"
+
+          {
+            echo "health_url=${HEALTH_URL}"
+            echo "hostname=${APPROVED_HOST}"
+            echo "http_status=${STATUS}"
+            echo "response_time_ms=${ELAPSED}"
+            echo "acceptable=${STATUS_OK}"
+          } >> zap-out/diagnostics/health-check.txt
+
+          if [ "$STATUS_OK" != "true" ]; then
+            echo "result=operational_failure" >> zap-out/diagnostics/health-check.txt
+            echo "Operational failure: unexpected health check HTTP status ${STATUS} for ${HEALTH_URL}"
+            exit 2
+          fi
+          echo "result=healthy" >> zap-out/diagnostics/health-check.txt
 
           echo "http_status=${STATUS}" >> "$GITHUB_OUTPUT"
           echo "response_time_ms=${ELAPSED}" >> "$GITHUB_OUTPUT"
-          echo "Health check hostname=${APPROVED_HOST} status=${STATUS} response_time_ms=${ELAPSED}"
+          echo "Health check hostname=${APPROVED_HOST} url=${HEALTH_URL} status=${STATUS} response_time_ms=${ELAPSED}"
           # Login-required responses still count as reachable.
+
+      - name: Record Docker and image diagnostics
+        if: always() && steps.vars.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          docker version > zap-out/diagnostics/docker-version.txt 2>&1 || true
+          {
+            echo "image=${ZAP_IMAGE}"
+            echo "version=${ZAP_VERSION}"
+            echo "digest=${ZAP_IMAGE_DIGEST}"
+          } > zap-out/diagnostics/zap-image.txt
+          docker pull "${ZAP_IMAGE}" >> zap-out/diagnostics/zap-image.txt 2>&1
+          echo "pull_result=$?" >> zap-out/diagnostics/zap-image.txt
 
       - name: Run OWASP ZAP Baseline (passive, report-only findings)
         id: zap
@@ -171,18 +282,21 @@ jobs:
             -I \
             -J zap-out/zap-baseline-report.json \
             -w zap-out/zap-baseline-report.md \
-            -r zap-out/zap-baseline-report.html
+            -r zap-out/zap-baseline-report.html \
+            > >(tee zap-out/diagnostics/zap-stdout.log) \
+            2> >(tee zap-out/diagnostics/zap-stderr.log >&2)
           CODE=$?
           set -e
 
           END_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "end_time=${END_TIME}" >> "$GITHUB_OUTPUT"
           echo "exit_code=${CODE}" >> "$GITHUB_OUTPUT"
+          echo "${CODE}" > zap-out/diagnostics/zap-exit-code.txt
 
           cp .zap/baseline-rules.tsv zap-out/baseline-rules.tsv
 
           if [ ! -f zap-out/zap-baseline-report.json ]; then
-            echo "Operational failure: zap-baseline-report.json missing"
+            echo "Operational failure: zap-baseline-report.json missing" | tee zap-out/diagnostics/report-validation.txt
             exit 2
           fi
           python3 - <<'PY'
@@ -214,6 +328,40 @@ jobs:
               ;;
           esac
 
+      - name: Validate mandatory reports
+        id: report_validation
+        if: always() && steps.vars.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          REQUIRED="zap-out/zap-baseline-report.html zap-out/zap-baseline-report.json zap-out/zap-baseline-report.md zap-out/baseline-rules.tsv"
+          {
+            echo "ZAP Baseline report validation — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+          } > zap-out/diagnostics/report-validation.txt
+          FAILED=0
+          for f in $REQUIRED; do
+            if [ -f "$f" ]; then
+              echo "present: $f" >> zap-out/diagnostics/report-validation.txt
+            else
+              echo "MISSING: $f" >> zap-out/diagnostics/report-validation.txt
+              FAILED=1
+            fi
+          done
+          if [ -f zap-out/zap-baseline-report.json ]; then
+            if python3 -c "import json; json.load(open('zap-out/zap-baseline-report.json', encoding='utf-8'))" 2>>zap-out/diagnostics/report-validation.txt; then
+              echo "parseable: zap-out/zap-baseline-report.json" >> zap-out/diagnostics/report-validation.txt
+            else
+              echo "UNPARSEABLE: zap-out/zap-baseline-report.json" >> zap-out/diagnostics/report-validation.txt
+              FAILED=1
+            fi
+          fi
+          echo "validation_failed=${FAILED}" >> "$GITHUB_OUTPUT"
+          cat zap-out/diagnostics/report-validation.txt
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Operational failure: one or more mandatory ZAP baseline reports are missing or unparseable"
+            exit 2
+          fi
+
       - name: Summarize ZAP results
         if: always() && steps.vars.outputs.configured == 'true' && hashFiles('zap-out/zap-baseline-report.json') != ''
         env:
@@ -228,6 +376,9 @@ jobs:
             Image digest=${{ env.ZAP_IMAGE_DIGEST }}
             Health check status=${{ steps.health.outputs.http_status }} response_time_ms=${{ steps.health.outputs.response_time_ms }}
             Hostname=${{ steps.validate_target.outputs.hostname }}
+            Candidate SHA=${{ steps.shas.outputs.candidate_sha }}
+            Deployed staging SHA=${{ steps.shas.outputs.deployed_sha }}
+            Exact-SHA match=${{ steps.shas.outputs.sha_match }}
         run: |
           set -euo pipefail
           COUNTS="$(python3 - <<'PY'
@@ -252,8 +403,14 @@ jobs:
           export FINDING_COUNTS="${COUNTS}"
           export REPORT_ONLY_VERDICT="${VERDICT}"
           node security/scripts/write-security-summary.js
+          {
+            echo
+            echo "| Candidate SHA | ${{ steps.shas.outputs.candidate_sha }} |"
+            echo "| Deployed staging SHA | ${{ steps.shas.outputs.deployed_sha }} |"
+            echo "| Exact-SHA match | ${{ steps.shas.outputs.sha_match }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload ZAP artifact
+      - name: Upload ZAP report artifact
         if: always() && steps.vars.outputs.configured == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -265,4 +422,13 @@ jobs:
             zap-out/baseline-rules.tsv
             zap-out/zap-summary.md
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload ZAP diagnostics artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: zap-baseline-diagnostics-${{ github.run_number }}
+          path: zap-out/diagnostics/
+          if-no-files-found: warn
           retention-days: 30

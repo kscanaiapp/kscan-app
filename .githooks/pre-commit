@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Local lightweight security checks. Target: ~3 seconds for a normal change.
+# Installed via `git config core.hooksPath .githooks` — run
+# `npm run setup:hooks` once (or just `npm install`, which does it via the
+# "prepare" script) to enable this for your clone.
+#
+# Deliberately narrow in scope: this is a fast local tripwire for obvious
+# mistakes, not a replacement for Gitleaks/Semgrep/OSV/Trivy in CI
+# (security-code.yml) or the destructive-migration/production-reference
+# guards that already run server-side. Emergency override: `git commit
+# --no-verify` — use sparingly, CI still runs the full checks regardless.
+
+set -uo pipefail
+
+STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACMR)"
+FAILED=0
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# 1. Obvious secret detection (fast pattern grep on ADDED lines only).
+SECRET_PATTERNS='(-----BEGIN( RSA| EC| OPENSSH| DSA| PGP)? PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|service_role.{0,40}eyJ[A-Za-z0-9_-]{10,})'
+ADDED_LINES="$(git diff --cached -U0 -- . ':(exclude)*.lock' ':(exclude)package-lock.json' | grep -E '^\+[^+]' || true)"
+if [ -n "$ADDED_LINES" ]; then
+  HIT="$(printf '%s\n' "$ADDED_LINES" | grep -EI "$SECRET_PATTERNS" || true)"
+  if [ -n "$HIT" ]; then
+    echo "pre-commit: BLOCKED — a staged change matches an obvious secret pattern."
+    echo "  Do not commit private keys, service-role keys, or provider secrets."
+    echo "  If this is a false positive, rename/format it so it does not match, or use --no-verify with care."
+    FAILED=1
+  fi
+fi
+
+# 2. Production write-target detection, scoped to files where it would
+#    actually take effect (deploy config), not guard/rejection scripts that
+#    legitimately contain the production ref as a literal to reject.
+PRODUCTION_REF='wyyuqfdxucjksghsmhry'
+GUARD_LANGUAGE='grep|reject|forbidden|must not|production.?ref|assert|blocked|error|fail'
+for f in $STAGED_FILES; do
+  case "$f" in
+    .github/workflows/*.yml|.github/workflows/*.yaml|supabase/config.toml|.env|.env.*|app.json|eas.json)
+      if [ -f "$f" ] && grep -In "$PRODUCTION_REF" "$f" 2>/dev/null | grep -viqE "$GUARD_LANGUAGE"; then
+        echo "pre-commit: BLOCKED — $f references the production Supabase project ref ($PRODUCTION_REF) outside a guard/rejection context."
+        echo "  Deploy/config files must target staging (yzqjvdfgefveprobvvyw) only."
+        FAILED=1
+      fi
+      ;;
+  esac
+done
+
+# 3. Malformed environment/configuration detection: real .env files must
+#    never be committed, only .example/.sample/.template variants.
+for f in $STAGED_FILES; do
+  case "$f" in
+    .env|.env.[a-zA-Z0-9_]*)
+      case "$f" in
+        *.example|*.sample|*.template) ;;
+        *)
+          echo "pre-commit: BLOCKED — $f looks like a real environment file, not a template."
+          echo "  Only .env.example/.sample/.template may be committed."
+          FAILED=1
+          ;;
+      esac
+      ;;
+  esac
+done
+
+# 4. Lightweight changed-file lint: syntax-check staged JS files.
+JS_FILES="$(printf '%s\n' "$STAGED_FILES" | grep -E '\.(js|mjs|cjs)$' | grep -v '^node_modules/' | head -n 40 || true)"
+if [ -n "$JS_FILES" ]; then
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    if ! node --check "$f" 2>/tmp/precommit-node-check.$$; then
+      echo "pre-commit: BLOCKED — $f has a JavaScript syntax error:"
+      sed 's/^/  /' /tmp/precommit-node-check.$$
+      FAILED=1
+    fi
+    rm -f /tmp/precommit-node-check.$$
+  done <<< "$JS_FILES"
+fi
+
+# 5. High-risk migration-pattern detection (warn only — CI's
+#    migration-validation job + detect-destructive-migrations.js are the
+#    real gate; this is an early heads-up, not a judgment call to make
+#    locally).
+MIGRATION_FILES="$(printf '%s\n' "$STAGED_FILES" | grep -E '^supabase/migrations/.*\.sql$' || true)"
+if [ -n "$MIGRATION_FILES" ]; then
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    if grep -EIiq '(DROP[[:space:]]+(TABLE|SCHEMA)|TRUNCATE|DISABLE[[:space:]]+ROW[[:space:]]+LEVEL[[:space:]]+SECURITY)' "$f"; then
+      echo "pre-commit: WARNING — $f contains a destructive migration pattern (DROP/TRUNCATE/DISABLE RLS)."
+      echo "  This will require explicit approval in CI (migration-validation). Not blocking locally."
+    fi
+  done <<< "$MIGRATION_FILES"
+fi
+
+# 6. Security workflow syntax check when workflow files change.
+WORKFLOW_FILES="$(printf '%s\n' "$STAGED_FILES" | grep -E '^\.github/workflows/.*\.ya?ml$' || true)"
+if [ -n "$WORKFLOW_FILES" ] && command -v python3 >/dev/null 2>&1; then
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    if ! python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1], encoding='utf-8'))" "$f" 2>/tmp/precommit-yaml.$$; then
+      echo "pre-commit: BLOCKED — $f is not valid YAML:"
+      sed 's/^/  /' /tmp/precommit-yaml.$$
+      FAILED=1
+    fi
+    rm -f /tmp/precommit-yaml.$$
+  done <<< "$WORKFLOW_FILES"
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+  echo
+  echo "pre-commit checks failed. Fix the issues above, or (only if you are certain) re-run with --no-verify."
+  exit 1
+fi
+
+exit 0
