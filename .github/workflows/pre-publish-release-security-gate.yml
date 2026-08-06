@@ -28,7 +28,14 @@ permissions:
   contents: read
   actions: read
   checks: read
-  administration: read # best-effort branch-ruleset status read — see "Check branch protection status" below
+  # No "administration" scope exists in the workflow permissions schema —
+  # GITHUB_TOKEN cannot be granted ruleset/branch-protection read access
+  # this way at all (that's a GitHub App permission concept, not a workflow
+  # permissions key; a workflow declaring it fails GitHub's schema
+  # validation outright and never runs). The "Check branch protection
+  # status" step below already treats a failed/empty rulesets query as
+  # READY_NOT_APPLIED rather than assuming PASS, so no elevated permission
+  # is required for this workflow to behave correctly either way.
 
 concurrency:
   group: ${{ github.workflow }}
