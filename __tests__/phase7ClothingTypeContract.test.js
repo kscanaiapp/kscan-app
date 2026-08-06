@@ -33,8 +33,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+
+/** The Phase 6 benchmark tip this candidate branched from. */
+const CERTIFIED_REF = '2eb30df863439434d54a3dcaf5d1a46f673cdccb';
 
 function loadTsModule(relativePath) {
   const filename = path.join(ROOT, relativePath);
@@ -191,15 +195,12 @@ test('the prompts never instruct the model to copy one tier into another', () =>
   }
 });
 
-test('the worked examples keep the three levels distinct, never triplicated', () => {
+test('every worked example carries all three tiers and none triplicates one value', () => {
   const identifyPrompt = INDEX_SOURCE.slice(
     INDEX_SOURCE.indexOf('const IDENTIFY_PROMPT'),
     INDEX_SOURCE.indexOf('const MULTI_ITEM_IDENTIFY_PROMPT'),
   );
-  // The footwear example is the one that must not read footwear/footwear/footwear.
-  assert.match(identifyPrompt, /"item_type": "footwear",\s*\n\s*"clothing_type": "sneaker",/);
 
-  // No example may set all three levels to the same value.
   const triples = [...identifyPrompt.matchAll(
     /"item_type": "([^"]+)",\s*\n\s*"clothing_type": "([^"]+)",\s*\n\s*"subtype": "([^"]+)"/g,
   )];
@@ -211,6 +212,92 @@ test('the worked examples keep the three levels distinct, never triplicated', ()
       `example triplicates one value: ${category}/${clothingType}/${subtype}`,
     );
   }
+
+  // `item_type === clothing_type` is NOT a defect: the governed ontology states
+  // a value may legitimately sit at two levels ("blazer" is both a category and
+  // a clothingType, "dress" likewise). What must never happen is all three
+  // collapsing, which is what the assertion above forbids.
+  const blazer = triples.find(([, category]) => category === 'blazer');
+  assert.deepEqual(blazer.slice(1), ['blazer', 'blazer', 'double-breasted blazer']);
+});
+
+/**
+ * SINGLE-VARIABLE PROOF (Phase 7 hardening item 1).
+ *
+ * An earlier revision of this candidate also changed the footwear example's
+ * `item_type` from "sneakers" to "footwear". That was a SECOND behavioural
+ * variable — it altered what the certified prompt teaches about category — and
+ * it would have confounded any provider comparison attributing a result to the
+ * new tier. It has been reverted.
+ *
+ * This test reconstructs the certified prompt from the Phase 6 benchmark tip and
+ * proves the candidate differs by EXACTLY the clothing_type insertions and
+ * nothing else. Any future edit to category or subtype teaching fails here.
+ */
+test('the candidate alters no certified category or subtype teaching — only clothing_type is inserted', () => {
+  const certified = execFileSync(
+    'git',
+    ['show', `${CERTIFIED_REF}:supabase/functions/scan-identify/index.ts`],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+
+  // The two blocks Phase 7 inserts, verbatim. Anything else that differs is a
+  // confound.
+  const INSERTED_BLOCKS = [
+    `The three taxonomy levels are distinct and must not repeat each other:
+- item_type: the broad product category (pants, top, outerwear, footwear, bag).
+- clothing_type: the recognizable garment or footwear family within that category (jeans, blazer, boot).
+- subtype: the most specific style or construction you can support (wide_leg_jeans, double-breasted blazer, chelsea boot).
+Set any level you cannot support from what is visible to "unknown" rather than repeating another level.
+
+`,
+    `The three taxonomy levels are distinct and must not repeat each other:
+- item_type: the broad product category (pants, top, outerwear, footwear, bag).
+- clothing_type: the recognizable garment or footwear family within that category (jeans, blazer, boot).
+- subtype: the most specific style or construction the query supports (wide_leg_jeans, double-breasted blazer, chelsea boot).
+Set any level the query does not support to "unknown" rather than repeating another level.
+
+`,
+  ];
+
+  for (const [label, start, end] of [
+    ['IDENTIFY_PROMPT', 'const IDENTIFY_PROMPT', 'const MULTI_ITEM_IDENTIFY_PROMPT'],
+    ['MULTI_ITEM_IDENTIFY_PROMPT', 'const MULTI_ITEM_IDENTIFY_PROMPT', 'const MULTI_ITEM_RESPONSE_SCHEMA'],
+    ['TEXT_IDENTIFY_PROMPT', 'const TEXT_IDENTIFY_PROMPT', '// ── Helpers'],
+  ]) {
+    const certifiedPrompt = certified.slice(certified.indexOf(start), certified.indexOf(end));
+    let candidatePrompt = INDEX_SOURCE.slice(INDEX_SOURCE.indexOf(start), INDEX_SOURCE.indexOf(end));
+    assert.ok(certifiedPrompt.length > 0 && candidatePrompt.length > 0, `located ${label}`);
+
+    for (const block of INSERTED_BLOCKS) candidatePrompt = candidatePrompt.split(block).join('');
+    // Remove the inserted field-list entries and JSON lines, which are the only
+    // other permitted difference.
+    candidatePrompt = candidatePrompt
+      .split('\n')
+      .filter((line) => !line.includes('clothing_type'))
+      .join('\n');
+
+    assert.equal(
+      candidatePrompt,
+      certifiedPrompt,
+      `${label} differs from certified by something other than clothing_type`,
+    );
+  }
+});
+
+test('the certified footwear example keeps its original item_type', () => {
+  const certified = execFileSync(
+    'git',
+    ['show', `${CERTIFIED_REF}:supabase/functions/scan-identify/index.ts`],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  assert.match(certified, /"item_type": "sneakers",/);
+  assert.match(INDEX_SOURCE, /"item_type": "sneakers",\s*\n\s*"clothing_type": "sneaker",/);
+  assert.equal(
+    /"item_type": "footwear",/.test(INDEX_SOURCE),
+    false,
+    'the footwear category correction is deferred to a separate candidate',
+  );
 });
 
 // ── 3. Normalization into the V2 contract ───────────────────────────────────
@@ -454,7 +541,88 @@ test('the middle tier is a real provider value, not a copy of a neighbour', () =
   assert.notEqual(projected.clothingType, projected.subtype);
 });
 
-// ── 6. Phase 6 evidence is untouched ────────────────────────────────────────
+// ── 6. Required-field decision and uncertainty safety ───────────────────────
+
+/**
+ * `clothing_type` is REQUIRED in the single-item schema. That decision is not a
+ * preference: the certified schema already requires BOTH of its sibling
+ * taxonomy levels, so requiring the third matches existing production
+ * convention rather than inventing one. These tests prove the decision cannot
+ * force a fabricated concrete value.
+ */
+test('the required decision matches the certified convention for its siblings', () => {
+  const certified = execFileSync(
+    'git',
+    ['show', `${CERTIFIED_REF}:supabase/functions/scan-identify/index.ts`],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  const certifiedSchema = certified.slice(
+    certified.indexOf('const SELECTED_ITEM_RESPONSE_SCHEMA'),
+    certified.indexOf('function buildSelectedItemPrompt'),
+  );
+  const certifiedRequired = certifiedSchema.slice(
+    certifiedSchema.indexOf('required: ['),
+    certifiedSchema.indexOf('recommendedProducts'),
+  );
+  // Both siblings were already required before Phase 7.
+  assert.ok(certifiedRequired.includes("'item_type'"));
+  assert.ok(certifiedRequired.includes("'subtype'"));
+});
+
+test('"unknown" is sanctioned by the prompt, so a required key never forces a guess', () => {
+  // The escape hatch the required key depends on, present in the certified
+  // prompt and preserved by the candidate.
+  assert.match(INDEX_SOURCE, /If uncertain about any field, use null, unknown, or \[\]\./);
+  assert.match(INDEX_SOURCE, /rather than repeating another level/);
+});
+
+test('uncertainty is carried verbatim, never converted into a concrete answer', () => {
+  for (const token of ['unknown', 'not_visible', 'not_applicable']) {
+    const result = normalizeClassified(providerIdentification({ clothing_type: token }));
+    assert.equal(result.item.clothingType, token, 'the normalizer rewrites no uncertainty token');
+
+    const scored = scoreFields.scoreField('clothingType', TIERS.clothingType, result.item.clothingType);
+    assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.CORRECT, `${token} must not earn credit`);
+    assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.ACCEPTABLY_BROAD);
+  }
+});
+
+test('uncertain and absent values are not counted as ANSWERED by the suppression metric', () => {
+  const suppressionMetrics = require('../tools/scanner-evaluation/lib/suppressionMetrics');
+
+  const label = {
+    caseId: 'synthetic-1',
+    category: TIERS.category,
+    clothingType: TIERS.clothingType,
+    subtype: TIERS.subtype,
+    primaryColor: 'dark blue',
+    material: 'denim',
+    pattern: 'unknown',
+    brand: 'not_visible',
+  };
+
+  const build = (clothingType) => ({
+    caseId: 'synthetic-1',
+    projection: { ...label, clothingType },
+    profiles: { neutral: { fields: [] } },
+  });
+
+  for (const [value, expectAnswered] of [['jeans', 1], ['unknown', 0], [null, 0], ['', 0]]) {
+    const summary = suppressionMetrics.summarizeSuppression(
+      [build(value)],
+      new Map([['synthetic-1', label]]),
+      'neutral',
+    );
+    assert.equal(
+      summary.byField.clothingType.answeredN,
+      expectAnswered,
+      `clothingType=${JSON.stringify(value)} answeredN`,
+    );
+    assert.equal(summary.byField.clothingType.classifiableN, 1, 'the label is classifiable either way');
+  }
+});
+
+// ── 7. Phase 6 evidence is untouched ────────────────────────────────────────
 
 test('the locked Phase 6 control baseline still reports its historical zero', () => {
   const locked = JSON.parse(fs.readFileSync(

@@ -529,7 +529,7 @@ Expected output:
   },
   "identification": {
     "visual_observation": "White low-top leather sneakers with a rubber sole and minimal branding.",
-    "item_type": "footwear",
+    "item_type": "sneakers",
     "clothing_type": "sneaker",
     "subtype": "low-top leather sneakers",
     "primary_color": "white",
