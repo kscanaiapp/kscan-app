@@ -76,6 +76,8 @@ export type ScannerV2Display = {
   /** Long-form result line for the existing analysis surface. */
   result: string;
   category: string;
+  /** Phase 7. Empty string, matching every other field here, when absent. */
+  clothingType: string;
   subtype: string;
   brand: string;
   primaryColor: string;
@@ -106,6 +108,7 @@ export function buildScannerV2Display(
     title: '',
     result: '',
     category: '',
+    clothingType: '',
     subtype: '',
     brand: '',
     primaryColor: '',
@@ -132,6 +135,7 @@ export function buildScannerV2Display(
   const exactProduct = isRecord(result.exactProduct) ? result.exactProduct : null;
 
   const category = safeText(item.category);
+  const clothingType = safeText(item.clothingType);
   const subtype = safeText(item.subtype);
   const brand = safeText(brandBlock.value);
   const primaryColor = safeText(colors.primary);
@@ -154,6 +158,7 @@ export function buildScannerV2Display(
     title,
     result: result_,
     category,
+    clothingType,
     subtype,
     brand,
     primaryColor,

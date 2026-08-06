@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-06T03:25:04.493Z",
-    "generatedFromGitSha": "76e5895f4ada813f812e6c678fcbbcfa252d8f3d"
+    "generatedAtUtc": "2026-08-06T03:43:26.964Z",
+    "generatedFromGitSha": "29e38565fa9246c07b7c08f7f0cc82aa0052bfcc"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -20,9 +20,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 36,
-        "treeFileCount": 46,
+        "treeFileCount": 47,
         "bundleHash": "b3d0bee6b84c0c229a337b0691e2027745fdded09509c66014e655bdb7d999b4",
-        "treeHash": "67886a8937ce037cd82b54a12b4d10e34558a8a65f4e2878a73ddcb6c76bc79b",
+        "treeHash": "2bde694bb97d3037fdb1387f3d4998f3b144337a20f2f07787c58d06bdead914",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -147,6 +147,11 @@
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
             "sha256": "076a74ea2c1ad4199e4ddb78c01f5cfdee130517ab23fb2183bda9095076a6bf",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/phase7PipelineSurvivability.test.ts",
+            "sha256": "9186e1cbfa639ad50e549b12408b37c3fe8a96d6f3b03ae5cf61238d8db4b1db",
             "bundle": false
           },
           {
