@@ -19,12 +19,22 @@
  *   5. category and subtype behaviour is unchanged;
  *   6. absent / uncertain values are never back-filled from a neighbour;
  *   7. the V1 legacy projection is contract-identical;
- *   8. the benchmark scoring projection reads the same path V2 writes;
- *   9. the evaluator scores the three tiers independently.
+ *   8. the required-field decision cannot force a fabricated concrete value.
+ *
+ * TRIMMED FROM THE SOURCE COMMIT (local scanner/phase7-clothingtype-contract,
+ * d6484d0 + 2ef9e8f) during pre-staging integration classification. The
+ * source file's "Benchmark projection and evaluator integration" section and
+ * its "Phase 6 evidence is untouched" section depended on
+ * `tools/scanner-evaluation/lib/{scoringProjection,scoreFields,
+ * suppressionMetrics}` and a locked `docs/scanner-accuracy/phase6/
+ * control-baselines/...` artifact — governed benchmark/evaluation
+ * infrastructure explicitly excluded from this integration branch (category
+ * J/K). Every test below is independent of that tree; the scoring-dependent
+ * assertions were removed rather than ported, so this file has zero require()
+ * of anything under tools/scanner-evaluation or docs/scanner-accuracy.
  *
  * Every fixture here is SYNTHETIC deterministic input. None of it is historical
- * provider evidence, and nothing in this file reads or rewrites a Phase 6
- * artifact. No network, no provider, no Supabase.
+ * provider evidence. No network, no provider, no Supabase.
  */
 
 const test = require('node:test');
@@ -77,10 +87,6 @@ function loadTsModule(relativePath) {
 
 const V2 = loadTsModule('supabase/functions/_shared/fashionIdentificationV2.ts');
 const MULTI = loadTsModule('supabase/functions/scan-identify/multiItemGarments.ts');
-
-const scoringProjection = require('../tools/scanner-evaluation/lib/scoringProjection');
-const normalizedResultValidation = require('../tools/scanner-evaluation/lib/normalizedResultValidation');
-const scoreFields = require('../tools/scanner-evaluation/lib/scoreFields');
 
 const INDEX_SOURCE = fs.readFileSync(
   path.join(ROOT, 'supabase/functions/scan-identify/index.ts'),
@@ -335,8 +341,10 @@ test('an absent middle tier is null and is NEVER back-filled from a neighbour', 
 });
 
 test('an uncertainty token passes through unrewritten, exactly like its siblings', () => {
-  const result = normalizeClassified(providerIdentification({ clothing_type: 'unknown' }));
-  assert.equal(result.item.clothingType, 'unknown');
+  for (const token of ['unknown', 'not_visible', 'not_applicable']) {
+    const result = normalizeClassified(providerIdentification({ clothing_type: token }));
+    assert.equal(result.item.clothingType, token, 'the normalizer rewrites no uncertainty token');
+  }
 });
 
 test('a non-identity outcome carries no middle tier', () => {
@@ -352,6 +360,23 @@ test('a non-identity outcome carries no middle tier', () => {
     assert.equal(result.item.category, null);
     assert.equal(result.item.subtype, null);
   }
+});
+
+test('the middle tier is a real provider value, not a copy of a neighbour', () => {
+  // The provider supplies ONLY category and subtype. A back-filling
+  // implementation would produce a concrete clothingType here.
+  const result = normalizeClassified({
+    visual_observation: 'Dark blue wide-leg jeans laid flat.',
+    item_type: TIERS.category,
+    subtype: TIERS.subtype,
+    primary_color: 'dark blue',
+    confidence_score: 0.84,
+    non_fashion: false,
+  });
+
+  assert.equal(result.item.clothingType, null);
+  assert.notEqual(result.item.clothingType, result.item.category);
+  assert.notEqual(result.item.clothingType, result.item.subtype);
 });
 
 test('the multi-item sanitizer keeps a distinct clothingType per candidate', () => {
@@ -460,88 +485,7 @@ test('the legacy identification passthrough is stripped of the V2-only tier', ()
   assert.match(v2Reattach, /clothing_type: v2ClothingType/);
 });
 
-// ── 5. Benchmark projection and evaluator integration ───────────────────────
-
-/** The exact path V2 writes, projected into the exact path the scorer reads. */
-function projectNormalized(identification) {
-  const result = normalizeClassified(identification);
-  const validation = normalizedResultValidation.validateNormalizedResult(
-    JSON.parse(JSON.stringify(result)),
-  );
-  assert.equal(validation.ok, true, JSON.stringify(validation.errors));
-  return scoringProjection.projectV2ForScoring(validation.value);
-}
-
-test('the evaluator reads the same path the V2 projection writes', () => {
-  assert.ok(scoringProjection.SCORER_INPUT_KEYS.includes('clothingType'));
-
-  const projected = projectNormalized(providerIdentification());
-  assert.equal(projected.clothingType, TIERS.clothingType);
-  assert.equal(projected.category, TIERS.category);
-  assert.equal(projected.subtype, TIERS.subtype);
-});
-
-test('a correct middle-tier value is credited', () => {
-  const projected = projectNormalized(providerIdentification());
-  const scored = scoreFields.scoreField('clothingType', TIERS.clothingType, projected.clothingType);
-  assert.equal(scored.disposition, scoreFields.DISPOSITIONS.CORRECT);
-});
-
-test('an incorrect middle-tier value is not credited', () => {
-  const projected = projectNormalized(providerIdentification({ clothing_type: 'boot' }));
-  const scored = scoreFields.scoreField('clothingType', TIERS.clothingType, projected.clothingType);
-  assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.CORRECT);
-  assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.ACCEPTABLY_BROAD);
-});
-
-test('an absent middle tier remains uncredited rather than fabricated', () => {
-  const projected = projectNormalized(providerIdentification({ clothing_type: undefined }));
-  assert.equal(projected.clothingType, null);
-
-  const scored = scoreFields.scoreField('clothingType', TIERS.clothingType, projected.clothingType);
-  assert.equal(scored.disposition, scoreFields.DISPOSITIONS.UNKNOWN_WHEN_EVIDENCE_EXISTS);
-  assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.CORRECT);
-  assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.NOT_MEASURED);
-});
-
-test('an uncertainty token is an abstention, not a concrete answer', () => {
-  const projected = projectNormalized(providerIdentification({ clothing_type: 'unknown' }));
-  const scored = scoreFields.scoreField('clothingType', TIERS.clothingType, projected.clothingType);
-  assert.equal(scored.disposition, scoreFields.DISPOSITIONS.UNKNOWN_WHEN_EVIDENCE_EXISTS);
-});
-
-test('the three tiers are scored INDEPENDENTLY — one prediction is never counted twice', () => {
-  // The model gets the middle tier right and the subtype wrong. If any layer
-  // copied one tier into another, these two could not disagree.
-  const projected = projectNormalized(providerIdentification({ subtype: 'skinny_jeans' }));
-
-  const category = scoreFields.scoreField('category', TIERS.category, projected.category);
-  const clothingType = scoreFields.scoreField('clothingType', TIERS.clothingType, projected.clothingType);
-  const subtype = scoreFields.scoreField('subtype', TIERS.subtype, projected.subtype);
-
-  assert.equal(category.disposition, scoreFields.DISPOSITIONS.CORRECT);
-  assert.equal(clothingType.disposition, scoreFields.DISPOSITIONS.CORRECT);
-  assert.notEqual(subtype.disposition, scoreFields.DISPOSITIONS.CORRECT);
-});
-
-test('the middle tier is a real provider value, not a copy of a neighbour', () => {
-  // The provider supplies ONLY category and subtype. A back-filling
-  // implementation would produce a concrete clothingType here.
-  const projected = projectNormalized({
-    visual_observation: 'Dark blue wide-leg jeans laid flat.',
-    item_type: TIERS.category,
-    subtype: TIERS.subtype,
-    primary_color: 'dark blue',
-    confidence_score: 0.84,
-    non_fashion: false,
-  });
-
-  assert.equal(projected.clothingType, null);
-  assert.notEqual(projected.clothingType, projected.category);
-  assert.notEqual(projected.clothingType, projected.subtype);
-});
-
-// ── 6. Required-field decision and uncertainty safety ───────────────────────
+// ── 5. Required-field decision and uncertainty safety ───────────────────────
 
 /**
  * `clothing_type` is REQUIRED in the single-item schema. That decision is not a
@@ -574,69 +518,4 @@ test('"unknown" is sanctioned by the prompt, so a required key never forces a gu
   // prompt and preserved by the candidate.
   assert.match(INDEX_SOURCE, /If uncertain about any field, use null, unknown, or \[\]\./);
   assert.match(INDEX_SOURCE, /rather than repeating another level/);
-});
-
-test('uncertainty is carried verbatim, never converted into a concrete answer', () => {
-  for (const token of ['unknown', 'not_visible', 'not_applicable']) {
-    const result = normalizeClassified(providerIdentification({ clothing_type: token }));
-    assert.equal(result.item.clothingType, token, 'the normalizer rewrites no uncertainty token');
-
-    const scored = scoreFields.scoreField('clothingType', TIERS.clothingType, result.item.clothingType);
-    assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.CORRECT, `${token} must not earn credit`);
-    assert.notEqual(scored.disposition, scoreFields.DISPOSITIONS.ACCEPTABLY_BROAD);
-  }
-});
-
-test('uncertain and absent values are not counted as ANSWERED by the suppression metric', () => {
-  const suppressionMetrics = require('../tools/scanner-evaluation/lib/suppressionMetrics');
-
-  const label = {
-    caseId: 'synthetic-1',
-    category: TIERS.category,
-    clothingType: TIERS.clothingType,
-    subtype: TIERS.subtype,
-    primaryColor: 'dark blue',
-    material: 'denim',
-    pattern: 'unknown',
-    brand: 'not_visible',
-  };
-
-  const build = (clothingType) => ({
-    caseId: 'synthetic-1',
-    projection: { ...label, clothingType },
-    profiles: { neutral: { fields: [] } },
-  });
-
-  for (const [value, expectAnswered] of [['jeans', 1], ['unknown', 0], [null, 0], ['', 0]]) {
-    const summary = suppressionMetrics.summarizeSuppression(
-      [build(value)],
-      new Map([['synthetic-1', label]]),
-      'neutral',
-    );
-    assert.equal(
-      summary.byField.clothingType.answeredN,
-      expectAnswered,
-      `clothingType=${JSON.stringify(value)} answeredN`,
-    );
-    assert.equal(summary.byField.clothingType.classifiableN, 1, 'the label is classifiable either way');
-  }
-});
-
-// ── 7. Phase 6 evidence is untouched ────────────────────────────────────────
-
-test('the locked Phase 6 control baseline still reports its historical zero', () => {
-  const locked = JSON.parse(fs.readFileSync(
-    path.join(
-      ROOT,
-      'docs/scanner-accuracy/phase6/control-baselines',
-      'baseline-v0.3.1-v140-20260803-0531-e4ac29c-development-exec',
-      'control-baseline.json',
-    ),
-    'utf8',
-  ));
-
-  assert.equal(locked.immutable, true);
-  assert.equal(locked.suppressionMetrics.byField.clothingType.answeredN, 0);
-  assert.equal(locked.accuracyMetrics.neutral.identification.clothingType.correct, 0);
-  assert.equal(locked.accuracyMetrics.neutral.identification.clothingType.gradeableN, 18);
 });
