@@ -32,7 +32,7 @@
       },
       {
         "path": "types/fashionIdentificationV2.ts",
-        "sha256": "63bc9d8fe13ba260350612ffb3a6549fbecfc40f6986edbf088ecc9267fcfa2e"
+        "sha256": "e7021755f845b69882a80c95907ca1c8c5c0059509db9a6ef32dacb6d7d80930"
       }
     ],
     "eliseIntent": [
@@ -72,7 +72,7 @@
       },
       {
         "path": "services/scannerIdentificationV2.ts",
-        "sha256": "805ae9736d9c2c10f60ed2376747ff880f0588fa6dc4ae1fab9238a12174e4c0"
+        "sha256": "ec78bc796b0e58b082b9dab30883ce2b58f23e42c3f469891ccfdaa6f21d07d6"
       },
       {
         "path": "services/scannerScanRequest.ts",
@@ -86,7 +86,7 @@
       },
       {
         "path": "services/fashionIdentificationV2Core.ts",
-        "sha256": "c98f4a3b3098a7110767bed2df8e04ee333dfa9900798e91689cc5735752ed5d"
+        "sha256": "8959765ed925b719bb3fe16c58440074bb626dd420363d3f4427fa5234ae890a"
       },
       {
         "path": "services/identificationSnapshot.ts",
