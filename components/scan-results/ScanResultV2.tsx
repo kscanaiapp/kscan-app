@@ -51,6 +51,16 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FROM_Y = SCREEN_HEIGHT * 0.36;
 const SIMILAR_SCROLL_TOP_OFFSET = 20;
 
+/**
+ * Height to reserve for the sticky action row BEFORE it has been measured.
+ *
+ * Two wrapped lines of 48pt buttons + the 8pt gap between them + the row's own
+ * 12pt top padding. Four actions wrap to two lines on a narrow screen, and this
+ * is the only frame where a too-small estimate is visible as the last item
+ * sitting behind the bar. Excludes the safe-area inset, which the caller adds.
+ */
+const ESTIMATED_ACTION_ROW_HEIGHT = 48 * 2 + SPACING.sm + SPACING.md;
+
 function isRenderableSimilarFind(product: ProductMatch | null | undefined): product is ProductMatch {
   if (!product) return false;
 
@@ -269,6 +279,19 @@ export function ScanResultV2({
   const similarFindsTargetReady =
     hasRenderableSimilarFinds && similarFindsTarget?.key === similarFindsKey;
 
+  /**
+   * Will the sticky action row render anything?
+   *
+   * Mirrors ScanResultActionRow's own filter, and must keep mirroring it: the
+   * next-step prompt is framing FOR these actions, so a prompt shown without
+   * them asks a question the screen cannot answer.
+   */
+  const hasStickyActions =
+    typeof onSaveToLibrary === 'function' ||
+    similarFindsTargetReady ||
+    typeof onAskStyleChat === 'function' ||
+    typeof onAddToDressingRoom === 'function';
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -443,12 +466,21 @@ export function ScanResultV2({
               contentContainerStyle={[
                 styles.cardInner,
                 {
-                  // Ensure the last scrollable content clears the absolute sticky
-                  // action row, including its measured height, safe-area inset,
-                  // and a small extra margin.
+                  // Clear the absolutely-positioned action row.
+                  //
+                  // The measured height ALREADY contains the row's own bottom
+                  // inset padding, so the inset is only added while no
+                  // measurement exists yet — adding it to a measured height
+                  // double-counts it and leaves a dead gap under the content.
+                  //
+                  // The pre-measurement estimate has to cover the row WRAPPED to
+                  // two lines, which is what four actions do on a narrow screen.
+                  // The old floor of 100 was under a single line plus its inset,
+                  // so the last item sat behind the bar until onLayout landed.
                   paddingBottom:
-                    Math.max(actionRowHeight, 100) +
-                    Math.max(insets.bottom, SPACING.md) +
+                    (actionRowHeight > 0
+                      ? actionRowHeight
+                      : ESTIMATED_ACTION_ROW_HEIGHT + Math.max(insets.bottom, SPACING.md)) +
                     SPACING.xl,
                 },
               ]}
@@ -560,10 +592,17 @@ export function ScanResultV2({
                 </View>
               ) : null}
 
-              {/* Next-step framing above sticky actions */}
-              <Text style={styles.nextStepPrompt}>
-                What would you like to do with this look?
-              </Text>
+              {/* Next-step framing above sticky actions.
+                  Gated on there BEING sticky actions: every handler below is
+                  conditional (a feature freeze, no active scan item, too few
+                  similar finds), and when they all resolve to undefined the row
+                  renders null — leaving this question with nothing to answer
+                  it. */}
+              {hasStickyActions ? (
+                <Text style={styles.nextStepPrompt}>
+                  What would you like to do with this look?
+                </Text>
+              ) : null}
 
               {/* Closet tools footer (flag-guarded; renders null by default) */}
               <ScanResultUtilityFooter result={v2Data} />
@@ -712,7 +751,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(255, 253, 249, 0.96)',
+    // Opaque for the same reason as ScanResultActionRow: this bar sits over the
+    // scrolling candidate list, and 4% bleed-through is enough to make the CTA
+    // label compete with whatever is moving behind it.
+    backgroundColor: LUXURY.colors.cream,
     borderTopWidth: 1,
     borderTopColor: LUXURY.colors.border,
     paddingHorizontal: SPACING.xl,
