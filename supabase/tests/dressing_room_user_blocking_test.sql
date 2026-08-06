@@ -1,6 +1,6 @@
 begin;
 
-select plan(48);
+select plan(52);
 
 -- RLS-dependent assertions in this file explicitly `set local role authenticated`
 -- around themselves (in addition to set_config('request.jwt.claim.sub', ...)):
@@ -424,6 +424,44 @@ select is(
   0::bigint,
   'blocked account cannot see room metadata via the Shared-with-Me path either (owner1-p1 block already active)'
 );
+reset role;
+
+-- ── User-type content_reports (Report user) validation ──────────────────
+
+set local role authenticated;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000102', true);
+select lives_ok(
+  $$insert into public.content_reports (target_type, target_id, reported_user_id, room_id, reason_category)
+    values ('user', '00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000101', '10000000-0000-0000-0000-000000000101', 'harassment')$$,
+  'a participant can report the real room owner (real interaction, target_id matches reported_user_id)'
+);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000102', true);
+select throws_ok(
+  $$insert into public.content_reports (target_type, target_id, reported_user_id, room_id, reason_category)
+    values ('user', '00000000-0000-0000-0000-000000000109', '00000000-0000-0000-0000-000000000109', '10000000-0000-0000-0000-000000000101', 'harassment')$$,
+  '42501',
+  null,
+  'reporting a stranger with no real Dressing Room interaction is denied'
+);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000102', true);
+select throws_ok(
+  $$insert into public.content_reports (target_type, target_id, reported_user_id, room_id, reason_category)
+    values ('user', '00000000-0000-0000-0000-000000000109', '00000000-0000-0000-0000-000000000101', '10000000-0000-0000-0000-000000000101', 'harassment')$$,
+  '42501',
+  null,
+  'a forged target_id that does not match reported_user_id is denied'
+);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000109', true);
+select lives_ok(
+  $$insert into public.content_reports (target_type, target_id, reason_category)
+    values ('message', 'some-message-id', 'inappropriate')$$,
+  'message-type reports remain completely unchanged (no interaction requirement)'
+);
+
 reset role;
 
 -- ── Concurrency: lock ordering is deterministic regardless of call order ─
