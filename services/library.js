@@ -395,6 +395,11 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
         silhouette:        analysis.metadata?.silhouette ?? '',
         color_palette:     analysis.metadata?.color      ?? '',
         material_estimate: analysis.metadata?.materialEstimate ?? analysis.metadata?.material ?? null,
+        // Pattern (BUG-11). The mapper has always produced this and the legacy
+        // attribute block silently dropped it, so a reopened scan could never
+        // show a pattern and the cloud consumers that read metadata.pattern
+        // always read null. Absent stays null — never invented.
+        pattern:           analysis.metadata?.pattern ?? null,
         style_tags:        Array.isArray(analysis.metadata?.styleTags) ? analysis.metadata.styleTags.slice() : [],
         confidence_score:  typeof analysis.metadata?.confidenceScore === 'number'
           ? analysis.metadata.confidenceScore

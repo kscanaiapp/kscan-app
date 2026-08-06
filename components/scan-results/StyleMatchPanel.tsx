@@ -15,6 +15,7 @@ interface StyleMatchPanelProps {
   color?: string;
   silhouette?: string;
   material?: string;
+  pattern?: string;
   confidence?: number;
   styleTags?: string[];
   testID?: string;
@@ -34,6 +35,7 @@ export function StyleMatchPanel({
   color,
   silhouette,
   material,
+  pattern,
   confidence,
   styleTags,
   testID,
@@ -44,7 +46,7 @@ export function StyleMatchPanel({
   // Fallbacks are defensive only and never append "Match".
   const displayTitle = title && title.trim() ? title.trim() : 'Fashion Item';
 
-  const hasMetadata = category || color || silhouette || material;
+  const hasMetadata = category || color || silhouette || material || pattern;
 
   return (
     <View style={styles.container} testID={testID ?? 'style-match-panel'}>
@@ -68,6 +70,7 @@ export function StyleMatchPanel({
           {color ? <MetadataChip label="Color" value={color} /> : null}
           {silhouette ? <MetadataChip label="Silhouette" value={silhouette} /> : null}
           {material ? <MetadataChip label="Material" value={material} /> : null}
+          {pattern ? <MetadataChip label="Pattern" value={pattern} /> : null}
         </View>
       ) : null}
 
