@@ -150,6 +150,8 @@ export type FashionSelectedCandidateV2 = {
    * would be guessing at which garment the user picked.
    */
   category: string;
+  /** Phase 7. See `FashionIdentificationResultV2.item.clothingType`. */
+  clothingType?: string;
   subtype?: string;
   bounds?: { x: number; y: number; width: number; height: number };
   detectionDigest?: string;
@@ -184,6 +186,14 @@ export type FashionIdentificationResultV2 = {
   resolutionLevel: FashionIdentificationResolutionLevel;
   item: {
     category: string | null;
+    /**
+     * Phase 7. The middle taxonomy tier between `category` and `subtype`
+     * (`jeans`, `blazer`, `boot`). Additive to V2 only — absent on any
+     * response the client's V1 paths still read. A normalized descriptive
+     * string, not a controlled enum; may be `null` when the scanner could
+     * not support it.
+     */
+    clothingType: string | null;
     subtype: string | null;
     brand: {
       value: string | null;
@@ -225,6 +235,8 @@ export type FashionIdentificationResultV2 = {
     candidateId: string;
     evidenceId: string;
     category: string | null;
+    /** Phase 7. Optional: the detection pass's schema does not require it. */
+    clothingType?: string | null;
     subtype: string | null;
     bounds?: { x: number; y: number; width: number; height: number };
     detectionDigest?: string | null;
