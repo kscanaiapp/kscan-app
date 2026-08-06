@@ -362,15 +362,22 @@ test('the projection still strips internals after a typed load', async () => {
 
 // ── Caller compatibility ─────────────────────────────────────────────────────
 
-test('no existing production caller was changed to the typed API', () => {
-  // The private Dressing Room migrates to loadClosetTyped in a later Phase 2
-  // commit; every other production surface keeps the compatibility wrapper.
+test('useCloset reads through the typed API; other callers keep the wrapper', () => {
+  // CHANGED BY BUILD 25 PHASE 2 (BUG-13). This previously asserted that no
+  // production caller had migrated. useCloset now MUST use the typed loader:
+  // the compatibility wrapper collapses every failure into `[]`, which is what
+  // let a transient read fault render as "your Closet is empty" and let a failed
+  // refresh replace a populated Closet with nothing. Reading the failure is the
+  // repair, so the guard now pins the migration instead of forbidding it.
   const candidate = fs.readFileSync(path.join(ROOT, 'services/closetCandidateLibrary.js'), 'utf8');
   const useCloset = fs.readFileSync(path.join(ROOT, 'hooks/useCloset.js'), 'utf8');
   assert.equal(candidate.includes('loadClosetTyped'), false);
-  assert.equal(useCloset.includes('loadClosetTyped'), false);
   assert.match(candidate, /loadCloset\(post\.ownerId\)/);
-  assert.match(useCloset, /loadCloset\(actorId\)/);
+
+  assert.match(useCloset, /loadClosetTyped\(actorId, \{ actorRequest \}\)/);
+  // The lossy wrapper must not survive anywhere in the hook, or the failure it
+  // erases comes straight back on whichever path still calls it.
+  assert.equal(/[^a-zA-Z]loadCloset\(/.test(useCloset), false);
 });
 
 test('loadCloset remains the single delegating wrapper, not a second implementation', () => {

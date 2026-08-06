@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -228,6 +228,28 @@ export default function LibraryScreen() {
   // and the status panel renders from it, so a staged photo appears immediately
   // rather than on the next focus.
   const closetCandidates = useClosetCandidates();
+
+  /**
+   * Promotion is the ONLY path that writes a committed Closet item from the
+   * candidate side, and the two hooks hold independent snapshots. Without this
+   * bridge the item lands on disk and the grid below never re-reads it, which
+   * reads to the user as "the item I just added is missing" — or, on a
+   * first-ever add, as an empty Closet.
+   *
+   * The re-read is additive: `refresh` cannot clear the grid, so a promotion
+   * whose follow-up read fails leaves the existing items alone.
+   */
+  const closetCandidatesWithCommitBridge = useMemo(
+    () => ({
+      ...closetCandidates,
+      promoteSelected: async (...args: Parameters<typeof closetCandidates.promoteSelected>) => {
+        const result = await closetCandidates.promoteSelected(...args);
+        await closet.refresh();
+        return result;
+      },
+    }),
+    [closetCandidates, closet.refresh]
+  );
   const [closetIntakeVisible, setClosetIntakeVisible] = useState(false);
   const [mirrorSelfieVisible, setMirrorSelfieVisible] = useState(false);
   const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -648,12 +670,32 @@ export default function LibraryScreen() {
               unchanged and remains the only owned-inventory view.
             */}
             {CLOSET_CANDIDATE_STAGING_ACTIVE ? (
-              <ClosetCandidateStatusPanel api={closetCandidates} />
+              <ClosetCandidateStatusPanel api={closetCandidatesWithCommitBridge} />
             ) : null}
             {closet.loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
               </View>
+            ) : closet.error && closet.items.length === 0 ? (
+              /*
+                A Closet we could not READ is not an empty Closet. Saying
+                "empty" here would tell the user their items are gone and offer
+                "Add Item" as the remedy, when the items are on disk and the
+                remedy is to try the read again.
+              */
+              <EmptyStateCard
+                testID="closet-load-error-card"
+                title="We couldn't load your Closet"
+                subtitle={`${closet.error.message} Your items are safe — this was a problem reading them.`}
+                action={{
+                  label: 'Try Again',
+                  onPress: () => {
+                    void closet.refresh();
+                  },
+                  accessibilityLabel: 'Try loading your Closet again',
+                  testID: 'closet-load-error-retry-button',
+                }}
+              />
             ) : closet.items.length === 0 ? (
               <EmptyStateCard
                 title={chrome.emptyTitle}

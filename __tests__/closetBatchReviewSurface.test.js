@@ -817,7 +817,7 @@ test('the production Library candidate mount point reaches batch review', () => 
   // render tests above fail with it.
   const library = readSource('app/library.tsx');
   assert.ok(
-    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}\s*\/>\s*\) : null/.test(
+    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates(?:WithCommitBridge)?\}\s*\/>\s*\) : null/.test(
       library,
     ),
     'the Library must keep mounting the candidate surface under the derived capability',

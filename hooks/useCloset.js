@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-  loadCloset,
+  loadClosetTyped,
+  CLOSET_LOAD_CODES,
   deleteClosetItem,
   createClosetItem,
 } from '../services/closetLibrary';
@@ -33,6 +34,7 @@ export function useCloset() {
   const [snapshot, setSnapshot] = useState({ actorKey: null, items: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const { isAuthenticated, user } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;
   const actorKey = actorId ? `user:${actorId}` : 'device-local';
@@ -48,17 +50,31 @@ export function useCloset() {
       isActorRequestCurrent(actorRequest);
 
     setLoading(true);
-    setSnapshot({ actorKey, items: [] });
+    setLoadError(null);
 
-    void loadCloset(actorId)
-      .then((items) => {
+    // The snapshot is NOT blanked here. Cross-actor safety is already provided
+    // by the actorKey stamp below — a snapshot belonging to another actor reads
+    // as empty without being destroyed — and blanking first is what turned a
+    // failed read into a false "your Closet is empty".
+    void loadClosetTyped(actorId, { actorRequest })
+      .then((result) => {
         if (!isCurrent()) return;
-        setSnapshot({ actorKey, items: getClosetItemProjections(items) });
+        if (result.ok) {
+          setSnapshot({ actorKey, items: getClosetItemProjections(result.items) });
+        } else if (result.code !== CLOSET_LOAD_CODES.ACTOR_CHANGED) {
+          // A failure describes the READ, not the inventory. Whatever this actor
+          // already had on screen stays on screen, and the surface is told why
+          // so it can offer recovery instead of claiming emptiness.
+          setLoadError({ code: result.code, message: result.message });
+        }
         setLoading(false);
       })
       .catch(() => {
         if (!isCurrent()) return;
-        setSnapshot({ actorKey, items: [] });
+        setLoadError({
+          code: CLOSET_LOAD_CODES.READ_FAILED,
+          message: "We couldn't load your Closet.",
+        });
         setLoading(false);
       });
 
@@ -72,12 +88,41 @@ export function useCloset() {
 
   useFocusEffect(hydrate);
 
-  /** Re-read from disk under a fresh actor request. */
+  /**
+   * Re-read from disk under a fresh actor request.
+   *
+   * A refresh REFRESHES. It never clears: a read that fails leaves the items the
+   * actor already had intact and reports the failure instead, so an intake that
+   * could not be re-read cannot present as an emptied Closet.
+   */
   const refresh = useCallback(async () => {
     const actorRequest = createActorRequest();
-    const items = await loadCloset(actorId);
-    if (!isActorRequestCurrent(actorRequest)) return;
-    setSnapshot({ actorKey, items: getClosetItemProjections(items) });
+    const requestGeneration = ++requestGenerationRef.current;
+    let result;
+    try {
+      result = await loadClosetTyped(actorId, { actorRequest });
+    } catch {
+      result = {
+        ok: false,
+        items: [],
+        code: CLOSET_LOAD_CODES.READ_FAILED,
+        message: "We couldn't load your Closet.",
+      };
+    }
+    // Ordering guard: a slower earlier read must not land on top of a newer one.
+    if (
+      !isActorRequestCurrent(actorRequest) ||
+      requestGenerationRef.current !== requestGeneration
+    ) {
+      return result;
+    }
+    if (result.ok) {
+      setSnapshot({ actorKey, items: getClosetItemProjections(result.items) });
+      setLoadError(null);
+    } else if (result.code !== CLOSET_LOAD_CODES.ACTOR_CHANGED) {
+      setLoadError({ code: result.code, message: result.message });
+    }
+    return result;
   }, [actorId, actorKey]);
 
   /**
@@ -149,5 +194,7 @@ export function useCloset() {
   );
 
   const items = snapshot.actorKey === actorKey ? snapshot.items : [];
-  return { items, loading, busy, addFromUri, addFromScan, remove, refresh };
+  // A failure is only this actor's failure while their own snapshot is showing.
+  const error = snapshot.actorKey === actorKey || snapshot.actorKey === null ? loadError : null;
+  return { items, loading, busy, error, addFromUri, addFromScan, remove, refresh };
 }
