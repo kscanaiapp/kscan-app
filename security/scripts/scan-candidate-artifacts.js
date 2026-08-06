@@ -225,6 +225,31 @@ function isComparisonContextLine(line) {
   return /\.(includes|indexOf|startsWith|endsWith|match|test)\s*\(|===|!==/.test(line);
 }
 
+// eas.json's build.production profile is the one legitimate place a
+// production Supabase URL/anon key belongs -- EAS build profiles are
+// structurally per-target-environment, and "production" literally means
+// "the profile that builds for the App/Play Store against the production
+// backend". Every OTHER profile (development/preview/staging) referencing
+// production is a real finding, not a false positive -- see
+// docs/security/staging-security-pipeline-map.md for the 2026-08-06
+// misconfiguration this exception was added alongside fixing. Brace-depth
+// line-range detection anchored on the first `"production": {` line
+// (build.production precedes submit.production in this file), not full
+// JSON-AST correlation -- sufficient for this one file's consistent,
+// pretty-printed structure.
+function findEasProductionProfileLineRange(lines) {
+  const startIdx = lines.findIndex((l) => /^\s*"production"\s*:\s*\{\s*$/.test(l));
+  if (startIdx === -1) return null;
+  let depth = 0;
+  for (let i = startIdx; i < lines.length; i += 1) {
+    const opens = (lines[i].match(/\{/g) || []).length;
+    const closes = (lines[i].match(/\}/g) || []).length;
+    depth += opens - closes;
+    if (depth === 0) return [startIdx, i];
+  }
+  return null;
+}
+
 function isTemplateEnvFile(filePath) {
   const base = path.basename(filePath);
   if (!/^\.env(\.[^.]+)?$/.test(base)) return true; // not an env file at all
@@ -269,10 +294,17 @@ function scanFile(filePath) {
   const text = buffer.toString('utf8');
   const lines = text.split(/\r?\n/);
 
+  const easProductionRange = base === 'eas.json' ? findEasProductionProfileLineRange(lines) : null;
+
   lines.forEach((line, idx) => {
     const exemptContext = isCommentLine(line) || isComparisonContextLine(line);
+    const inEasProductionProfile = Boolean(
+      easProductionRange && idx >= easProductionRange[0] && idx <= easProductionRange[1]
+    );
+
     for (const rule of PATTERN_RULES) {
       if (rule.commentExempt && exemptContext) continue;
+      if (rule.id === 'PRODUCTION_PROJECT_REFERENCE' && inEasProductionProfile) continue;
       const match = rule.regex.exec(line);
       if (match) {
         findings.push({
@@ -291,7 +323,15 @@ function scanFile(filePath) {
     let jwtMatch;
     // eslint-disable-next-line no-cond-assign
     while ((jwtMatch = jwtRegex.exec(line))) {
-      const classification = classifyJwt(jwtMatch[0]);
+      let classification = classifyJwt(jwtMatch[0]);
+      if (inEasProductionProfile && classification.ruleId === 'PRODUCTION_JWT') {
+        classification = {
+          verdict: 'ALLOW',
+          severity: 'INFO',
+          ruleId: 'PRODUCTION_JWT_IN_PRODUCTION_PROFILE',
+          description: 'Production JWT inside eas.json build.production -- the one profile where this is expected',
+        };
+      }
       findings.push({
         ruleId: classification.ruleId,
         severity: classification.severity,
@@ -478,6 +518,7 @@ module.exports = {
   isTemplateEnvFile,
   isCommentLine,
   isComparisonContextLine,
+  findEasProductionProfileLineRange,
   PRODUCTION_PROJECT_REF,
   STAGING_PROJECT_REF,
   PATTERN_RULES,
