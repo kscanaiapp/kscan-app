@@ -36,7 +36,7 @@ fi
 #    actually take effect (deploy config), not guard/rejection scripts that
 #    legitimately contain the production ref as a literal to reject.
 PRODUCTION_REF='wyyuqfdxucjksghsmhry'
-GUARD_LANGUAGE='grep|reject|forbidden|must not|production.?ref|assert|blocked|error|fail'
+GUARD_LANGUAGE='grep|reject|refus|forbidden|must not|never|production.?ref|assert|blocked|error|fail|\[\[?[[:space:]]'
 for f in $STAGED_FILES; do
   case "$f" in
     .github/workflows/*.yml|.github/workflows/*.yaml|supabase/config.toml|.env|.env.*|app.json|eas.json)
