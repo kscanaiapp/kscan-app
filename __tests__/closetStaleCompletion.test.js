@@ -58,6 +58,15 @@ function createHooks() {
     return slots[index].value;
   }
 
+  function useMemo(factory, deps) {
+    const index = cursor++;
+    const previous = slots[index];
+    if (!previous || !sameDeps(previous.deps, deps)) {
+      slots[index] = { kind: 'memo', value: factory(), deps };
+    }
+    return slots[index].value;
+  }
+
   function useEffect(effect, deps) {
     const index = cursor++;
     const previous = slots[index];
@@ -90,6 +99,7 @@ function createHooks() {
     stateValues: () => slots.filter((slot) => slot?.kind === 'state').map((slot) => slot.value),
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
   };
@@ -159,6 +169,7 @@ function createLibraryHarness() {
   const react = {
     useCallback: hooks.useCallback,
     useEffect: hooks.useEffect,
+    useMemo: hooks.useMemo,
     useRef: hooks.useRef,
     useState: hooks.useState,
   };
