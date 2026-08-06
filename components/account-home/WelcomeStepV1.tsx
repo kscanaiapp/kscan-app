@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, useWindowDimensions } from 'react-native';
 import {
   PrimaryButton,
   SecondaryButton,
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { usePresentationMotion } from '../../hooks/usePresentationMotion';
+import { getWelcomeHeroImageHeight } from '../../services/onboardingLayout';
 
 interface WelcomeStepV1Props {
   onGetStarted: () => void;
@@ -27,12 +28,14 @@ export function WelcomeStepV1({ onGetStarted, onAlreadyHaveAccount }: WelcomeSte
   // Presentation-only idle motion. The hero renders identically without it;
   // motion is a transform layered on top and never gates anything below.
   const presentationMotion = usePresentationMotion();
+  const { height: windowHeight } = useWindowDimensions();
+  const heroHeight = getWelcomeHeroImageHeight(windowHeight);
 
   return (
     <View style={styles.stepContent} testID="onboarding-welcome-screen-v1">
       <Animated.Image
         source={require('../../assets/images/welcome-hero.png')}
-        style={[styles.heroImage, presentationMotion]}
+        style={[styles.heroImage, { height: heroHeight }, presentationMotion]}
         resizeMode="cover"
         accessibilityLabel="Welcome to K Scan"
       />
@@ -76,7 +79,8 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: '100%',
-    height: 320,
+    // Height is set responsively via getWelcomeHeroImageHeight — never
+    // hardcode a device height here (see BUG-01).
     borderRadius: RADIUS.xl,
     marginBottom: SPACING.xl,
   },
