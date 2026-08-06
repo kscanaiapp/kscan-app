@@ -2,16 +2,16 @@
 
 name: Security - Promotion Gate
 
+# Triggered ONLY by the completion of each upstream security workflow, never
+# directly by push/pull_request. Direct triggers used to start this job racing
+# in parallel with the workflows whose results it reads — on a push, all five
+# workflows fired within the same three seconds, so a fixed wait/poll here was
+# the only thing standing between it and evaluating an empty check-run list.
+# workflow_run guarantees at least one required check has just finished before
+# this ever runs; a single non-blocking pass then either reaches a final
+# verdict or reports PENDING for the next upstream completion to pick up. See
+# security/scripts/evaluate-promotion-gate.js for the non-blocking evaluation.
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  push:
-    branches:
-      - "**"
   workflow_run:
     workflows:
       - Security - Code and Dependencies
@@ -30,13 +30,18 @@ jobs:
   security-promotion-gate:
     name: Security promotion gate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: |
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion != 'cancelled'
+    # A single non-blocking pass completes in seconds; 30 minutes was sized for
+    # the old 20-minute internal poll, which no longer exists.
+    timeout-minutes: 5
+    if: github.event.workflow_run.conclusion != 'cancelled'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The upstream workflow's head_sha, not whatever ref this workflow
+          # file itself lives on — evaluation must read the candidate's own
+          # security/scripts/evaluate-promotion-gate.js, not the default branch's.
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -47,17 +52,13 @@ jobs:
         id: sha
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            SHA="${{ github.event.workflow_run.head_sha }}"
-          elif [ -n "${{ github.event.pull_request.head.sha }}" ]; then
-            SHA="${{ github.event.pull_request.head.sha }}"
-          else
-            SHA="${{ github.sha }}"
-          fi
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          PR="${{ github.event.workflow_run.pull_requests[0].number }}"
           echo "head_sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "merge_sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "pull_request=${PR:-n/a}" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for required security checks
+      - name: Evaluate required security checks
         id: wait
         env:
           GH_TOKEN: ${{ github.token }}
@@ -67,11 +68,14 @@ jobs:
             --repo "${{ github.repository }}" \
             --sha "${{ steps.sha.outputs.head_sha }}" \
             --token "${{ github.token }}" \
-            --wait-seconds 1200 || EC=$?
+            --wait-seconds 30 || EC=$?
           if [ -f security/reports/promotion-verdict.json ]; then
             VERDICT="$(python3 -c "import json; print(json.load(open('security/reports/promotion-verdict.json', encoding='utf-8'))['finalVerdict'])")"
             echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"
           fi
+          # PASS and PENDING both exit 0 from the evaluator itself — PENDING
+          # means another required workflow hasn't finished yet, and this job
+          # runs again on its completion, so it is not a job failure here.
           exit ${EC:-0}
 
       - name: Publish promotion gate summary
@@ -87,7 +91,7 @@ jobs:
             echo "| Field | Value |"
             echo "| --- | --- |"
             echo "| Repository | ${{ github.repository }} |"
-            echo "| Pull request | ${{ github.event.pull_request.number || 'n/a' }} |"
+            echo "| Pull request | ${{ steps.sha.outputs.pull_request }} |"
             echo "| Head SHA | ${{ steps.sha.outputs.head_sha }} |"
             echo "| Merge SHA | ${{ steps.sha.outputs.merge_sha }} |"
           } >> "$GITHUB_STEP_SUMMARY"

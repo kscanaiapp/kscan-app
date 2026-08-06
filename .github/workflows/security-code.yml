@@ -50,6 +50,15 @@ jobs:
       - name: Run existing analyze-contract unit tests
         run: npm run test:analyze-contract
 
+      # security/scripts/evaluate-promotion-gate.js previously required a
+      # check named 'Security baseline comparison' that no job anywhere
+      # produced — __tests__/security/baselineComparison.test.js existed and
+      # `npm run test:security` ran it, but no workflow step ever called that
+      # script, so the promotion gate could never find it. Running it here
+      # closes the coverage gap rather than dropping the requirement.
+      - name: Run existing security baseline comparison tests
+        run: npm run test:security
+
       - name: Write project-checks summary
         if: always()
         env:
@@ -65,8 +74,9 @@ jobs:
             - test:auth-privacy
             - test:verify-supabase
             - test:analyze-contract
+            - test:security
             Absent scripts were skipped (typecheck, lint, test, test:unit, test:integration,
-            test:inventory, verify:test-inventory, test:security, verify:security).
+            test:inventory, verify:test-inventory, verify:security).
             Existing test failures fail this job (not report-only).
         run: node security/scripts/write-security-summary.js
 
