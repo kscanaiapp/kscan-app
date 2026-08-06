@@ -138,6 +138,23 @@ function mirrorStagingProgressLabel(integration: {
   return `${successCount} of ${totalCropCount} garments were added to your review.`;
 }
 
+/**
+ * The Closet card's secondary line, or nothing when it would only repeat the
+ * title.
+ *
+ * A promoted item's title is built from its taxonomy — brand plus the most
+ * specific descriptor — so an item with neither a brand nor a subtype gets its
+ * bare category as a title. Rendering the category underneath it produced a
+ * card reading "Tops" over "Tops".
+ */
+function closetCardSubtitle(title: string, category: string | null): string | undefined {
+  const fallback = 'Owned item';
+  if (!category) return fallback;
+  return category.trim().toLowerCase() === String(title ?? '').trim().toLowerCase()
+    ? undefined
+    : category;
+}
+
 function formatDate(iso: string): string {
   try {
     const date = new Date(iso);
@@ -180,7 +197,10 @@ const SECTION_CHROME = {
     title: 'Your Closet',
     subtitle: 'YOUR OWNED WARDROBE',
     emptyTitle: 'Your Closet is empty',
-    emptyBody: 'Add items you own to build your Closet.',
+    // No emptyBody. The Closet's empty body depends on whether direct intake is
+    // available, so it is written at the call site. A static string here was a
+    // SECOND body for the same state that nothing rendered — the kind of
+    // duplicate copy this table exists to prevent.
   },
 } as const;
 
@@ -536,6 +556,11 @@ export default function LibraryScreen() {
   // this the route could resolve to Recent Scans while the header still claimed
   // "Your Closet" — the alias that made scan history look like owned inventory.
   const chrome = CLOSET_SEPARATION_V1 ? SECTION_CHROME[section] : LEGACY_CHROME;
+  // This empty state only ever renders under the Recent Scans or the
+  // pre-separation chrome; the Closet writes its own, intake-dependent body.
+  const recentEmptyBody = CLOSET_SEPARATION_V1
+    ? SECTION_CHROME.recent.emptyBody
+    : LEGACY_CHROME.emptyBody;
 
   const scanPairs = scans.reduce<[SavedScan, SavedScan | null][]>((pairs, scan, i) => {
     if (i % 2 === 0) pairs.push([scan, scans[i + 1] ?? null]);
@@ -726,7 +751,7 @@ export default function LibraryScreen() {
                       imageUrl={a.thumbnailUri ?? a.imageUri}
                       title={a.title}
                       accessibilityLabel={`${a.title} Closet item`}
-                      subtitle={a.category ?? 'Owned item'}
+                      subtitle={closetCardSubtitle(a.title, a.category)}
                       date={formatDate(a.createdAt)}
                       status="Closet"
                       onDelete={() => handleDeleteClosetItem(a.id)}
@@ -739,7 +764,7 @@ export default function LibraryScreen() {
                         imageUrl={b.thumbnailUri ?? b.imageUri}
                         title={b.title}
                         accessibilityLabel={`${b.title} Closet item`}
-                        subtitle={b.category ?? 'Owned item'}
+                        subtitle={closetCardSubtitle(b.title, b.category)}
                         date={formatDate(b.createdAt)}
                         status="Closet"
                         onDelete={() => handleDeleteClosetItem(b.id)}
@@ -772,7 +797,7 @@ export default function LibraryScreen() {
         ) : scans.length === 0 ? (
           <EmptyStateCard
             title={chrome.emptyTitle}
-            subtitle={chrome.emptyBody}
+            subtitle={recentEmptyBody}
             action={
               CLOSET_SEPARATION_V1
                 ? {

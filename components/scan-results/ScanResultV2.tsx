@@ -426,7 +426,10 @@ export function ScanResultV2({
               >
                 <EmptyStateCard
                   title="Scan result unavailable"
-                  subtitle="Your scan data could not be loaded."
+                  // The body says what to expect next, not the title again.
+                  // "Your scan data could not be loaded" restated the heading
+                  // and left the user with nothing they did not already know.
+                  subtitle="Nothing was saved, so you can scan this item again."
                   action={{
                     label: 'Scan Again',
                     onPress: runExit,

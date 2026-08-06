@@ -58,6 +58,30 @@ function stateLabel(state: ScanItemQueueState | undefined): string | null {
   }
 }
 
+/**
+ * Category / subtype / colour, skipping absent values AND repeated ones.
+ *
+ * A plain top classifies as category "top" and subtype "top", which read as
+ * "top · top · black" on the card and in its accessibility label. Broadest
+ * first, so keeping the first occurrence keeps the more specific label whenever
+ * the two genuinely differ.
+ */
+function describeCandidate(
+  candidate: Pick<CandidateReviewDescriptor, 'category' | 'subtype' | 'primaryColor'>,
+  separator: string,
+): string {
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  for (const part of [candidate.category, candidate.subtype, candidate.primaryColor]) {
+    if (typeof part !== 'string' || !part.trim()) continue;
+    const key = part.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push(part);
+  }
+  return parts.join(separator);
+}
+
 function candidateAccessibilityLabel(
   candidate: CandidateReviewDescriptor,
   position: number,
@@ -66,9 +90,7 @@ function candidateAccessibilityLabel(
   imageCount: number,
 ): string {
   const parts = [`Item ${position}`, candidate.label];
-  const detail = [candidate.category, candidate.subtype, candidate.primaryColor]
-    .filter(Boolean)
-    .join(', ');
+  const detail = describeCandidate(candidate, ', ');
   if (detail) parts.push(detail);
   if (imageCount > 1) parts.push(`from image ${candidate.sourceImageIndex + 1}`);
   parts.push(selected ? `selected, position ${selectionOrder}` : 'not selected');
@@ -122,9 +144,7 @@ export function MultiItemResultNavigator({
             const selected = selectionOrder >= 0;
             const state = itemStates[candidate.id];
             const stateText = reviewLocked ? stateLabel(state) : null;
-            const detail = [candidate.category, candidate.subtype, candidate.primaryColor]
-              .filter(Boolean)
-              .join(' · ');
+            const detail = describeCandidate(candidate, ' · ');
             return (
               <TouchableOpacity
                 key={candidate.id}
