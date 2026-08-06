@@ -114,6 +114,7 @@ const PATTERN_RULES = [
     detector: 'kscan-forbidden-pattern',
     regex: new RegExp(PRODUCTION_PROJECT_REF),
     description: 'Production Supabase project reference in a candidate artifact — a shipped candidate must never reference production',
+    commentExempt: true,
   },
   {
     id: 'GENERIC_SIGNING_OR_WEBHOOK_SECRET',
@@ -201,6 +202,29 @@ function classifyJwt(token) {
   return { verdict: 'MANUAL_REVIEW', severity: 'P2', description: `JWT with unrecognized role (${role || 'unknown'})`, ruleId: 'JWT_UNKNOWN_ROLE' };
 }
 
+// A line whose first non-whitespace characters are a comment marker across
+// the languages this repo actually uses (SQL --, shell/env/YAML #, JS/TS //
+// or block-comment * / /*). Scoped narrowly: only rules explicitly marked
+// commentExempt skip these lines (e.g. PRODUCTION_PROJECT_REFERENCE, which
+// legitimately shows up in migration/doc comments explaining that staging
+// mirrors production schema — see docs/security/staging-security-pipeline-map.md).
+// A real secret or private key is still flagged even inside a comment.
+function isCommentLine(line) {
+  const trimmed = line.trimStart();
+  return trimmed.startsWith('--') || trimmed.startsWith('#') || trimmed.startsWith('//')
+    || trimmed.startsWith('/*') || trimmed.startsWith('*');
+}
+
+// A line that compares/classifies against the production ref rather than
+// embedding it as a target (e.g. `if (url.includes(PRODUCTION_REF)) return
+// 'production'`) -- the exact pattern already proven safe and common across
+// security/scripts/*.js's own production-reference guards. A real leaked
+// credential or write target would appear as a bare literal, not inside a
+// comparison call.
+function isComparisonContextLine(line) {
+  return /\.(includes|indexOf|startsWith|endsWith|match|test)\s*\(|===|!==/.test(line);
+}
+
 function isTemplateEnvFile(filePath) {
   const base = path.basename(filePath);
   if (!/^\.env(\.[^.]+)?$/.test(base)) return true; // not an env file at all
@@ -246,7 +270,9 @@ function scanFile(filePath) {
   const lines = text.split(/\r?\n/);
 
   lines.forEach((line, idx) => {
+    const exemptContext = isCommentLine(line) || isComparisonContextLine(line);
     for (const rule of PATTERN_RULES) {
+      if (rule.commentExempt && exemptContext) continue;
       const match = rule.regex.exec(line);
       if (match) {
         findings.push({
@@ -450,6 +476,8 @@ module.exports = {
   summarize,
   classifyJwt,
   isTemplateEnvFile,
+  isCommentLine,
+  isComparisonContextLine,
   PRODUCTION_PROJECT_REF,
   STAGING_PROJECT_REF,
   PATTERN_RULES,

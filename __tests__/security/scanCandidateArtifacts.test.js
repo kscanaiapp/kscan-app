@@ -20,6 +20,8 @@ const {
   summarize,
   classifyJwt,
   isTemplateEnvFile,
+  isCommentLine,
+  isComparisonContextLine,
   PRODUCTION_PROJECT_REF,
   STAGING_PROJECT_REF,
 } = require('../../security/scripts/scan-candidate-artifacts');
@@ -123,6 +125,52 @@ test('scan+summarize: a directory with no findings PASSes', () => {
     const summary = summarize(scan([dir]));
     assert.equal(summary.verdict, 'PASS');
     assert.equal(summary.blockedCount, 0);
+  });
+});
+
+test('isCommentLine: recognizes SQL, shell/env, and JS/TS comment markers', () => {
+  assert.equal(isCommentLine('-- a sql comment'), true);
+  assert.equal(isCommentLine('  # a shell/env comment'), true);
+  assert.equal(isCommentLine('// a js comment'), true);
+  assert.equal(isCommentLine('const x = 1;'), false);
+});
+
+test('isComparisonContextLine: recognizes classification/guard idioms, not bare literals', () => {
+  assert.equal(isComparisonContextLine("if (url.includes('wyyuqfdxucjksghsmhry')) return 'production';"), true);
+  assert.equal(isComparisonContextLine('const url = "https://wyyuqfdxucjksghsmhry.supabase.co";'), false);
+});
+
+test('scan: PRODUCTION_PROJECT_REFERENCE is exempt in a migration-comment context (found live in this repo)', () => {
+  withTempDir((dir) => {
+    fs.writeFileSync(
+      path.join(dir, 'migration.sql'),
+      `-- Production (${PRODUCTION_PROJECT_REF}, read-only) defines exactly two buckets:\ncreate table foo (id uuid primary key);\n`
+    );
+    const summary = summarize(scan([dir]));
+    assert.equal(summary.blockedCount, 0);
+  });
+});
+
+test('scan: PRODUCTION_PROJECT_REFERENCE is exempt in a comparison/classification guard (found live in this repo)', () => {
+  withTempDir((dir) => {
+    fs.writeFileSync(
+      path.join(dir, 'guard.ts'),
+      `if (url.includes('${PRODUCTION_PROJECT_REF}')) return 'production';\n`
+    );
+    const summary = summarize(scan([dir]));
+    assert.equal(summary.blockedCount, 0);
+  });
+});
+
+test('scan: PRODUCTION_PROJECT_REFERENCE still blocks a bare literal target (the real eas.json finding)', () => {
+  withTempDir((dir) => {
+    fs.writeFileSync(
+      path.join(dir, 'eas.json'),
+      `{"env": {"EXPO_PUBLIC_SUPABASE_URL": "https://${PRODUCTION_PROJECT_REF}.supabase.co"}}\n`
+    );
+    const summary = summarize(scan([dir]));
+    assert.equal(summary.blockedCount, 1);
+    assert.equal(summary.findings[0].ruleId, 'PRODUCTION_PROJECT_REFERENCE');
   });
 });
 
