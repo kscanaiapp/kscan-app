@@ -8,11 +8,15 @@
  * pg_proc.proconfig search_path settings) and passes them in.
  */
 
-// Buckets allowed to be `public: true`. Empty today -- both existing
-// buckets (style-library-images, investor-docs) are non-public. Adding a
-// name here is a reviewable one-line diff, same shape as the anon-execute
-// allowlist.
-const PUBLIC_BUCKET_ALLOWLIST = [];
+// Buckets allowed to be `public: true`. style-library-images and
+// investor-docs are non-public. legal-documents is deliberately public --
+// see supabase/migrations/20260805121000_legal_documents_bucket_parity.sql,
+// which mirrors production (wyyuqfdxucjksghsmhry)'s existing bucket
+// byte-for-byte, including its public flag: production serves legal
+// documents (ToS/privacy policy) via public read with no row-level policy,
+// same as staging now does. Adding a name here is a reviewable one-line
+// diff, same shape as the anon-execute allowlist.
+const PUBLIC_BUCKET_ALLOWLIST = ['legal-documents'];
 
 // tables: [{ tableName, rlsEnabled }]. Flags any table with RLS disabled --
 // a newly exposed table lacking RLS is the single highest-severity finding

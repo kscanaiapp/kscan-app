@@ -1,0 +1,29 @@
+-- Close an unintended write grant on image_scan_verdicts.
+--
+-- 20260803220200_image_scan_verdicts.sql documents the intent explicitly:
+-- "Written only by service_role ... No insert/update/delete policy exists
+-- for authenticated/anon -- those require service_role, which bypasses
+-- RLS." That migration issued `grant select on ... to authenticated` and
+-- `revoke all ... from anon`, but never issued a matching
+-- `revoke insert, update, delete ... from authenticated` -- so if
+-- `authenticated` held any table-level INSERT/UPDATE/DELETE privilege
+-- through a schema-level default (Supabase's standard
+-- `alter default privileges in schema public grant all on tables to
+-- authenticated`), it was never removed for this table specifically.
+--
+-- security/scripts/query-staging-metadata.js's verdictWriteGrants query
+-- confirmed this live on staging: `authenticated` currently holds INSERT
+-- and UPDATE on public.image_scan_verdicts.
+--
+-- In practice RLS already blocks these writes today -- the table has RLS
+-- enabled and no INSERT/UPDATE/DELETE policy exists for authenticated, so
+-- Postgres denies the operation regardless of the table-level grant. This
+-- migration closes the redundant grant anyway: an unnecessary write
+-- privilege sitting behind RLS alone is exactly the kind of latent
+-- privilege-escalation surface this funnel exists to find -- if a future
+-- change ever adds *any* permissive INSERT/UPDATE policy for authenticated
+-- to this table (even one scoped to a narrower purpose), the pre-existing
+-- table-level grant would silently make that policy live instead of
+-- requiring an explicit, reviewable grant alongside it.
+
+revoke insert, update, delete on public.image_scan_verdicts from authenticated;

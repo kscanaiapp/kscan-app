@@ -12,8 +12,18 @@ const {
   detectDefinerFunctionsWithoutSearchPath,
 } = require('../../security/scripts/rls-storage-guard');
 
-test('PUBLIC_BUCKET_ALLOWLIST is empty today (both existing buckets are non-public)', () => {
-  assert.deepEqual(PUBLIC_BUCKET_ALLOWLIST, []);
+test('PUBLIC_BUCKET_ALLOWLIST covers exactly legal-documents (style-library-images and investor-docs are non-public)', () => {
+  assert.deepEqual(PUBLIC_BUCKET_ALLOWLIST, ['legal-documents']);
+});
+
+test('detectUnexpectedPublicBuckets: does not flag legal-documents using the real default allowlist', () => {
+  const buckets = [{ name: 'legal-documents', public: true, fileSizeLimit: null, allowedMimeTypes: null }];
+  assert.deepEqual(detectUnexpectedPublicBuckets(buckets), []);
+});
+
+test('detectPublicBucketsWithoutUploadControls: still flags legal-documents despite the allowlist -- allowlisting exempts "should this be public" only, not "is the upload path bounded"', () => {
+  const buckets = [{ name: 'legal-documents', public: true, fileSizeLimit: null, allowedMimeTypes: null }];
+  assert.deepEqual(detectPublicBucketsWithoutUploadControls(buckets), ['legal-documents']);
 });
 
 test('detectTablesWithoutRls: reports nothing when every table has RLS enabled', () => {
