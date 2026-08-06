@@ -188,11 +188,50 @@ test('DR-3 access parser fails closed on malformed payloads', () => {
     currentOwnerId: 'o',
     relationship: 'owner',
     accessVersion: 3,
+    canReact: true,
+    canMessage: true,
+    canReply: true,
   });
   assert.equal(ok.ok, true);
   assert.equal(ok.canReact, true);
   assert.equal(ok.canUpdateReadState, false);
   assert.equal(ok.accessVersion, 3);
+});
+
+test('Dressing Room blocking: canMessage/canReact/canReply reflect the backend, never hardcoded true', () => {
+  // The backend returns canMessage:false for an owner whose sole participant
+  // is blocked, even though ok:true (room + history preserved). The parser
+  // must surface that distinction, not paper over it with a hardcoded true.
+  const ownerBlockedAudience = collab.parseCollaborationAccess({
+    ok: true,
+    roomId: 'r',
+    authenticatedActorId: 'owner',
+    currentOwnerId: 'owner',
+    relationship: 'owner',
+    accessVersion: 5,
+    canReact: false,
+    canMessage: false,
+    canReply: false,
+  });
+  assert.equal(ownerBlockedAudience.ok, true);
+  assert.equal(ownerBlockedAudience.canMessage, false);
+  assert.equal(ownerBlockedAudience.canReact, false);
+  assert.equal(ownerBlockedAudience.canReply, false);
+
+  // A payload silently missing these fields must fail closed to false, never
+  // default to true.
+  const missingFields = collab.parseCollaborationAccess({
+    ok: true,
+    roomId: 'r',
+    authenticatedActorId: 'a',
+    currentOwnerId: 'o',
+    relationship: 'shared_recipient',
+    accessVersion: 1,
+  });
+  assert.equal(missingFields.ok, true);
+  assert.equal(missingFields.canMessage, false);
+  assert.equal(missingFields.canReact, false);
+  assert.equal(missingFields.canReply, false);
 });
 
 test('DR-4 access error classifier recognizes revoke classes', () => {
@@ -260,9 +299,15 @@ test('DR-4 no AsyncStorage persistence of room collaboration state', () => {
   assert.doesNotMatch(collabSource, /AsyncStorage|MMKV/);
 });
 
-test('DR-3 flags OFF leave legacy list/send paths intact in source', () => {
-  assert.match(roomMessages, /collabMessagesEnabled\(\)/);
-  assert.match(roomMessages, /\.from\('dressing_room_messages'\)/);
+test('Dressing Room blocking: the legacy direct-insert message fallback has been fully removed', () => {
+  // Message send/read must always go through the protected RPCs
+  // (create_dressing_room_message / list_dressing_room_messages) regardless
+  // of feature flags, so block/canMessage enforcement in those RPCs cannot be
+  // bypassed by a flag-off build.
+  assert.doesNotMatch(roomMessages, /collabMessagesEnabled\(\)/);
+  assert.doesNotMatch(roomMessages, /\.from\('dressing_room_messages'\)/);
+  assert.match(roomMessages, /create_dressing_room_message|createCollaborationMessage/);
+  assert.match(roomMessages, /list_dressing_room_messages|listCollaborationMessages/);
   assert.match(styleObjects, /onConflict: 'item_id,user_id'/);
 });
 
