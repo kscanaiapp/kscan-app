@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-06T03:18:59.192Z",
-    "generatedFromGitSha": "476e8a68166e3641c9548f154483866026694d77"
+    "generatedAtUtc": "2026-08-06T03:25:04.493Z",
+    "generatedFromGitSha": "76e5895f4ada813f812e6c678fcbbcfa252d8f3d"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,8 +21,8 @@
         ],
         "bundleFileCount": 36,
         "treeFileCount": 46,
-        "bundleHash": "56ea585249b5a8e29faaffc01819b06819c01f769fb49abe863ed96e6ac5d993",
-        "treeHash": "c73baa127fd52281782e0e96cb9c4a88a8f3294c98164960729802b296a5095a",
+        "bundleHash": "b3d0bee6b84c0c229a337b0691e2027745fdded09509c66014e655bdb7d999b4",
+        "treeHash": "67886a8937ce037cd82b54a12b4d10e34558a8a65f4e2878a73ddcb6c76bc79b",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -121,7 +121,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "938ca14476e63f70397195d25ab47dabfa6c4509bfff4feb3718631c2cff751f",
+            "sha256": "02c96b6da56944615b00bb4a3f1d30f39c5926ba1982c4b5cd17151beca55364",
             "bundle": true
           },
           {
@@ -141,7 +141,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/multiItemSelectionContract.ts",
-            "sha256": "b3fb22b7234783843ed6baf4d59b799afc04a2639c605b06dfd1961877c20c1b",
+            "sha256": "eb5c0d6f4a68429abd0cd33f29667360e2802e3835c5691efd249633605c2940",
             "bundle": true
           },
           {
@@ -151,7 +151,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/productMatchBridge.ts",
-            "sha256": "96f6cc0cb3b4701258011b608b78862b3361758ecaaedccfeb23f26734f0c43f",
+            "sha256": "177d510afe7e3ace0a2ed770dbc31a66780eacf3673798b0bca26fba03583859",
             "bundle": true
           },
           {
