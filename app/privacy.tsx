@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -180,6 +180,7 @@ interface BlockedUsersCardProps {
   blockedUsers: DressingRoomBlockedUser[];
   unblockingId: string | null;
   onUnblock: (blockedUserId: string) => void;
+  onRetry: () => void;
 }
 
 function BlockedUsersCard({
@@ -188,6 +189,7 @@ function BlockedUsersCard({
   blockedUsers,
   unblockingId,
   onUnblock,
+  onRetry,
 }: BlockedUsersCardProps) {
   return (
     <View style={styles.dataCard}>
@@ -198,7 +200,18 @@ function BlockedUsersCard({
       {loading ? (
         <ActivityIndicator size="small" color={LUXURY.colors.plum} />
       ) : error ? (
-        <Text style={styles.blockedUsersError}>{error}</Text>
+        <View>
+          <Text style={styles.blockedUsersError}>{error}</Text>
+          {/* Without this the list could only recover by leaving the screen:
+              it reloads on auth change only, and there is no pull-to-refresh. */}
+          <SecondaryButton
+            title="Retry"
+            onPress={onRetry}
+            accessibilityLabel="Retry loading blocked users"
+            accessibilityHint="Try loading your blocked users again"
+            testID="privacy-blocked-users-retry"
+          />
+        </View>
       ) : blockedUsers.length === 0 ? (
         <Text style={styles.blockedUsersEmpty}>You haven't blocked anyone.</Text>
       ) : (
@@ -275,6 +288,7 @@ export default function PrivacyScreen() {
   const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
   const [blockedUsersError, setBlockedUsersError] = useState<string | null>(null);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const unblockInFlightRef = useRef(false);
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
   const accountDeletionPending = hasPendingDeletionProfile(profile);
@@ -318,8 +332,18 @@ export default function PrivacyScreen() {
 
   const handleUnblock = useCallback(
     (blockedUserId: string) => {
+      // Ref guard, not just the disabled prop: rapid taps could otherwise
+      // stack several confirmation dialogs before the first one resolves.
+      if (unblockInFlightRef.current) return;
+      unblockInFlightRef.current = true;
+
+      const release = () => {
+        unblockInFlightRef.current = false;
+        setUnblockingId(null);
+      };
+
       Alert.alert('Unblock this user?', 'You will not automatically regain any prior shared Dressing Room access.', [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel', onPress: release },
         {
           text: 'Unblock',
           onPress: async () => {
@@ -332,11 +356,11 @@ export default function PrivacyScreen() {
             } catch {
               Alert.alert("We couldn't unblock that user. Please try again.");
             } finally {
-              setUnblockingId(null);
+              release();
             }
           },
         },
-      ]);
+      ], { onDismiss: release });
     },
     [],
   );
@@ -660,6 +684,9 @@ export default function PrivacyScreen() {
                 blockedUsers={blockedUsers}
                 unblockingId={unblockingId}
                 onUnblock={handleUnblock}
+                onRetry={() => {
+                  void loadBlockedUsers();
+                }}
               />
             ) : null}
 
