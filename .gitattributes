@@ -16,6 +16,9 @@
 *.html text eol=lf
 *.sh text eol=lf
 
+# Git hooks are extensionless but must stay LF to execute via their shebang
+.githooks/* text eol=lf
+
 # Config files
 *.properties text eol=lf
 *.gradle text eol=lf

@@ -2,6 +2,16 @@
 # Apply GitHub branch ruleset for protected integration branches.
 # Requires: gh auth with admin:repo scope
 # Usage: ./security/scripts/apply-branch-ruleset.sh
+#
+# 2026-08-06: required_status_checks previously listed context names that no
+# job has ever produced (e.g. "Project security checks", "ZAP Baseline
+# staging" without parens, "Security baseline comparison", "Static security
+# gate") and the ref list omitted staging/production-parity — the actual
+# canonical staging branch this whole security funnel protects. A GitHub
+# branch ruleset requiring a status-check context that can never be reported
+# blocks merges permanently (fail-closed, but for the wrong reason, forever).
+# Names below are the exact check-run names evaluate-promotion-gate.js
+# requires (security/scripts/evaluate-promotion-gate.js — keep both in sync).
 
 set -euo pipefail
 
@@ -16,6 +26,7 @@ RULESET_JSON="$(cat <<'EOF'
     "ref_name": {
       "include": [
         "refs/heads/master",
+        "refs/heads/staging/production-parity",
         "refs/heads/ios/full-submission-readiness-v2",
         "refs/heads/integration/ios-v18-release-candidate",
         "refs/heads/integration/android-v27-closet-release-candidate"
@@ -28,17 +39,15 @@ RULESET_JSON="$(cat <<'EOF'
     { "type": "required_status_checks", "parameters": {
       "strict_required_status_checks_policy": true,
       "required_status_checks": [
-        { "context": "Project security checks", "integration_id": null },
-        { "context": "Gitleaks secret scan", "integration_id": null },
-        { "context": "Semgrep code scan", "integration_id": null },
-        { "context": "OSV dependency scan", "integration_id": null },
-        { "context": "Trivy repository scan", "integration_id": null },
-        { "context": "npm dependency audit", "integration_id": null },
-        { "context": "Security baseline comparison", "integration_id": null },
-        { "context": "Static security gate", "integration_id": null },
-        { "context": "Staging security gate", "integration_id": null },
-        { "context": "ZAP Baseline staging", "integration_id": null },
-        { "context": "ZAP API staging", "integration_id": null },
+        { "context": "Project checks", "integration_id": null },
+        { "context": "Gitleaks", "integration_id": null },
+        { "context": "Semgrep Community Edition", "integration_id": null },
+        { "context": "OSV-Scanner", "integration_id": null },
+        { "context": "Trivy filesystem", "integration_id": null },
+        { "context": "npm audit", "integration_id": null },
+        { "context": "Migration validation", "integration_id": null },
+        { "context": "Contract tests", "integration_id": null },
+        { "context": "Candidate Artifact Exposure Gate", "integration_id": null },
         { "context": "Security promotion gate", "integration_id": null }
       ]
     }},
