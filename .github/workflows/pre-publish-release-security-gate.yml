@@ -28,6 +28,7 @@ permissions:
   contents: read
   actions: read
   checks: read
+  administration: read # best-effort branch-ruleset status read — see "Check branch protection status" below
 
 concurrency:
   group: ${{ github.workflow }}
@@ -80,6 +81,8 @@ jobs:
             ["Security - ZAP Baseline Staging"]="zap-baseline"
             ["Security - ZAP API Staging"]="zap-api"
             ["Security - Candidate Artifact Exposure Gate"]="artifact-exposure"
+            ["K Scan Staging Security Gate"]="staging-gate"
+            ["Security - Live Staging Verification"]="live-staging-verification"
           )
 
           for WF in "${!WORKFLOW_DIRS[@]}"; do
@@ -99,9 +102,33 @@ jobs:
 
           cat pre-publish-inputs/missing-runs.txt || true
 
+      - name: Check branch protection status
+        id: branch_protection
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          set +e
+          RULESETS="$(gh api "repos/${{ github.repository }}/rulesets" 2>/dev/null)"
+          QUERY_CODE=$?
+          set -e
+          if [ "$QUERY_CODE" -ne 0 ] || [ -z "$RULESETS" ]; then
+            echo "status=READY_NOT_APPLIED" >> "$GITHUB_OUTPUT"
+            echo "Branch protection status: could not be confirmed (query failed or GITHUB_TOKEN lacks administration:read) — treated as READY_NOT_APPLIED, never assumed PASS."
+            exit 0
+          fi
+          ACTIVE_COUNT="$(echo "$RULESETS" | python3 -c "import json,sys; data=json.load(sys.stdin); print(sum(1 for r in data if r.get('enforcement') == 'active'))")"
+          if [ "${ACTIVE_COUNT:-0}" -gt 0 ]; then
+            echo "status=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=READY_NOT_APPLIED" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Assemble exact-SHA evidence bundle
         env:
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          BRANCH_PROTECTION_STATUS: ${{ steps.branch_protection.outputs.status }}
         run: |
           set -euo pipefail
           PROMOTION_VERDICT="$(find pre-publish-inputs/promotion-gate -name 'promotion-verdict.json' | head -1 || true)"
@@ -110,14 +137,19 @@ jobs:
           ZAP_BASELINE_REPORT="$(find pre-publish-inputs/zap-baseline -name 'zap-baseline-report.json' | head -1 || true)"
           ZAP_API_REPORT="$(find pre-publish-inputs/zap-api -name 'zap-api-report.json' | head -1 || true)"
           ARTIFACT_EXPOSURE_REPORT="$(find pre-publish-inputs/artifact-exposure -name 'artifact-exposure-report.json' | head -1 || true)"
+          LIVE_STAGING_REPORT="$(find pre-publish-inputs/live-staging-verification -name 'live-staging-verification-report.json' | head -1 || true)"
+          AUTHZ_NEGATIVE_REPORT="$(find pre-publish-inputs/staging-gate -name 'authorization-negative-report.json' | head -1 || true)"
 
-          ARGS=(--candidate-sha "${CANDIDATE_SHA}" --output-dir security/evidence)
+          ARGS=(--candidate-sha "${CANDIDATE_SHA}" --output-dir security/evidence --branch-protection-status "${BRANCH_PROTECTION_STATUS:-READY_NOT_APPLIED}")
           [ -n "$PROMOTION_VERDICT" ] && ARGS+=(--promotion-verdict "$PROMOTION_VERDICT")
           [ -n "$ZAP_BASELINE_CTX" ] && ARGS+=(--zap-baseline-run-context "$ZAP_BASELINE_CTX")
           [ -n "$ZAP_API_CTX" ] && ARGS+=(--zap-api-run-context "$ZAP_API_CTX")
           [ -n "$ZAP_BASELINE_REPORT" ] && ARGS+=(--zap-baseline-report "$ZAP_BASELINE_REPORT")
           [ -n "$ZAP_API_REPORT" ] && ARGS+=(--zap-api-report "$ZAP_API_REPORT")
           [ -n "$ARTIFACT_EXPOSURE_REPORT" ] && ARGS+=(--artifact-exposure-report "$ARTIFACT_EXPOSURE_REPORT")
+          [ -n "$LIVE_STAGING_REPORT" ] && ARGS+=(--live-staging-verification-report "$LIVE_STAGING_REPORT")
+          [ -n "$AUTHZ_NEGATIVE_REPORT" ] && ARGS+=(--authorization-negative-report "$AUTHZ_NEGATIVE_REPORT")
+          [ -f eas.json ] && ARGS+=(--eas-json-path eas.json)
 
           node security/scripts/build-security-evidence.js "${ARGS[@]}"
           cat security/evidence/security-evidence.json

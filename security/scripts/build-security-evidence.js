@@ -39,7 +39,7 @@ const crypto = require('node:crypto');
 const STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
 
 function parseArgs(argv) {
-  const out = { outputDir: 'security/evidence' };
+  const out = { outputDir: 'security/evidence', easJsonPath: 'eas.json' };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--candidate-sha') out.candidateSha = argv[++i];
@@ -49,6 +49,10 @@ function parseArgs(argv) {
     else if (a === '--zap-baseline-report') out.zapBaselineReportPath = argv[++i];
     else if (a === '--zap-api-report') out.zapApiReportPath = argv[++i];
     else if (a === '--artifact-exposure-report') out.artifactExposureReportPath = argv[++i];
+    else if (a === '--live-staging-verification-report') out.liveStagingVerificationReportPath = argv[++i];
+    else if (a === '--authorization-negative-report') out.authorizationNegativeReportPath = argv[++i];
+    else if (a === '--eas-json-path') out.easJsonPath = argv[++i];
+    else if (a === '--branch-protection-status') out.branchProtectionStatus = argv[++i];
     else if (a === '--output-dir') out.outputDir = argv[++i];
   }
   return out;
@@ -141,19 +145,53 @@ function buildEvidence(args) {
   const stagingHealth = checkPass(staticScannerResults, 'Staging health checks');
   const syntheticAuth = checkPass(staticScannerResults, 'Synthetic auth tests');
 
-  // These two do not yet have an independent CI signal — see
-  // docs/security/staging-security-pipeline-map.md "capability-gap mapping".
-  // synthetic-staging-tests.js's assertion list covers *some* authorization-
-  // negative cases (anonymous rejection, malformed/expired-shaped JWTs,
-  // locked/pending-deletion account rejection, storage access) inside the
-  // single "Synthetic auth tests" check, but not all of Phase 11's required
-  // categories (wrong-project token, cross-user reads/writes, client-
-  // supplied owner ID, direct invocation of held functions) — so this is
-  // reported as PARTIAL, not PASS, even when the underlying check passes.
   const permissionPersistence = syntheticAuth === 'PASS' ? 'PASS' : syntheticAuth;
-  const authorizationNegativeTests = syntheticAuth === 'PASS' ? 'PARTIAL_COVERAGE' : syntheticAuth;
 
-  const rlsAndGrants = 'NOT_WIRED'; // anon-grant-guard.js / rls-storage-guard.js have no CI data source yet
+  // Wired 2026-08-06: security/scripts/authorization-negative-tests.js now
+  // runs live in security-staging-gate.yml's "Authorization-negative
+  // tests" job and reports its own PASS/FAIL/NOT_CONFIGURED/
+  // OPERATIONAL_FAILURE/PARTIAL_COVERAGE directly — read that report when
+  // given. Falls back to the old proxy-from-synthetic-auth approximation
+  // only when no report path is supplied (e.g. an older evidence run, or a
+  // caller that hasn't been updated yet) rather than breaking silently.
+  const authorizationNegativeReport = readJsonIfExists(args.authorizationNegativeReportPath);
+  const authorizationNegativeTests = authorizationNegativeReport
+    ? authorizationNegativeReport.coverage
+    : (syntheticAuth === 'PASS' ? 'PARTIAL_COVERAGE' : syntheticAuth);
+
+  // Wired 2026-08-06: security/scripts/verify-live-staging-security.js now
+  // runs live in live-staging-security-verification.yml and reports its own
+  // PASS/FAIL/NOT_CONFIGURED/BLOCKED/OPERATIONAL_FAILURE directly — read
+  // that report when given. Falls back to NOT_WIRED (never PASS) when no
+  // report path is supplied, since an absent report proves nothing.
+  const liveStagingVerificationReport = readJsonIfExists(args.liveStagingVerificationReportPath);
+  const rlsAndGrants = liveStagingVerificationReport ? liveStagingVerificationReport.overall : 'NOT_WIRED';
+
+  // eas_environment_targeting: computed directly rather than from a
+  // separate CI artifact — security/scripts/scan-candidate-artifacts.js's
+  // eas.json-specific classifier IS the live enforcement mechanism (wired
+  // into the Candidate Artifact Exposure Gate already), so re-running the
+  // same check here against the same file is exact, not an approximation.
+  let easEnvironmentTargeting = 'UNKNOWN';
+  if (args.easJsonPath && fs.existsSync(args.easJsonPath)) {
+    try {
+      // eslint-disable-next-line global-require
+      const { scan, summarize } = require('./scan-candidate-artifacts');
+      const easSummary = summarize(scan([args.easJsonPath]));
+      easEnvironmentTargeting = easSummary.verdict === 'PASS' ? 'PASS' : 'FAIL';
+    } catch {
+      easEnvironmentTargeting = 'OPERATIONAL_FAILURE';
+    }
+  }
+
+  // branch_protection: supplied by the caller (the workflow queries
+  // GitHub's Rulesets API directly, which needs repo-admin-level read
+  // access this script does not assume it has) rather than re-derived
+  // here. READY_NOT_APPLIED is the safe default when not told otherwise —
+  // an unconfirmed protection state must never read as PASS.
+  const branchProtection = args.branchProtectionStatus || 'READY_NOT_APPLIED';
+
+  const exactShaDeployment = shaMatch ? 'PASS' : 'FAIL';
 
   const zapFindingsVerdict = combine(
     // both must at least be attempted before a combined findings verdict means anything
@@ -177,12 +215,20 @@ function buildEvidence(args) {
     && (!args.zapApiRunContextPath || zapApiRunContext)
   );
 
+  // Every dimension here must read exactly 'PASS' — no special-casing any
+  // status (including PARTIAL_COVERAGE) to count as passing. An earlier
+  // version of this function excluded authorization_negative_tests'
+  // PARTIAL_COVERAGE result from this check specifically, which quietly
+  // contradicted "Promotion must not accept PARTIAL_COVERAGE" the moment
+  // that field started carrying real data instead of a hardcoded
+  // approximation — fixed 2026-08-06 alongside wiring the real check in.
   const dimensionStatuses = [
     staticSecurity, secretScan, artifactExposureScan, dependencyScans,
     migrationValidation, rlsAndGrants, contractTests, stagingDeployment,
     stagingHealth, syntheticAuth, permissionPersistence,
-    authorizationNegativeTests === 'PARTIAL_COVERAGE' ? 'PASS' : authorizationNegativeTests,
+    authorizationNegativeTests,
     zapBaselineOperational, zapApiOperational,
+    easEnvironmentTargeting, branchProtection, exactShaDeployment,
   ];
   const allDimensionsPass = dimensionStatuses.every((s) => s === 'PASS');
 
@@ -211,6 +257,9 @@ function buildEvidence(args) {
     synthetic_auth: syntheticAuth,
     permission_persistence: permissionPersistence,
     authorization_negative_tests: authorizationNegativeTests,
+    eas_environment_targeting: easEnvironmentTargeting,
+    branch_protection: branchProtection,
+    exact_sha_deployment: exactShaDeployment,
     zap_baseline_operational: zapBaselineOperational,
     zap_api_operational: zapApiOperational,
     zap_findings_verdict: zapFindingsVerdict,
@@ -223,6 +272,9 @@ function buildEvidence(args) {
       zapBaselineRunContextPath: args.zapBaselineRunContextPath || null,
       zapApiRunContextPath: args.zapApiRunContextPath || null,
       artifactExposureReportPath: args.artifactExposureReportPath || null,
+      liveStagingVerificationReportPath: args.liveStagingVerificationReportPath || null,
+      authorizationNegativeReportPath: args.authorizationNegativeReportPath || null,
+      easJsonPath: args.easJsonPath || null,
     },
   };
 }

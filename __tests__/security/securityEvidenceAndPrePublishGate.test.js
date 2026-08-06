@@ -177,7 +177,9 @@ test('buildVerdict: all blocker dimensions PASS + sha_match true + no ZAP findin
       synthetic_auth: 'PASS',
       permission_persistence: 'PASS',
       zap_findings_verdict: 'NO_FINDINGS',
-      authorization_negative_tests: 'PARTIAL_COVERAGE',
+      // authorization_negative_tests deliberately NOT overridden here — it
+      // is a BLOCKER_DIMENSIONS entry now, so the spread above already set
+      // it to 'PASS'; this test's whole point is "nothing is blocking".
     });
     const verdict = buildVerdict({ evidencePath, outputDir: dir });
     assert.equal(verdict.finalVerdict, 'PASS');
@@ -197,10 +199,148 @@ test('buildVerdict: ZAP findings reported (but nothing else blocking) -> PASS WI
       synthetic_auth: 'PASS',
       permission_persistence: 'PASS',
       zap_findings_verdict: 'FINDINGS_REPORTED',
-      authorization_negative_tests: 'PARTIAL_COVERAGE',
+      // authorization_negative_tests deliberately NOT overridden here — see
+      // the "all blocker dimensions PASS" test above for why.
     });
     const verdict = buildVerdict({ evidencePath, outputDir: dir });
     assert.equal(verdict.finalVerdict, 'PASS WITH REPORT-ONLY FINDINGS');
     assert.equal(verdict.promotion_eligible, true);
+  });
+});
+
+test('buildVerdict: authorization_negative_tests PARTIAL_COVERAGE blocks, even with every other dimension PASS (Phase 8)', () => {
+  withTempDir((dir) => {
+    const evidencePath = writeJson(path.join(dir, 'evidence.json'), {
+      candidate_sha: 'abc123',
+      deployed_staging_sha: 'abc123',
+      sha_match: true,
+      required_reports_present: true,
+      ...Object.fromEntries(BLOCKER_DIMENSIONS.map((d) => [d, 'PASS'])),
+      authorization_negative_tests: 'PARTIAL_COVERAGE',
+      synthetic_auth: 'PASS',
+      permission_persistence: 'PASS',
+      zap_findings_verdict: 'NO_FINDINGS',
+    });
+    const verdict = buildVerdict({ evidencePath, outputDir: dir });
+    assert.equal(verdict.finalVerdict, 'BLOCKED');
+    assert.equal(verdict.promotion_eligible, false);
+    assert.ok(verdict.reason.includes('authorization_negative_tests'));
+  });
+});
+
+test('buildVerdict: branch_protection READY_NOT_APPLIED blocks final eligibility (Phase 8)', () => {
+  withTempDir((dir) => {
+    const evidencePath = writeJson(path.join(dir, 'evidence.json'), {
+      candidate_sha: 'abc123',
+      deployed_staging_sha: 'abc123',
+      sha_match: true,
+      required_reports_present: true,
+      ...Object.fromEntries(BLOCKER_DIMENSIONS.map((d) => [d, 'PASS'])),
+      branch_protection: 'READY_NOT_APPLIED',
+      synthetic_auth: 'PASS',
+      permission_persistence: 'PASS',
+      zap_findings_verdict: 'NO_FINDINGS',
+    });
+    const verdict = buildVerdict({ evidencePath, outputDir: dir });
+    assert.equal(verdict.finalVerdict, 'BLOCKED');
+    assert.equal(verdict.promotion_eligible, false);
+  });
+});
+
+test('buildVerdict: eas_environment_targeting FAIL blocks (the exact eas.json finding this pass fixed)', () => {
+  withTempDir((dir) => {
+    const evidencePath = writeJson(path.join(dir, 'evidence.json'), {
+      candidate_sha: 'abc123',
+      deployed_staging_sha: 'abc123',
+      sha_match: true,
+      required_reports_present: true,
+      ...Object.fromEntries(BLOCKER_DIMENSIONS.map((d) => [d, 'PASS'])),
+      eas_environment_targeting: 'FAIL',
+      synthetic_auth: 'PASS',
+      permission_persistence: 'PASS',
+      zap_findings_verdict: 'NO_FINDINGS',
+    });
+    const verdict = buildVerdict({ evidencePath, outputDir: dir });
+    assert.equal(verdict.finalVerdict, 'BLOCKED');
+    assert.equal(verdict.promotion_eligible, false);
+  });
+});
+
+test('buildEvidence: rls_and_grants reads PASS from a live-staging-verification report when given', () => {
+  withTempDir((dir) => {
+    const evidence = buildEvidence({
+      candidateSha: 'abc123',
+      promotionVerdictPath: writeJson(path.join(dir, 'pv.json'), { finalVerdict: 'PASS', headSha: 'abc123', staticScannerResults: {} }),
+      liveStagingVerificationReportPath: writeJson(path.join(dir, 'live.json'), { overall: 'PASS', findings: {} }),
+    });
+    assert.equal(evidence.rls_and_grants, 'PASS');
+  });
+});
+
+test('buildEvidence: rls_and_grants stays NOT_WIRED when no live-staging-verification report is given', () => {
+  withTempDir((dir) => {
+    const evidence = buildEvidence({
+      candidateSha: 'abc123',
+      promotionVerdictPath: writeJson(path.join(dir, 'pv.json'), { finalVerdict: 'PASS', headSha: 'abc123', staticScannerResults: {} }),
+    });
+    assert.equal(evidence.rls_and_grants, 'NOT_WIRED');
+  });
+});
+
+test('buildEvidence: authorization_negative_tests reads coverage directly from the authorization-negative report when given', () => {
+  withTempDir((dir) => {
+    const evidence = buildEvidence({
+      candidateSha: 'abc123',
+      promotionVerdictPath: writeJson(path.join(dir, 'pv.json'), { finalVerdict: 'PASS', headSha: 'abc123', staticScannerResults: {} }),
+      authorizationNegativeReportPath: writeJson(path.join(dir, 'authz.json'), { coverage: 'PASS', results: [] }),
+    });
+    assert.equal(evidence.authorization_negative_tests, 'PASS');
+  });
+});
+
+test('buildEvidence: eas_environment_targeting PASSes for a correctly-targeted eas.json fixture', () => {
+  withTempDir((dir) => {
+    const easPath = path.join(dir, 'eas.json');
+    fs.writeFileSync(easPath, JSON.stringify({ build: { staging: { env: { EXPO_PUBLIC_SUPABASE_URL: 'https://yzqjvdfgefveprobvvyw.supabase.co' } } } }));
+    const evidence = buildEvidence({
+      candidateSha: 'abc123',
+      promotionVerdictPath: writeJson(path.join(dir, 'pv.json'), { finalVerdict: 'PASS', headSha: 'abc123', staticScannerResults: {} }),
+      easJsonPath: easPath,
+    });
+    assert.equal(evidence.eas_environment_targeting, 'PASS');
+  });
+});
+
+test('buildEvidence: eas_environment_targeting FAILs for a misconfigured eas.json fixture (production ref in a non-production profile)', () => {
+  withTempDir((dir) => {
+    const easPath = path.join(dir, 'eas.json');
+    fs.writeFileSync(easPath, JSON.stringify({ build: { preview: { env: { EXPO_PUBLIC_SUPABASE_URL: 'https://wyyuqfdxucjksghsmhry.supabase.co' } } } }));
+    const evidence = buildEvidence({
+      candidateSha: 'abc123',
+      promotionVerdictPath: writeJson(path.join(dir, 'pv.json'), { finalVerdict: 'PASS', headSha: 'abc123', staticScannerResults: {} }),
+      easJsonPath: easPath,
+    });
+    assert.equal(evidence.eas_environment_targeting, 'FAIL');
+  });
+});
+
+test('buildEvidence: branch_protection defaults to READY_NOT_APPLIED when not told otherwise, never a silent PASS', () => {
+  withTempDir((dir) => {
+    const evidence = buildEvidence({
+      candidateSha: 'abc123',
+      promotionVerdictPath: writeJson(path.join(dir, 'pv.json'), { finalVerdict: 'PASS', headSha: 'abc123', staticScannerResults: {} }),
+    });
+    assert.equal(evidence.branch_protection, 'READY_NOT_APPLIED');
+  });
+});
+
+test('buildEvidence: branch_protection reads PASS when the caller confirms it was applied', () => {
+  withTempDir((dir) => {
+    const evidence = buildEvidence({
+      candidateSha: 'abc123',
+      promotionVerdictPath: writeJson(path.join(dir, 'pv.json'), { finalVerdict: 'PASS', headSha: 'abc123', staticScannerResults: {} }),
+      branchProtectionStatus: 'PASS',
+    });
+    assert.equal(evidence.branch_protection, 'PASS');
   });
 });

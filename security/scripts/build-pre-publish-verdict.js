@@ -35,6 +35,9 @@ const BLOCKER_DIMENSIONS = [
   'static_security',
   'dependency_scans',
   'contract_tests',
+  'authorization_negative_tests', // added 2026-08-06 — Phase 8: PARTIAL_COVERAGE must block, not just FAIL
+  'eas_environment_targeting', // added 2026-08-06 — the eas.json production-reference finding this pass fixed
+  'branch_protection', // added 2026-08-06 — READY_NOT_APPLIED blocks final production eligibility (Phase 8)
 ];
 
 function parseArgs(argv) {
@@ -73,6 +76,9 @@ function buildVerdict(args) {
       infrastructure_scan: 'UNKNOWN',
       staging_dynamic_security: 'UNKNOWN',
       authentication_and_permissions: 'UNKNOWN',
+      eas_environment_targeting: 'UNKNOWN',
+      branch_protection: 'UNKNOWN',
+      exact_sha_deployment: 'UNKNOWN',
       required_evidence_present: false,
       known_blockers: 1,
       promotion_eligible: false,
@@ -130,6 +136,9 @@ function buildVerdict(args) {
     migration_validation: evidence.migration_validation,
     rls_and_grants: evidence.rls_and_grants,
     authorization_negative_tests: evidence.authorization_negative_tests,
+    eas_environment_targeting: evidence.eas_environment_targeting,
+    branch_protection: evidence.branch_protection,
+    exact_sha_deployment: evidence.exact_sha_deployment,
   };
 }
 
@@ -160,6 +169,9 @@ function toMarkdown(verdict) {
     `| migration_validation | ${verdict.migration_validation} |`,
     `| rls_and_grants | ${verdict.rls_and_grants} |`,
     `| authorization_negative_tests | ${verdict.authorization_negative_tests} |`,
+    `| eas_environment_targeting | ${verdict.eas_environment_targeting} |`,
+    `| branch_protection | ${verdict.branch_protection} |`,
+    `| exact_sha_deployment | ${verdict.exact_sha_deployment} |`,
     '',
     '## Owner approval',
     '',
