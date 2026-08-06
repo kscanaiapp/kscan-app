@@ -1,4 +1,4 @@
-﻿-- E-2 forward migration: generation resilience operation lifecycle.
+-- E-2 forward migration: generation resilience operation lifecycle.
 -- Additive only. Builds on 202607200001_elise_generation_quota_idempotency.sql.
 -- Do not apply to production from this task.
 --

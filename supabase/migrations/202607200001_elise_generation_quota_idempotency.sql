@@ -1,4 +1,4 @@
-﻿-- Elise backend foundation repair: generation identity and quota idempotency.
+-- Elise backend foundation repair: generation identity and quota idempotency.
 -- Additive only. Do not apply to production from this task.
 
 alter table public.style_chat_messages

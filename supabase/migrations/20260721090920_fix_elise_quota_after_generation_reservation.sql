@@ -1,4 +1,4 @@
-﻿-- Fix Elise quota idempotency after E-2 operation reservation.
+-- Fix Elise quota idempotency after E-2 operation reservation.
 --
 -- E-2 reserves an elise_generation_operations row before quota reservation so
 -- duplicate generation requests can recover or fail closed before provider work.
