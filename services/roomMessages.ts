@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { DRESSING_ROOM_THREADS_V1 } from '../constants/featureFlags';
 import {
   bumpCollabActorGeneration,
+  COLLAB_ACCESS_ERROR,
   createCollaborationMessage,
   createCollabRequestId,
   getCollabActorGeneration,
@@ -33,7 +34,12 @@ export const ROOM_MESSAGE_MAX_LENGTH = 1000;
 
 export const ROOM_MESSAGES_LOAD_ERROR = "We couldn't load messages. Please try again.";
 export const ROOM_MESSAGE_SEND_ERROR = "We couldn't send that message. Please try again.";
-export const ROOM_MESSAGES_ACCESS_ERROR = 'You no longer have access to this room.';
+// Neutral and truthful for every denial that reaches it — expired link,
+// revoked share, or a block in either direction. Never asserts a state change
+// the reader may not have experienced, and never discloses a block.
+export const ROOM_MESSAGES_ACCESS_ERROR = COLLAB_ACCESS_ERROR;
+export const ROOM_MESSAGES_MESSAGING_UNAVAILABLE =
+  'Messaging is unavailable in this Dressing Room.';
 export const ROOM_MESSAGES_STALE_ERROR = 'This room session is no longer active.';
 export const ROOM_MESSAGE_SIGN_IN_ERROR = 'Sign in to view and send room messages.';
 export const ROOM_MESSAGE_EMPTY_ERROR = 'Message cannot be empty.';
