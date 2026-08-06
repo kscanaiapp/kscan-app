@@ -95,6 +95,8 @@ export type BridgeQuery = {
   visibleBrandText?: string | null;
   model?: string | null;
   canonicalCategory?: string | null;
+  /** Phase 7. See `ProductMatchQuery.clothingType` in product-match/contracts.ts. */
+  clothingType?: string | null;
   color?: string | null;
   material?: string | null;
   silhouette?: string | null;
@@ -140,6 +142,9 @@ export function projectIdentificationToQuery(
     visibleBrandText: pick(identification, 'visible_brand_text'),
     model: pick(identification, 'model', 'subtype'),
     canonicalCategory: pick(identification, 'canonical_category', 'item_type', 'category'),
+    // No fallback to category/subtype — same no-backfill rule normalizeToV2
+    // follows. Absent stays absent rather than being synthesised.
+    clothingType: pick(identification, 'clothing_type'),
     color: pick(identification, 'primary_color', 'color') ?? pick(attributes, 'color'),
     material: pick(identification, 'material') ?? pick(attributes, 'material', 'materialEstimate'),
     silhouette: pick(identification, 'silhouette') ?? pick(attributes, 'silhouette'),

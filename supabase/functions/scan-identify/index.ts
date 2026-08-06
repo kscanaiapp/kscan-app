@@ -3541,9 +3541,20 @@ Deno.serve(async (req) => {
       imageDigestPrefix,
       evidenceId: internalRequest.evidenceId ?? null,
       recommendedProductCount: finalRecommendedProducts.length,
-      identification: completedResponseWithAttributes.identification as
-        | Record<string, unknown>
-        | undefined,
+      // `completedResponseWithAttributes.identification` is the legacy view —
+      // `clothing_type` was deliberately held out of it for V1 isolation (see
+      // the Phase 7 note above `legacyIdentification`). The product-match
+      // bridge is a V2-only consumer, so `clothing_type` is re-attached here
+      // from `v2ClothingType`, the same value the V2 response already carries.
+      // This creates a new object; it does not mutate the legacy one, so the
+      // client-visible legacy response is unaffected either way.
+      identification: (() => {
+        const base = completedResponseWithAttributes.identification as
+          | Record<string, unknown>
+          | undefined;
+        if (!v2ClothingType) return base;
+        return { ...(base ?? {}), clothing_type: v2ClothingType };
+      })(),
       attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
       existingItems: multiItemRequestExistingItems,
       mode,

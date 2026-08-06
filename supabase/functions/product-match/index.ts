@@ -72,7 +72,7 @@ const MAX_BODY_BYTES = 8 * 1024;
  * exactly this reason.
  */
 const ALLOWED_QUERY_FIELDS = new Set([
-  'brand', 'visibleBrandText', 'model', 'canonicalCategory', 'color',
+  'brand', 'visibleBrandText', 'model', 'canonicalCategory', 'clothingType', 'color',
   'material', 'silhouette', 'pattern', 'styleTags', 'searchQueries',
 ]);
 
@@ -99,7 +99,7 @@ const ALLOWED_REQUEST_FIELDS = new Set([
  */
 const ALLOWED_EXISTING_ITEM_FIELDS = new Set([
   'id', 'source', 'label', 'imageUri', 'brand', 'model',
-  'canonicalCategory', 'color', 'material', 'silhouette', 'pattern', 'productUrl',
+  'canonicalCategory', 'clothingType', 'color', 'material', 'silhouette', 'pattern', 'productUrl',
   // Checkpoint 4. See `ExistingItemCandidate.authoritativeId` / `.imageQuality`.
   'authoritativeId', 'imageQuality',
 ]);
@@ -175,6 +175,7 @@ export function parseProductMatchRequest(raw: unknown): ParsedRequest {
     visibleBrandText: cleanString(q.visibleBrandText, 80),
     model: cleanString(q.model, 120),
     canonicalCategory: cleanString(q.canonicalCategory, 60),
+    clothingType: cleanString(q.clothingType, 60),
     color: cleanString(q.color, 60),
     material: cleanString(q.material, 60),
     silhouette: cleanString(q.silhouette, 60),
@@ -234,6 +235,7 @@ export function parseProductMatchRequest(raw: unknown): ParsedRequest {
         brand: cleanString(item.brand, 80),
         model: cleanString(item.model, 120),
         canonicalCategory: cleanString(item.canonicalCategory, 60),
+        clothingType: cleanString(item.clothingType, 60),
         color: cleanString(item.color, 60),
         material: cleanString(item.material, 60),
         silhouette: cleanString(item.silhouette, 60),

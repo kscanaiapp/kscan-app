@@ -514,6 +514,14 @@ export type ProductMatchQuery = {
   visibleBrandText?: string | null;
   model?: string | null;
   canonicalCategory?: string | null;
+  /**
+   * Phase 7. The scanner's middle taxonomy tier (`item.clothingType`), between
+   * `canonicalCategory` and the model/subtype text already carried above.
+   * Preserved through this contract as a neutral text attribute — see
+   * `queryPlanner.ts`, which reads query fields by name and does not read this
+   * one, so carrying it here does not change query construction or ranking.
+   */
+  clothingType?: string | null;
   color?: string | null;
   material?: string | null;
   silhouette?: string | null;
@@ -565,6 +573,8 @@ export type ExistingItemCandidate = {
   brand?: string | null;
   model?: string | null;
   canonicalCategory?: string | null;
+  /** Phase 7. See `ProductMatchQuery.clothingType`. Preserved, not scored. */
+  clothingType?: string | null;
   color?: string | null;
   material?: string | null;
   silhouette?: string | null;
