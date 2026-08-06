@@ -1,0 +1,140 @@
+# Security-control health monitoring (Phase 17). A security scanner that
+# silently stops running is an outage even though the app stays up. This
+# checks that the core security workflows are actually executing and
+# succeeding on the canonical staging branch, and alerts via a GitHub issue
+# — deliberately using only access this repo already has (Issues API), not
+# a new paid monitoring service.
+#
+# Escalation: CRITICAL opens/updates a single tracked issue (idempotent —
+# reuses the existing open issue rather than spamming new ones) labeled
+# `security-control-health`; the repository owner is the alert owner unless
+# CODEOWNERS/an issue-assignee convention is added later. Acknowledgement:
+# closing the issue (it reopens automatically on the next CRITICAL result if
+# the underlying condition persists — see the "reopen if still critical"
+# step). Recovery validation: the next run auto-closes the issue once all
+# monitored workflows return to HEALTHY/WARNING.
+#
+# KNOWN LIMITATION (same root cause already documented in
+# security-promotion-gate.yml): GitHub only evaluates `schedule:` trigger
+# definitions from the copy of the workflow file on the repository's
+# DEFAULT branch, and `master` here carries no .github/workflows at all —
+# confirmed via `git ls-tree origin/master -- .github/workflows` (empty).
+# The cron below therefore does not fire yet; it is kept for forward
+# compatibility exactly as workflow_run is in security-promotion-gate.yml —
+# it starts working for free if this file (or an equivalent) is ever
+# published to master, which is outside this pass's authorized branch scope.
+# Until then, `workflow_dispatch` is the trigger that actually works —
+# run it manually, or wire an external scheduler against the
+# workflow_dispatch API if unattended cadence is required before that
+# publish happens.
+
+name: Security - Control Health Monitor
+
+on:
+  schedule:
+    - cron: '0 13 * * *' # daily, 13:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  security-control-health-monitor:
+    name: Security control health monitor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Check security-control health
+        id: health
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          set +e
+          node security/scripts/check-security-control-health.js --repo "${{ github.repository }}" --token "${GH_TOKEN}" > health-report.json
+          CODE=$?
+          set -e
+          echo "exit_code=${CODE}" >> "$GITHUB_OUTPUT"
+          OVERALL="$(python3 -c "import json; print(json.load(open('health-report.json'))['overall'])")"
+          echo "overall=${OVERALL}" >> "$GITHUB_OUTPUT"
+          cat health-report.json
+
+      - name: Write summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Security control health"
+            echo
+            echo "Overall: **${{ steps.health.outputs.overall }}**"
+            echo
+            echo '```json'
+            cat health-report.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload health report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: security-control-health-${{ github.run_number }}
+          path: health-report.json
+          retention-days: 90
+
+      - name: Open or update alert issue (CRITICAL only)
+        if: steps.health.outputs.overall == 'CRITICAL'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Idempotent: create the label if it doesn't exist yet. The issue
+          # lookup below always filters by this label, so every alert issue
+          # must carry it — no unlabeled fallback that would break lookup on
+          # the next run and cause duplicate issues to pile up.
+          gh label create security-control-health --repo "${{ github.repository }}" --color B60205 --description "Opened by security-control-health-monitor.yml" 2>/dev/null || true
+
+          TITLE="Security control health: CRITICAL"
+          BODY_FILE="$(mktemp)"
+          {
+            echo "One or more required security workflows are not executing successfully on \`staging/production-parity\`. A security control that stops running is an outage even when the app stays up."
+            echo
+            echo '```json'
+            cat health-report.json
+            echo '```'
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } > "$BODY_FILE"
+
+          EXISTING="$(gh issue list --repo "${{ github.repository }}" --label security-control-health --state open --json number -q '.[0].number // empty')"
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --repo "${{ github.repository }}" --body-file "$BODY_FILE"
+            gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "Still CRITICAL as of this run — see updated report above."
+          else
+            gh issue create --repo "${{ github.repository }}" --title "$TITLE" --body-file "$BODY_FILE" --label security-control-health
+          fi
+
+      - name: Auto-close alert issue once healthy again
+        if: steps.health.outputs.overall != 'CRITICAL'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          EXISTING="$(gh issue list --repo "${{ github.repository }}" --label security-control-health --state open --json number -q '.[0].number // empty')"
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "Recovered — overall status is now ${{ steps.health.outputs.overall }}. Closing."
+            gh issue close "$EXISTING" --repo "${{ github.repository }}"
+          fi
