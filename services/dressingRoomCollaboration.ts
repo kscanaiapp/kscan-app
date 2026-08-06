@@ -12,14 +12,23 @@ export const DR3_COLLAB_REFRESH_MS = 12_000;
 export const DR3_COLLAB_REFRESH_MAX_MS = 60_000;
 export const DR3_COLLAB_CATCHUP_MAX_PAGES = 5;
 
-export const COLLAB_ACCESS_ERROR = 'You no longer have access to this room.';
+// Neutral by contract: this string is shown both to someone whose share link
+// simply expired and to someone a counterparty has blocked. It must never
+// assert a state change the reader may not have had ("you no longer have
+// access" is false for a first-time joiner who was blocked before joining),
+// and must never disclose that a block exists or in which direction.
+export const COLLAB_ACCESS_ERROR = 'This Dressing Room is no longer available.';
 
 export function isCollaborationAccessError(error: unknown): boolean {
   if (!error) return false;
   if (typeof error === 'string') {
     return (
       error === COLLAB_ACCESS_ERROR ||
-      /no longer have access|unavailable|unauthorized|42501|PGRST301/i.test(error)
+      // "no longer available" matches the neutral copy above; "no longer have
+      // access" is retained so historical/persisted strings still classify.
+      /no longer available|no longer have access|unavailable|unauthorized|42501|PGRST301/i.test(
+        error,
+      )
     );
   }
   if (error instanceof Error) {
@@ -227,6 +236,67 @@ export async function resolveCollaborationAccess(
   return parseCollaborationAccess(data);
 }
 
+export type BlockableCounterparty = {
+  userId: string;
+  /** True when this counterparty owns the room (drives confirmation copy). */
+  isRoomOwner: boolean;
+};
+
+/**
+ * The accounts the current viewer can act on from a room's safety controls.
+ *
+ * This exists so Block never depends on the target having sent a message:
+ * a participant who only joined, reacted, or added items must still be
+ * blockable, and Report & Hide must not be able to strand the only path.
+ *
+ * Visibility is decided by RLS, never by this function
+ * (202606240001_dressing_room_participants_shared_messaging.sql):
+ *   * a room OWNER may read every participant row for their own room;
+ *   * a PARTICIPANT may read only their own row and can never enumerate
+ *     fellow participants.
+ * That asymmetry is a deliberate privacy property. This helper must never
+ * work around it, so a participant sees only the room owner — the single
+ * counterparty they can already identify. Self is always excluded, so the
+ * UI can never offer a self-block (which the backend rejects anyway).
+ */
+export async function listBlockableCounterparties(input: {
+  roomId: string;
+  currentUserId: string | null;
+  roomOwnerId: string | null;
+}): Promise<BlockableCounterparty[]> {
+  const roomId = String(input.roomId ?? '').trim();
+  if (!roomId || !input.currentUserId) return [];
+
+  const seen = new Set<string>([input.currentUserId]);
+  const counterparties: BlockableCounterparty[] = [];
+
+  if (input.roomOwnerId && !seen.has(input.roomOwnerId)) {
+    seen.add(input.roomOwnerId);
+    counterparties.push({ userId: input.roomOwnerId, isRoomOwner: true });
+  }
+
+  const { data, error } = await supabase
+    .from('dressing_room_participants')
+    .select('user_id, left_at')
+    .eq('dressing_room_id', roomId);
+
+  // A non-owner legitimately gets back only their own row here; an error is
+  // never fatal to the safety surface, which still offers the room owner.
+  if (!error && Array.isArray(data)) {
+    for (const raw of data) {
+      const row = asRecord(raw);
+      if (!row) continue;
+      if (row.left_at) continue; // already departed this room
+      const userId = typeof row.user_id === 'string' ? row.user_id : null;
+      if (!userId || seen.has(userId)) continue;
+      seen.add(userId);
+      counterparties.push({ userId, isRoomOwner: false });
+    }
+  }
+
+  return counterparties;
+}
+
 export async function setItemReactionDesiredState(input: {
   roomId: string;
   itemId: string;
@@ -319,7 +389,7 @@ export async function listCollaborationMessages(input: {
   }
   const row = asRecord(data);
   if (!row || row.ok !== true) {
-    throw new Error('You no longer have access to this room.');
+    throw new Error(COLLAB_ACCESS_ERROR);
   }
   const messagesRaw = Array.isArray(row.messages) ? row.messages : [];
   const messages = messagesRaw
