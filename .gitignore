@@ -69,6 +69,8 @@ physical-*
 qa/
 !qa/backend-quality-tune-fixtures/
 !qa/backend-quality-tune-fixtures/**
+!qa/phase7-staging-fixtures/
+!qa/phase7-staging-fixtures/**
 qa-*.xml
 qa-*.json
 qa-*.err
