@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 
 import {
   MAX_PROVIDER_RESPONSE_BYTES,
@@ -8,7 +9,15 @@ import { StylistSpeechError } from './types.ts';
 
 const FEMININE_VOICE_ID = 'NQMJRVvPew6HsaebYnZj';
 const MASCULINE_VOICE_ID = 'guZ5txGiatiDmC3jrjOO';
-const API_KEY = 'sk_0123456789abcdef0123456789abcdef';
+// Generated at test-run time, not a literal in source: the test only needs
+// SOME opaque string that gets forwarded as the xi-api-key header and never
+// appears in logs (see the "never logged" assertion below) -- it never
+// needs to be a real or real-shaped ElevenLabs key. A hardcoded key-shaped
+// literal here previously tripped Gitleaks' generic-api-key rule on every
+// scan of this file; generating it at runtime means no matchable secret
+// pattern exists in the committed source at all, without weakening the
+// rule for real findings elsewhere.
+const API_KEY = `test-fixture-${randomBytes(16).toString('hex')}`;
 
 const BASE_ENV = new Map([
   ['ELEVENLABS_API_KEY', API_KEY],
