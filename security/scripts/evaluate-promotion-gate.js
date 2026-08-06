@@ -45,6 +45,7 @@ const ALWAYS_REQUIRED_CHECKS = [
   'npm audit', // was 'npm dependency audit'
   'Migration validation',
   'Contract tests',
+  'Candidate Artifact Exposure Gate', // added 2026-08-06 — scans actual build outputs, not just source
 ];
 
 /**
@@ -113,6 +114,7 @@ const BLOCKING_KEYS = new Set([
   'newBlockingZapFinding',
   'candidateShaMismatch',
   'zapConfigurationMissingOnProtectedPr',
+  'artifactExposureFailure',
 ]);
 
 async function githubRequest(url, token) {
@@ -188,6 +190,9 @@ function classifyCheckFailure(name, conclusion) {
   }
   if (name === 'Synthetic auth tests') {
     return { key: 'authTestFailure', detail: `${name}: ${conclusion}` };
+  }
+  if (name === 'Candidate Artifact Exposure Gate') {
+    return { key: 'artifactExposureFailure', detail: `${name}: ${conclusion}` };
   }
   return { key: 'upstreamFailure', detail: `${name}: ${conclusion}` };
 }

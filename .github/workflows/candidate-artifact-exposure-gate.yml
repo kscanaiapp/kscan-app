@@ -1,0 +1,231 @@
+# Candidate Artifact Exposure Gate — inspects actual candidate BUILD OUTPUTS
+# (not just repository source, which security-code.yml already covers) for
+# exposed credentials before a candidate can be promoted. No release build
+# or store submission is produced here — only a JS/web export (via `expo
+# export`, not `eas build`) plus the already-tracked deploy-effective
+# sources (Edge Function bundles, migrations, Android packaged config,
+# generated env/app config). Distinguishes expected public identifiers
+# (staging anon/publishable key, staging URL/ref) from confirmed private
+# credentials via security/scripts/scan-candidate-artifacts.js, which
+# decodes JWT payloads rather than pattern-matching blindly.
+#
+# Blocking: any BLOCK-verdict finding fails this job. Confirmed-secret
+# candidate content is never retained as a downloadable artifact — only the
+# redacted report (which never contains raw secret values) is uploaded when
+# the gate is BLOCKED.
+
+name: Security - Candidate Artifact Exposure Gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  candidate-artifact-exposure-gate:
+    name: Candidate Artifact Exposure Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Assemble candidate artifacts
+        id: assemble
+        run: |
+          set -euo pipefail
+          install -d -m 0777 candidate-artifacts/web-export candidate-artifacts/edge-functions candidate-artifacts/migrations candidate-artifacts/android-config candidate-artifacts/generated-config
+          : > candidate-artifact-sources.txt
+
+          echo "Attempting JS/web export (not a release build — no store submission)..." | tee -a candidate-artifact-sources.txt
+          set +e
+          npx expo export --platform web --output-dir candidate-artifacts/web-export --clear > expo-export.log 2>&1
+          EXPORT_CODE=$?
+          set -e
+          if [ "$EXPORT_CODE" -eq 0 ]; then
+            echo "web-export: CAPTURED (expo export --platform web)" >> candidate-artifact-sources.txt
+          else
+            echo "web-export: UNAVAILABLE — expo export exited ${EXPORT_CODE} (see expo-export.log); scanning proceeds without it, not silently" >> candidate-artifact-sources.txt
+            tail -n 40 expo-export.log >> candidate-artifact-sources.txt || true
+          fi
+
+          # Edge Function source — this IS the deployed artifact (Supabase deploys
+          # the TS source directly, there is no separate compiled binary to inspect).
+          if [ -d supabase/functions ]; then
+            cp -r supabase/functions/. candidate-artifacts/edge-functions/
+            echo "edge-functions: CAPTURED (supabase/functions)" >> candidate-artifact-sources.txt
+          else
+            echo "edge-functions: UNAVAILABLE — supabase/functions not present" >> candidate-artifact-sources.txt
+          fi
+
+          if [ -d supabase/migrations ]; then
+            cp -r supabase/migrations/. candidate-artifacts/migrations/
+            echo "migrations: CAPTURED (supabase/migrations)" >> candidate-artifact-sources.txt
+          else
+            echo "migrations: UNAVAILABLE — supabase/migrations not present" >> candidate-artifact-sources.txt
+          fi
+
+          # Android packaged config/resources (text only — no keystores/binaries).
+          # No ios/ native directory is committed in this repo (Expo-managed,
+          # generated at build time), so there is nothing to collect there.
+          if [ -d android ]; then
+            while IFS= read -r f; do
+              install -D "$f" "candidate-artifacts/android-config/$f"
+            done < <(git ls-files android | grep -E '\.(xml|gradle|properties)$' || true)
+            echo "android-config: CAPTURED ($(git ls-files android | grep -cE '\.(xml|gradle|properties)$' || echo 0) files)" >> candidate-artifact-sources.txt
+          else
+            echo "android-config: UNAVAILABLE — android/ not present" >> candidate-artifact-sources.txt
+          fi
+          echo "ios-config: UNAVAILABLE — no ios/ native directory is committed in this repo" >> candidate-artifact-sources.txt
+
+          for f in .env.example app.json eas.json security/openapi/staging-api.yaml; do
+            if [ -f "$f" ]; then
+              install -D "$f" "candidate-artifacts/generated-config/$f"
+              echo "generated-config: CAPTURED ($f)" >> candidate-artifact-sources.txt
+            else
+              echo "generated-config: UNAVAILABLE ($f not present)" >> candidate-artifact-sources.txt
+            fi
+          done
+
+          cat candidate-artifact-sources.txt
+
+      - name: Install official Gitleaks binary
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o /tmp/gitleaks.tgz
+          tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run Gitleaks against candidate artifacts
+        run: |
+          set -euo pipefail
+          set +e
+          gitleaks detect \
+            --source candidate-artifacts \
+            --no-git \
+            --report-path candidate-gitleaks-results.json \
+            --report-format json \
+            --redact=100 \
+            --exit-code 0
+          set -e
+          if [ ! -f candidate-gitleaks-results.json ]; then
+            echo "Operational failure: candidate-gitleaks-results.json missing"
+            exit 2
+          fi
+          python3 -c "import json; json.load(open('candidate-gitleaks-results.json', encoding='utf-8'))"
+
+      - name: Run Trivy secret scan against candidate artifacts
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: candidate-artifacts
+          format: json
+          output: candidate-trivy-results.json
+          exit-code: "0"
+          scanners: secret
+
+      - name: Classify findings (expected public identifiers vs. private credentials)
+        id: classify
+        run: |
+          set -euo pipefail
+          set +e
+          node security/scripts/scan-candidate-artifacts.js \
+            candidate-artifacts \
+            --merge-gitleaks-json candidate-gitleaks-results.json \
+            --merge-trivy-json candidate-trivy-results.json \
+            --json artifact-exposure-report.json
+          CODE=$?
+          set -e
+          echo "verdict_exit_code=${CODE}" >> "$GITHUB_OUTPUT"
+
+      - name: Write exposure report summary
+        if: always() && hashFiles('artifact-exposure-report.json') != ''
+        run: |
+          set -euo pipefail
+          node -e '
+          const fs = require("fs");
+          const report = JSON.parse(fs.readFileSync("artifact-exposure-report.json", "utf8"));
+          const lines = [];
+          lines.push("## Candidate Artifact Exposure Gate");
+          lines.push("");
+          lines.push(`Verdict: **${report.verdict}**`);
+          lines.push("");
+          lines.push("| Field | Value |");
+          lines.push("| --- | --- |");
+          lines.push(`| Scanned files | ${report.scannedFiles} |`);
+          lines.push(`| Skipped files | ${report.skippedFiles} |`);
+          lines.push(`| Total findings | ${report.totalFindings} |`);
+          lines.push(`| Blocked | ${report.blockedCount} |`);
+          lines.push(`| Manual review | ${report.manualReviewCount} |`);
+          lines.push(`| Allowed (expected public identifiers) | ${report.allowedCount} |`);
+          lines.push("");
+          if (report.findings.length > 0) {
+            lines.push("| Verdict | Severity | Rule | Detector | Path |");
+            lines.push("| --- | --- | --- | --- | --- |");
+            for (const f of report.findings.slice(0, 100)) {
+              lines.push(`| ${f.verdict} | ${f.severity} | ${f.ruleId} | ${f.detector} | ${f.path} |`);
+            }
+            if (report.findings.length > 100) {
+              lines.push(`| ... | ... | ... | ... | (${report.findings.length - 100} more, see artifact) |`);
+            }
+          }
+          const md = lines.join("\n") + "\n";
+          fs.writeFileSync("artifact-exposure-report.md", md);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+          '
+          cat candidate-artifact-sources.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload exposure report (always — redacted, no raw secret values)
+        if: always() && hashFiles('artifact-exposure-report.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-artifact-exposure-report-${{ github.run_number }}
+          path: |
+            artifact-exposure-report.json
+            artifact-exposure-report.md
+            candidate-gitleaks-results.json
+            candidate-trivy-results.json
+            candidate-artifact-sources.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload raw candidate artifacts (only when PASS — never retain confirmed-secret content)
+        if: always() && steps.classify.outputs.verdict_exit_code == '0'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-artifacts-raw-${{ github.run_number }}
+          path: candidate-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce verdict
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.classify.outputs.verdict_exit_code }}" != "0" ]; then
+            echo "Candidate Artifact Exposure Gate BLOCKED — a confirmed private credential or forbidden reference was found in candidate build outputs. See the candidate-artifact-exposure-report artifact (redacted; raw candidate content was not retained)."
+            exit 1
+          fi
+          echo "Candidate Artifact Exposure Gate PASSED."
