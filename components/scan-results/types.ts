@@ -35,6 +35,7 @@ export type ScanResultV2 = {
   color?: string;
   silhouette?: string;
   material?: string;
+  pattern?: string;
   confidence?: number;
   matchLabel?: string;
   styleTags?: string[];
@@ -52,6 +53,7 @@ export type LegacyAnalysisData = {
     color?: string;
     silhouette?: string;
     material?: string;
+    pattern?: string;
     confidence?: number;
     styleTags?: string[];
     brand?: string | null;
@@ -239,6 +241,7 @@ export function mapLegacyToV2(
     color: meta.color || undefined,
     silhouette: meta.silhouette || undefined,
     material: meta.material || undefined,
+    pattern: meta.pattern || undefined,
     confidence: typeof meta.confidence === 'number' ? meta.confidence : undefined,
     styleTags: meta.styleTags,
     styleAnalysis: analysisText || undefined,

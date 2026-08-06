@@ -81,6 +81,8 @@ interface ScanAttributes {
   silhouette: string;
   color_palette: string;
   material_estimate: string | null;
+  /** Pattern (BUG-11). Null on scans saved before it was persisted. */
+  pattern?: string | null;
   style_tags: string[];
   confidence_score: number | null;
 }
@@ -1021,6 +1023,7 @@ export default function LibraryScreen() {
             category: selectedScan.attributes.category,
             color: selectedScan.attributes.color_palette,
             silhouette: selectedScan.attributes.silhouette,
+            pattern: selectedScan.attributes.pattern ?? null,
           }}
           products={selectedScan.products}
           purchaseOptions={selectedScan.purchaseOptions}

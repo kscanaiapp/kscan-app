@@ -96,6 +96,7 @@ export interface AnalysisCardProps {
     category: string;
     color: string;
     silhouette: string;
+    pattern?: string | null;
     confidenceScore?: number;
     scanQualityNote?: string | null;
     stylingSuggestions?: string[];
@@ -260,6 +261,9 @@ export function AnalysisCard({
   const category   = sanitizeText(meta.category);
   const color      = sanitizeText(meta.color);
   const silhouette = sanitizeText(meta.silhouette);
+  // Not sanitizeText: that substitutes an em dash for an absent value, which
+  // would render a "Pattern —" chip asserting the scan looked and found none.
+  const pattern    = typeof meta.pattern === 'string' ? meta.pattern.trim() : '';
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
@@ -337,6 +341,14 @@ export function AnalysisCard({
                 <Animated.View style={{ opacity: chip3Opacity }}>
                   <MetadataChip label="Silhouette" value={silhouette} />
                 </Animated.View>
+                {/* Pattern (BUG-11). Rendered only when the scan established
+                    one — an absent pattern stays absent rather than becoming
+                    "solid", which would be a claim the scan never made. */}
+                {pattern ? (
+                  <Animated.View style={{ opacity: chip3Opacity }}>
+                    <MetadataChip label="Pattern" value={pattern} />
+                  </Animated.View>
+                ) : null}
               </View>
 
               {/* Low-confidence / scan quality guidance */}

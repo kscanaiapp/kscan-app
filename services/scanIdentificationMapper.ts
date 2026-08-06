@@ -24,7 +24,11 @@ import {
   type PersistedIdentificationSnapshotV1,
   type PersistedIdentificationSnapshotV2,
 } from './identificationSnapshot';
-import { buildScannerV2Display, type ScannerV2Display } from './scannerV2Display';
+import {
+  buildScannerV2Display,
+  normalizePatternLabel,
+  type ScannerV2Display,
+} from './scannerV2Display';
 import type { FashionIdentificationResultV2 } from '../types/fashionIdentificationV2';
 import { SCAN_IDENTITY_DEBUG } from '../constants/build';
 
@@ -187,7 +191,13 @@ function applyV2Identity(
     next.itemType = display.subtype || display.category;
   }
   if (display.material.length) next.materialEstimate = display.material.join(', ');
-  if (display.pattern.length) next.pattern = display.pattern.join(', ');
+  // "unknown" is the model declining to answer, not a pattern. Dropped here so
+  // no surface has to know that, and so an absent pattern stays absent.
+  const patternLabel = display.pattern
+    .map((entry) => normalizePatternLabel(entry))
+    .filter(Boolean)
+    .join(', ');
+  if (patternLabel) next.pattern = patternLabel;
   if (display.visibleAttributes.length) next.styleTags = display.visibleAttributes;
   // Absent confidence stays absent. Writing 0 would assert certainty of
   // non-match, which is the opposite of "unknown".
