@@ -719,6 +719,86 @@ test('the row action buttons override the shared 200dp minWidth', () => {
   }
 });
 
+// ── Build 1 legacy panel (Phase 4) ───────────────────────────────────────────
+// The same row shape exists in ClosetCandidateStatusPanel's own Build 1 body,
+// reached whenever CLOSET_CANDIDATE_STAGING_ACTIVE is true while
+// CLOSET_BATCH_REVIEW_V2_ACTIVE is false. Every source-controlled EAS profile
+// currently sets both flags to "true", so this path is not exercised by today's
+// shipping configuration — but the two flags are independent env vars
+// (EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1 and EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2),
+// so the combination is one env value away and cannot be ruled out from source
+// alone. The legacy panel therefore carries the same repair, and these tests
+// hold it there.
+
+test('BUILD-1 PANEL: the candidate row status text is bounded to 2 lines', () => {
+  const { tree } = mountLibrary({
+    batchReviewActive: false,
+    candidates: [ready('c-1', 0, { status: 'waiting_for_network' })],
+  });
+  // Prove we are on the legacy path, not the V2 panel.
+  assert.equal(
+    byTestId(tree, 'closet-batch-status-c-1').length,
+    0,
+    'with V2 inactive the batch review panel must not render',
+  );
+  const status = byTestId(tree, 'closet-candidate-status-c-1')[0];
+  assert.ok(status, 'the Build 1 status text must render');
+  assert.equal(
+    status.props.numberOfLines,
+    2,
+    'an unbounded status Text is exactly the mechanism that produced the runaway row height',
+  );
+});
+
+test('BUILD-1 PANEL: the row action buttons override the shared 200dp minWidth', () => {
+  const { tree } = mountLibrary({
+    batchReviewActive: false,
+    candidates: [ready('c-1', 0, { status: 'waiting_for_network' })],
+  });
+  const retry = byTestId(tree, 'closet-candidate-retry-c-1')[0];
+  const remove = byTestId(tree, 'closet-candidate-remove-c-1')[0];
+  for (const button of [retry, remove]) {
+    assert.ok(button, 'both actions must render for a waiting_for_network candidate');
+    assert.equal(
+      button.props.style?.minWidth,
+      0,
+      'the row-scoped action button must not inherit the 200dp CTA minWidth',
+    );
+  }
+});
+
+test('BUILD-1 PANEL: the manual-classification action also overrides the CTA minWidth', () => {
+  const { tree } = mountLibrary({
+    batchReviewActive: false,
+    candidates: [ready('c-1', 0, { status: 'needs_manual_classification', category: null })],
+  });
+  const manual = byTestId(tree, 'closet-candidate-manual-c-1')[0];
+  assert.ok(manual, 'Add details must still be reachable on the legacy panel');
+  assert.equal(manual.props.style?.minWidth, 0);
+});
+
+test('BUILD-1 PANEL: truthful actions and status survive the layout repair', () => {
+  const { tree, calls } = mountLibrary({
+    batchReviewActive: false,
+    closetItems: [closetItem('closet-a', 'Wedding Dress')],
+    candidates: [ready('c-1', 0, { status: 'failed', errorCode: 'classification_timeout' })],
+  });
+  // The committed grid still coexists.
+  assert.equal(committedCards(tree).length, 1);
+  // A failed candidate still offers retry and remove, and removing calls through.
+  const remove = byTestId(tree, 'closet-candidate-remove-c-1')[0];
+  assert.ok(remove, 'Remove must remain available');
+  remove.props.onPress();
+  assert.deepEqual(calls.remove, ['c-1']);
+  assert.deepEqual(calls.closetRemove, [], 'no committed item may be touched by candidate review');
+  // The status label is real text, not an empty node.
+  const status = byTestId(tree, 'closet-candidate-status-c-1')[0];
+  assert.ok(
+    typeof status.props.children === 'string' && status.props.children.trim().length > 0,
+    'the status must still say something truthful',
+  );
+});
+
 // ── Negative control ─────────────────────────────────────────────────────────
 // Proves this suite actually catches the defect: re-run the mechanism
 // assertions against the UNPATCHED shape (no numberOfLines, no width override)
