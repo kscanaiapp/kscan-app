@@ -143,12 +143,14 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.lg,
   },
-  cardTitle: { ...TYPOGRAPHY.title, fontSize: 20 },
-  cardBody: { ...TYPOGRAPHY.body, fontSize: 13, lineHeight: 20 },
+  // The card is COLORS.surface — dark glass. TYPOGRAPHY carries light-surface
+  // inks, so every text style on this card states its own dark-surface colour.
+  cardTitle: { ...TYPOGRAPHY.title, fontSize: 20, color: COLORS.textInverse },
+  cardBody: { ...TYPOGRAPHY.body, fontSize: 13, lineHeight: 20, color: COLORS.chrome },
   errorText: { ...TYPOGRAPHY.body, color: COLORS.errorSoft, fontSize: 13 },
-  messageText: { ...TYPOGRAPHY.bodyStrong, color: COLORS.success, fontSize: 13 },
+  messageText: { ...TYPOGRAPHY.bodyStrong, color: COLORS.successSoft, fontSize: 13 },
   fieldGroup: { gap: SPACING.xs },
-  fieldLabel: { ...TYPOGRAPHY.caption, color: COLORS.textTertiary },
+  fieldLabel: { ...TYPOGRAPHY.caption, color: COLORS.chromeLine },
   input: {
     height: 50,
     borderRadius: RADIUS.sm,
