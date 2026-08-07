@@ -15,6 +15,7 @@ import {
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import { selectionTick } from '../services/haptics';
+import { selectCommerceDestination } from '../services/commerceDestination';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useDressingRooms } from '../hooks/useStyleObjects';
@@ -117,20 +118,21 @@ function getProductImageUrl(product: Product | null | undefined): string | null 
 
 function getPurchaseUrl(product: Product | null | undefined): string | null {
   if (!product) return null;
-  const candidates = [
-    product.purchaseUrl,
-    product.productUrl,
-    product.affiliateUrl,
-    product.product_url,
-    product.purchase_url,
-    product.url,
-    product.link,
-  ];
-  for (const c of candidates) {
-    const safeUrl = normalizePersistedCommerceUrl(c);
-    if (safeUrl) return safeUrl;
-  }
-  return null;
+  // Order is intentionally not the selector: a record can hold a retailer link
+  // in any of these keys and a search-engine page in any other, so the
+  // destination itself decides. Each candidate keeps the persisted-URL scrub
+  // (signed object paths, credential-shaped params) before it is considered.
+  return selectCommerceDestination(
+    [
+      product.productUrl,
+      product.purchaseUrl,
+      product.affiliateUrl,
+      product.product_url,
+      product.purchase_url,
+      product.url,
+      product.link,
+    ].map((candidate) => normalizePersistedCommerceUrl(candidate)),
+  );
 }
 
 function getRetailer(product: Product | null | undefined): string | null {

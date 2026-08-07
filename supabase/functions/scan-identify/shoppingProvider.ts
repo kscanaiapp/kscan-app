@@ -68,6 +68,31 @@ const LOW_VALUE_HOSTS = [
   'youtube.com', 'pinterest.com', 'fandom.com',
 ];
 
+/**
+ * Search/aggregator intermediaries — a results or redirect page rather than a
+ * place to buy the item. This is deliberately NOT a retailer list: it names only
+ * the generic middlemen, so every actual retailer stays equally eligible and
+ * retailer neutrality is preserved.
+ */
+const AGGREGATOR_HOSTS = [
+  'google.com', 'google.co.uk', 'googleadservices.com', 'googleusercontent.com',
+  'shopping.google.com', 'bing.com', 'duckduckgo.com', 'search.yahoo.com',
+];
+
+/**
+ * Hosts that must never be reachable as a commerce destination. A product feed
+ * is untrusted input, so a URL pointing at localhost or RFC1918 space is treated
+ * as hostile rather than merely useless.
+ */
+function isPrivateHost(host: string): boolean {
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true;
+  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+  // Link-local, including the cloud metadata endpoint.
+  if (/^169\.254\./.test(host)) return true;
+  return false;
+}
+
 // ── Env access (Deno) ────────────────────────────────────────────────────────
 
 function readEnv(name: string): string | undefined {
@@ -127,7 +152,13 @@ export function normalizeUrl(url: unknown): string | undefined {
   } catch {
     return undefined;
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+  // A commerce destination is opened in the user's browser straight from
+  // untrusted provider metadata, so anything but plain HTTPS is rejected here:
+  // javascript:, data:, file: and every other scheme, plus embedded credentials
+  // and internal network targets.
+  if (parsed.protocol !== 'https:') return undefined;
+  if (parsed.username || parsed.password) return undefined;
+  if (!parsed.hostname || isPrivateHost(parsed.hostname.toLowerCase())) return undefined;
   // Strip common tracking params for cleaner dedupe + privacy.
   const drop = ['gclid', 'fbclid', 'msclkid', 'mc_eid', 'mc_cid', '_hsenc', '_hsmi'];
   for (const key of [...parsed.searchParams.keys()]) {
@@ -310,7 +341,10 @@ function mapSerperItems(items: unknown[], limit: number): RecommendedProduct[] {
     const it = raw as Record<string, unknown>;
     const title = str(it.title);
     if (!title) continue;
-    const productUrl = normalizeUrl(it.productLink) ?? normalizeUrl(it.link);
+    // Serper returns both the merchant offer link and the search-engine product
+    // page, and which key holds which is not guaranteed — so prefer whichever
+    // one actually resolves to a retailer.
+    const productUrl = selectRetailerDestination([it.productLink, it.link]);
     if (!productUrl) continue;
     const dedupeKey = productUrl.toLowerCase();
     if (seen.has(dedupeKey)) continue;
@@ -375,6 +409,32 @@ async function callBrave(query: string, limit: number): Promise<{ products: Reco
 function isLowValueHost(host: string | undefined): boolean {
   if (!host) return false;
   return LOW_VALUE_HOSTS.some((bad) => host === bad || host.endsWith(`.${bad}`));
+}
+
+/** True when the URL lands on a search/aggregator intermediary, not a retailer. */
+export function isAggregatorDestination(url: string | undefined): boolean {
+  const host = hostnameOf(url);
+  if (!host) return false;
+  return AGGREGATOR_HOSTS.some((bad) => host === bad || host.endsWith(`.${bad}`));
+}
+
+/**
+ * Applies the destination priority contract to the URLs a single provider item
+ * offers: a verified retailer destination always beats a generic aggregator or
+ * redirect page, and the aggregator is kept only as a last-resort fallback.
+ *
+ * Selection is by URL, never by field name. Providers disagree about which key
+ * holds the merchant link versus the search-engine product page, and the same
+ * key can carry either one, so classifying the destination is the only check
+ * that stays correct across providers and schema changes.
+ */
+export function selectRetailerDestination(candidates: unknown[]): string | undefined {
+  const normalized: string[] = [];
+  for (const candidate of candidates) {
+    const url = normalizeUrl(candidate);
+    if (url && !normalized.includes(url)) normalized.push(url);
+  }
+  return normalized.find((url) => !isAggregatorDestination(url)) ?? normalized[0];
 }
 
 function mapBraveResults(results: unknown[], limit: number): RecommendedProduct[] {

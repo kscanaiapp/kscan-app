@@ -293,8 +293,23 @@ test('purchase action opens the persisted URL via the canonical handler', () => 
 });
 
 test('ProductShelf reads the purchase URL from persisted aliases', () => {
-  assert.match(productShelfSource, /product\.purchaseUrl,[\s\S]*?product\.productUrl/);
-  assert.match(productShelfSource, /normalizePersistedCommerceUrl\(c\)/);
+  // Every persisted alias is still consulted...
+  for (const alias of [
+    'product\\.productUrl',
+    'product\\.purchaseUrl',
+    'product\\.affiliateUrl',
+    'product\\.product_url',
+    'product\\.purchase_url',
+    'product\\.url',
+    'product\\.link',
+  ]) {
+    assert.match(productShelfSource, new RegExp(alias));
+  }
+  // ...each is still scrubbed before it can be considered...
+  assert.match(productShelfSource, /normalizePersistedCommerceUrl\(candidate\)/);
+  // ...and the winner is chosen by the destination contract rather than by
+  // alias order, so a search-engine page can never outrank a retailer link.
+  assert.match(productShelfSource, /selectCommerceDestination\(/);
 });
 
 // ── 5. URL and image longevity ──────────────────────────────────────────────
