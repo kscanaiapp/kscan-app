@@ -64,7 +64,7 @@ export type OwnershipFixture = {
   closet: OwnershipClosetProjection[];
   expectedState: PrivateOwnershipState;
   expectedMatchedItemId: string | null;
-  expectedConfidenceExplanation: string;
+  expectedDiagnosticReason: string;
   expectedCommerceSuppression: boolean;
   expectedActions: string[];
 };
@@ -73,14 +73,14 @@ export const PRIVATE_OWNERSHIP_FIXTURES: OwnershipFixture[] = [
   {
     name: 'exact ID and same slot', actorId: ACTOR_A, savedLook: saved(), closet: [BASE_ITEM],
     expectedState: 'exact_owned', expectedMatchedItemId: BASE_ITEM.id,
-    expectedConfidenceExplanation: 'same semantic slot', expectedCommerceSuppression: true,
+    expectedDiagnosticReason: 'same semantic slot', expectedCommerceSuppression: true,
     expectedActions: ['shop_anyway'],
   },
   {
     name: 'no ID but strong taxonomy match', actorId: ACTOR_A,
     savedLook: saved({ slots: [{ ...saved().slots[0], closetItemId: null, wasOwnedAtSave: false }] }),
     closet: [{ ...BASE_ITEM, id: 'closet-top-2' }], expectedState: 'probable_owned',
-    expectedMatchedItemId: 'closet-top-2', expectedConfidenceExplanation: 'primary color',
+    expectedMatchedItemId: 'closet-top-2', expectedDiagnosticReason: 'primary color',
     expectedCommerceSuppression: true, expectedActions: ['shop_anyway'],
   },
   {
@@ -88,7 +88,7 @@ export const PRIVATE_OWNERSHIP_FIXTURES: OwnershipFixture[] = [
     savedLook: saved({ slots: [{ ...saved().slots[0], closetItemId: null, wasOwnedAtSave: false }] }),
     closet: [{ ...BASE_ITEM, id: 'closet-top-3', primaryColor: 'Ivory' }],
     expectedState: 'similar_owned', expectedMatchedItemId: 'closet-top-3',
-    expectedConfidenceExplanation: 'attributes differ', expectedCommerceSuppression: false,
+    expectedDiagnosticReason: 'attributes differ', expectedCommerceSuppression: false,
     expectedActions: ['find_alternative', 'shop_anyway'],
   },
   {
@@ -96,14 +96,14 @@ export const PRIVATE_OWNERSHIP_FIXTURES: OwnershipFixture[] = [
     savedLook: saved({ slots: [{ ...saved().slots[0], closetItemId: null, wasOwnedAtSave: false }] }),
     closet: [{ ...BASE_ITEM, id: 'closet-bottom-1', category: 'Bottoms', clothingType: 'Trousers', subtype: 'Trousers' }],
     expectedState: 'not_owned', expectedMatchedItemId: null,
-    expectedConfidenceExplanation: 'No exact', expectedCommerceSuppression: false,
+    expectedDiagnosticReason: 'No exact', expectedCommerceSuppression: false,
     expectedActions: ['find_alternative'],
   },
   {
     name: 'empty Closet', actorId: ACTOR_A,
     savedLook: saved({ slots: [{ ...saved().slots[0], closetItemId: null, wasOwnedAtSave: false }] }),
     closet: [], expectedState: 'not_owned', expectedMatchedItemId: null,
-    expectedConfidenceExplanation: 'No exact', expectedCommerceSuppression: false,
+    expectedDiagnosticReason: 'No exact', expectedCommerceSuppression: false,
     expectedActions: ['find_alternative'],
   },
   {
@@ -111,20 +111,20 @@ export const PRIVATE_OWNERSHIP_FIXTURES: OwnershipFixture[] = [
     savedLook: saved({ slots: [{ ...saved().slots[0], closetItemId: null, wasOwnedAtSave: false,
       snapshot: { ...saved().slots[0].snapshot, category: null, clothingType: null, subtype: null } }] }),
     closet: [], expectedState: 'unknown', expectedMatchedItemId: null,
-    expectedConfidenceExplanation: 'lacks enough', expectedCommerceSuppression: false,
+    expectedDiagnosticReason: 'lacks enough', expectedCommerceSuppression: false,
     expectedActions: ['find_alternative'],
   },
   {
     name: 'deleted Closet record', actorId: ACTOR_A, savedLook: saved(), closet: [],
     expectedState: 'deleted_reference', expectedMatchedItemId: null,
-    expectedConfidenceExplanation: 'no longer exists', expectedCommerceSuppression: false,
+    expectedDiagnosticReason: 'no longer exists', expectedCommerceSuppression: false,
     expectedActions: ['find_alternative'],
   },
   {
     name: 'same ID reclassified', actorId: ACTOR_A, savedLook: saved(),
     closet: [{ ...BASE_ITEM, title: 'Black oxford', category: 'Footwear', clothingType: 'Shoes', subtype: 'Oxford shoe' }],
     expectedState: 'incompatible_edit', expectedMatchedItemId: BASE_ITEM.id,
-    expectedConfidenceExplanation: 'different slot', expectedCommerceSuppression: false,
+    expectedDiagnosticReason: 'different slot', expectedCommerceSuppression: false,
     expectedActions: ['find_alternative'],
   },
   {
@@ -132,7 +132,7 @@ export const PRIVATE_OWNERSHIP_FIXTURES: OwnershipFixture[] = [
     savedLook: saved({ slots: [{ ...saved().slots[0], closetItemId: null, wasOwnedAtSave: false }] }),
     closet: [{ ...BASE_ITEM, id: 'foreign-top', actorId: 'actor-b' }],
     expectedState: 'not_owned', expectedMatchedItemId: null,
-    expectedConfidenceExplanation: 'No exact', expectedCommerceSuppression: false,
+    expectedDiagnosticReason: 'No exact', expectedCommerceSuppression: false,
     expectedActions: ['find_alternative'],
   },
 ];

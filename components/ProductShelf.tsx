@@ -15,6 +15,7 @@ import {
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { selectionTick } from '../services/haptics';
 import { selectCommerceDestination } from '../services/commerceDestination';
+import { PRODUCT_TITLE_UNAVAILABLE } from '../services/privateSavedLookCopy';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useDressingRooms } from '../hooks/useStyleObjects';
@@ -310,7 +311,10 @@ export function ProductShelf({ products }: ProductShelfProps) {
           const purchaseUrl = getPurchaseUrl(p);
           const hasLink = !!purchaseUrl;
           const productKey = p.id ?? String(i);
-          const productTitle = getProductTitle(p) || 'Unknown Product';
+          // A product that arrives without a usable name is a gap in OUR data,
+          // not a mystery object. "Unknown Product" reads as an accusation about
+          // the item; this says what is actually true for the shopper.
+          const productTitle = getProductTitle(p) || PRODUCT_TITLE_UNAVAILABLE;
           const canSaveToRoom = canAddProductToDressingRoom(p);
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];

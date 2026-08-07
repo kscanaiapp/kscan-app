@@ -14,10 +14,7 @@ import { PRIVATE_DRESSING_ROOM_SAVED_LOOKS_ACTIVE } from '../../../constants/fea
 import { LUXURY, SPACING } from '../../../constants/theme';
 import { useAuthSession } from '../../../contexts/AuthSessionContext';
 import { createActorRequest, isActorRequestCurrent } from '../../../services/actorContext';
-import {
-  EXTERNAL_COMMERCE_STATUS,
-  MISSING_PIECE_HANDOFF_STATUS,
-} from '../../../services/privateSavedLookHandoff';
+import { SAVED_LOOK_HANDOFF_COPY } from '../../../services/privateSavedLookCopy';
 import { loadSavedLookReturnContext } from '../../../services/privateSavedLookReturnContext';
 import { PRIVATE_SLOT_LABELS } from '../../../types/privateDressingRoomComposition';
 import type { SavedLookReturnContextV1 } from '../../../types/privateSavedLookHandoff';
@@ -89,24 +86,25 @@ export default function PrivateSavedLookHandoffScreen() {
       {loading ? (
         <View style={styles.loading} accessibilityLiveRegion="polite">
           <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-          <Text style={styles.muted}>Preparing structured handoff...</Text>
+          <Text style={styles.muted}>{SAVED_LOOK_HANDOFF_COPY.preparing}</Text>
         </View>
       ) : null}
       {!loading && !context ? (
-        <EmptyStateCard title="Return context unavailable" subtitle="Open a Saved Look and choose a piece first." />
+        <EmptyStateCard
+          title={SAVED_LOOK_HANDOFF_COPY.noSelectionTitle}
+          subtitle={SAVED_LOOK_HANDOFF_COPY.noSelectionBody}
+        />
       ) : null}
       {context ? (
         <>
           <SectionHeader
-            title={MISSING_PIECE_HANDOFF_STATUS}
-            subtitle={EXTERNAL_COMMERCE_STATUS}
+            title={SAVED_LOOK_HANDOFF_COPY.readyTitle}
+            subtitle={SAVED_LOOK_HANDOFF_COPY.readySubtitle}
           />
           <View style={styles.card}>
-            <Text style={styles.eyebrow}>SELECTED SLOT</Text>
+            <Text style={styles.eyebrow}>{SAVED_LOOK_HANDOFF_COPY.selectedPieceEyebrow}</Text>
             <Text style={styles.title}>{PRIVATE_SLOT_LABELS[context.slotKey]}</Text>
-            <Text style={styles.muted}>
-              The fashion-only query was validated locally. No retailer endpoint or product result is claimed in Phase 5.
-            </Text>
+            <Text style={styles.muted}>{SAVED_LOOK_HANDOFF_COPY.deferredBody}</Text>
           </View>
           <PrimaryButton
             title="Return to Saved Look"

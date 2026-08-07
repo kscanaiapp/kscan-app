@@ -51,7 +51,18 @@ export type PrivateSlotOwnership = {
   state: PrivateOwnershipState;
   matchedItem: ClosetItemProjection | null;
   ownedAlternatives: ClosetItemProjection[];
-  confidenceExplanation: string;
+  /**
+   * INTERNAL DIAGNOSIS — NEVER RENDER THIS.
+   *
+   * Why the resolver landed on `state`, written for whoever has to debug a
+   * wrong answer. It names the mechanism (taxonomy sufficiency, slot identity)
+   * because that is what makes it useful, and that is exactly what makes it
+   * unfit to show a shopper: rendering it verbatim was BUG-15.
+   *
+   * Shopper-facing wording for every state lives in privateSavedLookCopy.ts.
+   * It carries no PII — only classification vocabulary — so it is safe in logs.
+   */
+  diagnosticReason: string;
   commerceSuppressed: boolean;
   showOwnedAlternativeFirst: boolean;
   actions: PrivateOwnershipAction[];
@@ -147,7 +158,7 @@ function result(
   state: PrivateOwnershipState,
   matchedItem: ClosetItemProjection | null,
   ownedAlternatives: ClosetItemProjection[],
-  confidenceExplanation: string,
+  diagnosticReason: string,
 ): PrivateSlotOwnership {
   const commerceSuppressed = state === 'exact_owned' || state === 'probable_owned';
   const showOwnedAlternativeFirst = state === 'similar_owned';
@@ -161,7 +172,7 @@ function result(
     state,
     matchedItem,
     ownedAlternatives,
-    confidenceExplanation,
+    diagnosticReason,
     commerceSuppressed,
     showOwnedAlternativeFirst,
     actions,
