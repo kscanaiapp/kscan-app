@@ -31,8 +31,15 @@ export const DECISION_QUESTION_PRESETS = [
   'Help me improve this.',
 ] as const;
 
-function safeError(error: any, fallback: string) {
-  return new Error(error?.message || fallback);
+// Database errors never reach the user verbatim. A PostgREST/Postgres message
+// (e.g. SQLSTATE 42501 "permission denied for function ...", or an RLS policy
+// violation naming a table) discloses schema and policy detail and is not
+// actionable copy. Callers render the thrown message directly, so only the
+// authored neutral fallback is returned — matching the same-named helper in
+// services/styleObjects.ts. Server-side enforcement is unchanged; only the
+// user-facing wording is neutralised.
+function safeError(_error: any, fallback: string) {
+  return new Error(fallback);
 }
 
 function mapGroup(row: any): OutfitDecisionGroup {
