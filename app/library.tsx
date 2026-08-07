@@ -1140,6 +1140,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.sm,
   },
   subNavTab: {
+    minHeight: 48,
+    justifyContent: 'center',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,

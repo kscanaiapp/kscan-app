@@ -204,7 +204,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xl,
   },
   textScanButton: {
-    minHeight: 44,
+    // 48 on Android, 44 on iOS: the platform minimums differ, and the iOS line
+    // asserts its own 44 in kscanProductIcons.test.js.
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,7 +231,7 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    minHeight: 36,
+    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.editorialSmall,
