@@ -263,6 +263,7 @@ function createLibraryHarness() {
       }),
     },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    '../components/closet/ClosetItemEditModal': { ClosetItemEditModal: 'ClosetItemEditModal' },
     // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
     // Closet screen, and the Mirror sheet is gated off in every profile here.
     '../components/closet/MirrorSelfieExtractionModal': {

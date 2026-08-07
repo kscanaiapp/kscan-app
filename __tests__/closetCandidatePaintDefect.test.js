@@ -559,6 +559,7 @@ function mountLibrary(options = {}) {
     },
     '../services/closetCandidateSchema': { createClosetBatchId: () => 'batch_test' },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    '../components/closet/ClosetItemEditModal': { ClosetItemEditModal: 'ClosetItemEditModal' },
     '../components/closet/MirrorSelfieExtractionModal': {
       MirrorSelfieExtractionModal: 'MirrorSelfieExtractionModal',
     },
