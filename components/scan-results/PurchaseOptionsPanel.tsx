@@ -11,6 +11,7 @@ import { SectionHeader } from '../luxury/SectionHeader';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { InlineNotice } from '../luxury/InlineNotice';
 import type { PurchaseOption } from './types';
+import { selectCommerceDestination } from '../../services/commerceDestination';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -37,7 +38,9 @@ export function PurchaseOptionsPanel({
       {hasData ? (
         <View style={styles.list}>
           {purchaseOptions!.map((option, index) => {
-            const hasProductUrl = Boolean(option.productUrl);
+            // Validated rather than merely present: an unsafe or malformed URL
+            // must not surface an action that cannot lead anywhere.
+            const destination = selectCommerceDestination([option.productUrl]);
             const hasPrice = Boolean(option.priceLabel);
             const hasAvailability = Boolean(option.availabilityLabel);
 
@@ -74,9 +77,9 @@ export function PurchaseOptionsPanel({
                       {option.availabilityLabel}
                     </Text>
                   ) : null}
-                  {hasProductUrl ? (
+                  {destination ? (
                     <TouchableOpacity
-                      onPress={() => Linking.openURL(option.productUrl!)}
+                      onPress={() => Linking.openURL(destination)}
                       activeOpacity={0.78}
                       accessibilityRole="link"
                       accessibilityLabel={`View options for ${option.title ?? option.retailer}`}

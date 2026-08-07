@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { selectionTick } from '../services/haptics';
+import { selectCommerceDestination } from '../services/commerceDestination';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useDressingRooms } from '../hooks/useStyleObjects';
@@ -104,19 +105,18 @@ function getProductImageUrl(product: Product | null | undefined): string | null 
 
 function getPurchaseUrl(product: Product | null | undefined): string | null {
   if (!product) return null;
-  const candidates = [
-    product.purchaseUrl,
+  // Order is intentionally not the selector: a record can hold a retailer link
+  // in any of these keys and a search-engine page in any other, so the
+  // destination itself decides. Unsafe candidates are dropped individually.
+  return selectCommerceDestination([
     product.productUrl,
+    product.purchaseUrl,
     product.affiliateUrl,
     product.product_url,
     product.purchase_url,
     product.url,
     product.link,
-  ];
-  for (const c of candidates) {
-    if (typeof c === 'string' && c.trim().startsWith('http')) return c.trim();
-  }
-  return null;
+  ]);
 }
 
 function getRetailer(product: Product | null | undefined): string | null {
