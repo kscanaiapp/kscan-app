@@ -8,6 +8,25 @@ const vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
+/** Transpile-and-run a leaf TypeScript module that imports only type-level deps. */
+function loadTsModule(rel) {
+  const filename = path.join(ROOT, rel);
+  const output = ts.transpileModule(read(rel), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const mod = { exports: {} };
+  vm.runInThisContext(`(function(exports,module,require){${output}\n})`, { filename })(
+    mod.exports,
+    mod,
+    () => ({}),
+  );
+  return mod.exports;
+}
+
 function flags(env) {
   const source = read('constants/featureFlags.ts');
   const output = ts.transpileModule(source, {
@@ -94,9 +113,13 @@ test('list and detail expose required loading, empty, recovery, missing and sign
   for (const text of ['Loading Saved Looks', 'No Saved Looks yet', 'Saved Looks recovered', 'Sign in to continue']) {
     assert.ok(list.includes(text), `list missing ${text}`);
   }
-  for (const text of ['Loading Saved Look', 'Saved Look not found', 'Sign in to continue', 'Closet unavailable']) {
+  for (const text of ['Loading Saved Look', 'Saved Look not found', 'Sign in to continue']) {
     assert.ok(detail.includes(text), `detail missing ${text}`);
   }
+  // BUG-15: the Closet-unavailable notice still exists, but its wording now
+  // lives in the shopper-copy module instead of being written into the screen.
+  assert.match(detail, /SAVED_LOOK_DETAIL_COPY\.closetUnavailableTitle/);
+  assert.match(detail, /SAVED_LOOK_DETAIL_COPY\.closetUnavailableBody/);
   assert.match(list, /Alert\.alert\('Delete Saved Look\?'/);
   assert.match(detail, /Alert\.alert\('Delete Saved Look\?'/);
 });
@@ -114,12 +137,24 @@ test('typed Closet failures remain distinct from an empty Closet', () => {
 
 test('detail supports deleted references, incompatible edits, placeholders and explicit commerce choices', () => {
   const detail = read('app/stylist/saved-looks/[id].tsx');
-  assert.ok(detail.includes('Original Closet item deleted'));
-  assert.ok(detail.includes('Original item changed category'));
   assert.ok(detail.includes('No current image'));
-  assert.ok(detail.includes('Owned alternative first'));
   assert.ok(detail.includes("'Shop anyway'"));
   assert.ok(detail.includes("'Find an alternative'"));
+  assert.match(detail, /SAVED_LOOK_DETAIL_COPY\.ownedAlternativeTitle/);
+
+  // BUG-15: the deleted-reference and incompatible-edit states are still
+  // distinguished for the shopper, but the screen no longer carries the
+  // wording. Asserting through the copy module keeps the states covered while
+  // letting the words be shopper-facing.
+  const copy = loadTsModule('services/privateSavedLookCopy.ts');
+  assert.match(detail, /savedLookSlotCopy\(slotOwnership\?\.state\)/);
+  const deleted = copy.savedLookSlotCopy('deleted_reference');
+  const changed = copy.savedLookSlotCopy('incompatible_edit');
+  assert.notEqual(deleted.label, changed.label, 'the two states must not read the same');
+  for (const entry of [deleted, changed]) {
+    assert.ok(entry.label.length > 0 && entry.detail.length > 0);
+    assert.notEqual(entry.label, copy.SAVED_LOOK_SLOT_UNAVAILABLE.label);
+  }
 });
 
 test('same-route return context restores the same slot and refreshes ownership before clearing', () => {

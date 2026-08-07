@@ -32,6 +32,10 @@ import {
   buildSavedLookReturnContext,
   runControlledMissingPieceHandoff,
 } from '../../../services/privateSavedLookHandoff';
+import {
+  SAVED_LOOK_DETAIL_COPY,
+  savedLookSlotCopy,
+} from '../../../services/privateSavedLookCopy';
 import { resolvePrivateSavedLookOwnership } from '../../../services/privateSavedLookOwnership';
 import type { PrivateSlotOwnership } from '../../../services/privateSavedLookOwnership';
 import {
@@ -70,15 +74,9 @@ const INITIAL: DetailState = {
   highlightedSlot: null,
 };
 
-const STATE_LABELS: Record<string, string> = {
-  exact_owned: 'Owned - exact',
-  probable_owned: 'Probably owned',
-  similar_owned: 'Similar piece owned',
-  not_owned: 'Not in current Closet',
-  unknown: 'Ownership unknown',
-  deleted_reference: 'Original Closet item deleted',
-  incompatible_edit: 'Original item changed category',
-};
+// Ownership wording is NOT written here. Every shopper-visible string on this
+// screen comes from services/privateSavedLookCopy.ts, so the resolver's internal
+// diagnosis can never leak into the UI again.
 
 function handoffIntent(ownership: PrivateSlotOwnership): MissingPieceIntent {
   if (ownership.state === 'exact_owned' || ownership.state === 'probable_owned') return 'shop_anyway';
@@ -298,16 +296,16 @@ export default function PrivateSavedLookDetailScreen() {
           {current.closetUnavailable ? (
             <InlineNotice
               variant="error"
-              title="Closet unavailable"
-              body="Ownership is not recalculated from an empty fallback. Try again when your Closet can be read."
+              title={SAVED_LOOK_DETAIL_COPY.closetUnavailableTitle}
+              body={SAVED_LOOK_DETAIL_COPY.closetUnavailableBody}
             />
           ) : null}
 
           {current.highlightedSlot ? (
             <InlineNotice
               variant="info"
-              title={`${PRIVATE_SLOT_LABELS[current.highlightedSlot]} restored`}
-              body="Ownership was refreshed after the missing-piece handoff."
+              title={`${PRIVATE_SLOT_LABELS[current.highlightedSlot]} ${SAVED_LOOK_DETAIL_COPY.refreshedSuffix}`}
+              body={SAVED_LOOK_DETAIL_COPY.refreshedBody}
             />
           ) : null}
 
@@ -316,6 +314,7 @@ export default function PrivateSavedLookDetailScreen() {
             const liveItem = slot.closetItemId ? closetById.get(slot.closetItemId) ?? null : null;
             const matched = slotOwnership?.matchedItem ?? liveItem;
             const uri = matched?.thumbnailUri ?? matched?.imageUri ?? null;
+            const slotCopy = savedLookSlotCopy(slotOwnership?.state);
             return (
               <View
                 key={slot.slotKey}
@@ -335,28 +334,25 @@ export default function PrivateSavedLookDetailScreen() {
                   )}
                   <View style={styles.slotCopy}>
                     <Text style={styles.slotTitle}>{PRIVATE_SLOT_LABELS[slot.slotKey]}</Text>
-                    <Text style={styles.stateLabel}>
-                      {slotOwnership ? STATE_LABELS[slotOwnership.state] : 'Ownership unavailable'}
-                    </Text>
+                    <Text style={styles.stateLabel}>{slotCopy.label}</Text>
                     {matched ? <Text style={styles.muted}>{matched.title}</Text> : null}
                   </View>
                 </View>
 
-                {slotOwnership ? (
-                  <Text style={styles.explanation}>{slotOwnership.confidenceExplanation}</Text>
-                ) : null}
+                <Text style={styles.explanation}>{slotCopy.detail}</Text>
 
                 {slotOwnership?.showOwnedAlternativeFirst && slotOwnership.matchedItem ? (
                   <InlineNotice
                     variant="info"
-                    title="Owned alternative first"
+                    title={SAVED_LOOK_DETAIL_COPY.ownedAlternativeTitle}
                     body={slotOwnership.matchedItem.title}
                   />
                 ) : null}
 
                 {slotOwnership?.ownedAlternatives.length ? (
                   <Text style={styles.explanation}>
-                    Other owned options: {slotOwnership.ownedAlternatives.map((item) => item.title).join(', ')}
+                    {SAVED_LOOK_DETAIL_COPY.otherOwnedOptionsPrefix}:{' '}
+                    {slotOwnership.ownedAlternatives.map((item) => item.title).join(', ')}
                   </Text>
                 ) : null}
 
