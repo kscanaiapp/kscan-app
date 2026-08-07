@@ -442,10 +442,14 @@ export const ELISE_IDENTIFICATION_V2_ENABLED = resolveEliseIdentificationV2Enabl
  * Master switch for the AI Stylist expansion UI: Library MY LOOKS sub-nav,
  * owned-item manual Look builder, Style This / Style for Event flows, and
  * Dressing Room outfit decisions (voting, winner, "I'm wearing this").
- * Default false: the feature ships dark and stays inactive in the current
- * production configuration. Enable locally with
- * EXPO_PUBLIC_AI_STYLIST_ENABLED=true. It additionally respects the remote
- * non-core feature freeze via the 'aiStylist' key.
+ * Defaults to false when the variable is unset, but eas.json sets
+ * EXPO_PUBLIC_AI_STYLIST_ENABLED="true" on the preview, development, staging AND
+ * production profiles — so this surface is LIVE in a production build, not dark.
+ * (An earlier revision of this comment claimed it stayed inactive in production;
+ * that was stale and caused the outfit-decision surface to be mis-triaged as
+ * unreachable during the Build 25 hostile audit.) It additionally respects the
+ * remote non-core feature freeze via the 'aiStylist' key, which is enabled
+ * unless a freeze is actively published.
  */
 export const AI_STYLIST_UI_ENABLED =
   process.env.EXPO_PUBLIC_AI_STYLIST_ENABLED === 'true';
