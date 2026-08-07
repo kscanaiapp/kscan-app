@@ -5,6 +5,7 @@ import {
   CLOSET_LOAD_CODES,
   deleteClosetItem,
   createClosetItem,
+  updateClosetItem,
 } from '../services/closetLibrary';
 import { promoteScanToCloset } from '../services/closetPromotion';
 import { getClosetItemProjections } from '../services/closetItemProjection';
@@ -178,6 +179,37 @@ export function useCloset() {
     [actorId, busy, refresh]
   );
 
+  /**
+   * Edit a committed Closet item's own metadata.
+   *
+   * The store is the authority on WHO may write: updateClosetItem resolves the
+   * actor and matches the row against it, so a request for someone else's item
+   * comes back `not_found` rather than mutating anything. This hook adds only
+   * the UI-side guarantees — a single in-flight write, and a re-read from disk
+   * afterwards so the grid shows the persisted record rather than an optimistic
+   * guess about what was saved.
+   */
+  const update = useCallback(
+    async (id, patch) => {
+      if (busy) return { ok: false, reason: 'busy' };
+      setBusy(true);
+      const actorRequest = createActorRequest();
+      try {
+        const result = await updateClosetItem(id, patch, {
+          actorRequest,
+          ownerId: actorId,
+        });
+        if (result.ok && isActorRequestCurrent(actorRequest)) {
+          await refresh();
+        }
+        return result;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [actorId, busy, refresh]
+  );
+
   const remove = useCallback(
     async (id) => {
       const ok = await deleteClosetItem(id, { ownerId: actorId });
@@ -196,5 +228,5 @@ export function useCloset() {
   const items = snapshot.actorKey === actorKey ? snapshot.items : [];
   // A failure is only this actor's failure while their own snapshot is showing.
   const error = snapshot.actorKey === actorKey || snapshot.actorKey === null ? loadError : null;
-  return { items, loading, busy, error, addFromUri, addFromScan, remove, refresh };
+  return { items, loading, busy, error, addFromUri, addFromScan, update, remove, refresh };
 }

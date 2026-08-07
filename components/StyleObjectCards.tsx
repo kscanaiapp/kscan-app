@@ -129,6 +129,7 @@ export function TextField({
   placeholder,
   multiline,
   maxLength,
+  testID,
 }: {
   label: string;
   value: string;
@@ -136,6 +137,7 @@ export function TextField({
   placeholder?: string;
   multiline?: boolean;
   maxLength?: number;
+  testID?: string;
 }) {
   return (
     <View style={styles.field}>
@@ -148,6 +150,8 @@ export function TextField({
         style={[styles.input, multiline ? styles.textArea : null]}
         multiline={multiline}
         maxLength={maxLength}
+        testID={testID}
+        accessibilityLabel={label}
       />
     </View>
   );
