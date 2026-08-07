@@ -1,0 +1,30 @@
+# ios-01: Launch + initial surface
+# PURPOSE: launch the app, verify it reaches an expected initial surface (the
+# unauthenticated Welcome step by default), and verify there is no immediate crash.
+# BACKEND REQUIREMENT: NONE (anonymous). If run against a simulator with a
+# restored authenticated session, this flow will instead need ios-03's
+# authenticated-surface assertion — see that flow's header for the swap.
+# SELECTOR STRATEGY: testID (onboarding-welcome-screen-v1), from
+# components/account-home/WelcomeStepV1.tsx.
+appId: ${APP_ID}
+name: "iOS Build 25 — Launch + Home"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-screen-v1"
+    timeout: 20000
+
+- assertVisible:
+    id: "onboarding-welcome-screen-v1"
+
+- assertVisible:
+    id: "onboarding-get-started-button-v1"
+
+- takeScreenshot: "ios-01-launch-welcome"

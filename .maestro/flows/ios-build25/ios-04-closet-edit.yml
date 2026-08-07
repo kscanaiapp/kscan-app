@@ -1,0 +1,68 @@
+# ios-04: My Closet — edit affordance
+# PURPOSE: reach My Closet, verify the EDIT affordance exists on a saved
+# item, open the edit sheet, verify Name and Category fields, exercise Cancel
+# safely (no persistence assumed since fixture data is not guaranteed).
+# BACKEND REQUIREMENT: AUTH_REQUIRED + SEEDED_STATE_REQUIRED — needs an
+# authenticated session (see ios-03) AND at least one existing Closet item to
+# exercise the edit sheet. If fixture data cannot be supplied, this flow will
+# fail at the "closet-card" wait — that documents the missing prerequisite.
+# When deterministic fixture data is available later, extend this flow to
+# change Name/Category and tap "closet-item-edit-save" to validate persistence.
+# SELECTOR STRATEGY: testID (home-luxury-feature-library, closet-card,
+# saved-look-card-edit, closet-item-edit-*) from app/library.tsx,
+# components/luxury/SavedLookCard.tsx, components/closet/ClosetItemEditModal.tsx.
+appId: ${APP_ID}
+name: "iOS Build 25 — Closet Edit"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-luxury-feature-library"
+    timeout: 20000
+
+- tapOn:
+    id: "home-luxury-feature-library"
+
+- extendedWaitUntil:
+    visible:
+      id: "library-section-closet"
+    timeout: 10000
+
+- assertVisible:
+    id: "library-section-closet"
+
+- extendedWaitUntil:
+    visible:
+      id: "closet-card"
+    timeout: 10000
+
+- tapOn:
+    id: "saved-look-card-edit"
+
+- extendedWaitUntil:
+    visible:
+      id: "closet-item-edit-modal"
+    timeout: 10000
+
+- assertVisible:
+    id: "closet-item-edit-modal"
+
+- assertVisible:
+    id: "closet-item-edit-title"
+
+- assertVisible:
+    id: "closet-item-edit-category"
+
+- takeScreenshot: "ios-04-closet-edit-sheet"
+
+- tapOn:
+    id: "closet-item-edit-cancel"
+
+- assertNotVisible:
+    id: "closet-item-edit-modal"

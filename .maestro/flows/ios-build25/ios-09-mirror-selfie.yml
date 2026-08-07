@@ -1,0 +1,60 @@
+# ios-09: Mirror Selfie
+# PURPOSE: open Mirror Selfie from My Closet, verify its entry/source-selection
+# state renders.
+# BACKEND REQUIREMENT: AUTH_REQUIRED (see ios-03) AND a build-time flag
+# requirement — the entry button only renders when
+# EXPO_PUBLIC_MIRROR_SELFIE_V1, EXPO_PUBLIC_CLOSET_CANDIDATE_STAGING_V1 and
+# EXPO_PUBLIC_CLOSET_BATCH_REVIEW_V2 are all "true" (see app/library.tsx and
+# components/closet/MirrorSelfieExtractionModal.tsx). All three are set
+# "true" in the ios-maestro-test build profile's env block (eas.json),
+# so this flow is expected to be reachable on that profile.
+# SELECTOR STRATEGY: testID (closet-mirror-selfie-button) from app/library.tsx;
+# accessibilityLabel for the modal's photo-source buttons, which have no testID.
+appId: ${APP_ID}
+name: "iOS Build 25 — Mirror Selfie"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-luxury-feature-library"
+    timeout: 20000
+
+- tapOn:
+    id: "home-luxury-feature-library"
+
+- extendedWaitUntil:
+    visible:
+      id: "library-section-closet"
+    timeout: 10000
+
+- tapOn:
+    id: "library-section-closet"
+
+- extendedWaitUntil:
+    visible:
+      id: "closet-mirror-selfie-button"
+    timeout: 10000
+
+- tapOn:
+    id: "closet-mirror-selfie-button"
+
+- extendedWaitUntil:
+    visible: "Mirror Selfie"
+    timeout: 10000
+
+- assertVisible: "Mirror Selfie"
+- assertVisible:
+    accessibilityLabel: "Take a mirror selfie with the camera"
+- assertVisible:
+    accessibilityLabel: "Choose a mirror selfie from your photo library"
+
+- takeScreenshot: "ios-09-mirror-selfie-entry"
+
+- tapOn:
+    accessibilityLabel: "Cancel and close Mirror Selfie"

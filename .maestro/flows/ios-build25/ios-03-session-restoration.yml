@@ -1,0 +1,39 @@
+# ios-03: Authenticated launch / session-restoration
+# PURPOSE: verify that launching the app with an existing Supabase session
+# restores straight to an authenticated surface instead of the onboarding
+# Welcome step.
+# BACKEND REQUIREMENT: SEEDED_STATE_REQUIRED — this flow does NOT clear app
+# state and does NOT create an account itself. It assumes the simulator has
+# been pre-seeded with a disposable QA account already signed in (e.g. via a
+# prior authenticated run, or a seeded simulator snapshot), on an isolated
+# QA/staging backend. It must NEVER be pointed at production or staging as a
+# connectivity workaround.
+# PRE-RUN REQUIREMENT: simulator already holds a valid Supabase session for a
+# disposable QA account. If no such session exists, this flow will correctly
+# fail at the first assertion (falls back to onboarding-welcome-screen-v1) —
+# that failure is expected and documents the missing prerequisite rather than
+# a product bug.
+# SELECTOR STRATEGY: testID (home-stylist-card, from components/home/HomeStylistCard.tsx)
+# as the authenticated-surface signal.
+appId: ${APP_ID}
+name: "iOS Build 25 — Session Restoration"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-stylist-card"
+    timeout: 20000
+
+- assertVisible:
+    id: "home-stylist-card"
+
+- assertNotVisible:
+    id: "onboarding-welcome-screen-v1"
+
+- takeScreenshot: "ios-03-authenticated-home"

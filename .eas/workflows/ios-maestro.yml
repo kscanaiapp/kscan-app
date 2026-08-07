@@ -1,0 +1,53 @@
+# iOS Build 25 Maestro runtime validation workflow.
+#
+# SETUP-ONLY ARTIFACT — DO NOT RUN. This file is not executed by this
+# harness-setup pass. It is prepared for a later, separately authorized run.
+#
+# No `on:` trigger block is defined on purpose (mirrors the manual-only
+# pattern used by eas-cli's own `create-development-builds.yml` template,
+# which also omits `on:`). Without an `on:` block this workflow only runs via
+# an explicit manual invocation (`eas workflow:run`), never automatically on
+# push/PR/schedule.
+#
+# Job types `build` and `get-build` are confirmed against the eas-cli v21.7.0
+# templates installed locally (commandUtils/new/templates/.eas/workflows/).
+# The `maestro` job type below reflects the EAS Workflows Maestro integration
+# as documented by Expo; it was NOT found in the locally installed eas-cli
+# template set (that set only ships build/update/submit/deploy/fingerprint
+# examples). VERIFY the `maestro` job type's exact name and param shape
+# against the current EAS Workflows docs (or `eas workflow:run --help` /
+# schema validation output) before the first authorized run — per this
+# harness's rules, if validation fails this is a static-config problem to
+# report, not something to patch by guessing further.
+
+name: iOS Build 25 Maestro Runtime Validation
+
+jobs:
+  build_ios_simulator:
+    name: Build iOS Simulator (Maestro test artifact)
+    type: build
+    params:
+      platform: ios
+      profile: ios-maestro-test
+
+  maestro_ios_build25_suite:
+    name: Run iOS Build 25 Maestro suite
+    needs: [build_ios_simulator]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_ios_simulator.outputs.build_id }}
+      flow_path:
+        - .maestro/flows/ios-build25/ios-01-launch-home.yml
+        - .maestro/flows/ios-build25/ios-02-welcome-auth.yml
+        - .maestro/flows/ios-build25/ios-03-session-restoration.yml
+        - .maestro/flows/ios-build25/ios-04-closet-edit.yml
+        - .maestro/flows/ios-build25/ios-05-saved-looks.yml
+        - .maestro/flows/ios-build25/ios-06-recent-scans-closet-separation.yml
+        - .maestro/flows/ios-build25/ios-07-dressing-room.yml
+        - .maestro/flows/ios-build25/ios-08-elise.yml
+        - .maestro/flows/ios-build25/ios-09-mirror-selfie.yml
+        - .maestro/flows/ios-build25/ios-10-account-security.yml
+        - .maestro/flows/ios-build25/ios-12-ipad-layout.yml
+      # ios-11 (accessibility-large-text) is intentionally excluded: it is a
+      # manual-strategy doc tagged `wip`, which .maestro/config.yaml already
+      # excludes from automated runs.

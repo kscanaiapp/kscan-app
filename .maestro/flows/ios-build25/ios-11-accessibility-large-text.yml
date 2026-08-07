@@ -1,0 +1,48 @@
+# ios-11: Large-text / Dynamic Type accessibility
+# PURPOSE: document the large-text validation strategy for this harness.
+#
+# Maestro's iOS driver does not expose a supported command to set the
+# simulator's system Dynamic Type / text-size setting from within a flow —
+# there is no `setAccessibilityTextSize` or equivalent action in current
+# Maestro CLI/Cloud syntax. Fabricating one here would violate the "do not
+# invent support" instruction for this harness.
+#
+# Two supported alternatives exist and are recorded here rather than encoded
+# as an automated flow:
+#
+# 1. EAS/simulator-level: boot the iOS Simulator with a specific content size
+#    via `xcrun simctl status_bar` is unrelated (status bar only); actual text
+#    size requires `xcrun simctl spawn <device> defaults write` against
+#    com.apple.UIKit UIContentSizeCategory, or setting it interactively in
+#    Settings > Accessibility > Display & Text Size > Larger Text before a
+#    Maestro run. This is a MANUAL pre-run simulator configuration step, not
+#    something this flow can perform.
+#
+# 2. Manual/secondary runtime check: after configuring large text on the
+#    simulator per (1), re-run ios-01/ios-02/ios-04/ios-08 by hand (or via
+#    `maestro test` pointed at this suite) and visually confirm no truncation,
+#    overlap, or clipped controls on: Welcome, terms/consent checkboxes,
+#    Closet edit sheet, and the Elise composer. Record results manually —
+#    this is a secondary/manual check, not part of the automated suite.
+#
+# BACKEND REQUIREMENT: NONE (this file documents strategy; it runs no steps).
+appId: ${APP_ID}
+name: "iOS Build 25 — Accessibility Large Text (manual strategy doc)"
+tags:
+  - ios-build25
+  - wip
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-screen-v1"
+    timeout: 20000
+
+- assertVisible:
+    id: "onboarding-welcome-screen-v1"
+
+- takeScreenshot: "ios-11-large-text-baseline-current-size"

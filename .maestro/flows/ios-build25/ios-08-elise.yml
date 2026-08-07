@@ -1,0 +1,39 @@
+# ios-08: Elise (AI stylist chat)
+# PURPOSE: open Elise, verify the chat screen renders, verify a text-entry
+# surface and an image-attachment entry point exist. Does NOT send a real
+# message — no production AI is invoked.
+# BACKEND REQUIREMENT: AUTH_REQUIRED (see ios-03). Starting a chat session
+# creates a session record; this flow stops short of sending a message.
+# SELECTOR STRATEGY: testID (home-stylist-card, style-chat-input,
+# stylechat-attach-button) from components/home/HomeStylistCard.tsx and
+# components/style-chat/StyleChatInput.tsx.
+appId: ${APP_ID}
+name: "iOS Build 25 — Elise"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-stylist-card"
+    timeout: 20000
+
+- tapOn:
+    accessibilityLabel: "Start a new chat with.*"
+
+- extendedWaitUntil:
+    visible:
+      id: "style-chat-input"
+    timeout: 15000
+
+- assertVisible:
+    id: "style-chat-input"
+
+- assertVisible:
+    id: "stylechat-attach-button"
+
+- takeScreenshot: "ios-08-elise-chat-composer"

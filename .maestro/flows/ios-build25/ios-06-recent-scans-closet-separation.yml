@@ -1,0 +1,54 @@
+# ios-06: Recent Scans / My Closet separation
+# PURPOSE: verify Recent Scans and My Closet are distinct surfaces reachable
+# from the same library screen, and that navigating between them works.
+# BACKEND REQUIREMENT: AUTH_REQUIRED — both sections read per-account data
+# (see ios-03 for the session prerequisite). No data mutation is performed.
+# SELECTOR STRATEGY: testID (library-section-recent, library-section-closet)
+# from app/library.tsx; accessibilityLabel "Recent Scans" on the section
+# header per the same file.
+appId: ${APP_ID}
+name: "iOS Build 25 — Recent Scans / Closet Separation"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-luxury-feature-library"
+    timeout: 20000
+
+- tapOn:
+    id: "home-luxury-feature-library"
+
+- extendedWaitUntil:
+    visible:
+      id: "library-section-closet"
+    timeout: 10000
+
+- assertVisible:
+    id: "library-section-closet"
+
+- tapOn:
+    id: "library-section-recent"
+
+- extendedWaitUntil:
+    visible:
+      id: "library-section-recent"
+    timeout: 10000
+
+- assertVisible:
+    id: "library-section-recent"
+
+- takeScreenshot: "ios-06-recent-scans"
+
+- tapOn:
+    id: "library-section-closet"
+
+- assertVisible:
+    id: "library-section-closet"
+
+- takeScreenshot: "ios-06-closet"

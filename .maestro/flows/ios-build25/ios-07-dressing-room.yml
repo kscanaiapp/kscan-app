@@ -1,0 +1,51 @@
+# ios-07: Dressing Room (cloud, collaborative)
+# PURPOSE: open Dressing Rooms, verify empty state or room list renders,
+# exercise the create-room UI far enough to verify keyboard/form visibility.
+# Does not submit a real create — no message/data is sent to production/staging.
+# NOTE: this app has two features named "Dressing Room" — this flow targets
+# the cloud/collaborative list at app/dressing-rooms/index.tsx (nav testID
+# home-luxury-feature-dressing-rooms), NOT the device-local private workspace
+# at app/stylist/dressing-room/index.tsx (testID private-dressing-room).
+# BACKEND REQUIREMENT: AUTH_REQUIRED (see ios-03).
+# SELECTOR STRATEGY: accessibilityLabel is the only stable selector for the
+# create-room controls in this screen (no testID on the modal's text fields);
+# testID is used where available (home-luxury-feature-dressing-rooms).
+appId: ${APP_ID}
+name: "iOS Build 25 — Dressing Room"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-luxury-feature-dressing-rooms"
+    timeout: 20000
+
+- tapOn:
+    id: "home-luxury-feature-dressing-rooms"
+
+- extendedWaitUntil:
+    visible:
+      text: "Dressing Room"
+    timeout: 10000
+
+- takeScreenshot: "ios-07-dressing-rooms-list"
+
+- tapOn:
+    accessibilityLabel: "Create new dressing room"
+
+- extendedWaitUntil:
+    visible: "Title"
+    timeout: 10000
+
+- assertVisible: "Title"
+- assertVisible: "Description"
+
+- takeScreenshot: "ios-07-create-room-form"
+
+- tapOn:
+    accessibilityLabel: "Cancel create room"

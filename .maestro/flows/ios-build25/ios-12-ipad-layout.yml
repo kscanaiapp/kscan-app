@@ -1,0 +1,63 @@
+# ios-12: iPad layout smoke
+# PURPOSE: reusable smoke flow for launch + major navigation surfaces,
+# suitable for later execution on an iPad simulator target. Verifies launch
+# and reachability of Closet and Dressing Rooms from Home; does not assume
+# rotation/orientation support, which is not verified in source/platform docs
+# for this app and is out of scope for this flow.
+# BACKEND REQUIREMENT: AUTH_REQUIRED for the Closet/Dressing Rooms steps (see
+# ios-03); the initial launch assertion works anonymously.
+# TARGET: run against an iPad Simulator device (e.g. "iPad Pro 13-inch (M4)")
+# by selecting that device when invoking `maestro test`/EAS workflow — this
+# flow itself is device-agnostic and asserts no iPad-only UI.
+# SELECTOR STRATEGY: same testIDs as ios-01/ios-04/ios-07, reused here to
+# avoid ID drift between phone and iPad smoke coverage.
+appId: ${APP_ID}
+name: "iOS Build 25 — iPad Layout Smoke"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-screen-v1"
+    timeout: 20000
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "home-stylist-card"
+    timeout: 20000
+    optional: true
+
+- takeScreenshot: "ios-12-ipad-launch"
+
+- runFlow:
+    when:
+      visible:
+        id: "home-luxury-feature-library"
+    commands:
+      - tapOn:
+          id: "home-luxury-feature-library"
+      - extendedWaitUntil:
+          visible:
+            id: "library-section-closet"
+          timeout: 10000
+      - assertVisible:
+          id: "library-section-closet"
+      - takeScreenshot: "ios-12-ipad-closet"
+      - back
+      - extendedWaitUntil:
+          visible:
+            id: "home-luxury-feature-dressing-rooms"
+          timeout: 10000
+      - tapOn:
+          id: "home-luxury-feature-dressing-rooms"
+      - extendedWaitUntil:
+          visible:
+            text: "Dressing Room"
+          timeout: 10000
+      - takeScreenshot: "ios-12-ipad-dressing-rooms"

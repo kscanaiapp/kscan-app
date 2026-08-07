@@ -1,0 +1,48 @@
+# ios-10: Account security copy
+# PURPOSE: reach the password/account security screen and verify the updated
+# security copy: "For your security, you'll sign in again on every device."
+# Does NOT actually change a real password during static validation.
+# IMPORTANT: this codebase has no standalone Account/Security settings menu
+# screen. The only path to the security copy is the password-recovery deep
+# link: app/auth/reset.tsx (request link) -> email -> app/auth/callback.tsx
+# -> app/auth/update-password.tsx (renders the copy). A Maestro flow cannot
+# open an arbitrary inbox and tap a real email link, so this flow deep-links
+# directly into app/auth/update-password.tsx via Maestro's `openLink`, which
+# is the same route the email link resolves to. This requires the app to be
+# built with its custom URL scheme intact (unchanged by this harness).
+# BACKEND REQUIREMENT: EXTERNAL_PROVIDER — a real reset flow requires Supabase
+# auth email delivery on an isolated QA/staging project; the deep-link jump
+# below bypasses email delivery to validate the copy/UI in isolation, but a
+# full happy-path run (request -> receive email -> tap link) is a manual
+# secondary check, not something this flow automates.
+# SELECTOR STRATEGY: testID (auth-new-password-input, auth-update-password-submit)
+# from app/auth/update-password.tsx; exact copy match for the security string.
+appId: ${APP_ID}
+name: "iOS Build 25 — Account Security Copy"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+# Deep-link directly to the update-password screen, the same destination the
+# password-reset email link resolves to. Adjust the scheme/host below if the
+# app's custom URL scheme differs from the repo default.
+- openLink: "kscan://auth/update-password"
+
+- extendedWaitUntil:
+    visible:
+      id: "auth-new-password-input"
+    timeout: 15000
+
+- assertVisible: "Choose a new password. For your security, you'll sign in again on every device."
+
+- assertVisible:
+    id: "auth-new-password-input"
+
+- assertVisible:
+    id: "auth-update-password-submit"
+
+- takeScreenshot: "ios-10-account-security-copy"

@@ -1,0 +1,94 @@
+# ios-02: Welcome / "Before We Begin" consent gating
+# PURPOSE: verify Welcome -> auth-choice navigation reaches the "Before we begin"
+# terms/consent step, verify AI-consent and age-acknowledgement controls are
+# reachable, and verify Continue stays disabled until all four required
+# acknowledgements are checked.
+# BACKEND REQUIREMENT: AUTH_REQUIRED — in this app's onboarding stepper the
+# terms/consent screen (step 4) is only reached AFTER account creation
+# (step 3, app/onboarding/index.tsx renderCreateAccount). This flow therefore
+# creates a disposable QA account using env-driven credentials. It must NOT be
+# run with hardcoded or production credentials.
+# PRE-RUN REQUIREMENT: QA_EMAIL and QA_PASSWORD env vars pointing at a
+# disposable account on an isolated QA/staging backend (never production).
+# SELECTOR STRATEGY: testID throughout (onboarding-* ids from
+# app/onboarding/index.tsx and components/account-home/AccountSetupStepV1.tsx).
+appId: ${APP_ID}
+name: "iOS Build 25 — Welcome / Before We Begin"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-screen-v1"
+    timeout: 20000
+
+- tapOn:
+    id: "onboarding-get-started-button-v1"
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-auth-choice-screen-v1"
+    timeout: 10000
+
+- tapOn:
+    id: "onboarding-continue-email-button-v1"
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-create-account-screen"
+    timeout: 10000
+
+- tapOn:
+    id: "onboarding-full-name-input"
+- inputText: "${QA_FULL_NAME}"
+
+- tapOn:
+    id: "onboarding-create-email-input"
+- inputText: "${QA_EMAIL}"
+
+- tapOn:
+    id: "onboarding-create-password-input"
+- inputText: "${QA_PASSWORD}"
+
+- tapOn:
+    id: "onboarding-create-confirm-password-input"
+- inputText: "${QA_PASSWORD}"
+
+- tapOn:
+    id: "onboarding-create-account-submit-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-terms-screen"
+    timeout: 20000
+
+- assertVisible:
+    id: "onboarding-ai-processing-statement"
+
+- assertVisible: "I consent to AI image processing"
+- assertVisible: "I confirm that I am 18 years of age or older."
+
+# Continue must be gated until all four acknowledgements are checked.
+- assertVisible:
+    id: "onboarding-accept-continue-button"
+    enabled: false
+
+- tapOn:
+    id: "onboarding-terms-checkbox"
+- tapOn:
+    id: "onboarding-privacy-checkbox"
+- tapOn:
+    id: "onboarding-ai-consent-checkbox"
+- tapOn:
+    id: "onboarding-age-checkbox"
+
+- assertVisible:
+    id: "onboarding-accept-continue-button"
+    enabled: true
+
+- takeScreenshot: "ios-02-terms-gated-then-enabled"

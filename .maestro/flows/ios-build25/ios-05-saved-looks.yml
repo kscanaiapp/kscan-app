@@ -1,0 +1,66 @@
+# ios-05: MY LOOKS -> private Dressing Room Saved Looks
+# PURPOSE: reach MY LOOKS, verify the private Dressing Room Saved Looks entry
+# point is reachable, verify shopper-facing wording, and reject internal
+# diagnostic terminology leaking into the UI.
+# BACKEND REQUIREMENT: AUTH_REQUIRED — MY LOOKS / Saved Looks are per-account
+# surfaces (see ios-03 for the session prerequisite).
+# SELECTOR STRATEGY: testID (library-my-looks-tab, looks-dressing-room-entry)
+# from app/library.tsx and app/looks/index.tsx; text assertions for shopper
+# copy and for the explicit absence of internal terms confirmed present only
+# in services/privateSavedLookCopy.ts diagnostics (never rendered — see
+# __tests__/savedLookShopperCopy.test.js) — this flow is the UI-level
+# regression guard for that same contract.
+appId: ${APP_ID}
+name: "iOS Build 25 — Saved Looks"
+tags:
+  - ios-build25
+env:
+  APP_ID: ${APP_ID || "com.kscanai.app"}
+---
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-luxury-feature-library"
+    timeout: 20000
+
+- tapOn:
+    id: "home-luxury-feature-library"
+
+- extendedWaitUntil:
+    visible:
+      id: "library-my-looks-tab"
+    timeout: 10000
+
+- tapOn:
+    id: "library-my-looks-tab"
+
+- extendedWaitUntil:
+    visible:
+      id: "looks-dressing-room-entry"
+    timeout: 10000
+
+- assertVisible:
+    id: "looks-dressing-room-entry"
+
+- assertVisible: "Open Saved Looks"
+
+- assertNotVisible: "Ownership unknown"
+- assertNotVisible: "normalized taxonomy"
+- assertNotVisible: "Unknown Product"
+
+- takeScreenshot: "ios-05-my-looks"
+
+- tapOn:
+    id: "looks-dressing-room-entry"
+
+- extendedWaitUntil:
+    visible: "Saved Looks"
+    timeout: 10000
+
+- assertNotVisible: "Ownership unknown"
+- assertNotVisible: "normalized taxonomy"
+- assertNotVisible: "Unknown Product"
+
+- takeScreenshot: "ios-05-saved-looks-detail"
