@@ -139,7 +139,22 @@ test('Voice Scan pill remains non-interactive and shows Coming Soon', () => {
   assert.match(homeV1, /VOICE SCAN/);
   assert.match(homeV1, /COMING SOON/);
   assert.doesNotMatch(homeV1, /onPress=\{[^}]*\}\s*\n\s*<VoiceScanPlaceholderPill/);
-  assert.match(homeV1, /accessibilityRole="text"/);
+
+  // Non-interactive, asserted directly: the pill's root is a View and the
+  // component body contains no press handler of any kind.
+  const pill = /function VoiceScanPlaceholderPill\([\s\S]*?\n\}/.exec(homeV1);
+  assert.ok(pill, 'the VoiceScan placeholder component must exist');
+  assert.match(pill[0], /<View\b/);
+  assert.doesNotMatch(pill[0], /onPress|onLongPress|Pressable|TouchableOpacity/);
+
+  // Build 25 Phase 4: announced as a disabled button rather than as prose, so a
+  // screen-reader user learns the feature is unavailable and not merely present.
+  // Previously accessibilityRole="text", which conveyed no unavailability.
+  assert.match(pill[0], /accessibilityRole="button"/);
+  assert.match(pill[0], /accessibilityState=\{\{ disabled: inactive \}\}/);
+  assert.match(pill[0], /accessibilityLabel="Voice Scan, coming soon"/);
+  // Never suppressed: a Coming Soon feature must stay discoverable.
+  assert.doesNotMatch(pill[0], /importantForAccessibility="no-hide-descendants"/);
 });
 
 test('Android manifest removes mic, fine-location, and storage permissions from dependency merges', () => {

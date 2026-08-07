@@ -151,8 +151,16 @@ test('snapshot version 1 is explicit', () => {
 
 test('ProductShelf exposes a visible Add to Dressing Room action', () => {
   assert.match(productShelf, /Add to Dressing Room/);
-  assert.match(productShelf, /accessibilityLabel="Add to Dressing Room"/);
   assert.match(productShelf, /testID="add-to-dressing-room-button"/);
+  // The accessible name is state-dependent as of Build 25 Phase 4: it was a
+  // hardcoded "Add to Dressing Room" that kept announcing itself while the
+  // button visibly read "Can't Save Yet". The enabled branch must still be
+  // exactly that string, and the label must still be derived rather than fixed.
+  assert.match(
+    productShelf,
+    /accessibilityLabel=\{\s*canSaveToRoom \? 'Add to Dressing Room' :/,
+    'the enabled state must still be named "Add to Dressing Room"',
+  );
 });
 
 test('ProductShelf gates Dressing Room saves by title and remote image eligibility', () => {
