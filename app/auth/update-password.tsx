@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { goBackOrAuth } from '../../services/navigationExit';
 import { supabase } from '../../services/supabaseClient';
-import { validateNewPassword, verifySessionAfterPasswordUpdate } from '../../services/passwordReset';
+import { updatePasswordAndRevokeSessions } from '../../services/passwordReset';
 import { mapAuthError } from '../../services/authValidation';
 
 export default function UpdatePasswordScreen() {
@@ -26,30 +26,26 @@ export default function UpdatePasswordScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    const validationError = validateNewPassword(password);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
     setBusy(true);
     setError(null);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setBusy(false);
-      setError(mapAuthError(updateError.message, 'update-password'));
+
+    // A password change is a security boundary. The shared sequence revokes every
+    // session globally — including this recovery session — only after the update
+    // itself succeeds, so an old securely stored token cannot silently restore
+    // access and a failed update never costs the user their session.
+    const outcome = await updatePasswordAndRevokeSessions(supabase, password);
+    setBusy(false);
+
+    if (outcome.ok) {
+      router.replace(outcome.route);
       return;
     }
 
-    try {
-      await verifySessionAfterPasswordUpdate(supabase);
-      router.replace('/privacy');
-    } catch {
-      await supabase.auth.signOut();
-      router.replace('/auth');
-    } finally {
-      setBusy(false);
-    }
+    setError(
+      outcome.stage === 'update'
+        ? mapAuthError(outcome.updateError?.message, 'update-password')
+        : outcome.message,
+    );
   };
 
   return (
@@ -80,7 +76,7 @@ export default function UpdatePasswordScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Set New Password</Text>
           <Text style={styles.cardBody}>
-            Choose a new password. Your recovery session will stay signed in after the update.
+            Choose a new password. For your security, you’ll sign in again on every device.
           </Text>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
