@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.stone,
   },
   viewOptionsButton: {
-    minHeight: 32,
+    minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
