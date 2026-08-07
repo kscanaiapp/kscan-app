@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { goBackOrAuth } from '../../services/navigationExit';
 import { supabase } from '../../services/supabaseClient';
-import { validateNewPassword } from '../../services/passwordReset';
+import { updatePasswordAndRevokeSessions } from '../../services/passwordReset';
 import { mapAuthError } from '../../services/authValidation';
 
 export default function UpdatePasswordScreen() {
@@ -26,33 +26,26 @@ export default function UpdatePasswordScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    const validationError = validateNewPassword(password);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
     setBusy(true);
     setError(null);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setBusy(false);
-      setError(mapAuthError(updateError.message, 'update-password'));
-      return;
-    }
 
-    // A password change is a security boundary. Global sign-out revokes refresh
-    // capability on every device, including this recovery session, so an old
-    // securely stored token cannot silently restore access.
-    const { error: revokeError } = await supabase.auth.signOut({ scope: 'global' });
+    // A password change is a security boundary. The shared sequence revokes every
+    // session globally — including this recovery session — only after the update
+    // itself succeeds, so an old securely stored token cannot silently restore
+    // access and a failed update never costs the user their session.
+    const outcome = await updatePasswordAndRevokeSessions(supabase, password);
     setBusy(false);
 
-    if (revokeError) {
-      setError('Password changed, but we could not revoke existing sessions. Reconnect and try again.');
+    if (outcome.ok) {
+      router.replace(outcome.route);
       return;
     }
 
-    router.replace('/auth');
+    setError(
+      outcome.stage === 'update'
+        ? mapAuthError(outcome.updateError?.message, 'update-password')
+        : outcome.message,
+    );
   };
 
   return (
