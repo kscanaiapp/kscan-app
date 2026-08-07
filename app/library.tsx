@@ -67,6 +67,7 @@ import { useClosetCandidates } from '../hooks/useClosetCandidates';
 import { routeClosetIntake } from '../services/closetIntakeRouting';
 import { createClosetBatchId } from '../services/closetCandidateSchema';
 import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
+import { ClosetItemEditModal } from '../components/closet/ClosetItemEditModal';
 import { MirrorSelfieExtractionModal } from '../components/closet/MirrorSelfieExtractionModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
 import { isScanPromoted } from '../services/closetPromotion';
@@ -300,6 +301,10 @@ export default function LibraryScreen() {
     [closetCandidates, closet.refresh]
   );
   const [closetIntakeVisible, setClosetIntakeVisible] = useState(false);
+  // The item currently open for editing. Holding the id (not the object) means
+  // the sheet always prefills from the CURRENT snapshot, so a refresh that lands
+  // while the sheet is open cannot leave it editing a stale copy.
+  const [editingClosetItemId, setEditingClosetItemId] = useState<string | null>(null);
   const [mirrorSelfieVisible, setMirrorSelfieVisible] = useState(false);
   const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -474,6 +479,26 @@ export default function LibraryScreen() {
             }),
         }
       : {};
+
+  /**
+   * Post-creation edit for a Closet item (BUG-16).
+   *
+   * The card itself opens the outfit builder, so editing gets its own control
+   * rather than a long-press: an item had no discoverable way to be corrected
+   * after it was saved. Only the metadata intake collects — name and category —
+   * is editable; the photo, the provenance and any underlying Recent Scan are
+   * not reachable from here.
+   */
+  const editingClosetItem =
+    closet.items.find((item: any) => item.id === editingClosetItemId) ?? null;
+
+  const handleSaveClosetItemEdit = async (
+    id: string,
+    patch: { title: string; category: string | null },
+  ) => {
+    const result = (await closet.update(id, patch)) as { ok: boolean; reason?: string };
+    return { ok: result.ok, reason: result.reason };
+  };
 
   const handleDeleteClosetItem = (id: string) => {
     Alert.alert(
@@ -785,6 +810,7 @@ export default function LibraryScreen() {
                       date={formatDate(a.createdAt)}
                       status="Closet"
                       onDelete={() => handleDeleteClosetItem(a.id)}
+                      onEdit={() => setEditingClosetItemId(a.id)}
                       {...closetOutfitAction(a.id)}
                       style={{ width: CARD_W }}
                     />
@@ -798,6 +824,7 @@ export default function LibraryScreen() {
                         date={formatDate(b.createdAt)}
                         status="Closet"
                         onDelete={() => handleDeleteClosetItem(b.id)}
+                        onEdit={() => setEditingClosetItemId(b.id)}
                         {...closetOutfitAction(b.id)}
                         style={{ width: CARD_W }}
                       />
@@ -1003,6 +1030,18 @@ export default function LibraryScreen() {
           batchIntakeActive={CLOSET_BATCH_REVIEW_V2_ACTIVE}
         />
       ) : null}
+
+      {/*
+        Closet item editing (BUG-16). Not flag-gated: the Closet grid it belongs
+        to is already the committed-inventory surface, and an item that can be
+        created and deleted but never corrected is the defect this closes.
+      */}
+      <ClosetItemEditModal
+        visible={!!editingClosetItem}
+        item={editingClosetItem}
+        onClose={() => setEditingClosetItemId(null)}
+        onSave={handleSaveClosetItemEdit}
+      />
 
       {/*
         Mirror Selfie extraction (Build 2.5 Step 3) and candidate staging
