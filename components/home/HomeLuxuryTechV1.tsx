@@ -94,8 +94,9 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
     <View
       testID="home-luxury-voicescan-coming-soon"
       style={[styles.voiceScanPill, inactive && styles.voiceScanPillInactive, style]}
-      accessibilityRole="text"
-      accessibilityLabel="Voice Scan. Coming Soon."
+      accessibilityRole="button"
+      accessibilityLabel="Voice Scan, coming soon"
+      accessibilityState={{ disabled: inactive }}
     >
       {/*
         Decorative: the pill above already announces "Voice Scan. Coming Soon."
