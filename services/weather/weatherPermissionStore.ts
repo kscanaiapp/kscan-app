@@ -83,6 +83,31 @@ export async function noteStyleChatSessionOpened(): Promise<WeatherPermissionRec
   });
 }
 
+/**
+ * Decides what a StyleChat open should persist, given the live OS permission and
+ * what the user has already been shown. Returns the state to write, or null to
+ * leave the stored record exactly as it is.
+ *
+ * Writing 'denied' is a terminal act — `isPromptEligible` never re-offers after
+ * it — so it is reserved for the two cases where weather genuinely cannot work:
+ * the OS refused and will not ask again, or the module is unavailable. A
+ * 'dismissed' record and an unanswered OS prompt both keep their cooldown, which
+ * is what stops a single "Not now" from disabling weather for the whole install.
+ */
+export function resolveOpenPermissionState(
+  osStatus: 'granted' | 'denied' | 'unavailable' | 'undetermined',
+  disclosureSeen: boolean,
+  currentState: WeatherPermissionState,
+): WeatherPermissionState | null {
+  if (osStatus === 'granted') return 'granted';
+  if (!disclosureSeen) return null;
+  if (osStatus !== 'denied' && osStatus !== 'unavailable') return null;
+  if (currentState === 'granted' || currentState === 'denied' || currentState === 'dismissed') {
+    return null;
+  }
+  return 'denied';
+}
+
 // Eligible to show the first-party prompt after clear styling intent.
 export function isPromptEligible(record: WeatherPermissionRecord, now: number = Date.now()): boolean {
   if (record.state === 'granted' || record.state === 'denied') return false;

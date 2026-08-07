@@ -7,6 +7,7 @@ import {
   isPromptEligible,
   readLocationDisclosureChoice,
   setLocationDisclosureChoice,
+  resolveOpenPermissionState,
   type WeatherPermissionRecord,
 } from '../services/weather/weatherPermissionStore';
 import {
@@ -58,19 +59,13 @@ export function useWeatherStyling(sessionId: string): UseWeatherStylingReturn {
       const disclosureSeen = await readLocationDisclosureChoice();
       let r = await readWeatherPermission();
 
-      if (osStatus === 'granted') {
-        // Already granted by the OS: keep the prompt hidden and remember the choice.
-        r = await setWeatherPermissionState('granted');
-        await setLocationDisclosureChoice();
-      } else if ((osStatus === 'denied' || osStatus === 'unavailable') && disclosureSeen) {
-        // User already saw the disclosure and the OS permission is not granted:
-        // do not nag again; weather stays optional.
-        if (r.state !== 'granted' && r.state !== 'denied') {
-          r = await setWeatherPermissionState('denied');
-        }
+      const nextState = resolveOpenPermissionState(osStatus, disclosureSeen, r.state);
+      if (nextState) {
+        r = await setWeatherPermissionState(nextState);
+        if (nextState === 'granted') await setLocationDisclosureChoice();
       }
-      // Otherwise (not asked yet, or denied without disclosure seen) fall through
-      // and let the existing eligibility logic decide whether to show the disclosure.
+      // A null decision leaves the stored record untouched, so the re-prompt
+      // cooldown keeps owning whether the disclosure is shown again.
 
       if (!cancelled) {
         setRecord(r);
