@@ -56,6 +56,24 @@ export function takeAuthBootstrapStorageError(): unknown {
   return error;
 }
 
+/**
+ * Durable-logout backstop. Supabase skips its own local cleanup when the global
+ * sign-out request fails (offline, 5xx), which would leave restorable session
+ * material behind for the next launch.
+ */
+export function clearPersistedAuthSessions(): Promise<void> {
+  return authStorage.clearPersistedSessions();
+}
+
+/**
+ * True when session material is still persisted but could not be renewed
+ * because of a transient failure — an actor awaiting recovery, not a signed-out
+ * one.
+ */
+export function hasPendingAuthSessionRecovery(): boolean {
+  return authStorage.hasPendingSessionRecovery();
+}
+
 export const supabase = createClient(url, anonKey, {
   auth: {
     storage: authStorage,

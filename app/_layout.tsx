@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, useNavigationContainerRef, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -46,7 +46,7 @@ if (rnGlobal.ErrorUtils && !rnGlobal.__KSCAN_ERROR_UTILS_ATTACHED__) {
 
 function AuthGate() {
   const pathname = usePathname();
-  const { loading, session } = useAuthSession();
+  const { loading, session, isRecoveringSession, retrySessionRecovery, signOut } = useAuthSession();
   const { bootStatus, profile } = usePrivacyPreferences();
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
@@ -144,6 +144,7 @@ function AuthGate() {
     profileLoading: Boolean(session && bootStatus !== 'ready'),
     onboardingComplete,
     nowSeconds,
+    recoveryPending: isRecoveringSession,
   });
 
   useEffect(() => {
@@ -254,6 +255,47 @@ function AuthGate() {
     );
   }
 
+  if (guardState.action === 'recovering') {
+    // The actor is signed in but their session has not been re-validated yet.
+    // Never presented as a full session, and never a dead end: recovery retries
+    // on its own, and signing in remains one tap away.
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <View testID="auth-gate-recovering" style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.recoveryTitle}>Reconnecting your account</Text>
+          <Text style={styles.recoveryBody}>
+            We couldn&apos;t reach K Scan just now. You&apos;re still signed in — this will
+            finish on its own once you&apos;re back online.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Try reconnecting now"
+            testID="auth-gate-recovery-retry"
+            style={styles.recoveryAction}
+            onPress={() => {
+              void retrySessionRecovery();
+            }}
+          >
+            <Text style={styles.recoveryActionText}>Try again</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sign in with a different account instead"
+            testID="auth-gate-recovery-signin"
+            style={styles.recoverySecondaryAction}
+            onPress={() => {
+              void signOut();
+            }}
+          >
+            <Text style={styles.recoverySecondaryText}>Sign in instead</Text>
+          </Pressable>
+        </View>
+      </>
+    );
+  }
+
   if (guardState.action === 'redirect') {
     return (
       <>
@@ -298,6 +340,33 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   loadingText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+  },
+  recoveryTitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  recoveryBody: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  recoveryAction: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  recoveryActionText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.accent,
+  },
+  recoverySecondaryAction: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  recoverySecondaryText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
   },
