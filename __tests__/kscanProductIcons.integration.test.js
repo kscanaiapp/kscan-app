@@ -12,6 +12,18 @@ const STYLIST_CARD = fs.readFileSync(
   path.join(ROOT, 'components', 'home', 'HomeStylistCard.tsx'),
   'utf8',
 );
+const SCAN_LANDING = fs.readFileSync(
+  path.join(ROOT, 'components', 'scan-room', 'ScanLanding.tsx'),
+  'utf8',
+);
+const LIVE_SCAN_CAMERA = fs.readFileSync(
+  path.join(ROOT, 'components', 'scan-room', 'LiveScanCamera.tsx'),
+  'utf8',
+);
+const SCAN_ROOM_HEADER = fs.readFileSync(
+  path.join(ROOT, 'components', 'scan-room', 'ScanRoomHeader.tsx'),
+  'utf8',
+);
 const LIVE_HOME = fs.readFileSync(path.join(ROOT, 'app', 'index.tsx'), 'utf8');
 const REVIEW = fs.readFileSync(path.join(ROOT, 'app', 'dev', 'icon-review.tsx'), 'utf8');
 const LUXURY_BUTTON = fs.readFileSync(
@@ -94,13 +106,50 @@ test('integration: feature chip icons are decorative under labeled buttons', () 
   assert.match(HOME, /chipIconWrap/);
 });
 
-test('integration: Start Scan CTA and VoiceScan remain unchanged', () => {
+// BUG-10 (Build 25 Phase 4). The three PRODUCT call-to-action surfaces below
+// shipped a Unicode sparkle glyph on Android while iOS already rendered the
+// approved KScanIcon family. A text glyph is not a product icon: it inherits the
+// font, has no variant/colour contract, and cannot be kept in visual step with
+// the icon set. These assertions encode the repaired contract — an explicit
+// KScanIcon plus a PLAIN label — and the doesNotMatch guards are what fail if
+// the sparkle is ever reintroduced.
+test('integration: BUG-10 Start Scan CTA uses visual-search KScanIcon and a plain label', () => {
   assert.match(HOME, /testID="home-luxury-start-scan"/);
-  assert.match(HOME, /title="✧ START SCAN"/);
+  assert.match(HOME, /title="START SCAN"/);
+  assert.match(HOME, /icon=\{\s*<KScanIcon\s+name="visual-search"/);
+  assert.doesNotMatch(HOME, /title="✧ START SCAN"/);
+  assert.doesNotMatch(HOME, /✧ START SCAN/);
+});
+
+test('integration: VoiceScan Coming Soon remains unchanged', () => {
   assert.match(HOME, /testID="home-luxury-voicescan-coming-soon"/);
   assert.match(HOME, /VOICE SCAN/);
   assert.match(HOME, /COMING SOON/);
   assert.match(HOME, /VOICESCAN_ENABLED/);
+});
+
+test('integration: BUG-10 ScanLanding TextScan CTA uses textscan KScanIcon and a plain label', () => {
+  assert.match(SCAN_LANDING, /import \{ KScanIcon \} from '\.\.\/icons\/kscan'/);
+  assert.match(SCAN_LANDING, /<KScanIcon name="textscan" size=\{16\} variant="compact" \/>/);
+  assert.match(SCAN_LANDING, /<Text style=\{styles\.textScanText\}>Describe an item<\/Text>/);
+  assert.match(SCAN_LANDING, /testID="scan-room-textscan"/);
+  assert.doesNotMatch(SCAN_LANDING, /✧ Describe an item/);
+  assert.doesNotMatch(SCAN_LANDING, /✧/);
+});
+
+test('integration: BUG-10 LiveScanCamera TextScan control uses textscan KScanIcon and a plain label', () => {
+  assert.match(LIVE_SCAN_CAMERA, /import \{ KScanIcon \} from '\.\.\/icons\/kscan'/);
+  assert.match(LIVE_SCAN_CAMERA, /<KScanIcon name="textscan" size=\{14\} variant="compact" \/>/);
+  assert.match(LIVE_SCAN_CAMERA, /<Text style=\{styles\.controlPillText\}>TextScan<\/Text>/);
+  assert.doesNotMatch(LIVE_SCAN_CAMERA, /✧ TextScan/);
+  assert.doesNotMatch(LIVE_SCAN_CAMERA, /✧/);
+});
+
+// The repair must not have swept up decoration. ScanResultV2 and ScanRoomHeader
+// use ✧ as a divider ornament — no label, no press target, identical on iOS —
+// and Phase 4 explicitly leaves intentional decoration alone.
+test('integration: BUG-10 did not strip decorative dividers', () => {
+  assert.match(SCAN_ROOM_HEADER, /<Text style=\{styles\.dividerText\}>✧<\/Text>/);
 });
 
 test('integration: SecondaryButton still supports icon slot used by TextScan', () => {
@@ -118,13 +167,27 @@ test('integration: chip container stays 28px and every icon renders 1:1 at 24', 
   assert.match(HOME, /height:\s*28/);
   assert.doesNotMatch(HOME, /<KScanIcon[^>]*size=\{28\}/);
 
-  // Six now: the four grid tiles, TextScan, and the Voice Scan microphone —
-  // that pill previously carried no glyph at all and was the only entry on
-  // Home identified by text alone.
+  // Seven since the BUG-10 repair: the four grid tiles, TextScan, the Voice
+  // Scan microphone (that pill previously carried no glyph at all and was the
+  // only entry on Home identified by text alone), and the hero START SCAN CTA.
+  //
+  // The CTA is deliberately NOT in the 24pt 1:1 cohort. It is an inline button
+  // icon sized to sit beside a 13pt label inside LuxuryButton, not a chip glyph
+  // in a 28px container, and iOS has rendered it at 20 since Batch 5 — matching
+  // that is the whole point of the repair. Holding it to 24 here would force
+  // Android to diverge from the platform it is being aligned to.
   const iconSizes = [...HOME.matchAll(/<KScanIcon[^>]*size=\{(\d+)\}/g)].map((m) => m[1]);
-  assert.equal(iconSizes.length, 6, 'expected every Home product icon');
-  for (const size of iconSizes) {
-    assert.equal(size, '24', 'every Home icon must render at the 1:1 size');
+  assert.equal(iconSizes.length, 7, 'expected every Home product icon');
+
+  const ctaSizes = [
+    ...HOME.matchAll(/<KScanIcon\s+name="visual-search"\s+size=\{(\d+)\}[\s\S]{0,200}?accentColor=/g),
+  ].map((m) => m[1]);
+  assert.deepEqual(ctaSizes, ['20'], 'the hero CTA icon matches the iOS 20pt inline treatment');
+
+  const chipSizes = iconSizes.filter((_, index) => index !== iconSizes.indexOf('20'));
+  assert.equal(chipSizes.length, 6, 'the six chip/grid icons remain');
+  for (const size of chipSizes) {
+    assert.equal(size, '24', 'every Home chip icon must render at the 1:1 size');
   }
 });
 

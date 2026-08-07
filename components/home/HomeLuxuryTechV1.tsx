@@ -302,7 +302,16 @@ export default function HomeLuxuryTechV1() {
           </Text>
           <PrimaryButton
             testID="home-luxury-start-scan"
-            title="✧ START SCAN"
+            title="START SCAN"
+            icon={
+              <KScanIcon
+                name="visual-search"
+                size={20}
+                variant="compact"
+                color={LUXURY.colors.inverse}
+                accentColor={LUXURY.colors.goldChampagne}
+              />
+            }
             onPress={() => router.push('/scan')}
             accessibilityLabel="Start a scan"
             accessibilityHint="Opens the scan landing"
