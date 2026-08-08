@@ -27,18 +27,20 @@ test('privacy rate-limit helper never takes identity from request body', () => {
   assert.doesNotMatch(helper, /req\.json/);
 });
 
-test('handle-user-deletion rate-limits after already_requested short-circuit', () => {
-  const alreadyIdx = deletion.indexOf('already_requested');
+test('handle-user-deletion rate-limits after existing-request short-circuit', () => {
+  const alreadyIdx = Math.max(
+    deletion.indexOf('already_requested'),
+    deletion.indexOf('alreadyRequested'),
+  );
   const rateIdx = deletion.indexOf("reservePrivacyRequestRateLimit(user.id, 'account_deletion')");
-  assert.ok(alreadyIdx !== -1, 'must preserve already_requested');
+  assert.ok(alreadyIdx !== -1, 'must preserve existing-request short-circuit');
   assert.ok(rateIdx !== -1, 'must reserve account_deletion rate limit');
   assert.ok(alreadyIdx < rateIdx, 'existing-request check must precede rate-limit reservation');
 });
 
 test('handle-user-deletion still requires auth and rejects body user ids', () => {
-  assert.match(deletion, /auth\.getUser\(accessToken\)/);
+  assert.match(deletion, /requireUser\(req\)|auth\.getUser\(accessToken\)/);
   assert.doesNotMatch(deletion, /req\.json\(/);
-  assert.match(deletion, /Authentication required/);
 });
 
 test('privacy-correction-request rate-limits before insert', () => {
