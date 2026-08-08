@@ -25,6 +25,9 @@ const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
 const LIFECYCLE_FILE = '20260722191013_account_deletion_lifecycle.sql';
 const HARDENING_FILE = '20260723021145_account_deletion_security_hardening.sql';
 const CRASH_RECOVERY_FILE = '20260723040000_account_deletion_crash_recovery.sql';
+const DR3_COLLABORATION_FILE = '20260721170559_dr3_collaborative_interactions.sql';
+const DR4_IDEMPOTENCY_FILE = '20260721183308_dr4_collab_idempotency_room_scope.sql';
+const USER_BLOCKING_FILE = '20260806153233_dressing_room_user_blocking.sql';
 
 const lifecycleSource = fs.readFileSync(path.join(MIGRATIONS_DIR, LIFECYCLE_FILE), 'utf8');
 const hardeningSource = fs.readFileSync(path.join(MIGRATIONS_DIR, HARDENING_FILE), 'utf8');
@@ -178,6 +181,21 @@ test('no migration references a schema-qualified object in a schema no migration
   assert.ok(
     createdAt <= firstUsedAt,
     'the migration creating the internal schema must not sort after the first migration that uses it',
+  );
+});
+
+test('user-blocking migration has its collaborative idempotency prerequisites in replay order', () => {
+  const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
+  for (const name of [DR3_COLLABORATION_FILE, DR4_IDEMPOTENCY_FILE, USER_BLOCKING_FILE]) {
+    assert.ok(files.includes(name), `expected migration to exist: ${name}`);
+  }
+  assert.ok(
+    files.indexOf(DR3_COLLABORATION_FILE) < files.indexOf(DR4_IDEMPOTENCY_FILE),
+    'DR3 collaboration setup must sort before DR4 idempotency hardening',
+  );
+  assert.ok(
+    files.indexOf(DR4_IDEMPOTENCY_FILE) < files.indexOf(USER_BLOCKING_FILE),
+    'DR4 idempotency setup must sort before the user-blocking migration',
   );
 });
 
