@@ -23,7 +23,7 @@ env:
     timeout: 20000
 
 - tapOn:
-    accessibilityLabel: "Start a new chat with.*"
+    text: "Start a new chat with.*"
 
 - extendedWaitUntil:
     visible:

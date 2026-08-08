@@ -9,7 +9,8 @@
 # "true" in the ios-maestro-test build profile's env block (eas.json),
 # so this flow is expected to be reachable on that profile.
 # SELECTOR STRATEGY: testID (closet-mirror-selfie-button) from app/library.tsx;
-# accessibilityLabel for the modal's photo-source buttons, which have no testID.
+# `text:` (matching the React Native accessibilityLabel) for the modal's
+# photo-source buttons, which have no testID.
 appId: ${APP_ID}
 name: "iOS Build 25 — Mirror Selfie"
 tags:
@@ -50,11 +51,11 @@ env:
 
 - assertVisible: "Mirror Selfie"
 - assertVisible:
-    accessibilityLabel: "Take a mirror selfie with the camera"
+    text: "Take a mirror selfie with the camera"
 - assertVisible:
-    accessibilityLabel: "Choose a mirror selfie from your photo library"
+    text: "Choose a mirror selfie from your photo library"
 
 - takeScreenshot: "ios-09-mirror-selfie-entry"
 
 - tapOn:
-    accessibilityLabel: "Cancel and close Mirror Selfie"
+    text: "Cancel and close Mirror Selfie"

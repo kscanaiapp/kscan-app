@@ -7,9 +7,12 @@
 # home-luxury-feature-dressing-rooms), NOT the device-local private workspace
 # at app/stylist/dressing-room/index.tsx (testID private-dressing-room).
 # BACKEND REQUIREMENT: AUTH_REQUIRED (see ios-03).
-# SELECTOR STRATEGY: accessibilityLabel is the only stable selector for the
-# create-room controls in this screen (no testID on the modal's text fields);
-# testID is used where available (home-luxury-feature-dressing-rooms).
+# SELECTOR STRATEGY: the create-room controls have no testID on the modal's
+# text fields, so they're matched by `text:` against their React Native
+# accessibilityLabel (Maestro's iOS selector for accessibilityLabel is
+# `text`, not `accessibilityLabel` — that key doesn't exist in Maestro's
+# selector schema); testID is used where available
+# (home-luxury-feature-dressing-rooms).
 appId: ${APP_ID}
 name: "iOS Build 25 — Dressing Room"
 tags:
@@ -36,7 +39,7 @@ env:
 - takeScreenshot: "ios-07-dressing-rooms-list"
 
 - tapOn:
-    accessibilityLabel: "Create new dressing room"
+    text: "Create new dressing room"
 
 - extendedWaitUntil:
     visible: "Title"
@@ -48,4 +51,4 @@ env:
 - takeScreenshot: "ios-07-create-room-form"
 
 - tapOn:
-    accessibilityLabel: "Cancel create room"
+    text: "Cancel create room"
