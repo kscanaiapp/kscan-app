@@ -5,15 +5,26 @@
 name: K Scan Staging Security Gate
 
 on:
+  workflow_call:
+    outputs:
+      deployment_required:
+        value: ${{ jobs.staging-security-gate.outputs.deployment_required }}
+      deployed_staging_sha:
+        value: ${{ jobs.staging-security-gate.outputs.deployed_staging_sha }}
+      migration_result:
+        value: ${{ jobs.staging-security-gate.outputs.migration_result }}
+      contract_result:
+        value: ${{ jobs.staging-security-gate.outputs.contract_result }}
+      health_result:
+        value: ${{ jobs.staging-security-gate.outputs.health_result }}
+      synthetic_result:
+        value: ${{ jobs.staging-security-gate.outputs.synthetic_result }}
   pull_request:
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
-  push:
-    branches:
-      - "**"
   # Manual dispatch is a deploy path, so it must carry explicit, validated intent.
   # Without these inputs a dispatch from any branch would satisfy the deploy
   # allow-list purely by being manual.
@@ -142,7 +153,6 @@ jobs:
       (needs.migration-validation.result == 'success' || needs.migration-validation.result == 'skipped') &&
       (
         github.ref == 'refs/heads/staging/production-parity' ||
-        github.base_ref == 'staging/production-parity' ||
         (
           github.event_name == 'workflow_dispatch' &&
           inputs.confirm_staging_deploy == 'DEPLOY-TO-STAGING' &&
@@ -247,16 +257,7 @@ jobs:
           if [ -d supabase/migrations ]; then
             ls supabase/migrations/*.sql | tail -5
           fi
-          # Guard against reintroducing unsupported CLI usage in tracked scripts.
-          PATTERN='db push ''--project-ref'
-          if grep -R --include='*.yml' --include='*.js' --include='*.mjs' --include='*.sh' --include='*.ps1' -nF "db push --project-ref" .github scripts security/scripts 2>/dev/null \
-            | grep -v 'Found unsupported' \
-            | grep -v 'PATTERN=' \
-            | grep -v "Guard against reintroducing"; then
-            echo "Found unsupported db-push project-ref usage"
-            exit 1
-          fi
-          unset PATTERN
+          node security/scripts/guard-unsupported-supabase-cli.js .github scripts security/scripts
 
       - name: Link staging project
         env:
@@ -473,8 +474,16 @@ jobs:
       - staging-health
       - synthetic-tests
       - contract-tests
+    outputs:
+      deployment_required: ${{ steps.verdict.outputs.deployment_required }}
+      deployed_staging_sha: ${{ steps.verdict.outputs.deployed_staging_sha }}
+      migration_result: ${{ steps.verdict.outputs.migration_result }}
+      contract_result: ${{ steps.verdict.outputs.contract_result }}
+      health_result: ${{ steps.verdict.outputs.health_result }}
+      synthetic_result: ${{ steps.verdict.outputs.synthetic_result }}
     steps:
       - name: Publish staging gate verdict
+        id: verdict
         env:
           STAGING_IMPACT: ${{ needs.classify-changes.outputs.staging_impact }}
           MOBILE_ONLY: ${{ needs.classify-changes.outputs.mobile_only }}
@@ -484,6 +493,7 @@ jobs:
           SYNTHETIC: ${{ needs.synthetic-tests.result }}
           CONTRACT: ${{ needs.contract-tests.result }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          DEPLOYED_STAGING_SHA: ${{ needs.deploy-staging.outputs.deployed_sha }}
         run: |
           set -euo pipefail
           VERDICT="PASS"
@@ -504,6 +514,18 @@ jobs:
               VERDICT="PASS WITH REPORT-ONLY FINDINGS"
             fi
           fi
+
+          if [ "$STAGING_IMPACT" = "true" ]; then
+            echo "deployment_required=true" >> "$GITHUB_OUTPUT"
+            echo "deployed_staging_sha=${DEPLOYED_STAGING_SHA:-}" >> "$GITHUB_OUTPUT"
+          else
+            echo "deployment_required=false" >> "$GITHUB_OUTPUT"
+            echo "deployed_staging_sha=NOT_APPLICABLE" >> "$GITHUB_OUTPUT"
+          fi
+          echo "migration_result=${MIGRATION}" >> "$GITHUB_OUTPUT"
+          echo "contract_result=${CONTRACT}" >> "$GITHUB_OUTPUT"
+          echo "health_result=${HEALTH}" >> "$GITHUB_OUTPUT"
+          echo "synthetic_result=${SYNTHETIC}" >> "$GITHUB_OUTPUT"
 
           {
             echo "## Staging security gate"

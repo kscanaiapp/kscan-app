@@ -1,0 +1,233 @@
+name: Staging Release Certification
+
+# The only release authority after a merge to the governed staging branch.
+# It deliberately runs after merge, not while a PR is still mutable.
+on:
+  push:
+    branches: [staging/production-parity]
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact staging commit to certify (defaults to the staging head)
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: staging-release-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    name: Resolve exact staging candidate
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.identity.outputs.sha }}
+      tree: ${{ steps.identity.outputs.tree }}
+      staging_head: ${{ steps.identity.outputs.staging_head }}
+      zap_configured: ${{ steps.config.outputs.zap_configured }}
+      testsprite_configured: ${{ steps.config.outputs.testsprite_configured }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: identity
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin staging/production-parity --quiet
+          git cat-file -e "${REQUESTED_SHA}^{commit}"
+          echo "sha=${REQUESTED_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse "${REQUESTED_SHA}^{tree}")" >> "$GITHUB_OUTPUT"
+          echo "staging_head=$(git rev-parse origin/staging/production-parity)" >> "$GITHUB_OUTPUT"
+      - id: config
+        env:
+          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
+          TESTSPRITE_ANDROID_TEST_ID: ${{ vars.TESTSPRITE_ANDROID_TEST_ID }}
+          TESTSPRITE_IOS_TEST_ID: ${{ vars.TESTSPRITE_IOS_TEST_ID }}
+          TESTSPRITE_TARGET_URL: ${{ vars.TESTSPRITE_TARGET_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "$ZAP_STAGING_URL" ] && [ -n "$ZAP_ALLOWED_HOST" ] && echo 'zap_configured=true' >> "$GITHUB_OUTPUT" || echo 'zap_configured=false' >> "$GITHUB_OUTPUT"
+          [ -n "$TESTSPRITE_ANDROID_TEST_ID" ] && [ -n "$TESTSPRITE_IOS_TEST_ID" ] && [ -n "$TESTSPRITE_TARGET_URL" ] && echo 'testsprite_configured=true' >> "$GITHUB_OUTPUT" || echo 'testsprite_configured=false' >> "$GITHUB_OUTPUT"
+
+  staging-validation:
+    name: Controlled staging validation
+    needs: candidate
+    uses: ./.github/workflows/security-staging-gate.yml
+    secrets: inherit
+
+  static-and-authorization:
+    name: Static parity and authorization
+    needs: candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+          cache: npm
+      - run: |
+          set -euo pipefail
+          npm ci
+          npm run test:security
+          npm run test:staging-parity
+          npm run test:rpc-policy
+          npm run test:provenance-quarantine
+          npm run test:staging-certification
+
+  artifact-exposure:
+    name: Candidate artifact exposure
+    needs: candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+      - id: scan
+        run: |
+          set +e
+          node security/scripts/scan-candidate-artifacts.js app.json app.config.js eas.json supabase .github --candidate-sha "${{ needs.candidate.outputs.sha }}" --output security/reports/artifact-exposure.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-artifact-exposure-${{ github.run_id }}
+          path: security/reports/artifact-exposure.json
+          if-no-files-found: error
+          retention-days: 90
+      - run: test "${{ steps.scan.outputs.exit_code }}" = 0
+
+  zap-baseline:
+    name: Candidate ZAP baseline
+    needs: candidate
+    if: needs.candidate.outputs.zap_configured == 'true'
+    uses: ./.github/workflows/zap-baseline-staging.yml
+    secrets: inherit
+
+  zap-api:
+    name: Candidate ZAP API
+    needs: candidate
+    if: needs.candidate.outputs.zap_configured == 'true'
+    uses: ./.github/workflows/zap-api-staging.yml
+    secrets: inherit
+
+  mobile-certification:
+    name: TestSprite mobile certification
+    needs: candidate
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.mobile.outputs.android }}
+      ios: ${{ steps.mobile.outputs.ios }}
+    steps:
+      - id: mobile
+        env:
+          READY: ${{ needs.candidate.outputs.testsprite_configured }}
+          ANDROID_TEST: ${{ vars.TESTSPRITE_ANDROID_TEST_ID }}
+          IOS_TEST: ${{ vars.TESTSPRITE_IOS_TEST_ID }}
+          TARGET_URL: ${{ vars.TESTSPRITE_TARGET_URL }}
+        run: |
+          set -uo pipefail
+          if [ "$READY" != true ] || ! command -v testsprite >/dev/null 2>&1 || ! testsprite auth status >/dev/null 2>&1; then
+            echo 'android=OPERATIONAL_FAILURE' >> "$GITHUB_OUTPUT"
+            echo 'ios=OPERATIONAL_FAILURE' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          testsprite test run "$ANDROID_TEST" --target-url "$TARGET_URL" --wait --timeout 600 --output json && ANDROID=PASS || ANDROID=BLOCKED
+          testsprite test run "$IOS_TEST" --target-url "$TARGET_URL" --wait --timeout 600 --output json && IOS=PASS || IOS=BLOCKED
+          echo "android=$ANDROID" >> "$GITHUB_OUTPUT"
+          echo "ios=$IOS" >> "$GITHUB_OUTPUT"
+
+  final-verdict:
+    name: Final staging certification verdict
+    needs: [candidate, staging-validation, static-and-authorization, artifact-exposure, zap-baseline, zap-api, mobile-certification]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      verdict: ${{ steps.verdict.outputs.verdict }}
+      promotion_eligible: ${{ steps.verdict.outputs.promotion_eligible }}
+      candidate_sha: ${{ needs.candidate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+          fetch-depth: 0
+      - id: verdict
+        env:
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+          CANDIDATE_TREE: ${{ needs.candidate.outputs.tree }}
+          DEPLOYMENT_REQUIRED: ${{ needs.staging-validation.outputs.deployment_required }}
+          DEPLOYED_SHA: ${{ needs.staging-validation.outputs.deployed_staging_sha }}
+          MIGRATION: ${{ needs.staging-validation.outputs.migration_result }}
+          CONTRACT: ${{ needs.staging-validation.outputs.contract_result }}
+          HEALTH: ${{ needs.staging-validation.outputs.health_result }}
+          SYNTHETIC: ${{ needs.staging-validation.outputs.synthetic_result }}
+          STATIC_RESULT: ${{ needs.static-and-authorization.result }}
+          ARTIFACT_RESULT: ${{ needs.artifact-exposure.result }}
+          ZAP_CONFIGURED: ${{ needs.candidate.outputs.zap_configured }}
+          ZAP_BASELINE_RESULT: ${{ needs.zap-baseline.result }}
+          ZAP_API_RESULT: ${{ needs.zap-api.result }}
+          TESTSPRITE_ANDROID: ${{ needs.mobile-certification.outputs.android }}
+          TESTSPRITE_IOS: ${{ needs.mobile-certification.outputs.ios }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          git fetch origin staging/production-parity --quiet
+          status() { [ "$1" = success ] && echo PASS || echo OPERATIONAL_FAILURE; }
+          child_status() { case "$1" in success) echo PASS ;; skipped) echo NOT_APPLICABLE ;; failure) echo BLOCKED ;; *) echo OPERATIONAL_FAILURE ;; esac; }
+          zap_status() { [ "$ZAP_CONFIGURED" = true ] && status "$1" || echo OPERATIONAL_FAILURE; }
+          cat > certification-input.json <<EOF
+          {"candidate_commit_sha":"$CANDIDATE_SHA","candidate_tree_sha":"$CANDIDATE_TREE","staging_branch_head_sha":"$(git rev-parse origin/staging/production-parity)","deployed_staging_sha":"$DEPLOYED_SHA","deployment_required":"$DEPLOYMENT_REQUIRED","certification_run_id":"$RUN_ID","static_security":"$(status "$STATIC_RESULT")","migration_validation":"$(child_status "${MIGRATION:-}")","contract_tests":"$(child_status "${CONTRACT:-}")","staging_parity":"$(status "$STATIC_RESULT")","staging_health":"$(child_status "${HEALTH:-}")","synthetic_auth":"$(child_status "${SYNTHETIC:-}")","rpc_rls_authorization":"$(status "$STATIC_RESULT")","artifact_exposure":"$(status "$ARTIFACT_RESULT")","zap_baseline":"$(zap_status "$ZAP_BASELINE_RESULT")","zap_api":"$(zap_status "$ZAP_API_RESULT")","testsprite_android":"${TESTSPRITE_ANDROID:-OPERATIONAL_FAILURE}","testsprite_ios":"${TESTSPRITE_IOS:-OPERATIONAL_FAILURE}"}
+          EOF
+          set +e
+          node security/scripts/build-staging-certification.js --input certification-input.json --output security/reports/staging-certification.json
+          CODE=$?
+          set -e
+          VERDICT="$(node -p "require('./security/reports/staging-certification.json').final_verdict")"
+          ELIGIBLE="$(node -p "require('./security/reports/staging-certification.json').promotion_eligible")"
+          echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+          echo "promotion_eligible=$ELIGIBLE" >> "$GITHUB_OUTPUT"
+          cat security/reports/staging-certification.json >> "$GITHUB_STEP_SUMMARY"
+          exit "$CODE"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-certification-${{ github.run_id }}
+          path: security/reports/staging-certification.json
+          if-no-files-found: error
+          retention-days: 90
+
+  promote:
+    name: Create certified master promotion
+    needs: final-verdict
+    if: needs.final-verdict.outputs.promotion_eligible == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.final-verdict.outputs.candidate_sha }}
+          fetch-depth: 0
+      - env:
+          GH_TOKEN: ${{ secrets.PROMOTION_GITHUB_TOKEN }}
+          CANDIDATE: ${{ needs.final-verdict.outputs.candidate_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          [ -n "$GH_TOKEN" ] || { echo 'PROMOTION_GITHUB_TOKEN is required so the generated PR triggers required checks.'; exit 1; }
+          BRANCH="promotion/staging-${CANDIDATE:0:8}"
+          git push origin "$CANDIDATE:refs/heads/$BRANCH"
+          PR_URL="$(gh pr create --base master --head "$BRANCH" --title "promote(staging): certified ${CANDIDATE:0:8} to master" --body "Certified staging candidate: $CANDIDATE\nCertification run: $RUN_URL\nProduction was not deployed.")"
+          gh api "repos/${GITHUB_REPOSITORY}/rules/branches/master" --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context' | grep -Fx 'Master promotion tree equivalence' >/dev/null || {
+            echo 'MASTER_CI_BOOTSTRAP_ACTION_REQUIRED: master does not yet require Master promotion tree equivalence.'
+            exit 1
+          }
+          gh pr merge --auto --merge "$PR_URL"
