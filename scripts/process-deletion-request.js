@@ -61,6 +61,12 @@ const USER_DATA_RESOURCES = [
   { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+  // Privacy-rights abuse rate limiter (Issue #47). `user_id` is a bare uuid
+  // with no FK to auth.users, so the Auth delete cascades nothing here and the
+  // migration's ~1% amortized sweep is best-effort, not a deletion guarantee.
+  // The rows must therefore be purged directly, before the Auth delete.
+  // `optional` because environments predating the migration lack the table.
+  { table: 'privacy_request_rate_limits', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
 ];
 
 const DIRECT_DELETE_RESOURCES = USER_DATA_RESOURCES.filter(
