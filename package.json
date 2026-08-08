@@ -36,6 +36,8 @@
     "staging:deploy-function": "node scripts/deploy-staging-function.mjs",
     "staging:rollback-function": "node scripts/rollback-staging-function.mjs",
     "verify:security": "node security/scripts/run-security-validation.js",
+    "verify:staging-parity": "node security/scripts/verify-staging-parity.js",
+    "test:staging-parity": "node --test __tests__/security/stagingParityVerifier.test.js",
     "test:staging-v2-guard": "node --test __tests__/staging/stagingV2WriteGuard.test.js",
     "stagingv2:apply-migrations": "node scripts/staging-v2/apply-migrations.mjs",
     "stagingv2:deploy-function": "node scripts/staging-v2/deploy-function.mjs",
