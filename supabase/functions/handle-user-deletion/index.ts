@@ -1,4 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  rateLimitedResponse,
+  reservePrivacyRequestRateLimit,
+} from '../_shared/privacyRequestRateLimit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,11 +144,20 @@ Deno.serve(async (req) => {
     }
 
     const openRequests = await openRequestResponse.json();
+    // Existing pending/processing requests short-circuit BEFORE rate limiting so
+    // a user can always recover/observe already_requested state even if they
+    // previously exhausted the short abuse window while creating a request.
     if (openRequests.length > 0) {
       return json({
         status: 'already_requested',
         requested_at: openRequests[0].requested_at,
       });
+    }
+
+    // Rate-limit only when we are about to create a new deletion request.
+    const rate = await reservePrivacyRequestRateLimit(user.id, 'account_deletion');
+    if (!rate.allowed) {
+      return rateLimitedResponse(corsHeaders, rate.retry_after_seconds);
     }
 
     const insertResponse = await insertDeletionRequest(user.id);
