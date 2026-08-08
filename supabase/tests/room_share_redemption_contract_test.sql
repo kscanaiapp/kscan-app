@@ -311,8 +311,8 @@ select is(
 
 select is(
   (select count(*) from pg_policies where schemaname = 'public' and tablename = 'room_shares'),
-  1::bigint,
-  'room_shares owner policy count is unchanged'
+  3::bigint,
+  'room_shares has the owner policy plus the two recipient-read policies'
 );
 
 select is(
