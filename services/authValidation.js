@@ -49,8 +49,23 @@ function validateAuthInput(mode, email, password, confirmPassword) {
 function mapAuthError(msg, mode) {
   const lower = (msg || '').toLowerCase();
 
+  // Checked before the credential branches: a misconfigured build must never be
+  // reported as a bad password, because retyping the password cannot fix it.
+  if (lower.includes('supabase configuration error')) {
+    return "This app build isn't configured correctly, so it can't reach your account. Please reinstall or update to the latest build.";
+  }
+
+  // Only Supabase Auth's own invalid-credentials response may produce the
+  // incorrect-password message.
   if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
     return 'Email or password is incorrect. Try again.';
+  }
+  if (
+    lower.includes('account_unavailable') ||
+    lower.includes('account is locked') ||
+    lower.includes('pending_deletion')
+  ) {
+    return 'This account is not available. Contact support if you think this is a mistake.';
   }
   if (lower.includes('email not confirmed')) {
     return "Your email hasn't been confirmed yet. Check your inbox for the confirmation link.";
@@ -84,8 +99,10 @@ function mapAuthError(msg, mode) {
     return 'Network error. Check your connection and try again.';
   }
 
+  // Unmatched failures are backend/transport problems, not credential problems.
+  // Blaming the password here is what made an outage look like a wrong password.
   if (mode === 'sign-in') {
-    return 'Sign-in failed. Please check your email and password and try again.';
+    return "We couldn't sign you in right now. This is a problem on our end — please try again in a moment.";
   }
   if (mode === 'create-account') {
     return "We couldn't create your account right now. Please try again.";
