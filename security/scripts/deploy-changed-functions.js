@@ -43,8 +43,8 @@ function main() {
   }
 
   const computed = computeFunctionManifest(baseSha, headSha);
-  const { approved, heldBack } = filterToApproved(computed.manifest);
-  const result = { ...computed, heldBack };
+  const { approved, heldBack, quarantined } = filterToApproved(computed.manifest);
+  const result = { ...computed, heldBack, quarantined };
 
   // Print the manifest before deploying anything, per the required "print
   // the final function manifest before deploying" behavior.
@@ -52,6 +52,9 @@ function main() {
   console.error(`Approved for automatic deployment: ${approved.length ? approved.join(', ') : '(none)'}`);
   if (heldBack.length > 0) {
     console.error(`Changed in source but held back — not on the staging deployment allowlist: ${heldBack.join(', ')}`);
+  }
+  if (quarantined.length > 0) {
+    console.error(`QUARANTINED — live bundle has no proven source in this repository, refusing to deploy (see security/staging/provenance-exceptions.json, issue #46): ${quarantined.join(', ')}`);
   }
   if (result.refused.length > 0) {
     console.error(`Refused (not on disk, not a valid deploy target): ${result.refused.join(', ')}`);

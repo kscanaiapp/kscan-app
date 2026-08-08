@@ -1,0 +1,2303 @@
+{
+  "$schema_version": 1,
+  "staging_project_ref": "yzqjvdfgefveprobvvyw",
+  "production_project_ref_blocked": "wyyuqfdxucjksghsmhry",
+  "staging_branch": "staging/production-parity",
+  "generated_at": "2026-08-08T00:00:00Z",
+  "root_cause": "This project carries a project-wide ALTER DEFAULT PRIVILEGES ... GRANT EXECUTE ON FUNCTIONS TO anon. A \"revoke all on function ... from public\" therefore does NOT remove the direct anon grant created at CREATE time, so every function added after the 20260803214145/20260803214253 hardening pass arrived anon-executable. Documented in 20260803020100_provider_request_security_revoke_anon.sql:3-16 and 20260803214253:1-8.",
+  "classification_counts": {
+    "SERVICE_ROLE_ONLY": 15,
+    "AUTHENTICATED_INTENTIONAL": 48,
+    "TRIGGER_ONLY": 15,
+    "PUBLIC_INTENTIONAL": 3,
+    "INTERNAL_ONLY": 1
+  },
+  "remediation_summary": {
+    "revoke_anon": [
+      "public.append_deletion_state_transition(uuid,uuid,text,text,text,text,text,jsonb)",
+      "public.check_and_increment_scan_identify_daily_usage(uuid,text,integer)",
+      "public.claim_deletion_requests_for_purge(text,integer,interval)",
+      "public.finalize_elise_generation_operation(uuid,text,uuid,text)",
+      "public.get_my_deletion_status()",
+      "public.heartbeat_deletion_request_lease(uuid,text,interval)",
+      "public.increment_stylechat_daily_usage_idempotent(text)",
+      "public.list_deletion_purge_candidates(integer)",
+      "public.mark_deletion_request_purged(uuid,text)",
+      "public.mark_elise_generation_generating(uuid)",
+      "public.peek_restoration_resend_by_email(text)",
+      "public.preview_pending_deletion_backfill()",
+      "public.reconcile_orphaned_purging_requests(integer)",
+      "public.register_user_device_session(text,text,text,uuid)",
+      "public.reserve_elise_generation_operation(uuid,uuid,text,text,text)",
+      "public.restore_account_by_token_hash(text)",
+      "public.revalidate_elise_generation_context(uuid,uuid,uuid)",
+      "public.revoke_user_device_sessions(uuid)",
+      "public.revoke_user_sessions(uuid)",
+      "public.rotate_restoration_token_by_email(text,text)",
+      "public.schedule_deletion_retry_or_fail(uuid,text,text,text,integer)",
+      "public.set_saved_scans_updated_at()",
+      "public.set_user_stylist_preferences_updated_at()"
+    ],
+    "revoke_authenticated": [
+      "public.append_deletion_state_transition(uuid,uuid,text,text,text,text,text,jsonb)",
+      "public.check_and_increment_scan_identify_daily_usage(uuid,text,integer)",
+      "public.claim_deletion_requests_for_purge(text,integer,interval)",
+      "public.enforce_minor_privacy_defaults()",
+      "public.handle_new_user_privacy()",
+      "public.heartbeat_deletion_request_lease(uuid,text,interval)",
+      "public.list_deletion_purge_candidates(integer)",
+      "public.mark_deletion_request_purged(uuid,text)",
+      "public.normalize_dressing_room_note()",
+      "public.peek_restoration_resend_by_email(text)",
+      "public.preview_pending_deletion_backfill()",
+      "public.reconcile_orphaned_purging_requests(integer)",
+      "public.restore_account_by_token_hash(text)",
+      "public.revoke_user_device_sessions(uuid)",
+      "public.revoke_user_sessions(uuid)",
+      "public.rotate_restoration_token_by_email(text,text)",
+      "public.schedule_deletion_retry_or_fail(uuid,text,text,text,integer)",
+      "public.set_profiles_updated_at()",
+      "public.set_provider_request_limits_updated_at()",
+      "public.set_saved_scans_updated_at()",
+      "public.set_style_objects_updated_at()",
+      "public.set_updated_at()",
+      "public.set_user_stylist_preferences_updated_at()",
+      "public.update_privacy_settings_updated_at()"
+    ],
+    "harden_search_path": [
+      "public.normalize_dressing_room_note()",
+      "public.set_profiles_updated_at()",
+      "public.set_style_objects_updated_at()",
+      "public.set_updated_at()"
+    ],
+    "status": "APPLIED",
+    "applied_migrations": [
+      "20260808115552_harden_trigger_function_search_path",
+      "20260808115735_enforce_rpc_privilege_boundary",
+      "20260808120214_revoke_public_execute_on_saved_scans_trigger"
+    ]
+  },
+  "rls_enabled_no_policy_expected": [
+    {
+      "table": "public.deletion_state_transitions",
+      "reason": "Append-only deletion audit ledger written only through SECURITY DEFINER functions with service_role. Intentional deny-all for client roles."
+    },
+    {
+      "table": "public.product_catalog",
+      "reason": "Service-role catalog data; no client-facing read path. Intentional deny-all."
+    },
+    {
+      "table": "public.provider_request_limits",
+      "reason": "Provider quota configuration owned by service_role. Intentional deny-all."
+    },
+    {
+      "table": "public.provider_security_events",
+      "reason": "Provider abuse telemetry written by service_role. Intentional deny-all."
+    },
+    {
+      "table": "public.style_chat_burst_usage",
+      "reason": "Burst counters mutated only by SECURITY DEFINER quota RPCs. Intentional deny-all."
+    },
+    {
+      "table": "public.style_outfit_burst_usage",
+      "reason": "Burst counters mutated only by SECURITY DEFINER quota RPCs. Intentional deny-all."
+    },
+    {
+      "table": "public.stylechat_quota_events",
+      "reason": "Quota event ledger written by SECURITY DEFINER RPCs. Intentional deny-all."
+    },
+    {
+      "table": "public.waitlist_signups",
+      "reason": "Marketing waitlist intake handled by service_role only. Intentional deny-all."
+    },
+    {
+      "table": "internal.edge_function_errors",
+      "reason": "Lives in the unexposed internal schema, absent from the PostgREST exposed-schema list. Intentional deny-all."
+    },
+    {
+      "table": "public.privacy_request_rate_limits",
+      "reason": "Rate-limit counters are reachable only through the SECURITY DEFINER reserve RPC held by service_role. Intentional deny-all; adding a client policy would expose other users counters."
+    }
+  ],
+  "functions": [
+    {
+      "schema": "public",
+      "name": "append_deletion_state_transition",
+      "arguments": "(uuid,uuid,text,text,text,text,text,jsonb)",
+      "signature": "public.append_deletion_state_transition(uuid,uuid,text,text,text,text,text,jsonb)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "SECURITY DEFINER with no authorization check of any kind; writes caller-supplied rows into the append-only deletion audit ledger. Client EXECUTE would allow forging or poisoning deletion audit history.",
+      "callers": [
+        "service_role: supabase/functions/process-account-deletions/index.ts:445, _shared/deletion/common.ts:346; also PERFORMed inside other SECURITY DEFINER functions (runs as owner, unaffected by these grants)"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "block_dressing_room_user",
+      "arguments": "(uuid)",
+      "signature": "public.block_dressing_room_user(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "build_owned_item_snapshot",
+      "arguments": "(text,uuid,uuid)",
+      "signature": "public.build_owned_item_snapshot(text,uuid,uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Helper evaluated inside RLS predicates or SECURITY INVOKER paths. RLS predicates evaluate as the querying role, so authenticated EXECUTE is required for ordinary reads to succeed.",
+      "callers": [
+        "RLS predicate / invoker path"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "can_access_room_messages",
+      "arguments": "(uuid)",
+      "signature": "public.can_access_room_messages(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Helper evaluated inside RLS predicates or SECURITY INVOKER paths. RLS predicates evaluate as the querying role, so authenticated EXECUTE is required for ordinary reads to succeed.",
+      "callers": [
+        "RLS predicate / invoker path"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "can_react_to_dressing_room_item",
+      "arguments": "(uuid)",
+      "signature": "public.can_react_to_dressing_room_item(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Helper evaluated inside RLS predicates or SECURITY INVOKER paths. RLS predicates evaluate as the querying role, so authenticated EXECUTE is required for ordinary reads to succeed.",
+      "callers": [
+        "RLS predicate / invoker path"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "cast_outfit_decision_vote",
+      "arguments": "(uuid,uuid)",
+      "signature": "public.cast_outfit_decision_vote(uuid,uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "check_and_increment_scan_identify_daily_usage",
+      "arguments": "(uuid,text,integer)",
+      "signature": "public.check_and_increment_scan_identify_daily_usage(uuid,text,integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Its own guard is anon-bypassable: 20260709130346:69 only compares auth.uid() to p_user_id when auth.uid() is not null, and for anon auth.uid() is null, so any uuid quota can be read and exhausted. Only caller is service-role.",
+      "callers": [
+        "service_role: supabase/functions/scan-identify/index.ts:1153 via catalogClient (index.ts:1799)"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "check_and_increment_style_outfit_burst",
+      "arguments": "(integer)",
+      "signature": "public.check_and_increment_style_outfit_burst(integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "check_and_increment_stylechat_burst",
+      "arguments": "(integer)",
+      "signature": "public.check_and_increment_stylechat_burst(integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "claim_deletion_requests_for_purge",
+      "arguments": "(text,integer,interval)",
+      "signature": "public.claim_deletion_requests_for_purge(text,integer,interval)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "MEDIUM",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Deletion purge worker claim. No authorization check beyond a worker_id length test.",
+      "callers": [
+        "service_role: supabase/functions/process-account-deletions/index.ts:673"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "complete_provider_request",
+      "arguments": "(uuid)",
+      "signature": "public.complete_provider_request(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "consume_stylechat_request_quota",
+      "arguments": "(text)",
+      "signature": "public.consume_stylechat_request_quota(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "\"\"",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": false,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "create_dressing_room_message",
+      "arguments": "(uuid,text,uuid,uuid)",
+      "signature": "public.create_dressing_room_message(uuid,text,uuid,uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "create_look_from_dressing_room_items",
+      "arguments": "(uuid,text,text,uuid[])",
+      "signature": "public.create_look_from_dressing_room_items(uuid,text,text,uuid[])",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "create_look_from_owned_items",
+      "arguments": "(text,text,text,text,text,text,text,text,text,text,jsonb)",
+      "signature": "public.create_look_from_owned_items(text,text,text,text,text,text,text,text,text,text,jsonb)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "create_or_get_room_share",
+      "arguments": "(uuid)",
+      "signature": "public.create_or_get_room_share(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "dr3_is_uuid_v4",
+      "arguments": "(uuid)",
+      "signature": "public.dr3_is_uuid_v4(uuid)",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Helper evaluated inside RLS predicates or SECURITY INVOKER paths. RLS predicates evaluate as the querying role, so authenticated EXECUTE is required for ordinary reads to succeed.",
+      "callers": [
+        "RLS predicate / invoker path"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "dr3_payload_hash",
+      "arguments": "(text)",
+      "signature": "public.dr3_payload_hash(text)",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog, public, extensions",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Helper evaluated inside RLS predicates or SECURITY INVOKER paths. RLS predicates evaluate as the querying role, so authenticated EXECUTE is required for ordinary reads to succeed.",
+      "callers": [
+        "RLS predicate / invoker path"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "enforce_dressing_room_message_flat_thread",
+      "arguments": "()",
+      "signature": "public.enforce_dressing_room_message_flat_thread()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog, public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": false,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE. Already had no client grants.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "enforce_minor_privacy_defaults",
+      "arguments": "()",
+      "signature": "public.enforce_minor_privacy_defaults()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "ensure_privacy_settings",
+      "arguments": "()",
+      "signature": "public.ensure_privacy_settings()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "evaluate_provider_abuse_state",
+      "arguments": "(uuid,text)",
+      "signature": "public.evaluate_provider_abuse_state(uuid,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "finalize_elise_generation_operation",
+      "arguments": "(uuid,text,uuid,text)",
+      "signature": "public.finalize_elise_generation_operation(uuid,text,uuid,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Elise generation internals; auth.uid() required.",
+      "callers": [
+        "supabase/functions/stylechat-generate/generationSafety.ts:179 (user JWT)"
+      ],
+      "remediation": [
+        "REVOKE_ANON"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "get_item_reaction_counts",
+      "arguments": "(uuid[])",
+      "signature": "public.get_item_reaction_counts(uuid[])",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "PUBLIC_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": true,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": true,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Aggregate reaction counts rendered on the unauthenticated share route; body hardened in 20260803214145.",
+      "callers": [
+        "client anon: services/styleObjects.ts:876 <- app/(public)/rooms/[token].tsx:867,912"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "get_my_deletion_status",
+      "arguments": "()",
+      "signature": "public.get_my_deletion_status()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Scoped to auth.uid(); harmless for anon but not an anonymous contract.",
+      "callers": [
+        "no in-repo caller; retained as an authenticated contract"
+      ],
+      "remediation": [
+        "REVOKE_ANON"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "get_outfit_decision_vote_counts",
+      "arguments": "(uuid)",
+      "signature": "public.get_outfit_decision_vote_counts(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "get_public_room_decision_preview",
+      "arguments": "(text)",
+      "signature": "public.get_public_room_decision_preview(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "PUBLIC_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": true,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": true,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Public outfit-decision preview rendered on the unauthenticated share route.",
+      "callers": [
+        "client anon: services/outfitDecisions.ts:282 <- app/(public)/rooms/[token].tsx:275,1143"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "get_public_room_preview",
+      "arguments": "(text)",
+      "signature": "public.get_public_room_preview(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "PUBLIC_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": true,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": true,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Public share-link preview consumed by the external kscan.app /api/rooms/:token backend. Anon EXECUTE is a deliberate public contract.",
+      "callers": [
+        "external: https://kscan.app/api/rooms (services/roomDeepLinks.js:1-2, app/(public)/rooms/[token].tsx:161)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "get_stylechat_daily_usage",
+      "arguments": "()",
+      "signature": "public.get_stylechat_daily_usage()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "handle_new_user_privacy",
+      "arguments": "()",
+      "signature": "public.handle_new_user_privacy()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "\"\"",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "handle_new_user",
+      "arguments": "()",
+      "signature": "public.handle_new_user()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "\"\"",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "heartbeat_deletion_request_lease",
+      "arguments": "(uuid,text,interval)",
+      "signature": "public.heartbeat_deletion_request_lease(uuid,text,interval)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "MEDIUM",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Deletion worker lease heartbeat. No authorization check.",
+      "callers": [
+        "service_role: supabase/functions/process-account-deletions/index.ts:400"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "increment_style_chat_usage",
+      "arguments": "()",
+      "signature": "public.increment_style_chat_usage()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "increment_style_outfit_daily_usage",
+      "arguments": "(integer)",
+      "signature": "public.increment_style_outfit_daily_usage(integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "increment_stylechat_daily_usage_idempotent",
+      "arguments": "(text)",
+      "signature": "public.increment_stylechat_daily_usage_idempotent(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "StyleChat quota accounting; auth.uid() required (raises 28000).",
+      "callers": [
+        "supabase/functions/stylechat-generate/index.ts:1628 (user JWT)"
+      ],
+      "remediation": [
+        "REVOKE_ANON"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "increment_stylechat_daily_usage",
+      "arguments": "()",
+      "signature": "public.increment_stylechat_daily_usage()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "is_active_account",
+      "arguments": "()",
+      "signature": "public.is_active_account()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "\"\"",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Helper evaluated inside RLS predicates or SECURITY INVOKER paths. RLS predicates evaluate as the querying role, so authenticated EXECUTE is required for ordinary reads to succeed.",
+      "callers": [
+        "RLS predicate / invoker path"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "join_room_via_share_token",
+      "arguments": "(text)",
+      "signature": "public.join_room_via_share_token(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "list_deletion_purge_candidates",
+      "arguments": "(integer)",
+      "signature": "public.list_deletion_purge_candidates(integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Returns SETOF deletion_requests including restoration_token_hash. No authorization check.",
+      "callers": [
+        "service_role: supabase/functions/process-account-deletions/index.ts:574"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "list_dressing_room_blocked_users",
+      "arguments": "()",
+      "signature": "public.list_dressing_room_blocked_users()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "list_dressing_room_messages",
+      "arguments": "(uuid,integer,timestamp with time zone,uuid,text)",
+      "signature": "public.list_dressing_room_messages(uuid,integer,timestamp with time zone,uuid,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "list_shared_rooms_for_me",
+      "arguments": "()",
+      "signature": "public.list_shared_rooms_for_me()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": false,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "mark_deletion_request_purged",
+      "arguments": "(uuid,text)",
+      "signature": "public.mark_deletion_request_purged(uuid,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "MEDIUM",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Deletion worker completion; a null p_worker_id bypasses the worker match.",
+      "callers": [
+        "service_role: supabase/functions/process-account-deletions/index.ts:524"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "mark_elise_generation_generating",
+      "arguments": "(uuid)",
+      "signature": "public.mark_elise_generation_generating(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Elise generation internals; auth.uid() required.",
+      "callers": [
+        "supabase/functions/stylechat-generate/generationSafety.ts:146 (user JWT)"
+      ],
+      "remediation": [
+        "REVOKE_ANON"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "normalize_dressing_room_note",
+      "arguments": "()",
+      "signature": "public.normalize_dressing_room_note()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog, public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "peek_restoration_resend_by_email",
+      "arguments": "(text)",
+      "signature": "public.peek_restoration_resend_by_email(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public, auth",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "SECURITY DEFINER, no authorization check; returns matched true/false for an arbitrary email. Client EXECUTE is an account-enumeration oracle that bypasses the deliberately enumeration-safe Edge Function wrapper.",
+      "callers": [
+        "service_role: supabase/functions/resend-restoration-email/index.ts:82"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "prevent_inspiration_item_media_rewrite",
+      "arguments": "()",
+      "signature": "public.prevent_inspiration_item_media_rewrite()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE. Already had no client grants.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "preview_pending_deletion_backfill",
+      "arguments": "()",
+      "signature": "public.preview_pending_deletion_backfill()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public, auth",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "MEDIUM",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Administrative backfill preview; exposes pending deletion requests and auth.users email existence. No callers at all.",
+      "callers": [
+        "none"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "reconcile_orphaned_purging_requests",
+      "arguments": "(integer)",
+      "signature": "public.reconcile_orphaned_purging_requests(integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "MEDIUM",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Deletion worker reconciliation. No authorization check.",
+      "callers": [
+        "service_role: supabase/functions/process-account-deletions/index.ts:661"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "refund_stylechat_request_quota_for_user",
+      "arguments": "(uuid,text)",
+      "signature": "public.refund_stylechat_request_quota_for_user(uuid,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "\"\"",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "refund_stylechat_request_quota",
+      "arguments": "(text)",
+      "signature": "public.refund_stylechat_request_quota(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "INTERNAL_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": false,
+      "reason": "No role holds EXECUTE; reachable only as the function owner.",
+      "callers": [
+        "owner only"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "register_user_device_session",
+      "arguments": "(text,text,text,uuid)",
+      "signature": "public.register_user_device_session(text,text,text,uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Self-authorizing (auth.uid() + is_active_account) but never an anonymous contract.",
+      "callers": [
+        "no in-repo caller"
+      ],
+      "remediation": [
+        "REVOKE_ANON"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "release_provider_request",
+      "arguments": "(uuid,text)",
+      "signature": "public.release_provider_request(uuid,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "remove_shared_room_for_me",
+      "arguments": "(text)",
+      "signature": "public.remove_shared_room_for_me(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": false,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "reserve_elise_generation_operation",
+      "arguments": "(uuid,uuid,text,text,text)",
+      "signature": "public.reserve_elise_generation_operation(uuid,uuid,text,text,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Elise generation internals. Raises 28000 when auth.uid() is null, so anon EXECUTE is dead but should not be reachable.",
+      "callers": [
+        "supabase/functions/stylechat-generate/generationSafety.ts:121 (user JWT -> authenticated)"
+      ],
+      "remediation": [
+        "REVOKE_ANON"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "reserve_privacy_request_rate_limit",
+      "arguments": "(uuid,text,integer,integer)",
+      "signature": "public.reserve_privacy_request_rate_limit(uuid,text,integer,integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Issue #47 privacy-request abuse limiter. Edge Functions validate the caller JWT first and then call this RPC with the service_role client using the already-validated user id, so no client role may reach it directly.",
+      "callers": [
+        "service_role: supabase/functions/_shared/privacyRequestRateLimit.ts via handle-user-deletion, privacy-correction-request, privacy-data-export"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "reserve_provider_request",
+      "arguments": "(text,text,uuid,text,numeric)",
+      "signature": "public.reserve_provider_request(text,text,uuid,text,numeric)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "resolve_dressing_room_collaboration_access",
+      "arguments": "(uuid)",
+      "signature": "public.resolve_dressing_room_collaboration_access(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "restore_account_by_token_hash",
+      "arguments": "(text)",
+      "signature": "public.restore_account_by_token_hash(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "MEDIUM",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Gated by knowledge of a stored SHA-256 token hash rather than by role, and invoked only by the restore-account Edge Function with service_role.",
+      "callers": [
+        "service_role: supabase/functions/restore-account/index.ts:32"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "revalidate_elise_generation_context",
+      "arguments": "(uuid,uuid,uuid)",
+      "signature": "public.revalidate_elise_generation_context(uuid,uuid,uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Elise generation internals; auth.uid() required.",
+      "callers": [
+        "supabase/functions/stylechat-generate/generationSafety.ts:158 (user JWT)"
+      ],
+      "remediation": [
+        "REVOKE_ANON"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "revoke_room_share",
+      "arguments": "(uuid)",
+      "signature": "public.revoke_room_share(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "revoke_user_device_sessions",
+      "arguments": "(uuid)",
+      "signature": "public.revoke_user_device_sessions(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "SECURITY DEFINER, arbitrary p_user_id, no authorization check; revokes the device-session registry for any user.",
+      "callers": [
+        "service_role, indirect via revoke_user_sessions (20260723021635:45)"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "revoke_user_sessions",
+      "arguments": "(uuid)",
+      "signature": "public.revoke_user_sessions(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public, auth",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "SECURITY DEFINER, takes an arbitrary p_user_id and performs NO authorization check: deletes auth.refresh_tokens and auth.sessions for that user. Client EXECUTE would allow forced global sign-out of any account by UUID.",
+      "callers": [
+        "service_role: supabase/functions/_shared/deletion/common.ts:310, supabase/functions/restore-account/index.ts:102"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "rotate_restoration_token_by_email",
+      "arguments": "(text,text)",
+      "signature": "public.rotate_restoration_token_by_email(text,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public, auth",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "SECURITY DEFINER, no authorization check; writes a caller-supplied restoration_token_hash for any deactivated account, which combined with restore_account_by_token_hash allows cancelling another user account deletion.",
+      "callers": [
+        "service_role: supabase/functions/resend-restoration-email/index.ts:100"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "save_shared_room_for_me",
+      "arguments": "(text)",
+      "signature": "public.save_shared_room_for_me(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": false,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "schedule_deletion_retry_or_fail",
+      "arguments": "(uuid,text,text,text,integer)",
+      "signature": "public.schedule_deletion_retry_or_fail(uuid,text,text,text,integer)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "MEDIUM",
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Deletion worker retry scheduling. No authorization check.",
+      "callers": [
+        "service_role: supabase/functions/process-account-deletions/index.ts:697"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_deletion_requests_updated_at",
+      "arguments": "()",
+      "signature": "public.set_deletion_requests_updated_at()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_dressing_room_item_reaction",
+      "arguments": "(uuid,uuid,text,boolean,uuid)",
+      "signature": "public.set_dressing_room_item_reaction(uuid,uuid,text,boolean,uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_outfit_decision_state",
+      "arguments": "(uuid,text,uuid)",
+      "signature": "public.set_outfit_decision_state(uuid,text,uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_profiles_updated_at",
+      "arguments": "()",
+      "signature": "public.set_profiles_updated_at()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog, public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_provider_request_limits_updated_at",
+      "arguments": "()",
+      "signature": "public.set_provider_request_limits_updated_at()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_saved_scans_updated_at",
+      "arguments": "()",
+      "signature": "public.set_saved_scans_updated_at()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_shared_room_memberships_updated_at",
+      "arguments": "()",
+      "signature": "public.set_shared_room_memberships_updated_at()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": false,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE. Already had no client grants.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_style_objects_updated_at",
+      "arguments": "()",
+      "signature": "public.set_style_objects_updated_at()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog, public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_updated_at",
+      "arguments": "()",
+      "signature": "public.set_updated_at()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "pg_catalog, public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED",
+        "HARDEN_SEARCH_PATH"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "set_user_stylist_preferences_updated_at",
+      "arguments": "()",
+      "signature": "public.set_user_stylist_preferences_updated_at()",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_ANON",
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "share_looks_to_outfit_decision",
+      "arguments": "(uuid,uuid[],text,text)",
+      "signature": "public.share_looks_to_outfit_decision(uuid,uuid[],text,text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "touch_shared_room_for_me",
+      "arguments": "(text)",
+      "signature": "public.touch_shared_room_for_me(text)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": false,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": false,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "unblock_dressing_room_user",
+      "arguments": "(uuid)",
+      "signature": "public.unblock_dressing_room_user(uuid)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "pg_catalog, public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "update_look_owned_items",
+      "arguments": "(uuid,text,text,text,text,text,text,jsonb)",
+      "signature": "public.update_look_owned_items(uuid,text,text,text,text,text,text,jsonb)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "update_privacy_settings_updated_at",
+      "arguments": "()",
+      "signature": "public.update_privacy_settings_updated_at()",
+      "security_mode": "SECURITY INVOKER",
+      "search_path": "\"\"",
+      "classification": "TRIGGER_ONLY",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": false,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": false,
+      "current_service_role_execute": true,
+      "reason": "Trigger function. Trigger execution never consults EXECUTE grants and PostgREST does not expose RETURNS trigger on /rest/v1/rpc, so no client role needs EXECUTE.",
+      "callers": [
+        "trigger only"
+      ],
+      "remediation": [
+        "REVOKE_AUTHENTICATED"
+      ],
+      "remediation_applied": [
+        "REVOKE_AUTHENTICATED"
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "upsert_style_memory_event",
+      "arguments": "(text,text,text,date,jsonb,numeric,jsonb)",
+      "signature": "public.upsert_style_memory_event(text,text,text,date,jsonb,numeric,jsonb)",
+      "security_mode": "SECURITY DEFINER",
+      "search_path": "public",
+      "classification": "AUTHENTICATED_INTENTIONAL",
+      "severity": null,
+      "expected_anon_execute": false,
+      "expected_authenticated_execute": true,
+      "expected_service_role_execute": true,
+      "current_anon_execute": false,
+      "current_authenticated_execute": true,
+      "current_service_role_execute": true,
+      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "callers": [
+        "mobile client (authenticated)"
+      ],
+      "remediation": [
+        "NONE"
+      ],
+      "remediation_applied": [
+        "NONE"
+      ]
+    }
+  ],
+  "leaked_password_protection": {
+    "status": "OWNER_ACTION_REQUIRED",
+    "advisor": "auth_leaked_password_protection",
+    "detail": "Supabase Auth HaveIBeenPwned check is disabled on staging. It is an Auth configuration flag, not a database object, so it cannot be set through SQL or through any tool available to this pass (no Management API token is present in this environment and the Supabase MCP surface exposes no auth-config mutation).",
+    "required_owner_action": "Supabase Dashboard -> Project yzqjvdfgefveprobvvyw -> Authentication -> Policies -> enable \"Leaked password protection\"; or PATCH /v1/projects/yzqjvdfgefveprobvvyw/config/auth with {\"password_hibp_enabled\": true} using a Management API token.",
+    "production_untouched": true
+  }
+}

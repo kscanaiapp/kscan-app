@@ -1,0 +1,1999 @@
+{
+  "$schema_version": 1,
+  "staging_project_ref": "yzqjvdfgefveprobvvyw",
+  "production_project_ref_blocked": "wyyuqfdxucjksghsmhry",
+  "staging_branch": "staging/production-parity",
+  "expected_branch_sha": "30f82a44c5e633763148e5e917153c6a38c9c028",
+  "generated_at": "2026-08-08T00:00:00Z",
+  "evidence_method": "Supabase Management API (list_migrations, list_edge_functions, execute_sql against pg_catalog/storage) + GitHub ruleset API",
+  "notes": "Expected-state baseline. Update after any reviewed staging migration apply or Edge Function deploy.",
+  "migrations": [
+    {
+      "id": "202605122359",
+      "name": "profiles_base",
+      "repo_source": "supabase/migrations/202605122359_profiles_base.sql"
+    },
+    {
+      "id": "202605130000",
+      "name": "profiles_privacy_status",
+      "repo_source": "supabase/migrations/202605130000_profiles_privacy_status.sql"
+    },
+    {
+      "id": "202605130001",
+      "name": "privacy_settings",
+      "repo_source": "supabase/migrations/202605130001_privacy_settings.sql"
+    },
+    {
+      "id": "202605130002",
+      "name": "privacy_settings_schema_parity",
+      "repo_source": "supabase/migrations/202605130002_privacy_settings_schema_parity.sql"
+    },
+    {
+      "id": "202605130003",
+      "name": "deletion_requests",
+      "repo_source": "supabase/migrations/202605130003_deletion_requests.sql"
+    },
+    {
+      "id": "202605130004",
+      "name": "privacy_requests_extensible",
+      "repo_source": "supabase/migrations/202605130004_privacy_requests_extensible.sql"
+    },
+    {
+      "id": "202605160001",
+      "name": "deletion_requests_client_insert",
+      "repo_source": "supabase/migrations/202605160001_deletion_requests_client_insert.sql"
+    },
+    {
+      "id": "202605200001",
+      "name": "persistent_style_objects",
+      "repo_source": "supabase/migrations/202605200001_persistent_style_objects.sql"
+    },
+    {
+      "id": "202605200002",
+      "name": "style_library_images_storage",
+      "repo_source": "supabase/migrations/202605200002_style_library_images_storage.sql"
+    },
+    {
+      "id": "202605230001",
+      "name": "app_config_feature_freeze",
+      "repo_source": "supabase/migrations/202605230001_app_config_feature_freeze.sql"
+    },
+    {
+      "id": "202605240001",
+      "name": "room_shares_public_preview",
+      "repo_source": "supabase/migrations/202605240001_room_shares_public_preview.sql"
+    },
+    {
+      "id": "202605240002",
+      "name": "fix_public_room_preview_malformed_uuid",
+      "repo_source": "supabase/migrations/202605240002_fix_public_room_preview_malformed_uuid.sql"
+    },
+    {
+      "id": "202605240003",
+      "name": "public_room_preview_image_storage_metadata",
+      "repo_source": "supabase/migrations/202605240003_public_room_preview_image_storage_metadata.sql"
+    },
+    {
+      "id": "202605240004",
+      "name": "public_room_preview_storage_paths",
+      "repo_source": "supabase/migrations/202605240004_public_room_preview_storage_paths.sql"
+    },
+    {
+      "id": "202606030001",
+      "name": "add_room_note_to_dressing_rooms",
+      "repo_source": "supabase/migrations/202606030001_add_room_note_to_dressing_rooms.sql"
+    },
+    {
+      "id": "202606050001",
+      "name": "dressing_room_item_reactions",
+      "repo_source": "supabase/migrations/202606050001_dressing_room_item_reactions.sql"
+    },
+    {
+      "id": "202606050002",
+      "name": "public_room_preview_item_ids",
+      "repo_source": "supabase/migrations/202606050002_public_room_preview_item_ids.sql"
+    },
+    {
+      "id": "202606060001",
+      "name": "replace_fire_with_thumbs_down_reaction",
+      "repo_source": "supabase/migrations/202606060001_replace_fire_with_thumbs_down_reaction.sql"
+    },
+    {
+      "id": "202606070001",
+      "name": "style_chat",
+      "repo_source": "supabase/migrations/202606070001_style_chat.sql"
+    },
+    {
+      "id": "202606070002",
+      "name": "style_chat_usage_rpc",
+      "repo_source": "supabase/migrations/202606070002_style_chat_usage_rpc.sql"
+    },
+    {
+      "id": "202606070003",
+      "name": "style_memory_hardening",
+      "repo_source": "supabase/migrations/202606070003_style_memory_hardening.sql"
+    },
+    {
+      "id": "202606070004",
+      "name": "fix_upsert_style_memory_event_on_conflict",
+      "repo_source": "supabase/migrations/202606070004_fix_upsert_style_memory_event_on_conflict.sql"
+    },
+    {
+      "id": "202606070005",
+      "name": "stylechat_daily_usage",
+      "repo_source": "supabase/migrations/202606070005_stylechat_daily_usage.sql"
+    },
+    {
+      "id": "202606070006",
+      "name": "fix_stylechat_daily_usage_rpc_ambiguity",
+      "repo_source": "supabase/migrations/202606070006_fix_stylechat_daily_usage_rpc_ambiguity.sql"
+    },
+    {
+      "id": "202606070007",
+      "name": "align_public_room_cover_priority",
+      "repo_source": "supabase/migrations/202606070007_align_public_room_cover_priority.sql"
+    },
+    {
+      "id": "20260607222310",
+      "name": "inspiration_uploads",
+      "repo_source": "supabase/migrations/20260607222310_inspiration_uploads.sql"
+    },
+    {
+      "id": "202606090001",
+      "name": "style_chat_burst_usage",
+      "repo_source": "supabase/migrations/202606090001_style_chat_burst_usage.sql"
+    },
+    {
+      "id": "202606110001",
+      "name": "dressing_room_messages",
+      "repo_source": "supabase/migrations/202606110001_dressing_room_messages.sql"
+    },
+    {
+      "id": "20260611223807",
+      "name": "fix_room_messages_authenticated_grants",
+      "repo_source": "supabase/migrations/20260611223807_fix_room_messages_authenticated_grants.sql"
+    },
+    {
+      "id": "20260617000001",
+      "name": "create_legal_acceptances",
+      "repo_source": "supabase/migrations/20260617000001_create_legal_acceptances.sql"
+    },
+    {
+      "id": "20260617215307",
+      "name": "create_saved_scans",
+      "repo_source": "supabase/migrations/20260617215307_create_saved_scans.sql"
+    },
+    {
+      "id": "202606180001",
+      "name": "fix_staging_grants_saved_scans_soft_delete",
+      "repo_source": "supabase/migrations/202606180001_fix_staging_grants_saved_scans_soft_delete.sql"
+    },
+    {
+      "id": "202606180002",
+      "name": "fix_saved_scans_soft_delete_select_policy",
+      "repo_source": "supabase/migrations/202606180002_fix_saved_scans_soft_delete_select_policy.sql"
+    },
+    {
+      "id": "202606180003",
+      "name": "fix_style_chat_messages_session_rls",
+      "repo_source": "supabase/migrations/202606180003_fix_style_chat_messages_session_rls.sql"
+    },
+    {
+      "id": "20260618132214",
+      "name": "create_waitlist_signups_main_backend",
+      "repo_source": "supabase/migrations/20260618132214_create_waitlist_signups_main_backend.sql"
+    },
+    {
+      "id": "202606240001",
+      "name": "dressing_room_participants_shared_messaging",
+      "repo_source": "supabase/migrations/202606240001_dressing_room_participants_shared_messaging.sql"
+    },
+    {
+      "id": "202606240002",
+      "name": "dressing_room_item_reactions_participant_rls",
+      "repo_source": "supabase/migrations/202606240002_dressing_room_item_reactions_participant_rls.sql"
+    },
+    {
+      "id": "202606290001",
+      "name": "product_catalog",
+      "repo_source": "supabase/migrations/202606290001_product_catalog.sql"
+    },
+    {
+      "id": "20260704175544",
+      "name": "free_tier_utility_tables",
+      "repo_source": "supabase/migrations/20260704175544_free_tier_utility_tables.sql"
+    },
+    {
+      "id": "20260705000001",
+      "name": "fix_inspiration_closet_delete_and_room_link",
+      "repo_source": "supabase/migrations/20260705000001_fix_inspiration_closet_delete_and_room_link.sql"
+    },
+    {
+      "id": "20260707000001",
+      "name": "scan_identify_daily_usage",
+      "repo_source": "supabase/migrations/20260707000001_scan_identify_daily_usage.sql"
+    },
+    {
+      "id": "20260708090847",
+      "name": "content_reports",
+      "repo_source": "supabase/migrations/20260708090847_content_reports.sql"
+    },
+    {
+      "id": "20260708140542",
+      "name": "increase_room_share_redemptions_to_10_for_testing",
+      "repo_source": "supabase/migrations/20260708140542_increase_room_share_redemptions_to_10_for_testing.sql"
+    },
+    {
+      "id": "20260709130346",
+      "name": "android_backend_runtime_fixes",
+      "repo_source": "supabase/migrations/20260709130346_android_backend_runtime_fixes.sql"
+    },
+    {
+      "id": "20260710000001",
+      "name": "room_share_redemption_contract_remediation",
+      "repo_source": "supabase/migrations/20260710000001_room_share_redemption_contract_remediation.sql"
+    },
+    {
+      "id": "20260711000001",
+      "name": "ai_stylist_looks_extension",
+      "repo_source": "supabase/migrations/20260711000001_ai_stylist_looks_extension.sql"
+    },
+    {
+      "id": "20260711000002",
+      "name": "outfit_decision_rooms",
+      "repo_source": "supabase/migrations/20260711000002_outfit_decision_rooms.sql"
+    },
+    {
+      "id": "20260711000003",
+      "name": "style_outfit_usage",
+      "repo_source": "supabase/migrations/20260711000003_style_outfit_usage.sql"
+    },
+    {
+      "id": "20260711195508",
+      "name": "restore_service_role_app_table_grants",
+      "repo_source": "supabase/migrations/20260711195508_restore_service_role_app_table_grants.sql"
+    },
+    {
+      "id": "20260712000001",
+      "name": "saved_scan_media_backing",
+      "repo_source": "supabase/migrations/20260712000001_saved_scan_media_backing.sql"
+    },
+    {
+      "id": "20260712010000",
+      "name": "audit_hardening_ai_stylist_stylechat",
+      "repo_source": "supabase/migrations/20260712010000_audit_hardening_ai_stylist_stylechat.sql"
+    },
+    {
+      "id": "20260712020000",
+      "name": "harden_app_role_privileges",
+      "repo_source": "supabase/migrations/20260712020000_harden_app_role_privileges.sql"
+    },
+    {
+      "id": "20260713000001",
+      "name": "user_stylist_preferences",
+      "repo_source": "supabase/migrations/20260713000001_user_stylist_preferences.sql"
+    },
+    {
+      "id": "20260714000001",
+      "name": "user_stylist_preferences_rls_grants",
+      "repo_source": "supabase/migrations/20260714000001_user_stylist_preferences_rls_grants.sql"
+    },
+    {
+      "id": "20260714000002",
+      "name": "app_config_read_grants",
+      "repo_source": "supabase/migrations/20260714000002_app_config_read_grants.sql"
+    },
+    {
+      "id": "20260714000003",
+      "name": "add_user_stylist_preferences_avatar_allowlist",
+      "repo_source": "supabase/migrations/20260714000003_add_user_stylist_preferences_avatar_allowlist.sql"
+    },
+    {
+      "id": "20260715000001",
+      "name": "expand_stylist_portrait_avatar_allowlist",
+      "repo_source": "supabase/migrations/20260715000001_expand_stylist_portrait_avatar_allowlist.sql"
+    },
+    {
+      "id": "20260716000001",
+      "name": "shared_room_memberships",
+      "repo_source": "supabase/migrations/20260716000001_shared_room_memberships.sql"
+    },
+    {
+      "id": "20260717201524",
+      "name": "20260716035943_add_purchase_options_to_saved_scans",
+      "repo_source": "supabase/migrations/20260717201524_20260716035943_add_purchase_options_to_saved_scans.sql"
+    },
+    {
+      "id": "20260718151651",
+      "name": "include_inspiration_uploads_in_shared_room_preview",
+      "repo_source": "supabase/migrations/20260718151651_include_inspiration_uploads_in_shared_room_preview.sql"
+    },
+    {
+      "id": "202607200001",
+      "name": "elise_generation_quota_idempotency",
+      "repo_source": "supabase/migrations/202607200001_elise_generation_quota_idempotency.sql"
+    },
+    {
+      "id": "20260720115423",
+      "name": "scan_commerce_events",
+      "repo_source": "supabase/migrations/20260720115423_scan_commerce_events.sql"
+    },
+    {
+      "id": "202607210001",
+      "name": "elise_generation_resilience_e2",
+      "repo_source": "supabase/migrations/202607210001_elise_generation_resilience_e2.sql"
+    },
+    {
+      "id": "20260721090920",
+      "name": "fix_elise_quota_after_generation_reservation",
+      "repo_source": "supabase/migrations/20260721090920_fix_elise_quota_after_generation_reservation.sql"
+    },
+    {
+      "id": "20260721201218",
+      "name": "dr3_collaborative_interactions",
+      "repo_source": "supabase/migrations/20260721201218_dr3_collaborative_interactions.sql"
+    },
+    {
+      "id": "20260721201347",
+      "name": "dr4_collab_idempotency_room_scope",
+      "repo_source": "supabase/migrations/20260721201347_dr4_collab_idempotency_room_scope.sql"
+    },
+    {
+      "id": "20260722004639",
+      "name": "stylechat_request_quota_events",
+      "repo_source": "supabase/migrations/20260722004639_stylechat_request_quota_events.sql"
+    },
+    {
+      "id": "20260722022830",
+      "name": "lock_down_stylechat_quota_refunds",
+      "repo_source": "supabase/migrations/20260722022830_lock_down_stylechat_quota_refunds.sql"
+    },
+    {
+      "id": "20260722024920",
+      "name": "fix_stylechat_quota_rpc_ambiguity",
+      "repo_source": "supabase/migrations/20260722024920_fix_stylechat_quota_rpc_ambiguity.sql"
+    },
+    {
+      "id": "20260722030304",
+      "name": "create_llm_routing_events",
+      "repo_source": "supabase/migrations/20260722030304_create_llm_routing_events.sql"
+    },
+    {
+      "id": "20260722031812",
+      "name": "limit_llm_routing_event_privileges",
+      "repo_source": "supabase/migrations/20260722031812_limit_llm_routing_event_privileges.sql"
+    },
+    {
+      "id": "20260722191013",
+      "name": "account_deletion_lifecycle",
+      "repo_source": "supabase/migrations/20260722191013_account_deletion_lifecycle.sql"
+    },
+    {
+      "id": "20260722201910",
+      "name": "waitlist_email_delivery_state",
+      "repo_source": "supabase/migrations/20260722201910_waitlist_email_delivery_state.sql"
+    },
+    {
+      "id": "20260723021145",
+      "name": "account_deletion_security_hardening",
+      "repo_source": "supabase/migrations/20260723021145_account_deletion_security_hardening.sql"
+    },
+    {
+      "id": "20260723021515",
+      "name": "reconcile_account_deletion_subsystem_to_production",
+      "repo_source": "supabase/migrations/20260723021515_reconcile_account_deletion_subsystem_to_production.sql"
+    },
+    {
+      "id": "20260723021635",
+      "name": "account_deletion_device_sessions_and_revoke",
+      "repo_source": "supabase/migrations/20260723021635_account_deletion_device_sessions_and_revoke.sql"
+    },
+    {
+      "id": "20260723021735",
+      "name": "account_deletion_claim_retry_peek_v2",
+      "repo_source": "supabase/migrations/20260723021735_account_deletion_claim_retry_peek_v2.sql"
+    },
+    {
+      "id": "20260723040000",
+      "name": "account_deletion_crash_recovery",
+      "repo_source": "supabase/migrations/20260723040000_account_deletion_crash_recovery.sql"
+    },
+    {
+      "id": "20260723050000",
+      "name": "account_deletion_rls_active_account",
+      "repo_source": "supabase/migrations/20260723050000_account_deletion_rls_active_account.sql"
+    },
+    {
+      "id": "20260723060000",
+      "name": "deletion_ledger_pii_sanitizer",
+      "repo_source": "supabase/migrations/20260723060000_deletion_ledger_pii_sanitizer.sql"
+    },
+    {
+      "id": "20260723070000",
+      "name": "profiles_backfill_and_active_account_hardening",
+      "repo_source": "supabase/migrations/20260723070000_profiles_backfill_and_active_account_hardening.sql"
+    },
+    {
+      "id": "20260723132813",
+      "name": "harden_deletion_trigger_function_grants",
+      "repo_source": "supabase/migrations/20260723132813_harden_deletion_trigger_function_grants.sql"
+    },
+    {
+      "id": "20260724220000",
+      "name": "shared_room_recipient_read_policies",
+      "repo_source": "supabase/migrations/20260724220000_shared_room_recipient_read_policies.sql"
+    },
+    {
+      "id": "20260724221500",
+      "name": "shared_room_memberships_select_grant",
+      "repo_source": "supabase/migrations/20260724221500_shared_room_memberships_select_grant.sql"
+    },
+    {
+      "id": "20260803020000",
+      "name": "provider_request_security",
+      "repo_source": "supabase/migrations/20260803020000_provider_request_security.sql"
+    },
+    {
+      "id": "20260803020100",
+      "name": "provider_request_security_revoke_anon",
+      "repo_source": "supabase/migrations/20260803020100_provider_request_security_revoke_anon.sql"
+    },
+    {
+      "id": "20260803020200",
+      "name": "provider_request_security_fix_trigger_search_path",
+      "repo_source": "supabase/migrations/20260803020200_provider_request_security_fix_trigger_search_path.sql"
+    },
+    {
+      "id": "20260803160206",
+      "name": "provider_request_ttl_tuning",
+      "repo_source": "supabase/migrations/20260803160206_provider_request_ttl_tuning.sql"
+    },
+    {
+      "id": "20260803214145",
+      "name": "harden_public_rpc_execution_grants",
+      "repo_source": "supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql"
+    },
+    {
+      "id": "20260803214253",
+      "name": "harden_public_rpc_execution_grants_trigger_cleanup",
+      "repo_source": "supabase/migrations/20260803214253_harden_public_rpc_execution_grants_trigger_cleanup.sql"
+    },
+    {
+      "id": "20260803220000",
+      "name": "image_ingestion_quarantine_storage",
+      "repo_source": "supabase/migrations/20260803220000_image_ingestion_quarantine_storage.sql"
+    },
+    {
+      "id": "20260803220100",
+      "name": "image_ingestion_clean_storage",
+      "repo_source": "supabase/migrations/20260803220100_image_ingestion_clean_storage.sql"
+    },
+    {
+      "id": "20260803220200",
+      "name": "image_scan_verdicts",
+      "repo_source": "supabase/migrations/20260803220200_image_scan_verdicts.sql"
+    },
+    {
+      "id": "20260804090000",
+      "name": "edge_function_errors",
+      "repo_source": "supabase/migrations/20260804090000_edge_function_errors.sql"
+    },
+    {
+      "id": "20260804101903",
+      "name": "legal_acceptances",
+      "repo_source": "supabase/migrations/20260804101903_legal_acceptances.sql"
+    },
+    {
+      "id": "20260805120000",
+      "name": "reconcile_deletion_requests_to_production_columns",
+      "repo_source": "supabase/migrations/20260805120000_reconcile_deletion_requests_to_production_columns.sql"
+    },
+    {
+      "id": "20260805121000",
+      "name": "legal_documents_bucket_parity",
+      "repo_source": "supabase/migrations/20260805121000_legal_documents_bucket_parity.sql"
+    },
+    {
+      "id": "20260805130000",
+      "name": "production_live_derived_can_react_to_dressing_room_item",
+      "repo_source": "supabase/migrations/20260805130000_production_live_derived_can_react_to_dressing_room_item.sql"
+    },
+    {
+      "id": "20260806153233",
+      "name": "dressing_room_user_blocking",
+      "repo_source": "supabase/migrations/20260806153233_dressing_room_user_blocking.sql"
+    },
+    {
+      "id": "20260808115552",
+      "name": "harden_trigger_function_search_path",
+      "repo_source": "supabase/migrations/20260808115552_harden_trigger_function_search_path.sql"
+    },
+    {
+      "id": "20260808115735",
+      "name": "enforce_rpc_privilege_boundary",
+      "repo_source": "supabase/migrations/20260808115735_enforce_rpc_privilege_boundary.sql"
+    },
+    {
+      "id": "20260808120214",
+      "name": "revoke_public_execute_on_saved_scans_trigger",
+      "repo_source": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql"
+    },
+    {
+      "id": "20260808121216",
+      "name": "privacy_request_rate_limits",
+      "repo_source": "supabase/migrations/20260808121216_privacy_request_rate_limits.sql"
+    }
+  ],
+  "tables": [
+    {
+      "id": "app_config"
+    },
+    {
+      "id": "content_reports"
+    },
+    {
+      "id": "deletion_requests"
+    },
+    {
+      "id": "deletion_state_transitions"
+    },
+    {
+      "id": "dressing_room_collab_idempotency"
+    },
+    {
+      "id": "dressing_room_inspiration_items"
+    },
+    {
+      "id": "dressing_room_item_reactions"
+    },
+    {
+      "id": "dressing_room_items"
+    },
+    {
+      "id": "dressing_room_messages"
+    },
+    {
+      "id": "dressing_room_participants"
+    },
+    {
+      "id": "dressing_room_user_blocks"
+    },
+    {
+      "id": "dressing_rooms"
+    },
+    {
+      "id": "elise_generation_operations"
+    },
+    {
+      "id": "image_scan_verdicts"
+    },
+    {
+      "id": "inspiration_items"
+    },
+    {
+      "id": "legal_acceptances"
+    },
+    {
+      "id": "llm_routing_events"
+    },
+    {
+      "id": "look_items"
+    },
+    {
+      "id": "looks"
+    },
+    {
+      "id": "outfit_decision_groups"
+    },
+    {
+      "id": "outfit_decision_option_items"
+    },
+    {
+      "id": "outfit_decision_options"
+    },
+    {
+      "id": "outfit_decision_votes"
+    },
+    {
+      "id": "privacy_correction_requests"
+    },
+    {
+      "id": "privacy_export_requests"
+    },
+    {
+      "id": "privacy_request_rate_limits"
+    },
+    {
+      "id": "privacy_settings"
+    },
+    {
+      "id": "product_catalog"
+    },
+    {
+      "id": "profiles"
+    },
+    {
+      "id": "provider_request_limits"
+    },
+    {
+      "id": "provider_request_reservations"
+    },
+    {
+      "id": "provider_security_events"
+    },
+    {
+      "id": "room_shares"
+    },
+    {
+      "id": "saved_scans"
+    },
+    {
+      "id": "scan_commerce_events"
+    },
+    {
+      "id": "scan_identify_usage_daily"
+    },
+    {
+      "id": "scan_intelligence_events"
+    },
+    {
+      "id": "shared_room_memberships"
+    },
+    {
+      "id": "style_chat_burst_usage"
+    },
+    {
+      "id": "style_chat_daily_usage"
+    },
+    {
+      "id": "style_chat_messages"
+    },
+    {
+      "id": "style_chat_sessions"
+    },
+    {
+      "id": "style_chat_usage"
+    },
+    {
+      "id": "style_memory_events"
+    },
+    {
+      "id": "style_outfit_burst_usage"
+    },
+    {
+      "id": "style_outfit_daily_usage"
+    },
+    {
+      "id": "stylechat_quota_events"
+    },
+    {
+      "id": "user_device_sessions"
+    },
+    {
+      "id": "user_stylist_preferences"
+    },
+    {
+      "id": "waitlist_signups"
+    },
+    {
+      "id": "wardrobe_activity_log"
+    },
+    {
+      "id": "wardrobe_brand_sizing_notes"
+    },
+    {
+      "id": "wardrobe_care_notes"
+    },
+    {
+      "id": "wardrobe_collection_items"
+    },
+    {
+      "id": "wardrobe_collections"
+    },
+    {
+      "id": "wardrobe_outfit_feedback"
+    },
+    {
+      "id": "wardrobe_utility_items"
+    },
+    {
+      "id": "wardrobe_wear_events"
+    },
+    {
+      "id": "wardrobe_wishlist_intents"
+    },
+    {
+      "id": "website_sale_share_opt_out_requests"
+    }
+  ],
+  "rls": [
+    {
+      "id": "app_config",
+      "rls_enabled": true,
+      "policy_count": 2
+    },
+    {
+      "id": "content_reports",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "deletion_requests",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "deletion_state_transitions",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "dressing_room_collab_idempotency",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "dressing_room_inspiration_items",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "dressing_room_item_reactions",
+      "rls_enabled": true,
+      "policy_count": 5
+    },
+    {
+      "id": "dressing_room_items",
+      "rls_enabled": true,
+      "policy_count": 6
+    },
+    {
+      "id": "dressing_room_messages",
+      "rls_enabled": true,
+      "policy_count": 3
+    },
+    {
+      "id": "dressing_room_participants",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "dressing_room_user_blocks",
+      "rls_enabled": true,
+      "policy_count": 3
+    },
+    {
+      "id": "dressing_rooms",
+      "rls_enabled": true,
+      "policy_count": 6
+    },
+    {
+      "id": "elise_generation_operations",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "image_scan_verdicts",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "inspiration_items",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "legal_acceptances",
+      "rls_enabled": true,
+      "policy_count": 2
+    },
+    {
+      "id": "llm_routing_events",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "look_items",
+      "rls_enabled": true,
+      "policy_count": 5
+    },
+    {
+      "id": "looks",
+      "rls_enabled": true,
+      "policy_count": 5
+    },
+    {
+      "id": "outfit_decision_groups",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "outfit_decision_option_items",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "outfit_decision_options",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "outfit_decision_votes",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "privacy_correction_requests",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "privacy_export_requests",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "privacy_request_rate_limits",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "privacy_settings",
+      "rls_enabled": true,
+      "policy_count": 3
+    },
+    {
+      "id": "product_catalog",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "profiles",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "provider_request_limits",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "provider_request_reservations",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "provider_security_events",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "room_shares",
+      "rls_enabled": true,
+      "policy_count": 3
+    },
+    {
+      "id": "saved_scans",
+      "rls_enabled": true,
+      "policy_count": 3
+    },
+    {
+      "id": "scan_commerce_events",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "scan_identify_usage_daily",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "scan_intelligence_events",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "shared_room_memberships",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "style_chat_burst_usage",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "style_chat_daily_usage",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "style_chat_messages",
+      "rls_enabled": true,
+      "policy_count": 2
+    },
+    {
+      "id": "style_chat_sessions",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "style_chat_usage",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "style_memory_events",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "style_outfit_burst_usage",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "style_outfit_daily_usage",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "stylechat_quota_events",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "user_device_sessions",
+      "rls_enabled": true,
+      "policy_count": 1
+    },
+    {
+      "id": "user_stylist_preferences",
+      "rls_enabled": true,
+      "policy_count": 3
+    },
+    {
+      "id": "waitlist_signups",
+      "rls_enabled": true,
+      "policy_count": 0
+    },
+    {
+      "id": "wardrobe_activity_log",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_brand_sizing_notes",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_care_notes",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_collection_items",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_collections",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_outfit_feedback",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_utility_items",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_wear_events",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "wardrobe_wishlist_intents",
+      "rls_enabled": true,
+      "policy_count": 4
+    },
+    {
+      "id": "website_sale_share_opt_out_requests",
+      "rls_enabled": true,
+      "policy_count": 1
+    }
+  ],
+  "rpc_grants": [
+    {
+      "id": "public.append_deletion_state_transition(uuid,uuid,text,text,text,text,text,jsonb)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.block_dressing_room_user(uuid)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.build_owned_item_snapshot(text,uuid,uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.can_access_room_messages(uuid)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.can_react_to_dressing_room_item(uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.cast_outfit_decision_vote(uuid,uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.check_and_increment_scan_identify_daily_usage(uuid,text,integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.check_and_increment_style_outfit_burst(integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.check_and_increment_stylechat_burst(integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.claim_deletion_requests_for_purge(text,integer,interval)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.complete_provider_request(uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.consume_stylechat_request_quota(text)",
+      "security_definer": true,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.create_dressing_room_message(uuid,text,uuid,uuid)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.create_look_from_dressing_room_items(uuid,text,text,uuid[])",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.create_look_from_owned_items(text,text,text,text,text,text,text,text,text,text,jsonb)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.create_or_get_room_share(uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.dr3_is_uuid_v4(uuid)",
+      "security_definer": false,
+      "search_path": "pg_catalog",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.dr3_payload_hash(text)",
+      "security_definer": false,
+      "search_path": "pg_catalog, public, extensions",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.enforce_dressing_room_message_flat_thread()",
+      "security_definer": false,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.enforce_minor_privacy_defaults()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.ensure_privacy_settings()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.evaluate_provider_abuse_state(uuid,text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.finalize_elise_generation_operation(uuid,text,uuid,text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.get_item_reaction_counts(uuid[])",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": true,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.get_my_deletion_status()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.get_outfit_decision_vote_counts(uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.get_public_room_decision_preview(text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": true,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.get_public_room_preview(text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": true,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.get_stylechat_daily_usage()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.handle_new_user_privacy()",
+      "security_definer": true,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.handle_new_user()",
+      "security_definer": true,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.heartbeat_deletion_request_lease(uuid,text,interval)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.increment_style_chat_usage()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.increment_style_outfit_daily_usage(integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.increment_stylechat_daily_usage_idempotent(text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.increment_stylechat_daily_usage()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.is_active_account()",
+      "security_definer": true,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.join_room_via_share_token(text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.list_deletion_purge_candidates(integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.list_dressing_room_blocked_users()",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.list_dressing_room_messages(uuid,integer,timestamp with time zone,uuid,text)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.list_shared_rooms_for_me()",
+      "security_definer": true,
+      "search_path": "pg_catalog",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.mark_deletion_request_purged(uuid,text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.mark_elise_generation_generating(uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.normalize_dressing_room_note()",
+      "security_definer": false,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.peek_restoration_resend_by_email(text)",
+      "security_definer": true,
+      "search_path": "public, auth",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.prevent_inspiration_item_media_rewrite()",
+      "security_definer": false,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.preview_pending_deletion_backfill()",
+      "security_definer": true,
+      "search_path": "public, auth",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.reconcile_orphaned_purging_requests(integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.refund_stylechat_request_quota_for_user(uuid,text)",
+      "security_definer": true,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.refund_stylechat_request_quota(text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.register_user_device_session(text,text,text,uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.release_provider_request(uuid,text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.remove_shared_room_for_me(text)",
+      "security_definer": true,
+      "search_path": "pg_catalog",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.reserve_elise_generation_operation(uuid,uuid,text,text,text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.reserve_privacy_request_rate_limit(uuid,text,integer,integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.reserve_provider_request(text,text,uuid,text,numeric)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.resolve_dressing_room_collaboration_access(uuid)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.restore_account_by_token_hash(text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.revalidate_elise_generation_context(uuid,uuid,uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.revoke_room_share(uuid)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.revoke_user_device_sessions(uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.revoke_user_sessions(uuid)",
+      "security_definer": true,
+      "search_path": "public, auth",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.rotate_restoration_token_by_email(text,text)",
+      "security_definer": true,
+      "search_path": "public, auth",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.save_shared_room_for_me(text)",
+      "security_definer": true,
+      "search_path": "pg_catalog",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.schedule_deletion_retry_or_fail(uuid,text,text,text,integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_deletion_requests_updated_at()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_dressing_room_item_reaction(uuid,uuid,text,boolean,uuid)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_outfit_decision_state(uuid,text,uuid)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_profiles_updated_at()",
+      "security_definer": false,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_provider_request_limits_updated_at()",
+      "security_definer": false,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_saved_scans_updated_at()",
+      "security_definer": false,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_shared_room_memberships_updated_at()",
+      "security_definer": false,
+      "search_path": "pg_catalog",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.set_style_objects_updated_at()",
+      "security_definer": false,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_updated_at()",
+      "security_definer": false,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.set_user_stylist_preferences_updated_at()",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.share_looks_to_outfit_decision(uuid,uuid[],text,text)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.touch_shared_room_for_me(text)",
+      "security_definer": true,
+      "search_path": "pg_catalog",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": false
+    },
+    {
+      "id": "public.unblock_dressing_room_user(uuid)",
+      "security_definer": true,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.update_look_owned_items(uuid,text,text,text,text,text,text,jsonb)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.update_privacy_settings_updated_at()",
+      "security_definer": false,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.upsert_style_memory_event(text,text,text,date,jsonb,numeric,jsonb)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "service_role_execute": true
+    }
+  ],
+  "storage": [
+    {
+      "id": "image-ingestion-clean",
+      "public": false
+    },
+    {
+      "id": "image-ingestion-quarantine",
+      "public": false
+    },
+    {
+      "id": "investor-docs",
+      "public": false
+    },
+    {
+      "id": "legal-documents",
+      "public": true
+    },
+    {
+      "id": "style-library-images",
+      "public": false
+    }
+  ],
+  "edge_functions": [
+    {
+      "id": "privacy-controls",
+      "function_id": "5d192798-ac6b-43ed-b2d7-da21b8ba390f",
+      "live_version": 13,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "eb8f9b07166a0c8b6a480b75d2e2ca66a67ffa512dc6c6238f0ded5409c39436",
+      "classification": "LIVE_ONLY_UNVERIFIED",
+      "repo_source": null,
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/..."
+    },
+    {
+      "id": "public-sale-share-opt-out",
+      "function_id": "754fb6c2-2819-49ec-901f-af36c02c3b08",
+      "live_version": 13,
+      "verify_jwt": false,
+      "status": "ACTIVE",
+      "ezbr_sha256": "c17dd4cb2cc5b1af23fa36b33dedf073c78b74df986dfab478d4b35c6ea0484c",
+      "classification": "LIVE_ONLY_UNVERIFIED",
+      "repo_source": null,
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/..."
+    },
+    {
+      "id": "kickscrew-sneaker-description",
+      "function_id": "e953e116-9192-400e-abd6-bc43dd25503a",
+      "live_version": 20,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "f1519b65b74e59c03ac341902eb4cf47991235bbe431177bba13c21e81ad081d",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/kickscrew-sneaker-description/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "stylechat-generate",
+      "function_id": "8324e1fe-d2a9-4caf-acc6-e5461866be90",
+      "live_version": 55,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "835ad36328ce782d4733dfb0b7808d1dd434f875e5e76013c1a8d9ba50538d0d",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/stylechat-generate/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "handle-user-deletion",
+      "function_id": "581bd281-c578-43b3-bf22-b3d1d922bcc4",
+      "live_version": 22,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "e9828f74778d2f95907dcd8845ab17313e2ac7c04a9513bfec5ce48e3d34622a",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/handle-user-deletion/",
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/... (redeployed from this repository via the Management API in the issue #47 rate-limit port)"
+    },
+    {
+      "id": "product-search-deals",
+      "function_id": "57f4f3dd-e3d0-4842-9cbe-c9195f6f9869",
+      "live_version": 10,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "e34acf87630e88a39becda9ed2a50d92e176fbc6e7a329058db0cbfc8a6d9d9a",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/product-search-deals/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "privacy-correction-request",
+      "function_id": "b07a5ad9-bc7c-4935-8810-bab34d31f825",
+      "live_version": 7,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "706f3b1a79f0a9dbc86290368b8f36af3049a0e742cfd2a6acc7c7ad2b7e2fb1",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/privacy-correction-request/",
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/... (redeployed from this repository via the Management API in the issue #47 rate-limit port)"
+    },
+    {
+      "id": "privacy-data-export",
+      "function_id": "48436091-e2d4-49fe-9fca-ec06bf01b723",
+      "live_version": 6,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "c4ad5a617c0e4f766d1dc29d450993b219720caf619221bd12b8559a9e532b5f",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/privacy-data-export/",
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/... (redeployed from this repository via the Management API in the issue #47 rate-limit port)"
+    },
+    {
+      "id": "staging-health",
+      "function_id": "65908fa2-11f1-4ef8-bed4-f7a200bbf0af",
+      "live_version": 4,
+      "verify_jwt": false,
+      "status": "ACTIVE",
+      "ezbr_sha256": "ec33aec21c9ee63d31b41c94c6dfba2e1bb6fe847e1e1a9352b1546439efc30d",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/staging-health/",
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/..."
+    },
+    {
+      "id": "product-match",
+      "function_id": "7451b38a-3a66-49c7-b78c-e221b8fa19d0",
+      "live_version": 3,
+      "verify_jwt": false,
+      "status": "ACTIVE",
+      "ezbr_sha256": "cc6c4fead119d89b9b804b01e9f083ebeecef79031af7dcbd8eaa949f3d4e8f5",
+      "classification": "LIVE_ONLY_OFF_BRANCH_SOURCE",
+      "repo_source": null,
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/..."
+    },
+    {
+      "id": "scan-identify",
+      "function_id": "92db361c-d305-4a18-8659-a387b11d84a7",
+      "live_version": 4,
+      "verify_jwt": false,
+      "status": "ACTIVE",
+      "ezbr_sha256": "63bc5b91f439d2eedb2d5642049cfa7cb0d873e042b40234e1158f7f57df0bb1",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/scan-identify/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "restore-account",
+      "function_id": "c3dc78fd-b6eb-411f-8af5-97902c675f19",
+      "live_version": 2,
+      "verify_jwt": false,
+      "status": "ACTIVE",
+      "ezbr_sha256": "01bc623c76bc300219b3d5102b4422d4397ad680c39a65651806e5ebbd91b741",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/restore-account/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "resend-restoration-email",
+      "function_id": "dd13fb68-8b47-4899-b011-3687401059d0",
+      "live_version": 2,
+      "verify_jwt": false,
+      "status": "ACTIVE",
+      "ezbr_sha256": "e3dfa1fecf19c4020736b0224f4332df41196699c5237059a5dd469a9b70b74b",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/resend-restoration-email/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "process-account-deletions",
+      "function_id": "0f2efb71-4738-487e-ba0e-2998944358ff",
+      "live_version": 2,
+      "verify_jwt": false,
+      "status": "ACTIVE",
+      "ezbr_sha256": "0c14c7d4f2248c928e5f34d209b70b882bbdc7d2286ab8490fa9bb7c24a64a09",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/process-account-deletions/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "nike-shoe-details",
+      "function_id": "60eb55e3-caba-4412-bf56-c0ad348b371e",
+      "live_version": 1,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "c919e05da570b08b596ae8c8f532c96fec4f4f6a1bd35671bf595788449e6fff",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/nike-shoe-details/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "tryon-clothes-pro",
+      "function_id": "f429bf95-bbb8-426e-add4-dae39894fdcf",
+      "live_version": 1,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "e03c8474fd254c2c38402656fef8de8e8b3aa50cdf778ae4f6b22ac3f831747a",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/tryon-clothes-pro/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "search-vinted-secondhand",
+      "function_id": "5a3fb453-773f-4485-8dca-650ed8a4aaba",
+      "live_version": 1,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "01f2017eb8bb538d763d7f5f9e098b1a5cad45ceb63a41c522c7eb7402717c2c",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/search-vinted-secondhand/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "shared-room-image-url",
+      "function_id": "41a11fcd-7fa7-4a20-a7bf-b93b748d5969",
+      "live_version": 1,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "80c44081f8e60043868e9857530e32fb049646401b74dbf6e324df0f07ddab2e",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/shared-room-image-url/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "style-outfit-generate",
+      "function_id": "145d453d-f41e-4cc5-b50f-5657d2fa0c41",
+      "live_version": 1,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "2fdc4b380d6b313bcc4693209dad137763bcc07f8ae11fc05914d1a4cf9098d2",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/style-outfit-generate/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    },
+    {
+      "id": "stylist-speech",
+      "function_id": "c7c6a1a5-29dd-400f-83e9-16f97b65f562",
+      "live_version": 1,
+      "verify_jwt": true,
+      "status": "ACTIVE",
+      "ezbr_sha256": "9e65c900719afc2dc4a93c68a7664f776735ce58d80eb1f077034bb1a943b339",
+      "classification": "REPO_MANAGED",
+      "repo_source": "supabase/functions/stylist-speech/",
+      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+    }
+  ],
+  "github_controls": {
+    "ruleset_id": 20578352,
+    "required_approving_review_count": 0,
+    "required_review_thread_resolution": true,
+    "dismiss_stale_reviews_on_push": true,
+    "strict_required_status_checks_policy": true,
+    "non_fast_forward": true,
+    "deletion_protected": true,
+    "required_status_checks": [
+      "Project checks",
+      "Gitleaks",
+      "Semgrep Community Edition",
+      "OSV-Scanner",
+      "Trivy filesystem",
+      "npm audit",
+      "Migration validation",
+      "Contract tests"
+    ],
+    "required_secret_names": [
+      "SUPABASE_ACCESS_TOKEN",
+      "SUPABASE_STAGING_PROJECT_REF",
+      "SUPABASE_STAGING_URL",
+      "SUPABASE_STAGING_SERVICE_ROLE_KEY"
+    ]
+  },
+  "known_exceptions": [
+    {
+      "domain": "edge_functions",
+      "id": "privacy-controls",
+      "classification": "LIVE_ONLY_UNVERIFIED",
+      "reason": "Live on staging with zero source in any repository ref. Deployed from an ephemeral directory (file:///tmp/user_fn_.../source/...), not from a tracked checkout, so no deployment-to-source trail exists.",
+      "security_status": "DEPLOYMENT_UNVERIFIED",
+      "deployment_policy": "DO_NOT_REDEPLOY",
+      "modification_policy": "SOURCE_RECOVERY_REQUIRED",
+      "issue": 46
+    },
+    {
+      "domain": "edge_functions",
+      "id": "public-sale-share-opt-out",
+      "classification": "LIVE_ONLY_UNVERIFIED",
+      "reason": "Live on staging with zero source in any repository ref, and publicly invocable (verify_jwt=false). Deployed from an ephemeral directory (file:///tmp/user_fn_.../source/...), not from a tracked checkout.",
+      "security_status": "DEPLOYMENT_UNVERIFIED",
+      "deployment_policy": "DO_NOT_REDEPLOY",
+      "modification_policy": "SOURCE_RECOVERY_REQUIRED",
+      "issue": 46
+    },
+    {
+      "domain": "edge_functions",
+      "id": "product-match",
+      "classification": "LIVE_ONLY_OFF_BRANCH_SOURCE",
+      "reason": "Live on staging and publicly invocable (verify_jwt=false). Source exists in git on the unmerged product-match/foundation-v1 and product-match/foundation-v1-ios branches but was never merged into the staging authority lineage, so the deployed bundle cannot be tied to a staging-branch commit. Not covered by issue #46.",
+      "security_status": "DEPLOYMENT_UNVERIFIED",
+      "deployment_policy": "DO_NOT_REDEPLOY",
+      "modification_policy": "SOURCE_RECOVERY_REQUIRED",
+      "issue": null
+    }
+  ],
+  "provenance_notes": {
+    "20260806153233_dressing_room_user_blocking": {
+      "status": "RECOVERED_PROVEN",
+      "recovered_from_commit": "a66b757f47e85f19acfea6676110b81dde28091e",
+      "recovered_blob": "953a5163c1b8a395e7a1167162c00a14b07cec4c",
+      "proof": "md5 of the recovered file equals md5 of the single applied statement recorded in supabase_migrations.schema_migrations (bdbaeeccaae4cffd396a639b9d5838b3). Byte length 29775 vs character length 29425 differs only by multi-byte UTF-8 box-drawing glyphs in comments.",
+      "note": "Build 25 branches carry a superseding revision (blob 3df4e8cccc7e8e4ef921ce8856638360483c2e4a) that additionally creates the internal schema and grants USAGE to authenticated. That revision was NOT applied to staging. The applied version is committed here verbatim; the missing grant is corrected by a separate forward migration rather than by editing applied history."
+    }
+  },
+  "schema_privileges": [
+    {
+      "schema": "internal",
+      "role": "authenticated",
+      "usage": true,
+      "reason": "Required for RLS predicates that call internal.is_dressing_room_pair_blocked; granted by 20260808115735."
+    },
+    {
+      "schema": "internal",
+      "role": "anon",
+      "usage": false,
+      "reason": "Anon must never reach internal helpers."
+    },
+    {
+      "schema": "internal",
+      "role": "service_role",
+      "usage": true,
+      "reason": "Owner of internal operational tables."
+    }
+  ]
+}
