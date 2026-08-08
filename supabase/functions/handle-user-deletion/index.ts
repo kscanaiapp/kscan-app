@@ -13,6 +13,10 @@ import {
   buildRestorationUrl,
   shortUserId,
 } from '../_shared/deletion/common.ts';
+import {
+  rateLimitedResponse,
+  reservePrivacyRequestRateLimit,
+} from '../_shared/privacyRequestRateLimit.ts';
 
 const deletionRequestNote = 'User-initiated deletion request from K Scan AI mobile app.';
 const ACTIVE_STATUSES = ['pending', 'processing', 'deactivated', 'purging', 'legal_hold'];
@@ -105,6 +109,13 @@ Deno.serve(async (req) => {
         restorationEmailQueued: false,
         alreadyRequested: true,
       });
+    }
+
+    // Rate-limit only when creating a new deletion request. Existing active
+    // requests short-circuit above so alreadyRequested recovery stays reachable.
+    const rate = await reservePrivacyRequestRateLimit(user.id, 'account_deletion');
+    if (!rate.allowed) {
+      return rateLimitedResponse(corsHeaders, rate.retry_after_seconds);
     }
 
     const now = new Date();

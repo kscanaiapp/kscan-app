@@ -80,3 +80,12 @@ test('an existing legacy pending row is upgraded, not duplicated', () => {
   assert.match(source, /existing\.status === 'pending' \|\| existing\.status === 'processing'/);
   assert.match(source, /status: 'deactivated'/);
 });
+
+test('handle-user-deletion reserves privacy rate limit only after alreadyRequested short-circuit', () => {
+  const alreadyIdx = source.indexOf('alreadyRequested: true');
+  const rateIdx = source.indexOf("reservePrivacyRequestRateLimit(user.id, 'account_deletion')");
+  assert.ok(alreadyIdx !== -1, 'must preserve alreadyRequested short-circuit');
+  assert.ok(rateIdx !== -1, 'must reserve account_deletion rate limit');
+  assert.ok(alreadyIdx < rateIdx, 'existing-request check must precede rate-limit reservation');
+  assert.match(source, /rateLimitedResponse/);
+});
