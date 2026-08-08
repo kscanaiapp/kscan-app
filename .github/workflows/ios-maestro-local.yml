@@ -164,7 +164,7 @@ jobs:
           NODE
 
       - name: Build iOS Simulator app with Xcode
-        env:
+        run: |
           # react-native-xcode.sh (the "Bundle React Native code and images"
           # phase this project's generated Xcode project already has —
           # verified against this repo's pinned react-native@0.81.5 source)
@@ -175,10 +175,17 @@ jobs:
           # No Metro runs in this workflow, so without this flag the built
           # .app has no JS and shows React Native's "No script URL provided"
           # fatal error on every launch (observed in run 31253137598).
-          # FORCE_BUNDLING makes that existing script phase actually embed
-          # main.jsbundle instead of skipping — no separate bundling step.
-          FORCE_BUNDLING: "1"
-        run: |
+          #
+          # FORCE_BUNDLING must be passed as an xcodebuild build setting
+          # (trailing KEY=VALUE, same as CODE_SIGNING_ALLOWED/
+          # COMPILER_INDEX_STORE_ENABLE below) rather than a step-level
+          # `env:` var — a step env var never reached the script phase's
+          # environment: run 31254852259 showed the "Bundle React Native
+          # code and images" PhaseScriptExecution complete in ~0.12s, far
+          # too fast to have actually invoked Metro/Hermes, i.e. it still
+          # took the "skip" branch despite the env var being set on the step.
+          # Build settings passed to xcodebuild are what Xcode actually
+          # exports into Run Script phase environments.
           xcodebuild \
             -workspace "${{ steps.xcode.outputs.workspace }}" \
             -scheme "${{ steps.xcode.outputs.scheme }}" \
@@ -188,6 +195,7 @@ jobs:
             -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
+            FORCE_BUNDLING=1 \
             build
 
       - name: Verify embedded JS bundle
