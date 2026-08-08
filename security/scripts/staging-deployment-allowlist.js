@@ -14,10 +14,19 @@
  * directory is in the computed change manifest.
  */
 
+const fs = require('node:fs');
+const path = require('node:path');
+
+const PROVENANCE_EXCEPTIONS_PATH = path.join(__dirname, '..', 'staging', 'provenance-exceptions.json');
+
 const STAGING_DEPLOYMENT_ALLOWLIST = [
   // Already live before this pass.
-  'privacy-controls',
-  'public-sale-share-opt-out',
+  // NOTE: privacy-controls and public-sale-share-opt-out were removed from this
+  // list. Their deployed bundles cannot be tied to source in this repository
+  // (issue #46) and they are quarantined in provenance-exceptions.json. Leaving
+  // them here was a latent hazard: the moment their source appeared under
+  // supabase/functions/, the changed-function detector would have deployed an
+  // unverified bundle over a live, privacy-relevant function.
   'handle-user-deletion',
   'privacy-correction-request',
   'privacy-data-export',
@@ -36,14 +45,43 @@ const STAGING_DEPLOYMENT_ALLOWLIST = [
   //   'shared-room-image-url'    — not present in this branch yet
 ];
 
-// Splits a computed deploy manifest into what's actually approved to deploy
-// now vs. what's changed-and-ready-in-source but held back pending approval.
-// Never silently drops the held-back set — callers must surface it.
-function filterToApproved(manifest, allowlist = STAGING_DEPLOYMENT_ALLOWLIST) {
-  const approvedSet = new Set(allowlist);
-  const approved = manifest.filter((name) => approvedSet.has(name));
-  const heldBack = manifest.filter((name) => !approvedSet.has(name));
-  return { approved, heldBack };
+// Slugs whose live bundle cannot be tied to source in this repository. These are
+// refused unconditionally, even if an allowlist entry is added, so recovering a
+// function's source can never by itself cause it to be redeployed over the live
+// unverified bundle. Read from data so the quarantine and the security evidence
+// stay in one place.
+function loadQuarantinedSlugs(file = PROVENANCE_EXCEPTIONS_PATH) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return (parsed.functions || [])
+      .filter((fn) => fn.deployment_policy === 'DO_NOT_REDEPLOY')
+      .map((fn) => fn.slug);
+  } catch (error) {
+    // Fail closed: if the quarantine cannot be read we cannot prove a slug is
+    // safe to deploy, so refuse the whole batch rather than deploying blind.
+    throw new Error(`provenance quarantine unreadable, refusing to deploy: ${error.message}`);
+  }
 }
 
-module.exports = { STAGING_DEPLOYMENT_ALLOWLIST, filterToApproved };
+// Splits a computed deploy manifest into what's actually approved to deploy
+// now vs. what's changed-and-ready-in-source but held back pending approval,
+// vs. what is quarantined for unproven provenance.
+// Never silently drops the held-back or quarantined sets — callers must surface them.
+function filterToApproved(manifest, allowlist = STAGING_DEPLOYMENT_ALLOWLIST, quarantined = loadQuarantinedSlugs()) {
+  const approvedSet = new Set(allowlist);
+  const quarantinedSet = new Set(quarantined);
+
+  const quarantinedHits = manifest.filter((name) => quarantinedSet.has(name));
+  const remaining = manifest.filter((name) => !quarantinedSet.has(name));
+  const approved = remaining.filter((name) => approvedSet.has(name));
+  const heldBack = remaining.filter((name) => !approvedSet.has(name));
+
+  return { approved, heldBack, quarantined: quarantinedHits };
+}
+
+module.exports = {
+  STAGING_DEPLOYMENT_ALLOWLIST,
+  PROVENANCE_EXCEPTIONS_PATH,
+  loadQuarantinedSlugs,
+  filterToApproved,
+};

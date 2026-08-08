@@ -1,0 +1,100 @@
+{
+  "$schema_version": 1,
+  "staging_project_ref": "yzqjvdfgefveprobvvyw",
+  "production_project_ref_blocked": "wyyuqfdxucjksghsmhry",
+  "generated_at": "2026-08-08T00:00:00Z",
+  "purpose": "Fail-closed quarantine for live staging Edge Functions whose deployed bundle cannot be tied to source in this repository. Deployment automation must refuse to deploy or overwrite any slug listed here, regardless of the CI allowlist, until it becomes repo-managed through proven source recovery.",
+  "enforcement": {
+    "consumer": "security/scripts/staging-deployment-allowlist.js",
+    "rule": "A quarantined slug is removed from the approved deploy set even when it also appears in STAGING_DEPLOYMENT_ALLOWLIST, and is surfaced separately as `quarantined` so it can never be silently dropped.",
+    "test": "__tests__/security/provenanceQuarantine.test.js"
+  },
+  "functions": [
+    {
+      "slug": "privacy-controls",
+      "live_function_id": "5d192798-ac6b-43ed-b2d7-da21b8ba390f",
+      "live_version": 13,
+      "live_status": "ACTIVE",
+      "verify_jwt": true,
+      "live_bundle_sha256": "eb8f9b07166a0c8b6a480b75d2e2ca66a67ffa512dc6c6238f0ded5409c39436",
+      "live_bundle_hash_kind": "ezbr_sha256 (eszip bundle digest, not a source-file digest)",
+      "deploy_entrypoint": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_5d192798-ac6b-43ed-b2d7-da21b8ba390f_1/source/supabase/functions/privacy-controls/index.ts",
+      "first_deployment_evidence": "created_at == updated_at == 2026-05-14T02:13:55Z; never redeployed since.",
+      "source_status": "RECOVERED_NOT_DURABLE",
+      "source_location": {
+        "repository": "github.com/kscanaiapp/kscan-website",
+        "local_path": "C:\\Users\\jsmit\\kscan-website",
+        "git_blob": "9f99094506b48c18d72e3b18b4d9a4e6a63f8c65",
+        "blob_bytes": 7880,
+        "reachable_via": "stash@{1}^3 (untracked-files commit a80986b8e2abec4c5f5977e777b50107ba0f07a9, 2026-05-31T02:41:02-04:00) and dangling tree 56c96bb1e12407a0411554fb5b88479bd2400245 at supabase/functions/privacy-controls/index.ts",
+        "committed_to_a_branch": false
+      },
+      "reason_not_closed": "The source was never committed on any branch. It survives only as a stash/dangling git object in a second repository and can be garbage-collected. It is therefore recovered but NOT a durable, auditable source of truth, and the deployed bundle cannot be byte-verified against it because ezbr_sha256 digests the eszip bundle rather than index.ts.",
+      "deployment_policy": "DO_NOT_REDEPLOY",
+      "modification_policy": "SOURCE_RECOVERY_REQUIRED",
+      "security_status": "DEPLOYMENT_UNVERIFIED",
+      "issue": 46
+    },
+    {
+      "slug": "public-sale-share-opt-out",
+      "live_function_id": "754fb6c2-2819-49ec-901f-af36c02c3b08",
+      "live_version": 13,
+      "live_status": "ACTIVE",
+      "verify_jwt": false,
+      "publicly_invocable": true,
+      "live_bundle_sha256": "c17dd4cb2cc5b1af23fa36b33dedf073c78b74df986dfab478d4b35c6ea0484c",
+      "live_bundle_hash_kind": "ezbr_sha256 (eszip bundle digest, not a source-file digest)",
+      "deploy_entrypoint": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_754fb6c2-2819-49ec-901f-af36c02c3b08_1/source/supabase/functions/public-sale-share-opt-out/index.ts",
+      "first_deployment_evidence": "created_at == updated_at == 2026-05-15T12:22:42Z; never redeployed since.",
+      "source_status": "RECOVERED_DURABLE_OUT_OF_REPO",
+      "source_location": {
+        "repository": "github.com/kscanaiapp/kscan-website",
+        "local_path": "C:\\Users\\jsmit\\kscan-website",
+        "git_blob": "5c322af173dd1bf344e71074d7fb09d2c4e68dfc",
+        "blob_bytes": 5650,
+        "commit": "eed83bae0d3c14f7ff50c0ad1ea41ce53a481f96",
+        "commit_message": "feat: functional anonymous privacy controls and GPC support",
+        "commit_date": "2026-05-15T13:40:02Z",
+        "committed_to_a_branch": true,
+        "ancestor_of_origin_main": true
+      },
+      "reason_not_closed": "Source is durable and auditable, but it lives in a different repository than the one that governs staging deploys, so accepting it as the source of truth is an explicit governance decision that has not been recorded. The deployed bundle also cannot be byte-verified against it (ezbr_sha256 is a bundle digest).",
+      "deployment_policy": "DO_NOT_REDEPLOY",
+      "modification_policy": "SOURCE_RECOVERY_REQUIRED",
+      "security_status": "DEPLOYMENT_UNVERIFIED",
+      "issue": 46
+    },
+    {
+      "slug": "product-match",
+      "live_function_id": "7451b38a-3a66-49c7-b78c-e221b8fa19d0",
+      "live_version": 3,
+      "live_status": "ACTIVE",
+      "verify_jwt": false,
+      "publicly_invocable": true,
+      "live_bundle_sha256": "cc6c4fead119d89b9b804b01e9f083ebeecef79031af7dcbd8eaa949f3d4e8f5",
+      "live_bundle_hash_kind": "ezbr_sha256 (eszip bundle digest, not a source-file digest)",
+      "deploy_entrypoint": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_7451b38a-3a66-49c7-b78c-e221b8fa19d0_1/source/supabase/functions/product-match/index.ts",
+      "source_status": "OFF_BRANCH_SOURCE",
+      "source_location": {
+        "repository": "github.com/kscanaiapp/kscan-app",
+        "branches": [
+          "product-match/foundation-v1",
+          "product-match/foundation-v1-ios"
+        ],
+        "committed_to_a_branch": true,
+        "merged_into_staging_authority": false
+      },
+      "reason_not_closed": "Live and publicly invocable on staging, but its source was never merged into staging/production-parity, so the deployed bundle cannot be tied to a commit on the staging authority lineage. Not covered by issue #46; discovered during the task 1 parity sweep.",
+      "deployment_policy": "DO_NOT_REDEPLOY",
+      "modification_policy": "SOURCE_RECOVERY_REQUIRED",
+      "security_status": "DEPLOYMENT_UNVERIFIED",
+      "issue": null
+    }
+  ],
+  "how_they_were_deployed": "All three carry a file:///tmp/user_fn_.../source/... entrypoint, whereas every CLI-deployed function on this project shows file:///src/KScan-staging-v2-backend/... . That signature corresponds to an upload from an ephemeral directory (dashboard or Management API deploy), which is why no deploy-from-checkout trail exists in this repository.",
+  "closure_criteria_for_issue_46": [
+    "privacy-controls: commit the recovered source to a branch in a governed repository so it stops being a garbage-collectable stash object, then audit it.",
+    "public-sale-share-opt-out: record an explicit governance decision accepting github.com/kscanaiapp/kscan-website as the durable source of truth for staging-deployed website functions, or move the source into this repository.",
+    "Both: complete the auth/CORS/validation/rate-limiting/logging/PII audit applied to every other Edge Function in the PR #45 pass."
+  ]
+}
