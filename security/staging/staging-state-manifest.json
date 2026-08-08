@@ -517,6 +517,11 @@
       "id": "20260808120214",
       "name": "revoke_public_execute_on_saved_scans_trigger",
       "repo_source": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql"
+    },
+    {
+      "id": "20260808121216",
+      "name": "privacy_request_rate_limits",
+      "repo_source": "supabase/migrations/20260808121216_privacy_request_rate_limits.sql"
     }
   ],
   "tables": [
@@ -594,6 +599,9 @@
     },
     {
       "id": "privacy_export_requests"
+    },
+    {
+      "id": "privacy_request_rate_limits"
     },
     {
       "id": "privacy_settings"
@@ -823,6 +831,11 @@
       "id": "privacy_export_requests",
       "rls_enabled": true,
       "policy_count": 1
+    },
+    {
+      "id": "privacy_request_rate_limits",
+      "rls_enabled": true,
+      "policy_count": 0
     },
     {
       "id": "privacy_settings",
@@ -1437,6 +1450,14 @@
       "service_role_execute": true
     },
     {
+      "id": "public.reserve_privacy_request_rate_limit(uuid,text,integer,integer)",
+      "security_definer": true,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
       "id": "public.reserve_provider_request(text,text,uuid,text,numeric)",
       "security_definer": true,
       "search_path": "public",
@@ -1715,13 +1736,13 @@
     {
       "id": "handle-user-deletion",
       "function_id": "581bd281-c578-43b3-bf22-b3d1d922bcc4",
-      "live_version": 21,
+      "live_version": 22,
       "verify_jwt": true,
       "status": "ACTIVE",
-      "ezbr_sha256": "8bcc5956ad7c04e306f8cc66ea0c4956ab144117a21727066a6c962b01f8c52d",
+      "ezbr_sha256": "e9828f74778d2f95907dcd8845ab17313e2ac7c04a9513bfec5ce48e3d34622a",
       "classification": "REPO_MANAGED",
       "repo_source": "supabase/functions/handle-user-deletion/",
-      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/... (redeployed from this repository via the Management API in the issue #47 rate-limit port)"
     },
     {
       "id": "product-search-deals",
@@ -1737,24 +1758,24 @@
     {
       "id": "privacy-correction-request",
       "function_id": "b07a5ad9-bc7c-4935-8810-bab34d31f825",
-      "live_version": 6,
+      "live_version": 7,
       "verify_jwt": true,
       "status": "ACTIVE",
-      "ezbr_sha256": "16171f560b8d6b64f4d213458ac1d2d1c80afb05f2a0a6a8f24e222acf343c47",
+      "ezbr_sha256": "706f3b1a79f0a9dbc86290368b8f36af3049a0e742cfd2a6acc7c7ad2b7e2fb1",
       "classification": "REPO_MANAGED",
       "repo_source": "supabase/functions/privacy-correction-request/",
-      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/... (redeployed from this repository via the Management API in the issue #47 rate-limit port)"
     },
     {
       "id": "privacy-data-export",
       "function_id": "48436091-e2d4-49fe-9fca-ec06bf01b723",
-      "live_version": 5,
+      "live_version": 6,
       "verify_jwt": true,
       "status": "ACTIVE",
-      "ezbr_sha256": "5ceb4a6df3c2f770499a0df62f2b7f6a9f88db96af75f3c58bfc7ec34ac4885f",
+      "ezbr_sha256": "c4ad5a617c0e4f766d1dc29d450993b219720caf619221bd12b8559a9e532b5f",
       "classification": "REPO_MANAGED",
       "repo_source": "supabase/functions/privacy-data-export/",
-      "deploy_origin_hint": "file:///src/KScan-staging-v2-backend/..."
+      "deploy_origin_hint": "file:///tmp/user_fn_.../source/... (redeployed from this repository via the Management API in the issue #47 rate-limit port)"
     },
     {
       "id": "staging-health",

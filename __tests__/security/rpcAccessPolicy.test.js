@@ -260,7 +260,23 @@ test('search_path migration only attaches configuration and never redefines a fu
 
 test('every RLS-enabled table with no policy is documented as intentional deny-all', () => {
   const documented = policy.rls_enabled_no_policy_expected;
-  assert.ok(Array.isArray(documented) && documented.length === 9);
+  assert.ok(Array.isArray(documented));
+
+  // Named rather than counted, so adding a deny-all table is a deliberate,
+  // reviewable edit here instead of a number that quietly drifts.
+  assert.deepEqual(documented.map((e) => e.table).sort(), [
+    'internal.edge_function_errors',
+    'public.deletion_state_transitions',
+    'public.privacy_request_rate_limits',
+    'public.product_catalog',
+    'public.provider_request_limits',
+    'public.provider_security_events',
+    'public.style_chat_burst_usage',
+    'public.style_outfit_burst_usage',
+    'public.stylechat_quota_events',
+    'public.waitlist_signups',
+  ]);
+
   for (const entry of documented) {
     assert.match(entry.table, /^(public|internal)\./);
     assert.ok(entry.reason && entry.reason.length > 20, `${entry.table} needs a documented reason`);
