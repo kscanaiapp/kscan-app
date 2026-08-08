@@ -11,6 +11,13 @@
 # flow itself is device-agnostic and asserts no iPad-only UI.
 # SELECTOR STRATEGY: same testIDs as ios-01/ios-04/ios-07, reused here to
 # avoid ID drift between phone and iPad smoke coverage.
+# HARD APP-LOADED ASSERTION: the onboarding-vs-home waits below are
+# intentionally optional (which one appears depends on auth state, which
+# this flow doesn't control), but that optionality previously let this flow
+# report a vacuous SUCCESS when the app never loaded at all (React Native's
+# "No script URL provided" bridge-load failure, e.g. run 31253137598) — every
+# wait below is `optional: true`, so nothing ever hard-failed. Assert the app
+# actually loaded before falling through to those optional waits.
 appId: ${APP_ID}
 name: "iOS Build 25 — iPad Layout Smoke"
 tags:
@@ -20,6 +27,9 @@ env:
 ---
 - launchApp:
     clearState: false
+
+- assertNotVisible:
+    text: "No script URL provided"
 
 - extendedWaitUntil:
     visible:
