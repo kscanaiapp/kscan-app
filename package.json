@@ -40,6 +40,8 @@
     "test:staging-parity": "node --test __tests__/security/stagingParityVerifier.test.js",
     "verify:rpc-policy": "node security/scripts/verify-rpc-policy.js",
     "test:rpc-policy": "node --test __tests__/security/rpcAccessPolicy.test.js",
+    "test:provenance-quarantine": "node --test __tests__/security/provenanceQuarantine.test.js",
+    "test:privacy-rate-limit": "node --test __tests__/privacyRequestRateLimitContract.test.js __tests__/handleUserDeletionEdge.test.js",
     "test:staging-v2-guard": "node --test __tests__/staging/stagingV2WriteGuard.test.js",
     "stagingv2:apply-migrations": "node scripts/staging-v2/apply-migrations.mjs",
     "stagingv2:deploy-function": "node scripts/staging-v2/deploy-function.mjs",

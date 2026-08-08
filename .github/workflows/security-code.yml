@@ -59,6 +59,22 @@ jobs:
       - name: Run existing security baseline comparison tests
         run: npm run test:security
 
+      # The staging security baseline added these four suites. Without a step
+      # here they would never execute in CI, so the parity verifier, the RPC
+      # privilege boundary, the provenance quarantine and the privacy rate-limit
+      # contract would be guards that guard nothing on the pipeline.
+      - name: Run staging parity verifier tests
+        run: npm run test:staging-parity
+
+      - name: Run RPC access policy tests
+        run: npm run test:rpc-policy
+
+      - name: Run provenance quarantine tests
+        run: npm run test:provenance-quarantine
+
+      - name: Run privacy request rate-limit contract tests
+        run: npm run test:privacy-rate-limit
+
       - name: Write project-checks summary
         if: always()
         env:
