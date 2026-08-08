@@ -16,7 +16,7 @@ concurrency:
 
 env:
   MAESTRO_TEST_BRANCH: test/ios-build25-maestro-runtime
-  MAESTRO_TEST_SHA: 01f135f3d9e021745925d4506986fd6da4759426
+  MAESTRO_TEST_SHA: eb88c0562ee8b57601ca88cd736cdf0ce9b8a458
   # Pinned rather than installing latest — see "Install Maestro CLI" below.
   MAESTRO_CLI_VERSION: "2.8.0"
   APP_BUNDLE_ID: com.kscanai.app
@@ -164,6 +164,20 @@ jobs:
           NODE
 
       - name: Build iOS Simulator app with Xcode
+        env:
+          # react-native-xcode.sh (the "Bundle React Native code and images"
+          # phase this project's generated Xcode project already has —
+          # verified against this repo's pinned react-native@0.81.5 source)
+          # skips bundling for Debug+Simulator by default, on the assumption
+          # that a live Metro packager will serve the JS instead: "Skipping
+          # bundling in Debug for the Simulator (since the packager bundles
+          # for you). Use the FORCE_BUNDLING flag to change this behavior."
+          # No Metro runs in this workflow, so without this flag the built
+          # .app has no JS and shows React Native's "No script URL provided"
+          # fatal error on every launch (observed in run 31253137598).
+          # FORCE_BUNDLING makes that existing script phase actually embed
+          # main.jsbundle instead of skipping — no separate bundling step.
+          FORCE_BUNDLING: "1"
         run: |
           xcodebuild \
             -workspace "${{ steps.xcode.outputs.workspace }}" \
@@ -176,17 +190,78 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             build
 
-      - name: Install app on booted simulator
-        id: app
+      - name: Verify embedded JS bundle
+        id: bundle
         run: |
           APP_PATH="$(find "${{ env.IOS_DERIVED_DATA_PATH }}/Build/Products" -type d -name '*.app' -path '*iphonesimulator*' | head -n 1)"
           if [ -z "$APP_PATH" ]; then
             echo "Simulator .app not found under ${{ env.IOS_DERIVED_DATA_PATH }}/Build/Products"
             find "${{ env.IOS_DERIVED_DATA_PATH }}/Build/Products" -maxdepth 3 -type d || true
+            echo "embedded_js_bundle=NOT_FOUND" >> "$GITHUB_OUTPUT"
             exit 1
           fi
           echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
-          xcrun simctl install "${{ steps.simulator.outputs.udid }}" "$APP_PATH"
+
+          BUNDLE_PATH="$(find "$APP_PATH" -type f \( -name 'main.jsbundle' -o -name '*.jsbundle' \) | head -n 1)"
+          if [ -z "$BUNDLE_PATH" ]; then
+            echo "EMBEDDED_JS_BUNDLE=NOT_FOUND"
+            echo "No embedded JS bundle found inside $APP_PATH"
+            echo "FORCE_BUNDLING did not produce a bundle — treat as TEST_HARNESS_FAILURE, not an app defect."
+            find "$APP_PATH" -maxdepth 2 -type f || true
+            echo "embedded_js_bundle=NOT_FOUND" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "EMBEDDED_JS_BUNDLE=FOUND"
+          echo "BUNDLE_PATH=$BUNDLE_PATH"
+          ls -la "$BUNDLE_PATH"
+          echo "embedded_js_bundle=FOUND" >> "$GITHUB_OUTPUT"
+          echo "bundle_path=$BUNDLE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Install app on booted simulator
+        id: app
+        run: |
+          xcrun simctl install "${{ steps.simulator.outputs.udid }}" "${{ steps.bundle.outputs.app_path }}"
+
+      - name: Prelaunch smoke check (verify no red-box)
+        id: smoke
+        run: |
+          UDID="${{ steps.simulator.outputs.udid }}"
+          mkdir -p "${{ env.MAESTRO_ARTIFACTS_DIR }}/prelaunch"
+          LOG_FILE="${{ env.MAESTRO_ARTIFACTS_DIR }}/prelaunch/prelaunch-redbox-log.txt"
+          SCREENSHOT="${{ env.MAESTRO_ARTIFACTS_DIR }}/prelaunch/prelaunch-smoke.png"
+
+          # Deterministic check: stream the simulator's unified log, filtered
+          # to the exact fatal-bridge-load message text observed in run
+          # 31253137598, for a short window around app launch. A screenshot
+          # is also captured for human-inspectable evidence, but the
+          # PASS/FAIL gate below is the log grep, not pixel inspection.
+          xcrun simctl spawn "$UDID" log stream --level debug \
+            --predicate 'eventMessage contains "No script URL provided"' \
+            > "$LOG_FILE" 2>&1 &
+          LOG_PID=$!
+
+          sleep 1
+          xcrun simctl launch "$UDID" "${{ env.APP_BUNDLE_ID }}"
+          sleep 6
+
+          xcrun simctl io "$UDID" screenshot "$SCREENSHOT" || true
+
+          kill "$LOG_PID" 2>/dev/null || true
+          wait "$LOG_PID" 2>/dev/null || true
+
+          if [ -s "$LOG_FILE" ]; then
+            echo "RED_BOX_PRESENT=YES"
+            cat "$LOG_FILE"
+            echo "::error::React Native red-box ('No script URL provided') detected before Maestro run — TEST_HARNESS_FAILURE, not an app defect. See prelaunch-smoke.png / prelaunch-redbox-log.txt artifacts."
+            echo "red_box_present=YES" >> "$GITHUB_OUTPUT"
+            xcrun simctl terminate "$UDID" "${{ env.APP_BUNDLE_ID }}" || true
+            exit 1
+          fi
+
+          echo "RED_BOX_PRESENT=NO"
+          echo "red_box_present=NO" >> "$GITHUB_OUTPUT"
+          xcrun simctl terminate "$UDID" "${{ env.APP_BUNDLE_ID }}" || true
 
       - name: Install Maestro CLI
         env:
