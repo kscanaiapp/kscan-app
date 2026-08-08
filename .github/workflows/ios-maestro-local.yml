@@ -186,6 +186,19 @@ jobs:
           # took the "skip" branch despite the env var being set on the step.
           # Build settings passed to xcodebuild are what Xcode actually
           # exports into Run Script phase environments.
+          #
+          # With FORCE_BUNDLING correctly propagating (confirmed live: run
+          # 31255648130's build log shows `export FORCE_BUNDLING=1` inside
+          # the script phase), the phase still exited immediately — its own
+          # diagnostic output was "SKIP_BUNDLING enabled; skipping.". That
+          # check in react-native-xcode.sh runs before the FORCE_BUNDLING
+          # branch and short-circuits regardless of it:
+          #   if [[ "$SKIP_BUNDLING" ]]; then echo "SKIP_BUNDLING enabled;
+          #   skipping."; exit 0; fi
+          # something in the generated Xcode project sets SKIP_BUNDLING to a
+          # non-empty value for this configuration/SDK. Override it back to
+          # empty as a build setting — bash `[[ "$VAR" ]]` is only false for
+          # a truly empty string, so `SKIP_BUNDLING=NO` would NOT work here.
           xcodebuild \
             -workspace "${{ steps.xcode.outputs.workspace }}" \
             -scheme "${{ steps.xcode.outputs.scheme }}" \
@@ -196,6 +209,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
             FORCE_BUNDLING=1 \
+            SKIP_BUNDLING= \
             build
 
       - name: Verify embedded JS bundle
