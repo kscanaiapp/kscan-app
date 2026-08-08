@@ -292,9 +292,33 @@ test('mapAuthError: network error maps to network copy', () => {
   assert.match(msg, /connection/i);
 });
 
-test('mapAuthError: unknown error is masked with safe generic copy', () => {
+test('mapAuthError: unknown error returns safe copy that does not blame credentials', () => {
   const msg = mapAuthError('Some unexpected error from server', 'sign-in');
-  assert.equal(msg, 'Sign-in failed. Please check your email and password and try again.');
+  assert.ok(msg.length > 0);
+  assert.match(msg, /sign you in|try again/i);
+  assert.doesNotMatch(msg, /password/i);
+  assert.doesNotMatch(msg, /email and password/i);
+});
+
+test('mapAuthError: unmatched backend failure is NOT reported as a bad password', () => {
+  const msg = mapAuthError('Internal Server Error (500)', 'sign-in');
+  assert.doesNotMatch(msg, /password/i);
+  assert.doesNotMatch(msg, /email and password/i);
+});
+
+test('mapAuthError: account_unavailable is not reported as a bad password', () => {
+  const msg = mapAuthError('account_unavailable', 'sign-in');
+  assert.doesNotMatch(msg, /password/i);
+  assert.match(msg, /not available/i);
+});
+
+test('mapAuthError: supabase configuration error is not reported as a bad password', () => {
+  const msg = mapAuthError(
+    'Supabase configuration error [missing_key]: EXPO_PUBLIC_SUPABASE_ANON_KEY is not set.',
+    'sign-in',
+  );
+  assert.doesNotMatch(msg, /password/i);
+  assert.match(msg, /configured/i);
 });
 
 test('mapAuthError: "rate limit" → rate-limit copy', () => {
