@@ -502,6 +502,21 @@
       "id": "20260806153233",
       "name": "dressing_room_user_blocking",
       "repo_source": "supabase/migrations/20260806153233_dressing_room_user_blocking.sql"
+    },
+    {
+      "id": "20260808115552",
+      "name": "harden_trigger_function_search_path",
+      "repo_source": "supabase/migrations/20260808115552_harden_trigger_function_search_path.sql"
+    },
+    {
+      "id": "20260808115735",
+      "name": "enforce_rpc_privilege_boundary",
+      "repo_source": "supabase/migrations/20260808115735_enforce_rpc_privilege_boundary.sql"
+    },
+    {
+      "id": "20260808120214",
+      "name": "revoke_public_execute_on_saved_scans_trigger",
+      "repo_source": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql"
     }
   ],
   "tables": [
@@ -985,8 +1000,8 @@
       "id": "public.append_deletion_state_transition(uuid,uuid,text,text,text,text,text,jsonb)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1033,8 +1048,8 @@
       "id": "public.check_and_increment_scan_identify_daily_usage(uuid,text,integer)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1057,8 +1072,8 @@
       "id": "public.claim_deletion_requests_for_purge(text,integer,interval)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1126,11 +1141,19 @@
       "service_role_execute": true
     },
     {
+      "id": "public.enforce_dressing_room_message_flat_thread()",
+      "security_definer": false,
+      "search_path": "pg_catalog, public",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": false
+    },
+    {
       "id": "public.enforce_minor_privacy_defaults()",
       "security_definer": true,
       "search_path": "public",
       "anon_execute": false,
-      "authenticated_execute": true,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1153,7 +1176,7 @@
       "id": "public.finalize_elise_generation_operation(uuid,text,uuid,text)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
+      "anon_execute": false,
       "authenticated_execute": true,
       "service_role_execute": true
     },
@@ -1169,7 +1192,7 @@
       "id": "public.get_my_deletion_status()",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
+      "anon_execute": false,
       "authenticated_execute": true,
       "service_role_execute": true
     },
@@ -1206,6 +1229,14 @@
       "service_role_execute": true
     },
     {
+      "id": "public.handle_new_user_privacy()",
+      "security_definer": true,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
       "id": "public.handle_new_user()",
       "security_definer": true,
       "search_path": "\"\"",
@@ -1214,19 +1245,11 @@
       "service_role_execute": true
     },
     {
-      "id": "public.handle_new_user_privacy()",
-      "security_definer": true,
-      "search_path": "\"\"",
-      "anon_execute": false,
-      "authenticated_execute": true,
-      "service_role_execute": true
-    },
-    {
       "id": "public.heartbeat_deletion_request_lease(uuid,text,interval)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1246,7 +1269,7 @@
       "service_role_execute": true
     },
     {
-      "id": "public.increment_stylechat_daily_usage()",
+      "id": "public.increment_stylechat_daily_usage_idempotent(text)",
       "security_definer": true,
       "search_path": "public",
       "anon_execute": false,
@@ -1254,10 +1277,10 @@
       "service_role_execute": true
     },
     {
-      "id": "public.increment_stylechat_daily_usage_idempotent(text)",
+      "id": "public.increment_stylechat_daily_usage()",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
+      "anon_execute": false,
       "authenticated_execute": true,
       "service_role_execute": true
     },
@@ -1281,8 +1304,8 @@
       "id": "public.list_deletion_purge_candidates(integer)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1313,48 +1336,64 @@
       "id": "public.mark_deletion_request_purged(uuid,text)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.mark_elise_generation_generating(uuid)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
+      "anon_execute": false,
       "authenticated_execute": true,
       "service_role_execute": true
     },
     {
       "id": "public.normalize_dressing_room_note()",
       "security_definer": false,
-      "search_path": null,
+      "search_path": "pg_catalog, public",
       "anon_execute": false,
-      "authenticated_execute": true,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.peek_restoration_resend_by_email(text)",
       "security_definer": true,
       "search_path": "public, auth",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.prevent_inspiration_item_media_rewrite()",
+      "security_definer": false,
+      "search_path": "public",
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.preview_pending_deletion_backfill()",
       "security_definer": true,
       "search_path": "public, auth",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.reconcile_orphaned_purging_requests(integer)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": true
+    },
+    {
+      "id": "public.refund_stylechat_request_quota_for_user(uuid,text)",
+      "security_definer": true,
+      "search_path": "\"\"",
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1366,18 +1405,10 @@
       "service_role_execute": false
     },
     {
-      "id": "public.refund_stylechat_request_quota_for_user(uuid,text)",
-      "security_definer": true,
-      "search_path": "\"\"",
-      "anon_execute": false,
-      "authenticated_execute": false,
-      "service_role_execute": true
-    },
-    {
       "id": "public.register_user_device_session(text,text,text,uuid)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
+      "anon_execute": false,
       "authenticated_execute": true,
       "service_role_execute": true
     },
@@ -1401,7 +1432,7 @@
       "id": "public.reserve_elise_generation_operation(uuid,uuid,text,text,text)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
+      "anon_execute": false,
       "authenticated_execute": true,
       "service_role_execute": true
     },
@@ -1425,15 +1456,15 @@
       "id": "public.restore_account_by_token_hash(text)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.revalidate_elise_generation_context(uuid,uuid,uuid)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
+      "anon_execute": false,
       "authenticated_execute": true,
       "service_role_execute": true
     },
@@ -1449,24 +1480,24 @@
       "id": "public.revoke_user_device_sessions(uuid)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.revoke_user_sessions(uuid)",
       "security_definer": true,
       "search_path": "public, auth",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.rotate_restoration_token_by_email(text,text)",
       "security_definer": true,
       "search_path": "public, auth",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1481,8 +1512,8 @@
       "id": "public.schedule_deletion_retry_or_fail(uuid,text,text,text,integer)",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1512,9 +1543,9 @@
     {
       "id": "public.set_profiles_updated_at()",
       "security_definer": false,
-      "search_path": null,
+      "search_path": "pg_catalog, public",
       "anon_execute": false,
-      "authenticated_execute": true,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1522,39 +1553,47 @@
       "security_definer": false,
       "search_path": "public",
       "anon_execute": false,
-      "authenticated_execute": true,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.set_saved_scans_updated_at()",
       "security_definer": false,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
+    },
+    {
+      "id": "public.set_shared_room_memberships_updated_at()",
+      "security_definer": false,
+      "search_path": "pg_catalog",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_role_execute": false
     },
     {
       "id": "public.set_style_objects_updated_at()",
       "security_definer": false,
-      "search_path": null,
+      "search_path": "pg_catalog, public",
       "anon_execute": false,
-      "authenticated_execute": true,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.set_updated_at()",
       "security_definer": false,
-      "search_path": null,
+      "search_path": "pg_catalog, public",
       "anon_execute": false,
-      "authenticated_execute": true,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
       "id": "public.set_user_stylist_preferences_updated_at()",
       "security_definer": true,
       "search_path": "public",
-      "anon_execute": true,
-      "authenticated_execute": true,
+      "anon_execute": false,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1594,7 +1633,7 @@
       "security_definer": false,
       "search_path": "\"\"",
       "anon_execute": false,
-      "authenticated_execute": true,
+      "authenticated_execute": false,
       "service_role_execute": true
     },
     {
@@ -1915,5 +1954,25 @@
       "proof": "md5 of the recovered file equals md5 of the single applied statement recorded in supabase_migrations.schema_migrations (bdbaeeccaae4cffd396a639b9d5838b3). Byte length 29775 vs character length 29425 differs only by multi-byte UTF-8 box-drawing glyphs in comments.",
       "note": "Build 25 branches carry a superseding revision (blob 3df4e8cccc7e8e4ef921ce8856638360483c2e4a) that additionally creates the internal schema and grants USAGE to authenticated. That revision was NOT applied to staging. The applied version is committed here verbatim; the missing grant is corrected by a separate forward migration rather than by editing applied history."
     }
-  }
+  },
+  "schema_privileges": [
+    {
+      "schema": "internal",
+      "role": "authenticated",
+      "usage": true,
+      "reason": "Required for RLS predicates that call internal.is_dressing_room_pair_blocked; granted by 20260808115735."
+    },
+    {
+      "schema": "internal",
+      "role": "anon",
+      "usage": false,
+      "reason": "Anon must never reach internal helpers."
+    },
+    {
+      "schema": "internal",
+      "role": "service_role",
+      "usage": true,
+      "reason": "Owner of internal operational tables."
+    }
+  ]
 }
