@@ -77,6 +77,11 @@ jobs:
       - name: Generate iOS native project (Expo prebuild)
         run: npx expo prebuild --platform ios --no-install
 
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update
+
       - name: Resolve Xcode workspace and scheme
         id: xcode
         run: |
@@ -113,11 +118,6 @@ jobs:
           fs.appendFileSync(githubOutput, `scheme=${scheme}\n`);
           console.log(`Resolved workspace=${workspace}, scheme=${scheme}`);
           NODE
-
-      - name: Install CocoaPods dependencies
-        run: |
-          cd ios
-          pod install --repo-update
 
       - name: Select and boot an iPhone Simulator
         id: simulator
