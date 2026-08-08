@@ -16,7 +16,9 @@ concurrency:
 
 env:
   MAESTRO_TEST_BRANCH: test/ios-build25-maestro-runtime
-  MAESTRO_TEST_SHA: 370827cb520e97ad5d5c23c690da673ae9f19b94
+  MAESTRO_TEST_SHA: 01f135f3d9e021745925d4506986fd6da4759426
+  # Pinned rather than installing latest — see "Install Maestro CLI" below.
+  MAESTRO_CLI_VERSION: "2.8.0"
   APP_BUNDLE_ID: com.kscanai.app
   MAESTRO_ARTIFACTS_DIR: maestro-artifacts
   IOS_DERIVED_DATA_PATH: ios/DerivedData
@@ -187,6 +189,8 @@ jobs:
           xcrun simctl install "${{ steps.simulator.outputs.udid }}" "$APP_PATH"
 
       - name: Install Maestro CLI
+        env:
+          MAESTRO_VERSION: ${{ env.MAESTRO_CLI_VERSION }}
         run: |
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
@@ -196,6 +200,7 @@ jobs:
           QA_EMAIL: ${{ secrets.QA_EMAIL }}
           QA_PASSWORD: ${{ secrets.QA_PASSWORD }}
           QA_FULL_NAME: ${{ secrets.QA_FULL_NAME }}
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: "300000"
         run: |
           mkdir -p "${{ env.MAESTRO_ARTIFACTS_DIR }}/test-output" "${{ env.MAESTRO_ARTIFACTS_DIR }}/debug"
           set +e
