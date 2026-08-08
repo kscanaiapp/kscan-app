@@ -28,6 +28,26 @@ The repository owner still manually clicks Merge — automation never merges
 on its own — but the owner's click is a deploy decision, not a substitute
 code review. Required automated checks are the actual review authority.
 
+### Agent review (optional, non-gating)
+
+`required_approving_review_count` is 0, so no review — human or agent — is
+required to merge. An agent review (e.g. via `/code-review`) MAY be used as
+an optional quality practice on top of the required automated checks, but it
+is never a substitute for them and it never bypasses a required check. If
+used, it only carries weight when:
+
+- the reviewer identity differs from the PR author
+- all required PR checks (the table below) are green
+- no unresolved Blocker/P0/P1 findings remain
+- security evidence is present in the PR
+- the reviewer records its reasoning in the review body
+- the agent cannot bypass required checks
+- production promotion remains owner-controlled regardless of any review
+
+Because reviews are not required, an agent review is documentation of
+diligence, not a gate — the ruleset does not check for its presence, and
+its absence never blocks a merge.
+
 ### Required staging checks (PR merge gate)
 
 Every name below is a real GitHub check-run `name:` as emitted by these
