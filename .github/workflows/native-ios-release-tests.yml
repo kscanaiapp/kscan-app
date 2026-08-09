@@ -181,18 +181,30 @@ jobs:
             exit 1
           fi
           echo "Building scheme $APP_SCHEME from $WORKSPACE"
+          # Release, not Debug. React Native's "Bundle React Native code and
+          # images" phase self-skips for a Debug simulator build:
+          #
+          #   [[ Debug = *Debug* ]] && [[ ! iphonesimulator == *simulator ]] ...
+          #   SKIP_BUNDLING enabled; skipping.
+          #
+          # so a Debug simulator app ships with no main.jsbundle and can only
+          # render against a Metro dev server. A release certification runner
+          # must test a self-contained build of the exact candidate, so Release
+          # is used here. Simulator builds need no signing identity.
           set -o pipefail
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$APP_SCHEME" \
-            -configuration Debug \
+            -configuration Release \
             -sdk iphonesimulator \
             -derivedDataPath build \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
             build 2>&1 | tee ../xcodebuild.log | xcpretty || {
               echo "xcodebuild failed; tail of raw log:" >&2
-              tail -50 ../xcodebuild.log >&2
+              tail -80 ../xcodebuild.log >&2
               exit 1
             }
           cd ..
@@ -207,8 +219,67 @@ jobs:
           echo "app=$APP" >> "$GITHUB_OUTPUT"
           echo "build_identifier=ios-sim-${{ steps.candidate.outputs.sha }}-$(find "$APP" -type f -exec shasum {} + | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
+      - name: Verify the app carries a self-contained JS bundle
+        id: bundle
+        # Guards the exact defect that produced 25/25 identical failures in run
+        # 31317967934: a native shell with no JS. An app in that state was never
+        # runnable, so this is an OPERATIONAL_FAILURE of the harness, never a
+        # BLOCKED verdict against the product.
+        run: |
+          set -euo pipefail
+          APP='${{ steps.build.outputs.app }}'
+          BUNDLE="$(find "$APP" -type f \( -name 'main.jsbundle' -o -name '*.jsbundle' \) -print -quit)"
+          if [ -z "$BUNDLE" ]; then
+            echo "::error::no .jsbundle inside $APP - the app cannot render without a dev server"
+            echo 'Top-level app contents:' >&2
+            ls -la "$APP" >&2 || true
+            grep -n 'SKIP_BUNDLING' xcodebuild.log >&2 || true
+            echo 'bundle_present=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          BYTES="$(wc -c < "$BUNDLE" | tr -d ' ')"
+          if [ "$BYTES" -lt 10000 ]; then
+            echo "::error::$BUNDLE is implausibly small (${BYTES} bytes)"
+            echo 'bundle_present=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "JS bundle: $BUNDLE (${BYTES} bytes)"
+          echo 'bundle_present=true' >> "$GITHUB_OUTPUT"
+          echo "bundle_path=$BUNDLE" >> "$GITHUB_OUTPUT"
+
       - name: Install app on simulator
         run: xcrun simctl install "${{ steps.sim.outputs.udid }}" "${{ steps.build.outputs.app }}"
+
+      - name: Probe app launch
+        id: launch
+        # Proves the app reaches a rendering state before 25 flows are blamed for
+        # a harness fault. A failure here is OPERATIONAL_FAILURE, not BLOCKED.
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          UDID='${{ steps.sim.outputs.udid }}'
+          xcrun simctl launch "$UDID" "$APP_ID" > artifacts/app-launch.txt 2>&1 || {
+            echo "::error::simctl launch failed"
+            cat artifacts/app-launch.txt >&2
+            echo 'launched=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          }
+          cat artifacts/app-launch.txt
+          sleep 15
+          xcrun simctl io "$UDID" screenshot artifacts/app-launch.png || true
+          # Capture only this app's recent log, and only the fields needed to see
+          # a JS load failure. No environment or secret values are emitted.
+          xcrun simctl spawn "$UDID" log show --last 60s --style compact \
+            --predicate "processImagePath CONTAINS[c] 'KScan'" \
+            > artifacts/app-launch-log.txt 2>/dev/null || true
+          if grep -qiE 'No bundle URL present|Could not connect to development server|RCTFatal' artifacts/app-launch-log.txt 2>/dev/null; then
+            echo "::error::app started but could not load its JS bundle"
+            grep -iE 'No bundle URL present|Could not connect to development server|RCTFatal' artifacts/app-launch-log.txt | head -5 >&2
+            echo 'launched=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          xcrun simctl terminate "$UDID" "$APP_ID" || true
+          echo 'launched=true' >> "$GITHUB_OUTPUT"
 
       - name: Install Maestro
         run: |
@@ -216,28 +287,9 @@ jobs:
           curl -fsSL https://get.maestro.mobile.dev | bash -s "$MAESTRO_VERSION"
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      - name: Start Metro bundler
-        # A debug build loads its JS from Metro at runtime. Without it the app
-        # launches to a blank shell and every flow fails identically waiting for
-        # the first screen -- exactly what run 31317967934 showed: 25/25 failing
-        # on "id: onboarding-welcome-screen-v1 is visible".
-        #
-        # Kept on the debug bundle for parity with the Android runner, which
-        # cannot build release without signing credentials it deliberately does
-        # not hold. The simulator reaches Metro on localhost directly.
-        run: |
-          set -euo pipefail
-          nohup npx expo start --port 8081 > metro.log 2>&1 &
-          for i in $(seq 1 60); do
-            if curl -fsS http://localhost:8081/status >/dev/null 2>&1; then
-              echo "Metro ready after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo 'Metro did not become ready; tail of metro.log:' >&2
-          tail -40 metro.log >&2
-          exit 1
+      # No Metro server. The Release build above embeds the candidate's JS
+      # bundle, so the app under test is self-contained and is the artifact a
+      # release certification should actually exercise.
 
       - name: Run release flows
         continue-on-error: true
@@ -266,10 +318,23 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          # A build or simulator fault must still emit evidence, so certification
-          # sees an explicit OPERATIONAL_FAILURE rather than a missing artifact.
+          # A build, bundle, launch or simulator fault must still emit evidence,
+          # and must name the specific reason, so certification sees an explicit
+          # OPERATIONAL_FAILURE rather than a missing artifact or a BLOCKED
+          # verdict against an app that was never runnable.
           INFRA=''
-          if [ ! -f artifacts/report.xml ]; then INFRA='--infrastructure-failure'; fi
+          REASON=''
+          if [ '${{ steps.bundle.outputs.bundle_present }}' = 'false' ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_JS_BUNDLE_MISSING'
+          elif [ '${{ steps.launch.outputs.launched }}' = 'false' ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_APP_LAUNCH_FAILED'
+          elif [ '${{ steps.build.outcome }}' != 'success' ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_BUILD_FAILED'
+          elif [ ! -f artifacts/report.xml ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_REPORT_MISSING'
+          fi
+          REASON_ARG=''
+          if [ -n "$REASON" ]; then REASON_ARG="--reason $REASON"; fi
           node security/scripts/build-native-mobile-evidence.js \
             --platform ios \
             --candidate-sha "${{ steps.candidate.outputs.sha }}" \
@@ -280,7 +345,7 @@ jobs:
             --report artifacts/report.xml \
             --artifact-links "$RUN_URL" \
             --output artifacts/native-ios-evidence.json \
-            $INFRA
+            $INFRA $REASON_ARG
           RESULT="$(node -p "require('./artifacts/native-ios-evidence.json').result")"
           echo "result=$RESULT" >> "$GITHUB_OUTPUT"
           cat artifacts/native-ios-evidence.json
@@ -303,6 +368,9 @@ jobs:
             artifacts/report.xml
             artifacts/maestro.log
             artifacts/maestro-debug/**
+            artifacts/app-launch.txt
+            artifacts/app-launch.png
+            artifacts/app-launch-log.txt
             xcodebuild.log
           if-no-files-found: warn
           retention-days: 30

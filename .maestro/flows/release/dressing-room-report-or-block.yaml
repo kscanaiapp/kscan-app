@@ -25,7 +25,25 @@ env:
     visible:
       id: "room-messages-list"
     timeout: 45000
-# The UGC safety affordance must be reachable from a shared room.
+
+# The UGC safety control is a per-message Report action
+# (components/rooms/RoomMessagesPanel.tsx, testID room-message-report-<id>).
+# Asserting the share button here would not exercise reporting at all.
 - assertVisible:
-    id: "share-room-button"
-- takeScreenshot: "dressing-room-safety-controls"
+    id: "room-message-report-.*"
+- takeScreenshot: "dressing-room-report-control"
+
+- tapOn:
+    id: "room-message-report-.*"
+
+# "Report & Hide" immediately hides content and filters the sender, so this
+# flow proves the control and its disclosure are reachable, then cancels.
+# It deliberately does not confirm, so no QA room state is mutated.
+- extendedWaitUntil:
+    visible: "Report content"
+    timeout: 15000
+- assertVisible: "Report & Hide.*"
+- takeScreenshot: "dressing-room-report-dialog"
+- tapOn: "Cancel"
+- assertVisible:
+    id: "room-messages-list"

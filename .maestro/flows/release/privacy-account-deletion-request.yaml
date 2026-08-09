@@ -14,11 +14,17 @@ env:
 - runFlow: ../../subflows/sign-in.yaml
 - tapOn:
     id: "home-v2-privacy-button"
+
+# Assert the real deletion surface from app/privacy.tsx. The title differs when
+# a request is already pending, so accept either state rather than assuming a
+# clean QA account.
 - extendedWaitUntil:
-    visible:
-      id: "privacy-button"
+    visible: "Request permanent account closure"
     timeout: 30000
-# Non-destructive: the deletion entry point must be present and disclose the
-# grace period. The flow stops before confirming, so no QA account is deleted.
-- assertVisible: ".*(Delete|Deletion).*"
+- assertVisible: "Delete Account|Deletion Request Pending"
 - takeScreenshot: "privacy-account-deletion-entry"
+
+# Non-destructive by design: the flow stops before confirming. Submitting a real
+# deletion would destroy the shared QA identity every other release flow signs
+# in with, so the release-relevant assertion is that the control and its
+# disclosure are present and reachable.
