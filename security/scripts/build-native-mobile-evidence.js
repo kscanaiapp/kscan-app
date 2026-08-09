@@ -72,11 +72,16 @@ function buildEvidence(options) {
     artifactLinks = [],
     deviceIdentity = null,
     infrastructureFailure = false,
+    infrastructureReason = null,
     manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')),
   } = options;
 
   const expected = manifest.flows.filter((flow) => flow.platforms.includes(platform));
 
+  // An app that never became runnable -- build failed, no embedded JS bundle,
+  // or it could not launch -- is a harness fault. Reporting it as BLOCKED would
+  // accuse the product of a critical flow failure it was never given the chance
+  // to demonstrate, so these always resolve to OPERATIONAL_FAILURE.
   if (infrastructureFailure || reportXml == null) {
     return {
       platform,
@@ -86,7 +91,8 @@ function buildEvidence(options) {
       tested_sha: candidateSha,
       device: deviceIdentity,
       result: 'OPERATIONAL_FAILURE',
-      reason: reportXml == null ? 'NATIVE_REPORT_MISSING' : 'NATIVE_TEST_INFRASTRUCTURE_FAILURE',
+      reason: infrastructureReason
+        || (reportXml == null ? 'NATIVE_REPORT_MISSING' : 'NATIVE_TEST_INFRASTRUCTURE_FAILURE'),
       flows: [],
       artifact_links: artifactLinks,
     };
@@ -212,6 +218,7 @@ function main() {
     artifactLinks,
     deviceIdentity,
     infrastructureFailure: args.includes('--infrastructure-failure'),
+    infrastructureReason: arg(args, '--reason'),
   });
 
   fs.mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
