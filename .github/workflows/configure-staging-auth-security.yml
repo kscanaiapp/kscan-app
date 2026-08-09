@@ -44,14 +44,35 @@ jobs:
 
       - name: Snapshot, enable, and verify Auth control
         run: |
-          set -euo pipefail
+          set -uo pipefail
           API="https://api.supabase.com/v1/projects/${STAGING_REF}/config/auth"
-          curl --fail --silent --show-error --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "$API" --output before.json
+          node -e "require('fs').writeFileSync('staging-auth-security.json',JSON.stringify({project_ref:process.env.STAGING_REF,production_targeted:false,before:{password_hibp_enabled:null},after:{password_hibp_enabled:null},auth_regression:{normal_sign_in:false,invalid_credentials_rejected:false,existing_account_unchanged:true},verdict:'OPERATIONAL_FAILURE',owner_action_required:null},null,2))"
+          BEFORE_CODE="$(curl --silent --show-error --output before.json --write-out '%{http_code}' --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "$API")" || BEFORE_CODE=000
+          if [ "$BEFORE_CODE" != 200 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.failure='AUTH_CONFIG_READ_FAILED';r.http_status=process.argv[1];fs.writeFileSync(p,JSON.stringify(r,null,2))" "$BEFORE_CODE"
+            exit 1
+          fi
           BEFORE="$(node -e "const c=require('./before.json'); process.stdout.write(String(c.password_hibp_enabled === true))")"
-          curl --fail --silent --show-error --request PATCH --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data '{"password_hibp_enabled":true}' "$API" --output patch-response.json
-          curl --fail --silent --show-error --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "$API" --output after.json
+          node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.before.password_hibp_enabled=process.argv[1]==='true';fs.writeFileSync(p,JSON.stringify(r,null,2))" "$BEFORE"
+          PATCH_CODE="$(curl --silent --show-error --output patch-response.json --write-out '%{http_code}' --request PATCH --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data '{"password_hibp_enabled":true}' "$API")" || PATCH_CODE=000
+          if [ "$PATCH_CODE" = 402 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.verdict='OWNER_ACTION_REQUIRED';r.failure='SUPABASE_PLAN_DOES_NOT_SUPPORT_HIBP';r.http_status=402;r.owner_action_required='UPGRADE_STAGING_SUPABASE_PLAN_THEN_RERUN';fs.writeFileSync(p,JSON.stringify(r,null,2))"
+            rm -f before.json patch-response.json
+            exit 1
+          fi
+          if [ "$PATCH_CODE" != 200 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.failure='AUTH_CONFIG_UPDATE_FAILED';r.http_status=process.argv[1];fs.writeFileSync(p,JSON.stringify(r,null,2))" "$PATCH_CODE"
+            rm -f before.json patch-response.json
+            exit 1
+          fi
+          AFTER_CODE="$(curl --silent --show-error --output after.json --write-out '%{http_code}' --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "$API")" || AFTER_CODE=000
+          if [ "$AFTER_CODE" != 200 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.failure='AUTH_CONFIG_VERIFY_FAILED';r.http_status=process.argv[1];fs.writeFileSync(p,JSON.stringify(r,null,2))" "$AFTER_CODE"
+            rm -f before.json patch-response.json after.json
+            exit 1
+          fi
           AFTER="$(node -e "const c=require('./after.json'); process.stdout.write(String(c.password_hibp_enabled === true))")"
-          node -e "const fs=require('fs'); fs.writeFileSync('staging-auth-security.json', JSON.stringify({project_ref:process.env.STAGING_REF,production_targeted:false,before:{password_hibp_enabled:process.argv[1]==='true'},after:{password_hibp_enabled:process.argv[2]==='true'}},null,2))" "$BEFORE" "$AFTER"
+          node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.after.password_hibp_enabled=process.argv[1]==='true';r.verdict=r.after.password_hibp_enabled?'PENDING_AUTH_REGRESSION':'BLOCKED';fs.writeFileSync(p,JSON.stringify(r,null,2))" "$AFTER"
           rm -f before.json patch-response.json after.json
           test "$AFTER" = true
 
