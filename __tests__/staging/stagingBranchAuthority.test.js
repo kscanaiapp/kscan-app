@@ -56,7 +56,7 @@ test('the staging security gate classifies against the new staging authority', (
   }
 });
 
-test('staging deploy authority is an allow-list containing only the governing branch', () => {
+test('staging deploy authority is an allow-list containing only the governing branch and explicit dispatch', () => {
   const gate = readWorkflow('security-staging-gate.yml');
 
   // A deny-list is not enough: any branch not named would still deploy. The
@@ -66,10 +66,17 @@ test('staging deploy authority is an allow-list containing only the governing br
     new RegExp(`github\\.ref\\s*==\\s*'refs/heads/${STAGING_AUTHORITY_BRANCH}'`),
     'the deploy job must allow the governing staging branch by name',
   );
-  assert.match(
+  // PR heads are mutable and are therefore never deployment sources. The
+  // authority branch becomes eligible only after the protected merge.
+  assert.doesNotMatch(
     gate,
     new RegExp(`github\\.base_ref\\s*==\\s*'${STAGING_AUTHORITY_BRANCH}'`),
-    'the deploy job must allow PRs into the governing staging branch',
+    'a PR base branch must not itself authorize a staging deploy',
+  );
+  assert.match(
+    gate,
+    /github\.event_name\s*==\s*'workflow_dispatch'/,
+    'an explicit manual deploy path must remain separately gated',
   );
   assert.ok(
     !/github\.ref\s*!=/.test(gate),

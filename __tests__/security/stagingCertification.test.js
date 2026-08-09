@@ -59,7 +59,7 @@ const scenarios = [
   ['confirmed secret', (input) => ({ ...input, artifact_exposure: 'BLOCKED' }), 'BLOCKED'],
   ['scanner crashes', (input) => ({ ...input, static_security: 'OPERATIONAL_FAILURE' }), 'OPERATIONAL_FAILURE'],
   ['required report missing', (input) => ({ ...input, zap_baseline: 'OPERATIONAL_FAILURE' }), 'OPERATIONAL_FAILURE'],
-  ['expected skipped deploy', (input) => ({ ...input, deployment_required: false, deployed_staging_sha: 'NOT_APPLICABLE', staging_health: 'NOT_APPLICABLE', synthetic_auth: 'NOT_APPLICABLE' }), 'PASS'],
+  ['expected skipped deploy', (input) => ({ ...input, deployment_required: false, deployed_staging_sha: 'NOT_APPLICABLE', migration_validation: 'NOT_APPLICABLE', staging_health: 'NOT_APPLICABLE', synthetic_auth: 'NOT_APPLICABLE' }), 'NOT_APPLICABLE'],
   ['sibling still running', (input) => ({ ...input, zap_api: 'PENDING' }), 'PENDING'],
   ['candidate SHA mismatch', (input) => ({ ...input, deployed_staging_sha: 'c'.repeat(40) }), 'BLOCKED'],
   ['staging branch moved', (input) => ({ ...input, staging_branch_head_sha: 'd'.repeat(40) }), 'BLOCKED'],
@@ -72,6 +72,8 @@ const scenarios = [
   ['new high runtime dependency', (input) => ({ ...input, static_security: 'BLOCKED' }), 'BLOCKED'],
   ['master tree differs', (input) => ({ ...input, rpc_rls_authorization: 'BLOCKED' }), 'BLOCKED'],
   ['master required check missing', (input) => ({ ...input, contract_tests: 'OPERATIONAL_FAILURE' }), 'OPERATIONAL_FAILURE'],
+  ['optional ZAP target not configured', (input) => ({ ...input, zap_baseline: 'NOT_APPLICABLE', zap_api: 'NOT_APPLICABLE' }), 'PASS'],
+  ['mobile evidence not configured for live certification', (input) => ({ ...input, mobile_evidence_configured: false, testsprite_android: 'BLOCKED', testsprite_ios: 'BLOCKED' }), 'BLOCKED'],
 ];
 
 for (const [name, mutate, expected] of scenarios) {
@@ -79,3 +81,25 @@ for (const [name, mutate, expected] of scenarios) {
     assert.equal(build(mutate(base())).final_verdict, expected);
   });
 }
+
+test('framework validation does not require TestSprite configuration', () => {
+  // The framework suite exercises deterministic fixtures; it must remain
+  // runnable before a TestSprite project exists. Live certification supplies
+  // the actual mobile evidence and fails closed when it is absent.
+  const report = build({ ...base(), testsprite_configured: false });
+  assert.equal(report.final_verdict, 'PASS');
+  assert.equal(report.promotion_eligible, true);
+});
+
+test('a no-deploy candidate is never promotion eligible', () => {
+  const report = build({
+    ...base(),
+    deployment_required: false,
+    deployed_staging_sha: 'NOT_APPLICABLE',
+    migration_validation: 'NOT_APPLICABLE',
+    staging_health: 'NOT_APPLICABLE',
+    synthetic_auth: 'NOT_APPLICABLE',
+  });
+  assert.equal(report.final_verdict, 'NOT_APPLICABLE');
+  assert.equal(report.promotion_eligible, false);
+});

@@ -3,8 +3,8 @@
   "staging_project_ref": "yzqjvdfgefveprobvvyw",
   "production_project_ref_blocked": "wyyuqfdxucjksghsmhry",
   "staging_branch": "staging/production-parity",
-  "expected_branch_sha": "30f82a44c5e633763148e5e917153c6a38c9c028",
-  "generated_at": "2026-08-08T00:00:00Z",
+  "expected_branch_sha": "cf117f6e4d72ae58e27ccacc124f8075d2ab9226",
+  "generated_at": "2026-08-09T00:00:00Z",
   "evidence_method": "Supabase Management API (list_migrations, list_edge_functions, execute_sql against pg_catalog/storage) + GitHub ruleset API",
   "notes": "Expected-state baseline. Update after any reviewed staging migration apply or Edge Function deploy.",
   "migrations": [
@@ -1960,11 +1960,11 @@
       "domain": "edge_functions",
       "id": "product-match",
       "classification": "LIVE_ONLY_OFF_BRANCH_SOURCE",
-      "reason": "Live on staging and publicly invocable (verify_jwt=false). Source exists in git on the unmerged product-match/foundation-v1 and product-match/foundation-v1-ios branches but was never merged into the staging authority lineage, so the deployed bundle cannot be tied to a staging-branch commit. Not covered by issue #46.",
+      "reason": "Live on staging and publicly invocable (verify_jwt=false). Source exists in git on the unmerged product-match/foundation-v1 and product-match/foundation-v1-ios branches but was never merged into the staging authority lineage, so the deployed bundle cannot be tied to a staging-branch commit. Tracked by issue #72.",
       "security_status": "DEPLOYMENT_UNVERIFIED",
       "deployment_policy": "DO_NOT_REDEPLOY",
       "modification_policy": "SOURCE_RECOVERY_REQUIRED",
-      "issue": null
+      "issue": 72
     }
   ],
   "provenance_notes": {
