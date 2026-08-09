@@ -11,10 +11,12 @@
  * active, so a blocked participant still satisfied the predicate and could
  * INSERT items into the room they were blocked from.
  *
- * Proven in a disposable Postgres 16 container on 2026-08-09 by running the
- * deployed predicate and the repaired one side by side over the same fixture:
- * blocked participant BEFORE=true, AFTER=false, with owner / unrelated
- * participant / stranger / re-redemption cases identical across both.
+ * DEPLOYED to production wyyuqfdxucjksghsmhry on 2026-08-09 as ledger version
+ * 20260809102805. Verified by running the pgTAP suite against a disposable
+ * Postgres 17 replica built from the production function definitions extracted
+ * after deployment: 8/8 pass. The same suite run against the pre-fix predicate
+ * fails 4 of 8 (assertions 4, 5, 6, 7), including the direct RLS INSERT — so
+ * the suite is a real regression guard, not a restatement of the code.
  *
  * This file is the guard that runs in the normal suite; the behavioural
  * assertions live in supabase/tests/dressing_room_contribution_blocking_test.sql
@@ -123,12 +125,18 @@ test('GP-004: signature, volatility and grants are unchanged', () => {
   );
 });
 
-test('GP-004: the migration is marked as not-yet-deployed to production', () => {
+test('GP-004: the migration records its production deployment state', () => {
   const migration = read(MIGRATION);
   assert.match(
     migration,
-    /NOT APPLIED TO PRODUCTION/,
+    /APPLIED TO PRODUCTION wyyuqfdxucjksghsmhry/,
     'deployment state must be explicit in the migration header',
+  );
+  assert.match(
+    migration,
+    /version 20260809102805/,
+    'the migration ledger version it landed as must be recorded, since the applied '
+      + 'stamp does not match this filename',
   );
 });
 

@@ -1,6 +1,11 @@
 -- Dressing Room blocking: close the item-contribution bypass.
 --
--- NOT APPLIED TO PRODUCTION. Deployment requires separate owner authorization.
+-- APPLIED TO PRODUCTION wyyuqfdxucjksghsmhry ("KScan App Production") on
+-- 2026-08-09 under owner authorization, recorded in the migration ledger as
+-- version 20260809102805, name `contribution_block_enforcement`. The applied
+-- version stamp differs from this filename because the deployment tool stamps
+-- its own timestamp; that is the established convention for this project (see
+-- the three Build 25 migrations applied 2026-08-08). Do not re-apply.
 --
 -- WHAT WAS WRONG
 --
