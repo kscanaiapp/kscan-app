@@ -152,6 +152,18 @@ test('an Auth-named workflow remains control-plane and cannot gain staging write
   assert.equal(classification.stagingImpact, false);
 });
 
+test('runtime dependency manifests can never be classified as no-deploy control-plane changes', () => {
+  const script = path.join(__dirname, '..', '..', 'security', 'scripts', 'classify-changed-surfaces.js');
+  const result = spawnSync(process.execPath, [script], {
+    encoding: 'utf8',
+    env: { ...process.env, CHANGED_FILES: 'package.json' },
+  });
+  assert.equal(result.status, 0);
+  const classification = JSON.parse(result.stdout);
+  assert.equal(classification.releaseClass, 'RUNTIME_RELEASE');
+  assert.equal(classification.stagingImpact, true);
+});
+
 test('native evidence preserves build/run identity and exact tested SHA', () => {
   const flows = requiredFlows.filter((flow) => flow.required && flow.platforms.includes('android'))
     .map((flow) => ({ id: flow.id, result: 'PASS' }));

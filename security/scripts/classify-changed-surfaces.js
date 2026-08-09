@@ -100,9 +100,11 @@ function main() {
   // never grant deployment authority. The strict path allow-list defines a
   // control-plane candidate first; only runtime candidates can have staging
   // impact and reach the staging write job.
-  const stagingImpact = releaseClass === 'RUNTIME_RELEASE'
-    && !onlyDocs
-    && [...allTags].some((t) => STAGING_IMPACT_TAGS.has(t));
+  // Anything outside the strict control-plane allow-list is release content.
+  // Runtime dependency/build/config files (for example package.json or
+  // eas.json) must never skip deployment merely because their display tag is
+  // BUILD/CI rather than API/MOBILE.
+  const stagingImpact = releaseClass === 'RUNTIME_RELEASE';
 
   const result = {
     baseRef,

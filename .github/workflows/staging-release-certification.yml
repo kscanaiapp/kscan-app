@@ -95,8 +95,8 @@ jobs:
           npm run test:rpc-policy
           npm run test:provenance-quarantine
           npm run test:staging-certification
-          npm run test:native-evidence
-          npm run test:release-tree
+          node --test __tests__/security/nativeMobileEvidence.test.js
+          node --test __tests__/security/releaseTreeEquivalence.test.js __tests__/security/provenanceMap.test.js
 
   artifact-exposure:
     name: Candidate artifact exposure
