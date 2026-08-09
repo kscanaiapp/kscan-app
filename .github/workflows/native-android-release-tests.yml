@@ -175,18 +175,22 @@ jobs:
 
       - name: Build native evidence
         id: evidence
+        if: always() && steps.candidate.outputs.sha != ''
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          mkdir -p artifacts
+          # A build or emulator fault must still emit evidence, so certification
+          # sees an explicit OPERATIONAL_FAILURE rather than a missing artifact.
           INFRA=''
           if [ ! -f artifacts/report.xml ]; then INFRA='--infrastructure-failure'; fi
           node security/scripts/build-native-mobile-evidence.js \
             --platform android \
             --candidate-sha "${{ steps.candidate.outputs.sha }}" \
             --run-id "${{ github.run_id }}" \
-            --build-identifier "${{ steps.build.outputs.build_identifier }}" \
-            --device "${{ steps.device.outputs.id }}" \
+            --build-identifier "${{ steps.build.outputs.build_identifier || 'unavailable-build-failed' }}" \
+            --device "${{ steps.device.outputs.id || 'unavailable' }}" \
             --runner "Maestro ${MAESTRO_VERSION}" \
             --report artifacts/report.xml \
             --artifact-links "$RUN_URL" \
@@ -197,6 +201,7 @@ jobs:
           cat artifacts/native-android-evidence.json
 
       - name: Upload native evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: native-android-evidence
