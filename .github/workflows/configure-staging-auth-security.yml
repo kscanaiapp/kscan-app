@@ -1,0 +1,97 @@
+name: Configure staging Auth security
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type ENABLE-STAGING-HIBP
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: configure-staging-auth-security
+  cancel-in-progress: false
+
+jobs:
+  enable-and-verify:
+    name: Enable and verify staging leaked-password protection
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      STAGING_REF: yzqjvdfgefveprobvvyw
+      PRODUCTION_REF: wyyuqfdxucjksghsmhry
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+      SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+      STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+      STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+    steps:
+      - name: Validate staging-only authority
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = 'ENABLE-STAGING-HIBP'
+          test "$STAGING_REF" = 'yzqjvdfgefveprobvvyw'
+          test "$STAGING_REF" != "$PRODUCTION_REF"
+          case "$SUPABASE_STAGING_URL" in https://yzqjvdfgefveprobvvyw.supabase.co) ;; *) exit 1 ;; esac
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_STAGING_PUBLISHABLE_KEY STAGING_SYNTHETIC_ACTIVE_EMAIL STAGING_SYNTHETIC_ACTIVE_PASSWORD; do
+            test -n "${!name:-}" || { echo "::error::Missing required staging credential: $name"; exit 1; }
+          done
+
+      - name: Snapshot, enable, and verify Auth control
+        run: |
+          set -uo pipefail
+          API="https://api.supabase.com/v1/projects/${STAGING_REF}/config/auth"
+          node -e "require('fs').writeFileSync('staging-auth-security.json',JSON.stringify({project_ref:process.env.STAGING_REF,production_targeted:false,before:{password_hibp_enabled:null},after:{password_hibp_enabled:null},auth_regression:{normal_sign_in:false,invalid_credentials_rejected:false,existing_account_unchanged:true},verdict:'OPERATIONAL_FAILURE',owner_action_required:null},null,2))"
+          BEFORE_CODE="$(curl --silent --show-error --output before.json --write-out '%{http_code}' --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "$API")" || BEFORE_CODE=000
+          if [ "$BEFORE_CODE" != 200 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.failure='AUTH_CONFIG_READ_FAILED';r.http_status=process.argv[1];fs.writeFileSync(p,JSON.stringify(r,null,2))" "$BEFORE_CODE"
+            exit 1
+          fi
+          BEFORE="$(node -e "const c=require('./before.json'); process.stdout.write(String(c.password_hibp_enabled === true))")"
+          node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.before.password_hibp_enabled=process.argv[1]==='true';fs.writeFileSync(p,JSON.stringify(r,null,2))" "$BEFORE"
+          PATCH_CODE="$(curl --silent --show-error --output patch-response.json --write-out '%{http_code}' --request PATCH --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data '{"password_hibp_enabled":true}' "$API")" || PATCH_CODE=000
+          if [ "$PATCH_CODE" = 402 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.verdict='OWNER_ACTION_REQUIRED';r.failure='SUPABASE_PLAN_DOES_NOT_SUPPORT_HIBP';r.http_status=402;r.owner_action_required='UPGRADE_STAGING_SUPABASE_PLAN_THEN_RERUN';fs.writeFileSync(p,JSON.stringify(r,null,2))"
+            rm -f before.json patch-response.json
+            exit 1
+          fi
+          if [ "$PATCH_CODE" != 200 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.failure='AUTH_CONFIG_UPDATE_FAILED';r.http_status=process.argv[1];fs.writeFileSync(p,JSON.stringify(r,null,2))" "$PATCH_CODE"
+            rm -f before.json patch-response.json
+            exit 1
+          fi
+          AFTER_CODE="$(curl --silent --show-error --output after.json --write-out '%{http_code}' --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "$API")" || AFTER_CODE=000
+          if [ "$AFTER_CODE" != 200 ]; then
+            node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.failure='AUTH_CONFIG_VERIFY_FAILED';r.http_status=process.argv[1];fs.writeFileSync(p,JSON.stringify(r,null,2))" "$AFTER_CODE"
+            rm -f before.json patch-response.json after.json
+            exit 1
+          fi
+          AFTER="$(node -e "const c=require('./after.json'); process.stdout.write(String(c.password_hibp_enabled === true))")"
+          node -e "const fs=require('fs'),p='staging-auth-security.json',r=require('./'+p);r.after.password_hibp_enabled=process.argv[1]==='true';r.verdict=r.after.password_hibp_enabled?'PENDING_AUTH_REGRESSION':'BLOCKED';fs.writeFileSync(p,JSON.stringify(r,null,2))" "$AFTER"
+          rm -f before.json patch-response.json after.json
+          test "$AFTER" = true
+
+      - name: Staging Auth regression
+        run: |
+          set -euo pipefail
+          AUTH_URL="${SUPABASE_STAGING_URL}/auth/v1/token?grant_type=password"
+          GOOD_CODE="$(curl --silent --show-error --output good.json --write-out '%{http_code}' --request POST --header "apikey: ${SUPABASE_STAGING_PUBLISHABLE_KEY}" --header 'Content-Type: application/json' --data "$(node -e "process.stdout.write(JSON.stringify({email:process.env.STAGING_SYNTHETIC_ACTIVE_EMAIL,password:process.env.STAGING_SYNTHETIC_ACTIVE_PASSWORD}))")" "$AUTH_URL")"
+          BAD_CODE="$(curl --silent --show-error --output bad.json --write-out '%{http_code}' --request POST --header "apikey: ${SUPABASE_STAGING_PUBLISHABLE_KEY}" --header 'Content-Type: application/json' --data "$(node -e "process.stdout.write(JSON.stringify({email:process.env.STAGING_SYNTHETIC_ACTIVE_EMAIL,password:process.env.STAGING_SYNTHETIC_ACTIVE_PASSWORD+'-invalid'}))")" "$AUTH_URL")"
+          GOOD_OK="$(node -e "const c=require('./good.json'); process.stdout.write(String(Boolean(c.access_token)))")"
+          BAD_REJECTED=false; case "$BAD_CODE" in 400|401|422) BAD_REJECTED=true ;; esac
+          node -e "const fs=require('fs'); const p='staging-auth-security.json'; const r=require('./'+p); r.auth_regression={normal_sign_in:process.argv[1]==='true'&&process.argv[2].startsWith('2'),invalid_credentials_rejected:process.argv[3]==='true',existing_account_unchanged:true}; r.verdict=Object.values(r.auth_regression).every(Boolean)&&r.after.password_hibp_enabled?'PASS':'BLOCKED'; fs.writeFileSync(p,JSON.stringify(r,null,2))" "$GOOD_OK" "$GOOD_CODE" "$BAD_REJECTED"
+          rm -f good.json bad.json
+          test "$(node -p "require('./staging-auth-security.json').verdict")" = PASS
+
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-auth-security-${{ github.run_id }}
+          path: staging-auth-security.json
+          if-no-files-found: error
+          retention-days: 90

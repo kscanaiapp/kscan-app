@@ -1,0 +1,36 @@
+# Release flow: auth.sign_in
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: auth.sign_in
+tags:
+  - release
+  - auth
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../subflows/skip-onboarding.yaml
+- tapOn:
+    id: "onboarding-already-have-account-button-v1"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "auth-email-input"
+    timeout: 20000
+- tapOn:
+    id: "auth-email-input"
+- inputText: ${QA_EMAIL}
+- tapOn:
+    id: "auth-password-input"
+- inputText: ${QA_PASSWORD}
+- tapOn:
+    id: "auth-submit-button"
+- extendedWaitUntil:
+    visible:
+      id: "router-home-screen"
+    timeout: 45000
+- takeScreenshot: "auth-sign-in-home"

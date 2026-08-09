@@ -1,0 +1,341 @@
+# Launcher workflow on the repository default branch.
+# Manual runs check out the iOS Build 25 Maestro test branch for all build/test
+# source (.maestro flows, eas.json ios-maestro-test profile, app source).
+# No EAS. No Maestro Cloud.
+name: iOS Maestro Local (Simulator)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-maestro-local-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAESTRO_TEST_BRANCH: test/ios-build25-maestro-runtime
+  MAESTRO_TEST_SHA: eb88c0562ee8b57601ca88cd736cdf0ce9b8a458
+  # Pinned rather than installing latest — see "Install Maestro CLI" below.
+  MAESTRO_CLI_VERSION: "2.8.0"
+  APP_BUNDLE_ID: com.kscanai.app
+  MAESTRO_ARTIFACTS_DIR: maestro-artifacts
+  IOS_DERIVED_DATA_PATH: ios/DerivedData
+  EXPO_NO_TELEMETRY: 1
+  CI: true
+
+jobs:
+  ios-maestro:
+    name: Build simulator app and run Maestro
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Checkout iOS Build 25 Maestro test source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4.2.2
+        with:
+          ref: ${{ env.MAESTRO_TEST_BRANCH }}
+          fetch-depth: 1
+
+      - name: Verify Maestro test source revision
+        run: |
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          echo "Maestro test branch: ${{ env.MAESTRO_TEST_BRANCH }}"
+          echo "Checked out SHA: ${ACTUAL_SHA}"
+          echo "Expected SHA: ${{ env.MAESTRO_TEST_SHA }}"
+          if [ "${ACTUAL_SHA}" != "${{ env.MAESTRO_TEST_SHA }}" ]; then
+            echo "::warning::Maestro test branch SHA drifted from launcher expectation (${{ env.MAESTRO_TEST_SHA }})."
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4.3.0
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Load ios-maestro-test build environment from eas.json
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const profile = require('./eas.json').build['ios-maestro-test'];
+          if (!profile?.env) {
+            throw new Error('eas.json is missing build.ios-maestro-test.env');
+          }
+          const lines = Object.entries(profile.env).map(
+            ([key, value]) => `${key}=${String(value)}`,
+          );
+          fs.appendFileSync(process.env.GITHUB_ENV, `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Generate iOS native project (Expo prebuild)
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Resolve Xcode workspace and scheme
+        id: xcode
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { execSync } = require('node:child_process');
+
+          const iosDir = path.join(process.cwd(), 'ios');
+          const workspaceName = fs
+            .readdirSync(iosDir)
+            .find((entry) => entry.endsWith('.xcworkspace'));
+          if (!workspaceName) {
+            throw new Error(`No .xcworkspace found under ${iosDir}`);
+          }
+
+          const workspace = path.join('ios', workspaceName);
+          const listJson = execSync(`xcodebuild -list -json -workspace "${workspace}"`, {
+            encoding: 'utf8',
+          });
+          const schemes = JSON.parse(listJson).workspace.schemes;
+          const preferred = ['KScan', 'kscan'];
+          const scheme =
+            preferred.find((name) => schemes.includes(name)) ||
+            schemes.find((name) => !/test|pods/i.test(name)) ||
+            schemes[0];
+
+          if (!scheme) {
+            throw new Error(`No build scheme found for workspace ${workspace}`);
+          }
+
+          const githubOutput = process.env.GITHUB_OUTPUT;
+          fs.appendFileSync(githubOutput, `workspace=${workspace}\n`);
+          fs.appendFileSync(githubOutput, `scheme=${scheme}\n`);
+          console.log(`Resolved workspace=${workspace}, scheme=${scheme}`);
+          NODE
+
+      - name: Select and boot an iPhone Simulator
+        id: simulator
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { execSync } = require('node:child_process');
+
+          const devices = JSON.parse(
+            execSync('xcrun simctl list devices available -j', { encoding: 'utf8' }),
+          ).devices;
+
+          const runtimeKeys = Object.keys(devices)
+            .filter((key) => key.includes('iOS') && !key.includes('watchOS') && !key.includes('tvOS'))
+            .sort()
+            .reverse();
+
+          let selected = null;
+          for (const runtime of runtimeKeys) {
+            for (const device of devices[runtime]) {
+              if (!device.isAvailable || !/^iPhone/.test(device.name)) continue;
+              selected = device;
+              break;
+            }
+            if (selected) break;
+          }
+
+          if (!selected) {
+            throw new Error('No available iPhone Simulator found');
+          }
+
+          try {
+            execSync(`xcrun simctl boot "${selected.udid}"`, { stdio: 'ignore' });
+          } catch {
+            // Already booted.
+          }
+          execSync(`xcrun simctl bootstatus "${selected.udid}" -b`);
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `udid=${selected.udid}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `name=${selected.name}\n`);
+          console.log(`Using simulator: ${selected.name} (${selected.udid})`);
+          NODE
+
+      - name: Build iOS Simulator app with Xcode
+        run: |
+          # react-native-xcode.sh (the "Bundle React Native code and images"
+          # phase this project's generated Xcode project already has —
+          # verified against this repo's pinned react-native@0.81.5 source)
+          # skips bundling for Debug+Simulator by default, on the assumption
+          # that a live Metro packager will serve the JS instead: "Skipping
+          # bundling in Debug for the Simulator (since the packager bundles
+          # for you). Use the FORCE_BUNDLING flag to change this behavior."
+          # No Metro runs in this workflow, so without this flag the built
+          # .app has no JS and shows React Native's "No script URL provided"
+          # fatal error on every launch (observed in run 31253137598).
+          #
+          # FORCE_BUNDLING must be passed as an xcodebuild build setting
+          # (trailing KEY=VALUE, same as CODE_SIGNING_ALLOWED/
+          # COMPILER_INDEX_STORE_ENABLE below) rather than a step-level
+          # `env:` var — a step env var never reached the script phase's
+          # environment: run 31254852259 showed the "Bundle React Native
+          # code and images" PhaseScriptExecution complete in ~0.12s, far
+          # too fast to have actually invoked Metro/Hermes, i.e. it still
+          # took the "skip" branch despite the env var being set on the step.
+          # Build settings passed to xcodebuild are what Xcode actually
+          # exports into Run Script phase environments.
+          #
+          # With FORCE_BUNDLING correctly propagating (confirmed live: run
+          # 31255648130's build log shows `export FORCE_BUNDLING=1` inside
+          # the script phase), the phase still exited immediately — its own
+          # diagnostic output was "SKIP_BUNDLING enabled; skipping.". That
+          # check in react-native-xcode.sh runs before the FORCE_BUNDLING
+          # branch and short-circuits regardless of it:
+          #   if [[ "$SKIP_BUNDLING" ]]; then echo "SKIP_BUNDLING enabled;
+          #   skipping."; exit 0; fi
+          # something in the generated Xcode project sets SKIP_BUNDLING to a
+          # non-empty value for this configuration/SDK. Override it back to
+          # empty as a build setting — bash `[[ "$VAR" ]]` is only false for
+          # a truly empty string, so `SKIP_BUNDLING=NO` would NOT work here.
+          xcodebuild \
+            -workspace "${{ steps.xcode.outputs.workspace }}" \
+            -scheme "${{ steps.xcode.outputs.scheme }}" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath "${{ env.IOS_DERIVED_DATA_PATH }}" \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            FORCE_BUNDLING=1 \
+            SKIP_BUNDLING= \
+            build
+
+      - name: Verify embedded JS bundle
+        id: bundle
+        run: |
+          APP_PATH="$(find "${{ env.IOS_DERIVED_DATA_PATH }}/Build/Products" -type d -name '*.app' -path '*iphonesimulator*' | head -n 1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "Simulator .app not found under ${{ env.IOS_DERIVED_DATA_PATH }}/Build/Products"
+            find "${{ env.IOS_DERIVED_DATA_PATH }}/Build/Products" -maxdepth 3 -type d || true
+            echo "embedded_js_bundle=NOT_FOUND" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+          BUNDLE_PATH="$(find "$APP_PATH" -type f \( -name 'main.jsbundle' -o -name '*.jsbundle' \) | head -n 1)"
+          if [ -z "$BUNDLE_PATH" ]; then
+            echo "EMBEDDED_JS_BUNDLE=NOT_FOUND"
+            echo "No embedded JS bundle found inside $APP_PATH"
+            echo "FORCE_BUNDLING did not produce a bundle — treat as TEST_HARNESS_FAILURE, not an app defect."
+            find "$APP_PATH" -maxdepth 2 -type f || true
+            echo "embedded_js_bundle=NOT_FOUND" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "EMBEDDED_JS_BUNDLE=FOUND"
+          echo "BUNDLE_PATH=$BUNDLE_PATH"
+          ls -la "$BUNDLE_PATH"
+          echo "embedded_js_bundle=FOUND" >> "$GITHUB_OUTPUT"
+          echo "bundle_path=$BUNDLE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Install app on booted simulator
+        id: app
+        run: |
+          xcrun simctl install "${{ steps.simulator.outputs.udid }}" "${{ steps.bundle.outputs.app_path }}"
+
+      - name: Prelaunch smoke check (verify no red-box)
+        id: smoke
+        run: |
+          UDID="${{ steps.simulator.outputs.udid }}"
+          mkdir -p "${{ env.MAESTRO_ARTIFACTS_DIR }}/prelaunch"
+          LOG_FILE="${{ env.MAESTRO_ARTIFACTS_DIR }}/prelaunch/prelaunch-redbox-log.txt"
+          SCREENSHOT="${{ env.MAESTRO_ARTIFACTS_DIR }}/prelaunch/prelaunch-smoke.png"
+
+          # Deterministic check: stream the simulator's unified log, filtered
+          # to the exact fatal-bridge-load message text observed in run
+          # 31253137598, for a short window around app launch. A screenshot
+          # is also captured for human-inspectable evidence, but the
+          # PASS/FAIL gate below is the log grep, not pixel inspection.
+          xcrun simctl spawn "$UDID" log stream --level debug \
+            --predicate 'eventMessage contains "No script URL provided"' \
+            > "$LOG_FILE" 2>&1 &
+          LOG_PID=$!
+
+          sleep 1
+          xcrun simctl launch "$UDID" "${{ env.APP_BUNDLE_ID }}"
+          sleep 6
+
+          xcrun simctl io "$UDID" screenshot "$SCREENSHOT" || true
+
+          kill "$LOG_PID" 2>/dev/null || true
+          wait "$LOG_PID" 2>/dev/null || true
+
+          if [ -s "$LOG_FILE" ]; then
+            echo "RED_BOX_PRESENT=YES"
+            cat "$LOG_FILE"
+            echo "::error::React Native red-box ('No script URL provided') detected before Maestro run — TEST_HARNESS_FAILURE, not an app defect. See prelaunch-smoke.png / prelaunch-redbox-log.txt artifacts."
+            echo "red_box_present=YES" >> "$GITHUB_OUTPUT"
+            xcrun simctl terminate "$UDID" "${{ env.APP_BUNDLE_ID }}" || true
+            exit 1
+          fi
+
+          echo "RED_BOX_PRESENT=NO"
+          echo "red_box_present=NO" >> "$GITHUB_OUTPUT"
+          xcrun simctl terminate "$UDID" "${{ env.APP_BUNDLE_ID }}" || true
+
+      - name: Install Maestro CLI
+        env:
+          MAESTRO_VERSION: ${{ env.MAESTRO_CLI_VERSION }}
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run iOS Build 25 Maestro suite
+        env:
+          QA_EMAIL: ${{ secrets.QA_EMAIL }}
+          QA_PASSWORD: ${{ secrets.QA_PASSWORD }}
+          QA_FULL_NAME: ${{ secrets.QA_FULL_NAME }}
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: "300000"
+        run: |
+          mkdir -p "${{ env.MAESTRO_ARTIFACTS_DIR }}/test-output" "${{ env.MAESTRO_ARTIFACTS_DIR }}/debug"
+          set +e
+          maestro test \
+            --config .maestro/config.yaml \
+            --format junit \
+            --output "${{ env.MAESTRO_ARTIFACTS_DIR }}/report.xml" \
+            --test-output-dir "${{ env.MAESTRO_ARTIFACTS_DIR }}/test-output" \
+            --debug-output "${{ env.MAESTRO_ARTIFACTS_DIR }}/debug" \
+            --flatten-debug-output \
+            -e "APP_ID=${{ env.APP_BUNDLE_ID }}" \
+            -e "QA_EMAIL=${QA_EMAIL}" \
+            -e "QA_PASSWORD=${QA_PASSWORD}" \
+            -e "QA_FULL_NAME=${QA_FULL_NAME}" \
+            .maestro/flows/ios-build25/ios-01-launch-home.yml \
+            .maestro/flows/ios-build25/ios-02-welcome-auth.yml \
+            .maestro/flows/ios-build25/ios-03-session-restoration.yml \
+            .maestro/flows/ios-build25/ios-04-closet-edit.yml \
+            .maestro/flows/ios-build25/ios-05-saved-looks.yml \
+            .maestro/flows/ios-build25/ios-06-recent-scans-closet-separation.yml \
+            .maestro/flows/ios-build25/ios-07-dressing-room.yml \
+            .maestro/flows/ios-build25/ios-08-elise.yml \
+            .maestro/flows/ios-build25/ios-09-mirror-selfie.yml \
+            .maestro/flows/ios-build25/ios-10-account-security.yml \
+            .maestro/flows/ios-build25/ios-12-ipad-layout.yml
+          MAESTRO_EXIT=$?
+          set -e
+          if [ -d "$HOME/.maestro/tests" ]; then
+            cp -R "$HOME/.maestro/tests/." "${{ env.MAESTRO_ARTIFACTS_DIR }}/maestro-home-tests/" || true
+          fi
+          exit $MAESTRO_EXIT
+
+      - name: Upload Maestro artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-maestro-artifacts
+          if-no-files-found: warn
+          path: |
+            ${{ env.MAESTRO_ARTIFACTS_DIR }}/
+            ${{ env.IOS_DERIVED_DATA_PATH }}/Logs/

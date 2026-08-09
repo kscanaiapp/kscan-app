@@ -1,0 +1,40 @@
+name: Master Promotion Validation
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  tree-equivalence:
+    name: Master promotion tree equivalence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin master --quiet
+          CANDIDATE_TREE="$(git rev-parse "${HEAD_SHA}^{tree}")"
+          MERGE_TREE="$(git merge-tree --write-tree origin/master "$HEAD_SHA")"
+          node security/scripts/compute-runtime-release-tree.js --ref "$HEAD_SHA" --json > candidate-runtime-tree.json
+          node security/scripts/compute-runtime-release-tree.js --ref "$MERGE_TREE" --json > merged-runtime-tree.json
+          CANDIDATE_RUNTIME_TREE="$(node -p "require('./candidate-runtime-tree.json').digest")"
+          MERGED_RUNTIME_TREE="$(node -p "require('./merged-runtime-tree.json').digest")"
+          {
+            echo "Equivalence model: RUNTIME_RELEASE_TREE"
+            echo "Candidate SHA: $HEAD_SHA"
+            echo "Candidate branch: $HEAD_REF"
+            echo "Candidate whole tree (evidence only): $CANDIDATE_TREE"
+            echo "Predicted master whole tree (evidence only): $MERGE_TREE"
+            echo "Candidate runtime release tree: $CANDIDATE_RUNTIME_TREE"
+            echo "Predicted merged runtime release tree: $MERGED_RUNTIME_TREE"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$CANDIDATE_RUNTIME_TREE" = "$MERGED_RUNTIME_TREE"
