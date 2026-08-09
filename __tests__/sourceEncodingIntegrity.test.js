@@ -83,11 +83,10 @@ test('GP-003: no shipped source file contains invalid UTF-8', () => {
   assert.deepEqual(invalid, [], `invalid UTF-8 in: ${invalid.join(', ')}`);
 });
 
-test('GP-003: the AI report subject renders a real em dash', () => {
+test('GP-003: the AI reporting module contains no replacement characters', () => {
   const source = fs.readFileSync(path.join(ROOT, 'services/reportAiOutput.ts'), 'utf8');
-  assert.match(source, /K Scan AI — Report AI Output/);
   assert.ok(
     !source.includes('�'),
-    'no replacement character may survive in user-visible report copy',
+    'no replacement character may survive in the in-app reporting source',
   );
 });

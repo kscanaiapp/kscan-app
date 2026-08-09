@@ -21,7 +21,7 @@ import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { normalizePurchaseOptions } from '../services/purchaseOptions';
-import { reportAiOutput } from '../services/reportAiOutput';
+import { useAiOutputReporting } from '../contexts/AiOutputReportingContext';
 import {
   COLORS,
   LUXURY,
@@ -165,6 +165,7 @@ export function AnalysisCard({
 }: AnalysisCardProps) {
   const insets = useSafeAreaInsets();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const { openAiOutputReport } = useAiOutputReporting();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const commerceOptions = toPurchaseOptions(purchaseOptions);
@@ -330,7 +331,9 @@ export function AnalysisCard({
                   Hidden when there is no analysis text to report. */}
               {resultText && resultText !== EMPTY_VALUE ? (
                 <TouchableOpacity
-                  onPress={() => reportAiOutput('Scan Results', { itemId: scanSourceId ?? null })}
+                  onPress={() =>
+                    openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId ?? null })
+                  }
                   style={styles.reportBtn}
                   activeOpacity={0.7}
                   accessibilityRole="button"
