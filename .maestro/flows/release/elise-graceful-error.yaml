@@ -1,0 +1,37 @@
+# Release flow: elise.graceful_error
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: elise.graceful_error
+tags:
+  - release
+  - elise
+  - stylechat
+  - negative
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- runFlow: ../../subflows/sign-in.yaml
+- tapOn:
+    id: "home-v2-stylechat-card"
+- extendedWaitUntil:
+    visible:
+      id: "style-chat-input"
+    timeout: 45000
+# With no network the assistant must degrade gracefully, never crash.
+- setAirplaneMode: enabled
+- tapOn:
+    id: "style-chat-input"
+- inputText: "What should I wear today?"
+- tapOn:
+    id: "style-chat-send-button"
+- extendedWaitUntil:
+    visible:
+      id: "style-chat-error-state"
+    timeout: 60000
+- takeScreenshot: "elise-graceful-error"
+- setAirplaneMode: disabled
+- assertVisible:
+    id: "style-chat-screen"

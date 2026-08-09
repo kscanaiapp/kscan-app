@@ -220,6 +220,40 @@ behavior was restored.
 - **VERIFICATION:** assertion passes; production profile unchanged
 - **FINAL_STATE:** resolved
 
+### DEFECT-RRR-004 — certification mapped infrastructure faults to a security verdict
+
+- **PREEXISTING_OR_INTRODUCED:** preexisting, in
+  `security/scripts/parse-native-mobile-evidence.js`
+- **SYMPTOM:** an emulator crash, a failed build, or a missing Maestro report
+  certified as `BLOCKED` instead of `OPERATIONAL_FAILURE`
+- **EXPECTED_BEHAVIOR:** per the calibrated semantics in this contract, runner
+  and build infrastructure faults are `OPERATIONAL_FAILURE`; only a critical
+  flow failure or untrustworthy evidence is `BLOCKED`
+- **ACTUAL_BEHAVIOR:** when the runner reported `OPERATIONAL_FAILURE` with no
+  flow results, the parser derived `REQUIRED_MOBILE_FLOW_MISSING` and returned
+  `BLOCKED` before reaching its own operational-failure branch
+- **ROOT_CAUSE:** coverage failures and evidence-integrity failures shared one
+  unconditional blocking list, evaluated ahead of the infrastructure check
+- **SECURITY_IMPACT:** none directly — both outcomes are non-`PASS`, so no
+  release could pass on a fault. The harm is diagnostic: a flaky emulator was
+  indistinguishable from a real mobile security failure, which erodes trust in
+  the gate and invites overriding it
+- **RELEASE_IMPACT:** operators cannot tell a retryable fault from a genuine
+  blocker
+- **FILES_WORKFLOWS:** `security/scripts/parse-native-mobile-evidence.js`
+- **FIX:** split the blocking conditions. Evidence-integrity failures (SHA
+  mismatch, run-id mismatch, missing build identifier, TestSprite runner,
+  invalid result) still block unconditionally and cannot be escaped by
+  self-declaring a fault. Coverage failures are evaluated only when the run
+  actually executed
+- **REGRESSION_TEST:** `__tests__/security/nativeReleaseRunner.test.js` — the
+  per-platform "an infrastructure fault is OPERATIONAL_FAILURE, never BLOCKED"
+  and "a missing report is OPERATIONAL_FAILURE" cases, alongside the wrong-SHA,
+  wrong-run-id and TestSprite cases that must still block
+- **VERIFICATION:** 35/35 pass across the new runner suite and the pre-existing
+  `nativeMobileEvidence.test.js`, so the prior contract is unchanged
+- **FINAL_STATE:** resolved
+
 ### DEFECT-RRR-003 — retired analyze route left reachable on staging
 
 - **PREEXISTING_OR_INTRODUCED:** preexisting

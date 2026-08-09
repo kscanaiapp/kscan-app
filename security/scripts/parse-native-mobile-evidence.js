@@ -56,14 +56,29 @@ function parseEvidence(input, options = {}) {
   if (invalidFlowResults.length) failures.push('INVALID_MOBILE_FLOW_RESULT');
   if (!artifactLinks.length) failures.push('NATIVE_ARTIFACT_LINK_MISSING');
 
+  // Evidence identity/binding failures can never be downgraded: they mean the
+  // evidence is not trustworthily bound to this candidate, so a runner must not
+  // be able to escape them by self-declaring an infrastructure fault.
+  const INTEGRITY_FAILURES = [
+    'MOBILE_TEST_SHA_MISMATCH', 'INVALID_CANDIDATE_SHA', 'UNSUPPORTED_TESTSPRITE_NATIVE_RUNNER',
+    'NATIVE_BUILD_IDENTIFIER_MISSING', 'NATIVE_RUN_ID_MISSING', 'NATIVE_RUN_ID_MISMATCH',
+    'INVALID_NATIVE_RESULT',
+  ];
+  // Coverage failures are only meaningful when the run actually executed. When
+  // the runner reports that its own infrastructure failed, missing flows are a
+  // consequence of that fault, not a mobile security failure — see the calibrated
+  // semantics in docs/release/native-mobile-evidence-contract.md.
+  const COVERAGE_FAILURES = [
+    'REQUIRED_MOBILE_FLOW_MISSING', 'INVALID_MOBILE_FLOW_RESULT', 'NATIVE_ARTIFACT_LINK_MISSING',
+  ];
+  const infrastructureFailed = input.infrastructure_failure === true || requestedResult === 'OPERATIONAL_FAILURE';
+
   let result = requestedResult;
-  if (failures.includes('MOBILE_TEST_SHA_MISMATCH') || failures.some((failure) => [
-    'UNSUPPORTED_TESTSPRITE_NATIVE_RUNNER', 'NATIVE_BUILD_IDENTIFIER_MISSING', 'NATIVE_RUN_ID_MISSING',
-    'NATIVE_RUN_ID_MISMATCH', 'REQUIRED_MOBILE_FLOW_MISSING', 'INVALID_MOBILE_FLOW_RESULT',
-    'NATIVE_ARTIFACT_LINK_MISSING', 'INVALID_CANDIDATE_SHA', 'INVALID_NATIVE_RESULT',
-  ].includes(failure))) {
+  if (failures.some((failure) => INTEGRITY_FAILURES.includes(failure))) {
     result = 'BLOCKED';
-  } else if (input.infrastructure_failure === true || requestedResult === 'OPERATIONAL_FAILURE') {
+  } else if (!infrastructureFailed && failures.some((failure) => COVERAGE_FAILURES.includes(failure))) {
+    result = 'BLOCKED';
+  } else if (infrastructureFailed) {
     result = 'OPERATIONAL_FAILURE';
   } else if (requiredNotPassing.some((id) => byId.get(id).result === 'BLOCKED')) {
     result = 'BLOCKED';

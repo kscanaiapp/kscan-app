@@ -23,8 +23,41 @@ Semantics:
 - wrong SHA or missing required evidence: `BLOCKED`
 - no configured required platform run: `BLOCKED` / `MOBILE_EVIDENCE_NOT_CONFIGURED`
 
-## Current infrastructure audit
+## Runners
 
-The repository contains branch-neutral Maestro flows for onboarding/auth, camera permissions, scan analysis/retry/non-fashion behavior, and a few avatar surfaces. It does not contain a maintained complete Android/iOS release workflow covering the required inventory. The only fuller iOS GitHub launcher on master explicitly checks out `test/ios-build25-maestro-runtime`; it is excluded from this release line. Consequently, the evidence contract is implemented, but the current runtime candidate remains blocked until owner-approved branch-neutral native workflows produce real runs for both platforms.
+Both platforms are implemented and branch-neutral:
+
+| Platform | Workflow | Runner | Build |
+| --- | --- | --- | --- |
+| Android | `.github/workflows/native-android-release-tests.yml` | Maestro on `reactivecircus/android-emulator-runner` | debug APK via `expo prebuild` + `assembleDebug` |
+| iOS | `.github/workflows/native-ios-release-tests.yml` | Maestro on a booted `simctl` device | Simulator `.app` via `expo prebuild` + `xcodebuild` |
+
+Both take a `candidate_sha` input, check that exact commit out, and re-verify
+`git rev-parse HEAD` against it before building, so evidence cannot drift from
+the candidate. Neither needs a signing identity, provisioning profile, or store
+credential: Android builds debug, iOS builds for Simulator with
+`CODE_SIGNING_ALLOWED=NO`. Neither runs an EAS production build or submits.
+
+Both refuse to start unless the reconciled `preview` EAS profile targets the
+staging Supabase project, so a native run can never exercise production.
+
+One shared flow set — `.maestro/flows/release`, tagged `release` — proves the
+required inventory on both platforms; only setup is platform-specific. Each flow
+declares `name:` equal to its required flow id, and
+`security/native/release-flow-manifest.json` binds id to file, so a rename
+cannot silently drop a required flow. No flow, workflow, or launcher depends on
+Build 2.5; that is asserted in `__tests__/security/nativeReleaseRunner.test.js`.
+
+`security/scripts/build-native-mobile-evidence.js` converts the Maestro JUnit
+report into this contract's document. It only reports: certification re-validates
+the artifact with `parse-native-mobile-evidence.js` against
+`required-mobile-flows.json`, so a runner cannot vouch for itself. A missing or
+unparseable report is `OPERATIONAL_FAILURE`, and a required flow the runner never
+reported is simply absent, which the parser raises as
+`REQUIRED_MOBILE_FLOW_MISSING`.
+
+QA identities come from the `QA_EMAIL` / `QA_PASSWORD` secrets and are never
+committed. The privacy correction, export, and account-deletion flows assert
+their entry points and stop before submitting, so no QA account is destroyed.
 
 TestSprite remains eligible only for a future real backend/API/web control with its own project, test, SHA attestation, and artifacts. No such TestSprite project is currently configured, so it is not release-required in this contract.
