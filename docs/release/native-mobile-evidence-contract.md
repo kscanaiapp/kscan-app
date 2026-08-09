@@ -1,5 +1,24 @@
 # Native mobile release evidence contract
 
+> **SUSPENDED — not an active release control (2026-08-09).**
+>
+> Native UI automation was removed from release governance by owner decision.
+> Authoritative policy: `security/release/native-ui-automation-policy.json`.
+> Certification records `native_ui_automation.result =
+> NOT_REQUIRED_BY_CURRENT_POLICY`. That is a statement about policy, **not** a
+> statement that native UI tests passed — no native UI testing is currently
+> performed.
+>
+> The Maestro runners, flow inventory, and evidence parser described below have
+> been deleted. This document is retained because it specifies the contract a
+> future runner must satisfy, and because it explains what the suspended control
+> was meant to prove. Reinstatement criteria are in the policy file.
+>
+> Why it was suspended: six consecutive live dispatches produced no usable flow
+> evidence, and every failure traced to test infrastructure rather than the
+> application. See DEFECT-RRR-005 through RRR-010 in
+> `docs/release/runtime-provenance-resolution.md`.
+
 Runtime certification accepts native Android/iOS evidence only from a completed GitHub Actions run in this repository whose `head_sha` equals the candidate. It also pins workflow name and path to `Native Android Release Tests` / `.github/workflows/native-android-release-tests.yml` and `Native iOS Release Tests` / `.github/workflows/native-ios-release-tests.yml`. TestSprite frontend/backend runs are not native evidence.
 
 Each platform artifact must be named `native-android-evidence` or `native-ios-evidence`, contain one JSON file, and include:

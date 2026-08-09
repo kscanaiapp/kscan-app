@@ -436,7 +436,41 @@ implementation; RRR-009 was pre-existing.
 - **LIVE_VERIFICATION:** run `31321344975`
 - **FINAL_STATE:** resolved (PR #90, mirrored to master in PR #95)
 
+## Governance conclusion — native UI automation suspended
+
+On 2026-08-09 the owner removed native UI automation from release governance.
+The defects above are the reason, and they are retained here as the evidence
+basis for that decision.
+
+Across six consecutive live dispatches the Maestro pipeline produced no usable
+flow evidence. Every failure traced to the test harness — runner image, Xcode
+scheme selection, shell dialect, JS bundling — rather than to the application
+under test. A control that cannot distinguish "the product is broken" from "the
+harness is broken" does not provide release assurance; it provides noise that
+must be triaged before every release, and it trains reviewers to override it.
+
+What this decision is:
+
+- Native UI automation is **not** a required release control.
+- Certification and promotion record `NOT_REQUIRED_BY_CURRENT_POLICY`.
+
+What this decision is **not**:
+
+- It is not a claim that native UI tests passed. They were never made to run.
+- It is not a relaxation of any other control. Static security, ZAP, RPC/RLS,
+  artifact exposure, parity, synthetic auth, migrations, quarantine, exact-SHA
+  binding, runtime-tree equivalence, and the leaked-password policy are all
+  unchanged and still blocking.
+
+Authoritative policy and reinstatement criteria:
+`security/release/native-ui-automation-policy.json`. The gate re-arms from that
+file alone — certification and promotion read it at runtime, so restoring the
+requirement needs no code change.
+
 ## Known limitation — Android tests a debug JS bundle
+
+Historical, retained for the reinstatement discussion. The Android runner has
+been removed along with the rest of the suspended control.
 
 The Android runner starts Metro and installs a debug APK. Android's `release`
 buildType requires `KSCAN_STORE_FILE` / `KSCAN_KEY_ALIAS` credentials the runner

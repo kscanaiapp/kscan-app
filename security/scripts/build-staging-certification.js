@@ -4,14 +4,22 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { loadPolicy, certificationBlock } = require('./native-ui-automation-policy.js');
+
 const VERDICTS = new Set(['PASS', 'PASS_WITH_REPORT_ONLY_FINDINGS', 'PENDING', 'NOT_APPLICABLE', 'BLOCKED', 'OPERATIONAL_FAILURE']);
 const RELEASE_CLASSES = new Set(['RUNTIME_RELEASE', 'CONTROL_PLANE_CHANGE']);
-const REQUIRED = [
+const BASE_REQUIRED = [
   'static_security', 'migration_validation', 'contract_tests', 'staging_parity',
   'staging_health', 'synthetic_auth', 'rpc_rls_authorization', 'artifact_exposure',
   'zap_baseline', 'zap_api', 'leaked_password_protection', 'quarantine_policy',
-  'native_android', 'native_ios',
 ];
+const NATIVE_COMPONENTS = ['native_android', 'native_ios'];
+// Native UI automation is a required component only while policy says so. When
+// the owner suspends it, these names leave the required set entirely rather than
+// being recorded as a passing control -- suspended is not the same as green.
+const REQUIRED = loadPolicy().required_for_release
+  ? [...BASE_REQUIRED, ...NATIVE_COMPONENTS]
+  : [...BASE_REQUIRED];
 const CONTROL_PLANE_NOT_APPLICABLE = new Set([
   'migration_validation', 'staging_health', 'synthetic_auth', 'leaked_password_protection',
   'native_android', 'native_ios', 'zap_baseline', 'zap_api',
@@ -46,13 +54,17 @@ function normalizeNative(value) {
   };
 }
 
-function build(input) {
+function build(input, options = {}) {
+  const policy = options.policy || loadPolicy();
+  const nativeRequired = policy.required_for_release;
+  const required = nativeRequired ? [...BASE_REQUIRED, ...NATIVE_COMPONENTS] : [...BASE_REQUIRED];
+
   const releaseClass = String(input.release_class || '').toUpperCase();
   const releaseClassValid = RELEASE_CLASSES.has(releaseClass);
   const runtimeRelease = releaseClass === 'RUNTIME_RELEASE';
   const android = normalizeNative(input.native_android);
   const ios = normalizeNative(input.native_ios);
-  const components = Object.fromEntries(REQUIRED.map((name) => [name,
+  const components = Object.fromEntries(required.map((name) => [name,
     name === 'native_android' ? android.result : name === 'native_ios' ? ios.result : normalize(input[name]),
   ]));
   const invalid = Object.entries(components).filter(([, value]) => !VERDICTS.has(value));
@@ -67,15 +79,18 @@ function build(input) {
   const candidateMatchesHead = Boolean(input.candidate_commit_sha) && input.candidate_commit_sha === input.staging_branch_head_sha;
   const deploymentMatches = !deploymentRequired || input.candidate_commit_sha === input.deployed_staging_sha;
   const deploymentContractValid = releaseClassValid && (runtimeRelease ? deploymentRequired : !deploymentRequired);
-  const mobileShaMismatch = runtimeRelease && [android, ios].some((mobile) =>
+  // These native-evidence integrity checks still apply when the policy requires
+  // native UI automation. While it is suspended they are skipped entirely: there
+  // is no evidence to validate, and absence must not manufacture a blocker.
+  const mobileShaMismatch = nativeRequired && runtimeRelease && [android, ios].some((mobile) =>
     mobile.result === 'PASS' && mobile.tested_sha !== input.candidate_commit_sha);
-  const nativeIdentityInvalid = runtimeRelease && [android, ios].some((mobile) =>
+  const nativeIdentityInvalid = nativeRequired && runtimeRelease && [android, ios].some((mobile) =>
     mobile.result === 'PASS' && (
       !mobile.runner || /testsprite/i.test(mobile.runner) || !mobile.build_identifier || !mobile.run_id
       || !mobile.contract_validated || mobile.flows_run < 1 || mobile.flows_passed < 1
       || mobile.flows_failed !== 0 || mobile.artifact_links.length < 1
     ));
-  const mobileEvidenceNotConfigured = runtimeRelease && (
+  const mobileEvidenceNotConfigured = nativeRequired && runtimeRelease && (
     input.native_evidence_configured === false || input.native_evidence_configured === 'false');
   const shaMatch = candidateMatchesHead && deploymentMatches;
 
@@ -104,6 +119,11 @@ function build(input) {
     certification_run_id: input.certification_run_id || null,
     sha_match: shaMatch,
     ...Object.fromEntries(Object.entries(components).filter(([name]) => !name.startsWith('native_'))),
+    // Audit-visible and deliberately not a verdict. While suspended this reads
+    // NOT_REQUIRED_BY_CURRENT_POLICY -- never PASS, which would claim coverage
+    // that does not exist, and never BLOCKED, which would claim a measured
+    // failure. The raw evidence blocks are retained for audit only.
+    native_ui_automation: certificationBlock(policy),
     native_android: android,
     native_ios: ios,
     blocking_findings: [
@@ -133,4 +153,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { build, normalizeNative, VERDICTS, RELEASE_CLASSES, REQUIRED };
+module.exports = { build, normalizeNative, VERDICTS, RELEASE_CLASSES, REQUIRED, BASE_REQUIRED, NATIVE_COMPONENTS };

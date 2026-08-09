@@ -54,7 +54,7 @@ Items 1–4 were resolved on evidence in `docs/release/runtime-provenance-resolu
 
 Still open:
 
-5. Provide/approve a complete maintained native Android and iOS runner covering the required implemented critical flows. The branch-neutral Maestro suite is incomplete; the only fuller iOS launcher is Build 2.5-specific and excluded.
+5. ~~Provide/approve a complete maintained native Android and iOS runner.~~ **Closed by owner decision 2026-08-09: native UI automation is SUSPENDED and is no longer a release control.** See `security/release/native-ui-automation-policy.json`. This is not a claim that native UI tests passed — none are performed. Selecting a replacement runner is deliberately deferred rather than decided under release pressure.
 6. Enable leaked-password protection, which the current Supabase staging plan does not support. Policy remains `REQUIRED_BLOCKING`; this is an external plan requirement, not a code change.
 
 ## Execution sequence
