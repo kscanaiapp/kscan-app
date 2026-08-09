@@ -276,3 +276,174 @@ behavior was restored.
 - **VERIFICATION:** 14/14 new assertions pass; `analyzeContract.test.js` still
   passes, so the retained parsing/normalization exports are unaffected
 - **FINAL_STATE:** resolved
+
+## Defects found by running the native runners
+
+RRR-001 through RRR-004 were found by reading the repository. Everything below
+was found by dispatching the runners against a real candidate. RRR-005 to
+RRR-008 and RRR-010 were introduced by this workstream's own runner
+implementation; RRR-009 was pre-existing.
+
+### DEFECT-RRR-005 — iOS runner pinned to an image whose Xcode is too old
+
+- **ORIGIN:** introduced (native iOS runner, first implementation)
+- **SYMPTOM:** run `31317122515` failed at `pod install` with
+  `[!] Invalid Podfile file: Please upgrade XCode.`
+- **ROOT_CAUSE:** Expo SDK 54 / React Native 0.81 generate a Podfile that
+  rejects Xcode 15, the `macos-14` default image
+- **SECURITY_IMPACT:** none
+- **RELEASE_IMPACT:** no iOS evidence could be produced at all
+- **FILES:** `.github/workflows/native-ios-release-tests.yml`
+- **FIX:** `runs-on: macos-15`, with the toolchain pinned via
+  `maxim-lobanov/setup-xcode` rather than inherited, and the resolved version
+  recorded in the evidence `device` field
+- **REGRESSION_TEST:** covered by workflow YAML contract validation; the real
+  guard is the live dispatch, since no static check can predict an image default
+- **LIVE_VERIFICATION:** run `31317967934` reached `pod install` successfully
+- **FINAL_STATE:** resolved (PR #89, mirrored to staging in PR #90)
+
+### DEFECT-RRR-006 — iOS build selected a dependency scheme, producing no app
+
+- **ORIGIN:** introduced (native iOS runner, first implementation)
+- **SYMPTOM:** run `31317425126` logged `Build Succeeded` followed by
+  `no .app produced`
+- **ROOT_CAUSE:** the workflow used `workspace.schemes[0]`. In a Pods workspace
+  that is a dependency scheme (`EXConstants`, `hermes-engine`, …), which builds
+  a static library and emits no app bundle. The correct scheme was computed from
+  `app.json` earlier in the same step and then never used.
+- **SECURITY_IMPACT:** none directly, but a green build with a missing artifact
+  is precisely the shape of failure that gets waved through
+- **RELEASE_IMPACT:** no installable app, so no iOS evidence
+- **FILES:** `.github/workflows/native-ios-release-tests.yml`
+- **FIX:** select the scheme matching the generated workspace name and fail
+  loudly listing available schemes if absent; exclude `XCFrameworkIntermediates`
+  from the `.app` search; keep and upload the raw `xcodebuild` log, which
+  `xcpretty` otherwise hides. Both runners additionally now emit evidence when
+  the build fails, instead of producing no artifact at all.
+- **REGRESSION_TEST:** `__tests__/security/nativeReleaseRunner.test.js` —
+  build-failure and missing-report classifications
+- **LIVE_VERIFICATION:** run `31317967934` built and installed the app
+- **FINAL_STATE:** resolved (PR #92, mirrored to staging in PR #90)
+
+### DEFECT-RRR-007 — bashism aborted the Android emulator script before any flow ran
+
+- **ORIGIN:** introduced (native Android runner, first implementation)
+- **SYMPTOM:** run `31317121437` built the APK and booted the emulator, then ran
+  zero flows: `/usr/bin/sh: 1: set: Illegal option -o pipefail`
+- **ROOT_CAUSE:** `reactivecircus/android-emulator-runner` executes its `script`
+  with `/bin/sh` (dash). `set -o pipefail` is a bashism and aborted line 1, so
+  Maestro was never invoked and no JUnit report was written.
+- **SECURITY_IMPACT:** none
+- **RELEASE_IMPACT:** no Android flow evidence
+- **FILES:** `.github/workflows/native-android-release-tests.yml`
+- **FIX:** POSIX `set -eu`, Maestro's exit status captured explicitly rather than
+  via `pipefail`, log written by redirection. The step exits 0 on a flow failure
+  deliberately, so the failure reaches the evidence builder and is classified
+  `BLOCKED` rather than lost as a step error. Timeout raised to 120 minutes after
+  observing ~10 min Gradle and ~12 min emulator boot.
+- **REGRESSION_TEST:** workflow YAML contract validation; the shell-dialect
+  constraint is documented inline at the step
+- **LIVE_VERIFICATION:** pending the next Android dispatch
+- **FINAL_STATE:** resolved in code (PR #93), live re-verification outstanding
+
+### DEFECT-RRR-008 — Debug simulator build shipped no JS bundle
+
+- **ORIGIN:** introduced (native iOS runner, first implementation)
+- **SYMPTOM:** run `31317967934` completed every pipeline stage, then failed
+  25/25 flows on one identical assertion:
+  `Assertion is false: id: onboarding-welcome-screen-v1 is visible`
+- **ROOT_CAUSE:** proven from the xcodebuild log, not inferred. React Native's
+  "Bundle React Native code and images" phase self-skips for a Debug simulator
+  build:
+
+  ```
+  + [[ Debug = *Debug* ]]
+  + [[ ! iphonesimulator == *simulator ]]
+  + [[ -n 1 ]]
+  + echo 'SKIP_BUNDLING enabled; skipping.'
+  ```
+
+  The installed `.app` therefore contained no `main.jsbundle` and could only
+  render against a Metro dev server. Maestro launched a native shell with no UI.
+- **SECURITY_IMPACT:** none directly. The danger is interpretive: 25 uniform
+  failures read as a catastrophic product regression when the app under test was
+  never runnable.
+- **RELEASE_IMPACT:** iOS could never reach `PASS`, and its failure mode
+  impersonated a critical flow failure
+- **FILES:** `.github/workflows/native-ios-release-tests.yml`,
+  `security/scripts/build-native-mobile-evidence.js`
+- **FIX:** build `-configuration Release` for the simulator, which makes the
+  first test false so bundling runs and the candidate's JS is embedded. A
+  release certification runner must exercise a self-contained artifact rather
+  than one wired to a temporary bundler. Adds a bundle-presence gate
+  (`NATIVE_JS_BUNDLE_MISSING`) and a launch probe (`NATIVE_APP_LAUNCH_FAILED`),
+  both resolving to `OPERATIONAL_FAILURE`.
+- **REGRESSION_TEST:** `__tests__/security/nativeReleaseRunner.test.js` — each
+  new reason is `OPERATIONAL_FAILURE` with no per-flow verdicts, and never
+  `BLOCKED`; a wrong SHA still outranks an operational fault
+- **LIVE_VERIFICATION:** run `31321344975` against candidate `e791f04`
+- **FINAL_STATE:** resolved (PR #90, mirrored to master in PR #95)
+
+### DEFECT-RRR-009 — security scanner version probes died of SIGPIPE
+
+- **ORIGIN:** pre-existing (`.github/workflows/security-code.yml`)
+- **SYMPTOM:** the OSV-Scanner required check exited 141 before scanning
+  anything (run `31317383348`)
+- **ROOT_CAUSE:** `VERSION="$(osv-scanner --version | head -n 1)"`. `head`
+  closes the pipe after one line, `osv-scanner` dies of SIGPIPE (128+13), and
+  `set -o pipefail` propagates 141 as the step result.
+- **SECURITY_IMPACT:** the gate failed operationally while presenting as a
+  security check failure — the same category confusion as RRR-004. A real
+  finding and a broken probe were indistinguishable.
+- **RELEASE_IMPACT:** a required check blocked PRs while reporting no
+  vulnerability data at all
+- **FILES:** `.github/workflows/security-code.yml`
+- **FIX:** capture the full version output, then slice its first line in the
+  shell. Two further instances of the same pattern were found by the new
+  contract test and repaired: the `semgrep` probe (unguarded, live exposure) and
+  the `trivy` probe (guarded by `|| echo unknown`, latent). No `|| true`, no
+  relaxed pipefail, nothing made advisory.
+- **REGRESSION_TEST:** `__tests__/security/securityWorkflowContract.test.js` —
+  fails if any scanner is piped into `head`, and separately asserts the OSV step
+  still has strict mode, still scans, and has not been made advisory
+- **LIVE_VERIFICATION:** PR #94's own OSV required check
+- **FINAL_STATE:** resolved (PR #94)
+
+### DEFECT-RRR-010 — release flow IDs overstated their coverage
+
+- **ORIGIN:** introduced (release flow authoring)
+- **SYMPTOM:** three flows asserted something other than what their ID claimed,
+  so a green run would have reported coverage that did not exist
+- **ROOT_CAUSE:** flows were authored against verified testIDs without
+  confirming each ID's subject matter had a matching affordance
+- **SECURITY_IMPACT:** `dressing_room.report_or_block` is a UGC safety control.
+  Asserting the share button would have certified content-reporting as covered
+  while never exercising it.
+- **RELEASE_IMPACT:** inflated confidence in the required inventory
+- **FILES:** `.maestro/flows/release/dressing-room-report-or-block.yaml`,
+  `privacy-correction-and-export.yaml`,
+  `privacy-account-deletion-request.yaml`, `resilience-deep-link.yaml`
+- **FIX:** the report flow now exercises the real per-message Report control
+  (`room-message-report-*`) and its "Report content" disclosure, then cancels.
+  The privacy flows assert the real surfaces from `app/privacy.tsx`
+  ("Request Data Export", "Request permanent account closure") instead of loose
+  substrings. The deep-link flow navigates away first, so it cannot pass without
+  proving routing. All remain non-destructive.
+- **REGRESSION_TEST:** `__tests__/security/nativeReleaseRunner.test.js` — each
+  flow must exercise behavior beyond initialization, safety and privacy flows
+  must assert their own subject matter, and none may confirm a destructive
+  action
+- **LIVE_VERIFICATION:** run `31321344975`
+- **FINAL_STATE:** resolved (PR #90, mirrored to master in PR #95)
+
+## Known limitation — Android tests a debug JS bundle
+
+The Android runner starts Metro and installs a debug APK. Android's `release`
+buildType requires `KSCAN_STORE_FILE` / `KSCAN_KEY_ALIAS` credentials the runner
+does not hold and must not fabricate, so a self-contained Android build needs an
+owner-provided keystore. iOS has no such constraint: a simulator Release build
+needs no signing identity, which is why the two platforms differ here.
+
+**Owner action:** provide an Android keystore if release-bundle coverage is
+required on that platform. Until then Android proves flows against a debug
+bundle.
