@@ -93,10 +93,16 @@ function main() {
 
   const onlyDocs = files.length > 0 && [...allTags].every((t) => t === 'DOCUMENTATION ONLY');
   const onlyMobile = [...allTags].every((t) => t === 'MOBILE' || t === 'DOCUMENTATION ONLY' || t === 'BUILD/CI');
-  const stagingImpact = !onlyDocs && [...allTags].some((t) => STAGING_IMPACT_TAGS.has(t));
   const releaseClass = files.length > 0 && files.every((file) => CONTROL_PLANE_PATTERNS.some((pattern) => pattern.test(file)))
     ? 'CONTROL_PLANE_CHANGE'
     : 'RUNTIME_RELEASE';
+  // Generic surface tags (for example "auth" in a workflow filename) must
+  // never grant deployment authority. The strict path allow-list defines a
+  // control-plane candidate first; only runtime candidates can have staging
+  // impact and reach the staging write job.
+  const stagingImpact = releaseClass === 'RUNTIME_RELEASE'
+    && !onlyDocs
+    && [...allTags].some((t) => STAGING_IMPACT_TAGS.has(t));
 
   const result = {
     baseRef,
