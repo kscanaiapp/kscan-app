@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
   Animated,
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { selectionTick } from '../services/haptics';
+import { openExternalUrl } from '../services/openExternalUrl';
 import type { SecondhandItem } from '../types/scan';
 
 interface SecondhandShelfProps {
@@ -64,9 +64,13 @@ export function SecondhandShelf({ items = [] }: SecondhandShelfProps) {
 
   if (!items.length) return null;
 
+  // listingUrl comes from the search-vinted-secondhand response, so its scheme
+  // is upstream-controlled. A URL the shared guard rejects shows the same
+  // LINK UNAVAILABLE notice an unreachable one already did.
   const handleLinkPress = (url: string) => {
     selectionTick();
-    Linking.openURL(url).catch(() => {
+    void openExternalUrl(url).then((opened) => {
+      if (opened) return;
       setLinkErrorVisible(true);
       setTimeout(() => setLinkErrorVisible(false), 2000);
     });
