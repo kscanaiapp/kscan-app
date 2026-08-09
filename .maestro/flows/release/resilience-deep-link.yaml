@@ -13,9 +13,25 @@ env:
   QA_PASSWORD: ${QA_PASSWORD}
 ---
 - runFlow: ../../subflows/sign-in.yaml
+
+# Navigate away first, so the deep link has to actually change route. Opening
+# kscan://home while already on home would pass without proving anything.
+- tapOn:
+    id: "home-v2-library-card"
+- extendedWaitUntil:
+    visible:
+      id: "library-section-closet"
+    timeout: 30000
+
 - openLink: kscan://home
+
+# The link must route back to home and leave the session intact.
 - extendedWaitUntil:
     visible:
       id: "router-home-screen"
     timeout: 45000
+- assertNotVisible:
+    id: "library-section-closet"
+- assertNotVisible:
+    id: "auth-email-input"
 - takeScreenshot: "resilience-deep-link"

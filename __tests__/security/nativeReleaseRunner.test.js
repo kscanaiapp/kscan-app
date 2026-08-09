@@ -89,6 +89,65 @@ test('each release flow declares its required flow id as its Maestro name', () =
   }
 });
 
+// Each release flow must do more than reach the app's first screen, or the
+// inventory would report 25 green flows while proving only that the app opens.
+test('each release flow exercises behavior beyond the common initialization', () => {
+  const INIT_ONLY = new Set([
+    'onboarding-welcome-screen-v1',
+    'onboarding-get-started-button-v1',
+  ]);
+  for (const entry of manifest.flows) {
+    const content = fs.readFileSync(path.join(ROOT, manifest.flow_root, entry.file), 'utf8');
+    const body = content.split(/^---$/m).slice(1).join('---');
+    // Two is the floor, not a target: auth.session_restore legitimately needs
+    // only "home is visible" plus "the auth gate is not". A placeholder that
+    // merely asserts the welcome screen has one.
+    const assertions = body.match(/^\s*-\s*(assertVisible|assertNotVisible|extendedWaitUntil|tapOn|inputText):/gm) || [];
+    assert.ok(
+      assertions.length >= 2,
+      `${entry.file} has only ${assertions.length} interactions; it cannot prove "${entry.id}"`,
+    );
+    const referenced = [...body.matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
+    const beyondInit = referenced.filter((id) => !INIT_ONLY.has(id));
+    assert.ok(
+      beyondInit.length > 0 || /assertVisible:\s*"/.test(body),
+      `${entry.file} only touches onboarding initialization selectors`,
+    );
+  }
+});
+
+// Guards the specific coverage defects found in DEFECT-RRR-010.
+test('safety and privacy flows assert their own subject matter', () => {
+  const read = (file) => fs.readFileSync(path.join(ROOT, manifest.flow_root, file), 'utf8');
+
+  const report = read('dressing-room-report-or-block.yaml');
+  assert.match(report, /room-message-report-/, 'report flow must exercise the per-message Report control');
+  assert.match(report, /Report content/, 'report flow must assert the report disclosure dialog');
+  assert.doesNotMatch(
+    report,
+    /assertVisible:\s*\n\s*id:\s*"share-room-button"/,
+    'sharing is not a report/block affordance',
+  );
+
+  const exportFlow = read('privacy-correction-and-export.yaml');
+  assert.match(exportFlow, /Request Data Export/, 'export flow must assert the real export control');
+
+  const deletion = read('privacy-account-deletion-request.yaml');
+  assert.match(deletion, /Request permanent account closure/, 'deletion flow must assert the real deletion surface');
+});
+
+test('non-destructive privacy and safety flows never confirm', () => {
+  for (const file of [
+    'privacy-account-deletion-request.yaml',
+    'privacy-correction-and-export.yaml',
+    'dressing-room-report-or-block.yaml',
+  ]) {
+    const content = fs.readFileSync(path.join(ROOT, manifest.flow_root, file), 'utf8');
+    assert.doesNotMatch(content, /tapOn:\s*"Report & Hide/, `${file} must not confirm a destructive action`);
+    assert.doesNotMatch(content, /tapOn:\s*"Delete Account"/, `${file} must not confirm account deletion`);
+  }
+});
+
 test('release flows are branch-neutral and carry no Build 2.5 dependency', () => {
   for (const entry of manifest.flows) {
     const content = fs.readFileSync(path.join(ROOT, manifest.flow_root, entry.file), 'utf8');
@@ -138,6 +197,40 @@ for (const platform of ['android', 'ios']) {
 
     const certified = certify(evidence, platform);
     assert.equal(certified.result, 'OPERATIONAL_FAILURE');
+  });
+
+  // An app that never became runnable must never be reported as a product
+  // failure. These are the states that produced the 25/25 identical failures in
+  // run 31317967934 before the Release-build repair.
+  for (const [reason, label] of [
+    ['NATIVE_JS_BUNDLE_MISSING', 'a missing JS bundle'],
+    ['NATIVE_APP_LAUNCH_FAILED', 'an app that cannot launch'],
+    ['NATIVE_BUILD_FAILED', 'a failed build'],
+  ]) {
+    test(`${platform}: ${label} is OPERATIONAL_FAILURE with its own reason, never BLOCKED`, () => {
+      const evidence = build(platform, junitFor(allIdsFor(platform)), {
+        infrastructureFailure: true,
+        infrastructureReason: reason,
+      });
+      assert.equal(evidence.result, 'OPERATIONAL_FAILURE');
+      assert.equal(evidence.reason, reason);
+      assert.deepEqual(evidence.flows, [], 'a non-runnable app must not report per-flow verdicts');
+
+      const certified = certify(evidence, platform);
+      assert.equal(certified.result, 'OPERATIONAL_FAILURE');
+      assert.notEqual(certified.result, 'BLOCKED');
+    });
+  }
+
+  test(`${platform}: a bundle-missing fault still cannot pass on a wrong SHA`, () => {
+    const evidence = build(platform, junitFor(allIdsFor(platform)), {
+      infrastructureFailure: true,
+      infrastructureReason: 'NATIVE_JS_BUNDLE_MISSING',
+    });
+    const certified = parseEvidence(evidence, {
+      platform, candidate_sha: '0'.repeat(40), run_id: RUN_ID,
+    });
+    assert.equal(certified.result, 'BLOCKED', 'SHA integrity outranks an operational fault');
   });
 
   test(`${platform}: a missing report is OPERATIONAL_FAILURE`, () => {

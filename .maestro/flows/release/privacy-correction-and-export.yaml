@@ -14,11 +14,16 @@ env:
 - runFlow: ../../subflows/sign-in.yaml
 - tapOn:
     id: "home-v2-privacy-button"
+
+# Assert the real data-rights surface from app/privacy.tsx rather than a loose
+# substring: the export action and the correction affordance must both exist.
 - extendedWaitUntil:
-    visible:
-      id: "privacy-button"
+    visible: "Request Data Export"
     timeout: 30000
-# Non-destructive: assert the correction/export affordances are reachable.
-# This flow deliberately does not submit a request.
-- assertVisible: ".*(Export|Correct).*"
-- takeScreenshot: "privacy-correction-and-export"
+- assertVisible: "Export or correct your account information"
+- takeScreenshot: "privacy-data-rights"
+
+# Non-destructive: the export request is not submitted. Proving the control is
+# present and reachable is the release-relevant assertion; actually firing it
+# would create real data-subject requests against staging on every run.
+- assertVisible: "Request Data Export"
