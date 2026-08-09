@@ -202,6 +202,8 @@ test('staging Auth configuration is pinned away from production and changes only
   assert.match(workflow, /PRODUCTION_REF: wyyuqfdxucjksghsmhry/);
   assert.match(workflow, /--data '\{"password_hibp_enabled":true\}'/);
   assert.doesNotMatch(workflow, /projects\/\$\{PRODUCTION_REF\}/);
+  assert.match(workflow, /SUPABASE_PLAN_DOES_NOT_SUPPORT_HIBP/);
+  assert.ok(workflow.indexOf("writeFileSync('staging-auth-security.json'") < workflow.indexOf('PATCH_CODE='));
 });
 
 test('master validation emits the exact intended check name', () => {
