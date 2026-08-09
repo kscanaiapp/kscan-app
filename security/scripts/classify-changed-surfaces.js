@@ -23,6 +23,7 @@ const CLASSIFIERS = [
   { tag: 'AUTH', patterns: [/auth/i, /login/i, /oauth/i, /session/i, /deletion/i, /privacy/i] },
   { tag: 'STORAGE', patterns: [/storage/i, /upload/i, /bucket/i] },
   { tag: 'BUILD/CI', patterns: [/\.github\//, /^scripts\//, /^package\.json$/, /^package-lock\.json$/, /^eas\.json$/, /^app\.config\./] },
+  { tag: 'CONTROL PLANE', patterns: [/^security\//, /^__tests__\//, /^qa\//, /^\.zap\//, /^\.semgrep\//] },
   { tag: 'DOCUMENTATION ONLY', patterns: [/^docs\//, /^README/i, /\.md$/] },
 ];
 
@@ -67,7 +68,7 @@ function classifyFile(filePath) {
     tags.add('MOBILE');
   }
   if ([...tags].every((t) => t === 'DOCUMENTATION ONLY' || t === 'BUILD/CI')) {
-    return ['DOCUMENTATION ONLY'];
+    return tags.has('BUILD/CI') ? [...tags] : ['DOCUMENTATION ONLY'];
   }
   return [...tags];
 }

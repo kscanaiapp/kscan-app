@@ -55,12 +55,12 @@
 ## DEF-REL-005 — Runtime build/dependency manifests could skip staging deployment
 
 - **Preexisting or introduced:** Preexisting classifier defect, exposed by this pass's temporary test-script aliases.
-- **Symptom:** A PR that changed `package.json` was correctly labeled `RUNTIME_RELEASE` but still emitted `stagingImpact=false`, so the staging deployment job skipped. Post-merge runtime-tree verification caught the unexpected digest change.
-- **Root cause:** `stagingImpact` required one of a narrow set of API/auth/storage tags. `package.json`, `package-lock.json`, `eas.json`, and `app.config.*` were tagged `BUILD/CI`, which the calculation treated as no-deploy even though these files are release content.
+- **Symptom:** A PR that changed `package.json` was correctly labeled `RUNTIME_RELEASE` but still emitted `stagingImpact=false`, so the staging deployment job skipped. Its human-facing file classification also collapsed `BUILD/CI` into `DOCUMENTATION ONLY`. Post-merge runtime-tree verification caught the unexpected digest change.
+- **Root cause:** `stagingImpact` required one of a narrow set of API/auth/storage tags. `package.json`, `package-lock.json`, `eas.json`, and `app.config.*` were tagged `BUILD/CI`, which the calculation treated as no-deploy even though these files are release content; a separate normalization branch mislabeled build-only files as documentation.
 - **Security impact:** A dependency or security-sensitive build/config change could be certified without deploying the exact candidate through the staging path.
 - **Release impact:** The deployment identity contract could fail later or, without the independent builder guard, misrepresent an undeployed candidate.
 - **Files/workflows:** `classify-changed-surfaces.js`, `staging-release-certification.yml`, `package.json`, certification regression tests.
-- **Fix:** Any file outside the strict control-plane allow-list now implies `RUNTIME_RELEASE` and `stagingImpact=true`. The temporary package test aliases were removed; the workflow invokes those tests directly so the release manifest returns to its prior content.
-- **Regression test:** `stagingCertification.test.js` proves `package.json` is runtime and staging-impacting.
+- **Fix:** Any file outside the strict control-plane allow-list now implies `RUNTIME_RELEASE` and `stagingImpact=true`. Build/dependency files retain `BUILD/CI`, while security/test paths report `CONTROL PLANE`. The temporary package test aliases were removed; the workflow invokes those tests directly so the release manifest returns to its prior content.
+- **Regression test:** `stagingCertification.test.js` proves `package.json` is `BUILD/CI`, runtime, and staging-impacting, and that security scripts report `CONTROL PLANE`.
 - **Verification:** Classifier/certification tests pass and the corrected branch's runtime-tree digest returns to the pre-change staging digest.
 - **Final state:** Fixed through a follow-up protected staging PR.

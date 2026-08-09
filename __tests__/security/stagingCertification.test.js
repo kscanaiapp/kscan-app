@@ -138,6 +138,8 @@ test('release classifier uses a strict control-plane allow-list', () => {
   assert.ok(CONTROL_PLANE_PATTERNS.some((pattern) => pattern.test('.github/workflows/check.yml')));
   assert.equal(CONTROL_PLANE_PATTERNS.some((pattern) => pattern.test('scripts/deploy.js')), false);
   assert.deepEqual(classifyFile('app/index.tsx'), ['MOBILE', 'WEB']);
+  assert.deepEqual(classifyFile('package.json'), ['BUILD/CI']);
+  assert.deepEqual(classifyFile('security/scripts/release-gate.js'), ['CONTROL PLANE']);
 });
 
 test('an Auth-named workflow remains control-plane and cannot gain staging write authority', () => {
