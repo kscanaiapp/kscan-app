@@ -131,8 +131,25 @@ test('isAccountUnavailableRejection: 403 with error:account_unavailable satisfie
   assert.equal(isAccountUnavailableRejection({ status: 403, json: { error: 'account_unavailable' } }), true);
 });
 
+test('isAccountUnavailableRejection: 403 with an explicit hardened account-state code satisfies the contract', () => {
+  assert.equal(
+    isAccountUnavailableRejection({
+      status: 403,
+      json: { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+    }),
+    true,
+  );
+});
+
 test('isAccountUnavailableRejection: a plain 403 without the account_unavailable body does not satisfy it', () => {
   assert.equal(isAccountUnavailableRejection({ status: 403, json: { error: 'forbidden' } }), false);
+});
+
+test('isAccountUnavailableRejection: a 403 with an unrelated error code does not satisfy the contract', () => {
+  assert.equal(
+    isAccountUnavailableRejection({ status: 403, json: { error: 'forbidden', errorCode: 'SOME_OTHER_403' } }),
+    false,
+  );
 });
 
 // 6. locked request returns the expected 403 contract (same predicate, distinct account).

@@ -108,7 +108,17 @@ function isAuthRejection(response) {
 }
 
 function isAccountUnavailableRejection(response) {
-  return response.status === 403 && response.json?.error === 'account_unavailable';
+  if (response.status !== 403) return false;
+
+  // The hardened Edge Functions return explicit, machine-readable account
+  // restriction codes. Older hardened functions used `error:account_unavailable`;
+  // retain that compatibility while requiring one of the structured restricted
+  // account codes for newer functions. Do not accept a bare 403 here: it could
+  // represent an unrelated authorization failure rather than the account-state
+  // boundary this synthetic check is intended to prove.
+  return response.json?.error === 'account_unavailable'
+    || ['ACCOUNT_UNAVAILABLE', 'ACCOUNT_DEACTIVATED', 'ACCOUNT_PENDING_DELETION']
+      .includes(response.json?.errorCode);
 }
 
 function isValidationRejection(response) {
