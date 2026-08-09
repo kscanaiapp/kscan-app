@@ -13,6 +13,7 @@ test('master tree check emits its exact governance context', () => {
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'master-promotion-validation.yml'), 'utf8');
   assert.match(workflow, /name: Master promotion tree equivalence/);
   assert.match(workflow, /git merge-tree --write-tree origin\/master/);
+  assert.doesNotMatch(workflow, /Only immutable staging promotion/);
 });
 
 test('promotion workflow validates before creating a ref or PR', () => {
