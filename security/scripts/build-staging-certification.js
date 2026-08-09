@@ -122,10 +122,13 @@ function build(input, options = {}) {
     // Audit-visible and deliberately not a verdict. While suspended this reads
     // NOT_REQUIRED_BY_CURRENT_POLICY -- never PASS, which would claim coverage
     // that does not exist, and never BLOCKED, which would claim a measured
-    // failure. The raw evidence blocks are retained for audit only.
+    // failure.
     native_ui_automation: certificationBlock(policy),
-    native_android: android,
-    native_ios: ios,
+    // The per-platform evidence blocks appear only while the control is armed.
+    // When suspended there is no evidence to audit, and emitting empty shells
+    // reading "OPERATIONAL_FAILURE" invites a reader to see a failure in a
+    // document whose whole point is that nothing was measured.
+    ...(nativeRequired ? { native_android: android, native_ios: ios } : {}),
     blocking_findings: [
       ...blocking.map(([name]) => name), ...extraBlocking,
       ...invalid.map(([name]) => `invalid_verdict:${name}`),
