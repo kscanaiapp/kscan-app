@@ -139,14 +139,18 @@ jobs:
           const fs = require('fs');
           const c = require('./certification-download/staging-certification.json');
           const d = require('./release-decision.json');
-          const mobile = (name) => { const e=c[name]||{}; return `${e.result||'UNKNOWN'} (run ${e.run_id||'none'}, SHA ${e.tested_sha||'none'})`; };
+          // Report the policy state verbatim. Never render this as a pass:
+          // native UI automation is suspended, not passing.
+          const nativeUi = c.native_ui_automation || {};
+          const nativeUiLine = `Native UI automation: ${nativeUi.result || 'UNKNOWN'}`
+            + (nativeUi.reason ? ` (policy ${nativeUi.policy || 'UNKNOWN'}, reason ${nativeUi.reason})` : '');
           const body = [
             `Candidate SHA: ${c.candidate_commit_sha}`, `Candidate tree SHA: ${c.candidate_tree_sha}`,
             `Certification run: ${c.certification_run_id}`, `Certification verdict: ${c.final_verdict}`,
             `Agent release decision: ${d.release_decision}`, `Release class: ${c.release_class}`,
             `Staging health: ${c.staging_health}`, `Security: ${c.static_security}`,
             `Artifact exposure: ${c.artifact_exposure}`, `ZAP baseline/API: ${c.zap_baseline} / ${c.zap_api}`,
-            `Native Android: ${mobile('native_android')}`, `Native iOS: ${mobile('native_ios')}`,
+            nativeUiLine,
             `Blocking findings: ${JSON.stringify(c.blocking_findings||[])}`,
             `Report-only findings: ${JSON.stringify(c.report_only_findings||[])}`,
           ].join('\n\n');

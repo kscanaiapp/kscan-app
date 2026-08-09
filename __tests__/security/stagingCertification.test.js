@@ -11,20 +11,13 @@ const test = require('node:test');
 const { findUnsupportedUsage } = require('../../security/scripts/guard-unsupported-supabase-cli');
 const { build } = require('../../security/scripts/build-staging-certification');
 const { classifyFile, CONTROL_PLANE_PATTERNS } = require('../../security/scripts/classify-changed-surfaces');
-const { parseEvidence } = require('../../security/scripts/parse-native-mobile-evidence');
 const { validatePromotion } = require('../../security/scripts/validate-promotion-request');
 const { scan } = require('../../security/scripts/scan-candidate-artifacts');
 
 const SHA = 'a'.repeat(40);
-const requiredFlows = require('../../security/native/required-mobile-flows.json').flows;
-const nativeEvidence = (platform, overrides = {}) => ({
-  runner: 'maestro', build_identifier: `${platform}-build-1`, run_id: `${platform}-run-1`,
-  result: 'PASS', tested_sha: SHA,
-  flows_run: requiredFlows.filter((flow) => flow.required && flow.platforms.includes(platform)).length,
-  flows_passed: requiredFlows.filter((flow) => flow.required && flow.platforms.includes(platform)).length,
-  flows_failed: 0, artifact_links: [`https://github.com/kscanaiapp/kscan-app/actions/runs/${platform}-run-1`],
-  contract_validated: true, ...overrides,
-});
+// Native UI automation is suspended by owner policy, so certification no longer
+// consumes Maestro evidence. Policy-specific coverage lives in
+// __tests__/security/nativeUiAutomationPolicy.test.js.
 const base = () => ({
   candidate_commit_sha: SHA,
   candidate_tree_sha: 'b'.repeat(40),
@@ -32,12 +25,9 @@ const base = () => ({
   deployed_staging_sha: SHA,
   deployment_required: true,
   release_class: 'RUNTIME_RELEASE',
-  native_evidence_configured: true,
   ...Object.fromEntries([
     'static_security', 'migration_validation', 'contract_tests', 'staging_parity', 'staging_health', 'synthetic_auth', 'rpc_rls_authorization', 'artifact_exposure', 'zap_baseline', 'zap_api', 'leaked_password_protection', 'quarantine_policy',
   ].map((name) => [name, 'PASS'])),
-  native_android: nativeEvidence('android'),
-  native_ios: nativeEvidence('ios'),
 });
 
 test('deployment guard blocks unsupported syntax but not itself or a legitimate staging workflow', () => {
@@ -81,17 +71,11 @@ const scenarios = [
   ['staging branch moved', (input) => ({ ...input, staging_branch_head_sha: 'd'.repeat(40) }), 'BLOCKED'],
   ['quarantine changed', (input) => ({ ...input, rpc_rls_authorization: 'BLOCKED' }), 'BLOCKED'],
   ['production reference detected', (input) => ({ ...input, artifact_exposure: 'BLOCKED' }), 'BLOCKED'],
-  ['native Android failure', (input) => ({ ...input, native_android: { ...input.native_android, result: 'BLOCKED' } }), 'BLOCKED'],
-  ['native iOS failure', (input) => ({ ...input, native_ios: { ...input.native_ios, result: 'BLOCKED' } }), 'BLOCKED'],
-  ['native Android SHA mismatch', (input) => ({ ...input, native_android: { ...input.native_android, tested_sha: 'e'.repeat(40) } }), 'BLOCKED'],
-  ['native iOS SHA mismatch', (input) => ({ ...input, native_ios: { ...input.native_ios, tested_sha: 'e'.repeat(40) } }), 'BLOCKED'],
-  ['native runner infrastructure crash', (input) => ({ ...input, native_android: { ...input.native_android, result: 'OPERATIONAL_FAILURE' } }), 'OPERATIONAL_FAILURE'],
   ['historical high report-only', (input) => ({ ...input, static_security: 'PASS_WITH_REPORT_ONLY_FINDINGS' }), 'PASS_WITH_REPORT_ONLY_FINDINGS'],
   ['new high runtime dependency', (input) => ({ ...input, static_security: 'BLOCKED' }), 'BLOCKED'],
   ['master tree differs', (input) => ({ ...input, rpc_rls_authorization: 'BLOCKED' }), 'BLOCKED'],
   ['master required check missing', (input) => ({ ...input, contract_tests: 'OPERATIONAL_FAILURE' }), 'OPERATIONAL_FAILURE'],
   ['optional ZAP target not configured', (input) => ({ ...input, zap_baseline: 'NOT_APPLICABLE', zap_api: 'NOT_APPLICABLE' }), 'PASS'],
-  ['mobile evidence not configured for live certification', (input) => ({ ...input, native_evidence_configured: false, native_android: { result: 'BLOCKED' }, native_ios: { result: 'BLOCKED' } }), 'BLOCKED'],
 ];
 
 for (const [name, mutate, expected] of scenarios) {
@@ -100,13 +84,15 @@ for (const [name, mutate, expected] of scenarios) {
   });
 }
 
-test('framework validation remains runnable without configured native runs but fails closed', () => {
-  // The framework suite exercises deterministic fixtures; it must remain
-  // runnable before native runner workflows exist. Live certification supplies
-  // the actual mobile evidence and fails closed when it is absent.
+test('certification no longer blocks on absent native evidence', () => {
+  // Native UI automation is suspended by owner policy, so its absence is not a
+  // finding. This asserts only that it stops blocking -- it does NOT assert the
+  // native tests passed. See nativeUiAutomationPolicy.test.js for the full
+  // policy contract, including that the gate re-arms from the policy file alone.
   const report = build({ ...base(), native_evidence_configured: false });
-  assert.equal(report.final_verdict, 'BLOCKED');
-  assert.equal(report.promotion_eligible, false);
+  assert.equal(report.final_verdict, 'PASS');
+  assert.equal(report.promotion_eligible, true);
+  assert.equal(report.native_ui_automation.result, 'NOT_REQUIRED_BY_CURRENT_POLICY');
 });
 
 test('a control-plane candidate may sync without runtime certification', () => {
@@ -119,8 +105,6 @@ test('a control-plane candidate may sync without runtime certification', () => {
     staging_health: 'NOT_APPLICABLE',
     synthetic_auth: 'NOT_APPLICABLE',
     leaked_password_protection: 'NOT_APPLICABLE',
-    native_android: { result: 'NOT_APPLICABLE' },
-    native_ios: { result: 'NOT_APPLICABLE' },
   });
   assert.equal(report.final_verdict, 'PASS');
   assert.equal(report.promotion_eligible, true);
@@ -166,30 +150,9 @@ test('runtime dependency manifests can never be classified as no-deploy control-
   assert.equal(classification.stagingImpact, true);
 });
 
-test('native evidence preserves build/run identity and exact tested SHA', () => {
-  const flows = requiredFlows.filter((flow) => flow.required && flow.platforms.includes('android'))
-    .map((flow) => ({ id: flow.id, result: 'PASS' }));
-  const evidence = parseEvidence({
-    platform: 'android', runner: 'maestro', build_identifier: 'build-1', run_id: 'run-1',
-    tested_sha: SHA, result: 'PASS', flows,
-    artifact_links: ['https://github.com/kscanaiapp/kscan-app/actions/runs/1'],
-  }, { platform: 'android', candidate_sha: SHA, run_id: 'run-1' });
-  assert.equal(evidence.result, 'PASS');
-  assert.equal(evidence.tested_sha, SHA);
-  assert.equal(evidence.build_identifier, 'build-1');
-  assert.equal(evidence.flows_passed, flows.length);
-});
-
-test('native evidence blocks a result from the wrong candidate SHA', () => {
-  const flows = requiredFlows.filter((flow) => flow.required && flow.platforms.includes('ios'))
-    .map((flow) => ({ id: flow.id, result: 'PASS' }));
-  const evidence = parseEvidence({
-    runner: 'maestro', build_identifier: 'build-1', run_id: 'run-1', tested_sha: 'c'.repeat(40),
-    result: 'PASS', flows, artifact_links: ['https://github.com/kscanaiapp/kscan-app/actions/runs/1'],
-  }, { platform: 'ios', candidate_sha: SHA, run_id: 'run-1' });
-  assert.equal(evidence.result, 'BLOCKED');
-  assert.equal(evidence.reason, 'MOBILE_TEST_SHA_MISMATCH');
-});
+// The native evidence parser tests were removed with the parser itself when
+// Maestro was suspended. Exact-SHA binding for the controls that remain is
+// asserted by the candidate-identity and promotion cases in this file.
 
 test('promotion validation independently rejects stale and unverified evidence', () => {
   const certification = build(base());
@@ -248,13 +211,39 @@ test('master validation emits the exact intended check name', () => {
   assert.doesNotMatch(workflow, /Only immutable staging promotion/);
 });
 
-test('mobile certification no longer fabricates TestSprite native IDs', () => {
+test('certification carries no native UI automation machinery while suspended', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'staging-release-certification.yml'), 'utf8');
+  // The original guard: never regress to fabricated TestSprite native IDs.
   assert.doesNotMatch(workflow, /TESTSPRITE_(?:ANDROID|IOS)_TEST_ID|testsprite_(?:android|ios)/i);
-  assert.match(workflow, /NATIVE_ANDROID_RUN_ID/);
-  assert.match(workflow, /parse-native-mobile-evidence\.js/);
-  assert.match(workflow, /\.github\/workflows\/native-android-release-tests\.yml/);
-  assert.match(workflow, /\.github\/workflows\/native-ios-release-tests\.yml/);
+  // Suspension must leave no dead wiring behind -- a dangling job reference or
+  // a lookup for a deleted workflow would fail the run for the wrong reason.
+  for (const dead of [
+    /mobile-certification/,
+    /NATIVE_ANDROID_RUN_ID/,
+    /NATIVE_IOS_RUN_ID/,
+    /parse-native-mobile-evidence\.js/,
+    /native-android-release-tests\.yml/,
+    /native-ios-release-tests\.yml/,
+    /MOBILE_EVIDENCE_NOT_CONFIGURED/,
+  ]) {
+    assert.doesNotMatch(workflow, dead, `dead native reference remains: ${dead}`);
+  }
+});
+
+test('the removed native workflows and flow inventory are actually gone', () => {
+  const root = path.join(__dirname, '..', '..');
+  for (const gone of [
+    '.github/workflows/native-android-release-tests.yml',
+    '.github/workflows/native-ios-release-tests.yml',
+    'security/scripts/parse-native-mobile-evidence.js',
+    'security/scripts/build-native-mobile-evidence.js',
+    'security/native/required-mobile-flows.json',
+    'security/native/release-flow-manifest.json',
+    '.maestro',
+    'maestro',
+  ]) {
+    assert.ok(!fs.existsSync(path.join(root, gone)), `${gone} should have been removed with the suspended control`);
+  }
 });
 
 test('password security policy preserves the documented blocking requirement', () => {

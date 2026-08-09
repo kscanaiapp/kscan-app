@@ -28,7 +28,6 @@ jobs:
       staging_head: ${{ steps.identity.outputs.staging_head }}
       release_class: ${{ steps.classify.outputs.release_class }}
       zap_configured: ${{ steps.config.outputs.zap_configured }}
-      native_evidence_configured: ${{ steps.config.outputs.native_evidence_configured }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,16 +57,9 @@ jobs:
         env:
           ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
           ZAP_ALLOWED_HOST: ${{ vars.ZAP_ALLOWED_HOST }}
-          NATIVE_ANDROID_RUN_ID: ${{ vars.NATIVE_ANDROID_RUN_ID }}
-          NATIVE_IOS_RUN_ID: ${{ vars.NATIVE_IOS_RUN_ID }}
         run: |
           set -euo pipefail
           [ -n "$ZAP_STAGING_URL" ] && [ -n "$ZAP_ALLOWED_HOST" ] && echo 'zap_configured=true' >> "$GITHUB_OUTPUT" || echo 'zap_configured=false' >> "$GITHUB_OUTPUT"
-          if [ -n "$NATIVE_ANDROID_RUN_ID" ] && [ -n "$NATIVE_IOS_RUN_ID" ]; then
-            echo 'native_evidence_configured=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'native_evidence_configured=false' >> "$GITHUB_OUTPUT"
-          fi
 
   staging-validation:
     name: Controlled staging validation
@@ -95,7 +87,7 @@ jobs:
           npm run test:rpc-policy
           npm run test:provenance-quarantine
           npm run test:staging-certification
-          node --test __tests__/security/nativeMobileEvidence.test.js
+          node --test __tests__/security/nativeUiAutomationPolicy.test.js
           node --test __tests__/security/releaseTreeEquivalence.test.js __tests__/security/provenanceMap.test.js
 
   artifact-exposure:
@@ -156,78 +148,9 @@ jobs:
     uses: ./.github/workflows/zap-api-staging.yml
     secrets: inherit
 
-  mobile-certification:
-    name: Native mobile evidence certification
-    needs: candidate
-    runs-on: ubuntu-latest
-    outputs:
-      android_json: ${{ steps.mobile.outputs.android_json }}
-      ios_json: ${{ steps.mobile.outputs.ios_json }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.candidate.outputs.sha }}
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '20'
-      - id: mobile
-        env:
-          RELEASE_CLASS: ${{ needs.candidate.outputs.release_class }}
-          READY: ${{ needs.candidate.outputs.native_evidence_configured }}
-          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
-          ANDROID_RUN_ID: ${{ vars.NATIVE_ANDROID_RUN_ID }}
-          IOS_RUN_ID: ${{ vars.NATIVE_IOS_RUN_ID }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -uo pipefail
-          emit() {
-            echo "android_json=$(node -p "JSON.stringify(require('./android-evidence.json'))")" >> "$GITHUB_OUTPUT"
-            echo "ios_json=$(node -p "JSON.stringify(require('./ios-evidence.json'))")" >> "$GITHUB_OUTPUT"
-          }
-          placeholder() {
-            node -e "const fs=require('fs'); const [p,r,s]=process.argv.slice(1); fs.writeFileSync(p+'-evidence.json', JSON.stringify({platform:p,runner:null,build_identifier:null,run_id:null,result:r,tested_sha:null,flows_run:0,flows_passed:0,flows_failed:0,artifact_links:[],flow_results:[],contract_validated:false,reason:s},null,2))" "$1" "$2" "$3"
-          }
-          if [ "$RELEASE_CLASS" = "CONTROL_PLANE_CHANGE" ]; then placeholder android NOT_APPLICABLE CONTROL_PLANE_CHANGE; placeholder ios NOT_APPLICABLE CONTROL_PLANE_CHANGE; emit; exit 0; fi
-          if [ "$READY" != true ]; then placeholder android BLOCKED MOBILE_EVIDENCE_NOT_CONFIGURED; placeholder ios BLOCKED MOBILE_EVIDENCE_NOT_CONFIGURED; emit; exit 0; fi
-          acquire() {
-            PLATFORM="$1"; RUN_ID="$2"; EXPECTED_NAME="$3"; EXPECTED_PATH="$4"; ARTIFACT_NAME="native-${PLATFORM}-evidence"
-            if ! gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" > "${PLATFORM}-run.json"; then
-              placeholder "$PLATFORM" OPERATIONAL_FAILURE NATIVE_RUN_LOOKUP_FAILED; return
-            fi
-            STATUS="$(node -p "require('./${PLATFORM}-run.json').status")"
-            HEAD_SHA="$(node -p "require('./${PLATFORM}-run.json').head_sha")"
-            WORKFLOW_NAME="$(node -p "require('./${PLATFORM}-run.json').name")"
-            WORKFLOW_PATH="$(node -p "require('./${PLATFORM}-run.json').path")"
-            if [ "$HEAD_SHA" != "$CANDIDATE_SHA" ]; then placeholder "$PLATFORM" BLOCKED MOBILE_TEST_SHA_MISMATCH; return; fi
-            if [ "$WORKFLOW_NAME" != "$EXPECTED_NAME" ] || [ "$WORKFLOW_PATH" != "$EXPECTED_PATH" ]; then placeholder "$PLATFORM" BLOCKED NATIVE_WORKFLOW_IDENTITY_MISMATCH; return; fi
-            if [ "$STATUS" != completed ]; then placeholder "$PLATFORM" PENDING NATIVE_TEST_STILL_RUNNING; return; fi
-            if ! gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" > "${PLATFORM}-artifacts.json"; then
-              placeholder "$PLATFORM" OPERATIONAL_FAILURE NATIVE_ARTIFACT_LOOKUP_FAILED; return
-            fi
-            ARTIFACT_ID="$(node -e "const r=require('./${PLATFORM}-artifacts.json'); const a=r.artifacts.find(x=>x.name===process.argv[1]&&!x.expired); if(a)process.stdout.write(String(a.id))" "$ARTIFACT_NAME")"
-            if [ -z "$ARTIFACT_ID" ]; then placeholder "$PLATFORM" OPERATIONAL_FAILURE NATIVE_ARTIFACT_NOT_FOUND; return; fi
-            mkdir -p "${PLATFORM}-artifact"
-            if ! gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > "${PLATFORM}.zip" || ! unzip -q "${PLATFORM}.zip" -d "${PLATFORM}-artifact"; then
-              placeholder "$PLATFORM" OPERATIONAL_FAILURE NATIVE_ARTIFACT_DOWNLOAD_FAILED; return
-            fi
-            EVIDENCE_FILE="$(find "${PLATFORM}-artifact" -type f -name '*.json' | head -n 1)"
-            if [ -z "$EVIDENCE_FILE" ]; then placeholder "$PLATFORM" OPERATIONAL_FAILURE NATIVE_EVIDENCE_JSON_NOT_FOUND; return; fi
-            node security/scripts/parse-native-mobile-evidence.js --input "$EVIDENCE_FILE" --output "${PLATFORM}-evidence.json" --platform "$PLATFORM" --candidate-sha "$CANDIDATE_SHA" --run-id "$RUN_ID" || true
-          }
-          acquire android "$ANDROID_RUN_ID" 'Native Android Release Tests' '.github/workflows/native-android-release-tests.yml'
-          acquire ios "$IOS_RUN_ID" 'Native iOS Release Tests' '.github/workflows/native-ios-release-tests.yml'
-          emit
-      - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: native-mobile-evidence-${{ github.run_id }}
-          path: '*-evidence.json'
-          if-no-files-found: error
-          retention-days: 90
-
   final-verdict:
     name: Final staging certification verdict
-    needs: [candidate, staging-validation, static-and-authorization, artifact-exposure, leaked-password-protection, zap-baseline, zap-api, mobile-certification]
+    needs: [candidate, staging-validation, static-and-authorization, artifact-exposure, leaked-password-protection, zap-baseline, zap-api]
     if: always()
     runs-on: ubuntu-latest
     outputs:
@@ -256,9 +179,6 @@ jobs:
           ZAP_CONFIGURED: ${{ needs.candidate.outputs.zap_configured }}
           ZAP_BASELINE_RESULT: ${{ needs.zap-baseline.result }}
           ZAP_API_RESULT: ${{ needs.zap-api.result }}
-          NATIVE_EVIDENCE_CONFIGURED: ${{ needs.candidate.outputs.native_evidence_configured }}
-          NATIVE_ANDROID_JSON: ${{ needs.mobile-certification.outputs.android_json }}
-          NATIVE_IOS_JSON: ${{ needs.mobile-certification.outputs.ios_json }}
           RUN_ID: ${{ github.run_id }}
         run: |
           set -uo pipefail
@@ -276,7 +196,6 @@ jobs:
             deployment_required: process.env.DEPLOYMENT_REQUIRED,
             release_class: process.env.RELEASE_CLASS,
             certification_run_id: process.env.RUN_ID,
-            native_evidence_configured: process.env.NATIVE_EVIDENCE_CONFIGURED,
             static_security: status(process.env.STATIC_RESULT),
             migration_validation: child(process.env.MIGRATION),
             contract_tests: child(process.env.CONTRACT),
@@ -289,8 +208,10 @@ jobs:
             leaked_password_protection: process.env.LEAKED_PASSWORD || 'OPERATIONAL_FAILURE',
             zap_baseline: zap(process.env.ZAP_BASELINE_RESULT),
             zap_api: zap(process.env.ZAP_API_RESULT),
-            native_android: JSON.parse(process.env.NATIVE_ANDROID_JSON || '{"result":"OPERATIONAL_FAILURE"}'),
-            native_ios: JSON.parse(process.env.NATIVE_IOS_JSON || '{"result":"OPERATIONAL_FAILURE"}'),
+            // Native UI automation is suspended by owner policy
+            // (security/release/native-ui-automation-policy.json). No native
+            // evidence is collected, and the certification builder records the
+            // policy state rather than a verdict. See docs for reinstatement.
           };
           fs.writeFileSync('certification-input.json', JSON.stringify(input, null, 2));
           NODE
