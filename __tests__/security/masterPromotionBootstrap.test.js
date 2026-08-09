@@ -31,4 +31,6 @@ test('staging Auth workflow can target only the staging project', () => {
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'configure-staging-auth-security.yml'), 'utf8');
   assert.match(workflow, /STAGING_REF: yzqjvdfgefveprobvvyw/);
   assert.doesNotMatch(workflow, /projects\/\$\{PRODUCTION_REF\}/);
+  assert.match(workflow, /SUPABASE_PLAN_DOES_NOT_SUPPORT_HIBP/);
+  assert.ok(workflow.indexOf("writeFileSync('staging-auth-security.json'") < workflow.indexOf('PATCH_CODE='));
 });
