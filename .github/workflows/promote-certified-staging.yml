@@ -107,7 +107,7 @@ jobs:
           name: release-decision-${{ github.run_id }}
           path: release-decision.json
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
 
       - name: Require authorization before any repository write
         run: |

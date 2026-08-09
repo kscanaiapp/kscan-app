@@ -192,6 +192,7 @@ test('certification remains read-only and promotion writes are separately guarde
   assert.match(certification, /permissions:\s+contents: read\s+actions: read/);
   assert.doesNotMatch(certification, /contents: write|pull-requests: write|gh pr create/);
   assert.match(promotion, /Require authorization before any repository write/);
+  assert.match(promotion, /name: release-decision-\$\{\{ github\.run_id \}\}[\s\S]*retention-days: 90/);
   assert.ok(promotion.indexOf('validate-promotion-request.js') < promotion.indexOf('git\/refs'));
   assert.ok(promotion.indexOf('git\/refs') < promotion.indexOf('gh pr create'));
 });
