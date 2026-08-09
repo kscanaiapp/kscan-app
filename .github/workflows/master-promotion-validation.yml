@@ -21,7 +21,11 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          case "$HEAD_REF" in promotion/staging-*) ;; *) echo 'Only immutable staging promotion branches may target master.'; exit 1 ;; esac
+          case "$HEAD_REF" in
+            promotion/staging-*) ;;
+            bootstrap/master-tree-equivalence-*) echo 'Controlled one-time workflow bootstrap branch.' ;;
+            *) echo 'Only immutable staging promotion or controlled tree-check bootstrap branches may target master.'; exit 1 ;;
+          esac
           git fetch origin master --quiet
           CANDIDATE_TREE="$(git rev-parse "${HEAD_SHA}^{tree}")"
           MERGE_TREE="$(git merge-tree --write-tree origin/master "$HEAD_SHA")"

@@ -1,14 +1,12 @@
 name: Staging Release Certification
 
-# The only release authority after a merge to the governed staging branch.
-# It deliberately runs after merge, not while a PR is still mutable.
 on:
   push:
     branches: [staging/production-parity]
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Exact staging commit to certify (defaults to the staging head)
+        description: Exact current staging commit to certify
         required: false
         type: string
 
@@ -28,6 +26,7 @@ jobs:
       sha: ${{ steps.identity.outputs.sha }}
       tree: ${{ steps.identity.outputs.tree }}
       staging_head: ${{ steps.identity.outputs.staging_head }}
+      release_class: ${{ steps.classify.outputs.release_class }}
       zap_configured: ${{ steps.config.outputs.zap_configured }}
       testsprite_configured: ${{ steps.config.outputs.testsprite_configured }}
     steps:
@@ -44,6 +43,17 @@ jobs:
           echo "sha=${REQUESTED_SHA}" >> "$GITHUB_OUTPUT"
           echo "tree=$(git rev-parse "${REQUESTED_SHA}^{tree}")" >> "$GITHUB_OUTPUT"
           echo "staging_head=$(git rev-parse origin/staging/production-parity)" >> "$GITHUB_OUTPUT"
+      - id: classify
+        env:
+          CANDIDATE_SHA: ${{ steps.identity.outputs.sha }}
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          BASE_SHA="${EVENT_BEFORE:-}"
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then BASE_SHA="${CANDIDATE_SHA}^"; fi
+          node security/scripts/classify-changed-surfaces.js "$BASE_SHA" "$CANDIDATE_SHA" > classification.json
+          echo "release_class=$(node -p "require('./classification.json').releaseClass")" >> "$GITHUB_OUTPUT"
+          cat classification.json >> "$GITHUB_STEP_SUMMARY"
       - id: config
         env:
           ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
@@ -51,10 +61,16 @@ jobs:
           TESTSPRITE_ANDROID_TEST_ID: ${{ vars.TESTSPRITE_ANDROID_TEST_ID }}
           TESTSPRITE_IOS_TEST_ID: ${{ vars.TESTSPRITE_IOS_TEST_ID }}
           TESTSPRITE_TARGET_URL: ${{ vars.TESTSPRITE_TARGET_URL }}
+          TESTSPRITE_TARGET_SHA_URL: ${{ vars.TESTSPRITE_TARGET_SHA_URL }}
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
         run: |
           set -euo pipefail
           [ -n "$ZAP_STAGING_URL" ] && [ -n "$ZAP_ALLOWED_HOST" ] && echo 'zap_configured=true' >> "$GITHUB_OUTPUT" || echo 'zap_configured=false' >> "$GITHUB_OUTPUT"
-          [ -n "$TESTSPRITE_ANDROID_TEST_ID" ] && [ -n "$TESTSPRITE_IOS_TEST_ID" ] && [ -n "$TESTSPRITE_TARGET_URL" ] && echo 'testsprite_configured=true' >> "$GITHUB_OUTPUT" || echo 'testsprite_configured=false' >> "$GITHUB_OUTPUT"
+          if [ -n "$TESTSPRITE_ANDROID_TEST_ID" ] && [ -n "$TESTSPRITE_IOS_TEST_ID" ] && [ -n "$TESTSPRITE_TARGET_URL" ] && [ -n "$TESTSPRITE_TARGET_SHA_URL" ] && [ -n "$TESTSPRITE_API_KEY" ]; then
+            echo 'testsprite_configured=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'testsprite_configured=false' >> "$GITHUB_OUTPUT"
+          fi
 
   staging-validation:
     name: Controlled staging validation
@@ -96,7 +112,6 @@ jobs:
           set +e
           node security/scripts/scan-candidate-artifacts.js app.json app.config.js eas.json supabase .github --candidate-sha "${{ needs.candidate.outputs.sha }}" --output security/reports/artifact-exposure.json
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
-          set -e
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -105,6 +120,28 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - run: test "${{ steps.scan.outputs.exit_code }}" = 0
+
+  leaked-password-protection:
+    name: Verify staging leaked-password protection
+    needs: candidate
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.verify.outputs.result }}
+    steps:
+      - id: verify
+        env:
+          RELEASE_CLASS: ${{ needs.candidate.outputs.release_class }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STAGING_REF: yzqjvdfgefveprobvvyw
+        run: |
+          set -uo pipefail
+          if [ "$RELEASE_CLASS" = "CONTROL_PLANE_CHANGE" ]; then echo 'result=NOT_APPLICABLE' >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then echo 'result=BLOCKED' >> "$GITHUB_OUTPUT"; exit 0; fi
+          HTTP_CODE="$(curl --silent --show-error --output auth-config.json --write-out '%{http_code}' --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" "https://api.supabase.com/v1/projects/${STAGING_REF}/config/auth")" || { echo 'result=OPERATIONAL_FAILURE' >> "$GITHUB_OUTPUT"; exit 0; }
+          if [ "$HTTP_CODE" != 200 ]; then echo 'result=OPERATIONAL_FAILURE' >> "$GITHUB_OUTPUT"; exit 0; fi
+          ENABLED="$(node -e "const c=require('./auth-config.json'); process.stdout.write(String(c.password_hibp_enabled === true))")"
+          rm -f auth-config.json
+          [ "$ENABLED" = true ] && echo 'result=PASS' >> "$GITHUB_OUTPUT" || echo 'result=BLOCKED' >> "$GITHUB_OUTPUT"
 
   zap-baseline:
     name: Candidate ZAP baseline
@@ -125,32 +162,64 @@ jobs:
     needs: candidate
     runs-on: ubuntu-latest
     outputs:
-      android: ${{ steps.mobile.outputs.android }}
-      ios: ${{ steps.mobile.outputs.ios }}
+      android_json: ${{ steps.mobile.outputs.android_json }}
+      ios_json: ${{ steps.mobile.outputs.ios_json }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
       - id: mobile
         env:
+          RELEASE_CLASS: ${{ needs.candidate.outputs.release_class }}
           READY: ${{ needs.candidate.outputs.testsprite_configured }}
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
           ANDROID_TEST: ${{ vars.TESTSPRITE_ANDROID_TEST_ID }}
           IOS_TEST: ${{ vars.TESTSPRITE_IOS_TEST_ID }}
           TARGET_URL: ${{ vars.TESTSPRITE_TARGET_URL }}
+          TARGET_SHA_URL: ${{ vars.TESTSPRITE_TARGET_SHA_URL }}
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
         run: |
           set -uo pipefail
-          if [ "$READY" != true ] || ! command -v testsprite >/dev/null 2>&1 || ! testsprite auth status >/dev/null 2>&1; then
-            # Missing TestSprite is a release-evidence blocker, not an
-            # operational failure of the certification framework itself.
-            echo 'android=BLOCKED' >> "$GITHUB_OUTPUT"
-            echo 'ios=BLOCKED' >> "$GITHUB_OUTPUT"
-            exit 0
+          emit() {
+            echo "android_json=$(node -p "JSON.stringify(require('./android-evidence.json'))")" >> "$GITHUB_OUTPUT"
+            echo "ios_json=$(node -p "JSON.stringify(require('./ios-evidence.json'))")" >> "$GITHUB_OUTPUT"
+          }
+          placeholder() {
+            node -e "const fs=require('fs'); const [p,r,s]=process.argv.slice(1); fs.writeFileSync(p+'-evidence.json', JSON.stringify({platform:p,test_id:null,run_id:null,result:r,tested_sha:null,flows_run:0,flows_passed:0,flows_failed:0,artifact_links:[],reason:s},null,2))" "$1" "$2" "$3"
+          }
+          if [ "$RELEASE_CLASS" = "CONTROL_PLANE_CHANGE" ]; then placeholder android NOT_APPLICABLE CONTROL_PLANE_CHANGE; placeholder ios NOT_APPLICABLE CONTROL_PLANE_CHANGE; emit; exit 0; fi
+          if [ "$READY" != true ]; then placeholder android BLOCKED MOBILE_EVIDENCE_NOT_CONFIGURED; placeholder ios BLOCKED MOBILE_EVIDENCE_NOT_CONFIGURED; emit; exit 0; fi
+          npm install --global @testsprite/testsprite-cli@0.5.0 >/dev/null
+          if ! testsprite setup --from-env --yes --agent codex >/dev/null; then placeholder android OPERATIONAL_FAILURE TESTSPRITE_SETUP_FAILED; placeholder ios OPERATIONAL_FAILURE TESTSPRITE_SETUP_FAILED; emit; exit 0; fi
+          if ! node -e "const fs=require('fs'); fetch(process.env.TARGET_SHA_URL).then(async r=>{if(!r.ok)throw Error('status'); const t=(await r.text()).trim(); let s=t; try{s=JSON.parse(t).sha}catch{} if(!/^[0-9a-f]{40}$/i.test(s))throw Error('format'); fs.writeFileSync('attested-sha.txt',s)}).catch(()=>process.exit(1))"; then
+            placeholder android OPERATIONAL_FAILURE TARGET_SHA_ATTESTATION_UNAVAILABLE; placeholder ios OPERATIONAL_FAILURE TARGET_SHA_ATTESTATION_UNAVAILABLE; emit; exit 0
           fi
-          testsprite test run "$ANDROID_TEST" --target-url "$TARGET_URL" --wait --timeout 600 --output json && ANDROID=PASS || ANDROID=BLOCKED
-          testsprite test run "$IOS_TEST" --target-url "$TARGET_URL" --wait --timeout 600 --output json && IOS=PASS || IOS=BLOCKED
-          echo "android=$ANDROID" >> "$GITHUB_OUTPUT"
-          echo "ios=$IOS" >> "$GITHUB_OUTPUT"
+          ATTESTED_SHA="$(cat attested-sha.txt)"
+          run_test() {
+            PLATFORM="$1"; TEST_ID="$2"
+            testsprite test run "$TEST_ID" --target-url "$TARGET_URL" --wait --timeout 600 --output json > "${PLATFORM}-run.json" 2>/dev/null
+            if ! node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "${PLATFORM}-run.json"; then
+              printf '%s\n' '{"status":"failed","failureKind":"infrastructure","error":"TESTSPRITE_RUN_OUTPUT_INVALID"}' > "${PLATFORM}-run.json"
+            fi
+            node security/scripts/parse-testsprite-evidence.js --input "${PLATFORM}-run.json" --output "${PLATFORM}-evidence.json" --platform "$PLATFORM" --test-id "$TEST_ID" --candidate-sha "$CANDIDATE_SHA" --attested-sha "$ATTESTED_SHA"
+          }
+          run_test android "$ANDROID_TEST"
+          run_test ios "$IOS_TEST"
+          emit
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: testsprite-mobile-evidence-${{ github.run_id }}
+          path: '*-evidence.json'
+          if-no-files-found: error
+          retention-days: 90
 
   final-verdict:
     name: Final staging certification verdict
-    needs: [candidate, staging-validation, static-and-authorization, artifact-exposure, zap-baseline, zap-api, mobile-certification]
+    needs: [candidate, staging-validation, static-and-authorization, artifact-exposure, leaked-password-protection, zap-baseline, zap-api, mobile-certification]
     if: always()
     runs-on: ubuntu-latest
     outputs:
@@ -166,6 +235,7 @@ jobs:
         env:
           CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
           CANDIDATE_TREE: ${{ needs.candidate.outputs.tree }}
+          RELEASE_CLASS: ${{ needs.candidate.outputs.release_class }}
           DEPLOYMENT_REQUIRED: ${{ needs.staging-validation.outputs.deployment_required }}
           DEPLOYED_SHA: ${{ needs.staging-validation.outputs.deployed_staging_sha }}
           MIGRATION: ${{ needs.staging-validation.outputs.migration_result }}
@@ -174,29 +244,54 @@ jobs:
           SYNTHETIC: ${{ needs.staging-validation.outputs.synthetic_result }}
           STATIC_RESULT: ${{ needs.static-and-authorization.result }}
           ARTIFACT_RESULT: ${{ needs.artifact-exposure.result }}
+          LEAKED_PASSWORD: ${{ needs.leaked-password-protection.outputs.result }}
           ZAP_CONFIGURED: ${{ needs.candidate.outputs.zap_configured }}
           ZAP_BASELINE_RESULT: ${{ needs.zap-baseline.result }}
           ZAP_API_RESULT: ${{ needs.zap-api.result }}
-          TESTSPRITE_ANDROID: ${{ needs.mobile-certification.outputs.android }}
-          TESTSPRITE_IOS: ${{ needs.mobile-certification.outputs.ios }}
+          TESTSPRITE_CONFIGURED: ${{ needs.candidate.outputs.testsprite_configured }}
+          TESTSPRITE_ANDROID_JSON: ${{ needs.mobile-certification.outputs.android_json }}
+          TESTSPRITE_IOS_JSON: ${{ needs.mobile-certification.outputs.ios_json }}
           RUN_ID: ${{ github.run_id }}
         run: |
           set -uo pipefail
           git fetch origin staging/production-parity --quiet
-          status() { [ "$1" = success ] && echo PASS || echo OPERATIONAL_FAILURE; }
-          child_status() { case "$1" in success) echo PASS ;; skipped) echo NOT_APPLICABLE ;; failure) echo BLOCKED ;; *) echo OPERATIONAL_FAILURE ;; esac; }
-          zap_status() { [ "$ZAP_CONFIGURED" = true ] && status "$1" || echo NOT_APPLICABLE; }
-          cat > certification-input.json <<EOF
-          {"candidate_commit_sha":"$CANDIDATE_SHA","candidate_tree_sha":"$CANDIDATE_TREE","staging_branch_head_sha":"$(git rev-parse origin/staging/production-parity)","deployed_staging_sha":"$DEPLOYED_SHA","deployment_required":"$DEPLOYMENT_REQUIRED","certification_run_id":"$RUN_ID","mobile_evidence_configured":"${{ needs.candidate.outputs.testsprite_configured }}","static_security":"$(status "$STATIC_RESULT")","migration_validation":"$(child_status "${MIGRATION:-}")","contract_tests":"$(child_status "${CONTRACT:-}")","staging_parity":"$(status "$STATIC_RESULT")","staging_health":"$(child_status "${HEALTH:-}")","synthetic_auth":"$(child_status "${SYNTHETIC:-}")","rpc_rls_authorization":"$(status "$STATIC_RESULT")","artifact_exposure":"$(status "$ARTIFACT_RESULT")","zap_baseline":"$(zap_status "$ZAP_BASELINE_RESULT")","zap_api":"$(zap_status "$ZAP_API_RESULT")","testsprite_android":"${TESTSPRITE_ANDROID:-BLOCKED}","testsprite_ios":"${TESTSPRITE_IOS:-BLOCKED}"}
-          EOF
+          node <<'NODE'
+          const fs = require('fs');
+          const status = (v) => v === 'success' ? 'PASS' : 'OPERATIONAL_FAILURE';
+          const child = (v) => v === 'success' ? 'PASS' : v === 'skipped' ? 'NOT_APPLICABLE' : v === 'failure' ? 'BLOCKED' : 'OPERATIONAL_FAILURE';
+          const zap = (v) => process.env.ZAP_CONFIGURED === 'true' ? status(v) : 'NOT_APPLICABLE';
+          const input = {
+            candidate_commit_sha: process.env.CANDIDATE_SHA,
+            candidate_tree_sha: process.env.CANDIDATE_TREE,
+            staging_branch_head_sha: require('child_process').execFileSync('git', ['rev-parse', 'origin/staging/production-parity'], {encoding:'utf8'}).trim(),
+            deployed_staging_sha: process.env.DEPLOYED_SHA,
+            deployment_required: process.env.DEPLOYMENT_REQUIRED,
+            release_class: process.env.RELEASE_CLASS,
+            certification_run_id: process.env.RUN_ID,
+            mobile_evidence_configured: process.env.TESTSPRITE_CONFIGURED,
+            static_security: status(process.env.STATIC_RESULT),
+            migration_validation: child(process.env.MIGRATION),
+            contract_tests: child(process.env.CONTRACT),
+            staging_parity: status(process.env.STATIC_RESULT),
+            staging_health: child(process.env.HEALTH),
+            synthetic_auth: child(process.env.SYNTHETIC),
+            rpc_rls_authorization: status(process.env.STATIC_RESULT),
+            artifact_exposure: status(process.env.ARTIFACT_RESULT),
+            quarantine_policy: status(process.env.STATIC_RESULT),
+            leaked_password_protection: process.env.LEAKED_PASSWORD || 'OPERATIONAL_FAILURE',
+            zap_baseline: zap(process.env.ZAP_BASELINE_RESULT),
+            zap_api: zap(process.env.ZAP_API_RESULT),
+            testsprite_android: JSON.parse(process.env.TESTSPRITE_ANDROID_JSON || '{"result":"OPERATIONAL_FAILURE"}'),
+            testsprite_ios: JSON.parse(process.env.TESTSPRITE_IOS_JSON || '{"result":"OPERATIONAL_FAILURE"}'),
+          };
+          fs.writeFileSync('certification-input.json', JSON.stringify(input, null, 2));
+          NODE
           set +e
           node security/scripts/build-staging-certification.js --input certification-input.json --output security/reports/staging-certification.json
           CODE=$?
           set -e
-          VERDICT="$(node -p "require('./security/reports/staging-certification.json').final_verdict")"
-          ELIGIBLE="$(node -p "require('./security/reports/staging-certification.json').promotion_eligible")"
-          echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
-          echo "promotion_eligible=$ELIGIBLE" >> "$GITHUB_OUTPUT"
+          echo "verdict=$(node -p "require('./security/reports/staging-certification.json').final_verdict")" >> "$GITHUB_OUTPUT"
+          echo "promotion_eligible=$(node -p "require('./security/reports/staging-certification.json').promotion_eligible")" >> "$GITHUB_OUTPUT"
           cat security/reports/staging-certification.json >> "$GITHUB_STEP_SUMMARY"
           exit "$CODE"
       - if: always()
