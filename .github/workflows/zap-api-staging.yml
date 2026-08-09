@@ -11,6 +11,7 @@
 name: Security - ZAP API Staging
 
 on:
+  workflow_call:
   pull_request:
     types:
       - opened

@@ -28,17 +28,10 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-  push:
-    branches:
-      - "**"
-  workflow_run:
-    workflows:
-      - Security - Code and Dependencies
-      - K Scan Staging Security Gate
-      - Security - ZAP Baseline Staging
-      - Security - ZAP API Staging
-    types:
-      - completed
+  # Staging release eligibility is now decided by the candidate-scoped
+  # Staging Release Certification workflow. This remains a manual legacy
+  # inspector, never a competing release authority.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -50,9 +43,7 @@ jobs:
     name: Security promotion gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: |
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion != 'cancelled'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -43,6 +43,12 @@ const EXPECTED_ANON_REVOKED = [
   'increment_style_chat_usage',
   'increment_stylechat_daily_usage',
   'get_stylechat_daily_usage',
+];
+
+// Trigger functions are intentionally revoked through a catalog-driven loop:
+// staging has three lineage-specific functions, so literal REVOKE statements
+// would abort when this reviewed migration is replayed elsewhere.
+const EXPECTED_CATALOG_REVOKED = [
   'enforce_minor_privacy_defaults',
   'handle_new_user',
   'handle_new_user_privacy',
@@ -59,10 +65,20 @@ const EXPECTED_ANON_REVOKED = [
 // ANON_EXECUTE_ALLOWLIST) or because they're unrelated to this change.
 const MUST_NOT_BE_REVOKED = ['get_public_room_preview', 'reserve_provider_request', 'complete_provider_request'];
 
-test('main migration revokes anon EXECUTE from every function in the reviewed list', () => {
+test('literal application-RPC revokes cover the reviewed anon-only list', () => {
   for (const fn of EXPECTED_ANON_REVOKED) {
     const pattern = new RegExp(`revoke execute on function public\\.${fn}\\([^)]*\\) from (anon|public);`);
     assert.match(combinedSql, pattern, `expected a revoke statement for ${fn}`);
+  }
+});
+
+test('catalog-driven trigger hardening revokes PUBLIC and anon when each reviewed function exists', () => {
+  assert.match(combinedSql, /foreach v_target in array v_targets loop/i);
+  assert.match(combinedSql, /from pg_proc p[\s\S]*?p\.proname = v_target[\s\S]*?p\.pronargs = 0/i);
+  assert.match(combinedSql, /execute format\('revoke execute on function public\.%I\(\) from public', v_target\)/i);
+  assert.match(combinedSql, /execute format\('revoke execute on function public\.%I\(\) from anon', v_target\)/i);
+  for (const fn of EXPECTED_CATALOG_REVOKED) {
+    assert.match(combinedSql, new RegExp(`'${fn}'`), `expected catalog target for ${fn}`);
   }
 });
 
@@ -122,7 +138,7 @@ test('get_item_reaction_counts is never revoked from anon in either migration (p
   assert.doesNotMatch(combinedSql, /revoke execute on function public\.get_item_reaction_counts\([^)]*\)\s+from\s+anon/);
 });
 
-test('the migration pair never revokes from authenticated or service_role (only anon/public are touched)', () => {
+test('the migration pair preserves required authenticated and service-role application grants', () => {
   assert.doesNotMatch(combinedSql, /from\s+authenticated\s*;/i);
   assert.doesNotMatch(combinedSql, /from\s+service_role\s*;/i);
 });

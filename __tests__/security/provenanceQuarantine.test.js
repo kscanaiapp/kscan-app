@@ -83,6 +83,13 @@ test('issue #46 functions are recorded against the issue and are not silently cl
   assert.ok(exceptions.closure_criteria_for_issue_46.length >= 2);
 });
 
+test('product-match has its own provenance issue and remains quarantined', () => {
+  const productMatch = exceptions.functions.find((fn) => fn.slug === 'product-match');
+  assert.equal(productMatch.issue, 72);
+  assert.equal(productMatch.deployment_policy, 'DO_NOT_REDEPLOY');
+  assert.match(productMatch.reason_not_closed, /issue #72/i);
+});
+
 test('the publicly invocable quarantined functions are flagged as such', () => {
   const publicFns = exceptions.functions.filter((fn) => fn.verify_jwt === false);
   for (const fn of publicFns) {

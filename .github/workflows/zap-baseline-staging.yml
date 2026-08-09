@@ -5,6 +5,7 @@
 name: Security - ZAP Baseline Staging
 
 on:
+  workflow_call:
   push:
   pull_request:
   workflow_dispatch:
@@ -131,7 +132,11 @@ jobs:
           fi
 
           case "${STATUS}" in
-            [23][0-9][0-9]|401|403)
+            # Supabase project roots legitimately answer 404 while still
+            # proving the approved HTTPS host is reachable. ZAP must run and
+            # report its own target evidence instead of misclassifying that as
+            # a scanner crash.
+            [23][0-9][0-9]|401|403|404)
               ;;
             *)
               echo "Operational failure: unexpected health check HTTP status ${STATUS}"

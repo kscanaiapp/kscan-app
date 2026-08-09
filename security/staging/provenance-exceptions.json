@@ -2,7 +2,7 @@
   "$schema_version": 1,
   "staging_project_ref": "yzqjvdfgefveprobvvyw",
   "production_project_ref_blocked": "wyyuqfdxucjksghsmhry",
-  "generated_at": "2026-08-08T00:00:00Z",
+  "generated_at": "2026-08-09T00:00:00Z",
   "purpose": "Fail-closed quarantine for live staging Edge Functions whose deployed bundle cannot be tied to source in this repository. Deployment automation must refuse to deploy or overwrite any slug listed here, regardless of the CI allowlist, until it becomes repo-managed through proven source recovery.",
   "enforcement": {
     "consumer": "security/scripts/staging-deployment-allowlist.js",
@@ -84,11 +84,11 @@
         "committed_to_a_branch": true,
         "merged_into_staging_authority": false
       },
-      "reason_not_closed": "Live and publicly invocable on staging, but its source was never merged into staging/production-parity, so the deployed bundle cannot be tied to a commit on the staging authority lineage. Not covered by issue #46; discovered during the task 1 parity sweep.",
+      "reason_not_closed": "Live and publicly invocable on staging, but its source was never merged into staging/production-parity, so the deployed bundle cannot be tied to a commit on the staging authority lineage. Tracked separately by issue #72; discovered during the task 1 parity sweep.",
       "deployment_policy": "DO_NOT_REDEPLOY",
       "modification_policy": "SOURCE_RECOVERY_REQUIRED",
       "security_status": "DEPLOYMENT_UNVERIFIED",
-      "issue": null
+      "issue": 72
     }
   ],
   "how_they_were_deployed": "All three carry a file:///tmp/user_fn_.../source/... entrypoint, whereas every CLI-deployed function on this project shows file:///src/KScan-staging-v2-backend/... . That signature corresponds to an upload from an ephemeral directory (dashboard or Management API deploy), which is why no deploy-from-checkout trail exists in this repository.",

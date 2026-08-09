@@ -1,0 +1,33 @@
+name: Master Promotion Validation
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  tree-equivalence:
+    name: Master promotion tree equivalence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          case "$HEAD_REF" in promotion/staging-*) ;; *) echo 'Only immutable staging promotion branches may target master.'; exit 1 ;; esac
+          git fetch origin master --quiet
+          CANDIDATE_TREE="$(git rev-parse "${HEAD_SHA}^{tree}")"
+          MERGE_TREE="$(git merge-tree --write-tree origin/master "$HEAD_SHA")"
+          {
+            echo "Candidate SHA: $HEAD_SHA"
+            echo "Candidate tree: $CANDIDATE_TREE"
+            echo "Predicted master merge tree: $MERGE_TREE"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$CANDIDATE_TREE" = "$MERGE_TREE"

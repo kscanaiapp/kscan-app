@@ -151,12 +151,15 @@ test('push to staging/production-parity -> ELIGIBLE', () => {
   assert.equal(evaluate(ctxFor({ event: 'push', ref: GOVERNING })), true);
 });
 
-test('PR into staging/production-parity -> ELIGIBLE', () => {
+test('PR into staging/production-parity -> NO deployment until it is merged', () => {
+  // A PR is evidence-only. The workflow may deploy only the immutable commit
+  // on the governed staging authority branch, never a mutable pull-request
+  // head, even when that PR targets the authority branch.
   assert.equal(
     evaluate(
       ctxFor({ event: 'pull_request', ref: 'refs/pull/101/merge', baseRef: 'staging/production-parity' }),
     ),
-    true,
+    false,
   );
 });
 
@@ -225,8 +228,10 @@ test('an unresolvable governing base ref fails closed before any write step', ()
   );
 });
 
-test('no branch reaches deployment merely by absence from a deny-list', () => {
+test('only the governed branch or explicit manual dispatch can reach deployment', () => {
   const condition = extractDeployCondition();
   assert.ok(!/!=/.test(condition), 'deploy authority must not use negative branch matching');
   assert.match(condition, /github\.ref == 'refs\/heads\/staging\/production-parity'/);
+  assert.match(condition, /github\.event_name == 'workflow_dispatch'/);
+  assert.doesNotMatch(condition, /github\.base_ref\s*==/);
 });

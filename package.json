@@ -43,6 +43,7 @@
     "test:provenance-quarantine": "node --test __tests__/security/provenanceQuarantine.test.js",
     "test:privacy-rate-limit": "node --test __tests__/privacyRequestRateLimitContract.test.js __tests__/handleUserDeletionEdge.test.js",
     "test:staging-v2-guard": "node --test __tests__/staging/stagingV2WriteGuard.test.js",
+    "test:staging-certification": "node --test __tests__/security/stagingCertification.test.js",
     "stagingv2:apply-migrations": "node scripts/staging-v2/apply-migrations.mjs",
     "stagingv2:deploy-function": "node scripts/staging-v2/deploy-function.mjs",
     "stagingv2:configure-storage": "node scripts/staging-v2/configure-storage.mjs",
