@@ -8,7 +8,7 @@ export function reportAiOutput(
   feature: AiOutputReportFeature,
   context?: { sessionId?: string | null; messageId?: string | null; itemId?: string | null }
 ) {
-  const subject = encodeURIComponent(`K Scan AI — Report AI Output (${feature})`);
+  const subject = encodeURIComponent(`K Scan AI â€” Report AI Output (${feature})`);
   const body = encodeURIComponent(
     `I'm reporting AI-generated content that may be offensive or unsafe.\n\n` +
       `Platform: ${Platform.OS}\n` +
