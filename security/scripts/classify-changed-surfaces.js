@@ -11,7 +11,7 @@
  * Outputs JSON to stdout with classifications and stagingImpact boolean.
  */
 
-const { execSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 
 const CLASSIFIERS = [
@@ -35,12 +35,23 @@ const STAGING_IMPACT_TAGS = new Set([
   'STORAGE',
 ]);
 
-function gitDiffFiles(baseRef) {
+const CONTROL_PLANE_PATTERNS = [
+  /^\.github\//,
+  /^__tests__\//,
+  /^docs\//,
+  /^security\//,
+  /^qa\//,
+  /^\.zap\//,
+  /^\.semgrep\//,
+  /^(?:AGENTS|README|SECURITY|CONTRIBUTING)(?:\.[^/]+)?$/i,
+];
+
+function gitDiffFiles(baseRef, headRef = 'HEAD') {
   try {
-    const out = execSync(`git diff --name-only ${baseRef}...HEAD`, { encoding: 'utf8' });
+    const out = execFileSync('git', ['diff', '--name-only', `${baseRef}...${headRef}`], { encoding: 'utf8' });
     return out.split('\n').map((l) => l.trim()).filter(Boolean);
   } catch {
-    const out = execSync('git diff --name-only HEAD~1 HEAD', { encoding: 'utf8' });
+    const out = execFileSync('git', ['diff', '--name-only', `${headRef}~1`, headRef], { encoding: 'utf8' });
     return out.split('\n').map((l) => l.trim()).filter(Boolean);
   }
 }
@@ -63,9 +74,10 @@ function classifyFile(filePath) {
 
 function main() {
   const baseRef = process.argv[2] || process.env.GITHUB_BASE_REF || 'origin/ios/full-submission-readiness-v2';
+  const headRef = process.argv[3] || process.env.GITHUB_HEAD_REF_SHA || 'HEAD';
   const files = process.env.CHANGED_FILES
     ? process.env.CHANGED_FILES.split(',').map((f) => f.trim()).filter(Boolean)
-    : gitDiffFiles(baseRef);
+    : gitDiffFiles(baseRef, headRef);
 
   const fileClassifications = files.map((file) => ({
     file,
@@ -82,6 +94,9 @@ function main() {
   const onlyDocs = files.length > 0 && [...allTags].every((t) => t === 'DOCUMENTATION ONLY');
   const onlyMobile = [...allTags].every((t) => t === 'MOBILE' || t === 'DOCUMENTATION ONLY' || t === 'BUILD/CI');
   const stagingImpact = !onlyDocs && [...allTags].some((t) => STAGING_IMPACT_TAGS.has(t));
+  const releaseClass = files.length > 0 && files.every((file) => CONTROL_PLANE_PATTERNS.some((pattern) => pattern.test(file)))
+    ? 'CONTROL_PLANE_CHANGE'
+    : 'RUNTIME_RELEASE';
 
   const result = {
     baseRef,
@@ -89,6 +104,7 @@ function main() {
     classifications: [...allTags].sort(),
     stagingImpact,
     mobileOnly: onlyMobile && !stagingImpact,
+    releaseClass,
     fileClassifications,
   };
 
@@ -104,4 +120,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { classifyFile, STAGING_IMPACT_TAGS };
+module.exports = { classifyFile, gitDiffFiles, CONTROL_PLANE_PATTERNS, STAGING_IMPACT_TAGS };

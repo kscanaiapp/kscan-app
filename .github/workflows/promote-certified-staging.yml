@@ -1,0 +1,158 @@
+name: Promote certified staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact certified staging commit
+        required: true
+        type: string
+      certification_run_id:
+        description: Staging Release Certification run ID
+        required: true
+        type: string
+      release_decision:
+        description: Agent release decision
+        required: true
+        type: choice
+        options: [APPROVE, BLOCK]
+      decision_summary:
+        description: Sanitized release rationale
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: promote-certified-staging
+  cancel-in-progress: false
+
+jobs:
+  validate-and-promote:
+    name: Independently validate and promote
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      CERTIFICATION_RUN_ID: ${{ inputs.certification_run_id }}
+      RELEASE_DECISION: ${{ inputs.release_decision }}
+      DECISION_SUMMARY: ${{ inputs.decision_summary }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Initialize immutable decision evidence
+        run: |
+          node -e "require('fs').writeFileSync('release-decision.json', JSON.stringify({candidate_sha:process.env.CANDIDATE_SHA,certification_run_id:process.env.CERTIFICATION_RUN_ID,release_decision:process.env.RELEASE_DECISION,decision_actor:process.env.GITHUB_ACTOR,decision_timestamp:new Date().toISOString(),decision_summary:process.env.DECISION_SUMMARY||null,promotion_authorized:false,validation_failures:['CERTIFICATION_EVIDENCE_NOT_VALIDATED']},null,2))"
+
+      - name: Acquire certification evidence without repository writes
+        id: acquire
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          gh run view "$CERTIFICATION_RUN_ID" --json databaseId,headSha,headBranch,event,status,conclusion,workflowName,url > run-metadata.json
+          test "$(node -p "require('./run-metadata.json').databaseId")" = "$CERTIFICATION_RUN_ID"
+          gh run download "$CERTIFICATION_RUN_ID" --name "staging-certification-${CERTIFICATION_RUN_ID}" --dir certification-download
+          test -f certification-download/staging-certification.json
+          git fetch origin staging/production-parity master --quiet
+          git cat-file -e "${CANDIDATE_SHA}^{commit}"
+
+      - name: Validate certification and current authority
+        id: validate
+        if: steps.acquire.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          CANDIDATE_TREE="$(git rev-parse "${CANDIDATE_SHA}^{tree}")"
+          STAGING_HEAD="$(git rev-parse origin/staging/production-parity)"
+          export CANDIDATE_TREE STAGING_HEAD
+          node <<'NODE'
+          const fs = require('fs');
+          const m = require('./run-metadata.json');
+          const observed = {
+            candidate_sha: process.env.CANDIDATE_SHA,
+            candidate_tree_sha: process.env.CANDIDATE_TREE,
+            branch_tree_sha: process.env.CANDIDATE_TREE,
+            staging_head_sha: process.env.STAGING_HEAD,
+            certification_run_id: process.env.CERTIFICATION_RUN_ID,
+            certification_workflow: m.workflowName,
+            certification_event: m.event,
+            certification_head_branch: m.headBranch,
+            certification_head_sha: m.headSha,
+            certification_status: m.status,
+            release_decision: process.env.RELEASE_DECISION,
+            decision_actor: process.env.GITHUB_ACTOR,
+            decision_timestamp: new Date().toISOString(),
+            decision_summary: process.env.DECISION_SUMMARY || null,
+          };
+          fs.writeFileSync('promotion-observed.json', JSON.stringify(observed, null, 2));
+          NODE
+          node security/scripts/validate-promotion-request.js --certification certification-download/staging-certification.json --observed promotion-observed.json --output release-decision.json
+          CODE=$?
+          echo "authorized=$([ "$CODE" = 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          exit "$CODE"
+      - name: Record evidence acquisition failure
+        if: steps.acquire.outcome != 'success'
+        run: |
+          node -e "const fs=require('fs'); const p='release-decision.json'; const r=require('./'+p); r.validation_failures=['CERTIFICATION_RUN_OR_ARTIFACT_UNAVAILABLE']; fs.writeFileSync(p,JSON.stringify(r,null,2))"
+
+      - name: Upload release decision artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-decision-${{ github.run_id }}
+          path: release-decision.json
+          if-no-files-found: error
+          retention-days: 365
+
+      - name: Require authorization before any repository write
+        run: |
+          set -euo pipefail
+          test "${{ steps.acquire.outcome }}" = success
+          test "${{ steps.validate.outcome }}" = success
+          test "$(node -p "require('./release-decision.json').promotion_authorized")" = true
+
+      - name: Revalidate authority and create immutable promotion branch
+        id: branch
+        run: |
+          set -euo pipefail
+          git fetch origin staging/production-parity --quiet
+          test "$(git rev-parse origin/staging/production-parity)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse "${CANDIDATE_SHA}^{tree}")" = "$(node -p "require('./release-decision.json').candidate_tree_sha")"
+          SHORT_SHA="${CANDIDATE_SHA:0:12}"
+          BRANCH="promotion/staging-${SHORT_SHA}"
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" --method POST --field "ref=refs/heads/${BRANCH}" --field "sha=${CANDIDATE_SHA}" > created-ref.json
+          test "$(node -p "require('./created-ref.json').object.sha")" = "$CANDIDATE_SHA"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open promotion PR and enable normal auto-merge
+        id: pr
+        env:
+          PROMOTION_BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const c = require('./certification-download/staging-certification.json');
+          const d = require('./release-decision.json');
+          const mobile = (name) => { const e=c[name]||{}; return `${e.result||'UNKNOWN'} (run ${e.run_id||'none'}, SHA ${e.tested_sha||'none'})`; };
+          const body = [
+            `Candidate SHA: ${c.candidate_commit_sha}`, `Candidate tree SHA: ${c.candidate_tree_sha}`,
+            `Certification run: ${c.certification_run_id}`, `Certification verdict: ${c.final_verdict}`,
+            `Agent release decision: ${d.release_decision}`, `Release class: ${c.release_class}`,
+            `Staging health: ${c.staging_health}`, `Security: ${c.static_security}`,
+            `Artifact exposure: ${c.artifact_exposure}`, `ZAP baseline/API: ${c.zap_baseline} / ${c.zap_api}`,
+            `TestSprite Android: ${mobile('testsprite_android')}`, `TestSprite iOS: ${mobile('testsprite_ios')}`,
+            `Blocking findings: ${JSON.stringify(c.blocking_findings||[])}`,
+            `Report-only findings: ${JSON.stringify(c.report_only_findings||[])}`,
+          ].join('\n\n');
+          fs.writeFileSync('promotion-pr-body.md', body+'\n');
+          NODE
+          PR_URL="$(gh pr create --base master --head "$PROMOTION_BRANCH" --title "promote(staging): certified ${CANDIDATE_SHA:0:12} to master" --body-file promotion-pr-body.md)"
+          gh pr merge "$PR_URL" --auto --merge
+          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "Promotion PR: $PR_URL" >> "$GITHUB_STEP_SUMMARY"

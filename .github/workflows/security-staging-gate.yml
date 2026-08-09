@@ -19,6 +19,8 @@ on:
         value: ${{ jobs.staging-security-gate.outputs.health_result }}
       synthetic_result:
         value: ${{ jobs.staging-security-gate.outputs.synthetic_result }}
+      release_class:
+        value: ${{ jobs.staging-security-gate.outputs.release_class }}
   pull_request:
     types:
       - opened
@@ -68,6 +70,7 @@ jobs:
       staging_impact: ${{ steps.classify.outputs.staging_impact }}
       mobile_only: ${{ steps.classify.outputs.mobile_only }}
       classifications: ${{ steps.classify.outputs.classifications }}
+      release_class: ${{ steps.classify.outputs.release_class }}
     steps:
       - name: Checkout merge candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,16 +80,22 @@ jobs:
       - name: Classify changed surfaces
         id: classify
         env:
-          GITHUB_BASE_REF: origin/${{ github.base_ref || 'staging/production-parity' }}
+          DIFF_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          DIFF_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          node security/scripts/classify-changed-surfaces.js > classification.json
+          if [ -z "${DIFF_BASE_SHA:-}" ] || [ "$DIFF_BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            DIFF_BASE_SHA="${DIFF_HEAD_SHA}^"
+          fi
+          node security/scripts/classify-changed-surfaces.js "$DIFF_BASE_SHA" "$DIFF_HEAD_SHA" > classification.json
           STAGING_IMPACT="$(python3 -c "import json; print(str(json.load(open('classification.json'))['stagingImpact']).lower())")"
           MOBILE_ONLY="$(python3 -c "import json; print(str(json.load(open('classification.json'))['mobileOnly']).lower())")"
           CLASSIFICATIONS="$(python3 -c "import json; print(','.join(json.load(open('classification.json'))['classifications']))")"
+          RELEASE_CLASS="$(python3 -c "import json; print(json.load(open('classification.json'))['releaseClass'])")"
           echo "staging_impact=${STAGING_IMPACT}" >> "$GITHUB_OUTPUT"
           echo "mobile_only=${MOBILE_ONLY}" >> "$GITHUB_OUTPUT"
           echo "classifications=${CLASSIFICATIONS}" >> "$GITHUB_OUTPUT"
+          echo "release_class=${RELEASE_CLASS}" >> "$GITHUB_OUTPUT"
           cat classification.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload classification artifact
@@ -481,12 +490,14 @@ jobs:
       contract_result: ${{ steps.verdict.outputs.contract_result }}
       health_result: ${{ steps.verdict.outputs.health_result }}
       synthetic_result: ${{ steps.verdict.outputs.synthetic_result }}
+      release_class: ${{ steps.verdict.outputs.release_class }}
     steps:
       - name: Publish staging gate verdict
         id: verdict
         env:
           STAGING_IMPACT: ${{ needs.classify-changes.outputs.staging_impact }}
           MOBILE_ONLY: ${{ needs.classify-changes.outputs.mobile_only }}
+          RELEASE_CLASS: ${{ needs.classify-changes.outputs.release_class }}
           MIGRATION: ${{ needs.migration-validation.result }}
           DEPLOY: ${{ needs.deploy-staging.result }}
           HEALTH: ${{ needs.staging-health.result }}
@@ -515,7 +526,7 @@ jobs:
             fi
           fi
 
-          if [ "$STAGING_IMPACT" = "true" ]; then
+          if [ "$RELEASE_CLASS" = "RUNTIME_RELEASE" ]; then
             echo "deployment_required=true" >> "$GITHUB_OUTPUT"
             echo "deployed_staging_sha=${DEPLOYED_STAGING_SHA:-}" >> "$GITHUB_OUTPUT"
           else
@@ -526,6 +537,7 @@ jobs:
           echo "contract_result=${CONTRACT}" >> "$GITHUB_OUTPUT"
           echo "health_result=${HEALTH}" >> "$GITHUB_OUTPUT"
           echo "synthetic_result=${SYNTHETIC}" >> "$GITHUB_OUTPUT"
+          echo "release_class=${RELEASE_CLASS}" >> "$GITHUB_OUTPUT"
 
           {
             echo "## Staging security gate"
@@ -536,6 +548,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Staging impact | ${STAGING_IMPACT} |"
             echo "| Mobile only | ${MOBILE_ONLY} |"
+            echo "| Release class | ${RELEASE_CLASS} |"
             echo "| Migration validation | ${MIGRATION} |"
             echo "| Deploy staging | ${DEPLOY} |"
             echo "| Health checks | ${HEALTH} |"
