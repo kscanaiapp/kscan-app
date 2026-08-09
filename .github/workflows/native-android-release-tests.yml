@@ -143,6 +143,28 @@ jobs:
           curl -fsSL https://get.maestro.mobile.dev | bash -s "$MAESTRO_VERSION"
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      - name: Start Metro bundler
+        # A debug build loads its JS from Metro at runtime. Without it the app
+        # launches to a blank shell and every flow fails identically waiting for
+        # the first screen -- which is what happened on the first live run.
+        #
+        # A release build would embed the bundle, but Android release signing
+        # requires KSCAN_STORE_FILE credentials this runner deliberately does not
+        # hold, so the debug bundle plus Metro is the path that needs no secrets.
+        run: |
+          set -euo pipefail
+          nohup npx expo start --port 8081 > metro.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8081/status >/dev/null 2>&1; then
+              echo "Metro ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'Metro did not become ready; tail of metro.log:' >&2
+          tail -40 metro.log >&2
+          exit 1
+
       - name: Run release flows on emulator
         id: maestro
         continue-on-error: true
@@ -164,6 +186,8 @@ jobs:
           script: |
             set -eu
             adb install -r "${{ steps.build.outputs.apk }}"
+            # The emulator reaches host Metro through this reverse tunnel.
+            adb reverse tcp:8081 tcp:8081
             mkdir -p artifacts
             set +e
             maestro test .maestro/flows/release \
