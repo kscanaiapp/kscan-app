@@ -134,6 +134,27 @@ test('certification records the policy state audit-visibly', () => {
   assert.ok(report.native_ui_automation.reason);
 });
 
+test('a suspended certification emits no per-platform evidence blocks', () => {
+  // Live run 31323141675 rendered empty native_android / native_ios shells as
+  // "OPERATIONAL_FAILURE". They contributed no finding, but a document whose
+  // point is that nothing was measured must not display a failure-shaped field.
+  const report = build(passingRuntimeInput());
+  assert.equal(report.native_android, undefined);
+  assert.equal(report.native_ios, undefined);
+  const serialized = JSON.stringify(report);
+  assert.ok(
+    !/"native_(android|ios)"/.test(serialized),
+    'no per-platform native evidence block may appear while the control is suspended',
+  );
+});
+
+test('re-arming restores the per-platform evidence blocks', () => {
+  const armed = { status: 'ACTIVE', required_for_release: true, policy_outcome: 'REQUIRED_BLOCKING' };
+  const report = build(passingRuntimeInput(), { policy: armed });
+  assert.ok(report.native_android, 'armed certification must carry per-platform evidence');
+  assert.ok(report.native_ios);
+});
+
 test('promotion no longer requires native evidence', () => {
   const certification = build(passingRuntimeInput());
   const observed = {
