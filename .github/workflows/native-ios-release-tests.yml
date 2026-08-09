@@ -46,7 +46,11 @@ env:
 jobs:
   ios:
     name: iOS release flows
-    runs-on: macos-14
+    # Expo SDK 54 / React Native 0.81 generate a Podfile that rejects Xcode 15
+    # ("Please upgrade XCode"), which is the macos-14 default. macos-15 ships
+    # Xcode 16, and the version is pinned below so the toolchain is recorded in
+    # the evidence rather than inherited from whatever the image defaults to.
+    runs-on: macos-15
     timeout-minutes: 120
     outputs:
       result: ${{ steps.evidence.outputs.result }}
@@ -88,6 +92,20 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Select Xcode
+        id: xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Record toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          XCODE="$(xcodebuild -version | head -n1 | awk '{print $2}')"
+          echo "xcode=$XCODE" >> "$GITHUB_OUTPUT"
+          echo "Xcode $XCODE"
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -141,41 +159,137 @@ jobs:
         id: build
         run: |
           set -euo pipefail
-          SCHEME="$(node -p "const a=require('./app.json'); (a.expo||a).scheme || (a.expo||a).slug")"
           cd ios
           WORKSPACE="$(ls -d *.xcworkspace | head -n1)"
-          XCSCHEME="$(xcodebuild -workspace "$WORKSPACE" -list -json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).workspace.schemes[0]")"
+          # The app scheme is the one matching the generated project, NOT the
+          # first scheme in the list -- a Pods workspace lists dependency
+          # schemes (EXConstants, hermes-engine, ...) that build a static
+          # library and produce no .app, which reads as a green build with a
+          # missing artifact.
+          APP_SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          if ! xcodebuild -workspace "$WORKSPACE" -list -json \
+              | APP_SCHEME="$APP_SCHEME" node -e "
+                  let raw=''; process.stdin.on('data', d => raw += d).on('end', () => {
+                    const schemes = JSON.parse(raw).workspace.schemes || [];
+                    if (!schemes.includes(process.env.APP_SCHEME)) {
+                      console.error('scheme ' + process.env.APP_SCHEME + ' not found. Available: ' + schemes.join(', '));
+                      process.exit(1);
+                    }
+                  });
+                "; then
+            echo "could not resolve the application scheme" >&2
+            exit 1
+          fi
+          echo "Building scheme $APP_SCHEME from $WORKSPACE"
+          # Release, not Debug. React Native's "Bundle React Native code and
+          # images" phase self-skips for a Debug simulator build:
+          #
+          #   [[ Debug = *Debug* ]] && [[ ! iphonesimulator == *simulator ]] ...
+          #   SKIP_BUNDLING enabled; skipping.
+          #
+          # so a Debug simulator app ships with no main.jsbundle and can only
+          # render against a Metro dev server. A release certification runner
+          # must test a self-contained build of the exact candidate, so Release
+          # is used here. Simulator builds need no signing identity.
+          set -o pipefail
           xcodebuild \
             -workspace "$WORKSPACE" \
-            -scheme "$XCSCHEME" \
-            -configuration Debug \
+            -scheme "$APP_SCHEME" \
+            -configuration Release \
             -sdk iphonesimulator \
             -derivedDataPath build \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             CODE_SIGNING_ALLOWED=NO \
-            build | xcpretty || xcodebuild \
-            -workspace "$WORKSPACE" \
-            -scheme "$XCSCHEME" \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -derivedDataPath build \
-            -destination "id=${{ steps.sim.outputs.udid }}" \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee ../xcodebuild.log | xcpretty || {
+              echo "xcodebuild failed; tail of raw log:" >&2
+              tail -80 ../xcodebuild.log >&2
+              exit 1
+            }
           cd ..
-          APP="$(find ios/build/Build/Products -maxdepth 2 -name '*.app' -type d | head -n1)"
-          if [ -z "$APP" ]; then echo 'no .app produced' >&2; exit 1; fi
+          APP="$(find ios/build/Build/Products -maxdepth 3 -name '*.app' -type d \
+            -not -path '*/XCFrameworkIntermediates/*' | head -n1)"
+          if [ -z "$APP" ]; then
+            echo "build reported success but produced no .app under ios/build/Build/Products" >&2
+            find ios/build/Build/Products -maxdepth 3 -type d >&2 || true
+            exit 1
+          fi
+          echo "Built $APP"
           echo "app=$APP" >> "$GITHUB_OUTPUT"
           echo "build_identifier=ios-sim-${{ steps.candidate.outputs.sha }}-$(find "$APP" -type f -exec shasum {} + | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
+      - name: Verify the app carries a self-contained JS bundle
+        id: bundle
+        # Guards the exact defect that produced 25/25 identical failures in run
+        # 31317967934: a native shell with no JS. An app in that state was never
+        # runnable, so this is an OPERATIONAL_FAILURE of the harness, never a
+        # BLOCKED verdict against the product.
+        run: |
+          set -euo pipefail
+          APP='${{ steps.build.outputs.app }}'
+          BUNDLE="$(find "$APP" -type f \( -name 'main.jsbundle' -o -name '*.jsbundle' \) -print -quit)"
+          if [ -z "$BUNDLE" ]; then
+            echo "::error::no .jsbundle inside $APP - the app cannot render without a dev server"
+            echo 'Top-level app contents:' >&2
+            ls -la "$APP" >&2 || true
+            grep -n 'SKIP_BUNDLING' xcodebuild.log >&2 || true
+            echo 'bundle_present=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          BYTES="$(wc -c < "$BUNDLE" | tr -d ' ')"
+          if [ "$BYTES" -lt 10000 ]; then
+            echo "::error::$BUNDLE is implausibly small (${BYTES} bytes)"
+            echo 'bundle_present=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "JS bundle: $BUNDLE (${BYTES} bytes)"
+          echo 'bundle_present=true' >> "$GITHUB_OUTPUT"
+          echo "bundle_path=$BUNDLE" >> "$GITHUB_OUTPUT"
+
       - name: Install app on simulator
         run: xcrun simctl install "${{ steps.sim.outputs.udid }}" "${{ steps.build.outputs.app }}"
+
+      - name: Probe app launch
+        id: launch
+        # Proves the app reaches a rendering state before 25 flows are blamed for
+        # a harness fault. A failure here is OPERATIONAL_FAILURE, not BLOCKED.
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          UDID='${{ steps.sim.outputs.udid }}'
+          xcrun simctl launch "$UDID" "$APP_ID" > artifacts/app-launch.txt 2>&1 || {
+            echo "::error::simctl launch failed"
+            cat artifacts/app-launch.txt >&2
+            echo 'launched=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          }
+          cat artifacts/app-launch.txt
+          sleep 15
+          xcrun simctl io "$UDID" screenshot artifacts/app-launch.png || true
+          # Capture only this app's recent log, and only the fields needed to see
+          # a JS load failure. No environment or secret values are emitted.
+          xcrun simctl spawn "$UDID" log show --last 60s --style compact \
+            --predicate "processImagePath CONTAINS[c] 'KScan'" \
+            > artifacts/app-launch-log.txt 2>/dev/null || true
+          if grep -qiE 'No bundle URL present|Could not connect to development server|RCTFatal' artifacts/app-launch-log.txt 2>/dev/null; then
+            echo "::error::app started but could not load its JS bundle"
+            grep -iE 'No bundle URL present|Could not connect to development server|RCTFatal' artifacts/app-launch-log.txt | head -5 >&2
+            echo 'launched=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          xcrun simctl terminate "$UDID" "$APP_ID" || true
+          echo 'launched=true' >> "$GITHUB_OUTPUT"
 
       - name: Install Maestro
         run: |
           set -euo pipefail
           curl -fsSL https://get.maestro.mobile.dev | bash -s "$MAESTRO_VERSION"
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # No Metro server. The Release build above embeds the candidate's JS
+      # bundle, so the app under test is self-contained and is the artifact a
+      # release certification should actually exercise.
 
       - name: Run release flows
         continue-on-error: true
@@ -198,28 +312,46 @@ jobs:
 
       - name: Build native evidence
         id: evidence
+        if: always() && steps.candidate.outputs.sha != ''
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          mkdir -p artifacts
+          # A build, bundle, launch or simulator fault must still emit evidence,
+          # and must name the specific reason, so certification sees an explicit
+          # OPERATIONAL_FAILURE rather than a missing artifact or a BLOCKED
+          # verdict against an app that was never runnable.
           INFRA=''
-          if [ ! -f artifacts/report.xml ]; then INFRA='--infrastructure-failure'; fi
+          REASON=''
+          if [ '${{ steps.bundle.outputs.bundle_present }}' = 'false' ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_JS_BUNDLE_MISSING'
+          elif [ '${{ steps.launch.outputs.launched }}' = 'false' ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_APP_LAUNCH_FAILED'
+          elif [ '${{ steps.build.outcome }}' != 'success' ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_BUILD_FAILED'
+          elif [ ! -f artifacts/report.xml ]; then
+            INFRA='--infrastructure-failure'; REASON='NATIVE_REPORT_MISSING'
+          fi
+          REASON_ARG=''
+          if [ -n "$REASON" ]; then REASON_ARG="--reason $REASON"; fi
           node security/scripts/build-native-mobile-evidence.js \
             --platform ios \
             --candidate-sha "${{ steps.candidate.outputs.sha }}" \
             --run-id "${{ github.run_id }}" \
-            --build-identifier "${{ steps.build.outputs.build_identifier }}" \
-            --device "${{ steps.sim.outputs.device }}" \
+            --build-identifier "${{ steps.build.outputs.build_identifier || 'unavailable-build-failed' }}" \
+            --device "${{ steps.sim.outputs.device || 'unavailable' }}_Xcode-${{ steps.toolchain.outputs.xcode || 'unknown' }}" \
             --runner "Maestro ${MAESTRO_VERSION}" \
             --report artifacts/report.xml \
             --artifact-links "$RUN_URL" \
             --output artifacts/native-ios-evidence.json \
-            $INFRA
+            $INFRA $REASON_ARG
           RESULT="$(node -p "require('./artifacts/native-ios-evidence.json').result")"
           echo "result=$RESULT" >> "$GITHUB_OUTPUT"
           cat artifacts/native-ios-evidence.json
 
       - name: Upload native evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: native-ios-evidence
@@ -236,6 +368,10 @@ jobs:
             artifacts/report.xml
             artifacts/maestro.log
             artifacts/maestro-debug/**
+            artifacts/app-launch.txt
+            artifacts/app-launch.png
+            artifacts/app-launch-log.txt
+            xcodebuild.log
           if-no-files-found: warn
           retention-days: 30
 
