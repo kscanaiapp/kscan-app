@@ -20,6 +20,7 @@ test('promotion workflow validates before creating a ref or PR', () => {
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'promote-certified-staging.yml'), 'utf8');
   assert.ok(workflow.indexOf('validate-promotion-request.js') < workflow.indexOf('git\/refs'));
   assert.ok(workflow.indexOf('git\/refs') < workflow.indexOf('gh pr create'));
+  assert.match(workflow, /name: release-decision-\$\{\{ github\.run_id \}\}[\s\S]*retention-days: 90/);
 });
 
 test('promotion validator fails closed on a BLOCK decision', () => {
