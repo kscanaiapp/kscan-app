@@ -48,7 +48,10 @@ jobs:
   android:
     name: Android release flows
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Observed on a cold runner: ~10 min Gradle (incl. NDK download) and ~12 min
+    # emulator boot before the first flow executes, so 90 left little headroom
+    # for a 25-flow suite.
+    timeout-minutes: 120
     outputs:
       result: ${{ steps.evidence.outputs.result }}
       tested_sha: ${{ steps.candidate.outputs.sha }}
@@ -155,10 +158,14 @@ jobs:
           force-avd-creation: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated
           disable-animations: true
+          # NOTE: this script runs under /bin/sh (dash), not bash. Bashisms such
+          # as `set -o pipefail` abort it on line 1 with "Illegal option", which
+          # silently skips the whole test run. Keep this POSIX-only.
           script: |
-            set -o pipefail
+            set -eu
             adb install -r "${{ steps.build.outputs.apk }}"
             mkdir -p artifacts
+            set +e
             maestro test .maestro/flows/release \
               --include-tags release \
               -e APP_ID="$APP_ID" \
@@ -167,7 +174,14 @@ jobs:
               --format junit \
               --output artifacts/report.xml \
               --debug-output artifacts/maestro-debug \
-              2>&1 | tee artifacts/maestro.log
+              > artifacts/maestro.log 2>&1
+            MAESTRO_STATUS=$?
+            set -e
+            cat artifacts/maestro.log
+            echo "maestro exit status: $MAESTRO_STATUS"
+            # Do not fail here: a flow failure must reach the evidence builder so
+            # it is classified as BLOCKED rather than lost as a step error.
+            exit 0
 
       - name: Record device identity
         id: device
