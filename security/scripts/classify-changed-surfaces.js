@@ -23,6 +23,7 @@ const CLASSIFIERS = [
   { tag: 'AUTH', patterns: [/auth/i, /login/i, /oauth/i, /session/i, /deletion/i, /privacy/i] },
   { tag: 'STORAGE', patterns: [/storage/i, /upload/i, /bucket/i] },
   { tag: 'BUILD/CI', patterns: [/\.github\//, /^scripts\//, /^package\.json$/, /^package-lock\.json$/, /^eas\.json$/, /^app\.config\./] },
+  { tag: 'CONTROL PLANE', patterns: [/^security\//, /^__tests__\//, /^qa\//, /^\.zap\//, /^\.semgrep\//] },
   { tag: 'DOCUMENTATION ONLY', patterns: [/^docs\//, /^README/i, /\.md$/] },
 ];
 
@@ -67,7 +68,7 @@ function classifyFile(filePath) {
     tags.add('MOBILE');
   }
   if ([...tags].every((t) => t === 'DOCUMENTATION ONLY' || t === 'BUILD/CI')) {
-    return ['DOCUMENTATION ONLY'];
+    return tags.has('BUILD/CI') ? [...tags] : ['DOCUMENTATION ONLY'];
   }
   return [...tags];
 }
@@ -100,9 +101,11 @@ function main() {
   // never grant deployment authority. The strict path allow-list defines a
   // control-plane candidate first; only runtime candidates can have staging
   // impact and reach the staging write job.
-  const stagingImpact = releaseClass === 'RUNTIME_RELEASE'
-    && !onlyDocs
-    && [...allTags].some((t) => STAGING_IMPACT_TAGS.has(t));
+  // Anything outside the strict control-plane allow-list is release content.
+  // Runtime dependency/build/config files (for example package.json or
+  // eas.json) must never skip deployment merely because their display tag is
+  // BUILD/CI rather than API/MOBILE.
+  const stagingImpact = releaseClass === 'RUNTIME_RELEASE';
 
   const result = {
     baseRef,
