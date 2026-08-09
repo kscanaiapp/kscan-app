@@ -129,6 +129,18 @@ test('release classifier uses a strict control-plane allow-list', () => {
   assert.deepEqual(classifyFile('app/index.tsx'), ['MOBILE', 'WEB']);
 });
 
+test('an Auth-named workflow remains control-plane and cannot gain staging write authority', () => {
+  const script = path.join(__dirname, '..', '..', 'security', 'scripts', 'classify-changed-surfaces.js');
+  const result = spawnSync(process.execPath, [script], {
+    encoding: 'utf8',
+    env: { ...process.env, CHANGED_FILES: '.github/workflows/configure-staging-auth-security.yml' },
+  });
+  assert.equal(result.status, 0);
+  const classification = JSON.parse(result.stdout);
+  assert.equal(classification.releaseClass, 'CONTROL_PLANE_CHANGE');
+  assert.equal(classification.stagingImpact, false);
+});
+
 test('TestSprite evidence preserves run identity and exact attested SHA', () => {
   const evidence = parseEvidence({
     runId: 'run-1', status: 'passed', dashboardUrl: 'https://example.test/run-1',
@@ -190,6 +202,8 @@ test('staging Auth configuration is pinned away from production and changes only
   assert.match(workflow, /PRODUCTION_REF: wyyuqfdxucjksghsmhry/);
   assert.match(workflow, /--data '\{"password_hibp_enabled":true\}'/);
   assert.doesNotMatch(workflow, /projects\/\$\{PRODUCTION_REF\}/);
+  assert.match(workflow, /SUPABASE_PLAN_DOES_NOT_SUPPORT_HIBP/);
+  assert.ok(workflow.indexOf("writeFileSync('staging-auth-security.json'") < workflow.indexOf('PATCH_CODE='));
 });
 
 test('master validation emits the exact intended check name', () => {
