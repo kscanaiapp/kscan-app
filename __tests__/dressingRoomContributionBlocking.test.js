@@ -132,6 +132,23 @@ test('GP-004: the migration is marked as not-yet-deployed to production', () => 
   );
 });
 
+test('GP-004: the dependency on the blocking migration fails loudly, not cryptically', () => {
+  const migration = read(MIGRATION);
+  assert.match(
+    migration,
+    /create schema if not exists internal/i,
+    'the repo-wide replayability guard requires this whenever internal.* is read',
+  );
+  assert.match(
+    migration,
+    /to_regprocedure\('internal\.is_dressing_room_pair_blocked\(uuid, uuid\)'\) is null/,
+    'a missing helper must raise a readable error at migration time',
+  );
+  const schemaAt = migration.search(/create schema if not exists internal/i);
+  const firstUse = migration.search(/internal\.is_dressing_room_pair_blocked\(\s*dr\.user_id/);
+  assert.ok(schemaAt > -1 && firstUse > schemaAt, 'schema line must precede the predicate');
+});
+
 test('GP-004: pgTAP coverage for contribution blocking exists', () => {
   const pgtap = read(PGTAP);
   assert.match(pgtap, /can_contribute_to_dressing_room/);

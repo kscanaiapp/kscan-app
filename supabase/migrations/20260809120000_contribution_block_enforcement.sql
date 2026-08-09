@@ -47,6 +47,25 @@
 -- preserved, so the three RLS policies keep working untouched and no policy is
 -- dropped or recreated. Replacing the function body is the whole change.
 
+-- This migration reads internal.is_dressing_room_pair_blocked(), created by
+-- 20260806153233_dressing_room_user_blocking.sql, which sorts earlier and so
+-- always precedes this one in a from-scratch replay. The schema line below
+-- keeps the migration set replayable on its own terms (and satisfies the
+-- repo-wide guard in __tests__/dressingRoomBlockingUi.test.js); the assertion
+-- after it turns a missing helper into a readable failure instead of a bare
+-- "function internal.is_dressing_room_pair_blocked does not exist" surfacing
+-- later from inside an RLS predicate.
+create schema if not exists internal;
+
+do $$
+begin
+  if to_regprocedure('internal.is_dressing_room_pair_blocked(uuid, uuid)') is null then
+    raise exception
+      'internal.is_dressing_room_pair_blocked(uuid,uuid) is missing; apply 20260806153233_dressing_room_user_blocking.sql first';
+  end if;
+end;
+$$;
+
 create or replace function public.can_contribute_to_dressing_room(p_room_id uuid)
 returns boolean
 language sql
