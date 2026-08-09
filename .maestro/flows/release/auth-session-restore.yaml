@@ -1,0 +1,24 @@
+# Release flow: auth.session_restore
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: auth.session_restore
+tags:
+  - release
+  - auth
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- runFlow: ../../subflows/sign-in.yaml
+# Relaunch WITHOUT clearing state: the session must survive a cold start.
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: "router-home-screen"
+    timeout: 45000
+- assertNotVisible:
+    id: "auth-email-input"
+- takeScreenshot: "auth-session-restore"

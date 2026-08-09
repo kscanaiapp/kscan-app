@@ -1,0 +1,29 @@
+# Release flow: dressing_room.shared_access_control
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: dressing_room.shared_access_control
+tags:
+  - release
+  - dressing-room
+  - authorization
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- runFlow: ../../subflows/sign-in.yaml
+- tapOn:
+    id: "home-v2-dressing-rooms-card"
+- extendedWaitUntil:
+    visible:
+      id: "private-dressing-room-entry"
+    timeout: 30000
+- tapOn:
+    id: "private-dressing-room-entry"
+# A shared room must render its message surface only for a permitted member.
+- extendedWaitUntil:
+    visible:
+      id: "room-messages-list"
+    timeout: 45000
+- takeScreenshot: "dressing-room-shared-access"

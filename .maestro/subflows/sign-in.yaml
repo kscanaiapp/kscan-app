@@ -1,0 +1,16 @@
+# Subflow: sign-in
+appId: ${APP_ID}
+name: sign-in
+tags:
+  - subflow
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+# Cold-start sign-in used by most release flows.
+- launchApp:
+    clearState: true
+    permissions:
+      camera: allow
+- runFlow: ./sign-in-nolaunch.yaml

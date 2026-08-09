@@ -1,0 +1,34 @@
+# Subflow: sign-in-nolaunch
+appId: ${APP_ID}
+name: sign-in-nolaunch
+tags:
+  - subflow
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+# Sign-in without launching, for flows that control launch options themselves.
+- runFlow: ./skip-onboarding.yaml
+- tapOn:
+    id: "onboarding-already-have-account-button-v1"
+    optional: true
+- tapOn:
+    id: "onboarding-auth-login-link-v1"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "auth-email-input"
+    timeout: 30000
+- tapOn:
+    id: "auth-email-input"
+- inputText: ${QA_EMAIL}
+- tapOn:
+    id: "auth-password-input"
+- inputText: ${QA_PASSWORD}
+- tapOn:
+    id: "auth-submit-button"
+- extendedWaitUntil:
+    visible:
+      id: "router-home-screen"
+    timeout: 60000
